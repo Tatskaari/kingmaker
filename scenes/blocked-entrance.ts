@@ -78,7 +78,7 @@ export const blockedEntrance: Scene = {
         {
           id: "calm-holt", on: "attempt",
           when: "The player tries to talk Holt down or win his cooperation while he's still raging, in a way that could backfire (arguing, invoking the King's authority, flattering him).",
-          check: { skill: "persuasion", dc: 12, success: "Holt stops, looks at the player properly, and decides they might be useful.", failure: "Holt snaps 'Not now!' and turns his back for a moment; he's still talkable, but the player has lost a little ground.", onSuccess: "holt-briefs" },
+          check: { reason: "to get Holt to stop raging and hear you out", skill: "persuasion", dc: 12, success: "Holt stops, looks at the player properly, and decides they might be useful.", failure: "Holt snaps 'Not now!' and turns his back for a moment; he's still talkable, but the player has lost a little ground.", onSuccess: "holt-briefs" },
         },
       ],
     },
@@ -111,18 +111,18 @@ export const blockedEntrance: Scene = {
         {
           id: "persuade-back-out", on: "attempt",
           when: "The player tries to convince Rowan to give up and back the cart out the way it came.",
-          check: { skill: "persuasion", dc: 14, success: "Rowan sighs, pats the cart and agrees to back it out, with slightly wounded dignity.", failure: "Rowan digs in: 'One more minute!' He's still persuadable with a better argument or a face-saving offer.", onSuccess: "backed-out" },
+          check: { reason: "to convince Rowan to back the cart out", skill: "persuasion", dc: 14, success: "Rowan sighs, pats the cart and agrees to back it out, with slightly wounded dignity.", failure: "Rowan digs in: 'One more minute!' He's still persuadable with a better argument or a face-saving offer.", onSuccess: "backed-out" },
         },
         {
           id: "press-holt", on: "attempt",
           when: "The player presses Holt to authorise smashing the cart.",
-          check: { skill: "persuasion", dc: 13, success: "Holt produces his signed order and hands it over: 'On your head, then.'", failure: "Holt refuses for now: 'Not yet. Nine Furrows will have my hide.'", onSuccess: "blessing" },
+          check: { reason: "to get Holt's permission to smash the cart", skill: "persuasion", dc: 13, success: "Holt produces his signed order and hands it over: 'On your head, then.'", failure: "Holt refuses for now: 'Not yet. Nine Furrows will have my hide.'", onSuccess: "blessing" },
         },
         { id: "seek-corvin", on: "attempt", when: "The player sets off to find Magister Corvin or his book.", to: "fetch-book" },
         {
           id: "release-charm", on: "attempt",
           when: "The player tries to calm, dispel or outwit the cart's protective charm directly with magic or know-how.",
-          check: { skill: "arcana", dc: 15, success: "The charm settles; the wheels sigh and relax. The cart can be rolled clear.", failure: "The cart's hum turns shrill and it braces harder; Rowan winces.", onSuccess: "cleared-other" },
+          check: { reason: "to settle the cart's protective charm", skill: "arcana", dc: 15, success: "The charm settles; the wheels sigh and relax. The cart can be rolled clear.", failure: "The cart's hum turns shrill and it braces harder; Rowan winces.", onSuccess: "cleared-other" },
         },
         { id: "other-remedy", when: "The cart has actually been freed and cleared from the archway by some other means established in play (for example, lifting the tree off so the charm has nothing to protect, or a trick that convinces the cart the doorway is safe).", to: "cleared-other" },
       ],
@@ -136,7 +136,7 @@ export const blockedEntrance: Scene = {
         {
           id: "smash-it", on: "attempt",
           when: "The player sets about breaking the cart apart to clear the arch.",
-          check: { skill: "athletics", dc: 13, success: "Lacquered panels split, the charm dies with a sad chime, and the wreck can be dragged aside. The tree survives, mostly.", failure: "The cart fights back, bracing harder; the player is jolted but can keep going.", onSuccess: "smashed" },
+          check: { reason: "to break the cart apart and clear the arch", skill: "athletics", dc: 13, success: "Lacquered panels split, the charm dies with a sad chime, and the wreck can be dragged aside. The tree survives, mostly.", failure: "The cart fights back, bracing harder; the player is jolted but can keep going.", onSuccess: "smashed" },
         },
         { id: "rowan-relents", when: "Rowan has agreed to back the cart out after all, to save it.", to: "backed-out" },
         { id: "other-remedy-late", when: "The cart has actually been freed and cleared from the archway by some other means established in play.", to: "cleared-other" },

@@ -67,17 +67,17 @@ export const garrowsToll: Scene = {
         {
           id: "argue-charge", on: "attempt",
           when: "The player tries to talk Garrow into dropping or cutting a charge he is entitled to, on grounds that have nothing to do with goblins or Tam Hollis: pleading poverty, offering a deal, appealing to his better nature, or arguing that a rule shouldn't apply to them. (Simply pointing out what the notices or the Book actually say, such as the levy notice's 'able and willing', needs no dice: he is honest about his rules.)",
-          check: { skill: "persuasion", dc: 12, success: "Garrow consults the Book, sighs through his nose and concedes, saying which charge comes off (or by how much the sum comes down) and why, then amends the ledger with a pained flourish. Never the King's penny, and the bar stays down until the rest is actually paid.", failure: "Garrow quotes the clause from memory and the charge stands. If the point has been pressed before, he names his final offer: the sum, and the ways the Book allows it to be paid. A new argument or a real offer still gets a hearing.", onSuccess: "the-bill" },
+          check: { reason: "to persuade Garrow to reduce a charge", skill: "persuasion", dc: 12, success: "Garrow consults the Book, sighs through his nose and concedes, saying which charge comes off (or by how much the sum comes down) and why, then amends the ledger with a pained flourish. Never the King's penny, and the bar stays down until the rest is actually paid.", failure: "Garrow quotes the clause from memory and the charge stands. If the point has been pressed before, he names his final offer: the sum, and the ways the Book allows it to be paid. A new argument or a real offer still gets a hearing.", onSuccess: "the-bill" },
         },
         {
           id: "deceive", on: "attempt",
           when: "The player tries to get through free or cheaply by deceiving Garrow: claiming to be on the King's business or otherwise exempt, showing a false seal or pass, or telling some other lie. (Reports of goblins on the road are not lies: they're true.)",
-          check: { skill: "deception", dc: 14, success: "Garrow peers at it, at them, and at it again, and decides to believe. He lifts the bar with ceremony and writes every word of their claim in the ledger.", failure: "Garrow knows a royal seal when he sees one, and a lie when he hears one. He's offended, and the Book has a fine for false declarations.", onSuccess: "bluffed", onFailure: "dug-in" },
+          check: { reason: "to trick Garrow into granting an exemption", skill: "deception", dc: 14, success: "Garrow peers at it, at them, and at it again, and decides to believe. He lifts the bar with ceremony and writes every word of their claim in the ledger.", failure: "Garrow knows a royal seal when he sees one, and a lie when he hears one. He's offended, and the Book has a fine for false declarations.", onSuccess: "bluffed", onFailure: "dug-in" },
         },
         {
           id: "intimidate", on: "attempt",
           when: "The player threatens Garrow (with violence, with their rank or friends, with ruin or a report to his superiors) to make him lift the bar or drop the toll.",
-          check: { skill: "intimidation", dc: 14, success: "Garrow goes grey, fumbles the padlock and lifts the bar, writing with a shaking hand: it will all be in the ledger.", failure: "Garrow goes white to the lips and stands his ground: twenty-two years at this bar. The threat goes in the ledger, with the fine for it.", onSuccess: "cowed", onFailure: "dug-in" },
+          check: { reason: "to threaten Garrow into lifting the bar", skill: "intimidation", dc: 14, success: "Garrow goes grey, fumbles the padlock and lifts the bar, writing with a shaking hand: it will all be in the ledger.", failure: "Garrow goes white to the lips and stands his ground: twenty-two years at this bar. The threat goes in the ledger, with the fine for it.", onSuccess: "cowed", onFailure: "dug-in" },
         },
         { id: "goblins-raised", when: "The goblins or Tam Hollis have come up in earnest: the player has reported goblins on the road, defended Tam's story, shown goblin evidence or asked about the hole in the toll-house door, and Garrow has answered without admitting anything.", to: "goblin-talk" },
         { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: [ADMITTED] },
@@ -94,23 +94,23 @@ export const garrowsToll: Scene = {
         {
           id: "read-garrow", on: "attempt",
           when: "The player quietly studies Garrow to judge whether he believes what he's saying, or what he's hiding: watching him, not arguing with him, confronting him or showing him anything.",
-          check: { skill: "insight", dc: 11, success: "He doesn't believe a word of it. He's frightened, his eyes keep going to the splintered hole in his door and the drawer under the counter, and he's ashamed of something.", failure: "He gives nothing away that the player can read: he seems simply a man who thinks Tam Hollis drinks.", onSuccess: "goblin-talk" },
+          check: { reason: "to read Garrow's fear and hidden shame", skill: "insight", dc: 11, success: "He doesn't believe a word of it. He's frightened, his eyes keep going to the splintered hole in his door and the drawer under the counter, and he's ashamed of something.", failure: "He gives nothing away that the player can read: he seems simply a man who thinks Tam Hollis drinks.", onSuccess: "goblin-talk" },
         },
         {
           id: "convince", on: "attempt",
           when: "The player argues or insists that Tam was telling the truth and presses Garrow to admit it, with nothing new to show him. (Showing him goblin evidence or the tracks, or offering him a decent way to admit it, needs no dice.)",
-          check: { skill: "persuasion", dc: 12, success: "Something in it gets through: Garrow's bluster runs out mid-sentence, and he looks at the hole in his own door.", failure: "Garrow snaps the ledger shut and steers back to the toll, but he's rattled and it shows: the next push will find him weaker.", onSuccess: "confession" },
+          check: { reason: "to make Garrow admit Tam was telling the truth", skill: "persuasion", dc: 12, success: "Something in it gets through: Garrow's bluster runs out mid-sentence, and he looks at the hole in his own door.", failure: "Garrow snaps the ledger shut and steers back to the toll, but he's rattled and it shows: the next push will find him weaker.", onSuccess: "confession" },
         },
         { id: "pays", when: "The toll has actually been paid (coins or goods handed over, the agreed work done, or someone else paying it for them) and Garrow has lifted the bar for the party.", to: "paid" },
         {
           id: "deceive", on: "attempt",
           when: "The player tries to get through free or cheaply by deceiving Garrow: claiming to be on the King's business or otherwise exempt, showing a false seal or pass, or telling some other lie. (Reports of goblins on the road are not lies: they're true.)",
-          check: { skill: "deception", dc: 14, success: "Garrow peers at it, at them, and at it again, and decides to believe. He lifts the bar with ceremony and writes every word of their claim in the ledger.", failure: "Garrow knows a royal seal when he sees one, and a lie when he hears one. He's offended, and the Book has a fine for false declarations.", onSuccess: "bluffed", onFailure: "dug-in" },
+          check: { reason: "to trick Garrow into granting an exemption", skill: "deception", dc: 14, success: "Garrow peers at it, at them, and at it again, and decides to believe. He lifts the bar with ceremony and writes every word of their claim in the ledger.", failure: "Garrow knows a royal seal when he sees one, and a lie when he hears one. He's offended, and the Book has a fine for false declarations.", onSuccess: "bluffed", onFailure: "dug-in" },
         },
         {
           id: "intimidate", on: "attempt",
           when: "The player threatens Garrow (with violence, with their rank or friends, with ruin or a report to his superiors) to make him lift the bar or drop the toll.",
-          check: { skill: "intimidation", dc: 14, success: "Garrow goes grey, fumbles the padlock and lifts the bar, writing with a shaking hand: it will all be in the ledger.", failure: "Garrow goes white to the lips and stands his ground: twenty-two years at this bar. The threat goes in the ledger, with the fine for it.", onSuccess: "cowed", onFailure: "dug-in" },
+          check: { reason: "to threaten Garrow into lifting the bar", skill: "intimidation", dc: 14, success: "Garrow goes grey, fumbles the padlock and lifts the bar, writing with a shaking hand: it will all be in the ledger.", failure: "Garrow goes white to the lips and stands his ground: twenty-two years at this bar. The threat goes in the ledger, with the fine for it.", onSuccess: "cowed", onFailure: "dug-in" },
         },
       ],
     },
@@ -139,12 +139,12 @@ export const garrowsToll: Scene = {
         {
           id: "threaten-again", on: "attempt",
           when: "After being caught out once, the player threatens Garrow again, or harder, to make him lift the bar or drop the toll.",
-          check: { skill: "intimidation", dc: 16, success: "Something finally gives in him: he lifts the bar with shaking hands and writes it all down.", failure: "Garrow's mouth sets. Threats won't move him now, and another line goes in the ledger for the Marshal.", onSuccess: "cowed" },
+          check: { reason: "to frighten Garrow into lifting the bar", skill: "intimidation", dc: 16, success: "Something finally gives in him: he lifts the bar with shaking hands and writes it all down.", failure: "Garrow's mouth sets. Threats won't move him now, and another line goes in the ledger for the Marshal.", onSuccess: "cowed" },
         },
         {
           id: "lie-again", on: "attempt",
           when: "After being caught out once, the player tries a new deception to get through free or cheaply: a different story, pass or claim. (Reports of goblins on the road are not lies: they're true.)",
-          check: { skill: "deception", dc: 16, success: "Against his better judgement Garrow wants to believe it, and does: up goes the bar, and down it all goes in the ledger.", failure: "Garrow doesn't even look up from the ledger as he writes in another fine.", onSuccess: "bluffed" },
+          check: { reason: "to fool Garrow with a different exemption claim", skill: "deception", dc: 16, success: "Against his better judgement Garrow wants to believe it, and does: up goes the bar, and down it all goes in the ledger.", failure: "Garrow doesn't even look up from the ledger as he writes in another fine.", onSuccess: "bluffed" },
         },
       ],
     },
@@ -153,12 +153,12 @@ export const garrowsToll: Scene = {
     {
       id: "sneak", on: "attempt",
       when: "The player tries to get past the bar without Garrow noticing: slipping under it or over the bridge parapet while he's distracted, indoors or looking away.",
-      check: { skill: "stealth", dc: 13, success: "They're past the bar and over the bridge unseen; behind them the goose honks once, and Garrow tells her to hush.", failure: "The goose sees them first. Her shriek brings Garrow round, and they're caught halfway, in full view of the ledger.", onSuccess: "slipped-past", onFailure: "dug-in" },
+      check: { reason: "to slip past Garrow without being noticed", skill: "stealth", dc: 13, success: "They're past the bar and over the bridge unseen; behind them the goose honks once, and Garrow tells her to hush.", failure: "The goose sees them first. Her shriek brings Garrow round, and they're caught halfway, in full view of the ledger.", onSuccess: "slipped-past", onFailure: "dug-in" },
     },
     {
       id: "run", on: "attempt",
       when: "The player openly makes for the far side of the bridge without paying or leave: dashing, ducking or vaulting the bar, or lifting it and going, in plain sight.",
-      check: { skill: "acrobatics", dc: 11, success: "They're past the bar and across the frosty cobbles before Garrow can do more than shout; the goose chases them halfway over the bridge.", failure: "The goose gets there first, or the frost does: they go down in a heap on the cobbles with Garrow standing over them, pencil already moving.", onSuccess: "ran-the-bar", onFailure: "dug-in" },
+      check: { reason: "to vault the bar and cross in plain sight", skill: "acrobatics", dc: 11, success: "They're past the bar and across the frosty cobbles before Garrow can do more than shout; the goose chases them halfway over the bridge.", failure: "The goose gets there first, or the frost does: they go down in a heap on the cobbles with Garrow standing over them, pencil already moving.", onSuccess: "ran-the-bar", onFailure: "dug-in" },
     },
     { id: "attack", on: "attempt", when: "The player attacks Garrow, grabs him or shoves him aside by force, to get past or to take something.", to: "forced" },
     { id: "walk-away", on: "attempt", when: "The party walks away from the toll house without crossing: back down the road the way they came (to the crossroads, to find Tam, or anywhere else), or off on the long trek to another crossing. (Looking for a way across nearby, or trying to ford or swim the river here, is not leaving.)", to: "turned-back" },

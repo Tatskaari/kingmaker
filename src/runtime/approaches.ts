@@ -15,6 +15,11 @@ export interface Approach {
   decider: string;
   repair: "off" | "background";
   repairEffort?: "low" | "medium" | "high";
+  /**
+   * Roll for risky attempts no scene route covers. Off by default: rolls belong to plot beats
+   * (authored edges), so the player can see why the dice matter (V1 and QA feedback).
+   */
+  freeformChecks?: boolean;
 }
 
 export const APPROACHES: Record<string, Approach> = {

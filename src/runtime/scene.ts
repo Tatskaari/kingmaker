@@ -37,6 +37,8 @@ export interface Character {
 export interface Check {
   skill: Skill;
   dc: number;
+  /** Why this is being rolled, for the player: "to talk Holt down before he snaps". Shown with the dice. */
+  reason?: string;
   /** Narration guidance for each outcome. */
   success: string;
   failure: string;

@@ -38,10 +38,11 @@ export function rollCheck(random: () => number, skill: string, dc: number, modif
   return { skill, dc, die, modifier, total, success, critical, ...(advantage ? { advantage } : {}) };
 }
 
-export function describeRoll(roll: RollResult): string {
+export function describeRoll(roll: RollResult, reason?: string): string {
   const mod = roll.modifier >= 0 ? `+ ${roll.modifier}` : `- ${-roll.modifier}`;
   const crit = roll.critical === "success" ? " (natural 20!)" : roll.critical === "failure" ? " (natural 1!)" : "";
-  return `${titleCase(roll.skill)} check: ${roll.die} ${mod} = ${roll.total} vs DC ${roll.dc}: ${roll.success ? "success" : "failure"}${crit}`;
+  const why = reason ? ` ${reason.trim().replace(/\.$/, "")}` : "";
+  return `${titleCase(roll.skill)} check${why}: ${roll.die} ${mod} = ${roll.total} vs DC ${roll.dc}: ${roll.success ? "success" : "failure"}${crit}`;
 }
 
 export const titleCase = (text: string) => text.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());

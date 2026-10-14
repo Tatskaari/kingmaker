@@ -99,7 +99,7 @@ export const qa1Cases: EvalCase[] = [
     setup: { snapshot: "evals/fixtures/qa1/qa1-chaos-actors/crossroads-ambush-turn-002.json" },
     phase: "before",
     input: "I nod gravely and clap one huge hand on his shoulder. \"Brakka will walk you home, little farmer.\" With my other hand, as quietly as a seven-foot half-orc can manage, I try to slip my fingers under his smock and lift whatever that lump is he keeps touching.",
-    expect: ["freeform:sleight_of_hand"],
+    expect: ["none", "freeform:sleight_of_hand"],
     tags: ["rolls", "freeform"],
   },
   {

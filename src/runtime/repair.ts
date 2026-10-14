@@ -61,9 +61,10 @@ function repairSchema(scene: Scene) {
             on: { type: "string", enum: ["attempt", "cue", "outcome"] },
             to: { type: "string", enum: targets, description: "Beat or ending (or new_beat). With a check, the success destination." },
             check: nullable({
-              type: "object", additionalProperties: false, required: ["skill", "dc", "success", "failure", "on_failure"],
+              type: "object", additionalProperties: false, required: ["skill", "dc", "reason", "success", "failure", "on_failure"],
               properties: {
                 skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" },
+                reason: { type: "string", description: "Why the player is rolling, for the player, e.g. 'to talk Skrag into a trade'." },
                 success: { type: "string" }, failure: { type: "string" },
                 on_failure: nullable({ type: "string", enum: targets.filter(t => t !== "new_beat") }),
               },
@@ -85,7 +86,7 @@ interface RepairJson {
   canon: string[];
   move_to: string | null;
   add_beat: { id: string; title: string; direction: string; pressure: string; transitions: Array<{ when: string; to: string }> } | null;
-  add_transitions: Array<{ beat: string; when: string; on: "attempt" | "cue" | "outcome"; to: string; check: null | { skill: typeof SKILLS[number]; dc: number; success: string; failure: string; on_failure: string | null }; why: string }>;
+  add_transitions: Array<{ beat: string; when: string; on: "attempt" | "cue" | "outcome"; to: string; check: null | { skill: typeof SKILLS[number]; dc: number; reason: string; success: string; failure: string; on_failure: string | null }; why: string }>;
 }
 
 function graphOutline(scene: Scene): string {
@@ -143,7 +144,7 @@ function toRepairResult(scene: Scene, state: SessionState, json: RepairJson, met
     const transition: Transition = {
       id: `improv-${state.turn}-${i}`, when: t.when, on: t.on,
       ...(t.check
-        ? { check: { skill: t.check.skill, dc: Math.max(5, Math.min(25, t.check.dc)), success: t.check.success, failure: t.check.failure, onSuccess: to, ...(t.check.on_failure && ids.has(t.check.on_failure) ? { onFailure: t.check.on_failure } : {}) } }
+        ? { check: { skill: t.check.skill, dc: Math.max(5, Math.min(25, t.check.dc)), reason: t.check.reason, success: t.check.success, failure: t.check.failure, onSuccess: to, ...(t.check.on_failure && ids.has(t.check.on_failure) ? { onFailure: t.check.on_failure } : {}) } }
         : { to }),
     };
     patches.push({ turn: state.turn, transition: { beat: from, transition }, why: t.why });

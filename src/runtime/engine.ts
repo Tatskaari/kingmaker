@@ -155,7 +155,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     return { entries: state.transcript.slice(before), ended: exit, metric };
   }
 
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors" });
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true });
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
@@ -170,7 +170,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pending) delete state.pendingExit;
   if (pre.move) {
     directive = moveDirective(scene, state, pre.move);
-    if (pre.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.move.roll) });
+    if (pre.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.move.roll, pre.move.transition.check?.reason) });
     applyMove(state, scene, pre.move, "pre");
     if (pre.move.exit && (pre.move.chosen || pending?.exitId === pre.move.exit.id)) ended = pre.move.exit;
     else if (pre.move.exit) state.pendingExit = { exitId: pre.move.exit.id, turn: state.turn, via: pre.move.transition.id, extended: false };
@@ -235,7 +235,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.status) state.sceneStatus = post.status;
     if (post.move) {
-      if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll) });
+      if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll, post.move.transition.check?.reason) });
       applyMove(state, scene, post.move, "post");
       if (post.move.exit) {
         delete state.pendingExit;

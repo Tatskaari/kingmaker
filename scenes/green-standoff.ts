@@ -128,7 +128,7 @@ export const greenStandoff: Scene = {
         {
           id: "appeal", on: "attempt",
           when: "The player pleads, argues or bargains with Hester to spare Pip the mark (mercy, fairness, the parish's good name, speaking as witness to the fairness of it, or offering to pay a price or take Pip's place), in a way where her answer could go either way.",
-          check: {
+          check: { reason: "to persuade Hester to spare Pip the mark",
             skill: "persuasion", dc: 13,
             success: "Hester hesitates, looks at her watching parish, and gives way in her own fashion: she sets the mark aside, or takes what the player offered in its place, and finds her own face-saving words for it (without claiming Pip has said or done anything she hasn't). Pip is let out of the ring, stiffly. The ward is another matter.",
             failure: "Hester refuses, answering what the player actually said or offered in her own terms (the Statute, her watching parish, her own nerve), and steps up to the ring with her thumb raised. The green goes quiet.",
@@ -138,7 +138,7 @@ export const greenStandoff: Scene = {
         {
           id: "threaten", on: "attempt",
           when: "The player tries to frighten Hester out of marking Pip: threats, a hand on a weapon, a show of force.",
-          check: {
+          check: { reason: "to frighten Hester into letting Pip go",
             skill: "intimidation", dc: 12,
             success: "Hester goes white and steps back from the ring. She lets Pip out without a word, and the villagers mutter about strangers with steel.",
             failure: "Hester's voice cracks, but she won't be bullied in front of her parish: she calls the Furlongs to her shoulders and steps up to the ring with her thumb raised.",
@@ -148,7 +148,7 @@ export const greenStandoff: Scene = {
         {
           id: "ward-first", on: "attempt",
           when: "The player argues with Hester to let the Sedgeford folk stay (inside the ward, or with it held off), with a real argument for why it serves Harrowby, where her answer could go either way. (Pleas for Pip herself are the appeal above.)",
-          check: {
+          check: { reason: "to convince Hester the Sedgeford folk should stay",
             skill: "persuasion", dc: 14,
             success: "Hester gives way on the ward in her own statutory fashion: the Sedgeford folk can stay, and if nobody has found the old guest-right yet she admits it now. Pip's judgment is a separate matter, and it stands until it's settled.",
             failure: "Hester won't, and says why in her own terms (the goblins, a ward with holes in it, her parish watching). She's still listening; a better reason or the parish's own say-so might yet move her.",
@@ -175,7 +175,7 @@ export const greenStandoff: Scene = {
         {
           id: "fresh-appeal", on: "attempt",
           when: "The player makes a new appeal to Hester to stop the mark: an argument, offer or plea that hasn't already been tried and failed in this scene.",
-          check: {
+          check: { reason: "to make Hester reconsider marking Pip",
             skill: "persuasion", dc: 14,
             success: "Hester's thumb stops a finger's width from Pip's brow. She lowers it and gives way, setting the mark aside or taking what the player offered in its place, in her own face-saving words (without claiming Pip has said or done anything she hasn't); Pip is let out of the ring.",
             failure: "Hester shakes her head at what the player said or offered, without stopping the words, and presses her thumb to Pip's brow: the mark is made, grey and plain for the whole green to see.",
@@ -185,7 +185,7 @@ export const greenStandoff: Scene = {
         {
           id: "fresh-threat", on: "attempt",
           when: "The player threatens Hester to stop the mark (steel, violence, ruin), in words rather than by laying hands on her.",
-          check: {
+          check: { reason: "to threaten Hester into stopping the mark",
             skill: "intimidation", dc: 14,
             success: "Hester's hand shakes and drops. She stands back from the ring without a word, and the villagers' muttering turns ugly.",
             failure: "Hester flinches but finishes the words, and the Furlongs step in at the player's elbows as her thumb comes down: the mark is made.",
@@ -214,7 +214,7 @@ export const greenStandoff: Scene = {
         {
           id: "calm-all", on: "attempt",
           when: "The player tries to calm both sides at once with words: a call for order, an appeal, a speech.",
-          check: {
+          check: { reason: "to calm the villagers and Sedgeford folk",
             skill: "persuasion", dc: 15,
             success: "The player's voice cuts through. Hayforks and eel-spears come down, sheepishly; people remember they're neighbours, more or less, and the green goes quiet enough to talk.",
             failure: "The noise swallows the player's words; somebody shoves somebody, and both crowds lean in. One more push and it's a brawl.",
@@ -224,7 +224,7 @@ export const greenStandoff: Scene = {
         {
           id: "cow-all", on: "attempt",
           when: "The player tries to cow both sides into backing down with a show of force or a threat.",
-          check: {
+          check: { reason: "to cow both sides into backing down",
             skill: "intimidation", dc: 12,
             success: "The green goes silent. Nobody wants to be first against the armed stranger; hayforks and eel-spears lower, sullenly.",
             failure: "Someone laughs, someone swings, and a hayfork handle comes down on an eel-spear.",
@@ -251,7 +251,7 @@ export const greenStandoff: Scene = {
         {
           id: "persuade-hester", on: "attempt",
           when: "The player argues with Hester to let the Sedgeford folk stay (inside the ward, or with it held off), with a real argument for why it serves Harrowby, where her answer could go either way.",
-          check: {
+          check: { reason: "to convince Hester the Sedgeford folk should stay",
             skill: "persuasion", dc: 14,
             success: "Hester lets out a long breath and gives way, in her own statutory fashion: the Sedgeford folk can stay. If nobody has found the old guest-right yet, she admits it now: the parish's own bread and salt, broken with them at the bounds-stone, makes them guests of the parish, and the ward will take them in.",
             failure: "Hester won't, and says why in her own terms (the goblins, a ward with holes in it, her parish watching). But she's still listening, and a better reason or the parish's own say-so might yet move her.",
@@ -261,7 +261,7 @@ export const greenStandoff: Scene = {
         {
           id: "rouse-the-green", on: "attempt",
           when: "The player appeals to the whole crowd, villagers and Sedgeford folk together, to take the refugees in: a speech, a song or a show for the whole green.",
-          check: {
+          check: { reason: "to win the crowd over to taking in the refugees",
             skill: "performance", dc: 13,
             success: "Something turns in the crowd: a laugh, a shout of agreement from the village side, hayforks coming down. Hester looks at her parish, sees its answer, and gives way: the Sedgeford folk can stay.",
             failure: "The villagers mutter and look at their boots, and a few drift off home to bar their doors. Hester takes it as the parish's answer, for now.",
@@ -271,7 +271,7 @@ export const greenStandoff: Scene = {
         {
           id: "cow-hester", on: "attempt",
           when: "The player threatens Hester to make her let the Sedgeford folk stay.",
-          check: {
+          check: { reason: "to threaten Hester into letting the Sedgeford folk stay",
             skill: "intimidation", dc: 13,
             success: "Hester gives way with her hand shaking on the corn mother: the Sedgeford folk can stay. Nobody on the village side will look the party in the eye.",
             failure: "Hester calls for the Furlongs, the villagers raise their hayforks, and Ned's lads surge to meet them.",
@@ -297,7 +297,7 @@ export const greenStandoff: Scene = {
         {
           id: "last-plea", on: "attempt",
           when: "The player makes a last, new appeal (to Hester, or to the whole green) to take the Sedgeford folk in or hold the ward off: an argument, offer or plea that hasn't already been tried and failed.",
-          check: {
+          check: { reason: "to make a fresh appeal for the Sedgeford folk to stay",
             skill: "persuasion", dc: 15,
             success: "Hester stops with the corn mother a hand's breadth from the niche, and gives way: the Sedgeford folk can stay. If nobody has found the old guest-right yet, she admits it now, and Harrowby's bread and salt are fetched at a run.",
             failure: "Hester hears the player out, shakes her head, and lifts the corn mother towards the niche.",

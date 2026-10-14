@@ -162,6 +162,8 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
   if (!response.ok) {
     const detail = await response.text();
     logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `HTTP ${response.status}: ${detail.slice(0, 800)}` });
+    // Moderation occasionally flags harmless fantasy violence; one retry usually clears it.
+    if (/flagged|moderation/i.test(detail) && !request.noPhaseRetry) return respond({ ...request, noPhaseRetry: true });
     throw new Error(`OpenRouter ${request.operation} HTTP ${response.status}: ${detail.slice(0, 400)}`);
   }
   let streamed = "";

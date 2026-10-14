@@ -143,7 +143,7 @@ export const hangedClerk: Scene = {
         {
           id: "examine-body", on: "attempt",
           when: "The player examines Prout's neck, head or hands up close (he's been got down, or they've climbed or been lifted up to him), where reading what they see takes some skill.",
-          check: {
+          check: { reason: "to tell how Prout really died",
             skill: "medicine", dc: 12,
             success: "They see what the noose didn't make: a thin, level cord mark low round the neck beneath the rope's slanting burn, a swelling under the hair at the back of the skull, and clean palms with no rope burn. He was struck and strangled, then hung up.",
             failure: "They see rope burn, bruising and a dead clerk's face, and can't read more. Kell, at their shoulder, says 'Hm.' She has seen something; a second look, or asking her, will find it.",
@@ -153,7 +153,7 @@ export const hangedClerk: Scene = {
         {
           id: "win-cob", on: "attempt",
           when: "The player pushes past Cob's hostility to get him to trust them or tell what he knows, with an appeal, an argument, a bargain or a promise of safety, where it could go either way. (Not just asking him a question; a fair trade or a kindness he can't refuse needs no dice.)",
-          check: {
+          check: { reason: "to get Cob to trust you with what he heard",
             skill: "persuasion", dc: 13,
             success: "Cob's swagger cracks. He checks Moll can't hear, then tells it in a frightened rush: he sleeps in the loft, and last night he woke to a lantern and voices, a thump and a choking noise, then the hoist creaking with no sacks on it. He hid till morning.",
             failure: "Cob jeers, calls them a bum-faced palace pigeon and darts behind the water butt and through a gap into the granary. He's hiding, not gone: Moll knows where, and he can still be coaxed out.",
@@ -163,7 +163,7 @@ export const hangedClerk: Scene = {
         {
           id: "catch-moll", on: "attempt",
           when: "The player presses on the holes in Moll's 'I saw him jump' story, or tries to read whether she's lying, where it could go either way. (Not just asking her to tell it.)",
-          check: {
+          check: { reason: "to see through Moll's story about the jump",
             skill: "insight", dc: 13,
             success: "Moll's story wobbles and she knows it. Cornered, she admits through her teeth that a gentleman paid her a silver crown at first light to say she'd seen the clerk jump.",
             failure: "Moll tells it again, louder and with new details, and Cob loyally swears to every word. The holes are still there (the barred loft door, the drizzle, debts nobody knows of) for anyone who comes at it another way.",
@@ -173,7 +173,7 @@ export const hangedClerk: Scene = {
         {
           id: "scare-kids", on: "attempt",
           when: "The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father.",
-          check: {
+          check: { reason: "to scare the children into talking",
             skill: "intimidation", dc: 12,
             success: "Cob's bravado collapses. White-faced, he blurts that he was in the loft last night and heard men do it, and starts to cry; Moll screams blue murder at the player from the wall. Kell's mouth goes thin.",
             failure: "Cob bolts behind the water butt and through a gap into the granary, and Moll lets fly in three languages. Kell says nothing, loudly. The kids will be harder to reach now, but they haven't gone.",
@@ -200,7 +200,7 @@ export const hangedClerk: Scene = {
         {
           id: "win-cob", on: "attempt",
           when: "The player pushes Cob to tell who was in the loft last night, or about the boots, with an appeal, an argument, a bargain or a promise of safety, while he's still holding out and it could go either way. (Not just asking; a fair trade or a real promise to keep him safe needs no dice.)",
-          check: {
+          check: { reason: "to get Cob to name the men in the loft",
             skill: "persuasion", dc: 12,
             success: "Cob gives up what he's been holding: Silvertop, the posh cove with the silver-topped cane who comes with the Purveyor's wagons and has his own key to the big doors, and a big man with a bandaged hand. If asked, he owns up that the boots came off Mister Prout, and that he saw the clerk sewing something into one two nights ago.",
             failure: "Cob clams up and backs towards the water butt: Cob don't know nothing. He'll talk to someone who gives him a real reason to feel safe.",
@@ -210,7 +210,7 @@ export const hangedClerk: Scene = {
         {
           id: "catch-moll", on: "attempt",
           when: "The player presses on the holes in Moll's story, or tries to read what she's hiding, where it could go either way. (Not just asking her to tell it.)",
-          check: {
+          check: { reason: "to learn who paid Moll to lie",
             skill: "insight", dc: 13,
             success: "Moll cracks: a gentleman with a silver-topped cane and a wheat-ear signet ring paid her a silver crown at first light to say she saw the clerk jump, and his big friend with the bandaged hand called him 'Master Sallow'. Pressed, she opens her fist on the coin.",
             failure: "Moll sticks to her story and turns up the abuse, but her eyes keep going to the yard gate, and the holes in her story are still there.",
@@ -220,7 +220,7 @@ export const hangedClerk: Scene = {
         {
           id: "scare-kids", on: "attempt",
           when: "The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father.",
-          check: {
+          check: { reason: "to force the children to reveal what they know",
             skill: "intimidation", dc: 12,
             success: "They crack under it. Cob sobs out what he saw (Silvertop and the big man with the bandaged hand); Moll flings down her silver crown and calls the player every name she knows. Kell writes it down without looking at the player.",
             failure: "Cob bolts behind the water butt and into the granary, Moll goes back up the wall out of reach, swearing, and Kell sighs. They'll only come round for someone who stops looming.",
@@ -263,7 +263,7 @@ export const hangedClerk: Scene = {
         {
           id: "persuade-tull", on: "attempt",
           when: "The player tries to talk Tull into waiting, or into taking Prout in as anything but a suicide, before Kell has a case she'll sign for.",
-          check: {
+          check: { reason: "to convince Tull to wait before taking Prout away",
             skill: "persuasion", dc: 12,
             success: "Tull sighs, folds the order away and sits on the edge of the cart: he'll wait for the sergeant's word, and take Prout in however she signs for him.",
             failure: "Tull is very sorry, but the Captain was very clear, and he nods his constables up the ladder. One more good reason might still stop him.",

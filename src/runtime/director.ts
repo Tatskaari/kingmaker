@@ -133,15 +133,15 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // The built-in improvised ending is only ever judged after the reply, on what happened.
   const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID);
   const questions: Record<string, ChoiceQuestion> = {};
-  if (options.freeform !== false || attempts.length) {
+  if (attempts.length || outcomes.length || options.freeform === true) {
     const q = question("attempt", attempts, scene);
     questions.attempt = {
-      instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that. Choose other_risky only for a genuinely uncertain attempt that none of the listed options covers.`,
+      instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that. ${options.freeform === true ? " Choose other_risky only for a genuinely uncertain attempt that none of the listed options covers." : " Risky things none of the options cover are for the GM to resolve in the story: choose none."}`,
       criteria: {
         ...q.criteria,
         none: "Nothing risky and none of the above: the player talks, asks, accepts an offer, looks around or searches at leisure, or does something with no real chance or cost of failure.",
         ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])),
-        ...(options.freeform !== false ? { other_risky: "The player attempts something risky whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation, and that none of the options above covers. Not risky: ordinary talk and questions, accepting something someone has just offered, looking around or searching when nothing is pressing, or anything where failing would only mean trying again." } : {}),
+        ...(options.freeform === true ? { other_risky: "The player attempts something risky whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation, and that none of the options above covers. Not risky: ordinary talk and questions, accepting something someone has just offered, looking around or searching when nothing is pressing, or anything where failing would only mean trying again." } : {}),
       },
     };
   }
@@ -187,7 +187,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const move = chosen ? resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue") : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
-  if (answer === "other_risky" && !move) {
+  // No dice for the impossible: if the player is reaching for something the scene can't offer,
+  // the "no, but" answers it and nothing is rolled.
+  const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  if (answer === "other_risky" && !move && !limitBlocks) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
@@ -243,9 +246,17 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     questions.outcome = { ...q, criteria: { ...Object.fromEntries(outcomes.map(t => [t.id, effect(t)])), none: q.criteria.none! } };
   }
   const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), questions, "director.after");
-  const picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);
+  const probabilities = decision.answers.outcome?.probabilities ?? {};
+  let picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);
+  // The built-in improvised ending is a last resort: if any authored ending is plausible, prefer it
+  // (its script knows what that ending means for the world).
+  if (picked?.to === IMPROVISED_EXIT_ID) {
+    const authored = outcomes.filter(t => t.to !== IMPROVISED_EXIT_ID && endsScene(scene, t)).sort((a, b) => (probabilities[b.id] ?? 0) - (probabilities[a.id] ?? 0))[0];
+    if (authored && (probabilities[authored.id] ?? 0) >= 0.2) picked = authored;
+  }
   // Ending the scene on an outcome needs the same confidence as ending it on an attempt.
-  const chosen = picked && endsScene(scene, picked) && (decision.answers.outcome?.probabilities?.[picked.id] ?? 1) < SCENE_ENDING_CONFIDENCE ? undefined : picked;
+  const confidence = picked ? (probabilities[picked.id] ?? 1) + (picked.to !== IMPROVISED_EXIT_ID ? probabilities[outcomes.find(t => t.to === IMPROVISED_EXIT_ID)?.id ?? ""] ?? 0 : 0) : 0;
+  const chosen = picked && endsScene(scene, picked) && confidence < SCENE_ENDING_CONFIDENCE ? undefined : picked;
   const status = decision.answers.status?.choice as SceneStatus | undefined;
   return { ...(chosen ? { move: resolve(scene, state, chosen, "outcome") } : {}), decision, ...(status ? { status } : {}) };
 }
@@ -281,7 +292,8 @@ export async function decideNextSpeaker(decider: Decider, scene: Scene, state: S
 export function moveDirective(scene: Scene, state: SessionState, move: Move): string[] {
   const lines: string[] = [];
   if (move.roll && move.transition.check) {
-    lines.push(`The player's attempt called for a ${titleCase(move.roll.skill)} check (${move.transition.when.replace(/\.$/, "")}). ${describeRoll(move.roll)}. ${move.roll.success ? move.transition.check.success : move.transition.check.failure} Narrate this result.`);
+    const check = move.transition.check;
+    lines.push(`The player's attempt called for a ${titleCase(move.roll.skill)} check${check.reason ? ` ${check.reason.replace(/\.$/, "")}` : ` (${move.transition.when.replace(/\.$/, "")})`}. ${describeRoll(move.roll)}. ${move.roll.success ? check.success : check.failure} Narrate this result so the player can see what was at stake and why it went the way it did.`);
   }
   if (move.exit && !move.chosen) {
     lines.push(`Things are escalating towards this: ${move.exit.outcome} Don't let it happen yet. In this reply, escalate (a warning, a last demand, a countdown, a weapon raised) and stop with the moment hanging: the next move is the player's.`);

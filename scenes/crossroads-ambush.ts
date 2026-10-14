@@ -69,7 +69,7 @@ export const crossroadsAmbush: Scene = {
         {
           id: "calm-check", on: "attempt",
           when: "The player is trying to calm Tam down or win his trust in a way where success is uncertain (e.g. he is in full panic and they push rather than reassure).",
-          check: { skill: "persuasion", dc: 10, success: "Tam deflates, clutches the player's arm and starts talking sense.", failure: "Tam backs off, jabbing the pitchfork, even more convinced they're 'in on it'.", onSuccess: "story" },
+          check: { reason: "to calm Tam and earn his trust", skill: "persuasion", dc: 10, success: "Tam deflates, clutches the player's arm and starts talking sense.", failure: "Tam backs off, jabbing the pitchfork, even more convinced they're 'in on it'.", onSuccess: "story" },
         },
       ],
     },
@@ -83,7 +83,7 @@ export const crossroadsAmbush: Scene = {
         {
           id: "read-tam", on: "attempt",
           when: "The player tries to read whether Tam is hiding something, or presses him about why the goblins are after him.",
-          check: { skill: "insight", dc: 12, success: "The player notices Tam keeps touching a lump in his smock; he's hiding something and knows it.", failure: "Tam seems like a frightened man telling the truth.", onSuccess: "idol-revealed" },
+          check: { reason: "to see what Tam is hiding", skill: "insight", dc: 12, success: "The player notices Tam keeps touching a lump in his smock; he's hiding something and knows it.", failure: "Tam seems like a frightened man telling the truth.", onSuccess: "idol-revealed" },
         },
         { id: "shows-idol", when: "Tam has shown or described the bone idol he found in his field.", to: "idol-revealed", establishes: ["Tam has a bone idol of a grandmother figure with garnet eyes, dug up in his field."] },
         { id: "goblins-strike", on: "cue", when: "The conversation has gone on for several exchanges, the party has decided to escort Tam, or they start to leave the crossroads: the goblins make their move.", to: "ambush" },
@@ -111,12 +111,12 @@ export const crossroadsAmbush: Scene = {
         {
           id: "intimidate", on: "attempt",
           when: "The player tries to frighten the goblins off with threats or a show of force.",
-          check: { skill: "intimidation", dc: 13, success: "The goblins' nerve breaks; they scatter into the hedges, Skrag shrieking curses.", failure: "Skrag calls their bluff and the goblins shoot.", onSuccess: "routed", onFailure: "fight" },
+          check: { reason: "to scare the goblins into fleeing", skill: "intimidation", dc: 13, success: "The goblins' nerve breaks; they scatter into the hedges, Skrag shrieking curses.", failure: "Skrag calls their bluff and the goblins shoot.", onSuccess: "routed", onFailure: "fight" },
         },
         {
           id: "deceive", on: "attempt",
           when: "The player tries to trick the goblins (a fake idol, a lie about reinforcements, pretending the idol is cursed, etc.).",
-          check: { skill: "deception", dc: 14, success: "Skrag falls for it, at least for long enough.", failure: "Skrag sees through it, furious at being made a fool of.", onSuccess: "tricked", onFailure: "fight" },
+          check: { reason: "to trick Skrag into backing off", skill: "deception", dc: 14, success: "Skrag falls for it, at least for long enough.", failure: "Skrag sees through it, furious at being made a fool of.", onSuccess: "tricked", onFailure: "fight" },
         },
         { id: "goblins-lose-patience", on: "cue", when: "The goblins have run out of patience and attack, because the party insulted them, stalled too long, or refused outright.", to: "fight" },
       ],

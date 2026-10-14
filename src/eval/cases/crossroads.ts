@@ -51,8 +51,8 @@ export const crossroadsCases: EvalCase[] = [
     input: "\"If we give you the idol, will you leave the farmer alone?\"",
     reply: "Skrag's ear twitches. \"Maybe. Maybe Skrag says yes. Show it first, longlegs. Slow.\" Behind you, Tam whimpers and clutches the idol tighter.", expect: ["none"], tags: ["exits"] },
 
-  { kind: "decision", id: "xr-dec-pickpocket-freeform", about: "Pickpocketing Tam is risky but no edge covers it: it should be a sleight-of-hand roll, not the insight edge.", scene: "crossroads-ambush", setup: STORY, phase: "before",
-    input: "While he talks, I try to slip my fingers into his smock pocket and lift whatever he keeps touching.", expect: ["freeform:sleight_of_hand"], tags: ["rolls", "freeform"] },
+  { kind: "decision", id: "xr-dec-pickpocket-freeform", about: "Pickpocketing Tam is risky but no edge covers it: rolls belong to plot beats, so it must not be forced onto the insight edge (the GM resolves it in the story).", scene: "crossroads-ambush", setup: STORY, phase: "before",
+    input: "While he talks, I try to slip my fingers into his smock pocket and lift whatever he keeps touching.", expect: ["none", "freeform:sleight_of_hand"], tags: ["rolls", "freeform"] },
   { kind: "decision", id: "xr-dec-poem-not-deception", about: "A sincere peace poem to the goblins is performance or persuasion, not the deception edge.", scene: "crossroads-ambush", setup: AMBUSH, phase: "before",
     input: "I spread my empty hands and recite a heartfelt poem: \"O one-eared lord of the blackthorn, the cheese is yours, freely given, so let no arrow sing!\"", expect: ["freeform:performance", "freeform:persuasion", "none"], tags: ["rolls", "freeform"] },
   { kind: "decision", id: "xr-dec-climb-gibbet", about: "Climbing the gibbet for a look is easy, harmless exploration: no roll.", scene: "crossroads-ambush", setup: RANTING, phase: "before",

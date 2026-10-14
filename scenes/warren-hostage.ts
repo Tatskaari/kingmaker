@@ -24,7 +24,7 @@ export const warrenFacts = {
 const snatch = (dc: number): Transition => ({
   id: "snatch", on: "attempt",
   when: "While the goblins still hold the courier, the player makes a grab for her: a dash along the walkway or the beam, a leap for the rope, or cutting her down onto the stone.",
-  check: {
+  check: { reason: "to reach the courier before Snikkit cuts her down",
     skill: "acrobatics", dc,
     success: "They get to her first and haul her onto the walkway, sack and all; Snikkit's knife comes down on empty rope.",
     failure: "Snikkit is quicker: the knife goes through the rope and Hester drops into the race.",
@@ -35,7 +35,7 @@ const snatch = (dc: number): Transition => ({
 const deceive = (beat: string): Transition => ({
   id: "deceive", on: "attempt",
   when: "The player tries to fool a goblin to its face: a lie (that Gubbin is dead, that soldiers are coming, that the party speaks for a king), a fake paper passed off as real, a disguise, or a promise they don't mean to keep. Proposing or planning a trick with Hester isn't this: the roll comes when a goblin is actually being fooled.",
-  check: {
+  check: { reason: "to fool a goblin into believing your lie",
     skill: "deception", dc: 13,
     success: "The lie lands: they believe it, for now, and act on it at once from their own wants, which may not be what the player hoped for.",
     failure: "They see through it and take it badly: Snikkit gives them a warning they can see (a strand of the rope sawn through, or a spear at Hester's back if she's off it), and the party's word is worth nothing here for a while.",
@@ -46,7 +46,7 @@ const deceive = (beat: string): Transition => ({
 const persuadeHester = (beat: string): Transition => ({
   id: "persuade-hester", on: "attempt",
   when: "The player tries to talk Hester into putting her seal to the lie the goblins want (a king-paper for Gubbin, or for anyone else). A proposal that doesn't ask her to lie needs no persuading.",
-  check: {
+  check: { reason: "to get Hester to seal the goblins’ king-paper",
     skill: "persuasion", dc: 13,
     success: "Hester gives in, on terms: wording she can live with, and her feet on dry stone to write it. Someone still has to get the goblins to let her down.",
     failure: "Hester refuses, louder: her seal is her bond, and it would take a much better argument than that.",
@@ -94,7 +94,7 @@ const ransomDeal: Transition = {
 const frightenSnikkit = (beat: string): Transition => ({
   id: "intimidate", on: "attempt",
   when: "The player tries to frighten Snikkit into letting the courier go with threats against him or his band, or a show of force. Seizing leverage of their own and offering a swap is the counter-hostage move, not this.",
-  check: {
+  check: { reason: "to scare Snikkit into handing over the courier",
     skill: "intimidation", dc: 15,
     success: "Snikkit's nerve goes: he'll deal on the party's terms now, so long as he keeps his skin and his face in front of his band. Give him a way to call it his own idea and he hands her over.",
     failure: "Snikkit's grin goes thin. He makes Hester's danger plain (the rope paid out until her toes trail in the race, or a spear at her throat if she's off it) and reminds the party how fast the water runs.",
@@ -106,7 +106,7 @@ const frightenSnikkit = (beat: string): Transition => ({
 const counterHostage = (beat: string): Transition => ({
   id: "counter-hostage", on: "attempt",
   when: "The player seizes leverage of their own and offers a swap: a knife at a goblin's throat, a hand on something the warren treasures (Grandmother Bone, the pot-crown), or a grip on Snikkit himself.",
-  check: {
+  check: { reason: "to force a swap using leverage the goblins value",
     skill: "intimidation", dc: 13,
     success: "The leverage bites, on the goblins' own terms: Snikkit cares far more for his own skin than for any goblin's, so he haggles over the swap (who lets go first, where, what else), while his band watches exactly how much he values them. Settle the exchange in play.",
     failure: "Snikkit calls the bluff: he would sooner lose a goblin, or the warren's treasure, than his prize, and he says so. His band hears exactly what he's willing to lose, and his knife stays on the rope.",
@@ -117,7 +117,7 @@ const counterHostage = (beat: string): Transition => ({
 const buySnikkit = (beat: string): Transition => ({
   id: "release-first", on: "attempt",
   when: "The player tries to talk or buy Snikkit into handing the courier over before he has what he wants (a bribe, a promise, a show of good faith, an appeal). Asking for her to be let down off the rope while she stays a prisoner (to write, say) is ordinary bargaining, not this.",
-  check: {
+  check: { reason: "to persuade Snikkit to hand over the courier early",
     skill: "persuasion", dc: 15,
     success: "Snikkit gives ground: he'll take something on account instead of the whole crown, agree to a swap at the foot of the ladder, or have Hester swung onto the walkway as a show of good faith (still a prisoner, with a spear at her back). Settle the rest in play.",
     failure: "Snikkit wags a finger: proof first, tall friends. He's still open to a better offer.",
@@ -239,7 +239,7 @@ export const warrenHostage: Scene = {
         {
           id: "sneak", on: "attempt",
           when: "The player tries to creep down into the undercroft, or along a walkway, without being seen.",
-          check: {
+          check: { reason: "to reach the undercroft without being seen",
             skill: "stealth", dc: 13,
             success: "They reach the shadows below unseen, close enough to the hoist to hear every word.",
             failure: "A rung cracks like a shot. Every goblin looks up, slings whirl, and Snikkit's knife settles on the rope.",
@@ -249,7 +249,7 @@ export const warrenHostage: Scene = {
         {
           id: "snatch-unseen", on: "attempt",
           when: "While still unseen, the player makes a grab for the courier: cutting her down onto a walkway, seizing the rope, or swinging her clear before the goblins can react.",
-          check: {
+          check: { reason: "to seize the courier before the goblins notice",
             skill: "acrobatics", dc: 12,
             success: "They get to her first: she's on the walkway, sack and all, before the goblins know what's happening.",
             failure: "The goblins see them a heartbeat too soon: Snikkit's knife goes through the rope and Hester drops into the race.",
@@ -288,7 +288,7 @@ export const warrenHostage: Scene = {
         {
           id: "read-snikkit", on: "attempt",
           when: "The player tries to read whether Snikkit will keep his word.",
-          check: {
+          check: { reason: "to judge whether Snikkit will keep his word",
             skill: "insight", dc: 13,
             success: "He'll keep any bargain exactly as long as breaking it looks more dangerous. Once he has the crown, a party that looks weak won't get the courier: Saltmere will pay for her.",
             failure: "Snikkit seems sincere, almost hurt by the question.",
@@ -315,7 +315,7 @@ export const warrenHostage: Scene = {
         {
           id: "expose-snikkit", on: "attempt",
           when: "The player tries to convince Gubbin that Snikkit is plotting against him.",
-          check: {
+          check: { reason: "to turn Gubbin against Snikkit",
             skill: "persuasion", dc: 12,
             success: "Gubbin believes them, and his royal fury turns on Snikkit; the party are suddenly loyal subjects who deserve a reward. Play what Snikkit does, cornered, with the rope still in his hand.",
             failure: "Gubbin doesn't believe them (Snikkit is always so polite), and Snikkit heard every word: neither goblin trusts the party now.",
@@ -325,7 +325,7 @@ export const warrenHostage: Scene = {
         {
           id: "haggle-gubbin", on: "attempt",
           when: "The player tries to talk Gubbin into a smaller or different price, or into letting the courier go (haggling, flattery, appeals to what a real king would do).",
-          check: {
+          check: { reason: "to persuade Gubbin to accept a different price",
             skill: "persuasion", dc: 13,
             success: "Gubbin is moved: he'll come down, or take something different (a gift, a grand title, a public show of respect), but he must have something to show the warren. Settle the terms.",
             failure: "Gubbin swells with offence: a king does not haggle! His price goes up, with something extra for the insult, though he can still be talked round.",
@@ -353,7 +353,7 @@ export const warrenHostage: Scene = {
         {
           id: "hold-to-bargain", on: "attempt",
           when: "The player tries to hold Snikkit to his bargain (reminding him, appealing to his new dignity, or sweetening the deal).",
-          check: {
+          check: { reason: "to make Snikkit honor his bargain",
             skill: "persuasion", dc: 12,
             success: "Snikkit sighs, straightens the pot and lets Hester go to the party with a royal flourish: a chief keeps his word, this once.",
             failure: "Snikkit decides a chief deserves better terms, and names them. He's still open to an argument, or a threat.",
@@ -363,7 +363,7 @@ export const warrenHostage: Scene = {
         {
           id: "intimidate-chief", on: "attempt",
           when: "The player threatens Snikkit into keeping his bargain.",
-          check: {
+          check: { reason: "to frighten Snikkit into keeping his bargain",
             skill: "intimidation", dc: 12,
             success: "Snikkit remembers exactly what happened to the last chief and lets Hester go at once, with a squeak.",
             failure: "Snikkit squeaks for his new subjects, who come slowly but come, and he clutches the rope tighter.",
@@ -385,7 +385,7 @@ export const warrenHostage: Scene = {
         {
           id: "save", on: "attempt",
           when: "The player goes after the courier or reaches for her: diving in, grabbing the trailing rope or the sack, a line of their own, a spear-shaft, a hand from the walkway.",
-          check: {
+          check: { reason: "to grab the courier and haul her onto the walkway",
             skill: "athletics", dc: 13,
             success: "They get a grip on her and haul her out onto the walkway, half-drowned, furious and still clutching her satchel.",
             failure: "The current tears her out of reach, to the culvert's mouth, where she clings to the stonework by her fingertips.",
@@ -411,7 +411,7 @@ export const warrenHostage: Scene = {
         {
           id: "press-hester", on: "attempt",
           when: "The player presses Hester to tell them what she isn't saying (what's in the sealed letter, or who could have known which rider carried it).",
-          check: {
+          check: { reason: "to get Hester to reveal what she’s been hiding",
             skill: "persuasion", dc: 13,
             success: "She weighs them, decides they've earned it, and tells them in confidence: the sealed letter is Saltmere's credit for King Aldren's treasury, the loan that pays for the Centennial Assembly, and only a handful of people knew which rider carried it.",
             failure: "She shuts like a strongbox: client confidentiality. What she has already told them stands.",
