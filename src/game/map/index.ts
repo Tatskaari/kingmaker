@@ -14,7 +14,7 @@
  *   use/talk: const it = interact(ex);                               // scene -> as above; travel -> travel(ex, it.interaction.to);
  *                                                                    // examine -> show it.interaction.text
  *   sidebar:  look(ex), nearby(ex), leadMarker(ex.story, ex.map), regionAt(getMap(ex.map), ex.at)?.name
- *   draw:     renderExplore(ex, { w, h }) -> StyledLine[] (pass { tick } to animate water and fire)
+ *   draw:     renderExplore(ex, { w, h }) -> StyledLine[] (pass { t } in milliseconds: water runs, fire flickers)
  *   walk to:  pathTo(ex, tile) -> steps for move()
  *
  * Scenes (scene mode): after enterScene, draw renderExplore(ex, size, { world: session.world }): the
@@ -33,7 +33,7 @@ export { MAPS, getMap, decorOf } from "./maps/index.ts";
 export { PLACES, scenePlace, regionForScene, sceneStart, storyFromSession, timeFor, leadScene, type ScenePlace } from "./places.ts";
 export { newExploration, setStory, actorsHere, move, steer, travel, pathTo, look, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, KEYS, SCREEN_KEYS, type ExploreState, type Follower, type MoveResult, type Nearby } from "./explore.ts";
 export { presence, liveScenes, isLive, leadMarker, regionOpen } from "./presence.ts";
-export { actorsFromWorld, captureScene, overlayActors, overlayRegionStates, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions } from "./reconcile.ts";
+export { actorsFromWorld, areaHazards, captureScene, overlayActors, overlayRegionStates, overlaySurfaces, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions } from "./reconcile.ts";
 export { battlefield, spotsNear, reachable, type Battlefield } from "./setup.ts";
 export { render, project, screenOf, tileAtScreen, type RenderOptions, type Viewport } from "./render.ts";
 export { toAnsi, toPlain } from "./ansi.ts";

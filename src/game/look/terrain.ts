@@ -40,11 +40,13 @@ export interface TerrainContext {
   wind?: { dir: number; strength: number };
   seed?: number;
   glyphs?: GlyphSet;
+  /** Under a roof: still water holds the dark of the room, not the sky. */
+  indoor?: boolean;
 }
 
 export type Ground = "cobbles" | "flags" | "boards" | "loft" | "dirt" | "mud" | "grass" | "straw" | "carpet" | "steps" | "sand" | "rubble" | "scorched" | "void"
   | "water" | "deep-water" | "river" | "puddle";
-export type WallStyle = "stone" | "timber" | "bank" | "brick" | "plaster" | "palace" | "hedge";
+export type WallStyle = "stone" | "timber" | "bank" | "brick" | "plaster" | "palace" | "hedge" | "glass";
 export type SurfaceKind = "water" | "oil" | "spirits" | "blood" | "ale" | "wine" | "slops" | "milk" | "honey" | "ink" | "mud" | "ash" | "char" | "ice" | "snow"
   | "dust" | "grain" | "straw" | "acid" | "slime" | "vomit" | "tar" | "grease" | "scorch";
 export type CloudKind = "smoke" | "steam" | "dust" | "fog" | "poison";
@@ -54,6 +56,8 @@ const WHITE = c("#ffffff");
 
 /** The sky's colour in still water, by the time of day. */
 const SKY: Record<TimeOfDay, RGB> = { morning: c("#6a88a8"), afternoon: c("#5a84b0"), evening: c("#7a4a68"), night: c("#1c2842"), "next-morning": c("#7a98b8") };
+/** What still water holds indoors: the room's beams and smoke. */
+const ROOM = c("#2e3238");
 /** The glint on water: the sun's colour, or the moon's. */
 const GLINT: Record<TimeOfDay, RGB> = { morning: c("#fff0c0"), afternoon: c("#ffffff"), evening: c("#ffb070"), night: c("#c0d0ff"), "next-morning": c("#f0f8ff") };
 
@@ -229,6 +233,11 @@ export function wallCell(style: WallStyle, cx: number, cy: number, ctx: TerrainC
       const gilt = cy % 3 === 0 && cx % 6 === 0;
       return { glyph: g(gilt ? "╬" : r < 0.4 ? "░" : " "), fg: gilt ? c("#c9a94a") : c("#a8a090"), bg: c("#8a8478") };
     }
+    case "glass": {
+      // Panes in a frame: light gets through, and catches the odd glint.
+      const frame = cx % 4 === 0;
+      return { glyph: g(frame ? "│" : (cx + cy) % 3 ? "▒" : "░"), fg: frame ? c("#5a4a3a") : c("#b8dcf0"), bg: c("#3a5a74"), ...(frame ? {} : { specular: 0.4 }) };
+    }
     case "hedge": {
       const sway = noise2(cx * 0.3, ctx.t / 1800, 52);
       return { glyph: g(r < 0.5 ? "♣" : "\""), fg: mix(c("#2e5a20"), c("#4e7a34"), sway), bg: c("#1a3214") };
@@ -345,10 +354,11 @@ export function surfaceCell(kind: SurfaceKind, under: TCell, cx: number, cy: num
 export function puddleOver(under: TCell, cx: number, cy: number, depth: number, ctx: TerrainContext): TCell {
   const T = ctx.t / 1000;
   const time = ctx.time ?? "afternoon";
+  const sky = ctx.indoor ? ROOM : SKY[time];
   const k = smoothstep(0.05, 0.6, depth);
   const shiver = noise3(cx * 0.35, sq(cy) * 0.35, T * 0.25, 71);
-  const bg = mix(mix(under.bg, scale(SKY[time], 0.55), 0.7 * k), SKY[time], 0.25 * k * shiver);
-  const fg = mix(under.fg, mix(SKY[time], WHITE, 0.25), 0.6 * k);
+  const bg = mix(mix(under.bg, scale(sky, 0.55), 0.7 * k), sky, 0.25 * k * shiver);
+  const fg = mix(under.fg, mix(sky, WHITE, 0.25), 0.6 * k);
   let glyph = depth > 0.5 ? (shiver > 0.7 ? "~" : " ") : under.glyph;
   let specular = 0, gfg = fg;
   if (depth > 0.45 && hash01(cx, cy, Math.floor(T * 2.5), 72) < 0.025) { glyph = "∙"; gfg = GLINT[time]; specular = 1; }

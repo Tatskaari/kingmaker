@@ -98,7 +98,7 @@ export function Overlay({ game }: { game: Game }) {
     case "scene-map": {
       const world = game.session?.world;
       return box(world ? world.entities[world.root]?.name ?? "The scene" : "The scene", world
-        ? <Place game={game} width={w - 4} height={h - 4} />
+        ? <Place game={game} width={w - 4} height={h - 4} view="map" />
         : <text fg={C.dim}>This scene has no map of its own yet: it's all in the telling.</text>, [["Esc", "close"]]);
     }
     case "journal": {

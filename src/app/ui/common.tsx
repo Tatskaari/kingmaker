@@ -4,6 +4,13 @@ import type { StyledLine } from "../../game/types.ts";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 
+/**
+ * The world's views (the town, a scene's place, a fight) animate on their own at about this many
+ * frames a second: live canvases that paint the map at the time they're drawn (water runs, fire
+ * flickers, effects play), while the rest of the screen redraws only when the game changes.
+ */
+export const FPS = 12;
+
 /** Redraw whenever the game changes. */
 export function useGame(game: Game): Game {
   const [, setTick] = useState(0);

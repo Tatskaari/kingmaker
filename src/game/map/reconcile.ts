@@ -1,4 +1,4 @@
-import { heldBy, positionOf, type Entity, type Point, type SceneWorld } from "../../world/scene-world.ts";
+import { areaAt, heldBy, positionOf, type Entity, type Point, type Rect, type SceneWorld } from "../../world/scene-world.ts";
 import type { MapActor, Region, StoryState, Tile2, TileMap } from "../types.ts";
 import { CAST, isCrowd, lookForEntity, raiseFor } from "./looks.ts";
 import { inBounds, isStructure, tileAt, type PlaceRegion } from "./tiles.ts";
@@ -14,8 +14,9 @@ import { inBounds, isStructure, tileAt, type PlaceRegion } from "./tiles.ts";
  * terrain, so they only show when something happens to them (a burning elm).
  *
  * The overlay keeps what a scene did to its place after the scene ends (the world is dropped at the
- * scene boundary): the things as they were left, broken, burning, moved or gone, and the place's
- * own states (an exploded floor). The map shows them from then on.
+ * scene boundary): the things as they were left, broken, burning, moved or gone, what was spilled
+ * (puddles, slicks, scorch marks), and the place's own states (an exploded floor). The map shows
+ * them from then on.
  */
 
 export const FEET_PER_TILE = 5;
@@ -62,7 +63,8 @@ export function actorsFromWorld(region: Region, world: SceneWorld, options: From
     if (a.kind === "object" && !(a.states ?? []).some(s => s === "hanging" || s === "overhead")) furnished.add(key(a.at));
   };
 
-  const entities = Object.values(world.entities).filter(e => e.kind !== "place" && e.kind !== "area" && !e.states.includes("gone"));
+  // Surfaces (puddles, slicks, smoke) aren't things standing on a tile: the renderer lays them on the ground.
+  const entities = Object.values(world.entities).filter(e => e.kind !== "place" && e.kind !== "area" && e.kind !== "surface" && !e.states.includes("gone"));
   // People last, so things are where they are and people step round them.
   const rank = (e: Entity) => (e.player ? 3 : e.kind === "person" || e.kind === "creature" ? 2 : 0);
   for (const e of entities.sort((a, b) => rank(a) - rank(b))) {
@@ -207,6 +209,8 @@ export interface OverlayScene {
   things: MapActor[];
   /** The place's own states (exploded, burning), from its areas. */
   states: string[];
+  /** What was spilled or scorched there (the world's surfaces, in its feet), and the place's extent. */
+  surfaces?: { place: Rect; patches: Entity[] };
 }
 
 export interface MapOverlay { scenes: Record<string, OverlayScene> }
@@ -224,8 +228,52 @@ export function captureScene(overlay: MapOverlay, region: Region, world: SceneWo
   // People move on with the story; the fallen stay where they fell.
   const things = all.filter(a => a.kind === "object" || a.kind === "item" || (a.states ?? []).some(s => DOWN.includes(s)));
   const states = [...new Set(Object.values(world.entities).filter(e => e.kind === "area" || e.kind === "place").flatMap(e => e.states.filter(s => ["exploded", "burning", "burnt", "scorched", "flooded"].includes(s))))];
-  overlay.scenes[world.scene] = { map: map.id, region: region.id, ...(time ? { time } : {}), things, states };
+  const patches = Object.values(world.entities).filter(e => e.kind === "surface" && !e.states.includes("gone")).map(e => structuredClone(e));
+  const place = world.entities[world.root]?.rect;
+  overlay.scenes[world.scene] = { map: map.id, region: region.id, ...(time ? { time } : {}), things, states, ...(patches.length && place ? { surfaces: { place, patches } } : {}) };
   return overlay;
+}
+
+/**
+ * What played scenes spilled on this map, as worlds for the renderer to lay on the ground. By a
+ * later time of day the smoke has cleared and what was burning has burned out to a scorch mark.
+ */
+export function overlaySurfaces(overlay: MapOverlay, map: TileMap, now?: StoryState["time"]): Array<{ region: Region; world: SceneWorld }> {
+  const out: Array<{ region: Region; world: SceneWorld }> = [];
+  for (const [sceneId, s] of Object.entries(overlay.scenes)) {
+    const region = s.map === map.id && s.surfaces ? map.regions.find(r => r.id === s.region) : undefined;
+    if (!region || !s.surfaces) continue;
+    const later = !!now && !!s.time && TIMES.indexOf(now) > TIMES.indexOf(s.time);
+    const patches = s.surfaces.patches.filter(e => !later || !e.tags.includes("cloud")).map(e => (later && e.states.includes("burning") ? { ...e, name: "a scorch mark", tags: ["ash"], states: [] } : e));
+    const root = `${sceneId}:place`;
+    const entities: Record<string, Entity> = { [root]: { id: root, name: sceneId, kind: "place", parent: null, rect: s.surfaces.place, tags: [], states: [], notes: [] } };
+    for (const e of patches) entities[e.id] = e;
+    out.push({ region, world: { scene: sceneId, root, entities, log: [] } });
+  }
+  return out;
+}
+
+/**
+ * A world's areas on its map: the tiles of areas on fire, thick with dust (the Heron's floor) or
+ * scorched (where the dust went up), each tile by the area its middle is in, as the battlefield has
+ * them. Only open ground: walls and water are the map's.
+ */
+export function areaHazards(region: Region, world: SceneWorld, map: TileMap): { fire: Tile2[]; dust: Tile2[]; scorched: Tile2[] } {
+  const out = { fire: [] as Tile2[], dust: [] as Tile2[], scorched: [] as Tile2[] };
+  const marked = Object.values(world.entities).some(e => (e.kind === "area" || e.kind === "place") && e.states.some(s => s === "burning" || s === "dusty" || s === "exploded" || s === "scorched" || s === "burnt"));
+  const place = world.entities[world.root]?.rect;
+  if (!marked || !place) return out;
+  const a = feetToTile(region, { x: place.x, y: place.y }), b = feetToTile(region, { x: place.x + place.w - 0.01, y: place.y + place.h - 0.01 });
+  for (let y = a.y; y <= b.y; y++) for (let x = a.x; x <= b.x; x++) {
+    const p = { x, y };
+    const t = tileAt(map, p);
+    if (!inBounds(map, p) || t.blocks || isStructure(t) || t.terrain === "void" || t.terrain === "water" || t.terrain === "deep-water") continue;
+    const states = areaAt(world, tileToFeet(region, p)).states;
+    if (states.includes("burning")) out.fire.push(p);
+    if (states.includes("dusty") && !states.includes("exploded")) out.dust.push(p);
+    if (states.includes("exploded") || states.includes("scorched") || states.includes("burnt")) out.scorched.push(p);
+  }
+  return out;
 }
 
 const TIMES: StoryState["time"][] = ["morning", "afternoon", "evening", "night", "next-morning"];

@@ -127,7 +127,11 @@ export class LightField {
  * the light's own colour a little, which is what makes a fire's glow look warm and not just bright.
  */
 export function shade(color: RGB, field: LightField, i: number, floor = 0): RGB {
-  let lr = field.r[i]!, lg = field.g[i]!, lb = field.b[i]!;
+  return shadeBy(color, field.r[i]!, field.g[i]!, field.b[i]!, floor);
+}
+
+/** Shade a colour by a light (three multipliers), with a floor for things that should stay findable in the dark. */
+export function shadeBy(color: RGB, lr: number, lg: number, lb: number, floor = 0): RGB {
   if (floor > 0) { const m = Math.max(lr, lg, lb); if (m < floor) { const k = floor / Math.max(0.001, m); lr *= k; lg *= k; lb *= k; } }
   const r = ((color >> 16) & 255) * lr, g = ((color >> 8) & 255) * lg, b = (color & 255) * lb;
   const over = Math.max(r, g, b) - 255;

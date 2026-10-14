@@ -3,7 +3,7 @@ import { glyphFor, nerd, type Glyph, type GlyphSet } from "./glyphs.ts";
 import { inventionColor, inventionVersion, invented, requestInvention } from "./invent.ts";
 import { parseName, type ParsedName } from "./names.ts";
 import { clamp01, flicker, hash01, noise1, seedOf } from "./noise.ts";
-import { CAST_LOOKS, PLAYER_LOOK, castLook } from "./people.ts";
+import { PLAYER_LOOK, castLook, isCast } from "./people.ts";
 import { KIND_ROLES, matchRole, roleById, type LightSpec, type Motion, type Role, type Stamp } from "./roles.ts";
 
 /**
@@ -128,7 +128,7 @@ const BURN_LIGHT: Record<string, number> = { tiny: 5, small: 8, medium: 12, larg
 const bases = new Map<string, { base: BaseLook; version: number }>();
 
 export function baseLook(thing: Lookable): BaseLook {
-  const key = `${thing.name}|${thing.kind ?? ""}|${(thing.tags ?? []).join(",")}|${thing.material ?? ""}|${thing.created ? "c" : ""}|${thing.cast ?? ""}|${thing.player ? "p" : ""}|${thing.glyph ?? ""}|${thing.color ?? ""}|${thing.quantity ?? ""}`;
+  const key = `${thing.name}|${thing.kind ?? ""}|${(thing.tags ?? []).join(",")}|${thing.material ?? ""}|${thing.created ? "c" : ""}|${thing.cast ?? ""}|${thing.player ? "p" : ""}|${thing.glyph ?? ""}|${thing.color ?? ""}|${thing.quantity ?? ""}|${thing.size ?? ""}`;
   const hit = bases.get(key);
   // Guesses are revisited when the model's answers land; everything else is final.
   if (hit && (hit.base.source !== "guess" || hit.version === inventionVersion())) return hit.base;
@@ -157,7 +157,7 @@ function computeBase(thing: Lookable): BaseLook {
     const role: Role = { id: `surface:${stuff[0]}`, glyph: { ascii, ...(stuff[0] === "water" ? { nerd: nerd("water")! } : stuff[0] === "smoke" || stuff[0] === "steam" ? { nerd: nerd("smoke")! } : {}) }, fg, motion, liquid: stuff[0] };
     return { role, glyph: role.glyph, fg, motion, flame, implied: [], group: 0, source: "rule", being: false, liquid: stuff[0], parsed, person: false };
   }
-  const cast = thing.cast ?? (beingKind && thing.id && CAST_LOOKS[thing.id] ? thing.id : undefined);
+  const cast = thing.cast ?? (beingKind && thing.id && isCast(thing.id) ? thing.id : undefined);
   if (cast && beingKind) {
     const look = castLook(cast, thing.name);
     return person(parsed, { glyph: { ascii: look.glyph }, fg: look.color, bold: true, source: "cast" });
@@ -211,10 +211,13 @@ function computeBase(thing: Lookable): BaseLook {
   const groupWord = parsed.group;
   const group = groupWord ? GROUP_SIZE[groupWord] ?? 4 : role.group ? 4 : being && parsed.plural ? 3 : 0;
   const isPerson = PERSON_ROLES.has(role.id) || kind === "person";
+  // A great many sacks or crates (the Heron's, stacked to the beams) are a stack, not one of them.
+  const heaped = (role.id === "sack" || role.id === "crate") && (parsed.plural || /\b(stack|heap|pile)s?\b/.test(parsed.phrase)) && /large|huge|gargantuan/.test(thing.size ?? "");
+  const stacked = heaped ? { footprint: [8, 6] as [number, number], stamp: "stack" as Stamp } : {};
   return {
     role, glyph, fg, ...(role.bg ? { bg: role.bg } : {}), ...(role.bold || being ? { bold: true } : {}),
     motion: role.motion ?? "still", ...(role.light ? { light: role.light } : {}), flame, implied: [...new Set([...parsed.states, ...(role.states ?? [])])],
-    group, source, being, ...(role.footprint ? { footprint: role.footprint } : {}), ...(role.stamp ? { stamp: role.stamp } : {}),
+    group, source, being, ...(role.footprint ? { footprint: role.footprint } : {}), ...(role.stamp ? { stamp: role.stamp } : {}), ...stacked,
     ...(role.overhead || tags.includes("overhead") ? { overhead: true } : {}), ...(role.liquid ? { liquid: role.liquid } : {}), parsed, person: isPerson,
   };
 }

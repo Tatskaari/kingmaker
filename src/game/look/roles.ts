@@ -136,7 +136,7 @@ r("horror", "demon|devil|fiend|horror|abomination|monster|beast|creature|thing|e
 
 // Food and drink. (Drinks are servings: a tankard of it, unless it's spilled.)
 r("ale", "ale|beer|stout|porter|mead|cider|perry|lager|bitter|small-beer|grog", "ü", P.amber, { nerd: "glass_mug_variant", plain: "u", motion: "shimmer", material: "liquid", liquid: "ale" });
-r("wine", "wine|claret|sack|sherry|port|madeira|hock|burgundy|vinegar", "!", "#9a2040", { nerd: "glass_wine", motion: "shimmer", material: "liquid", liquid: "wine" });
+r("wine", "wine|claret|sherry|port|madeira|hock|burgundy|vinegar", "!", "#9a2040", { nerd: "glass_wine", motion: "shimmer", material: "liquid", liquid: "wine" });
 r("spirits", "gin|brandy|whisky|whiskey|rum|vodka|spirits|liquor|schnapps|absinthe|moonshine|hooch|poteen|aquavit|cordial|tincture|elixir|potion|tonic|draught", "!", "#cfe0d8", { nerd: "liquor", motion: "shimmer", material: "liquid", liquid: "spirits" });
 r("tea", "tea|tisane|infusion|coffee|cocoa|chocolate|broth-cup", "ü", "#c8803c", { nerd: "tea", plain: "u", material: "liquid", liquid: "tea" });
 r("milk", "milk|cream|whey|buttermilk", "ü", P.white, { nerd: "cup", plain: "u", material: "liquid", liquid: "milk" });
@@ -243,6 +243,10 @@ r("beam", "beam|hoist|pulley|crane|gibbet|gallows|winch|windlass|derrick|yardarm
 r("cleat", "cleat|hook-cleat|bracket|peg|nail|nails|hinge|bolt-lock|latch|hasp|ring-bolt", "¬", P.iron, { plain: "-", material: "iron" });
 r("passage", "passage|hole|gap|crack|crevice|tunnel|burrow|crawlway|loose-board|panel", "▫", "#2a2420", { plain: ".", bg: "#141010" });
 r("plank", "plank|board-plank|timber|beam-plank|log|logs|lumber|stave|staves|board", "▬", "#8a6038", { plain: "=", material: "wood" });
+r("screen", "screen|folding-screen|dressing-screen|room-divider|partition-screen|fire-screen|firescreen", "▒", "#a06a48", { plain: ":", material: "wood" });
+r("chute", "chute|slide|ramp|spout|flume|sluice", "╲", "#8a6a48", { plain: "\\", material: "wood" });
+r("oar", "oar|oars|tiller|rudder|paddle|sweep-oar|punt-pole|quant", "/", "#9a7048", { plain: "/", material: "wood" });
+r("hut", "hut|shed|shack|cabin|kiosk|privy|outhouse|lean-to|sentry-box", "⌂", "#7a6048", { plain: "n", phrase: "sentry box|watch box|watchman's box", material: "wood" });
 
 // Nature.
 r("tree", "tree|elm|oak|ash-tree|willow|beech|birch|chestnut-tree|plane|sycamore|lime|alder|hawthorn|rowan|apple-tree|pear-tree|cherry-tree|poplar|maple|hornbeam|sapling|treetop", "♣", "#3f7a2e", { nerd: "tree", plain: "T", motion: "sway", footprint: [11, 11], stamp: "canopy", material: "wood" });

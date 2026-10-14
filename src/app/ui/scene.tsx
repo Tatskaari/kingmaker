@@ -5,7 +5,7 @@ import { presentCast } from "../../runtime/brief.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import type { Game, Line } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
-import { C, PEOPLE } from "../theme.ts";
+import { C, personColor } from "../theme.ts";
 import { BOLD, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
 import { Place } from "./place.tsx";
 
@@ -20,7 +20,7 @@ function Entry({ line, live }: { line: Line; live?: boolean }) {
     case "player":
       return <text marginBottom={1} wrapMode="word" flexShrink={0}><span fg={C.player} attributes={BOLD}>{`${line.name ?? "You"}: `}</span><span fg={C.player}>{line.text}</span></text>;
     case "dialogue":
-      return <text marginBottom={1} wrapMode="word" flexShrink={0}><span fg={PEOPLE[line.speaker] ?? C.name} attributes={BOLD}>{`${line.name ?? line.speaker}: `}</span><span fg={C.gm}>{line.text}</span>{cursor}</text>;
+      return <text marginBottom={1} wrapMode="word" flexShrink={0}><span fg={personColor(line.speaker) ?? C.name} attributes={BOLD}>{`${line.name ?? line.speaker}: `}</span><span fg={C.gm}>{line.text}</span>{cursor}</text>;
     case "roll":
       return <text wrapMode="word" flexShrink={0} fg={C.dice}>{`🎲 ${line.text}`}</text>;
     case "system":
@@ -72,7 +72,7 @@ export function SceneScreen({ game }: { game: Game }) {
           <Place game={game} width={side - 4} height={Math.max(10, height - 16)} />
         </box> : <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title}>Here</text>
-          {here.map(c => <text key={c.id} fg={PEOPLE[c.id] ?? C.text}>{truncate(c.name, side - 4)}</text>)}
+          {here.map(c => <text key={c.id} fg={personColor(c.id) ?? C.text}>{truncate(c.name, side - 4)}</text>)}
         </box>}
         <text fg={C.title} marginTop={1}>Commands</text>
         <text fg={C.dim}>{"#sheet #map #journal #help #save #quit"}</text>

@@ -62,6 +62,9 @@ const PLAIN: Record<string, string> = {
   "▼": "v", "▾": "|", "╲": "\\", "╱": "/", "ʌ": "^", "∵": ":", "˛": ",", "‚": ",", "‘": "'", "’": "'", "`": "'", "¨": "\"", "¸": ",",
   "†": "+", "‡": "+", "♀": "o", "♂": "o", "ı": "i", "í": "i", "Ш": "W", "▣": "#", "╳": "x", "×": "x", "✦": "*", "✧": "*", "∗": "*",
   "╬": "+", "╎": ":", "◄": "<", "►": ">", "▁": "_", "æ": "=", "ò": "o", "◊": "o",
+  // The map's own: roofs, steps, ledges, the lead and its arrows, decor glyphs.
+  "▚": "#", "▞": "#", "▂": "_", "▃": "_", "▔": "-", "╌": "-", "╷": "|", "▙": "#", "‿": "_", "▽": "v", "▿": "v", "▸": ">",
+  "↘": "\\", "↙": "/", "↖": "\\", "↗": "/", "ɞ": "g", "Å": "A", "Π": "n", "Ψ": "Y", "┃": "|", "━": "-",
 };
 
 /** The seven-bit stand-in for a glyph (Nerd icons have no plain form of their own: callers pass one). */
@@ -84,6 +87,10 @@ export function inSet(ascii: string, set: GlyphSet): string {
 
 /** True for a Nerd Font private-use icon (they may draw wider than a cell in non-Mono fonts). */
 export const isNerdIcon = (ch: string) => { const c = ch.codePointAt(0) ?? 0; return (c >= 0xe000 && c <= 0xf8ff) || (c >= 0xf0000 && c <= 0xfffff); };
+
+let chosen: GlyphSet | undefined;
+/** The glyph set this process draws with (KM_GLYPHS, or the environment's best guess), decided once. */
+export const glyphSet = (): GlyphSet => (chosen ??= detectGlyphSet().set);
 
 /**
  * Which glyph set to use. There is no terminal query that says whether a font has a glyph, so this

@@ -1,10 +1,13 @@
 import { join } from "node:path";
 import { Game as Core, type Action } from "../game/play.ts";
 import { TacticalFight, type CombatController } from "../game/combat/index.ts";
+import { Director } from "../game/look/director.ts";
+import { Effects } from "../game/look/effects.ts";
 import { mapFights } from "../game/fights.ts";
 import { pathTo, SCREEN_KEYS, steer, type ExploreState } from "../game/map/index.ts";
 import { exploreState, leadTarget, town, walkId } from "../game/town.ts";
-import type { StoryState } from "../game/types.ts";
+import type { StoryState, Tile2 } from "../game/types.ts";
+import { fightEffects } from "../game/views.ts";
 import { setCallLog } from "../llm/openrouter.ts";
 import { sheetText } from "../rules/dnd.ts";
 import { sceneEntries } from "../runtime/brief.ts";
@@ -81,19 +84,24 @@ export class Game {
   quitting = false;
   /** Walking to the lead a step at a time: any key stops it. */
   walking = false;
-  /** Animation frame for the map (water, fire, the lead's pulse). */
-  tick = 0;
 
   /** The scene the transcript shows (a summons can open the next scene inside a turn). */
   private shown?: string;
   private listeners = new Set<() => void>();
   private pending?: ReturnType<typeof setTimeout>;
   private busyTurn = 0;
+  /** The open scene's look: one Effects and one Director for the scene (see sceneLook). */
+  private look?: { scene: string; fx: Effects; director: Director };
+  /** The rules' lines landing in a turn, shown together once a burst of them is in. */
+  private rolled: string[] = [];
+  /** The fight's effects, and how much of its log they've shown (see fightFx). */
+  private fightLook?: { fight: CombatController; fx: Effects; seen: number; dust: Tile2[] };
 
   constructor() {
     // The other side's turns: redraw after each, and give the player a beat to see it land.
     this.fights.pace = async () => {
       if (this.screen !== "combat") return;
+      this.animateFight();
       this.busy = "The others act…";
       this.emit();
       await sleep(DELAY());
@@ -268,7 +276,7 @@ export class Game {
     }
     this.busy = undefined;
     this.live = undefined;
-    this.tick++;
+    if (opening) this.observeScene();
     if (!options.quiet) this.saveExtras();
     this.emit();
   }
@@ -334,6 +342,7 @@ export class Game {
           if (this.busy) this.busy = "The GM makes a note…";
         }
         this.lines.push(this.lineOf(entry));
+        this.animate(entry);
         this.emit();
       },
     };
@@ -351,6 +360,8 @@ export class Game {
     const before = core.session.sceneId;
     try {
       await core.say(text, this.hooks());
+      // What the stage manager did after the reply: who walked where, what changed.
+      this.observeScene();
       // A spell attack can leave the rules campaign unloadable (see rules-repair.ts).
       if (repairCampaign(core.session)) core.save();
     } catch (error) {
@@ -498,8 +509,8 @@ export class Game {
     } catch (error) {
       this.status = `That didn't work: ${message(error)}`;
     }
+    this.animateFight();
     this.busy = undefined;
-    this.tick++;
     this.emit();
   }
 
@@ -536,6 +547,8 @@ export class Game {
     this.emit();
     try {
       await core.act("continue", this.hooks());
+      // Where the fight left everyone, and what it set alight.
+      this.observeScene();
     } catch (error) {
       this.showSceneSoFar();
       this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't tell the aftermath: ${message(error)}. (Say what you do next; #end <exit> skips ahead for testing.)` });
@@ -543,6 +556,80 @@ export class Game {
     this.busy = undefined;
     this.live = undefined;
     await this.settle(before);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The look: what happens, shown in the world as it happens (src/game/look)
+
+  /**
+   * The open scene's effects and the director that turns what changes in its world into motion:
+   * one of each per scene, primed on its world when first asked for (what's already there isn't
+   * news). The scene's views draw them; undefined when the scene has no world.
+   */
+  sceneLook(): { fx: Effects; director: Director } | undefined {
+    const world = this.session?.world;
+    if (!world) return undefined;
+    if (this.look?.scene !== world.scene) {
+      const fx = new Effects();
+      const director = new Director(fx);
+      director.prime(world);
+      this.look = { scene: world.scene, fx, director };
+    }
+    return this.look;
+  }
+
+  /** A finished entry, in the world: the rules' lines (a spell, a fire, damage numbers), short lines over their speakers. */
+  private animate(entry: Entry): void {
+    const look = this.screen === "scene" ? this.sceneLook() : undefined;
+    const world = this.session?.world;
+    if (!look || !world) return;
+    if (entry.kind === "roll") {
+      // A spell and what it did land as a burst of lines: show them together.
+      if (!this.rolled.length) setTimeout(() => this.animateRolls(), 0);
+      this.rolled.push(entry.text);
+    } else if (entry.kind === "narration") look.director.barksFrom(world, entry.text, performance.now(), this.called());
+    else if (entry.kind === "dialogue") look.director.barkLine(world, entry.speaker, entry.text, performance.now());
+  }
+
+  /** What the scene's cast are called before the player knows their names ("the landlady"), by id. */
+  private called(): Record<string, string> {
+    const scene = this.session ? sceneById(this.session.sceneId) : undefined;
+    return Object.fromEntries((scene?.cast ?? []).filter(c => c.called).map(c => [c.id, c.called!]));
+  }
+
+  private animateRolls(): void {
+    const lines = this.rolled;
+    this.rolled = [];
+    const look = this.sceneLook(), world = this.session?.world;
+    if (!look || !world) return;
+    const now = performance.now(), aliases = this.session?.rules?.aliases ?? {};
+    look.director.spellsFrom(world, lines, now, aliases);
+    look.director.observe(world, now);
+    look.director.rulesLines(world, lines, now, aliases);
+  }
+
+  /** After a turn: who walked where, what caught fire, what broke. */
+  private observeScene(): void {
+    const look = this.sceneLook(), world = this.session?.world;
+    if (look && world) look.director.observe(world, performance.now());
+  }
+
+  /** The fight's effects (bolts, sparks, damage numbers, the dust going up): one set for each fight. */
+  fightFx(): Effects | undefined {
+    const fight = this.fight;
+    if (!fight) return undefined;
+    if (this.fightLook?.fight !== fight) this.fightLook = { fight, fx: new Effects(), seen: fight.state().log.length, dust: [...fight.state().dust].map(k => tileOf(k)) };
+    return this.fightLook.fx;
+  }
+
+  /** Show what the fight's log has said since last time. */
+  private animateFight(): void {
+    const fx = this.fightFx(), look = this.fightLook, fight = this.fight;
+    if (!fx || !look || !fight) return;
+    const G = fight.state();
+    fightEffects(fx, fight, G.log.slice(look.seen), performance.now(), look.dust);
+    look.seen = G.log.length;
+    look.dust = G.dust.map(tileOf);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -579,6 +666,9 @@ export class Game {
     this.core = undefined;
     this.lines = [];
     this.walking = false;
+    // Another game's scene is news to nobody.
+    this.look = undefined;
+    this.fightLook = undefined;
     this.loadSaves();
   }
 
@@ -601,5 +691,6 @@ export class Game {
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const tileOf = (k: string): Tile2 => { const [x, y] = k.split(",").map(Number); return { x: x!, y: y! }; };
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 export const message = (error: unknown) => (error instanceof Error ? error.message : String(error));

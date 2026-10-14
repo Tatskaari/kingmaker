@@ -1,3 +1,6 @@
+import { castLook } from "../game/look/people.ts";
+import { castOf } from "../game/map/looks.ts";
+
 /** Colours for the app: candlelight on parchment, river at night. */
 export const C = {
   bg: "#15131a",
@@ -26,22 +29,12 @@ export const C = {
   targetBg: "#6b1f1f",
 } as const;
 
-/** How the arc's people are known on a map (Kell is K, the Master is S); anyone else by initial. */
-const GLYPHS: Record<string, string> = {
-  kell: "K", cob: "C", moll: "M", tull: "T", hobb: "B", "nan-quill": "N", arlo: "A", dilly: "D",
-  saul: "W", hep: "H", scrope: "L", sallow: "S", king: "R", holt: "H", "crake-1": "C", "crake-2": "C",
-};
+/**
+ * How the arc's people are known (Kell is K, Hobb is H, the Master is $) and their colours: the
+ * map's cast table (src/game/map/looks.ts), so the transcript and the map agree. Anyone else goes
+ * by initial, in the default colour.
+ */
+export const glyphOf = (id: string, name: string): string => castLook(id, name).glyph;
 
-export function glyphOf(id: string, name: string): string {
-  const known = GLYPHS[id];
-  if (known) return known;
-  const word = name.replace(/\(.*?\)/g, "").replace(/^(the|a|an)\s+/i, "").replace(/^(sergeant|corporal|master|mister|big|lady|lord)\s+/i, "").trim();
-  return (word[0] ?? "?").toUpperCase();
-}
-
-/** Distinct colours for the people of the story, by cast id (anyone else gets the default). */
-export const PEOPLE: Record<string, string> = {
-  kell: "#9ad1d4", cob: "#e0b07a", moll: "#e88aa8", tull: "#b0b8c8", hobb: "#d9a066", "nan-quill": "#c6a0e0",
-  arlo: "#b7c47a", dilly: "#f2d27a", saul: "#a8b8a0", hep: "#d8c49a", scrope: "#c0c0d8", sallow: "#d8a0ff",
-  king: "#ffd75e", holt: "#c8d0e0",
-};
+/** A speaker's colour, by cast id ("crake-2" is a Crake), or undefined for nobody in particular. */
+export const personColor = (id: string): string | undefined => (id === "player" ? undefined : castOf(id)?.color);

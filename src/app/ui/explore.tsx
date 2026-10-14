@@ -1,14 +1,14 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
-import { useEffect } from "react";
-import { direction, look, nearby, steps, whereabouts } from "../../game/map/index.ts";
-import { MapView } from "../../game/map/view.tsx";
+import { glyphSet } from "../../game/look/glyphs.ts";
+import { actorLook } from "../../game/look/map.ts";
+import { direction, interact, look, nearby, steps, whereabouts } from "../../game/map/index.ts";
 import { interactLabel, leadTarget } from "../../game/town.ts";
 import { townView } from "../../game/views.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import type { Game } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
-import { BOLD, ITALIC, Keys, useGame, wrap } from "./common.tsx";
+import { BOLD, FPS, ITALIC, Keys, useGame, wrap } from "./common.tsx";
 
 /** Arrow keys and WASD move with the screen (up is straight up), steered along the streets; the numpad's corners go along them exactly. */
 const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home", "pageup", "end", "pagedown"]);
@@ -19,11 +19,6 @@ const ARROW: Record<string, string> = { north: "↖", "north-east": "↑", east:
 export function ExploreScreen({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
-  // Water shimmers and the lead's marker pulses while you stand and look.
-  useEffect(() => {
-    const timer = setInterval(() => { if (game.screen === "explore" && !game.overlay && !game.busy) { game.tick++; game.emit(); } }, 700);
-    return () => clearInterval(timer);
-  }, [game]);
   useKeyboard(key => {
     if (game.overlay || game.screen !== "explore" || key.defaultPrevented) return;
     // Any key stops a walk to the lead.
@@ -45,7 +40,6 @@ export function ExploreScreen({ game }: { game: Game }) {
   const msgH = 6;
   const mapW = width - sideW;
   const mapH = height - msgH - 1;
-  const lines = townView(core.state, session, { w: mapW - 2, h: mapH - 2 }, { tick: game.tick });
   const where = whereabouts(ex);
   // What the place is like (look()'s first line, without the "You're in ..." part the title already says).
   const about = (look(ex).split("\n")[0] ?? "").replace(/^You're [^.]*\.\s*/, "");
@@ -60,7 +54,8 @@ export function ExploreScreen({ game }: { game: Game }) {
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>
     <box flexDirection="row" height={mapH}>
       <box width={mapW} height={mapH} border borderColor={C.border} title={` ${where.map} `} titleAlignment="left" overflow="hidden">
-        <MapView lines={lines} />
+        {/* The town, alive: water runs, lamps flicker, the lead pulses (held still while an overlay is up). */}
+        <lookCanvas width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay} painter={(w, h, now) => townView(core.state, session, { w, h }, { t: now })} />
       </box>
       <box width={sideW} height={mapH} border borderColor={C.border} title=" The investigation " flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.title} attributes={BOLD}>{capital(where.place)}</text>
@@ -75,8 +70,10 @@ export function ExploreScreen({ game }: { game: Game }) {
         <text fg={C.title} marginTop={1}>Nearby</text>
         {near.length ? near.map(n => {
           const scene = n.interaction?.kind === "scene" && n.interaction.sceneId === game.story.lead;
+          // As the map draws them (the player keeps their @).
+          const seen = n.actor && n.actor.kind !== "player" ? actorLook(n.actor, { t: 0, time: game.story.time, glyphs: glyphSet() }) : undefined;
           return <text key={`${n.actor?.id ?? n.label}`}>
-            <span fg={n.actor?.color ?? C.lead} attributes={BOLD}>{`${n.actor?.glyph ?? "»"} `}</span>
+            <span fg={seen?.fg ?? n.actor?.color ?? C.lead} attributes={BOLD}>{`${seen?.glyph ?? n.actor?.glyph ?? "»"} `}</span>
             <span fg={scene ? C.lead : C.text}>{truncate(n.actor?.name ?? n.label, inner - 12)}</span>
             <span fg={C.faint}>{` ${n.distance <= 1 ? "here" : `${ARROW[n.direction] ?? ""} ${n.distance}`}`}</span>
           </text>;

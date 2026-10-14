@@ -75,16 +75,22 @@ export const TREE = { canopy: "#2f5a2a", canopyFg: "#4f8a3a", canopyChars: "â™£â
 /** Default block style per structural terrain when a tile doesn't name one. */
 export const DEFAULT_STYLE: Record<string, string> = { wall: "stone", window: "stone", door: "stone", fence: "fence" };
 
-/** Light and tint per time of day: brightness of unlit places, and the colour the air leans to. */
-export const DAYLIGHT: Record<StoryState["time"], { ambient: number; tint: string; tintAmount: number }> = {
-  morning: { ambient: 1, tint: "#fff2d0", tintAmount: 0.06 },
-  afternoon: { ambient: 1, tint: "#ffffff", tintAmount: 0 },
-  evening: { ambient: 0.8, tint: "#d9785a", tintAmount: 0.13 },
-  night: { ambient: 0.48, tint: "#14223f", tintAmount: 0.28 },
-  "next-morning": { ambient: 1.04, tint: "#e0f0ff", tintAmount: 0.05 },
+/**
+ * Daylight by the time of day, Brogue-style: a level and a tint, multiplied into every colour that
+ * isn't lit by something nearer. Outdoors, and indoors (a room with its roof lifted: dimmer, lit by
+ * its windows, lamps and fires). The town has to stay walkable at night, so its dark is lighter
+ * than a scene's top-down stage's.
+ */
+export const DAYLIGHT: Record<StoryState["time"], { outdoor: { level: number; tint: string }; indoor: { level: number; tint: string } }> = {
+  morning: { outdoor: { level: 1, tint: "#fff0d4" }, indoor: { level: 0.62, tint: "#f0dcc0" } },
+  afternoon: { outdoor: { level: 1.04, tint: "#ffffff" }, indoor: { level: 0.66, tint: "#f4ece0" } },
+  evening: { outdoor: { level: 0.82, tint: "#f0c0b0" }, indoor: { level: 0.5, tint: "#c8a8a0" } },
+  night: { outdoor: { level: 0.62, tint: "#7088c8" }, indoor: { level: 0.44, tint: "#7480a8" } },
+  "next-morning": { outdoor: { level: 1.02, tint: "#eef4ff" }, indoor: { level: 0.64, tint: "#e8eef8" } },
 };
 
-export const LIGHT_COLOUR = "#ffb347";
+/** Lamplight in windows at night; daylight through them by day. */
+export const WINDOW_LIGHT = { night: "#ffc870", day: "#fff4e0" };
 export const FIRE = ["#ff4500", "#ff8c00", "#ffd000", "#ff6a00"];
 
 // ---------------------------------------------------------------------------------------------

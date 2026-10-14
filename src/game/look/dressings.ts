@@ -59,6 +59,44 @@ export const granaryYardDressing: Dressing = {
   hide: ["yard-wall", "granary-wall"],
 };
 
+/**
+ * The Heron at the downriver end of the wharves: tarred timber walls round the long re-sacking floor
+ * (its dust is the world's own: a dusty area hangs with it), the glass-sided counting-box in the
+ * north-east corner, the wharf's boards, the plank walk on the piles, the barge Patience alongside,
+ * and the river all round the south and east, running downriver. It lines up with the map
+ * (src/game/map/maps/heron.ts), whose tile (2, 1) is the world's (0, 0).
+ */
+export const heronDressing: Dressing = {
+  ground: { wharf: "boards", floor: "loft", "counting-box": "boards", "plank-walk": "boards", barge: "boards" },
+  patches: [
+    // The river down the east side, along the south, and at the wharf's end.
+    { ground: "river", rect: { x: 90, y: -2, w: 17, h: 94 }, flow: { x: 1.4, y: 0.25 }, ragged: 0.3 },
+    { ground: "river", rect: { x: -2, y: 65, w: 109, h: 27 }, flow: { x: 1.4, y: 0 }, ragged: 0.3 },
+    { ground: "river", rect: { x: -2, y: 45, w: 27, h: 22 }, flow: { x: 1.4, y: 0 }, ragged: 0.4 },
+    // The plank walk on the piles, round to the river door, and the barge's deck: over the water.
+    { ground: "boards", rect: { x: 25, y: 45, w: 5, h: 25 }, ragged: 0 },
+    { ground: "boards", rect: { x: 25, y: 65, w: 40, h: 5 }, ragged: 0 },
+    { ground: "boards", rect: { x: 37, y: 72, w: 46, h: 11 }, ragged: 0 },
+  ],
+  walls: [
+    { from: [32.5, 7.5], to: [87.5, 7.5], style: "timber" },
+    { from: [32.5, 7.5], to: [32.5, 62.5], style: "timber" },
+    { from: [87.5, 7.5], to: [87.5, 62.5], style: "timber" },
+    { from: [32.5, 62.5], to: [87.5, 62.5], style: "timber" },
+    // The counting-box: glass on the two sides that look down on the floor.
+    { from: [67.5, 8], to: [67.5, 27.5], style: "glass" },
+    { from: [67.5, 27.5], to: [87.5, 27.5], style: "glass" },
+    // The Patience's hull.
+    { from: [36, 71], to: [84, 71], style: "timber" },
+    { from: [36, 84], to: [84, 84], style: "timber" },
+    { from: [36, 71], to: [36, 84], style: "timber" },
+    { from: [84, 71], to: [84, 84], style: "timber" },
+  ],
+  indoor: ["floor", "counting-box"],
+  wind: { dir: 0.1, strength: 0.5 },
+  hide: ["river"],
+};
+
 /** The King's dressing room and the long gallery, the morning of the Assembly: carpet, gilt, tall windows full of sun. */
 export const kingsRoomDressing: Dressing = {
   ground: { gallery: "boards", "dressing-room": "carpet" },
@@ -76,3 +114,11 @@ export const kingsRoomDressing: Dressing = {
   indoor: ["gallery", "dressing-room"],
   hide: ["windows"],
 };
+
+/** The dressing for each scene's world, by scene id. */
+export const DRESSINGS: Record<string, Dressing> = {
+  "hanged-clerk": granaryYardDressing, "drowned-rat": drownedRatDressing, "heron-warehouse": heronDressing, "kings-morning": kingsRoomDressing,
+};
+
+/** A scene's dressing (a world nobody dressed is drawn with the stage's defaults: cobbles outside, boards in). */
+export const dressingFor = (sceneId: string): Dressing => DRESSINGS[sceneId] ?? {};

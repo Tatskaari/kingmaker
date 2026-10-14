@@ -4,7 +4,7 @@ import { CAST } from "./looks.ts";
 import { getMap } from "./maps/index.ts";
 import { PLACES, regionForScene, sceneStart } from "./places.ts";
 import { isLive, leadMarker, presence, regionOpen, sceneTrigger } from "./presence.ts";
-import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, type MapOverlay } from "./reconcile.ts";
+import { actorsFromWorld, areaHazards, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, overlaySurfaces, type MapOverlay } from "./reconcile.ts";
 import { render, screenOf, type RenderOptions, type Viewport } from "./render.ts";
 import { direction, inBounds, inRect, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
 
@@ -481,7 +481,11 @@ function canWalkOut(state: ExploreState, after: { map: string; at: Tile2 }): boo
 // ---------------------------------------------------------------------------------------------
 // Drawing.
 
-/** The map round the player, ready for the app: lead marker, time of day, what scenes left behind. */
+/**
+ * The map round the player, ready for the app: lead marker, time of day, what scenes left behind
+ * (their things, and what they spilled), and in a scene its world (its people and things, its
+ * puddles and smoke, its areas on fire or thick with dust).
+ */
 export function renderExplore(state: ExploreState, viewport: Viewport, options: RenderOptions & { world?: SceneWorld } = {}): StyledLine[] {
   const map = getMap(state.map);
   const { world, ...rest } = options;
@@ -491,6 +495,9 @@ export function renderExplore(state: ExploreState, viewport: Viewport, options: 
   // the people in it, keeping the player in view.
   let camera = state.at;
   const place = state.scene ? regionForScene(state.scene) : undefined;
+  const live = place && world && place.map.id === state.map ? { region: place.region, world } : undefined;
+  const worlds = [...overlaySurfaces(state.overlay, map, state.story.time), ...(live ? [live] : [])];
+  const hazards = live ? areaHazards(live.region, live.world, map) : undefined;
   if (place && place.map.id === state.map) {
     const r = place.region.rect;
     const fits = (w: number, h: number) => 2 * (w + h) + 6 <= viewport.w && w + h + 6 <= viewport.h;
@@ -510,6 +517,8 @@ export function renderExplore(state: ExploreState, viewport: Viewport, options: 
     regionStates: overlayRegionStates(state.overlay, map, state.story.time),
     tick: state.steps,
     ...(state.scene ? { roofs: false } : {}),
+    ...(worlds.length ? { worlds } : {}),
+    ...(hazards && (hazards.fire.length || hazards.dust.length || hazards.scorched.length) ? { hazards } : {}),
     ...rest,
   });
 }

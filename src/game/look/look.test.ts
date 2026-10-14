@@ -40,8 +40,13 @@ test("names: head nouns, states and colours in adjectives, groups, piles, surfac
   assert.equal(parseName("a singed pigeon").key, parseName("the pigeon").key);
 });
 
-test("every authored thing in the scene worlds gets a look from the rules, not a guess", () => {
-  for (const world of [rat(), yard()]) {
+test("every authored thing in the scene worlds gets a look from the rules, not a guess", async () => {
+  const { heronWorld } = await import("../../../scenes/worlds/heron-warehouse.ts");
+  const { dressingRoomWorld } = await import("../../../scenes/worlds/kings-morning.ts");
+  const heron = buildWorld("heron-warehouse", heronWorld, [], { name: "Odo" }), king = buildWorld("kings-morning", dressingRoomWorld, [], { name: "Odo" });
+  // Sacks hold grain here (not the old wine): the Heron's stacks are sacks.
+  assert.equal(describeLook(heron.entities["heron-sacks"]!).role, "sack");
+  for (const world of [rat(), yard(), heron, king]) {
     for (const e of Object.values(world.entities)) {
       if (e.kind === "place" || e.kind === "area") continue;
       const d = describeLook(e);
@@ -122,6 +127,24 @@ test("blue fire burns blue: colour words in names change flames and their light"
   assert.equal(spirits.flame, "blue");
 });
 
+test("one cast table: the look, the map and the app all take the map's CAST", async () => {
+  const { CAST } = await import("../map/looks.ts");
+  const { castLook } = await import("./people.ts");
+  const { glyphOf, personColor } = await import("../../app/theme.ts");
+  for (const [id, cast] of Object.entries(CAST)) {
+    if (id === "player") continue;
+    assert.deepEqual([castLook(id, cast.name).glyph, castLook(id, cast.name).color], [cast.glyph, cast.color], id);
+    assert.equal(lookOf({ name: cast.name, kind: "person", cast: id, id }, { glyphs: "ascii" }).glyph, cast.glyph, id);
+    assert.equal(glyphOf(id, cast.name), cast.glyph, id);
+    assert.equal(personColor(id), cast.color, id);
+  }
+  // Hobb is H everywhere (the app had him as B); the Crakes are one of a kind.
+  assert.equal(glyphOf("hobb", "Big Hobb Mallory"), "H");
+  assert.equal(castLook("crake-2", "the silent Crake").glyph, CAST.crake!.glyph);
+  assert.equal(lookOf({ name: "the talking Crake", kind: "person", id: "crake-1" }).glyph, CAST.crake!.glyph);
+  assert.equal(lookOf({ name: "you", kind: "person", player: true }).glyph, CAST.player!.glyph);
+});
+
 test("glyph sets: nerd icons where they help, plain ASCII always, ascii as the default", () => {
   const pigeon = { name: "a pigeon", kind: "creature" };
   assert.equal(lookOf(pigeon, { glyphs: "nerd" }).glyph, nerd("bird"));
@@ -200,6 +223,58 @@ test("the director turns world changes into motion", () => {
   assert.ok(director.observe(w, 2000).includes("the long table is doused"));
   assert.ok(fx.busy(2100));
   tick(w, 3, 7);
+});
+
+test("the director reads the rules' lines: spells cast, damage to people (by alias), the player hurt and healed, short lines barked", () => {
+  const w = rat();
+  const fx = new Effects({ now: () => 0, seed: 4 });
+  const director = new Director(fx);
+  director.prime(w);
+  // A Fireball on the long table: a ball of fire flies from the player and bursts there.
+  const n = director.spellsFrom(w, ["Cast Fireball (3rd-level slot): a 20-foot sphere on the long table, catching the long table", "Damage to things in it: 8d6 (3+4+5+6+2+1+4+3) 28 fire (things don't dodge)", "The long table takes 28 fire damage and is destroyed"], 0);
+  assert.equal(n, 1);
+  const table = w.entities["long-table"]!.at!;
+  const burst = fx.frame(900, () => undefined).areas.filter(a => Math.hypot(a.x - table.x, a.y - table.y) < 1);
+  assert.ok(burst.some(a => a.kind === "fire"), "the fire bursts over the table");
+  // Fire Bolt at someone the player calls "the big man": a bolt to Hobb, the number over him.
+  const hobb = w.entities.hobb!.at!;
+  director.spellsFrom(w, ["Cast Fire Bolt (cantrip) on the big man", "Fire Bolt: your attack on the big man: 15 +5 = 20 vs AC 12: hit", "Damage: 1d10 (7) fire"], 2000, { hobb: "the big man" });
+  const bolt = fx.frame(2050, () => undefined).sprites;
+  assert.ok(bolt.length > 0, "a bolt in flight");
+  assert.equal(director.rulesLines(w, ["Damage: 1d10 (7) fire", "the big man takes 7 damage (hurt)", "You take 3 damage (HP 21/24)", "Odo regains 5 HP"], 2000, { hobb: "the big man" }), 3);
+  const texts = fx.frame(2400, () => undefined).texts;
+  const over = (p: { x: number; y: number }, text: string) => texts.some(t => t.text === text && Math.hypot(t.x - p.x, t.y - p.y) < 0.5);
+  assert.ok(over(hobb, "7"), "Hobb takes 7 (fire, from the roll before it)");
+  assert.ok(over(w.entities.player!.at!, "3") && over(w.entities.player!.at!, "+5"), "the player's damage and healing float over the player");
+  // Barks from a reply go over whoever is speaking, not whoever is only mentioned.
+  const said = (reply: string) => director.barksFrom(w, reply, 2500).map(b => `${b.id}: ${b.text}`);
+  assert.deepEqual(said("Two men built like bollards bar the way. One looks from Kell to you. “You two asking after Big Hobb?”"), [], "a stranger asks; Kell is only looked at");
+  assert.deepEqual(said("Kell taps her pencil against her notebook. “Investigator.”"), ["kell: Investigator."]);
+  assert.deepEqual(said("Hobb doesn't look up. “That was a full keg,” Kell says."), ["kell: That was a full keg"], "the speech verb after the quote wins");
+  // Before the player knows their names, people go by what the story calls them.
+  assert.deepEqual(director.barksFrom(w, "The big man with the bandaged hand flexes it. “Who's asking?”", 2600, { hobb: "the big man with the bandaged hand" }).map(b => b.id), ["hobb"]);
+  // A cast member's short line, over their head; a long one isn't a bark.
+  assert.ok(director.barkLine(w, "kell", "Calmly. CALMLY, everyone.", 3000));
+  assert.ok(!director.barkLine(w, "kell", "I have written down every word of this, investigator, and I will be reading it back to you at length.", 3000));
+  assert.ok(fx.frame(3200, id => w.entities[id]?.at).texts.some(t => t.style === "bark" && /^Calmly\./.test(t.text)));
+});
+
+test("the stage: the Heron is dressed (walls, glass, the river), its sacks are stacks, and puddles indoors hold the room", async () => {
+  const { heronWorld } = await import("../../../scenes/worlds/heron-warehouse.ts");
+  const { dressingFor } = await import("./dressings.ts");
+  const { renderStage } = await import("./stage.ts");
+  const { puddleOver } = await import("./terrain.ts");
+  const w = buildWorld("heron-warehouse", heronWorld, [{ id: "hep", name: "Hepzibah Grist" }], { name: "Odo" });
+  const dressing = dressingFor("heron-warehouse");
+  assert.ok((dressing.walls ?? []).length >= 8 && (dressing.walls ?? []).some(x => x.style === "glass"), "the Heron has walls, and the counting-box glass");
+  const plain = renderStage(w, dressing, { w: 100, h: 34, t: 1000, time: "night" }).toPlain();
+  assert.match(plain, /[▓█║]/, "walls drawn");
+  assert.match(plain, /[≈~]/, "the river");
+  assert.equal(lookOf(w.entities["heron-sacks"]!).stamp, "stack", "the heron sacks are a stack");
+  assert.equal(lookOf({ name: "Prout's satchel", kind: "item", size: "small" }).stamp, undefined, "a satchel isn't");
+  const under = { glyph: " ", fg: rgbOf("#403020"), bg: rgbOf("#302018") };
+  const outside = puddleOver(under, 3, 3, 1, { t: 0, time: "evening" }), inside = puddleOver(under, 3, 3, 1, { t: 0, time: "evening", indoor: true });
+  assert.notEqual(outside.bg, inside.bg, "indoors a puddle doesn't hold the evening sky");
 });
 
 test("the map adapter: rules for world things, authored looks for decor, ground that lives", () => {
