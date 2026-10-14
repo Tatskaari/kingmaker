@@ -9,6 +9,8 @@
   },
   "scripts": {
     "game": "node --experimental-ffi --no-warnings --import tsx src/app/main.tsx",
+    "web": "node --no-warnings src/web/server.ts",
+    "web:check": "node --no-warnings src/web/check.ts",
     "play": "node --no-warnings src/cli/scene.ts play hanged-clerk",
     "scene": "node --no-warnings src/cli/scene.ts",
     "eval": "node --no-warnings src/eval/run.ts",
@@ -19,13 +21,24 @@
   "devDependencies": {
     "@types/node": "26.6.5",
     "@types/react": "^19.3.0",
+    "@types/ws": "^8.18.2",
+    "playwright": "1.62.1",
     "tsx": "^4.23.15",
     "typescript": "7.0.2"
   },
   "dependencies": {
     "@opentui/core": "^0.6.5",
     "@opentui/react": "^0.6.5",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
     "boardgame.io": "^0.50.2",
-    "react": "^19.3.0"
+    "node-pty": "1.1.0",
+    "react": "^19.3.0",
+    "ws": "^8.22.0"
+  },
+  "allowScripts": {
+    "node-pty@1.1.0": true
   }
 }
