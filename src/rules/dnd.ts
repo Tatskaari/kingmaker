@@ -709,17 +709,20 @@ export async function carryGear(state: SessionState, instanceId: string, carried
   const pcId = state.rules.pc;
   const me = ctx.campaign.state.characters[pcId]!;
   const name = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instanceId]?.definitionId ?? "")?.name ?? "that";
+  let slot: string | undefined;
   if (carried) gone.delete(instanceId);
   else {
     gone.add(instanceId);
-    const slot = (Object.entries(me.equipped).find(([s, v]) => s !== "attuned" && v === instanceId)?.[0]);
+    slot = (Object.entries(me.equipped).find(([s, v]) => s !== "attuned" && v === instanceId)?.[0]);
     if (slot) ctx.apply([event(ctx.E, "ItemUnequipped", { characterId: pcId, slot })]);
   }
   state.rules.gone = [...gone];
   refresh(ctx, state);
   const ac = sheetOf(ctx, pcId).ac.total;
   close(state, ctx);
-  return carried ? `You have your ${name.toLowerCase()} again` : `You no longer have your ${name.toLowerCase()} (AC ${ac})`;
+  // Armour coming off changes your AC; say so.
+  const acNote = slot === "armor" || slot === "shield" ? ` (AC now ${ac})` : "";
+  return carried ? `You have your ${name.toLowerCase()} again` : `You no longer have your ${name.toLowerCase()}${acNote}`;
 }
 
 function weaponsOf(ctx: Ctx, id: string): WeaponChoice[] {
