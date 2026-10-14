@@ -2,6 +2,20 @@
 
 **Goal:** a classic D&D experience in the terminal, end to end. You make a character, walk around Caerwyn on an isometric ASCII map, and talk to people. Interactions open GM-run scenes. You investigate the hanged clerk and work out that Master Sallow is behind it. You corner him at the Heron warehouse, roll for initiative, and fight him and his bruisers on the map. Then you report to the King. Have fun with it: the comic house style applies to the UI too.
 
+## Gameplay principles
+
+From the user's notes ([Kingmaker gameplay.txt](../Kingmaker%20gameplay.txt)):
+- **Emergent, not scripted.** Use systemic actions that work everywhere, in and out of combat: jump, throw, shove, ignite, douse, spill. Don't build snowflake mechanics.
+- **The world reacts.** An illegal act (Fireball in a crowded tavern) starts a reaction, a hybrid of rules and AI: some people flee, some fight, and the watch is called. If anyone fights, combat starts.
+- **Objects interact, BG3-style.**
+  - Materials decide what burns: metal burns out, a barrel burns down.
+  - Surfaces (water, oil, spirits, blood, smoke, steam) combine: Fireball on an oil slick makes a burning puddle, and water puts fire out.
+  - The stage manager's language and the map use the same world services.
+- **Narration takes effect in the world.**
+  - A brutal kill leaves blood.
+  - A bucket of water over a burning table leaves it scorched, wet and standing in a pool of water.
+  - Characters stay within what the world can show.
+
 ## Stack
 
 - **Terminal UI:** OpenTUI's React renderer (`@opentui/core`, `@opentui/react`; V1's test CLI used it).
