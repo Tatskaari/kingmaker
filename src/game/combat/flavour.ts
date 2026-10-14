@@ -25,7 +25,7 @@ const pools: Record<string, string[]> = {
   "attack:crake-1": ["'Nothing personal,' says the talking Crake, and swings.", "'That's two shillings' worth,' the talking Crake explains, swinging. 'For the wharf.'", "'Hold still,' says the talking Crake reasonably."],
   "attack:crake-2": ["The silent Crake says nothing, which is somehow worse.", "The silent Crake swings without a word."],
   "attack:sallow": ["'Regrettably,' says Master Sallow, and lunges.", "Master Sallow fences as he writes letters: neatly, and with a sting at the end.", "'In the King's interest,' murmurs Master Sallow, and the blade flickers."],
-  "attack:kell": ["Kell's truncheon, never before seen drawn, turns out to have been waiting for this.", "'Noted,' says Kell, and swings."],
+  "attack:kell": ["Kell's truncheon, never before seen drawn, turns out to have been waiting for this.", "Kell swings, and writes down the time afterwards."],
   "hide:sallow": ["Master Sallow keeps a Crake between himself and anything sharp.", "Master Sallow consults his watch, and the Crakes.", "Master Sallow dabs his temples with lavender water and stays well back."],
   "surrender:sallow": [
     "'Regrettably,' says Master Sallow, laying the sword-cane down with great care, 'I find I must yield. I trust there will be paperwork.'",

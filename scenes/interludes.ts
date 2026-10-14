@@ -36,12 +36,12 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
     setting: spec.setting,
     premise: `Downtime: where does the player go next, and what do they make of Caerwyn on the way? (The lead: ${spec.lead})`,
     hook: "A breath between one thing and the next.",
-    opening: `A little time has passed since the last scene ended (the hand-off says how): the player has left that place and is out in the town now (${spec.where}). In a line or two, say where the others from the last scene went: Sergeant Kell stays with the investigator (the King lent her to the case) unless what happened rules it out; anyone else goes their own way. Then show the town: ${spec.flavour} Two or three vivid details, no more. End with the player on their own feet, and ask what they do.`,
+    opening: `A little time has passed since the last scene ended (the hand-off says how): the player has left that place and is out in the town now (${spec.where}). In a line or two, say where the others from the last scene went: Sergeant Kell stays with the investigator (the King lent her to the case) unless what happened rules it out; anyone else goes their own way. Then show the town as it is now: ${spec.flavour} From Caerwyn now, show what's new since the last scene: one or two things, by sight or by talk, each said once by someone it matters to. Two or three vivid details in all, no more. End with the player on their own feet, and ask what they do.`,
     cast: [kell],
     start: "downtime",
     beats: [{
       id: "downtime", title: "Downtime",
-      direction: `Downtime between scenes, standing in for the map. Keep it short and alive: answer what the player does or asks with the town as it is (people, prices, gossip, the Assembly preparations), in the house style, from the lore where it says. If they ask around, people know the everyday things the lore gives them and pass on gossip. The lead points onward: ${spec.lead} If they haven't got it, let it reach them through whatever they're doing (a porter's gossip, a word from Kell, a shopkeeper). Don't start new adventures here: places that aren't on the way are for another day.`,
+      direction: `Downtime between scenes, standing in for the map. Keep it short and alive: answer what the player does or asks with the town as it is (people, prices, gossip, the Assembly preparations), in the house style, from the lore where it says. If they ask around, people know the everyday things the lore gives them and pass on gossip. The lead points onward: ${spec.lead} If they haven't got it, let it reach them through whatever they're doing (a porter's gossip, a shopkeeper, or Kell saying where she's off to on her own errand). Don't start new adventures here: places that aren't on the way are for another day.`,
       cast: { kell: "You're on your own errand (your card says what it is at this hour): say where you'll be and when, once, then go about it, with the investigator or without. Your own dry view of the town and the case, when it's wanted." },
       pressure: "A bell tolls the hour across the city; time and the lead are moving on without the investigator.",
       transitions: [
@@ -49,10 +49,11 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
       ],
     }],
     exits: [{ id: "onward", kind: "progress", title: `Onward`, outcome: `The player sets off for ${spec.onward}.`, closing: "Close on them setting off, at the threshold: the next scene picks up from there.", next: spec.next }],
-    essentials: [{ id: "lead", what: spec.lead, placedWith: ["Sergeant Kell", "gossip in the town"], carriers: ["kell"], unlocks: "the next scene" }],
+    essentials: [{ id: "lead", what: spec.lead, placedWith: ["Sergeant Kell's own errand (she's going there)", "gossip in the town"], carriers: ["kell"], unlocks: "the next scene" }],
     limits: spec.limits,
     lore: spec.lore,
     interlude: true,
+    fronts: "World/Fronts.md",
     ...(spec.time ? { time: spec.time } : {}),
     ...(spec.rest ? { rest: spec.rest } : {}),
     ...(spec.assumes ? { assumes: spec.assumes, overtaken: spec.overtaken! } : {}),
@@ -69,10 +70,10 @@ export const caerwynAfternoon = interlude({
   next: "drowned-rat",
   rest: "short",
   time: "afternoon",
-  lore: ["World/Caerwyn.md", "World/Centennial Assembly.md"],
+  lore: ["World/Caerwyn.md", "World/Centennial Assembly.md", "World/Caerwyn now.md", "Places/Market Square.md"],
   limits: [
     "Places that aren't on the way (the palace, the Corn Exchange's back rooms, the watch house cells, anywhere outside the walls): they're for another day. The Assembly has the palace shut to anyone without business, and the trail goes to the river.",
-    "Fetching help or authority (the Watch Captain, a warrant, the King): the Captain takes his orders from the Purveyor's office and the King is at the Assembly rehearsals; nobody with a seal can be reached today. A written message left at the palace gate will reach the Marshal by evening.",
+    "Fetching help or authority (the Watch Captain, a warrant, the King): the Captain files what the Purveyor's office asks him to file, and the King is at the Assembly rehearsals; nobody with a seal can be reached today. A written message left at the palace gate will reach the Marshal by evening.",
   ],
 });
 
@@ -85,7 +86,7 @@ export const wharfNight = interlude({
   onward: "the Heron warehouse",
   next: "heron-warehouse",
   time: "night",
-  lore: ["Places/River Stairs.md"],
+  lore: ["Places/River Stairs.md", "World/Caerwyn now.md"],
   assumes: ["The player hasn't yet gone into the Heron warehouse or dealt with what happens there tonight (the loading, the true book, the Master's visit)."],
   overtaken: "heron-warehouse",
   limits: [

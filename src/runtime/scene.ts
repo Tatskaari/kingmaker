@@ -164,6 +164,12 @@ export interface Scene {
   /** The place as a world: areas, things and where people start (src/world/scene-world.ts). */
   world?: WorldSpec;
   /**
+   * The GM-only doc of what's in motion in this scene's world (fronts: who wants what, a clock of
+   * steps, bills still to come due), e.g. "World/Fronts.md". Its steps tick at this scene's
+   * boundary in the session's copy, when play or the time passing has made them true.
+   */
+  fronts?: string;
+  /**
    * What this scene's prep takes for granted about the story so far, in plain words ("the barge
    * hasn't sailed yet"). Checked when the story reaches the scene: if play has already made one
    * untrue (settled, prevented or bypassed what the scene is about), it's skipped for `overtaken`.

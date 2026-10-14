@@ -34,7 +34,7 @@ const bookSaved = (outcome: SceneOutcome) => has(outcome.established, BOOK) && !
 const trueBookItem = {
   id: "true-book",
   name: "The Heron's true book",
-  content: "A fat ledger bound in green calf with a brass clasp, in Mister Scrope's small, careful hand. Page after page of King's Road grain wagons that the Granary Roll calls 'lost to goblins', each by its Roll number and date: sacks received at the Heron in the palace's wheat-ear sacking, re-sacked under the heron, sold to the Saltmere factor by the barge-load, the price, and the Master's share. Every page is initialled 'J.S.'",
+  content: "A fat ledger bound in green calf with a brass clasp, in Mister Scrope's small, careful hand. Page after page of King's Road grain wagons that the Granary Roll calls 'lost to goblins', each by its Roll number and date: sacks received at the Heron in the palace's wheat-ear sacking, re-sacked under the heron, sold to the Saltmere factor by the barge-load, the price, and the Master's share. Every page is initialled 'J.S.' At the foot of each month, in the same careful hand: 'Hedge-folk, the usual: forty heron pennies.'",
 };
 
 function keepBook(world: WorldApi, outcome: SceneOutcome): void {
@@ -499,7 +499,7 @@ export const heronWarehouse: Scene = {
     },
   ],
   limits: [
-    "More help (constables, the river watch, the Watch Captain, the palace guard): the whole watch is lining the Assembly route through the night, and the Captain takes his orders from the Purveyor's office. Kell's whistle brings Kell. The help here is Kell, and whoever at the Heron can be turned.",
+    "More help (constables, the river watch, the Watch Captain, the palace guard): the whole watch is lining the Assembly route through the night, and the Captain files what the Purveyor's office asks him to file. Kell's whistle brings Kell. The help here is Kell, and whoever at the Heron can be turned.",
     "A warrant, a search order or anything in writing from the King: the palace is shut for the Assembly eve, and the King signs nothing that might upset anyone. What there is, is a sergeant who may arrest anyone she sees committing a crime.",
     "Another way into the Heron (a secret passage, a cellar, the roof): there's the land door, the river door and the loading hatch over the barge, and that's all. The roof is steep wet slate with no way in, and under the floor there's only the river.",
     "Holding the barge in port by law (harbour dues, an impound order, the harbourmaster): the harbourmaster's office is shut for the Assembly, and the bargees have a bill of lading from the Heron that says 'condemned grain, lawfully sold'. Stopping the barge means stopping it with hands.",
@@ -509,7 +509,8 @@ export const heronWarehouse: Scene = {
     "Coming back tomorrow: the barge sails on the ebb at the second bell, and by morning the Heron will be swept and empty and the Assembly procession will fill the wharves. It happens tonight or not at all.",
   ],
   anchors: ["wharf", "land-door", "sentry-box", "plank-walk", "river-door", "heron-floor", "counting-box", "chute", "hoist", "barge", "river"],
-  lore: ["Places/Heron Warehouse.md"],
+  lore: ["Places/Heron Warehouse.md", "World/Caerwyn now.md"],
+  fronts: "World/Fronts.md",
   assumes: [
     "Tonight's loading at the Heron is still going on: the barge hasn't sailed or been stopped, and the true book is still in the Heron.",
     "Master Sallow is still free (not arrested, not fled the city) and still coming to the Heron at the midnight bell. (The player suspecting him, or even naming him to the watch, doesn't change that: only his arrest or flight does.)",

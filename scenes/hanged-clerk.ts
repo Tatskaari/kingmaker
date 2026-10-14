@@ -205,7 +205,7 @@ export const hangedClerk: Scene = {
     {
       id: "doubt",
       title: "Not by his own hand",
-      direction: "The suicide story is broken and the player knows it: Prout was killed and then hung up for show. This beat is for who and why. Kell is in now: she writes things down, asks who and why out loud, and lets the player lead. The kids feel the change: Moll wants Cob away from here, and Cob, if he hasn't talked, is close to cracking. Every thread is live: what Cob saw last night, who paid Moll and with what, the boots, the loft and the big book in it, and Kell herself (why does this one matter to her?). Follow whatever the player picks up and reward real contact with real answers; secrets still need a reason to come out.",
+      direction: "The suicide story is broken and the player knows it: Prout was killed and then hung up for show. This beat is for who and why. Kell is in now: she writes things down, reads back what she's written, and lets the player lead. The kids feel the change: Moll wants Cob away from here, and Cob, if he hasn't talked, is close to cracking. Every thread is live: what Cob saw last night, who paid Moll and with what, the boots, the loft and the big book in it, and Kell herself (why does this one matter to her?). Follow whatever the player picks up and reward real contact with real answers; secrets still need a reason to come out.",
       cast: {
         kell: "Write it down, and read back what you've written. Back the player's reasonable moves, and meet a guess, once, with 'On what evidence?'. Decide for yourself whether what's here would hold up if you signed Prout in as a murder.",
         cob: "Jumpy. If you've been won over, stick close to the player; if not, edge towards the water butt.",
@@ -252,7 +252,7 @@ export const hangedClerk: Scene = {
     {
       id: "motive",
       title: "What Prout found",
-      direction: "Prout's page is out: grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'. This is why he died, and it names a man. Give the player a moment with it. Kell reads it over their shoulder and goes very still: this is what Prout came to her about, and that can come out now. Let the player put the case together in their own words; Kell tests it with questions and doesn't make it for them. If the kids hear the name, or a silver-topped cane described, they know exactly who it is.",
+      direction: "Prout's page is out: grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'. This is why he died, and it names a man. Give the player a moment with it. Kell reads it over their shoulder and goes very still: this is what Prout came to her about, and that can come out now. Let the player put the case together in their own words; Kell tests it once, at its weakest point ('On what evidence?'), and doesn't make it for them. If the kids hear the name, or a silver-topped cane described, they know exactly who it is.",
       cast: {
         kell: "Read the page and go still. Then admit, quietly and once, that Prout came to you three days ago and you sent him away (unless it's already out: then it's told). Start writing it up in your own words, and read back what you've written for the investigator to put right.",
         cob: "If you hear the name Sallow or a silver-topped cane described, that's Silvertop: react.",
@@ -320,7 +320,7 @@ export const hangedClerk: Scene = {
     {
       id: "case-made", kind: "progress", title: "The case is made",
       outcome: "Kell writes Prout's death down as murder, made to look like a suicide, with the man calling himself Master Sallow of the Royal Purveyor's office behind it. The player has a case, and whatever proof they found here, to take to the King.",
-      closing: "Kell underlines something twice, closes her notebook and says something dry that is very nearly thanks. Prout goes to the watch house as a murder; she wants the player to carry the case to the King, since the Captain takes his orders from the Purveyor's office. Let the kids react to how the player treated them.",
+      closing: "Kell underlines something twice, closes her notebook and says something dry that is very nearly thanks. Prout goes to the watch house as a murder; she wants the player to carry the case to the King, since the Captain files what the Purveyor's office asks him to file. Let the kids react to how the player treated them.",
       next: "caerwyn-afternoon",
       script: (world, outcome) => {
         world.quest("hanged-clerk").complete("Proved Wendell Prout was murdered, and named Sallow of the Royal Purveyor's office as behind it.");
@@ -407,5 +407,6 @@ export const hangedClerk: Scene = {
     "Answers that would need someone who isn't here (what goes on at court, anyone's business at the palace, anything about the goblin raids on the King's Road): nobody in this yard knows, and nothing here says.",
   ],
   anchors: ["granary-yard", "hoist-beam", "loft-door", "tally-loft", "water-butt", "yard-wall", "yard-gate", "yard-doors"],
-  lore: ["Places/Granary Yard.md"],
+  lore: ["Places/Granary Yard.md", "World/Caerwyn now.md"],
+  fronts: "World/Fronts.md",
 };

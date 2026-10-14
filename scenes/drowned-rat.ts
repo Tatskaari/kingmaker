@@ -104,6 +104,7 @@ export const drownedRat: Scene = {
   hook: "This morning a palace clerk, Wendell Prout, was found hanged behind the King's Granary. He had company the night he died: a gentleman with a silver-topped cane, and a big man with a bandaged hand. Sergeant Kell, the watch sergeant the King lent you, reckons a bandaged hand on a big man means rope burn, and rope burn means a porter; and the porters who do night work for gentlemen drink at the Drowned Rat, halfway down the river stairs. It's evening on the eve of the Assembly. She has come with you, in a borrowed coat over her uniform that fools nobody.",
   background: [
     "This is the evening of the day Wendell Prout was found hanged behind the King's Granary. What the player and Kell found there, and how they left it, is in what happened just before this scene, and that wins. If nothing happened before: they know a gentleman with a silver-topped cane (the granary children's 'Silvertop') and a big man with a bandaged hand were in the tally loft the night Prout died, and they've come looking for the big man.",
+    "If Prout went into the Captain's book as a murder, Master Sallow has heard of it from the Captain by evening and sent the Crake brothers down the river stairs to find out who's been asking after his porter. They're barred from the Rat (rule three, once each), so they ask at the pump on the stairs and come no further.",
   ],
   opening: "Hours have passed since the granary: it's dusk on the eve of the Assembly, and the trail of the big man with the bandaged hand has brought the player and Kell down the river stairs. Open at the Rat's door: the bunting on the quay above, the river slapping at the foot of the stairs, the din inside. As they step down into the room the din drops by half: the regulars have made Kell for watch before she's through the door (it's the boots). Show what a first glance would, by look rather than by name: the long smoky room, the rules board just inside the door, a small square landlady behind the bar with a cudgel to hand, an ancient bargewoman dealing cards by the fire, a young lighterman by the door with his elbow on a table, a great many big men with a great many bandages between them, and the biggest of them all in the fireside corner, back to the wall, one hand out of sight. Nobody gets a name until someone says it, and Cob stays out of it: he's in the scullery. End on Nan, with a look at the rules board, asking the sergeant whether she's on duty.",
   cast: [
@@ -468,7 +469,7 @@ export const drownedRat: Scene = {
     },
   ],
   limits: [
-    "Seeing the King, or getting a warrant or men from the palace tonight: on the eve of the Assembly the palace is shut to everyone but the procession rehearsal and the delegations' dinner, and the Captain takes his orders from the Purveyor's office. The gate guard will take a written message for the Marshal, and the King will see the investigator in the morning. Tonight it's the player and Kell.",
+    "Seeing the King, or getting a warrant or men from the palace tonight: on the eve of the Assembly the palace is shut to everyone but the procession rehearsal and the delegations' dinner, and the Captain files what the Purveyor's office asks him to file. The gate guard will take a written message for the Marshal, and the King will see the investigator in the morning. Tonight it's the player and Kell.",
     "More watch (constables, the river watch, anyone to hold the stairs): the whole watch is lining the Assembly route through the night, the river watch with them. Kell is the watch here, off her patch.",
     "Credit, IOUs or 'the King will pay': rule one. Money on the bar, goods Nan will take at her own valuation, or nothing.",
     "Master Sallow himself, or anyone who'll say his name aloud for money: he wouldn't be seen dead on the river stairs, nobody in the Rat will say where he is, and Nan doesn't sell quarts.",
@@ -477,7 +478,8 @@ export const drownedRat: Scene = {
     "Buying magic here (truth potions, charms, a hedge-wizard for hire): there's none to be had on the river stairs, and Nan sells gossip, not truth. (The player's own spells are theirs, and work as the rules say.)",
   ],
   anchors: ["river-stairs", "rat-door", "bar", "rules-board", "fireside-corner", "card-table", "champions-chair", "scullery", "slop-hatch"],
-  lore: ["Places/The Drowned Rat.md"],
+  lore: ["Places/The Drowned Rat.md", "World/Caerwyn now.md"],
+  fronts: "World/Fronts.md",
   assumes: ["Big Hobb Mallory, the big man with the bandaged hand, is still at large and hasn't told the player what he knows (he hasn't been caught, arrested or questioned yet). The player knowing who his master is doesn't change that."],
   world: drownedRatWorld,
   overtaken: "wharf-night",
