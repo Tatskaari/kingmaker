@@ -219,7 +219,7 @@ def live():
     expect(app, r"╔═ The yard behind the King's Granary", "#map shows the scene's world")
     keys(app, "esc")
     # Across a real scene boundary: the hand-off and the boundary check are real model calls.
-    say(app, "#end case-made")
+    say(app, "#end open-case")
     expect(app, r"The lead: The Drowned Rat", "the story moves on to the Drowned Rat", timeout=120)
     keys(app, "enter")
     walk(app, "right*6 down*9 right")
@@ -235,8 +235,7 @@ def live():
 
 
 def live_fight():
-    """A live-built wizard starts at the Heron (KM_APP_START), and casts from the spell picker in the fight."""
-    ENV["KM_APP_START"] = "heron-warehouse"
+    """A live-built wizard skips through the first two scenes (#end, with real hand-offs), opens the Heron, and casts from the spell picker in the fight."""
     app = launch()
     expect(app, r"Hanged Clerk of Caerwyn", "title screen")
     keys(app, "n")
@@ -247,8 +246,25 @@ def live_fight():
     keys(app, "enter")
     expect(app, r"Character sheet.*wizard|Character sheet.*sorcerer|Character sheet.*Spellcasting", "a spellcaster's sheet", timeout=90)
     keys(app, "enter")
-    expect(app, r"The lead:.*Heron", "night, heading for the Heron")
-    walk(app, "right*6 down*3 right*43 down*4 right*3 down right")
+    walk(app, "up*2")
+    keys(app, "e")
+    expect(app, r"The Hanged Clerk ·", "the scene opens")
+    app.wait_for(r"Say something or do something", 150)
+    # Not "case-made": the boundary takes a case made at the granary to overtake the Rat and the
+    # Heron (the Heron assumes Sallow is "unexposed"), and the story goes straight to the King.
+    say(app, "#end open-case")
+    expect(app, r"The lead: The Drowned Rat", "on to the Drowned Rat", timeout=150)
+    dump(app, "card-rat")
+    keys(app, "enter")
+    walk(app, "right*6 down*9 right")
+    keys(app, "e")
+    expect(app, r"The Drowned Rat ·", "the Rat opens")
+    app.wait_for(r"Say something or do something", 150)
+    say(app, "#end hobb-talks")
+    expect(app, r"The lead: The Heron Warehouse", "on to the Heron", timeout=150)
+    dump(app, "card-heron")
+    keys(app, "enter")
+    walk(app, "down*2 right*45 up*2 right")
     expect(app, r"e Try the Heron's land door", "at the Heron's land door")
     keys(app, "e")
     expect(app, r"The Heron Warehouse ·", "the Heron opens")

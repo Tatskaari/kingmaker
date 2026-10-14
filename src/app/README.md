@@ -6,44 +6,64 @@ The OpenTUI React terminal app that runs the whole story (docs/design/playable.m
 npm run game        # node --experimental-ffi --no-warnings --import tsx src/app/main.tsx
 ```
 
-It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`). Saves go under `runs/sessions/<id>/`: the runtime's `state.json`, plus the app's `app.json` (mode, position, story, notebook). `KM_RUNS_DIR` moves them, and `KM_APPROACH` picks the runtime approach (default `v2`).
+It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`). Saves go under `runs/sessions/<id>/`, and `KM_RUNS_DIR` moves them:
+
+- `game.json`: the game core's save, with the mode, the story, where the player stands and the fight.
+- `state.json`: the runtime's session.
+- `app.json`: the app's notebook and messages.
 
 ## Playing
 
 | where | keys |
 |---|---|
-| title | ↑↓ and Enter; Continue resumes the latest save |
+| title | ↑↓ and Enter; Continue resumes the latest game |
+| character | Tab between name and concept; Enter; on the sheet, r makes them again |
 | explore | arrows or WASD walk; e or Enter interact; c sheet; j notebook; ? help; Esc menu |
 | scene | type and press Enter; `#sheet` `#map` `#journal` `#help` `#save` `#quit`; PgUp/PgDn scroll; Esc menu |
 | combat | arrows move 5 ft; a attack; c cast; d dash; g dodge; x disengage; e end turn; Tab or 1–9 pick a target; s sheet |
 | anywhere | Ctrl+C saves and quits |
 
-For testing, in a scene, `#exits` lists the endings and `#end <id>` takes one now (`forceEnding`).
+For testing, in a scene, `#exits` lists the endings and `#end <id>` takes one now.
 
-## The story flow
+## How it fits together
 
-`story.ts` holds it, with no UI: `newGame` (`createSession` at level 3), `beginScene` (`openScene`), `takeTurn` (`playerTurn`, then the background co-GM and memory review, as the scene CLI spawns them), and `moveOn`. When a scene ends, `moveOn` either hands over to combat, or chains on (`chainScene`), ending interludes at once (`forceEnding(state, "onward")` and chain again), or reports The End. The lead is `state.sceneId`, and the time of day follows from it. `combatSetup` builds the fight from the present cast: Sallow's group becomes Sallow and the two Crakes, Hep's becomes her porters, Kell is an ally, and everyone else is neutral.
+The app is a view over the game core, `src/game/play.ts`. The core owns the story flow:
 
-`game.ts` is the controller the screens subscribe to. It holds the screen, the session, the position, the transcript and the streaming reply, the fight, the cards between scenes, the notebook, and the saves. The screens are in `ui/`.
+- exploring, scenes, fights and The End;
+- chaining scenes and skipping interludes;
+- a fight's aftermath back in its scene;
+- the King's summons.
 
-## The seam with the map and combat modules
+`game.ts` is the app's controller, and the screens in `ui/` subscribe to it. It adds what a terminal needs: the GM's reply streaming in, the cards between scenes, the notebook (the exit scripts' journal lines), overlays, and pacing for the fight.
 
-The app talks to the map and combat modules only through `adapters.ts`. These are `MapAdapter` (start, maps, who's about, step, nearby, reachable, regions, scene locations, after-scene position, render, `sceneView` for a scene's world, the battlefield) and `CombatAdapter` / `CombatController` (start, view, options, act, advance, result, actors). The stand-ins in `standins/` implement them:
+Exploration and fights plug into the core:
 
-- **Map stand-in:** one top-down town map with the four places as regions, and who's about at each time of day.
+- **`explorer.ts`:** `mapExplorer(maps)`, an `Explorer` over a `MapAdapter`.
+- **`fights.ts`:** `tacticalFights(combat, maps)`, a `FightFactory` over a `CombatAdapter`.
+
+Both speak action ids (`go_north`, `talk_kell`, `enter_rat_door`, `attack_crake-1`, `cast_fire-bolt@crake-1`, `end_turn`), so the headless QA console can play the same map and fights through `observe()`.
+
+`adapters.ts` is the seam with the modules being built alongside: `MapAdapter` for src/game/map, and `CombatAdapter` / `CombatController` for src/game/combat. The stand-ins in `standins/` implement them for now:
+
+- **Map stand-in:** one top-down town map with the four places as regions, who's about at each time of day, and the scene's world drawn small.
 - **Combat stand-in:** initiative, walking on the grid, and blows from the rules engine. The player's attacks and spells go through `src/rules/dnd.ts`; NPC blows use the same engine.
 
-To swap a real module in, change its line at the bottom of `adapters.ts`.
+Swapping a real module in is its line at the bottom of `adapters.ts`. `story.ts` builds the fight's line-up from the scene's present cast:
+
+- a group's `members` stand with its leader (the Crakes with Sallow);
+- children keep out of it;
+- Kell is an ally.
 
 ## Smoke tests
 
 ```sh
-python3 src/app/smoke/smoke.py            # the real TUI under a pty, the whole arc offline (about 70 s)
-python3 src/app/smoke/smoke.py --live     # one real GM turn, quit and resume, a real scene boundary
-KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/flow.ts     # the story flow and stand-ins, no UI
-KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts   # a live-built wizard casting in the fight
+python3 src/app/smoke/smoke.py                # the real TUI under a pty, the whole arc offline (about 90 s)
+python3 src/app/smoke/smoke.py --live         # a real GM turn, quit and resume, #map, a real scene boundary
+python3 src/app/smoke/smoke.py --live-fight   # a live-built wizard through to the Heron, casting from the spell picker
+KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # explorer + fights under the core, no UI
+KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts                            # casting in a fight, headless
 ```
 
-`rules-repair.ts` is a stop-gap for a rules-layer bug, and the report proposes the real fix. A spell attack logs the spell's id as `weaponInstanceId`, and the engine then refuses to reload the campaign. The app repairs the campaign after each turn, after each spell in a fight, and on resume.
+The offline run uses an invalid API key, so the GM can't speak, and it ends scenes with `#end`. The run covers character creation, walking, overlays, every scene, the notebook, save, quit and Continue (on the map and mid-fight), a full stand-in fight, the aftermath, the summons, and The End. Each step's screen is saved under `runs/app-smoke/<run>/`. `smoke/vt.py` is the small VT screen it reads.
 
-The offline run uses an invalid API key, so the GM can't speak, and it ends scenes with `#end`. The run covers character creation, walking, overlays, every scene, the notebook, save, quit and Continue (on the map and mid-fight), a full stand-in fight, and The End. Each step's screen is saved under `runs/app-smoke/<run>/`. `smoke/vt.py` is the small VT screen that reads it.
+`rules-repair.ts` is a stop-gap for a rules-layer bug, and the report proposes the real fix. A spell attack logs the spell's id as `weaponInstanceId`, and the engine then refuses to reload the campaign. The app repairs the campaign after each turn, after each spell in a fight, and on resume.
