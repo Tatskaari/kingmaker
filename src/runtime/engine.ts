@@ -566,6 +566,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   }
   const staged = staging ? await staging : undefined;
   if (staged) { costUsd += staged.costUsd; calls++; }
+  // What the stage manager asked for and the world refused stays on record (a hand-over that failed).
+  for (const problem of staged?.problems ?? []) state.world?.log.push({ turn: state.turn, text: `(not done) ${problem}`, by: "stage" });
   // The player has walked out of this place altogether: the scene ends here, and the boundary decides
   // what comes next (rather than the scene's own endings chasing them across town).
   if (!ended && !state.closing && (leftPlace || state.world?.entities.player?.states.includes("gone"))) {

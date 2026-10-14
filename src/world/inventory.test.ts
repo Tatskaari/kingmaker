@@ -59,3 +59,15 @@ test("the stage manager's give goes through the service (and fails safely)", () 
   const none = applyOps(world, [{ op: "give", what: "the king's crown", to: "player", how: "", name: "", kind: "", text: "", add: [], remove: [] }], 4);
   assert.equal(none.problems.length, 1);
 });
+
+test("what's inside someone's own things can change hands (the page sewn into the boots Cob wears)", async () => {
+  const { hangedClerkWorld } = await import("../../scenes/worlds/hanged-clerk.ts");
+  const world = buildWorld("hanged-clerk", hangedClerkWorld, [{ id: "cob", name: "Cob" }, { id: "kell", name: "Sergeant Agnes Kell" }], { name: "Kren" });
+  assert.equal(world.entities["ledger-page"]!.parent, "boots");
+  const blank = { to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  const done = applyOps(world, [{ ...blank, op: "give", what: "ledger-page", to: "player" }], 12, "stage");
+  assert.deepEqual(done.problems, []);
+  assert.equal(world.entities["ledger-page"]!.parent, "player");
+  // Something inside another owner's things still isn't theirs to give.
+  assert.throws(() => inventory(world, 13).transfer("kell", "player", "boots"), InventoryError);
+});

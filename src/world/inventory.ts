@@ -30,6 +30,16 @@ export interface InventoryService {
 
 const OWNER_KINDS = new Set(["person", "creature", "area", "place"]);
 const isOwner = (e: Entity) => OWNER_KINDS.has(e.kind) || e.tags.includes("container");
+/** The owner has it: in hand, or inside something of theirs that isn't an owner itself (a page sewn into the boots he wears). */
+function holds(world: SceneWorld, ownerId: string, item: Entity): boolean {
+  for (let p = item.parent, n = 0; p && n < 20; n++) {
+    if (p === ownerId) return true;
+    const e = world.entities[p];
+    if (!e || isOwner(e)) return false;
+    p = e.parent;
+  }
+  return false;
+}
 const portable = (e: Entity) => e.kind === "item" || (e.kind === "object" && !e.tags.includes("fixed") && e.size !== "huge" && e.size !== "gargantuan");
 const live = (e: Entity) => !e.states.includes("gone");
 
@@ -88,7 +98,7 @@ export function inventory(world: SceneWorld, turn: number): InventoryService {
       const from = owner(fromId), to = owner(toId);
       const item = world.entities[itemId];
       if (!item || !live(item)) throw new InventoryError(`No item ${itemId}`);
-      if (item.parent !== fromId) throw new InventoryError(`${from.name} doesn't have ${item.name}${item.parent ? ` (${world.entities[item.parent]?.name ?? item.parent} does)` : ""}`);
+      if (!holds(world, fromId, item)) throw new InventoryError(`${from.name} doesn't have ${item.name}${item.parent ? ` (${world.entities[item.parent]?.name ?? item.parent} does)` : ""}`);
       if (!portable(item)) throw new InventoryError(`${item.name} can't be carried`);
       if (to.id === item.id || isWithin(world, to.id, item.id)) throw new InventoryError(`${item.name} can't go inside itself`);
       const have = item.quantity ?? 1;
