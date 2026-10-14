@@ -5,13 +5,14 @@ import { surfaceKindOf, type CloudKind, type SurfaceKind } from "./terrain.ts";
 
 /**
  * Surfaces in the world, as the look layer draws them: patches on the ground (water, oil, spirits,
- * blood, ash, char, ice...) under everything, and clouds (smoke, steam, dust) over everything,
- * either of them possibly burning. The world's own model of surfaces (src/world/systems.ts, being
- * written on the PoC branch) may keep them as a list or as entities; this reads both, tolerantly:
+ * ale, blood, grease, ice, scorch marks...) under everything, and clouds (smoke, steam) over
+ * everything, either of them possibly burning.
  *
- * - world.surfaces: an array of { kind|type|material, at|x,y, radius|size, states } objects;
- * - entities tagged "surface" or "cloud", or named like one ("a pool of blood", "an oil slick",
- *   "spilled gin", "a cloud of steam"), placed where they are, sized by their size.
+ * The world keeps them as entities of kind "surface" (src/world/systems.ts): a tag names the stuff
+ * (water, oil, spirits, ale, blood, grease, ice, ash, smoke, steam), "cloud" marks a cloud, radius
+ * is its reach in feet, ttl the turns it has left (a cloud thins as it runs out), and "burning" is
+ * a burning patch. Also read, for data from elsewhere: a world.surfaces list of { kind, at, radius,
+ * states }, and ordinary entities tagged "surface" or named like one ("a pool of blood").
  */
 
 export interface SurfacePatch {
@@ -37,6 +38,8 @@ export interface CloudPatch {
 }
 
 const SIZE_RADIUS: Record<string, number> = { tiny: 1.5, small: 3, medium: 5, large: 8, huge: 12, gargantuan: 20 };
+/** The tags systems.ts puts on a surface to say what it is. */
+const SURFACE_TAGS = ["water", "oil", "spirits", "ale", "blood", "grease", "ice", "ash", "smoke", "steam"] as const;
 const CLOUD_WORDS: Array<[RegExp, CloudKind]> = [[/steam|vapou?r/, "steam"], [/smoke|fume|reek|smog/, "smoke"], [/dust|flour|chaff|powder/, "dust"], [/fog|mist|haze/, "fog"], [/poison|gas|miasma|spores/, "poison"]];
 
 export function cloudKindOf(word: string | undefined): CloudKind | undefined {
@@ -78,6 +81,21 @@ export function surfacesOf(world: SceneWorld, locate?: (id: string) => { x: numb
 
   for (const e of Object.values(world.entities)) {
     if (e.kind === "place" || e.kind === "area" || e.kind === "person" || e.kind === "creature" || e.states.includes("gone")) continue;
+    if (e.kind === "surface") {
+      // The physics' own surfaces: the tags say what it is.
+      const p = locate?.(e.id) ?? e.at;
+      if (!p) continue;
+      const radius = e.radius ?? 3;
+      const stuff = SURFACE_TAGS.find(t => e.tags.includes(t));
+      if (e.tags.includes("cloud") || stuff === "smoke" || stuff === "steam") {
+        const kind: CloudKind = stuff === "steam" ? "steam" : stuff === "smoke" ? "smoke" : cloudKindOf(e.name) ?? "smoke";
+        clouds.push({ id: e.id, kind, x: p.x, y: p.y, radius, density: e.ttl !== undefined ? Math.min(1, 0.45 + e.ttl * 0.2) : 0.85, seed: seedOf(e.id) });
+      } else {
+        const kind: SurfaceKind = stuff === "ash" ? "scorch" : stuff === "grease" ? "grease" : (stuff as SurfaceKind | undefined) ?? surfaceKindOf(e.name) ?? "water";
+        surfaces.push({ id: e.id, kind, x: p.x, y: p.y, radius, states: [...e.states], seed: seedOf(e.id) });
+      }
+      continue;
+    }
     const name = e.name.toLowerCase();
     const tagged = e.tags.includes("surface") || e.tags.includes("cloud");
     const named = /\b(puddle|pool|slick|spill|spilled|spilt|stain|smear|spatter|splatter|trail|patch|film|sheet of|cloud|plume|puff|column of|wisp|haze|pall)\b/.test(name);

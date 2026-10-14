@@ -25,7 +25,7 @@ export interface Vec { x: number; y: number }
 /** A place in the world (feet), or someone or something by id (their position is looked up each frame). */
 export type Anchor = Vec | { id: string };
 
-export type EffectKind = "fireball" | "bolt" | "explosion" | "splash" | "sparks" | "smoke" | "steam" | "shockwave" | "flash" | "throw" | "douse" | "ignite" | "debris" | "poof" | "embers" | "lightning";
+export type EffectKind = "fireball" | "bolt" | "explosion" | "splash" | "sparks" | "smoke" | "steam" | "dust" | "shockwave" | "flash" | "throw" | "douse" | "ignite" | "debris" | "poof" | "embers" | "lightning";
 
 export interface EffectOptions {
   at?: Anchor;
@@ -308,14 +308,16 @@ export class Effects {
           const a = random() * Math.PI * 2, sp = radius * (0.6 + random() * 1.8);
           this.particles.push(this.p(t0 + random() * 80, 450 + random() * 450, at, { vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 6 + random() * 10, drag: 1.5, gravity: 34, glyphs: "'·.", colors: c, layer: 1 }));
         }
-        this.areas.push({ born: t0, life: 700, kind: "ring", at, r0: 0.5, r1: radius * 1.2, width: 1.6, color: c[1] ?? C("#7ab8e8"), flame, strength: 0.7, seed: Math.floor(random() * 1e6) });
-        this.areas.push({ born: t0 + 220, life: 650, kind: "ring", at, r0: 0.3, r1: radius * 0.8, width: 1.2, color: c[2] ?? C("#3a78b0"), flame, strength: 0.5, seed: Math.floor(random() * 1e6) });
+        // Ripples: thin rings (the "ember" flame marks a ripple, not a shockwave).
+        this.areas.push({ born: t0, life: 650, kind: "ring", at, r0: 0.5, r1: radius * 1.1, width: 0.8, color: c[1] ?? C("#7ab8e8"), flame: "ember", strength: 0.75, seed: Math.floor(random() * 1e6) });
+        this.areas.push({ born: t0 + 220, life: 600, kind: "ring", at, r0: 0.3, r1: radius * 0.7, width: 0.7, color: c[1] ?? C("#7ab8e8"), flame: "ember", strength: 0.55, seed: Math.floor(random() * 1e6) });
         if (kind === "douse") this.puffs(at, radius, t0 + 120, random, n(12), STEAM_RAMP, 7, 1600, 0.55);
         return 1800;
       }
       case "steam": this.puffs(at, o.radius ?? 3, t0, random, n(12), STEAM_RAMP, 7, 1700, 0.55); return 2200;
       case "smoke": this.puffs(at, o.radius ?? 3, t0, random, n(10), SMOKE_RAMP, 3.5, 3000, 0.6); return 3400;
       case "poof": this.puffs(at, o.radius ?? 2, t0, random, n(7), DUST_RAMP, 2.5, 900, 0.4); return 1000;
+      case "dust": this.puffs(at, o.radius ?? 4, t0, random, n(14), DUST_RAMP, 1.6, 3200, 0.5); return 3600;
       case "sparks": this.sparksAt(at, t0, random, n(14), color ? [C("#ffffff"), color, mix(color, C("#000000"), 0.5)] : SPARK_RAMP); return 700;
       case "embers": {
         for (let i = 0; i < n(10); i++) this.particles.push(this.p(t0 + random() * 400, 900 + random() * 900, jitter(at, o.radius ?? 2, random), { vx: (random() - 0.5) * 3, vy: (random() - 0.5) * 2, rise: 5 + random() * 5, wind: 0.8, glyphs: "*'·.", colors: EMBER_RAMP, glow: true, layer: 2 }));
@@ -381,8 +383,9 @@ export class Effects {
 
   private puffs(at: Anchor, radius: number, t0: number, random: () => number, count: number, colors: RGB[], rise: number, life: number, alpha: number): void {
     for (let i = 0; i < count; i++) {
+      // A puff: thick at first, thinning to a wisp; translucent, so what's under it shows through.
       this.particles.push(this.p(t0 + random() * life * 0.35, life * (0.6 + random() * 0.6), jitter(at, radius, random), {
-        vx: (random() - 0.5) * 3, vy: (random() - 0.5) * 2, rise: rise * (0.6 + random() * 0.8), wind: 1, glyphs: "▒░░·", colors, bg: colors, bgAlpha: alpha, layer: 2, glow: false,
+        vx: (random() - 0.5) * 3, vy: (random() - 0.5) * 2, rise: rise * (0.6 + random() * 0.8), wind: 1, glyphs: random() < 0.5 ? "░░··" : "▒░░·", colors, bg: colors, bgAlpha: alpha * 0.6, layer: 2, glow: false,
       }));
     }
   }
@@ -393,6 +396,10 @@ export class Effects {
     const dist = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 30;
     const travel = Math.max(140, Math.min(900, (dist / o.speed) * 1000));
     this.particles.push({ ...this.p(t0, travel, from, { glyphs: o.glyph, colors: o.colors, glow: o.glow, layer: 1 }), path: { from, to, arc: o.arc }, z: 2, fade: false });
+    if (o.glow && o.trail) {
+      // A comet's head: a dimmer cell either side of the bright one, so it reads at speed.
+      for (const side of [-1.1, 1.1]) this.particles.push({ ...this.p(t0, travel, from, { glyphs: "▒", colors: [o.trail[o.trail.length > 2 ? 2 : 0]!], glow: true, layer: 1 }), path: { from, to, arc: o.arc, side }, z: 2, fade: false });
+    }
     if (o.trail) {
       // The trail: sparks dropped along the way, each living a moment where it was left.
       const steps = Math.max(4, Math.round(dist / 2.5));
@@ -433,19 +440,27 @@ export function areaCell(area: Area, px: number, py: number, t: number): { glyph
       if (off > area.width / 2 + 0.6) return undefined;
       const k = clamp01(1 - off / (area.width / 2 + 0.6)) * area.strength * (1 - area.t01 * 0.85);
       if (k < 0.08) return undefined;
-      const fg = ramp(RING_RAMP, area.t01);
+      if (area.flame === "ember") {
+        // A ripple on water (a splash): a thin bright line, no glow.
+        const fg = mix(area.color, C("#ffffff"), 0.3 * (1 - area.t01));
+        return { glyph: k > 0.55 ? "~" : k > 0.3 ? "°" : "·", fg, mixBg: 0, mixFg: k, glow: false };
+      }
+      // A shockwave: the air itself, white-hot to dull as it spreads.
+      const fg = area.color === C("#ffffff") || area.color === C("#fff4d0") ? ramp(RING_RAMP, area.t01) : mix(area.color, C("#3a3038"), area.t01 * 0.8);
       return { glyph: k > 0.7 ? "▓" : k > 0.45 ? "▒" : k > 0.25 ? "░" : "·", fg, bg: mix(fg, C("#000000"), 0.4), mixBg: k * 0.75, mixFg: k, glow: true };
     }
     case "fire": {
       if (d > area.radius) return undefined;
-      const edge = 1 - d / Math.max(1, area.radius);
-      // The sphere burns out from the edge in, and its heat rolls upward.
+      // A sphere of fire: white-hot at the heart, banded orange and red outward, the rim ragged and
+      // flickering. It burns out from the edge in, the heat rolling upward as it goes.
+      const e = d / Math.max(1, area.radius);
       const life = 1 - area.t01;
-      const heat = clamp01(noise3(px * 0.18, py * 0.12 + t / 220, t / 300, area.seed) * 0.8 + edge * 0.45) * (life ** 0.7);
-      if (heat < 0.18) return undefined;
+      const churn = noise3(px * 0.22, py * 0.16 + t / 160, t / 260, area.seed);
+      const heat = clamp01((1 - e ** 1.6) * 1.05 + (churn - 0.5) * 0.55) * (life ** 0.55);
+      if (heat < 0.14 + (1 - life) * 0.2) return undefined;
       const fl = FLAME_RAMPS[area.flame];
-      const glyph = heat > 0.7 ? "▲" : heat > 0.5 ? "^" : heat > 0.34 ? "*" : "'";
-      return { glyph, fg: ramp(fl, clamp01(0.35 + heat * 0.7)), bg: ramp(fl, clamp01(0.1 + heat * 0.45)), mixBg: clamp01(heat * 1.4), mixFg: 1, glow: true };
+      const glyph = heat > 0.82 ? "█" : heat > 0.66 ? "▓" : heat > 0.5 ? "▒" : heat > 0.36 ? (churn > 0.55 ? "▲" : "^") : churn > 0.5 ? "'" : "·";
+      return { glyph, fg: ramp(fl, clamp01(0.3 + heat * 0.75)), bg: ramp(fl, clamp01(0.06 + heat * 0.55)), mixBg: clamp01(0.25 + heat * 1.2), mixFg: 1, glow: true };
     }
     case "flash": {
       if (d > area.radius) return undefined;

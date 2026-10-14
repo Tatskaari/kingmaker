@@ -20,6 +20,9 @@ import { smoothstep } from "./noise.ts";
 
 interface Seen { at?: Point; states: string; parent: string | null; present: boolean; hp?: number }
 
+/** A spill's splash colour, by what it is. */
+const SPLASH: Array<[string, string]> = [["water", "#7ab8e8"], ["oil", "#5a5040"], ["spirits", "#cfe0d8"], ["ale", "#e8b040"], ["blood", "#a01818"], ["grease", "#8a7a40"]];
+
 export class Tweens {
   private moves = new Map<string, { from: Point; to: Point; start: number; dur: number; hop: number }>();
   /** Move id from one place to another over dur ms (hop: feet of arc, for things thrown). */
@@ -71,13 +74,21 @@ export class Director {
       if (!before) {
         if (!pos || !cur.present) continue;
         const burning = e.states.includes("burning");
-        fx.effect(burning ? "ignite" : e.kind === "person" || e.kind === "creature" ? "poof" : "poof", { at: { ...pos }, radius: 2 }, t);
+        if (e.kind === "surface") {
+          // A spill lands with a splash of its own colour; clouds and scorch marks just are.
+          const liquid = SPLASH.find(([tag]) => e.tags.includes(tag));
+          if (burning) fx.effect("ignite", { at: { ...pos }, radius: e.radius ?? 3, flame: e.tags.includes("spirits") ? "blue" : "fire" }, t);
+          else if (liquid) fx.effect("splash", { at: { ...pos }, radius: Math.min(5, e.radius ?? 3), color: liquid[1], amount: 0.7 }, t);
+          did.push(`${e.name} spreads`);
+          continue;
+        }
+        fx.effect(burning ? "ignite" : "poof", { at: { ...pos }, radius: 2 }, t);
         did.push(`${e.name} appears`);
         continue;
       }
       if (before.present && !cur.present) {
-        if (before.at) fx.effect("poof", { at: { ...before.at }, radius: 2 }, t);
-        did.push(`${e.name} leaves`);
+        if (before.at && e.kind !== "surface") fx.effect("poof", { at: { ...before.at }, radius: 2 }, t);
+        did.push(`${e.name} ${e.kind === "surface" ? "is gone" : "leaves"}`);
         continue;
       }
       // Moves: walk or slide from the old spot to the new one.
@@ -97,7 +108,7 @@ export class Director {
       if (!pos) continue;
       const at = { ...pos };
       const look = lookOf(e, {});
-      const size = { tiny: 1.5, small: 2.5, medium: 3.5, large: 5, huge: 8, gargantuan: 12 }[e.size ?? "medium"] ?? 3;
+      const size = e.kind === "surface" ? e.radius ?? 3 : { tiny: 1.5, small: 2.5, medium: 3.5, large: 5, huge: 8, gargantuan: 12 }[e.size ?? "medium"] ?? 3;
       if (gained.includes("exploded")) { fx.effect("explosion", { at, radius: Math.max(10, size * 2) }, t); did.push(`${e.name} explodes`); }
       if (gained.includes("burning") && !gained.includes("exploded")) { fx.effect("ignite", { at, radius: size, flame: look.flame ?? "fire" }, t); did.push(`${e.name} catches fire`); }
       if (gained.includes("wet") || gained.includes("soaked")) {

@@ -10,6 +10,8 @@ import type { Dressing } from "./stage.ts";
 export const drownedRatDressing: Dressing = {
   ground: { stairs: "steps", doorway: "flags", bar: "boards", floor: "boards", fireside: "flags", scullery: "flags" },
   patches: [
+    // The world's areas leave a strip between the bar and the floor: it's floor.
+    { ground: "boards", rect: { x: 12, y: 19, w: 20, h: 4 }, ragged: 0 },
     { ground: "river", rect: { x: 33, y: -2, w: 17, h: 12 }, flow: { x: 0.9, y: 1.3 }, ragged: 0.5 },
     { ground: "grass", rect: { x: -2, y: -2, w: 20, h: 3 }, ragged: 0.6 },
     { surface: "water", circle: { x: 22, y: 7, r: 3 } },
@@ -57,16 +59,20 @@ export const granaryYardDressing: Dressing = {
   hide: ["yard-wall", "granary-wall"],
 };
 
-/** The King's dressing room on the morning of the Assembly: carpet, panelling, tall windows full of sun. */
+/** The King's dressing room and the long gallery, the morning of the Assembly: carpet, gilt, tall windows full of sun. */
 export const kingsRoomDressing: Dressing = {
-  ground: { "gallery-door": "boards", dressing: "carpet", hearth: "boards", windows: "boards" },
+  ground: { gallery: "boards", "dressing-room": "carpet" },
+  patches: [{ ground: "boards", rect: { x: 15, y: 0, w: 5, h: 50 }, ragged: 0 }],
   walls: [
-    { from: [0, 0], to: [35.5, 0], style: "palace" },
-    { from: [0, 0], to: [0, 27.5], style: "palace" },
-    { from: [35.5, 0], to: [35.5, 27.5], style: "palace" },
-    { from: [0, 27.5], to: [35.5, 27.5], style: "palace" },
+    { from: [0, 0], to: [0, 49.5], style: "palace" },
+    { from: [0, 0], to: [17.5, 0], style: "palace" },
+    { from: [0, 49.5], to: [17.5, 49.5], style: "palace" },
+    { from: [17.5, 0], to: [17.5, 49.5], style: "palace" },
+    { from: [17.5, 5], to: [60, 5], style: "palace" },
+    { from: [60, 5], to: [60, 35], style: "palace" },
+    { from: [17.5, 35], to: [60, 35], style: "palace" },
   ],
-  windows: [{ at: [19, 27.5], radius: 16 }, { at: [29, 27.5], radius: 16 }],
-  indoor: ["gallery-door", "dressing", "hearth", "windows"],
-  hide: ["windows-glass"],
+  windows: [{ at: [31, 5], radius: 16 }, { at: [43, 5], radius: 16 }],
+  indoor: ["gallery", "dressing-room"],
+  hide: ["windows"],
 };

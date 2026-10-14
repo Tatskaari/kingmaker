@@ -16,7 +16,7 @@ export interface Ambient { level: number; tint: string }
 export const DAYLIGHT: Record<TimeOfDay, { outdoor: Ambient; indoor: Ambient }> = {
   morning: { outdoor: { level: 0.96, tint: "#ffe8c4" }, indoor: { level: 0.56, tint: "#f0dcc0" } },
   afternoon: { outdoor: { level: 1.04, tint: "#ffffff" }, indoor: { level: 0.62, tint: "#f4ece0" } },
-  evening: { outdoor: { level: 0.62, tint: "#f0a080" }, indoor: { level: 0.3, tint: "#c08a70" } },
+  evening: { outdoor: { level: 0.7, tint: "#e8b8b0" }, indoor: { level: 0.32, tint: "#c0a098" } },
   night: { outdoor: { level: 0.3, tint: "#5a74c0" }, indoor: { level: 0.11, tint: "#4a5a90" } },
   "next-morning": { outdoor: { level: 0.98, tint: "#eef4ff" }, indoor: { level: 0.6, tint: "#e8eef8" } },
 };

@@ -74,7 +74,7 @@ export interface StageLayout {
 
 const GROUNDS: Ground[] = ["cobbles", "flags", "boards", "loft", "dirt", "mud", "grass", "straw", "carpet", "steps", "sand", "rubble", "scorched", "void", "water", "deep-water", "river", "puddle"];
 const WALLS: WallStyle[] = ["stone", "timber", "bank", "brick", "plaster", "palace", "hedge"];
-const SURFACE_KINDS: SurfaceKind[] = ["water", "oil", "spirits", "blood", "ale", "wine", "slops", "milk", "honey", "ink", "mud", "ash", "char", "ice", "snow", "dust", "grain", "straw", "acid", "slime", "vomit", "tar"];
+const SURFACE_KINDS: SurfaceKind[] = ["water", "oil", "spirits", "blood", "ale", "wine", "slops", "milk", "honey", "ink", "mud", "ash", "char", "ice", "snow", "dust", "grain", "straw", "acid", "slime", "vomit", "tar", "grease", "scorch"];
 
 export function layoutOf(world: SceneWorld, w: number, h: number, scale?: number, focus?: Point): StageLayout {
   const root = world.entities[world.root]!.rect ?? { x: 0, y: 0, w: 40, h: 30 };
@@ -323,7 +323,18 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       lights.push({ x: (c0.x + c1.x) / 2, y: (c0.y + c1.y) / 2, radius: Math.max(c1.x - c0.x, (c1.y - c0.y) * 2) * 0.75, color: rgbOf("#ff8a3c"), intensity: 1 + 0.2 * noise1(t / 150, seedOf(a.id)) });
       emitters.push({ kind: "fire", x: Math.round((c0.x + c1.x) / 2), y: Math.round((c0.y + c1.y) / 2), w: c1.x - c0.x, h: c1.y - c0.y, seed: seedOf(a.id) + 1, strength: 1, flame: "fire" });
     }
-    if (states.includes("dusty") && !states.includes("exploded")) emitters.push({ kind: "dust", x: c0.x, y: c0.y, w: c1.x - c0.x, h: c1.y - c0.y, seed: seedOf(a.id), strength: 1, flame: "fire" });
+    if (states.includes("dusty") && !states.includes("exploded")) {
+      emitters.push({ kind: "dust", x: c0.x, y: c0.y, w: c1.x - c0.x, h: c1.y - c0.y, seed: seedOf(a.id), strength: 1, flame: "fire" });
+      // The air itself is thick with it: a slow haze, drifting.
+      for (let cy = c0.y; cy < c1.y; cy++) for (let cx = c0.x; cx < c1.x; cx++) {
+        if (!canvas.inside(cx, cy) || opaque[cy * w + cx]) continue;
+        const d = 0.3 + 0.7 * smoothstep(0.25, 0.8, noise3(cx * 0.1 + t / 6000, cy * 0.22, t / 5000, seedOf(a.id) + 3));
+        if (d < 0.04) continue;
+        const i = cy * w + cx;
+        const cell = cloudCell("dust", { glyph: canvas.glyph[i]!, fg: canvas.fg[i]!, bg: canvas.bg[i]! }, d, tctx);
+        canvas.fg[i] = cell.fg; canvas.bg[i] = cell.bg;
+      }
+    }
   });
 
   // 5. Effects: things on the ground, then in the air, then areas (rings, fireballs, flashes).
@@ -411,8 +422,12 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     canvas.bg[i] = shade(canvas.bg[i]!, field, i, f & WALL ? 0.22 : 0);
   }
 
-  // 9. Floating text: damage, alerts, barks. Never darkened.
-  if (fx) for (const tx of fx.texts) text(canvas, tx, L);
+  // 9. Floating text: damage, alerts, barks. Never darkened, never on top of one another (barks
+  // first: what people say matters most; numbers find room round them).
+  if (fx) {
+    const taken = new Uint8Array(w * h);
+    for (const tx of [...fx.texts].sort((a, b) => (a.style === "bark" ? 0 : 1) - (b.style === "bark" ? 0 : 1))) text(canvas, tx, L, taken);
+  }
   return canvas;
 }
 
@@ -483,6 +498,19 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
   const flame: FlameName = look.flame ?? "fire";
   const g = (ch: string) => inSet(ch, set);
   const wreck = !!look.wreck;
+  if (look.stamp === "canopy" && !wreck && tctx.time !== "night" && tctx.time !== "evening") {
+    // A tree throws its shadow down and to the right in daylight (the sun is up and to the left).
+    const sx = Math.max(2, Math.round(fp.w * 0.18)), sy = Math.max(1, Math.round(fp.h * 0.22));
+    for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) {
+      const nx = (dx + 0.5) / fp.w * 2 - 1, ny = (dy + 0.5) / fp.h * 2 - 1;
+      if (Math.hypot(nx, ny) > 0.95) continue;
+      const x = x0 + dx + sx, y = y0 + dy + sy;
+      if (!canvas.inside(x, y)) continue;
+      const i = y * canvas.w + x;
+      if (canvas.flags[i]! & (WALL | GLOW)) continue;
+      canvas.bg[i] = scale(canvas.bg[i]!, 0.62); canvas.fg[i] = scale(canvas.fg[i]!, 0.7);
+    }
+  }
   for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) {
     const x = x0 + dx, y = y0 + dy;
     if (!canvas.inside(x, y)) continue;
@@ -507,21 +535,29 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
       case "bench": glyph = g("═"); f = fg; break;
       case "hull": b = rgbOf("#1e1a16"); f = rgbOf("#5a4c3c"); glyph = dx === 0 ? g("◄") : dx === fp.w - 1 ? g("►") : edgeY && fp.h > 1 ? g("▀") : r < 0.5 ? g("═") : g("─"); if (dx === 0 || dx === fp.w - 1) { b = canvas.bg[i]; f = rgbOf("#3e342a"); } break;
       case "block": b = scale(fg, 0.55); f = scale(fg, 1.1); glyph = dy === 0 ? g("▀") : r < 0.15 ? g("·") : g(" "); break;
-      case "stack": b = scale(fg, 0.5); f = scale(fg, 0.95 + 0.2 * r); glyph = r < 0.45 ? g("δ") : r < 0.7 ? g("▒") : g("░"); break;
+      case "stack": {
+        // Sacks stacked in rows: each row a course of sacks (a darker seam between), the odd tie showing.
+        const seam = (dx + (dy & 1) * 2) % 4 === 0;
+        b = scale(fg, seam ? 0.3 : 0.42 + 0.08 * r); f = scale(fg, 0.62 + 0.18 * r);
+        glyph = seam ? g("│") : r < 0.16 ? g("δ") : r < 0.5 ? g("▒") : g("░");
+        break;
+      }
       case "bed": b = scale(fg, 0.6); f = rgbOf("#e8e0d0"); glyph = dy === 0 ? g("▀") : g("░"); break;
       case "line": glyph = g("▒"); b = scale(fg, 0.5); break;
       case "canopy": {
-        // An ellipse of leaves with a ragged edge; gusts travel through it.
+        // An ellipse of leaves with a ragged, airy edge: lit from the upper left, in shade to the
+        // lower right, gusts running through it downwind.
         const nx = (dx + 0.5) / fp.w * 2 - 1, ny = (dy + 0.5) / fp.h * 2 - 1;
-        const d = Math.hypot(nx, ny) + (noise2(x * 0.5, y * 0.8, seed) - 0.5) * 0.45;
-        if (d > 1) continue;
+        const d = Math.hypot(nx, ny) + (noise2(x * 0.5, y * 0.8, seed) - 0.5) * 0.5;
+        if (d > 1 || (d > 0.7 && r < 0.22)) continue;
         const wind = tctx.wind ?? { dir: 0.4, strength: 0.5 };
         const gust = smoothstep(0.5, 0.85, noise2(x * 0.12 - t / 1000 * (0.7 + wind.strength), y * 0.3, seed + 5)) * (0.4 + 0.6 * wind.strength);
-        const dark = rgbOf(look.role === "pine" ? "#1e4a26" : "#244a1c"), light = rgbOf(look.role === "pine" ? "#4a8a50" : "#6a9a3a");
-        glyph = r < 0.5 ? look.glyph : r < 0.8 ? g(look.role === "pine" ? "♠" : "♣") : g(gust > 0.4 ? "'" : "\"");
-        f = mix(mix(dark, light, 0.35 + 0.65 * (1 - d) * r), rgbOf("#b8d890"), gust * 0.55);
-        b = mix(rgbOf("#10200c"), rgbOf("#18300f"), 1 - d);
-        if (d > 0.82) b = mix(canvas.bg[i]!, b, 0.5);
+        const dark = rgbOf(look.role === "pine" ? "#163a1e" : "#1c3a16"), light = rgbOf(look.role === "pine" ? "#4a8a50" : "#7aaa44");
+        const sun = clamp01(0.55 - (nx + ny) * 0.38 + (1 - d) * 0.25);
+        glyph = r < 0.55 ? look.glyph : r < 0.8 ? g(look.role === "pine" ? "♠" : "♣") : g(gust > 0.4 ? "'" : "\"");
+        f = mix(mix(dark, light, sun * (0.6 + 0.4 * r)), rgbOf("#c8e0a0"), gust * 0.5);
+        b = mix(rgbOf("#0c1a0a"), rgbOf("#1c3612"), sun * 0.8);
+        if (d > 0.82) b = mix(canvas.bg[i]!, b, 0.55);
         if (burning > 0) {
           const heat = noise3(x * 0.35, y * 0.7 + t / 260, t / 500, seed + 9) * (0.6 + burning * 0.6);
           if (heat > 0.42) {
@@ -667,8 +703,13 @@ function sprite(canvas: Canvas, sp: { x: number; y: number; z: number; glyph: st
   const x = c.x, y = c.y - Math.round(sp.z / (2 * s));
   if (!canvas.inside(x, y)) return;
   const i = y * canvas.w + x;
-  if (sp.bg !== undefined) canvas.bg[i] = mix(canvas.bg[i]!, sp.bg, (sp.bgAlpha ?? 0.5) * sp.alpha);
-  if (sp.alpha > 0.35 || sp.bg === undefined) {
+  if (sp.bg !== undefined) {
+    // Translucent (smoke, steam, dust): veil the cell; only the thicker part of a puff draws its wisp.
+    const k = (sp.bgAlpha ?? 0.5) * sp.alpha;
+    canvas.bg[i] = mix(canvas.bg[i]!, sp.bg, k);
+    if (k > 0.18) { canvas.glyph[i] = sp.glyph; canvas.fg[i] = mix(canvas.bg[i]!, sp.fg, Math.min(1, k * 2.2)); }
+    else canvas.fg[i] = mix(canvas.fg[i]!, sp.fg, k);
+  } else {
     canvas.glyph[i] = sp.glyph;
     canvas.fg[i] = sp.alpha < 1 ? mix(canvas.bg[i]!, sp.fg, sp.alpha) : sp.fg;
   }
@@ -676,15 +717,26 @@ function sprite(canvas: Canvas, sp: { x: number; y: number; z: number; glyph: st
 }
 
 /** Floating text: barks in a dark bubble with the speaker's colour down the side, numbers rising. */
-function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: string; fg: RGB; bg?: RGB; alpha: number; style: string; bold: boolean }, L: StageLayout): void {
+function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: string; fg: RGB; bg?: RGB; alpha: number; style: string; bold: boolean }, L: StageLayout, taken: Uint8Array): void {
   if (tx.alpha <= 0.02) return;
   const c = L.toCell(tx);
   const parchment = rgbOf("#efe6d2");
+  // The nearest rows (up first, then down) where a span of cells is free of other text.
+  const free = (left: number, top: number, width: number, height: number): number => {
+    for (const shift of [0, -1, -2, 1, -3, 2, -4]) {
+      let ok = true;
+      for (let y = top + shift; y < top + shift + height && ok; y++) for (let x = left; x < left + width; x++) if (canvas.inside(x, y) && taken[y * canvas.w + x]) { ok = false; break; }
+      if (ok) return top + shift;
+    }
+    return top;
+  };
+  const claim = (left: number, top: number, width: number, height: number) => { for (let y = top; y < top + height; y++) for (let x = left; x < left + width; x++) if (canvas.inside(x, y)) taken[y * canvas.w + x] = 1; };
   if (tx.style === "bark") {
     const lines = wrap(tx.text, 28);
     const width = Math.max(...lines.map(l => [...l].length)) + 3;
-    const top = c.y - Math.round(tx.rows) - lines.length + 1;
     const left = Math.max(0, Math.min(canvas.w - width, c.x - Math.floor(width / 2)));
+    const top = Math.max(0, free(left, c.y - Math.round(tx.rows) - lines.length + 1, width, lines.length));
+    claim(left, top, width, lines.length);
     const bg = tx.bg ?? rgbOf("#16141c");
     lines.forEach((line, k) => {
       const y = Math.max(0, top + k);
@@ -705,9 +757,10 @@ function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: st
     if (canvas.inside(c.x, ty) && ty < c.y) { const i = ty * canvas.w + c.x; canvas.glyph[i] = "▾"; canvas.fg[i] = mix(canvas.bg[i]!, tx.fg, tx.alpha); canvas.flags[i] = UNLIT; }
     return;
   }
-  const y = c.y - Math.round(tx.rows);
   const chars = [...tx.text];
   const left = Math.max(0, Math.min(canvas.w - chars.length, c.x - Math.floor(chars.length / 2)));
+  const y = free(left, c.y - Math.round(tx.rows), chars.length, 1);
+  claim(left, y, chars.length, 1);
   chars.forEach((ch, j) => {
     const x = left + j;
     if (!canvas.inside(x, y)) return;

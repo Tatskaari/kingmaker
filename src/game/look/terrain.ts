@@ -46,14 +46,14 @@ export type Ground = "cobbles" | "flags" | "boards" | "loft" | "dirt" | "mud" | 
   | "water" | "deep-water" | "river" | "puddle";
 export type WallStyle = "stone" | "timber" | "bank" | "brick" | "plaster" | "palace" | "hedge";
 export type SurfaceKind = "water" | "oil" | "spirits" | "blood" | "ale" | "wine" | "slops" | "milk" | "honey" | "ink" | "mud" | "ash" | "char" | "ice" | "snow"
-  | "dust" | "grain" | "straw" | "acid" | "slime" | "vomit" | "tar";
+  | "dust" | "grain" | "straw" | "acid" | "slime" | "vomit" | "tar" | "grease" | "scorch";
 export type CloudKind = "smoke" | "steam" | "dust" | "fog" | "poison";
 
 const c = rgbOf;
 const WHITE = c("#ffffff");
 
 /** The sky's colour in still water, by the time of day. */
-const SKY: Record<TimeOfDay, RGB> = { morning: c("#5a6a78"), afternoon: c("#46688c"), evening: c("#6a4058"), night: c("#0e1626"), "next-morning": c("#5a7088") };
+const SKY: Record<TimeOfDay, RGB> = { morning: c("#6a88a8"), afternoon: c("#5a84b0"), evening: c("#7a4a68"), night: c("#1c2842"), "next-morning": c("#7a98b8") };
 /** The glint on water: the sun's colour, or the moon's. */
 const GLINT: Record<TimeOfDay, RGB> = { morning: c("#fff0c0"), afternoon: c("#ffffff"), evening: c("#ffb070"), night: c("#c0d0ff"), "next-morning": c("#f0f8ff") };
 
@@ -71,11 +71,13 @@ export function groundCell(kind: Ground, cx: number, cy: number, ctx: TerrainCon
       // Staggered two-cell cobbles, each its own shade; the odd speck of grit between them.
       const stone = Math.floor((cx + (cy & 1)) / 2);
       const v = hash01(stone, cy, s + 3);
-      const bg = scale(c("#2b2930"), 0.86 + 0.28 * v);
+      // Broad patches (damp, worn, mossy) under the stone-by-stone variety.
+      const patch = noise2(cx * 0.08, cy * 0.16, s + 4);
+      const bg = mix(scale(c("#2e2b2c"), 0.84 + 0.3 * v), c("#2a2c26"), patch * 0.5);
       const r = hash01(cx, cy, s + 5);
       const edge = (cx + (cy & 1)) % 2 === 0;
       const glyph = r < 0.1 ? "∙" : r < 0.2 ? "·" : r < 0.24 ? "," : edge && r < 0.5 ? "·" : " ";
-      return { glyph: g(glyph), fg: scale(c("#4c4856"), 0.9 + 0.2 * v), bg };
+      return { glyph: g(glyph), fg: scale(c("#56504e"), 0.9 + 0.2 * v), bg };
     }
     case "flags": {
       // Flagstones: courses a row tall, slabs three to six cells long, each its own grey, the
@@ -99,8 +101,8 @@ export function groundCell(kind: Ground, cx: number, cy: number, ctx: TerrainCon
       const plank = Math.floor((cx + off) / len);
       const end = (cx + off) % len === 0;
       const v = hash01(plank, cy, s + 8);
-      const base = scale(kind === "loft" ? c("#4a3826") : c("#3e2a1a"), 0.8 + 0.34 * v);
-      const bg = end ? scale(base, 0.62) : (cy & 1) ? scale(base, 0.92) : base;
+      const base = scale(kind === "loft" ? c("#4a3826") : c("#3e2a1a"), (0.88 + 0.18 * v) * (0.96 + 0.08 * hash01(cx, cy, s + 11)));
+      const bg = end ? scale(base, 0.66) : (cy & 1) ? scale(base, 0.94) : base;
       const r = hash01(cx, cy, s + 10);
       if (kind === "loft" && r < 0.08) return { glyph: g(r < 0.03 ? "∙" : "·"), fg: c("#b8a478"), bg };
       return { glyph: g(!end && r < 0.14 ? "─" : !end && r < 0.17 ? "°" : " "), fg: scale(base, 1.35), bg };
@@ -117,8 +119,10 @@ export function groundCell(kind: Ground, cx: number, cy: number, ctx: TerrainCon
       return { glyph: g(r < 0.1 ? "," : r < 0.16 ? "." : glint ? "·" : " "), fg: glint ? c("#6a5a48") : c("#3e3020"), bg: mix(c("#211810"), c("#2c2016"), v), specular: glint };
     }
     case "straw": {
+      // Strewn straw: a gold-brown bed, a few stalks catching the light.
       const r = hash01(cx, cy, s + 15);
-      return { glyph: g(r < 0.35 ? "\"" : r < 0.6 ? "'" : r < 0.75 ? "," : " "), fg: mix(c("#8a7a3a"), c("#b8a04a"), hash01(cx, cy, s + 16)), bg: c("#3a301a") };
+      const v = noise2(cx * 0.3, cy * 0.6, s + 17);
+      return { glyph: g(r < 0.12 ? "\"" : r < 0.24 ? "'" : r < 0.3 ? "," : " "), fg: mix(c("#8a7a3a"), c("#c8b058"), hash01(cx, cy, s + 16)), bg: mix(c("#3a2e18"), c("#4a3c1e"), v) };
     }
     case "carpet": {
       const border = (cx + cy) % 2 === 0;
@@ -212,7 +216,7 @@ export function wallCell(style: WallStyle, cx: number, cy: number, ctx: TerrainC
       const stud = (cx + Math.floor(cy / 3)) % 4 === 0;
       return { glyph: g(stud ? "║" : r < 0.5 ? "▓" : "█"), fg: stud ? c("#7a5838") : scale(c("#4a3424"), 0.9 + 0.2 * r), bg: c("#2e2014") };
     }
-    case "bank": return { glyph: g(r < 0.3 ? "\"" : r < 0.65 ? "▒" : "▓"), fg: r < 0.3 ? c("#4a6a2c") : c("#4a4430"), bg: c("#2a2618") };
+    case "bank": return { glyph: g(r < 0.12 ? "\"" : r < 0.55 ? "▒" : "▓"), fg: r < 0.12 ? c("#4a6a2c") : scale(c("#4e4632"), 0.9 + 0.2 * hash01(cx, cy, 54)), bg: c("#2a2618") };
     case "brick": {
       const course = (cx + ((cy & 1) ? 2 : 0)) % 4 === 0;
       return { glyph: g(course ? "▌" : "▬"), fg: c("#8a4a36"), bg: c("#5a2e24") };
@@ -230,8 +234,14 @@ export function wallCell(style: WallStyle, cx: number, cy: number, ctx: TerrainC
       return { glyph: g(r < 0.5 ? "♣" : "\""), fg: mix(c("#2e5a20"), c("#4e7a34"), sway), bg: c("#1a3214") };
     }
     case "stone":
-    default:
-      return { glyph: g(r < 0.62 ? "▓" : r < 0.9 ? "▒" : "█"), fg: scale(c("#5c5650"), 0.9 + 0.2 * hash01(cx, cy, 53)), bg: c("#36322e") };
+    default: {
+      // Coursed stone: blocks two cells long, a mortar line between courses, each block its own grey.
+      const block = Math.floor((cx + (cy & 1)) / 2);
+      const v = hash01(block, cy, 55);
+      const face = scale(c("#7a7268"), 0.82 + 0.3 * v);
+      const joint = (cx + (cy & 1)) % 2 === 0;
+      return { glyph: g(joint ? "▌" : r < 0.2 ? "▒" : "█"), fg: face, bg: c("#2c2824") };
+    }
   }
 }
 
@@ -243,7 +253,7 @@ interface SurfaceStyle { bg: RGB; fg: RGB; glyphs: string; still?: boolean; shee
 const SURFACES: Record<SurfaceKind, SurfaceStyle> = {
   water: { bg: c("#1c3c5c"), fg: c("#6aa8d8"), glyphs: "  ~ ", sheen: "glint", alpha: 0.8 },
   oil: { bg: c("#100e0c"), fg: c("#3a3428"), glyphs: "   ~", sheen: "rainbow", alpha: 0.9 },
-  spirits: { bg: c("#26343a"), fg: c("#b8d0d0"), glyphs: "    ", sheen: "glint", alpha: 0.45 },
+  spirits: { bg: c("#2a3e46"), fg: c("#c8e4e4"), glyphs: "  · ", sheen: "glint", alpha: 0.62 },
   blood: { bg: c("#3c060a"), fg: c("#8a1018"), glyphs: "   ·", still: true, sheen: "wet", alpha: 0.9 },
   ale: { bg: c("#5a3a10"), fg: c("#e8d090"), glyphs: "  · ", sheen: "foam", alpha: 0.75 },
   wine: { bg: c("#3a0a1e"), fg: c("#9a2a4a"), glyphs: "    ", sheen: "wet", alpha: 0.85 },
@@ -263,6 +273,9 @@ const SURFACES: Record<SurfaceKind, SurfaceStyle> = {
   acid: { bg: c("#2a4a0a"), fg: c("#b0f040"), glyphs: "  ° ", sheen: "glint", alpha: 0.8 },
   slime: { bg: c("#1e3a1a"), fg: c("#6ac04a"), glyphs: "  ° ", sheen: "wet", alpha: 0.85 },
   vomit: { bg: c("#5a5a2a"), fg: c("#a8a050"), glyphs: " ,. ", alpha: 0.8 },
+  grease: { bg: c("#2a2414"), fg: c("#8a7a40"), glyphs: "   ~", sheen: "wet", alpha: 0.8 },
+  // What a burned-out patch leaves: blackened floor, pale ash in the cracks.
+  scorch: { bg: c("#161210"), fg: c("#6e665e"), glyphs: ",·∙  ", still: true, alpha: 0.85 },
 };
 const SHEEN = [c("#b070e0"), c("#40c0c0"), c("#e0c040"), c("#e06090"), c("#60e090")];
 
@@ -361,35 +374,41 @@ export function flameCell(flame: FlameName, under: TCell, cx: number, cy: number
 // Clouds over everything: smoke, steam, dust, fog, poison gas. density is 0..1 at this cell.
 
 const CLOUDS: Record<CloudKind, { color: RGB; light: RGB; k: number }> = {
-  smoke: { color: c("#4a4650"), light: c("#8a8690"), k: 0.75 },
-  steam: { color: c("#c8d0d8"), light: c("#f4f8ff"), k: 0.7 },
-  dust: { color: c("#8a7a54"), light: c("#d8c890"), k: 0.55 },
-  fog: { color: c("#6a7484"), light: c("#b8c4d0"), k: 0.6 },
-  poison: { color: c("#4a7a2a"), light: c("#9ae04a"), k: 0.65 },
+  smoke: { color: c("#4a4650"), light: c("#8a8690"), k: 0.62 },
+  steam: { color: c("#b8c4d0"), light: c("#eef4fa"), k: 0.46 },
+  dust: { color: c("#8a7a54"), light: c("#d8c890"), k: 0.5 },
+  fog: { color: c("#6a7484"), light: c("#b8c4d0"), k: 0.5 },
+  poison: { color: c("#4a7a2a"), light: c("#9ae04a"), k: 0.55 },
 };
 
+/**
+ * A cloud over a cell: it veils the cell's colours rather than hiding them, and only its thick
+ * parts draw their own wisps. (An opaque block of steam reads as a wall, not as steam.)
+ */
 export function cloudCell(kind: CloudKind, under: TCell, density: number, ctx: TerrainContext): TCell {
   const cl = CLOUDS[kind];
   const d = clamp01(density) * cl.k;
   const set = ctx.glyphs ?? "ascii";
-  const glyph = d > 0.5 ? "▒" : d > 0.28 ? "░" : under.glyph;
+  const wisp = d > 0.36 && (under.glyph === " " || under.glyph === "·" || under.glyph === "∙" || d > 0.5);
+  const glyph = wisp ? (d > 0.52 ? "▒" : "░") : under.glyph;
   return {
     glyph: set === "plain" ? inSet(glyph, "plain") : glyph,
-    fg: d > 0.28 ? mix(under.fg, cl.light, Math.min(1, d * 1.2)) : mix(under.fg, cl.light, d * 0.6),
-    bg: mix(under.bg, cl.color, d),
+    fg: wisp ? mix(under.bg, cl.light, Math.min(1, 0.35 + d)) : mix(under.fg, cl.light, d * 0.55),
+    bg: mix(under.bg, cl.color, d * 0.85),
     ...(under.glow && d < 0.4 ? { glow: true } : {}),
   };
 }
 
-/** A drifting cloud's density at a cell: a blob round its centre, torn by noise and carried by the wind. */
+/** A drifting cloud's density at a cell: a soft blob round its centre, torn by noise and carried by the wind. */
 export function cloudDensity(cx: number, cy: number, centre: { x: number; y: number }, radius: number, ctx: TerrainContext, seed = 0): number {
   const T = ctx.t / 1000;
   const w = ctx.wind ?? { dir: -Math.PI / 2, strength: 0.3 };
   const dx = cx - centre.x, dy = sq(cy) - sq(centre.y);
   const d = Math.hypot(dx, dy) / Math.max(1, radius);
   if (d > 1.4) return 0;
-  const n = noise3(cx * 0.25 - Math.cos(w.dir) * T * 1.2, sq(cy) * 0.25 - Math.sin(w.dir) * T * 1.2, T * 0.3, seed + 91);
-  return clamp01((1 - d) * 1.3 + (n - 0.5) * 0.9);
+  const n = noise3(cx * 0.22 - Math.cos(w.dir) * T * 1.2, sq(cy) * 0.22 - Math.sin(w.dir) * T * 1.2, T * 0.35, seed + 91);
+  const m = noise3(cx * 0.6 + T * 0.4, sq(cy) * 0.6, T * 0.8, seed + 92);
+  return clamp01((1 - d * d) * 0.85 + (n - 0.5) * 0.9 + (m - 0.5) * 0.35);
 }
 
 // ---------------------------------------------------------------------------------------------

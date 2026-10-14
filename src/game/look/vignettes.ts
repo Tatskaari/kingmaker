@@ -1,7 +1,8 @@
 import { applyOps, buildWorld, caughtIn, damageThing, positionOf, tick, type Entity, type Point, type SceneWorld, type WorldOp, type WorldSpec } from "../../world/scene-world.ts";
+import { chill, douse as douseThing, elemental, spill } from "../../world/systems.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
-import { kingsMorningWorld } from "../../../scenes/worlds/kings-morning.ts";
+import { dressingRoomWorld } from "../../../scenes/worlds/kings-morning.ts";
 import { describeLook, lookOf, type TimeOfDay } from "./appearance.ts";
 import { BOLD, Canvas, INK, UNLIT } from "./canvas.ts";
 import { mix, rgbOf } from "./color.ts";
@@ -13,14 +14,12 @@ import { renderStage, type Dressing } from "./stage.ts";
 import { groundCell, type Weather } from "./terrain.ts";
 
 /**
- * The gallery's vignettes: short scenes played on real scene worlds with the real rules (fire
- * from damageThing, spreading and the dust explosion from tick, Fireball's sphere from caughtIn,
- * the stage manager's operations through applyOps), and the director animating whatever changed.
- * Each is a list of beats at fixed times, so any instant can be rebuilt from scratch: frameAt()
- * is exact, which the headless dump and the tests rely on.
- *
- * Where the world's own surfaces and interactions (src/world/systems.ts, in progress) will do the
- * work, the scripts do it by hand with the same states (douse(), ignite()): marked "systems".
+ * The gallery's vignettes: short scenes played on real scene worlds with the real rules and
+ * physics (fire from damageThing and ignite, spreading, burning patches and the dust explosion
+ * from tick, Fireball's sphere from caughtIn and elemental, water from douse, spills, ice from
+ * chill, the stage manager's operations through applyOps), and the director animating whatever
+ * changed. Each is a list of beats at fixed times, so any instant can be rebuilt from scratch:
+ * frameAt() is exact, which the headless dump and the tests rely on.
  */
 
 export interface LogLine { at: number; text: string; kind: "rules" | "stage" | "gm" | "say" | "note" }
@@ -36,6 +35,8 @@ export interface StageScene {
   log: LogLine[];
   /** Zoom: a point to centre and a scale (feet per column). */
   focus?: Point;
+  /** Or a zoom worked out for the view (a narrow room framed against the edge, whatever the width). */
+  zoom?: (view: View) => { focus: Point; scale: number };
   scale?: number;
 }
 
@@ -84,27 +85,17 @@ function say(s: StageScene, t: number, id: string, text: string): void {
 /** The newest entity with this name (what a create op just made). */
 const made = (world: SceneWorld, name: string): Entity | undefined => Object.values(world.entities).filter(e => e.name === name).sort((a, b) => (b.created ?? -1) - (a.created ?? -1))[0];
 
-/** systems: water (or ale, or slops) over something puts it out, and leaves it wet, scorched and standing in a pool. */
-function douse(s: StageScene, t: number, id: string, liquid: string): void {
-  const e = s.world.entities[id]!;
-  const wasBurning = e.states.includes("burning") || e.states.includes("smouldering");
-  e.states = [...e.states.filter(x => x !== "burning" && x !== "smouldering"), "wet", ...(wasBurning && !e.states.includes("scorched") ? ["scorched"] : [])];
-  s.world.log.push({ turn: s.turn, text: `${e.name} is put out`, by: "rules" });
-  applyOps(s.world, [op({ op: "create", name: `a pool of ${liquid}`, kind: "feature", to: id })], s.turn, "rules");
-  const pool = made(s.world, `a pool of ${liquid}`)!;
-  pool.at = { ...positionOf(s.world, id)! };
-  pool.size = e.size === "large" || e.size === "huge" ? "large" : "medium";
-  s.log.push({ at: t, text: `Rules: ${e.name} is put out: wet${wasBurning ? ", scorched" : ""}, and standing in ${pool.name}.`, kind: "rules" });
-  s.director.observe(s.world, t);
+/** Water over something, through the physics: fire out, wet and scorched, a puddle and a puff of steam. */
+function douse(s: StageScene, t: number, id: string): void {
+  rulesSay(s, t, douseThing(s.world, s.world.entities[id]!, s.turn));
 }
 
-/** systems: fire on oil or spirits sets the surface alight (a burning puddle). */
-function ignite(s: StageScene, t: number, id: string): void {
-  const e = s.world.entities[id]!;
-  if (!e.states.includes("burning")) e.states.push("burning");
-  s.world.log.push({ turn: s.turn, text: `${e.name} catches fire`, by: "rules" });
-  s.log.push({ at: t, text: `Rules: ${e.name} goes up: a burning puddle.`, kind: "rules" });
-  s.director.observe(s.world, t);
+/** A Fireball (or any fire) in a sphere: damage to the things in it, and the surfaces it reaches go up. */
+function fireSphere(s: StageScene, t: number, aim: Point, radius: number, damage: number): void {
+  const origin = positionOf(s.world, "player")!;
+  const caught = caughtIn(s.world, "sphere", radius, origin, aim);
+  const things = caught.filter(e => e.kind !== "person" && e.kind !== "creature" && e.kind !== "surface");
+  rulesSay(s, t, [`Damage to things in it: 8d6 = ${damage} fire (things don't dodge)`, ...things.flatMap(e => damageThing(s.world, e, damage, "fire", s.turn)), ...elemental(s.world, caught, "fire", s.turn)]);
 }
 
 function passTime(s: StageScene, t: number): void {
@@ -122,7 +113,7 @@ function scene(world: SceneWorld, dressing: Dressing, clock: { t: number }, time
 
 const RAT_CAST = [["kell", "Sergeant Agnes Kell"], ["nan-quill", "Nan Quill"], ["arlo", "Arlo Quarry"], ["dilly", "Dilly Sparrow"], ["hobb", "Big Hobb Mallory"], ["cob", "Cob"]].map(([id, name]) => ({ id: id!, name: name! }));
 const YARD_CAST = [["kell", "Sergeant Agnes Kell"], ["cob", "Cob"], ["moll", "Moll"]].map(([id, name]) => ({ id: id!, name: name! }));
-const KING_CAST = [["kell", "Sergeant Agnes Kell"], ["holt", "Marshal Garran Holt"], ["king", "King Aldren"]].map(([id, name]) => ({ id: id!, name: name! }));
+const KING_CAST = [["kell", "Sergeant Agnes Kell"], ["holt", "Marshal Garran Holt"], ["king", "King Aldren"], ["sallow", "Master Josiah Sallow"]].map(([id, name]) => ({ id: id!, name: name! }));
 const PLAYER = { name: "the investigator" };
 
 // ---------------------------------------------------------------------------------------------
@@ -164,7 +155,7 @@ const rat: Vignette = {
       s.fx.effect("throw", { from: { ...from }, to: { ...to }, glyph: "Ü", color: "#7a5232" }, t);
       say(s, t, "nan-quill", "Not in MY Rat.");
     } },
-    { at: 14_800, run: (s, t) => douse(s, t, "benches", "slops") },
+    { at: 14_800, run: (s, t) => douse(s, t, "benches") },
     { at: 16_000, run: (s, t) => passTime(s, t) },
     { at: 17_200, run: (s, t) => { stage(s, t, [{ op: "move", what: "hobb", to: "ale-keg" }], "The GM: Big Hobb gets up. Everyone stops. He picks up the ale keg."); s.fx.alert("dilly", {}, t); } },
     { at: 19_600, run: (s, t) => {
@@ -174,10 +165,11 @@ const rat: Vignette = {
     { at: 21_400, run: (s, t) => {
       const from = positionOf(s.world, "hobb")!, to = positionOf(s.world, "long-table")!;
       s.fx.effect("splash", { at: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, radius: 3, color: "#e8b040" }, t);
-      douse(s, t, "long-table", "ale");
+      douse(s, t, "long-table");
+      rulesSay(s, t, spill(s.world, "ale", { x: to.x + 3, y: to.y + 2 }, 5, s.turn).lines);
     } },
     { at: 23_400, run: (s, t) => say(s, t, "nan-quill", "That's going on your slate, Hobb.") },
-    { at: 26_000, run: (s, t) => s.log.push({ at: t, text: "The long table and the benches: wet, scorched, standing in slops and ale. The fire in the hearth burns on, blue.", kind: "note" }) },
+    { at: 26_000, run: (s, t) => s.log.push({ at: t, text: "The long table and the benches: wet, scorched, standing in puddles of water and ale. The fire in the hearth burns on, blue.", kind: "note" }) },
   ],
 };
 
@@ -208,11 +200,7 @@ const yard: Vignette = {
       s.fx.effect("fireball", { from: { ...positionOf(s.world, "player")! }, at: { ...positionOf(s.world, "elm")! }, radius: 20 }, t);
     } },
     { at: 8460, run: (s, t) => {
-      const origin = positionOf(s.world, "player")!, aim = positionOf(s.world, "elm")!;
-      const caught = caughtIn(s.world, "sphere", 20, origin, aim).filter(e => e.kind !== "person" && e.kind !== "creature");
-      const lines = ["Damage to things in it: 8d6 = 28 fire (things don't dodge)"];
-      for (const e of caught) lines.push(...damageThing(s.world, e, 28, "fire", s.turn));
-      rulesSay(s, t, lines);
+      fireSphere(s, t, positionOf(s.world, "elm")!, 20, 28);
       s.fx.float({ ...positionOf(s.world, "moll")! }, "9", { damage: "fire" }, t + 150);
       stage(s, t, [
         { op: "move", what: "a flock of pigeons", to: "loft" },
@@ -234,7 +222,7 @@ const yard: Vignette = {
     { at: 23_000, run: (s, t) => {
       s.fx.effect("throw", { from: { ...positionOf(s.world, "cob")! }, to: { ...positionOf(s.world, "a burning branch")! }, glyph: "Ü", color: "#7a5232" }, t);
     } },
-    { at: 23_400, run: (s, t) => { const b = made(s.world, "a burning branch")!; douse(s, t, b.id, "water"); say(s, t, "cob", "Got it!"); } },
+    { at: 23_400, run: (s, t) => { const b = made(s.world, "a burning branch")!; douse(s, t, b.id); say(s, t, "cob", "Got it!"); } },
     { at: 25_000, run: (s, t) => passTime(s, t) },
     { at: 26_500, run: (s, t) => s.log.push({ at: t, text: "The elm burns on. The pigeons will be talking about this for years.", kind: "note" }) },
   ],
@@ -252,7 +240,7 @@ const dust: Vignette = {
     world.entities.cob!.at = { x: 44, y: 33 };
     world.entities.kell!.at = { x: 42, y: 20 };
     world.entities.player!.at = { x: 40, y: 26 };
-    return scene(world, granaryYardDressing, clock, "morning", { focus: { x: 44.5, y: 24 }, scale: 0.42 });
+    return scene(world, granaryYardDressing, clock, "morning", { zoom: view => { const scale = Math.max(0.26, Math.min(0.34, 30 / view.w)); return { scale, focus: { x: Math.min(46, 52.5 - (view.w / 2) * scale), y: 27 } }; } });
   },
   beats: [
     { at: 0, run: (s, t) => s.log.push({ at: t, text: "The tally loft, under the granary roof. Light comes in through a gap in the boards.", kind: "note" }) },
@@ -260,7 +248,7 @@ const dust: Vignette = {
     { at: 3000, run: (s, t) => {
       stage(s, t, [{ op: "move", what: "cob", to: "grain-stacks" }, { op: "state", what: "loft", add: ["dusty"] }], "The GM: Cob leaps onto the grain stacks. A great cloud of dust goes up.");
       const at = positionOf(s.world, "grain-stacks")!;
-      for (let k = 0; k < 3; k++) s.fx.effect("poof", { at: { x: at.x - 3 + k * 3, y: at.y - 1 }, radius: 4, amount: 2 }, t + k * 120);
+      for (let k = 0; k < 3; k++) s.fx.effect("dust", { at: { x: at.x - 3 + k * 3, y: at.y - 1 }, radius: 4, amount: 1.5 }, t + k * 160);
     } },
     { at: 4400, run: (s, t) => say(s, t, "cob", "I'm the King of the Castle!") },
     { at: 6800, run: (s, t) => { stage(s, t, [{ op: "create", name: "a candle-end", kind: "item", to: "cobs-nest", add: ["lit"] }, { op: "move", what: "cob", to: "cobs-nest" }], "The GM: it's dark behind the stacks, so Cob lights one of his candle-ends."); } },
@@ -296,13 +284,9 @@ const grapesYard: WorldSpec = {
     { id: "trestle", name: "a trestle table", in: "yard", at: [12, 12], size: "large", material: "wood", tags: ["furniture"] },
     { id: "lantern", name: "a lantern on a bracket", kind: "feature", in: "yard", at: [2, 1.5], size: "small", material: "brass", tags: ["light"], states: ["lit"] },
     { id: "trough", name: "the horse trough", kind: "feature", in: "yard", at: [25, 5], size: "large", material: "stone", tags: ["container", "water"], states: ["full"] },
-    { id: "oil-barrel", name: "a smashed barrel of lamp oil", in: "yard", at: [22, 22], size: "medium", material: "wood", states: ["broken"] },
-    { id: "oil-slick", name: "an oil slick", kind: "feature", in: "yard", at: [18, 22], size: "large", material: "liquid", tags: ["surface"] },
-    { id: "gin", name: "spilled gin", kind: "feature", in: "yard", at: [8, 23], size: "medium", material: "liquid", tags: ["surface", "spirits"] },
-    { id: "blood", name: "a pool of blood", kind: "feature", in: "yard", at: [27, 16], size: "medium", material: "liquid", tags: ["surface"] },
+    { id: "oil-barrel", name: "a smashed barrel of lamp oil", in: "yard", at: [22, 22], size: "medium", material: "wood", tags: ["oil"], states: ["broken"] },
     { id: "cudgel", name: "a bloodied cudgel", in: "yard", at: [28, 18], size: "small", material: "wood", tags: ["weapon"], states: ["bloodied"] },
-    { id: "ash", name: "a heap of ash", kind: "feature", in: "yard", at: [4, 15], size: "small", tags: ["surface"] },
-    { id: "bucket", name: "a bucket of water", in: "yard", at: [22, 8], size: "small", material: "wood", tags: ["container"] },
+    { id: "bucket", name: "a bucket of water", in: "yard", at: [22, 9], size: "small", material: "wood", tags: ["container", "water"] },
     { id: "hay", name: "hay bales", in: "stable", at: [38, 7], size: "large", material: "cloth" },
     { id: "stable-door", name: "the stable door", kind: "feature", in: "stable", at: [31, 15], size: "large", material: "wood", tags: ["door"], states: ["open"] },
     { id: "horse", name: "a bad-tempered horse", kind: "creature", in: "stable", at: [38, 20] },
@@ -319,11 +303,17 @@ const grapesDressing: Dressing = {
 };
 
 const surfaces: Vignette = {
-  id: "surfaces", title: "Douse and burn", length: 26_000,
-  blurb: "Surfaces, BG3-style, as the world will keep them: blood (dark and still), an oil slick (a rainbow sheen), spilled gin, ash. A table catches fire; a bucket of water leaves it scorched, wet and in a puddle, with a puff of steam. Fireball on the oil: a burning puddle, and the gin burns blue. Ray of Frost freezes the trough.",
+  id: "surfaces", title: "Douse and burn", length: 30_000,
+  blurb: "Surfaces, BG3-style, through the world's physics (src/world/systems.ts): blood (dark and still), an oil slick (a rainbow sheen), spilled gin, an old scorch mark. A table catches fire; a bucket of water leaves it scorched, wet and in a puddle, with a puff of steam. Fireball on the oil: a burning puddle, the gin burns blue, the wet table won't catch; the oil burns itself out to a scorch mark and smoke. Ray of Frost turns a puddle to ice.",
   build: clock => {
     const world = buildWorld("grapes-yard", grapesYard, [], PLAYER);
     world.entities.kell = { id: "kell", name: "Sergeant Agnes Kell", kind: "person", parent: "yard", at: { x: 7, y: 5 }, tags: [], states: [], notes: [], cast: "kell" };
+    // What last night left: the physics' own surfaces.
+    spill(world, "oil", { x: 18, y: 22 }, 6, 0);
+    spill(world, "spirits", { x: 8, y: 23 }, 4, 0);
+    spill(world, "blood", { x: 27, y: 15 }, 4, 0);
+    spill(world, "ash", { x: 5, y: 15 }, 3, 0);
+    spill(world, "water", { x: 25, y: 9 }, 3, 0);
     return scene(world, grapesDressing, clock, "evening");
   },
   beats: [
@@ -338,37 +328,36 @@ const surfaces: Vignette = {
     { at: 7000, run: (s, t) => stage(s, t, [{ op: "move", what: "kell", to: "bucket" }], "The GM: Kell goes for the bucket.") },
     { at: 9000, run: (s, t) => stage(s, t, [{ op: "give", what: "bucket", to: "kell" }, { op: "move", what: "kell", to: "trestle" }]) },
     { at: 10_800, run: (s, t) => s.fx.effect("throw", { from: { ...positionOf(s.world, "kell")! }, to: { ...positionOf(s.world, "trestle")! }, glyph: "Ü", color: "#7a5232" }, t) },
-    { at: 11_200, run: (s, t) => douse(s, t, "trestle", "water") },
+    { at: 11_200, run: (s, t) => douse(s, t, "trestle") },
     { at: 12_400, run: (s, t) => say(s, t, "kell", "Scorched, soaked and standing in a puddle. Like me.") },
     { at: 14_600, run: (s, t) => {
       s.log.push({ at: t, text: "The investigator casts Fireball at the oil slick.", kind: "gm" });
-      s.fx.effect("fireball", { from: { ...positionOf(s.world, "player")! }, at: { ...positionOf(s.world, "oil-slick")! }, radius: 20 }, t);
+      s.fx.effect("fireball", { from: { ...positionOf(s.world, "player")! }, at: { x: 18, y: 22 }, radius: 20 }, t);
     } },
     { at: 14_880, run: (s, t) => {
-      const origin = positionOf(s.world, "player")!, aim = positionOf(s.world, "oil-slick")!;
-      const things = caughtIn(s.world, "sphere", 20, origin, aim).filter(e => e.kind !== "person" && e.kind !== "creature" && !e.tags.includes("surface"));
-      rulesSay(s, t, ["Damage to things in it: 8d6 = 24 fire (things don't dodge)", ...things.flatMap(e => damageThing(s.world, e, 24, "fire", s.turn))]);
-      ignite(s, t, "oil-slick");
-      ignite(s, t, "gin");
+      fireSphere(s, t, { x: 18, y: 22 }, 20, 24);
       s.fx.float({ ...positionOf(s.world, "kell")! }, "12", { damage: "fire" }, t + 120);
       s.fx.float({ ...positionOf(s.world, "ostler")! }, "15", { damage: "fire" }, t + 200);
     } },
     { at: 15_600, run: (s, t) => say(s, t, "kell", "I was STANDING in the radius.") },
     { at: 17_000, run: (s, t) => { stage(s, t, [{ op: "move", what: "ostler", to: "stable" }], "The GM: the ostler leaves, briskly, for the stable."); } },
-    { at: 18_600, run: (s, t) => {
-      s.log.push({ at: t, text: "The investigator casts Ray of Frost at the horse trough.", kind: "gm" });
-      s.fx.effect("bolt", { from: { ...positionOf(s.world, "player")! }, to: { ...positionOf(s.world, "trough")! }, color: "#bfefff" }, t);
+    { at: 18_000, run: (s, t) => passTime(s, t) },
+    { at: 19_600, run: (s, t) => {
+      s.log.push({ at: t, text: "The investigator casts Ray of Frost at the puddle by the trough.", kind: "gm" });
+      s.fx.effect("bolt", { from: { ...positionOf(s.world, "player")! }, to: { x: 25, y: 9 }, color: "#bfefff" }, t);
     } },
-    { at: 18_900, run: (s, t) => {
-      stage(s, t, [{ op: "state", what: "trough", add: ["frozen"] }, { op: "create", name: "a sheet of ice", kind: "feature", to: "trough" }]);
-      made(s.world, "a sheet of ice")!.at = { x: 25, y: 7 };
-      s.log.push({ at: t, text: "Rules: the trough freezes over, and the splash round it.", kind: "rules" });
+    { at: 19_900, run: (s, t) => {
+      const puddle = Object.values(s.world.entities).find(e => e.kind === "surface" && e.tags.includes("water") && !e.states.includes("gone") && e.at && Math.hypot(e.at.x - 25, e.at.y - 9) < 4);
+      if (puddle) rulesSay(s, t, chill(s.world, puddle, s.turn));
+      s.fx.effect("sparks", { at: { x: 25, y: 9 }, color: "#cfefff" }, t);
     } },
-    { at: 20_400, run: (s, t) => say(s, t, "horse", "(contempt)") },
-    { at: 22_500, run: (s, t) => s.log.push({ at: t, text: "Oil burns orange and black; spirits burn blue; blood just lies there.", kind: "note" }) },
+    { at: 21_000, run: (s, t) => say(s, t, "horse", "(contempt)") },
+    { at: 22_000, run: (s, t) => passTime(s, t) },
+    { at: 24_500, run: (s, t) => passTime(s, t) },
+    { at: 26_500, run: (s, t) => passTime(s, t) },
+    { at: 27_200, run: (s, t) => s.log.push({ at: t, text: "Oil burns orange and black, then leaves a scorch mark; spirits burn blue; blood just lies there.", kind: "note" }) },
   ],
 };
-
 // ---------------------------------------------------------------------------------------------
 // 5. New things: names the GM makes up, and the looks they get.
 
@@ -428,8 +417,8 @@ const glyphs: Vignette = {
   id: "glyphs", title: "Glyph sets", length: 16_000,
   blurb: "The King's dressing room in the morning, in all three glyph sets: ascii (CP437-flavoured Unicode, the default), nerd (Nerd Font icons where they help: needs a Nerd Font, Mono variant best, or kitty/WezTerm), and plain seven-bit ASCII. Sun through the tall windows.",
   build: clock => {
-    const world = buildWorld("kings-morning", kingsMorningWorld, KING_CAST, PLAYER);
-    return scene(world, kingsRoomDressing, clock, "morning");
+    const world = buildWorld("kings-morning", dressingRoomWorld, KING_CAST, PLAYER);
+    return scene(world, kingsRoomDressing, clock, "morning", { focus: { x: 39, y: 20 } });
   },
   beats: [
     { at: 1500, run: (s, t) => say(s, t, "king", "Is that shortbread for me?") },
@@ -442,7 +431,7 @@ const glyphs: Vignette = {
     const sets: GlyphSet[] = ["ascii", "nerd", "plain"];
     const pw = Math.floor((view.w - 2) / 3);
     sets.forEach((set, k) => {
-      const panel = renderStage(s.world, s.dressing, { w: pw, h: view.h - 1, t, time: s.time, glyphs: set, effects: s.fx, positions: id => s.director.tweens.at(id, t) });
+      const panel = renderStage(s.world, s.dressing, { w: pw, h: view.h - 1, t, time: s.time, glyphs: set, effects: s.fx, positions: id => s.director.tweens.at(id, t), ...(s.focus ? { focus: s.focus, scale: Math.max(0.9, 44 / pw) } : {}) });
       for (let y = 0; y < panel.h; y++) for (let x = 0; x < panel.w; x++) {
         const i = y * panel.w + x;
         c.put(k * (pw + 1) + x, y + 1, panel.glyph[i]!, panel.fg[i]!, panel.bg[i]!, panel.flags[i]!);
@@ -522,7 +511,7 @@ export class VignettePlayer {
     if (this.vignette.render) return this.vignette.render(s, t, view);
     return renderStage(s.world, s.dressing, {
       w: view.w, h: view.h, t, time: view.time ?? s.time, glyphs: view.glyphs, effects: s.fx, weather: view.weather ?? s.weather,
-      positions: id => s.director.tweens.at(id, t), ...(s.focus ? { focus: s.focus } : {}), ...(s.scale ? { scale: s.scale } : {}),
+      positions: id => s.director.tweens.at(id, t), ...(s.focus ? { focus: s.focus } : {}), ...(s.scale ? { scale: s.scale } : {}), ...(s.zoom ? s.zoom(view) : {}),
     });
   }
 

@@ -31,27 +31,33 @@ export interface Invention {
 
 export interface CachedInvention extends Invention { name: string; kind?: string; model: string; at: string }
 
-/** The glyphs the model may choose from, and what each is for (it reads the labels). */
-export const GLYPH_MENU: Array<[string, string]> = [
-  ["☻", "a person"], ["☺", "a child"], ["♔", "royalty"], ["v", "a bird (flying or perched)"], ["d", "a dog, wolf or fox"], ["f", "a cat or frog"],
-  ["r", "a rat, mouse or small beast"], ["u", "a horse or donkey"], ["q", "cattle, sheep, goats, pigs"], ["α", "a fish"], ["S", "a snake"], ["B", "a bat"],
-  ["s", "a spider or scorpion"], ["g", "a goblin, imp or small folk"], ["O", "an ogre, troll or giant"], ["D", "a dragon"], ["Z", "undead, a skeleton"],
-  ["G", "a ghost"], ["&", "a monster or demon"], ["·", "insects, a swarm, specks"], ["♣", "a tree or bush"], ["♠", "a pine or conifer"],
-  ["\"", "grass, straw, an amulet"], ["*", "a flower, a gem, a spark, a star"], ["'", "a leaf, a feather, a shard"], ["/", "a stick, branch, blade, club or staff"],
-  ["|", "a pole, post or spear"], ["-", "a knife or dagger"], ["(", "a tool"], ["}", "a bow"], ["↑", "an arrow"], ["[", "clothes, cloth, armour"],
-  ["ⁿ", "a hat"], ["⌡", "a boot or shoe"], ["∞", "spectacles, a chain"], ["=", "a ring"], ["$", "money, coins"], ["⌐", "a key"], ["!", "a bottle, flask or potion"],
-  ["ô", "a jar or jug"], ["ü", "a cup, mug or tankard"], ["Ü", "a bucket, tub or basket"], ["ö", "a pot, kettle or cauldron"], ["Ö", "a barrel, keg or cask"],
-  ["○", "a plate, bowl, wheel or hoop"], ["•", "a small round thing, a stone, a ball"], ["●", "a boulder, a big ball"], ["°", "an egg, a watch, something small and light"],
-  ["%", "food, or remains"], ["≡", "papers, a book, a sign, a shelf"], ["♪", "a musical instrument"], ["Ω", "a statue or bell"], ["¥", "a brazier or candelabra"],
-  ["¡", "a candle or torch"], ["¤", "a lantern or lamp"], ["▲", "a fire, a tent, a peak"], ["☼", "a machine, a contraption, magic, the sun"], ["π", "a table or desk"],
-  ["╥", "a chair, stool or throne"], ["═", "a bench or beam"], ["▬", "a tray, plank, boat or coffin"], ["■", "a box or crate"], ["δ", "a sack, bag or purse"],
-  ["⌂", "a chest or trunk"], ["▓", "a wardrobe, cupboard or big block"], ["▒", "a pane of glass, grain, a haze"], ["░", "smoke, steam, mist"],
-  ["#", "a net, web or grate"], ["§", "rope, a coil"], ["~", "a liquid, an eel, a worm"], ["≈", "water, waves"], ["+", "a door or gate"], ["□", "a hatch or trapdoor"],
-  ["∩", "a gravestone or arch"], ["╫", "a ladder"], ["{", "a fountain or well"], ["¬", "a hook or bracket"], ["╤", "a hoist, gibbet or crane"],
-  ["◘", "dice, a block"], ["æ", "a cart or wagon"], ["ò", "a bomb"],
+/**
+ * The glyphs the model may choose from: by name (strict structured output won't take quotes and
+ * odd characters in an enum, and names read better anyway), each with what it's for. "letter"
+ * means a letter of the model's choosing, for creatures (the roguelike way).
+ */
+export const GLYPH_MENU: Array<[string, string, string]> = [
+  ["person", "☻", "a person"], ["child", "☺", "a child"], ["royal", "♔", "royalty"], ["bird", "v", "a bird (flying or perched)"], ["fish", "α", "a fish"],
+  ["swarm", "·", "insects, a swarm, specks"], ["tree", "♣", "a tree or bush"], ["pine", "♠", "a pine or conifer"], ["grass", "\"", "grass, straw, an amulet"],
+  ["star", "*", "a flower, a gem, a spark, a star"], ["leaf", "'", "a leaf, a feather, a shard"], ["stick", "/", "a stick, branch, blade, club or staff"],
+  ["pole", "|", "a pole, post or spear"], ["knife", "-", "a knife or dagger"], ["tool", "(", "a tool"], ["bow", "}", "a bow"], ["arrow", "↑", "an arrow"],
+  ["cloth", "[", "clothes, cloth, armour"], ["hat", "ⁿ", "a hat"], ["boot", "⌡", "a boot or shoe"], ["chain", "∞", "spectacles, a chain"], ["ring", "=", "a ring"],
+  ["money", "$", "money, coins"], ["key", "⌐", "a key"], ["bottle", "!", "a bottle, flask or potion"], ["jar", "ô", "a jar or jug"], ["cup", "ü", "a cup, mug or tankard"],
+  ["bucket", "Ü", "a bucket, tub or basket"], ["pot", "ö", "a pot, kettle or cauldron"], ["barrel", "Ö", "a barrel, keg or cask"],
+  ["round", "○", "a plate, bowl, wheel or hoop"], ["pebble", "•", "a small round thing, a stone, a ball"], ["boulder", "●", "a boulder, a big ball"],
+  ["small", "°", "an egg, a watch, something small and light"], ["food", "%", "food, or remains"], ["papers", "≡", "papers, a book, a sign, a shelf"],
+  ["music", "♪", "a musical instrument"], ["statue", "Ω", "a statue or bell"], ["brazier", "¥", "a brazier or candelabra"], ["candle", "¡", "a candle or torch"],
+  ["lantern", "¤", "a lantern or lamp"], ["flame", "▲", "a fire, a tent, a peak"], ["machine", "☼", "a machine, a contraption, magic, the sun"],
+  ["table", "π", "a table or desk"], ["chair", "╥", "a chair, stool or throne"], ["bench", "═", "a bench or beam"], ["plank", "▬", "a tray, plank, boat or coffin"],
+  ["box", "■", "a box or crate"], ["sack", "δ", "a sack, bag or purse"], ["chest", "⌂", "a chest or trunk"], ["block", "▓", "a wardrobe, cupboard or big block"],
+  ["pane", "▒", "a pane of glass, grain, a haze"], ["haze", "░", "smoke, steam, mist"], ["net", "#", "a net, web or grate"], ["coil", "§", "rope, a coil"],
+  ["liquid", "~", "a liquid, an eel, a worm"], ["waves", "≈", "water, waves"], ["door", "+", "a door or gate"], ["hatch", "□", "a hatch or trapdoor"],
+  ["arch", "∩", "a gravestone or arch"], ["ladder", "╫", "a ladder"], ["well", "{", "a fountain or well"], ["hook", "¬", "a hook or bracket"],
+  ["gibbet", "╤", "a hoist, gibbet or crane"], ["dice", "◘", "dice, a block"], ["cart", "æ", "a cart or wagon"], ["bomb", "ò", "a bomb"],
+  ["letter", "", "a letter (give it in \"letter\"): creatures and monsters, the first letter of what they are, lowercase if small"],
 ];
-const LETTERS = [..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"];
-export const MENU_GLYPHS = [...new Set([...GLYPH_MENU.map(([g]) => g), ...LETTERS])];
+const GLYPH_BY_NAME = new Map(GLYPH_MENU.map(([name, glyph]) => [name, glyph]));
+export const MENU_GLYPHS = [...GLYPH_MENU.map(([, g]) => g).filter(Boolean), ..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 const MOTIONS: Motion[] = ["still", "flicker", "shimmer", "sway", "flutter", "pulse", "drift", "swarm", "drip", "bob"];
 const MATERIALS = ["none", "cloth", "paper", "rope", "glass", "ice", "crystal", "wood", "bone", "leather", "stone", "iron", "steel", "brass", "silver", "flesh", "liquid"];
 
@@ -99,7 +105,7 @@ export type Inventor = (items: InventRequest[]) => Promise<Record<string, Invent
 const INSTRUCTIONS = [
   "You decide how things look on a Caves of Qud-style ASCII map, in a comic fantasy game (Pratchett, Monty Python). A game master has just invented these things; each needs a look a player can read at a glance.",
   "For each thing choose:",
-  "- glyph: from the menu, the shape that reads best. Creatures and people may instead be a letter: the first letter of what they are (lowercase if small, uppercase if big).",
+  "- glyph: the name of a glyph from the menu, the shape that reads best. For a creature or monster, \"letter\", with the letter in \"letter\": the first letter of what it is (lowercase if small, uppercase if big). Otherwise letter is \"\".",
   "- nerd: a Nerd Font icon name from the list if one fits well, else \"none\".",
   "- color: a palette name. The colour of what it's made of, or its mood. Red and orange mean fire; blue means water; green means plants or poison; violet means magic.",
   "- motion: \"still\" unless it lives or burns: flutter (birds, bats), swarm (insects), sway (plants, hanging things, flags), shimmer (liquids, glass, gems, metal that glints), flicker (flames), pulse (magic, embers), drift (smoke, steam, mist), bob (small animals), drip (wet things).",
@@ -108,7 +114,7 @@ const INSTRUCTIONS = [
 ].join("\n");
 
 function prompt(items: InventRequest[]): string {
-  const menu = GLYPH_MENU.map(([g, what]) => `${g}  ${what}`).join("\n");
+  const menu = GLYPH_MENU.map(([name, g, what]) => `${name}${g ? ` (${g})` : ""}: ${what}`).join("\n");
   const things = items.map(i => `- key "${i.key}": ${i.name}${i.kind ? ` (${i.kind})` : ""}`).join("\n");
   return `Glyph menu:\n${menu}\n\nThings:\n${things}`;
 }
@@ -120,10 +126,11 @@ const SCHEMA = {
       type: "array",
       items: {
         type: "object", additionalProperties: false,
-        required: ["key", "glyph", "nerd", "color", "motion", "light", "being", "group", "material"],
+        required: ["key", "glyph", "letter", "nerd", "color", "motion", "light", "being", "group", "material"],
         properties: {
           key: { type: "string" },
-          glyph: { type: "string", enum: MENU_GLYPHS },
+          glyph: { type: "string", enum: GLYPH_MENU.map(([name]) => name) },
+          letter: { type: "string" },
           nerd: { type: "string", enum: ["none", ...NERD_NAMES] },
           color: { type: "string", enum: COLOR_NAMES },
           motion: { type: "string", enum: MOTIONS },
@@ -139,7 +146,7 @@ export const LOOK_MODEL = "openai/gpt-6-luna";
 
 /** Luna, no reasoning, one call for a batch of things. */
 export const lunaInventor: Inventor = async items => {
-  type Answer = { key: string; glyph: string; nerd: string; color: string; motion: string; light: boolean; being: boolean; group: boolean; material: string };
+  type Answer = { key: string; glyph: string; letter: string; nerd: string; color: string; motion: string; light: boolean; being: boolean; group: boolean; material: string };
   const result = await respondJson<{ looks: Answer[] }>({
     model: LOOK_MODEL, effort: "none", operation: "look.invent", instructions: INSTRUCTIONS,
     input: [{ role: "user", content: prompt(items) }],
@@ -148,8 +155,9 @@ export const lunaInventor: Inventor = async items => {
   const out: Record<string, Invention> = {};
   for (const a of result.looks ?? []) {
     if (!items.some(i => i.key === a.key)) continue;
+    const letter = /^[A-Za-z]$/.test(a.letter ?? "") ? a.letter : undefined;
     out[a.key] = {
-      glyph: MENU_GLYPHS.includes(a.glyph) ? a.glyph : "?",
+      glyph: a.glyph === "letter" ? letter ?? "?" : GLYPH_BY_NAME.get(a.glyph) || letter || "?",
       ...(a.nerd && a.nerd !== "none" && NERD_NAMES.includes(a.nerd) ? { nerd: a.nerd } : {}),
       color: (COLOR_NAMES as string[]).includes(a.color) ? a.color as ColorName : "grey",
       motion: (MOTIONS as string[]).includes(a.motion) ? a.motion as Motion : "still",
@@ -180,6 +188,9 @@ let flushing: Promise<number> | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let version = 0;
 let spent = 0;
+let lastError: string | undefined;
+/** Why the last model call failed, if it did. */
+export const lastInventionError = () => lastError;
 
 /** Bumps whenever an invention lands, so cached looks know to look again. */
 export const inventionVersion = () => version;
@@ -220,7 +231,9 @@ export async function flushInventions(): Promise<number> {
           landed++;
         }
         if (landed) { lookCache().save(); version++; }
-      } catch {
+      } catch (error) {
+        // Never fatal: the guesses stand, and these names are tried again in a minute.
+        lastError = error instanceof Error ? error.message.slice(0, 300) : String(error);
         for (const item of batch) failed.set(item.key, Date.now());
       }
     }

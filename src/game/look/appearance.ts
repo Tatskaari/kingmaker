@@ -114,6 +114,12 @@ const COLOR_WORD: Record<string, string> = {
 const FLAME_WORD: Record<string, FlameName> = { blue: "blue", azure: "blue", navy: "blue", teal: "blue", cyan: "blue", green: "green", emerald: "green", purple: "violet", violet: "violet", indigo: "violet", magenta: "violet" };
 const GROUP_SIZE: Record<string, number> = { flock: 6, crowd: 5, swarm: 8, pack: 3, herd: 4, gang: 4, mob: 6, throng: 7, school: 5, colony: 6, murder: 5, parliament: 4, horde: 7, rabble: 6, gaggle: 5 };
 const PERSON_ROLES = new Set(["crowd", "child", "guard", "royal", "person"]);
+/** Surfaces by tag: glyph, colour, flame (spirits burn blue), idle motion. */
+const SURFACE_LOOKS: Array<[string, string, string, FlameName, Motion]> = [
+  ["water", "~", "#4a8ab8", "fire", "shimmer"], ["oil", "≈", "#5a5040", "fire", "shimmer"], ["spirits", "≈", "#b8d0d0", "blue", "shimmer"],
+  ["ale", "~", "#c89040", "fire", "shimmer"], ["blood", "~", "#8a1018", "fire", "still"], ["grease", "≈", "#8a7a40", "fire", "still"],
+  ["ice", "▒", "#cfefff", "fire", "shimmer"], ["ash", ",", "#6e665e", "fire", "still"], ["smoke", "░", "#8a8690", "fire", "drift"], ["steam", "░", "#dfe6ee", "fire", "drift"],
+];
 const BURN_LIGHT: Record<string, number> = { tiny: 5, small: 8, medium: 12, large: 18, huge: 26, gargantuan: 34 };
 
 // ---------------------------------------------------------------------------------------------
@@ -144,6 +150,13 @@ function computeBase(thing: Lookable): BaseLook {
   const material = thing.created && thing.material === "wood" ? undefined : thing.material;
 
   if (thing.player || kind === "player") return person(parsed, { glyph: { ascii: PLAYER_LOOK.glyph }, fg: PLAYER_LOOK.color, bold: true, source: "player" });
+  // A surface (systems.ts): its tags say what it is. Drawn as a patch by renderers that can; this is its one-cell look.
+  if (kind === "surface") {
+    const stuff = SURFACE_LOOKS.find(([tag]) => tags.includes(tag)) ?? SURFACE_LOOKS[0]!;
+    const [, ascii, fg, flame, motion] = stuff;
+    const role: Role = { id: `surface:${stuff[0]}`, glyph: { ascii, ...(stuff[0] === "water" ? { nerd: nerd("water")! } : stuff[0] === "smoke" || stuff[0] === "steam" ? { nerd: nerd("smoke")! } : {}) }, fg, motion, liquid: stuff[0] };
+    return { role, glyph: role.glyph, fg, motion, flame, implied: [], group: 0, source: "rule", being: false, liquid: stuff[0], parsed, person: false };
+  }
   const cast = thing.cast ?? (beingKind && thing.id && CAST_LOOKS[thing.id] ? thing.id : undefined);
   if (cast && beingKind) {
     const look = castLook(cast, thing.name);

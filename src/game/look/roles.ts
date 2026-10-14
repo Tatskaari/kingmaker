@@ -245,8 +245,8 @@ r("passage", "passage|hole|gap|crack|crevice|tunnel|burrow|crawlway|loose-board|
 r("plank", "plank|board-plank|timber|beam-plank|log|logs|lumber|stave|staves|board", "▬", "#8a6038", { plain: "=", material: "wood" });
 
 // Nature.
-r("tree", "tree|elm|oak|ash-tree|willow|beech|birch|chestnut-tree|plane|sycamore|lime|alder|hawthorn|rowan|apple-tree|pear-tree|cherry-tree|poplar|maple|hornbeam|sapling|treetop", "♣", "#3f7a2e", { nerd: "tree", plain: "T", motion: "sway", footprint: [16, 16], stamp: "canopy", material: "wood" });
-r("pine", "pine|fir|yew|spruce|larch|cedar|cypress|juniper|conifer|holly", "♠", "#2e6a3a", { nerd: "pine_tree", plain: "t", motion: "sway", footprint: [10, 10], stamp: "canopy", material: "wood" });
+r("tree", "tree|elm|oak|ash-tree|willow|beech|birch|chestnut-tree|plane|sycamore|lime|alder|hawthorn|rowan|apple-tree|pear-tree|cherry-tree|poplar|maple|hornbeam|sapling|treetop", "♣", "#3f7a2e", { nerd: "tree", plain: "T", motion: "sway", footprint: [11, 11], stamp: "canopy", material: "wood" });
+r("pine", "pine|fir|yew|spruce|larch|cedar|cypress|juniper|conifer|holly", "♠", "#2e6a3a", { nerd: "pine_tree", plain: "t", motion: "sway", footprint: [8, 8], stamp: "canopy", material: "wood" });
 r("bush", "bush|shrub|hedge|bramble|brambles|thicket|briar|briars|gorse|furze|bracken|fern|ferns|nettle|nettles|thistle|thistles|weed|weeds|ivy|creeper", "♣", "#2f5a24", { nerd: "sprout", plain: "*", motion: "sway" });
 r("flower", "flower|flowers|rose|roses|daisy|daisies|posy|bouquet|blossom|lily|lilies|tulip|tulips|violet-flower|primrose|poppy|poppies|marigold|lavender-sprig|herb|herbs|nosegay", "*", "#e87ab0", { nerd: "flower", plain: "*", motion: "sway" });
 r("branch", "branch|bough|twig|twigs|stick-branch|limb|sprig-branch|driftwood|firewood|kindling|faggot|faggots", "/", "#8a6038", { plain: "/", material: "wood" });
