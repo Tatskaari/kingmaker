@@ -9,7 +9,11 @@ import { mix, rgbOf } from "./color.ts";
 import { Director } from "./director.ts";
 import { drownedRatDressing, granaryYardDressing, kingsRoomDressing } from "./dressings.ts";
 import { Effects } from "./effects.ts";
-import type { GlyphSet } from "./glyphs.ts";
+import { plainOf, type GlyphSet } from "./glyphs.ts";
+import { KM_VOCABULARY, kmFlap } from "./kingmaker.ts";
+import { KINGMAKER_GRID, KINGMAKER_PIXELS } from "./kingmaker-glyphs.ts";
+import { noise1 } from "./noise.ts";
+import { CAST_LOOKS } from "./people.ts";
 import { renderStage, type Dressing } from "./stage.ts";
 import { groundCell, type Weather } from "./terrain.ts";
 
@@ -369,6 +373,7 @@ const INVENTIONS: Array<{ name: string; kind: string; states?: string[] }> = [
   { name: "a startled goat", kind: "creature" }, { name: "a wheel of cheese", kind: "item" }, { name: "the Purveyor's grain cart", kind: "object" },
   { name: "a puddle of flaming oil", kind: "feature", states: ["burning"] }, { name: "a pool of blood", kind: "feature" }, { name: "a lantern on a hook", kind: "item", states: ["lit"] },
   { name: "a sackbut", kind: "item" }, { name: "a quantity of marzipan", kind: "item" }, { name: "a whirligig", kind: "item" }, { name: "a gibbering homunculus", kind: "creature" },
+  { name: "an old watchman", kind: "person" }, { name: "a goblin", kind: "creature" },
 ];
 
 const inventions: Vignette = {
@@ -379,7 +384,7 @@ const inventions: Vignette = {
   render: (_s, t, view) => {
     const c = new Canvas(view.w, view.h, INK);
     const head = rgbOf("#e8c170"), dim = rgbOf("#8a8273"), text = rgbOf("#ddd5c4");
-    c.text(2, 0, "name the GM said".padEnd(36) + "ascii  nerd  plain   on the ground         decided by", head, undefined, UNLIT | BOLD);
+    c.text(2, 0, "name the GM said".padEnd(36) + "ascii  nerd  plain  km    on the ground         decided by", head, undefined, UNLIT | BOLD);
     const rows = Math.min(INVENTIONS.length, view.h - 2);
     for (let k = 0; k < rows; k++) {
       const thing = { ...INVENTIONS[k]!, created: 1 };
@@ -387,7 +392,7 @@ const inventions: Vignette = {
       const d = describeLook(thing);
       c.text(2, y, thing.name.slice(0, 34), text, undefined, UNLIT);
       // Each glyph set's glyph, live (burning things flicker, birds flap).
-      const sets: GlyphSet[] = ["ascii", "nerd", "plain"];
+      const sets: GlyphSet[] = ["ascii", "nerd", "plain", "kingmaker"];
       sets.forEach((set, j) => {
         const look = lookOf(thing, { t: t + k * 97, glyphs: set });
         c.put(39 + j * 6, y, look.glyph, rgbOf(look.fg), look.bg ? rgbOf(look.bg) : undefined, UNLIT | (look.bold ? BOLD : 0));
@@ -395,17 +400,17 @@ const inventions: Vignette = {
       // A strip of cobbles with the thing (or a few of it) on it, animated.
       for (let x = 0; x < 18; x++) {
         const cell = groundCell(x < 9 ? "cobbles" : "boards", 60 + x, y, { t, time: "afternoon" });
-        c.put(56 + x, y, cell.glyph, mix(cell.fg, rgbOf("#000000"), 0.15), cell.bg, UNLIT);
+        c.put(62 + x, y, cell.glyph, mix(cell.fg, rgbOf("#000000"), 0.15), cell.bg, UNLIT);
       }
       const look = lookOf(thing, { t: t + k * 131, glyphs: view.glyphs });
       const n = look.group ?? 1;
       for (let m = 0; m < n; m++) {
         const ml = n > 1 ? lookOf(thing, { t, glyphs: view.glyphs, seed: 1000 + k * 17 + m * 101 }) : look;
-        const x = 64 + (n > 1 ? (m % 4) * 2 - 3 : 0), yy = y;
+        const x = 70 + (n > 1 ? (m % 4) * 2 - 3 : 0), yy = y;
         c.put(x, yy, ml.glyph, rgbOf(ml.fg), ml.bg ? rgbOf(ml.bg) : undefined, UNLIT | (ml.bold ? BOLD : 0));
       }
       const source = d.source === "guess" ? "a guess (Luna on the way)" : d.source === "cache" ? "Luna (cached)" : `the rules: ${d.role}`;
-      c.text(77, y, source.slice(0, Math.max(0, view.w - 78)), d.source === "guess" ? rgbOf("#c08a5a") : d.source === "cache" ? rgbOf("#9be36b") : dim, undefined, UNLIT);
+      c.text(83, y, source.slice(0, Math.max(0, view.w - 84)), d.source === "guess" ? rgbOf("#c08a5a") : d.source === "cache" ? rgbOf("#9be36b") : dim, undefined, UNLIT);
     }
     return c;
   },
@@ -416,7 +421,7 @@ const inventions: Vignette = {
 
 const glyphs: Vignette = {
   id: "glyphs", title: "Glyph sets", short: "Glyphs", length: 16_000,
-  blurb: "The King's dressing room in the morning, in all three glyph sets: ascii (CP437-flavoured Unicode, the default), nerd (Nerd Font icons where they help: needs a Nerd Font, Mono variant best, or kitty/WezTerm), and plain seven-bit ASCII. Sun through the tall windows.",
+  blurb: "The King's dressing room in the morning, in all four glyph sets: ascii (CP437-flavoured Unicode, the default), kingmaker (our own pixel-art people and creatures: npm run glyphs installs the font), nerd (Nerd Font icons where they help: needs a Nerd Font, Mono variant best, or kitty/WezTerm), and plain seven-bit ASCII. Sun through the tall windows.",
   build: clock => {
     const world = buildWorld("kings-morning", dressingRoomWorld, KING_CAST, PLAYER);
     return scene(world, kingsRoomDressing, clock, "morning", { focus: { x: 44, y: 20 } });
@@ -429,8 +434,8 @@ const glyphs: Vignette = {
   ],
   render: (s, t, view) => {
     const c = new Canvas(view.w, view.h, INK);
-    const sets: GlyphSet[] = ["ascii", "nerd", "plain"];
-    const pw = Math.floor((view.w - 2) / 3);
+    const sets: GlyphSet[] = ["ascii", "kingmaker", "nerd", "plain"];
+    const pw = Math.floor((view.w - (sets.length - 1)) / sets.length);
     sets.forEach((set, k) => {
       const panel = renderStage(s.world, s.dressing, { w: pw, h: view.h - 1, t, time: s.time, glyphs: set, effects: s.fx, positions: id => s.director.tweens.at(id, t), ...(s.focus ? { focus: s.focus, scale: Math.max(0.62, 30 / pw) } : {}) });
       for (let y = 0; y < panel.h; y++) for (let x = 0; x < panel.w; x++) {
@@ -470,7 +475,87 @@ const weather: Vignette = {
   }]),
 };
 
-export const VIGNETTES: Vignette[] = [rat, yard, dust, surfaces, inventions, glyphs, weather];
+// ---------------------------------------------------------------------------------------------
+// 8. Kingmaker Glyphs: the whole vocabulary, and each sprite's pixels big.
+
+const SECTIONS: Array<[number, string]> = [[0x10e000, "The cast"], [0x10e040, "Townsfolk"], [0x10e080, "Creatures"], [0x10e0c0, "Wingbeats"]];
+
+/** What a sprite stands in for: the cast's own letter and colour, or the rules' look for its name. */
+function standIn(entry: (typeof KM_VOCABULARY)[number]): { ascii: string; fg: string } {
+  const cast = Object.values(CAST_LOOKS).find(p => p.km === entry.glyph);
+  if (cast) return { ascii: cast.glyph, fg: cast.color };
+  const name = entry.name.replace(/-flap$/, "").replace(/-/g, " ");
+  const d = describeLook(entry.name === "body" ? { name: "a body", kind: "object", tags: ["body"] } : { name, kind: entry.code >= 0x10e080 ? "creature" : "person" });
+  return { ascii: entry.name.endsWith("-flap") && d.ascii === "v" ? "V" : d.ascii, fg: d.fg };
+}
+
+const sprites: Vignette = {
+  id: "sprites", title: "Kingmaker Glyphs", short: "Sprites", length: KM_VOCABULARY.length * 1000,
+  blurb: "Every sprite in Kingmaker Glyphs, our own font of pixel-art people and creatures (KM_GLYPHS=kingmaker; npm run glyphs builds and installs it). Each fills one terminal cell and takes the game's colours. The list draws them through the font, beside the ascii letter each replaces; on the right, one at a time, the pixels themselves, in block characters that show without the font.",
+  build: clock => scene(buildWorld("void", { name: "nowhere", description: "", size: { w: 10, h: 10 }, areas: [], things: [], people: {} }, [], PLAYER), {}, clock, "afternoon"),
+  beats: [],
+  render: (_s, t, view) => {
+    const c = new Canvas(view.w, view.h, INK);
+    const head = rgbOf("#e8c170"), dim = rgbOf("#8a8273"), text = rgbOf("#ddd5c4"), hot = rgbOf("#2a2436");
+    // The plain set can't show the font or blocks: the letters stand in, and the pixels are '#'.
+    const plain = view.glyphs === "plain";
+    const [gw, gh] = KINGMAKER_GRID;
+    const big = view.h >= gh + 5;
+    const zw = big ? gw * 2 + 4 : gw + 4;
+    const listW = Math.max(20, view.w - zw - 2);
+    const showing = Math.floor(t / 1000) % KM_VOCABULARY.length;
+    c.text(1, 0, `${KM_VOCABULARY.length} sprites at U+${KM_VOCABULARY[0]!.code.toString(16).toUpperCase()} up, one cell each${plain ? " - " : " · "}as drawn, the ascii letter, the name`.slice(0, listW), dim, undefined, UNLIT);
+    // The list, in columns, section by section.
+    const rows: Array<{ header: string } | { entry: (typeof KM_VOCABULARY)[number]; index: number }> = [];
+    let current = "";
+    KM_VOCABULARY.forEach((entry, index) => {
+      const section = [...SECTIONS].reverse().find(([from]) => entry.code >= from)?.[1] ?? "";
+      if (section !== current) { rows.push({ header: section }); current = section; }
+      rows.push({ entry, index });
+    });
+    const perCol = Math.max(1, view.h - 2);
+    const cols = Math.ceil(rows.length / perCol);
+    const cw = Math.floor(listW / Math.max(1, cols));
+    rows.forEach((row, k) => {
+      const x = 1 + Math.floor(k / perCol) * cw, y = 2 + (k % perCol);
+      if ("header" in row) { c.text(x, y, row.header.slice(0, cw - 1), head, undefined, UNLIT | BOLD); return; }
+      const { entry, index } = row;
+      const { ascii, fg } = standIn(entry);
+      const flap = noise1(t / 150, entry.code) > 0.5;
+      if (index === showing) for (let dx = 0; dx < cw - 1; dx++) c.tint(x + dx, y, hot, 1);
+      c.put(x, y, plain ? plainOf(ascii) : kmFlap(entry.glyph, flap), rgbOf(fg), undefined, UNLIT | BOLD);
+      c.put(x + 2, y, plain ? plainOf(ascii) : ascii, mix(rgbOf(fg), INK, 0.35), undefined, UNLIT);
+      c.text(x + 4, y, entry.name.slice(0, 12), text, undefined, UNLIT);
+      const about = entry.about.replace(/^[^:]*:\s*/, "");
+      if (cw > 20) c.text(x + 17, y, about.slice(0, cw - 18), dim, undefined, UNLIT);
+    });
+    // The pixels of one sprite at a time: two columns a pixel in full blocks, or half blocks when short of rows.
+    const entry = KM_VOCABULARY[showing]!;
+    const { fg } = standIn(entry);
+    const ink = rgbOf(fg), paper = rgbOf("#1a1822");
+    const rowsOf = KINGMAKER_PIXELS[entry.name].split("/");
+    const zx = view.w - zw + 1, zy = 2;
+    const solid = plain ? "#" : "█";
+    if (big) {
+      for (let r = 0; r < gh; r++) for (let col = 0; col < gw; col++) {
+        const on = rowsOf[r]![col] === "#";
+        for (const dx of [0, 1]) c.put(zx + col * 2 + dx, zy + r, on ? solid : " ", on ? ink : paper, paper, UNLIT);
+      }
+    } else {
+      for (let r = 0; r < gh; r += 2) for (let col = 0; col < gw; col++) {
+        const top = rowsOf[r]![col] === "#", bottom = rowsOf[r + 1]?.[col] === "#";
+        c.put(zx + col, zy + r / 2, top && bottom ? solid : top ? (plain ? "\"" : "▀") : bottom ? (plain ? "." : "▄") : " ", ink, paper, UNLIT);
+      }
+    }
+    const below = zy + (big ? gh : Math.ceil(gh / 2)) + 1;
+    c.text(zx, below, entry.name.slice(0, zw - 2), text, undefined, UNLIT | BOLD);
+    c.text(zx, below + 1, `U+${entry.code.toString(16).toUpperCase()}`, dim, undefined, UNLIT);
+    c.put(zx + zw - 4, below + 1, plain ? plainOf(standIn(entry).ascii) : entry.glyph, ink, undefined, UNLIT | BOLD);
+    return c;
+  },
+};
+
+export const VIGNETTES: Vignette[] = [rat, yard, dust, surfaces, inventions, glyphs, weather, sprites];
 export const vignetteById = (id: string) => VIGNETTES.find(v => v.id === id);
 
 // ---------------------------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { FLAME_LIGHT, FLAME_RAMPS, MATERIAL_COLOR, PALETTE, hexOf, luminance, mix, ramp, rgbOf, scale, desaturate, type FlameName, type RGB } from "./color.ts";
-import { glyphFor, nerd, type Glyph, type GlyphSet } from "./glyphs.ts";
+import { glyphFor, km, nerd, type Glyph, type GlyphSet } from "./glyphs.ts";
 import { inventionColor, inventionVersion, invented, requestInvention } from "./invent.ts";
+import { kmFlap, kmFor } from "./kingmaker.ts";
 import { parseName, type ParsedName } from "./names.ts";
 import { clamp01, flicker, hash01, noise1, seedOf } from "./noise.ts";
 import { CAST_LOOKS, PLAYER_LOOK, castLook } from "./people.ts";
@@ -160,7 +161,8 @@ function computeBase(thing: Lookable): BaseLook {
   const cast = thing.cast ?? (beingKind && thing.id && CAST_LOOKS[thing.id] ? thing.id : undefined);
   if (cast && beingKind) {
     const look = castLook(cast, thing.name);
-    return person(parsed, { glyph: { ascii: look.glyph }, fg: look.color, bold: true, source: "cast" });
+    const sprite = look.km ?? kmFor(parsed, kind === "creature" ? undefined : "person", true);
+    return person(parsed, { glyph: { ascii: look.glyph, ...(sprite ? { km: sprite } : {}) }, fg: look.color, bold: true, source: "cast" });
   }
 
   const match = matchRole(parsed, tags, kind);
@@ -208,6 +210,10 @@ function computeBase(thing: Lookable): BaseLook {
   // Spirits burn blue.
   if ((role.liquid === "spirits" || tags.includes("spirits")) && flame === "fire") flame = "blue";
   const being = !!role.being || beingKind;
+  // The kingmaker set: a sprite for a being (by its name, then its role), and for a body. A skull the
+  // world calls an item stays a thing.
+  const sprite = kmFor(parsed, role.id, being && (beingKind || !kind));
+  if (sprite) glyph = { ...glyph, km: sprite };
   const groupWord = parsed.group;
   const group = groupWord ? GROUP_SIZE[groupWord] ?? 4 : role.group ? 4 : being && parsed.plural ? 3 : 0;
   const isPerson = PERSON_ROLES.has(role.id) || kind === "person";
@@ -299,6 +305,7 @@ export function lookOf(thing: Lookable, ctx: LookContext = {}): Look {
     case "flutter": {
       const flap = noise1(t / 150, seed) > 0.5;
       if (set !== "nerd" && out.glyph === "v") out.glyph = flap ? "v" : "V";
+      if (set === "kingmaker") out.glyph = kmFlap(out.glyph, flap);
       out.lift = flap ? 1 : 0;
       break;
     }
@@ -366,7 +373,7 @@ export function lookOf(thing: Lookable, ctx: LookContext = {}): Look {
   // Beings down, asleep, dead.
   if (base.being) {
     const down = [...states].find(s => DOWN.has(s));
-    if (down === "dead") { out.glyph = glyphIn("%"); fg = scale(fg, 0.6); out.bold = false; }
+    if (down === "dead") { out.glyph = set === "kingmaker" && base.person ? km("body") : glyphIn("%"); fg = scale(fg, 0.6); out.bold = false; }
     else if (down) { fg = scale(fg, 0.62); out.bold = false; }
   }
 
@@ -374,6 +381,8 @@ export function lookOf(thing: Lookable, ctx: LookContext = {}): Look {
   if (has("hanging")) {
     out.lift = 7;
     out.motion = "sway";
+    // A hanged body hangs upright.
+    if (set === "kingmaker" && out.glyph === km("body")) out.glyph = km("man");
   }
   if (base.overhead || has("overhead")) { out.lift = Math.max(out.lift ?? 0, 8); out.alpha = Math.min(out.alpha ?? 1, 0.7); }
   if (has("hidden")) { out.alpha = Math.min(out.alpha ?? 1, 0.38); fg = desaturate(fg, 0.5); }
@@ -401,10 +410,10 @@ function burn(out: Look, base: BaseLook, t: number, seed: number, radius: number
   out.light = { radius: radius * (0.92 + 0.16 * heat), color: FLAME_LIGHT[base.flame], intensity: 0.85 + 0.35 * heat };
 }
 
-/** The look in each glyph set, for legends (ascii, nerd, plain), and how it was decided. */
-export function describeLook(thing: Lookable): { ascii: string; nerd: string; plain: string; fg: string; role: string; source: LookSource; key: string } {
+/** The look in each glyph set, for legends (ascii, nerd, plain, kingmaker), and how it was decided. */
+export function describeLook(thing: Lookable): { ascii: string; nerd: string; plain: string; kingmaker: string; fg: string; role: string; source: LookSource; key: string } {
   const base = baseLook(thing);
-  return { ascii: glyphFor(base.glyph, "ascii"), nerd: glyphFor(base.person ? { ascii: base.glyph.ascii } : base.glyph, "nerd"), plain: glyphFor(base.glyph, "plain"), fg: base.fg, role: base.role.id, source: base.source, key: base.parsed.key };
+  return { ascii: glyphFor(base.glyph, "ascii"), nerd: glyphFor(base.person ? { ascii: base.glyph.ascii } : base.glyph, "nerd"), plain: glyphFor(base.glyph, "plain"), kingmaker: glyphFor(base.glyph, "kingmaker"), fg: base.fg, role: base.role.id, source: base.source, key: base.parsed.key };
 }
 
 /** Is it dark? (Luminance of a hex colour, for renderers that keep important things legible.) */

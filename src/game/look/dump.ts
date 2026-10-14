@@ -7,14 +7,16 @@
  *   node --no-warnings src/game/look/dump.ts yard --ansi --w 120 --h 40 --glyphs nerd
  *   node --no-warnings src/game/look/dump.ts all --plain           # one frame of each
  *   node --no-warnings src/game/look/dump.ts dust --json frames.json --t 0,11000,13000
+ *   KM_GLYPHS=kingmaker node --no-warnings src/game/look/dump.ts rat --ansi   # the glyph set from the environment
  *
  * Output is plain text unless stdout is a terminal (or --ansi); --json writes every cell
- * ([glyph, fg, bg, bold]) for tools that rasterize frames. Frames are exact: a vignette at time t
- * is rebuilt from scratch, so the same command always prints the same thing. The model is never
- * called (KM_LOOK_MODEL=off unless you set it).
+ * ([glyph, fg, bg, bold]) for tools that rasterize frames (tools/glyphs/frame.py draws them as the
+ * terminal would). Frames are exact: a vignette at time t is rebuilt from scratch, so the same
+ * command always prints the same thing. The glyph set is --glyphs, or KM_GLYPHS, or ascii. The model
+ * is never called (KM_LOOK_MODEL=off unless you set it).
  */
 import { writeFileSync } from "node:fs";
-import type { GlyphSet } from "./glyphs.ts";
+import { detectGlyphSet, type GlyphSet } from "./glyphs.ts";
 import { VIGNETTES, frameAt, VignettePlayer, vignetteById } from "./vignettes.ts";
 
 process.env.KM_LOOK_MODEL ??= "off";
@@ -22,7 +24,7 @@ const args = process.argv.slice(2);
 const flag = (name: string) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const id = args.find(a => !a.startsWith("--") && !args[args.indexOf(a) - 1]?.startsWith("--"));
 const w = Number(flag("w") ?? 100), h = Number(flag("h") ?? 34);
-const glyphs = (flag("glyphs") ?? "ascii") as GlyphSet;
+const glyphs = (flag("glyphs") ?? (process.env.KM_GLYPHS ? detectGlyphSet().set : "ascii")) as GlyphSet;
 const json = flag("json");
 const ansi = args.includes("--ansi") || (!args.includes("--plain") && !json && process.stdout.isTTY);
 

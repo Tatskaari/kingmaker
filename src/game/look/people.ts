@@ -1,3 +1,4 @@
+import { km } from "./glyphs.ts";
 import { seedOf } from "./noise.ts";
 
 /**
@@ -5,29 +6,32 @@ import { seedOf } from "./noise.ts";
  * These match spike/map's CAST table (src/game/map/looks.ts) so the integrator can keep one of the
  * two. Children are lowercase (Cob, Moll), the King is a crown, Sallow is money in a good coat.
  * Anyone else gets their initial and a colour from their id: bright, distinct, never fire-red
- * (red means fire and danger) or water-blue.
+ * (red means fire and danger) or water-blue. In the kingmaker glyph set each of the cast is their
+ * own sprite instead (`km`, from the Kingmaker Glyphs font); the Crake brothers are one, as the
+ * river says they are.
  */
 
-export interface PersonLook { glyph: string; color: string; name?: string; child?: boolean }
+export interface PersonLook { glyph: string; color: string; name?: string; child?: boolean; /** Their Kingmaker Glyphs sprite (a character). */ km?: string }
 
 export const CAST_LOOKS: Record<string, PersonLook> = {
-  kell: { name: "Sergeant Kell", glyph: "K", color: "#6d9eeb" },
-  cob: { name: "Cob", glyph: "c", color: "#e8b15a", child: true },
-  moll: { name: "Moll", glyph: "m", color: "#e07ab0", child: true },
-  tull: { name: "Corporal Tull", glyph: "T", color: "#6d9eeb" },
-  "nan-quill": { name: "Nan Quill", glyph: "N", color: "#f2d16b" },
-  arlo: { name: "Arlo Quarry", glyph: "A", color: "#9be36b" },
-  dilly: { name: "Dilly Sparrow", glyph: "D", color: "#c79bf2" },
-  hobb: { name: "Big Hobb Mallory", glyph: "H", color: "#f08a5d" },
-  saul: { name: "Saul Tench", glyph: "S", color: "#d9c27e" },
-  duchess: { name: "Duchess", glyph: "d", color: "#c08a5a" },
-  hep: { name: "Hep Grist", glyph: "G", color: "#f4f1e4" },
-  scrope: { name: "Mister Scrope", glyph: "s", color: "#a9c29a" },
-  sallow: { name: "Master Sallow", glyph: "$", color: "#c9a3ff" },
-  crake: { name: "a Crake", glyph: "C", color: "#9a8f80" },
-  king: { name: "King Aldren", glyph: "♔", color: "#ffd75f" },
-  holt: { name: "Marshal Holt", glyph: "M", color: "#c8ccd4" },
-  page: { name: "a palace page", glyph: "p", color: "#e6a0ff", child: true },
+  kell: { name: "Sergeant Kell", glyph: "K", color: "#6d9eeb", km: km("kell") },
+  cob: { name: "Cob", glyph: "c", color: "#e8b15a", child: true, km: km("cob") },
+  moll: { name: "Moll", glyph: "m", color: "#e07ab0", child: true, km: km("moll") },
+  tull: { name: "Corporal Tull", glyph: "T", color: "#6d9eeb", km: km("tull") },
+  "nan-quill": { name: "Nan Quill", glyph: "N", color: "#f2d16b", km: km("nan") },
+  arlo: { name: "Arlo Quarry", glyph: "A", color: "#9be36b", km: km("arlo") },
+  dilly: { name: "Dilly Sparrow", glyph: "D", color: "#c79bf2", km: km("dilly") },
+  hobb: { name: "Big Hobb Mallory", glyph: "H", color: "#f08a5d", km: km("hobb") },
+  saul: { name: "Saul Tench", glyph: "S", color: "#d9c27e", km: km("saul") },
+  duchess: { name: "Duchess", glyph: "d", color: "#c08a5a", km: km("duchess") },
+  hep: { name: "Hep Grist", glyph: "G", color: "#f4f1e4", km: km("hep") },
+  scrope: { name: "Mister Scrope", glyph: "s", color: "#a9c29a", km: km("scrope") },
+  sallow: { name: "Master Sallow", glyph: "$", color: "#c9a3ff", km: km("sallow") },
+  crake: { name: "a Crake", glyph: "C", color: "#9a8f80", km: km("crake") },
+  king: { name: "King Aldren", glyph: "♔", color: "#ffd75f", km: km("king") },
+  holt: { name: "Marshal Holt", glyph: "M", color: "#c8ccd4", km: km("holt") },
+  page: { name: "a palace page", glyph: "p", color: "#e6a0ff", child: true, km: km("page") },
+  "lantern-boy": { name: "the lantern-boy", glyph: "l", color: "#8fd8c8", child: true, km: km("lantern-boy") },
 };
 
 export const PLAYER_LOOK: PersonLook = { glyph: "@", color: "#ffffff" };
