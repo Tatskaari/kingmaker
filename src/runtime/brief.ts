@@ -116,7 +116,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
-    `## The player character\n${state.player.name}: ${state.player.concept}. They are the only player character. Other people only know their name if they've been told it.`,
+    `## The player character\n${state.player.name}: ${state.player.concept}. They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
   ].join("\n\n");
 }
 
@@ -126,6 +126,14 @@ function transitionLine(scene: Scene, t: Transition): string {
     return `- ${t.when} The dice decide (${titleCase(t.check.skill)}): success leads to ${targetTitle(scene, t.check.onSuccess)}; failure means ${fail}.`;
   }
   return `- ${t.when} Leads to ${targetTitle(scene, t.to!)}.`;
+}
+
+/** Strongest and weakest skills, so the GM narrates competence consistently and can answer "what am I good at?". */
+function skillSummary(state: SessionState): string {
+  const mods = Object.entries(state.player.modifiers).filter((e): e is [string, number] => typeof e[1] === "number").sort((a, b) => b[1] - a[1]);
+  if (!mods.length) return "";
+  const show = (xs: Array<[string, number]>) => xs.map(([k, v]) => `${titleCase(k)} ${v >= 0 ? "+" : ""}${v}`).join(", ");
+  return `\nGood at: ${show(mods.slice(0, 4))}. Weak at: ${show(mods.slice(-3).reverse())}. (Skill modifiers for the dice; talk about them in plain words, not numbers, unless the player asks out of character.)`;
 }
 
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
