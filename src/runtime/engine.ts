@@ -473,7 +473,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let postDecisionMs = 0;
   const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
   // The stage manager keeps the world in step with what the reply established, alongside the decision.
-  const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn).catch(() => undefined) : undefined;
+  const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn, {
+    rules: state.transcript.filter(e => e.turn === state.turn && e.kind === "roll" && (e.scene ?? state.sceneId) === state.sceneId).map(e => e.text),
+    cast: presentCast(scene, state).map(c => ({ id: c.id, name: c.name, look: c.look })),
+  }).catch(() => undefined) : undefined;
   if (!ended) {
     const postStarted = performance.now();
     const hold = state.pendingExit?.turn === state.turn ? state.pendingExit.exitId : undefined;
