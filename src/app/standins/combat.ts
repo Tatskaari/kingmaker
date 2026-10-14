@@ -4,7 +4,7 @@ import { attack as playerAttack, castable, castSpell, dnd, statusLine } from "..
 import { rng } from "../../runtime/dice.ts";
 import type { Character } from "../../runtime/scene.ts";
 import type { SessionState } from "../../runtime/session.ts";
-import type { CombatAction, CombatAdapter, CombatController, CombatOptions, CombatView, CombatantView, Dir } from "../adapters.ts";
+import type { CombatAction, CombatAdapter, CombatController, CombatOptions, CombatView, CombatantView } from "../adapters.ts";
 import { add, chebyshev, same, STEP } from "../geometry.ts";
 import { repairCampaign } from "../rules-repair.ts";
 import { C, glyphOf, PEOPLE } from "../theme.ts";
