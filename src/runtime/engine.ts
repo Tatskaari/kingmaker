@@ -180,7 +180,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     directive = [freeformDirective(pre.freeform)];
   }
   if (pre.ooc) directive.push(OOC_DIRECTIVE);
-  else if (pre.plainTransition && !pre.limit) directive.push(plainDirective(pre.plainTransition));
+  else if (pre.plainTransition && !pre.limit && !pre.move) directive.push(plainDirective(pre.plainTransition));
   if (pre.limit) directive.push(limitDirective(pre.limit));
   if (wasStuck && !pre.move) directive.push(`The scene has been going in circles. Break the loop in this reply: let someone act on what they want, let the world push${currentBeat(scene, state).pressure ? ` (${currentBeat(scene, state).pressure})` : ""}, or reveal something that opens a way forward. Don't just repeat the last exchange.`);
   if (pending && !pre.move) {

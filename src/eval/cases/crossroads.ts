@@ -125,3 +125,8 @@ export const crossroadsCases: EvalCase[] = [
     persona: "You play efficiently. You want to understand the problem fast, ask direct questions, and act decisively.",
     criterion: "The scene resolves (reaches an ending) within the turn limit with good pacing, and the ending matches what the player did.", tags: ["pacing"] },
 ];
+
+/** The same personas on the situation-format version of the scene (representation experiment). */
+export const situationCases: EvalCase[] = crossroadsCases
+  .filter((c): c is Extract<EvalCase, { kind: "trajectory" }> => c.kind === "trajectory")
+  .map(c => ({ ...c, id: c.id.replace("xr-traj", "xs-traj"), scene: "crossroads-situation", about: `${c.about} (situation format)` }));

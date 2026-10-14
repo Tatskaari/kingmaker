@@ -1,4 +1,5 @@
 import type { Scene } from "../src/runtime/scene.ts";
+import type { SceneOutcome, WorldApi } from "../src/world/dsl.ts";
 
 /**
  * Disco Elysium's "Pay for damages" (Garte's itemised bill) moved to the toll bridge on the King's
@@ -10,11 +11,18 @@ import type { Scene } from "../src/runtime/scene.ts";
  * Perils, which lets the party pass free. Tricks, threats, sneaking and running all have endings;
  * going round the bridge does not.
  */
+const ADMITTED = "Garrow has admitted that Tam Hollis was telling the truth about the goblins.";
+
+/** However the scene ends, an admission made along the way stays true. */
+function keepAdmission(world: WorldApi, outcome: SceneOutcome): void {
+  if (outcome.established.includes(ADMITTED)) world.setFlag("garrow_believes_tam", true);
+}
+
 export const garrowsToll: Scene = {
   id: "garrows-toll",
   title: "Garrow's Toll",
   summary: "A petty, lonely toll warden, an itemised toll, and the farmer he laughed away this morning.",
-  setting: "Late on a short winter afternoon, a mile on from the crossroads towards Caerwyn, the King's Road crosses the river by a humpbacked stone bridge. The river below is in winter spate: brown, loud and freezing. At the near end stands the toll house: whitewashed stone, a smoking chimney, a bell on a bracket by the door, and a string of Centennial bunting that someone has hung by himself, crookedly. A red-and-white striped bar on a post closes the mouth of the bridge at waist height; anyone could duck under it, and nobody does, because it's the King's. Beside it stands a painted toll board, and under that two fresh paper notices: Marshal Holt's arms order for Assembly week, and the Treasury's Assembly levy, whose small print says it 'may be collected from such travellers as are able and willing'. Through the half-door: a counter with the great ledger and the Warden's Book on a chain, a drawer under the counter, a strongbox bolted to the floor, a kettle on the hob and two cups set out. A grey goose, the Sergeant, patrols the bar and hisses at strangers. At head height in the toll-house door there's a small, fresh, splintered hole. Across the road runs a blackthorn hedge; in the frozen mud beneath it, if anyone looks, are small bare clawed footprints. The road is empty both ways.",
+  setting: "Late on a short winter afternoon, a mile on from the crossroads towards Caerwyn, the King's Road crosses the river by a humpbacked stone bridge. The river below is in winter spate: brown, loud and freezing. At the near end stands the toll house: whitewashed stone, a smoking chimney, a bell on a bracket by the door, and a string of Centennial bunting that someone has hung by himself, crookedly. A red-and-white striped bar on a post closes the mouth of the bridge at waist height; anyone could duck under it, and nobody does, because it's the King's. Beside it stands a painted toll board, and under that two fresh paper notices: Marshal Holt's arms order for Assembly week (two pennies a weapon, peace-bonded weapons free), and the Treasury's Assembly levy, whose small print, plain to anyone who reads the notice, says it 'may be collected from such travellers as are able and willing'. Through the half-door: a counter with the great ledger and the Warden's Book on a chain, a drawer under the counter, a strongbox bolted to the floor, a kettle on the hob and two cups set out. A grey goose, the Sergeant, patrols the bar and hisses at strangers. At head height in the toll-house door there's a small, fresh, splintered hole. Across the road runs a blackthorn hedge; in the frozen mud beneath it, if anyone looks, are small bare clawed footprints. The road is empty both ways. Behind the party, a mile back at the crossroads, the drovers' track leaves for Hollis Farm; ahead, over the bridge, the road runs on to Caerwyn.",
   premise: "What does it cost to get past Garrow's bar, and will anyone get past the petty rules man to the lonely, frightened one who laughed Tam Hollis away this morning?",
   hook: "You're travelling the King's Road towards Caerwyn for the Centennial Assembly. A mile past the crossroads the road crosses a river by an old stone bridge, with a toll house at the near end.",
   opening: "Describe the humpbacked bridge over the loud winter river, the whitewashed toll house with its crooked bunting, and the goose patrolling the bar. Garrow steps out with the ledger under his arm and lowers the bar with great ceremony, though the road is otherwise empty. Leave the small fresh splintered hole in the toll-house door visible but unexplained. He reads out the toll that applies to the party, item by item and with relish, and ends with his pencil poised over the ledger, asking for their names and business.",
@@ -29,8 +37,8 @@ export const garrowsToll: Scene = {
       knows: [
         "The toll board: the King's penny (one silver penny a head, on foot); beasts and barrows, two pennies; after the sunset bell, the lamp penny (one penny, for lighting the lantern to write you down by). Exempt: the King's business, under seal.",
         "A traveller on foot with one weapon owes fifteen pennies: the King's penny, the twelve-penny levy and two for the weapon.",
-        "The two fresh notices: Marshal Holt's arms order (two pennies for each weapon borne on the King's Road in Assembly week; weapons peace-bonded by the warden go free, and he ties them with red cord and a wax seal) and the Treasury's Assembly levy (one shilling a head, twelve pennies, to defray the costs of the Centennial), which he has been collecting from everyone.",
-        "The Book allows payment in kind or in labour at the warden's valuation (he values things stingily), but no credit: no IOUs, nothing 'on the way back'. He can't change gold: the strongbox holds only pennies.",
+        "The two fresh notices: Marshal Holt's arms order (two pennies for each weapon borne on the King's Road in Assembly week; weapons peace-bonded by the warden go free of charge, and he ties them with red cord and a wax seal) and the Treasury's Assembly levy (one shilling a head, twelve pennies, to defray the costs of the Centennial), which he has been collecting from everyone.",
+        "The Book allows payment in kind or in labour at the warden's valuation, and he values stingily: an hour's honest labour (splitting his wood, straightening the bunting, clearing the drain) is a penny; a good wool garment, three; a hen, two; anything else, whatever he decides after a long look. No credit: no IOUs, nothing 'on the way back'. He can't change gold: the strongbox holds only pennies.",
         "The Book's fines, which he knows by heart: attempted bribery of a warden, ten pennies; false declaration, a shilling; evading or attempting to evade the toll, double the toll; threatening an officer of the Road, a shilling, and it goes in the ledger for the Marshal.",
         "Any traveller may ask to see the Book, and he must show it, though he hovers.",
         "At first light Tam Hollis, a farmer from down the drovers' track, came in muddy and wild-eyed, raving about goblins. Garrow fined him two pennies for drunkenness and spreading alarm on the King's Road, and it's in the ledger. He tells it as a funny story.",
@@ -39,8 +47,8 @@ export const garrowsToll: Scene = {
         "Caerwyn is a few hours' walk on. Marshal Holt and the King are there for the Assembly.",
       ],
       secrets: [
-        "Minutes after Tam left, a crude black-fletched arrow thunked into the toll-house door from the hedge across the road. Garrow pulled it out, shut it in the drawer under the counter and has told no one; the hole is still in the door. He hasn't written it in the ledger, which for him is nearly a crime, and he has jumped at every rustle since.",
-        "The Book's Clause of Perils: a traveller who brings the warden true report of peril upon the Road passes free, and the warden must send word to the Marshal at Caerwyn without delay. He did neither for Tam, and now he has nobody to send. Applying it means admitting, in writing, that he laughed off a true report. It's there in the Book for anyone who reads it, and if asked straight out what exemptions the Book allows, he won't lie about the Book: he'll mumble it.",
+        "Minutes after Tam left, a crude black-fletched arrow thunked into the toll-house door from the hedge across the road. Garrow pulled it out, shut it in the drawer under the counter and has told no one; the hole is still in the door. He hasn't written it in the ledger, which for him is nearly a crime, and he has jumped at every rustle since. Accusations and bare insistence only make him deny it harder; it comes out when he's shown something he can't wave away or given a decent way to admit it.",
+        "The Book's Clause of Perils: a traveller who brings the warden true report of peril upon the Road passes free, and the warden must send word to the Marshal at Caerwyn without delay. He did neither for Tam, and now he has nobody to send. Applying it means admitting, in writing, that he laughed off a true report: he won't raise it while he's still owning up to what he did to Tam, and even after that he needs a moment, and a decent way to do it. It's there in the Book for anyone who reads it, and if asked straight out what exemptions the Book allows, he won't lie about the Book: he'll mumble it.",
         "He's lonely. Twenty-two years at this bar; his men gone to the city; nobody invited him to anything. The second cup is for whoever stops, and nobody has. He drags the toll out for the conversation. An hour of honest company would get every charge he can honestly drop dropped, and he might pay the King's penny out of his own pocket rather than waive it. He'd sooner be fined himself than say any of this.",
       ],
       attitude: "Officious and delighted to have someone to charge; suspicious of anyone who looks like trouble; scoffs at goblin talk. Warms, against his will, to anyone who takes the Book seriously or simply talks to him.",
@@ -52,14 +60,14 @@ export const garrowsToll: Scene = {
       id: "the-bill",
       title: "The King's penny",
       direction: "The negotiation. Garrow has a captive audience and means to enjoy it: he tallies the toll against the party in front of him, writes as he talks, and explains any rule at length. He's petty but honest by his own lights: every charge has a reason on the board, the notices or in the Book, he never invents one, and he'll hear an argument about any of them. A point the notices or the Book plainly support wins without dice, with a pained sigh and an amendment in the ledger. The King's penny is the one charge he will not drop. Let the player enjoy the haggle, and keep the sums consistent once stated.",
-      cast: { garrow: "Tally the bill and take names and business for the ledger. Treat the levy as compulsory until someone catches the notice's wording, then concede it with ill grace. Laugh off goblins and Tam Hollis; jump when the hedge rustles. Asked about the hole in the door, fob it off (a cart-shaft, woodworm) rather than say what made it." },
+      cast: { garrow: "Tally the bill and take names and business for the ledger. Treat the levy as compulsory and don't point out its small print yourself, though anyone who reads the notice can see it; when someone catches the wording, concede it with ill grace. Laugh off goblins and Tam Hollis; jump when the hedge rustles. Asked about the hole in the door, fob it off (a cart-shaft, woodworm) rather than say what made it. If proof corners you, own up to what's in front of you and no more: the Book can wait." },
       pressure: "The sun touches the hedge-tops; Garrow fetches the lantern and lays a hand on the bell-rope, because after the sunset bell comes the lamp penny. Or the hedge across the road rustles, and he jumps and glances at his own door.",
       transitions: [
         { id: "pays", when: "The toll has actually been paid (coins or goods handed over, the agreed work done, or someone else paying it for them) and Garrow has lifted the bar for the party.", to: "paid" },
         {
           id: "argue-charge", on: "attempt",
           when: "The player tries to talk Garrow into dropping or cutting a charge he is entitled to, on grounds that have nothing to do with goblins or Tam Hollis: pleading poverty, offering a deal, appealing to his better nature, or arguing that a rule shouldn't apply to them. (Simply pointing out what the notices or the Book actually say, such as the levy notice's 'able and willing', needs no dice: he is honest about his rules.)",
-          check: { skill: "persuasion", dc: 12, success: "Garrow consults the Book, sighs through his nose and concedes: that charge comes off, or the sum comes down, and he amends the ledger with a pained flourish. Never the King's penny, and the bar stays down until the rest is actually paid.", failure: "Garrow quotes the clause from memory and the charge stands. Pressing the same point again makes it his final offer; a new argument or a real offer still gets a hearing.", onSuccess: "the-bill" },
+          check: { skill: "persuasion", dc: 12, success: "Garrow consults the Book, sighs through his nose and concedes, saying which charge comes off (or by how much the sum comes down) and why, then amends the ledger with a pained flourish. Never the King's penny, and the bar stays down until the rest is actually paid.", failure: "Garrow quotes the clause from memory and the charge stands. Pressing the same point again makes it his final offer; a new argument or a real offer still gets a hearing.", onSuccess: "the-bill" },
         },
         {
           id: "deceive", on: "attempt",
@@ -72,17 +80,17 @@ export const garrowsToll: Scene = {
           check: { skill: "intimidation", dc: 14, success: "Garrow goes grey, fumbles the padlock and lifts the bar, writing with a shaking hand: it will all be in the ledger.", failure: "Garrow goes white to the lips and stands his ground: twenty-two years at this bar. The threat goes in the ledger, with the fine for it.", onSuccess: "cowed", onFailure: "dug-in" },
         },
         { id: "goblins-raised", when: "The goblins or Tam Hollis have come up in earnest: the player has reported goblins on the road, defended Tam's story, shown goblin evidence or asked about the hole in the toll-house door, and Garrow has answered without admitting anything.", to: "goblin-talk" },
-        { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: ["Garrow has admitted that Tam Hollis was telling the truth about the goblins."] },
+        { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: [ADMITTED] },
       ],
     },
     {
       id: "goblin-talk",
       title: "Tam Hollis's goblins",
       direction: "The sore spot. Garrow's denial is loud and a little too quick: Tam was drunk, it's in the ledger, he fined him for it. But he doesn't believe himself, and it shows in the glances (at his door, at the hedge, at the drawer under the counter). This beat is for the player to notice that and decide what to do with it. Bare assertion alone won't shift him, but he has no answer to something he can see (goblin evidence, the tracks under the hedge) or to a decent way out (a kindness, a face-saving reason to set the record straight), and every push should cost his denial something visible. The bill still stands meanwhile.",
-      cast: { garrow: "Insist Tam was drunk and quote the ledger. Flinch at noises from the hedge. When cornered, retreat into the toll and the rules." },
+      cast: { garrow: "Insist Tam was drunk and quote the ledger. Flinch at noises from the hedge. When argued with, retreat into the toll and the rules; if proof corners you, own up to what's in front of you and no more: the Book can wait." },
       pressure: "The goose stretches her neck towards the hedge across the road and hisses at nothing, and Garrow's hand goes to the drawer under the counter.",
       transitions: [
-        { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: ["Garrow has admitted that Tam Hollis was telling the truth about the goblins."] },
+        { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: [ADMITTED] },
         {
           id: "read-garrow", on: "attempt",
           when: "The player quietly studies Garrow to judge whether he believes what he's saying, or what he's hiding: watching him, not arguing with him, confronting him or showing him anything.",
@@ -109,7 +117,7 @@ export const garrowsToll: Scene = {
     {
       id: "confession",
       title: "The arrow in the drawer",
-      direction: "The heart of the scene. Garrow has admitted it, and the rest comes out of him, stiffly or all in a rush: the arrow, the two pennies he fined a frightened man, the Clause of Perils he didn't honour, his men gone and nobody to send word to the Marshal. By his own Book the party now passes free, and he will honour that, because rules are rules; what he needs is a way to do it without being a laughing stock. Give the player room to respond to him, and don't hurry him to the bar. Whatever they do with him now, he'll remember.",
+      direction: "The heart of the scene. Garrow has admitted it, and the rest comes out of him, stiffly or all in a rush: the arrow, the two pennies he fined a frightened man, the Clause of Perils he didn't honour, his men gone and nobody to send word to the Marshal. By his own Book the party now passes free (anything they already paid comes back to them, to the penny), and he will honour that, because rules are rules; what he needs is a way to do it without being a laughing stock. Give the player room to respond to him, and don't hurry him to the bar. Whatever they do with him now, he'll remember.",
       cast: { garrow: "Admit it, then fret about the Marshal and the clause. Kindness disarms you; mockery stiffens you straight back into the rules." },
       pressure: "Garrow turns the arrow over in his ink-stained fingers and asks the player, very stiffly, what he ought to write in the ledger.",
       transitions: [
@@ -127,7 +135,7 @@ export const garrowsToll: Scene = {
         { id: "pays", when: "The toll, fines included, has actually been paid (coins or goods handed over, the agreed work done, or someone else paying it for them) and Garrow has lifted the bar for the party.", to: "paid" },
         { id: "apology", when: "The player has sincerely apologised or made amends, and Garrow has accepted it and calmed down (the fines may stand).", to: "the-bill" },
         { id: "goblins-raised", when: "The goblins or Tam Hollis have come up in earnest: the player has reported goblins on the road, defended Tam's story, shown goblin evidence or asked about the hole in the toll-house door, and Garrow has answered without admitting anything.", to: "goblin-talk" },
-        { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: ["Garrow has admitted that Tam Hollis was telling the truth about the goblins."] },
+        { id: "cracks", when: "Garrow has admitted (in words, or by bringing out the goblin arrow he hid) that Tam Hollis was telling the truth, because the party showed him something he couldn't wave away (goblin evidence, the tracks under the hedge, the hole in his own door) or gave him a decent way to admit it.", to: "confession", establishes: [ADMITTED] },
         {
           id: "threaten-again", on: "attempt",
           when: "After being caught out once, the player threatens Garrow again, or harder, to make him lift the bar or drop the toll.",
@@ -153,37 +161,39 @@ export const garrowsToll: Scene = {
       check: { skill: "acrobatics", dc: 11, success: "They're past the bar and across the frosty cobbles before Garrow can do more than shout; the goose chases them halfway over the bridge.", failure: "The goose gets there first, or the frost does: they go down in a heap on the cobbles with Garrow standing over them, pencil already moving.", onSuccess: "ran-the-bar", onFailure: "dug-in" },
     },
     { id: "attack", on: "attempt", when: "The player attacks Garrow, grabs him or shoves him aside by force, to get past or to take something.", to: "forced" },
-    { id: "walk-away", on: "attempt", when: "The party gives up on crossing here and walks away from the toll house: back down the road the way they came, or off on the long trek to another crossing. (Looking for a way across nearby, or trying to ford or swim the river here, is not leaving.)", to: "turned-back" },
+    { id: "walk-away", on: "attempt", when: "The party walks away from the toll house without crossing: back down the road the way they came (to the crossroads, to find Tam, or anywhere else), or off on the long trek to another crossing. (Looking for a way across nearby, or trying to ford or swim the river here, is not leaving.)", to: "turned-back" },
     { id: "other-remedy", when: "The party has got across the bridge, or Garrow has lifted the bar for them, by some other means established in play that none of the other routes covers (not by paying, his Clause of Perils, a lie, a threat, force, sneaking or running).", to: "other-remedy" },
   ],
   exits: [
     {
       id: "paid", kind: "progress", title: "Paid",
       outcome: "The party settled the toll (in coin, in kind or in labour, or with someone paying on their behalf) and crossed the bridge with Garrow's leave.",
-      closing: "Garrow lifts the bar with as much ceremony as he lowered it, blots the ledger and tells the goose to let them by. Give him a last word, and end with the party on the far side of the bridge, the road to Caerwyn ahead.",
-      script: (world) => {
+      closing: "Petty ceremony and a sliver of dignity: the bar goes up as grandly as it came down, the ledger is blotted, the goose is told to let them by, and Garrow gets a last word. The way to Caerwyn lies open.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "paid");
         world.journal("Paid Garrow's toll at the bridge on the King's Road and crossed towards Caerwyn.");
       },
     },
     {
       id: "tam-was-right", kind: "persuaded", title: "Tam was right",
-      outcome: "Garrow admitted Tam Hollis was right about the goblins and let the party cross free under his own Clause of Perils. Now he has to send word to Marshal Holt.",
-      closing: "Garrow lifts the bar himself, formally, for travellers bringing true report of peril upon the Road. Let him say, in his own stiff way, what he means to do about Tam (and about getting word to the Marshal, unless the party is carrying it), and end with the party crossing the bridge as the lantern comes on behind them.",
+      outcome: "Garrow admitted Tam Hollis was right about the goblins and, under his own Clause of Perils, opened his bar to the party free of charge. Now he has to send word to Marshal Holt.",
+      closing: "A proud man setting something right by his own Book: he lifts the bar himself, formally, for travellers bringing true report of peril upon the Road, refunds to the penny anything they already paid, and says in his stiff way what he means to do about Tam (and about getting word to the Marshal, unless the party is carrying it). The lantern comes on behind him; the way lies open, and where the party goes is theirs to choose.",
       script: (world) => {
         world.setFlag("garrows_toll", "waived");
         world.setFlag("garrow_believes_tam", true);
-        world.character("garrow").remember("Tam Hollis was telling the truth about the goblins. The party brought it home to him, and he let them cross under the Clause of Perils.");
+        world.character("garrow").remember("Tam Hollis was telling the truth about the goblins. The party brought it home to him, and he opened the bar to them under the Clause of Perils.");
         world.character("garrow").setAttitude("friendly", "They brought him the truth about Tam's goblins and let him put it right by the Book.");
         world.promise({ by: "garrow", to: "Marshal Holt", what: "Send word of goblins on the King's Road, as the Clause of Perils requires." });
-        world.journal("Garrow admitted Tam Hollis was right about the goblins and let us cross his bridge free.");
+        world.journal("Garrow admitted Tam Hollis was right about the goblins and opened his bar to us free, under his Clause of Perils.");
       },
     },
     {
       id: "bluffed", kind: "persuaded", title: "Waved through on a story",
       outcome: "Garrow believed the party's story (a claim, a pass or a seal) and let them through free or cheaply. Their claim is written in his ledger.",
-      closing: "Garrow lifts the bar with the little bow he thinks their claim deserves and reads back what he has written in the ledger. End with the party on the far side of the bridge.",
-      script: (world) => {
+      closing: "A small triumph with a sting in it: Garrow lifts the bar with the little bow he thinks their claim deserves and reads back what he has written in the ledger. The way lies open.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "bluffed");
         world.character("garrow").remember("Let the party through on the strength of what they told him; their claim is in the ledger.");
         world.journal("Talked our way past Garrow's toll with a story he believed.");
@@ -192,8 +202,9 @@ export const garrowsToll: Scene = {
     {
       id: "cowed", kind: "persuaded", title: "Lifted under threat",
       outcome: "Garrow lifted the bar because the party threatened him. He wrote down everything, and the Marshal will hear of it.",
-      closing: "Garrow lifts the bar with shaking hands and won't look at them as they pass; behind them they hear the scratch of his pencil. End on the far side of the bridge.",
-      script: (world) => {
+      closing: "Ugly and quiet: Garrow lifts the bar with shaking hands and won't look at them, and the scratch of his pencil is the only sound as the way opens.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "threatened");
         world.setFlag("warden_threatened", true);
         world.character("garrow").setAttitude("hostile", "The party threatened him into lifting the King's bar.");
@@ -204,8 +215,9 @@ export const garrowsToll: Scene = {
     {
       id: "slipped-past", kind: "other", title: "Slipped past",
       outcome: "The party got across the bridge without paying and without Garrow seeing them go.",
-      closing: "Narrate the far side of the bridge in the dusk, the toll-house window glowing behind them, and Garrow none the wiser.",
-      script: (world) => {
+      closing: "A clean escape: the bridge behind them in the dusk, the toll-house window glowing, Garrow none the wiser.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "evaded");
         world.journal("Slipped past Garrow's toll bar without paying.");
       },
@@ -213,8 +225,9 @@ export const garrowsToll: Scene = {
     {
       id: "ran-the-bar", kind: "other", title: "Ran the bar",
       outcome: "The party ran the bar in plain sight and got across without paying. Garrow can't chase them, but he saw them, and he writes everything down.",
-      closing: "Garrow's shouting and the goose's honking follow them over the bridge; when they look back, he's already writing. End on the far side.",
-      script: (world) => {
+      closing: "Slapstick with a cost: shouting and honking follow them over the bridge, and when they look back, Garrow is already writing.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "evaded");
         world.setFlag("warden_reports_party", true);
         world.character("garrow").setAttitude("unfriendly", "The party ran his bar without paying.");
@@ -225,8 +238,9 @@ export const garrowsToll: Scene = {
     {
       id: "forced", kind: "other", title: "Forced the bar",
       outcome: "The party used force on Garrow to get past his bar. He's shaken, perhaps hurt, and he'll report an assault on an officer of the King's Road.",
-      closing: "Close on what the force left behind at the bar, and on Garrow's voice behind them promising that the Marshal will hear of this. End on the far side of the bridge.",
-      script: (world) => {
+      closing: "Something broken: what the force left behind at the bar, and Garrow's voice promising that the Marshal will hear of this.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "forced");
         world.setFlag("warden_assaulted", true);
         world.character("garrow").setAttitude("hostile", "The party laid hands on him and forced the King's bar.");
@@ -237,26 +251,28 @@ export const garrowsToll: Scene = {
     {
       id: "other-remedy", kind: "progress", title: "Across another way",
       outcome: "The party got across the bridge, or Garrow lifted the bar for them, by a means of their own invention that none of the other endings covers.",
-      closing: "Narrate their means working and Garrow's reaction to it, and end with the party on the far side of the bridge.",
-      script: (world) => {
+      closing: "Their own idea paying off: the means working, and Garrow's reaction to it.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "other");
         world.journal("Got past Garrow's toll house by our own means.");
       },
     },
     {
       id: "turned-back", kind: "leave", title: "Turned back",
-      outcome: "The party gave up on the bridge and left the way they came, with the bar still down and the toll unpaid.",
-      closing: "Garrow watches them go with the ledger under his arm and calls a last remark after them. Behind them, the sunset bell rings.",
-      script: (world) => {
+      outcome: "The party left the way they came without crossing the bridge, the bar still down behind them.",
+      closing: "A door left shut: Garrow watching them go with the ledger under his arm, a last remark called after them, and the sunset bell behind.",
+      script: (world, outcome) => {
+        keepAdmission(world, outcome);
         world.setFlag("garrows_toll", "turned-back");
         world.journal("Turned back from Garrow's toll bridge without crossing.");
       },
     },
   ],
   limits: [
-    "Crossing the river anywhere but this bridge (fording or swimming it, a boat, another bridge, a cross-country detour): this is the only crossing for miles. The river is in winter spate, loud, brown and freezing between steep banks, and the nearest ford is by the burnt mill, half a day north. Trying for it means leaving the road and this scene. (Slipping past the bar on the bridge itself is another matter.)",
-    "Someone else to help, vouch or witness (Tam Hollis, the toll-men, guards, other travellers): nobody else is here. Garrow's two toll-men were sent to Caerwyn at noon to line the streets for the Assembly, Tam Hollis isn't with the party, and the road is empty this close to dusk. Fetching anyone would mean leaving this scene.",
-    "Taking Garrow somewhere to see proof (the dead ox, the crossroads, the hedges down the road): he won't leave his bar. The Book forbids leaving it unattended and his men are gone. He'll look at whatever the party brings him, and at anything he can see from the bar.",
+    "Crossing the river anywhere but this bridge (fording or swimming it, a boat, another bridge, a cross-country detour): this is the only crossing for miles. The river is in winter spate, loud, brown and freezing between steep banks, and the nearest ford is by the burnt mill, half a day north. The party can set off for it, which ends this scene; slipping past the bar on the bridge itself is another matter.",
+    "Someone else turning up here to help, vouch or witness (Tam Hollis, the toll-men, guards, other travellers): nobody else is coming. Garrow's two toll-men were sent to Caerwyn at noon to line the streets for the Assembly, Tam Hollis isn't with the party, and the road is empty this close to dusk. The party can always leave to go and find someone, which ends this scene.",
+    "Taking Garrow somewhere to see proof (the dead ox, the crossroads, the hedges down the road): he won't leave his bar. The Book forbids leaving it unattended and his men are gone. He'll look at whatever the party brings him, and at anything they point out within sight of the bar, such as the hedge across the road.",
     "Rich pickings at the toll house (the strongbox, valuables): the strongbox is bolted to the floor and holds the week's tolls, a few shillings in pennies. Garrow owns a cudgel he has never used, a lantern, the ledger, a kettle and a goose.",
     "Someone with authority over Garrow (Marshal Holt, the King, a magistrate): they're all in Caerwyn, a few hours' walk on. A complaint can be made there, not here; at his own bar, nobody overrules the warden.",
     "Goblins turning up to settle the argument: they won't. Whatever was in the hedges this morning has moved on, and the rustles now are wind and birds. The proof here is whatever the party brings and whatever they can find at the toll house.",

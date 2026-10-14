@@ -1,5 +1,5 @@
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
-import { currentBeat, offstageCast, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
+import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, rng, rollCheck, titleCase, type RollResult } from "./dice.ts";
 import { SKILLS, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
 import type { SceneStatus, SessionState } from "./session.ts";
@@ -130,7 +130,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
   // word might simply work; choosing one means "no attempt now" (it's judged after the reply).
-  const outcomes = transitionsFor(scene, state, "outcome");
+  // The built-in improvised ending is only ever judged after the reply, on what happened.
+  const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID);
   const questions: Record<string, ChoiceQuestion> = {};
   if (options.freeform !== false || attempts.length) {
     const q = question("attempt", attempts, scene);
@@ -175,12 +176,14 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const attempt = candidate && (!endsScene(scene, candidate) || probability >= SCENE_ENDING_CONFIDENCE) ? candidate : undefined;
   const plain = answer?.startsWith("plain:") ?? false;
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
-  const cue = attempt || plain ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
+  // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
+  const cue = attempt ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
   // Something the player simply does that settles the scene (setting off, handing it over) is
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
   const chosen = attempt ?? plainEnding ?? cue;
+  // (a plain action alongside a cue: the cue's beat change carries the reply)
   const move = chosen ? resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue") : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
@@ -191,8 +194,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   }
   const ooc = decision.answers.ooc?.choice === "out_of_character";
   const plainTransition = plain && !plainEnding ? plainOutcome : undefined;
+  // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
   const limitChoice = decision.answers.limit?.choice;
-  const limit = limitChoice?.startsWith("limit_") ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
+  const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
   return {
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
@@ -208,11 +213,11 @@ export const OOC_DIRECTIVE = "The player has stepped out of character to ask you
 
 /** "No, but": the world answers honestly and keeps the player's underlying idea alive. */
 export function limitDirective(limit: string): string {
-  return `The player is reaching for something this scene can't offer: ${limit} Don't let it happen or half-happen. Answer in the fiction with a reason that fits this world (a consequence, or a character who would know), not a flat refusal, and give the player's underlying intent somewhere real to go with what is here.`;
+  return `The player is reaching for something this scene can't offer: ${limit} Respect exactly what that says: what it rules out doesn't happen (not even halfway), and anything it allows (setting off, trying later) can. Answer in the fiction with a reason that fits this world (a consequence, or a character who would know), not a flat refusal, and give the player's underlying intent somewhere real to go with what is here.`;
 }
 
 export function freeformDirective(check: FreeformCheck): string {
-  return `The player's attempt called for a ${titleCase(check.skill)} check. ${describeRoll(check.roll)}. Narrate the result: on a success they get what they were going for, within this scene; on a failure it costs them or complicates things, but the story keeps going. This roll doesn't end the scene by itself.`;
+  return `The player's attempt called for a ${titleCase(check.skill)} check. ${describeRoll(check.roll)}. Narrate the result: on a success they get what they were going for, within this scene; on a failure it costs them or complicates things, without taking back anything already offered or agreed, and the story keeps going. This roll doesn't end the scene by itself.`;
 }
 
 /**
@@ -238,7 +243,9 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     questions.outcome = { ...q, criteria: { ...Object.fromEntries(outcomes.map(t => [t.id, effect(t)])), none: q.criteria.none! } };
   }
   const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), questions, "director.after");
-  const chosen = outcomes.find(t => t.id === decision.answers.outcome?.choice);
+  const picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);
+  // Ending the scene on an outcome needs the same confidence as ending it on an attempt.
+  const chosen = picked && endsScene(scene, picked) && (decision.answers.outcome?.probabilities?.[picked.id] ?? 1) < SCENE_ENDING_CONFIDENCE ? undefined : picked;
   const status = decision.answers.status?.choice as SceneStatus | undefined;
   return { ...(chosen ? { move: resolve(scene, state, chosen, "outcome") } : {}), decision, ...(status ? { status } : {}) };
 }

@@ -112,3 +112,18 @@ Luna decisions 100% (172 ms) vs Jev 81% (290 ms) on the 16-case suite after the 
 ### Phase 2: append vs reconcile
 
 Reconciling the author's default exit script (the scribe writes the whole update) vs appending to it: fidelity 3.9 → 4.1, coverage 4.0 → 3.8, restraint 4.1 → 4.2. Marginal. The remaining "missing" items are DSL granularity: groups (Skrag's four goblins leave too), "in transit" locations, and what the player learned.
+
+## 2026-10-14 — QA round 1 analysis, fixes
+
+The round 1 analyst (blind QA, 3 sessions; full write-up in `docs/qa/round-1-analysis.md`, reports in `docs/qa/round-1-reports.json`) found the worst problems at the **joints between turns and scenes**, not in single replies:
+
+- **FM1 hand-offs:** scene 2 forgot how scene 1 ended (3/3 openings; 1/12 on the then-current tree). Fix: an exit writes a hand-off (the state of things as played) plus the last moments verbatim; the next scene's prep says *what happened in play outranks the prep*; it also states there is one player character. Openings now mostly pass (peaceful bargain 3/4, after fight 3/4, Tam-gone 1/4).
+- **FM2 endings run past the threshold:** fixed by framing the authored closing as "what the ending should feel like", a "stay in the moment / a scene ends at the threshold" GM principle, and closing the scene in the same reply when the player simply does the scene-ending thing (no dice). The no-overrun case still failed until I found my own authored closing said "narrate the first glimpse of the mill"; after fixing that, 3/3.
+- **FM3 roll hygiene:** the "none" option is now described positively (talk, accept an offer, search at leisure). Search no longer rolls; accepting an offer that adds conditions still rolls persuasion (defensible). A failed roll must not take back an offer already made.
+- **FM5 tracker lag:** after the reply, cues are judged by their *effect* (the next beat has begun), not their trigger text. Goblins-arrived 0/2 → 2/2.
+- **FM6 co-GM blocking:** the CLI no longer waits for the co-GM; notes yield to choices the player has made since.
+- **FM7–9:** prompts now ask for improvised details that tie into existing threads, no repeated pleas, no names that weren't told; plus OOC handling (an `ooc` question in the before-reply decision → an out-of-character answer with no secrets and no dice talk; `xr-meta-options` went from 2/9 to mostly passing).
+
+New structural idea: **every scene gets a built-in "ending of their own"** (`own-ending`). It's an exit for resolutions the prep didn't foresee, at the same 0.6 confidence bar, and the world scribe makes them true afterwards. Motivation: the GM improvised "walk with Skrag to the warren", no exit covered it, and the limit "the warren isn't reachable in this scene" made it retract its own offer. The limit cue also now needs 0.6 confidence and respects what a limit allows ("can set off for it").
+
+Reply suite after OOC + say-yes directives: gm 94%, actors 96% criterion pass (16 cases × 3).

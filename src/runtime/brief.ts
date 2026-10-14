@@ -15,8 +15,32 @@ export function prompt(name: string, vars: Record<string, string> = {}): string 
   return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
 }
 
+/**
+ * Every scene can also end in a way its prep didn't foresee, established in play (leaving with
+ * someone, settling things another way). The world scribe makes it true afterwards. Without it, a
+ * good improvised resolution has nowhere to go and the GM ends up retracting it.
+ */
+export const IMPROVISED_EXIT_ID = "own-ending";
+export function withImprovisedEnding(scene: Scene): Scene {
+  if (scene.exits.some(e => e.id === IMPROVISED_EXIT_ID)) return scene;
+  return {
+    ...scene,
+    exits: [...scene.exits, {
+      id: IMPROVISED_EXIT_ID, kind: "other", title: "An ending of their own",
+      outcome: "The scene ends in a way the prep didn't foresee, as established in play.",
+      closing: "Close on the moment the player chose, at the threshold, without narrating what comes next.",
+    }],
+    anytime: [...(scene.anytime ?? []), {
+      id: "improvised-ending", on: "outcome",
+      when: "The scene's central matter has been settled, or left behind, in a way none of the other endings describe (the player resolved it their own way, or set off elsewhere with it), and nothing more needs to happen here.",
+      to: IMPROVISED_EXIT_ID,
+    }],
+  };
+}
+
 /** The authored scene plus whatever the repair agent has added during play. */
-export function effectiveScene(scene: Scene, patches: ScenePatch[]): Scene {
+export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
+  const scene = withImprovisedEnding(authored);
   if (!patches.length) return scene;
   const beats = scene.beats.map(b => ({ ...b, transitions: [...b.transitions] }));
   for (const patch of patches) {
