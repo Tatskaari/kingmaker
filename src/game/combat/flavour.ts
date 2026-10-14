@@ -32,7 +32,9 @@ const pools: Record<string, string[]> = {
     "Master Sallow drops the blade, dabs his temples with lavender water, and surrenders with the air of a man lodging a complaint.",
   ],
   "flee:sallow": ["Master Sallow remembers an urgent appointment elsewhere and makes for the door at a pace nobody at the palace has ever seen."],
-  "surrender:bruiser": ["'Nobody said nothing about this,' says the talking Crake, and puts the cudgel down.", "{Who} looks at the state of things, looks at the door, and puts the cudgel down."],
+  "surrender:crake-1": ["'Nobody said nothing about this,' says the talking Crake, and puts the cudgel down."],
+  "surrender:crake-2": ["The silent Crake, who has never been heard to say anything, says 'Fair enough,' and puts the cudgel down."],
+  "surrender:any": ["{Who} looks at the state of things, looks at the door, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands where Kell can see them."],
   "giveup:bruisers": ["The Crakes look at their employer, look at each other, and put their cudgels down: nobody pays for a fight that's over."],
   "flee:bruiser": ["{Who} decides the Heron isn't paying enough and heads for the door."],
   "flee:coward": ["The lantern-boy, the only person in the Heron with any sense, runs for the door.", "The lantern-boy runs, which is the first sensible thing anyone has done tonight."],
@@ -63,8 +65,8 @@ export function hash(...parts: Array<string | number>): number {
   return h;
 }
 
-/** A line for the moment, or undefined when there's none for it. {Who}/{who} and {s} fill in. */
-export function flavour(kind: string, seed: number, who?: { called: string; you: boolean }): string | undefined {
+/** A line for the moment, or undefined when there's none for it. {Who}/{who}, {s} and {weapon} fill in. */
+export function flavour(kind: string, seed: number, who?: { called: string; you: boolean; weapon?: string }): string | undefined {
   const pool = pools[kind];
   if (!pool?.length) return undefined;
   const line = pool[seed % pool.length]!;
@@ -72,7 +74,13 @@ export function flavour(kind: string, seed: number, who?: { called: string; you:
   return line
     .replace(/\{Who\}/g, name.charAt(0).toUpperCase() + name.slice(1))
     .replace(/\{who\}/g, name)
-    .replace(/\{s\}/g, who?.you ? "" : "s");
+    .replace(/\{s\}/g, who?.you ? "" : "s")
+    .replace(/\{weapon\}/g, (who?.weapon ?? "weapon").toLowerCase());
+}
+
+/** "a", "a and b", "a, b and c". */
+export function listing(names: string[]): string {
+  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
 export const has = (kind: string) => !!pools[kind];

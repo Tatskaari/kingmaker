@@ -4,7 +4,7 @@ import type { SessionState } from "../../runtime/session.ts";
 import type { CombatResult, CombatSetup, MapActor, Tile2 } from "../types.ts";
 import { decide, freshMemo, type PlayerStyle, type Step } from "./ai.ts";
 import { Client, combatGame, type CombatClient } from "./game.ts";
-
+import { listing } from "./flavour.ts";
 import type { ActResult, CombatG, CombatView, LogLine, PlayerAction, PlayerOptions, Unit } from "./model.ts";
 import { health, Rules, type Kit, type Table } from "./rules.ts";
 import { initialState } from "./setup.ts";
@@ -290,7 +290,7 @@ function statusText(t: Table, id: string): string {
 // ---------------------------------------------------------------------------------------------
 // The story's version.
 
-const people = (us: Unit[]) => us.map(u => u.called).join(" and ");
+const people = (us: Unit[]) => listing(us.map(u => u.called));
 
 export function summarise(G: CombatG): CombatResult {
   const units = Object.values(G.units);

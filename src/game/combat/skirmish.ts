@@ -1,6 +1,6 @@
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.js";
 import type { CombatResult, Tile2 } from "../types.ts";
-import { flavour, has as hasFlavour, hash } from "./flavour.ts";
+import { flavour, has as hasFlavour, hash, listing } from "./flavour.ts";
 import { areaTiles, clearShot, explore, FEET, feetBetween, findPath, fromFeet, fromKey, key, line, neighbours, rangeFeet, same, solid, steps, toFeet, type PathRules } from "./grid.ts";
 import type { CombatG, PlayerOptions, Prop, Unit } from "./model.ts";
 import { diceLines, signed, type EngineCombatant, type Namer, type Rules, type Table } from "./rules.ts";
@@ -58,7 +58,7 @@ export class Skirmish {
   activeUnit(): Unit | undefined { return this.G.units[this.G.order[this.G.active] ?? ""]; }
   byEngine(id: string): Unit | undefined { return this.units.find(u => u.engineId === id); }
   isYou(u: Unit): boolean { return u.id === this.G.pc; }
-  you(u: Unit): { called: string; you: boolean } { return { called: this.isYou(u) ? "you" : u.called, you: this.isYou(u) }; }
+  you(u: Unit): { called: string; you: boolean; weapon: string } { return { called: this.isYou(u) ? "you" : u.called, you: this.isYou(u), weapon: u.weaponName ?? (u.weapons[0] ? this.t.itemName(u.weapons[0]) : "weapon") }; }
 
   private team(u: Unit): number { return u.side === "player" || u.side === "ally" ? 1 : u.side === "enemy" ? 2 : 0; }
   friendly(a: Unit, b: Unit): boolean { return this.team(a) !== 0 && this.team(a) === this.team(b); }
@@ -545,7 +545,7 @@ export class Skirmish {
   surrender(u: Unit): string | undefined {
     if (u.state !== "fighting") return "They're not fighting.";
     this.offMap(u, "surrendered");
-    this.say(u.role === "villain" ? "surrender:sallow" : "surrender:bruiser", u);
+    this.say(u.role === "villain" ? "surrender:sallow" : u.castId && hasFlavour(`surrender:${u.castId}`) ? `surrender:${u.castId}` : "surrender:any", u);
     if (u.role === "villain") {
       const hired = this.units.filter(v => v.side === u.side && v.id !== u.id && v.state === "fighting" && (v.role === "bruiser" || v.role === "brawler"));
       if (hired.length) {
@@ -700,7 +700,7 @@ export class Skirmish {
       for (const v of beaten) v.arrested = true;
       if (villain) this.say("arrest:sallow", villain);
       const rest = beaten.filter(v => v !== villain);
-      if (rest.length) this.log("narration", `Kell puts the irons on ${rest.map(v => v.called).join(" and ")}, by the book and out loud.`, sergeant.id);
+      if (rest.length) this.log("narration", `Kell puts the irons on ${listing(rest.map(v => v.called))}, by the book and out loud.`, sergeant.id);
     }
     // Whoever's still dying on the floor when it ends is seen to (Kell, the gang, or the Crakes' indifference).
     for (const u of this.units) if (u.state === "down" && !this.t.char(u.engineId)?.deathSaves.stable) this.t.apply([this.event("Stabilized", { targetId: u.engineId })]);
