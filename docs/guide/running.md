@@ -49,7 +49,8 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 
 ## Dice: rolls belong to edges, and say why
 
-- **Rolls happen on authored routes,** the edges of the scene graph, or on routes the quick co-GM opens for off-graph plans. Each carries a player-facing reason: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success`. Freeform rolls are off.
+- **Rolls happen on authored routes,** the edges of the scene graph, or on routes the quick co-GM opens for off-graph plans. Each carries a player-facing reason, which never names something the player hasn't found yet: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success`.
+- **Risky things no route covers get a check too** (`freeformChecks`, on in `v2`): kicking a door, bluffing a watchman, hiding behind crates. Without them, the D&D players in QA felt the GM was ruling by fiat.
 - **A rolled attempt needs confidence ≥ 0.6,** like an ending. A roll forces its outcome into the reply, so a weak read of an announcement shouldn't hand over a secret.
 - **The roll follows the player's method.** A threat aimed at a route written for persuasion rolls Intimidation, and the outcome lands the way a threat would.
 - **Pressure on secrets is opt-in (`v2-pressure`).** What telling costs the holder, the player's leverage and how the holder feels about them give a yes, a no, or a roll at DC 12/15/18 ([research](../research/dc-guidance.md), [experiment](../experiments/pressure-rolls.md)). The details are asked only when someone is being pressed, and only the secret the player is after comes out.
@@ -101,3 +102,50 @@ V1's docs service, rebuilt (`memory: "docs"`, part of `v2`):
 - **Presence.** A recurring character whom the hand-off rules out (taken in, fled) isn't present, unless play brings them in.
 
 The result: recall of what the player did held up across three scenes. The remaining errors are the GM embellishing around true memories (a second promise, an invented relationship). See [experiments/memory.md](../experiments/memory.md).
+
+## The rules (D&D 5.5e)
+
+The vendored [dnd-srd-engine](../../vendor/dnd-srd-engine/README.md) (SRD 5.2.1) decides what the rules decide, and the GM narrates exactly that (`src/rules/dnd.ts`).
+
+- **The sheet.** One model call turns the player's concept into a build: class, species, background, skills, spells and kit. The engine makes it legal: level-1 choices, class skills and level-ups. `#sheet` shows it.
+- **Each turn the decider also asks:** is this a spell, a blow, a grapple or shove, or a rest? A second small call (only on those turns) gets the details: which spell, at whom or what, which weapon.
+- **What the engine rolls:**
+  - checks with real bonuses and conditions;
+  - spells: slots, saves, attacks, damage, concentration and durations, rituals with no slot, and zones placed in the world;
+  - attacks against AC;
+  - 2024 grapples and shoves;
+  - short rests (hit dice) and long rests (time passes, spells expire).
+- **Rules the runtime adds on top:**
+  - A spell you don't have fails visibly.
+  - A blow or danger that a reply leaves hanging is resolved at the start of your next turn (an NPC's attack, or a saving throw against a hazard).
+  - Dropping to 0 HP outside a fight knocks you out.
+  - A milestone scene levels you up before the night's rest.
+- **NPCs get SRD statblocks** from their cast card (`statblock`, `weapon`) on first use. A group's `members` stand and fall separately (the Crakes). The player never sees NPC hit points, only how hurt someone looks.
+
+## The scene world
+
+A scene with a `world` spec ([scenes/worlds/](../../scenes/worlds/)) is an entity tree (`src/world/scene-world.ts`). The place contains areas; areas contain things and people; people and containers hold items.
+
+- **What each entity carries:** positions in feet, D&D object stats (AC and HP by material and size), states (burning, damaged, destroyed, wet, hanging, hidden...) and notes.
+- **The rules write to it deterministically.**
+  - An area spell catches whatever is in its shape. Fireball on the elm burned the elm, the hoist beam and the loft door, and the girl on the wall made her save.
+  - Things don't dodge, and materials shrug off what wouldn't hurt them.
+  - Fire burns and spreads each turn, and grain dust explodes.
+  - What hung from a destroyed rope falls.
+- **The stage manager writes what the story established,** after each reply and in parallel with the decision (`src/world/stage.ts`, ~1.5 s, $0.0002). It uses an operation language with spatial selectors: `place near/behind`, `give`, `drop`, `create`, `state`, `note`, `remove`, and `all tag:flammable within:20:hearth`. Walking out of the place ends the scene.
+- **The GM reads it each turn:** your surroundings in full, the rest in outline, and recent changes. `#map` draws it.
+
+## Inventories
+
+V1's inventory service on the scene world (`src/world/inventory.ts`):
+- Every item has one owner: a person, a container or a room. The owner is the item's parent, so location and ownership can't disagree.
+- Items change hands only through validated, all-or-nothing operations: `add`, `remove`, `transfer` (whole stacks or part of one), and `commit` against versions read.
+- The player starts with a purse of crowns, shillings and pennies.
+- Their gear is in the world too. When the story parts them from it (given away, left behind, armour off), the engine unequips it and the sheet drops it.
+
+## Scene boundaries
+
+Prep is written before play. The boundary is where it catches up (`crossBoundary` in `src/runtime/engine.ts`):
+1. The hand-off is written, and in parallel the upcoming scenes are checked against what happened. Each scene lists what it `assumes`. A scene whose premise play has already settled is skipped for its `overtaken` target. In arc QA, a climax settled inside the Rat went straight to the King.
+2. The next scene's opening is rewritten to start where the story actually is.
+3. The GM gets a "where the prep is out of date" list that outranks the prep.
