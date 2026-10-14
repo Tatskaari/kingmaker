@@ -4,9 +4,9 @@ import { buildWorld, joinWorld, type SceneWorld, type WorldSpec } from "../world
 import type { SessionState } from "../runtime/session.ts";
 import { hangedClerkWorld } from "../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../scenes/worlds/drowned-rat.ts";
-import { CAST, dressingRoomWorld, heronWorld } from "./map/index.ts";
+import { actorsHere, CAST, dressingRoomWorld, heronWorld, steps } from "./map/index.ts";
 import type { GameState } from "./play.ts";
-import { exploreState, leadTarget, targets, town, townOf } from "./town.ts";
+import { actionsAt, exploreState, leadTarget, targets, town, townOf } from "./town.ts";
 import { townText } from "./views.ts";
 
 /**
@@ -153,4 +153,73 @@ test("unknown and out-of-sight actions say so", () => {
   const { game, session } = newGame();
   assert.throws(() => town.act(game, session, "talk_sallow"), /Unavailable action/);
   assert.throws(() => town.act(game, session, "open_door_sideways"), /Unavailable action/);
+  assert.throws(() => town.act(game, session, "talk@30,30"), /Unavailable action/, "nobody to talk to there");
+});
+
+test("a right-click on Kell: talk to her, by the explorer's own id, and her scene opens", () => {
+  const { game, session } = newGame();
+  const kell = actorsHere(exploreState(game)).find(a => a.ref === "kell")!;
+  const menu = actionsAt(game, session, kell.at);
+  assert.equal(menu.title, "Sergeant Kell");
+  assert.deepEqual(menu.actions[0], { id: "talk_kell", label: "Talk to Sergeant Kell", kind: "talk" });
+  assert.ok(menu.actions.some(a => a.id.startsWith("walk@")), "and walking over");
+  const done = act(game, session, menu.actions[0]!.id);
+  assert.equal(done.scene, true, done.text);
+});
+
+test("a right-click on things and places: look from where you stand, try a door, go through a way out, walk there", () => {
+  const { game, session } = newGame();
+  const ex = exploreState(game);
+  // The cabbage cart: a look, from here.
+  ex.at = { x: 26, y: 23 };
+  const cart = actionsAt(game, session, { x: 29, y: 21 });
+  assert.equal(cart.title, "a cabbage cart");
+  const look = cart.actions.find(a => a.kind === "examine")!;
+  assert.equal(look.id, "look@29,21");
+  assert.match(act(game, session, look.id).text, /cabbages/i);
+  assert.deepEqual(ex.at, { x: 26, y: 23 }, "looking doesn't walk you over");
+  // Someone too far off for the explorer's list goes by their tile, and you walk over to talk.
+  const ladder = actorsHere(ex).find(a => a.name === "a man up a ladder")!;
+  assert.ok(steps(ladder.at, ex.at) > 10);
+  const talk = actionsAt(game, session, ladder.at).actions[0]!;
+  assert.equal(talk.id, `talk@${ladder.at.x},${ladder.at.y}`);
+  assert.match(act(game, session, talk.id).text, /ladder|bunting|rope/i);
+  assert.equal(steps(ex.at, ladder.at), 1, "over beside him");
+  // A house door: try it (walking up to it first), and it's locked.
+  ex.at = { x: 31, y: 16 };
+  const door = actionsAt(game, session, { x: 27, y: 13 });
+  assert.deepEqual(door.actions.map(a => a.label), ["Try the door"]);
+  assert.match(act(game, session, door.actions[0]!.id).text, /lock|shut|door/i);
+  assert.equal(steps(ex.at, { x: 27, y: 13 }), 1);
+  // A building: what it is, by its own description.
+  const house = actionsAt(game, session, { x: 25, y: 4 });
+  assert.equal(house.title, "the watch house");
+  assert.match(act(game, session, house.actions.find(a => a.kind === "examine")!.id).text, /watch house/i);
+  // Open ground: walk there.
+  const ground = actionsAt(game, session, { x: 24, y: 24 });
+  assert.equal(ground.actions.at(-1)?.label, "Walk here");
+  assert.match(act(game, session, ground.actions.at(-1)!.id).text, /You walk \d+ steps/);
+  assert.deepEqual(ex.at, { x: 24, y: 24 });
+});
+
+test("a right-click on the yard's clues before the scene: a look from the lane, but they keep their secrets for the scene", () => {
+  const { game, session } = newGame();
+  const satchel = actorsHere(exploreState(game)).find(a => /satchel/.test(a.name))!;
+  const look = actionsAt(game, session, satchel.at).actions.find(a => a.kind === "examine")!;
+  const said = act(game, session, look.id).text;
+  assert.match(said, /satchel.*proper look when you're there/i);
+  assert.ok(!said.includes(satchel.interaction?.kind === "examine" ? satchel.interaction.text : "(none)"), "not its description yet");
+});
+
+test("a right-click on the Rat's door at dusk goes down through it", () => {
+  const { game, session } = newGame();
+  Object.assign(game.story, { time: "evening", played: ["hanged-clerk"], lead: "drowned-rat" });
+  const ex = exploreState(game);
+  ex.at = { x: 24, y: 33 };
+  const menu = actionsAt(game, session, { x: 26, y: 35 });
+  const through = menu.actions[0]!;
+  assert.equal(through.kind, "travel");
+  assert.match(through.label, /Drowned Rat's door/);
+  act(game, session, through.id);
+  assert.equal(exploreState(game).map, "drowned-rat");
 });

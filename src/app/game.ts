@@ -4,8 +4,8 @@ import { TacticalFight, type CombatController } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
 import { mapFights } from "../game/fights.ts";
-import { pathTo, SCREEN_KEYS, steer, type ExploreState } from "../game/map/index.ts";
-import { exploreState, leadTarget, town, walkId } from "../game/town.ts";
+import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
+import { actionsAt, exploreState, leadTarget, town, walkId, type TileActions } from "../game/town.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
 import { setCallLog } from "../llm/openrouter.ts";
@@ -47,6 +47,15 @@ export interface Card {
   next?: "explore" | "combat" | "scene" | "end";
 }
 
+/** The map's menu for a tile (a right-click): what's there, what can be done with it, where it opened. */
+export interface TileMenu extends TileActions {
+  /** Where on screen it was asked for. */
+  x: number;
+  y: number;
+  /** The highlighted choice. */
+  index: number;
+}
+
 export type Overlay =
   | { kind: "sheet"; text: string }
   | { kind: "help" }
@@ -82,9 +91,13 @@ export class Game {
   error?: string;
   /** Set when the app should exit (main.tsx tears the renderer down). */
   quitting = false;
-  /** Walking to the lead a step at a time: any key stops it. */
+  /** Walking a step at a time (to the lead, or where the player clicked): any key or click stops it. */
   walking = false;
+  /** The map's right-click menu, while it's open. */
+  menu?: TileMenu;
 
+  /** Each walk's number: a new walk takes over from the one before. */
+  private walkNo = 0;
   /** The scene the transcript shows (a summons can open the next scene inside a turn). */
   private shown?: string;
   private listeners = new Set<() => void>();
@@ -239,37 +252,138 @@ export class Game {
     if (!core || this.busy || this.walking) return;
     const lead = leadTarget(core.state);
     if (!lead) { this.say(this.story.lead ? "The story will come to you from here." : "The story isn't heading anywhere just now."); this.emit(); return; }
-    this.walking = true;
+    const no = this.startWalk();
     // A walk can go through a door to another map: then the way on is worked out again from there.
-    for (let leg = 0; leg < 4 && this.walking && core.state.mode === "explore"; leg++) {
+    for (let leg = 0; leg < 4 && no === this.walkNo && this.walking && core.state.mode === "explore"; leg++) {
       const target = leadTarget(core.state);
       const path = target ? pathTo(exploreState(core.state), target.at) : undefined;
       if (!target || !path?.length) { if (!path) this.say(`You can't see a way to ${lead.label} from here.`); break; }
-      const map = exploreState(core.state).map;
-      for (const [dx, dy] of path) {
-        if (!this.walking || core.state.mode !== "explore" || this.screen !== "explore") break;
-        const before = { ...exploreState(core.state).at };
-        await this.explore(walkId(dx, dy), { quiet: true });
-        const after = exploreState(core.state);
-        if (after.map !== map || (after.at.x === before.x && after.at.y === before.y)) break;
-        await sleep(STEP_MS());
-      }
+      await this.stepAlong(path, no);
     }
+    this.endWalk(no);
+  }
+
+  /**
+   * Walk to a tile (a click on the map), a step at a time: round what's in the way, through it if
+   * it's a door, or as near as you can get; up to a door or a way out that doesn't open as you
+   * come, you try it. Any key or click stops it; another click walks somewhere else instead.
+   */
+  async walkTo(at: Tile2): Promise<void> {
+    const core = this.core;
+    if (!core || this.busy || core.state.mode !== "explore" || this.screen !== "explore") return;
+    this.menu = undefined;
+    const ex = exploreState(core.state);
+    const plan = walkPlan(ex, at);
+    if (!plan) { this.walkNo++; this.walking = false; this.say(`You can't see a way any nearer ${tileName(ex, at)} from here.`); this.emit(); return; }
+    const map = ex.map;
+    const no = this.startWalk();
+    const done = await this.stepAlong(plan.path, no, { loud: true });
+    if (no !== this.walkNo) return;
+    const now = exploreState(core.state);
+    if (done && !plan.reaches && now.map === map && steps(now.at, at) === 1 && core.state.mode === "explore" && isDoorway(getMap(map), at)) await this.explore(walkId(at.x - now.at.x, at.y - now.at.y));
+    this.endWalk(no);
+  }
+
+  /** Right-click on the map, or on someone in the sidebar: what's at a tile and what you can do with it. */
+  openMenu(at: Tile2, x: number, y: number): void {
+    const core = this.core;
+    if (!core || this.busy || core.state.mode !== "explore") return;
     this.walking = false;
+    this.menu = { ...actionsAt(core.state, core.session, at), x, y, index: 0 };
     this.emit();
   }
 
-  /** An explore action through the core; stepping into the lead's place opens its scene. */
-  private async explore(id: string, options: { quiet?: boolean } = {}): Promise<void> {
+  closeMenu(): void {
+    if (!this.menu) return;
+    this.menu = undefined;
+    this.emit();
+  }
+
+  /** Take one of the menu's choices. */
+  async choose(index: number): Promise<void> {
+    const menu = this.menu;
+    this.menu = undefined;
+    const choice = menu?.actions[index];
+    if (!menu || !choice) { this.emit(); return; }
+    await this.doAt(menu.at, choice);
+  }
+
+  /**
+   * Something to do with a tile (its menu's choices): looking is done from where you stand, walking
+   * is a walk, and the rest walk over first, a step at a time, then do it.
+   */
+  async doAt(at: Tile2, action: Action): Promise<void> {
+    const core = this.core;
+    if (!core || this.busy || core.state.mode !== "explore") return;
+    if (/^(walk|door)@/.test(action.id)) { await this.walkTo(at); return; }
+    if (!/^look/.test(action.id)) {
+      const plan = walkPlan(exploreState(core.state), at);
+      const path = plan ? within(plan.path, exploreState(core.state).at, at) : [];
+      if (path.length) {
+        const no = this.startWalk();
+        const done = await this.stepAlong(path, no);
+        if (no !== this.walkNo) return;
+        this.walking = false;
+        if (!done || core.state.mode !== "explore") { this.emit(); return; }
+      }
+      // Things in sight go by ids that follow who's nearest (the nearer guard is talk_palace_guard): ask again from here.
+      action = actionsAt(core.state, core.session, at).actions.find(a => a.label === action.label && a.kind === action.kind) ?? action;
+    }
+    this.walking = false;
+    await this.explore(action.id);
+  }
+
+  /** A walk begins: it takes over from any walk under way. */
+  private startWalk(): number {
+    this.walking = true;
+    this.emit();
+    return ++this.walkNo;
+  }
+
+  /** A walk is over (unless another has taken over from it). */
+  private endWalk(no: number): void {
+    if (no !== this.walkNo) return;
+    this.walking = false;
+    this.saveExtras();
+    this.emit();
+  }
+
+  /**
+   * Take a walk's steps one at a time, so the player sees the way, until something's in the way, a
+   * door takes them to another map, a scene opens, or the walk is stopped (a key, a click, another
+   * walk). `loud`: say what stopped it. True if every step was taken.
+   */
+  private async stepAlong(path: Array<[number, number]>, no: number, options: { loud?: boolean } = {}): Promise<boolean> {
+    const core = this.core!;
+    const map = exploreState(core.state).map;
+    for (const [dx, dy] of path) {
+      if (no !== this.walkNo || !this.walking || core.state.mode !== "explore" || this.screen !== "explore") return false;
+      const before = { ...exploreState(core.state).at };
+      const step = await this.explore(walkId(dx, dy), { quiet: true });
+      const after = exploreState(core.state);
+      if (after.map !== map) return false;
+      if (after.at.x === before.x && after.at.y === before.y) {
+        if (options.loud && step.text && !step.said && core.state.mode === "explore") { this.say(step.text); this.emit(); }
+        return false;
+      }
+      await sleep(STEP_MS());
+    }
+    return true;
+  }
+
+  /** An explore action through the core; stepping into the lead's place opens its scene. What it said, and whether it's shown. */
+  private async explore(id: string, options: { quiet?: boolean } = {}): Promise<{ text: string; said: boolean }> {
     const core = this.core!;
     const run = core.act(id, this.hooks());
     // The core switches to the scene before the opening streams in: show it as it comes.
     const opening = core.state.mode === "scene";
-    if (opening) { this.walking = false; this.sceneView("The GM sets the scene…"); }
+    if (opening) { this.walking = false; this.menu = undefined; this.sceneView("The GM sets the scene…"); }
     if (!options.quiet || opening) this.emit();
+    let text = "", said = false;
     try {
-      const text = await run;
-      if (!opening && text && (!options.quiet || /^You come into|:/.test(text))) this.say(text);
+      text = await run;
+      said = !opening && !!text && (!options.quiet || /^You come into|:/.test(text));
+      if (said) this.say(text);
     } catch (error) {
       if (opening) this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't open the scene: ${message(error)}. (#end <exit> skips ahead for testing.)` });
       else this.say(message(error));
@@ -279,6 +393,7 @@ export class Game {
     if (opening) this.observeScene();
     if (!options.quiet) this.saveExtras();
     this.emit();
+    return { text, said };
   }
 
   // -------------------------------------------------------------------------------------------
@@ -666,6 +781,7 @@ export class Game {
     this.core = undefined;
     this.lines = [];
     this.walking = false;
+    this.menu = undefined;
     // Another game's scene is news to nobody.
     this.look = undefined;
     this.fightLook = undefined;
@@ -692,5 +808,16 @@ export class Game {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const tileOf = (k: string): Tile2 => { const [x, y] = k.split(",").map(Number); return { x: x!, y: y! }; };
+/** A path cut short where it first comes within a step of a tile (the walk over before doing something there). */
+function within(path: Array<[number, number]>, from: Tile2, at: Tile2): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let p = { ...from };
+  for (const [dx, dy] of path) {
+    if (steps(p, at) <= 1) break;
+    out.push([dx, dy]);
+    p = { x: p.x + dx, y: p.y + dy };
+  }
+  return out;
+}
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 export const message = (error: unknown) => (error instanceof Error ? error.message : String(error));

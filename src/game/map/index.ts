@@ -16,6 +16,12 @@
  *   sidebar:  look(ex), nearby(ex), leadMarker(ex.story, ex.map), regionAt(getMap(ex.map), ex.at)?.name
  *   draw:     renderExplore(ex, { w, h }) -> StyledLine[] (pass { t } in milliseconds: water runs, fire flickers)
  *   walk to:  pathTo(ex, tile) -> steps for move()
+ *   mouse:    renderExplore(ex, size, { pick, hover }) fills a Picks: pick.at(x, y) is the tile (and who) drawn
+ *             in that cell; walkPlan(ex, tile) is a click's walk (through a door, or as near as it gets);
+ *             tileName(ex, tile) and lookAt(ex, tile) say what's there. exploreCamera is where it looks.
+ *
+ * Walking into things says what they are, in the house style (quips.ts: never the same line twice
+ * running). Small things you walk past stand up on posts; big things in the way fill their square.
  *
  * Scenes (scene mode): after enterScene, draw renderExplore(ex, size, { world: session.world }): the
  * place with its roof off, framed, the world's people and things on it (the player follows the
@@ -31,13 +37,17 @@
 
 export { MAPS, getMap, decorOf } from "./maps/index.ts";
 export { PLACES, scenePlace, regionForScene, sceneStart, storyFromSession, timeFor, leadScene, type ScenePlace } from "./places.ts";
-export { newExploration, setStory, actorsHere, move, steer, travel, pathTo, look, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, KEYS, SCREEN_KEYS, type ExploreState, type Follower, type MoveResult, type Nearby } from "./explore.ts";
+export {
+  newExploration, setStory, actorsHere, actorsAt, move, steer, travel, pathTo, walkPlan, look, lookAt, tileName, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, exploreCamera, KEYS, SCREEN_KEYS,
+  type ExploreState, type Follower, type MoveResult, type Nearby,
+} from "./explore.ts";
+export { bumpLine, placeLine, quip, type Bump, type QuipMemory } from "./quips.ts";
 export { presence, liveScenes, isLive, leadMarker, regionOpen } from "./presence.ts";
 export { actorsFromWorld, areaHazards, captureScene, overlayActors, overlayRegionStates, overlaySurfaces, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions } from "./reconcile.ts";
 export { battlefield, spotsNear, reachable, type Battlefield } from "./setup.ts";
-export { render, project, screenOf, tileAtScreen, type RenderOptions, type Viewport } from "./render.ts";
+export { render, project, screenOf, tileAtScreen, Picks, type RenderOptions, type Viewport } from "./render.ts";
 export { toAnsi, toPlain } from "./ansi.ts";
-export { buildMap, tileAt, regionAt, inBounds, isStructure, isRoofed, direction, steps, type MapTile, type PlaceRegion, type MapDef, type MapSpec, type TileDef, type DecorDef } from "./tiles.ts";
+export { buildMap, tileAt, regionAt, inBounds, inRect, isStructure, isRoofed, isDoorway, direction, steps, type MapTile, type PlaceRegion, type MapDef, type MapSpec, type TileDef, type DecorDef } from "./tiles.ts";
 export { CAST, lookForEntity, lookForName } from "./looks.ts";
 export { heronWorld } from "../../../scenes/worlds/heron-warehouse.ts";
 export { dressingRoomWorld } from "../../../scenes/worlds/kings-morning.ts";
