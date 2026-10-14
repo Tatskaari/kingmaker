@@ -7,10 +7,11 @@ import { Place } from "./place.tsx";
 
 const HELP: Record<string, string[]> = {
   explore: [
-    "Walk with the arrow keys or WASD. Bumping into people doesn't start anything; e (or Enter) does.",
-    "The lead (gold, with a !) is where the story is waiting: walk there and interact, or step into the place.",
-    "The sidebar says where you are, what time it is, who is about and which way the lead lies.",
-    "c shows your character sheet. Esc opens the menu (save and quit). The game saves as you go.",
+    "Walk with the arrow keys or WASD: they move with the screen (up is up). On the map, north is up-left.",
+    "The lead (gold, with a !) is where the story is waiting: walk there and talk to whoever's waiting, or step into the place. g walks you there; any key stops.",
+    "e (or Enter) talks to whoever you're facing, looks at things, and goes through doors. Bumping into someone whose scene is waiting opens it too.",
+    "The sidebar says where you are, what time it is, who is about (arrows point the way on screen) and which way the lead lies.",
+    "c shows your character sheet, j your notebook. Esc opens the menu (save and quit). The game saves as you go.",
   ],
   scene: [
     "Type what you say or do and press Enter. Speech in quotes, actions in plain words.",
@@ -20,9 +21,11 @@ const HELP: Record<string, string[]> = {
     "For testing: #exits lists the scene's endings, #end <id> takes one now.",
   ],
   combat: [
-    "Arrows move 5 ft a square (30 ft a turn). One action a turn: a attack, c cast, d dash, g dodge, x disengage.",
-    "Tab (or 1–9) picks a target. Melee needs you next to them; bows and thrown weapons reach further.",
-    "e (or Space) ends your turn; everyone else then takes theirs. s shows your sheet.",
+    "Arrows move 5 ft a square (diagonals too: they move with the screen). Blue tiles are where you can still get to this turn.",
+    "One action a turn: a attack your target, c cast (at your target, or t on yourself), u knock over a lantern or brazier beside you, d dash, g dodge, x disengage. z closes in on your target.",
+    "Tab (or 1–9) picks a target: it's bracketed on the map. Melee needs you next to them; bows reach further, at disadvantage past their range.",
+    "Mind the grain dust (the brown tiles): fire in it goes up all at once, and takes everyone in it with it.",
+    "m lists every option you have, e (or Space) ends your turn, f lets the dice decide it. s shows your sheet.",
     "When it's over, Enter takes the story on: how it ended goes into what happens next.",
   ],
 };
@@ -57,7 +60,21 @@ export function Overlay({ game }: { game: Game }) {
       else if (key.name === "return" || key.name === "t") {
         const spell = o.spells[o.index]!;
         game.closeOverlay();
-        void game.castAtTarget(spell.id, key.name === "t" ? "self" : undefined);
+        void game.cast(spell.id, key.name === "t");
+        return;
+      }
+      game.emit();
+      return;
+    }
+    if (o.kind === "actions") {
+      const actions = game.fightActions;
+      if (key.name === "up") o.index = (o.index + actions.length - 1) % Math.max(1, actions.length);
+      else if (key.name === "down") o.index = (o.index + 1) % Math.max(1, actions.length);
+      else if (key.name === "escape" || key.name === "m") { game.closeOverlay(); return; }
+      else if (key.name === "return") {
+        const action = actions[o.index];
+        game.closeOverlay();
+        if (action) void game.combatAct(action.id);
         return;
       }
       game.emit();
@@ -81,7 +98,7 @@ export function Overlay({ game }: { game: Game }) {
     case "scene-map": {
       const world = game.session?.world;
       return box(world ? world.entities[world.root]?.name ?? "The scene" : "The scene", world
-        ? <scrollbox flexGrow={1} scrollX={false}><Place world={world} width={w - 4} height={h - 8} /></scrollbox>
+        ? <Place game={game} width={w - 4} height={h - 4} />
         : <text fg={C.dim}>This scene has no map of its own yet: it's all in the telling.</text>, [["Esc", "close"]]);
     }
     case "journal": {
@@ -108,5 +125,19 @@ export function Overlay({ game }: { game: Game }) {
         <span fg={i === o.index ? C.lead : C.dim}>{i === o.index ? "▶ " : "  "}</span>
         <span fg={i === o.index ? C.title : C.text}>{s.name}</span><span fg={C.faint}>{s.level ? ` (level ${s.level})` : " (cantrip)"}</span>
       </text>)}</box>, [["↑↓", "choose"], ["Enter", "cast at the target"], ["t", "cast on yourself"], ["Esc", "never mind"]]);
+    case "actions": {
+      const actions = game.fightActions;
+      const rows = h - 4;
+      const first = Math.max(0, Math.min(o.index - Math.floor(rows / 2), actions.length - rows));
+      return box("Your options", <box flexDirection="column">{actions.slice(first, first + rows).map((a, j) => {
+        const i = first + j;
+        return <text key={a.id}>
+          <span fg={i === o.index ? C.lead : C.dim}>{i === o.index ? "▶ " : "  "}</span>
+          <span fg={i === o.index ? C.title : C.text}>{truncate(a.label, w - 8)}</span>
+        </text>;
+      })}</box>, [["↑↓", "choose"], ["Enter", "do it"], ["Esc", "never mind"]]);
+    }
   }
 }
+
+const truncate = (t: string, n: number) => (t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t);

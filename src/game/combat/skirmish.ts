@@ -690,7 +690,8 @@ export class Skirmish {
 
   private end(outcome: NonNullable<CombatResult["outcome"]>): void {
     this.G.outcome = outcome;
-    this.say(outcome);
+    // Beaten by Hep's gang before the Master came, there are no good shoes to see.
+    this.say(outcome === "defeat" && !this.units.some(u => u.role === "villain") ? "defeat:gang" : outcome);
     // Won: the sergeant (on her feet, or come round with a lump like a hen's egg) puts the irons on the beaten.
     const sergeant = this.units.find(u => u.side === "ally" && u.castId === "kell" && u.state !== "fled");
     if (sergeant && (outcome === "victory" || outcome === "surrender")) {

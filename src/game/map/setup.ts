@@ -76,6 +76,13 @@ export function battlefield(sceneId: string, world: SceneWorld): Battlefield | u
     const { ref: _ref, ...light } = a;
     lights.push({ ...light, id: e.id, kind: "object", name: lightName(e), states: [...new Set([...(a.states ?? []), "lit"])] });
   }
+  // Two lights of a name ("hanging lantern") are told apart by what they hang over.
+  for (const l of lights) {
+    if (lights.filter(o => o.name === l.name).length < 2) continue;
+    const by = [...blocking, ...things].filter(a => a !== l && a.id !== l.id && !(world.entities[a.ref ?? a.id]?.tags ?? []).includes("light") && !a.id.includes("#"))
+      .sort((a, b) => Math.hypot(a.at.x - l.at.x, a.at.y - l.at.y) - Math.hypot(b.at.x - l.at.x, b.at.y - l.at.y))[0];
+    if (by) l.name = `${l.name} by ${by.name.replace(/^(a|an)\s+/i, "the ")}`;
+  }
   // A lantern-boy carries his lantern into it.
   if (world.entities["lantern-boy"] && people["lantern-boy"] && !world.entities["lantern-boy"]!.states.includes("gone")) {
     lights.push({ id: "boys-lantern", name: "lantern on a pole", kind: "object", glyph: "¤", color: "#ffd27f", map: base.id, at: { ...people["lantern-boy"] }, ref: "lantern-boy", states: ["lit", "carried"] });

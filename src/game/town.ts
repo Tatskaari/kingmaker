@@ -44,6 +44,12 @@ const ON_SCREEN: Record<string, string> = {
   north: "up-left", northeast: "up", east: "up-right", southeast: "right", south: "down-right", southwest: "down", west: "down-left", northwest: "left",
 };
 
+/** The action id for one step (dx, dy each -1, 0 or 1; north is -y): "walk_northeast". */
+export function walkId(dx: number, dy: number): string {
+  const name = Object.entries(COMPASS).find(([, [x, y]]) => x === Math.sign(dx) && y === Math.sign(dy))?.[0];
+  return name ? `walk_${name}` : "look";
+}
+
 /** The town state in a game (made fresh for a game that hasn't one, or one saved by the text stand-in). */
 export function townOf(game: GameState): TownState {
   const t = game.explore as unknown as Partial<TownState>;
@@ -333,7 +339,12 @@ export const town: Explorer = {
     } else if (id === "go_to_lead") done = walkTowardsLead(game);
     else if (id === "interact") {
       const it = interact(ex, ex.scene ? session.world : undefined);
-      done = it ? use(game, it.interaction, it.actor) : { text: "There's nothing here to do anything with but the weather." };
+      // A door in front of you that isn't shut (the yard gate): go through it, as walking into it would.
+      const door = it && !it.actor && it.interaction.kind === "examine" && tileAt(getMap(ex.map), it.at).terrain === "door";
+      if (door) {
+        const r = move(ex, ex.facing.x, ex.facing.y);
+        done = { text: r.message ?? (r.moved ? "You go through." : ""), ...(sceneOpens(game, r.trigger) ? { scene: true } : {}) };
+      } else done = it ? use(game, it.interaction, it.actor) : { text: "There's nothing here to do anything with but the weather." };
     } else if (/^open_door_/.test(id)) {
       const [dx, dy] = COMPASS[id.slice("open_door_".length)] ?? [0, 0];
       if (!dx && !dy) throw new Error(`Unavailable action: ${id}`);

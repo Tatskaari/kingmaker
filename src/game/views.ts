@@ -1,6 +1,6 @@
 import type { SessionState } from "../runtime/session.ts";
 import type { CombatController } from "./combat/index.ts";
-import { battlefield, render, renderExplore, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
+import { battlefield, CAST, render, renderExplore, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
 import type { MapActor, StoryState, StyledLine, Tile2 } from "./types.ts";
@@ -56,12 +56,21 @@ export function fightView(fight: CombatController, session: SessionState | undef
   ];
   const active = view.turn ? G.units[view.turn.id]?.at : undefined;
   const centre = options.centre ?? active ?? G.units[G.pc]?.at ?? { x: Math.floor(G.map.width / 2), y: Math.floor(G.map.height / 2) };
-  const actors = [...scenery, ...view.actors.map(a => ({ ...a, map: G.map.id }))];
+  const actors = [...scenery, ...view.actors.map(a => ({ ...a, map: G.map.id, ...(a.kind !== "object" ? fightLook({ castId: a.ref, glyph: a.glyph, color: a.color ?? "" }) : {}) }))];
   const marks = [...hazards, ...(options.marks ?? [])];
   return render(G.map, actors, centre, size, {
     roofs: false, time: options.time ?? "night", focus: centre, reveal: view.units.map(u => u.at),
     ...(marks.length ? { marks } : {}), ...(options.cursor ? { cursor: options.cursor } : {}), ...pick(options),
   });
+}
+
+/**
+ * How someone in a fight looks: as they do in the town and in their scene (Kell's blue K, Hep's G,
+ * Sallow's $), and as the fight has them otherwise (the Crakes, the porters).
+ */
+export function fightLook(u: { castId?: string | undefined; glyph: string; color: string }): { glyph: string; color: string } {
+  const look = u.castId ? CAST[u.castId] : undefined;
+  return look ? { glyph: look.glyph, color: look.color } : { glyph: u.glyph, color: u.color };
 }
 
 function pick(options: ViewOptions): Pick<RenderOptions, "tick" | "color"> {

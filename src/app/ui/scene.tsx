@@ -46,7 +46,8 @@ export function SceneScreen({ game }: { game: Game }) {
   const session = game.session;
   if (!session) return null;
   const scene = sceneById(session.sceneId);
-  const side = width >= 100 ? Math.min(34, Math.floor(width * 0.26)) : 0;
+  // The place needs room to be drawn: a wide panel beside the transcript on a wide terminal.
+  const side = width >= 100 ? Math.min(62, Math.floor(width * 0.42)) : 0;
   const here = presentCast(scene, session);
   const send = (value: string) => {
     if (game.busy || !value.trim()) return;
@@ -68,14 +69,14 @@ export function SceneScreen({ game }: { game: Game }) {
         <text fg={C.dim}>{wrap(session.rules?.status ?? "", side - 4).join("\n")}</text>
         {session.world ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title}>{truncate(session.world.entities[session.world.root]?.name ?? "The place", side - 4)}</text>
-          <Place world={session.world} width={side - 4} height={Math.max(6, Math.floor(height / 3))} />
+          <Place game={game} width={side - 4} height={Math.max(10, height - 16)} />
         </box> : <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title}>Here</text>
           {here.map(c => <text key={c.id} fg={PEOPLE[c.id] ?? C.text}>{truncate(c.name, side - 4)}</text>)}
         </box>}
         <text fg={C.title} marginTop={1}>Commands</text>
-        <text fg={C.dim}>{"#sheet #map #journal\n#help #save #quit"}</text>
-        <text fg={C.faint} marginTop={1} wrapMode="word">Speech in quotes, actions in plain words: "Who paid you?" I look at the girl's fist.</text>
+        <text fg={C.dim}>{"#sheet #map #journal #help #save #quit"}</text>
+        <text fg={C.faint} wrapMode="word">Speech in quotes, actions in plain words: "Who paid you?" I look at the girl's fist.</text>
       </box> : null}
     </box>
     <box height={1} paddingX={1}>

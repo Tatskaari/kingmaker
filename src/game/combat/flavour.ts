@@ -53,6 +53,7 @@ const pools: Record<string, string[]> = {
   "victory": ["And then it's quiet, except for the river and somebody's teeth chattering."],
   "surrender": ["It's over: the Heron's night business ends with its master's hands in the air."],
   "defeat": ["The last thing you see is the floor of the Heron coming up to meet you, and Master Sallow's very good shoes."],
+  "defeat:gang": ["The last thing you see is the floor of the Heron coming up to meet you, and a great many floury boots."],
   "fled": ["You leave the Heron and its business behind you, fast."],
   "stable:player": ["You stop sliding. Out cold on the boards, but you'll live, probably."],
   "dying:player": ["Three bad rolls. In a fairer world that would be that; here, it's somebody else's problem to drag you out (you don't die in this fight, but it was close)."],

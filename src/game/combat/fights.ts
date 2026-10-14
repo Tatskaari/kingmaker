@@ -159,7 +159,7 @@ export class TacticalFight implements Fight {
       for (const v of Object.values(G.units).filter(v => v.state === "fighting" && v.side === "enemy" && steps(v.at, pc.at) > 1)) out.push({ id: `close_${v.id}`, label: `Close in on ${v.name}`, kind: "move" });
       for (const p of Object.values(G.props).filter(p => p.state === "standing" && p.lit && !p.carriedBy && steps(p.at, pc.at) > 1)) out.push({ id: `close_${p.id}`, label: `Get next to the ${p.name}`, kind: "move" });
       const exit = G.exits.filter(e => !same(e.at, pc.at)).sort((a, b) => steps(a.at, pc.at) - steps(b.at, pc.at))[0];
-      if (exit) out.push({ id: "make_for_the_door", label: `Make for ${exit.label}`, kind: "move" });
+      if (exit) out.push({ id: "make_for_the_door", label: `Make for ${exit.label.charAt(0).toLowerCase()}${exit.label.slice(1)}`, kind: "move" });
       for (const [dir, d] of Object.entries(DIRS)) {
         const to = { x: pc.at.x + d.x, y: pc.at.y + d.y };
         if (o.moves.some(m => same(m, to))) out.push({ id: `step_${dir}`, label: `Step ${dir} (5 ft)`, kind: "move" });
