@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.js";
 import { respondJson } from "../llm/openrouter.ts";
-import { rng, type RollResult } from "../runtime/dice.ts";
+import { describeRoll, rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
@@ -509,7 +509,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const condition = ctx.engine.content.conditions.get(String(e["conditionId"]))?.name ?? String(e["conditionId"]);
         if (/active$/i.test(condition)) break;
         lines.push(`${who("targetId") === "you" ? "You are" : `${who("targetId")} is`} ${condition.toLowerCase()}`);
-        account.push(`${who("targetId")} is now ${condition.toLowerCase()}`);
+        account.push(`${who("targetId") === "you" ? "the player" : who("targetId")} is now ${condition.toLowerCase()}`);
         break;
       }
       case "Healed": {
@@ -1024,6 +1024,72 @@ export async function comeTo(state: SessionState): Promise<string | undefined> {
   const line = `You come to: ${status(ctx, me.id)}`;
   close(state, ctx);
   return line;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Moving: one jump, the same in a scene, on the map and in a fight.
+
+export interface JumpReach { long: number; standingLong: number; high: number; standingHigh: number }
+
+/** SRD jumping: a long jump covers your Strength score in feet after a 10-foot run-up, half that standing; a high jump 3 + your Strength modifier, half standing. */
+export function jumpReachFor(strength: number): JumpReach {
+  const high = Math.max(0, 3 + Math.floor((strength - 10) / 2));
+  return { long: strength, standingLong: Math.floor(strength / 2), high, standingHigh: Math.floor(high / 2) };
+}
+
+export async function jumpReach(state: SessionState): Promise<JumpReach> {
+  if (!state.rules) return jumpReachFor(10);
+  const { E, engine } = await engineFor(state.seed);
+  const ctx: Ctx = { E, engine, campaign: E.loadCampaign(state.rules.campaign, engine), apply: e => e };
+  return jumpReachFor(sheetOf(ctx, state.rules.pc).abilityScores.STR);
+}
+
+export interface Jump {
+  feet: number;
+  high?: boolean;
+  /** At least 10 feet on foot first. */
+  runUp?: boolean;
+  /** What falling short means: the drop into whatever is between, in feet (0 for a puddle, a table). */
+  drop?: number;
+}
+export interface JumpOutcome { made: boolean; reach: number; roll?: RollResult; lines: string[]; account: string; status?: string }
+
+/**
+ * A jump: within reach it simply happens (no dice); up to half as far again takes Strength
+ * (Athletics) at DC 10 plus a point for every foot over; farther than that falls short. Falling
+ * short with a drop beneath is a fall (1d6 bludgeoning per 10 feet, prone).
+ */
+export async function jump(state: SessionState, j: Jump): Promise<JumpOutcome> {
+  const reachOf = await jumpReach(state);
+  const reach = j.high ? (j.runUp ? reachOf.high : reachOf.standingHigh) : (j.runUp ? reachOf.long : reachOf.standingLong);
+  const what = `${j.high ? "a high jump" : "a long jump"} of ${j.feet} ft (${j.runUp ? "with a run-up" : "standing"}: ${reach} ft is easy)`;
+  if (j.feet <= reach) return { made: true, reach, lines: [`Jump: ${what}: made`], account: `the jump was within their reach (${reach} ft), so they make it` };
+  const over = j.feet - reach;
+  let roll: RollResult | undefined;
+  let made = false;
+  if (over * 2 <= reach) {
+    roll = await rollFor(state, "athletics", 10 + over);
+    made = roll.success;
+  }
+  const lines = [`Jump: ${what}${roll ? "" : ": too far"}`, ...(roll ? [describeRoll(roll)] : [])];
+  if (made) return { made, reach, ...(roll ? { roll } : {}), lines, account: `they make it, just (Athletics ${roll!.total} against DC ${roll!.dc})` };
+  const short = roll ? `they fall short (Athletics ${roll.total} against DC ${roll.dc})` : `it was beyond them (${j.feet} ft against a reach of ${reach} ft), and they fall short`;
+  if (!state.rules || !j.drop) return { made, reach, ...(roll ? { roll } : {}), lines, account: short };
+  const ctx = await open(state);
+  const pcId = state.rules.pc;
+  const dice = Math.max(1, Math.min(20, Math.floor(j.drop / 10)));
+  const random = rng(state.seed + 104729 * state.rollCount);
+  const rolls = Array.from({ length: dice }, () => 1 + Math.floor(random() * 6));
+  const amount = rolls.reduce((a, b) => a + b, 0);
+  const events = ctx.apply([
+    event(ctx.E, "DamageApplied", { targetId: pcId, components: [{ amount, type: "bludgeoning" }], source: "fall" }),
+    event(ctx.E, "ConditionApplied", { targetId: pcId, conditionId: "prone", appliedConditionId: ctx.E.newEventId() }),
+  ]);
+  const { lines: more, account } = describe(ctx, state, events, () => "");
+  const statusText = status(ctx, pcId);
+  const down = knockedDown(ctx, state);
+  close(state, ctx);
+  return { made, reach, ...(roll ? { roll } : {}), lines: [...lines, `Fall: ${dice}d6 (${rolls.join("+")}) bludgeoning`, ...more], account: `${short}, and fall ${j.drop} ft: ${account.join("; ")}${down}`, status: statusText };
 }
 
 export { ABILITY_NAME };
