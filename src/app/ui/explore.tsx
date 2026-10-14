@@ -1,4 +1,6 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
+import { glyphSet } from "../../game/look/glyphs.ts";
+import { actorLook } from "../../game/look/map.ts";
 import { direction, interact, nearby, steps, whereabouts } from "../../game/map/index.ts";
 import { leadTarget } from "../../game/town.ts";
 import { townView } from "../../game/views.ts";
@@ -65,8 +67,10 @@ export function ExploreScreen({ game }: { game: Game }) {
         <text fg={C.title} marginTop={1}>Nearby</text>
         {near.length ? near.map(n => {
           const scene = n.interaction?.kind === "scene" && n.interaction.sceneId === game.story.lead;
+          // As the map draws them (the player keeps their @).
+          const seen = n.actor && n.actor.kind !== "player" ? actorLook(n.actor, { t: 0, time: game.story.time, glyphs: glyphSet() }) : undefined;
           return <text key={`${n.actor?.id ?? n.label}`}>
-            <span fg={n.actor?.color ?? C.lead} attributes={BOLD}>{`${n.actor?.glyph ?? "»"} `}</span>
+            <span fg={seen?.fg ?? n.actor?.color ?? C.lead} attributes={BOLD}>{`${seen?.glyph ?? n.actor?.glyph ?? "»"} `}</span>
             <span fg={scene ? C.lead : C.text}>{truncate(n.actor?.name ?? n.label, inner - 12)}</span>
             <span fg={C.faint}>{` ${n.distance <= 1 ? "here" : `${ARROW[n.direction] ?? ""} ${n.distance}`}`}</span>
           </text>;

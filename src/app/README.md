@@ -38,13 +38,14 @@ Exploration and fights plug into the core, and the app uses the real modules:
 
 - **`src/game/town.ts`:** the map module's exploration (src/game/map) as the core's Explorer. Its state is the map's `ExploreState`, kept in the game.
 - **`src/game/fights.ts`:** tactical combat (src/game/combat) on the scene's own place, with everyone where the scene's world has them.
-- **`src/game/views.ts`:** every picture the game draws (the town, a scene's place, a fight), through the map's isometric renderer. The look layer plugs in there.
+- **`src/game/views.ts`:** every picture the game draws (the town, a scene's place on the map and from above, a fight), through the look layer (src/game/look): things by the rules, living ground, coloured light, effects. The screens draw them as live canvases, about twelve frames a second.
 
 `game.ts` is the app's controller, and the screens in `ui/` subscribe to it. It adds what a terminal needs:
 
 - the GM's reply streaming in;
 - the cards between scenes and the notebook (the exit scripts' journal lines);
-- overlays: the sheet, help, the scene's place, the spell picker, a fight's every option;
+- the look of each scene and fight: one set of effects and a director, so spells, fires, damage numbers and barks show in the world as they land;
+- overlays: the sheet, help, the scene's place on the map (#map), the spell picker, a fight's every option;
 - walking to the lead a step at a time;
 - the fight's target, and a beat between the other side's turns.
 

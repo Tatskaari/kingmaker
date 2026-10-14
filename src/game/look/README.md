@@ -15,6 +15,9 @@ node --no-warnings src/game/look/dump.ts rat --t 0,8600,15000 # frames at those 
 node --no-warnings src/game/look/dump.ts surfaces --ansi --w 120 --h 40
 node --no-warnings src/game/look/dump.ts all --plain --glyphs plain
 
+# The game's own views with the look (the town, scenes on the map and from above, the Heron fight):
+node --no-warnings src/game/look/frames.ts                    # .ansi, .txt and .json frames into runs/look-wire
+
 # Tests, and a pty smoke test of the gallery:
 node --test --no-warnings src/game/look/*.test.ts
 python3 src/game/look/smoke.py
@@ -32,7 +35,7 @@ python3 src/game/look/smoke.py
 | `appearance.ts` | `lookOf(thing, ctx)`, the look of anything right now: glyph, fg, bg, bold, glow, the light it sheds (flickered), lift, alpha, group, footprint and stamp, burning, wreck. `baseLook` is the static half, cached per kind of thing. |
 | `names.ts` | `parseName`: the head noun; states and colours from adjectives; "a flock of", "a pool of", "a bucket of", "a stub of". |
 | `roles.ts` | The rules: about 200 roles (glyph per set, colour, motion, light, footprint), matched by head noun, then phrase, then tag, then kind. |
-| `people.ts` | The cast's letters and colours, the same as the map module's `CAST`. |
+| `people.ts` | The cast's letters and colours, from the map module's `CAST` (the one cast table). |
 | `invent.ts` | Unknown names: an immediate guess, then a batched Luna call (glyphs chosen by name from a menu), cached on disk. |
 | `glyphs.ts` | The glyph sets (ascii, nerd, plain), the verified Nerd Font code points, seven-bit fallbacks, `detectGlyphSet`. |
 | `color.ts` | Packed-RGB maths, the named palette, Qud's 18 colours, flame ramps, damage colours. |
@@ -42,12 +45,13 @@ python3 src/game/look/smoke.py
 | `light.ts` | `LightField`: ambient by time of day (indoor and outdoor), coloured sources, soft falloff, shadows from walls; `shade` and `glint`. |
 | `effects.ts` | `Effects`: analytic particles, rings, flashes, transient lights, shake; floating numbers, alerts and barks. |
 | `director.ts` | Turns world changes into motion: walks (tweens), ignitions, douses, wrecks, explosions, spills, damage numbers, barks from replies. |
-| `stage.ts` | A top-down renderer for a scene world (and the reference for how the layers compose). |
-| `dressings.ts` | What the authored worlds are built of (floors, walls, windows, water). |
+| `stage.ts` | A top-down renderer for a scene world: the scene's place in the app, beside the transcript. |
+| `dressings.ts` | What the scenes' worlds are built of (floors, walls, glass, windows, water), by scene: `dressingFor`. |
 | `map.ts` | The face the isometric map renderer calls (below). |
 | `canvas.ts` | The frame (cells), with `toLines()` (StyledLine[]), `toAnsi()`, `toPlain()` and `toJSON()`. |
-| `opentui.ts` | `<lookCanvas>`: a live OpenTUI renderable that paints frames straight into the buffer. |
+| `opentui.ts` | `<lookCanvas>`: a live OpenTUI renderable that paints frames (a Canvas, or styled lines) straight into the buffer, at most `fps` new frames a second. |
 | `vignettes.ts`, `gallery.tsx`, `dump.ts`, `smoke.py` | The gallery, its headless dump and its smoke test. |
+| `frames.ts` | Headless frames of the game's own views (src/game/views.ts) with the look. |
 
 ## The API in one screen
 
@@ -65,80 +69,40 @@ const frame = fx.frame(now, id => positionOf(world, id));     // sprites, areas,
 
 const director = new Director(fx); director.prime(world);     // when a scene opens
 director.observe(world, now);                                 // after every turn: walks, fires, douses, spills, wrecks
-director.rulesLines(world, ruleLines, now);                   // "X takes 7 fire damage" floats a 7
+director.spellsFrom(world, ruleLines, now, aliases);          // "Cast Fireball ...: a 20-foot sphere on X": a ball of fire from the player to X
+director.rulesLines(world, ruleLines, now, aliases);          // "X takes 7 fire damage", "the big man takes 7 damage" float a 7
 director.barksFrom(world, gmReply, now);                      // short quoted lines over their speakers
+director.barkLine(world, "kell", line, now);                  // a cast member's own short line
 
 renderStage(world, dressing, { w, h, t: now, time, effects: fx, positions: id => director.tweens.at(id, now) });  // a Canvas
 ```
 
-## Integrating with the map renderer (`src/game/map/render.ts`)
+## How it's wired into the game
 
-The plug-in point is `src/game/views.ts`: `townView` and `fightView` call `renderExplore` and `render`. Those calls carry the tick, the world and the time to the renderer; `fightLook` can become `castLook`.
+The plug-in point is `src/game/views.ts`: every picture of the world the game draws goes through it, with one clock, `t` in milliseconds (`performance.now()` in the app).
 
-The map's isometric renderer keeps its own projection, blocks, roofs, cutaways and markers. The look layer replaces how *things*, *ground* and *surfaces* look, and adds coloured light and effects. Everything is pure, with world and map state in and cells out, and one clock: `lookFrame(options.tick, options.time, glyphs)` turns the map's 100 ms ticks into milliseconds (pass `msPerTick` if the app ticks at another rate).
+**The isometric map** (`src/game/map/render.ts`, for the town, a scene's place on the map and a fight on its battlefield) keeps its own projection, blocks, roofs, cutaways and markers. The look decides the rest:
 
-Make five changes in `render()`, then a few outside it.
+- **Things and people** are `actorLook(actor, frame)`: world things by the rules, the cast by their letters, the map's decor as authored, with their states (burning things flicker and throw tongues of flame, embers and smoke; smashed ones are splinters; the hidden are faint). The player's highlight, bunting and the hanged man's rope are the map's own.
+- **Ground** is `groundAt(terrain, px, py, frame)` per cell, in projected-plane coordinates so it doesn't crawl with the camera; rivers run the way each map's river runs.
+- **Surfaces** are `surfaceLayer(world, frame)` for each scene world on the map (`RenderOptions.worlds`): the live scene's, and what played scenes spilled (the map's overlay keeps them; smoke clears and fires burn out by a later hour). They lie over the ground and under actors; smoke and steam veil everything. `reconcile.actorsFromWorld` skips them: they're patches, not actors.
+- **Hazards** (`RenderOptions.hazards`) are tiles on fire (`fireAt`), thick with dust (`dustAt`) or scorched: a fight's own, or a world's areas (`areaHazards`: the Heron's dusty floor, where it went up).
+- **Light** is per tile and coloured, Brogue-style: the time of day's daylight (`DAYLIGHT` in the map's palette: dimmer in a room whose roof is lifted), plus every source in reach (lamps and fires by `actorLook`'s light, burning patches, effects, a fight's fire, lit windows at night and daylight through them by day), falling off softly and stopped by opaque tiles. People and buildings keep a floor of light. The Rat's driftwood fire lights it blue.
+- **Effects** (`RenderOptions.effects`: an `EffectFrame` in a region's world feet) are projected: sprites by their feet and height, areas cell by cell, the frame's shake on the camera, and floating text (barks, damage numbers) last and unlit.
+- **Plain text** (`color: false`, the QA console's `townText`) stays quiet: the palette's static ground, no motion, no effects, no icons, single-width glyphs.
 
-1. **Actors.** In `paintActor`, replace the hand-drawn burning, destroyed and down cases with this:
+**A scene's place from above** is `stageView` (the stage with `dressingFor(scene)`). The app keeps one `Effects` and one `Director` per scene (`Game.sceneLook()` in `src/app/game.ts`): primed when the scene's place is first drawn; the rules' lines go to `spellsFrom`, `observe` and `rulesLines` as they land; the GM's reply to `barksFrom` (and a cast member's own line to `barkLine`); and after every turn `observe` animates what the stage manager changed. The scene screen draws the stage beside the transcript (a live `<lookCanvas>`); `#map` shows the same place on the isometric map with the same effects.
 
-   ```ts
-   const lf = lookFrame(tick, options.time, glyphs);           // once, at the top of render()
-   const look = actorLook(a, lf);                               // world things by the rules, the map's decor as authored
-   if (look.alpha < 0.35) return;                               // hidden, gone
-   const row = r - look.lift;                                   // hanging, overhead
-   put(sc, row, look.glyph, look.fg, look.bg, { bold: look.bold, glow: look.glow });
-   if (look.above) put(sc, row - 1, look.above.glyph, look.above.fg, undefined, { glow: true });   // flames licking up
-   ```
+**A fight** plays its log as effects (`fightEffects`: a spell from its caster, a ball of fire for fire in an area, sparks where a blow lands, damage numbers, the dust going up), with its dust hanging and its fire burning on the battlefield.
 
-   Keep the player's highlight, the bunting and the hanging rope as they are.
+**In the app** the world's views are live canvases that ask for a new frame about twelve times a second (`FPS` in `src/app/ui/common.tsx`) and are held still under an overlay; the rest of the screen redraws only when the game changes.
 
-2. **Ground.** In `ground()`, for the living terrains (water, deep water, grass, cobbles, boards, steps), use `groundAt` per face cell, in projected-plane coordinates so the textures don't crawl with the camera. `groundAt` returns `undefined` for anything it doesn't do, and the palette carries on:
-
-   ```ts
-   const p = project(at);
-   const cell = groundAt(groundKey(t), p.col + dx, p.row, lf);        // and (p.col, p.row + 1) for the tip
-   if (cell) put(sc + dx, sr, cell.glyph, cell.fg, cell.bg); else /* the palette, as now */;
-   ```
-
-3. **Surfaces.** Pass the scene world (or `MapOverlay` surfaces) in, and draw them over the ground and under actors:
-
-   ```ts
-   const layer = options.world ? surfaceLayer(options.world, lf) : undefined;   // once per render
-   // in ground(), per face cell of a tile in the scene's region:
-   const feet = tileFeet(at, region.worldOrigin);                     // or reconcile's tileToFeet
-   const over = layer?.at({ x: feet.x + dx * 1.6, y: feet.y }, cell, p.col + dx, p.row);
-   if (over) put(sc + dx, sr, over.glyph, over.fg, over.bg, { glow: over.glow });
-   // after actors, smoke and steam: layer.cloud(feet, currentCell)
-   ```
-
-   Separately, `reconcile.actorsFromWorld` should skip `kind === "surface"` entities: they're patches, not actors. Today they become "object" actors with a guessed glyph.
-
-4. **Light.** `lighting()` should take its sources from the look layer:
-   - `lightOf(actor, lf)` for actors: radius in tiles, colour, flickered intensity;
-   - `layer.lights` for burning patches, in feet; divide by 5 for tiles.
-
-   For coloured light, as Brogue does it, keep an RGB triple per cell instead of the scalar `light`, and multiply. `light.ts` has `LightField` (per cell, with shadow masks) and `shade(color, field, i)`. As a cheaper first step, keep the scalar and use the strongest source's colour where the code now mixes in `LIGHT_COLOUR`. That alone makes the Rat's driftwood fire blue.
-
-5. **Effects.** The app keeps one `Effects` and one `Director` per scene, and passes `fx.frame(now, id => positionOf(world, id))` in. Project the frame's contents like this:
-   - Each sprite goes feet → tile (`feetToTile(region, sprite)`) → screen cell (`screenOf`), with the row raised by `Math.round(sprite.z / 2.5)`.
-   - For each tile in an area's radius, `areaCell(area, feet.x, feet.y, now)`.
-   - Texts go last, unlit, at their anchor's screen cell minus `rows`.
-   - `frame.shake` nudges the camera.
-
-**For the app.**
-- After every turn, call `director.observe(world, now)`, plus `rulesLines` with the rules' lines and `barksFrom` with the GM's reply. When the rules report an area spell, call `fx.effect("fireball", …)` from the caster to the aim.
-- The scene sidebar can be a live `<lookCanvas>`:
-
-  ```tsx
-  <lookCanvas width={w} height={h} painter={(w, h, now) => renderStage(world, dressing, { w, h, t: now, time, effects: fx, positions: id => director.tweens.at(id, now) })} />
-  ```
-
-  That's a top-down Qud-style view of the scene world; register it once with `registerLookCanvas()`. Or call `renderStage(...).toLines()` into the existing `<Lines>`.
+**Glyph sets.** `glyphSet()` reads `KM_GLYPHS` once; everything the look draws honours it (the map's own glyphs too, in plain).
 
 ## Open issues
 
-- **One cast table.** The cast's looks exist in three places: `people.ts` (a copy of the map's `CAST`), `src/game/map/looks.ts`, and `src/app/theme.ts`, which disagrees (Hobb is `B` there and `H` on the map). Keep one.
-- **Unauthored worlds.** Only the authored worlds have dressings: the Rat, the yard and loft, and the King's room. A world without one renders with default floors and no walls. The Heron needs a dressing (or the stage could read the map's tiles).
-- **The map's look is still its own.** It changes once the integrator wires `map.ts` in.
+- **Unauthored worlds.** The four worlds of the arc have dressings (the Rat, the yard and loft, the Heron, the King's room). A new world without one renders with default floors and no walls: give it a dressing, or have the stage read its map's tiles.
+- **Combat's own letters.** The app draws a fight's cast from the one cast table (`fightLook`), but the combat module's text grid (the QA console's view of a fight, `gridText`) still has letters of its own (Hep is H there, G on the map).
+- **The map's light is per tile.** Walls stop it whole tiles at a time, and a block's faces take the light of the tile they stand on.
 - **Nerd icons overhang in non-Mono fonts.** The nerd set is opt-in for that reason.
 - **The model's looks aren't reviewed.** The menu keeps them sane, but a bad answer stays cached until `runs/look-cache.json` is edited or deleted.

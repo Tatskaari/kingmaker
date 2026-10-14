@@ -14,7 +14,7 @@
  *   use/talk: const it = interact(ex);                               // scene -> as above; travel -> travel(ex, it.interaction.to);
  *                                                                    // examine -> show it.interaction.text
  *   sidebar:  look(ex), nearby(ex), leadMarker(ex.story, ex.map), regionAt(getMap(ex.map), ex.at)?.name
- *   draw:     renderExplore(ex, { w, h }) -> StyledLine[] (pass { tick } to animate water and fire)
+ *   draw:     renderExplore(ex, { w, h }) -> StyledLine[] (pass { t } in milliseconds: water runs, fire flickers)
  *   walk to:  pathTo(ex, tile) -> steps for move()
  *
  * Scenes (scene mode): after enterScene, draw renderExplore(ex, size, { world: session.world }): the
