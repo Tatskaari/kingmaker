@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { effectiveScene, sceneEntries } from "./brief.ts";
-import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, moveDirective, type Move } from "./director.ts";
+import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, limitDirective, moveDirective, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
@@ -171,6 +171,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
     directive = [freeformDirective(pre.freeform)];
   }
+  if (pre.limit) directive.push(limitDirective(pre.limit));
   if (pending && !pre.move) {
     const exit = scene.exits.find(e => e.id === pending.exitId)!;
     if ((pre.plain || pre.freeform) && !pending.extended) {
@@ -195,7 +196,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     for (let i = 0; i < 4 && next !== "player"; i++) {
       const line = next === "gm"
         ? await narratorReply(scene, state, i === 0 ? directive : [], speakHooks(textHooks, "gm", "narration"))
-        : await actorReply(scene, state, next, [], speakHooks(textHooks, next, "dialogue"));
+        : await actorReply(scene, state, next, i === 0 && pre.limit ? [limitDirective(pre.limit)] : [], speakHooks(textHooks, next, "dialogue"));
       spoken.push(line);
       push(state, hooks, { speaker: line.speaker, kind: line.kind, text: line.text });
       responded.push(next === "gm" ? "GM" : scene.cast.find(c => c.id === next)?.name ?? next);

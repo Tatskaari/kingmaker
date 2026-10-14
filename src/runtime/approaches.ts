@@ -3,7 +3,9 @@
  * - voice "gm": one Luna call per turn; the GM narrates and voices everyone (Friends & Fables style).
  * - voice "actors": a decider picks who speaks; each character is a separate Luna call that only
  *   knows what that character knows; the GM narrates the world between them.
- * - decider: who judges beat transitions, rolls and speakers (Jev decision mode vs Luna structured output).
+ * - decider: who judges beat transitions, rolls and speakers. "luna-decisions" is Luna's decision
+ *   mode on the Decisions API (best accuracy and latency in the decision suite); "jev" is TypeSafe
+ *   Jev on the same API; "luna-none" is Luna with strict structured output.
  * - repair: the co-GM agent reviews the scene between turns and leaves notes and graph patches.
  */
 export interface Approach {
@@ -16,11 +18,13 @@ export interface Approach {
 }
 
 export const APPROACHES: Record<string, Approach> = {
-  gm: { id: "gm", description: "Single GM voice; Jev tracks beats, rolls and exits.", voice: "gm", decider: "jev", repair: "off" },
-  "gm-luna": { id: "gm-luna", description: "Single GM voice; Luna (structured output, no reasoning) tracks beats.", voice: "gm", decider: "luna-none", repair: "off" },
-  "gm-repair": { id: "gm-repair", description: "Single GM voice plus the background co-GM repair agent.", voice: "gm", decider: "jev", repair: "background" },
-  actors: { id: "actors", description: "Jev picks who speaks; each character is its own Luna actor; GM narrates.", voice: "actors", decider: "jev", repair: "off" },
-  "actors-repair": { id: "actors-repair", description: "Actors plus the background co-GM repair agent.", voice: "actors", decider: "jev", repair: "background" },
+  gm: { id: "gm", description: "Single GM voice; Luna decision mode tracks beats, rolls and exits.", voice: "gm", decider: "luna-decisions", repair: "off" },
+  "gm-jev": { id: "gm-jev", description: "Single GM voice; Jev tracks beats, rolls and exits.", voice: "gm", decider: "jev", repair: "off" },
+  "gm-luna": { id: "gm-luna", description: "Single GM voice; Luna structured output (no reasoning) tracks beats.", voice: "gm", decider: "luna-none", repair: "off" },
+  "gm-repair": { id: "gm-repair", description: "Single GM voice plus the background co-GM repair agent.", voice: "gm", decider: "luna-decisions", repair: "background" },
+  actors: { id: "actors", description: "A decider picks who speaks; each character is its own Luna actor; GM narrates.", voice: "actors", decider: "luna-decisions", repair: "off" },
+  "actors-jev": { id: "actors-jev", description: "Actors with Jev choosing speakers and tracking beats.", voice: "actors", decider: "jev", repair: "off" },
+  "actors-repair": { id: "actors-repair", description: "Actors plus the background co-GM repair agent.", voice: "actors", decider: "luna-decisions", repair: "background" },
 };
 
 export function approachById(id: string): Approach {

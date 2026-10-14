@@ -43,3 +43,46 @@ Smoke-test findings:
 | actors | 88% | 4.50 | 4.58 | 4.25 | 4.38 | 4.04 |
 
 Single-turn improvisation is already decent. Failures: threatening to smash the idol fires the intimidation edge → one roll ends the scene (tension never rises); "what are my options?" leaks Skrag's secret willingness to bargain; one blunt out-of-fiction "you can't teleport".
+
+## 2026-10-14 — Trajectories, QA round 1, runtime v2, Luna decision mode
+
+### Multi-turn trajectories (simulated players) expose what single replies hide
+
+Baseline trajectories (3 personas × gm/actors/gm-repair × 2, Sol judge) scored progress 1.8–3.3 and steering 2–3, far below single-turn scores. Recurring failure: **premature endings**. One roll or outcome closed the scene before the player could respond: a failed intimidation went straight to "arrows, roll initiative", and the separate closing call added a second passage that answered questions for the player. **Actors stalled**: they leave pacing entirely to the decider, Jev missed the "set off → ambush" cue, and the goblins never came.
+
+Blind QA round 1 (3 Claude players: curious/gm, chaos/actors, method/gm-repair; all reached exits in both scenes). Strong single-turn improv (griffon request → "only the flies answer"; invented goblin contact woven into Skrag's lines; Tam correcting a misremembered farm name in character). Failures seen in transcripts:
+- **Nearest-edge forcing**: a pickpocket attempt rolled as Insight, a peace poem as Deception (failed → combat).
+- **Invented hooks**: the GM put "a small iron key" in Skrag's pouch; the player spent turns theorising about a lock the world doesn't have (the V1 failure again).
+- Duplicate narrator passages in actors mode; an aftermath opening that assumed a fight after a bargain (authoring: the setting text presumed the fight).
+
+### Runtime v2 (commit 0123b6e)
+
+Pending endings (exits the player didn't choose are held for one last response; the post-reply pass can't confirm a held exit in the same reply), wind-down turns instead of closing calls, freeform checks for risky attempts outside the routes, scene `limits`, pressure only after a stall, no back-to-back narration, clue/mystery wording in the GM prompt.
+
+| approach | progress base → v2 | criterion pass | tangents handled badly |
+|---|---|---|---|
+| gm | 3.33 → 3.50 | 4/6 → 5/6 | 3/17 → 0/18 |
+| actors | 1.80 → 3.50 | 0/5 → 4/6 | 4/17 → 4/17 |
+| gm-repair | 3.00 → 3.67 | 3/6 → 4/6 | 5/19 → 1/14 |
+
+Consistency rose the most (gm 3.50 → 4.17, gm-repair 3.50 → 4.67), plausibly from the limits list. The failed-threat ending case went from 2/6 to 6/6 once the held exit couldn't be confirmed by the same reply.
+
+Known limitation: creative variants of an authored edge get the edge's authored outcome. Threatening to smash the idol maps to the intimidation edge ("they scatter"), which doesn't fit holding their sacred idol hostage. The repair agent is the mechanism meant to add a better route; it doesn't act in time for a single turn.
+
+### Luna decision mode (`openai/gpt-6-luna-decisions`)
+
+Found by the research agent: same Decisions endpoint and schema as Jev, different slug.
+
+| decider | accuracy (14 cases × 3) | latency |
+|---|---|---|
+| Jev 1.13 | 79% | 334 ms |
+| **Luna decisions** | **93%** | **267 ms** |
+| Luna structured output (none) | 90% | 1269 ms |
+
+Luna decisions is now the default decider for all approaches; `gm-jev` / `actors-jev` keep Jev for comparison.
+
+### Phase 2 scaffolding
+
+`src/world/scribe.ts`: Luna (medium) writes `function update(world)` against the stub DSL. It's typechecked with tsc (TS 7 has no JS API, so the CLI runs on a temp dir, ~0.3 s) and run in a `vm` against a recording world. World suite baseline (10 recorded endings): 10/10 compiled first try; coverage 3.9, fidelity 3.8, bounded 5.0, restraint 4.3. Two findings:
+- Many "wrong" changes came from the **authored exit scripts**, not the scribe: "Tam moves to Hollis Farm" while he's still on the road, "goblins will return" when they only might. Static exit scripts drift from narration; the scribe should reconcile them, not just append.
+- `world.unsupported(...)` is collecting DSL gaps: improvised props with no catalogue asset (a ticking brass beetle, cheese left as bait), carved marks, future obligations ("goblins owe Tam two days' work"), places outside the scene (the mill).

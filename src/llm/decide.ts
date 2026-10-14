@@ -16,12 +16,20 @@ export interface Decider {
 
 export const JEV_MODEL = "typesafe/jev-1.13";
 
+/** Luna's own decision mode, served on the same Decisions endpoint and schema as Jev. */
+export const LUNA_DECISIONS_MODEL = "openai/gpt-6-luna-decisions";
+
 export class JevDecider implements Decider {
-  readonly name = "jev";
+  readonly name: string;
+  private readonly model: string;
+  constructor(model = JEV_MODEL, name = "jev") {
+    this.model = model;
+    this.name = name;
+  }
   async decide(state: unknown, questions: Record<string, ChoiceQuestion>, operation: string): Promise<Decision> {
     const key = apiKey();
     const request = {
-      model: JEV_MODEL,
+      model: this.model,
       state,
       questions: Object.fromEntries(Object.entries(questions).map(([id, q]) => [id, { type: "choice", instructions: q.instructions, criteria: q.criteria }])),
     };
@@ -35,18 +43,18 @@ export class JevDecider implements Decider {
     const latencyMs = performance.now() - started;
     const body = await response.json() as { answers?: Record<string, ChoiceAnswer & { type?: string }>; usage?: { cost?: number }; error?: { message?: string } };
     if (!response.ok || !body.answers) {
-      logCall({ provider: "jev", operation, request, error: body.error?.message ?? `HTTP ${response.status}` });
-      throw new Error(`Jev ${operation} failed: ${body.error?.message ?? `HTTP ${response.status}`}`);
+      logCall({ provider: this.name, operation, request, error: body.error?.message ?? `HTTP ${response.status}` });
+      throw new Error(`${this.name} ${operation} failed: ${body.error?.message ?? `HTTP ${response.status}`}`);
     }
     const answers: Record<string, ChoiceAnswer> = {};
     for (const [id, q] of Object.entries(questions)) {
       const answer = body.answers[id];
-      if (!answer || !Object.hasOwn(q.criteria, answer.choice)) throw new Error(`Jev ${operation}: invalid answer for ${id}`);
+      if (!answer || !Object.hasOwn(q.criteria, answer.choice)) throw new Error(`${this.name} ${operation}: invalid answer for ${id}`);
       answers[id] = { choice: answer.choice, probabilities: answer.probabilities, ...(answer.confidence === undefined ? {} : { confidence: answer.confidence }) };
     }
     const costUsd = body.usage?.cost ?? 0;
-    recordCost("jev", operation, JEV_MODEL, costUsd, latencyMs);
-    logCall({ provider: "jev", operation, request, answers, latencyMs: Math.round(latencyMs), costUsd });
+    recordCost(this.name, operation, this.model, costUsd, latencyMs);
+    logCall({ provider: this.name, operation, request, answers, latencyMs: Math.round(latencyMs), costUsd });
     return { answers, latencyMs, costUsd, decider: this.name };
   }
 }
@@ -121,6 +129,7 @@ export class CascadeDecider implements Decider {
 
 export function deciderFor(name: string): Decider {
   if (name === "jev") return new JevDecider();
+  if (name === "luna-decisions") return new JevDecider(LUNA_DECISIONS_MODEL, "luna-decisions");
   if (name.startsWith("cascade")) return new CascadeDecider(Number(name.split("-")[1] ?? 0.8) || 0.8);
   if (name.startsWith("luna")) return new LunaDecider((name.split("-")[1] as Effort | undefined) ?? "none");
   throw new Error(`Unknown decider ${name}`);

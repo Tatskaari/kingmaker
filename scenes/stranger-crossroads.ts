@@ -89,9 +89,10 @@ export const strangerCrossroads: Scene = {
     },
   ],
   limits: [
-    "The Stranger can't make the player a god, a monarch, a dragon or the commander of an army, and won't hand out legendary items: his only gift is the lucky coin.",
-    "The road only goes one way from here: towards Caerwyn. There's no portal straight into the palace.",
-    "He won't reveal his divine schemes or the court's secrets, only public facts about the Assembly.",
+    "Godlike or epic origins (a god, a monarch, a dragon, the commander of an army, a legendary hero): not on offer. The Stranger laughs: if they were any of those, they wouldn't need him.",
+    "Starting gear or powers beyond an ordinary capable adventurer (magic weapons, artefacts, gold): the Stranger's only gift is a coin that's lucky exactly once.",
+    "Going straight into the palace, or anywhere but down the road: the road from this crossroads only leads towards Caerwyn.",
+    "The Stranger's divine plans, or the court's secrets: he hints and laughs; he only shares public facts about the Assembly.",
   ],
   anchors: ["crossroads", "milestone", "winter-tree", "kings-road"],
   createsCharacter: true,

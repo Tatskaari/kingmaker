@@ -5,10 +5,10 @@ export const crossroadsAftermath: Scene = {
   id: "crossroads-aftermath",
   title: "After the Ambush",
   summary: "Tam comes out of hiding; thanks, a reward, and the question of where the goblins came from.",
-  setting: "The same crossroads, a little later. Broken arrows in the road, the dead ox in the ditch, the milestone scarred. The light is going amber. Tam's pitchfork lies abandoned in the road.",
+  setting: "The same crossroads, moments after the goblin confrontation ended. The dead ox in the ditch, the milestone, the blackthorn hedges, crows settling again. The light is going amber. What else is in the road depends on how things ended (see what's already established).",
   premise: "What does the party make of what just happened, and where does it lead them?",
-  hook: "The goblins are gone, one way or another. Somewhere nearby, the farmer is still hiding.",
-  opening: "Pick up from how the goblin confrontation ended (see the background facts). Tam peers out from the ditch, or from behind the milestone, and slowly emerges. Match his mood to what happened: shaky gratitude after a fight, hysterical relief after a rout, grumbling if his idol was given away.",
+  hook: "The goblins are gone, one way or another.",
+  opening: "Pick up exactly from how the goblin confrontation ended (see what's already established): after a fight, Tam creeps out from wherever he hid and the road shows the signs of it; after a bargain or a rout, he's right there, shaking. Match his mood to what happened: shaky gratitude after a fight, hysterical relief after a rout, grumbling if his idol was given away.",
   cast: [
     {
       id: "tam",
@@ -27,17 +27,17 @@ export const crossroadsAftermath: Scene = {
     },
   ],
   limits: [
-    "The warren under the burnt mill is half a day north: the party can set off for it, but it isn't reachable within this scene.",
-    "Tam has no money beyond the eleven silver pennies sewn into his hat, and nothing else of value.",
-    "Garrow and the toll house are a mile back up the King's Road; nobody else is around.",
+    "Reaching the warren under the burnt mill: it's half a day north. The party can set off for it, but it isn't reachable within this scene.",
+    "A bigger reward from Tam: he has no money beyond the eleven silver pennies sewn into his hat, and nothing else of value.",
+    "Help or witnesses from elsewhere (Garrow, the toll house, guards): they're a mile back up the King's Road; nobody else is around.",
   ],
   anchors: ["crossroads", "milestone", "ditch", "hedgerow", "drovers-track", "kings-road", "hollis-farm"],
   start: "emerges",
   beats: [
     {
       id: "emerges",
-      title: "Tam comes out of hiding",
-      direction: "Tam emerges and reacts to how things ended. Let the party catch their breath, check the bodies or tracks if there was a fight, and talk. He thanks them in his own rambling way.",
+      title: "Tam catches his breath",
+      direction: "Tam reacts to how things ended. Let the party catch their breath, check the bodies or tracks if there was a fight, and talk. He thanks them in his own rambling way.",
       cast: { tam: "Babble thanks. Ask if they're hurt. Insist on repaying them somehow." },
       pressure: "Tam spots goblin tracks heading north and goes pale: 'They came from the mill. Saints. The old mill.'",
       transitions: [

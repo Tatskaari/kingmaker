@@ -71,6 +71,8 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
 }
 
 export interface PreDecision {
+  /** The player is reaching for something the scene says it can't offer. */
+  limit?: string;
   move?: Move;
   speaker?: string;
   decision?: Decision;
@@ -126,6 +128,12 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     };
   }
   if (cues.length) questions.cue = question("cue", cues);
+  if (scene.limits?.length) {
+    questions.limit = {
+      instructions: "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on it.",
+      criteria: { ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])), none: "No: the player's turn doesn't depend on any of these." },
+    };
+  }
   if (options.speaker) {
     const cast = presentCast(scene, state);
     questions.speaker = {
@@ -149,7 +157,14 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
-  return { ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined, ...(plain ? { plain } : {}), ...(freeform ? { freeform } : {}) };
+  const limitChoice = decision.answers.limit?.choice;
+  const limit = limitChoice?.startsWith("limit_") ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
+  return { ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined, ...(plain ? { plain } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}) };
+}
+
+/** "No, but": the world answers honestly and keeps the player's underlying idea alive. */
+export function limitDirective(limit: string): string {
+  return `The player is reaching for something this scene can't offer: ${limit} Don't let it happen or half-happen. Answer in the fiction with a reason that fits this world (a consequence, or a character who would know), not a flat refusal, and give the player's underlying intent somewhere real to go with what is here.`;
 }
 
 export function freeformDirective(check: FreeformCheck): string {
