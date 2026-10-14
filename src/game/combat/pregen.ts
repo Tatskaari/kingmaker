@@ -13,7 +13,7 @@ export const PREGENS: Record<string, { concept: string; build: Build }> = {
   fighter: {
     concept: "a broken-nosed ex-sergeant of the river watch who solves most problems with a longsword and the rest with a longer one",
     build: { classId: "fighter", subclassId: "champion", speciesId: "human", backgroundId: "soldier", abilities: ["STR", "CON", "DEX", "WIS", "CHA", "INT"],
-      skills: ["athletics", "intimidation", "perception"], feat: "tough", cantrips: [], spells: [], weapons: ["longsword", "javelin"], armor: "chain-mail", shield: true },
+      skills: ["athletics", "intimidation", "perception"], feat: "savage-attacker", cantrips: [], spells: [], weapons: ["longsword", "longbow"], armor: "chain-mail", shield: true },
   },
   wizard: {
     concept: "an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
@@ -29,7 +29,7 @@ export const PREGENS: Record<string, { concept: string; build: Build }> = {
   cleric: {
     concept: "a cheerful priest of the river god who blesses barges for a living and hits harder than you'd think",
     build: { classId: "cleric", subclassId: "life-domain", speciesId: "dwarf", backgroundId: "acolyte", abilities: ["WIS", "CON", "STR", "DEX", "CHA", "INT"],
-      skills: ["insight", "medicine", "religion"], feat: "magic-initiate", cantrips: ["sacred-flame", "guidance", "thaumaturgy"],
+      skills: ["insight", "medicine", "religion"], feat: "alert", cantrips: ["sacred-flame", "guidance", "thaumaturgy"],
       spells: ["cure-wounds", "healing-word", "guiding-bolt", "bless", "shield-of-faith", "spiritual-weapon"], weapons: ["mace"], armor: "chain-shirt", shield: true },
   },
 };
@@ -127,7 +127,11 @@ async function buildCharacter(state: SessionState, build: Build, level: number):
   for (let l = 2; l <= level; l++) {
     try { apply(engine.plan.levelUp(campaign.state, { characterId: pc.id, classId: build.classId, hpStrategy: "average" }).events); resolve(); } catch { break; }
   }
-  const sheet = E.buildCharacterSheet({ character: campaign.state.characters[pc.id]!, itemInstances: campaign.state.itemInstances, content, characters: campaign.state.characters, pendingChoices: campaign.state.pendingChoices });
+  const sheetNow = () => E.buildCharacterSheet({ character: campaign.state.characters[pc.id]!, itemInstances: campaign.state.itemInstances, content, characters: campaign.state.characters, pendingChoices: campaign.state.pendingChoices });
+  // Features that raise maximum hit points (a dwarf's toughness) don't raise the current: start whole.
+  const missing = sheetNow().effectiveHpMax - campaign.state.characters[pc.id]!.hp.current;
+  if (missing > 0) apply([ev("Healed", { targetId: pc.id, amount: missing, source: "pregen" })]);
+  const sheet = sheetNow();
   state.rules = {
     campaign: E.serializeCampaign(campaign), pc: pc.id, npcs: {}, prefer,
     spells: (sheet.spellcasting?.spellsByLevel ?? []).flatMap(g => g.spells.filter(sp => g.level === 0 || sp.prepared || sp.alwaysPrepared)).map(sp => ({ id: sp.spellId, name: sp.name, level: sp.level })),

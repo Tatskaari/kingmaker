@@ -106,6 +106,8 @@ export interface CombatSetup {
   props?: MapActor[];
   /** Tiles thick with grain dust: fire there makes it explode (the Heron). */
   dust?: Tile2[];
+  /** Tiles that burn once fire reaches them (sack stacks, a heap of empties); solid floor tiles when omitted. */
+  fuel?: Tile2[];
 }
 
 export interface CombatResult {

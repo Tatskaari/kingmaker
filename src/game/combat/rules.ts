@@ -26,7 +26,9 @@ export async function loadKit(seed: number): Promise<Kit> {
 
 /** The live campaign during a move: apply events, ask the engine, read the state. */
 export class Table {
-  constructor(readonly kit: Kit, public campaign: Dnd.Campaign) {}
+  readonly kit: Kit;
+  campaign: Dnd.Campaign;
+  constructor(kit: Kit, campaign: Dnd.Campaign) { this.kit = kit; this.campaign = campaign; }
   get state(): Dnd.CampaignState { return this.campaign.state; }
   apply(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] {
     if (events.length) this.campaign = this.kit.E.commit(this.campaign, events);
@@ -72,21 +74,27 @@ export interface EngineCombatant {
 }
 export interface EngineEncounter { id: string; status: string; round: number; activeIndex: number; combatants: EngineCombatant[] }
 
-/** One live campaign per fight, keyed by G.rev: a move loads it only when G moved on without it (undo, a restored save). */
+/**
+ * One live campaign per fight, kept beside G: a move loads the campaign from G only when G has
+ * moved on without it (a restored save), and serializes it back when it changed.
+ */
 export class Rules {
-  private live?: { rev: number; campaign: Dnd.Campaign };
-  constructor(readonly kit: Kit) {}
+  readonly kit: Kit;
+  private live?: { serialized: string; campaign: Dnd.Campaign };
+  constructor(kit: Kit) { this.kit = kit; }
   open(G: CombatG): Table {
     this.kit.rng.state = G.rng;
-    const campaign = this.live?.rev === G.rev ? this.live.campaign : this.kit.E.loadCampaign(G.campaign, this.kit.engine);
+    const campaign = this.live && this.live.serialized === G.campaign ? this.live.campaign : this.kit.E.loadCampaign(G.campaign, this.kit.engine);
+    if (!this.live || this.live.campaign !== campaign) this.live = { serialized: G.campaign, campaign };
     return new Table(this.kit, campaign);
   }
   close(G: CombatG, table: Table): void {
     G.rng = this.kit.rng.state;
-    if (this.live?.rev === G.rev && this.live.campaign === table.campaign) return;
-    G.campaign = this.kit.E.serializeCampaign(table.campaign);
+    if (this.live?.campaign === table.campaign && this.live.serialized === G.campaign) return;
+    const serialized = this.kit.E.serializeCampaign(table.campaign);
+    G.campaign = serialized;
     G.rev++;
-    this.live = { rev: G.rev, campaign: table.campaign };
+    this.live = { serialized, campaign: table.campaign };
   }
 }
 
@@ -118,8 +126,8 @@ export interface CombatStatblock {
  * which he doesn't mention), and his silver-topped cane has a blade in it.
  */
 export const STATBLOCKS: Record<string, CombatStatblock> = {
-  "sword-cane-duellist": { base: "bandit-captain", hp: 33, ac: 15, abilityScores: { STR: 10, DEX: 17, CON: 12, INT: 15, WIS: 12, CHA: 16 }, level: 5, weapon: "rapier", weaponName: "Sword-cane", parry: 3 },
-  "river-bruiser": { base: "tough", hp: 26, weapon: "greatclub", weaponName: "Cudgel" },
+  "sword-cane-duellist": { base: "bandit-captain", hp: 33, ac: 15, abilityScores: { STR: 10, DEX: 17, CON: 12, INT: 15, WIS: 12, CHA: 16 }, level: 5, weapon: "rapier", weaponName: "Sword-cane", parry: 3, speed: 25 },
+  "river-bruiser": { base: "tough", hp: 22, weapon: "club", weaponName: "Cudgel" },
   "lantern-boy": { base: "commoner", hp: 4, abilityScores: { DEX: 14 }, weapon: "unarmed-strike" },
   "porter": { base: "bandit", hp: 11, weapon: "dagger", weaponName: "Sack-knife" },
 };

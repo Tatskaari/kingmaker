@@ -59,6 +59,8 @@ export interface Prop {
   lit: boolean;
   state: "standing" | "fallen" | "broken";
   glyph: string;
+  /** Who's carrying it (the lantern-boy's lantern): it goes where they go, and falls if they're hit. */
+  carriedBy?: string;
 }
 
 export interface LogLine {
@@ -102,8 +104,12 @@ export interface CombatG {
   flags: Record<string, string | number | boolean>;
   /** The last action that couldn't be done, and why (cleared by the next one). */
   error?: string;
-  /** Lines the next view should mark as new. */
+  /** Bumped with every log line. */
   seq: number;
+  /** The turn whose start has been dealt with ("round:index"), so a reloaded fight doesn't burn anyone twice. */
+  begun?: string;
+  /** Dice from the start of the coming turn (a death save), shown after its header. */
+  queued?: string[];
 }
 
 export type PlayerAction =
