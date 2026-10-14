@@ -36,9 +36,9 @@ function flag(args: string[], name: string): string | undefined {
   return value;
 }
 
-function print(o: Observation): void {
+function print(o: Observation, id: string): void {
   console.log(`MODE: ${o.mode}\n\n${o.text}`);
-  if (o.hint) console.log(`\n(${o.hint} Use: qa say --session <id> "...")`);
+  if (o.hint) console.log(`\n(${o.hint} Use: qa say --session ${id} "...")`);
   if (o.actions.length) console.log(`\nACTIONS:\n${o.actions.map(a => `- ${a.id}: ${a.label}`).join("\n")}`);
 }
 
@@ -54,12 +54,12 @@ async function main(): Promise<void> {
     const seed = flag(args, "seed");
     const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), explorer: places, fights: standinFights });
     console.log(`Game ${game.state.id}: you are ${game.session.player.name}${game.session.player.build ? `, ${game.session.player.build}` : ""}.\n`);
-    print(game.observe());
+    print(game.observe(), id);
     return;
   }
   if (!Game.exists(id)) throw new Error(`No game ${id}: start one with qa new --session ${id} --as "Name: concept"`);
   const game = Game.load(id, places, standinFights);
-  if (command === "observe") { print(game.observe()); return; }
+  if (command === "observe") { print(game.observe(), id); return; }
   if (command === "act") {
     const action = flag(args, "id");
     if (!action) throw new Error("Usage: qa act --session <id> --id <action id>");
@@ -68,14 +68,14 @@ async function main(): Promise<void> {
     const now = game.observe();
     // In a scene, what just happened was the scene: don't print it twice.
     if (now.mode === "scene") console.log(`MODE: scene\n(${now.hint} Use: qa say --session ${id} "...")`);
-    else print(now);
+    else print(now, id);
     return;
   }
   if (command === "say") {
     const text = args.join(" ").trim();
     if (!text) throw new Error("Usage: qa say --session <id> <what you say or do>");
     console.log(await game.say(text));
-    if (game.state.mode !== "scene") { console.log(); print(game.observe()); }
+    if (game.state.mode !== "scene") { console.log(); print(game.observe(), id); }
     return;
   }
   if (command === "sheet") { console.log(await sheetText(game.session)); return; }

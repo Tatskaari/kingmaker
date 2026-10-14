@@ -69,6 +69,7 @@ function question(phase: keyof typeof QUESTION_TEXT, transitions: Transition[], 
 }
 
 function transitionsFor(scene: Scene, state: SessionState, phase: "attempt" | "cue" | "outcome"): Transition[] {
+  if (state.fought?.length) return transitionsFor({ ...scene, beats: scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(t => !state.fought!.includes(t.to ?? "")) })), anytime: (scene.anytime ?? []).filter(t => !state.fought!.includes(t.to ?? "")) }, { ...state, fought: [] }, phase);
   const beat = currentBeat(scene, state);
   const spent = spentHere(state);
   return [...beat.transitions, ...(scene.anytime ?? [])].filter(t => phaseOf(t) === phase && !spent.has(t.id));
@@ -355,7 +356,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     questions.mechanic = {
       instructions: "Is the player, in their latest turn, doing one of these things the game's rules resolve?",
       criteria: {
-        ...(options.rules.spells.length ? { cast: "Casting a spell or working magic (naming a spell, or plainly using one of their magical abilities)." } : {}),
+        ...(options.rules.spells.length ? { cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit)." } : {}),
         attack: "Attacking someone or something to hurt or break it right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
         grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
@@ -415,7 +416,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // No dice for the impossible: if the player is reaching for something the scene can't offer,
   // the "no, but" answers it and nothing is rolled.
   const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  if (answer === "other_risky" && !move && !limitBlocks) {
+  // A spell is its own resolution (no Arcana check to cast a cantrip), and a roll needs a confident read.
+  const casting = decision.answers.mechanic?.choice === "cast" && (decision.answers.mechanic?.probabilities?.cast ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  if (answer === "other_risky" && !move && !limitBlocks && !casting && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
@@ -593,8 +596,10 @@ function guardHolders(scene: Scene, state: SessionState, text: string): Characte
 }
 
 export type ThreatRead = { kind: "attack"; by: string } | { kind: "hazard"; hazard: string; severity: "glancing" | "serious" };
+/** The player has left the scene's place altogether (asked after each reply in rules sessions). */
+export const LEFT_CONFIDENCE = 0.7;
 
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean; rules?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage>; threat?: ThreatRead }> {
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean; rules?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage>; threat?: ThreatRead; left?: boolean }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
@@ -603,7 +608,7 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   const questions: Record<string, ChoiceQuestion> = { status: STATUS_QUESTION };
   // Which ending is the story at now, if any? Asked over every ending, including ones the player
   // reaches without dice or that no route leads to, as a state rather than "what just happened".
-  const endings = scene.exits.filter(e => e.id !== options.hold);
+  const endings = scene.exits.filter(e => e.id !== options.hold && !state.fought?.includes(e.id));
   questions.ending = {
     instructions: "Judging by the whole scene so far (recent_transcript, latest_player_turn and latest_gm_reply), has the scene's central situation now reached one of these endings, so that nothing more needs to happen here for it to be true? Consider the state the story is in now, not only what happened in the last exchange. Offers, threats and plans that haven't happened don't count. Choose not_yet if the situation is still open.",
     criteria: {
@@ -640,6 +645,10 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   // start of their next turn, so they get to answer it, as at the table.
   const present = options.rules ? presentCast(scene, state) : [];
   if (options.rules) {
+    questions.left = {
+      instructions: `Where is the player character at the end of the latest GM reply? This scene is set in ${scene.title}${scene.world ? ` (${scene.world.name})` : ""}.`,
+      criteria: { here: `Still in or around ${scene.title}.`, gone: "Gone somewhere else altogether: another building, across town, down the river, or on their way there." },
+    };
     questions.threat = {
       instructions: "Does the latest GM reply end with the player character in immediate physical danger that hasn't been resolved yet: someone in the act of striking, shooting or lunging at them, or a danger about to catch them (a fall, fire, poison, cold water, being grabbed or dragged, something working on their mind)? Only something already under way, not a threat in words, a warning or a possibility.",
       criteria: {
@@ -702,7 +711,8 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     if (kind === "attack" && present.some(c => c.id === what)) threat = { kind: "attack", by: what! };
     if (kind === "hazard" && what) threat = { kind: "hazard", hazard: what, severity: decision.answers.threat_severity?.choice === "serious" ? "serious" : "glancing" };
   }
-  return { ...(threat ? { threat } : {}), ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}) };
+  const left = decision.answers.left?.choice === "gone" && (decision.answers.left?.probabilities?.gone ?? 1) >= LEFT_CONFIDENCE;
+  return { ...(left ? { left } : {}), ...(threat ? { threat } : {}), ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}) };
 }
 
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */

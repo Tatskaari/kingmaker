@@ -150,6 +150,10 @@ export interface SessionState {
   adjustments?: string[];
   /** The scene's opening rewritten at the boundary to start where the story actually is. */
   opening?: string;
+  /** How the player comes to know where the story goes next, in the fiction (for a game with a map to walk). */
+  lead?: string;
+  /** Combat exits already fought (the scene resumed after the fight on the map). */
+  fought?: string[];
   /** The scene's world: where everything and everyone is, and in what state (scenes with a world spec). */
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
-import { chainScene, createSession, openScene, playerTurn, type TurnHooks } from "../runtime/engine.ts";
+import { chainScene, createSession, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
 import type { CombatResult, StoryState } from "./types.ts";
 
@@ -111,8 +111,10 @@ export class Game {
     switch (this.state.mode) {
       case "explore":
         return { mode: "explore", text: `${recent}${this.explorer.observe(this.state, this.session)}${carrying(this.session)}`, actions: this.explorer.actions(this.state, this.session) };
-      case "scene":
-        return { mode: "scene", text: `${recent}${sceneView(this.session)}`, actions: [], hint: "You're in a scene: say what your character says or does." };
+      case "scene": {
+        const scene = sceneById(this.session.sceneId);
+        return { mode: "scene", text: `${recent}[${scene.title}, ${this.state.story.time.replace("-", " ")}]\n\n${sceneView(this.session)}`, actions: [], hint: "You're in a scene: say what your character says or does." };
+      }
       case "combat":
         return { mode: "combat", text: `${recent}${this.fight?.observe() ?? ""}`, actions: this.fight?.actions() ?? [] };
       case "end":
@@ -171,10 +173,13 @@ export class Game {
     return this.onward("", hooks);
   }
 
+  /** The fight is over: back to the scene for its aftermath (take the ledger, question the villain), which ends as the story decides. */
   private async afterFight(result: CombatResult): Promise<string> {
     delete this.state.combat;
     this.fight = undefined;
-    return this.onward(result.summary, {});
+    this.state.mode = "scene";
+    const entries = await resumeAfterFight(this.session, result.summary);
+    return render(this.session, entries);
   }
 
   private async onward(combatResult: string, hooks: TurnHooks): Promise<string> {
@@ -187,7 +192,8 @@ export class Game {
     // A scene that comes to the player (a summons the next morning) opens straight away.
     if (next.time === "next-morning") return this.beginScene(hooks);
     this.state.mode = "explore";
-    return `${next.title}: that's where the story goes next.`;
+    // The lead comes in the fiction (a word from Kell, a message), then where it points.
+    return `${this.session.lead ?? ""}${this.session.lead ? "\n\n" : ""}(${next.title}: that's where the story goes next.)`;
   }
 }
 
