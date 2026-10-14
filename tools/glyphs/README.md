@@ -20,12 +20,11 @@ Inter, Adwaita Sans, OpenSymbol, STIX and others. Apple's SF Symbols sit at the 
 well below U+10E000. Once the font is installed, the game prints a sprite like any other character,
 in any colour, and the terminal finds it here.
 
-Each glyph fills exactly one cell. The font has Adwaita Mono's metrics: units per em 1000, every
-advance 600, typo ascender 965 and descender -285 with USE_TYPO_METRICS, and the hhea and win values
-too. The full block spans 600 x 1250 units, so the terminal draws a sprite at the cell's size, with
-nothing clipped and nothing overhanging. There's a Bold face with the same outlines. The game draws
-beings bold, and without a Bold face fontconfig would embolden the Regular one synthetically and
-smear the pixels.
+Each sprite sits in one cell. The font has Adwaita Mono's metrics: units per em 1000, every advance
+600, typo ascender 965 and descender -285 with USE_TYPO_METRICS, and the hhea and win values too.
+Every sprite's ink stays inside them, so nothing is clipped and nothing overhangs. There's a Bold
+face with the same outlines. The game draws beings bold, and without a Bold face fontconfig would
+embolden the Regular one synthetically and smear the pixels.
 
 ## Files
 
@@ -34,59 +33,79 @@ smear the pixels.
 | `assets/glyphs/kingmaker.txt` | The bitmaps, drawn by hand: a header per glyph (name, code point, what it is), then 18 rows of 9, `#` ink and `.` blank. |
 | `tools/glyphs/build.py` | Bitmaps to fonts: traces each glyph's ink into clean outlines and builds Regular and Bold TrueType fonts. Writes `src/game/look/kingmaker-glyphs.ts` (names, code points, pixels). |
 | `assets/fonts/KingmakerGlyphs-{Regular,Bold}.ttf` | The built fonts, committed so the game doesn't need Python. |
-| `tools/glyphs/sheet.py` | Contact sheets in `runs/glyphs/`: the bitmaps big; the font at the real cell size and 3x, with names in Adwaita Mono beside them; and text through Pango, as VTE draws it. |
+| `tools/glyphs/sheet.py` | Contact sheets in `runs/glyphs/`: the bitmaps big; the font at the real cell size and 3x, with names in Adwaita Mono beside them; and text through Pango with GTK 4's font rendering, as VTE draws it. |
+| `tools/glyphs/vte.py` | Every sprite drawn by a real VTE terminal (the widget Ptyxis is built on) in a private headless compositor, and checked pixel by pixel against the bitmaps. |
 | `tools/glyphs/frame.py` | Draws `dump.ts --json` frames as the terminal would (Pango, fallback and all), as PNGs. |
-| `src/game/look/kingmaker.ts` | The glyph set's rules: which sprite a being gets. |
+| `src/game/look/kingmaker.ts` | The glyph set's rules: which sprite a being gets, and how it lies down. |
 | `src/game/look/kingmaker-check.tsx` | Draws sprites on the map and in the gallery through OpenTUI's headless renderer, and checks every row lines up. |
 
 ## Use it
 
 ```sh
 npm run glyphs              # build the fonts and install them (~/.local/share/fonts/kingmaker), then fc-cache -f
-KM_GLYPHS=kingmaker npm run game
 node --experimental-ffi --no-warnings --import tsx src/game/look/gallery.tsx sprites --glyphs kingmaker
+KM_GLYPHS=kingmaker npm run game
 npm run glyphs:uninstall    # remove the installed fonts (and fc-cache -f)
 ```
 
+The gallery shows the sprites at once. The game's map shows them where it draws its actors through
+the look layer (`actorLook`, which the map renderer takes on when the look is wired into it); until
+then it draws the cast's letters.
+
+Building needs fontTools (`pip install fonttools`, or the `python3-fonttools` package). Installing
+doesn't: without fontTools, `npm run glyphs` installs the committed fonts as they are, and says so.
 The font must be installed on the machine whose terminal draws the game, so install it locally even
-when the game runs over SSH. To check that fontconfig will use it:
+when the game runs over SSH. Without the repository there, copy the two files in `assets/fonts/` to
+`~/.local/share/fonts/` and run `fc-cache -f`. To check that fontconfig will use it:
 
 ```sh
 fc-list ':family=Kingmaker Glyphs'                      # both faces installed
 fc-match -f '%{family}\n' 'Adwaita Mono:charset=10e000' # -> Kingmaker Glyphs: the fallback for the sprites
 fc-match -f '%{family} %{style}\n' 'Adwaita Mono:bold:charset=10e000'   # -> Kingmaker Glyphs Bold
+npm run glyphs:vte                                      # a real VTE draws every sprite: 0 soft, 0 misplaced
 ```
 
 Other terminals: anything that falls back through fontconfig works the same way (GNOME's VTE
 terminals, kitty, WezTerm, Alacritty, foot, Konsole). kitty draws a private-use glyph across two cells
-when a space follows it and the glyph is wider than a cell. Ours are exactly one cell wide for any
-monospace font with a 0.6 em advance, which covers most of them. With a narrower font (Iosevka is 0.5
-em, Ubuntu Mono 0.5) the sprites draw a little wide; a build with that font's metrics fixes it (the
-metrics are constants at the top of `build.py`; `--metrics` compares them with Adwaita Mono's).
+when a space follows it and the glyph is wider than a cell; ours never are, since their ink stops a
+pixel short of the advance. With a terminal font whose advance isn't 0.6 em (Iosevka and Ubuntu Mono
+are 0.5) the sprites sit a little wide or narrow in its cells; a build with that font's metrics fixes
+it (the metrics are constants at the top of `build.py`; `--metrics` compares them with Adwaita Mono's).
 
 ## Draw a glyph
 
-1. Add it to `assets/glyphs/kingmaker.txt`: a header line, then 18 rows of 9. Give it the next free
-   code point in its block (the cast from U+10E000, townsfolk from U+10E040, creatures from U+10E080,
-   animation frames from U+10E0C0). Never renumber a glyph that has shipped.
+1. Add it to `assets/glyphs/kingmaker.txt`: a header line, then 18 rows of 9, the last column
+   blank. Give it the next free code point in its block (the cast from U+10E000, townsfolk from
+   U+10E040, creatures from U+10E080, animation frames from U+10E0C0). Never renumber a glyph that has
+   shipped.
 2. `npm run glyphs` builds, installs and regenerates `kingmaker-glyphs.ts`. `npm run glyphs:sheet`
-   draws the sheets: look at `runs/glyphs/pango-3x.png`, the real rendering three times up.
-3. For it to appear in the game, map words to it in `src/game/look/kingmaker.ts` (`WORDS`, or `ROLES`
-   by role id), or give a cast member it as their `km` in `people.ts` and `src/game/map/looks.ts`.
+   draws the sheets: look at `runs/glyphs/pango-3x.png`, the real rendering three times up, and
+   `npm run glyphs:vte` has a real terminal draw them.
+3. For it to appear in the game, map words to it in `src/game/look/kingmaker.ts` (`PEOPLE`,
+   `CREATURES`, or `ROLES` by role id), or give a cast member it as their `km` in `people.ts` and
+   `src/game/map/looks.ts`.
 4. `node --no-warnings --test src/game/look/*.test.ts` checks the fonts and the code were rebuilt from
    the bitmaps as they are, and that OpenTUI measures every sprite as one cell.
 
-Tips for a readable sprite. Each design pixel is one screen pixel at Adwaita Mono 11 (a 9 x 20 cell,
-glyphs 8.8 x 18.3 pixels), so a pixel shows. A sprite reads by its outline, because it's all one
-colour: give each one a shape of its own (a raised fist, a sack on the shoulder, a lantern held
-out), and keep a gap of a pixel between an arm or a prop and the body. Size carries meaning too:
-adults are about 16 rows tall, children 10 or 11, Big Hobb fills the cell.
+Tips for a readable sprite. Each design pixel is one screen pixel at Adwaita Mono 11, so a pixel
+shows. A sprite reads by its outline, because it's all one colour: give each one a shape of its own
+(a raised fist, a sack on the shoulder, a lantern held out, a coat flaring to the knee), and keep a
+gap of a pixel between an arm or a prop and the body. Size carries meaning too: adults are about 16
+rows tall, children 10 or 11, Big Hobb fills the cell. Leave the last column blank: it's the gap that
+keeps a crowd of sprites from merging into one shape.
 
 ## The grid and the metrics
 
-The grid is 9 x 18 pixels at 66.7 x 69.4 units, near-square. It's the cell's aspect (600 x 1250
-units) at the size the user's terminal draws it: Ptyxis with Adwaita Mono 11 at 96 dpi gives a
-14.67-pixel em, so glyphs are 8.8 x 18.3 pixels in a 9 x 20 cell (as VTE measures it). One design
-pixel per screen pixel is the only scale at which pixel art stays crisp. Slight hinting snaps each row to
-a pixel; finer grids blur. At other sizes the outlines scale like any font: soft at fractional
-scales, sharp at 2x.
+A design pixel is exactly one screen pixel at the size the game is drawn: Adwaita Mono 11 at 96 dpi
+has a 14.67-pixel em, so a pixel is 1000 / 14.67 = 68.18 units. The grid is anchored to the
+baseline, 14 rows above it (row 0's top at 955 units, under the 965 ascender) and 4 below (row 17's
+bottom at -273, above the -285 descender). VTE lays that size out in 9 x 20 cells with the baseline
+15 pixels down, so every row and column of a sprite lands on whole screen pixels, rows 1 to 18 of the
+cell. That matters because GTK 4 draws text without hinting: it doesn't snap outlines to pixels, so
+a grid stretched to fill the cell instead (66.7 x 69.4 units a pixel) is drawn with ghost rows and
+soft right-hand columns. Adwaita Mono's advance is 8.8 pixels, so 8 columns of ink fit inside it;
+the ninth pixel of the cell is the blank column.
+
+`npm run glyphs:vte` checks it the strict way: a real VTE (GTK 4, the library Ptyxis uses) draws
+every sprite at 11 and 22 point, and every pixel of each is compared with its bitmap. At other sizes
+the sprites scale like any font: soft at 10 or 12 point, sharp again at whole multiples (22, 33).

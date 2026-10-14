@@ -1,3 +1,4 @@
+import { luminance, pack, scale, type RGB } from "./color.ts";
 import { isKingmaker, km } from "./glyphs.ts";
 import { KINGMAKER_GLYPHS, type KingmakerGlyph } from "./kingmaker-glyphs.ts";
 import { singular, type ParsedName } from "./names.ts";
@@ -10,13 +11,20 @@ import { singular, type ParsedName } from "./names.ts";
  * The cast have their own (people.ts). Anyone else is read by the words in their name, the head noun
  * first and then the rest, last first ("an old watchman" is the watch, "a flock of pigeons" a
  * pigeon six times over, "a vast mastiff" Duchess's kind of dog), then by what the rules made of them
- * (the role ids in roles.ts), and "old" ages a man or a woman. A being with no sprite keeps its ascii
+ * (the role ids in roles.ts), and "old" ages a man or a woman. A person is never drawn as a beast ("a
+ * bear tamer" is a man), and a proper name says who someone is, not what (Tom Fox isn't a wolf, Matt
+ * King isn't the King; Captain Bray is a guard by his title). A being with no sprite keeps its ascii
  * letter (a cow is still a q), and things stay things, but for a body.
+ *
+ * Postures: the dead lie still, sleepers and the knocked-out lie down (Duchess asleep across her
+ * door), the hanged hang upright. Sprites are thin strokes, so dark ones (a crow, a bat) are lifted
+ * until they show at night.
  */
 
-/** Words (singular) and the sprite they mean, specific before general. */
-const WORDS: Array<[RegExp, KingmakerGlyph]> = [
-  // People.
+type Words = Array<[RegExp, KingmakerGlyph]>;
+
+/** People, by the words (singular) that name them, specific before general. */
+const PEOPLE: Words = [
   [/^(king|queen|monarch|majesty|emperor|empress|sovereign)$/, "king"],
   [/^(linkboy|link-boy|lantern-boy|lanternboy|torchboy|torch-bearer)$/, "lantern-boy"],
   [/^(page|pageboy|page-boy|footboy|herald)$/, "page"],
@@ -35,7 +43,10 @@ const WORDS: Array<[RegExp, KingmakerGlyph]> = [
   [/^(child|kid|boy|girl|urchin|lad|lass|brat|youngster|toddler|baby|infant|waif|scamp|guttersnipe|orphan|son|daughter|apprentice|squirt|nipper)$/, "child"],
   [/^(woman|wife|maid|maiden|barmaid|landlady|washerwoman|laundress|seamstress|mother|matron|goodwife|mistress|missus|madam|fishwife|alewife|sister|aunt|nurse|midwife|serving-girl|scullery-maid)$/, "woman"],
   [/^(body|corpse|cadaver|carcass|remains|deceased|stiff)$/, "body"],
-  // Creatures.
+];
+
+/** Creatures. */
+const CREATURES: Words = [
   [/^(mastiff|wolfhound|bloodhound|boarhound|bulldog|bullmastiff|deerhound)$/, "duchess"],
   [/^(dog|hound|cur|mutt|puppy|pup|terrier|spaniel|whippet|greyhound|lurcher|collie|sheepdog|ratter)$/, "dog"],
   [/^(wolf|jackal|coyote|hyena|fox|vixen|warg|werewolf)$/, "wolf"],
@@ -61,9 +72,20 @@ const WORDS: Array<[RegExp, KingmakerGlyph]> = [
   [/^(zombie|ghoul|revenant|draugr|wight|mummy|lich)$/, "zombie"],
   [/^(slime|ooze|jelly|blob|pudding|cube|sludge-beast)$/, "slime"],
   [/^(monster|beast|creature|horror|abomination|demon|devil|fiend|thing|aberration|homunculus|chimera|manticore|gargoyle)$/, "monster"],
-  // Generic people last, so "a woman porter" is a porter and "the old man's dog" a dog.
+];
+
+/** Anyone at all, last, so "a woman porter" is a porter and "the old man's dog" a dog. */
+const ANYONE: Words = [
   [/^(man|fellow|person|figure|stranger|traveller|traveler|husband|father|brother|uncle|landlord|innkeeper|publican|barman|bartender|clerk|scribe|secretary|bookkeeper|lawyer|notary|smith|blacksmith|baker|butcher|cook|tailor|carpenter|cooper|mason|miller|farmer|ostler|groom|drunk|drunkard|regular|patron|customer|gambler|thief|cutpurse|pickpocket|rogue|bandit|brigand|assassin|spy|informer|lamplighter|sweep|ratcatcher|gravedigger|undertaker|hangman|official|minstrel|bard|wizard|mage|sorcerer|witch|scholar|physician|surgeon|apothecary|alchemist|healer|townsman|citizen|villager|peasant|yokel|local|onlooker|bystander|witness|youth)$/, "man"],
 ];
+
+/** Who's looked up where: a person among people; a creature among creatures first; anything else anywhere. */
+const FOR_PERSON: Words = [...PEOPLE, ...ANYONE];
+const FOR_ANY: Words = [...PEOPLE, ...CREATURES, ...ANYONE];
+/** Sprites of creatures, never given to a person. */
+const BEASTS = new Set<KingmakerGlyph>(CREATURES.map(([, sprite]) => sprite));
+/** The rules' roles for people (as appearance.ts has them). */
+const PERSON_ROLES = new Set(["crowd", "child", "guard", "royal", "person"]);
 
 /** What the rules made of a being, when no word says more. */
 const ROLES: Record<string, KingmakerGlyph> = {
@@ -76,28 +98,56 @@ const ROLES: Record<string, KingmakerGlyph> = {
 const OLD = /\b(old|elderly|aged|ancient|grey-haired|white-haired|wrinkled|doddering)\b/;
 const AGED: Partial<Record<KingmakerGlyph, KingmakerGlyph>> = { man: "old-man", woman: "old-woman" };
 
-/** A sprite's name for a being's name and role, or undefined (it keeps its ascii glyph). */
-export function kmName(parsed: ParsedName, role?: string): KingmakerGlyph | undefined {
-  // The head noun, then the other words, last first; a compound by its last part too ("an eel-seller").
-  const words = [parsed.head, ...parsed.phrase.split(" ").reverse().slice(1).map(singular)].flatMap(w => (w.includes("-") ? [w, singular(w.split("-").at(-1)!)] : [w]));
-  let name: KingmakerGlyph | undefined;
+/** Words that lead a name as titles (Captain Bray, Widow Crane, Old Saul), not as who someone is. */
+const TITLE = /^(sergeant|corporal|captain|master|mister|mistress|missus|mrs|mr|miss|big|little|old|young|lady|lord|sir|dame|king|queen|prince|princess|marshal|father|mother|brother|sister|doctor|dr|goodwife|goodman|granny|uncle|aunt|widow|reverend|saint|st)$/;
+
+/**
+ * The words of a proper name that say who someone is, not what: the capitalised words after any
+ * leading titles ("Tom Fox", "Matt King", "Saul Tench", the Goose of "Mother Goose"). A description
+ * ("a Sea Captain") has none.
+ */
+function namesIn(name: string): Set<string> {
+  const out = new Set<string>();
+  const words = name.replace(/\(.*?\)/g, " ").split(/[^A-Za-z'-]+/).filter(Boolean);
+  if (/^(a|an)$/i.test(words[0] ?? "")) return out;
+  let titles = true;
   for (const word of words) {
-    name = WORDS.find(([re]) => re.test(word))?.[1];
-    if (name) break;
+    const lower = word.toLowerCase().replace(/'s?$/, "");
+    if (/^(the|of)$/.test(lower)) continue;
+    if (titles && (TITLE.test(lower) || FOR_PERSON.some(([re]) => re.test(lower)))) continue;
+    titles = false;
+    if (/^[A-Z]/.test(word)) out.add(lower).add(singular(lower));
   }
-  name ??= role ? ROLES[role] : undefined;
-  if (name && OLD.test(parsed.phrase)) name = AGED[name] ?? name;
-  return name;
+  return out;
+}
+
+/**
+ * A sprite's name for a being's name and role, or undefined (it keeps its ascii glyph). `name` is the
+ * name as said, for its proper names; `kind` the world's kind of being ("person", "creature").
+ */
+export function kmName(parsed: ParsedName, role?: string, name?: string, kind?: string): KingmakerGlyph | undefined {
+  const proper = name ? namesIn(name) : new Set<string>();
+  // The head noun, then the other words, last first; a compound by its last part too ("an eel-seller").
+  const words = [parsed.head, ...parsed.phrase.split(" ").reverse().slice(1).map(singular)]
+    .flatMap(w => (w.includes("-") ? [w, singular(w.split("-").at(-1)!)] : [w]))
+    .filter(w => !proper.has(w));
+  const find = (list: Words) => { for (const word of words) { const hit = list.find(([re]) => re.test(word))?.[1]; if (hit) return hit; } return undefined; };
+  const person = kind === "person" || (kind !== "creature" && !!role && PERSON_ROLES.has(role));
+  let sprite = person ? find(FOR_PERSON) : kind === "creature" ? find(CREATURES) ?? find(FOR_PERSON) : find(FOR_ANY);
+  sprite ??= role ? ROLES[role] : undefined;
+  if (person && sprite && BEASTS.has(sprite)) sprite = "man";
+  if (sprite && OLD.test(parsed.phrase)) sprite = AGED[sprite] ?? sprite;
+  return sprite;
 }
 
 /**
  * The sprite (a character) for a thing in the kingmaker set, or undefined. Beings by their name and
  * role; of things, only bodies (a corpse is a body whoever it was).
  */
-export function kmFor(parsed: ParsedName, role: string | undefined, being: boolean): string | undefined {
+export function kmFor(parsed: ParsedName, role: string | undefined, being: boolean, name?: string, kind?: string): string | undefined {
   if (!being) return role === "body" ? km("body") : undefined;
-  const name = kmName(parsed, role);
-  return name ? km(name) : undefined;
+  const sprite = kmName(parsed, role, name, kind);
+  return sprite ? km(sprite) : undefined;
 }
 
 /** Wingbeats: the frame a flying sprite shows with its wings up. */
@@ -107,6 +157,46 @@ const FLAP_OF = new Map(Object.entries(FLAPS).map(([from, to]) => [km(from as Ki
 /** A sprite on the beat: wings up when `up`, otherwise as it is. Anything that doesn't fly is unchanged. */
 export function kmFlap(glyph: string, up: boolean): string {
   return up && isKingmaker(glyph) ? FLAP_OF.get(glyph) ?? glyph : glyph;
+}
+
+const NAME_OF = new Map(Object.entries(KINGMAKER_GLYPHS).map(([name, [code]]) => [String.fromCodePoint(code), name as KingmakerGlyph]));
+const LYING = new Set<KingmakerGlyph>(["body", "lying", "sleeper"]);
+/** Sprites of people standing up: the cast's and the townsfolk's (not Duchess, and not anyone lying down). */
+const STANDING = new Set((Object.entries(KINGMAKER_GLYPHS) as Array<[KingmakerGlyph, readonly [number, string]]>)
+  .filter(([name, [code]]) => code < 0x10e080 && !name.startsWith("duchess") && !LYING.has(name)).map(([name]) => name));
+/** Beasts that lie down to sleep, and how. */
+const CURLED: Partial<Record<KingmakerGlyph, KingmakerGlyph>> = { duchess: "duchess-asleep", dog: "dog-asleep", wolf: "dog-asleep" };
+/** States in which a being lies down; the asleep show it (a Z). Stunned, paralysed and petrified stand. */
+const LIE_DOWN = new Set(["asleep", "sleeping", "unconscious", "prone", "down"]);
+const ASLEEP = new Set(["asleep", "sleeping"]);
+
+/**
+ * A being down, in the kingmaker set. The dead: a person's body (a dead beast is undefined: the
+ * caller's remains, as in ascii). Asleep or out: a person lies down (with a Z if asleep), a dog curls
+ * up; anyone else, or a state that leaves them standing, is as they were.
+ */
+export function kmDown(glyph: string, state: string): string | undefined {
+  const name = NAME_OF.get(glyph);
+  if (state === "dead") return name && STANDING.has(name) ? km("body") : undefined;
+  if (!name || !LIE_DOWN.has(state)) return glyph;
+  if (STANDING.has(name)) return km(ASLEEP.has(state) ? "sleeper" : "lying");
+  const curled = CURLED[name];
+  return curled ? km(curled) : glyph;
+}
+
+/** Hanging: someone lying (a body, a sleeper) hangs upright, as themselves if they were someone (`standing`), else as anyone. */
+export function kmHanging(glyph: string, standing: string): string {
+  const name = NAME_OF.get(glyph);
+  if (!name || !LYING.has(name)) return glyph;
+  const was = NAME_OF.get(standing);
+  return was && STANDING.has(was) ? standing : km("man");
+}
+
+/** Sprites are thin strokes of one colour: one darker than this (a crow, a bat, a black cat) is lifted until it shows on the night ground. */
+const LEGIBLE = 0.45;
+export function kmLegible(c: RGB): RGB {
+  const l = luminance(c);
+  return l >= LEGIBLE ? c : l < 0.03 ? pack(115, 115, 115) : scale(c, LEGIBLE / l);
 }
 
 /** Every sprite with its name and what it is, in the font's order (for the gallery's board). */

@@ -19,7 +19,8 @@
     "glyphs:build": "python3 tools/glyphs/build.py",
     "glyphs:uninstall": "python3 tools/glyphs/build.py --uninstall",
     "glyphs:sheet": "python3 tools/glyphs/sheet.py",
-    "glyphs:check": "node --experimental-ffi --no-warnings --import tsx src/game/look/kingmaker-check.tsx"
+    "glyphs:check": "node --experimental-ffi --no-warnings --import tsx src/game/look/kingmaker-check.tsx",
+    "glyphs:vte": "python3 tools/glyphs/vte.py"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

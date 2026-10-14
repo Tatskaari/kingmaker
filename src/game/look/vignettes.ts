@@ -10,7 +10,7 @@ import { Director } from "./director.ts";
 import { drownedRatDressing, granaryYardDressing, kingsRoomDressing } from "./dressings.ts";
 import { Effects } from "./effects.ts";
 import { plainOf, type GlyphSet } from "./glyphs.ts";
-import { KM_VOCABULARY, kmFlap } from "./kingmaker.ts";
+import { KM_VOCABULARY, kmFlap, kmLegible } from "./kingmaker.ts";
 import { KINGMAKER_GRID, KINGMAKER_PIXELS } from "./kingmaker-glyphs.ts";
 import { noise1 } from "./noise.ts";
 import { CAST_LOOKS } from "./people.ts";
@@ -480,12 +480,13 @@ const weather: Vignette = {
 
 const SECTIONS: Array<[number, string]> = [[0x10e000, "The cast"], [0x10e040, "Townsfolk"], [0x10e080, "Creatures"], [0x10e0c0, "Wingbeats"]];
 
-/** What a sprite stands in for: the cast's own letter and colour, or the rules' look for its name. */
+/** What a sprite stands in for: the cast's own letter and colour, or the rules' look for its name (a wingbeat or a sleeper: the one awake). */
 function standIn(entry: (typeof KM_VOCABULARY)[number]): { ascii: string; fg: string } {
-  const cast = Object.values(CAST_LOOKS).find(p => p.km === entry.glyph);
+  const awake = entry.name === "lying" || entry.name === "sleeper" ? "man" : entry.name.replace(/-(flap|asleep)$/, "");
+  const glyph = KM_VOCABULARY.find(v => v.name === awake)?.glyph ?? entry.glyph;
+  const cast = Object.values(CAST_LOOKS).find(p => p.km === glyph);
   if (cast) return { ascii: cast.glyph, fg: cast.color };
-  const name = entry.name.replace(/-flap$/, "").replace(/-/g, " ");
-  const d = describeLook(entry.name === "body" ? { name: "a body", kind: "object", tags: ["body"] } : { name, kind: entry.code >= 0x10e080 ? "creature" : "person" });
+  const d = describeLook(entry.name === "body" ? { name: "a body", kind: "object", tags: ["body"] } : { name: awake.replace(/-/g, " "), kind: entry.code >= 0x10e080 ? "creature" : "person" });
   return { ascii: entry.name.endsWith("-flap") && d.ascii === "v" ? "V" : d.ascii, fg: d.fg };
 }
 
@@ -523,16 +524,16 @@ const sprites: Vignette = {
       const { ascii, fg } = standIn(entry);
       const flap = noise1(t / 150, entry.code) > 0.5;
       if (index === showing) for (let dx = 0; dx < cw - 1; dx++) c.tint(x + dx, y, hot, 1);
-      c.put(x, y, plain ? plainOf(ascii) : kmFlap(entry.glyph, flap), rgbOf(fg), undefined, UNLIT | BOLD);
+      c.put(x, y, plain ? plainOf(ascii) : kmFlap(entry.glyph, flap), plain ? rgbOf(fg) : kmLegible(rgbOf(fg)), undefined, UNLIT | BOLD);
       c.put(x + 2, y, plain ? plainOf(ascii) : ascii, mix(rgbOf(fg), INK, 0.35), undefined, UNLIT);
-      c.text(x + 4, y, entry.name.slice(0, 12), text, undefined, UNLIT);
+      c.text(x + 4, y, entry.name.slice(0, 14), text, undefined, UNLIT);
       const about = entry.about.replace(/^[^:]*:\s*/, "");
-      if (cw > 20) c.text(x + 17, y, about.slice(0, cw - 18), dim, undefined, UNLIT);
+      if (cw >= 32) c.text(x + 19, y, about.slice(0, cw - 20), dim, undefined, UNLIT);
     });
     // The pixels of one sprite at a time: two columns a pixel in full blocks, or half blocks when short of rows.
     const entry = KM_VOCABULARY[showing]!;
     const { fg } = standIn(entry);
-    const ink = rgbOf(fg), paper = rgbOf("#1a1822");
+    const ink = kmLegible(rgbOf(fg)), paper = rgbOf("#1a1822");
     const rowsOf = KINGMAKER_PIXELS[entry.name].split("/");
     const zx = view.w - zw + 1, zy = 2;
     const solid = plain ? "#" : "█";

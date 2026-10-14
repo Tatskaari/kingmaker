@@ -26,7 +26,9 @@ for (const [scene, world, people] of [["drowned-rat", drownedRatWorld, ["kell", 
   const frame = lookFrame(3, "night", "kingmaker");
   const actors = actorsHere(ex, w).map(a => ({ ...a, glyph: actorLook(a, frame).glyph }));
   const r = regionForScene(scene)!.region.rect;
-  views.push([`the map: ${scene}`, render(getMap(ex.map), actors, { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) }, size, { time: "night", roofs: false, tick: 3 })]);
+  // A renderer that works out each actor's look itself does it in `glyphs`; one that doesn't draws the glyphs it's given.
+  const options = { time: "night" as const, roofs: false, tick: 3, glyphs: "kingmaker" as const };
+  views.push([`the map: ${scene}`, render(getMap(ex.map), actors, { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) }, size, options)]);
 }
 views.push(["the gallery: the yard", frameAt("yard", 2400, { ...size, glyphs: "kingmaker" }).toLines()]);
 views.push(["the gallery: the vocabulary", frameAt("sprites", 3000, { ...size, glyphs: "kingmaker" }).toLines()]);

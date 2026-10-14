@@ -1,7 +1,7 @@
 import { FLAME_LIGHT, FLAME_RAMPS, MATERIAL_COLOR, PALETTE, hexOf, luminance, mix, ramp, rgbOf, scale, desaturate, type FlameName, type RGB } from "./color.ts";
-import { glyphFor, km, nerd, type Glyph, type GlyphSet } from "./glyphs.ts";
+import { glyphFor, isKingmaker, nerd, type Glyph, type GlyphSet } from "./glyphs.ts";
 import { inventionColor, inventionVersion, invented, requestInvention } from "./invent.ts";
-import { kmFlap, kmFor } from "./kingmaker.ts";
+import { kmDown, kmFlap, kmFor, kmHanging, kmLegible } from "./kingmaker.ts";
 import { parseName, type ParsedName } from "./names.ts";
 import { clamp01, flicker, hash01, noise1, seedOf } from "./noise.ts";
 import { CAST_LOOKS, PLAYER_LOOK, castLook } from "./people.ts";
@@ -161,7 +161,7 @@ function computeBase(thing: Lookable): BaseLook {
   const cast = thing.cast ?? (beingKind && thing.id && CAST_LOOKS[thing.id] ? thing.id : undefined);
   if (cast && beingKind) {
     const look = castLook(cast, thing.name);
-    const sprite = look.km ?? kmFor(parsed, kind === "creature" ? undefined : "person", true);
+    const sprite = look.km ?? kmFor(parsed, kind === "creature" ? undefined : "person", true, thing.name, kind);
     return person(parsed, { glyph: { ascii: look.glyph, ...(sprite ? { km: sprite } : {}) }, fg: look.color, bold: true, source: "cast" });
   }
 
@@ -212,7 +212,7 @@ function computeBase(thing: Lookable): BaseLook {
   const being = !!role.being || beingKind;
   // The kingmaker set: a sprite for a being (by its name, then its role), and for a body. A skull the
   // world calls an item stays a thing.
-  const sprite = kmFor(parsed, role.id, being && (beingKind || !kind));
+  const sprite = kmFor(parsed, role.id, being && (beingKind || !kind), thing.name, kind);
   if (sprite) glyph = { ...glyph, km: sprite };
   const groupWord = parsed.group;
   const group = groupWord ? GROUP_SIZE[groupWord] ?? 4 : role.group ? 4 : being && parsed.plural ? 3 : 0;
@@ -258,7 +258,9 @@ export function lookOf(thing: Lookable, ctx: LookContext = {}): Look {
   else if (base.being && thing.quantity && thing.quantity > 1) out.group = Math.min(thing.quantity, 6);
   if (has("gone")) return { ...out, alpha: 0 };
 
-  let fg = rgbOf(out.fg);
+  // A sprite is thin strokes: a dark one (a crow, a bat) is lifted until it shows.
+  const standing = out.glyph, sprite = set === "kingmaker" && isKingmaker(standing);
+  let fg = sprite ? kmLegible(rgbOf(out.fg)) : rgbOf(out.fg);
   let bg = out.bg ? rgbOf(out.bg) : undefined;
   const glyphIn = (ascii: string) => glyphFor({ ascii }, set);
   const sized = (BURN_LIGHT[thing.size ?? (base.being ? "medium" : "small")] ?? 10);
@@ -373,16 +375,21 @@ export function lookOf(thing: Lookable, ctx: LookContext = {}): Look {
   // Beings down, asleep, dead.
   if (base.being) {
     const down = [...states].find(s => DOWN.has(s));
-    if (down === "dead") { out.glyph = set === "kingmaker" && base.person ? km("body") : glyphIn("%"); fg = scale(fg, 0.6); out.bold = false; }
-    else if (down) { fg = scale(fg, 0.62); out.bold = false; }
+    if (down === "dead") { out.glyph = (sprite ? kmDown(standing, "dead") : undefined) ?? glyphIn("%"); fg = scale(fg, 0.6); out.bold = false; }
+    else if (down) {
+      fg = scale(fg, 0.62); out.bold = false;
+      // A sprite shows it: asleep or out, people lie down and dogs curl up.
+      const lying = sprite ? kmDown(standing, down) : undefined;
+      if (lying && lying !== standing) out.glyph = lying;
+    }
   }
 
   // Where it is: hanging, overhead, hidden.
   if (has("hanging")) {
     out.lift = 7;
     out.motion = "sway";
-    // A hanged body hangs upright.
-    if (set === "kingmaker" && out.glyph === km("body")) out.glyph = km("man");
+    // The hanged hang upright.
+    if (set === "kingmaker") out.glyph = kmHanging(out.glyph, standing);
   }
   if (base.overhead || has("overhead")) { out.lift = Math.max(out.lift ?? 0, 8); out.alpha = Math.min(out.alpha ?? 1, 0.7); }
   if (has("hidden")) { out.alpha = Math.min(out.alpha ?? 1, 0.38); fg = desaturate(fg, 0.5); }

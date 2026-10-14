@@ -57,7 +57,8 @@ def main():
     expect(app, r"The Drowned Rat, night", "on the Drowned Rat")
     expect(app, rf"glyphs: {GLYPHS}", f"in the {GLYPHS} glyph set (KM_GLYPHS)")
     if GLYPHS == "kingmaker":
-        expect(app, f"{NAN}.*|{HOBB}", "Nan Quill and Big Hobb are their sprites")
+        expect(app, NAN, "Nan Quill is her sprite")
+        expect(app, HOBB, "Big Hobb is his sprite")
     # It animates by itself: two snapshots a moment apart differ (fire, water, smoke).
     a = app.text()
     app.pump(0.7)
@@ -88,7 +89,8 @@ def main():
     expect(app, r"time: morning", "t: time of day override")
     app.send("8", 0.5)
     expect(app, r"Kingmaker Glyphs", "key 8: the Kingmaker Glyphs board")
-    expect(app, r"lantern-boy.*|duchess", "the board lists the vocabulary")
+    expect(app, r"lantern-boy", "the board lists the cast")
+    expect(app, r"duchess-asleep", "and the postures")
     expect(app, r"U\+10E0", "and shows a sprite's pixels, big")
     app.send("q", 0.5)
     app.pump(1.0)

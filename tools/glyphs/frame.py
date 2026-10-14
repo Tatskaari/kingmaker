@@ -32,10 +32,11 @@ def draw(frame, font, cell_w, cell_h, baseline):
     layout = PangoCairo.create_layout(cr)
     ctx = layout.get_context()
     PangoCairo.context_set_resolution(ctx, 96)
+    # As GTK 4 draws text (font rendering "automatic"): grayscale, and no hinting to snap outlines to pixels.
     opts = cairo.FontOptions()
     opts.set_antialias(cairo.ANTIALIAS_GRAY)
-    opts.set_hint_style(cairo.HINT_STYLE_SLIGHT)
-    opts.set_hint_metrics(cairo.HINT_METRICS_ON)
+    opts.set_hint_style(cairo.HINT_STYLE_NONE)
+    opts.set_hint_metrics(cairo.HINT_METRICS_OFF)
     PangoCairo.context_set_font_options(ctx, opts)
     layout.context_changed()
     regular = Pango.FontDescription.from_string(font)

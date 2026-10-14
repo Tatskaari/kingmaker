@@ -8,18 +8,24 @@ assets/glyphs/kingmaker.txt, as a TrueType font a terminal uses like any other.
   python3 tools/glyphs/build.py --check       # read and check the bitmaps, build nothing
   python3 tools/glyphs/build.py --metrics     # compare our cell with the terminal font's (fc-match 'Adwaita Mono')
 
+Building needs fontTools (pip install fonttools, or the python3-fonttools package). Installing doesn't:
+without it, --install installs the committed fonts as they are.
+
 How it works. A terminal can't change fonts mid-line, but it falls back, per character, to any
 installed font that has a character its own font lacks. So the glyphs live in Unicode's
 Supplementary Private Use Area-B, at U+10E000 up, where no Nerd Font (v2 or v3), Font Awesome,
 Material Icons, Apple's SF Symbols or any font on a stock Fedora desktop has anything. The game
 prints them like letters and colours them like letters; the terminal finds this font for them.
 
-Each glyph fills exactly one cell: Adwaita Mono's (every advance 600 units of 1000, the typo
-ascender 965 and descender -285 with USE_TYPO_METRICS, so the full block spans 600 x 1250 units),
-and the terminal draws it at the cell's size, with nothing clipped or overhanging. The bitmaps are
-9 x 18 because that's the cell's aspect in near-square pixels, and because Adwaita Mono 11 at 96
-dpi (the default) draws its glyphs 8.8 x 18.3 pixels in a 9 x 20 cell: one bitmap pixel per screen
-pixel, the only scale at which pixel art stays crisp.
+Each glyph sits in one cell: the font has Adwaita Mono's metrics (every advance 600 units of 1000,
+the typo ascender 965 and descender -285 with USE_TYPO_METRICS), and every sprite's ink stays
+inside them, so nothing is clipped or overhangs. A design pixel is exactly one screen pixel at the
+size the game is drawn, Adwaita Mono 11 at 96 dpi (a 14.67-pixel em, so 1000 / 14.67 = 68.18 units),
+and the grid is anchored to the baseline, 14 rows above it and 4 below. VTE lays that size out in
+9 x 20 cells with the baseline 15 pixels down, so each row and column lands on a whole pixel and no
+edge is smeared across two, whatever the renderer's hinting (GTK 4 doesn't snap these). The grid is
+9 x 18, and its last column is always blank: the advance is 8.8 pixels, so 8 columns of ink fit
+inside it, and the ninth pixel of the cell is the gap that keeps neighbours apart.
 
 Outlines: the ink's boundary is traced into closed contours (clockwise, holes anticlockwise, the
 TrueType way) and collinear points merged, so a glyph is a few clean polygons rather than a
@@ -49,6 +55,10 @@ VERSION = "1.000"
 # Adwaita Mono, Version 34.1.0 (fc-match 'Adwaita Mono'; check with --metrics): one cell is 600 x 1250 units.
 UPM, ADVANCE, ASCENT, DESCENT = 1000, 600, 965, -285
 HHEA = (965, -215, 70)  # its hhea ascender, descender and line gap, kept for renderers that read those
+# One design pixel: one screen pixel at Adwaita Mono 11 and 96 dpi (an em of 11 * 96 / 72 pixels),
+# with the grid's row ABOVE at the baseline: 14 rows above it (top at 955 units), 4 below (-273).
+PIXEL = UPM / (11 * 96 / 72)
+ABOVE = 14
 FIRST, LAST = 0x10E000, 0x10EFFF  # our block of Supplementary Private Use Area-B
 BUILT = datetime.datetime(2026, 10, 14, tzinfo=datetime.timezone.utc)  # fixed, so builds are reproducible
 
@@ -108,10 +118,14 @@ def read(path=BITMAPS):
             errors.append(f"line {g.line}: U+{g.code:X} is already {seen_codes[g.code]}")
         if not any("#" in row for row in g.rows):
             errors.append(f"line {g.line}: {g.name} is blank")
+        if any(row.endswith("#") for row in g.rows):
+            errors.append(f"line {g.line}: {g.name} has ink in the last column, the gap between neighbours: keep it blank")
         seen_names.setdefault(g.name, g.line)
         seen_codes.setdefault(g.code, g.name)
     if not grid:
         errors.append("no grid line (grid WxH)")
+    elif (grid[0] - 1) * PIXEL > ADVANCE or ABOVE * PIXEL > ASCENT or (grid[1] - ABOVE) * PIXEL > -DESCENT:
+        errors.append(f"a {grid[0]} x {grid[1]} grid doesn't fit the cell at one screen pixel a design pixel (9 x 18 does)")
     return grid, glyphs, errors
 
 
@@ -165,10 +179,9 @@ def trace(rows):
 
 
 def to_units(point, grid):
-    """A lattice point in font units: the grid spans the cell, x 0..ADVANCE, y ASCENT..DESCENT."""
-    w, h = grid
+    """A lattice point in font units: a design pixel is PIXEL units square, the grid's row ABOVE on the baseline."""
     c, r = point
-    return round(c * ADVANCE / w), round(ASCENT - r * (ASCENT - DESCENT) / h)
+    return min(round(c * PIXEL), ADVANCE), round((ABOVE - r) * PIXEL)
 
 
 def outline(rows, grid):
@@ -184,10 +197,10 @@ def outline(rows, grid):
 
 
 def notdef():
-    """The missing-glyph box, inset a pixel or so from the cell."""
+    """The missing-glyph box, a pixel thick, on the sprites' grid (columns 1-6, rows 1-16)."""
     from fontTools.pens.ttGlyphPen import TTGlyphPen
     pen = TTGlyphPen(None)
-    x0, x1, y0, y1, t = 67, ADVANCE - 67, DESCENT + 69, ASCENT - 69, 67
+    x0, x1, y0, y1, t = round(PIXEL), round(7 * PIXEL), round((ABOVE - 17) * PIXEL), round((ABOVE - 1) * PIXEL), round(PIXEL)
     for box in ([(x0, y0), (x0, y1), (x1, y1), (x1, y0)], [(x0 + t, y0 + t), (x1 - t, y0 + t), (x1 - t, y1 - t), (x0 + t, y1 - t)]):
         pen.moveTo(box[0])
         for p in box[1:]:
@@ -312,7 +325,15 @@ def metrics(family="Adwaita Mono"):
     print("  the same cell" if theirs == ours else "  DIFFERENT: update the metrics at the top of build.py and rebuild")
     if 0x2588 in cmap:
         print(f"  their full block's advance: {f['hmtx'][cmap[0x2588]][0]}")
-    return theirs == ours
+    # Our ink, glyph by glyph, against the cell: on whole pixels at 11 point, and inside the advance and the ascent and descent.
+    built = TTFont(os.path.join(FONTS, "KingmakerGlyphs-Regular.ttf"))
+    glyf = built["glyf"]
+    boxes = [glyf[n] for n in built.getGlyphOrder() if n != ".notdef" and getattr(glyf[n], "numberOfContours", 0)]
+    x1, y0, y1 = max(g.xMax for g in boxes), min(g.yMin for g in boxes), max(g.yMax for g in boxes)
+    inside = min(g.xMin for g in boxes) >= 0 and x1 <= ADVANCE and y1 <= ASCENT and y0 >= DESCENT
+    print(f"  our sprites: a design pixel is {PIXEL:.2f} units, one screen pixel at 11 point and 96 dpi; their ink spans x 0..{x1}, y {y0}..{y1}"
+          + (" (inside the cell)" if inside else f" (OUTSIDE the cell: x 0..{ADVANCE}, y {DESCENT}..{ASCENT})"))
+    return theirs == ours and inside
 
 
 def main():
@@ -333,6 +354,18 @@ def main():
         sys.exit(1)
     print(f"{len(glyphs)} glyphs on a {grid[0]} x {grid[1]} grid, U+{min(g.code for g in glyphs):X}-U+{max(g.code for g in glyphs):X}")
     if args.check:
+        return
+    try:
+        import fontTools  # noqa: F401
+    except ImportError:
+        if not args.install:
+            sys.exit("building needs fontTools: pip install fonttools (or the python3-fonttools package)")
+        # A machine that only needs the fonts (where the terminal runs): install the committed ones.
+        committed = [os.path.join(FONTS, f"KingmakerGlyphs-{style}.ttf") for style in ("Regular", "Bold")]
+        stale = [p for p in committed if source(glyphs).encode() not in open(p, "rb").read()]
+        print("fontTools isn't installed, so nothing is built: installing the committed fonts as they are"
+              + (f" (built from other bitmaps than {os.path.relpath(BITMAPS, ROOT)}: rebuild them where fontTools is)" if stale else ""))
+        install(committed)
         return
     os.makedirs(FONTS, exist_ok=True)
     paths = []

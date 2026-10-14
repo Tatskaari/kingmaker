@@ -10,8 +10,9 @@ Contact sheets of Kingmaker Glyphs, for drawing them and checking them (PNGs in 
   and at three times that, with its name beside it in Adwaita Mono, so glyphs and letters compare.
 - pango-1x.png, pango-3x.png: lines of text in "Adwaita Mono 11" rendered by Pango and cairo, the
   stack Ptyxis and every VTE terminal draw with, so fontconfig's fallback picks the installed font
-  for the glyphs exactly as the terminal will (grayscale, slight hinting: GNOME's defaults). Needs
-  the font installed (npm run glyphs), and PyGObject with Pango and pycairo.
+  for the glyphs exactly as the terminal will, with GTK 4's font rendering (grayscale, no hinting:
+  it doesn't snap outlines to pixels, so a sheet that hints would look crisper than the terminal).
+  Needs the font installed (npm run glyphs), and PyGObject with Pango and pycairo.
 """
 import os
 import subprocess
@@ -92,7 +93,7 @@ def pango(glyphs, k=1, size=11):
     lines = []
     per = 6
     for i in range(0, len(glyphs), per):
-        lines.append("  ".join(f"{chr(g.code)} {g.name[:11]:<11}" for g in glyphs[i:i + per]))
+        lines.append("  ".join(f"{chr(g.code)} {g.name[:14]:<14}" for g in glyphs[i:i + per]))
     lines.append("")
     lines.append("On the cobbles: ,.,'" + "".join(chr(g.code) for g in glyphs[:24]) + ".,'.,")
     lines.append("Letters, then glyphs: K H N c m T A D S G s $ C ♔ M @ ☻ ☺")
@@ -105,10 +106,11 @@ def pango(glyphs, k=1, size=11):
     layout = PangoCairo.create_layout(cr)
     ctx = layout.get_context()
     PangoCairo.context_set_resolution(ctx, 96)
+    # As GTK 4 draws text (font rendering "automatic"): grayscale, and no hinting to snap outlines to pixels.
     opts = cairo.FontOptions()
     opts.set_antialias(cairo.ANTIALIAS_GRAY)
-    opts.set_hint_style(cairo.HINT_STYLE_SLIGHT)
-    opts.set_hint_metrics(cairo.HINT_METRICS_ON)
+    opts.set_hint_style(cairo.HINT_STYLE_NONE)
+    opts.set_hint_metrics(cairo.HINT_METRICS_OFF)
     PangoCairo.context_set_font_options(ctx, opts)
     layout.context_changed()
     layout.set_font_description(Pango.FontDescription.from_string(f"Adwaita Mono {size}"))

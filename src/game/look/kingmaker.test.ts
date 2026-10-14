@@ -5,7 +5,7 @@ process.env.KM_LOOK_MODEL = "off";
 const { KINGMAKER_GLYPHS, KINGMAKER_PIXELS, KINGMAKER_GRID, KINGMAKER_SOURCE } = await import("./kingmaker-glyphs.ts");
 const { km, isKingmaker, glyphFor, inSet, detectGlyphSet } = await import("./glyphs.ts");
 const { kmFlap, KM_VOCABULARY } = await import("./kingmaker.ts");
-const { lookOf } = await import("./appearance.ts");
+const { brightness, lookOf } = await import("./appearance.ts");
 const { CAST_LOOKS } = await import("./people.ts");
 const { frameAt } = await import("./vignettes.ts");
 const { actorLook, lookFrame } = await import("./map.ts");
@@ -92,6 +92,52 @@ test("the cast: a sprite each (the Crakes share one), the same in the look layer
   assert.equal(lookOf({ name: "Odo", kind: "person", cast: "odo" }, { glyphs: "kingmaker" }).glyph, km("man"));
 });
 
+test("a proper name says who, not what: surnames give no sprites, titles do, and people are never beasts", () => {
+  const named = (name: string, kind = "person") => KM_VOCABULARY.find(v => v.glyph === lookOf({ name, kind, cast: name.toLowerCase().replace(/\W+/g, "-") }, { glyphs: "kingmaker" }).glyph)?.name;
+  for (const name of ["Tom Fox", "Jack Crow", "Matt King", "Ann Page", "Ned Bishop", "Saul Tench"]) assert.equal(named(name), "man", name);
+  assert.equal(named("Mother Goose"), "woman");
+  assert.equal(named("Widow Crane"), "old-woman");
+  assert.equal(named("Old Saul"), "old-man");
+  assert.equal(named("Sergeant Hask"), "watchman");
+  assert.equal(named("King Bors"), "king", "a leading title is what they are");
+  assert.equal(named("Bramble the cat", "creature"), "cat");
+  // Invented people: never a beast, whatever else the words say; beasts by their words.
+  const invented = (name: string, kind: string) => KM_VOCABULARY.find(v => v.glyph === lookOf({ name, kind, created: 1 }, { glyphs: "kingmaker" }).glyph)?.name;
+  assert.equal(invented("a bear tamer", "person"), "man");
+  assert.equal(invented("a wolf hunter", "person"), "man");
+  assert.equal(invented("a fish porter", "person"), "porter");
+  assert.equal(invented("a Sea Captain", "person"), "guard", "a description has no proper names");
+  assert.equal(invented("a goblin guard", "creature"), "goblin");
+});
+
+test("postures: the dead lie still, sleepers and the knocked-out lie down, the hanged hang upright", () => {
+  const as = (thing: { name: string; kind: string; id?: string; cast?: string; tags?: string[] }, ...states: string[]) => KM_VOCABULARY.find(v => v.glyph === lookOf({ ...thing, states }, { glyphs: "kingmaker", t: 0 }).glyph)?.name ?? lookOf({ ...thing, states }, { glyphs: "kingmaker" }).glyph;
+  const kell = { name: "Sergeant Agnes Kell", kind: "person", id: "kell" }, porter = { name: "a porter", kind: "person" };
+  assert.equal(as(kell), "kell");
+  assert.equal(as(kell, "unconscious"), "lying");
+  assert.equal(as(kell, "asleep"), "sleeper");
+  assert.equal(as(kell, "dead"), "body");
+  assert.equal(as(kell, "stunned"), "kell", "stunned, she stands");
+  assert.equal(as(porter, "prone"), "lying");
+  assert.equal(as({ name: "a sleeping drunk", kind: "person" }), "sleeper", "asleep by name");
+  assert.equal(as({ name: "Duchess", kind: "creature", id: "duchess" }, "asleep"), "duchess-asleep");
+  assert.equal(as({ name: "Duchess", kind: "creature", id: "duchess" }, "dead"), "%", "a dead beast is remains");
+  assert.equal(as({ name: "a dog", kind: "creature" }, "asleep"), "dog-asleep");
+  assert.equal(as({ name: "a goat", kind: "creature" }, "asleep"), "goat", "no sprite for it: as it was, dimmed");
+  assert.equal(as(porter, "dead", "hanging"), "porter", "hanged, as themselves");
+  assert.equal(as(kell, "dead", "hanging"), "kell");
+  assert.equal(as({ name: "Wendell Prout's body", kind: "object", tags: ["body"] }, "hanging"), "man", "a body hangs as anyone");
+  // In ascii nothing lies down: the letter stays, dimmed.
+  assert.equal(lookOf({ ...kell, states: ["asleep"] }, { glyphs: "ascii" }).glyph, "K");
+});
+
+test("dark sprites are lifted until they show; letters keep their colours", () => {
+  const crow = { name: "a crow", kind: "creature" };
+  const dark = brightness(lookOf(crow, { glyphs: "ascii" }).fg), lifted = brightness(lookOf(crow, { glyphs: "kingmaker" }).fg);
+  assert.ok(lifted > dark + 0.1 && lifted >= 0.44, `${dark} -> ${lifted}`);
+  assert.equal(lookOf({ name: "a goose", kind: "creature" }, { glyphs: "kingmaker" }).fg, lookOf({ name: "a goose", kind: "creature" }, { glyphs: "ascii" }).fg, "bright ones are as they were");
+});
+
 test("invented names find a sprite by their words, or keep their ascii letter", () => {
   const look = (name: string, kind: string, states: string[] = []) => lookOf({ name, kind, created: 1, states }, { glyphs: "kingmaker", t: 0 });
   assert.equal(look("a goblin", "creature").glyph, km("goblin"));
@@ -160,7 +206,9 @@ test("the map stays aligned with sprites on it: every row of the Rat and the Her
     const sprites = actors.filter(a => isKingmaker(a.glyph));
     assert.ok(sprites.length >= 4, `${scene}: the cast are sprites`);
     const r = regionForScene(scene)!.region.rect;
-    const lines = render(getMap(ex.map), actors, { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) }, viewport, { time: "night", roofs: false, tick: 3 });
+    // A renderer that works out each actor's look itself does it in `glyphs`; one that doesn't draws the glyphs it's given.
+    const options = { time: "night" as const, roofs: false, tick: 3, glyphs: "kingmaker" as const };
+    const lines = render(getMap(ex.map), actors, { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) }, viewport, options);
     assert.equal(lines.length, viewport.h);
     const drawn = lines.map(asText).join("");
     assert.ok(sprites.some(a => drawn.includes(a.glyph)), `${scene}: sprites on screen`);
