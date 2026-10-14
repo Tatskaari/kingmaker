@@ -1,5 +1,5 @@
 import type { WorldScript } from "../world/dsl.ts";
-import type { WorldSpec } from "../world/scene-world.ts";
+import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 
 /**
  * A scene is GM prep, not a script: who is here and what they want, the beats the
@@ -176,6 +176,11 @@ export interface Scene {
    * boundary in the session's copy, when play or the time passing has made them true.
    */
   fronts?: string;
+  /**
+   * What happens to the place offstage once the scene is over, whatever the ending (the body taken
+   * away): world ops applied to its world as it ends, so the map shows the place as it's left.
+   */
+  afterwards?: Array<Pick<WorldOp, "op" | "what"> & Partial<WorldOp>>;
   /**
    * What this scene's prep takes for granted about the story so far, in plain words ("the barge
    * hasn't sailed yet"). Checked when the story reaches the scene: if play has already made one

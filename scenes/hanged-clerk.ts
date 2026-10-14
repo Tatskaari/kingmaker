@@ -412,4 +412,6 @@ export const hangedClerk: Scene = {
   anchors: ["granary-yard", "hoist-beam", "loft-door", "tally-loft", "water-butt", "yard-wall", "yard-gate", "yard-doors"],
   lore: ["Places/Granary Yard.md", "World/Caerwyn now.md"],
   fronts: "World/Fronts.md",
+  // Whatever the ending, Prout doesn't stay on the hoist: the watch house's cold room, or the dead-cart at noon.
+  afterwards: [{ op: "remove", what: "prout", text: "taken away: to the watch house under a sheet, or on the dead-cart" }],
 };

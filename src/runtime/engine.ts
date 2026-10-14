@@ -605,6 +605,10 @@ function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
     warnings.push(`script failed: ${error instanceof Error ? error.message : String(error)}`);
   }
   state.ended = { exitId: exit.id, turn: state.turn, operations, warnings };
+  // What happens to the place offstage once it's over (not yet, if a fight comes first).
+  if (state.world && scene.afterwards?.length && exit.kind !== "combat") {
+    applyOps(state.world, scene.afterwards.map(o => ({ to: "", how: "", name: "", kind: "", text: "", add: [], remove: [], ...o })), state.turn, "rules");
+  }
   state.transcript.push({ turn: state.turn, scene: state.sceneId, speaker: "system", kind: "system", text: `Scene ends: ${exit.title}` });
 }
 
