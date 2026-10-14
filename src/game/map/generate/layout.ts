@@ -104,6 +104,8 @@ const WALLS_OF: Partial<Record<WallKind, string>> = { "earth-bank": "timber" };
 
 /** How far out a strip of each kind of ground goes, at most, in squares (things in it get more room). */
 const STRIP_DEPTH: Record<Ground, number> = { cobbles: 3, boards: 3, "planks-over-water": 2, dirt: 3, grass: 3, steps: 2, water: 3, boat: 0 };
+/** How far out all a side's strips go together, at most (a boat's berth besides). */
+const SIDE_DEPTH = 6;
 
 /** An indoor floor tile of a kind, under a roof. */
 export function floorTile(kind: FloorKind, roof: string, roofHeight: number): MapTile {
@@ -151,6 +153,12 @@ export const seedOf = (s: string) => [...s].reduce((h, c) => (Math.imul(h, 31) +
 export interface LayoutOptions {
   /** Varies what the plan leaves open (default 1). */
   seed?: number;
+  /**
+   * The things on the floor to size the building for, at least (default 12): a building laid out
+   * from its rooms before its things have arrived (a streaming plan's shell) is then the same
+   * building as the furnished one, unless it has more than that.
+   */
+  expectThings?: number;
 }
 
 export function layout(plan: PlacePlan, options: LayoutOptions = {}): Site {
@@ -162,7 +170,7 @@ export function layout(plan: PlacePlan, options: LayoutOptions = {}): Site {
   // Each room as asked (with its walls), and on the main floor a square or two per thing to stand
   // on and get round it, so the main room isn't all furniture.
   const need = plan.rooms.filter(r => r.where !== "main").reduce((n, r) => n + Math.max(MIN_ROOM, tilesOf(r.width)) * Math.max(MIN_ROOM, tilesOf(r.depth)) + 4, 0)
-    + onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0) + plan.people.length + 9;
+    + Math.max(onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0), 2 * (options.expectThings ?? 12)) + Math.max(3, plan.people.length) + 9;
   const asked = { W, D };
   if ((W - 2) * (D - 2) < need) {
     const k = Math.min(1.5, Math.sqrt(need / ((W - 2) * (D - 2))));
@@ -244,6 +252,20 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
     const off = behind(water.o.side) ? shadow + 1 : 1;
     water.depth = Math.max(water.depth, off + beam + 2 + 1);
     boatBerths.push({ boat, water: water.o, beam });
+  }
+  // However many strips a side has (a quay, the stairs, a landing, the river), the outside doesn't
+  // outgrow the building: the ground gives way first, the outermost first, down to a square each;
+  // then the water, down to its shallows and a row of deep (or a boat's berth).
+  for (const side of SIDES) {
+    const berth = Math.max(0, ...boatBerths.filter(b => b.water.side === side).map(b => (behind(side) ? shadow + 1 : 1) + b.beam + 3));
+    const total = () => strips[side].reduce((n, x) => n + x.depth, 0);
+    for (const water of [false, true]) {
+      for (const s of [...strips[side]].reverse()) {
+        if ((s.o.ground === "water") !== water || total() <= SIDE_DEPTH + berth) continue;
+        const least = boatBerths.some(b => b.water.id === s.o.id) ? berth : water ? 2 : 1;
+        s.depth = Math.max(least, s.depth - (total() - SIDE_DEPTH - berth));
+      }
+    }
   }
   const extent = (s: Side) => strips[s].reduce((n, x) => n + x.depth, 0);
   const margin = (s: Side) => (strips[s].length ? 0 : 1);

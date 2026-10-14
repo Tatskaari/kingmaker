@@ -80,9 +80,10 @@ export function sceneCamera(map: TileMap, actors: MapActor[]): Camera {
   // Whose rooms open is fixed by everyone there, whoever is taken away.
   const reveal = actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at);
   let count = 0;
-  const draw = (focus: Tile2, without?: Set<MapActor>): string[][] => {
+  // Taken away by id: the actor asked about may be a copy of the one on the map.
+  const draw = (focus: Tile2, without?: Set<string>): string[][] => {
     count++;
-    const lines = render(map, without ? actors.filter(a => !without.has(a)) : actors, camera, viewport, { time: "afternoon", roofs: false, focus, ...(reveal.length ? { reveal } : {}), color: false });
+    const lines = render(map, without ? actors.filter(a => !without.has(a.id)) : actors, camera, viewport, { time: "afternoon", roofs: false, focus, ...(reveal.length ? { reveal } : {}), color: false });
     return lines.map(line => [...line.map(s => s.text).join("")]);
   };
   const frames = new Map<string, string[][]>();
@@ -110,7 +111,7 @@ export function sceneCamera(map: TileMap, actors: MapActor[]): Camera {
       for (const f of foot) batch.taken.add(f);
     }
     for (const b of batches) {
-      const without = draw(focus, new Set(b.actors));
+      const without = draw(focus, new Set(b.actors.map(a => a.id)));
       for (const a of b.actors) shown.set(a, cellsOf(map, a, camera, viewport).some(c => base[c.y]?.[c.x] !== without[c.y]?.[c.x]));
     }
     return shown;

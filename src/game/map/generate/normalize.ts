@@ -23,6 +23,23 @@ export const slugId = (s: string) => s.toLowerCase().replace(/^(a|an|the) /, "")
 const words = (s: string) => s.toLowerCase().replace(/^(a|an|the) /, "").split(/[^a-z0-9]+/).filter(w => w.length > 2);
 
 const pick = <T extends string>(values: readonly T[], value: unknown, fallback: T): T => ((values as readonly string[]).includes(value as string) ? value as T : fallback);
+/** One of the values, or what a near miss means ("boards-over-water" is planks-over-water, "wood" is timber). */
+const loose = <T extends string>(values: readonly T[], value: unknown, fallback: T, near: Array<[RegExp, T]>): T => {
+  const v = String(value ?? "").toLowerCase().trim();
+  if ((values as readonly string[]).includes(v)) return v as T;
+  return near.find(([re]) => re.test(v))?.[1] ?? fallback;
+};
+const NEAR_GROUND: Array<[RegExp, (typeof GROUNDS)[number]]> = [
+  [/over.?water|piles|pier|jetty|boardwalk|pontoon|stilts|gangway/, "planks-over-water"], [/boat|barge|skiff|ship|wherry|lighter|punt/, "boat"],
+  [/water|river|sea|harbou?r|canal|pond|lake|stream|dock/, "water"], [/stair|step/, "steps"], [/plank|board|deck|wood|timber/, "boards"],
+  [/cobble|stone|pav|flag|street|road|sett|square/, "cobbles"], [/grass|lawn|turf|meadow|green|garden/, "grass"], [/dirt|mud|earth|yard|soil|gravel|sand|track/, "dirt"],
+];
+const NEAR_WALLS: Array<[RegExp, (typeof WALLS)[number]]> = [
+  [/tar/, "tarred-timber"], [/bank|turf|earth|burrow|cave/, "earth-bank"], [/marble|ashlar|dressed|fine|palace/, "fine-stone"], [/brick/, "brick"],
+  [/plaster|wattle|daub|white/, "plaster"], [/wood|timber|plank|board|log/, "timber"], [/stone|rubble|granite|flint/, "stone"],
+];
+const NEAR_SURROUNDINGS: Array<[RegExp, (typeof SURROUNDINGS)[number]]> = [[/bank|earth|hill|turf|cliff/, "earth-bank"], [/water|river|sea|harbou?r|canal|lake/, "water"], [/building|house|street|town|shop|lane|terrace/, "buildings"]];
+const NEAR_FLOOR: Array<[RegExp, (typeof FLOORS)[number]]> = [[/board|plank|wood|timber/, "boards"], [/flag|stone|cobble|slate/, "flagstones"], [/earth|dirt|mud|straw|rush/, "earth"], [/carpet|rug/, "carpet"], [/tile|marble|mosaic/, "tiles"]];
 const clamp = (n: unknown, lo: number, hi: number, fallback: number) => { const v = Number(n); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : fallback; };
 
 /** Names of terrain the map already draws: a thing called this is the ground itself, not furniture. */
@@ -37,9 +54,9 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
   plan.width = clamp(plan.width, 15, 150, 40);
   plan.depth = clamp(plan.depth, 15, 150, 40);
   plan.storeys = Math.round(clamp(plan.storeys, 1, 3, 1));
-  plan.walls = pick(WALLS, plan.walls, "timber");
-  plan.floor = pick(FLOORS, plan.floor, "boards");
-  plan.surroundings = pick(SURROUNDINGS, plan.surroundings, "open");
+  plan.walls = loose(WALLS, plan.walls, "timber", NEAR_WALLS);
+  plan.floor = loose(FLOORS, plan.floor, "boards", NEAR_FLOOR);
+  plan.surroundings = loose(SURROUNDINGS, plan.surroundings, "open", NEAR_SURROUNDINGS);
   for (const key of ["outside", "rooms", "doors", "windows", "things", "people"] as const) if (!Array.isArray(plan[key])) (plan as unknown as Record<string, unknown[]>)[key] = [];
   for (const p of plan.people) { p.id = String(p.id || ""); p.name = String(p.name || p.id); }
 
@@ -92,7 +109,7 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
   // Outside: at least one, so there's a street to arrive by.
   for (const o of plan.outside) {
     o.side = pick(SIDES, o.side, "south");
-    o.ground = pick(GROUNDS, o.ground, "cobbles");
+    o.ground = loose(GROUNDS, o.ground, "cobbles", NEAR_GROUND);
     o.depth = clamp(o.depth, 5, 40, 10);
     o.name = String(o.name || o.id); o.description = String(o.description || "");
   }
@@ -112,7 +129,7 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
   }
   for (const r of plan.rooms) {
     r.where = pick(["main", ...SIDES, ...CORNERS] as const, r.where, "north");
-    r.floor = pick([...FLOORS, "same"] as const, r.floor, "same");
+    r.floor = r.floor === "same" || !r.floor ? "same" : loose(FLOORS, r.floor, plan.floor, NEAR_FLOOR);
     r.width = clamp(r.width, 10, 150, 15); r.depth = clamp(r.depth, 10, 150, 15); // the layout makes it 15 at least
     r.name = String(r.name || r.id); r.description = String(r.description || "");
   }

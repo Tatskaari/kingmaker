@@ -1,5 +1,6 @@
 import { respondJson, type Effort, type RespondResult } from "../../../llm/openrouter.ts";
 import type { Material, Size } from "../../../world/scene-world.ts";
+import { COMPACT_INSTRUCTIONS, COMPACT_SCHEMA, partialPlan, readPlace, writePlace, type CompactPlan, type Stage } from "./compact.ts";
 
 /**
  * The semantic plan of a place: what a model writes instead of a grid. Models draw character grids
@@ -211,12 +212,31 @@ export const PLAN_INSTRUCTIONS = [
   "Ids are lowercase-with-hyphens and unique across rooms, outside areas, doors, things and people; every reference must be one of them. Use the scene world's words: sizes tiny, small, medium, large, huge, gargantuan (a mug, a chair, a table, a cart, a stack of sacks, a river); tags such as furniture, cover, container, door, light, fire, hearth, sign, water, evidence; states such as lit, closed, locked, barred, hanging, open.",
 ].join("\n");
 
-export interface PlanCall { plan: PlacePlan; meta: RespondResult }
+export interface PlanCall {
+  plan: PlacePlan;
+  meta: RespondResult;
+  /** When each part of the plan had arrived, in ms from the call (a streaming planner). */
+  stages?: Partial<Record<Stage, number>>;
+}
 
-export interface PlannerOptions { model?: string; effort?: Effort; signal?: AbortSignal }
+export interface PlannerOptions {
+  model?: string;
+  /** Reasoning effort: none by default (as fast, and as good, as low was). */
+  effort?: Effort;
+  /** compact (default): a line of fields per entry, about half as long to write; verbose: the old one-object-per-entry plan. */
+  format?: "compact" | "verbose";
+  signal?: AbortSignal;
+}
 
 /** What a planner is asked: the place, the scene's cast, and for a repair the last plan and what's wrong with it. */
-export interface PlanRequest { text: string; cast?: CastMember[]; previous?: PlacePlan; problems?: string[] }
+export interface PlanRequest {
+  text: string;
+  cast?: CastMember[];
+  previous?: PlacePlan;
+  problems?: string[];
+  /** Parts of the plan as they arrive (compact plans stream): the structure, before the things; then the things. */
+  onPartial?: (stage: Stage, plan: PlacePlan, ms: number) => void;
+}
 
 /** A planner: the model by default; tests and offline runs pass their own. */
 export type Planner = (request: PlanRequest) => Promise<PlanCall>;
@@ -227,27 +247,47 @@ export function castBrief(cast: CastMember[] | undefined): string {
   return `\n\nThe scene's cast. Each of them who is here is one of the people, with exactly this id; anyone else you add gets an id of their own:\n${cast.map(c => `- ${c.id}: ${c.name}${c.who ? `, ${c.who}` : ""}`).join("\n")}`;
 }
 
-/** The model writes a plan from a description; with a previous plan and problems, it repairs it. */
+/**
+ * The model writes a plan from a description; with a previous plan and problems, it repairs it. A
+ * compact plan streams: its parts are handed on as they arrive (the structure when the things
+ * begin, the things when the people begin).
+ */
 export function modelPlanner(options: PlannerOptions = {}): Planner {
-  return async ({ text, cast, previous, problems }) => {
+  const compact = (options.format ?? "compact") === "compact";
+  return async ({ text, cast, previous, problems, onPartial }) => {
     const place = `The place:\n${text}${castBrief(cast)}`;
     const input = previous && problems?.length
       ? [
         { role: "user" as const, content: place },
-        { role: "assistant" as const, content: JSON.stringify(previous) },
+        { role: "assistant" as const, content: JSON.stringify(compact ? writePlace(previous) : previous) },
         { role: "user" as const, content: `The program laid out your plan and checked it. Fix these problems and return the whole plan again (keep what works):\n${problems.map(p => `- ${p}`).join("\n")}` },
       ]
       : [{ role: "user" as const, content: place }];
-    const result = await respondJson<PlacePlan>({
+    const started = performance.now();
+    const stages: Partial<Record<Stage, number>> = {};
+    const order: Stage[] = ["structure", "things"];
+    const onText = compact ? (streamed: string) => {
+      const got = partialPlan(streamed);
+      if (!got || stages[got.stage] !== undefined) return;
+      const ms = performance.now() - started;
+      // Both may land in one delta: the structure first.
+      for (const stage of order.slice(0, order.indexOf(got.stage as "structure" | "things") + 1)) {
+        if (stages[stage] !== undefined) continue;
+        stages[stage] = ms;
+        onPartial?.(stage, readPlace(got.plan), ms);
+      }
+    } : undefined;
+    const result = await respondJson<CompactPlan | PlacePlan>({
       operation: previous ? "map.plan.repair" : "map.plan",
       ...(options.model ? { model: options.model } : {}),
-      effort: options.effort ?? "low",
-      instructions: PLAN_INSTRUCTIONS,
+      effort: options.effort ?? "none",
+      instructions: compact ? COMPACT_INSTRUCTIONS : PLAN_INSTRUCTIONS,
       input,
-      json: { name: "place_plan", schema: PLAN_SCHEMA },
+      json: { name: "place_plan", schema: compact ? COMPACT_SCHEMA : PLAN_SCHEMA },
+      ...(onText ? { onText } : {}),
       ...(options.signal ? { signal: options.signal } : {}),
     });
-    const { _meta, ...plan } = result;
-    return { plan: plan as PlacePlan, meta: _meta };
+    const { _meta, ...raw } = result;
+    return { plan: compact ? readPlace(raw as CompactPlan) : raw as PlacePlan, meta: _meta, stages };
   };
 }

@@ -10,9 +10,15 @@ import { compilePlan } from "./compile.ts";
 import { MUDDLED, MUDDLED_FIXED, TAVERN, WAREHOUSE } from "./fixtures.ts";
 import { generatePlace } from "./generate.ts";
 import { installPlace, uninstallPlace } from "./install.ts";
-import type { Problem } from "./normalize.ts";
+import { normalizePlan, type Problem } from "./normalize.ts";
 import { chooseTurn, turnSide } from "./orient.ts";
 import { PLAN_SCHEMA, type PlacePlan, type Planner } from "./plan.ts";
+import { COMPACT_SCHEMA, partialPlan, readPlace, writePlace } from "./compact.ts";
+import { sceneCamera } from "./camera.ts";
+import { fitView } from "./pictures.ts";
+import { render } from "../render.ts";
+import { castOf } from "../looks.ts";
+import type { MapTile } from "../tiles.ts";
 import { sketch } from "./sketch.ts";
 import { errorsOf, validate } from "./validate.ts";
 
@@ -197,4 +203,166 @@ test("the model's plan schema is strict (every property required, nothing extra)
     if (n.type === "array") visit(n.items, `${path}[]`);
   };
   visit(PLAN_SCHEMA, "plan");
+  visit(COMPACT_SCHEMA, "compact");
+});
+
+// ---------------------------------------------------------------------------------------------
+// The second version: the look layer on the map, the scene's cast, composition, light, latency.
+
+const allPlans = (): Array<[string, PlacePlan]> => [["TAVERN", TAVERN], ["WAREHOUSE", WAREHOUSE], ["MUDDLED_FIXED", MUDDLED_FIXED], ...Object.entries(JSON.parse(readFileSync(new URL("./model-plans.json", import.meta.url), "utf8")) as Record<string, PlacePlan>)];
+const worldActors = (place: ReturnType<typeof compilePlan>) => actorsFromWorld(place.region, buildWorld(place.id, place.world, place.cast, { name: "you" }), { map: place.map });
+
+test("the camera check asks the renderer: whatever glyph the look layer gives a thing, it's seen if taking it away changes the picture", () => {
+  const place = compilePlan(TAVERN, { id: "test-camera" });
+  const actors = worldActors(place);
+  const cam = sceneCamera(place.map, actors);
+  const fire = actors.find(a => a.ref === "fire")!;
+  // The map's own glyph for a fire is Ψ; the look layer draws a flame. Either way it's seen.
+  assert.notEqual(cam.view(place.furnished.start).flat().includes(fire.glyph), true, "the look layer doesn't draw the map's glyph");
+  assert.equal(cam.seen(fire, place.furnished.start), true);
+  // Something under a roof nobody lifted isn't.
+  const outside = compilePlan(TAVERN, { id: "test-camera-2" });
+  const street = outside.site.entrance!.outside;
+  const outsiders = worldActors(outside);
+  const stool = outsiders.find(a => a.ref === "chair")!;
+  const lines = render(outside.map, worldActors(outside), fitView(outside.map).camera, fitView(outside.map).viewport, { time: "afternoon", focus: street, color: false });
+  assert.ok(lines.length > 0);
+  assert.equal(sceneCamera(outside.map, outsiders).seen(stool, street), true, "in the scene view the roof is off");
+  assert.equal(sceneCamera(outside.map, outsiders).seen({ ...stool }, street), true, "a copy of an actor is the actor");
+});
+
+test("the plan is terse: a line of fields per entry, about half as long, read back to the same map, and readable while it streams", () => {
+  for (const [key, plan] of allPlans()) {
+    const text = JSON.stringify(writePlace(plan));
+    assert.ok(text.length < JSON.stringify(plan).length * 0.6, `${key} is shorter`);
+    assert.equal(sketch(compilePlan(readPlace(JSON.parse(text)), { id: `rt-${key}` })), sketch(compilePlan(plan, { id: `rt-${key}` })), `${key} round-trips`);
+    // Cut off anywhere after the things begin: the structure is there, then the things.
+    const structure = partialPlan(text.slice(0, text.indexOf('"things"') + 9));
+    assert.equal(structure?.stage, "structure");
+    assert.equal(structure?.plan.rooms?.length, plan.rooms.length);
+    const things = partialPlan(text.slice(0, text.indexOf('"people"') + 9));
+    assert.equal(things?.stage, "things");
+    assert.equal(things?.plan.things?.length, plan.things.length);
+  }
+  // Near misses are read as what they mean.
+  const odd = readPlace({ place: "The Wick | a shop | 40 x 30 ft | 1 | wooden | wood | houses", outside: ["quay | the quay | south | 10 | boards-over-water"], rooms: ["shop | the shop | main"], doors: ["d | the door | shop -> quay | south | shut"], windows: [], things: ["lamp | a lamp | object small brass | shop | hung from the beams", "cat | the cat | creature small flesh | shop | next to lamp"], people: [], start: "quay" });
+  const { plan } = normalizePlan(odd);
+  assert.deepEqual([plan.walls, plan.floor, plan.surroundings, plan.outside[0]!.ground], ["timber", "boards", "buildings", "planks-over-water"]);
+  assert.deepEqual([plan.things[0]!.relation, plan.things[1]!.relation, plan.things[1]!.target, plan.doors[0]!.to], ["overhead", "beside", "lamp", "quay"]);
+});
+
+test("streaming: the building is laid out from the rooms before the things arrive, and is the one furnished", async () => {
+  const text = JSON.stringify(writePlace(TAVERN));
+  const streaming: Planner = async ({ onPartial }) => {
+    // The model's text arriving in pieces.
+    for (let i = 40; i <= text.length; i += 40) {
+      const got = partialPlan(text.slice(0, i));
+      if (got) onPartial?.(got.stage, readPlace(got.plan), i);
+    }
+    return { plan: readPlace(JSON.parse(text)), meta: fakeMeta, stages: {} };
+  };
+  const shells: Array<{ w: number; h: number }> = [];
+  const made = await generatePlace("a tavern", { id: "test-stream", planner: streaming, onShell: shell => shells.push({ w: shell.site.building.w, h: shell.site.building.h }) });
+  assert.equal(made.ok, true);
+  assert.ok(shells.length >= 1, "a building before the things");
+  assert.deepEqual(shells[0], { w: made.place!.site.building.w, h: made.place!.site.building.h }, "the same building as the furnished one");
+  assert.ok(made.shellMs !== undefined && made.shellMs <= made.ms);
+});
+
+test("the scene's cast: the plan's people take their ids, those it leaves out are placed by relation, and everyone else gets a letter and a colour of their own", () => {
+  const cast = [
+    { id: "nan-quill", name: "Nan Quill", who: "the landlady" },
+    { id: "dilly", name: "Dilly Sparrow", who: "an ancient bargewoman who deals cards at her table" },
+    { id: "kell", name: "Sergeant Agnes Kell", who: "in a borrowed coat" },
+  ];
+  const plan: PlacePlan = { ...TAVERN, people: [
+    ...TAVERN.people.filter(p => p.id !== "hobb"),
+    { id: "dilly-sparrow", name: "Dilly Sparrow", in: "taproom", relation: "near", target: "card-table", note: "dealing" },
+    { id: "mara", name: "Mara Wick", in: "taproom", relation: "near", target: "bar", note: "a chandler, drinking" },
+    { id: "kell", name: "Old Mother Gristle", in: "taproom", relation: "centre", target: "", note: "a fishwife, whose id the model got wrong" },
+  ] };
+  const place = compilePlan(plan, { id: "test-cast", sceneId: "test-cast", cast: cast.filter(c => c.id !== "kell") });
+  const ids = place.laid.people.map(p => p.id);
+  assert.ok(ids.includes("dilly") && !ids.includes("dilly-sparrow"), "Dilly Sparrow is dilly");
+  assert.ok(!ids.includes("kell"), "a fishwife given the id kell isn't Sergeant Kell");
+  assert.ok(ids.some(id => id.startsWith("kell-")));
+  // Left out: placed by relation (the card table is what her line mentions), not dropped in the middle.
+  const withNan = compilePlan({ ...plan, people: plan.people.filter(p => p.id !== "nan-quill") }, { id: "test-cast-2", cast });
+  const nan = withNan.furnished.people.get("nan-quill");
+  assert.ok(nan, "Nan is placed though the plan left her out");
+  assert.ok(withNan.problems.some(p => p.subject === "nan-quill" && p.severity === "warning"));
+  // People outside the cast table: distinct letters and colours, not all p, drawn so on the map once installed.
+  const looks = Object.values(place.looks);
+  assert.ok(looks.length >= 2);
+  assert.equal(new Set(looks.map(l => l.glyph)).size, looks.length);
+  assert.equal(new Set(looks.map(l => l.color)).size, looks.length);
+  assert.ok(!looks.some(l => l.glyph === "p" || l.glyph === "P" && looks.length < 2));
+  const mara = place.looks["mara"]!;
+  assert.equal(mara.glyph, "M");
+  installPlace(place, { time: "evening" });
+  try {
+    const ex = newExploration({ time: "evening", played: [], lead: "test-cast", flags: {} }, { map: place.id, at: place.furnished.start });
+    enterScene(ex, "test-cast");
+    const drawn = toPlain(renderExplore(ex, { w: 90, h: 40 }, { world: buildWorld("test-cast", place.world, place.cast, { name: "you" }) }));
+    assert.match(drawn, /M/, "Mara Wick is an M on the map");
+  } finally {
+    uninstallPlace(place);
+  }
+  assert.equal(castOf("mara"), undefined, "and is taken out of the cast table again");
+});
+
+test("composition: a main room of five squares each way, burrows timber-walled in their bank, strips no deeper than they need, the water where the camera sees it", () => {
+  for (const [key, plan] of allPlans()) {
+    for (const seed of [1, 2, 3]) {
+      const place = compilePlan(plan, { id: `test-comp-${key}`, seed });
+      const main = place.laid.rooms.find(r => r.where === "main")!;
+      const tiles = new Set(place.site.areas.get(main.id)!.tiles.map(at));
+      const roomy = [...tiles].some(k => { const [x, y] = k.split(",").map(Number) as [number, number]; for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++) if (!tiles.has(`${x + dx},${y + dy}`)) return false; return true; });
+      assert.ok(roomy, `${key} (seed ${seed}): the main room has five squares each way\n${sketch(place)}`);
+      for (const side of ["north", "east", "south", "west"] as const) {
+        const depth = place.laid.outside.filter(o => o.side === side && o.ground !== "boat").reduce((n, o) => n + (place.site.areas.get(o.id)?.rect ? (side === "north" || side === "south" ? place.site.areas.get(o.id)!.rect.h : place.site.areas.get(o.id)!.rect.w) : 0), 0);
+        assert.ok(depth <= 13, `${key}: ${side} side's outside is ${depth} deep`);
+      }
+      if (place.laid.outside.some(o => o.ground === "water")) assert.ok(place.laid.outside.some(o => o.ground === "water" && (o.side === "south" || o.side === "west")), `${key}: the water's in front`);
+    }
+  }
+  // A burrow: timber walls, the bank all round them, never a turf wall beside a floor.
+  const rat = compilePlan(TAVERN, { id: "test-burrow" });
+  const t = (x: number, y: number) => (rat.map.tiles as MapTile[][])[y]?.[x];
+  for (let y = 0; y < rat.map.height; y++) for (let x = 0; x < rat.map.width; x++) {
+    const here = t(x, y)!;
+    if (here.roof === undefined) continue;
+    for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const) assert.notEqual(t(x + dx, y + dy)?.style, "bank", `bank beside the floor at ${x},${y}`);
+  }
+  assert.ok((rat.map.tiles as MapTile[][]).flat().some(x => x.style === "bank"), "the bank is round it");
+  // A wharf on one side and the river on the other: the river comes round to the front.
+  const behind: PlacePlan = { ...WAREHOUSE, outside: WAREHOUSE.outside.map(o => (o.id === "wharf" ? o : { ...o, side: "east" as const })), doors: WAREHOUSE.doors.map(d => (d.id === "river-door" ? { ...d, wall: "east" as const } : d)) };
+  const front = compilePlan(behind, { id: "test-front" });
+  assert.ok(front.laid.outside.filter(o => o.ground === "water" || o.ground === "boat").every(o => o.side === "south" || o.side === "west"));
+  assert.deepEqual(errors(validate(front)), []);
+});
+
+test("variety: the seed moves doors off the middle, picks a side room's end, and sometimes leaves a back corner out (an L)", () => {
+  const doors = new Set<string>(), notches = new Set<string>();
+  for (let seed = 1; seed <= 12; seed++) {
+    const place = compilePlan(MUDDLED_FIXED, { id: "test-variety", seed });
+    assert.deepEqual(errors(validate(place)), [], `seed ${seed}:\n${sketch(place)}`);
+    const d = place.site.doors.find(x => x.id === "street-door")!;
+    doors.add(at({ x: d.at.x - place.site.building.x, y: d.at.y - place.site.building.y }));
+    const big = compilePlan({ ...MUDDLED_FIXED, rooms: MUDDLED_FIXED.rooms.filter(r => r.where === "main"), doors: MUDDLED_FIXED.doors.filter(x => x.id === "street-door"), width: 60, depth: 55 }, { id: "test-variety-l", seed });
+    if (big.site.notch) notches.add(`${big.site.notch.x - big.site.building.x},${big.site.notch.y - big.site.building.y}`);
+    assert.deepEqual(errors(validate(big)), [], `seed ${seed} (L):\n${sketch(big)}`);
+  }
+  assert.ok(doors.size >= 3, `the street door in ${doors.size} places`);
+  assert.ok(notches.size >= 1, "some buildings are an L");
+});
+
+test("light: a big room by one fire gets lanterns where it's darkest; a small room doesn't", () => {
+  const big = compilePlan({ ...TAVERN, width: 80, depth: 60 }, { id: "test-lamps" });
+  const lamps = big.furnished.added.filter(t => /lantern/.test(t.name));
+  assert.ok(lamps.length >= 1, `lanterns hung:\n${sketch(big)}`);
+  assert.ok(big.world.things.some(t => t.id === lamps[0]!.id && t.states?.includes("lit")), "the world has them, lit");
+  assert.deepEqual(errors(validate(big)), []);
+  const small = compilePlan({ ...MUDDLED_FIXED, things: MUDDLED_FIXED.things.slice(0, 3) }, { id: "test-no-lamps" });
+  assert.equal(small.furnished.added.filter(t => t.in === "workshop").length, 0);
 });

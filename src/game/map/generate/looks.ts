@@ -4,6 +4,7 @@ import { inventNow, type InventRequest, type InventSpend } from "../../look/inve
 import { castOf } from "../looks.ts";
 import { actorsFromWorld } from "../reconcile.ts";
 import type { CompiledPlace } from "./compile.ts";
+import type { ThingPlan } from "./plan.ts";
 
 /**
  * The look layer's looks for a generated place. The look layer draws a thing by the rules for its
@@ -37,6 +38,22 @@ export function unknownNames(place: CompiledPlace): InventRequest[] {
 /** Ask the model for the looks a place still needs, now, and say what it cost. */
 export async function inventLooks(place: CompiledPlace): Promise<LookSpend> {
   const names = unknownNames(place);
+  const spend = await inventNow(names);
+  return { ...spend, names: names.map(n => n.name) };
+}
+
+/**
+ * The same for a plan's things before there's a place (they've just streamed in, and the model is
+ * still writing the people): the map draws a crowd as people, small things as items, the rest as objects.
+ */
+export async function inventThings(things: ThingPlan[]): Promise<LookSpend> {
+  const out = new Map<string, InventRequest>();
+  for (const t of things) {
+    const kind = t.kind === "crowd" || t.kind === "creature" ? (t.kind === "crowd" ? "person" : "creature") : t.kind === "item" ? "item" : "object";
+    const base = baseLook({ name: t.name, kind, id: t.id });
+    if (base.source === "guess" && !out.has(base.parsed.key)) out.set(base.parsed.key, { key: base.parsed.key, name: t.name, kind });
+  }
+  const names = [...out.values()];
   const spend = await inventNow(names);
   return { ...spend, names: names.map(n => n.name) };
 }

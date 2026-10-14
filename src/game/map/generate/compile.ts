@@ -57,8 +57,8 @@ export const FEET = 5;
 export const feetOf = (p: Tile2): [number, number] => [p.x * FEET + 2, p.y * FEET + 2];
 const feetRect = (r: Rect) => ({ x: r.x * FEET, y: r.y * FEET, w: r.w * FEET, h: r.h * FEET });
 
-export function compilePlan(raw: PlacePlan, options: CompileOptions): CompiledPlace {
-  const { plan, problems: planProblems } = normalizePlan(raw, options.cast);
+/** The building laid out from a (cleaned) plan: turned to the camera and built, not yet furnished. */
+function build(plan: PlacePlan, options: CompileOptions): Shell {
   const entrance = plan.doors.find(d => plan.outside.some(o => o.id === d.to) && (d.to === plan.start || d.from === plan.start))?.to
     ?? plan.doors.find(d => plan.outside.some(o => o.id === d.to))?.to ?? plan.start;
   const turn = chooseTurn(plan, entrance);
@@ -66,6 +66,26 @@ export function compilePlan(raw: PlacePlan, options: CompileOptions): CompiledPl
   const { plan: laid, moved } = frontWater(turnPlan(plan, turn));
   const site = layout(laid, { seed: options.seed ?? seedOf(options.id) });
   if (moved) site.notes.push(`The water was behind the building, out of sight: it was put on the @@${moved.to}@@ side.`);
+  return { site, laid, turn };
+}
+
+/** A building laid out from a plan's structure alone, before its things have arrived. */
+export interface Shell { site: Site; laid: PlacePlan; turn: Turn }
+
+/**
+ * The building from the structure of a plan that's still being written (its outside, rooms, doors
+ * and windows; the cast, but no things yet): what the place will be, empty. Layouts are sized for
+ * the dozen or so things a plan has on its floors (layout.ts), so the furnished place is the same
+ * building unless it has more.
+ */
+export function compileShell(raw: PlacePlan, options: CompileOptions): Shell {
+  const { plan } = normalizePlan({ ...raw, things: [], people: [] }, options.cast);
+  return build(plan, options);
+}
+
+export function compilePlan(raw: PlacePlan, options: CompileOptions): CompiledPlace {
+  const { plan, problems: planProblems } = normalizePlan(raw, options.cast);
+  const { site, laid, turn } = build(plan, options);
   const furnished = furnish(site, laid);
   // What the furnisher added (lanterns in a dark room) is part of the place from now on.
   laid.things.push(...furnished.added);
