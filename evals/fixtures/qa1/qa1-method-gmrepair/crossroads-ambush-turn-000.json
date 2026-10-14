@@ -1,0 +1,52 @@
+{
+ "id": "qa1-method-gmrepair",
+ "sceneId": "crossroads-ambush",
+ "approach": "gm-repair",
+ "seed": 241402902,
+ "rollCount": 0,
+ "player": {
+  "name": "Sister Maren Vale",
+  "concept": "a soft-spoken human cleric of the harvest goddess, travelling to Caerwyn to bless the Assembly",
+  "modifiers": {
+   "persuasion": 3,
+   "deception": -1,
+   "intimidation": 0,
+   "insight": 4,
+   "performance": 1,
+   "perception": 3,
+   "investigation": 1,
+   "sleight_of_hand": 0,
+   "stealth": 0,
+   "athletics": 0,
+   "acrobatics": 0,
+   "animal_handling": 3,
+   "arcana": 1,
+   "history": 1,
+   "nature": 3,
+   "religion": 5,
+   "medicine": 4,
+   "survival": 3
+  }
+ },
+ "turn": 0,
+ "beat": "ranting",
+ "turnsInBeat": 0,
+ "path": [],
+ "established": [],
+ "canon": [],
+ "notes": null,
+ "notesTurn": null,
+ "patches": [],
+ "repairs": [],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Late afternoon settles over the crossroads, where the King’s Road meets a track between tall blackthorn hedges. A dead ox lies in the ditch, arrows jutting from its flank. Crows pick at the air above it; somewhere, woodsmoke rides the wind.\n\nA mud-caked farmer jabs his pitchfork at the hedge, then whirls to shout at the weathered milestone. He looks past fifty and utterly sleepless. “No, you don’t tell me I’m daft, stone! I saw ’em. Little green devils, the lot!” Then he spots you. The pitchfork swings your way. “You! Keep back! I know what you are!”"
+  }
+ ],
+ "metrics": [],
+ "history": []
+}

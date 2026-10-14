@@ -1,11 +1,11 @@
 import { deciderFor } from "../llm/decide.ts";
-import { respondJson } from "../llm/openrouter.ts";
+import { respond, respondJson } from "../llm/openrouter.ts";
 import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
-import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, limitDirective, moveDirective, type Move } from "./director.ts";
+import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
@@ -96,7 +96,9 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   const scene = sceneById(state.sceneId);
   const approach = approachById(state.approach);
   const before = state.transcript.length;
-  const directive = [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
+  const directive = state.history.length
+    ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene: it outranks the prep). The author's idea for the opening, to adapt to what actually happened: ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`]
+    : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
   const spoken = approach.voice === "gm"
     ? await gmReply(scene, state, directive, speakHooks(hooks, "gm", "narration"), "gm.opening")
     : await narratorReply(scene, state, directive, speakHooks(hooks, "gm", "narration"));
@@ -137,7 +139,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // Wind-down turn: the story already reached an ending; answer the player and close.
   if (state.closing) {
     const exit = scene.exits.find(e => e.id === state.closing!.exitId)!;
-    const closing = [`The scene is ending: ${exit.outcome} Answer the player's last turn and bring the scene to a close. ${exit.closing} Keep it short.`];
+    const closing = [`The scene is ending: ${exit.outcome} Answer the player's last turn and bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't add new events, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`];
     const replyStarted = performance.now();
     const close = approach.voice === "gm"
       ? await gmReply(scene, state, closing, speakHooks(textHooks, "gm", "narration"), "gm.closing")
@@ -177,6 +179,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
     directive = [freeformDirective(pre.freeform)];
   }
+  if (pre.ooc) directive.push(OOC_DIRECTIVE);
+  else if (pre.plainTransition && !pre.limit) directive.push(plainDirective(pre.plainTransition));
   if (pre.limit) directive.push(limitDirective(pre.limit));
   if (wasStuck && !pre.move) directive.push(`The scene has been going in circles. Break the loop in this reply: let someone act on what they want, let the world push${currentBeat(scene, state).pressure ? ` (${currentBeat(scene, state).pressure})` : ""}, or reveal something that opens a way forward. Don't just repeat the last exchange.`);
   if (pending && !pre.move) {
@@ -187,7 +191,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       directive.push(`The scene is on the brink of: ${exit.title} (${exit.outcome}). The player's response may change that; play it honestly.`);
     } else {
       ended = exit;
-      directive.push(`This reply closes the scene. ${exit.outcome} ${exit.closing}`);
+      directive.push(`This reply closes the scene: ${exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.`);
     }
   }
 
@@ -264,25 +268,43 @@ function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
 }
 
 /** Continue into the exit's next scene in the same session (the map would sit in between). */
-export function chainScene(state: SessionState, combatResult = "the party won"): SessionState | undefined {
+export async function chainScene(state: SessionState, combatResult = "the party won"): Promise<SessionState | undefined> {
   if (!state.ended) return undefined;
   const scene = sceneById(state.sceneId);
   const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
   if (!exit.next) return undefined;
-  const facts = [...state.established, ...state.canon];
-  const summary = `Previous scene, "${scene.title}", ended: ${exit.title}. ${exit.outcome}${exit.kind === "combat" ? ` The fight was played out on the map: ${combatResult}.` : ""}${facts.length ? ` Established: ${facts.join(" ")}` : ""}`;
-  state.history.push({ sceneId: scene.id, exitId: exit.id, summary });
+  const handoff = await writeHandoff(scene, state, exit, combatResult);
+  const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
+    .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
+  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments });
   const next = sceneById(exit.next);
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
-    patches: [], repairs: [], ended: undefined,
+    whispers: [], patches: [], repairs: [], entered: [], sceneStatus: undefined,
   });
   delete state.ended;
   saveSession(state);
   return state;
 }
 
-export function transcriptMarkdown(state: SessionState): string {
+/** The hand-off: the state of things at the moment the scene ended, as established in play. */
+async function writeHandoff(scene: Scene, state: SessionState, exit: Exit, combatResult: string): Promise<string> {
+  const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
+  const fallback = `Previous scene, "${scene.title}", ended: ${exit.title}. ${exit.outcome}${exit.kind === "combat" ? ` The fight was played out on the map: ${combatResult}.` : ""}`;
+  try {
+    const result = await respond({
+      operation: "handoff", effort: "low",
+      instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Be concrete and brief: a short paragraph, then up to eight bullet points.",
+      input: [{ role: "user", content: `Scene: ${scene.title}\nHow it ended: ${exit.title}. ${exit.outcome}${exit.kind === "combat" ? `\nThe fight was then played out on the map: ${combatResult}.` : ""}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).\n\n## The scene as played\n${transcript}` }],
+    });
+    return `Previous scene, "${scene.title}", ended: ${exit.title}.\n${result.text.trim()}`;
+  } catch {
+    return fallback;
+  }
+}
+
+export function transcriptMarkdown(state: SessionState, options: { allScenes?: boolean } = {}): string {
   const scene = sceneById(state.sceneId);
-  return sceneEntries(state).map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.text).join("\n\n");
+  const entries = options.allScenes ? state.transcript : sceneEntries(state);
+  return entries.map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${(e.scene ? sceneById(e.scene) : scene).cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.text).join("\n\n");
 }

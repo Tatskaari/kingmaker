@@ -70,7 +70,7 @@ export const crossroadsAftermath: Scene = {
     {
       id: "seek-mill", kind: "progress", title: "North to the mill",
       outcome: "The party heads north to investigate the goblin warren under the burnt mill.",
-      closing: "Tam presses something on them for luck and scurries home. Narrate the first glimpse of the mill's black timbers.",
+      closing: "Tam wishes them luck in his own way and scurries off home. Close on the party setting off north along the goblin tracks, the mill still somewhere ahead.",
       script: (world) => {
         world.quest("burnt-mill").start("The Burnt Mill", "Goblins have a warren under the old burnt mill north of the crossroads.");
         world.character("tam").moveTo("hollis-farm");

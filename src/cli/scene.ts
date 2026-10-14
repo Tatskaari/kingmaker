@@ -69,7 +69,8 @@ function spawnRepair(state: SessionState): void {
 }
 
 async function waitForRepair(id: string): Promise<void> {
-  const limit = Date.now() + Number(process.env.KM_REPAIR_WAIT_MS ?? 30_000);
+  // The co-GM is background work: by default never hold the player's turn for it.
+  const limit = Date.now() + Number(process.env.KM_REPAIR_WAIT_MS ?? 0);
   while (existsSync(lockFile(id)) && Date.now() < limit) await new Promise(r => setTimeout(r, 250));
 }
 
@@ -78,7 +79,7 @@ async function afterTurn(state: SessionState, hooks: TurnHooks): Promise<void> {
   const scene = sceneById(state.sceneId);
   const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
   if (exit.kind === "combat") console.log("(The fight plays out on the map. For this PoC, the party wins.)\n");
-  const chained = chainScene(state);
+  const chained = await chainScene(state);
   if (chained) {
     console.log(`— Next scene: ${sceneById(chained.sceneId).title} —\n`);
     await openScene(chained, hooks);
@@ -162,7 +163,7 @@ async function main(): Promise<void> {
 
   if (command === "transcript") {
     const state = loadSession(args.shift()!);
-    console.log(transcriptMarkdown(state));
+    console.log(transcriptMarkdown(state, { allScenes: true }));
     return;
   }
 

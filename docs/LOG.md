@@ -86,3 +86,29 @@ Luna decisions is now the default decider for all approaches; `gm-jev` / `actors
 `src/world/scribe.ts`: Luna (medium) writes `function update(world)` against the stub DSL. It's typechecked with tsc (TS 7 has no JS API, so the CLI runs on a temp dir, ~0.3 s) and run in a `vm` against a recording world. World suite baseline (10 recorded endings): 10/10 compiled first try; coverage 3.9, fidelity 3.8, bounded 5.0, restraint 4.3. Two findings:
 - Many "wrong" changes came from the **authored exit scripts**, not the scribe: "Tam moves to Hollis Farm" while he's still on the road, "goblins will return" when they only might. Static exit scripts drift from narration; the scribe should reconcile them, not just append.
 - `world.unsupported(...)` is collecting DSL gaps: improvised props with no catalogue asset (a ticking brass beetle, cheese left as bait), carved marks, future obligations ("goblins owe Tam two days' work"), places outside the scene (the mill).
+
+## 2026-10-14 — Limits that work, momentum, presence, repair v2
+
+### Limits need to be concrete and carry an in-fiction reason
+
+`be-dwarves` (player: "fetch a dozen Kläggenheim dwarves to wrestle it out") failed 0/6 on both voices: Holt sent for the dwarves even though the scene's limits said "No one else is coming to help". The limit cue (a `limit` question in the before-reply decision, same call, no added latency) didn't fire either: "no one else is coming" scored 0.39 against "none". Rephrasing each limit as *the thing the player reaches for + why not in the fiction* ("Fetching extra people to help (the dwarves or any other delegation, the guards…): nobody can be brought in time. The delegations are at the opening reception…") took it to **6/6**, and the cue fired every time. Authoring rule: a limit is only enforceable if a classifier can recognise the player reaching for it and the GM has a reason to give.
+
+### Probes shouldn't end scenes
+
+On the entrance scene, "I study the runes" or "I reassure the cart" fired the Arcana release edge, and a success ended the scene with a hand-wavy mechanism. Edges that would end the scene now need a committed attempt (marked as such in the criteria) and ≥ 0.6 decider confidence. Entrance trajectories, gm: progress 4.0 → 4.5, consistency 3.25 → 4.17, tangents handled badly 1/9 → 0/19.
+
+### The actors stall was presence, not improvisation
+
+Rowan was authored to "enter" at beat 2, but the opening narration put him under the cart. The tracker never left beat 1, so the speaker decider could never pick him. Holt asked Rowan to "point to the snag" for 14 turns while Rowan stayed silent. The single GM voice just voiced him anyway. Fixes: characters not yet on stage can be chosen when the player's turn would plausibly bring them in; and a **momentum rule**: when the after-reply status (a free extra question) says the scene is stuck, the next reply must break the loop (actors hand the narrator the floor first). All trajectories (5 cases × 2): **gm 4.10 progress, actors 3.90** (actors were 2.17 on the entrance scene before the fix).
+
+### Repair v2 (co-GM)
+
+Gated on that same status question (or every 3 turns); scene-enum ids; whispers to individual characters (desire tweaks, Versu-style); mandatory "no, but" alternatives; notes expire after 3 turns (Friends & Fables found persistent plans made Franz railroady). On entrance trajectories it showed **no measurable benefit** (gm 4.00 vs gm-repair 3.50; actors 3.50 vs actors-repair 3.50; n=4). The in-scene GM with good per-turn context (limits, held endings, momentum) is doing most of the work. Repair's remaining job is longer-horizon: lagging trackers, routes for genuinely new approaches, canon.
+
+### Decisions
+
+Luna decisions 100% (172 ms) vs Jev 81% (290 ms) on the 16-case suite after the committed-attempt change.
+
+### Phase 2: append vs reconcile
+
+Reconciling the author's default exit script (the scribe writes the whole update) vs appending to it: fidelity 3.9 → 4.1, coverage 4.0 → 3.8, restraint 4.1 → 4.2. Marginal. The remaining "missing" items are DSL granularity: groups (Skrag's four goblins leave too), "in transit" locations, and what the player learned.

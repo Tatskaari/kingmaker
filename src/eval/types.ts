@@ -52,4 +52,18 @@ export interface TrajectoryCase {
   tags?: string[];
 }
 
-export type EvalCase = ReplyCase | DecisionCase | TrajectoryCase;
+/** The next scene's opening after a recorded scene ending: does it pick up from what really happened? */
+export interface OpeningCase {
+  kind: "opening";
+  id: string;
+  about: string;
+  /** The scene that just ended (the snapshot's scene). */
+  scene: string;
+  /** Snapshot taken on that scene's final turn (state.ended set). */
+  setup: FixtureSpec;
+  criterion: string;
+  approaches?: string[];
+  tags?: string[];
+}
+
+export type EvalCase = ReplyCase | DecisionCase | TrajectoryCase | OpeningCase;

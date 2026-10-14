@@ -6,14 +6,14 @@ import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "../runtime/approaches.ts";
 import { effectiveScene, prompt, scriptTranscript } from "../runtime/brief.ts";
 import { decideAfter, decideBefore } from "../runtime/director.ts";
-import { openScene, playerTurn } from "../runtime/engine.ts";
+import { chainScene, openScene, playerTurn } from "../runtime/engine.ts";
 import { applyRepair, expireNotes, runRepair, shouldRepair } from "../runtime/repair.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { buildFixture } from "./fixtures.ts";
 import { DIMENSIONS, judgeTrajectory, judgeTurn, judgeWorldUpdate, type Dimension } from "./judge.ts";
 import { describeOperations, scribe } from "../world/scribe.ts";
 import { CASES } from "./cases/index.ts";
-import type { DecisionCase, EvalCase, ReplyCase, TrajectoryCase } from "./types.ts";
+import type { DecisionCase, EvalCase, OpeningCase, ReplyCase, TrajectoryCase } from "./types.ts";
 
 /**
  * npm run eval -- [--suite reply|decision|trajectory] [--case a,b] [--tag t] [--approach gm,actors]
@@ -199,6 +199,25 @@ async function runTrajectory(c: TrajectoryCase, approach: string, sample: number
   }
 }
 
+async function runOpening(c: OpeningCase, approach: string, sample: number): Promise<ReplyRun> {
+  const id = `${c.id}--${approach}--${sample}`;
+  try {
+    const state = buildFixture(c.scene, c.setup, { id, approach, seed: 3000 + sample * 11 });
+    if (!state.ended) throw new Error("opening fixture must be a snapshot of a scene's final turn");
+    const chained = await chainScene(state);
+    if (!chained) throw new Error("exit has no next scene");
+    const before = clone(chained);
+    const started = performance.now();
+    const entries = await openScene(chained);
+    const next = sceneById(chained.sceneId);
+    const verdict = await judgeTurn(next, before, entries, c.criterion, "judge.opening");
+    return { case: c.id, approach, sample, ok: true, mechanical: { pass: true, notes: [] }, scores: verdict.scores, reasons: verdict.reasons, criterion: verdict.criterion,
+      reply: scriptTranscript(next, chained, entries), firstTextMs: performance.now() - started, costUsd: verdict.costUsd };
+  } catch (error) {
+    return { case: c.id, approach, sample, ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 const approachesFor = (c: { approaches?: string[] }) => (approachFilter ?? c.approaches ?? DEFAULT_APPROACHES).filter(a => !c.approaches || !approachFilter || c.approaches.includes(a) || approachFilter.includes(a));
 
 const tasks: Array<() => Promise<ReplyRun | DecisionRun | TrajectoryRun | WorldRun>> = [];
@@ -207,6 +226,7 @@ for (const c of selected as EvalCase[]) {
     if (c.kind === "reply") for (const a of approachesFor(c)) tasks.push(() => runReply(c, a, s));
     if (c.kind === "decision") for (const d of deciders) tasks.push(() => runDecision(c, d, s));
     if (c.kind === "trajectory") for (const a of approachesFor(c)) tasks.push(() => runTrajectory(c, a, s));
+    if (c.kind === "opening") for (const a of approachesFor(c)) tasks.push(() => runOpening(c, a, s));
   }
 }
 interface WorldRun { case: string; ok: boolean; error?: string; exit?: string; compiled?: boolean; attempts?: number; warnings?: string[]; operations?: number; unsupported?: string[]; scores?: Record<string, number>; missing?: string[]; wrong?: string[]; costUsd?: number; latencyMs?: number }
@@ -247,7 +267,7 @@ const mean = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const fmt = (x: number, digits = 2) => Number.isFinite(x) ? x.toFixed(digits) : "-";
 const lines: string[] = [`# Eval run ${stamp}${label ? ` (${label})` : ""}`, "", `${tasks.length} tasks in ${Math.round((performance.now() - started) / 1000)}s`, ""];
 
-const replies = results.filter((r): r is ReplyRun => "approach" in r && !("turns" in r) && (selected.find(c => c.id === r.case)?.kind === "reply"));
+const replies = results.filter((r): r is ReplyRun => "approach" in r && !("turns" in r) && ["reply", "opening"].includes(selected.find(c => c.id === r.case)?.kind ?? ""));
 if (replies.length) {
   lines.push("## Reply cases", "", `| case | approach | n | criterion | mechanical | ${DIMENSIONS.join(" | ")} | first text ms |`, `|---|---|---|---|---|${DIMENSIONS.map(() => "---").join("|")}|---|`);
   const groups = new Map<string, ReplyRun[]>();

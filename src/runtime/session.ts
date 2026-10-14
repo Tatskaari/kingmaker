@@ -78,7 +78,7 @@ export interface SessionState {
   /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
   closing?: { exitId: string; turn: number };
   /** Scene chain: previous scenes' exits in this session. */
-  history: Array<{ sceneId: string; exitId: string; summary: string }>;
+  history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[] }>;
 }
 
 export const runsDir = () => process.env.KM_RUNS_DIR ?? "runs";

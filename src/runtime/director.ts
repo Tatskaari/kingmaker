@@ -83,6 +83,10 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
 }
 
 export interface PreDecision {
+  /** The player stepped out of character (a question to the GM, not the world). */
+  ooc?: boolean;
+  /** The outcome route the player's action simply achieves, no dice needed. */
+  plainTransition?: Transition;
   /** The player is reaching for something the scene says it can't offer. */
   limit?: string;
   move?: Move;
@@ -134,12 +138,17 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that. Choose other_risky only for a genuinely uncertain attempt that none of the listed options covers.`,
       criteria: {
         ...q.criteria,
+        none: "Nothing risky and none of the above: the player talks, asks, accepts an offer, looks around or searches at leisure, or does something with no real chance or cost of failure.",
         ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])),
-        ...(options.freeform !== false ? { other_risky: "The player attempts something risky whose outcome is genuinely uncertain (sneaky, physical, magical or social) and that none of the options above covers. Ordinary talk, questions and harmless actions are not risky." } : {}),
+        ...(options.freeform !== false ? { other_risky: "The player attempts something risky whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation, and that none of the options above covers. Not risky: ordinary talk and questions, accepting something someone has just offered, looking around or searching when nothing is pressing, or anything where failing would only mean trying again." } : {}),
       },
     };
   }
   if (cues.length) questions.cue = question("cue", cues);
+  questions.ooc = {
+    instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)?",
+    criteria: { in_character: "In character: the player's character speaks or acts in the story.", out_of_character: "Out of character: a question or remark to the GM about the game or the situation." },
+  };
   if (scene.limits?.length) {
     questions.limit = {
       instructions: "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on it.",
@@ -167,8 +176,12 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const plain = answer?.startsWith("plain:") ?? false;
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   const cue = attempt || plain ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
-  const chosen = attempt ?? cue;
-  const move = chosen ? resolve(scene, state, chosen, attempt ? "attempt" : "cue") : undefined;
+  // Something the player simply does that settles the scene (setting off, handing it over) is
+  // their chosen ending: close it in this reply rather than letting the reply run past it.
+  const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
+  const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
+  const chosen = attempt ?? plainEnding ?? cue;
+  const move = chosen ? resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue") : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
   if (answer === "other_risky" && !move) {
@@ -176,10 +189,22 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
+  const ooc = decision.answers.ooc?.choice === "out_of_character";
+  const plainTransition = plain && !plainEnding ? plainOutcome : undefined;
   const limitChoice = decision.answers.limit?.choice;
   const limit = limitChoice?.startsWith("limit_") ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
-  return { ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined, ...(plain ? { plain } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}) };
+  return {
+    ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
+    ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
+  };
 }
+
+/** Say yes: no roll needed, so what the player is doing simply works. */
+export function plainDirective(t: Transition): string {
+  return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
+}
+
+export const OOC_DIRECTIVE = "The player has stepped out of character to ask you something. Answer briefly and helpfully as the GM, out of character, using only what their character could perceive or reasonably guess: don't reveal what anyone is hiding and don't talk about dice or game mechanics. Then hand the moment back to the scene.";
 
 /** "No, but": the world answers honestly and keeps the player's underlying idea alive. */
 export function limitDirective(limit: string): string {
@@ -200,7 +225,18 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   const outcomes = [...transitionsFor(scene, state, "outcome"), ...transitionsFor(scene, state, "cue")]
     .filter(t => !options.hold || !leadsTo(t).includes(options.hold));
   const questions: Record<string, ChoiceQuestion> = { status: STATUS_QUESTION };
-  if (outcomes.length) questions.outcome = question("outcome", outcomes);
+  if (outcomes.length) {
+    // A cue's text describes its trigger ("they set off..."); after the reply, ask about its effect.
+    const effect = (t: Transition) => {
+      if (phaseOf(t) !== "cue") return t.when;
+      const target = t.to ?? t.check?.onSuccess ?? "";
+      const beat = scene.beats.find(b => b.id === target);
+      const exit = scene.exits.find(e => e.id === target);
+      return beat ? `The story has already moved on to "${beat.title}": ${beat.direction.split(/(?<=\.)\s/)[0]}` : exit ? `It has already happened: ${exit.outcome}` : t.when;
+    };
+    const q = question("outcome", outcomes);
+    questions.outcome = { ...q, criteria: { ...Object.fromEntries(outcomes.map(t => [t.id, effect(t)])), none: q.criteria.none! } };
+  }
   const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), questions, "director.after");
   const chosen = outcomes.find(t => t.id === decision.answers.outcome?.choice);
   const status = decision.answers.status?.choice as SceneStatus | undefined;
@@ -243,7 +279,7 @@ export function moveDirective(scene: Scene, state: SessionState, move: Move): st
   if (move.exit && !move.chosen) {
     lines.push(`Things are escalating towards this: ${move.exit.outcome} Don't let it happen yet. In this reply, escalate (a warning, a last demand, a countdown, a weapon raised) and stop with the moment hanging: the next move is the player's.`);
   } else if (move.exit) {
-    lines.push(`This reply closes the scene. ${move.exit.outcome} ${move.exit.closing}`);
+    lines.push(`This reply closes the scene: ${move.exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${move.exit.closing} Don't narrate beyond the ending into what comes next.`);
   } else if (move.to !== state.beat) {
     const beat = scene.beats.find(b => b.id === move.to)!;
     lines.push(`The scene has moved on to "${beat.title}": ${beat.direction} Play the start of this in your reply, growing out of what the player just did, and let the rest unfold over the next exchanges.`);

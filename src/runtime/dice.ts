@@ -1,6 +1,10 @@
 /** Small seeded RNG so eval runs can be reproduced. */
 export function rng(seed: number): () => number {
-  let state = seed >>> 0 || 0x9e3779b9;
+  // splitmix32 scramble: nearby seeds (1000, 1007, ...) must not share their first roll.
+  let z = (seed >>> 0) + 0x9e3779b9;
+  z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
+  z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
+  let state = (z ^ (z >>> 16)) >>> 0 || 0x9e3779b9;
   return () => {
     state ^= state << 13; state >>>= 0;
     state ^= state >>> 17;

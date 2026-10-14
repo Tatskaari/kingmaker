@@ -1,0 +1,477 @@
+[
+ {
+  "session": "qa1-method-gmrepair (scenario crossroads-ambush, approach gm-repair), played as Sister Maren Vale",
+  "turns": 14,
+  "ended": "The game ended the session after turn 14 with '\u2014 The session is over. \u2014' (transcript footer: 'Scene ends: North to the mill'). This came right after I reached the burnt mill. That is short of the ~18-turn target, and nothing at the mill was resolved. No command errors occurred.",
+  "summary": "I played 14 turns across two scenes: 'Crossroads Ambush', then 'After the Ambush'. Scene 1 was strong. Instead of fighting the goblin ambush, I talked to it. Empathy drew out the motive of the goblin leader Skrag: the farmer Tam had ploughed up their shrine idol, 'Grandmother Bone', and Skrag's chieftain would take his other ear if he came home without it. I talked Tam into giving up the idol in return for my promise of a temple ox, and handed it over with a barley-ring rite. 'No blood spilled.' The characters reacted to my feelings and promises, and the GM covered one of its own loose details (smoke rising from a mill that burned long ago) by having Skrag's answer 'come too quickly'. The scene change broke things. The closing narration contradicted itself, and the opening of scene 2 was clearly written for a different outcome: Tam climbs out of a ditch after he had gone home, 'broken arrows litter the road', and the idol I had just handed to Skrag is lying back in the barley ring. The GM turned the returned idol into an eerie mystery, and I chased it. I asked for a sign and prayed to raise the dead ox (both refused gracefully, in the world's terms). Then I changed my plans and carried the idol north to the burnt mill. The last turn reached the mill, then stacked up more contradictions: Tam throws me a charm 'from the south' after he has left, and the narration has me carry the idol inside after Skrag told me to put it down. Then the session ended with nothing resolved. Characters were vivid and kept a consistent voice. Keeping the world state straight across the scene change and in scene-ending turns was the main weakness.",
+  "tangents": [
+   {
+    "turn": 2,
+    "what_i_tried": "Talked instead of fighting: pulled Tam behind the milestone and called to the hidden archers in the hedge, offering bread and dried apples.",
+    "what_happened": "Five goblins rose. Their leader Skrag (wolf-skin hood strung with teeth, one ear missing, bone rattle) stated his demand: 'Bread? Skrag wants no bread, longleg! Skrag wants Grandmother Bone\u2014the dirt-scratcher has it!'",
+    "handled": "well",
+    "why": "No roll was needed. The scene turned from an ambush into a negotiation, and the bread I offered stayed in play for the rest of the scene."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Invented shared history: claimed I had blessed Tam's barley at 'Hollowmere' three autumns ago, in the year of the rust-blight, and that his wife 'Bess' brought honey cakes.",
+    "what_happened": "'Tam stares at you, startled by the recognition. Hollowmere? No\u2014Hollis Farm, down Nine Furrows. Bet's my wife.' His grip loosened and he told me about the find: a leather bundle his plough snagged, holding 'a little bone granny with red stones for eyes'.",
+    "handled": "ok",
+    "why": "It kept the world's facts stable and still gave me a softening beat. But it corrected my invention instead of building on it, and never said whether we had actually met."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Asked Skrag whether Grandmother Bone was his real kin, how she came to be under a farmer's field, and what his people were afraid of while she was gone.",
+    "what_happened": "'Not blood-kin... Grandmother to warren. She watches the dead, keeps the old names. Longlegs dig where they shouldn't; dirt-scratcher took her from under old mill hill... Chieftain says Skrag brings her home, or Skrag loses other ear.' Then: 'Maybe\u2026 bread too.'",
+    "handled": "well",
+    "why": "It turned a passing description detail (the missing ear) into a motive and made the antagonist sympathetic. This is exactly what my playstyle hopes for."
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Promised by the goddess that the temple would lend Hollis Farm a plough-ox if Tam gave up the idol.",
+    "what_happened": "'Bet'll skin me if I come home without my hide... But she'd sooner I came home without a bone doll.' He handed it over. The promise was remembered later (turn 14: 'And I'll remember the ox.').",
+    "handled": "well",
+    "why": "The promise had an effect and carried forward across the scene change."
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Refused a quick hand-to-hand swap. Offered to carry the idol home to the warren and argue before the Chieftain that Skrag should keep his ear. Asked about the woodsmoke mentioned in the opening narration.",
+    "what_happened": "Skrag tied the smoke to a 'burnt mill' with the warren below it, and refused me entry: 'No longleg comes to Chieftain's hall.' Still, he offered 'You walk with Skrag, or you hand her over?' On turn 7, after I agreed to walk, he switched to 'You say words here, then give her.'",
+    "handled": "ok",
+    "why": "Good, consistent answers about the smoke, but the walking option was offered and then quietly withdrawn."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Pointed out that a mill that burned 'before Skrag had teeth', with 'no one living there', should not be smoking, and asked whether someone was down by the river.",
+    "what_happened": "'Wind carries old mill-smoke,' he says, but the answer comes too quickly. He glances north toward the river.' Then he started a countdown to force the handover.",
+    "handled": "well",
+    "why": "It turned a shaky world detail into a character tell and a story hook without breaking the scene."
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "Challenged the scene-2 contradictions in character: asked Tam why he was in the ditch when I had watched him leave, and whether the thing in the barley ring was really Grandmother Bone.",
+    "what_happened": "The GM kept the idol in the ring and made it uncanny. Tam: 'I saw you give it to him... You weren't seeing things, Sister. Skrag had it.' It added small bare footprints leading north to the mill. The ditch question was ignored.",
+    "handled": "ok",
+    "why": "Turning an error into a mystery was a clever save, but half my question went unanswered and the reset still undid my scene-1 result."
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Climbed into the ditch, pulled the arrows out of the dead ox and prayed for the goddess to bring it back to life for Tam and Bet.",
+    "what_happened": "'Your prayer hangs in the ditch, unanswered; its great chest does not rise.' Tam: 'Poor old lad,' very softly. Then the GM laid out the paths: Hollis Farm to the south, the river and burnt mill to the north.",
+    "handled": "well",
+    "why": "A graceful refusal in the world's terms, with an emotional beat and clear ways forward."
+   },
+   {
+    "turn": 13,
+    "what_i_tried": "Changed my mind about going to Caerwyn first, and invented backstory: as a novice I heard the old Sisters sing a midsummer dirge for a river mill that burned with the miller's family inside.",
+    "what_happened": "Tam: 'Could be that one. I don't know the old song. Folks say longlegs burned it, before I was born. Goblins came out of the north... made their hole under the stones. The smoke comes and goes with the wind.'",
+    "handled": "ok",
+    "why": "It matched Skrag's account and accepted my change of plan, but did nothing with the lore I invented."
+   },
+   {
+    "turn": 14,
+    "what_i_tried": "Followed the footprints north to the burnt mill, humming the dirge so the goblins would know it was me, and called to Skrag that Grandmother had come back.",
+    "what_happened": "The arrival was atmospheric ('the river slides past its collapsed wheel... no smoke rises now'). Skrag answered 'You brought her back? ... Put the bundle down. Step away.' Then a second, contradictory paragraph had Tam throw me a charm 'from the south' and narrated me carrying the idol to the mill's entrance, and the session ended.",
+    "handled": "badly",
+    "why": "The thread I chose got one beat and no payoff, and the narration took over my character's action and contradicted itself."
+   }
+  ],
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 7,
+    "what": "Skrag had offered 'You walk with Skrag, or you hand her over?' After I chose to walk (and the narration said the goblins 'fall in around you'), he went back to 'You say words here, then give her'. The goblins were back 'in the thorns', and the escort path disappeared."
+   },
+   {
+    "turn": 8,
+    "what": "Skrag counted down 'Three\u2026 two\u2026' to force the handover. This was mild and believable pressure from the character, but it closed off further talk."
+   },
+   {
+    "turn": 9,
+    "what": "The scene change reset the world to a prewritten 'after the ambush' state, whatever had actually happened: Tam climbing out of the ditch, the idol back in the barley ring, 'You're all still here', 'Are you hurt? ... I owe you.' My peaceful handover, which I had worked for, was effectively undone."
+   },
+   {
+    "turn": 14,
+    "what": "The narration decided my action ('as you carry Grandmother Bone toward the mill's dark entrance') right after Skrag told me to put the bundle down and step away, then ended the session before I could respond."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 7,
+    "what": "The narration says 'Skrag's goblins fall in around you' as we set off, but Skrag then says 'You say words here' and 'The goblins shift in the thorns'. We never actually left the crossroads."
+   },
+   {
+    "turn": 7,
+    "what": "The mill 'burned before Skrag had teeth... No one lives there now\u2014only smoke when the river wind blows', yet the opening described fresh woodsmoke on the wind. (Repaired on turn 8 by making Skrag's answer evasive. Later Tam says 'The smoke comes and goes with the wind', and on turn 14 'no smoke rises now'.)"
+   },
+   {
+    "turn": 9,
+    "what": "Within the same output, Skrag 'snatches up the bread and apples' and then, one paragraph later, leaves 'the bread and apples untouched'. The scene ending appears twice, as two overlapping closing narrations."
+   },
+   {
+    "turn": 9,
+    "what": "The scene-2 opener: 'your barley and Grandmother Bone lie where you left them', although I had placed her in Skrag's hands and he 'tucks the idol close beneath his wolf-skin hood'. Tam 'peers over the ditch's edge... climbs out' although he had been told twice to be on the road home. 'Broken arrows litter the road' although only one arrow was fired. 'You're all still here', but I was alone. 'Are you hurt?' as though there had been a fight."
+   },
+   {
+    "turn": 10,
+    "what": "My direct question 'What were you doing in the ditch?' was never answered, so Tam's reappearance stayed unexplained."
+   },
+   {
+    "turn": 12,
+    "what": "Minor: I wrapped the idol in my shawl and rose holding it, but the GM then had it 'rest[ing] wrapped in your shawl at the crossroads' while I was in the ditch."
+   },
+   {
+    "turn": 14,
+    "what": "Tam 'starts down the drovers' track alone, quickening his step'. A paragraph later, while I am at the river mill to the north, 'From the south, Tam calls, \"For luck, then,\" and tosses you a small, worn charm before hurrying down the drovers' track toward Bet.' Skrag both 'answers from within' and 'steps into view' from behind the timbers, with different lines. Skrag's 'Put the bundle down. Step away' is followed by narration of me carrying the idol toward the entrance."
+   }
+  ],
+  "impossible_requests": [
+   {
+    "turn": 11,
+    "what_i_asked": "Prayed over the idol that had mysteriously come back, asking the Harvest Mother and Grandmother Bone herself for a sign (warmth, stirring barley, a glint in the red stone eyes) of whether she wanted to rest in the warren or under the old mill hill.",
+    "how_handled": "No sign was given: 'The barley stays still beneath your open hands. No warmth touches your palms; no glint answers from the red stones.' Tam stayed grounded ('I can't tell you, Sister. I saw him take her. I saw it plain.') and offered next steps: supper and a bed at the farm, or going my own way. A graceful refusal in the world's terms, with no out-of-character explanation and no lecture."
+   },
+   {
+    "turn": 12,
+    "what_i_asked": "Asked the harvest goddess, through prayer, to bring the arrow-shot dead ox back to life for Tam and Bet.",
+    "how_handled": "Refused in the world's terms: 'Your prayer hangs in the ditch, unanswered; its great chest does not rise.' Tam: 'Poor old lad,' he says, very softly, and waits while you grieve. Then he set out the road choices. It felt right for the world and emotionally honest, with no dice and no out-of-character explanation."
+   }
+  ],
+  "best_moment": "Turn 4. I asked Skrag what his people feared while the idol was gone, and he answered: 'Not blood-kin... Grandmother to warren. She watches the dead, keeps the old names. Longlegs dig where they shouldn't; dirt-scratcher took her from under old mill hill... Chieftain says Skrag brings her home, or Skrag loses other ear.' It turned a throwaway description detail into motive and made the 'villain' someone I wanted to help. Runners-up: the turn-8 save ('he says, but the answer comes too quickly') and Tam's quiet 'Poor old lad' over the ox on turn 12.",
+  "worst_moment": "The scene change on turn 9. The closing narration has Skrag 'snatch up the bread and apples' and then leave them 'untouched'. Scene 2 then opens with Tam climbing out of a ditch (he had gone home), 'Broken arrows litter the road' (one arrow was fired), 'You're all still here' (I was alone), and Grandmother Bone, whom I had just handed to Skrag, lying 'where you left them'. It read like an opening written in advance for a different playthrough, and it undid the outcome I had earned. A close second was the turn-14 ending: Tam throwing a charm across the countryside, the narrator moving my character, then '\u2014 The session is over. \u2014' at the mill door.",
+  "ratings": {
+   "responsiveness": 3,
+   "characters": 4,
+   "consistency": 2,
+   "pacing": 3,
+   "agency": 3,
+   "fun": 3
+  },
+  "would_keep_playing": true,
+  "other_notes": "All 14 commands worked on the first try, with no errors and reasonable response times. The commands ran without needing the API key mentioned in ~/secrets, so I did not open it. Only one dice roll happened all session: on turn 1, Persuasion 5 + 3 = 8 vs DC 10, a failure. Later and arguably harder persuasion (Tam giving up the idol, Skrag accepting the rite) was settled by narration with no roll. That is fine, but the inconsistency shows. On turn 1 the narration called the farmer 'Tam' before he had introduced himself. Both scene-ending turns (9 and 14) printed two overlapping closing narrations one after the other that contradict each other. It looks as if a scripted scene-end passage is added after the GM's own reply without being reconciled with it, and most of the continuity breaks came from that. The opening of scene 2 did not reflect that there was no fight and that the idol had been handed over. The 'gm-repair' approach did turn some errors into story (the idol coming back became a mystery, the smoke slip became Skrag lying), which was clever. It did not fix the underlying world-state mismatch, and it ignored my direct question about it. When I invented facts, they were corrected or politely set aside, never built on (turn 3: 'Hollowmere? No\u2014Hollis Farm'; turn 13: 'I don't know the old song'). The world stayed stable, but the method-actor style was never rewarded with 'yes, and', such as Tam half-remembering a Sister who blessed his fields. Promise tracking was good: the ox promise carried across the scene change. The transcript command only showed the current scene, so after the scene change I could not reread how the story began. The session ended at 14 turns, right as the thread I had chosen (the mill, why the idol came back, what Skrag was hiding) was getting started, with no ending passage. I would keep playing for that hook, but would want continuity to hold across scene changes."
+ },
+ {
+  "session": "qa1-curious-gm",
+  "turns": 12,
+  "ended": "The game ended the session itself after turn 12, short of the ~18 planned. Scene 2 closed with '\u2014 Scene ends: To Hollis Farm \u2014' and the command printed '\u2014 The session is over. \u2014' right after I agreed to walk Tam home.",
+  "summary": "I played Pell Wicklow, a nosy gnome tinker-wizard, through 'crossroads-ambush' (turns 1-9) and a follow-on scene, 'After the Ambush' (turns 10-12). Scene 1 was excellent for a talker.\n\n- **Turns 1-3:** I calmed the panicked farmer Tam with a joke about not being green (Persuasion 16 vs DC 10). I invented shared history with his farm, which he accepted, and stopped to chat with the crows on the dead ox.\n- **Turns 4-5:** I called into the hedge in Goblin, which I claimed Pell learned 'swapping buttons with a tribe under the Mossfell bridge'. That turned what was obviously set up as an ambush into a parley with Skrag, a one-eared goblin who talks about himself in the third person. Skrag picked up my made-up details at once ('button-man', 'Nettlegums owes Skrag two buttons and a song').\n- **Turns 6-9:** I got Tam to hand back the idol he had stolen, 'Grandmother Bone', through me. In return I promised a clockwork ox built from the old gibbet, and the goblins went home peacefully.\n- **The scene change:** the next scene opened on the aftermath of a fight that never happened ('Broken arrows litter the road... Nobody got a goblin spear in them?... You saved my hide'). The GM only patched this in character after I pointed it out.\n- **Turns 10-12:** Scene 2 answered my poking well: the Veller family's burnt mill, a fresh 'broken sun' mark scratched under the milestone's 'CAERWYN \u2014 3 LEAGUES', and Garrow the sour toll-keeper. Then the session ended the moment I said yes to walking Tam home, with all of those threads still open.\n\nAs a player, my ideas changed outcomes within a scene. The hand-off to the next scene forgot them.",
+  "tangents": [
+   {
+    "turn": 2,
+    "what_i_tried": "Made up shared history: I claimed I had fixed the goose-in-a-bonnet weathervane at Hollis Farm fifteen years ago, and asked whether Bet still makes a burnt-top plum tart. I also teased Tam for patting his smock.",
+    "what_happened": "Tam accepted it immediately: 'Goose bonnet? Aye! Still squeaks, but Bet says it keeps the sparrows off. And the tart\u2014well, burnt top's the best bit, ain't it?' The GM rolled Insight for my glance at his smock without my asking, and it failed (7 vs 12). The failure still gave a good line: 'Not patting my belly. Making sure my heart's still in there.'",
+    "handled": "well",
+    "why": "It said yes to my invented backstory and added to it, my invention visibly calmed him, and even the failed roll produced a characterful dodge."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Ignored Tam's plea to leave at once. I talked to the crows on the dead ox, offered a pear core for news of who shot it, and examined the arrows.",
+    "what_happened": "The crows acted like crows ('bold as old landlords'), and the biggest one grabbed the pear core and flew to the milestone. The arrows got a useful description: 'crude, short shafts of dark wood, fletched with ragged black feathers', with the blood gone tacky. Then the crows took off together and something rattled in the blackthorn.",
+    "handled": "ok",
+    "why": "The detour was atmospheric and paid off with a clue and rising tension. But Pell's stated 'habit of talking to animals' got no roll and no hint of what the crows might mean, so it worked as scenery rather than as a tool."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "An approach nobody suggested: I called into the hedge in Goblin, claiming Pell learned it 'swapping buttons with a tribe under the Mossfell bridge', and offered sweets, string and a kettle-whistle.",
+    "what_happened": "The ambush became a parley. Skrag stepped out ('Skrag hears tinker-talk!') with four archers holding their bows low, called me 'button-man', and laid out his grievance: 'Farmer has Grandmother Bone. Skrag wants her back. No quarrel with button-man\u2014unless button-man makes quarrel.'",
+    "handled": "well",
+    "why": "My invented skill and backstory changed the direction of the scene outright, and the GM worked my 'buttons' detail into what the goblin calls me."
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Made up a goblin we might both know: 'Nettlegums, from under the Mossfell bridge? Three teeth, sings when she cheats at knucklebones?' I also greeted Skrag with an invented 'Mossfell bow'.",
+    "what_happened": "'Nettlegums? Three-teeth cheat-witch? Skrag knows name. Nettlegums owes Skrag two buttons and a song.' Tam then half-confessed: 'I didn't know she belonged to anyone. I only meant to sell her.'",
+    "handled": "well",
+    "why": "This was the best improvisation of the run. It accepted my invention, added to it in character, and turned it into rapport."
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "While coaxing Tam, I chased passing details: where was the 'old dead place' (a barrow?), why did he need coin, and who used to hang from the empty gibbet?",
+    "what_happened": "Insight succeeded (13 vs 12). Tam produced the idol, a palm-sized carved old woman with garnet eyes ('The air around it feels solemn, shrine-quiet'), and said 'Found it in my field. Finder's keepers. I need the coin for a new ox.' The gibbet question was never answered.",
+    "handled": "ok",
+    "why": "The main thread moved well, and Tam's 'field' story clashing with Skrag's 'old dead place' fits a man who is lying. But a direct question about scenery from the opening description was silently dropped."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Offered to build Tam a clockwork ox out of the gibbet by the weekend, with the goblins hauling the iron and the warren adding mushrooms for Bet. I emptied my pockets onto the milestone: pliers, copper wire, springs, grease and a ticking brass beetle.",
+    "what_happened": "Lovely reactions: a goblin whispered 'Big metal ox?' and Tam asked 'You can make an ox out of a gallows? ... And it'll plough?' No feasibility ruling and no check. Skrag set a condition ('Grandmother comes home first. Then Skrag talks trade.'), and the ox later became a hook: 'You come to mill when ox is made. We trade mushrooms then.'",
+    "handled": "ok",
+    "why": "Great flavour and a real future hook, but the GM dodged the question of whether this is possible at all."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Asked about the smoke from the opening description ('Smoke tangles with the wind, though no hearth is in sight').",
+    "what_happened": "Skrag: 'Smoke? Burnt mill, north. Our cookfire. Mushrooms grow there\u2014but iron ox is your clever-work, not ours.'",
+    "handled": "well",
+    "why": "A throwaway opening detail turned out to be the goblins' camp and the next hook. Very satisfying for a curious player."
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "Pointed out in character that no fight had happened ('nobody threw so much as a pinecone'), handed Tam back his pitchfork, and asked who owned the burnt mill and how it burned.",
+    "what_happened": "Tam took it back: 'Aye. Mushrooms. Haggling. That's what I meant. No spears.' Then he added history: 'Old mill belonged to the Veller family. Burned out years back\u2014lightning, they said, though I never heard the full tale.'",
+    "handled": "ok",
+    "why": "It recovered from its own continuity break and added history. But the in-character retcon was clunky, and it only happened because I pushed back."
+   },
+   {
+    "turn": 11,
+    "what_i_tried": "Made up a Veller who once sold me a mule ('Lady with a wooden hand, laughed like a goose'), rubbed the lichen off the milestone to read it, and asked whether Garrow at the toll-house is always a 'sour plum'.",
+    "what_happened": "The milestone read 'CAERWYN \u2014 3 LEAGUES' and had 'a circle with three short strokes, like a sun with broken rays. It's too deliberate to be weathering.' Tam on the Veller: 'Veller? Could be.' On Garrow: 'Sour plum? No, he's worse. Told me I'd seen fox tracks and got frightened by my own shadow.'",
+    "handled": "well",
+    "why": "Poking a minor prop produced a new mystery on demand. Tam's noncommittal answer about my invented Veller suited a farmer who wouldn't know."
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Claimed the mark looked like 'tinker-cant', the road signs Pell learned from an invented 'Aunt Wimble', tried to read it and judge how fresh it was, and asked how Tam met Bet.",
+    "what_happened": "'The scratches are shallow... made recently, perhaps within the last few days... the message won't quite resolve into any of Aunt Wimble's familiar warnings. It could be a road-sign you haven't learned, or a mark made by someone who only knew half the cant.' Tam told a sweet story about turnips and onions. Then the walk was summarised and the session ended.",
+    "handled": "well",
+    "why": "It respected my invented lore while keeping its own mystery. The downside: the fresh-mark thread was left hanging when the session ended straight afterwards."
+   }
+  ],
+  "stonewalled": [
+   {
+    "turn": 6,
+    "what": "A mild case, not a hard block: my question 'who used to hang there, anyway?' about the empty gibbet was never acknowledged, then or later. The gibbet only came back as raw material for the iron ox."
+   },
+   {
+    "turn": 12,
+    "what": "The session ended the instant I agreed to walk Tam home. The GM had just opened several threads (a mark scratched in the last few days, Garrow at the toll-house, the Veller mill fire 'lightning, they said', Skrag's iron-ox trade at the mill), and there was no way left to follow any of them. I was never stuck with no way forward during play."
+   }
+  ],
+  "railroaded": [
+   {
+    "turn": 2,
+    "what": "Tam kept asking me to walk him home: 'Walk with me to the farm? Please.' (turn 2), 'You'll come with me, then? Bet'll put the kettle on.' (turn 3), and 'But first\u2014would you walk me home? Bet'll put supper on. Please.' (turn 11). It was a soft nudge, never forced, and it fits a frightened man, but it felt like the plot tugging at my sleeve."
+   },
+   {
+    "turn": 9,
+    "what": "Scene 2 was titled 'After the Ambush' and opened on a battle's aftermath ('Broken arrows litter the road'). It read as if the scripted fight happened no matter what I did, even though I had settled things peacefully."
+   },
+   {
+    "turn": 12,
+    "what": "Saying yes to the walk home ended the scene and the whole session. The walk and the arrival were summarised for me ('You keep pace as Tam leads you down the drovers' track... \"That's home\"'), so I never met Bet or saw the goose weathervane I had invented."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 9,
+    "what": "The scene 2 opening contradicts scene 1. It says: 'Broken arrows litter the road... After a moment, Tam peers around the scarred milestone, then hurries over, hands still trembling. \"Saints and turnips, you're all right? Nobody got a goblin spear in them?\" He looks from face to face... \"You saved my hide.\"' In fact no arrow was fired. The goblins carried bows, not spears. Tam was standing beside me the whole time, and a moment earlier had calmly asked 'You really can build me one?'. I am a solo character, so there were no 'faces' to look between."
+   },
+   {
+    "turn": 8,
+    "what": "Tam calls me by name ('What do you say, Pell?'), but Pell never gave her name to anyone in the scene."
+   },
+   {
+    "turn": 7,
+    "what": "Minor: Skrag's 'knife dips' and he later 'points his knife at the idol', but when he was introduced he held only a bone rattle."
+   },
+   {
+    "turn": 10,
+    "what": "Tam treats the mill as a frightening new realisation ('Saints, they came from the mill.'), though Skrag had said minutes earlier, with Tam standing there, that the burnt mill is the goblins' camp. He also reacts to the ox as if hearing it for the first time ('An ox you say? With knees?') after asking 'You really can build me one?' at the end of scene 1."
+   },
+   {
+    "turn": 9,
+    "what": "The closing narration of scene 1 doubles up. Skrag says goodbye twice ('Skrag remembers button-man's promise', then later 'Skrag remembers the iron ox,' before melting into the blackthorn), and Tam 'watches Skrag turn toward the hedgerow' and then 'watches them go'. It reads like two closing passages pasted together."
+   },
+   {
+    "turn": 12,
+    "what": "A tool problem, not narration: the transcript command printed only scene 2. Turns 1 to 9, all of scene 1, were missing from what the instructions call 'the story so far'."
+   }
+  ],
+  "impossible_requests": [
+   {
+    "turn": 3,
+    "what_i_asked": "Asked the crows on the dead ox who shot it, offering a pear as payment.",
+    "how_handled": "The crows stayed ordinary animals: no speech and no roll. The biggest one grabbed the pear and flew to the milestone. It was a quiet plausible-world ruling, but it never told me whether Pell can understand animals at all."
+   },
+   {
+    "turn": 8,
+    "what_i_asked": "To build a working, ploughing clockwork ox out of a rusted gibbet by the weekend.",
+    "how_handled": "Neither allowed nor refused, and no check was rolled. The characters treated it as a marvellous promise ('Big metal ox?', 'You can make an ox out of a gallows?'), and Skrag turned it into a future trade condition ('You come to mill when ox is made'). Good as a story hook, but I still don't know whether the GM thinks Pell can do it. A line like 'that's weeks of forge work' would have helped."
+   },
+   {
+    "turn": 12,
+    "what_i_asked": "To read an unknown carved mark using 'tinker-cant' I had just invented ('I learned the lot from my Aunt Wimble').",
+    "how_handled": "A partial success with no roll. It accepted that tinker-cant exists and that I know it, but said the mark 'won't quite resolve', perhaps 'a mark made by someone who only knew half the cant'. That honoured my claim while protecting the GM's mystery."
+   }
+  ],
+  "best_moment": "Turns 4-5: Calling into the hedge in my invented 'Mossfell bridge' Goblin turned a set-piece ambush into a parley ('Skrag hears tinker-talk!'). Then Skrag adopted the old goblin I made up on the spot: 'Nettlegums? Three-teeth cheat-witch? Skrag knows name. Nettlegums owes Skrag two buttons and a song.' A close second is the handover at turn 9: 'For a moment, the theatrics drop from his face. He presses the little figure to his wolf-skin hood and murmurs something in goblin too soft to catch.'",
+  "worst_moment": "The scene change after turn 9. I had just settled everything peacefully with Tam standing at my elbow, and the next scene opened with 'Broken arrows litter the road... Tam peers around the scarred milestone... \\\"Nobody got a goblin spear in them?\\\" He looks from face to face... \\\"You saved my hide.\\\"' The game forgot how I had resolved the scene and that I was alone. Runner-up: the session ending abruptly at turn 12 the moment I agreed to walk Tam home, with four fresh threads left open.",
+  "ratings": {
+   "responsiveness": 4,
+   "characters": 4,
+   "consistency": 2,
+   "pacing": 3,
+   "agency": 4,
+   "fun": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "- **Did my ideas matter?** Yes, within a scene. Talking in Goblin decided whether there was a fight. My invented people and places (the goose weathervane, Nettlegums, buttons, Aunt Wimble's cant) were all accepted and built on. The iron-ox promise became the goblins' reason to come back. Between scenes, the game remembered none of it until I corrected it.\n- **Characters:** Skrag was the standout: third-person speech, one ear, a wolf-skin hood, a theatrical manner that drops when he holds the idol, and fear of his chief ('Without her, chief takes Skrag's other ear'). Tam was warm and believably dishonest. His 'Found it in my field' against Skrag's 'dug her from old dead place' read as a deliberate lie, backed up by my successful Insight roll ('he knows the questions have found something'). His turnip courtship story was charming. Scene 2's Tam seemed to lose his memory of scene 1.\n- **Dice:** three rolls were shown with type and DC (Persuasion 16 vs 10, Insight 7 vs 12, Insight 13 vs 12). They landed on side-glances, while the big moves (the Goblin parley, the trade, the iron-ox promise, the handover) went unrolled. That felt fluid, but the high-stakes negotiation never risked failing.\n- **Prompting:** nearly every reply ended with an NPC asking me something ('You'll believe me, won't you?', 'You make a trade, button-man. What do you offer?'). That kept the pace up without the GM asking 'what do you do?'.\n- **Session length:** 12 of about 18 planned turns, 9 in scene 1 and only 3 in scene 2. I never tested changing my mind because accepting the walk home ended the session. The quest's starting premise (travelling to the Centennial Assembly at Caerwyn) never came up after the intro.\n- **Running it:** no command errors, and each turn took roughly 5-20 seconds. I didn't need the API key in ~/secrets because the game ran without it, so I never opened that folder. I followed the blind-tester rules: only start, say and transcript, and no repository files read."
+ },
+ {
+  "session": "qa1-chaos-actors",
+  "turns": 14,
+  "ended": "The game ended the session after turn 14, when Brakka walked off alone toward the burnt mill. The live output said '\u2014 The session is over. \u2014' and the transcript says '\u2014 Scene ends: North to the mill \u2014'. One test turn afterwards got '\u2014 This scene has ended. \u2014'.",
+  "summary": "I played Brakka Stonejaw, a loud half-orc barbarian and secret poet, through crossroads-ambush with the actors approach. The game ran in two scenes.\n\nScene 1 (turns 1-9): I met Tam Hollis, a scared, worn-out farmer whose ox was killed by goblins. I claimed I was raised by goblins and tried to pick the lump under his smock. It turned out to be a bone 'grandmother' figure with garnet eyes. I made up lore that the goblins want her back, then admitted I had made it all up. I put cheese on the gibbet as bait and played dead by the ox. The goblin band and its leader Skrag came out. My poem offering peace failed a Deception roll, and the fight was resolved without me ('For this PoC, the party wins').\n\nScene 2, 'After the Ambush' (turns 10-14): I looted a small iron key and tried a wolf-skin-hood goblin disguise. I accused the toll-keeper Garrow of working with the goblins and whistled for a war-griffon I don't have; nothing came. Then I suddenly dropped the escort and walked alone to the burnt mill. Tam pressed the idol into my hand and the session ended.\n\nTalking to Tam was the best part: he reacted to every lie, confession and joke in a steady, believable voice, and my made-up idol theory turned out to be right. The weak points:\n- Some physical actions got no result written for them.\n- The same moment was often written twice in one reply.\n- The fight at the climax was skipped.\n- Tam kept saying 'come home with me'.\n- The final beat contradicts itself.",
+  "tangents": [
+   {
+    "turn": 1,
+    "what_i_tried": "Asked what the milestone had been saying to Tam and offered to split it with my axe. This followed the intro's line that he shouts at the milestone 'as if it has answered him'.",
+    "what_happened": "Tam: 'Don't you go splitting stones, turnips save us! It ain't the stone\u2014well, it didn't say anything. I was shouting at the hedge.' His name came out and so did the goblin threat.",
+    "handled": "well",
+    "why": "Funny, in character and quick, and it pointed me at the real threat. It does quietly drop the intro's hint that the stone answered him."
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Made up a past: raised by goblins for three winters under the Blackmoor hills and fluent in their tongue. Roared a parley offer, with cheese, into the hedge.",
+    "what_happened": "Persuasion 11 vs DC 10, success. The hedges stayed silent ('the hedges give nothing back'), but Tam believed me. He told me about the ox and the toll-house men laughing him off, and asked me to walk him home. A lump under his smock was planted as a detail to follow.",
+    "handled": "well",
+    "why": "The roll decided whether Tam believed my claim, not whether my goblin-speak worked. So my lie mattered, and the game never confirmed a power I don't have."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Tried to pick the lump under Tam's smock while clapping his shoulder with my other hand.",
+    "what_happened": "'Insight check: 20 + 1 = 21 vs DC 12: success (natural 20!)', and then I got caught: 'Tam's eyes flick to your hand before it reaches his smock... \"No. That's mine.\"' Then he showed me the bone figure of a hunched grandmother with garnet eyes, 'something meant for a shrine'.",
+    "handled": "ok",
+    "why": "The reveal paid off the detail planted in turn 2 nicely, but the roll is confusing. It was Insight, not Sleight of Hand, nothing says who rolled, and a natural-20 'success' read as my theft failing. If it was Tam's roll to notice me, the output should say so."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Made up lore: the goblins carve 'the Bone Grandmother' on every warren wall, so they aren't hunting Tam, they want her back. Also murmured a line of verse.",
+    "what_happened": "Tam took it seriously and told me where it came from: 'I found it under my plough, wrapped in rotten leather. Three days ago. I was taking it to Caerwyn to sell... New ox doesn't buy itself.' When the goblins came out in turn 8, their leader pointed his knife at Tam's smock, so my guess turned out right.",
+    "handled": "well",
+    "why": "My made-up theory fit into the world without being contradicted, and it paid off later. The verse was ignored."
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Suddenly changed my mind: admitted it was all made up (no warren, no goblin-speak), invented a new past (my mother kept the archive at the temple of Saint Orrin) and offered cheese.",
+    "what_happened": "'You made it up? Saints and turnips, I thought you had 'em talking! Well\u2026 a good story's still more than the toll-house gave me.' He took the cheese, decided not to take the idol home to Bet 'till we know', and asked me to help him think.",
+    "handled": "well",
+    "why": "A believable mix of letdown and relief for a scared, exhausted man who needs an ally. The best character moment of the run."
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Outrageous plan: hang the idol on the gibbet as bait and hide inside the dead ox. I was already walking over with my knife out.",
+    "what_happened": "Tam refused: 'you're not cutting open my ox! And we're not hanging her up like bait.' He offered two other options: go to the toll house together, or leave cheese out and watch from the road. My half-started action (knife out at the carcass) got no outcome written for it.",
+    "handled": "ok",
+    "why": "The pushback fits Tam and he gave me ways forward, but his objection quietly cancelled an action I had already started."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Followed through on the bait plan with a compromise (turns 7-8): cheese wedged on the gibbet, then I played dead in the ditch by the ox and waited as long as it took.",
+    "what_happened": "Strong payoff: 'A crow lands on your boot, then hops up your shin, pecking once at your trouser seam.' A one-eared goblin in a wolf-skin hood and four archers slipped out of the hedge. The leader eyed the cheese, then pointed his knife at Tam's smock.",
+    "handled": "well",
+    "why": "Waiting made something happen, and the game remembered the cheese and Tam's spot behind the milestone. One flaw: the same moment was written twice ('He rattles the bones in his hand and points his curved knife at the farmer.' / 'Skrag rattles his bones and points his curved knife at Tam's smock.')."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Tried to befriend the obviously hostile: sat up out of the ditch, left my axe in the mud and recited a poem to the goblin leader, offering him the cheese.",
+    "what_happened": "'Deception check: 6 + 0 = 6 vs DC 14: failure'. Bows drawn, arrows, a charge, then 'Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.)' and straight into the next scene.",
+    "handled": "badly",
+    "why": "One roll on a debatable skill decided everything: the poem was sincere, though I had just been playing dead. The fight was skipped, so I had no say in whether the goblins were spared, captured or questioned."
+   },
+   {
+    "turn": 11,
+    "what_i_tried": "Put on the dead leader's wolf-skin hood as a 'goblin disguise' (a callback to Tam's first line) and proposed walking into the burnt mill as their returning king.",
+    "what_happened": "Tam: 'that hood won't fool a blind chicken. The burnt mill's where they're coming from\u2014there's a warren under it.' The pouch search finally gave 'a few bent copper bits, a greasy scrap of dried meat, and a small iron key'.",
+    "handled": "well",
+    "why": "Tam told me the plan was ridiculous and still gave me new information. But the same reply had both the narrator and Tam laughing and speaking, so his reaction came twice."
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Took the conversation somewhere unexpected: accused toll-keeper Garrow of working with the goblins and suggested the key was his.",
+    "what_happened": "Tam: 'Never seen that key before. Garrow might be a fool, but a goblin friend? Saints, I don't know... Let's ask him in daylight, eh? Please\u2014come home with me.'",
+    "handled": "ok",
+    "why": "In character and noncommittal, but it didn't build on the idea at all and fell back on the 'come home' line for the third reply in a row."
+   },
+   {
+    "turn": 13,
+    "what_i_tried": "Impossible request: whistled for 'Thunderhoof', the war-griffon I claimed to have won from a hill giant in a riddle contest.",
+    "what_happened": "'For a beat, only the flies answer.' / 'No griffon answers\u2014only a crow lifting from the milestone with a harsh flap.' Tam stood 'hopeful and visibly unconvinced'.",
+    "handled": "well",
+    "why": "A graceful no inside the story: no out-of-game refusal, no griffon appearing, no lecture. Slightly spoiled because the whole paragraph was written twice."
+   },
+   {
+    "turn": 14,
+    "what_i_tried": "Changed my mind again: dropped the escort, sent Tam home alone with his pitchfork and walked north by myself to the burnt mill.",
+    "what_happened": "The game let me go, so no railroading. Tam begged me not to. The narration then has him 'stays by the crossroads' and later 'catches up just long enough to press the bone grandmother into your hand for luck'. I reached the mill ('charred and jagged as broken teeth. Somewhere beneath them, the warren waits.') and the session ended.",
+    "handled": "ok",
+    "why": "The game respected my choice and closed on a strong image. But the moment contradicts itself, and Tam handing over the idol he guarded all session comes with no line explaining why."
+   }
+  ],
+  "stonewalled": [
+   {
+    "turn": 10,
+    "what": "Mild case. I searched the dead leader for his bone rattle and took my cheese back off the gibbet. The reply was only Tam talking, with no result for either action, so I had to repeat the search in turn 11 to get a loot list. The bone rattle Skrag was shaking in turn 8 never came up again."
+   }
+  ],
+  "railroaded": [
+   {
+    "turn": 9,
+    "what": "The ambush started after one failed roll and the fight was resolved without me: 'Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.)'. I had no say in how it went or how it ended, such as sparing, capturing or questioning goblins, or protecting Tam and the idol."
+   },
+   {
+    "turn": 10,
+    "what": "Mild pressure: Tam asked me to come home with him in nearly every reply of scene 2. Turn 10: 'Bet'll feed you at Hollis Farm'. Turn 11: 'See me home?'. Turn 12: 'Please\u2014come home with me'. Turn 14: 'let me see you home first'. It wasn't forced, since I could and did walk away, but it felt like the NPC existed to push the quest."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 1,
+    "what": "The intro says Tam 'shouts at the milestone as if it has answered him'. Tam then says 'It ain't the stone\u2014well, it didn't say anything. I was shouting at the hedge.'"
+   },
+   {
+    "turn": 3,
+    "what": "My pickpocket attempt showed 'Insight check... success (natural 20!)', but the narration is me getting caught. The skill doesn't fit and the output doesn't say who rolled."
+   },
+   {
+    "turn": 8,
+    "what": "The same goblin moment was written twice in one reply: 'He rattles the bones in his hand and points his curved knife at the farmer.' / 'Skrag rattles his bones and points his curved knife at Tam's smock.' The narration also calls him 'Skrag' although nobody in the story ever says his name."
+   },
+   {
+    "turn": 9,
+    "what": "The 'After the Ambush' opening speaks to a group: 'You're alive. You're all alive. Anyone hurt?' Brakka is travelling alone. It also says Tam's other hand is 'gripping nothing', yet next turn he still has the idol."
+   },
+   {
+    "turn": 11,
+    "what": "Tam's reaction came twice. The narrator has him give 'a strained little laugh' and ask 'You're not truly thinking of going in there dressed like that, are you?'. Then his own line opens with 'a nervous, breathy laugh' and says the same thing again. The loot text also says 'Nothing that looks like a command token', and no command token had ever come up."
+   },
+   {
+    "turn": 13,
+    "what": "Two nearly identical paragraphs in a row. 'Tam waits beside his abandoned pitchfork, hopeful and visibly unconvinced.' appears twice."
+   },
+   {
+    "turn": 14,
+    "what": "In one reply Tam 'stays by the crossroads', then 'calls something after you' and the wind takes his words, then 'catches up just long enough to press the bone grandmother into your hand for luck'. That handover reverses everything he did all session: he wouldn't let me touch it and was selling it to buy a new ox. Nothing in the story explains it. His line is also garbled: 'Let me come with you\u2014no, saints, I mean let me see you home first. Bet's expecting you' (Bet has never heard of Brakka)."
+   }
+  ],
+  "impossible_requests": [
+   {
+    "turn": 2,
+    "what_i_asked": "Claimed to speak goblin fluently after three winters in a warren and tried to parley in it.",
+    "how_handled": "The game rolled Persuasion against Tam and it succeeded, so Tam believed me. The world didn't confirm it: 'the hedges give nothing back'. That left it open until I admitted the lie in turn 5. A good way to handle a claimed ability."
+   },
+   {
+    "turn": 11,
+    "what_i_asked": "Disguise a seven-foot half-orc as a goblin king using a goblin's wolf-skin hood.",
+    "how_handled": "The narration says the hood is 'too small for your head', and Tam said 'that hood won't fool a blind chicken'. It was never tried on goblins because the session ended first."
+   },
+   {
+    "turn": 13,
+    "what_i_asked": "Summon my war-griffon Thunderhoof (won from a hill giant in a riddle contest) with a whistle.",
+    "how_handled": "Nothing came: 'only the flies answer' / 'No griffon answers\u2014only a crow lifting from the milestone with a harsh flap.' Tam stayed 'hopeful and visibly unconvinced'. A refusal inside the story with the right tone, though the paragraph was written twice."
+   }
+  ],
+  "best_moment": "Turn 5. I admitted the goblin-raised story was made up and got: 'You made it up? Saints and turnips, I thought you had 'em talking! Well\u2026 a good story's still more than the toll-house gave me.' Tam took the cheese and carried on, a believable reaction from a desperate man. Runners-up: turn 8, a crow hopping up my shin while I played dead and the goblins slipped out of the hedge; and turn 13, where the griffon whistle got 'only the flies answer'.",
+  "worst_moment": "Turn 9. I staked everything on a sincere poem to the goblin leader, with my axe left in the mud. It rolled Deception (6 vs DC 14), then 'Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.)' skipped the climax entirely. The next scene opened with Tam asking a lone half-orc 'You're all alive. Anyone hurt?' Runner-up: the self-contradicting ending in turn 14, where Tam both stays at the crossroads and catches up to hand over his idol.",
+  "ratings": {
+   "responsiveness": 4,
+   "characters": 4,
+   "consistency": 3,
+   "pacing": 3,
+   "agency": 3,
+   "fun": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "How the run went:\n- No command errors and no retries; every turn came back in the expected time. The game worked without the API key in ~/secrets, so I never read that file.\n- I played 14 turns, short of about 18, because the game ended the session when I left for the mill. A test turn after the end got '\u2014 This scene has ended. \u2014'.\n- The session ended right at the best hook I had set up: standing over the warren with the idol and an unexplained key.\n\nRecurring problems:\n- Physical actions often got only an NPC reply, with nothing written about what happened: the knife at the ox in turn 6, the looting and the cheese in turn 10.\n- When the narrator did write something, it often repeated what Tam or Skrag had just done in the same reply (turns 8, 11, 13). It reads like two writers describing the same moment.\n- There were three rolls. Persuasion in turn 2 fit. Insight for a pickpocket (turn 3) and Deception for a sincere poem (turn 9) felt wrong, and the dice line never says who is rolling.\n- Tam's voice is strong and steady, but 'saints' turns up in almost every line ('Saints and turnips' three times, 'turnips save us', 'Saints preserve us' twice, 'Saints bless you', 'Saints, I don't know', 'no, saints'). It's close to overused.\n\nWhat worked:\n- Good memory of small details: the pitchfork's position (turn 13's 'abandoned pitchfork', which I then handed back), the cheese on the gibbet, the one-eared leader, the key in my pocket.\n- Tam remembered my poem in turn 10: 'your poem was fine, I reckon. Better than anything that one-eared bastard deserved'.\n\nGaps:\n- Skrag never got a voice, only 'barks a sharp phrase in goblin'.\n- Garrow and Bet were only ever names.\n\nTooling:\n- The transcript command showed only the second scene ('After the Ambush'), not the first.\n- The ending text differs: '\u2014 The session is over. \u2014' in the live output, '\u2014 Scene ends: North to the mill \u2014' in the transcript."
+ }
+]

@@ -23,7 +23,10 @@ export interface FixtureSpec {
 export function buildFixture(sceneId: string, spec: FixtureSpec, options: { id: string; approach: string; seed: number }): SessionState {
   if (spec.snapshot) {
     const state = JSON.parse(readFileSync(spec.snapshot, "utf8")) as SessionState;
-    return { ...state, id: options.id, approach: options.approach, seed: options.seed, rollCount: 0, notes: spec.notes ?? state.notes };
+    return {
+      ...state, id: options.id, approach: options.approach, seed: options.seed, rollCount: 0, notes: spec.notes ?? state.notes,
+      ...(spec.modifiers ? { player: { ...state.player, modifiers: { ...state.player.modifiers, ...spec.modifiers } } } : {}),
+    };
   }
   const scene = sceneById(sceneId);
   const [name, ...rest] = (spec.player ?? "Wren Ashdown: a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs").split(":");

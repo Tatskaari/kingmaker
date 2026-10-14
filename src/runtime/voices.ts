@@ -61,11 +61,11 @@ export async function actorReply(scene: Scene, state: SessionState, characterId:
   });
   const context = [
     `Where you are: ${scene.setting}`,
-    `Also here: ${others.length ? others.join("; ") : "nobody else"}. The player's character: ${state.player.name}, ${state.player.concept}.`,
-    ...(state.history.length ? [`Earlier today: ${state.history.map(h => h.summary).join(" ")}`] : []),
+    `Also here: ${others.length ? others.join("; ") : "nobody else"}. The player's character: ${state.player.concept} (their name is ${state.player.name}, but you only know that if they've told you).`,
+    ...(state.history.length ? [`What happened just before this (it's what actually happened, so it wins over anything else you were told):\n${state.history.map(h => h.summary).join("\n\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`Things that have been established (true): ${[...state.established, ...state.canon].join(" ")}`] : []),
     ...(scene.limits?.length ? [`How things stand here (don't contradict it): ${scene.limits.join(" ")}`] : []),
-    ...(beat.cast?.[c.id] ? [`What you're doing in this part of the scene: ${beat.cast[c.id]}`] : []),
+    ...(beat.cast?.[c.id] ? [`What you're after in this part of the scene (pursue it naturally, react to what just happened first, and don't repeat yourself): ${beat.cast[c.id]}`] : []),
     ...(direction.length ? [`The GM's direction for this moment: ${direction.join(" ")}`] : []),
   ].join("\n\n");
   const input: Message[] = [
