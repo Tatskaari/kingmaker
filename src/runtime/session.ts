@@ -15,6 +15,8 @@ export interface TurnMetric {
   repairMs?: number;
   /** Stall mode: time until the follow-up (resolving) text started, when there was one. */
   followUpMs?: number | null;
+  /** Time until text that answers the player started (follow-up after a holding beat, else first text). */
+  resolvingTextMs?: number | null;
   preDecisionMs: number;
   firstTextMs: number | null;
   replyMs: number;
@@ -71,6 +73,12 @@ export interface SessionState {
   whispers?: Array<{ to: string; note: string; turn: number }>;
   /** The ending the story has been leaning towards, and for how many replies in a row. */
   endingLead?: { exitId: string; count: number; probability: number };
+  /** Stall-mode co-GM results that missed the deadline (they land next turn). */
+  lateRepairs?: number;
+  /** Speculative replies kept vs discarded (gm-fast). */
+  speculation?: { used: number; discarded: number };
+  /** Essentials the decider chose to bring to the player through another carrier. */
+  decidedRelocations?: Array<{ essential: string; carrier: string; turn: number }>;
   /** Essentials the player has come across (judged after each reply). */
   landed?: string[];
   /** Beats whose pressure has already been offered to the GM (it fires once). */

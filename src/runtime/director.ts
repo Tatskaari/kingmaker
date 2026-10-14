@@ -86,6 +86,8 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
 }
 
 export interface PreDecision {
+  /** Essentials to bring to the player now, and through whom (decider relocation). */
+  relocate?: Array<{ essential: string; carrier: string }>;
   /** The player is pursuing a way through the scene that none of its routes covers. */
   offGraph?: boolean;
   /** The player stepped out of character (a question to the GM, not the world). */
@@ -130,7 +132,7 @@ async function freeformCheck(decider: Decider, scene: Scene, state: SessionState
 }
 
 /** Before the reply: is the player attempting a transition, or should a pacing cue fire? Plus who speaks first. */
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -156,6 +158,18 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     questions.off_graph = {
       instructions: `Is the player, in their latest turn, pursuing a way to deal with the scene's central situation that none of the scene's routes describes? The routes: ${routes.map(r => `"${r}"`).join("; ")}. Ordinary conversation, questions and small actions are not.`,
       criteria: { off_graph: "Yes: a real attempt to resolve or change the situation by a means none of the routes describes.", covered: "No: it matches a route, or it's ordinary play." },
+    };
+  }
+  const missing = options.relocate ? (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).slice(0, 3) : [];
+  const present = presentCast(scene, state);
+  for (const e of missing) {
+    questions[`relocate_${e.id}`] = {
+      instructions: `In a roleplaying scene the player needs to come across this: "${e.what}" The author placed it with: ${e.placedWith.join("; ")}. Judging by what the player is doing now, should it reach them in this reply through something they are already engaging with? Choose who or what, or not_now if they are heading towards where it was placed anyway, it has nothing to do with what they're doing, or it would feel forced.`,
+      criteria: {
+        ...Object.fromEntries(present.map(c => [c.id, `${c.name}: could plausibly know it or let it slip, given what the player is doing with them`])),
+        world: "Something in the scene itself (an object, a sound, a telltale detail) shows it, through what the player is doing.",
+        not_now: "Not now.",
+      },
     };
   }
   questions.ooc = {
@@ -208,6 +222,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
   const ooc = decision.answers.ooc?.choice === "out_of_character";
+  const relocate = missing.map(e => ({ e, a: decision.answers[`relocate_${e.id}`] }))
+    .filter(({ a }) => a && a.choice !== "not_now" && (a.probabilities?.[a.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE)
+    .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const plainTransition = plain && !plainEnding ? plainOutcome : undefined;
   // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
@@ -217,13 +234,19 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   return {
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
-    ...(offGraph ? { offGraph } : {}),
+    ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}),
   };
 }
 
 /** Say yes: no roll needed, so what the player is doing simply works. */
 export function plainDirective(t: Transition): string {
   return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
+}
+
+export function relocateDirective(scene: Scene, item: { essential: string; carrier: string }): string {
+  const e = scene.essentials?.find(x => x.id === item.essential);
+  const who = item.carrier === "world" ? "something in the scene the player is engaging with (an object, a sound, a telltale detail)" : scene.cast.find(c => c.id === item.carrier)?.name ?? item.carrier;
+  return `Something the scene needs is within reach of what the player is doing: ${e?.what ?? item.essential} Let it reach them in this reply through ${who}, naturally, as if it was always there. Don't make it a lecture.`;
 }
 
 export const STALL_DIRECTIVE = "The player is trying something the scene's prep didn't plan for. Give a short, natural first beat that takes it seriously and buys a moment: show it being considered or set in motion (a reaction, a pause, a first step, a telling detail). Don't resolve it yet and don't refuse it. One to three sentences, ending mid-moment.";
@@ -250,8 +273,9 @@ export interface EndingRead { exitId: string; probability: number }
 export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[] }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
+  // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
   const outcomes = [...transitionsFor(scene, state, "outcome"), ...transitionsFor(scene, state, "cue")]
-    .filter(t => !options.hold || !leadsTo(t).includes(options.hold));
+    .filter(t => !options.hold || (!leadsTo(t).includes(options.hold) && t.to !== IMPROVISED_EXIT_ID));
   const questions: Record<string, ChoiceQuestion> = { status: STATUS_QUESTION };
   // Which ending is the story at now, if any? Asked over every ending, including ones the player
   // reaches without dice or that no route leads to, as a state rather than "what just happened".
@@ -297,6 +321,13 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   const chosen = picked && endsScene(scene, picked) && confidence < SCENE_ENDING_CONFIDENCE ? undefined : picked;
   const status = decision.answers.status?.choice as SceneStatus | undefined;
   const endingAnswer = decision.answers.ending;
+  // The improvised ending defers to any authored ending the ending-state read finds plausible,
+  // even one with no route (a holed scene, or an approach nobody authored).
+  let move = chosen ? resolve(scene, state, chosen, "outcome") : undefined;
+  if (move?.exit?.id === IMPROVISED_EXIT_ID && endingAnswer) {
+    const best = endings.filter(e => e.id !== IMPROVISED_EXIT_ID).map(e => ({ e, p: endingAnswer.probabilities?.[e.id] ?? 0 })).sort((a, b) => b.p - a.p)[0];
+    if (best && best.p >= 0.2) move = { ...move, to: best.e.id, exit: best.e };
+  }
   let ending = endingAnswer && endingAnswer.choice !== "not_yet" ? { exitId: endingAnswer.choice, probability: endingAnswer.probabilities?.[endingAnswer.choice] ?? 0 } : undefined;
   // The improvised ending is a last resort here too: prefer a plausible authored ending (its script knows what it means).
   if (ending?.exitId === IMPROVISED_EXIT_ID && endingAnswer) {
@@ -304,7 +335,7 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     if (authored && authored.p >= 0.2) ending = { exitId: authored.id, probability: authored.p + ending.probability };
   }
   const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
-  return { ...(chosen ? { move: resolve(scene, state, chosen, "outcome") } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}) };
+  return { ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}) };
 }
 
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */

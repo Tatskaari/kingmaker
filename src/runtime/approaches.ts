@@ -25,6 +25,14 @@ export interface Approach {
    * (authored edges), so the player can see why the dice matter (V1 and QA feedback).
    */
   freeformChecks?: boolean;
+  /** Which co-GM runs inside the turn (stall/blocking): the full review, or the quick fix. */
+  repairKind?: "full" | "quick";
+  /** Stall mode: how long the follow-up waits for the co-GM before going ahead without it. */
+  repairDeadlineMs?: number;
+  /** Start the GM reply alongside the decision; keep it if the decision changes nothing. */
+  speculative?: boolean;
+  /** Relocate missed essentials through the per-turn decider (no co-GM, no added latency). */
+  deciderRelocation?: boolean;
   /** Hide the scene's essentials from the in-scene GM (baseline for the deviation experiment). */
   hideEssentials?: boolean;
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
@@ -41,6 +49,9 @@ export const APPROACHES: Record<string, Approach> = {
   "gm-repair": { id: "gm-repair", description: "Single GM voice plus the background co-GM repair agent.", voice: "gm", decider: "luna-decisions", repair: "background" },
   "gm-repair-blocking": { id: "gm-repair-blocking", description: "Single GM voice; the co-GM reviews every player turn before the reply (accuracy upper bound, slower).", voice: "gm", decider: "luna-decisions", repair: "blocking" },
   "gm-repair-stall": { id: "gm-repair-stall", description: "Single GM voice; off-graph turns get a quick holding beat while the co-GM works, then a follow-up that resolves them.", voice: "gm", decider: "luna-decisions", repair: "stall" },
+  "gm-stall-quick": { id: "gm-stall-quick", description: "5 s budget: off-graph turns get a holding beat while a quick co-GM (3 s deadline) decides; speculative replies; decider relocation.", voice: "gm", decider: "luna-decisions", repair: "stall", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, deciderRelocation: true },
+  "gm-fast": { id: "gm-fast", description: "Single GM voice with speculative replies: the reply starts alongside the decision and is kept when the decision changes nothing.", voice: "gm", decider: "luna-decisions", repair: "off", speculative: true },
+  "gm-nudge": { id: "gm-nudge", description: "Single GM voice; the per-turn decider moves missed essentials to whoever the player is engaging with (no co-GM).", voice: "gm", decider: "luna-decisions", repair: "off", deciderRelocation: true },
   "gm-repair-low": { id: "gm-repair-low", description: "Background co-GM at low reasoning (faster notes).", voice: "gm", decider: "luna-decisions", repair: "background", repairEffort: "low" },
   "gm-repair-stall-low": { id: "gm-repair-stall-low", description: "Stall and report back, with the co-GM at low reasoning (faster follow-up).", voice: "gm", decider: "luna-decisions", repair: "stall", repairEffort: "low" },
   actors: { id: "actors", description: "A decider picks who speaks; each character is its own Luna actor; GM narrates.", voice: "actors", decider: "luna-decisions", repair: "off" },

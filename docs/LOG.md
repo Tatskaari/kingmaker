@@ -183,3 +183,26 @@ Clarification: the GM has always been Luna (reasoning none). Sol is only the eva
 There's no measurable quality gain from reasoning, and medium more than doubles time to first text. Luna `low` usually doesn't reason at all (median 0 reasoning tokens), so it behaves like `none` with a worse tail. Keep `none` for the in-scene voice. Runtime cost is negligible at every level (< $0.001 per turn including both decision calls).
 
 Note: OpenRouter account credit ran out (~$0.70 left of $110) partway through the `edge-rolls` regression; its judge calls returned HTTP 402 and need re-running after a top-up.
+
+## 2026-10-14 — QA round 2, and resolving deviations from the authored scene
+
+### QA round 2 (4 blind Claude players; `docs/qa/round-2-analysis.md`)
+
+Meta-gamer through character creation and two more scenes (gm); double-crosser in `green-standoff` (gm); terse skeptic in `hanged-clerk` (actors); murder-hobo in `warren-hostage` (gm-repair). All would keep playing. Mean rating 3.3 → 3.7, consistency 2.3 → 3.5. Of 41 tangents, 29 were handled well and 4 badly. Round 1's hand-off and doubled-ending failures are gone. The failures moved to the game's edges:
+
+- **A. The story reaches an ending but the scene doesn't close** (endings judged per turn against 0.6 with no memory; no-dice routes never re-checked after the reply; "what just happened" framing misses states). Fix: an after-reply *ending-state* question over all endings; near-misses accumulate (a leader twice running at ≥ 0.35 closes); threshold hints tell the GM not to narrate journeys.
+- **B. OOC answers about a system the GM can't see** (promised a scene skip, denied stats exist, leaked the prep). Fix: a table-rules card in the prep, plus the player's skills; OOC answers truthful, ≤ 2 sentences, never agree to change the game; hand-offs exclude OOC.
+- **C. A player's escalation ends the scene in the same reply** (taking a hostage read as an attack, so combat ended the session at turn 5). Fix: combat routes need intent to hurt *now*; roll-decided endings play the decisive moment and wind down next reply.
+- **D. Standing lines repeat** (cast notes and pressure re-sent every turn get performed every reply). Fix: cast notes only while a beat is fresh, then "already voiced: act, wait, give ground"; pressure fires once; the momentum rule asks for a new push.
+
+### User steer: resolve deviations from the authored scene
+
+The article "When Play Does Not Go to Prep" (Gnome Stew). We author situations; exits move between them; when play doesn't follow the authored path, the GM should find satisfying solutions. *"The detectives decide not to interview the bartender… you move that clue to another NPC."* The article's ladder: move elements around → soft corrections (hints, NPC dialogue, a check that tells them what their character knows) → hard corrections → toss the notes.
+
+Implemented:
+- **Essentials** (`Scene.essentials`): what the scene needs the player to come across, where the author placed it, and what it unlocks. The GM's prep frames them as movable ("players often go elsewhere: move it to whatever they're engaging with, or nudge softly"). A free after-reply question tracks which have landed.
+- **Co-GM relocations:** move / soft nudge / improvise, to a character (as a whisper) or the world (as a GM note). It can also add a route with a roll when noticing or recalling should be uncertain.
+- **Four co-GM timings** to weigh repair against snappiness: none, background (lands next turn), **stall** (your suggestion: when the player goes off the graph, a quick holding beat streams at once while the co-GM works in parallel, then a follow-up resolves the attempt), and blocking (co-GM before every reply, the accuracy upper bound). Medium and low effort for the co-GM.
+- **Experiment cases:** 3 holed scenes (routes removed but their endings kept), 3 "dreamed" approaches Luna invented that no route covers, and 4 deviations where the player avoids exactly where an essential was placed (ignores Tam, won't talk to Rowan, never looks at the toll house, won't search the body). Baseline `gm-rigid` hides the essentials.
+
+Smoke test latencies: blocking puts the co-GM on the critical path (10–15 s to first text, unacceptable); stall keeps first text at ~1.4 s, but the medium co-GM makes the follow-up arrive ~20 s later.

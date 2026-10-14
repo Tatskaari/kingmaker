@@ -55,7 +55,7 @@ function gmHistory(scene: Scene, state: SessionState): Message[] {
 }
 
 /** Approach "gm": one call, the GM narrates and voices everyone (Friends & Fables style). */
-export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void, operation = "gm.reply"): Promise<Spoken> {
+export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void, operation = "gm.reply", signal?: AbortSignal): Promise<Spoken> {
   const input: Message[] = [
     { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true }) },
     ...gmHistory(scene, state),
@@ -63,7 +63,7 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
-  const result = await respond({ operation, instructions: prompt("gm"), input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 700 : 6000, ...(onText ? { onText } : {}) });
+  const result = await respond({ operation, instructions: prompt("gm"), input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 700 : 6000, ...(onText ? { onText } : {}), ...(signal ? { signal } : {}) });
   const draft: Spoken = { speaker: "gm", kind: "narration", text: result.text.trim(), result };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
   return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`));

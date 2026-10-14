@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
-import { currentBeat, effectiveScene, presentCast, prompt, sceneBrief, scriptTranscript, targetTitle } from "./brief.ts";
+import { currentBeat, effectiveScene, presentCast, prompt, sceneBrief, sceneEntries, scriptTranscript, targetTitle } from "./brief.ts";
 import { SKILLS, type Beat, type Scene, type Transition } from "./scene.ts";
 import { sessionDir, type RepairResult, type ScenePatch, type SessionState } from "./session.ts";
 
@@ -235,3 +235,58 @@ export function shouldRepair(state: SessionState, every = 3): boolean {
 }
 
 export const describeTarget = targetTitle;
+
+/**
+ * Quick co-GM: one fast call (no reasoning, tiny enum-constrained output) that decides the
+ * smallest move letting the scene follow the player off the graph. Built to fit a 5 s reply
+ * budget alongside a holding beat; the full co-GM can still run in the background.
+ */
+export async function quickRepair(authored: Scene, state: SessionState, options: { effort?: Effort } = {}): Promise<RepairResult> {
+  const scene = effectiveScene(authored, state.patches);
+  const beat = currentBeat(scene, state);
+  const essentials = (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id));
+  const targets = [...scene.beats.map(b => b.id), ...scene.exits.map(e => e.id)];
+  const schema = {
+    type: "object", additionalProperties: false, required: ["move", "essential", "carrier", "target", "when", "note"],
+    properties: {
+      move: { type: "string", enum: ["relocate", "open_route", "note_only"], description: "relocate: bring a missed essential to them; open_route: let what they're doing lead to an existing beat or ending; note_only: just steer the GM." },
+      essential: { type: "string", enum: [...essentials.map(e => e.id), "none"] },
+      carrier: { type: "string", enum: [...presentCast(scene, state).map(c => c.id), "world", "none"] },
+      target: { type: "string", enum: [...targets, "none"] },
+      when: { type: "string", description: "For open_route: what the player does or what happens, in prose." },
+      note: { type: "string", description: "One or two sentences to the GM on how to resolve the player's attempt now." },
+    },
+  };
+  const started = performance.now();
+  const result = await respondJson<{ move: string; essential: string; carrier: string; target: string; when: string; note: string }>({
+    operation: "repair.quick", effort: options.effort ?? "none",
+    instructions: "You are the co-GM of a live roleplaying scene. The player has just gone somewhere the prep didn't plan for, and the GM is holding the moment for a few seconds while you decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: bring something the scene needs to them through whatever they're engaging with, let their approach lead to an existing beat or ending, or tell the GM how to resolve it honestly. Never refuse the player flatly; if the world can't do it, say what it can do instead.",
+    input: [{ role: "user", content: [
+      `Scene: ${scene.title}. ${scene.premise}`,
+      `Current beat: ${beat.title}. ${beat.direction}`,
+      `Routes from here: ${[...beat.transitions, ...(scene.anytime ?? [])].map(t => `[${t.to ?? t.check?.onSuccess}] ${t.when}`).join(" | ")}`,
+      `Endings: ${scene.exits.map(e => `[${e.id}] ${e.title}: ${e.outcome}`).join(" | ")}`,
+      essentials.length ? `Not yet come across: ${essentials.map(e => `[${e.id}] ${e.what} (placed with ${e.placedWith.join("; ")})`).join(" | ")}` : "",
+      scene.limits?.length ? `Can't offer: ${scene.limits.join(" | ")}` : "",
+      `Recent:\n${scriptTranscript(scene, state, sceneEntries(state).slice(-8))}`,
+    ].filter(Boolean).join("\n\n") }],
+    json: { name: "quick_fix", schema }, maxOutputTokens: 400,
+  });
+  const patches: ScenePatch[] = [];
+  const whispers: Array<{ to: string; note: string }> = [];
+  const relocations: RepairResult["relocations"] = [];
+  const notes: string[] = [result.note];
+  if (result.move === "relocate" && result.essential !== "none") {
+    const e = scene.essentials?.find(x => x.id === result.essential);
+    relocations!.push({ essential: result.essential, technique: "move", to: result.carrier === "none" ? "world" : result.carrier, how: result.note });
+    if (result.carrier !== "world" && result.carrier !== "none") whispers.push({ to: result.carrier, note: `If it fits the moment, this reaches the player through you: ${e?.what ?? result.essential}` });
+    else notes.push(`Let this reach the player through the world: ${e?.what ?? result.essential}`);
+  }
+  if (result.move === "open_route" && result.target !== "none" && targets.includes(result.target) && result.when.trim()) {
+    patches.push({ turn: state.turn, transition: { beat: beat.id, transition: { id: `quick-${state.turn}`, when: result.when, on: "outcome", to: result.target } }, why: result.note });
+  }
+  return {
+    turn: state.turn, assessment: `quick: ${result.move}`, status: "drifting", notes: notes.join("\n"), whispers, relocations, canon: [], patches,
+    costUsd: result._meta.costUsd, latencyMs: performance.now() - started,
+  };
+}

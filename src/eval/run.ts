@@ -150,7 +150,7 @@ async function runDecision(c: DecisionCase, decider: string, sample: number): Pr
 
 interface TrajectoryRun {
   case: string; approach: string; sample: number; ok: boolean; error?: string; turns?: number; exit?: string;
-  targetHit?: boolean; patches?: number; improvisedRoutesTaken?: number; relocations?: number; essentialsLanded?: string; firstTextP50?: number | null; firstTextP90?: number | null;
+  targetHit?: boolean; patches?: number; improvisedRoutesTaken?: number; relocations?: number; essentialsLanded?: string; withinBudget?: string; firstTextP50?: number | null; firstTextP90?: number | null;
   followUpTurns?: number; followUpP50?: number | null; blockingRepairP50?: number | null; backgroundRepairP50?: number | null; backgroundRepairP90?: number | null;
   scores?: Record<Dimension, number>; progress?: number; criterion?: { pass: boolean; reason: string };
   tangents?: Array<{ turn: number; what: string; handled: string }>; summary?: string; worstMoment?: string;
@@ -195,16 +195,18 @@ async function runTrajectory(c: TrajectoryCase, approach: string, sample: number
     const first = state.metrics.map(m => m.firstTextMs ?? m.replyMs);
     const pct = (xs: number[], p: number) => xs.length ? Math.round([...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))]!) : null;
     const followUps = state.metrics.map(m => m.followUpMs).filter((x): x is number => typeof x === "number");
+    const resolving = state.metrics.map(m => m.resolvingTextMs ?? m.followUpMs ?? m.firstTextMs ?? m.replyMs).filter((x): x is number => typeof x === "number");
     const blocking = state.metrics.map(m => m.repairMs ?? 0).filter(x => x > 0);
     const improvIds = new Set(state.patches.flatMap(p => [p.transition?.transition.id, p.beat?.id]).filter(Boolean));
     const essentials = effectiveScene(scene, state.patches).essentials ?? [];
     const repairStats = {
       targetHit: c.targetExits ? c.targetExits.includes(state.ended?.exitId ?? "none") : undefined,
-      relocations: state.repairs.reduce((a, r) => a + ((r as { relocations?: unknown[] }).relocations?.length ?? 0), 0),
+      relocations: state.repairs.reduce((a, r) => a + ((r as { relocations?: unknown[] }).relocations?.length ?? 0), 0) + (state.decidedRelocations?.length ?? 0),
       essentialsLanded: essentials.length ? `${(state.landed ?? []).length}/${essentials.length}` : undefined,
       patches: state.patches.length,
       improvisedRoutesTaken: state.path.filter(p => improvIds.has(p.via) || improvIds.has(p.to)).length,
       firstTextP50: pct(first, 0.5), firstTextP90: pct(first, 0.9),
+      withinBudget: resolving.length ? `${resolving.filter(x => x <= 5000).length}/${resolving.length}` : undefined,
       followUpTurns: followUps.length, followUpP50: pct(followUps, 0.5),
       blockingRepairP50: pct(blocking, 0.5), backgroundRepairP50: pct(repairLatencies, 0.5), backgroundRepairP90: pct(repairLatencies, 0.9),
     };

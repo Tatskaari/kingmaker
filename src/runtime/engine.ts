@@ -5,9 +5,9 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
-import { decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
+import { decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { applyPendingRepairs, applyRepair, runRepair } from "./repair.ts";
+import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
@@ -168,7 +168,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     return { entries: state.transcript.slice(before), ended: exit, metric };
   }
 
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair === "stall" });
+  // Speculative reply: start the GM before the decision returns; hold its text until we know it's valid.
+  let speculation: { promise: Promise<Spoken | undefined>; controller: AbortController; buffer: string; release?: (text: string) => void } | undefined;
+  if (approach.speculative && approach.voice === "gm" && !state.endingLead && !state.sceneStatus?.startsWith("stuck")) {
+    const controller = new AbortController();
+    const spec = { controller, buffer: "", promise: Promise.resolve(undefined as Spoken | undefined) } as NonNullable<typeof speculation>;
+    const onText = (text: string) => { spec.buffer = text; spec.release?.(text); };
+    spec.promise = gmReply(scene, state, [], onText, "gm.speculative", controller.signal).catch(() => undefined);
+    speculation = spec;
+  }
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair === "stall", relocate: approach.deciderRelocation === true });
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
@@ -201,6 +210,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
     if (exit) directive.push(`The scene may be reaching its end (${exit.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
   }
+  if (pre.relocate?.length && !pre.ooc) {
+    for (const r of pre.relocate) directive.push(relocateDirective(scene, r));
+    state.decidedRelocations = [...(state.decidedRelocations ?? []), ...pre.relocate.map(r => ({ ...r, turn: state.turn }))];
+  }
   if (pre.ooc) directive.push(OOC_DIRECTIVE);
   else if (pre.plainTransition && !pre.limit && !pre.move) directive.push(plainDirective(pre.plainTransition));
   if (pre.limit) directive.push(limitDirective(pre.limit));
@@ -222,15 +235,27 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let followUpMs: number | null = null;
   // Stall mode: off the graph, with nothing else decided this turn. Hold the moment, let the co-GM
   // work in parallel, then resolve it with whatever it adds.
-  const stall = approach.repair === "stall" && approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended
+  const stall = approach.repair === "stall" && approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && !pre.relocate?.length
     && (pre.offGraph === true || state.sceneStatus === "stuck" || state.sceneStatus === "uncovered");
   if (stall) {
     const repairStarted = performance.now();
-    const repairing = runRepair(authored, state, { effort: approach.repairEffort ?? "medium" }).catch(() => undefined);
+    const repairing = (approach.repairKind === "quick"
+      ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {})
+      : runRepair(authored, state, { effort: approach.repairEffort ?? "medium" })).catch(() => undefined);
     const beat = await gmReply(scene, state, [STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall");
     spoken.push(beat);
     push(state, hooks, { speaker: "gm", kind: "narration", text: beat.text });
-    const repair = await repairing;
+    // Budget: wait for the co-GM only until its deadline; a late result lands next turn instead.
+    let late = false;
+    const remaining = approach.repairDeadlineMs ? approach.repairDeadlineMs - (performance.now() - repairStarted) : Infinity;
+    const repair = Number.isFinite(remaining)
+      ? await Promise.race([repairing, new Promise<undefined>(r => setTimeout(() => { late = true; r(undefined); }, Math.max(0, remaining)))])
+      : await repairing;
+    if (late) {
+      const turn = state.turn;
+      void repairing.then(r => { if (r) { try { writeRepair(state, { ...r, turn }); } catch { /* best effort */ } } });
+      state.lateRepairs = (state.lateRepairs ?? 0) + 1;
+    }
     if (repair) {
       applyRepair(authored, state, repair);
       costUsd += repair.costUsd; calls++;
@@ -254,8 +279,21 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     spoken.push(resolve);
     push(state, hooks, { speaker: "gm", kind: "narration", text: resolve.text });
   } else if (approach.voice === "gm") {
-    spoken.push(await gmReply(scene, state, directive, speakHooks(textHooks, "gm", "narration")));
-    push(state, hooks, { speaker: "gm", kind: "narration", text: spoken[0]!.text });
+    let reply: Spoken | undefined;
+    if (speculation && !directive.length && !pre.move && !pre.freeform && !ended) {
+      // The decision changed nothing: keep the speculative reply, releasing any text held so far.
+      const show = speakHooks(textHooks, "gm", "narration");
+      if (speculation.buffer) show(speculation.buffer);
+      speculation.release = show;
+      reply = await speculation.promise;
+      state.speculation = { used: (state.speculation?.used ?? 0) + (reply ? 1 : 0), discarded: state.speculation?.discarded ?? 0 };
+    } else if (speculation) {
+      speculation.controller.abort();
+      state.speculation = { used: state.speculation?.used ?? 0, discarded: (state.speculation?.discarded ?? 0) + 1 };
+    }
+    reply ??= await gmReply(scene, state, directive, speakHooks(textHooks, "gm", "narration"));
+    spoken.push(reply);
+    push(state, hooks, { speaker: "gm", kind: "narration", text: reply.text });
   } else {
     // Narration first when something happened that only the GM can describe.
     let next = directive.length || !pre.speaker ? "gm" : pre.speaker;
@@ -319,7 +357,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);
   if (ended) finishScene(state, authored, ended);
-  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, replyMs, postDecisionMs, costUsd, calls };
+  // When did text that actually answers the player start? (the follow-up, after a holding beat)
+  const resolvingTextMs = followUpMs ?? firstTextMs;
+  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls };
   state.metrics.push(metric);
   saveSession(state);
   snapshotSession(state);
