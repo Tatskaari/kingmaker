@@ -359,8 +359,11 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           const dest = one(op.to, op.op);
           if (!dest) continue;
           // Where they started, and where they were hiding, no longer holds once they move.
-          e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /.test(n.text));
+          e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
           const how = op.how || "near";
+          // Saying where someone already is isn't a move: "Kell is in the doorway" mustn't scatter her
+          // to a random spot in it, nor "by the bar" shuffle someone already at the bar.
+          if (!heldBy(world, e) && ((dest.kind === "area" || dest.kind === "place") ? areaOf(world, e.id)?.id === dest.id : how === "near" && (feetBetween(world, e.id, dest.id) ?? Infinity) <= 5)) continue;
           if (dest.kind === "area" || dest.kind === "place") { e.parent = dest.id; e.at = spread(world, dest, e.id); log(`${e.name} moves to ${dest.name}`); }
           else if (how === "in" || how === "on" || how === "under") {
             if (how === "in") { e.parent = dest.id; delete e.at; }
