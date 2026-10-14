@@ -10,7 +10,7 @@ import { hangedClerk } from "./hanged-clerk.ts";
 
 const kell: Character = { ...hangedClerk.cast.find(c => c.id === "kell")!, attitude: "As things stand between her and the investigator after the morning (her memories say how); she stays practical and dry, and she has her own errands too." };
 
-function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long"; assumes?: string[]; overtaken?: string }): Scene {
+function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long"; assumes?: string[]; overtaken?: string; time?: Scene["time"] }): Scene {
   return {
     id: spec.id, title: spec.title, summary: spec.summary,
     setting: spec.setting,
@@ -32,6 +32,8 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
     essentials: [{ id: "lead", what: spec.lead, placedWith: ["Sergeant Kell", "gossip in the town"], carriers: ["kell"], unlocks: "the next scene" }],
     limits: spec.limits,
     lore: spec.lore,
+    interlude: true,
+    ...(spec.time ? { time: spec.time } : {}),
     ...(spec.rest ? { rest: spec.rest } : {}),
     ...(spec.assumes ? { assumes: spec.assumes, overtaken: spec.overtaken! } : {}),
   };
@@ -46,6 +48,7 @@ export const caerwynAfternoon = interlude({
   onward: "the river stairs and the Drowned Rat",
   next: "drowned-rat",
   rest: "short",
+  time: "afternoon",
   lore: ["World/Caerwyn.md", "World/Centennial Assembly.md"],
   limits: [
     "Places that aren't on the way (the palace, the Corn Exchange's back rooms, the watch house cells, anywhere outside the walls): they're for another day. The Assembly has the palace shut to anyone without business, and the trail goes to the river.",
@@ -61,6 +64,7 @@ export const wharfNight = interlude({
   lead: "The Heron warehouse, at the downriver end of the wharves, is loading a barge tonight, and the gentleman comes at midnight to see it off.",
   onward: "the Heron warehouse",
   next: "heron-warehouse",
+  time: "night",
   lore: ["Places/River Stairs.md"],
   assumes: ["The player hasn't yet gone into the Heron warehouse or dealt with what happens there tonight (the loading, the true book, the Master's visit)."],
   overtaken: "heron-warehouse",

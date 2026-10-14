@@ -564,7 +564,7 @@ export function forceEnding(state: SessionState, exitId: string): void {
 }
 
 /** Continue into the exit's next scene in the same session (the map would sit in between). */
-export async function chainScene(state: SessionState, combatResult = "the party won"): Promise<SessionState | undefined> {
+export async function chainScene(state: SessionState, combatResult = "the party won", options: { skipInterludes?: boolean } = {}): Promise<SessionState | undefined> {
   if (!state.ended) return undefined;
   const scene = sceneById(state.sceneId);
   const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
@@ -573,9 +573,12 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   const candidates: Scene[] = [];
   for (let id: string | undefined = exit.next; id && candidates.length < 6 && !candidates.some(c => c.id === id); ) {
     const candidate = sceneById(id);
+    // With a map to walk, downtime between scenes is the map: go straight on to where it leads.
+    if (options.skipInterludes && candidate.interlude) { id = candidate.exits.find(e => e.next)?.next; continue; }
     candidates.push(candidate);
     id = candidate.assumes?.length ? candidate.overtaken : undefined;
   }
+  if (!candidates.length) return undefined;
   const { handoff, sceneId, adjustments, skipped, opening } = await crossBoundary(scene, state, exit, combatResult, candidates);
   const memory = approachById(state.approach).memory;
   if (memory === "docs") broadcastEnding(scene, state, exit);

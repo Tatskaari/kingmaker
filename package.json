@@ -12,7 +12,8 @@
     "scene": "node --no-warnings src/cli/scene.ts",
     "eval": "node --no-warnings src/eval/run.ts",
     "typecheck": "tsc --noEmit -p .",
-    "compare": "node --no-warnings src/eval/compare.ts"
+    "compare": "node --no-warnings src/eval/compare.ts",
+    "qa": "node --no-warnings src/cli/qa.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.5",
