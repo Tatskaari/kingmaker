@@ -39,7 +39,8 @@ export class Table {
   plan(name: string, intent: Record<string, unknown>): Dnd.EngineEvent[] {
     const planner = this.kit.plan[name];
     if (!planner) throw new Error(`The rules engine has no planner "${name}"`);
-    return this.apply(planner(this.state, intent).events);
+    const events = planner(this.state, intent).events;
+    return this.apply(name === "castSpell" ? missesMiss(events) : events);
   }
   event(type: string, rest: Record<string, unknown>): Dnd.EngineEvent {
     return { id: this.kit.E.newEventId(), at: new Date().toISOString(), type, ...rest };
@@ -65,6 +66,17 @@ export class Table {
     const mod = r.modifier ? signed(r.modifier) : "";
     return { total: r.total, text: `${expression} (${r.rolls.map(x => x.value).join("+")}${mod})` };
   }
+}
+
+/**
+ * The engine deals half damage on a spell attack that missed (a missed Fire Bolt still burns): a
+ * miss is a miss, as src/rules/dnd.ts has it for scenes. Saving-throw spells keep their half.
+ */
+function missesMiss(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] {
+  const missed = new Set(events.filter(e => e.type === "AttackRolled" && e["hit"] === false).map(e => e.id));
+  if (!missed.size) return events;
+  const dropped = new Set(events.filter(e => e.type === "DamageRolled" && missed.has(String(e["causedByEventId"]))).map(e => e.id));
+  return events.filter(e => !dropped.has(e.id) && !(e.type === "DamageApplied" && dropped.has(String(e["causedByEventId"]))));
 }
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;

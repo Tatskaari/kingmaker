@@ -1,8 +1,8 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect } from "react";
-import { direction, interact, nearby, steps, whereabouts } from "../../game/map/index.ts";
+import { direction, nearby, steps, whereabouts } from "../../game/map/index.ts";
 import { MapView } from "../../game/map/view.tsx";
-import { leadTarget } from "../../game/town.ts";
+import { interactLabel, leadTarget } from "../../game/town.ts";
 import { townView } from "../../game/views.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import type { Game } from "../game.ts";
@@ -49,7 +49,7 @@ export function ExploreScreen({ game }: { game: Game }) {
   const where = whereabouts(ex);
   const lead = leadTarget(core.state);
   const leadScene = game.story.lead ? sceneById(game.story.lead) : undefined;
-  const front = interact(ex);
+  const front = interactLabel(core.state, session);
   const inner = sideW - 4;
   const near = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel").slice(0, Math.max(3, height - 28));
   const status = session.rules?.status ?? "";
@@ -78,7 +78,7 @@ export function ExploreScreen({ game }: { game: Game }) {
             <span fg={C.faint}>{` ${n.distance <= 1 ? "here" : `${ARROW[n.direction] ?? ""} ${n.distance}`}`}</span>
           </text>;
         }) : <text fg={C.faint} attributes={ITALIC}>Nobody. Caerwyn is busy elsewhere.</text>}
-        {front ? <text marginTop={1} wrapMode="word"><span fg={C.title} attributes={BOLD}>{"e "}</span><span fg={front.interaction.kind === "scene" ? C.lead : C.text}>{front.interaction.label}</span></text> : null}
+        {front ? <text marginTop={1} wrapMode="word"><span fg={C.title} attributes={BOLD}>{"e "}</span><span fg={front.scene ? C.lead : C.text}>{front.label}</span></text> : null}
         {game.walking ? <text fg={C.lead} marginTop={1}>Walking… (any key stops)</text> : null}
       </box>
     </box>

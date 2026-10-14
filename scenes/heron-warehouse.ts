@@ -318,7 +318,7 @@ export const heronWarehouse: Scene = {
       title: "The Master comes",
       direction: "Master Sallow is here, a minute behind his lavender, with his lantern-boy and the Crakes: in at the land door to see the last sacks down, take his share and initial tonight's page in the true book. Everything on the floor changes: the gang work faster and quieter, Scrope stands, Saul holds the door, Duchess growls, and Hobb (if he's here) can't look at anyone. If he has been warned, he's sharp and hurried, wants the book aboard the barge, and has the Crakes look along the wharf. If he finds the player held, or finds them at all, he deals with them his way: his office first, then money, then the Crakes and the river. This is the climax: hide and watch him sign, catch him in the act before witnesses who'll swear (Kell, Hep's gang, Scrope, Hobb), take the book from under his nose, bluff him, or be caught by him. The barge goes at the second bell, whoever has said what.",
       cast: {
-        sallow: "You want the barge loaded, the page initialled and your share in your purse. Find fault with something. If you find intruders: papers, then money, then the Crakes. Keep the book out of their hands.",
+        sallow: "You want the barge loaded, the page initialled and your share in your purse. Find fault with something. If you find intruders: papers, then money, then the Crakes. Keep the book out of their hands. Exposed in front of witnesses you can't buy, with a sergeant saying the words of arrest and your Crakes still at your side, you don't come quietly: the sword comes out of the cane, and you set the Crakes on them.",
         kell: "This is the investigator's case and their moment: back their play. You can arrest Sallow if you see him take the King's grain, by the book and out loud, and you will when the investigator calls for it or plainly gives you the moment; never over their plan or instead of it. If they mean to slip away with the proof, go with them. If you're on the wharf, come at their signal or the first shout.",
         hep: "Keep the gang working and your head down, and watch who looks likeliest to keep your gang off the gallows.",
         scrope: "Present the book to the Master with shaking hands.",
@@ -329,7 +329,7 @@ export const heronWarehouse: Scene = {
       transitions: [
         {
           id: "in-the-act",
-          when: "Sallow has been caught at the loading of the King's grain before witnesses who will swear to it (Kell, Hep's gang, Scrope, Hobb or the player), and Kell has arrested him, or he has been seized and is being held for her.",
+          when: "Sallow has been caught at the loading of the King's grain before witnesses who will swear to it (Kell, Hep's gang, Scrope, Hobb or the player), Kell has arrested him, and he is actually held: he has given himself up (the cane handed over, his hands up) or been beaten or overpowered, and his Crakes have stood down or been dealt with. The words of arrest alone, with Sallow defiant and his Crakes still beside him, aren't this: that is the moment he draws.",
           to: "caught-in-the-act",
         },
         bookInHand("midnight"), bookRead("midnight"),

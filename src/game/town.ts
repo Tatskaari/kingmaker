@@ -2,7 +2,7 @@ import { sceneById } from "../../scenes/index.ts";
 import type { SessionState } from "../runtime/session.ts";
 import {
   actorsHere, direction, enterScene, getMap, interact, isLive, leadMarker, leaveScene, look, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
-  setStory, steps, tileAt, isStructure, travel, whereabouts, type ExploreState, type MoveResult, type PlaceRegion,
+  setStory, steps, tileAt, isStructure, travel, whereabouts, type ExploreState, type PlaceRegion,
 } from "./map/index.ts";
 import type { Action, Explorer, GameState } from "./play.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
@@ -245,7 +245,8 @@ function use(game: GameState, i: Interaction, actor?: MapActor): Done {
     const r = travel(ex, i.to, i.label);
     return { text: r.message ?? "", ...(sceneOpens(game, r.trigger) ? { scene: true } : {}) };
   }
-  if (sceneOpens(game, i)) return { text: `${capital(i.label)}.`, scene: true };
+  // "Talk to Sergeant Kell" is what the player chose; what happens is "You go over to Sergeant Kell."
+  if (sceneOpens(game, i)) return { text: i.verb === "talk" && actor ? `You go over to ${actor.name}.` : `You ${i.label.charAt(0).toLowerCase()}${i.label.slice(1)}.`, scene: true };
   return { text: `${actor ? capital(actor.name) : "That"} will keep. The story is heading elsewhere for now.` };
 }
 
@@ -266,6 +267,18 @@ function goTo(game: GameState, t: Target, andUse: boolean): Done {
   if (!andUse || !t.interaction) return { text: said.join(" ") || "You're already there." };
   const done = use(game, t.interaction, t.actor);
   return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}) };
+}
+
+/** What interact (the app's e) would do now, in words: "Talk to Sergeant Kell", "Go through the gate". */
+export function interactLabel(game: GameState, session?: SessionState): { label: string; scene: boolean } | undefined {
+  const ex = exploreState(game);
+  const it = interact(ex, ex.scene ? session?.world : undefined);
+  if (!it) return undefined;
+  if (!it.actor && it.interaction.kind === "examine" && tileAt(getMap(ex.map), it.at).terrain === "door") {
+    const r = move(structuredClone(ex), ex.facing.x, ex.facing.y);
+    return { label: r.moved || r.trigger ? "Go through" : "Try the door", scene: !!r.trigger };
+  }
+  return { label: it.interaction.label, scene: it.interaction.kind === "scene" };
 }
 
 function walkTowardsLead(game: GameState): Done {
@@ -311,6 +324,8 @@ export const town: Explorer = {
       if (/^go_to_/.test(t.id)) { out.push({ id: t.id, label: `${t.label} (${where(t.distance, t.direction)})`, kind: t.kind }); continue; }
       const reach = t.distance <= (t.onto ? 0 : 1) || (t.distance <= 1 && t.kind !== "move");
       out.push({ id: t.id, label: reach ? t.label : `${t.label} (${where(t.distance, t.direction)}: you walk over first)`, kind: t.kind });
+      // Someone further off can be walked over to without a word yet.
+      if (!reach && t.actor && isPerson(t.actor)) out.push({ id: `go_to_${t.id.replace(/^[a-z]+_/, "")}`, label: `Walk over to ${t.actor.name} (${where(t.distance, t.direction)})`, kind: "move" });
     }
     // Doors beside you that go nowhere in particular (a house, a shed): you can try them.
     const map = getMap(ex.map);
@@ -373,9 +388,9 @@ export const town: Explorer = {
   },
 
   afterScene(game) {
-    const ex = exploreState(game);
-    const town = townOf(game);
-    town.log = [];
-    void ex;
+    // The map follows the story on (the time of day, the lead, Kell at the player's side); what
+    // happened before the scene is old news.
+    exploreState(game);
+    townOf(game).log = [];
   },
 };

@@ -216,7 +216,8 @@ export class Game {
     if (exit?.kind === "combat") {
       this.state.mode = "combat";
       this.fight = await this.fights.start(this.state, this.session);
-      return `Roll for initiative!\n\n${this.fight.observe()}`;
+      // The fight itself is the next observation (the board, the initiative, whose turn).
+      return "Roll for initiative!";
     }
     if (!this.state.story.played.includes(scene.id)) this.state.story.played.push(scene.id);
     // The explorer keeps what the scene did to its place before chainScene drops the world.

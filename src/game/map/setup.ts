@@ -88,13 +88,17 @@ export function battlefield(sceneId: string, world: SceneWorld): Battlefield | u
     lights.push({ id: "boys-lantern", name: "lantern on a pole", kind: "object", glyph: "¤", color: "#ffd27f", map: base.id, at: { ...people["lantern-boy"] }, ref: "lantern-boy", states: ["lit", "carried"] });
   }
 
-  // Dust: tiles whose area (the smallest one round the tile's middle) is dusty.
+  // Dust: tiles whose area (the smallest one round the tile's middle) is dusty, except by the doors,
+  // where the draught keeps the air clear (so there's somewhere to stand and set it off from).
   const dust: Tile2[] = [];
   const r = found.region.rect;
+  const doors: Tile2[] = [];
+  for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (tileAt(base, { x, y }).terrain === "door") doors.push({ x, y });
   for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
     const p = { x, y };
     const t = tileAt(map, p);
     if (!inBounds(map, p) || t.blocks || isStructure(t) || t.terrain === "void" || t.terrain === "water" || t.terrain === "deep-water") continue;
+    if (doors.some(d => Math.max(Math.abs(d.x - x), Math.abs(d.y - y)) <= DRAUGHT)) continue;
     if (areaAt(world, tileToFeet(found.region, p)).states.includes("dusty")) dust.push(p);
   }
   // Fuel: where something flammable stands (a stack's every tile), and flammable spills.
@@ -110,6 +114,9 @@ export function battlefield(sceneId: string, world: SceneWorld): Battlefield | u
   }
   return { map, people, obstacles, things, actors, lights, dust, fuel };
 }
+
+/** How far, in steps, a door's draught keeps the dust off the floor. */
+const DRAUGHT = 2;
 
 /** A door tile and the door tiles in line with it (both leaves of a double door). */
 function doorRun(map: TileMap, at: Tile2): Tile2[] {
