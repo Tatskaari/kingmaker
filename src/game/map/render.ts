@@ -216,7 +216,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   /** What lights the map this frame: lamps and fires (the look's), burning patches, effects, a fight's fire, windows. */
   function sources(): Source[] {
     const out: Source[] = [];
-    const add = (x: number, y: number, radius: number, color: string | RGB, intensity: number, how: Partial<Pick<Source, "through" | "indoors">> = {}) => {
+    const add = (x: number, y: number, radius: number, color: string | RGB, intensity: number, how: Partial<Pick<Source, "through" | "indoors" | "ground">> = {}) => {
       const c = typeof color === "string" ? rgbOf(color) : color;
       if (radius > 0.3 && intensity > 0.02) out.push({ x, y, radius, r: ((c >> 16) & 255) / 255 * intensity, g: ((c >> 8) & 255) / 255 * intensity, b: (c & 255) / 255 * intensity, ...how });
     };
@@ -238,8 +238,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const night = options.time === "night" || options.time === "evening";
     for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
       if (map.tiles[y]![x]!.terrain !== "window") continue;
-      if (night) add(x, y, 2.4, WINDOW_LIGHT.night, 0.55);
-      else add(x, y, 3.2, WINDOW_LIGHT.day, 0.38, { indoors: true });
+      if (night) add(x, y, 2.4, WINDOW_LIGHT.night, 0.55, { ground: true });
+      else add(x, y, 3.2, WINDOW_LIGHT.day, 0.38, { indoors: true, ground: true });
     }
     return out;
   }
@@ -870,6 +870,8 @@ interface Source {
   through?: boolean;
   /** Only lights rooms (daylight through a window). */
   indoors?: boolean;
+  /** Only lights the ground, not the wall it's set in (a window's). */
+  ground?: boolean;
 }
 
 interface Lights { at(x: number, y: number): Light }
@@ -903,14 +905,16 @@ function lighting(map: TileMap, options: RenderOptions, open: Opening, sources: 
       const i = y * map.width + x;
       const hit = cache[i];
       if (hit) return hit;
-      const inside = isRoofed(tileAt(map, { x, y })) && (options.roofs === false || open.lifted.has(`${x},${y}`));
+      const tile = tileAt(map, { x, y });
+      const inside = isRoofed(tile) && (options.roofs === false || open.lifted.has(`${x},${y}`));
+      const built = isStructure(tile) || (isRoofed(tile) && !inside);
       const base = inside ? indoor : outdoor;
       let r = base.r, g = base.g, b = base.b, lit = false;
       for (const s of sources) {
         const dx = x - s.x, dy = y - s.y;
         if (dx >= s.radius || -dx >= s.radius || dy >= s.radius || -dy >= s.radius) continue;
         const q2 = (dx * dx + dy * dy) / (s.radius * s.radius);
-        if (q2 >= 1 || (s.indoors && !inside) || (!s.through && !reaches(s, x, y))) continue;
+        if (q2 >= 1 || (s.indoors && !inside) || (s.ground && built) || (!s.through && !reaches(s, x, y))) continue;
         const f = (1 - q2) * (1 - q2);
         r += s.r * f; g += s.g * f; b += s.b * f; lit = true;
       }
