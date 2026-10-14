@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { Game as Core, type Action } from "../game/play.ts";
 import { TacticalFight, type CombatController } from "../game/combat/index.ts";
 import { mapFights } from "../game/fights.ts";
-import { pathTo, SCREEN_KEYS, type ExploreState } from "../game/map/index.ts";
+import { pathTo, SCREEN_KEYS, steer, type ExploreState } from "../game/map/index.ts";
 import { exploreState, leadTarget, town, walkId } from "../game/town.ts";
 import type { StoryState } from "../game/types.ts";
 import { setCallLog } from "../llm/openrouter.ts";
@@ -214,7 +214,9 @@ export class Game {
     this.walking = false;
     const d = SCREEN_KEYS[key];
     if (!this.core || this.busy || !d) return;
-    void this.explore(walkId(d[0], d[1]));
+    // Steered: a key that would catch on a corner follows the street instead.
+    const [dx, dy] = steer(exploreState(this.core.state), d[0], d[1]);
+    void this.explore(walkId(dx, dy));
   }
 
   interact(): void {

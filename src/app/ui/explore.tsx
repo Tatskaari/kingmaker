@@ -10,8 +10,8 @@ import { TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
 import { BOLD, ITALIC, Keys, useGame, wrap } from "./common.tsx";
 
-/** Arrow keys and WASD move with the screen: up is straight up the screen (the map module's SCREEN_KEYS). */
-const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d"]);
+/** Arrow keys and WASD move with the screen (up is straight up), steered along the streets; the numpad's corners go along them exactly. */
+const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home", "pageup", "end", "pagedown"]);
 
 /** Which way, on screen, a compass direction on the map points (north is up-left). */
 const ARROW: Record<string, string> = { north: "↖", "north-east": "↑", east: "↗", "south-east": "→", south: "↘", "south-west": "↓", west: "↙", "north-west": "←", here: "•" };
@@ -89,7 +89,7 @@ export function ExploreScreen({ game }: { game: Game }) {
       {messages.slice(-(msgH - 2)).map((m, i, all) => <text key={i} fg={i === all.length - 1 ? C.text : C.dim}>{m}</text>)}
     </box>
     <box height={1} paddingX={1}>
-      <Keys items={[["←↑→↓/WASD", "walk"], ["e", "interact"], ["g", "go to the lead"], ["c", "sheet"], ["j", "notebook"], ["?", "help"], ["Esc", "menu"]]} />
+      <Keys items={[["←↑→↓/WASD", "walk (follows the streets)"], ["e", "interact"], ["g", "go to the lead"], ["c", "sheet"], ["j", "notebook"], ["?", "help"], ["Esc", "menu"]]} />
     </box>
   </box>;
 }

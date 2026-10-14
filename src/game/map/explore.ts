@@ -534,7 +534,27 @@ function keepInView(camera: Tile2, who: Tile2, viewport: Viewport): Tile2 {
  */
 export const SCREEN_KEYS: Record<string, [number, number]> = {
   up: [1, -1], w: [1, -1], down: [-1, 1], s: [-1, 1], left: [-1, -1], a: [-1, -1], right: [1, 1], d: [1, 1],
+  // The numpad's corners go along the map's own lines (the streets): up-left is north, and so on.
+  home: [0, -1], pageup: [1, 0], end: [-1, 0], pagedown: [0, 1],
 };
+
+/**
+ * An arrow key by the screen, steered so it follows the streets: the screen's up is a diagonal
+ * step on the map, and the streets run along the map's axes, so a bare step keeps catching on
+ * corners. The key's own step if it goes anywhere; else whichever step either side of it does
+ * (keeping to the way you were going), so holding up walks you along a street that runs up-left.
+ * Never a step that turns you back. Returns the map step to take (dx, dy).
+ */
+export function steer(state: ExploreState, dx: number, dy: number, world?: SceneWorld): [number, number] {
+  const sides: Array<[number, number]> = dx && dy ? [[dx, 0], [0, dy]] : dx ? [[dx, -1], [dx, 1]] : [[-1, dy], [1, dy]];
+  // The way you were going first: sliding along a wall shouldn't zig-zag.
+  if (sides[1]![0] === state.facing.x && sides[1]![1] === state.facing.y) sides.reverse();
+  for (const [cx, cy] of [[dx, dy] as [number, number], ...sides]) {
+    const r = move(structuredClone(state), cx, cy, world);
+    if (r.moved || r.trigger || r.travelled) return [cx, cy];
+  }
+  return [dx, dy];
+}
 
 /** Keys by the compass, for an app that prefers them: WASD and arrows north/south/west/east, QEZC diagonally. */
 export const KEYS: Record<string, [number, number]> = {

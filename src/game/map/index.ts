@@ -31,7 +31,7 @@
 
 export { MAPS, getMap, decorOf } from "./maps/index.ts";
 export { PLACES, scenePlace, regionForScene, sceneStart, storyFromSession, timeFor, leadScene, type ScenePlace } from "./places.ts";
-export { newExploration, setStory, actorsHere, move, travel, pathTo, look, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, KEYS, SCREEN_KEYS, type ExploreState, type Follower, type MoveResult, type Nearby } from "./explore.ts";
+export { newExploration, setStory, actorsHere, move, steer, travel, pathTo, look, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, KEYS, SCREEN_KEYS, type ExploreState, type Follower, type MoveResult, type Nearby } from "./explore.ts";
 export { presence, liveScenes, isLive, leadMarker, regionOpen } from "./presence.ts";
 export { actorsFromWorld, captureScene, overlayActors, overlayRegionStates, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions } from "./reconcile.ts";
 export { battlefield, spotsNear, reachable, type Battlefield } from "./setup.ts";
