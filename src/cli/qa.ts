@@ -9,6 +9,7 @@ import { sheetText } from "../rules/dnd.ts";
 import { asciiMap } from "../world/scene-world.ts";
 import { sessionDir } from "../runtime/session.ts";
 import { transcriptMarkdown } from "../runtime/engine.ts";
+import { sceneById } from "../../scenes/index.ts";
 
 /**
  * Headless QA for the playable game (V1's QA console, without the socket): observe the game, then
@@ -24,8 +25,9 @@ const USAGE = `Kingmaker playable game: headless QA
 
   qa new --session <id> --as "Name: concept" [--level 3] [--seed N]   start a game (builds your D&D character)
   qa observe --session <id>                     what you see, and the actions you can take
-  qa act --session <id> --id <action id>        take an action from the latest observation
-  qa say --session <id> <what you say or do>    in a scene: speak (in quotes) or act (plain words)
+  qa act --session <id> --id <action id>        take an action from the latest observation (in a talk, say_1... says that line)
+  qa say --session <id> <what you say or do>    in a scene: speak (plain words) or act (*asterisks* or (parentheses))
+  qa end --session <id> [--exit <exit id>]      for testing: end the scene now through one of its exits (lists them without --exit)
   qa sheet --session <id>                       your character sheet
   qa map --session <id> [--w 100] [--h 30]      the map where you are (in a scene: its place, and its world from above)
   qa transcript --session <id>                  the story so far
@@ -43,6 +45,11 @@ function flag(args: string[], name: string): string | undefined {
 
 function print(o: Observation, id: string): void {
   console.log(`MODE: ${o.mode}\n\n${o.text}`);
+  options(o, id);
+}
+
+/** The hint and the actions (in a talk, its dialogue choices) without the text: after a turn that's just been shown. */
+function options(o: Observation, id: string): void {
   if (o.hint) console.log(`\n(${o.hint} Use: qa say --session ${id} "...")`);
   if (o.actions.length) console.log(`\nACTIONS:\n${o.actions.map(a => `- ${a.id}: ${a.label}`).join("\n")}`);
 }
@@ -72,7 +79,7 @@ async function main(): Promise<void> {
     console.log();
     const now = game.observe();
     // In a scene, what just happened was the scene: don't print it twice.
-    if (now.mode === "scene") console.log(`MODE: scene\n(${now.hint} Use: qa say --session ${id} "...")`);
+    if (now.mode === "scene") { console.log("MODE: scene"); options(now, id); }
     else print(now, id);
     return;
   }
@@ -80,7 +87,23 @@ async function main(): Promise<void> {
     const text = args.join(" ").trim();
     if (!text) throw new Error("Usage: qa say --session <id> <what you say or do>");
     console.log(await game.say(text));
-    if (game.state.mode !== "scene") { console.log(); print(game.observe(), id); }
+    const now = game.observe();
+    // Still in the scene: what just happened was the scene, so only a talk's next choices.
+    if (now.mode !== "scene") { console.log(); print(now, id); } else if (now.actions.length) { console.log(); options(now, id); }
+    return;
+  }
+  if (command === "end") {
+    if (game.state.mode !== "scene") throw new Error("Not in a scene.");
+    const exit = flag(args, "exit");
+    const exits = sceneById(game.session.sceneId).exits.filter(e => !game.session.fought?.includes(e.id));
+    if (!exit || !exits.some(e => e.id === exit)) {
+      console.log(`${exit ? `No exit "${exit}" here. ` : ""}Exits: ${exits.map(e => `${e.id} (${e.title})`).join(", ")}`);
+      if (exit) process.exitCode = 1;
+      return;
+    }
+    console.log(await game.endScene(exit));
+    console.log();
+    print(game.observe(), id);
     return;
   }
   if (command === "sheet") { console.log(await sheetText(game.session)); return; }

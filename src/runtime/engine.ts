@@ -3,7 +3,7 @@ import { respond, respondJson } from "../llm/openrouter.ts";
 import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
-import { approachById } from "./approaches.ts";
+import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, unnamed } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
 import { describeRoll } from "./dice.ts";
@@ -193,7 +193,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const authored = sceneById(state.sceneId);
   applyPendingRepairs(authored, state);
   let scene = effectiveScene(authored, state.patches);
-  const approach = approachById(state.approach);
+  const approach = sceneApproach(state, authored);
   const decider = deciderFor(approach.decider);
   if (approach.staging) state.guard ??= {};
   const before = state.transcript.length;
@@ -400,7 +400,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // Stall mode: off the graph, with nothing else decided this turn. Hold the moment, let the co-GM
   // work in parallel, then resolve it with whatever it adds.
   // Only a genuinely off-graph turn earns a hold (a stale "stuck" from last turn made holds misfire).
-  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && pre.offGraph === true;
+  // A turn the rules resolve (a spell, a blow, a rest) is already answered: a route the co-GM opens
+  // for it waits for the next turn rather than rolling on top of the act.
+  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.mechanic && !pre.limit && !pre.ooc && !ended && pre.offGraph === true;
   const stall = approach.repair === "stall" && offGraphTurn && !pre.relocate?.length;
   if (approach.repair === "quick-block" && offGraphTurn && quickEarly) {
     // One coherent reply: wait for the quick co-GM until the deadline (from the start of the turn),

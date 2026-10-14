@@ -13,7 +13,7 @@ npm install                       # only needed for typecheck and the world scri
 npm run scene -- list             # scenes and approaches
 npm run scene -- play stranger-crossroads            # interactive: character creation, then the road
 npm run scene -- start crossroads-ambush --session demo          # defaults to the recommended v2
-npm run scene -- say demo 'I raise my hands. "Easy, friend. What happened to your ox?"'
+npm run scene -- say demo '(I raise my hands) Easy, friend. What happened to your ox?'
 npm run scene -- transcript demo
 npm run scene -- status demo      # debug: beat, rolls, co-GM notes, latency
 npm run scene -- world demo       # Phase 2: world-update scripts for the finished scenes

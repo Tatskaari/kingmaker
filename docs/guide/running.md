@@ -34,6 +34,7 @@ These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a pla
 - **People move on.** Nobody repeats the same plea every reply.
 - **Keep it moving.** Short, vivid replies that end on something the player can respond to.
 - **The player character is theirs.** Never decide what they say, do, think or feel.
+- **Reading the player.** Plain words are their character talking; *asterisks* or (parentheses) are what they do; a turn that narrates ("I open the door") is read by sense. The decider's attempt, rules and out-of-character questions read turns the same way.
 - **Stay at the threshold.** A scene ends at the edge of the next place, and the next scene picks up from there.
 - **Fights are the player's call,** or a danger they saw coming and chose to meet.
 - **Dice are honoured.** Success lands. Failure costs or complicates, but never takes back what's established.
@@ -53,6 +54,8 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 - **Risky things no route covers get a check too** (`freeformChecks`, on in `v2`): kicking a door, bluffing a watchman, hiding behind crates. Without them, the D&D players in QA felt the GM was ruling by fiat.
 - **A rolled attempt needs confidence ≥ 0.6,** like an ending. A roll forces its outcome into the reply, so a weak read of an announcement shouldn't hand over a secret.
 - **The roll follows the player's method.** A threat aimed at a route written for persuasion rolls Intimidation, and the outcome lands the way a threat would.
+- **A roll is for the act it tests.** The decider sees what each route's roll is for ("The Medicine check is to tell how Prout really died: only when the player is doing that now, not something that comes first"). The co-GM writes a route with a roll as that act ("examines the body up close"), never as what has to happen first ("gets him down or close enough to examine him": a javelin thrown at the rope once rolled Medicine for it). A co-GM route whose `when` is about getting there is restated from its check's reason. Two routes for the same check (one refreshed as things changed) share the decider's read rather than splitting it below the bar.
+- **The rules' act is the turn.** When the rules resolve what the player does (a spell, a blow, a grab or shove, a jump, a class feature), a route's check is rolled as well only if the player is also doing exactly what that check is for, whatever comes of the act; that's asked in the act's details call, so it costs no extra call. No freeform check rides along with an act on the world, and the quick co-GM doesn't open a route on top of it. The route stays open for when the player gets to it.
 - **Pressure on secrets is opt-in (`v2-pressure`).** What telling costs the holder, the player's leverage and how the holder feels about them give a yes, a no, or a roll at DC 12/15/18 ([research](../research/dc-guidance.md), [experiment](../experiments/pressure-rolls.md)). The details are asked only when someone is being pressed, and only the secret the player is after comes out.
 
 ## When play leaves the prep
@@ -102,6 +105,19 @@ V1's docs service, rebuilt (`memory: "docs"`, part of `v2`):
 - **Presence.** A recurring character whom the hand-off rules out (taken in, fled) isn't present, unless play brings them in.
 
 The result: recall of what the player did held up across three scenes. The remaining errors are the GM embellishing around true memories (a second promise, an invented relationship). See [experiments/memory.md](../experiments/memory.md).
+
+## Talks with companions between scenes
+
+Talking to someone who walks with the player on the map (Kell, after the granary) opens a short talk: a cRPG companion conversation, with free text in and out and a few suggested lines to choose from. It's a scene built from their lore ([scenes/talk.ts](../../scenes/talk.ts)) and played by the ordinary turn ([src/runtime/talk.ts](../../src/runtime/talk.ts)). It works for anyone with a lore entry.
+
+- **The story waits.** The scene the story is heading for is set aside while the talk lasts and put back exactly as it was. A talk has no story exits: it ends when the player says goodbye or walks on, back on the map where they were, and the lead is still the lead.
+- **Backstory comes slowly, through the runtime's own machinery:**
+  - *What's still theirs to tell.* One decision call (alongside the greeting) judges, per note of their lore, whether its heart has already been told anywhere: in a talk, or in a scene of the story (from the replies that mention them, since a hand-off can leave out a word they let slip). It also judges which note is the deepest.
+  - *The one thing this time.* One call picks what they might open up about this talk, by how things stand between them (their memories of the player) and how many times they've talked. Small things come first; the deepest is withheld (named as not this talk's, and kept out of disclosure) until the third talk.
+  - *A step at a time.* That thing goes on their card as a staged secret, starting as near the surface as the prep says it is. Once it's out (an outcome only they can give, judged after a reply and never offered beforehand as something the player simply achieves), the talk moves to its "told" beat. How far they got carries over to the next talk that turns to it.
+  - *Told is told.* What they've told goes in the talk record and their memories, so no later talk or scene of the story has them tell it again. The talk's GM is told by name what's been told.
+- **Dialogue choices.** Each reply brings two to four suggested lines (one small call, in plain text, alongside the after-reply decision): `say_1`… actions in the game core's scene mode, plus a goodbye and walking on. Choosing one is the same as saying it.
+- **Run like any scene, less some parts.** The memory reviews run as usual. A talk has no co-GM (nothing to keep on track) and no dice for ordinary talk. Its turns cost and take about as long as a scene's.
 
 ## The rules (D&D 5.5e)
 

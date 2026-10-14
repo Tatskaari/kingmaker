@@ -21,7 +21,7 @@ const USAGE = `Kingmaker V2 scene harness
   scene list                                   scenes and approaches
   scene start <scene> [--approach v2] [--as "Name: concept"] [--level 3] [--seed N] [--session ID]
                                                start a scene; prints the session id and the opening
-  scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
+  scene say <session> <what you say or do>     take a turn (talk as your character; actions in *asterisks* or (parentheses))
   scene sheet <session>                        your D&D character sheet (also #sheet while playing)
   scene map <session>                          a top-down sketch of the scene's world (also #map)
   scene transcript <session>                   the scene so far
@@ -276,7 +276,7 @@ async function main(): Promise<void> {
       scene: state.sceneId, approach: state.approach, turn: state.turn, beat: state.beat, turnsInBeat: state.turnsInBeat,
       path: state.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via} (${p.source})${p.roll ? ` [${p.roll.skill} ${p.roll.total}/${p.roll.dc}]` : ""}`),
       ended: state.ended?.exitId, notes: state.notes, canon: state.canon, established: state.established,
-      patches: state.patches.map(p => p.beat ? `beat ${p.beat.id}` : `${p.transition!.beat} + ${p.transition!.transition.when}`),
+      patches: state.patches.map(p => p.beat ? `beat ${p.beat.id}` : p.transition ? `${p.transition.beat} + ${p.transition.transition.when}` : `${p.cast?.id} keeps back: ${p.cast?.secrets.join(" ")}`),
       repairs: state.repairs.map(r => `${r.turn}: ${r.status} — ${r.assessment}`),
       latency: { avgFirstTextMs: avg(turns.map(t => t.firstTextMs ?? t.replyMs)), avgPreDecisionMs: avg(turns.map(t => t.preDecisionMs)), avgReplyMs: avg(turns.map(t => t.replyMs)) },
       costUsd: turns.reduce((a, t) => a + t.costUsd, 0).toFixed(5),
