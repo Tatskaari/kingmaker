@@ -125,7 +125,9 @@ async function main(): Promise<void> {
       for (let s = 0; s < samples; s++) {
         const decision = await decider.decide({ world: stageView(world), latest_player_turn: c.playerTurn }, actQuestions(world), "eval.world.act-from");
         latencies.push(decision.latencyMs);
-        const answers = Object.fromEntries(Object.entries(decision.answers).map(([k, v]) => [k, v.choice]));
+        // --floor: an unsure answer (top probability below it) leaves the player where they are.
+        const floor = Number(flag("floor") ?? 0);
+        const answers = Object.fromEntries(Object.entries(decision.answers).map(([k, v]) => [k, (v.probabilities?.[v.choice] ?? 1) < floor ? (k === "act_from" ? "here" : "no") : v.choice]));
         const moved = structuredClone(world);
         const problems = applyOpsV2(moved, placeForAct(moved, c.aim, answers), 1).problems;
         const ok = [c.gold, ...(c.alt ?? [])].some(g => satisfied(moved, world, g));
