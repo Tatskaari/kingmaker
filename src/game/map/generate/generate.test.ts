@@ -231,6 +231,11 @@ test("the camera check asks the renderer: whatever glyph the look layer gives a 
   assert.ok(lines.length > 0);
   assert.equal(sceneCamera(outside.map, outsiders).seen(stool, street), true, "in the scene view the roof is off");
   assert.equal(sceneCamera(outside.map, outsiders).seen({ ...stool }, street), true, "a copy of an actor is the actor");
+  // Something drawn just like the ground under it (a "~" in the shallows) is still seen.
+  const shallows = outside.site.areas.get("river")!.tiles.find(p => outside.map.tiles[p.y]![p.x]!.terrain === "water")!;
+  const slick: (typeof outsiders)[number] = { id: "slick", name: "some river water", kind: "item", glyph: "~", map: outside.map.id, at: shallows, ref: "slick" };
+  assert.equal(actorLook(slick, { t: 0, time: "afternoon", glyphs: "ascii" }).glyph, "~");
+  assert.equal(sceneCamera(outside.map, [...outsiders, slick]).seen(slick, shallows), true, "the river's own glyph, still seen");
 });
 
 test("the plan is terse: a line of fields per entry, about half as long, read back to the same map, and readable while it streams", () => {

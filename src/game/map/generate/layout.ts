@@ -245,7 +245,10 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
   const boatBerths: Array<{ boat: OutsidePlan; water: OutsidePlan; beam: number }> = [];
   for (const boat of boats) {
     const onSide = strips[boat.side].filter(s => s.o.ground === "water");
-    const water = onSide.at(-1) ?? SIDES.flatMap(s => strips[s]).find(s => s.o.ground === "water");
+    // Its river; or, the building standing in water or a walk on piles beside it, the water there.
+    const afloat = plan.surroundings === "water" || strips[boat.side].some(s => s.o.ground === "planks-over-water");
+    const water = onSide.at(-1) ?? SIDES.flatMap(s => strips[s]).find(s => s.o.ground === "water")
+      ?? (afloat ? (strips[boat.side].push({ o: { id: `${boat.id}-water`, name: "the water", description: "", side: boat.side, depth: 15, ground: "water" }, depth: 3 }), strips[boat.side].at(-1)) : undefined);
     if (!water) {
       problems.push({ check: "plan", subject: boat.id, message: `${boat.name} is a boat but there's no water outside for it to float in: add the river (ground water) on its side.`, severity: "error" });
       continue;

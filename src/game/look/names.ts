@@ -95,7 +95,7 @@ export function singular(word: string): string {
   return word;
 }
 
-const CLAUSE = /\s+(with|that|which|who|whose|marked|stamped|sewn|labelled|labeled|bearing|showing|depicting|announcing|advertising|proclaiming|holding|containing|from|behind|under|beneath|beside|near|by|on|upon|in|inside|at|for|belonging|to|over|against|left|lying|hung|where|while|as|going|coming|walking|running|sitting|standing|waiting|sleeping|playing|drinking|singing|dancing|watching|carrying|pushing|pulling|leaning|looking|circling|flying|swimming|perched|perching|roosting|nesting|clustered|gathered|huddled|crowded|piled|stacked|scattered|strewn|floating|drifting|rising|spreading|pooling)\b.*$/;
+const CLAUSE = /\s+(with|that|which|who|whose|marked|stamped|sewn|labelled|labeled|bearing|showing|depicting|announcing|advertising|proclaiming|holding|containing|from|behind|under|beneath|beside|near|by|on|upon|in|inside|at|across|along|beyond|past|through|among|around|for|belonging|to|over|against|left|lying|hung|where|while|as|going|coming|walking|running|sitting|standing|waiting|sleeping|playing|drinking|singing|dancing|watching|carrying|pushing|pulling|leaning|looking|circling|flying|swimming|perched|perching|roosting|nesting|clustered|gathered|huddled|crowded|piled|stacked|scattered|strewn|floating|drifting|rising|spreading|pooling)\b.*$/;
 
 export function parseName(name: string): ParsedName {
   let s = name.toLowerCase().replace(/[“”"«»]/g, "").replace(/\(.*?\)/g, " ").replace(/[,;:].*$/, "").replace(/\s+/g, " ").trim();

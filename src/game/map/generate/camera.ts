@@ -2,7 +2,8 @@ import type { MapActor, Tile2, TileMap } from "../../types.ts";
 import { actorLook, type LookFrame } from "../../look/map.ts";
 import { raiseFor } from "../looks.ts";
 import { render, screenOf } from "../render.ts";
-import { isStructure, tileAt } from "../tiles.ts";
+import { GROUND } from "../palette.ts";
+import { isRoofed, isStructure, tile, tileAt, type MapTile } from "../tiles.ts";
 import { fitView } from "./pictures.ts";
 
 /**
@@ -19,6 +20,9 @@ import { fitView } from "./pictures.ts";
 
 /** The look layer's frame for plain-text views (no motion: t is 0). */
 const PLAIN: LookFrame = { t: 0, time: "afternoon", glyphs: "ascii" };
+/** What a ground draws in plain text (its faces and its tip), by terrain. */
+const GROUND_GLYPHS: Record<string, string> = Object.fromEntries(Object.entries(GROUND).map(([k, g]) => [k, g.face + g.tip]));
+const walkable = (t: MapTile) => !isStructure(t) && t.terrain !== "void" && t.terrain !== "tree";
 
 /**
  * How many rows up render.ts draws an actor above its tile's cell: the map's raise for its name and
@@ -81,10 +85,23 @@ export function sceneCamera(map: TileMap, actors: MapActor[]): Camera {
   const reveal = actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at);
   let count = 0;
   // Taken away by id: the actor asked about may be a copy of the one on the map.
-  const draw = (focus: Tile2, without?: Set<string>): string[][] => {
+  const draw = (focus: Tile2, without?: Set<string>, on: TileMap = map): string[][] => {
     count++;
-    const lines = render(map, without ? actors.filter(a => !without.has(a.id)) : actors, camera, viewport, { time: "afternoon", roofs: false, focus, ...(reveal.length ? { reveal } : {}), color: false });
+    const lines = render(on, without ? actors.filter(a => !without.has(a.id)) : actors, camera, viewport, { time: "afternoon", roofs: false, focus, ...(reveal.length ? { reveal } : {}), color: false });
     return lines.map(line => [...line.map(s => s.text).join("")]);
+  };
+  /**
+   * Something drawn just like the ground it stands on (a "~" in the shallows) changes nothing when
+   * it's taken away: asked again with other ground under it.
+   */
+  const unlike = (a: MapActor, focus: Tile2): boolean => {
+    const glyph = a.kind === "player" ? "@" : actorLook(a, PLAIN).glyph;
+    const t = tileAt(map, a.at);
+    const ground = [tile("floor"), tile("boards"), tile("cobbles")].find(g => !(GROUND_GLYPHS[g.terrain] ?? "").includes(glyph)) ?? tile("floor");
+    const rows = map.tiles.map((row, y) => (y === a.at.y ? row.map((x, i) => (i === a.at.x ? { ...ground, ...(isRoofed(t) ? { roof: t.roof, roofHeight: t.roofHeight } : {}) } : x)) : row));
+    const other = { ...map, tiles: rows };
+    const withIt = draw(focus, undefined, other), withoutIt = draw(focus, new Set([a.id]), other);
+    return cellsOf(map, a, camera, viewport).some(c => withIt[c.y]?.[c.x] !== withoutIt[c.y]?.[c.x]);
   };
   const frames = new Map<string, string[][]>();
   const known = new Map<string, Map<MapActor, boolean>>();
@@ -112,7 +129,10 @@ export function sceneCamera(map: TileMap, actors: MapActor[]): Camera {
     }
     for (const b of batches) {
       const without = draw(focus, new Set(b.actors.map(a => a.id)));
-      for (const a of b.actors) shown.set(a, cellsOf(map, a, camera, viewport).some(c => base[c.y]?.[c.x] !== without[c.y]?.[c.x]));
+      for (const a of b.actors) {
+        const changed = cellsOf(map, a, camera, viewport).some(c => base[c.y]?.[c.x] !== without[c.y]?.[c.x]);
+        shown.set(a, changed || (walkable(tileAt(map, a.at)) && unlike(a, focus)));
+      }
     }
     return shown;
   };
