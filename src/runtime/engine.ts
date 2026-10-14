@@ -572,7 +572,14 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   for (const problem of staged?.problems ?? []) state.world?.log.push({ turn: state.turn, text: `(not done) ${problem}`, by: "stage" });
   // The player has walked out of this place altogether: the scene ends here, and the boundary decides
   // what comes next (rather than the scene's own endings chasing them across town).
-  if (!ended && !state.closing && (leftPlace || state.world?.entities.player?.states.includes("gone"))) {
+  // Only the player walking out takes them out of the place (the decider's read): a stage-manager op
+  // that removes them (meant for someone else) is undone, and noted.
+  const me = state.world?.entities.player;
+  if (me?.states.includes("gone") && !leftPlace) {
+    me.states = me.states.filter(s => s !== "gone");
+    state.world!.log.push({ turn: state.turn, text: "(not done) remove: the player leaves only by walking out", by: "stage" });
+  }
+  if (!ended && !state.closing && (leftPlace || me?.states.includes("gone"))) {
     ended = scene.exits.find(e => e.id === IMPROVISED_EXIT_ID);
     if (ended) state.path.push({ turn: state.turn, from: state.beat, to: ended.id, via: "left-the-place", source: "post" });
   }
@@ -826,8 +833,9 @@ async function violence(scene: Scene, state: SessionState, m: Mechanic, before: 
   const newly = (e: Entity, states: string[]) => !!before && e.states.some(x => states.includes(x)) && !(before[e.id] ?? []).some(x => states.includes(x));
   if (m.kind === "attack" || m.kind === "wrestle") {
     if (people.has(m.target)) return { what: m.kind === "attack" ? `attacked ${name(m.target)}${m.weapon ? ` (${m.weapon.replace(/-/g, " ")})` : ""}` : `laid hands on ${name(m.target)} (${m.how === "grapple" ? "grabbed them" : "shoved them"})`, victims: [m.target], property: [] };
-    const broke = world?.entities[m.target];
-    return broke && newly(broke, ["destroyed", "broken", "burning"]) ? { what: `smashed ${broke.name}`, victims: [], property: [broke.id] } : undefined;
+    // Cutting a rope or breaking a crate isn't violence anyone fights over; setting it alight is alarming.
+    const lit = world?.entities[m.target];
+    return lit && newly(lit, ["burning"]) ? { what: `set ${lit.name} alight`, victims: [], property: [lit.id] } : undefined;
   }
   if (m.kind !== "cast") return undefined;
   const spell = await spellInfo(m.spell);
@@ -878,7 +886,9 @@ function aimable(state: SessionState): { things: Array<{ id: string; name: strin
   const cast = new Set(sceneById(state.sceneId).cast.map(c => c.id));
   // Anything in reach of a spell or a blow, except what other people are holding.
   const inOthersHands = (e: Entity) => { const h = heldBy(world, e); return !!h && (h.kind === "person" || h.kind === "creature") && !h.player; };
-  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e))
+  // Not what the player carries (their coins took the slots), nor what nobody can see yet.
+  const ownOrHidden = (e: Entity) => !!heldBy(world, e)?.player || e.states.includes("hidden") || e.tags.includes("hidden");
+  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e) && !ownOrHidden(e))
     .slice(0, 16).map(e => ({ id: e.id, name: e.name }));
   const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
     .map(e => ({ id: e.id, name: e.name }));

@@ -308,7 +308,8 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   if (!target || !(present.some(c => c.id === target) || things.some(t => t.id === target))) return { decision };
   const weapon = decision.answers.weapon?.choice;
   const from = actFrom(target);
-  return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
+  // "Something else" (a thrown stone, a bottle) is an improvised weapon, not their main one.
+  return { mechanic: { kind, target, ...(weapon === "other" ? { weapon: "improvised" } : weapon ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
 }
 
 const SKILL_TEXT: Record<Skill, string> = {
