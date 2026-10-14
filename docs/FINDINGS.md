@@ -17,9 +17,32 @@ What the overnight experiment of 2026-10-14 learned about GM-run scenes. The bri
 9. **More GM reasoning doesn't help.** Luna as GM at `low` / `medium` reasoning showed no measurable quality gain over `none` (81/88/81% criterion pass), and `medium` more than doubled time to first text (1.6 → 3.7 s median). Keep `none`. A Luna-high *judge* agreed with Sol on 80% of verdicts at about 1/15 of the cost, which makes it good for cheap screening.
 10. **It's snappy and cheap.** First text arrives at about 1.1 s median (p90 about 1.7 s). The decision call takes about 0.28 s. A turn costs under $0.001 in game calls. The night's total of about $25 was mostly the judge model.
 
+## Afternoon round (2026-10-14): absurdity, pressure, techniques, continuity
+
+- **Comic house style.** The steer was Pratchett / Monty Python silliness around a good story, with real repercussions. `v2` now uses [prompts/tone-comic.md](../prompts/tone-comic.md): the world plays it straight, people argue *inside* the bit, and daft acts send a bill. A decider flag tells the GM to follow a consequential daft act through. Over 8 blind players in 2 rounds:
+  - humour stayed at about 4/5;
+  - mean consequences rose from 2.5 to 3.25;
+  - a straight control player said it "never made the danger feel fake".
+  
+  Bills are still too gentle, and the bill that comes due later needs memory across turns and scenes. See [experiments/absurdity.md](experiments/absurdity.md).
+- **Characters as the GM's mouthpiece (playtest 1).** Co-GM whispers that set terms, such as "Wren must say specifically how Cob will be kept safe", were recited as dialogue.
+  - Fixed at the source: whispers are now what's on someone's mind.
+  - In the GM: people voice worries, not deals; cards are marked as unspoken prep; hinted clues are tracked so they aren't pushed again.
+  - Coaching lines in fresh sessions went from 4/49 to 0/52. Once coaching is in the history, the GM still imitates it.
+- **Pressure rolls (`v2-pressure`, opt-in).** The ruling follows researched DC guidance ([research/dc-guidance.md](research/dc-guidance.md)): what telling costs the holder × the player's leverage × how the holder feels gives a yes, a no, or a roll at DC 12/15/18. It includes let-it-ride, success rides, "no, but" and "no, and" bands, and a player-facing gloss on the dice line. Luna decisions scored 92% on the labelled cases, Jev 75–83%. Jev rolls when the person would tell anyone. Whole-scene validation is still to do. See [experiments/pressure-rolls.md](experiments/pressure-rolls.md).
+- **The six techniques** (move the clue, soft correction, preserve intent, NPC initiative, fail forward, rejoin later): 12 cases from [research/gm-techniques.md](research/gm-techniques.md).
+  - Soft correction and fail forward pass.
+  - Preserve intent failed 0/4 on a real gap: a threat was rolled on the authored Persuasion route. Now a social attempt rolls the player's own method, and the case passes 3/3.
+  - NPC initiative and rejoin-at-a-later-node are weak (about 1/4).
+- **Continuity research** ([research/compaction.md](research/compaction.md)):
+  - No built-in compaction is usable through OpenRouter. `/responses/compact` returns 404, and the encrypted summaries are unreadable to the rest of our pipeline.
+  - Context size isn't the problem anyway; state is. Props, clocks and agreements drift.
+  - Design: a background world-state tracker re-injected as "how things stand", a rolling story-so-far after about 20 exchanges, and decision-mode note selection to re-hydrate (V1-style progressive disclosure). Agreements must always be included, not selected.
+- **Two runtime fixes.** A route already won in this beat isn't offered again: absurd QA had Cob take back what he'd said after a re-rolled check failed. The decider is slower today: Luna decisions took 0.5–1.4 s per call, against 0.2–0.35 s earlier.
+
 ## Recommended configuration: `v2`
 
-The single GM voice with essentials in its prep, Luna decision mode, speculative replies, the quick co-GM on off-graph turns (3 s deadline, one coherent reply), and the full co-GM in the background. It's the CLI default. On the off-graph experiment (pooled, quick co-GM variants): ~90% of scenes ended the way the player's approach should lead, 95–99% of scenes reached an ending, and 95–99% of replies resolved within 5 s at a median of ~1.2 s. See [experiments/deviation-repair.md](experiments/deviation-repair.md).
+The single GM voice with essentials in its prep, in the comic house style with the consequence flag, Luna decision mode, speculative replies, the quick co-GM on off-graph turns (3 s deadline, one coherent reply), and the full co-GM in the background. It's the CLI default. `v2-straight` is the same without the comic style (the configuration of the deviation experiment); `v2-pressure` adds pressure rolls. On the off-graph experiment (pooled, quick co-GM variants): ~90% of scenes ended the way the player's approach should lead, 95–99% of scenes reached an ending, and 95–99% of replies resolved within 5 s at a median of ~1.2 s. See [experiments/deviation-repair.md](experiments/deviation-repair.md).
 
 ## Resolving deviations within a 5 s budget
 

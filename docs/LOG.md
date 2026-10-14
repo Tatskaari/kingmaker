@@ -206,3 +206,19 @@ Implemented:
 - **Experiment cases:** 3 holed scenes (routes removed but their endings kept), 3 "dreamed" approaches Luna invented that no route covers, and 4 deviations where the player avoids exactly where an essential was placed (ignores Tam, won't talk to Rowan, never looks at the toll house, won't search the body). Baseline `gm-rigid` hides the essentials.
 
 Smoke test latencies: blocking puts the co-GM on the critical path (10–15 s to first text, unacceptable); stall keeps first text at ~1.4 s, but the medium co-GM makes the follow-up arrive ~20 s later.
+
+
+## 2026-10-14 (afternoon) — absurdity, pressure rolls, techniques, the mouthpiece failure
+
+- **User steers:** test the six deviation techniques with QA guided to solve scenes the prep didn't plan for. Pressure on secrets should be rolled, with the DC from the secret's value and the roleplay. Continuity via a background tracker and compaction. Evals are information, not targets. Prefer absurdity (Pratchett / Monty Python), with real repercussions.
+- **Research workflow** (3 agents): `docs/research/dc-guidance.md`, `docs/research/compaction.md`, `docs/research/gm-techniques.md` and `src/eval/cases/techniques.ts`.
+- **Absurd QA round 1** (`v2`, 4 blind players): silliness was enabled and turned into plot, with deadpan wit, but daft acts never sent a bill. Characters graded bits from outside ("as a joke, not as proof").
+  - Added `prompts/tone-comic.md` and the consequence flag.
+  - A/B on the 7 gap moments: 67% → 79% (comic), 62% → 76% (flag). Noisy; I read the replies.
+- **Bug found by absurd QA:** a won check stayed on offer in a self-looping beat. The re-roll failed and Cob took back what he'd said. Fixed: routes achieved in this beat visit are no longer offered.
+- **Absurd QA round 2** (`v2-comic-bill`, new personas and scenes, plus a straight control): consequences 3.25 vs 2.5, humour about 4, the straight player happy. Remaining: gentle bills, continuity slips, a repeated line.
+- **Pressure rolls:** first a placeholder DC, then the researched ruling (yes / no / roll at 12/15/18). Luna 92%, Jev 75–83% on 12 decision cases. The details moved to a second call, made only when someone is pressed.
+- **Decider latency today:** 0.5–1.4 s for Luna decisions (it was 0.2–0.35 s). A same-input A/B shows it isn't the extra question.
+- **Playtest 1 (the user):** characters voiced the GM's plan. The cause was co-GM notes and whispers setting terms, plus a soft-nudge relocation repeating the boot crackle. Fixed in the co-GM prompt, the GM prompt, the card labels and hint tracking. Fresh-session coaching went from 4/49 to 0/52. Imitation persists once it's in the history.
+- **Techniques:** preserve intent failed 0/4 (a threat rolled as Persuasion). A social attempt now rolls the player's method: 3/3.
+- **`v2` now has the comic style plus the consequence flag.** `v2-straight` keeps the old v2, and `v2-pressure` is opt-in.

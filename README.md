@@ -2,7 +2,7 @@
 
 A proof of concept for the V2 idea in [Kingmaker V2 prototype.md](Kingmaker%20V2%20prototype.md). The world is split into **scenes** adjudicated by an AI game master. You talk and act in plain English, the people in the scene react, and the scene ends through one of its **exits**, which run a world-update script. Between scenes, a map would be the hub. Here the scenes simply chain.
 
-What we learned is in [docs/FINDINGS.md](docs/FINDINGS.md). The running lab notebook is [docs/LOG.md](docs/LOG.md), and the blind QA write-ups are in [docs/qa/](docs/qa/).
+What we learned is in [docs/FINDINGS.md](docs/FINDINGS.md), with write-ups in [docs/experiments/](docs/experiments/). The running lab notebook is [docs/LOG.md](docs/LOG.md), and the blind QA write-ups are in [docs/qa/](docs/qa/).
 
 ## Play
 
@@ -42,7 +42,10 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 
 | approach | what it tests |
 |---|---|
-| **`v2`** (default) | **Recommended.** GM voice with essentials, speculative replies, quick co-GM on off-graph turns (3 s), background co-GM. |
+| **`v2`** (default) | **Recommended.** GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), speculative replies, quick co-GM on off-graph turns (3 s), background co-GM. |
+| `v2-straight` | The same, played straight (the `v2` of the deviation experiment). |
+| `v2-pressure` | `v2` plus pressure rolls: pressing someone for what they're hiding is ruled yes, no, or a roll at DC 12/15/18 ([research](docs/research/dc-guidance.md)). |
+| `v2-comic`, `v2-comic-bill` | Absurdity experiment conditions: the comic style without and with the consequence flag. |
 | `gm-quick-block`, `gm-stall-quick` | The two budgeted repair designs `v2` came from: a single wait vs a holding beat plus follow-up. |
 | `gm-rigid`, `gm-nudge`, `gm-fast`, `gm-repair-*` | Deviation experiment conditions: no essentials, decider relocation, speculative replies only, co-GM timings (low/stall/blocking). |
 | `gm-low`, `gm-medium` | GM voice with more reasoning (no gain, slower). |
