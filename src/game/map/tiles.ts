@@ -31,6 +31,8 @@ export interface PlaceRegion extends Region {
   shut?: string;
   /** The scene whose time opens it (default: its own sceneId): live, or already played. */
   opensFor?: string;
+  /** Locked up once its scene has been played (you can still get out): what the player is told. */
+  lockedAfter?: string;
   /** The outside of a scene's place on another map (the Heron seen from the town): it shows what the scene did to it. */
   exteriorOf?: string;
 }

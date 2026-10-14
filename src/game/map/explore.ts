@@ -5,7 +5,7 @@ import { getMap } from "./maps/index.ts";
 import { PLACES, regionForScene, sceneStart } from "./places.ts";
 import { isLive, leadMarker, presence, regionOpen, sceneTrigger } from "./presence.ts";
 import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, type MapOverlay } from "./reconcile.ts";
-import { render, type RenderOptions, type Viewport } from "./render.ts";
+import { render, screenOf, type RenderOptions, type Viewport } from "./render.ts";
 import { direction, inBounds, inRect, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
 
 /**
@@ -182,6 +182,8 @@ export function move(state: ExploreState, dx: number, dy: number, world?: SceneW
     return result({ message: t.terrain === "tree" ? "A tree. It was here first." : BUMPS[state.steps % BUMPS.length]! });
   }
   if (!regionOpen(state.story, region)) return result({ message: region!.shut! });
+  const locked = lockedFrom(state.story, map, here, to);
+  if (locked) return result({ message: locked });
   const inTheWay = actors.find(a => a.at.x === to.x && a.at.y === to.y && a.kind !== "player" && a.blocks && !(a.states ?? []).includes("overhead") && !(a.states ?? []).includes("hanging"));
   const follower = inTheWay && state.followers.find(f => f.id === inTheWay.id);
   if (inTheWay && !follower) return result({ bumped: inTheWay, message: `${capital(inTheWay.name)} ${inTheWay.kind === "person" ? "is in the way" : "is in the way, and doesn't care"}.` });
@@ -226,6 +228,14 @@ function triggerAt(state: ExploreState, map: TileMap, to: Tile2, from: Tile2 | u
   return undefined;
 }
 
+/** A place locked up after its scene: no way in from outside it (you can always get out). */
+function lockedFrom(story: StoryState, map: TileMap, from: Tile2, to: Tile2): string | undefined {
+  for (const r of map.regions as PlaceRegion[]) {
+    if (r.lockedAfter && r.sceneId && story.played.includes(r.sceneId) && inRect(r.rect, to) && !inRect(r.rect, from)) return r.lockedAfter;
+  }
+  return undefined;
+}
+
 /** The region whose time opens a door here (a one-tile door region, or the place behind it). */
 function gatingRegion(map: TileMap, at: Tile2): PlaceRegion | undefined {
   return (map.regions as PlaceRegion[]).filter(r => r.shut && inRect(r.rect, at)).sort((a, b) => a.rect.w * a.rect.h - b.rect.w * b.rect.h)[0];
@@ -266,7 +276,7 @@ export function pathTo(state: ExploreState, target: Tile2, world?: SceneWorld): 
     for (const d of [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]] as const) {
       const n = { x: p.x + d[0], y: p.y + d[1] };
       const k = `${n.x},${n.y}`;
-      if (came.has(k) || !inBounds(map, n) || !ok(n)) continue;
+      if (came.has(k) || !inBounds(map, n) || !ok(n) || lockedFrom(state.story, map, p, n)) continue;
       if (d[0] && d[1] && !walkable(map, { x: p.x + d[0], y: p.y }) && !walkable(map, { x: p.x, y: p.y + d[1] })) continue;
       came.set(k, `${p.x},${p.y}`);
       queue.push(n);
@@ -296,7 +306,9 @@ export function look(state: ExploreState, world?: SceneWorld): string {
   const region = regionAt(map, state.at);
   const t = tileAt(map, state.at);
   const lines: string[] = [];
-  lines.push(`${region ? `You're in ${region.name}` : `You're in ${map.name}`}, ${GROUND[t.terrain] ?? "standing about"}.${region?.description ? ` ${region.description}` : ""}`);
+  const where_ = region?.name ?? map.name;
+  const on = /stairs|wharf|wharves|landing|plank walk|barge|Patience|wall\b/i.test(where_) ? "on" : "in";
+  lines.push(`You're ${on} ${where_}, ${GROUND[t.terrain] ?? "standing about"}.${region?.description ? ` ${region.description}` : ""}`);
   const near = nearby(state, 3, world).filter(n => n.actor);
   const people = near.filter(n => n.actor!.kind === "person" || n.actor!.kind === "creature");
   const things = near.filter(n => n.actor!.kind === "object" || n.actor!.kind === "item").filter(n => !(n.actor!.states ?? []).includes("overhead"));
@@ -305,7 +317,10 @@ export function look(state: ExploreState, world?: SceneWorld): string {
   const exits = map.exits.filter(e => steps(e.at, state.at) <= 3);
   if (exits.length) lines.push(`${dedupe(exits.map(e => `${e.label} (${where({ distance: steps(e.at, state.at), direction: direction(state.at, e.at) })})`)).join("; ")}.`);
   const lead = leadMarker(state.story, state.map);
-  if (lead) lines.push(`The lead: ${lead.label}, ${steps(lead.at, state.at) <= 1 ? "right here" : `${direction(state.at, lead.at)}, ${steps(lead.at, state.at)} steps`}.`);
+  if (lead) {
+    const d = steps(lead.at, state.at);
+    lines.push(`The lead: ${lead.label}, ${d === 0 ? "right here" : d === 1 ? `just ${direction(state.at, lead.at)}` : `${direction(state.at, lead.at)}, ${d} steps`}.`);
+  }
   const time = TIME_LINES[state.story.time];
   if (time && map.id === "caerwyn") lines.push(time);
   return lines.join("\n");
@@ -413,11 +428,20 @@ export function leaveScene(state: ExploreState, world?: SceneWorld): void {
   }
   const after = PLACES[sceneId]?.after;
   if (after && (!found || !world || state.map !== found.map.id || !inBounds(getMap(state.map), state.at))) { state.map = after.map; state.at = { ...after.at }; }
+  // A scene can end somewhere you can't walk out of (up in a barred loft): then you're outside its door.
+  if (after && !canWalkOut(state, after)) { state.map = after.map; state.at = { ...after.at }; }
   // Followers catch up.
   for (const f of state.followers) {
     f.map = state.map;
     f.at = besideSpot(state, state.map, state.at);
   }
+}
+
+/** From where the player stands, is there a walk to where they'd come out (or any way off this map)? */
+function canWalkOut(state: ExploreState, after: { map: string; at: Tile2 }): boolean {
+  if (state.map === after.map && state.at.x === after.at.x && state.at.y === after.at.y) return true;
+  const goals = state.map === after.map ? [after.at] : getMap(state.map).exits.map(e => e.at);
+  return goals.some(g => pathTo(state, g) !== undefined);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -429,12 +453,18 @@ export function renderExplore(state: ExploreState, viewport: Viewport, options: 
   const { world, ...rest } = options;
   const actors = actorsHere(state, world);
   const lead = leadMarker(state.story, state.map);
-  // A scene's place is framed whole when it fits; otherwise (and when exploring) the camera follows the player.
+  // Exploring, the camera follows the player. In a scene it frames the place when it fits, or else
+  // the people in it, keeping the player in view.
   let camera = state.at;
   const place = state.scene ? regionForScene(state.scene) : undefined;
   if (place && place.map.id === state.map) {
     const r = place.region.rect;
-    if (2 * (r.w + r.h) + 6 <= viewport.w && r.w + r.h + 6 <= viewport.h) camera = { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
+    const fits = (w: number, h: number) => 2 * (w + h) + 6 <= viewport.w && w + h + 6 <= viewport.h;
+    if (fits(r.w, r.h)) camera = { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
+    else {
+      const people = actors.filter(a => a.kind === "person" || a.kind === "creature" || a.kind === "player");
+      if (people.length) camera = keepInView({ x: Math.round(mean(people.map(a => a.at.x))), y: Math.round(mean(people.map(a => a.at.y))) }, state.at, viewport);
+    }
   }
   // In a scene, every room with someone in it opens up, not just the player's.
   const reveal = state.scene ? actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at) : [];
@@ -448,6 +478,19 @@ export function renderExplore(state: ExploreState, viewport: Viewport, options: 
     ...(state.scene ? { roofs: false } : {}),
     ...rest,
   });
+}
+
+const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/** Move a camera towards someone until they're comfortably on screen. */
+function keepInView(camera: Tile2, who: Tile2, viewport: Viewport): Tile2 {
+  let c = { ...camera };
+  for (let i = 0; i < 40; i++) {
+    const s = screenOf(who, c, viewport);
+    if (s.x >= 6 && s.x < viewport.w - 6 && s.y >= 3 && s.y < viewport.h - 3) break;
+    c = { x: c.x + Math.sign(who.x - c.x), y: c.y + Math.sign(who.y - c.y) };
+  }
+  return c;
 }
 
 /** Key to step, for an app that wants one: WASD and arrows by the compass, QEZC (and Home/PgUp/End/PgDn) diagonally. */

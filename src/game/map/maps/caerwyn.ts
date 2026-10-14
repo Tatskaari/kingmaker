@@ -102,6 +102,7 @@ export const caerwyn: MapDef = buildMap({
   },
   regions: [
     { id: "granary-yard", name: "the yard behind the King's Granary", rect: { x: 40, y: 11, w: 7, h: 6 }, sceneId: "hanged-clerk", worldOrigin: { x: 40, y: 9 }, trigger: "enter", label: "Step into the granary yard",
+      lockedAfter: "The yard's been locked up for the Assembly, and the dead-cart has been. Somebody has tied a ribbon on the padlock. You can see in over the wall, which is something.",
       description: "A cobbled yard swept bare for the Assembly, smelling of wet grain, pigeons and river mud." },
     { id: "tally-loft", name: "the tally loft", rect: { x: 48, y: 11, w: 3, h: 6 }, sceneId: "hanged-clerk", worldOrigin: { x: 40, y: 9 },
       description: "Up under the granary roof: the tally desk, the grain stacks, and the Royal Granary Roll on its chain." },

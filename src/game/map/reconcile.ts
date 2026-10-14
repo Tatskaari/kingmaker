@@ -127,7 +127,7 @@ export function actorsFromWorld(region: Region, world: SceneWorld, options: From
 
 /** A crowd ("the regulars", "the gang") as a few people round its spot. */
 function crowd(e: Entity, at: Tile2, color: string, map: TileMap, occupied: (p: Tile2) => boolean, blocked: (p: Tile2) => boolean): MapActor[] {
-  const glyphs = /gang|porters|bargees/i.test(e.name) ? "pqbd" : "ppqh";
+  const glyphs = /gang|porters|bargees/i.test(e.name) ? "pqbp" : "ppqh";
   const spots: Tile2[] = [];
   for (let r = 0; r <= 2 && spots.length < 4; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || spots.length >= 4) continue;

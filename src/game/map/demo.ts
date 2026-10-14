@@ -7,7 +7,8 @@
  *   4. night at the Heron: from the wharf, then with its world (the roof off, the dust in the air);
  *   5. the Heron as a battlefield for combat: a move range, a target, the Crakes placed.
  *
- * node --no-warnings src/game/map/demo.ts [--plain] [--w 80] [--h 24]
+ * node --no-warnings src/game/map/demo.ts [--plain | --color] [--w 80] [--h 24]
+ * (colour when it's a terminal; --color forces it, e.g. for `| less -R`)
  */
 import { applyOps, buildWorld, damageThing, joinWorld, tick, type SceneWorld } from "../../world/scene-world.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
@@ -19,7 +20,7 @@ import {
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: number) => { const i = args.indexOf(`--${name}`); return i >= 0 ? Number(args[i + 1]) : fallback; };
-const plain = args.includes("--plain") || !process.stdout.isTTY;
+const plain = args.includes("--plain") || (!process.stdout.isTTY && !args.includes("--color"));
 const viewport = { w: flag("w", 80), h: flag("h", 24) };
 
 const out = (s = "") => process.stdout.write(`${s}\n`);

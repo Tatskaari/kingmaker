@@ -147,6 +147,22 @@ test("places keep their hours: the Rat is shut in the morning and opens at dusk"
   assert.equal(again.trigger, undefined);
 });
 
+test("after its scene the yard is locked up (seen over the wall), and a scene can't strand you in a barred loft", () => {
+  const ex = newExploration(DUSK, { at: { x: 42, y: 10 } });
+  const refused = move(ex, 0, 1);
+  assert.equal(refused.moved, false);
+  assert.match(refused.message ?? "", /locked up for the Assembly/);
+  const inside = newExploration(DUSK, { at: { x: 43, y: 12 } });
+  assert.ok(pathTo(inside, { x: 42, y: 9 }), "but you can always get out");
+  // The granary scene ends with the player up in the tally loft, the loft door still barred.
+  const loft = newExploration(MORNING);
+  enterScene(loft, "hanged-clerk");
+  const w = world("hanged-clerk", hangedClerkWorld, ["kell", "cob", "moll"]);
+  applyOps(w, [{ op: "move", what: "player", to: "tally-desk", how: "near", name: "", kind: "", text: "", add: [], remove: [] }], 3);
+  leaveScene(loft, w);
+  assert.deepEqual(loft.at, { x: 42, y: 9 }, "back in the lane, outside the gate");
+});
+
 test("a walk across town: the path to the Rat's door is followed step by step, Kell in tow", () => {
   const ex = newExploration(DUSK, { at: { x: 42, y: 9 } });
   assert.equal(ex.followers[0]?.id, "kell");
