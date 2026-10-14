@@ -87,12 +87,17 @@ function asCharacter(c: CombatantSetup): Character {
   return { id: c.id, name: c.name, look: "", voice: "", wants: "", knows: [], attitude: "", ...(c.statblock ? { statblock: c.statblock } : {}), ...(c.weapon ? { weapon: c.weapon } : {}) };
 }
 
+/** How people are known on the map: Kell is K, the Master is S; everyone else by their last name's initial. */
+const GLYPHS: Record<string, string> = { kell: "K", sallow: "S", hep: "H", hobb: "B", saul: "W", scrope: "L", "crake-1": "C", "crake-2": "C" };
+
 function glyphFor(c: CombatantSetup): string {
   if (c.side === "player") return "@";
-  const word = c.name.replace(/^(the|a|an|master|mister|sergeant|corporal|big)\s+/i, "").replace(/^(the|a|an)\s+/i, "");
-  const letter = (word[0] ?? "?").toUpperCase();
+  const word = c.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).at(-1) ?? "?";
+  const letter = (GLYPHS[c.castId ?? c.id] ?? word[0] ?? "?").toUpperCase();
   return c.side === "neutral" ? letter.toLowerCase() : letter;
 }
+
+const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 class StandInFight implements CombatController {
   private fighters: Fighter[];
@@ -240,7 +245,8 @@ class StandInFight implements CombatController {
       current: this.current?.setup.id ?? "",
       movementLeft: this.movementLeft,
       actionUsed: this.actionUsed,
-      log: this.log,
+      // "a porter with a knife closes on you" starts a sentence.
+      log: this.log.map(l => (l.startsWith("🎲 ") ? `🎲 ${capital(l.slice(3))}` : capital(l))),
       ...(this.over ? { over: this.over } : {}),
     };
   }

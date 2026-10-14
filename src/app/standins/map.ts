@@ -351,10 +351,10 @@ const LOCATIONS: Record<string, { at: Tile2; name: string; outside: Tile2 }> = {
   "kings-morning": { at: PLACES.palaceGate, name: "the palace, where the King is waiting", outside: { x: 60, y: 15 } },
 };
 
+/** After a scene the player steps back outside the place it was played in. */
 function afterScene(sceneId: string, before: Position): Position {
   const place = LOCATIONS[sceneId];
-  const inside = regionAt(before.map, before.at)?.sceneId === sceneId;
-  return inside && place ? { map: TOWN, at: place.outside, facing: "s" } : before;
+  return place ? { map: TOWN, at: { ...place.outside }, facing: "s" } : before;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -13,18 +13,22 @@ export function EndScreen({ game }: { game: Game }) {
   });
   const end = game.ending;
   const w = Math.min(width - 4, 110);
+  const big = width >= 70 && height >= 30;
+  const chapters = end?.chapters ?? [];
+  const below = chapters.length + 3 + 2;
+  const narration = Math.max(5, height - (big ? 8 : 2) - below - 2);
   return <box width={width} height={height} flexDirection="column" alignItems="center" backgroundColor={C.bg} paddingTop={1}>
-    {width >= 70 ? <ascii-font text="THE END" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>T H E   E N D</text>}
-    <box width={w} flexGrow={1} minHeight={4} marginTop={1} border borderColor={C.border} title={` ${game.session?.player.name ?? "The investigator"} `} paddingX={1}>
-      <scrollbox flexGrow={1} scrollX={false}>
+    {big ? <ascii-font text="THE END" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>T H E   E N D</text>}
+    <box width={w} height={narration} marginTop={1} border borderColor={C.border} title={` ${game.session?.player.name ?? "The investigator"} `} paddingX={1}>
+      <scrollbox flexGrow={1} minHeight={0} scrollX={false}>
         <text fg={C.gm} wrapMode="word">{end?.closing ?? ""}</text>
       </scrollbox>
     </box>
-    <box width={w} flexDirection="column" marginTop={1}>
+    <box width={w} flexDirection="column" marginTop={1} flexShrink={0}>
       <text fg={C.title}>How it went</text>
-      {(end?.chapters ?? []).map((c, i) => <text key={i}><span fg={C.dim}>{`${i + 1}. ${c.title}: `}</span><span fg={C.text}>{c.ending}</span></text>)}
-      <text fg={C.faint} attributes={ITALIC} marginTop={1}>{`The GM's bar tab this sitting: $${(end?.spentUsd ?? 0).toFixed(2)}. The King has graciously declined to pay it.`}</text>
+      {chapters.map((c, i) => <text key={i}><span fg={C.dim}>{`${i + 1}. ${c.title}: `}</span><span fg={C.text}>{c.ending}</span></text>)}
+      <text fg={C.faint} attributes={ITALIC}>{`The GM's bar tab this sitting: $${(end?.spentUsd ?? 0).toFixed(2)}. The King has graciously declined to pay it.`}</text>
     </box>
-    <box marginTop={1} marginBottom={1}><Keys items={[["Enter", "back to the title"], ["q", "quit"]]} /></box>
+    <box marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title"], ["q", "quit"]]} /></box>
   </box>;
 }

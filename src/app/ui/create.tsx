@@ -29,7 +29,7 @@ export function CreateScreen({ game }: { game: Game }) {
   const [field, setField] = useState<"name" | "concept">("name");
   const submit = () => void game.create(name || DEFAULT_NAME, concept || DEFAULT_CONCEPT);
   useKeyboard(key => {
-    if (game.overlay) return;
+    if (game.overlay || key.defaultPrevented || game.screen !== "create") return;
     if (key.name === "tab" || (key.name === "up" && field === "concept") || (key.name === "down" && field === "name")) setField(f => (f === "name" ? "concept" : "name"));
     else if (key.name === "escape") game.toTitle();
   });
@@ -72,7 +72,8 @@ export function CreatedScreen({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
   useKeyboard(key => {
-    if (key.name === "return" || key.name === "space") game.begin();
+    if (game.overlay || key.defaultPrevented || game.screen !== "created") return;
+    if (key.name === "return" || key.name === "space") { key.preventDefault(); game.begin(); }
   });
   const session = game.session;
   const w = Math.min(width - 4, 110);

@@ -37,10 +37,10 @@ export function SceneScreen({ game }: { game: Game }) {
   const [draft, setDraft] = useState("");
   const scroll = useRef<ScrollBoxRenderable>(null);
   useKeyboard(key => {
-    if (game.overlay || game.screen !== "scene") return;
+    if (game.overlay || game.screen !== "scene" || key.defaultPrevented) return;
     if (key.name === "pageup" || key.name === "pagedown") {
       scroll.current?.scrollBy((key.name === "pageup" ? -1 : 1) * Math.max(3, height - 12));
-    } else if (key.name === "escape") { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
+    } else if (key.name === "escape") { key.preventDefault(); game.overlay = { kind: "menu", index: 0 }; game.emit(); }
   });
   const session = game.session;
   if (!session) return null;

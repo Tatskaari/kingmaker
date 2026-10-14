@@ -32,8 +32,9 @@ export function CombatScreen({ game }: { game: Game }) {
       if (key.name === "return" || key.name === "space") { key.preventDefault(); void game.afterCombat(); }
       return;
     }
-    if (key.sequence === "?") { game.overlay = { kind: "help" }; game.emit(); return; }
-    if (key.name === "s") { void game.showSheet(); return; }
+    if (key.sequence === "?") { key.preventDefault(); game.overlay = { kind: "help" }; game.emit(); return; }
+    if (key.name === "s") { key.preventDefault(); void game.showSheet(); return; }
+    if (key.name === "escape") { key.preventDefault(); game.overlay = { kind: "menu", index: 0 }; game.emit(); return; }
     if (key.name === "tab") { game.targetIndex = (index + (key.shift ? targets.length - 1 : 1)) % Math.max(1, targets.length); game.emit(); return; }
     if (/^[1-9]$/.test(key.sequence ?? "") && Number(key.sequence) <= targets.length) { game.targetIndex = Number(key.sequence) - 1; game.emit(); return; }
     if (!myTurn) return;

@@ -44,7 +44,8 @@ export function TitleScreen({ game }: { game: Game }) {
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
   useKeyboard(key => {
-    if (game.overlay || loading) return;
+    if (game.overlay || loading || key.defaultPrevented || game.screen !== "title") return;
+    key.preventDefault();
     if (key.name === "up" || key.name === "k" || key.name === "w") setIndex(i => (i + items.length - 1) % items.length);
     else if (key.name === "down" || key.name === "j" || key.name === "s") setIndex(i => (i + 1) % items.length);
     else if (key.name === "return" || key.name === "space") items[Math.min(index, items.length - 1)]!.run();

@@ -52,9 +52,10 @@ export const DIM = TextAttributes.DIM;
 
 /** A key hint line: "e interact · c sheet". */
 export function Keys({ items }: { items: Array<[string, string]> }) {
-  return <text flexShrink={0}>
-    {items.map(([key, what], i) => <span key={i}>
-      <span fg={C.title}>{key}</span><span fg={C.dim}>{` ${what}${i < items.length - 1 ? "  ·  " : ""}`}</span>
-    </span>)}
-  </text>;
+  // One flat run of spans: nested spans don't measure reliably.
+  const spans = items.flatMap(([key, what], i) => [
+    <span key={`k${i}`} fg={C.title}>{key}</span>,
+    <span key={`w${i}`} fg={C.dim}>{` ${what}${i < items.length - 1 ? "  ·  " : ""}`}</span>,
+  ]);
+  return <text flexShrink={0} height={1}>{spans}</text>;
 }

@@ -19,9 +19,10 @@ export function ExploreScreen({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
   useKeyboard(key => {
-    if (game.overlay || game.screen !== "explore") return;
+    if (game.overlay || game.screen !== "explore" || key.defaultPrevented) return;
     const dir = KEYS[key.name];
     if (dir && !key.ctrl) { game.walk(dir); return; }
+    key.preventDefault();
     if (key.name === "e" || key.name === "return" || key.name === "space") game.interact();
     else if (key.name === "c") void game.showSheet();
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
