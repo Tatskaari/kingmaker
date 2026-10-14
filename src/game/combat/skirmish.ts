@@ -25,6 +25,8 @@ const possessive = (name: string) => (name === "you" ? "your" : name.endsWith("s
 const reason = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error:\s*/, "");
 /** The spell effects a fight on the map can play out (summons, zones and teleports aren't here yet). */
 const SUPPORTED = new Set(["attack", "save", "auto-hit", "heal", "hp-pool-knockout", "buff"]);
+/** Buffs cast on a foe: the caster marks them. */
+const FOE_MARKS = new Set(["hunters-mark", "hex"]);
 /** The sheet's attack bonus with a weapon (the engine calls the instance weaponInstanceId; the typings say instanceId). */
 export function attackBonus(sheet: Dnd.CharacterSheet, weapon: string): number {
   const of = (a: Dnd.CharacterSheet["attacks"][number]) => (a as { weaponInstanceId?: string }).weaponInstanceId ?? a.instanceId;
@@ -413,7 +415,8 @@ export class Skirmish {
         const slot = spell.level === 0 ? 0 : [1, 2, 3, 4, 5, 6, 7, 8, 9].find(l => l >= spell.level && free(l) > 0) ?? -1;
         if (slot < 0) continue;
         const heal = effects.some(m => m.kind === "heal");
-        const buff = effects.some(m => m.kind === "buff");
+        // Marks are "buffs" the engine puts on the foe (Hunter's Mark, Hex): aimed at enemies, not friends.
+        const buff = effects.some(m => m.kind === "buff") && !FOE_MARKS.has(spell.id);
         const range = rangeFeet(spell.range);
         out.push({
           id: spell.id, name: spell.name, level: spell.level, slot, spell, range,
