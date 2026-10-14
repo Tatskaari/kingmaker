@@ -10,7 +10,7 @@ import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, positionOf, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
@@ -71,7 +71,7 @@ async function extractCharacter(scene: Scene, state: SessionState): Promise<void
   }
 }
 
-export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean; level?: number }): Promise<SessionState> {
+export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean; level?: number; build?: Partial<Build> }): Promise<SessionState> {
   approachById(options.approach);
   const scene = sceneById(options.sceneId);
   const playerText = options.player ?? DEFAULT_PLAYER;
@@ -85,7 +85,7 @@ export async function createSession(options: { sceneId: string; approach: string
   };
   // A D&D character sheet from the concept (the rules engine); without it, modifiers from the concept.
   if (options.rules !== false) {
-    try { await createCharacter(state, options.level ?? 3); } catch { delete state.rules; }
+    try { await createCharacter(state, options.level ?? 3, options.build); } catch { delete state.rules; }
   }
   if (!state.rules) state.player.modifiers = await rollUpModifiers(playerText);
   return state;

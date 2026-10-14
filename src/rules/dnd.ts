@@ -254,11 +254,12 @@ function offerClassSkills(ctx: Ctx, characterId: string, classId: string, backgr
  * engine: level 1, its choices, levelled up to `level`, kit equipped). Sets state.rules, and the
  * skill modifiers and build line on state.player.
  */
-export async function createCharacter(state: SessionState, level = 3): Promise<string> {
+export async function createCharacter(state: SessionState, level = 3, given?: Partial<Build>): Promise<string> {
   const { E, engine } = await engineFor(state.seed);
   const content = engine.content;
-  let raw: Partial<Build> = {};
-  try { raw = await chooseBuild(`${state.player.name}: ${state.player.concept}`, level, content); } catch { /* the class defaults stand in */ }
+  // A ready-made build (a pregenerated character) skips the model; otherwise it's asked for one.
+  let raw: Partial<Build> = given ?? {};
+  if (!given) try { raw = await chooseBuild(`${state.player.name}: ${state.player.concept}`, level, content); } catch { /* the class defaults stand in */ }
   const build = settleBuild(raw, level, content);
   const cls = content.classes.get(build.classId)!;
   const scores = Object.fromEntries(ABILITIES.map(a => [a, STANDARD_ARRAY[build.abilities.indexOf(a)] ?? 10])) as Record<Dnd.Ability, number>;
