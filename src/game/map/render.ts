@@ -62,13 +62,17 @@ export function screenOf(tile: Tile2, camera: Tile2, viewport: Viewport): { x: n
   return { x: p.col + ox, y: p.row + oy };
 }
 
-/** The ground tile under a viewport cell (for mouse picking). */
+/**
+ * The ground tile under a viewport cell (for mouse picking). On each row tile centres are four
+ * columns apart: a cell is a centre, just right of one, just left of the next, or the vertex
+ * between two, which belongs to the tile above it (the cell under that tile's middle).
+ */
 export function tileAtScreen(sx: number, sy: number, camera: Tile2, viewport: Viewport): Tile2 {
   const { ox, oy } = origin(camera, viewport);
   const col = sx - ox, row = sy - oy;
-  const centre = (r: number) => { const base = ((2 * r) % 4 + 4) % 4; return col - ((((col - base) % 4) + 4) % 4) + (((col - base) % 4 + 4) % 4 > 2 ? 4 : 0); };
-  let c = centre(row), r = row;
-  if (Math.abs(col - c) > 1) { r = row - 1; c = col; }
+  const mod4 = (n: number) => ((n % 4) + 4) % 4;
+  const off = mod4(col - 2 * row);
+  const [c, r] = off === 0 ? [col, row] : off === 1 ? [col - 1, row] : off === 3 ? [col + 1, row] : [col, row - 1];
   const s = c / 2;
   return { x: (s - r) / 2, y: (s + r) / 2 };
 }

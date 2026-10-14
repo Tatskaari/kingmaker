@@ -208,10 +208,15 @@ test("render: exact viewport, the player drawn, fire and wreckage shown, plain m
 
 test("screen and tiles: tileAtScreen inverts screenOf", () => {
   const camera = { x: 30, y: 20 }, viewport = { w: 80, h: 24 };
-  for (const t of [{ x: 30, y: 20 }, { x: 31, y: 20 }, { x: 30, y: 21 }, { x: 27, y: 25 }, { x: 34, y: 16 }]) {
+  const owner = new Set<string>();
+  for (let y = 12; y <= 28; y++) for (let x = 22; x <= 38; x++) {
+    const t = { x, y };
     const s = screenOf(t, camera, viewport);
-    for (const dx of [-1, 0, 1]) assert.deepEqual(tileAtScreen(s.x + dx, s.y, camera, viewport), t);
-    assert.deepEqual(tileAtScreen(s.x, s.y + 1, camera, viewport), t, "the cell under a tile's middle is its own");
+    for (const [cx, cy] of [[s.x - 1, s.y], [s.x, s.y], [s.x + 1, s.y], [s.x, s.y + 1]] as const) {
+      assert.deepEqual(tileAtScreen(cx, cy, camera, viewport), t, `cell (${cx}, ${cy}) belongs to tile (${x}, ${y})`);
+      assert.ok(!owner.has(`${cx},${cy}`), "no cell belongs to two tiles");
+      owner.add(`${cx},${cy}`);
+    }
   }
 });
 

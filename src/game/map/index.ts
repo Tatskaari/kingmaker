@@ -3,12 +3,30 @@
  * the places its scenes are played in, exploration, the isometric ASCII renderer, and the bridge
  * between a scene's world (feet) and the map (5-ft tiles).
  *
- * The app's loop, roughly:
- *   const ex = newExploration(storyFromSession(session));
- *   on a key: const r = move(ex, ...KEYS[key]); if (r.trigger) open the scene (enterScene(ex, r.trigger.sceneId)).
- *   on "talk/use": const it = interact(ex); scene -> open it; travel -> travel(ex, it.interaction.to); examine -> show the text.
- *   draw: renderExplore(ex, { w, h }, { world: session.world }) -> StyledLine[].
- *   scene over: leaveScene(ex, session.world) before chainScene; then setStory(ex, storyFromSession(session)).
+ * Coordinates: x runs east, y south, a tile is 5 ft. On screen the viewer stands to the south-west:
+ * the map's north runs up-left and its east up-right (KEYS steps by the compass; the app may prefer
+ * to rotate arrows to the screen).
+ *
+ * Exploring (the app's explore mode):
+ *   const ex = newExploration(storyFromSession(session));          // the lane by the granary gate
+ *   key:      const r = move(ex, ...KEYS[key]);                      // r.message for the log; r.bumped
+ *             if (r.trigger) { enterScene(ex, r.trigger.sceneId); await openScene(session) }
+ *   use/talk: const it = interact(ex);                               // scene -> as above; travel -> travel(ex, it.interaction.to);
+ *                                                                    // examine -> show it.interaction.text
+ *   sidebar:  look(ex), nearby(ex), leadMarker(ex.story, ex.map), regionAt(getMap(ex.map), ex.at)?.name
+ *   draw:     renderExplore(ex, { w, h }) -> StyledLine[] (pass { tick } to animate water and fire)
+ *   walk to:  pathTo(ex, tile) -> steps for move()
+ *
+ * Scenes (scene mode): after enterScene, draw renderExplore(ex, size, { world: session.world }): the
+ * place with its roof off, framed, the world's people and things on it (the player follows the
+ * world's player). When the scene ends: leaveScene(ex, session.world) BEFORE chainScene (which drops
+ * the world), then setStory(ex, storyFromSession(session)) once the story has moved on.
+ *
+ * Combat: battlefield(sceneId, session.world) gives the map, everyone's tile and what's in the way;
+ * spotsNear() finds tiles for people the world doesn't have (the Crakes); reachable() a move range;
+ * render(map, actors, camera, size, { roofs: false, marks, cursor, reveal }) draws the fight.
+ *
+ * Saving: ExploreState (overlay included) is plain JSON; keep it with the session.
  */
 
 export { MAPS, getMap, decorOf } from "./maps/index.ts";
