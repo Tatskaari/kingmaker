@@ -140,3 +140,9 @@ html, body {
   border-color: var(--border);
   background: transparent;
 }
+
+/* While the server checks a key, the form waits. */
+.card button:disabled, .card input:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

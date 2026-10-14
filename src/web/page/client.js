@@ -130,7 +130,8 @@ window.km = {
   text() {
     const buffer = term.buffer.active;
     const lines = [];
-    for (let y = 0; y < term.rows; y++) lines.push(buffer.getLine(buffer.viewportY + y)?.translateToString(true) ?? "");
+    // Up to the terminal's width: after it narrows, xterm keeps the cells past the edge (for reflow).
+    for (let y = 0; y < term.rows; y++) lines.push(buffer.getLine(buffer.viewportY + y)?.translateToString(true, 0, term.cols) ?? "");
     return lines.join("\n");
   },
   serverStats() {
@@ -201,6 +202,7 @@ function askForKey(error) {
   const input = $("key");
   const problem = $("key-error");
   $("gate").hidden = false;
+  checking(false);
   problem.hidden = !error;
   problem.textContent = error ?? "";
   input.focus();
@@ -215,9 +217,10 @@ function askForKey(error) {
       input.focus();
       return;
     }
-    $("gate").hidden = true;
+    // The server asks OpenRouter about it first: "started" closes the form, a refusal reopens it.
+    problem.hidden = true;
+    checking(true);
     start({ key });
-    term.focus();
   };
   $("offline").onclick = () => {
     input.value = "";
@@ -225,6 +228,11 @@ function askForKey(error) {
     start({ offline: true });
     term.focus();
   };
+}
+
+function checking(on) {
+  for (const field of $("key-form").elements) field.disabled = on;
+  $("key-checking").hidden = !on;
 }
 
 function showNotice(text, button) {
