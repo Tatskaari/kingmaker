@@ -17,6 +17,16 @@ What the overnight experiment of 2026-10-14 learned about GM-run scenes. The bri
 9. **More GM reasoning doesn't help.** Luna as GM at `low` / `medium` reasoning showed no measurable quality gain over `none` (81/88/81% criterion pass), and `medium` more than doubled time to first text (1.6 → 3.7 s median). Keep `none`. A Luna-high *judge* agreed with Sol on 80% of verdicts at about 1/15 of the cost, which makes it good for cheap screening.
 10. **It's snappy and cheap.** First text arrives at about 1.1 s median (p90 about 1.7 s). The decision call takes about 0.28 s. A turn costs under $0.001 in game calls. The night's total of about $25 was mostly the judge model.
 
+## Resolving deviations within a 5 s budget
+
+Full write-up: [experiments/deviation-repair.md](experiments/deviation-repair.md). 10 off-graph cases (routes removed, invented approaches, players avoiding where a clue was placed) × 10 conditions × 2 samples.
+
+- **Telling the in-scene GM what the scene needs is the biggest lever.** That means essentials: what the player must come across, where it was placed, what it unlocks, and that it can be moved. It took the target ending from 12/20 to 16/20 and the judge's criterion from 10/20 to 14/20, at no latency cost.
+- **Blocking on the co-GM is the accuracy upper bound but breaks the budget.** It ended every scene in the fewest turns, but at a 12.5 s median reply and 0% of turns within 5 s.
+- **Stall-and-report-back works once it's budgeted.** On an off-graph turn, a generated holding beat streams at ~1 s while a *quick* co-GM (compact output, no reasoning, 3 s deadline) decides. The follow-up starts at ~4.2 s, 97% of turns resolve within 5 s, and it scored the best target-ending rate (18/20). Without the deadline, follow-ups took 10–20 s.
+- **A background co-GM never costs latency** (100% within budget). It lands next turn and adds a little.
+- **Speculative replies** start the GM alongside the decision and keep the reply when the decision changes nothing. That cuts median first text from 1.38 s to 1.10 s for free.
+
 ## What was built
 
 One runtime (`src/runtime/`) where each orchestration choice is a preset, so every approach is a runnable PoC on the same scenes:
