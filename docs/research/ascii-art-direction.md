@@ -37,11 +37,12 @@ node --experimental-ffi --no-warnings --import tsx src/game/look/gallery.tsx
    - the rules' damage lines float as numbers.
    Surfaces are drawn straight from the physics' own surface entities (`src/world/systems.ts`).
 8. **Rules first, the model only for the unknown.** About 200 rules read a name's head noun, its adjectives (states: burning, singed, wet; colours: blue, silver), and constructions like "a flock of", "a pool of" and "a bucket of". Names nothing recognises get a guess at once, and a Luna call (no reasoning) picks a glyph from a curated menu, by name. The answer is cached on disk by the name's key: one call per kind of thing, batched, never per frame.
-9. **Three glyph sets.**
+9. **Four glyph sets.**
    - `ascii`, the default, is CP437-flavoured Unicode.
    - `nerd` uses Nerd Font icons where an icon reads better than a letter. It's opt-in with `KM_GLYPHS=nerd`; the Nerd Font Mono variant works best, and kitty and WezTerm bundle the symbols.
    - `plain` is seven-bit ASCII, guaranteed by a test.
-   People keep their letters in every set.
+   - `kingmaker` is our own font, Kingmaker Glyphs: pixel-art people and creatures at U+10E000 up (Supplementary Private Use Area-B, which no Nerd Font or other common font uses), one cell each with Adwaita Mono's metrics. The terminal falls back to it for those characters. It's opt-in with `KM_GLYPHS=kingmaker` once installed (`npm run glyphs`; see `tools/glyphs/README.md`).
+   People keep their letters in the ascii, nerd and plain sets. In the kingmaker set each of the cast is their own sprite, and anyone else gets one by the words in their name.
 10. **About 30 fps through OpenTUI.** OpenTUI defaults to 30 fps, diffs cells natively and wraps frames in synchronized output (DEC 2026). The world view is a "live" renderable that paints cells directly, with no React re-render per frame. A 130×38 frame costs 2 to 7 ms.
 
 ## Caves of Qud

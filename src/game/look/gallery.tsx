@@ -12,10 +12,11 @@ import { VIGNETTES, VignettePlayer, type LogLine } from "./vignettes.ts";
  * The look gallery: animated vignettes of the world view, played on real scene worlds with the
  * real rules and physics.
  *
- *   node --experimental-ffi --no-warnings --import tsx src/game/look/gallery.tsx [vignette] [--glyphs nerd|ascii|plain]
+ *   node --experimental-ffi --no-warnings --import tsx src/game/look/gallery.tsx [vignette] [--glyphs kingmaker|nerd|ascii|plain]
  *
- * Keys: ←/→ or 1-7 change vignette · space pause · r restart · g glyph set · t time of day ·
- * w weather · q quit. Needs a real terminal (truecolor; a Nerd Font for the nerd glyph set).
+ * Keys: ←/→ or 1-8 change vignette · space pause · r restart · g glyph set · t time of day ·
+ * w weather · q quit. Needs a real terminal (truecolor; Kingmaker Glyphs for the kingmaker glyph
+ * set, `npm run glyphs`; a Nerd Font for the nerd one).
  * Names the rules don't know get looks from Luna if OPENROUTER_API_KEY is set (cached in
  * runs/look-cache.json; KM_LOOK_MODEL=off to stay offline).
  */
@@ -23,7 +24,8 @@ import { VIGNETTES, VignettePlayer, type LogLine } from "./vignettes.ts";
 const C = { bg: "#0e0d12", panel: "#16141c", border: "#3a3446", title: "#e8c170", text: "#ddd5c4", dim: "#8a8273", faint: "#5c564d", rules: "#ffd166", gm: "#e9e2d0", key: "#c9a24a", tabOn: "#2a2436" };
 const TIMES: Array<TimeOfDay | undefined> = [undefined, "morning", "afternoon", "evening", "night"];
 const WEATHERS: Array<Weather | undefined> = [undefined, "drizzle", "rain", "clear"];
-const GLYPHS: GlyphSet[] = ["ascii", "nerd", "plain"];
+const GLYPHS: GlyphSet[] = ["ascii", "nerd", "plain", "kingmaker"];
+const NEEDS: Partial<Record<GlyphSet, string>> = { nerd: " (needs a Nerd Font, Mono best)", kingmaker: " (needs Kingmaker Glyphs: npm run glyphs)" };
 const HOLD = 2000;
 
 /** Time, the player and the settings: kept out of React so the canvas can ask for frames at 30 fps. */
@@ -96,7 +98,7 @@ function Gallery({ start, glyphs, onQuit }: { start: number; glyphs: GlyphSet; o
   const recent = ctl.player.recent(t, 3);
   const blurb = wrap(v.blurb, width - 4, 2);
   const settings = [
-    `glyphs: ${ctl.glyphs}${ctl.glyphs === "nerd" ? " (needs a Nerd Font, Mono best)" : ""}`,
+    `glyphs: ${ctl.glyphs}${NEEDS[ctl.glyphs] ?? ""}`,
     `time: ${ctl.time ?? "as scripted"}`, `weather: ${ctl.weather ?? "as scripted"}`,
   ].join("  ·  ");
   const luna = `looks from Luna: ${lookCache().size} cached, ${inventionCalls()} call${inventionCalls() === 1 ? "" : "s"} this run${lastInventionError() ? ` (last failed: ${lastInventionError()!.slice(0, 40)})` : ""}`;
@@ -114,7 +116,7 @@ function Gallery({ start, glyphs, onQuit }: { start: number; glyphs: GlyphSet; o
     </box>
     <text height={1} flexShrink={0} fg={C.faint}>{` ${settings}  ·  ${luna}`.slice(0, width)}</text>
     <text height={1} flexShrink={0}>
-      <span fg={C.key}>{" ←/→ 1-7"}</span><span fg={C.dim}>{" vignette  "}</span>
+      <span fg={C.key}>{` ←/→ 1-${VIGNETTES.length}`}</span><span fg={C.dim}>{" vignette  "}</span>
       <span fg={C.key}>{"space"}</span><span fg={C.dim}>{ctl.pausedAt === undefined ? " pause  " : " play   "}</span>
       <span fg={C.key}>{"r"}</span><span fg={C.dim}>{" restart  "}</span>
       <span fg={C.key}>{"g"}</span><span fg={C.dim}>{" glyphs  "}</span>

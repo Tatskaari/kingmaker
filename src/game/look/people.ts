@@ -9,7 +9,7 @@ import { seedOf } from "./noise.ts";
  * (red means fire and danger) or water-blue.
  */
 
-export interface PersonLook { glyph: string; color: string; name?: string }
+export interface PersonLook { glyph: string; color: string; name?: string; child?: boolean; /** Their Kingmaker Glyphs sprite (a character), for KM_GLYPHS=kingmaker. */ km?: string }
 
 /** The cast by id, from the map's table (the player is PLAYER_LOOK). */
 export const CAST_LOOKS: Record<string, PersonLook> = Object.fromEntries(Object.entries(CAST).filter(([id]) => id !== "player"));

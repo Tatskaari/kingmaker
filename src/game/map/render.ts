@@ -135,7 +135,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   const text = options.color === false;
   const asked = options.glyphs ?? glyphSet();
   // Plain text keeps to single-width glyphs: no icons.
-  const set: GlyphSet = text && asked === "nerd" ? "ascii" : asked;
+  const set: GlyphSet = text && (asked === "nerd" || asked === "kingmaker") ? "ascii" : asked;
   const plain = set === "plain";
   const t = text ? 0 : options.t ?? (options.tick ?? 0) * 100;
   const lf: LookFrame = { t, time: options.time ?? "afternoon", glyphs: set };
