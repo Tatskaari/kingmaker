@@ -71,10 +71,13 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
   const tone = approachById(state.approach).tone;
   const result = await respond({ operation, instructions: prompt("gm", { tone: tone ? prompt(`tone-${tone}`) : "" }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText } : {}), ...(signal ? { signal } : {}) });
-  const draft: Spoken = { speaker: "gm", kind: "narration", text: result.text.trim(), result };
+  const draft: Spoken = { speaker: "gm", kind: "narration", text: prose(result.text), result };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
   return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`));
 }
+
+/** The reply as prose: stray model tokens ("RGCTX:VEVENT") don't reach the transcript. */
+export const prose = (text: string) => text.replace(/[ \t]*\b[A-Z]{3,}(?:_[A-Z0-9]+)*:[A-Z][A-Z0-9_]{2,}\b/g, "").trim();
 
 /** Approach "actors": the GM narrates only; it does not voice characters. */
 export async function narratorReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void): Promise<Spoken> {
@@ -84,7 +87,7 @@ export async function narratorReply(scene: Scene, state: SessionState, directive
     { role: "developer", content: `${nowNote(scene, state, directive, { castNotes: true })}\n\nNarrate now: the world, what happens and what the player notices. The characters speak for themselves, so don't write their dialogue.` },
   ];
   const result = await respond({ operation: "narrator.reply", instructions: prompt("narrator"), input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 500 : 6000, ...(onText ? { onText } : {}) });
-  const draft: Spoken = { speaker: "gm", kind: "narration", text: result.text.trim(), result };
+  const draft: Spoken = { speaker: "gm", kind: "narration", text: prose(result.text), result };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
   return withoutRepeats(state, draft, note => narratorReply(scene, state, [...directive, note], onText));
 }

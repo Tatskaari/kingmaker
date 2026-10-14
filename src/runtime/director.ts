@@ -909,7 +909,7 @@ export function moveDirective(scene: Scene, state: SessionState, move: Move): st
   if (move.exit && !move.chosen) {
     lines.push(`Things are escalating towards this: ${move.exit.outcome} Don't let it happen yet. In this reply, escalate (a warning, a last demand, a countdown, a weapon raised) and stop with the moment hanging: the next move is the player's.`);
   } else if (move.exit) {
-    lines.push(`This reply closes the scene: ${move.exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${move.exit.closing} Don't narrate beyond the ending into what comes next.`);
+    lines.push(`This reply closes the scene: ${move.exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${move.exit.closing} Don't narrate beyond the ending into what comes next.${move.exit.kind === "combat" ? " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold." : ""}`);
   } else if (move.to !== state.beat) {
     const beat = scene.beats.find(b => b.id === move.to)!;
     lines.push(`The scene has moved on to "${beat.title}": ${beat.direction} Play the start of this in your reply, growing out of what the player just did, and let the rest unfold over the next exchanges.`);

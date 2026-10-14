@@ -390,7 +390,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       directive.push(`The scene is on the brink of: ${exit.title} (${exit.outcome}). The player's response may change that; play it honestly.`);
     } else {
       ended = exit;
-      directive.push(`This reply closes the scene: ${exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.`);
+      directive.push(`This reply closes the scene: ${exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold." : ""}`);
     }
   }
 
@@ -620,7 +620,7 @@ export async function resumeAfterFight(state: SessionState, summary: string, hoo
   const before = state.transcript.length;
   push(state, hooks, { speaker: "system", kind: "system", text: `The fight: ${summary}` });
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
-  const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
+  const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went: if the player's side lost, they lost, and the winners do what they'd do with a beaten foe; nothing in the aftermath turns it round. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
   push(state, hooks, { speaker: "gm", kind: "narration", text: spoken.text });
   saveSession(state);
   return state.transcript.slice(before);
