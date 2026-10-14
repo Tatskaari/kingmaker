@@ -2,9 +2,9 @@ import { sceneById } from "../../../scenes/index.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import { standinFights } from "../fight-standin.ts";
 import type { Action, Fight, FightFactory, GameState } from "../play.ts";
-import type { CombatantSetup, CombatSetup, TileMap, Tile2 } from "../types.ts";
+import type { CombatantSetup, CombatSetup, MapActor, TileMap, Tile2 } from "../types.ts";
 import { engineReady, resumeCombat, startCombat, type CombatController, type SavedCombat } from "./controller.ts";
-import { FEET, same, solid, steps } from "./grid.ts";
+import { explore, FEET, key, same, solid, steps } from "./grid.ts";
 import { heronMap } from "./heron-grid.ts";
 import { heronEncounter, type HeronOptions } from "./heron.ts";
 import type { LogLine, PlayerAction } from "./model.ts";
@@ -22,18 +22,36 @@ import { gridText, KEY, legend } from "./render.ts";
 
 const loaded = await engineReady();
 
+/** The scene's place as a battlefield (the map module's battlefield(): its map, where everyone stands, its lights, dust and fuel). */
+export interface Field {
+  map: TileMap;
+  /** Where people stand, by cast id and "player". */
+  at: Record<string, Tile2>;
+  /** Lit flames a fight can knock over (lanterns, braziers), with the world's ids. */
+  props?: MapActor[];
+  dust?: Tile2[];
+  fuel?: Tile2[];
+}
+
 export interface TacticalOptions {
   /** The Heron's map (the map module's, when it has one); our own grid otherwise. */
   map?: (session: SessionState) => TileMap;
+  /** The scene's place with everyone where its world has them: preferred over `map` when it gives one. */
+  field?: (session: SessionState) => Field | undefined;
   heron?: HeronOptions;
 }
 
-export function tacticalFights(options: TacticalOptions = {}): FightFactory {
-  return {
+export interface TacticalFights extends FightFactory {
+  /** Called after each of the other side's turns while the player waits (a UI redraws and lets it land). */
+  pace?: (lines: LogLine[]) => Promise<void>;
+}
+
+export function tacticalFights(options: TacticalOptions = {}): TacticalFights {
+  const factory: TacticalFights = {
     async start(_game: GameState, session: SessionState): Promise<Fight> {
       const setup = encounterFor(session, options);
       const combat = await startCombat(setup, session);
-      const fight = new TacticalFight(combat, []);
+      const fight = new TacticalFight(combat, [], () => factory.pace);
       fight.begin();
       return fight;
     },
@@ -41,24 +59,50 @@ export function tacticalFights(options: TacticalOptions = {}): FightFactory {
       const s = saved as { combat?: SavedCombat; unseen?: LogLine[] } | undefined;
       // A game saved mid-fight by the stand-in carries on as one.
       if (!s?.combat) return standinFights.load(saved, session);
-      return new TacticalFight(resumeCombat(s.combat, session, loaded), s.unseen ?? []);
+      return new TacticalFight(resumeCombat(s.combat, session, loaded), s.unseen ?? [], () => factory.pace);
     },
   };
+  return factory;
 }
 
 /** The fight the story's ending asked for: the Heron's own, or any scene's from its startCombat (a plain room). */
 export function encounterFor(session: SessionState, options: TacticalOptions = {}): CombatSetup {
-  if (session.sceneId === "heron-warehouse") return heronEncounter(options.map?.(session) ?? heronMap(), session, options.heron ?? {});
+  if (session.sceneId === "heron-warehouse") {
+    const field = options.field?.(session);
+    if (!field) return heronEncounter(options.map?.(session) ?? heronMap(), session, options.heron ?? {});
+    const setup = heronEncounter(field.map, session, { ...options.heron, at: field.at, ...(field.props ? { actors: field.props } : {}), ...(field.dust ? { dust: field.dust } : {}), ...(field.fuel ? { fuel: field.fuel } : {}) });
+    return { ...setup, map: withinReach(setup) };
+  }
   return arenaEncounter(session);
 }
 
-class TacticalFight implements Fight {
-  private readonly combat: CombatController;
+/**
+ * A fight whose sides can't reach each other (the player on the wharf, Sallow inside behind the
+ * barred land door) isn't a fight: in the scramble the doors get thrown open.
+ */
+function withinReach(setup: CombatSetup): TileMap {
+  const player = setup.combatants.find(c => c.side === "player");
+  if (!player) return setup.map;
+  const apart = (map: TileMap) => {
+    const seen = explore(map, player.at);
+    return setup.combatants.some(c => c !== player && c.side !== "neutral" && !seen.has(key(c.at)));
+  };
+  if (!apart(setup.map)) return setup.map;
+  const tiles = setup.map.tiles.map(row => row.map(t => (t.terrain === "door" && t.blocks ? { ...t, blocks: false } : t)));
+  return { ...setup.map, tiles };
+}
+
+export class TacticalFight implements Fight {
+  /** The fight itself, for a UI that draws it (view(), options(), area()); act through act() so the story sees it. */
+  readonly controller: CombatController;
+  private get combat(): CombatController { return this.controller; }
   /** Lines the player hasn't been shown yet (the other side's turns before theirs). */
   private unseen: LogLine[];
-  constructor(combat: CombatController, unseen: LogLine[]) {
-    this.combat = combat;
+  private readonly pace: () => TacticalFights["pace"];
+  constructor(combat: CombatController, unseen: LogLine[], pace: () => TacticalFights["pace"] = () => undefined) {
+    this.controller = combat;
     this.unseen = unseen;
+    this.pace = pace;
   }
 
   /** Whoever beat the player's initiative goes first. */
@@ -144,7 +188,13 @@ class TacticalFight implements Fight {
       const o = this.combat.options();
       if (action.kind !== "end" && this.combat.playerTurn() && o.actionUsed && o.movementLeft < FEET) lines.push(...this.combat.act({ kind: "end" }).lines);
     }
-    if (!this.combat.over() && !this.combat.playerTurn()) lines.push(...this.combat.advance());
+    // Everyone else's turns, one at a time, each given its moment when something is watching.
+    for (let guard = 0; guard < 400 && !this.combat.over() && !this.combat.playerTurn(); guard++) {
+      const turn = this.combat.advance(undefined, 1);
+      lines.push(...turn);
+      const pace = this.pace();
+      if (pace && turn.length && !this.combat.over() && !this.combat.playerTurn()) await pace(turn);
+    }
     // Over: result() writes the story back (the play loop shows its summary as "The fight: ...").
     if (this.combat.over()) this.combat.result();
     return lines.map(show).join("\n");
@@ -161,7 +211,9 @@ class TacticalFight implements Fight {
     if (m && DIRS[m[1]!]) { const d = DIRS[m[1]!]!; return { kind: "move", to: { x: pc.at.x + d.x, y: pc.at.y + d.y } }; }
     m = /^attack_(.+?)(?:_with_(.+))?$/.exec(id);
     if (m) {
-      const weapon = m[2] ? pc.weapons.find(w => slug(this.combat.options().attacks.find(a => a.weapon === w)?.weaponName ?? "") === m![2]) : undefined;
+      // Plain attack_<target> is the attack it was listed as: the first weapon that reaches them (a bow across the room).
+      const attacks = this.combat.options().attacks.filter(a => a.target === m![1]);
+      const weapon = m[2] ? pc.weapons.find(w => slug(attacks.find(a => a.weapon === w)?.weaponName ?? "") === m![2]) : attacks[0]?.weapon;
       return { kind: "attack", target: m[1]!, ...(weapon ? { weapon } : {}) };
     }
     m = /^use_(.+)$/.exec(id);

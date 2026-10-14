@@ -2,10 +2,9 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { setCallLog } from "../llm/openrouter.ts";
 import { Game, type Observation } from "../game/play.ts";
-import { places } from "../game/places.ts";
-import { tacticalFights } from "../game/combat/fights.ts";
-import { battlefield } from "../game/map/index.ts";
-import { heronMap } from "../game/combat/heron-grid.ts";
+import { town } from "../game/town.ts";
+import { mapFights } from "../game/fights.ts";
+import { townText } from "../game/views.ts";
 import { sheetText } from "../rules/dnd.ts";
 import { asciiMap } from "../world/scene-world.ts";
 import { sessionDir } from "../runtime/session.ts";
@@ -13,12 +12,13 @@ import { transcriptMarkdown } from "../runtime/engine.ts";
 
 /**
  * Headless QA for the playable game (V1's QA console, without the socket): observe the game, then
- * act with an action id from the latest observation ("talk_kell", "go_river_stairs"), or, in a
- * scene, say something. State is saved between commands, so each command is its own process.
+ * act with an action id from the latest observation ("talk_kell", "go_to_lead"), or, in a scene,
+ * say something. State is saved between commands, so each command is its own process. It plays the
+ * same game as the terminal app: Caerwyn on the isometric map (src/game/town.ts) and tactical
+ * fights on the scene's own place (src/game/fights.ts).
  */
 
-/** Tactical combat on the map module's Heron (its battlefield, reconciled from the scene's world). */
-const fights = tacticalFights({ map: session => (session.world ? battlefield(session.sceneId, session.world)?.map : undefined) ?? heronMap() });
+const fights = mapFights();
 
 const USAGE = `Kingmaker playable game: headless QA
 
@@ -27,7 +27,7 @@ const USAGE = `Kingmaker playable game: headless QA
   qa act --session <id> --id <action id>        take an action from the latest observation
   qa say --session <id> <what you say or do>    in a scene: speak (in quotes) or act (plain words)
   qa sheet --session <id>                       your character sheet
-  qa map --session <id>                         a sketch of the current scene's place (in scenes that have one)
+  qa map --session <id> [--w 100] [--h 30]      the map where you are (in a scene: its place, and its world from above)
   qa transcript --session <id>                  the story so far
   qa dump --session <id> --output <dir> --description "<what went wrong>"   for bug reports only
 
@@ -57,13 +57,13 @@ async function main(): Promise<void> {
     const who = flag(args, "as") ?? "Wren Ashdown: a quick-witted investigator lent to the case by the King";
     const level = Number(flag(args, "level") ?? 3);
     const seed = flag(args, "seed");
-    const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), explorer: places, fights });
+    const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), explorer: town, fights });
     console.log(`Game ${game.state.id}: you are ${game.session.player.name}${game.session.player.build ? `, ${game.session.player.build}` : ""}.\n`);
     print(game.observe(), id);
     return;
   }
   if (!Game.exists(id)) throw new Error(`No game ${id}: start one with qa new --session ${id} --as "Name: concept"`);
-  const game = Game.load(id, places, fights);
+  const game = Game.load(id, town, fights);
   if (command === "observe") { print(game.observe(), id); return; }
   if (command === "act") {
     const action = flag(args, "id");
@@ -84,7 +84,12 @@ async function main(): Promise<void> {
     return;
   }
   if (command === "sheet") { console.log(await sheetText(game.session)); return; }
-  if (command === "map") { console.log(game.session.world ? asciiMap(game.session.world) : "(No map for this place yet.)"); return; }
+  if (command === "map") {
+    // The map as the player sees it (in a scene, its place with everyone where they are now), then the scene's world from above.
+    console.log(townText(game.state, game.session, { w: Number(flag(args, "w") ?? 100), h: Number(flag(args, "h") ?? 30) }));
+    if (game.state.mode === "scene" && game.session.world) console.log(`\n${asciiMap(game.session.world)}`);
+    return;
+  }
   if (command === "transcript") { console.log(transcriptMarkdown(game.session, { allScenes: true })); return; }
   if (command === "dump") {
     const output = flag(args, "output");
