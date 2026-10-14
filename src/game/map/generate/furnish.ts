@@ -1,5 +1,6 @@
 import type { Tile2 } from "../../types.ts";
 import type { Entity } from "../../../world/scene-world.ts";
+import { actorLook } from "../../look/map.ts";
 import { isCrowd } from "../looks.ts";
 import { liftOf as drawnLift, rowsOf as thingRows } from "./camera.ts";
 import { tile, type MapTile } from "../tiles.ts";
@@ -51,9 +52,17 @@ export interface Furnished {
   startArea: string;
   problems: Problem[];
   notes: string[];
+  /** Things the furnisher added to the plan (lanterns for a dark room): the world gets them too. */
+  added: ThingPlan[];
 }
 
 const RUN_STYLE: Record<string, string> = { wood: "panel", stone: "stone", iron: "hull", steel: "hull", brass: "hull", glass: "panel" };
+/** A room this big (in squares) by one light is dark at its far end at night. */
+const BIG_ROOM = 30;
+/** How far a light reaches to light a floor well enough (squares). */
+const LAMP_REACH = 3.2;
+/** Does it shed light (lit, by the look layer's rules)? */
+const sheds = (p: Placement) => !!actorLook({ id: p.id, name: p.name, kind: "object", glyph: "?", map: "", at: { x: 0, y: 0 }, ref: p.id, ...(p.states ? { states: p.states } : {}) }, { t: 0, time: "night", glyphs: "ascii" }).light;
 const COUNTER = /\b(bar|counter|serving|till)\b/i;
 const BIG = new Set(["large", "huge", "gargantuan"]);
 
@@ -183,7 +192,8 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
     return d ? (areaAt(d.inside) === area ? d.inside : d.outside) : undefined;
   };
 
-  type Want = { relation: ThingPlan["relation"]; wall: Side | "none"; corner: Corner | "none"; target: string; target2: string };
+  /** What a relation asks for; `dark`: squares no light reaches yet (a lamp goes where it lights most of them). */
+  type Want = { relation: ThingPlan["relation"]; wall: Side | "none"; corner: Corner | "none"; target: string; target2: string; dark?: Tile2[] };
   const hasWall = (area: AreaInfo, side: Side) => area.tiles.some(p => isWallish(tileAt(add(p, DIR[side])), area.boat));
   /** How well squares honour a relation (higher is better). */
   const relationScore = (ts: Tile2[], want: Want, area: AreaInfo, counter: boolean): number => {
@@ -213,6 +223,7 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
         return (both ? 24 : one ? 8 : 0) - 1.5 * Math.hypot(c.x - cx, c.y - cy);
       }
       case "centre": case "overhead": {
+        if (want.dark) return want.dark.filter(q => Math.hypot(q.x - c.x, q.y - c.y) <= LAMP_REACH).length;
         const m = centreOf(area.tiles);
         return 10 - 2 * Math.hypot(c.x - m.x, c.y - m.y);
       }
@@ -306,7 +317,7 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
     return true;
   };
 
-  const place = (t: ThingPlan): Placement | undefined => {
+  const place = (t: ThingPlan, dark?: Tile2[]): Placement | undefined => {
     const area = site.areas.get(t.in);
     if (!area) { problems.push({ check: "plan", subject: t.id, message: `${t.name} is in ${t.in}, which didn't make it onto the map.`, severity: "error" }); return undefined; }
     if (isTerrainThing(t)) return { id: t.id, name: t.name, area: area.id, tiles: [], anchor: nearestTo(area.tiles, centreOf(area.tiles)), terrain: true };
@@ -327,7 +338,7 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
     // What the renderer paints for it, rows up from its square's cell (a run of low wall is terrain, not drawn as a thing).
     const rows = run ? [] : thingRows({ id: t.id, name: t.name, kind: as, states, ref: t.id, ...(blocks ? { blocks: true } : {}) });
     const counter = run && COUNTER.test(t.name) && t.relation === "against";
-    const want: Want = { relation: t.relation === "on" || t.relation === "in" || t.relation === "under" ? "centre" : t.relation, wall: t.wall, corner: t.corner, target: t.target, target2: t.target2 };
+    const want: Want = { relation: t.relation === "on" || t.relation === "in" || t.relation === "under" ? "centre" : t.relation, wall: t.wall, corner: t.corner, target: t.target, target2: t.target2, ...(dark ? { dark } : {}) };
     const targets = new Set([want.target, want.target2]);
     let options = runsIn(area, length, { aloft });
     if (huge) options = options.filter(ts => spreadsLikeTheMap(ts));
@@ -448,7 +459,33 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
   }
 
   placeAll(plan.things.filter(t => !early(t) && t.kind !== "crowd"));
-  return { things, people, start, startArea, problems, notes };
+
+  // Light. A big room lit by one fire (or by nothing, where the scene is) is black at its far end
+  // after dark: lanterns go up in the beams where it's darkest, until a light reaches most of it.
+  const added: ThingPlan[] = [];
+  const taken = new Set([...plan.things.map(t => t.id), ...plan.people.map(p => p.id), ...site.doors.map(d => d.id), ...site.areas.keys()]);
+  const main = plan.rooms.find(r => r.where === "main")?.id;
+  for (const area of site.areas.values()) {
+    if (!area.room || area.tiles.length < BIG_ROOM) continue;
+    const lightsIn = () => [...things.values()].filter(p => p.area === area.id && p.tiles.length && sheds(p)).flatMap(p => p.tiles);
+    const peopled = plan.people.some(p => p.in === area.id) || plan.things.some(t => t.in === area.id && t.kind === "crowd");
+    if (lightsIn().length > 1 || (!lightsIn().length && area.id !== main && !peopled)) continue;
+    for (let n = 0; n < 3; n++) {
+      const lights = lightsIn();
+      const dark = area.tiles.filter(q => !lights.some(l => Math.hypot(q.x - l.x, q.y - l.y) <= LAMP_REACH));
+      if (dark.length <= area.tiles.length * 0.2) break;
+      let id = `${area.id}-lantern`;
+      for (let i = 2; taken.has(id); i++) id = `${area.id}-lantern-${i}`;
+      const lamp: ThingPlan = { id, name: "a lantern hung from the beams", kind: "object", size: "small", material: "brass", tags: ["light"], states: ["lit"], description: "", in: area.id, relation: "overhead", wall: "none", corner: "none", target: "", target2: "", tiles: 1 };
+      const p = place(lamp, dark);
+      if (!p) { problems.pop(); break; } // no room up there: dark it stays
+      taken.add(id);
+      things.set(id, p);
+      added.push(lamp);
+    }
+    if (added.some(t => t.in === area.id)) notes.push(`${area.name} was lit by ${lightsIn().length - added.filter(t => t.in === area.id).length || "nothing"}: ${added.filter(t => t.in === area.id).length} lantern${added.filter(t => t.in === area.id).length > 1 ? "s" : ""} hung from the beams.`);
+  }
+  return { things, people, start, startArea, problems, notes, added };
 }
 
 export function describe(want: { relation: string; wall: string; corner: string; target: string; target2: string }, nameOf: (id: string) => string = id => id): string {

@@ -7,12 +7,15 @@ import { SIDES, type Corner, type DoorPlan, type FloorKind, type Ground, type Ou
 /**
  * Laying a (turned, normalized) plan out on 5-ft tiles: the building's footprint, its rooms carved
  * out of it (each room on its side or in its corner, the main room taking what's left), doors on
- * the walls between what they join, windows along outside walls, and the outside in strips round
+ * the walls between what they join, windows along outside walls, and the outside in strips along
  * the building (the street, a quay, a walk on piles, the river with a boat in it), nearest first.
  *
  * The rooms are rectangles anchored to the building's sides and corners with a wall between each
  * and the next: a small BSP in effect, but driven by where the plan says each room is rather than
- * by random cuts, so "the back room on the north side" is on the north side.
+ * by random cuts, so "the back room on the north side" is on the north side. A seed varies what the
+ * plan leaves open, so two runs of one plan aren't the same building: which end of its side a room
+ * takes, where along its wall a door goes, and sometimes a back corner left out of the footprint, so
+ * the building is an L.
  */
 
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -56,8 +59,10 @@ export interface Site {
   areas: Map<string, AreaInfo>;
   doors: DoorInfo[];
   windows: Array<{ at: Tile2; room: string; side: Side }>;
-  /** The building, walls included. */
+  /** The building's bounding box, walls included. */
   building: Rect;
+  /** A back corner left out of the building (it's an L), walls not included. */
+  notch?: Rect;
   /** The look of its walls and roof, and their height. */
   style: string;
   wallHeight: number;
@@ -77,8 +82,10 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const tilesOf = (feet: number) => Math.round(feet / 5);
 /** The smallest room, in squares each way: two is a corridor, and a door in each wall fills it. */
 const MIN_ROOM = 3;
-/** The main room keeps at least this many squares across between the rooms on opposite sides. */
-const MAIN_MIN = 3;
+/** The main room has room in it this many squares each way, whatever the others take. */
+const MAIN_MIN = 5;
+/** The biggest building, in squares each way. */
+const MAX_SIDE = 26;
 /**
  * Walls between rooms are drawn two rows high, whatever the storeys: from above (a scene's view,
  * roofs off) a full-height partition would hide the two squares behind it, and a room nobody is
@@ -88,6 +95,15 @@ const PARTITION = 2;
 
 /** Walls and roofs by what they're made of: the renderer's block styles. */
 export const WALL_STYLE: Record<WallKind, string> = { stone: "civic", brick: "brick", timber: "timber", "tarred-timber": "tar", plaster: "plaster", "earth-bank": "bank", "fine-stone": "palace" };
+/**
+ * The walls themselves, when they aren't what the roof is: a burrow in a bank is timber-walled
+ * inside the bank, as the Rat is (a turf roof, timber walls, the bank all round). A fire lights the
+ * walls of its room, and turf there would look like the firelight was out on the bank.
+ */
+const WALLS_OF: Partial<Record<WallKind, string>> = { "earth-bank": "timber" };
+
+/** How far out a strip of each kind of ground goes, at most, in squares (things in it get more room). */
+const STRIP_DEPTH: Record<Ground, number> = { cobbles: 3, boards: 3, "planks-over-water": 2, dirt: 3, grass: 3, steps: 2, water: 3, boat: 0 };
 
 /** An indoor floor tile of a kind, under a roof. */
 export function floorTile(kind: FloorKind, roof: string, roofHeight: number): MapTile {
@@ -117,43 +133,103 @@ function groundTile(ground: Ground, row: number): MapTile {
 
 const walkable = (t: MapTile) => !t.blocks && t.terrain !== "wall" && t.terrain !== "window" && t.terrain !== "fence" && t.terrain !== "void";
 
-export function layout(plan: PlacePlan): Site {
-  const problems: Problem[] = [];
-  const notes: string[] = [];
-  const style = WALL_STYLE[plan.walls];
-  // Rows high, as the town draws them: a burrow 2, a house of one or two storeys 3 (an upper floor
-  // is the roof's pitch), anything taller 4.
-  const wallHeight = plan.walls === "earth-bank" ? 2 : plan.storeys >= 3 ? 4 : 3;
+/** A small deterministic random source (mulberry32): the same seed, the same building. */
+export function rng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
+/** A seed from a string (a place's id). */
+export const seedOf = (s: string) => [...s].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 2166136261);
+
+export interface LayoutOptions {
+  /** Varies what the plan leaves open (default 1). */
+  seed?: number;
+}
+
+export function layout(plan: PlacePlan, options: LayoutOptions = {}): Site {
+  const seed = options.seed ?? 1;
+  const notes: string[] = [];
   // The footprint, grown if the rooms and things wouldn't fit in it.
-  let W = clamp(tilesOf(plan.width), 5, 26), D = clamp(tilesOf(plan.depth), 5, 26);
+  let W = clamp(tilesOf(plan.width), 5, MAX_SIDE), D = clamp(tilesOf(plan.depth), 5, MAX_SIDE);
   const onFloor = plan.things.filter(t => !["on", "in", "under", "overhead"].includes(t.relation) && plan.rooms.some(r => r.id === t.in));
   // Each room as asked (with its walls), and on the main floor a square or two per thing to stand
   // on and get round it, so the main room isn't all furniture.
   const need = plan.rooms.filter(r => r.where !== "main").reduce((n, r) => n + Math.max(MIN_ROOM, tilesOf(r.width)) * Math.max(MIN_ROOM, tilesOf(r.depth)) + 4, 0)
     + onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0) + plan.people.length + 9;
-  const have = () => (W - 2) * (D - 2);
   const asked = { W, D };
-  if (have() < need) {
-    const k = Math.min(1.5, Math.sqrt(need / have()));
-    W = clamp(Math.ceil(W * k), 5, 26); D = clamp(Math.ceil(D * k), 5, 26);
+  if ((W - 2) * (D - 2) < need) {
+    const k = Math.min(1.5, Math.sqrt(need / ((W - 2) * (D - 2))));
+    W = clamp(Math.ceil(W * k), 5, MAX_SIDE); D = clamp(Math.ceil(D * k), 5, MAX_SIDE);
   }
-  // Deep enough for the rooms on each side and a main room of three squares between them.
+  // Deep enough for the rooms on each side and a main room of five squares between them.
   const into = (s: Side) => Math.max(0, ...plan.rooms.filter(r => r.where !== "main" && r.where.split("-").includes(s))
     .map(r => Math.max(MIN_ROOM, s === "north" || s === "south" ? tilesOf(r.depth) : tilesOf(r.width)) + 1));
-  W = clamp(Math.max(W, into("west") + into("east") + MAIN_MIN + 2), 5, 26);
-  D = clamp(Math.max(D, into("north") + into("south") + MAIN_MIN + 2), 5, 26);
-  if (W !== asked.W || D !== asked.D) notes.push(`The building (${asked.W * 5} by ${asked.D * 5} ft) was too small for its ${plan.rooms.length} rooms and ${onFloor.length} things on the floor: grown to ${W * 5} by ${D * 5} ft.`);
+  W = clamp(Math.max(W, into("west") + into("east") + MAIN_MIN + 2), 7, MAX_SIDE);
+  D = clamp(Math.max(D, into("north") + into("south") + MAIN_MIN + 2), 7, MAX_SIDE);
 
-  // The outside: strips on each side, nearest first; boats go in their water.
-  const strips: Record<Side, Array<{ o: OutsidePlan; depth: number }>> = { north: [], east: [], south: [], west: [] };
-  const boats: OutsidePlan[] = [];
-  for (const o of plan.outside) {
-    if (o.ground === "boat") boats.push(o);
-    else strips[o.side].push({ o, depth: clamp(tilesOf(o.depth), 1, 8) });
+  // Sometimes a back corner is left out, if no room wants it and the main room keeps its five
+  // squares each way: the building is an L.
+  const rand = rng(seed);
+  const used = new Set(plan.rooms.filter(r => r.where !== "main").flatMap(r => r.where.split("-")));
+  const free = (["north-east", "north-west", "south-east"] as Corner[]).filter(c => !plan.rooms.some(r => r.where === c) && c.split("-").every(s => !used.has(s)));
+  let notch: Corner | undefined = rand() < 0.45 && free.length ? free[Math.floor(rand() * free.length)] : undefined;
+
+  // The main room needs its five squares each way; if the rooms took them, grow and lay it out again.
+  for (let attempt = 0; ; attempt++) {
+    const site = layoutOnce(plan, W, D, notch, seed);
+    const roomy = mainIsRoomy(site, plan);
+    if (roomy || attempt >= 5) {
+      if (W !== asked.W || D !== asked.D) site.notes.unshift(`The building (${asked.W * 5} by ${asked.D * 5} ft) was too small for its ${plan.rooms.length} rooms and ${onFloor.length} things on the floor: grown to ${W * 5} by ${D * 5} ft.`);
+      site.notes.push(...notes);
+      return site;
+    }
+    if (notch) { notch = undefined; continue; }
+    W = Math.min(MAX_SIDE, W + 1); D = Math.min(MAX_SIDE, D + 1);
   }
+}
+
+/** Does the main room have five clear squares each way somewhere? */
+function mainIsRoomy(site: Site, plan: PlacePlan): boolean {
+  const main = plan.rooms.find(r => r.where === "main");
+  const a = main && site.areas.get(main.id);
+  if (!a) return false;
+  const inMain = new Set(a.tiles.map(tkey));
+  return a.tiles.some(p => {
+    for (let dy = 0; dy < MAIN_MIN; dy++) for (let dx = 0; dx < MAIN_MIN; dx++) if (!inMain.has(tkey({ x: p.x + dx, y: p.y + dy }))) return false;
+    return true;
+  });
+}
+
+function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner | undefined, seed: number): Site {
+  const problems: Problem[] = [];
+  const notes: string[] = [];
+  const rand = rng(seed ^ 0x5bd1e995);
+  const style = WALL_STYLE[plan.walls];
+  // What the walls are built of (a burrow's are timber, in the bank); the roof is the building's style.
+  const walls = WALLS_OF[plan.walls] ?? style;
+  // Rows high, as the town draws them: a burrow 2, a house of one or two storeys 3 (an upper floor
+  // is the roof's pitch), anything taller 4.
+  const wallHeight = plan.walls === "earth-bank" ? 2 : plan.storeys >= 3 ? 4 : 3;
   const behind = (s: Side) => s === "north" || s === "east";
   const shadow = Math.floor(wallHeight / 2);
+
+  // The outside: strips along each side, nearest first, no deeper than they need to be (a street
+  // of three squares, a river of three, more for what stands in them); boats go in their water.
+  const strips: Record<Side, Array<{ o: OutsidePlan; depth: number }>> = { north: [], east: [], south: [], west: [] };
+  const boats: OutsidePlan[] = [];
+  const thingsIn = (id: string) => plan.things.filter(t => t.in === id && !["on", "in", "under", "overhead"].includes(t.relation)).length + plan.people.filter(p => p.in === id).length;
+  for (const o of plan.outside) {
+    if (o.ground === "boat") { boats.push(o); continue; }
+    const most = STRIP_DEPTH[o.ground] + Math.min(3, Math.ceil(thingsIn(o.id) / 3));
+    strips[o.side].push({ o, depth: clamp(tilesOf(o.depth), 1, most) });
+  }
   const boatBerths: Array<{ boat: OutsidePlan; water: OutsidePlan; beam: number }> = [];
   for (const boat of boats) {
     const onSide = strips[boat.side].filter(s => s.o.ground === "water");
@@ -162,7 +238,8 @@ export function layout(plan: PlacePlan): Site {
       problems.push({ check: "plan", subject: boat.id, message: `${boat.name} is a boat but there's no water outside for it to float in: add the river (ground water) on its side.`, severity: "error" });
       continue;
     }
-    const beam = clamp(tilesOf(boat.depth), 2, 4);
+    // A deck of a square or two between its rails, like the Heron's barge.
+    const beam = clamp(tilesOf(boat.depth) - 1, 1, 2);
     // A row of water between the bank and the boat; more behind the building, out of its shadow.
     const off = behind(water.o.side) ? shadow + 1 : 1;
     water.depth = Math.max(water.depth, off + beam + 2 + 1);
@@ -174,40 +251,57 @@ export function layout(plan: PlacePlan): Site {
   const north = extent("north") + margin("north"), south = extent("south") + margin("south");
   const width = west + W + east, height = north + D + south;
   const building: Rect = { x: west, y: north, w: W, h: D };
+  // The corner left out: a third of each side, leaving the main room its five squares each way.
+  const notch: Rect | undefined = notchCorner ? (() => {
+    const nw = clamp(Math.round(W * (0.3 + 0.1 * rand())), 3, W - MAIN_MIN - 3), nh = clamp(Math.round(D * (0.3 + 0.1 * rand())), 3, D - MAIN_MIN - 3);
+    if (W - nw < MAIN_MIN + 3 || D - nh < MAIN_MIN + 3 || nw < 3 || nh < 3) return undefined;
+    const [ns, ew] = notchCorner.split("-") as [Side, Side];
+    return { x: ew === "east" ? building.x + W - nw : building.x, y: ns === "north" ? building.y : building.y + D - nh, w: nw, h: nh };
+  })() : undefined;
+  const inRect = (p: Tile2, r: Rect) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
+  const inBuilding = (p: Tile2) => inRect(p, building) && !(notch && inRect(p, notch));
 
   const tiles: MapTile[][] = Array.from({ length: height }, () => Array.from({ length: width }, () => tile("void")));
   const area: Array<string | undefined> = new Array(width * height).fill(undefined);
   const areas = new Map<string, AreaInfo>();
   const set = (p: Tile2, t: MapTile, id?: string) => { tiles[p.y]![p.x] = t; area[p.y * width + p.x] = id && walkable(t) ? id : undefined; };
-  const inBuilding = (p: Tile2) => p.x >= building.x && p.y >= building.y && p.x < building.x + W && p.y < building.y + D;
 
   // Surroundings first, then the strips over them.
   const entranceArea = plan.outside.find(o => o.ground !== "water" && o.ground !== "boat") ?? plan.outside[0]!;
-  const open = groundTile(entranceArea.ground === "steps" ? "dirt" : entranceArea.ground, 0);
+  const open = groundTile(entranceArea.ground === "steps" ? "dirt" : entranceArea.ground === "planks-over-water" ? "boards" : entranceArea.ground, 0);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const p = { x, y };
     if (inBuilding(p)) continue;
     // Neighbours stand behind (north and east, along the building): in front they'd hide it.
     const back = (y < building.y && x >= building.x && x < building.x + W) || (x >= building.x + W && y >= building.y && y < building.y + D);
+    const corner = notch && inRect(p, notch);
     switch (plan.surroundings) {
       case "earth-bank": set(p, tile("wall", { style: "bank", height: 2 })); break;
-      case "water": set(p, tile("deep-water")); break;
-      case "buildings": set(p, back ? tile("wall", { style: style === "brick" ? "plaster" : "brick", height: 3 }) : { ...open }); break;
+      case "water": set(p, corner ? { ...open } : tile("deep-water")); break;
+      case "buildings": set(p, back && !corner ? tile("wall", { style: style === "brick" ? "plaster" : "brick", height: 3 }) : { ...open }); break;
       default: set(p, { ...open });
     }
   }
+  // Strips run along the building's side and a square past each corner, so you can walk round it;
+  // where two meet at a corner, the one you can walk on has it.
   const stripRects = new Map<string, Rect>();
-  // North and south strips run the map's full width; east and west ones the rows between them.
-  const top = strips.north.length ? building.y : 0, bottom = strips.south.length ? building.y + D : height;
+  const claimed = new Map<string, OutsidePlan>();
   for (const side of SIDES) {
     let offset = 0;
     for (const { o, depth } of strips[side]) {
-      const r: Rect = side === "north" ? { x: 0, y: building.y - offset - depth, w: width, h: depth }
-        : side === "south" ? { x: 0, y: building.y + D + offset, w: width, h: depth }
-        : side === "west" ? { x: building.x - offset - depth, y: top, w: depth, h: bottom - top }
-        : { x: building.x + W + offset, y: top, w: depth, h: bottom - top };
+      const across = side === "north" || side === "south";
+      const lo = across ? Math.max(0, building.x - 1) : Math.max(0, building.y - 1);
+      const hi = across ? Math.min(width, building.x + W + 1) : Math.min(height, building.y + D + 1);
+      const r: Rect = side === "north" ? { x: lo, y: building.y - offset - depth, w: hi - lo, h: depth }
+        : side === "south" ? { x: lo, y: building.y + D + offset, w: hi - lo, h: depth }
+        : side === "west" ? { x: building.x - offset - depth, y: lo, w: depth, h: hi - lo }
+        : { x: building.x + W + offset, y: lo, w: depth, h: hi - lo };
       stripRects.set(o.id, r);
       for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+        const k = tkey({ x, y });
+        const had = claimed.get(k);
+        if (had && (had.ground !== "water" || o.ground === "water")) continue;
+        claimed.set(k, o);
         // Water's shallow edge is the row nearest the building.
         const row = side === "north" ? r.y + r.h - 1 - y : side === "south" ? y - r.y : side === "west" ? r.x + r.w - 1 - x : x - r.x;
         set({ x, y }, groundTile(o.ground, row), o.id);
@@ -221,10 +315,11 @@ export function layout(plan: PlacePlan): Site {
     const r = stripRects.get(water.id)!;
     const side = water.side;
     const along = side === "north" || side === "south" ? r.w : r.h;
-    const length = clamp(Math.round(beam * 2.6), 5, Math.max(5, Math.min(along - 4, W + 2)));
+    const length = clamp(Math.round(beam * 3 + 4), 5, Math.max(5, Math.min(along - 2, W + 1)));
     const off = behind(side) ? shadow + 1 : 1;
     const total = beam + 2;
-    const centre = side === "north" || side === "south" ? building.x + Math.floor(W / 2) : building.y + Math.floor(D / 2);
+    // Moored along the bank, nearer one end than the other.
+    const centre = side === "north" || side === "south" ? building.x + Math.floor(W * (0.35 + 0.3 * rand())) : building.y + Math.floor(D * (0.35 + 0.3 * rand()));
     const start = clamp(centre - Math.floor(length / 2), (side === "north" || side === "south" ? r.x : r.y) + 1, (side === "north" || side === "south" ? r.x + r.w : r.y + r.h) - length - 1);
     const hull: Rect = side === "north" ? { x: start, y: r.y + r.h - off - total, w: length, h: total }
       : side === "south" ? { x: start, y: r.y + off, w: length, h: total }
@@ -248,14 +343,16 @@ export function layout(plan: PlacePlan): Site {
 
   // The building: outer walls, then the rooms carved out of its inside.
   const inner: Rect = { x: building.x + 1, y: building.y + 1, w: W - 2, h: D - 2 };
-  const outer = (p: Tile2) => p.x === building.x || p.y === building.y || p.x === building.x + W - 1 || p.y === building.y + D - 1;
+  const outerAt = (p: Tile2) => inBuilding(p) && [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]].some(([dx, dy]) => !inBuilding({ x: p.x + dx!, y: p.y + dy! }));
   const main = plan.rooms.find(r => r.where === "main")!;
   const grid = new Map<string, string>(); // tile -> room id, or "#" for wall
   for (let y = building.y; y < building.y + D; y++) for (let x = building.x; x < building.x + W; x++) {
-    const edge = x === building.x || y === building.y || x === building.x + W - 1 || y === building.y + D - 1;
-    grid.set(tkey({ x, y }), edge ? "#" : main.id);
+    const p = { x, y };
+    if (!inBuilding(p)) continue;
+    grid.set(tkey(p), outerAt(p) ? "#" : main.id);
   }
-  const annexes = carveRooms(plan.rooms.filter(r => r !== main), inner, problems);
+  const notchWalls = notch ? [{ x: notch.x - 1, y: notch.y - 1, w: notch.w + 2, h: notch.h + 2 }] : [];
+  const annexes = carveRooms(plan.rooms.filter(r => r !== main), inner, notchWalls, rand, problems);
   for (const { room, rect } of annexes) {
     for (let y = rect.y - 1; y <= rect.y + rect.h; y++) for (let x = rect.x - 1; x <= rect.x + rect.w; x++) {
       const k = tkey({ x, y });
@@ -276,7 +373,7 @@ export function layout(plan: PlacePlan): Site {
   const roomById = new Map(plan.rooms.map(r => [r.id, r]));
   for (const [k, v] of grid) {
     const p = parse(k);
-    if (v === "#") set(p, tile("wall", { style, height: outer(p) ? wallHeight : PARTITION }));
+    if (v === "#") set(p, tile("wall", { style: walls, height: outerAt(p) ? wallHeight : PARTITION }));
     else set(p, roomTile(roomById.get(v)!), v);
   }
 
@@ -323,7 +420,7 @@ export function layout(plan: PlacePlan): Site {
       for (const [k, v] of grid) {
         if (v !== "#") continue;
         const at = parse(k);
-        if (at.x === building.x || at.y === building.y || at.x === building.x + W - 1 || at.y === building.y + D - 1 || isDoorNear(at)) continue;
+        if (outerAt(at) || isDoorNear(at)) continue;
         for (const side of SIDES) {
           const inside = add(at, DIR[OPPOSITE[side]]), out = add(at, DIR[side]);
           if (roomAt(inside) !== from || roomAt(out) !== to) continue;
@@ -337,15 +434,20 @@ export function layout(plan: PlacePlan): Site {
         return undefined;
       }
     }
-    // The wall the plan asked for, then the middle of what's possible.
+    // The wall the plan asked for; along it, somewhere the seed says (the middle, or off to one
+    // side: a door bang in the middle of every wall looks drawn by a committee).
     const wanted = d.wall !== "any" ? candidates.filter(c => c.side === d.wall) : [];
     if (d.wall !== "any" && !wanted.length && !quiet) problems.push({ check: "relation", subject: d.id, message: `${d.name} was asked for on the ${dir(d.wall)} wall of ${roomById.get(from)?.name ?? from}, but what it joins isn't on that side: it went on the ${dir(candidates[0]!.side)} wall.`, severity: "warning" });
     const pool = wanted.length ? wanted : candidates;
-    const box = bbox(pool.map(c => c.at));
-    const cx = box.x + (box.w - 1) / 2, cy = box.y + (box.h - 1) / 2;
-    const best = [...pool].sort((a, b) => Math.hypot(a.at.x - cx, a.at.y - cy) - Math.hypot(b.at.x - cx, b.at.y - cy) || a.at.y - b.at.y || a.at.x - b.at.x)[0]!;
+    // The longest wall they share (a corner room touches the main room on two).
+    const side = [...new Set(pool.map(c => c.side))].sort((a, b) => pool.filter(c => c.side === b).length - pool.filter(c => c.side === a).length)[0]!;
+    const run = pool.filter(c => c.side === side).sort((a, b) => a.at.x - b.at.x || a.at.y - b.at.y);
+    const share = [0.5, 0.3, 0.7, 0.4, 0.6][Math.floor(rand() * 5)]!;
+    const best = run[clamp(Math.round((run.length - 1) * share), 0, run.length - 1)]!;
     const locked = d.states.some(s => s === "locked" || s === "barred" || s === "bolted");
-    set(best.at, tile("door", { style, height: outer(best.at) ? wallHeight : PARTITION, ...(locked ? { blocks: true } : {}) }));
+    const outer = outerAt(best.at);
+    // A door is of what its wall is (a burrow's is timber, as the Rat's is).
+    set(best.at, tile("door", { style: walls, height: outer ? wallHeight : PARTITION, ...(locked ? { blocks: true } : {}) }));
     grid.set(tkey(best.at), `door:${d.id}`);
     return { id: d.id, plan: d, at: best.at, inside: best.inside, outside: best.outside, from, to, side: best.side };
   }
@@ -400,30 +502,37 @@ export function layout(plan: PlacePlan): Site {
   // Windows: spaced along the room's stretch of outside wall, clear of doors and corners.
   const windows: Site["windows"] = [];
   for (const w of plan.windows) {
-    const run = wallRun(building, w.wall).filter(at => roomAt(add(at, DIR[OPPOSITE[w.wall]])) === w.room && !isDoorNear(at) && !windows.some(x => x.at.x === at.x && x.at.y === at.y));
+    const run = wallRun(building, w.wall).filter(at => grid.get(tkey(at)) === "#" && roomAt(add(at, DIR[OPPOSITE[w.wall]])) === w.room && !isDoorNear(at) && !windows.some(x => x.at.x === at.x && x.at.y === at.y));
     if (!run.length) { problems.push({ check: "relation", subject: w.room, message: `${roomById.get(w.room)?.name ?? w.room} has no ${dir(w.wall)} outside wall for its windows: they were left out.`, severity: "warning" }); continue; }
     const count = Math.min(w.count, Math.ceil(run.length / 2));
     for (let i = 0; i < count; i++) {
       const at = run[Math.min(run.length - 1, Math.floor(((i + 0.5) * run.length) / count))]!;
       if (windows.some(x => Math.abs(x.at.x - at.x) + Math.abs(x.at.y - at.y) <= 1)) continue;
-      set(at, tile("window", { style, height: wallHeight }));
+      set(at, tile("window", { style: walls, height: wallHeight }));
       windows.push({ at, room: w.room, side: w.wall });
     }
   }
 
-  // Where you walk off the map: the street's ends, and its far edge when it's the outermost strip.
+  // Where you walk off the map: the street's squares on the map's edge, else its ends.
   const exits: Tile2[] = [];
   const street = stripRects.get(entranceArea.id);
   if (street) {
     for (let y = street.y; y < street.y + street.h; y++) for (let x = street.x; x < street.x + street.w; x++) {
       const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1;
-      if (edge && walkable(tiles[y]![x]!)) exits.push({ x, y });
+      if (edge && walkable(tiles[y]![x]!) && area[y * width + x] === entranceArea.id) exits.push({ x, y });
+    }
+    if (!exits.length) {
+      const across = entranceArea.side === "north" || entranceArea.side === "south";
+      for (let i = 0; i < (across ? street.h : street.w); i++) for (const end of [0, 1]) {
+        const p = across ? { x: end ? street.x + street.w - 1 : street.x, y: street.y + i } : { x: street.x + i, y: end ? street.y + street.h - 1 : street.y };
+        if (walkable(tiles[p.y]![p.x]!) && area[p.y * width + p.x] === entranceArea.id) exits.push(p);
+      }
     }
   }
-  return { width, height, tiles, area, areas, doors, windows, building, style, wallHeight, exits, ...(entrance ? { entrance } : {}), problems, notes };
+  return { width, height, tiles, area, areas, doors, windows, building, ...(notch ? { notch } : {}), style, wallHeight, exits, ...(entrance ? { entrance } : {}), problems, notes };
 }
 
-/** The tiles of the building's outside wall on one side, corners left out. */
+/** The tiles of the building's outside wall on one side, corners left out (some may be the notch's: check). */
 function wallRun(b: Rect, side: Side): Tile2[] {
   const out: Tile2[] = [];
   if (side === "north" || side === "south") for (let x = b.x + 1; x < b.x + b.w - 1; x++) out.push({ x, y: side === "north" ? b.y : b.y + b.h - 1 });
@@ -433,16 +542,16 @@ function wallRun(b: Rect, side: Side): Tile2[] {
 
 /**
  * The rooms that aren't the main one, as rectangles inside the building: corners first, then
- * sides, biggest first, each kept a wall's width from the others. A room that won't fit shrinks.
+ * sides, biggest first, each kept a wall's width from the others (and from a left-out corner). A
+ * room that won't fit shrinks.
  */
-function carveRooms(rooms: RoomPlan[], inner: Rect, problems: Problem[]): Array<{ room: RoomPlan; rect: Rect }> {
+function carveRooms(rooms: RoomPlan[], inner: Rect, blocked: Rect[], rand: () => number, problems: Problem[]): Array<{ room: RoomPlan; rect: Rect }> {
   const placed: Array<{ room: RoomPlan; rect: Rect }> = [];
   const isCorner = (w: string) => w.includes("-");
   const order = [...rooms].sort((a, b) => Number(isCorner(b.where)) - Number(isCorner(a.where)) || b.width * b.depth - a.width * a.depth);
-  const clear = (r: Rect) => placed.every(p => !overlaps(r, grow(p.rect, 1)));
-  // Leave the main room at least three squares across beside every room.
-  // Into the building, a room may take what leaves the main room three squares (and a wall); along
-  // a side, all of it.
+  const clear = (r: Rect) => placed.every(p => !overlaps(r, grow(p.rect, 1))) && blocked.every(b => !overlaps(r, grow(b, 1)));
+  // Leave the main room its squares beside every room. Into the building, a room may take what
+  // leaves the main room five squares (and a wall); along a side, all of it.
   const maxW = (w: string) => (w === "north" || w === "south" ? inner.w : inner.w - MAIN_MIN - 1);
   const maxH = (w: string) => (w === "east" || w === "west" ? inner.h : inner.h - MAIN_MIN - 1);
   for (const room of order) {
@@ -450,8 +559,9 @@ function carveRooms(rooms: RoomPlan[], inner: Rect, problems: Problem[]): Array<
     let w = clamp(tilesOf(room.width), least(maxW(room.where)), Math.max(2, maxW(room.where)));
     let h = clamp(tilesOf(room.depth), least(maxH(room.where)), Math.max(2, maxH(room.where)));
     let rect: Rect | undefined;
+    const flip = rand() < 0.5;
     for (let tries = 0; !rect && tries < 24; tries++) {
-      rect = positions(room.where as Side | Corner, w, h, inner).map(r => snap(r, room.where, inner, placed.map(p => p.rect))).find(clear);
+      rect = positions(room.where as Side | Corner, w, h, inner, flip).map(r => snap(r, room.where, inner, [...placed.map(p => p.rect), ...blocked])).find(clear);
       if (rect) break;
       // Shrink along the side first (rooms on one side pack along it), then into the building.
       const along = room.where === "north" || room.where === "south" ? "w" : room.where === "east" || room.where === "west" ? "h" : w >= h ? "w" : "h";
@@ -492,8 +602,12 @@ function snap(r: Rect, where: string, inner: Rect, others: Rect[]): Rect {
   return horizontal ? { ...r, x: a, w: b - a + 1 } : { ...r, y: a, h: b - a + 1 };
 }
 
-/** Where a room of w by h can sit on a side or in a corner, best first (sides: the middle first). */
-function positions(where: Side | Corner, w: number, h: number, inner: Rect): Rect[] {
+/**
+ * Where a room of w by h can sit on a side or in a corner, best first. Along a side, tucked into one
+ * of its corners (the seed says which), then the other, then the middle outwards: a room in a corner
+ * leaves the main room an L; one in the middle of a side leaves it a U, with two narrow arms.
+ */
+function positions(where: Side | Corner, w: number, h: number, inner: Rect, flip: boolean): Rect[] {
   const right = inner.x + inner.w - w, bottom = inner.y + inner.h - h;
   switch (where) {
     case "north-west": return [{ x: inner.x, y: inner.y, w, h }];
@@ -501,21 +615,18 @@ function positions(where: Side | Corner, w: number, h: number, inner: Rect): Rec
     case "south-west": return [{ x: inner.x, y: bottom, w, h }];
     case "south-east": return [{ x: right, y: bottom, w, h }];
   }
-  // Along a side: tucked into its back corner first (north or east: away from the camera), then
-  // the other corner, then the middle outwards. A room in a corner leaves the main room an L; one in
-  // the middle of a side leaves it a U, with two narrow arms.
   const out: Rect[] = [];
   if (where === "north" || where === "south") {
     const y = where === "north" ? inner.y : bottom;
     for (let x = inner.x; x <= right; x++) out.push({ x, y, w, h });
     const mid = inner.x + (inner.w - w) / 2;
-    const key = (r: Rect) => (r.x === right ? 0 : r.x === inner.x ? 1 : 2 + Math.abs(r.x - mid));
+    const key = (r: Rect) => (r.x === (flip ? inner.x : right) ? 0 : r.x === (flip ? right : inner.x) ? 1 : 2 + Math.abs(r.x - mid));
     return out.sort((a, b) => key(a) - key(b) || a.x - b.x);
   }
   const x = where === "west" ? inner.x : right;
   for (let y = inner.y; y <= bottom; y++) out.push({ x, y, w, h });
   const mid = inner.y + (inner.h - h) / 2;
-  const key = (r: Rect) => (r.y === inner.y ? 0 : r.y === bottom ? 1 : 2 + Math.abs(r.y - mid));
+  const key = (r: Rect) => (r.y === (flip ? bottom : inner.y) ? 0 : r.y === (flip ? inner.y : bottom) ? 1 : 2 + Math.abs(r.y - mid));
   return out.sort((a, b) => key(a) - key(b) || a.y - b.y);
 }
 

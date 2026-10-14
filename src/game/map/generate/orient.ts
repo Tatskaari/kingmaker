@@ -91,6 +91,39 @@ export function turnPlan(plan: PlacePlan, turn: Turn): PlacePlan {
 }
 
 /**
+ * The water where the camera can see it. A wharf on one side and the river on the other (the Heron
+ * "half on the wharf and half on piles over the river") can't both face the camera, and the turn
+ * puts the way in in front; so the river, with its plank walk and its boats, goes round to the other
+ * front side, as the hand-made Heron has it (the wharf to the west, the river to the south). What's
+ * in it turns with it, and the doors to it open on its new side. Left as it is if a side room has a
+ * door onto it (the room may not reach the new side).
+ */
+export function frontWater(laid: PlacePlan): { plan: PlacePlan; moved?: { from: Side; to: Side } } {
+  const watery = (g: string) => g === "water" || g === "boat";
+  const front: Side[] = ["south", "west"];
+  if (laid.outside.some(o => watery(o.ground) && front.includes(o.side))) return { plan: laid };
+  const from = laid.outside.find(o => watery(o.ground))?.side;
+  if (!from) return { plan: laid };
+  const group = laid.outside.filter(o => o.side === from);
+  const ids = new Set(group.map(o => o.id));
+  const main = laid.rooms.find(r => r.where === "main")?.id;
+  if (laid.doors.some(d => ids.has(d.to) && d.from !== main)) return { plan: laid };
+  // The free front side, else the front side the way in is on (the river beyond the street).
+  const busy = (s: Side) => laid.outside.some(o => o.side === s && !ids.has(o.id));
+  const to = front.find(s => !busy(s)) ?? front[0]!;
+  const turn: Turn = { quarter: (SIDES.indexOf(to) - SIDES.indexOf(from) + 4) % 4, mirror: false };
+  const plan = structuredClone(laid);
+  plan.outside = [...plan.outside.filter(o => !ids.has(o.id)), ...plan.outside.filter(o => ids.has(o.id)).map(o => ({ ...o, side: to }))];
+  for (const d of plan.doors) if (ids.has(d.to) && d.wall !== "any") d.wall = to;
+  for (const t of plan.things) {
+    if (!ids.has(t.in)) continue;
+    if (isSide(t.wall)) t.wall = turnSide(turn, t.wall);
+    if (isCorner(t.corner)) t.corner = turnCorner(turn, t.corner);
+  }
+  return { plan, moved: { from, to } };
+}
+
+/**
  * A compass word in a message about the laid-out map, marked so it can be said back in the plan's
  * own compass (ids and names that happen to contain "north" are left alone).
  */

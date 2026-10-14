@@ -2,9 +2,9 @@ import type { ThingSpec, WorldSpec } from "../../../world/scene-world.ts";
 import type { Tile2, TileMap } from "../../types.ts";
 import type { MapDef, PlaceRegion } from "../tiles.ts";
 import { furnish, type Furnished } from "./furnish.ts";
-import { layout, type Rect, type Site } from "./layout.ts";
+import { layout, seedOf, type Rect, type Site } from "./layout.ts";
 import { normalizePlan, type Problem } from "./normalize.ts";
-import { chooseTurn, sayBack, turnPlan, type Turn } from "./orient.ts";
+import { chooseTurn, frontWater, sayBack, turnPlan, type Turn } from "./orient.ts";
 import { peopleLooks, type PersonLook } from "./people.ts";
 import type { CastMember, PlacePlan } from "./plan.ts";
 
@@ -23,6 +23,8 @@ export interface CompileOptions {
   sceneId?: string;
   /** The scene's cast: the plan's people take their ids, and those it left out are placed anyway. */
   cast?: CastMember[];
+  /** Varies what the plan leaves open (which end of a side a room takes, where a door goes, an L-shaped building); default: from the id. */
+  seed?: number;
   /** Where the street leads: exits on the street's edge squares. */
   exitTo?: { map: string; at: Tile2; label?: string };
 }
@@ -60,9 +62,13 @@ export function compilePlan(raw: PlacePlan, options: CompileOptions): CompiledPl
   const entrance = plan.doors.find(d => plan.outside.some(o => o.id === d.to) && (d.to === plan.start || d.from === plan.start))?.to
     ?? plan.doors.find(d => plan.outside.some(o => o.id === d.to))?.to ?? plan.start;
   const turn = chooseTurn(plan, entrance);
-  const laid = turnPlan(plan, turn);
-  const site = layout(laid);
+  // Facing the camera: the way in in front, and the water in front too.
+  const { plan: laid, moved } = frontWater(turnPlan(plan, turn));
+  const site = layout(laid, { seed: options.seed ?? seedOf(options.id) });
+  if (moved) site.notes.push(`The water was behind the building, out of sight: it was put on the @@${moved.to}@@ side.`);
   const furnished = furnish(site, laid);
+  // What the furnisher added (lanterns in a dark room) is part of the place from now on.
+  laid.things.push(...furnished.added);
   const { width, height } = site;
 
   // The map: the scene's region over the whole place, then each room and outside area.
