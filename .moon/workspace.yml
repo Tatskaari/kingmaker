@@ -1,6 +1,5 @@
 projects:
   workspace: .
-  contracts: packages/contracts
 telemetry: false
 vcs:
   defaultBranch: main
