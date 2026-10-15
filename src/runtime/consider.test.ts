@@ -10,7 +10,7 @@ process.env.OPENROUTER_API_KEY = "offline";
 const { sceneById } = await import("../../scenes/index.ts");
 const { effectiveScene, presentCast } = await import("./brief.ts");
 const { rng } = await import("./dice.ts");
-const { diceReason, landRuling, reviewInput, settleRuling, toRuling, verdict } = await import("./consider.ts");
+const { diceReason, landRuling, reviewInput, rulingSchema, settleRuling, toRuling, verdict } = await import("./consider.ts");
 const { playerTurn } = await import("./engine.ts");
 const { owedAtEnd } = await import("./owed.ts");
 const { sessionDir } = await import("./session.ts");
@@ -185,6 +185,15 @@ test("a lie is rolled as Deception, however friendly its words: by the review's 
   assert.equal(toRuling(scene, state, LINING, META, { read: { probability: 0.9, routes: [], means: "deception" } }).skill, "deception", "the decider read the method as a lie");
   assert.equal(toRuling(scene, state, LINING, META).skill, "persuasion", "an honest bargain");
   assert.equal(toRuling(scene, state, { ...LINING, skill: "intimidation", lie: true }, META).skill, "intimidation", "a bluffed threat is still a threat");
+});
+
+test("a lie is what the player's words assert this turn that they know is false: a sincere promise, an honest appeal or haggling isn't one, whatever they lied before (thief#6, robust#84, barbarian#55)", () => {
+  const lie = (rulingSchema(scene, yard(0)).properties.lie as { description: string }).description;
+  assert.match(lie, /^Do the player's own words this turn assert something they know is false/);
+  assert.match(lie, /Not a lie: a sincere promise or offer \(even a bold one, or one that will be hard to keep\), an honest appeal, haggling, a reassurance they mean/);
+  assert.match(lie, /lies told in earlier turns don't make this one a lie/);
+  const told = readFileSync(join(import.meta.dirname, "../../prompts/consider.md"), "utf8");
+  assert.match(told, /a sincere promise or offer, an honest appeal, haggling or a bold reassurance they mean is Persuasion, however much they lied before/);
 });
 
 test("a success that's no success is a no without dice, and its own refusal is the answer, not the failure's cost; one that comes to the same either way is a yes", async () => {

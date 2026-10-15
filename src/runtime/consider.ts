@@ -214,7 +214,8 @@ function outcomeSchema(went: "success" | "failure", places: string[], outcomes: 
   };
 }
 
-function rulingSchema(scene: Scene, state: SessionState) {
+/** The review's answer's schema, with the scene's own ids. */
+export function rulingSchema(scene: Scene, state: SessionState) {
   const { checks, outcomes } = routesNow(scene, state);
   const places = [...scene.beats.map(b => b.id), ...scene.exits.filter(e => e.id !== IMPROVISED_EXIT_ID).map(e => e.id)];
   const essentials = (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).map(e => e.id);
@@ -226,7 +227,7 @@ function rulingSchema(scene: Scene, state: SessionState) {
     properties: {
       act: { type: "string", description: "What the player is attempting, in a few words." },
       target: { type: "string", enum: [...present, "world"], description: "Who the player's act is up against: the one they're persuading, threatening, fooling or reading, or the one who could catch a lift, a snatch or a slip past them. Never an ally or companion for a choice that's theirs to make (they make it in the reply): the roll is against whoever or whatever stands in the way. world for a feat that nobody present could notice or stop." },
-      lie: { type: "boolean", description: "Does the player's turn rest on something they know isn't so: a lie, a bluff, a forgery or a fake, a made-up claim or a promise they can't keep? Then the skill is Deception, however friendly the words." },
+      lie: { type: "boolean", description: "Do the player's own words this turn assert something they know is false: a false name or claim, a bluff, a forgery or a fake, a promise they don't mean to keep? Then the skill is Deception, however friendly the words. Not a lie: a sincere promise or offer (even a bold one, or one that will be hard to keep), an honest appeal, haggling, a reassurance they mean, a guess or a theory, or keeping quiet about something. Judge this turn's words alone: lies told in earlier turns don't make this one a lie." },
       skill: { type: "string", enum: [...SKILLS], description: "The skill that decides it, by the player's method (a lift or a snatch from someone is Sleight of Hand, slipping past them Stealth)." },
       stakes: { type: "string", enum: ["trivial", "guarded", "dangerous", "ruinous"], description: "Working on someone (a lift, a snatch or a slip past them included): what giving in, or losing it, would cost them, as they see it." },
       approach: { type: "string", enum: ["free", "no_chance", "weak", "plausible", "strong", "excellent"], description: "Working on someone: what the player says, offers or shows, against who this person is. A lie is judged as if it were true (whether it's believed is the roll's to decide, so it isn't marked down for being a lie). free: they'd do it anyway: they've already agreed to it or offered it, it follows up on what they've already given up, agreed to or been paid for, their card says they'd give it if asked (straight), or the beat says it comes out as the player asks; no_chance: a lever that can't move them, or something nothing would get from them (or a lie they'd know at once is false); weak: no real reason; plausible: some reason, not aimed at them; strong: real leverage on them; excellent: aimed squarely at what they want or fear. For a lift, a snatch or a slip past someone, it's how well the method and the cover beat their attention: weak, clumsy or in plain view; plausible, a fair try; strong, good cover or a real distraction; excellent, their eyes are elsewhere at just the moment; no_chance only if it truly can't be done under their eyes." },
