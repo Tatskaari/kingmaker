@@ -90,6 +90,8 @@ async function start(options: { cols: number; rows: number; key?: string; offlin
   Object.assign(process.env, {
     OPENROUTER_API_KEY: offline ? "offline" : key,
     KM_GLYPHS: GLYPH_SETS.includes(String(options.glyphs)) ? options.glyphs : "kingmaker",
+    // The game is on a web page: Esc there dismisses things, and there's nothing to quit to.
+    KM_IN_BROWSER: "1",
     ...(jobDelay ? { KM_JOB_DELAY_MS: String(jobDelay) } : {}),
     ...(options.debug ? { KM_DEBUG: "1" } : {}),
   });

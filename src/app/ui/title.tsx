@@ -7,6 +7,12 @@ import { timeOf, TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, ITALIC, Keys, Spinner, useGame, type KeyHint } from "./common.tsx";
 
+/**
+ * On a web page (the browser builds set KM_IN_BROWSER: src/web), Esc is how a page dismisses things
+ * and there's nothing for the game to quit to, so there only q (or the Quit item) closes it.
+ */
+const escQuits = () => process.env.KM_IN_BROWSER !== "1";
+
 const TAGLINES = [
   "Being an account of a murder, a great deal of grain, and the eve of the Centennial Assembly.",
   "No clerks were harmed in the making of this game. Well. One.",
@@ -73,7 +79,7 @@ export function TitleScreen({ game }: { game: Game }) {
     else if (key.name === "return" || key.name === "space") pick(at);
     else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
-    else if (key.name === "q" || key.name === "escape") game.quit();
+    else if (key.name === "q" || (key.name === "escape" && escQuits())) game.quit();
   });
   const keys: KeyHint[] = doomed
     ? [["x", "delete it", doom], ["any other key", "keep it", () => setDoomed(undefined)]]
