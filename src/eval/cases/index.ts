@@ -13,9 +13,10 @@ import { absurdCases, mouthpieceCases } from "./absurd.ts";
 import { pressureCases } from "./pressure.ts";
 import { techniqueCases } from "./techniques.ts";
 import { pacingCases } from "./pacing.ts";
+import { ambroseCases } from "./ambrose.ts";
 
 export const CASES: EvalCase[] = [
   ...crossroadsCases, ...situationCases, ...entranceCases, ...qa1Cases, ...openingCases,
   ...garrowsTollCases, ...warrenHostageCases, ...greenStandoffCases, ...hangedClerkCases,
-  ...repairCases, ...roughCases, ...absurdCases, ...mouthpieceCases, ...pressureCases, ...techniqueCases, ...pacingCases,
+  ...repairCases, ...roughCases, ...absurdCases, ...mouthpieceCases, ...pressureCases, ...techniqueCases, ...pacingCases, ...ambroseCases,
 ];
