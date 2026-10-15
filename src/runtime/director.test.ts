@@ -159,10 +159,27 @@ test("considered rolls: a route's roll the decider chose goes ahead when it's wh
   assert.equal(same.considered, undefined);
   assert.equal(same.move?.transition.id, "win-cob");
   assert.equal(same.move?.roll?.skill, "persuasion");
-  // The decider matched the route, but called the act another's: the GM rules on it instead of the route's payoff.
-  const other = await decideBefore(scripted({ roll_call: ["new", 0.7, { route: 0.25 }], attempt: ["win-cob", 0.7] }), scene, yard(), LINING, considered);
+  // The decider matched the route, unsurely, and called the act another's: the GM rules on it instead of the route's payoff.
+  const other = await decideBefore(scripted({ roll_call: ["new", 0.7, { route: 0.25 }], attempt: ["win-cob", 0.65] }), scene, yard(), LINING, considered);
   assert.equal(other.move, undefined);
   assert.ok(other.considered);
+});
+
+test("considered rolls: a route's roll the decider chose surely is rolled as the author wrote it, whatever the roll call's split, unless the roll is plainly for something else", async () => {
+  // The goals run's g10 T10: Hobb's mum asked of Nan read as the mum-safe route at .81, the roll call
+  // "new" .53 against "route" .27; ruled on instead, the success lost the route's payoff (Hobb opens up).
+  const read = (attempt: number, call: [string, number, Record<string, number>]) => decideBefore(scripted({ roll_call: call, attempt: ["win-cob", attempt] }), scene, yard(), LINING, considered);
+  const sure = await read(0.81, ["new", 0.53, { route: 0.27, none: 0.2 }]);
+  assert.equal(sure.considered, undefined);
+  assert.equal(sure.move?.transition.id, "win-cob", "the author's roll, with its outcomes");
+  assert.equal(sure.move?.roll?.skill, "persuasion");
+  // The robustness run's second shilling for Cob's trust, at .63 against "new" .65: another act, for the GM.
+  const unsure = await read(0.63, ["new", 0.65, { route: 0.11, none: 0.24 }]);
+  assert.equal(unsure.move, undefined);
+  assert.ok(unsure.considered);
+  const plainly = await read(0.81, ["new", 0.85, { route: 0.1 }]);
+  assert.equal(plainly.move, undefined, "the roll call plainly says something else risky is going on");
+  assert.ok(plainly.considered);
 });
 
 test("considered rolls: a route the author gave no dice settles the turn as written; an unsure read of it doesn't", async () => {

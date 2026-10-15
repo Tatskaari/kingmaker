@@ -75,6 +75,24 @@ const CONSIDER_CONFIDENCE = 0.7;
 export const CONSIDER_CONFIDENCE_OPEN = 0.5;
 
 /**
+ * A route with a roll the decider chose this surely is the author's answer to the turn: rolled as
+ * written, with its outcomes, whatever the roll call's split between it and another act. On the QA
+ * pass's turns where the two disagreed, at 0.74 to 0.91 the route was what the player was doing in
+ * all eight (Hobb's mum asked of Nan at 0.81 and of Dilly at 0.85, ruled on instead, and the success
+ * lost the route's payoff, Hobb opening up; the holes in Moll's story picked at 0.74; a bluff on the
+ * floor at 0.78); at 0.63 to 0.66 the other act was, in all three (a second shilling for Cob's trust,
+ * Scrope asked to name the Master with the book already in hand, Hobb asked to block the Crake).
+ */
+export const ROUTE_CONFIDENCE = 0.7;
+
+/**
+ * Unless the roll call is this sure that the roll is for something none of the routes is for: then the
+ * player is plainly doing something else risky as well (or instead), and the GM rules on it. (No QA
+ * turn had a route read that surely and this beside it.)
+ */
+const PLAINLY_ANOTHER = 0.8;
+
+/**
  * A pacing cue moves the scene on without the player's say, so it fires only on a clear read, as a
  * route with a roll does. It had no bar: the Heron's Master came in at 0.57 against 0.43, one
  * exchange after the player got inside. In the decision suite the cues that should fire read 0.87
@@ -783,13 +801,15 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const ruled = forced ?? decision.answers.mechanic?.choice;
   const actSettles = !!ruled && ruled !== "feature" && RULED_ACTS.includes(ruled) && (!!forced || (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE);
   // Considered rolls: a roll is wanted (a route's "yes" and none's count together), and nothing the
-  // author wrote settles it: a route's roll the decider chose and didn't call the act another's, a
-  // route the author gave no dice, or an ending the player simply reaches. Then no route is rolled
-  // here, and no cue fires: the GM rules on it before the reply.
+  // author wrote settles it: a route's roll the decider chose surely (unless the roll is plainly for
+  // something else), or chose and didn't call the act another's, a route the author gave no dice, or
+  // an ending the player simply reaches. Then no route is rolled here, and no cue fires: the GM rules
+  // on it before the reply.
   // (A player who has just met someone's terms has earned the payoff: that lands, as ever, without dice.)
   const call = decision.answers.roll_call;
   const yes = (option: string) => call ? call.probabilities?.[option] ?? (call.choice === option ? 1 : 0) : 0;
-  const settledByPrep = attempt ? !attempt.check || yes("route") >= yes("new") : !!plainEnding || plainSettles;
+  const routeSure = !!attempt?.check && probability >= ROUTE_CONFIDENCE && yes("new") < PLAINLY_ANOTHER;
+  const settledByPrep = attempt ? !attempt.check || routeSure || yes("route") >= yes("new") : !!plainEnding || plainSettles;
   const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
   // (A beat with no route with a roll has a lower bar: there the flag can only say "new" or "none".)
   const bar = attempts.some(t => t.check) ? CONSIDER_CONFIDENCE : CONSIDER_CONFIDENCE_OPEN;
