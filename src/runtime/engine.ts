@@ -12,6 +12,7 @@ import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
+import { startSuggesting, stopSuggesting } from "./suggest.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
@@ -30,6 +31,8 @@ export interface TurnHooks {
   onEntry?(entry: Entry): void;
   /** The game core has just gone into a scene (or a talk), before its opening streams in: show it now. */
   onScene?(): void;
+  /** What the player might say or do next has come, a moment after the reply (src/runtime/suggest.ts): the session has it. */
+  onSuggestions?(): void;
 }
 
 export interface TurnResult {
@@ -108,8 +111,11 @@ function speakHooks(hooks: TurnHooks, speaker: string, kind: EntryKind) {
   };
 }
 
-/** Opening narration for the current scene (turn 0 of the scene). */
-export async function openScene(state: SessionState, hooks: TurnHooks = {}): Promise<Entry[]> {
+/**
+ * Opening narration for the current scene (turn 0 of the scene). `suggest`: then what the player
+ * might say or do first (src/runtime/suggest.ts), never waited for.
+ */
+export async function openScene(state: SessionState, hooks: TurnHooks = {}, options: { suggest?: boolean } = {}): Promise<Entry[]> {
   const scene = sceneById(state.sceneId);
   const approach = approachById(state.approach);
   const before = state.transcript.length;
@@ -157,6 +163,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     ? await gmReply(scene, state, directive, speakHooks(hooks, "gm", "narration"), "gm.opening")
     : await narratorReply(scene, state, directive, speakHooks(hooks, "gm", "narration"));
   push(state, hooks, { speaker: "gm", kind: "narration", text: spoken.text });
+  if (options.suggest) startSuggesting(state, hooks);
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);
@@ -192,9 +199,11 @@ function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" 
 /**
  * One player turn: decide, (roll), reply, track the beat, maybe end the scene. `mechanic`: what the
  * rules resolve this turn, chosen already (the map's action menu: a spell at someone, a shove), so
- * the decider isn't asked what the player is doing with the rules, only everything else.
+ * the decider isn't asked what the player is doing with the rules, only everything else. `suggest`:
+ * once the reply is in, what the player might say or do next (src/runtime/suggest.ts), alongside the
+ * after-reply work and never waited for.
  */
-export async function playerTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<TurnResult> {
+export async function playerTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic; suggest?: boolean } = {}): Promise<TurnResult> {
   if (state.ended) throw new Error(`Scene ${state.sceneId} has already ended (${state.ended.exitId}).`);
   const authored = sceneById(state.sceneId);
   applyPendingRepairs(authored, state);
@@ -529,6 +538,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     }
   }
   const replyMs = performance.now() - replyStarted;
+  // What the player might say or do next: from the reply, alongside the after-reply work, never waited for.
+  if (options.suggest && !ended) startSuggesting(state, hooks);
   { const b = currentBeat(scene, state); if (b.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(b.id)) state.pressureOffered = [...(state.pressureOffered ?? []), b.id]; }
   for (const s of spoken) { costUsd += s.result.costUsd; calls++; }
 
@@ -615,7 +626,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (!state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);
-  if (ended) finishScene(state, authored, ended);
+  if (ended) { finishScene(state, authored, ended); stopSuggesting(state); }
   // When did text that actually answers the player start? (the follow-up, after a holding beat)
   const resolvingTextMs = followUpMs ?? firstTextMs;
   const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls };
@@ -643,8 +654,9 @@ function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
 /**
  * After a fight played out on the map, the scene picks up from its outcome: the GM narrates the
  * aftermath, and the scene goes on to whichever ending the story reaches (the fight's exit is spent).
+ * `suggest`: then what the player might say or do next, never waited for.
  */
-export async function resumeAfterFight(state: SessionState, summary: string, hooks: TurnHooks = {}): Promise<Entry[]> {
+export async function resumeAfterFight(state: SessionState, summary: string, hooks: TurnHooks = {}, options: { suggest?: boolean } = {}): Promise<Entry[]> {
   const exitId = state.ended?.exitId;
   delete state.ended; delete state.closing; delete state.pendingExit; delete state.endingLead; delete state.brawl; delete state.threat;
   if (exitId) state.fought = [...(state.fought ?? []), exitId];
@@ -654,6 +666,7 @@ export async function resumeAfterFight(state: SessionState, summary: string, hoo
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
   const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went: if the player's side lost, they lost, and the winners do what they'd do with a beaten foe; nothing in the aftermath turns it round. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
   push(state, hooks, { speaker: "gm", kind: "narration", text: spoken.text });
+  if (options.suggest) startSuggesting(state, hooks);
   saveSession(state);
   return state.transcript.slice(before);
 }
@@ -716,6 +729,7 @@ function freshScene(state: SessionState, next: Scene): void {
   delete state.threat;
   delete state.brawl;
   delete state.closing; delete state.pendingExit; delete state.endingLead;
+  delete state.suggestions;
 }
 
 /**

@@ -30,10 +30,11 @@ const USAGE = `Kingmaker playable game: headless QA
   qa new --session <id> --as "Name: concept" [--level 3] [--seed N]   start a game (builds your D&D character)
   qa new --session <id> --zoo [--seed N]       visit the zoo instead: every feature laid out to see and try
   qa observe --session <id>                     what you see, and the actions you can take
-  qa act --session <id> --id <action id>        take an action from the latest observation (in a talk, say_1... says that line)
+  qa act --session <id> --id <action id>        take an action from the latest observation (in a scene or a talk, say_1... says that suggested line)
   qa say --session <id> <what you say or do>    in a scene: speak (plain words) or act (*asterisks* or (parentheses));
                                                 in a fight the same, or a plain command ("attack sallow", "end turn"), read onto the turn's actions
   qa end --session <id> [--exit <exit id>]      for testing: end the scene now through one of its exits (lists them without --exit)
+  qa suggestions --session <id> [on|off]        the suggested lines (say_1...) in scenes and talks: on (the default) or off
   qa sheet --session <id>                       your character sheet
   qa map --session <id> [--w 100] [--h 30]      the map where you are (in a scene: its place, and its world from above)
   qa transcript --session <id>                  the story so far
@@ -90,6 +91,8 @@ async function main(): Promise<void> {
     const action = flag(args, "id");
     if (!action) throw new Error("Usage: qa act --session <id> --id <action id>");
     console.log(await game.act(action));
+    // The suggested lines come a moment after the reply: wait for them, so the choices below have them.
+    await game.suggested();
     console.log();
     const now = game.observe();
     // In a scene, what just happened was the scene: don't print it twice.
@@ -101,8 +104,9 @@ async function main(): Promise<void> {
     const text = args.join(" ").trim();
     if (!text) throw new Error("Usage: qa say --session <id> <what you say or do>");
     console.log(await game.say(text));
+    await game.suggested();
     const now = game.observe();
-    // Still in the scene: what just happened was the scene, so only a talk's next choices. A fight shows its board again, as act does.
+    // Still in the scene: what just happened was the scene, so only the next choices (the scene's suggested lines, or a talk's). A fight shows its board again, as act does.
     if (now.mode !== "scene") { console.log(); print(now, id); } else if (now.actions.length) { console.log(); options(now, id); }
     return;
   }
@@ -118,6 +122,18 @@ async function main(): Promise<void> {
     console.log(await game.endScene(exit));
     console.log();
     print(game.observe(), id);
+    return;
+  }
+  if (command === "suggestions") {
+    // The game's setting, as the Esc menu and /suggestions have it: on asks for this moment's lines at once.
+    const on = args[0] === "on" ? true : args[0] === "off" ? false : undefined;
+    if (on !== undefined) {
+      game.setSuggestions(on);
+      await game.suggested();
+      game.save();
+    }
+    console.log(`Suggested lines: ${game.suggestionsOn ? "on" : "off"}.`);
+    if (game.state.mode === "scene") options(game.observe(), id);
     return;
   }
   if (command === "sheet") { console.log(await sheetText(game.session)); return; }

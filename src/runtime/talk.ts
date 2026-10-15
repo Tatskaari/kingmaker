@@ -337,9 +337,10 @@ function choices(lines: string[]): string[] {
 
 /**
  * A turn in a talk: the ordinary scene turn, and alongside its after-reply decision, the next
- * dialogue choices (one small call, started as soon as the reply is in).
+ * dialogue choices (one small call, started as soon as the reply is in), unless they're turned off
+ * (`suggest: false`: the game's setting).
  */
-export async function talkTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<TurnResult> {
+export async function talkTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic; suggest?: boolean } = {}): Promise<TurnResult> {
   const talk = state.talk;
   if (!talk) throw new Error("Not talking with anyone.");
   let next: { controller: AbortController; made: Promise<{ lines: string[]; costUsd: number } | undefined> } | undefined;
@@ -347,12 +348,12 @@ export async function talkTurn(state: SessionState, input: string, hooks: TurnHo
     ...hooks,
     onEntry: entry => {
       hooks.onEntry?.(entry);
-      if (entry.kind !== "narration" || entry.speaker !== "gm") return;
+      if (entry.kind !== "narration" || entry.speaker !== "gm" || options.suggest === false) return;
       next?.controller.abort();
       const controller = new AbortController();
       next = { controller, made: suggest(state, controller.signal).catch(() => undefined) };
     },
-  }, options);
+  }, options.mechanic ? { mechanic: options.mechanic } : {});
   // Out is out: the staged secret is settled, whichever judgement saw it first.
   if (talk.confide && toldIt(state, talk.with) && state.guard?.[talk.with]?.stage !== "settled") state.guard = { ...state.guard, [talk.with]: { stage: "settled", turn: state.turn } };
   if (turn.ended || state.ended) {
