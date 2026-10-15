@@ -1,6 +1,6 @@
 import { SCENES } from "../../scenes/index.ts";
 import { catalogue, entryLabel, rangeFeet, type Aim, type Entry, type Section } from "../rules/actions.ts";
-import { arcaneRecovery, attack as rulesAttack, castSpell, dnd, jump, rest, skillCheck, useFeature, useItem, wrestle, type Outcome } from "../rules/dnd.ts";
+import { arcaneRecovery, attack as rulesAttack, castSpell, dnd, jump, rest, rulesNow, skillCheck, useFeature, useItem, wrestle, type Outcome } from "../rules/dnd.ts";
 import { describeRoll } from "../runtime/dice.ts";
 import type { Mechanic } from "../runtime/director.ts";
 import type { Character } from "../runtime/scene.ts";
@@ -132,6 +132,21 @@ function overleap(map: TileMap, actors: MapActor[], a: Tile2, b: Tile2): { tall?
   return { low, water };
 }
 
+/** Room to run at a leap: two clear tiles behind you, the way you'd jump (the rules' 10 ft run-up). */
+function runUp(map: TileMap, actors: MapActor[], from: Tile2, to: Tile2, story: StoryState): boolean {
+  const dir = { x: Math.sign(to.x - from.x), y: Math.sign(to.y - from.y) };
+  return [1, 2].every(d => standable(map, actors, { x: from.x - dir.x * d, y: from.y - dir.y * d }, story));
+}
+
+/** States that say someone's hurt (the rules keep them on the town's people). */
+const HURT = ["hurt", "badly hurt", "down", "unconscious"];
+
+/** Is the player hurt, as the rules heal (below the engine's own maximum: src/rules/actions.ts)? */
+function youHurt(c: Ctx): boolean {
+  const r = rulesNow(c.session);
+  return !!r && Math.max(0, r.character.hp.current) < r.character.hp.max;
+}
+
 /** A story person: someone whose scene is waiting, or who walks with the player and has a talk in them. */
 interface Story { kind: "waiting"; sceneId: string; castId: string; name: string; at: Tile2 }
 
@@ -224,7 +239,13 @@ export function checkAim(c: Ctx, tw: TownWorld, entry: Entry, at: Tile2, options
     if (aim.jump) {
       const way = overleap(map, actors, ex.at, at);
       if (way.tall) return no(`${way.tall} in the way: no leap clears that`);
-      return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `Leap ${feet} ft${way.low.length ? ` over ${way.low.slice(0, 2).join(" and ")}` : ""}`, target: tileName(ex, at), feet };
+      // As the rules have it: easy within reach, half as far again on Athletics, and past that you fall short.
+      const run = runUp(map, actors, ex.at, at, ex.story);
+      const easy = run ? aim.jump.long : aim.jump.standing;
+      const most = Math.floor(easy * 1.5 / FEET) * FEET;
+      if (feet * 2 > easy * 3) return no(run ? `too far: ${feet} ft (${most} ft at most)` : `too far from a standing start: ${feet} ft (${most} ft at most; a run-up needs 10 ft clear behind you)`);
+      const hard = feet > easy ? ` (Athletics, DC ${10 + feet - easy})` : "";
+      return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `Leap ${feet} ft${way.low.length ? ` over ${way.low.slice(0, 2).join(" and ")}` : ""}${hard}`, target: tileName(ex, at), feet };
     }
     if (!clearLine(map, actors, ex.at, at)) return no("you can't see a clear way to there");
     return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `${name} to ${tileName(ex, at)}`, target: tileName(ex, at), feet };
@@ -232,10 +253,16 @@ export function checkAim(c: Ctx, tw: TownWorld, entry: Entry, at: Tile2, options
   // Someone, or someone or something.
   const who = aimedAt(tw, ex, at);
   if (!who) return no(aim.kind === "creature" ? "nobody there" : "nobody and nothing there");
-  if (who.kind === "self") return aim.self ? { ok: true, id: `${entry.act}_self`, label: `${name} on yourself`, target: "yourself", feet: 0 } : no("not on yourself");
+  if (who.kind === "self") {
+    if (!aim.self) return no("not on yourself");
+    if (entry.heals && !youHurt(c)) return no("you're not hurt", `${name} on yourself`);
+    return { ok: true, id: `${entry.act}_self`, label: `${name} on yourself`, target: "yourself", feet: 0 };
+  }
   if (aim.kind === "creature" && who.kind === "thing") return no(`not on ${the(who.name)}`);
   if (who.kind === "thing" && who.entity.states.includes("destroyed")) return no(`${the(who.name)} is past it`);
   if (entry.effect === "social" && who.kind === "being" && !who.companion) return no(SOCIAL_WHY);
+  // Healing someone who isn't hurt does nothing (Kell, and anyone whose scene is waiting, are the story's to play).
+  if (entry.heals && who.kind === "being" && !who.companion && !who.entity.states.some(s => HURT.includes(s))) return no(`${capital(the(who.name))} isn't hurt`);
   const range = Math.max(aim.range, FEET);
   if (feet > range) return no(`out of reach: ${feet} ft (it reaches ${range} ft)`);
   if (feet > FEET && !clearLine(map, actors, ex.at, at)) return no("no clear line to there");
@@ -266,6 +293,8 @@ export interface AimView {
   targets: Array<{ at: Tile2; name: string; id: string }>;
   /** It can be aimed at yourself. */
   self: boolean;
+  /** Aimed at yourself, it would be done now (a heal needs you hurt). */
+  selfReady: boolean;
 }
 
 /** What an entry can be aimed at from here: its reach, and the targets in it. */
@@ -297,7 +326,7 @@ export function aimView(c: Ctx, tw: TownWorld, entry: Entry): AimView {
     }
   }
   const self = (entry.aim.kind === "target" || entry.aim.kind === "creature") && entry.aim.self;
-  return { entry, ring, targets, self };
+  return { entry, ring, targets, self, selfReady: self && checkAim(c, tw, entry, ex.at).ok };
 }
 
 const reachOf = (aim: Aim) => (aim.kind === "none" || aim.kind === "self" ? 0 : aim.range);
@@ -322,11 +351,14 @@ export function menuOf(c: Ctx, at?: Tile2): MenuView | undefined {
     // An area can go anywhere in reach: there's always somewhere to aim it.
     if (e.aim.kind === "area") return { ...e, aiming: true };
     const view = aimView(c, tw, e);
-    if (!view.targets.length && !view.self) {
+    if (!view.targets.length && !view.selfReady) {
       // People about, but none the story knows: that's why, for working on someone's mind.
       const reach = Math.max(FEET, e.aim.range);
       const people = e.effect === "social" && aimables(tw, c.ex).some(a => a.kind === "being" && feetBetween(c.ex.at, a.at) <= reach);
-      return { ...e, why: e.aim.kind === "tile" ? `nowhere to land within ${e.aim.range} ft` : people ? SOCIAL_WHY : `${e.aim.kind === "creature" ? "nobody" : "nobody and nothing"} in reach (${reach} ft)` };
+      const why = e.aim.kind === "tile" ? `nowhere to land within ${e.aim.range} ft`
+        : e.heals ? `nobody in reach is hurt${view.self ? " (you included)" : ""}`
+        : people ? SOCIAL_WHY : `${e.aim.kind === "creature" ? "nobody" : "nobody and nothing"} in reach (${reach} ft)`;
+      return { ...e, why };
     }
     return { ...e, aiming: true };
   }) }));
@@ -345,7 +377,7 @@ export function menuText(c: Ctx): string {
       let ids = e.id ?? "";
       if (!e.why && !e.id) {
         const view = aimView(c, tw, e);
-        ids = [...(view.self ? [`${e.act}_self`] : []), ...view.targets.slice(0, 3).map(t => t.id), ...(e.aim.kind === "area" ? [`${e.act}@x,y`] : [])].join(", ");
+        ids = [...(view.selfReady ? [`${e.act}_self`] : []), ...view.targets.slice(0, 3).map(t => t.id), ...(e.aim.kind === "area" ? [`${e.act}@x,y`] : [])].join(", ");
       }
       lines.push(`    ${e.name}: ${e.summary}${e.why ? ` (not now: ${e.why})` : ids ? ` [${ids}]` : ""}`);
     }
@@ -681,7 +713,7 @@ async function hideNow(c: Ctx, tw: TownWorld): Promise<Done> {
   const line = describeRoll(roll, sharpest ? `to slip out of sight of ${the(sharpest.name)}` : "to slip out of sight");
   const said = roll.success
     ? (watchers.length ? "You're out of sight. Nobody about is looking your way, which in Caerwyn on Assembly eve is an achievement." : "Out of sight, with nobody about to be out of sight of. It's good practice.")
-    : `${sharpest ? capital(the(sharpest.name)) : "Somebody"} is looking right at you, with interest.`;
+    : sharpest ? `${capital(the(sharpest.name))} is looking right at you, with interest.` : "There's nowhere much to hide here: anyone who came along would see you.";
   return { text: `${line}\n${said}`, lines: [line] };
 }
 
@@ -691,16 +723,14 @@ async function leapNow(c: Ctx, tw: TownWorld, at: Tile2): Promise<Done> {
   const actors = tw.mapActors;
   const feet = feetBetween(ex.at, at);
   const dir = { x: Math.sign(at.x - ex.at.x), y: Math.sign(at.y - ex.at.y) };
-  // Room to run: two clear tiles behind you, the way you'd jump.
-  const runUp = [1, 2].every(d => standable(tw.map, actors, { x: ex.at.x - dir.x * d, y: ex.at.y - dir.y * d }, ex.story));
   const way = overleap(tw.map, actors, ex.at, at);
-  const out = await jump(session, { feet, runUp, drop: 0 });
+  const out = await jump(session, { feet, runUp: runUp(tw.map, actors, ex.at, at, ex.story), drop: 0 });
   const over = way.low.length ? ` over ${way.low.slice(0, 2).join(" and ")}` : "";
   const lines = [...out.lines];
   if (out.made) {
     ex.at = { ...at };
     ex.facing = dir;
-    lines.push(`You land ${tileName(ex, at) === "you" ? "neatly" : `on ${tileName(ex, at)}`}${over ? `, having gone${over}` : ""}.`);
+    lines.push(`You land neatly${over ? `, having gone${over}` : ""}.`);
     const opened = stepsInto(c, at);
     if (opened) return { text: [...lines, opened.text].join("\n"), scene: true, lines: out.lines };
     return { text: lines.join("\n"), lines: out.lines };
@@ -712,8 +742,9 @@ async function leapNow(c: Ctx, tw: TownWorld, at: Tile2): Promise<Done> {
     lines.push("You come down in the river. It's cold, fast and smells of the whole town; you haul yourself out on the bank, soaked.");
     return { text: lines.join("\n"), lines: out.lines };
   }
+  const got = short ? feetBetween(ex.at, short) : 0;
   if (short) { ex.at = { ...short }; ex.facing = dir; }
-  lines.push(short ? `You come down short, on ${tileName(ex, short) === "you" ? "the spot" : tileName(ex, short)}.` : "You think better of it at the last moment, which is its own kind of leap.");
+  lines.push(short ? `You come down short, ${got} ft on.` : "You think better of it at the last moment, which is its own kind of leap.");
   return { text: lines.join("\n"), lines: out.lines };
 }
 

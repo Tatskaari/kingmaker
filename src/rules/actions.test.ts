@@ -93,6 +93,9 @@ test("a cleric: healing on someone or yourself, Channel Divinity with its uses, 
   assert.deepEqual(spark.aim, { kind: "creature", range: 30, self: true });
   assert.match(entry(c, "feature:turn-undead").why!, /no undead about/);
   assert.equal(entry(c, "feature:preserve-life").uses?.max, 2);
+  // A dwarf's toughness is on the sheet's maximum, which healing never reaches: fresh is fresh.
+  assert.match(entry(c, "rest:short").why!, /whole and fresh/);
+  assert.match(entry(c, "rest:long").why!, /whole and fresh/);
 });
 
 test("a fighter: no spells; Second Wind waits for a hurt, Action Surge for a fight; used, its uses go down", async () => {

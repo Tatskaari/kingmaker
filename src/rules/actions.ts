@@ -33,8 +33,11 @@ export type Aim =
   | { kind: "target"; range: number; self: boolean }
   /** A spot for an area (a 20-ft sphere 150 ft off), or, from yourself, a direction (a cone, a line). */
   | { kind: "area"; range: number; shape: string; size: number; fromSelf: boolean }
-  /** Somewhere to land or to step to (a leap, Misty Step), within range. */
-  | { kind: "tile"; range: number; jump?: boolean };
+  /**
+   * Somewhere to land or to step to (a leap, Misty Step), within range. A leap's `jump`: how far it
+   * goes easily with a run-up and standing (half as far again takes Athletics; `range` is the most).
+   */
+  | { kind: "tile"; range: number; jump?: { long: number; standing: number } };
 
 /** What it does to whoever it's aimed at: who reacts to it, and what's a scene's to play (charming someone). */
 export type Effect = "harm" | "social" | "help" | "none";
@@ -50,6 +53,8 @@ export interface Entry {
   effect: Effect;
   /** Why it can't be done now; undefined when it can. */
   why?: string;
+  /** It heals: no use on someone who isn't hurt. */
+  heals?: boolean;
   /** The game core's action id, or its stem for an aimed one: "cast_fire-bolt" (+ "@x,y" or "_self"), "rest_short". */
   act: string;
   spell?: { id: string; level: number; slot: number; pact?: boolean; ritual?: boolean; concentration: boolean; bonus?: boolean; element?: string };
@@ -377,10 +382,17 @@ interface FeatureLine {
   effect: Effect;
   /** Why not now, whatever the uses say. */
   why?: (r: RulesNow, uses: { current: number; max: number }) => string | undefined;
+  /** It heals whoever it's aimed at. */
+  heals?: boolean;
 }
 
 const level = (r: RulesNow, classId: string) => r.character.classes.find(k => k.classId === classId)?.level ?? 0;
-const hurt = (r: RulesNow) => Math.max(0, r.character.hp.current) < r.sheet.effectiveHpMax;
+/**
+ * Hurt as the rules heal: below the engine's own maximum, which is as far as healing goes. (The
+ * sheet's maximum adds bonuses like a dwarf's toughness, which healing never reaches: by it a fresh
+ * dwarf would always be hurt, and a rest or Second Wind always worth it.)
+ */
+const hurt = (r: RulesNow) => Math.max(0, r.character.hp.current) < r.character.hp.max;
 const notHurt = (r: RulesNow) => (hurt(r) ? undefined : "you're not hurt");
 
 /** The features the rules resolve (src/rules/dnd.ts FEATURES), as a menu says them. */
@@ -389,8 +401,8 @@ const FEATURE_LINES: Record<string, FeatureLine> = {
   rage: { name: "Rage", summary: () => "ten minutes of hitting harder and shrugging blows off", aim: { kind: "self" }, effect: "none" },
   "bardic-inspiration": { name: "Bardic Inspiration", summary: r => `a d${bardDie(level(r, "bard"))} for someone to add to a roll, 60 ft`, aim: { kind: "creature", range: 60, self: false }, effect: "help" },
   "innate-sorcery": { name: "Innate Sorcery", summary: () => "a minute of fiercer spells (+1 to their DC)", aim: { kind: "self" }, effect: "none" },
-  "lay-on-hands": { name: "Lay on Hands", summary: () => "heal from your pool, by touch", aim: { kind: "creature", range: 5, self: true }, effect: "help" },
-  "divine-spark": { name: "Divine Spark", summary: r => `Channel Divinity: heal 1d8 ${signed(r.sheet.abilityModifiers.WIS)}, 30 ft`, aim: { kind: "creature", range: 30, self: true }, effect: "help" },
+  "lay-on-hands": { name: "Lay on Hands", summary: () => "heal from your pool, by touch", aim: { kind: "creature", range: 5, self: true }, effect: "help", heals: true },
+  "divine-spark": { name: "Divine Spark", summary: r => `Channel Divinity: heal 1d8 ${signed(r.sheet.abilityModifiers.WIS)}, 30 ft`, aim: { kind: "creature", range: 30, self: true }, effect: "help", heals: true },
   "preserve-life": { name: "Preserve Life", summary: r => `Channel Divinity: heal up to ${5 * level(r, "cleric")} of your own hurt`, aim: { kind: "none" }, effect: "help", why: notHurt },
   "sacred-weapon": { name: "Sacred Weapon", summary: r => `Channel Divinity: your weapon shines, ${signed(Math.max(1, r.sheet.abilityModifiers.CHA))} to hit, a minute`, aim: { kind: "self" }, effect: "none" },
   "magical-cunning": { name: "Magical Cunning", summary: () => "a minute's rite: half your pact slots back", aim: { kind: "none" }, effect: "none", why: r => (Number(r.character["pactSlotsUsed"] ?? 0) > 0 ? undefined : "no pact slots spent") },
@@ -459,6 +471,7 @@ export function catalogue(state: SessionState, context: Context = {}): Catalogue
       summary: `${spellSummary(def, total, mod)}${ritual ? " (a ritual: no slot)" : ""}`,
       aim, effect: spellEffect(def), act: `cast_${def.id}`,
       ...(why ? { why } : {}),
+      ...((def.mechanicalEffects ?? []).some(m => m.kind === "heal") ? { heals: true } : {}),
       spell: { id: def.id, level: def.level, slot: ritual ? 0 : slot, ...(slot && pact && slot === pact.level && !(sheet.spellSlots.slotsByLevel[slot - 1]) ? { pact: true } : {}), ...(ritual ? { ritual: true } : {}), concentration: def.concentration, ...(/bonus/i.test(def.castingTime) ? { bonus: true } : {}), ...(element ? { element } : {}) },
     });
   }
@@ -485,7 +498,7 @@ export function catalogue(state: SessionState, context: Context = {}): Catalogue
     if (!uses) continue;
     listed.add(rule.resource);
     const why = cantAct ?? (uses.current <= 0 ? `no uses left (${uses.recharge ?? "a rest"})` : line.why?.(r, uses));
-    features.push({ key: `feature:${id}`, group: "features", name: line.name, summary: id === "lay-on-hands" ? `heal from your pool (${uses.current} left), by touch` : line.summary(r), aim: line.aim, effect: line.effect, act: `feature_${id}`, ...(why ? { why } : {}), uses });
+    features.push({ key: `feature:${id}`, group: "features", name: line.name, summary: id === "lay-on-hands" ? `heal from your pool (${uses.current} left), by touch` : line.summary(r), aim: line.aim, effect: line.effect, act: `feature_${id}`, ...(why ? { why } : {}), ...(line.heals ? { heals: true } : {}), uses });
   }
   // Turn Undead: a Channel Divinity with no undead to turn.
   if (c.classes.some(k => k.classId === "cleric") && usesOf("channel-divinity")) features.push({ key: "feature:turn-undead", group: "features", name: "Turn Undead", summary: "Channel Divinity: the undead flee you", aim: { kind: "none" }, effect: "none", act: "feature_turn-undead", why: "no undead about (Caerwyn buries its dead properly)", uses: usesOf("channel-divinity")! });
@@ -513,7 +526,7 @@ export function catalogue(state: SessionState, context: Context = {}): Catalogue
   const main = mainWeapon(r);
   const actions: Entry[] = [];
   if (main) actions.push({ key: "attack", group: "actions", name: `Attack (${main.name.toLowerCase()})`, summary: `${main.dice} ${main.type}, ${main.range > 5 ? `${main.range} ft` : "in reach"}`, aim: { kind: "target", range: main.long ?? main.range, self: false }, effect: "harm", act: "attack", ...(cantAct ? { why: cantAct } : {}) });
-  actions.push({ key: "jump", group: "actions", name: "Leap", summary: `${reach.long} ft with a run-up, ${reach.standingLong} standing (more takes Athletics ${signed(athletics)})`, aim: { kind: "tile", range: Math.floor(reach.long * 1.5 / 5) * 5, jump: true }, effect: "none", act: "jump", ...(cantAct ? { why: cantAct } : conditions.includes("prone") ? { why: "you're on the ground: get up first" } : {}) });
+  actions.push({ key: "jump", group: "actions", name: "Leap", summary: `${reach.long} ft with a run-up, ${reach.standingLong} standing (more takes Athletics ${signed(athletics)})`, aim: { kind: "tile", range: Math.floor(reach.long * 1.5 / 5) * 5, jump: { long: reach.long, standing: reach.standingLong } }, effect: "none", act: "jump", ...(cantAct ? { why: cantAct } : conditions.includes("prone") ? { why: "you're on the ground: get up first" } : {}) });
   actions.push({ key: "hide", group: "actions", name: "Hide", summary: `slip out of sight: a Stealth check (${signed(stealth)})`, aim: { kind: "none" }, effect: "none", act: "hide", ...(cantAct ? { why: cantAct } : {}) });
   actions.push({ key: "throw", group: "actions", name: "Throw something", summary: "a stone, or whatever's to hand: 1d4, 20 ft", aim: { kind: "target", range: 60, self: false }, effect: "harm", act: "throw", ...(cantAct ? { why: cantAct } : {}) });
   actions.push({ key: "shove", group: "actions", name: "Shove someone over", summary: `your Strength against theirs: down they go`, aim: { kind: "creature", range: 5, self: false }, effect: "harm", act: "shove", ...(cantAct ? { why: cantAct } : {}) });

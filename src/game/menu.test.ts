@@ -77,17 +77,27 @@ test("aiming: how far it reaches, a clear line, an area and what it catches, you
   assert.ok(view.targets.every((t, i, all) => i === 0 || Math.max(Math.abs(t.at.x - 47), Math.abs(t.at.y - 9)) >= Math.max(Math.abs(all[i - 1]!.at.x - 47), Math.abs(all[i - 1]!.at.y - 9))));
 });
 
-test("on yourself, where it can be: a cleric's Cure Wounds on themselves; not a Fire Bolt", async () => {
+test("on yourself, where it can be: a cleric's Cure Wounds on themselves once they're hurt; not a Fire Bolt", async () => {
   const g = await play(PREGENS.cleric!.build);
+  // Fresh, there's nothing to heal: not on yourself, nor on a porter who's fine.
+  const porter = actorsHere(exploreState(g.state)).find(a => /porter/.test(a.name))!;
+  standAt(g, porter.at.x + 1, porter.at.y);
   const me = exploreState(g.state).at;
+  assert.match(aimAt(g.state, g.session, "spell:cure-wounds", me)!.why!, /^you're not hurt$/);
+  assert.match(aimAt(g.state, g.session, "spell:cure-wounds", porter.at)!.why!, /^A porter isn't hurt$/);
+  assert.match(item(g, "spell:cure-wounds").why!, /^nobody in reach is hurt \(you included\)$/);
+  assert.equal(aimFor(g.state, g.session, "spell:cure-wounds")!.self, true, "it can be aimed at yourself (t), and says why not");
+  // Hurt: on yourself.
+  for (let i = 0; i < 12 && rulesNow(g.session)!.character.hp.current >= rulesNow(g.session)!.character.hp.max; i++) await hazard(g.session, "fall_or_blow", "serious");
   assert.equal(aimAt(g.state, g.session, "spell:cure-wounds", me)!.id, "cast_cure-wounds_self");
-  assert.equal(aimFor(g.state, g.session, "spell:cure-wounds")!.self, true);
+  assert.equal(aimFor(g.state, g.session, "spell:cure-wounds")!.selfReady, true);
+  assert.equal(item(g, "spell:cure-wounds").why, undefined);
   assert.match(aimAt(g.state, g.session, "spell:sacred-flame", me)!.why!, /not on yourself/);
 });
 
 test("a short rest on the map: the rules' rest; then not again until the clock moves on", async () => {
   const g = await play(PREGENS.fighter!.build);
-  for (let i = 0; i < 12 && rulesNow(g.session)!.character.hp.current >= rulesNow(g.session)!.sheet.effectiveHpMax; i++) await hazard(g.session, "fall_or_blow", "serious");
+  for (let i = 0; i < 12 && rulesNow(g.session)!.character.hp.current >= rulesNow(g.session)!.character.hp.max; i++) await hazard(g.session, "fall_or_blow", "serious");
   const before = rulesNow(g.session)!.character.hp.current;
   assert.equal(item(g, "rest:short").id, "rest_short");
   const text = await g.act("rest_short");
@@ -106,7 +116,10 @@ test("a leap: over the cabbage cart, by the rules' jump, and you land on the far
   standAt(g, 28, 21);
   const leap = aimAt(g.state, g.session, "jump", { x: 30, y: 21 })!;
   assert.equal(leap.ok, true, leap.why ?? "");
-  assert.match(leap.label, /Leap 10 ft over a cabbage cart/);
+  assert.match(leap.label, /Leap 10 ft over a cabbage cart$/);
+  // The other way the cart's behind you: no run-up, so 10 ft takes Athletics and 15 is past a standing leap.
+  assert.equal(aimAt(g.state, g.session, "jump", { x: 26, y: 21 })!.label, "Leap 10 ft (Athletics, DC 12)");
+  assert.match(aimAt(g.state, g.session, "jump", { x: 25, y: 21 })!.why!, /^too far from a standing start: 15 ft \(10 ft at most; a run-up needs 10 ft clear behind you\)$/);
   // A wall is past any leap: the cart shed's, from the grass outside it to the floor within.
   standAt(g, 40, 5);
   assert.match(aimAt(g.state, g.session, "jump", { x: 42, y: 5 })?.why ?? "", /^a wall in the way: no leap clears that$/);

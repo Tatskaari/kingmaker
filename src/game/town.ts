@@ -504,8 +504,9 @@ export const town: Explorer = {
         const kind: Action["kind"] = e.key === "jump" ? "move" : e.effect === "harm" ? "fight" : e.key.startsWith("rest") ? "wait" : "use";
         if (e.id) { out.push({ id: e.id, label: `${e.name}: ${e.summary}`, kind }); continue; }
         const view = aimView(ctx, tw!, e);
-        const near = view.targets[0];
-        if (view.self) out.push({ id: `${e.act}_self`, label: `${e.name} on yourself (${e.summary})`, kind });
+        // The nearest; for an area, the nearest it doesn't catch you in.
+        const near = e.aim.kind === "area" ? view.targets.find(t => !(checkAim(ctx, tw!, e, t.at).caught ?? []).includes("you")) : view.targets[0];
+        if (view.selfReady) out.push({ id: `${e.act}_self`, label: `${e.name} on yourself (${e.summary})`, kind });
         if (near) out.push({ id: near.id, label: `${e.name} ${e.key === "jump" ? "to" : e.effect === "harm" ? "at" : "on"} ${near.name} (${e.summary})`, kind });
       }
     }
