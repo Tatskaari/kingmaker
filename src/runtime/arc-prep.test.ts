@@ -8,7 +8,7 @@ import { recordingWorld, type Operation } from "../world/dsl.ts";
 import { applyOps, areaOf, buildWorld, type WorldOp } from "../world/scene-world.ts";
 import { effectiveScene, openRoutes, presentCast } from "./brief.ts";
 import { toRuling } from "./consider.ts";
-import { decideBefore } from "./director.ts";
+import { decideAfter, decideBefore } from "./director.ts";
 import { bringOver, owedAtEnd } from "./owed.ts";
 import type { Scene, Transition } from "./scene.ts";
 import type { SessionState } from "./session.ts";
@@ -189,13 +189,58 @@ test("the King's Morning: the player can have Sallow sent in to explain himself,
   assert.equal(catchOut.check?.onFailure, undefined, "a failure costs minutes, and the hole is still there");
 });
 
-test("the King's Morning: Kell swears to what she saw and heard when the King asks who will", () => {
+test("the King's Morning: Kell swears to what she saw and heard when the King asks who will, and says what it is", () => {
   const kell = king.cast.find(c => c.id === "kell")!;
-  assert.match(kell.attitude, /When the King asks who will swear to it, or for a sworn record, she gives hers on the spot/);
+  assert.match(kell.attitude, /When the King asks who will swear to it, or for a sworn record, she gives hers on the spot: she opens her notebook and reads him the entries[\s\S]*the substance and not that she could/);
   assert.match(kell.knows.join(" "), /whatever anyone owned to in her hearing/);
-  assert.match(king.beats.find(b => b.id === "report")!.cast!.kell!, /when the King asks who will swear, you will/);
-  assert.match(king.beats.find(b => b.id === "reckoning")!.cast!.kell!, /If the King asks who will swear/);
+  // The goals tester's g15, T1-T2: "I can swear to what I saw and heard in the case", twice, and nothing of what.
+  assert.match(king.beats.find(b => b.id === "report")!.cast!.kell!, /when the King asks who will swear, you will, then and there: read him your entries, the substance in a few plain sentences[\s\S]*not that you could/);
+  assert.match(king.beats.find(b => b.id === "reckoning")!.cast!.kell!, /If the King asks who will swear, or for a sworn record, give it then and there: read him the entries from your notebook, the substance/);
   assert.match(king.cast.find(c => c.id === "king")!.attitude, /a sergeant's sworn record/);
+});
+
+test("the King's Morning: the approach chooses how Sallow is caught out (his papers, his words, or his pride with no dice)", async () => {
+  const state = at("kings-morning", "face-to-face", { path: [{ turn: 2, from: "report", to: "face-to-face", via: "send-for-sallow", source: "pre" }] });
+  // The thief's T55: the lavender, the ring and "condemned or lost to goblins, which is it?", read as deception .89, rolled Investigation at +0.
+  const t55 = "(I sniff the air, loud and theatrical.) Lavender. Funny. A girl at the granary yesterday told me about a gentleman who smelled like a lavender shop, with a good coat, a silver-topped cane and a wheat-ear ring, who paid her that very crown on the table to swear she saw Prout jump. Condemned stock, you say, Master Sallow? The palace says the wagons were lost to goblins.";
+  const words = route(king, "face-to-face", "trap-sallow");
+  assert.equal(words.check?.skill, "persuasion", "a social roll, so the player's method carries through");
+  assert.deepEqual(words.check?.establishes?.success, route(king, "face-to-face", "sallow-slips").establishes);
+  assert.equal(words.check?.onFailure, undefined, "a failure costs minutes, and the hole is still there");
+  const pre = await decideBefore(scripted({ attempt: ["trap-sallow", 0.78, { "catch-sallow-out": 0.1 }], attempt_means: ["deception", 0.89], roll_call: ["route", 0.83] }), king, state, t55, considered);
+  assert.equal(pre.move?.transition.id, "trap-sallow");
+  assert.equal(pre.move?.roll?.skill, "deception", "rolled by how they went about it");
+  // The papers are the bookkeeper's roll, and no longer carry the no-dice case in a parenthetical the decider matches.
+  const papers = route(king, "face-to-face", "catch-sallow-out");
+  assert.equal(papers.check?.skill, "investigation");
+  assert.match(papers.when, /^The player picks at Sallow's papers and accounts in front of the King to catch him out by what's written/);
+  assert.doesNotMatch(papers.when, /Careless of somebody/);
+  // The bait is a route of its own, with no dice (the goals tester's g15 T5 was ruled Persuasion DC 13).
+  const bait = route(king, "face-to-face", "bait-sallow");
+  assert.equal(bait.check, undefined);
+  assert.equal(bait.on, undefined, "it simply happens");
+  assert.equal(bait.to, "reckoning");
+  assert.deepEqual(bait.establishes, route(king, "face-to-face", "sallow-slips").establishes);
+  assert.match(bait.when, /^The player gets Sallow's arrangements wrong to his face[\s\S]*'Lost to goblins, was it\? Careless of somebody'[\s\S]*No dice/);
+  const g15 = "(I smile at Sallow.) Condemned grain. And before it was condemned, lost to goblins, was it? Careless of somebody, losing a dozen of the King's wagons on one road.";
+  const baited = await decideBefore(scripted({ attempt: ["plain:bait-sallow", 0.7, { "trap-sallow": 0.2 }], roll_call: ["new", 0.78] }), king, state, g15, considered);
+  assert.equal(baited.plainTransition?.id, "bait-sallow");
+  assert.equal(baited.considered, undefined);
+});
+
+test("the King's Morning: Sallow in the room is the face-to-face beat, whoever sent for him", async () => {
+  for (const beat of ["report", "reckoning"]) {
+    const comes = route(king, beat, "sallow-comes-in");
+    assert.equal(comes.given, true, "the King's or the Marshal's doing, judged after the reply");
+    assert.equal(comes.to, "face-to-face");
+    assert.match(comes.when, /whoever had him in: the King sending for him of his own accord, the Marshal, or Sallow himself/);
+  }
+  // The goals tester's g15, T3: "Garran, ask Master Sallow to step in", of the King's own accord, and the beat stayed in the report.
+  const state = at("kings-morning", "report", { turnsInBeat: 3 });
+  const reply = "The King sets down his cup. \"Garran, ask Master Sallow to step in.\" A minute later, lavender, and Master Sallow is bowing in the doorway.";
+  const after = await decideAfter(scripted({ outcome: ["sallow-comes-in", 0.8] }), king, state, "(I keep quiet and let Kell answer the King.)", reply);
+  assert.equal(after.move?.transition.id, "sallow-comes-in");
+  assert.equal(after.move?.to, "face-to-face");
 });
 
 // --- The Drowned Rat: Hobb -------------------------------------------------------------------
