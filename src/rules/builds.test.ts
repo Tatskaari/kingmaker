@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Ask } from "../llm/openrouter.ts";
 import { backgroundFor, classesFor, defaultBuilds, ownBuild, speciesFor, srdLists, threeBuilds, throughEngine, type BuildOption } from "./builds.ts";
-import { CASTING, settleBuild, srdContent, type Build } from "./dnd.ts";
+import { CASTING, cantripsAt, createCharacter, levelUp, settleBuild, srdContent, type Build } from "./dnd.ts";
+import type { SessionState } from "../runtime/session.ts";
 
 /**
  * Character creation's choices (src/rules/builds.ts), no model calls: three builds for a concept,
@@ -28,7 +29,7 @@ async function illegal(b: Build, level: number): Promise<string[]> {
     if (!s || !s.classes.includes(b.classId)) out.push(`spell ${id} isn't a ${b.classId}'s`);
     else if (limits && s.level > limits.maxSpell(level)) out.push(`spell ${id} is too high for level ${level}`);
   }
-  if (limits && b.cantrips.length > limits.cantrips) out.push(`${b.cantrips.length} cantrips`);
+  if (limits && b.cantrips.length > cantripsAt(b.classId, level)) out.push(`${b.cantrips.length} cantrips`);
   if (limits && b.spells.length > limits.prepared(level)) out.push(`${b.spells.length} spells`);
   if (!limits && (b.cantrips.length || b.spells.length)) out.push("spells for a class without them");
   for (const w of b.weapons) if (!content.items.has(w)) out.push(`weapon ${w}`);
@@ -224,4 +225,26 @@ test("a card says the damage the dice roll: Dueling's +2 with one melee weapon a
   const session = await createSession({ sceneId: "hanged-clerk", approach: "v2", player: "Lucan: a duellist", level: 3, build: duelling.build, seed: 5 });
   assert.equal((await sheetData(session))!.attacks.find(a => a.held)!.damage, "1d8+5");
   assert.match(await sheetText(session), /Rapier \+5 \(1d8\+5 piercing\)/, "the QA console's sheet too");
+});
+
+test("a caster's highest slots have a spell of their own, and a level brings its cantrip and spell (wizard#34)", async () => {
+  const content = await srdContent();
+  // The elf wizard's build as the model chose it: six 1st-level spells at level 3, with 2nd-level slots.
+  const asked: Partial<Build> = { classId: "wizard", subclassId: "evoker", speciesId: "elf", backgroundId: "sage", abilities: ["INT", "CON", "DEX", "WIS", "CHA", "STR"], skills: ["arcana", "investigation"], feat: "skilled",
+    cantrips: ["fire-bolt", "mage-hand", "message"], spells: ["find-familiar", "identify", "detect-magic", "comprehend-languages", "shield", "magic-missile"], weapons: ["quarterstaff", "dagger"], armor: "none", shield: false };
+  const build = settleBuild(asked, 3, content);
+  assert.equal(build.spells.length, 6);
+  assert.ok(build.spells.some(id => content.spells.get(id)?.level === 2), build.spells.join(", "));
+  // The last ritual of the model's (Comprehend Languages) makes way: Shield and Magic Missile stay.
+  assert.deepEqual(asked.spells!.filter(id => !build.spells.includes(id)), ["comprehend-languages"]);
+  // At level 4: a fourth wizard cantrip and a seventh prepared spell.
+  const state = { id: "builds-wizard-4", sceneId: "hanged-clerk", approach: "v2", seed: 3, rollCount: 0, player: { name: "Caelith", concept: "an elf wizard", modifiers: {} },
+    turn: 0, beat: "opening", turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null, patches: [], repairs: [], transcript: [], metrics: [], history: [] } as SessionState;
+  await createCharacter(state, 3, build);
+  const before = state.rules!.spells!;
+  const [line] = await levelUp(state);
+  const after = state.rules!.spells!;
+  assert.match(line!, /learned /);
+  assert.equal(after.filter(sp => sp.level === 0).length, before.filter(sp => sp.level === 0).length + 1, "a cantrip more");
+  assert.equal(after.filter(sp => sp.level >= 1).length, before.filter(sp => sp.level >= 1).length + 1, "a spell more");
 });

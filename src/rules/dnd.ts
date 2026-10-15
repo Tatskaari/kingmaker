@@ -160,6 +160,46 @@ export const CASTING: Record<string, { cantrips: number; prepared: (level: numbe
   paladin: { cantrips: 0, prepared: l => l + 1, maxSpell: l => (l < 5 ? 1 : Math.min(5, Math.ceil(l / 4))) },
   ranger: { cantrips: 0, prepared: l => l + 1, maxSpell: l => (l < 5 ? 1 : Math.min(5, Math.ceil(l / 4))) },
 };
+
+/** The class's cantrips at a level (2024 rules): the count above, one more from 4th level and another from 10th. */
+export function cantripsAt(classId: string, level: number): number {
+  const base = CASTING[classId]?.cantrips ?? 0;
+  return base ? base + (level >= 4 ? 1 : 0) + (level >= 10 ? 1 : 0) : 0;
+}
+
+/** The school a subclass is about (an evoker's evocations), when it's one. */
+const SUBCLASS_SCHOOL: Record<string, string> = { evoker: "evocation" };
+
+/**
+ * Spells to add to a caster's (`count` of them, at the levels given): the ones asked for first, in
+ * order; then the highest level first, in the subclass's school (or the one the spells they have
+ * mostly are), in the SRD's own order (its staples first: Fireball, then Counterspell).
+ */
+function moreSpells(content: Dnd.Content, classId: string, have: string[], wanted: string[], levels: (l: number) => boolean, count: number, subclass = ""): string[] {
+  const onList = (id: string) => { const sp = content.spells.get(id); return !!sp && sp.classes.includes(classId) && levels(sp.level); };
+  const chosen = [...new Set(wanted.filter(id => onList(id) && !have.includes(id)))].slice(0, count);
+  const schools = have.map(id => content.spells.get(id)?.school).filter((x): x is string => !!x);
+  const most = (x: string) => schools.filter(y => y === x).length;
+  const school = SUBCLASS_SCHOOL[subclass] ?? [...schools].sort((a, b) => most(b) - most(a))[0];
+  const order = [...content.spells.keys()];
+  const rest = [...content.spells.values()].filter(sp => onList(sp.id) && !have.includes(sp.id) && !chosen.includes(sp.id))
+    .sort((a, b) => b.level - a.level || Number(b.school === school) - Number(a.school === school) || order.indexOf(a.id) - order.indexOf(b.id));
+  return [...chosen, ...rest.map(sp => sp.id)].slice(0, count);
+}
+
+/**
+ * A caster's spells with one at the highest level they can cast, when that's above 1st (a level 3
+ * wizard's 2nd-level slots): the last ritual among them makes way for it (the least missed), or else
+ * the last of them.
+ */
+function withTopSpell(content: Dnd.Content, classId: string, subclass: string, spells: string[], wanted: string[], top: number): string[] {
+  if (top < 2 || !spells.length || spells.some(id => content.spells.get(id)?.level === top)) return spells;
+  const [add] = moreSpells(content, classId, spells, wanted, l => l === top, 1, subclass);
+  if (!add) return spells;
+  const rituals = spells.filter(id => content.spells.get(id)?.ritual);
+  const out = rituals.length ? rituals.at(-1)! : spells.at(-1)!;
+  return [...spells.filter(id => id !== out), add];
+}
 const KITS: Record<string, { weapons: string[]; armor: string; shield: boolean }> = {
   barbarian: { weapons: ["greataxe", "handaxe"], armor: "none", shield: false },
   bard: { weapons: ["rapier", "dagger"], armor: "leather-armor", shield: false },
@@ -293,8 +333,8 @@ export function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Con
     abilities,
     skills: ids(raw.skills),
     feat: known(content.feats, raw.feat) ?? "alert",
-    cantrips: casting ? pickSpells(raw.cantrips, l => l === 0, casting.cantrips) : [],
-    spells: casting ? pickSpells(raw.spells, l => l >= 1 && l <= casting.maxSpell(level), casting.prepared(level)) : [],
+    cantrips: casting ? pickSpells(raw.cantrips, l => l === 0, cantripsAt(classId, level)) : [],
+    spells: casting ? withTopSpell(content, classId, srdId(String(raw.subclassId ?? "")), pickSpells(raw.spells, l => l >= 1 && l <= casting.maxSpell(level), casting.prepared(level)), ids(raw.spells), casting.maxSpell(level)) : [],
     weapons: weapons.length ? [...new Set(weapons)].slice(0, 3) : kit.weapons,
     armor: armor && armor !== "none" && armorOk(armor) ? armor : armor === "none" ? "none" : kit.armor,
     shield: (raw.shield ?? kit.shield) && armorProf.some(p => p.toLowerCase().includes("shield")),
@@ -1037,6 +1077,21 @@ export function slotFor(sheet: Dnd.CharacterSheet, me: Dnd.EngineCharacter, leve
   return pact && pact.level >= level && pact.count - Number(me["pactSlotsUsed"] ?? 0) > 0 ? pact.level : 0;
 }
 
+const SLOT_WORDS: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9 };
+
+/**
+ * The slot level the player's words ask a spell to be cast from: "at second level", "a 3rd-level
+ * slot", "upcast to 2nd"; "my strongest (highest, biggest, best) slot" is the highest they have free.
+ */
+export function askedSlot(sheet: Dnd.CharacterSheet, me: Dnd.EngineCharacter, said: string | undefined): number | undefined {
+  const text = (said ?? "").toLowerCase();
+  const m = /\b(1st|2nd|3rd|[4-9]th|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)[- ](?:level|circle)\b/.exec(text);
+  if (m) return SLOT_WORDS[m[1]!] ?? Number.parseInt(m[1]!, 10);
+  if (!/\b(?:strongest|highest|biggest|best|most powerful|top)\s+(?:remaining\s+|spell\s+)?slot\b/.test(text)) return undefined;
+  const free = (l: number) => (sheet.spellSlots.slotsByLevel[l - 1] ?? 0) - (me.spellSlotsUsed[String(l)] ?? 0);
+  return [9, 8, 7, 6, 5, 4, 3, 2, 1].find(l => free(l) > 0);
+}
+
 /** Cantrips plus prepared spells (class, feat and always-prepared), from the derived sheet. */
 function readySpells(sheet: Dnd.CharacterSheet): SpellChoice[] {
   return (sheet.spellcasting?.spellsByLevel ?? []).flatMap(g => g.spells.filter(sp => g.level === 0 || sp.prepared || sp.alwaysPrepared)).map(sp => ({ id: sp.spellId, name: sp.name, level: sp.level }));
@@ -1152,7 +1207,7 @@ export function spellVariants(spell: Dnd.SpellDef): string[] | undefined {
  * Cast one of the player's spells at story characters (or themselves, or nobody in particular).
  * `said`: the player's words, for what the spell asks them to choose (an element, which way).
  */
-export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean; said?: string } = {}): Promise<Outcome> {
+export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean; said?: string; unclear?: boolean } = {}): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const spell = ctx.engine.content.spells.get(spellId);
@@ -1162,6 +1217,11 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     close(state, ctx);
     const what = spell?.name ?? "that spell";
     return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: /sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
+  }
+  // Aimed at something, but at what wasn't clear: say which, and nothing's spent.
+  if (options.unclear && !targetIds.length && !/^self\b/i.test(spell.range)) {
+    close(state, ctx);
+    return { lines: [`(${spell.name}: at what? Say what it's aimed at.)`], directive: `The player cast ${spell.name}, but what at wasn't clear. Nothing happens yet and nothing is spent: ask them what they're aiming it at, in a few words.` };
   }
   // A ritual takes ten minutes longer and no slot (if the spell is one).
   const ritual = options.ritual === true && spell.ritual;
@@ -1175,7 +1235,9 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   }
   let slotLevel = ritual ? spell.level : 0;
   if (spell.level > 0 && !ritual) {
-    slotLevel = slotFor(sheetOf(ctx, pcId), me, spell.level);
+    // From a higher slot when the player's words ask for one ("at second level", "my strongest slot").
+    slotLevel = slotFor(sheetOf(ctx, pcId), me, Math.max(spell.level, askedSlot(sheetOf(ctx, pcId), me, options.said) ?? 0));
+    if (!slotLevel) slotLevel = slotFor(sheetOf(ctx, pcId), me, spell.level);
     if (!slotLevel) {
       close(state, ctx);
       const pact = !!pactOf(sheetOf(ctx, pcId));
@@ -1575,6 +1637,8 @@ function knockedDown(ctx: Ctx, state: SessionState): string {
   const me = ctx.campaign.state.characters[state.rules!.pc]!;
   if (me.hp.current > 0) return "";
   ctx.apply([event(ctx.E, "Stabilized", { targetId: me.id })]);
+  // Out cold, nobody rages.
+  endRage(ctx, state);
   return " The player drops to 0 hit points: they're knocked senseless (unconscious, but stable), and whatever they meant to do this turn doesn't happen. The story goes on around them for a moment: someone drags them clear, takes them, or leaves them. Then they come to, with 1 hit point (the rules bring them round as their next turn begins): conscious, able to talk, act and cast again, but one more wound puts them down.";
 }
 
@@ -1635,9 +1699,25 @@ export async function passTime(state: SessionState, minutes: number): Promise<st
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
   const ended = ctx.apply(Array.isArray(planned) ? planned : planned.events);
   const names = ended.map(e => before[String(e["effectInstanceId"])]?.spellId).filter((id): id is string => !!id).map(id => ctx.engine.content.spells.get(id)?.name ?? id);
-  state.rules!.timed = Object.values(effects()).some(e => e.durationMinutes !== undefined);
+  // A Rage lasts ten minutes.
+  const rage = state.rules.rage !== undefined ? state.rules.rage - minutes : undefined;
+  const calmed = rage !== undefined && rage <= 0 && endRage(ctx, state);
+  if (rage !== undefined && rage > 0) state.rules.rage = rage;
+  state.rules!.timed = Object.values(effects()).some(e => e.durationMinutes !== undefined) || state.rules.rage !== undefined;
   close(state, ctx);
-  return names.length ? [`${[...new Set(names)].join(", ")} ${names.length === 1 ? "has" : "have"} run out`] : [];
+  return [...(names.length ? [`${[...new Set(names)].join(", ")} ${names.length === 1 ? "has" : "have"} run out`] : []), ...(calmed ? ["Your rage burns out"] : [])];
+}
+
+/** How long a Rage lasts, in minutes of story time (2024 rules: up to ten minutes). */
+const RAGE_MINUTES = 10;
+
+/** The player's Rage ends (knocked out, rested, or its time up). True if they were raging. */
+function endRage(ctx: Ctx, state: SessionState): boolean {
+  const pcId = state.rules!.pc;
+  const raging = ctx.campaign.state.characters[pcId]!.appliedConditions.filter(a => a.conditionId === "raging");
+  if (raging.length) ctx.apply(raging.map(() => event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: "raging" })));
+  delete state.rules!.rage;
+  return raging.length > 0;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1665,9 +1745,10 @@ export async function rest(state: SessionState, kind: "short" | "long"): Promise
   } else {
     ctx.apply(ctx.engine.plan.longRest(ctx.campaign.state, { participantIds: [pcId] }).events);
   }
-  // After a rest you're up and about: nobody rests an hour, or sleeps the night, and stays where they fell.
+  // After a rest you're up and about: nobody rests an hour, or sleeps the night, and stays where they fell (or still raging).
   const me = ctx.campaign.state.characters[pcId]!;
   for (const a of me.appliedConditions.filter(a => a.conditionId === "prone" || (a.conditionId === "unconscious" && me.hp.current > 0))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: a.conditionId })]);
+  endRage(ctx, state);
   // The rest takes time: spells with a listed duration run out (Aid doesn't outlast a night).
   ctx.apply([event(ctx.E, "InGameTimeAdvanced", { minutes: kind === "short" ? 60 : 480, reason: `${kind} rest` })]);
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
@@ -1693,7 +1774,7 @@ export async function levelUp(state: SessionState): Promise<string[]> {
   const maxBefore = sheetOf(ctx, pcId).effectiveHpMax;
   try {
     ctx.apply(ctx.engine.plan.levelUp(ctx.campaign.state, { characterId: pcId, classId: main.classId, hpStrategy: "average" }).events);
-    const picked = resolveChoices(ctx, pcId, state.rules.prefer ?? []);
+    const picked = [...resolveChoices(ctx, pcId, state.rules.prefer ?? []), ...learnSpells(ctx, pcId, main, state.rules.prefer ?? [])];
     grantResources(ctx, pcId);
     const sheet = sheetOf(ctx, pcId);
     refresh(ctx, state);
@@ -1703,6 +1784,31 @@ export async function levelUp(state: SessionState): Promise<string[]> {
     close(state, ctx);
     return [`(Level up failed: ${error instanceof Error ? error.message : String(error)})`];
   }
+}
+
+/**
+ * A caster's new spells at a level: the cantrips and prepared spells the level brings (a wizard's
+ * fourth cantrip and seventh spell at 4th), the build's own choices first, and a spell of the new
+ * highest level when they've none. Returns what they learned, in words.
+ */
+function learnSpells(ctx: Ctx, pcId: string, before: { classId: string; subclassId?: string; level: number }, prefer: string[]): string[] {
+  const { classId, subclassId = "" } = before;
+  const level = before.level + 1;
+  const casting = CASTING[classId];
+  if (!casting) return [];
+  const content = ctx.engine.content;
+  const me = ctx.campaign.state.characters[pcId]!;
+  const mine = [...new Set([...me.knownSpells, ...me.preparedSpells])].filter(id => content.spells.get(id)?.classes.includes(classId));
+  const cantrips = mine.filter(id => content.spells.get(id)!.level === 0);
+  const prepared = me.preparedSpells.filter(id => (content.spells.get(id)?.level ?? 0) >= 1);
+  const top = casting.maxSpell(level);
+  const newCantrips = moreSpells(content, classId, cantrips, prefer, l => l === 0, Math.max(0, cantripsAt(classId, level) - cantrips.length), subclassId);
+  const missing = Math.max(0, casting.prepared(level) - prepared.length);
+  const highest = prepared.some(id => content.spells.get(id)?.level === top) ? [] : moreSpells(content, classId, prepared, prefer, l => l === top, Math.min(1, missing), subclassId);
+  const newSpells = [...highest, ...moreSpells(content, classId, [...prepared, ...highest], prefer, l => l >= 1 && l <= top, missing - highest.length, subclassId)];
+  const added = [...newCantrips, ...newSpells];
+  for (const id of added) ctx.apply([event(ctx.E, "PreparedSpellsChanged", { characterId: pcId, removed: "", added: id, source: "level-up" })]);
+  return added.length ? [`learned ${added.map(id => content.spells.get(id)?.name ?? id).join(", ")}`] : [];
 }
 
 /**
@@ -1718,6 +1824,8 @@ export async function comeTo(state: SessionState): Promise<string | undefined> {
   // (The engine lets hit points run below zero, and healing starts from 0: this is 1 HP.)
   if (down) ctx.apply([event(ctx.E, "Healed", { targetId: me.id, amount: 1, source: "came-to" })]);
   for (const a of ctx.campaign.state.characters[me.id]!.appliedConditions.filter(a => a.conditionId === "prone" || (down && a.conditionId === "unconscious"))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: me.id, conditionId: a.conditionId })]);
+  // Coming to (from a knock-out, or at the next scene), any Rage is long over.
+  endRage(ctx, state);
   const line = down ? `You come to: ${status(ctx, me.id)}` : undefined;
   close(state, ctx);
   return line;
@@ -1857,6 +1965,7 @@ export async function useFeature(state: SessionState, cast: Character[], feature
   const { lines, account } = describe(ctx, state, events, () => feature.name);
   const statusText = status(ctx, pcId);
   if (events.some(e => /^(ConditionApplied|EffectStarted)$/.test(e.type))) state.rules!.timed = true;
+  if (events.some(e => e.type === "ConditionApplied" && e["conditionId"] === "raging")) state.rules!.rage = RAGE_MINUTES;
   if (who && state.world && state.rules!.npcs[who.id]) syncBeings(ctx, state, state.world, [{ id: who.id, engine: state.rules!.npcs[who.id]!.id }]);
   close(state, ctx);
   return {

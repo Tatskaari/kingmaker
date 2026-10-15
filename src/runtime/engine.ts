@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, openRoutes, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, firedCue, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, firedCue, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, namedThing, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
 import { landRuling, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
@@ -502,7 +502,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
     : undefined;
   const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
-  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], features: state.rules.features ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
+  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], features: state.rules.features ?? [], ...(state.world ? aimable(state, input) : {}) } : undefined;
   // (Considered rolls ask whether a roll is wanted in this same call: no extra latency on ordinary turns.)
   const considers = approach.considered === true && approach.voice === "gm";
   // An ending held for the player's answer: the decision asks whether they're answering it.
@@ -569,7 +569,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     // Moved first, in the same turn: the spell or blow comes from where they ended up.
     if (state.world && (m.kind === "cast" || m.kind === "attack" || m.kind === "wrestle") && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
     const before = state.world ? Object.fromEntries(Object.values(state.world.entities).map(e => [e.id, [...e.states]])) : undefined;
-    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input), said: input }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : m.kind === "jump" ? leap(state, m) : m.kind === "feature" ? useFeature(state, present, m.feature, m.target) : rest(state, m.length))
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input), said: input, ...(m.unclear ? { unclear: true } : {}) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : m.kind === "jump" ? leap(state, m) : m.kind === "feature" ? useFeature(state, present, m.feature, m.target) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);
@@ -1272,16 +1272,18 @@ function react(scene: Scene, state: SessionState, act: Act, reactions: Record<st
   state.threat = { kind: "attack", by: against[0]!, turn: state.turn };
 }
 
-/** What the player could aim a spell or a blow at in the world: things near them, and people outside the cast. */
-function aimable(state: SessionState): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }>; places: Array<{ id: string; name: string }>; landmarks: Array<{ id: string; name: string }> } {
+/** What the player could aim a spell or a blow at in the world: things near them (the one their words name first), and people outside the cast. */
+function aimable(state: SessionState, said = ""): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }>; places: Array<{ id: string; name: string }>; landmarks: Array<{ id: string; name: string }> } {
   const world = state.world!;
   const cast = new Set(sceneById(state.sceneId).cast.map(c => c.id));
   // Anything in reach of a spell or a blow, except what other people are holding.
   const inOthersHands = (e: Entity) => { const h = heldBy(world, e); return !!h && (h.kind === "person" || h.kind === "creature") && !h.player; };
   // Not what the player carries (their coins took the slots), nor what nobody can see yet.
   const ownOrHidden = (e: Entity) => !!heldBy(world, e)?.player || e.states.includes("hidden") || e.tags.includes("hidden");
-  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e) && !ownOrHidden(e))
-    .slice(0, 16).map(e => ({ id: e.id, name: e.name }));
+  const near = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e) && !ownOrHidden(e))
+    .map(e => ({ id: e.id, name: e.name }));
+  const named = namedThing(near, said);
+  const things = [...near.filter(t => t.id === named), ...near.filter(t => t.id !== named)].slice(0, 16);
   const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
     .map(e => ({ id: e.id, name: e.name }));
   // Where they might act from: an area, or anything in the place someone could walk over to.

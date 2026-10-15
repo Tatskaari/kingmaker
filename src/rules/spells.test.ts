@@ -180,3 +180,37 @@ test("what the engine adds for the caster is on their card, as a cast rolls it: 
   assert.ok(saved.length && saved.every(l => /takes \d+ acid damage/.test(l)), `half on a success:\n${saved.join("\n")}`);
   for (const l of (await casts(evoker, "fire-bolt", "dummy", 6)).filter(l => /: miss/.test(l))) assert.doesNotMatch(l, /damage/);
 });
+
+test("a spell from the slot the player's words ask for, an aim nobody could make out asked about, and a Rage that ends (wizard#17, barbarian#44)", async () => {
+  const { castSpell: cast, createCharacter, passTime, rest, useFeature, comeTo } = await import("./dnd.ts");
+  const crake = [{ id: "crake-1", name: "the talking Crake", statblock: "thug" }] as unknown as Character[];
+  // "Magic Missile at second level": four darts, from a 2nd-level slot.
+  const wizard = await pregenSession({ pregen: "wizard", seed: 6 });
+  const up = await cast(wizard, crake, "magic-missile", ["crake-1"], { said: "*I cast Magic Missile at second level: four darts into the Crake's back*" });
+  assert.match(up.lines[0]!, /^Cast Magic Missile \(2nd-level slot\) on /);
+  assert.equal(up.lines.filter(l => /takes \d+ force damage/.test(l)).length, 4, up.lines.join("\n"));
+  assert.match(wizard.rules!.status!, /2nd 1\/2/);
+  // "My strongest slot" is the highest free; no word of it is the lowest.
+  const plain = await cast(wizard, crake, "magic-missile", ["crake-1"], { said: "Magic Missile at the Crake" });
+  assert.match(plain.lines[0]!, /\(1st-level slot\)/);
+  // Aimed at a thing nobody could make out: asked, and nothing spent.
+  const before = wizard.rules!.status;
+  const asked = await cast(wizard, [], "fire-bolt", [], { said: "Fire Bolt up there", unclear: true });
+  assert.match(asked.lines[0]!, /^\(Fire Bolt: at what\?/);
+  assert.equal(wizard.rules!.status, before);
+  // A Rage: ten minutes, or until a rest or a knock-out (it had outlasted both).
+  const state = { id: "rage-ends", sceneId: "hanged-clerk", approach: "v2", seed: 3, rollCount: 0, player: { name: "Grukka", concept: "a half-orc barbarian", modifiers: {} },
+    turn: 0, beat: "yard", turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null, patches: [], repairs: [], transcript: [], metrics: [], history: [] } as import("../runtime/session.ts").SessionState;
+  await createCharacter(state, 3, { classId: "barbarian", subclassId: "path-of-the-berserker", speciesId: "orc", backgroundId: "soldier", abilities: ["STR", "CON", "DEX", "WIS", "CHA", "INT"], skills: ["athletics", "intimidation"], feat: "savage-attacker", cantrips: [], spells: [], weapons: ["greataxe", "handaxe"], armor: "none", shield: false } as Build);
+  await useFeature(state, [], "rage");
+  assert.match(state.rules!.status!, /raging/);
+  assert.deepEqual(await passTime(state, 5), []);
+  assert.deepEqual(await passTime(state, 5), ["Your rage burns out"]);
+  assert.doesNotMatch(state.rules!.status!, /raging/);
+  await rest(state, "short");
+  await useFeature(state, [], "rage");
+  assert.doesNotMatch((await rest(state, "long")).lines.join("\n"), /raging/);
+  await useFeature(state, [], "rage");
+  await comeTo(state);
+  assert.doesNotMatch(state.rules!.status!, /raging/);
+});
