@@ -263,4 +263,4 @@ The static build's own checks (above) are `npm run web:static-check`, with `--li
 - No touch keyboard, so it needs a real keyboard. Chromium and Firefox have been tried (the static build in both), Safari not yet.
 - None of the checks in Chromium run in CI, nor the renderer comparison. CI runs the static build, with its checks for a leaked key and for what the stand-ins can't do.
 - tui/ is a second OpenTUI, kept in step with `@opentui/core` and `@opentui/react` (^0.6.5) by hand.
-- The static build ships everything to the browser: the scenes are bundled as code, with the GM's prep and every secret, and the lore is in `content.json`. That's fine for one player on their own machine, and not for a hosted game ([docs/design/productionise.md](../../docs/design/productionise.md)).
+- The static build ships everything to the browser: the scenes are bundled as code, with the GM's prep and every secret, and the lore is in `content.json`. That isn't a security concern: the content is public on GitHub and the game isn't competitive ([docs/design/productionise.md](../../docs/design/productionise.md)).

@@ -20,6 +20,9 @@ From the brief and the conversations around it:
 - **Packaging:** separate bundles that still run as one page, a host starting the server and pointing the client at it over an in-process transport that DI can swap for a network one.
 - **Multiplayer is BG3-style.** The player who starts a scene is in control of it until they hand it off.
 - **Who pays:** playtesters are allowlisted and the host pays for model calls for now. A Stripe integration may charge for usage later.
+- **Firebase is a possibility, not a plan.** The stores sit behind interfaces so Firestore could be swapped in; nothing is built on it yet.
+- **The server should be stateless,** so it can scale out and host many games: each move loads the game from the store, runs, and saves. The first version can be one server with four clients on sticky connections.
+- **The scenes' secrets aren't a security concern.** The content is public on GitHub and the game isn't competitive: a player who reads ahead only spoils their own fun.
 - **The world is ECS-inspired, optimised for composability:** "optimise for composability so we can extend things with new interactions". The implementation is open.
 - **Construction:** config owned by each part, assembled into one JSON; DI without a framework.
 - **Style:** exported and orchestration functions read as flat steps that call helpers. The eslint rules in the brief (max-depth 2, max-nested-callbacks 2, complexity 10, cognitive complexity 12) are guidance, not CI.
@@ -37,7 +40,7 @@ Measured on the code, with file pointers in the review notes.
 
   The app adds app.json, and per-turn snapshots, call logs (4.4 MB for 173 calls in that game), the co-GM's mailbox files and the docs service's per-session overlay of the lore sit beside them.
 - **The stores are synchronous files, not in-memory,** written from about ten modules. Turns read files mid-pipeline: pending repairs, every lore link the disclosure walks, the GM's notes. There are 45 docs-store call sites outside the store and 28 session load/save sites. Only the static build is in-memory, and it gets there by faking `node:fs` over IndexedDB.
-- **What players see and what only the GM knows are mixed.** The GM's beat, path, established facts, secrets and notes sit in the same object as the transcript. The dice seed predicts every roll. The static build sends all of it, every scene's secrets and the whole lore, to the browser. That's fine for one player on their own machine, and not for a hosted game.
+- **What players see and what only the GM knows are mixed.** The GM's beat, path, established facts, secrets and notes sit in the same object as the transcript. The dice seed predicts every roll. The static build sends all of it to the browser. That isn't a security problem (the scenes are public, and the game isn't competitive), but separating them is what lets each player's screen show their own view, and lets the GM's state live with the server.
 
 ### The seam
 
@@ -127,7 +130,7 @@ flowchart LR
 - **`src/hosts/*`** are composition roots, one per way of running: the terminal, the static web build, Cloud Run, the QA console, the evals and the zoo tour.
 - **`content/`** holds scenes split into a public card and the GM's prep, plus the lore, prompts, maps and prefabs.
 
-There are two bundles. The client bundle carries client, shared and public content only. The server bundle carries server, ai, shared and all the content. On a single page, each runs in its own worker, joined by a MessageChannel. CI greps the client bundle for a canary planted in a test scene's secrets: a security check, not style.
+There are two bundles. The client bundle carries client, shared and what the screens need. The server bundle carries server, ai, shared and all the content. On a single page, each runs in its own worker, joined by a MessageChannel. The split keeps the model calls, and the key, with the server; it isn't about secrecy.
 
 ### The protocol
 
@@ -154,7 +157,7 @@ export type GameEvent =
   | { kind: "ack"; intent: string; ok: boolean; error?: string };
 ```
 
-- **Hidden facts stay on the server.** The server and the GM hold every fact; clients get `project(state, viewer)` and filtered events, and the dice's state never leaves the server. One invariant gets tested: `project(reduce(s, e))` equals the client applying `filter(e, viewer)` to `project(s)`.
+- **Each player gets their own view.** The server and the GM hold the whole game; clients get `project(state, viewer)` and filtered events: what that player's screen shows. The dice are rolled on the server, the one authority. One invariant gets tested so views stay right as events arrive: `project(reduce(s, e))` equals the client applying `filter(e, viewer)` to `project(s)`.
 - **The intent log, the seed and a replay of the model calls reproduce any game,** which is what bug reports and evals need.
 
 ### Scene rooms and BG3-style control
@@ -306,20 +309,27 @@ Kingmaker takes Qud's shape with BotW's discipline:
 
 The bugs above (people not burning, created things not catching fire, the lantern that differs by mode) go away when scenes, the town and fights share one rule set. Each one becomes a zoo exhibit with a world expectation.
 
-## Hosting on Firebase
+## Hosting
 
-### Where things run
+### Stateless by design
 
-- **One callable function, `rpc`,** carries the protocol's intents, plus GM and admin actions gated by custom claims. Every Firebase function is its own service with its own cold starts, so one beats many. It is configured with App Check, the OpenRouter key from Secret Manager (`defineSecret`), concurrency 80, a 300 s timeout and one warm instance.
-- **A turn runs like this:**
-  1. Check membership (the allowlist) and the player's budget.
-  2. Claim a lease on the session in a short transaction. Other players' intents queue.
-  3. Load the snapshot and later events, through an instance cache keyed by version.
-  4. Run the GM, writing the accumulated reply text to a draft document about four times a second. A callable can also stream chunks.
-  5. Commit in a transaction that checks the lease, appends events tagged with the intent id, and writes each player's private view.
-  6. Enqueue the memory review and the co-GM's repair as Cloud Tasks jobs, keyed by session and turn so retries don't duplicate them.
-- **Background work is queued, never fire-and-forget.** Functions and Cloud Run don't guarantee CPU after the response is sent.
-- **Node versions:** Firebase Functions list Node 22 as their newest runtime, and the code requires Node 26. Either run the server on Cloud Run (Node 24 GA, 26 in preview) or relax the requirement for the server bundle.
+- **Each move is one request.** Load the game's working set from the store, run the move, commit with a revision check. Nothing lives in the process between moves, so any instance can serve any game, and the server scales out without sticky sessions.
+- **The GM's reply** streams back on the acting player's request. Other players in the session see it through the store (a listener on the transcript) when the server is stateless, or through the server's broadcast in version 1.
+- **Two moves at once:** the second commit sees a newer revision, and retries or is turned away. With one controller per scene that's rare.
+- **Background jobs** (memory reviews, the co-GM's repair) are queued with an explicit payload, and load and commit like any move: an in-process queue first, Cloud Tasks later. Cloud Run and Functions don't guarantee CPU after a response, so nothing is fire-and-forget.
+- **Caches** hold only what never changes: scenes, the lore seed, the rules pack, prompts.
+
+### Version 1: one server
+
+One Node server, up to four clients on WebSockets (sticky), its stores on its own disk. It runs the same code as the stateless version: the stores and the queue are the only parts that change.
+
+### If it goes on Firebase
+
+The stores are the swap point.
+- Firestore holds game state, events and each player's view; Cloud Storage holds the call logs.
+- Firebase Auth with an allowlist gates who plays. The OpenRouter key lives in Secret Manager.
+- The server runs on Cloud Run: Firebase Functions list Node 22 as their newest runtime, and the code requires Node 26.
+- A move is one call (a callable `rpc`, or plain HTTP) that streams the reply back. Other players follow the transcript through Firestore listeners.
 
 ### Data
 
@@ -327,11 +337,11 @@ The bugs above (people not burning, created things not catching fire, the lanter
 |---|---|---|
 | `sessions/{sid}`, `events/{seq}`, `snapshots/{seq}` | Firestore | the session's players |
 | `players/{uid}/…`: the facts each player has been told | Firestore | that player only |
-| `gm/{sid}/docs/*`: the session's lore overlay, one document per markdown file | Firestore | server only |
-| `lore/*` | Firestore or Cloud Storage | server only |
+| `gm/{sid}/docs/*`: the session's lore overlay, one document per markdown file | Firestore | the server |
+| `lore/*` | Firestore or Cloud Storage | the server |
 | call logs, one JSON object per call | Cloud Storage, with a cost and latency index in Firestore | server and admins |
 
-Clients write nothing directly; intents go through `rpc`. Documents stay small: one per batch of events and one per message, and snapshots under the 1 MiB document limit. The rules engine's event log (29 KB after 14 turns) is the main growth risk, so measure it.
+Clients write nothing directly; moves go through the server. Documents stay small: one per batch of events and one per message, and snapshots under the 1 MiB document limit. The rules engine's event log (29 KB after 14 turns) is the main growth risk, so measure it.
 
 ### Money
 
@@ -377,17 +387,16 @@ The game stays playable and the preview green throughout. Every step is checked 
    - The QA console and the zoo tour use the protocol.
    - The static build gives the server its own worker.
 
-   *Proves:* nothing shares memory, and the client bundle passes the canary check.
+   *Proves:* nothing shares memory: every message goes through the transport.
 4. **The world track,** which can start once step 1 is in. Pilot it on the zoo's wings, whose worlds already persist through a visit:
    - components on top of `Entity`;
    - the interaction registry, taking over the physics tick, the surfaces, damage to things and destruction;
    - the engine bridge;
    - fights on the same world;
    - persistent place worlds and prefabs, with the overlay removed.
-5. **Firebase:**
-   - Firestore stores under the same contract tests, run on the emulator;
-   - `rpc` with leases and drafts;
-   - Hosting, the allowlist, the caps and Cloud Tasks.
+5. **Hosting:**
+   - version 1: the server as its own process, stores on its disk, four clients on WebSockets, the allowlist and the caps;
+   - when it's needed: Firestore stores under the same contract tests, run on the emulator, and the stateless server on Cloud Run with a queue for background jobs.
 6. **Multiplayer:**
    - scene controllers with hand-offs;
    - concurrent scenes;
@@ -399,7 +408,7 @@ Don't flatten `playerTurn` while the interaction rules are moving: both rewrite 
 ## Risks, and what to measure
 
 - **Prompt drift during refactors.** The prompts are tuned by evals. The replay `ModelClient` guards them by showing any prompt that changed for the same game.
-- **Leaks of hidden facts.** Guarded by the projection test and the bundle canary.
+- **Moves lost or clobbered when two land at once.** Guarded by revision checks on commit, and tested with two QA clients in one scene.
 - **Document sizes against Firestore's 1 MiB limit,** especially the rules engine's event log. Measure per turn over a long session.
 - **Turn concurrency in multiplayer.** Put two QA clients in one scene, and measure the latency players feel against the 3 s and 5 s budgets.
 - **Cost:** per turn and per session from the ledger, with caps enforced before they're needed.

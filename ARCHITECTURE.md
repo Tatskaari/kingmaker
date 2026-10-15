@@ -276,7 +276,7 @@ How the content gets to the game:
 | The engine's starter pack, the SRD's spell text | read from `vendor/` | in `content.json` |
 | The glyph font | installed for the user (`npm run glyphs`); the server serves it from `assets/fonts` | copied into `fonts/` |
 
-`content.json` takes only what the allowlist in [src/web/static/content.ts](src/web/static/content.ts) names. The static build ships everything the GM knows to the browser: every scene's secrets, as code, and the whole lore, gm docs included. That's fine for one player on their own machine, and not for a hosted game.
+`content.json` takes only what the allowlist in [src/web/static/content.ts](src/web/static/content.ts) names. The static build ships everything the GM knows to the browser: every scene's secrets, as code, and the whole lore, gm docs included. That isn't a security concern: the content is public on GitHub and the game isn't competitive, so a player who reads ahead only spoils their own fun.
 
 ## Checks
 
