@@ -6,8 +6,9 @@ talk to, a talk's choice, clicks on the way on, on commands and on the map's key
 a blue tile, someone to aim at and the end-turn button), and grep the screen. By default
 it plays the whole arc offline (an invalid API key, so the GM can't speak: scenes are ended with
 the /end testing command), including typing on as a scene ends (it goes nowhere), a save, quit and
-Continue, and a whole fight. With --live it plays real scene turns against the GM instead, a real
-scene boundary, and a real talk with Kell.
+Continue, typing in the fight (a spell refused, the GM offline, a command done) and a whole fight.
+With --live it plays real scene turns against the GM instead, a real scene boundary, and a real
+talk with Kell.
 
   python3 src/app/smoke/smoke.py            # offline, the whole story (about two minutes)
   python3 src/app/smoke/smoke.py --live     # needs OPENROUTER_API_KEY: real GM turns, resume, a boundary, a talk
@@ -354,6 +355,25 @@ def fight_clicks(app):
     expect(app, rf"Round {rnd + 1}|It's over", "a click on end turn ends it (the others go, and the round comes round)", timeout=30)
 
 
+def fight_typing(app):
+    """Typing in the fight, offline: Enter gives the box under the log the keys; a spell the character hasn't got says why
+    (nothing spent); words with no model say the GM is offline; a plain command is the rules' own; Esc gives the keys back."""
+    expect(app, r"Your turn.*action ready", "the player's turn, to type in", timeout=30)
+    keys(app, "enter")
+    expect(app, r"What do you do\?", "Enter gives the fight's box the keys")
+    app.type("cast fireball at sallow")
+    keys(app, "enter")
+    expect(app, r"Fireball isn't one of your", "a spell the character hasn't got says why, and nothing's spent")
+    app.type("Give it up, Sallow!")
+    keys(app, "enter")
+    expect(app, r"The GM is offline", "offline, words that aren't a command say the GM is offline")
+    app.type("dodge")
+    keys(app, "enter")
+    expect(app, r"Dodge: attacks on you", "a typed command is done by the rules (a Dodge)")
+    keys(app, "esc")
+    expect(app, r"─ Type ─", "Esc gives the keys back to the fight")
+
+
 def fight(app):
     expect(app, r"Initiative", "combat: the initiative tracker", timeout=30)
     expect(app, r"Round \d", "the battlefield is drawn, the round is up")
@@ -518,6 +538,7 @@ def offline():
     expect(app, r"Continue.*fighting at The Heron", "Continue offers the fight in progress")
     keys(app, "enter")
     fight_clicks(app)
+    fight_typing(app)
     fight(app)
     # The scene picks up from the fight (its aftermath: offline the GM can't tell it), then the
     # King's summons opens the next morning: the Heron stays up until the player goes on.

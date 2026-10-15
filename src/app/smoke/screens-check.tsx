@@ -4,7 +4,10 @@
  * fight's side panels at 80x24 and up, every line drawn whole (a squeezed panel draws its lines over
  * each other); the map's keys at the bottom as buttons; a click on a blue tile moves there, a click
  * on someone on the other side aims at them and a click on your target attacks, and the fight's
- * options are buttons; a spell on the sheet clicked shows what it is, and ← Back (or Esc) puts the
+ * options are buttons; typing in a fight at 80x24 and 130x42 (its box under the log: Enter gives it
+ * the keys, letters type rather than act, a line the rules refuse says why under the log and spends
+ * nothing, a typed deed is done, Esc and a click elsewhere give the keys back); a spell on the
+ * sheet clicked shows what it is, and ← Back (or Esc) puts the
  * sheet back as it was; in a scene at 80x24 and 130x42, pointing at someone in the place (and in the
  * list under it) says who on the bottom line (the GM's spinner and the game's word stay up), a
  * right-click opens their menu without covering the conversation, a glance notes what anyone could
@@ -25,7 +28,7 @@ import { pregenSession, PREGENS, TacticalFight } from "../../game/combat/index.t
 import { mapFights } from "../../game/fights.ts";
 import { registerLookCanvas } from "../../game/look/opentui.ts";
 import { aimFor, leadTarget, town } from "../../game/town.ts";
-import { Game as Core, type GameState } from "../../game/play.ts";
+import { Game as Core, type GameState, type SayHooks } from "../../game/play.ts";
 import { exploreState } from "../../game/town.ts";
 import { actorsHere, nearby, Picks, screenOf } from "../../game/map/index.ts";
 import { fightView, townView } from "../../game/views.ts";
@@ -37,7 +40,7 @@ import { entriesOf, Game, type Line } from "../game.ts";
 import type { Resumable } from "../save.ts";
 import { leadWay, TIME_WORDS } from "../story.ts";
 import { wrap } from "../ui/common.tsx";
-import { CombatScreen } from "../ui/combat.tsx";
+import { CombatScreen, fightLayout } from "../ui/combat.tsx";
 import { EndScreen } from "../ui/end.tsx";
 import { ExploreScreen } from "../ui/explore.tsx";
 import { Overlay } from "../ui/overlay.tsx";
@@ -285,8 +288,8 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   checks.push([`fight ${w}x${h}: the side panel's lines whole${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
 
   // Where things are drawn: the same frame, picked (the battlefield's box has a border: one cell in).
-  const sideW = Math.min(50, Math.max(38, Math.floor(w * 0.34)));
-  const view = { w: w - sideW - 2, h: h - Math.max(8, Math.floor(h * 0.3)) - 1 - 2 };
+  const layout = fightLayout(w, h);
+  const view = { w: layout.mapW - 2, h: layout.mapH - 2 };
   const picks = new Picks();
   fightView(c, session, view, { centre: me.at, marks: c.options().moves.map(at => ({ at, color: "#2f6fb0" })), pick: picks, time: "night" });
   const cellOf = (want: (p: ReturnType<Picks["at"]>) => boolean) => {
@@ -321,6 +324,61 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   const options = at(frame, "every option");
   if (options) await act(async () => { await setup.mockMouse.click(options.x, options.y); });
   checks.push([`fight ${w}x${h}: a click on "m every option" lists them`, game.overlay?.kind === "actions"]);
+  await setup.dispose();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Typing in a fight: the box under the log, by key and by click, at 80x24 and 130x42. What's sent
+// goes through the core as typed (offline: the plain commands, read with no model).
+
+for (const [w, h] of [[80, 24], [130, 42]] as const) {
+  // A fresh fight for each size: what's typed here is done.
+  const typing = (await mapFights().start(state, session)) as TacticalFight;
+  const core = { state, session, currentFight: typing, observe: () => ({ mode: "combat", text: "", actions: [] }), say: (text: string, hooks: SayHooks) => typing.say(text, hooks) } as unknown as Core;
+  const game = new Game();
+  game.core = core;
+  game.screen = "combat";
+  const acted: string[] = [];
+  game.combatAct = async (id: string) => { acted.push(id); };
+  const setup = await testRender(<><CombatScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+  const { mapW, mapH, logH } = fightLayout(w, h);
+  // The box's rows: its title on its top border, then what's in it (the left column only).
+  const boxTitle = (f: string) => [...(f.split("\n")[mapH + logH] ?? "")].slice(0, mapW).join("");
+  const boxed = (f: string) => [...(f.split("\n")[mapH + logH + 1] ?? "")].slice(0, mapW).join("").replace(/│/g, "").trim();
+  const bottom = (f: string) => f.split("\n").filter(r => r.trim()).at(-1)!.trim();
+  const logText = (f: string) => flat(f.split("\n").slice(mapH, mapH + logH).map(r => [...r].slice(0, mapW).join("").replace(/[│┌┐└┘─]/g, " ")).join(" "));
+  let frame = await draw();
+  if (show) console.log(`fight's box ${w}x${h}\n${frame}`);
+  checks.push([`fight ${w}x${h}: the box is under the log, whole, and says how (${boxed(frame)})`, /─ Type ─/.test(boxTitle(frame)) && /^Enter/.test(boxed(frame)) && /^Enter type/.test(bottom(frame))]);
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`fight ${w}x${h}: Enter gives the box the keys, and the hints say how to send and to get back`, game.fightBox && /What do you do\?/.test(boxTitle(frame)) && /^Enter send +· +Esc the keys/.test(bottom(frame))]);
+  // The letters type: no attack (a), cast (c), options (m), sheet (s) or end of turn (e).
+  await act(async () => { await setup.mockInput.typeText("cast fireball at sallow"); });
+  frame = await draw();
+  checks.push([`fight ${w}x${h}: the letters go in the box, not to the fight's keys (${boxed(frame)})`, boxed(frame) === "cast fireball at sallow" && !acted.length && !game.overlay]);
+  await act(async () => { setup.mockInput.pressEnter(); await new Promise(r => setTimeout(r, 150)); });
+  frame = await draw();
+  const before = typing.controller.state().log.length;
+  checks.push([`fight ${w}x${h}: Enter sends it; a spell the fighter hasn't got says why under the log, and nothing's spent`, logText(frame).includes("(Fireball isn't one of your spells") && boxed(frame) !== "cast fireball at sallow" && game.fightBox && !typing.controller.options().actionUsed]);
+  // A deed: the rules' Dodge, after the line as typed.
+  await act(async () => { await setup.mockInput.typeText("dodge"); setup.mockInput.pressEnter(); await new Promise(r => setTimeout(r, 300)); });
+  frame = await draw();
+  if (show) console.log(`fight's box ${w}x${h}, dodged\n${frame}`);
+  const shown = typing.controller.view().log.map(l => l.text);
+  // (At 80x24 the log's five rows have room for the Dodge, not the line before it.)
+  checks.push([`fight ${w}x${h}: "dodge" typed is the rules' Dodge, in the log after the line as typed`, (h < 30 || logText(frame).includes("› dodge")) && logText(frame).includes("Dodge: attacks on you have disadvantage") && typing.controller.options().actionUsed && typing.controller.state().log.length > before && shown.indexOf("dodge") >= 0 && shown.indexOf("dodge") < shown.findIndex(t => /^Dodge: /.test(t))]);
+  // Esc gives the keys back: e ends the turn (a key again, not a letter in the box).
+  await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+  act(() => setup.mockInput.pressKey("e"));
+  await draw();
+  checks.push([`fight ${w}x${h}: Esc gives the keys back (e ends the turn: ${acted.join() || "nothing"})`, !game.fightBox && acted.at(-1) === "end_turn"]);
+  // A click in the box gives it the keys; a click on the battlefield gives them back.
+  await act(async () => { await setup.mockMouse.click(4, mapH + logH + 1); });
+  const clickedIn = game.fightBox;
+  await act(async () => { await setup.mockMouse.click(Math.floor(mapW / 2), Math.floor(mapH / 2)); });
+  checks.push([`fight ${w}x${h}: a click on the box gives it the keys, a click on the battlefield gives them back`, clickedIn && !game.fightBox]);
   await setup.dispose();
 }
 

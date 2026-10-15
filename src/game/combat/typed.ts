@@ -388,6 +388,9 @@ function castCommand(rest: string, turn: Turn, last: Target | undefined): Read {
   if (upcast) { slot = Number(upcast[1] ?? upcast[2]); words = words.slice(0, upcast.index); }
   const aimed = /^(.+?)\s+(?:at|on|into|towards?|against|upon)\s+(.+)$/.exec(words);
   const spellWords = aimed ? aimed[1]! : words;
+  // The spell first: one they haven't got is the reason, whoever it was meant for.
+  const spell = spellNamed(spellWords, turn);
+  if (spell && !turn.o.spells.some(s => s.id === spell.id)) return { refusal: whyNotCast(spell.id, turn) };
   const t = aimed ? target(aimed[2]!, turn, last, "unit") : undefined;
   if (aimed && !t) return unknown(aimed[2]);
   return castSteps(spellWords, t, slot, turn);

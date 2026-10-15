@@ -172,6 +172,28 @@ export const appScenarios: Scenario[] = [
     game.screen = "combat";
     return { node: <CombatScreen game={game} /> };
   }),
+  // The fight's box with the keys: a line typed in it, and why the last one came to nothing, under the log.
+  ...([[130, 42], [80, 24]] as const).map(([width, height]): Scenario => ({
+    name: `combat typing ${width}x${height}`, width, height,
+    node: () => {
+      const game = new Game();
+      game.core = fightCore;
+      game.screen = "combat";
+      game.fightBox = true;
+      game.fightReply = "Fireball isn't one of your spells: the sheet (s) shows what you have.";
+      return <CombatScreen game={game} />;
+    },
+    steps: [{ type: "Give it up, Crake! Nobody's paying you for this." }],
+  })),
+  // The GM's answer streaming into the fight's log.
+  ...sizes("combat answer", [[130, 42]], () => {
+    const game = new Game();
+    game.core = fightCore;
+    game.screen = "combat";
+    game.busy = "The talking Crake is speaking…";
+    game.fightLive = { who: "crake-1", text: "The talking Crake: “Two shillings, and you're not worth either of" };
+    return { node: <CombatScreen game={game} /> };
+  }),
   ...sizes("end", [[130, 42], [80, 24]], () => {
     const game = exploreGame();
     game.screen = "end";
