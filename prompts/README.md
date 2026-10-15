@@ -15,6 +15,7 @@ Each file is the standing brief for one role: how the GM runs the table ([gm.md]
 | [gm.md](gm.md) | `gmReply`, [src/runtime/voices.ts](../src/runtime/voices.ts) | Every GM reply, opening, closing and talk in a `voice: "gm"` approach (`v2`). `{{tone}}` becomes tone-comic.md for an approach with `tone: "comic"`, and nothing otherwise. Its last part teaches the markup the screen reads: the speaker before each line, and why, know and you notes ([src/runtime/README.md](../src/runtime/README.md#the-gms-markup)). |
 | [tone-comic.md](tone-comic.md) | gm.md's `{{tone}}` | `v2` and the comic approaches |
 | [gm-markup.md](gm-markup.md) | `gmReply` (`nowNote`'s `remind`) | Every GM reply: a line on the markup, just before "For this reply", where a model attends most |
+| [notes.md](notes.md) | `writeNotes`, [src/runtime/notes.ts](../src/runtime/notes.ts) | After every GM reply with a spoken line or a mark: the notes the player reads on the marks, written from what the player knows (never the prep), and a why added to each line where someone refuses, bristles or comes round for a reason they can see |
 | [narrator.md](narrator.md) | `narratorReply`, voices.ts | The `actors` approaches: the narration between the characters |
 | [actor.md](actor.md) | `actorReply`, voices.ts | The `actors` approaches: one call per speaking character, with their card as `{{name}}`, `{{short}}`, `{{look}}`, `{{voice}}`, `{{wants}}`, `{{fears}}`, `{{attitude}}`, `{{knows}}` and `{{secrets}}` |
 | [repair.md](repair.md) | `runRepair`, [src/runtime/repair.ts](../src/runtime/repair.ts) | The full co-GM: in the background after a turn, or inside the turn for `blocking` and `stall` |
@@ -47,7 +48,7 @@ Much of what the models are told isn't here. Written in the code instead:
 
 - **A prompt change changes every call that uses it,** in every scene. The evals are how it's checked, and the call logs show the exact prompt each call was sent.
 - **Placeholders.** A `{{key}}` that isn't passed becomes an empty string without an error, so a renamed placeholder silently drops its text.
-- **The markup is parsed.** gm.md's brackets (`[who]`, `(words)[why: …]`, `know`, `you`) are what src/runtime/markup.ts reads; the parser takes what the model drifts to as well, but a new token needs it there and in its tests.
+- **The markup is parsed.** gm.md's brackets (`[who]`, `(words)[why: …]`, `know`, `you`) are what src/runtime/markup.ts reads; the parser takes what the model drifts to as well, but a new token needs it there and in its tests. The GM's own notes aren't shown: notes.md writes the ones the player reads, from a brief built only of what they know, so what notes.md is sent must never grow a part of the prep.
 - **Words the code depends on.** The code tells the GM what was decided in directives, and gm.md says how to take them ("you'll be told the result: narrate it faithfully"). A prompt that contradicts a directive leaves the model to choose.
 - **One line, one reason.** Many lines answer a failure seen in play. Before removing one, check the guide ([docs/guide/](../docs/guide/README.md)) or the findings ([docs/FINDINGS.md](../docs/FINDINGS.md)) for why it's there.
 

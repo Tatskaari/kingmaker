@@ -70,7 +70,8 @@ The Caerwyn arc. Solid arrows are the exits' `next`; a dotted arrow skips a scen
 | `background` | Facts carried in from before | the brief, the boundary |
 | `world`, `afterwards` | The place as a world, and the world ops applied when the scene ends, whatever the ending | `openScene`, `finishScene`, the game's maps |
 | `anchors` | Named spots that exit scripts refer to | the scripts' recording world |
-| `lore`, `fronts` | The GM's always-open lore docs; the fronts doc that moves on at this scene's boundary | disclosure; the boundary |
+| `lore`, `fronts` | The GM's always-open lore docs; the fronts doc that moves on at this scene's boundary | disclosure; the boundary; the notes on the GM's marks (the public ones) |
+| `known` | What anyone here knows and a newcomer wouldn't, where the public lore doesn't say it: the place's customs, prices and common talk. Never a secret | the notes on the GM's marks (src/runtime/notes.ts) |
 | `assumes`, `overtaken` | What the prep takes for granted, and where the story goes instead once play has made it untrue | the boundary |
 | `time`, `rest`, `milestone`, `interlude`, `createsCharacter` | The hour (for the map), a rest before it opens, a level as it opens, downtime the game skips, character creation | the game, `openScene`, `chainScene`, `playerTurn` |
 | `companion`, `approach` | A talk's companion; the scene's own approach overrides | talks; `sceneApproach` |

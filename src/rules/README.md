@@ -18,7 +18,7 @@ The game's D&D 5.5e (SRD 5.2.1), through the vendored [dnd-srd-engine](../../ven
 
 ### State
 
-The session's `rules` ([`RulesState`, src/runtime/session.ts:20](../runtime/session.ts#L28)):
+The session's `rules` ([`RulesState`, src/runtime/session.ts:20](../runtime/session.ts#L29)):
 
 - **`campaign`:** the engine's serialised campaign, its event log and state. It's the truth about the player's hit points, slots, conditions, class resources and gear, and about every story character the rules have touched.
 - **Who's who:** `pc` (the player's engine id), `npcs` (cast id to engine id and weapon), `aliases` (what the player calls people whose names they haven't heard: the dice lines use it).
@@ -30,7 +30,7 @@ It also writes `state.player.modifiers` and `state.player.build`, bumps `state.r
 
 | caller | what it uses |
 |---|---|
-| [src/runtime/engine.ts](../runtime/engine.ts#L353) | a turn's mechanic (`castSpell`, `attack`, `wrestle`, `useFeature`, `rest`, `jump`); a threat or a danger before the player acts (`attackOnPlayer`, `hazard`); `passTime`; `comeTo` and `levelUp` between scenes; `carryGear`; `createCharacter` |
+| [src/runtime/engine.ts](../runtime/engine.ts#L379) | a turn's mechanic (`castSpell`, `attack`, `wrestle`, `useFeature`, `rest`, `jump`); a threat or a danger before the player acts (`attackOnPlayer`, `hazard`); `passTime`; `comeTo` and `levelUp` between scenes; `carryGear`; `createCharacter` |
 | src/runtime/director.ts | `rollFor` for a route's check; `HAZARD_KINDS` |
 | [src/game/menu.ts](../game/menu.ts) | the action menu: `catalogue`, `rulesNow`, and the same calls a scene makes, on the town's world |
 | src/game/play.ts | `comeTo` after a fight |

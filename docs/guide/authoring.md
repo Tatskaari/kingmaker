@@ -28,6 +28,7 @@ A scene is GM prep for one place and one situation: a dramatic question, the peo
 - **Limits:** tempting things that can't happen here, each with the in-fiction reason. Cite a world rule and its enforcer, so there's one source of truth, rather than restating it.
 - **Exits:** the obvious endings, each with an outcome, a closing (a feeling, not a list of events), a world script, and `next` when the story continues. The runtime adds "an ending of their own".
 - **`lore`:** the place doc, plus the town's current-state doc once there is one.
+- **`known`:** what anyone here knows and a newcomer wouldn't, where the public lore doesn't say it (a landing's customs, a house's prices). The notes the player reads on the GM's marks explain from it and from the public lore, never from the rest of the prep, so nothing in it may be a secret.
 - **Recurring characters' cards are neutral to earlier outcomes.** They read the state of the world ("as things stand between you"); they don't assume it. Memories and the hand-off supply what happened.
 - **Interludes** (`scenes/interludes.ts`) are short downtime between scenes, standing in for the map. They show the town as it is now, say where the companions are, ask "what do you do?", and point at the lead.
 
