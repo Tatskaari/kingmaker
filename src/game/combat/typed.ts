@@ -1,3 +1,4 @@
+import { sceneById } from "../../../scenes/index.ts";
 import { deciderFor, type ChoiceQuestion, type Decider, type Decision } from "../../llm/decide.ts";
 import { modelOffline } from "../../llm/openrouter.ts";
 import { approachById } from "../../runtime/approaches.ts";
@@ -66,6 +67,8 @@ interface Turn {
   /** Everyone on the board but the player (the fallen too: they can be named, if not hit). */
   others: Unit[];
   props: Prop[];
+  /** What else people go by, by unit id: what the scene says the player calls them ("the big porter"), and their other names ("Hep"). */
+  aliases?: Record<string, string[]>;
 }
 
 /** Plain commands, for the offline word and a refusal's hint. */
@@ -101,11 +104,15 @@ function turnOf(fight: TacticalFight): Turn {
   const c = fight.controller;
   const s = c.look();
   const me = s.pc();
-  return {
-    s, me, o: c.options(), actions: fight.actions(),
-    others: s.units.filter(u => u.id !== me.id && u.state !== "fled"),
-    props: Object.values(c.state().props).filter(p => !p.carriedBy),
-  };
+  const others = s.units.filter(u => u.id !== me.id && u.state !== "fled");
+  return { s, me, o: c.options(), actions: fight.actions(), others, props: Object.values(c.state().props).filter(p => !p.carriedBy), aliases: aliasesOf(c.session.sceneId, others) };
+}
+
+/** What the scene calls its people besides their names (a ring's fighters have none: they're the arena's). */
+function aliasesOf(sceneId: string, units: Unit[]): Record<string, string[]> {
+  let cast: Array<{ id: string; called?: string; aka?: string[] }> = [];
+  try { cast = sceneById(sceneId).cast; } catch { /* a zoo ring's world isn't a scene */ }
+  return Object.fromEntries(units.map(u => { const c = cast.find(x => x.id === (u.castId ?? u.id)); return [u.id, [...(c?.called ? [c.called] : []), ...(c?.aka ?? [])]]; }));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -217,8 +224,11 @@ const wordsOf = (t: string) => norm(t).split(" ").filter(w => w && !STOP.has(w))
 /** The word a name is about ("a porter with a sack-needle": porter; "the talking Crake": crake). */
 const headOf = (name: string) => { const ws = norm(name.split(/\b(?:with|from|of|in|on|at|by|who|that|hung|hanging)\b/i)[0] ?? name).split(" ").filter(Boolean); return singular(ws.at(-1) ?? ""); };
 
-function namesOfUnit(u: Unit): { words: string[]; heads: string[] } {
-  return { words: [...wordsOf(u.name), ...wordsOf(u.called), ...wordsOf(u.id.replace(/-/g, " ")), ...(u.castId ? wordsOf(u.castId.replace(/-/g, " ")) : [])], heads: [headOf(u.name), headOf(u.called), ...wordsOf(u.id.replace(/-\d+$/, "").replace(/-/g, " ")).slice(-1)] };
+function namesOfUnit(u: Unit, aliases: string[] = []): { words: string[]; heads: string[] } {
+  return {
+    words: [...wordsOf(u.name), ...wordsOf(u.called), ...wordsOf(u.id.replace(/-/g, " ")), ...(u.castId ? wordsOf(u.castId.replace(/-/g, " ")) : []), ...aliases.flatMap(wordsOf)],
+    heads: [headOf(u.name), headOf(u.called), ...wordsOf(u.id.replace(/-\d+$/, "").replace(/-/g, " ")).slice(-1), ...aliases.map(headOf)],
+  };
 }
 
 function namesOfProp(p: Prop): { words: string[]; heads: string[] } {
@@ -246,7 +256,7 @@ function target(words: string, turn: Turn, last: Target | undefined, prefer: "un
   const query = wordsOf(words);
   const nearest = /\b(?:nearest|closest)\b/.test(w);
   const me = turn.me.at;
-  const units = turn.others.map(u => ({ t: { kind: "unit" as const, u }, at: u.at, s: score(query, namesOfUnit(u)) }));
+  const units = turn.others.map(u => ({ t: { kind: "unit" as const, u }, at: u.at, s: score(query, namesOfUnit(u, turn.aliases?.[u.id])) }));
   const props = turn.props.map(p => ({ t: { kind: "prop" as const, p }, at: p.at, s: score(query, namesOfProp(p)) }));
   const found = [...units, ...props].filter(c => c.s > 0);
   if (!found.length) return query.length && wordsOf(turn.me.name).some(n => query.includes(n)) ? { kind: "self" } : undefined;
@@ -601,11 +611,11 @@ function questionsFor(turn: Turn, deeds: Deed[]): Record<string, ChoiceQuestion>
       criteria: Object.fromEntries(deeds.map(d => [d.key, d.label])),
     },
     move_first: {
-      instructions: "Before the deed, does the line have them move somewhere: stepping back or away, closing in on someone, going over to something? Choose where. (A deed that says it closes in first has that already.)",
+      instructions: "Before the deed, does the player's own character move somewhere: stepping back or away, closing in on someone, going over to something? Choose where. Only their own feet count: telling someone else to get back or clear off isn't the player moving. (A deed that says it closes in first has that already.)",
       criteria: { no: "No: they don't move before it.", ...moves },
     },
     move_after: {
-      instructions: "After the deed, does the line have them move: backing off, running for it, going on somewhere? Choose where.",
+      instructions: "After the deed, does the player's own character move: backing off, running for it, going on somewhere? Choose where. Only their own feet count: words telling someone else to go are not the player moving.",
       criteria: { no: "No: they don't move after it.", ...moves },
     },
     said_to: {
@@ -646,7 +656,7 @@ function stateOf(text: string, turn: Turn): Record<string, unknown> {
     fight: `${G.place ?? "the Heron"}, round ${G.round}`,
     your_turn: [`HP ${me.hp}/${me.maxHp}`, `${o.movementLeft} ft of movement left`, `action ${o.actionUsed ? "used" : "ready"}`, `bonus action ${use?.bonusActionUsed ? "used" : "ready"}`, ...(me.conditions.filter(c => !/active$/.test(c)).length ? [me.conditions.filter(c => !/active$/.test(c)).join(", ")] : [])].join("; "),
     you: `${me.name}, with ${me.weapons.map(w => s.namer().weapon(w)).join(" and ") || "bare hands"}`,
-    others: turn.others.map(u => `${u.name} (${u.side === "enemy" ? "on the other side" : u.side === "ally" ? "on your side" : "not in it"}; ${u.state === "fighting" ? health(u) : u.state}${u.conditions.filter(c => !/active$/.test(c)).length ? `, ${u.conditions.filter(c => !/active$/.test(c)).join(", ")}` : ""}): ${near(u.at)}`),
+    others: turn.others.map(u => `${u.name}${turn.aliases?.[u.id]?.length ? ` (known as ${turn.aliases[u.id]!.join(", ")})` : ""} (${u.side === "enemy" ? "on the other side" : u.side === "ally" ? "on your side" : "not in it"}; ${u.state === "fighting" ? health(u) : u.state}${u.conditions.filter(c => !/active$/.test(c)).length ? `, ${u.conditions.filter(c => !/active$/.test(c)).join(", ")}` : ""}): ${near(u.at)}`),
     things: turn.props.map(p => `the ${p.name} (${p.state}${p.lit && p.state === "standing" ? ", lit" : ""}): ${near(p.at)}`),
     ...(G.dust.length ? { hazards: "grain dust hangs over part of the floor: fire in it explodes" } : {}),
     recent: G.log.slice(-8).map(l => l.text),
@@ -703,11 +713,13 @@ async function readingOf(decision: Decision, text: string, turn: Turn, deeds: De
   if (key !== "speak_only" && sure(decision, "deed") < 0.4) return { ...base, steps: [], refusal: `Not sure what you mean to do there: try plainer words (${EXAMPLES}), or m for every option. Nothing's spent.` };
   let plan: Step[] = [...(deed?.steps ?? [])];
   if (key.startsWith("check:")) plan = await checkSteps(key.slice(6) as "search" | "study", text, turn, decider);
-  const first = clear(decision, "move_first", "no");
+  // Only words: nobody's feet move ("Get back!" is for whoever it's said to).
+  const words = key === "speak_only";
+  const first = words ? "no" : clear(decision, "move_first", "no");
   if (first !== "no" && !plan.some(s => s.uses === "move")) plan.unshift(moveStep(first));
   const bonus = deeds.find(d => d.key === clear(decision, "bonus", "none"));
   if (bonus?.steps && bonus.key !== key) plan.push(...bonus.steps);
-  const after = clear(decision, "move_after", "no");
+  const after = words ? "no" : clear(decision, "move_after", "no");
   if (after !== "no") plan.push(moveStep(after));
   plan = upcastIn(plan, clear(decision, "slot", "lowest"));
   if (key === "move_only" && !plan.length) return { ...base, steps: [], refusal: "Move where? Click a blue tile, or say where to (\"move to the brazier\"). Nothing's spent." };

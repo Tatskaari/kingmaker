@@ -59,7 +59,7 @@ Short scenes with the real GM, in booths round a courtyard: step through a booth
 - **The Silver Dice**: a name held back, staged secrets, pressure rolls, bystanders reacting to violence.
 - **The Lost Ledger**: an essential that relocates, the co-GM, memory (Madam Crust remembers the pie stall), an entrance with a group.
 - **The Practice Yard**: the rules read from what you say: casting (Fireball at the haystack is what it's for), a blow, grapple and shove (Wim spars for real), a jump (the ditch's ten feet, wherever you start), class features, a rest. It goes on until you say you're done.
-- **The Cracked Tankard**: a brawl that ends in "Roll for initiative!", fought on the tavern's floor (Kell beside you, patched up, if she's walking with you), then its aftermath, which ends when it's swept up.
+- **The Cracked Tankard**: a brawl that ends in "Roll for initiative!", fought on the tavern's floor (Kell beside you, patched up, if she's walking with you), where you can still talk (the porters answer, and can be talked out of it), then its aftermath, which ends when it's swept up.
 - **The repertory board**: any scene of the story's or the scene harness's, rehearsed out of order on its own place (the arc's on the story's maps), and nothing reaching the story.
 - **The boundary desk**: the last scene you played, handed across a scene boundary as the story hands one on (the hand-off, the next scene's prep checked against it and its opening rewritten, how you'd hear of it, and the fronts moved on), without going anywhere. A booth goes to the next booth, with the zoo's own fronts (Madam Crust's pies, the noon bell, the auditor's round: src/game/zoo/fronts.ts, in the visit's own copy of the docs, never the authored lore); a rehearsed scene of the story to its own next scene, with the story's fronts, in the visit's copy.
 - **The house-style lever**: the booths play another way for the visit: v2 (the game's own), v2 played straight, actors, v2 with pressure rolls.
@@ -80,7 +80,8 @@ Fights on the map, started by a ring's bell, on the arena's own map with everyon
 - **The goblin pit**: archers keeping their distance behind rocks (ranged attacks, cover).
 - **The wolf run**: Pack Tactics.
 - **Leaving**: the wolf run's second rope, for running for the gate (disengage, the gate, l: fled).
-- Signs for the battlefield on screen, pacing and targeting, the turn's options, after the fight, resuming, headless fights, death saves, and the story's fights.
+- **Talking in a fight**: typing in a fight, as in a scene (words said and answered, deeds and plain commands done by the rules, a word with weight as the Influence action), with a bell of its own that rings the porters' floor for you to talk to Hep's porters.
+- Signs for the battlefield on screen, pacing and targeting, the turn's options, after the fight, resuming, headless fights (by id, and typed), death saves, and the story's fights.
 
 ### Kell's Corner (`zoo-kell`)
 
@@ -88,7 +89,7 @@ Sergeant Kell walks with you through the zoo when asked (and waits when asked); 
 
 ## The tour
 
-`src/game/zoo/tour.ts` goes round every wing headless: it stands by each sign and reads it, sets off every exhibit's triggers in turn (or the exhibit's own `tour` order), plays each scene to an ending (the exhibit's or trigger's `plan`), fights each fight to its end (saving and loading the game partway, as Continue would), and checks what the view played against each trigger's `expect` (effect kinds, damage numbers, barks, a walk; "fight" and "scene" for what they open). It saves what the screen showed at each step and writes a report.
+`src/game/zoo/tour.ts` goes round every wing headless: it stands by each sign and reads it, sets off every exhibit's triggers in turn (or the exhibit's own `tour` order), plays each scene to an ending (the exhibit's or trigger's `plan`), fights each fight to its end (saving and loading the game partway, as Continue would), and checks what the view played against each trigger's `expect` (effect kinds, damage numbers, barks, a walk; "fight" and "scene" for what they open; "typed" for a line typed in a fight that the rules took). A fight's plan opens it with action ids, or with lines typed as the player would type them (`say:cast fireball at sallow`, `say:Hep! Clear off.`), read the same way: offline, the plain commands by the parser and the rest saying the GM's offline; live, the decider and the GM's line too. The report gives each typed line and what it came to. It saves what the screen showed at each step and writes a report.
 
 ```sh
 node --no-warnings src/game/zoo/tour.ts [--live] [--only fire,arena] [--no-png] [--out dir] [--seed n]

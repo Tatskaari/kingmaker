@@ -51,11 +51,16 @@ export const speak: Voice = async ({ fight, reading, rules, onSpeaker, onText })
   return text ? { who, text } : undefined;
 };
 
-/** Who answers: whoever was spoken to, if they're in a state to; otherwise the GM. */
+/** Who answers: whoever was spoken to, if they're in a state to and have words to answer with (a wolf hasn't); otherwise the GM. */
 function speakerOf(fight: CombatController, reading: Reading): string {
+  const u = spokenTo(fight, reading);
+  return u && u.state === "fighting" && u.id !== fight.state().pc && fight.look().understands(u) ? u.id : "gm";
+}
+
+/** Whoever the words were said to, if anyone in particular. */
+function spokenTo(fight: CombatController, reading: Reading): Unit | undefined {
   const to = reading.speech?.to;
-  const u = to && to !== "room" ? fight.state().units[to] : undefined;
-  return u && u.state === "fighting" && u.id !== fight.state().pc ? u.id : "gm";
+  return to && to !== "room" ? fight.state().units[to] : undefined;
 }
 
 /** An answer with its speaker's name, the words in quotes (the GM's own line as it comes). */
@@ -76,10 +81,11 @@ function factsOf(fight: CombatController): string {
   const cards = castCards(fight);
   const person = (u: Unit) => {
     const where = u.id === me.id ? "" : `, ${feetBetween(me.at, u.at)} ft from the player`;
-    const how = u.state === "fighting" ? health(u) : u.state;
+    const how = u.state === "fighting" ? health(u) : u.state === "down" ? "down, out cold (no words, no deeds)" : u.state;
     const conditions = u.conditions.filter(c => !/active$/.test(c));
     const card = cards[u.castId ?? u.id];
-    return `- ${u.name}${u.id === me.id ? " (the player's character)" : ""}: ${u.side === "enemy" ? "on the other side" : u.side === "ally" ? "on the player's side" : u.id === me.id ? "" : "not in it"}; ${how}${conditions.length ? `, ${conditions.join(", ")}` : ""}${where}${card ? `. ${card}` : ""}`;
+    const mute = u.id !== me.id && !fight.look().understands(u) ? " (an animal: no words of its own)" : "";
+    return `- ${u.name}${u.id === me.id ? " (the player's character)" : ""}${mute}: ${u.side === "enemy" ? "on the other side" : u.side === "ally" ? "on the player's side" : u.id === me.id ? "" : "not in it"}; ${how}${conditions.length ? `, ${conditions.join(", ")}` : ""}${where}${card ? `. ${card}` : ""}`;
   };
   const things = Object.values(G.props).filter(p => !p.carriedBy).map(p => `- the ${p.name}: ${p.state}${p.lit && p.state === "standing" ? ", lit" : ""}`);
   return [
@@ -111,11 +117,14 @@ function askFor(fight: CombatController, reading: Reading, rules: LogLine[], who
   const typed = rules.find(l => l.kind === "said" && l.who === G.pc)?.text ?? reading.speech?.words ?? "";
   const done = rules.filter(l => !(l.kind === "said" && l.who === G.pc)).map(show);
   const u = who === "gm" ? undefined : G.units[who];
+  const beast = !u ? spokenTo(fight, reading) : undefined;
   const job = u
     ? `${u.name} answers the player: one line, in their own voice, as the fight stands for them now.`
-    : reading.steps.length
-      ? "Say what the rules' lines show happening, in a line or two: nothing they don't say."
-      : "The words carry across the fight: say, in a line, how they land with the people in earshot (no one gives in, runs or stops unless a rules line says so).";
+    : beast && beast.state === "fighting" && !fight.look().understands(beast)
+      ? `The words were for ${beast.name}, an animal with no words of its own: say, in a line, how it takes them, by what it does or how it looks (it doesn't give way, run or stop unless a rules line says so).`
+      : reading.steps.length
+        ? "Say what the rules' lines show happening, in a line or two: nothing they don't say."
+        : "The words carry across the fight: say, in a line, how they land with the people in earshot (no one gives in, runs or stops unless a rules line says so).";
   return [
     `The player typed: "${typed}"`,
     "",

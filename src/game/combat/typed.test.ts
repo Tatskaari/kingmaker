@@ -161,6 +161,10 @@ describe("the decider, choosing among the turn's own actions", () => {
     assert.deepEqual(closed.steps, ["close_crake-1", "attack_crake-1_with_longsword"]);
     const brazier = await readLine("I run to the brazier", far, stub({ deed: "move_only", move_first: "close:brazier" }));
     assert.deepEqual(brazier.steps, ["close_brazier"]);
+    // Words move nobody: "Get back!" is for whoever it's said to, however the move questions read it.
+    const told = await readLine("Back! Go on, get back, the lot of you!", f, stub({ deed: "speak_only", said_to: "crake-1", move_after: "away" }));
+    assert.deepEqual(told.steps, []);
+    assert.equal(told.speech?.to, "crake-1");
   });
 
   it("refuses magic they haven't got, a spell that can't be cast now, and what it isn't sure of", async () => {
