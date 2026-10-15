@@ -254,6 +254,12 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
   return result;
 }
 
+/**
+ * A structured model call, as respondJson makes one, or a stand-in for one: what character creation
+ * asks of the model goes through one of these, so the checks can answer for it.
+ */
+export type Ask = <T>(request: RespondRequest & { json: { name: string; schema: Record<string, unknown> } }) => Promise<T>;
+
 /** JSON-schema structured output; parses and returns the object. */
 export async function respondJson<T>(request: RespondRequest & { json: { name: string; schema: Record<string, unknown> } }): Promise<T & { _meta: RespondResult }> {
   const result = await respond(request);

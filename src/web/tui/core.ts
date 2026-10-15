@@ -13,6 +13,7 @@ export { BaseRenderable, isRenderable, Renderable, RootRenderable, type Renderab
 export { CliRenderer, CliRenderEvents, createCliRenderer, type CliRendererConfig, type TerminalIO } from "./renderer.ts";
 export { hexToRgb, parseColor, RGBA, type ColorInput } from "./rgba.ts";
 export { ScrollBoxRenderable, ScrollBarRenderable, SliderRenderable, type ScrollBoxOptions } from "./scrollbox.ts";
+export { TextareaRenderable, type TextareaOptions } from "./textarea.ts";
 export { isTextNodeRenderable, RootTextNodeRenderable, TextNodeRenderable, TextRenderable, type TextChunk, type TextOptions } from "./text.ts";
 export { stringWidth } from "./width.ts";
 

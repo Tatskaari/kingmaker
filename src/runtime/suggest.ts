@@ -6,7 +6,7 @@ import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, knownCast, nameTokens,
 import { titleCase } from "./dice.ts";
 import type { TurnHooks } from "./engine.ts";
 import type { Character, Exit, Scene, Transition } from "./scene.ts";
-import type { PlayerCharacter, SessionState, Suggestion } from "./session.ts";
+import type { SessionState, Suggestion } from "./session.ts";
 
 /**
  * What the player might say or do next in a scene, as a cRPG offers its dialogue choices: after a GM
@@ -178,12 +178,13 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
 
 /** The player character, as the lines are to be in their voice: who they are, what they're good at, their spells, what they carry, their backstory. */
 function who(state: SessionState): string {
-  // Character creation's backstory (app/creation), when there is one: read as it's shaped there.
-  const p = state.player as PlayerCharacter & { backstory?: { summary?: string; bonds?: string[]; flaws?: string[] } };
+  const p = state.player;
   const strengths = Object.entries(p.modifiers).filter((e): e is [string, number] => typeof e[1] === "number").sort((a, b) => b[1] - a[1]).slice(0, 4);
   const spells = state.rules?.spells?.map(s => s.name) ?? [];
   const carried = carriedNames(state);
-  const story = p.backstory?.summary ? [`Their backstory: ${p.backstory.summary}`, ...(p.backstory.bonds?.length ? [`Bonds: ${p.backstory.bonds.join("; ")}.`] : []), ...(p.backstory.flaws?.length ? [`Flaws: ${p.backstory.flaws.join("; ")}.`] : [])] : [];
+  // Character creation's backstory, when there is one: who they are, what binds them and their flaws give a line its colour.
+  const b = p.backstory;
+  const story = b?.summary ? [`Their backstory: ${b.summary}`, ...(b.bonds.length ? [`Bonds: ${b.bonds.join("; ")}.`] : []), ...(b.flaws.length ? [`Flaws: ${b.flaws.join("; ")}.`] : [])] : [];
   return [
     `${p.name}: ${p.concept.replace(/\.$/, "")}.`,
     ...(p.build ? [`In game terms: ${p.build}.`] : []),
@@ -403,7 +404,7 @@ function properNouns(text: string): string[] {
  * in someone else's hands), what they carry, and what they've found out.
  */
 function visibleText(scene: Scene, state: SessionState): string {
-  const p = state.player as PlayerCharacter & { backstory?: { text?: string } };
+  const p = state.player;
   const world = state.world;
   const shown = world ? Object.values(world.entities).filter(e => !e.player && !e.tags.includes("hidden") && !e.states.includes("hidden") && !e.states.includes("gone")
     && !(e.parent && ["person", "creature"].includes(world.entities[e.parent]?.kind ?? "") && !world.entities[e.parent]?.player)).map(e => e.name) : [];

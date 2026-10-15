@@ -25,6 +25,9 @@ A scene is GM prep for one place and one situation: a dramatic question, the peo
   - A success line holds **one piece**, not the whole secret, and there is one success line per holder. If the secret carries an essential, its load-bearing words go in that piece.
   - A failure costs or complicates and keeps the story going. It never takes back what's established.
 - **Essentials:** what the player must come across for the endings to be reachable. Say where each was placed, who carries it, and what it unlocks. **No structural truth lives in only one secret** or one companion's head; give it three ways in.
+- **Essentials the rest of the story needs** don't fall through the cracks between scenes. Mark one with `later` (what later needs it, in a line) and `things` (the world's things it's in), and if the player hasn't come across it when the scene ends, the boundary carries it into the next scene that holds, as one of that scene's essentials, until they do; its things stay where they are, with whoever has them ([src/runtime/owed.ts](../../src/runtime/owed.ts)). Prout's page is the model: missed at the granary, it's still sewn into the boot on Cob's feet in the Drowned Rat.
+  - A later scene can prep it for itself, for if the player missed it: an essential with `missed: "<scene>:<essential>"`, placed with that scene's people, and routes with `essential: <its id>` that are the scene's only while it's owed and go once it's found. Without that, the boundary places it from the scene's cast, or holds it for a scene that can bring it out.
+  - Give its ways in the same care as any secret's: what simply works (no dice: a route of its own, so the decider can see it), a roll where a try could go either way, with a cost on failure that keeps it reachable, and a route of its own for what never works (a bribe, where bought attention isn't trust), so the decider doesn't read it as a try.
 - **Limits:** tempting things that can't happen here, each with the in-fiction reason. Cite a world rule and its enforcer, so there's one source of truth, rather than restating it.
 - **Exits:** the obvious endings, each with an outcome, a closing (a feeling, not a list of events), a world script, and `next` when the story continues. The runtime adds "an ending of their own".
 - **`lore`:** the place doc, plus the town's current-state doc once there is one.
@@ -57,6 +60,8 @@ From [research/characters.md](../research/characters.md): characters are **wants
 Write the other side too, differently. Kell's and Cob's views of each other are the model.
 
 **Helpers and partners** (Kell): expertise is a method and an appetite, never the answer. There's an in-fiction reason they can't solve it, and they act on their own errands, not on the player's behalf.
+
+**Errands between scenes** go in `gm.md`'s "What they do next", by the hour: what they do, what they see, and their reasoning in a sentence they'd say. The boundary reads the section for each of the last scene's people who are in the scenes to come, and tells the player the way on from play and from those errands only. So when play may not have given the player a reason to go to the next scene, a companion's errand should: Kell sees the big man with the bandaged hand at a gentleman's elbow by the Purveyor's wagons, and follows him to the Rat.
 
 **Villains** (Sallow): give them the kit (goal, plan, resources, limits, one tell), what they do next if nobody stops them, and a shadow that reaches the player before they do.
 

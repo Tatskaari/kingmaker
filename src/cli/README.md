@@ -60,6 +60,8 @@ flowchart LR
 
 **A QA command** (qa.ts:62): load the game (with the zoo's explorer if `game.json` says `hub: "zoo"`), do one thing, let the core save, and print the observation: the mode, what the player sees, the hint and the actions with their ids. After `act` or `say` in a scene it doesn't print the scene again, only what can be done next. The scene's suggested lines come a moment after the reply, so `act` and `say` wait for them (`Game.suggested`) and list them as `say_1`…: `qa act --id say_2` says that line. `qa suggestions --session <id> [on|off]` is the game's setting, as the app's Esc menu and `/suggestions` have it.
 
+Beside them, `doc-anchors.ts` (`npm run docs:anchors`) keeps the docs' line links pointing at what they meant: a link named for a symbol goes to its definition, and any other follows its line from the commit that wrote it, through the diff. `--check` only lists what's moved, and fails if anything has. Run it after a merge.
+
 ## Where to look first
 
 - **A new command or flag:** the `USAGE` string and `main()` in each file. Both are flat `if` chains on the command name.
@@ -83,6 +85,8 @@ npm run qa -- observe --session z1
 npm run qa -- act --session z1 --id go_to_lead
 npm run qa -- map --session z1 --w 100 --h 30
 npm run qa -- new --session g1 --as "Tamsin Vell: a disgraced palace auditor"   # a story game (the model builds the character)
+npm run qa -- builds --session g2 --as "Brother Odo: a large, gentle hedge-priest"   # character creation's three builds, as cards
+npm run qa -- new --session g2 --as "Brother Odo: a large, gentle hedge-priest" --build 1 --backstory-file /abs/odo.md --accept-fixes   # one of them, with a backstory checked against the lore
 npm run qa -- end --session g1                                      # in a scene, lists its exits; --exit <id> takes one
 npm run qa -- suggestions --session g1 off                        # the suggested lines off (on asks for this moment's at once)
 npm run qa -- dump --session g1 --output /abs/path --description "what went wrong"
@@ -146,5 +150,5 @@ Before it's written, the key in use (and the dev key, if there is one on the mac
 - **The QA console always plays `v2`.** `Game.create` (src/game/play.ts) fixes the approach. The harness takes `--approach`.
 - **Background jobs race the next command.** The QA console doesn't wait for the last turn's jobs. The harness waits for the co-GM only if `KM_REPAIR_WAIT_MS` says so. Jobs write their own files, which the next turn picks up when it finds them.
 - **Hidden commands.** `remember`, `repair` (the background jobs) and `memories` aren't in the harness's usage text.
-- **Unused imports kept alive.** scene.ts ends with `.finally(() => { void sessionSpend; void readFileSync; void applyRepair; })` (scene.ts:267). Nothing else in the file uses `sessionSpend` or `applyRepair`.
+- **Unused imports kept alive.** scene.ts ends with `.finally(() => { void sessionSpend; void readFileSync; void applyRepair; })` (scene.ts:269). Nothing else in the file uses `sessionSpend` or `applyRepair`.
 - **No fights in the harness.** A combat exit is skipped as won. Fights are only in the playable game (the app, the QA console, the zoo's tour).

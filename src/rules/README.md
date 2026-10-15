@@ -10,15 +10,16 @@ The game's D&D 5.5e (SRD 5.2.1), through the vendored [dnd-srd-engine](../../ven
 
 | file | what's in it |
 |---|---|
-| [`dnd.ts`](dnd.ts) | Loading the engine ([`dnd`](dnd.ts#L23)). The character: [`createCharacter`](dnd.ts#L285) (a model call for the build from the concept, then the engine), [`levelUp`](dnd.ts#L1523). The sheet: [`sheetData`](dnd.ts#L544), `sheetText`, `statusLine`, and [`rulesNow`](dnd.ts#L50), a synchronous read for menus. Checks and saves: [`skillCheck`](dnd.ts#L725), [`rollFor`](dnd.ts#L746), [`hazard`](dnd.ts#L1430). Spells: [`castSpell`](dnd.ts#L1042), `castable`, `spellCard`, [`areaPlacement`](dnd.ts#L1160). Blows: [`attack`](dnd.ts#L1314), [`wrestle`](dnd.ts#L1362), [`attackOnPlayer`](dnd.ts#L1393). Class features ([`FEATURES`](dnd.ts#L1643), [`useFeature`](dnd.ts#L1675), `arcaneRecovery`), items (`useItem`, [`carryGear`](dnd.ts#L1276)), time ([`passTime`](dnd.ts#L1465), [`rest`](dnd.ts#L1482), [`comeTo`](dnd.ts#L1549)) and [`jump`](dnd.ts#L1595). |
+| [`dnd.ts`](dnd.ts) | Loading the engine ([`dnd`](dnd.ts#L23)). The character: [`createCharacter`](dnd.ts#L350) (the build chosen at character creation, or a model call for one from the concept; then the engine), `settleBuild` (any build made legal: ids the SRD's, a subclass from level 3, a Fighting Style that fits its weapons, `styleFor`), [`levelUp`](dnd.ts#L1630). The sheet: [`sheetData`](dnd.ts#L639), `sheetText`, `statusLine`, and [`rulesNow`](dnd.ts#L57), a synchronous read for menus. Checks and saves: [`skillCheck`](dnd.ts#L832), [`rollFor`](dnd.ts#L853), [`hazard`](dnd.ts#L1537). Spells: [`castSpell`](dnd.ts#L1149), `castable`, `spellCard`, [`areaPlacement`](dnd.ts#L1267). Blows: [`attack`](dnd.ts#L1421), [`wrestle`](dnd.ts#L1469), [`attackOnPlayer`](dnd.ts#L1500). Class features ([`FEATURES`](dnd.ts#L1750), [`useFeature`](dnd.ts#L1782), `arcaneRecovery`), items (`useItem`, [`carryGear`](dnd.ts#L1383)), time ([`passTime`](dnd.ts#L1572), [`rest`](dnd.ts#L1589), [`comeTo`](dnd.ts#L1656)) and [`jump`](dnd.ts#L1702). |
 | [`actions.ts`](actions.ts) | [`catalogue(state)`](actions.ts#L450): what the character can do out of a fight, by kind (cantrips, spells by level, class features, actions, what's to hand), each entry with its one line, its aim, what it does to whoever it's aimed at (harm, social, help), the core's action id, and why it can't be done now. The hand-written lines for 177 spells ([`SPELLS`](actions.ts#L111)); [`spellAim`](actions.ts#L334) and [`spellEffect`](actions.ts#L323). |
+| [`builds.ts`](builds.ts) | Character creation's builds: [`threeBuilds`](builds.ts#L270), three that fit a concept from one model call, each made legal and made by the engine as a card (`throughEngine`, `cardOf`), or offline the class defaults the concept's words suggest (`defaultBuilds`); [`ownBuild`](builds.ts#L344), one of the player's own from the SRD's lists (`srdLists`), refusing an id that isn't the SRD's; `cardText` for the QA console. |
 | [`spells.ts`](spells.ts) | [`spellDetails`](spells.ts#L145): a spell as the sheet shows it when it's picked (the card, the engine's mechanics at the caster's numbers, how it grows, where the SRD and the game differ, the SRD's text and its attribution). [`inFights`](spells.ts#L102): whether a fight on the map offers it. [`RAYS`](spells.ts#L139): spells that are an attack per ray or beam. |
 | [vendor/dnd-srd-engine](../../vendor/dnd-srd-engine/README.md) | The engine's bundled build, its pre-validated starter pack, our typings, and `patch.ts`. |
 | [vendor/srd-spells](../../vendor/srd-spells/README.md) | The SRD 5.2.1's words for every spell in the pack, by spell id. |
 
 ### State
 
-The session's `rules` ([`RulesState`, src/runtime/session.ts:20](../runtime/session.ts#L20)):
+The session's `rules` ([`RulesState`, src/runtime/session.ts:38](../runtime/session.ts#L38)):
 
 - **`campaign`:** the engine's serialised campaign, its event log and state. It's the truth about the player's hit points, slots, conditions, class resources and gear, and about every story character the rules have touched.
 - **Who's who:** `pc` (the player's engine id), `npcs` (cast id to engine id and weapon), `aliases` (what the player calls people whose names they haven't heard: the dice lines use it).
@@ -30,30 +31,30 @@ It also writes `state.player.modifiers` and `state.player.build`, bumps `state.r
 
 | caller | what it uses |
 |---|---|
-| [src/runtime/engine.ts](../runtime/engine.ts#L347) | a turn's mechanic (`castSpell`, `attack`, `wrestle`, `useFeature`, `rest`, `jump`); a threat or a danger before the player acts (`attackOnPlayer`, `hazard`); `passTime`; `comeTo` and `levelUp` between scenes; `carryGear`; `createCharacter` |
+| [src/runtime/engine.ts](../runtime/engine.ts#L356) | a turn's mechanic (`castSpell`, `attack`, `wrestle`, `useFeature`, `rest`, `jump`); a threat or a danger before the player acts (`attackOnPlayer`, `hazard`); `passTime`; `comeTo` and `levelUp` between scenes; `carryGear`; `createCharacter` |
 | src/runtime/director.ts | `rollFor` for a route's check; `HAZARD_KINDS` |
 | [src/game/menu.ts](../game/menu.ts) | the action menu: `catalogue`, `rulesNow`, and the same calls a scene makes, on the town's world |
 | src/game/play.ts | `comeTo` after a fight |
 | [src/game/combat](../game/combat/README.md) | `dnd()` for the engine, `damageLine`, `inFights` and `RAYS` |
-| src/app | `sheetData` and `spellInfo` for the sheet |
-| src/cli/qa.ts, src/cli/scene.ts | `sheetText` |
-| src/game/zoo | the Rules Room, the wardrobe's builds, exhibits that cast through the rules |
+| src/app | `sheetData` and `spellInfo` for the sheet; character creation's `threeBuilds`, `srdLists`, `ownBuild` and `picksOf` |
+| src/cli/qa.ts, src/cli/scene.ts | `sheetText`; `qa builds` and `qa new --build` (`threeBuilds`, `ownBuild`, `throughEngine`, `cardText`) |
+| src/game/zoo | the Rules Room, the wardrobe's builds, the tailor's three cuts (`threeBuilds`), exhibits that cast through the rules |
 
 How a turn comes to pick a mechanic is the runtime's ([src/runtime/README.md](../runtime/README.md#one-player-turn)).
 
-It calls the vendored engine (its planners as `engine.plan.*`, `commit`, `buildCharacterSheet`, `buildEffectStack`), [src/world](../world/README.md) for things and surfaces (`caughtIn`, `damageThing`, `elemental`, `spill`, `bleed`), src/llm for the one model call (the build), and src/runtime/dice.ts (`rng`, `describeRoll`).
+It calls the vendored engine (its planners as `engine.plan.*`, `commit`, `buildCharacterSheet`, `buildEffectStack`), [src/world](../world/README.md) for things and surfaces (`caughtIn`, `damageThing`, `elemental`, `spill`, `bleed`), src/llm for its model calls (one build, or character creation's three), and src/runtime/dice.ts (`rng`, `describeRoll`).
 
 ## How it works
 
 ### Every call that changes something
 
-1. [`open(state)`](dnd.ts#L65) loads the campaign into a fresh engine seeded with `state.seed + 7919 × ++state.rollCount`, so a session's dice replay from its seed.
-2. A planner (`engine.plan.castSpell`, `.attack`, `.save`, `.longRest`...) decides the events; what the engine gets wrong is fixed on the way in ([`wellFormed`](dnd.ts#L81), [`missesMiss`](dnd.ts#L96)); they're committed.
-3. [`describe`](dnd.ts#L831) turns the events into dice lines ("Fire Bolt: your attack on the talking Crake: 14 +5 = 19 vs AC 12: hit") and a plain account.
+1. [`open(state)`](dnd.ts#L72) loads the campaign into a fresh engine seeded with `state.seed + 7919 × ++state.rollCount`, so a session's dice replay from its seed.
+2. A planner (`engine.plan.castSpell`, `.attack`, `.save`, `.longRest`...) decides the events; what the engine gets wrong is fixed on the way in ([`wellFormed`](dnd.ts#L88), [`missesMiss`](dnd.ts#L103)); they're committed.
+3. [`describe`](dnd.ts#L938) turns the events into dice lines ("Fire Bolt: your attack on the talking Crake: 14 +5 = 19 vs AC 12: hit") and a plain account.
 4. `close` serialises the campaign and the status line back into the session.
 5. The call returns an `Outcome`: `lines` (the 🎲 lines), `directive` (for the GM: "Rules: the player cast ... Narrate exactly this"), and `status`.
 
-Reading calls (`sheetData`, `castable`, `weapons`, `statusLine`) open a throwaway engine. [`rulesNow`](dnd.ts#L50) keeps one engine and one reading in memory until the campaign string changes, so a menu can ask between keystrokes; it needs `dnd()` to have loaded first.
+Reading calls (`sheetData`, `castable`, `weapons`, `statusLine`) open a throwaway engine. [`rulesNow`](dnd.ts#L57) keeps one engine and one reading in memory until the campaign string changes, so a menu can ask between keystrokes; it needs `dnd()` to have loaded first.
 
 ### A spell
 
@@ -71,7 +72,7 @@ flowchart TD
   sync --> out
 ```
 
-A blow ([`attack`](dnd.ts#L1314)) goes the same way: the engine's attack at a person (with the weapon in hand, another they carry, or an improvised one), and our own d20 against AC and hit points at a thing. For how a spell gets here from a typed line, a menu or a fight, and what's drawn after, see [src/game/README.md](../game/README.md#a-spell-or-a-blow-end-to-end).
+A blow ([`attack`](dnd.ts#L1421)) goes the same way: the engine's attack at a person (with the weapon in hand, another they carry, or an improvised one), and our own d20 against AC and hit points at a thing. For how a spell gets here from a typed line, a menu or a fight, and what's drawn after, see [src/game/README.md](../game/README.md#a-spell-or-a-blow-end-to-end).
 
 ### The catalogue
 
@@ -104,11 +105,13 @@ The tests build characters from ready-made builds (`pregenSession` in src/game/c
 
 ## Known gaps and sharp edges
 
-- **Two sets of dice for one blow.** Damage to people is the engine's. Damage to things is ours: [`objectDamage`](dnd.ts#L1203) and `attack` roll their own d20 and dice against the thing's AC and hit points, then the world's `damageThing`. Fights have a third model for props. See [the table in src/game/README.md](../game/README.md#the-same-rule-coded-more-than-once).
+- **Two sets of dice for one blow.** Damage to people is the engine's. Damage to things is ours: [`objectDamage`](dnd.ts#L1310) and `attack` roll their own d20 and dice against the thing's AC and hit points, then the world's `damageThing`. Fights have a third model for props. See [the table in src/game/README.md](../game/README.md#the-same-rule-coded-more-than-once).
 - **Workarounds kept in more than one place.** The placeholder for a spell attack's `weaponInstanceId` (the engine can't reload its own campaign without it) is in `wellFormed` here, in src/game/combat/rules.ts and in src/app/rules-repair.ts. Dropping a missed spell attack's half damage (`missesMiss`) is here and in combat/rules.ts, keyed differently. The statblock weapon table, the hurt words (`hurt` here, `health` in the fights), the status line and `rangeFeet` (actions.ts) each have a twin in src/game/combat.
 - **Loading at import.** actions.ts (like src/game/menu.ts and src/game/combat/fights.ts) awaits `dnd()` at the top of the module so `rulesNow` can answer synchronously: importing it loads the engine, about 70 ms, and makes the import asynchronous.
-- **The player doesn't die out of a fight.** Dropped to 0 by a blow, a danger or a fall, they're stabilised and knocked out ([`knockedDown`](dnd.ts#L1412)), and come to with 1 HP at the next scene or after a fight ([`comeTo`](dnd.ts#L1549)). Their own spell doesn't go through `knockedDown`. The engine lets hit points go below zero; the code reads them as 0.
-- **The model in character creation.** `createCharacter` asks the model for a build from the concept. Offline, or if the call fails, the class defaults stand in (a human rogue with the criminal background). A ready-made build skips the call.
+- **The player doesn't die out of a fight.** Dropped to 0 by a blow, a danger or a fall, they're stabilised and knocked out ([`knockedDown`](dnd.ts#L1519)), and come to with 1 HP at the next scene or after a fight ([`comeTo`](dnd.ts#L1656)). Their own spell doesn't go through `knockedDown`. The engine lets hit points go below zero; the code reads them as 0.
+- **The model in character creation.** The game offers three builds from one model call (`threeBuilds`); offline, or if the call fails, the class defaults that best match the concept's words stand in, and the cards say so. `createCharacter` without a build (the QA console's `qa new` with no `--build`, the evals) still asks the model for one, and falls back on the class defaults (a human rogue with the criminal background).
+- **Weapons aren't matched to proficiency.** A model can give a bard a rapier, which the 2024 bard isn't proficient with; the card shows the lower bonus honestly.
+- **A dwarf starts 3 HP below their maximum.** The engine's healing and rests cap current HP at the base maximum, so Dwarven Toughness shows only in `effectiveHpMax`. It needs a fix in the engine or its patch.
 - **What the map can't play yet.** A reaction, a summons, and a spell cast one of several ways (Command's word, Hex's ability) are dimmed with a reason ([`spellWhy`](actions.ts#L377)); in a scene, the player's words choose.
-- **Aimed only at things,** a spell spends its slot by hand: the engine's planner wants a creature ([dnd.ts:1105](dnd.ts#L1105)).
+- **Aimed only at things,** a spell spends its slot by hand: the engine's planner wants a creature ([dnd.ts:1212](dnd.ts#L1212)).
 - **`dnd.ts` is 1,757 lines:** creation, the sheet, checks, spells, blows, features, rests and jumps in one module.

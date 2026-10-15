@@ -884,6 +884,424 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Making a character, at 80x24 and 130x42: three builds as cards, chosen by a click and by the keys;
+// one of their own, picked by a click and the keys; a backstory written in the box (lines, the box
+// scrolling, a click putting the cursor in the text), a draft and notes worked in (shown, never in
+// the box until taken), the lore check's fix accepted and another rewritten, and the GM's buttons
+// offline. The model is a stand-in (game.ask), and offline the builds are the class defaults.
+
+{
+  const { threeBuilds } = await import("../../rules/builds.ts");
+  const { BackstoryScreen, ChooseScreen, CreatedScreen, CustomScreen } = await import("../ui/create.tsx");
+  const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
+  const offer = await threeBuilds("Tamsin Vell", CONCEPT, 3);
+  const DRAFT = "I was born above a chandler's shop on Tallow Lane, where the candles were cheap and the arguments cheaper.\n\nI kept a factor's books for nine years, until the night I found an error that wasn't one.";
+  const WORKED = "I grew up in the Nine Furrows, where Mum drowned in the flood of '89. I still owe Fat Jory three crowns.";
+  const STORY = "I'm the King's nephew, though nobody at court will say so. I owe Fat Jory three crowns.";
+  /** A stand-in for the model: what each of character creation's calls answers, and what it was asked. */
+  const standIn = (asked: string[]): NonNullable<Game["ask"]> => (async <T,>(request: { operation: string; input: Array<{ content: unknown }> }) => {
+    asked.push(request.operation);
+    const input = request.input.map(m => String(m.content)).join("\n");
+    const answers: Record<string, unknown> = {
+      "backstory.draft": { story: DRAFT },
+      "backstory.work": { story: WORKED },
+      // The nephew, while the story has him (the fixed story, checked again, fits).
+      "backstory.check": { issues: input.includes("King's nephew") ? [{ quote: "I'm the King's nephew", problem: "King Aldren's family is known to all Caerwyn, and there's no nephew in it.", fix: "I'm a cousin of a minor courtier, twice removed" }] : [] },
+      "backstory.traits": { summary: "Tamsin Vell, a minor courtier's cousin who owes Fat Jory three crowns.", personality: ["Sharp-tongued"], ideals: ["The books should balance"], bonds: ["Fat Jory, owed three crowns"], flaws: ["Can't leave a sum alone"] },
+    };
+    if (!(request.operation in answers)) throw new Error(`no stand-in for ${request.operation}`);
+    return answers[request.operation] as T;
+  }) as NonNullable<Game["ask"]>;
+  const fresh = (screen: "choose" | "custom" | "backstory", story = ""): Game => {
+    const game = new Game();
+    game.screen = screen;
+    game.creation = { name: "Tamsin Vell", concept: CONCEPT, offer, index: 0, story, version: 0, issue: 0, chosen: offer.options[0]! };
+    return game;
+  };
+  const settle = async (setup: Awaited<ReturnType<typeof testRender>>, ms = 30) => { await act(async () => { await new Promise(r => setTimeout(r, ms)); }); await setup.renderOnce(); };
+  /** A click on a button by its words, as the screen has it now (false, and the screen said, when it isn't there). */
+  const press = async (setup: Awaited<ReturnType<typeof testRender>>, words: string): Promise<boolean> => {
+    await setup.renderOnce();
+    const frame = setup.captureCharFrame();
+    const p = at(frame, words);
+    if (!p) { console.log(`(no "${words}" to click on:)\n${frame}`); return false; }
+    await act(async () => { await setup.mockMouse.click(p.x, p.y); });
+    return true;
+  };
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    // Three cards: each whole, the pointer picks one out as it moves, a click chooses one.
+    {
+      const game = fresh("choose");
+      const setup = await testRender(<ChooseScreen game={game} />, { width: w, height: h });
+      await setup.renderOnce();
+      let frame = setup.captureCharFrame();
+      if (show) console.log(`choose ${w}x${h}\n${frame}`);
+      const titles = offer.options.map(o => `${o.card.species} ${o.card.className} 3`);
+      const missing = [...titles, ...offer.options.map(o => `HP ${o.card.hp}`), "Make my own", "Back"].filter(t => !frame.includes(t));
+      checks.push([`making a character ${w}x${h}: three cards, each whole (who, HP and AC), and Make my own and Back${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
+      const third = at(frame, titles[2]!)!;
+      await act(async () => { await setup.mockMouse.moveTo(third.x, third.y + 4); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: the pointer moving over the third card picks it out`, game.creation!.index === 2]);
+      const second = at(frame, titles[1]!)!;
+      await act(async () => { await setup.mockMouse.click(second.x, second.y + 3); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: a click on the second card chooses it, and on to the backstory`, game.creation!.chosen === offer.options[1] && game.screen === "backstory"]);
+      await setup.dispose();
+    }
+    // By the keys: → and Enter take the next; 1-3 take one; m makes their own; Esc goes back.
+    {
+      const game = fresh("choose");
+      const setup = await testRender(<ChooseScreen game={game} />, { width: w, height: h });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressArrow("right"); });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressArrow("right"); });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressEnter(); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: → → Enter takes the third card`, game.creation!.chosen === offer.options[2] && game.screen === "backstory"]);
+      game.screen = "choose";
+      act(() => { game.emit(); });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressKey("1"); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: 1 takes the first`, game.creation!.chosen === offer.options[0]]);
+      game.screen = "choose";
+      act(() => { game.emit(); });
+      await setup.renderOnce();
+      await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: Esc goes back to the name and concept`, (game.screen as string) === "create"]);
+      await setup.dispose();
+    }
+    // Their own: a click on a species picks it, the keys a class, and Take this one takes it.
+    {
+      const game = fresh("choose");
+      await game.makeOwn();
+      const setup = await testRender(<CustomScreen game={game} />, { width: w, height: h });
+      await settle(setup, 50);
+      let frame = setup.captureCharFrame();
+      if (show) console.log(`custom ${w}x${h}\n${frame}`);
+      const orc = at(frame, "Orc")!;
+      await act(async () => { await setup.mockMouse.click(orc.x, orc.y); });
+      await settle(setup, 300);
+      act(() => { setup.mockInput.pressArrow("right"); });
+      await setup.renderOnce();
+      const before = game.creation!.own!.picks.classId;
+      act(() => { setup.mockInput.pressArrow("down"); });
+      await settle(setup, 300);
+      frame = setup.captureCharFrame();
+      const own = game.creation!.own!;
+      checks.push([`making their own ${w}x${h}: a click picks a species, → the classes, ↓ the next class, and what it comes to is shown`, own.picks.speciesId === "orc" && own.picks.classId !== before && own.column === 1 && !!own.option && frame.includes(`Orc ${own.option.card.className} 3`)]);
+      const take = at(frame, "Take this one")!;
+      await act(async () => { await setup.mockMouse.click(take.x, take.y); });
+      await setup.renderOnce();
+      checks.push([`making their own ${w}x${h}: Take this one takes it, on to the backstory`, game.creation!.chosen?.from === "own" && game.creation!.chosen.build.speciesId === "orc" && game.screen === "backstory"]);
+      await setup.dispose();
+    }
+    // Writing it: typed into the box, a new paragraph, the box scrolling as it fills, a click that puts the cursor in the text.
+    {
+      const game = fresh("backstory");
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      await act(async () => { await setup.mockInput.typeText("I kept a grain factor's books for nine years."); setup.mockInput.pressEnter(); setup.mockInput.pressEnter(); await setup.mockInput.typeText("I owe Fat Jory three crowns."); });
+      await setup.renderOnce();
+      checks.push([`the backstory ${w}x${h}: what's typed is in the box, paragraphs and all`, game.creation!.story === "I kept a grain factor's books for nine years.\n\nI owe Fat Jory three crowns."]);
+      let frame = setup.captureCharFrame();
+      const kept = at(frame, "kept")!;
+      await act(async () => { await setup.mockMouse.click(kept.x - 2, kept.y); });
+      await act(async () => { await setup.mockInput.typeText("honestly "); });
+      await setup.renderOnce();
+      checks.push([`the backstory ${w}x${h}: a click puts the cursor in the text, and what's typed goes there`, game.creation!.story.startsWith("I honestly kept a grain factor's books")]);
+      // Filled past the box: it scrolls to keep the cursor in sight.
+      await act(async () => { for (let i = 0; i < h; i++) { setup.mockInput.pressKey("END"); setup.mockInput.pressEnter(); await setup.mockInput.typeText(`Line ${i}.`); } });
+      await setup.renderOnce();
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: filled past the box, it scrolls (the last line in view, the first gone)`, frame.includes(`Line ${h - 1}.`) && !frame.includes("I honestly kept")]);
+      await setup.dispose();
+    }
+    // Offline: the GM's buttons say so, and pressing one says the GM is.
+    {
+      const game = fresh("backstory");
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      const frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: offline, Draft one and Work it in say the GM is offline`, frame.includes("Draft one (GM offline)") && frame.includes("Work it in (GM offline)") && frame.includes("Skip") && frame.includes("Done")]);
+      const draft = at(frame, "Draft one (GM offline)")!;
+      await act(async () => { await setup.mockMouse.click(draft.x, draft.y); });
+      await setup.renderOnce();
+      checks.push([`the backstory ${w}x${h}: offline, Draft one says there's nobody to draft one`, /offline/.test(game.creation!.note ?? "") && !game.creation!.proposal && setup.captureCharFrame().includes("The GM is offline")]);
+      await setup.dispose();
+    }
+    // Draft one: shown, not in the box, until it's taken; Keep mine leaves the box as it was.
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", "My own first line.");
+      game.ask = standIn(asked);
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      let frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: with the GM about, its buttons are plain`, frame.includes("Draft one") && !frame.includes("GM offline")]);
+      await press(setup, "Draft one");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Draft one shows the draft first, and the box still has their own`, asked.includes("backstory.draft") && frame.includes("A draft: not in your box until you take it") && frame.includes("chandler's shop") && game.creation!.story === "My own first line."]);
+      await press(setup, "Keep mine");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Keep mine leaves the box as it was`, game.creation!.story === "My own first line." && frame.includes("My own first line.") && !frame.includes("chandler's shop")]);
+      await press(setup, "Draft one");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      await press(setup, "Use this");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Use this puts the draft in the box`, game.creation!.story === DRAFT && frame.includes("chandler's shop") && frame.includes("Your backstory")]);
+      // Work it in: their notes, worked in, shown first too.
+      await press(setup, "Work it in");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Work it in shows their notes worked in, before they're anyone's`, asked.includes("backstory.work") && frame.includes("Your notes, worked in") && frame.includes("Fat Jory") && game.creation!.story === DRAFT]);
+      await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+      await settle(setup);
+      checks.push([`the backstory ${w}x${h}: Esc keeps theirs`, game.creation!.story === DRAFT && !game.creation!.proposal]);
+      await setup.dispose();
+    }
+    // The lore check: what doesn't fit, with a fix that keeps its spirit, to rewrite (back to the box) or accept (into the game).
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", STORY);
+      game.ask = standIn(asked);
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      let frame = setup.captureCharFrame();
+      await press(setup, "Done");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      if (show) console.log(`lore ${w}x${h}\n${frame}`);
+      checks.push([`the lore check ${w}x${h}: what doesn't fit, what the world says, and a fix that keeps its spirit`, asked.includes("backstory.check") && frame.includes("The lore check: 1 of 1") && flat(frame).includes("Your story says: \"I'm the King's nephew\"") && flat(frame).includes("A fix that keeps its spirit") && game.creation!.story === STORY]);
+      await press(setup, "Rewrite it myself");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the lore check ${w}x${h}: Rewrite it myself is back in the box, the problem over it, nothing changed`, frame.includes("Rewrite this so it fits") && game.creation!.story === STORY && !game.creation!.issues]);
+      await press(setup, "Done");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      await press(setup, "Accept the fix");
+      for (let i = 0; i < 100 && game.screen !== "created"; i++) await settle(setup, 50);
+      checks.push([`the lore check ${w}x${h}: Accept the fix changes just those words, checks it once more, and it's into the game with the backstory on the sheet`, game.creation!.story === "I'm a cousin of a minor courtier, twice removed, though nobody at court will say so. I owe Fat Jory three crowns."
+        && asked.filter(a => a === "backstory.check").length === 3
+        && game.screen === "created" && game.sheet?.story?.backstory === game.creation!.story && game.session?.player.backstory?.summary === "Tamsin Vell, a minor courtier's cousin who owes Fat Jory three crowns."]);
+      await setup.dispose();
+    }
+    // A fix that misses: the second look finds what it kept, says it's the second look, and its fix taken goes in (no third).
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", STORY);
+      const kin = { issues: [{ quote: "a cousin of a minor courtier", problem: "Still kin to the court, by another road.", fix: "a clerk's errand-boy at court" }] };
+      const first = standIn(asked);
+      game.ask = (async <T,>(request: Parameters<typeof first>[0]) => {
+        const input = request.input.map(m => String(m.content)).join("\n");
+        if (request.operation === "backstory.check" && input.includes("cousin of a minor courtier")) { asked.push(request.operation); return kin as T; }
+        return first<T>(request);
+      }) as NonNullable<Game["ask"]>;
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      await press(setup, "Done");
+      await settle(setup);
+      await press(setup, "Accept the fix");
+      await settle(setup);
+      for (let i = 0; i < 40 && (game.creation!.busy || !game.creation!.again); i++) await settle(setup, 25);
+      const frame = setup.captureCharFrame();
+      if (show) console.log(`lore again ${w}x${h}\n${frame}`);
+      checks.push([`the lore check ${w}x${h}: a fix that misses is caught by the second look, and says so`, frame.includes("The lore check, again, with the fixes in: 1 of 1") && flat(frame).includes("Your story says: \"a cousin of a minor courtier\"")]);
+      await press(setup, "Accept the fix");
+      for (let i = 0; i < 100 && game.screen !== "created"; i++) await settle(setup, 50);
+      checks.push([`the lore check ${w}x${h}: the second look's fix taken goes in, with no third look`, game.screen === "created" && asked.filter(a => a === "backstory.check").length === 2
+        && game.session?.player.backstory?.text === "I'm a clerk's errand-boy at court, twice removed, though nobody at court will say so. I owe Fat Jory three crowns."]);
+      await setup.dispose();
+    }
+  }
+
+  // What the review of character creation found, on the screens. A lore issue as a live check
+  // returned one (two sentences each): at 80x24 and 100x30 its fix is on screen whole before Accept
+  // takes it; a fix longer than the screen can show leaves Accept waiting (Enter rewrites instead);
+  // and rewriting keeps what was said and suggested over the box.
+  const SALLOW = "I clerked for two years under Master Josiah Sallow at the Royal Purveyor's office. He's a fussy, honest man who never once fiddled a figure, and he'd vouch for me to anyone. I left when my mother fell ill in Darn Fell, and I owe her doctor six crowns.";
+  const SALLOW_ISSUE = {
+    quote: "I clerked for two years under Master Josiah Sallow at the Royal Purveyor's office. He's a fussy, honest man who never once fiddled a figure, and he'd vouch for me to anyone.",
+    problem: "Sallow is a named officer of the Royal Purveyor's office; a former clerk who worked under him for two years would be a recorded connection, and the story's named people do not know Tamsin yet. His willingness to vouch for her doesn't fit the premise either.",
+    fix: "I clerked for two years in the Royal Purveyor's office, where Master Sallow's fussy ways taught me to check every figure twice. I left before I could learn whether he'd vouch for anyone but himself.",
+  };
+  const unboxed = (frame: string) => flat(frame.replace(/[│╭╮╰╯─┃]/g, " "));
+  for (const [w, h] of [[80, 24], [100, 30]] as const) {
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", SALLOW);
+      game.ask = standIn(asked);
+      game.creation!.issues = [SALLOW_ISSUE];
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      const frame = setup.captureCharFrame();
+      checks.push([`the lore check ${w}x${h}: a long issue's fix is on screen whole, with what the world says and the story's words`, unboxed(frame).includes(flat(`A fix that keeps its spirit: "${SALLOW_ISSUE.fix}"`)) && frame.includes("The world says:") && frame.includes("Your story says:")]);
+      await press(setup, "Accept the fix");
+      for (let i = 0; i < 100 && game.screen !== "created"; i++) await settle(setup, 50);
+      checks.push([`the lore check ${w}x${h}: the fix seen whole is the fix taken`, (game.creation!.story.startsWith(SALLOW_ISSUE.fix) || game.creation!.story.includes("whether he'd vouch for anyone but himself")) && game.screen === "created"]);
+      await setup.dispose();
+    }
+    {
+      const game = fresh("backstory", SALLOW);
+      const huge = { ...SALLOW_ISSUE, fix: "I clerked for two years in the Royal Purveyor's office, where I learned to check every figure twice. ".repeat(14).trim() };
+      game.creation!.issues = [huge];
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      let frame = setup.captureCharFrame();
+      await press(setup, "Accept the fix");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the lore check ${w}x${h}: a fix longer than the screen can show isn't taken, and the screen says why`, game.creation!.story === SALLOW && !!game.creation!.issues && frame.includes("The fix is longer than this window can show")]);
+      act(() => { setup.mockInput.pressEnter(); });
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the lore check ${w}x${h}: Enter rewrites it instead, with what was said and suggested over the box`, game.creation!.rewriting === huge && game.creation!.story === SALLOW && frame.includes("Rewrite this so it fits") && frame.includes("It suggested:")]);
+      await setup.dispose();
+    }
+    {
+      const game = fresh("backstory", SALLOW);
+      game.creation!.issues = [SALLOW_ISSUE];
+      game.rewriteIssue();
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      const frame = setup.captureCharFrame();
+      checks.push([`rewriting ${w}x${h}: what the world says and the fix it suggested stay over the box, whole`, frame.includes("Rewrite this so it fits") && frame.includes("The world says:") && unboxed(frame).includes(flat(`It suggested: "${SALLOW_ISSUE.fix}"`)) && frame.includes("Your backstory")]);
+      await setup.dispose();
+    }
+  }
+
+  // Not checked: offline, the sheet says the backstory went in without the lore check; with the GM
+  // out of reach, it says so; and when the second look couldn't be had, that the fixes weren't
+  // looked at again.
+  for (const [label, ask, says] of [
+    ["offline", undefined, /went in as you wrote it, without the lore check: the GM is offline/],
+    ["out of reach", (async () => { throw new Error("OpenRouter backstory.check HTTP 401: no auth"); }) as unknown as NonNullable<Game["ask"]>, /without the lore check: the GM couldn't be reached \(OpenRouter backstory\.check HTTP 401/],
+  ] as const) {
+    const game = fresh("backstory", "I mend nets on the wharves.");
+    if (ask) game.ask = ask;
+    await game.finishStory("I mend nets on the wharves.\nI owe Fat Jory three crowns.");
+    for (let i = 0; i < 100 && game.screen !== "created"; i++) await new Promise(r => setTimeout(r, 50));
+    const setup = await testRender(<CreatedScreen game={game} />, { width: 80, height: 24 });
+    await settle(setup);
+    const frame = setup.captureCharFrame();
+    checks.push([`the backstory ${label}: into the game unchecked, and the sheet says so over it at 80x24`, game.screen === "created" && says.test(flat(frame)) && frame.includes("Character sheet") && game.session?.player.backstory?.text.includes("Fat Jory") === true]);
+    await setup.dispose();
+  }
+  {
+    const asked: string[] = [];
+    const game = fresh("backstory", STORY);
+    const first = standIn(asked);
+    let looks = 0;
+    game.ask = (async <T,>(request: Parameters<typeof first>[0]) => {
+      if (request.operation === "backstory.check" && ++looks === 2) throw new Error("HTTP 503: the river is up");
+      return first<T>(request);
+    }) as NonNullable<Game["ask"]>;
+    await game.finishStory(STORY);
+    await game.acceptFix();
+    for (let i = 0; i < 100 && game.screen !== "created"; i++) await new Promise(r => setTimeout(r, 50));
+    checks.push([`the lore check: when the second look can't be had, the sheet says the fixes weren't checked again`, game.screen === "created" && /went in with the fixes you took, but nobody checked them again: the GM couldn't be reached \(HTTP 503/.test(game.creation!.unchecked ?? "")]);
+  }
+
+  // Choose again, from the sheet: the game made from the one turned down goes to runs/deleted, and the title doesn't offer it.
+  {
+    const { resumable } = await import("../save.ts");
+    const { runsDir, sessionDir } = await import("../../runtime/session.ts");
+    const { existsSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const game = fresh("backstory", "");
+    await game.skipStory();
+    for (let i = 0; i < 100 && game.screen !== "created"; i++) await new Promise(r => setTimeout(r, 50));
+    const made = game.core!.state.id;
+    const offered = resumable(50).some(r => r.id === made);
+    game.chooseAgain();
+    checks.push([`choosing again from the sheet: the game turned down goes to runs/deleted, and the title no longer offers it`, offered && game.screen === "choose" && !existsSync(sessionDir(made)) && existsSync(join(runsDir(), "deleted", made)) && !resumable(50).some(r => r.id === made) && !game.core]);
+    game.chooseBuild(1);
+    await game.skipStory();
+    for (let i = 0; i < 100 && game.screen !== "created"; i++) await new Promise(r => setTimeout(r, 50));
+    const again = game.core?.state.id;
+    game.begin();
+    checks.push([`choosing again: the one chosen next is made, and set off, it's the game to carry on`, game.screen === "explore" && !!again && again !== made && resumable(50).some(r => r.id === again) && !game.creation!.made]);
+  }
+
+  // The box at 80x24: the wheel scrolls wrapped prose three rows a notch (and back), the bar beside
+  // it shows where, the title counts the words, a backstory too long for the GM stays in the box with
+  // a word to say so, and when making the game failed the box says why.
+  {
+    const prose = Array.from({ length: 14 }, (_, i) => `Long line ${i}: the Purveyor's office kept two sets of books and I only ever saw one of them.`).join("\n");
+    const game = fresh("backstory", prose);
+    const setup = await testRender(<BackstoryScreen game={game} />, { width: 80, height: 24 });
+    await settle(setup);
+    const seen = (f: string) => [...f.matchAll(/Long line (\d+)/g)].map(m => Number(m[1]));
+    let frame = setup.captureCharFrame();
+    const before = Math.min(...seen(frame));
+    const y = frame.split("\n").findIndex(r => r.includes(`Long line ${before + 2}`));
+    for (let i = 0; i < 2; i++) { await act(async () => { await setup.mockMouse.scroll(20, y, "up"); }); await setup.renderOnce(); }
+    frame = setup.captureCharFrame();
+    const up = Math.min(...seen(frame));
+    checks.push([`the backstory 80x24: the wheel scrolls wrapped prose up, a few rows a notch (line ${before} to ${up})`, up <= before - 2 && frame.includes("┃")]);
+    await act(async () => { await setup.mockMouse.scroll(20, y, "down"); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`the backstory 80x24: and back down`, Math.min(...seen(frame)) > up]);
+    checks.push([`the backstory 80x24: the box's title counts the words`, frame.includes(`Your backstory · ${prose.split(/\s+/).length} words`)]);
+    await setup.dispose();
+  }
+  {
+    const long = "word ".repeat(2001).trim();
+    const game = fresh("backstory", long);
+    const setup = await testRender(<BackstoryScreen game={game} />, { width: 80, height: 24 });
+    await settle(setup);
+    await press(setup, "Done");
+    await settle(setup);
+    const frame = setup.captureCharFrame();
+    checks.push([`the backstory 80x24: longer than the GM can be given, Done keeps it in the box and says how long it is`, game.screen === "backstory" && frame.includes("It's 2,001 words") && frame.includes("(2,000 at most)")]);
+    await setup.dispose();
+  }
+  {
+    const game = fresh("backstory", "I mend nets.");
+    game.error = "Character creation failed: EACCES: permission denied, mkdir 'runs/sessions'";
+    const setup = await testRender(<BackstoryScreen game={game} />, { width: 80, height: 24 });
+    await settle(setup);
+    checks.push([`the backstory 80x24: when making the game failed, the box says why`, setup.captureCharFrame().includes("Character creation failed: EACCES")]);
+    await setup.dispose();
+  }
+
+  // The cards when the GM couldn't be reached: why, in two lines at 80 columns (what it means first).
+  {
+    const unreachable = (async () => { throw new Error("OpenRouter rules.builds HTTP 401: {\"error\":{\"message\":\"No auth credentials found\",\"code\":401}}"); }) as unknown as NonNullable<Game["ask"]>;
+    const failedOffer = await threeBuilds("Tamsin Vell", CONCEPT, 3, { ask: unreachable });
+    const game = fresh("choose");
+    game.creation!.offer = failedOffer;
+    const setup = await testRender(<ChooseScreen game={game} />, { width: 80, height: 24 });
+    await settle(setup);
+    const frame = setup.captureCharFrame();
+    checks.push([`the cards 80x24: the GM out of reach, and that these are the class defaults, in two lines`, /The GM couldn't be reached, so here are three from the class defaults that best match your words/.test(flat(frame)) && frame.includes("HTTP 401")]);
+    await setup.dispose();
+  }
+
+  // Their own, at 80x24: a caster's spell DC and spells are in what it comes to.
+  {
+    const game = fresh("choose");
+    await game.makeOwn();
+    await game.pickOwn({ speciesId: "dwarf", classId: "wizard", subclassId: "evoker", backgroundId: "acolyte" });
+    const setup = await testRender(<CustomScreen game={game} />, { width: 80, height: 24 });
+    await settle(setup, 50);
+    const frame = setup.captureCharFrame();
+    checks.push([`making their own 80x24: a caster's spell DC and spells are in what it comes to`, /Spells DC \d+ \+\d/.test(frame) && frame.includes("Fire Bolt")]);
+    await setup.dispose();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // The zoo: its map's side panel at 80x24 and up, a sign read in full (its card), the help scrolled
 // to its end at 80x24, and a long line in What happens kept by its start.
 

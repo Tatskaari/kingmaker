@@ -55,7 +55,7 @@ const choices: Action[] = [
 const ended: Line = { kind: "system", speaker: "system", text: "Scene ends: The case is made" };
 const talk = talkBetween({ id: "kell", name: "Sergeant Kell" }, {
   notebook: ["Wendell Prout didn't hang himself. The trail leads to Master Sallow of the Royal Purveyor's office."],
-  lead: "Kell stays beside you as the yard empties; by dusk the watch-house has a name for the big man with the bandaged hand, and a place: the Drowned Rat, halfway down the river stairs.",
+  lead: "At the noon break Kell saw a big dock-man nursing a bandaged hand at a gentleman's elbow by the Purveyor's wagons, and followed him down the river stairs to the Drowned Rat; at dusk you go down after him together.",
   next: { id: "drowned-rat", title: "The Drowned Rat" }, way: "the Drowned Rat ↓ 22 paces", time: "evening",
 });
 

@@ -1,10 +1,10 @@
 # Kingmaker V2: architecture
 
-The entry point for reviewing this repo. It says what the parts are, how they connect, where state lives and how to check a change, and it links to each part's own doc for the detail. It describes the code as it is (PR #650's head, f5c6549). Where it's going is in [docs/design/productionise.md](docs/design/productionise.md).
+The entry point for reviewing this repo. It says what the parts are, how they connect, where state lives and how to check a change, and it links to each part's own doc for the detail. It describes the code as it is (PR #650's head; written at f5c6549 and kept up since). Its links to lines move with the code: `npm run docs:anchors` after a merge (src/cli/doc-anchors.ts). Where it's going is in [docs/design/productionise.md](docs/design/productionise.md).
 
 ## What the game is
 
-Kingmaker V2 is a D&D game for one player, played in a terminal and run by an AI game master. You make a character from a sentence, then walk the town of Caerwyn on an isometric map drawn in characters. Walking into a place opens its scene: a clerk hanged behind the granary, a dockside dive, a warehouse on the wharves at night; then the King sends for you. In a scene you say and do anything in plain English. The GM improvises around prep written for that scene (who's there, what they want and hide, the beats, the only ways it can end), the D&D 5.5e rules settle anything that takes dice, and the scene's world, a record of the place, keeps track of who stands where and what's burning. A scene ends through one of its exits, the story moves on, and the people you meet again remember what you did. Fights are played out a turn at a time on the map. Every model call goes to OpenRouter: Luna voices the GM, and Luna's decision mode and Jev make the fast judgements. The same game plays in a browser, and a zoo lays every feature out on maps of its own.
+Kingmaker V2 is a D&D game for one player, played in a terminal and run by an AI game master. You make a character from a sentence (one of three builds that fit it, or your own, and a backstory of your own, checked against the world), then walk the town of Caerwyn on an isometric map drawn in characters. Walking into a place opens its scene: a clerk hanged behind the granary, a dockside dive, a warehouse on the wharves at night; then the King sends for you. In a scene you say and do anything in plain English. The GM improvises around prep written for that scene (who's there, what they want and hide, the beats, the only ways it can end), the D&D 5.5e rules settle anything that takes dice, and the scene's world, a record of the place, keeps track of who stands where and what's burning. A scene ends through one of its exits, the story moves on, and the people you meet again remember what you did. Fights are played out a turn at a time on the map. Every model call goes to OpenRouter: Luna voices the GM, and Luna's decision mode and Jev make the fast judgements. The same game plays in a browser, and a zoo lays every feature out on maps of its own.
 
 ## The overall diagram
 
@@ -49,6 +49,7 @@ flowchart TB
   evals --> runtime
   web -->|"jobs, in the worker"| runtime
   core -->|"the action menu"| rules
+  app -->|"a backstory's lore check"| lsvc
   combat -->|"the engine"| rules
   combat -->|"a typed line: the decider, the GM's line"| llm
   runtime <--> scenes
@@ -120,14 +121,14 @@ How to write scenes, why the runtime does what it does, and how to test it are i
 - **Some state is global, and set at import.** Importing the zoo installs its ten maps in the map module's tables, and the app and the QA console both import it. [src/rules/actions.ts](src/rules/actions.ts), [src/game/menu.ts](src/game/menu.ts), [src/game/combat/fights.ts](src/game/combat/fights.ts) and [src/game/zoo/fights.ts](src/game/zoo/fights.ts) load the rules engine at import (about 70 ms, once per process).
 
 <details>
-<summary>Every import between components, at f5c6549 (src/game/combat's since)</summary>
+<summary>Every import between components, at f5c6549 (src/game/combat's and character creation's since)</summary>
 
 | Component | Imports at run time | Types only | Only in tests and dev tools |
 |---|---|---|---|
 | src/web | src/app, src/game/look, src/runtime | | src/game, src/game/combat, src/game/zoo, scenes/, src/rules, src/world |
 | src/cli | src/game, src/game/zoo, src/runtime, scenes/, src/rules, src/world, src/lore, src/llm | | |
 | src/eval, evals/ | src/runtime, scenes/, src/world, src/lore, src/llm | | src/rules |
-| src/app | src/game, src/game/zoo, src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/llm | src/world | |
+| src/app | src/game, src/game/zoo, src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/lore, src/llm | src/world | |
 | src/game/zoo | src/game, src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/world, src/lore, src/llm | | src/app |
 | src/game | src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/world | | |
 | src/game/combat | src/game, src/runtime, scenes/, src/rules, src/world, src/llm | vendor/dnd-srd-engine | |
@@ -202,10 +203,10 @@ sequenceDiagram
 - **The rules go first** with what the last reply left hanging (a timed spell running out, fire spreading in the world, a blow or a danger that lands on the player), and the GM is told their outcome before anything else.
 - **One decider call before the reply** asks everything the turn needs: is the player attempting one of the scene's routes, something risky that no route covers, or something the rules resolve; should a pacing cue fire; is it off the graph. Disclosure and the quick co-GM run alongside it, and an off-graph turn waits for the co-GM until 3 s after it began. The rules then settle what's theirs, and each decision reaches the GM as a directive under "For this reply".
 - **The reply streams.** The runtime calls the app's `onText` hook with the text so far as it grows. In a real 13-turn game the GM's first words came a median 1.4 s after the player's line ([productionise.md](docs/design/productionise.md#prediction)).
-- **The turn saves once, at its end** ([src/runtime/engine.ts:623](src/runtime/engine.ts#L623)). A call that fails before then leaves the session changed in memory, so the app goes back to the last save ([src/app/game.ts:1002](src/app/game.ts#L1002)).
+- **The turn saves once, at its end** ([src/runtime/engine.ts:632](src/runtime/engine.ts#L632)). A call that fails before then leaves the session changed in memory, so the app goes back to the last save ([src/app/game.ts:1398](src/app/game.ts#L1398)).
 - **The suggested lines come when they're ready.** With the game's setting on, a small call after the reply proposes a few lines the player might say or do next, and the decider judges them against every fact; nothing waits for either. On live turns they came a median 2.8 s after the reply, usually before the stage manager had finished, at about $0.0009 a reply ([Suggested lines](src/runtime/README.md#suggested-lines)).
 - **Nothing waits for the background jobs.** The next turn merges the co-GM's notes if they've come and are for the same scene, and disclosure finds the new memories if the review has finished. In a terminal the jobs are separate processes that outlive the game.
-- **At a scene's end** the core sets out a fight, or the runtime crosses the boundary: the hand-off, a check of the coming scenes against what happened, the next opening rewritten, and the fronts moved on ([Scene boundaries](src/runtime/README.md#scene-boundaries)).
+- **At a scene's end** the core sets out a fight, or the runtime crosses the boundary: the hand-off, a check of the coming scenes against what happened, the next opening rewritten, what the player missed that the story needs carried into the next scene that can bring it out, and the fronts moved on ([Scene boundaries](src/runtime/README.md#scene-boundaries)).
 
 ## Where state lives
 
@@ -215,7 +216,7 @@ Each game is two mutable JSON documents, the session (`state.json`) and the game
 
 | File | What it is | Written by | Read by |
 |---|---|---|---|
-| `state.json` | The session, `SessionState` ([src/runtime/session.ts:125](src/runtime/session.ts#L125)) | `saveSession`, at the end of each turn (a temp file, then a rename), and again by `Game.save` | `loadSession`; the co-GM's job |
+| `state.json` | The session, `SessionState` ([src/runtime/session.ts:173](src/runtime/session.ts#L173)) | `saveSession`, at the end of each turn (a temp file, then a rename), and again by `Game.save` | `loadSession`; the co-GM's job |
 | `game.json` | The game, `GameState` ([src/game/play.ts:41](src/game/play.ts#L41)): the mode, the story (time of day, scenes played, the lead, flags), the map's `ExploreState`, and a fight in progress | `Game.save`, after every act and line | `Game.load` |
 | `app.json` | The notebook and the latest messages | [src/app/save.ts](src/app/save.ts) | the app |
 | `snapshots/<scene>-turn-NNN.json` | The session after each turn | `snapshotSession` | the memory job; eval fixtures (copied into `evals/fixtures/`); the world eval (the scenes that ended); the End's chapters |
@@ -231,8 +232,8 @@ Outside a game's folder: `runs/cost-ledger.jsonl` (a line for every call on the 
 
 `SessionState` is one object per game, in four parts ([src/runtime/README.md](src/runtime/README.md#what-it-owns)):
 
-- **the story,** kept across scenes: the player, the turn count, the dice's seed and count, the transcript, the rules engine's campaign, each finished scene's record, and the talks;
-- **the current scene's own:** the beat and the path to it, established facts, the co-GM's notes and patches, who's present, and the scene's `world`. `freshScene` ([src/runtime/engine.ts:709](src/runtime/engine.ts#L709)) resets them when the next scene starts;
+- **the story,** kept across scenes: the player, the turn count, the dice's seed and count, the transcript, the rules engine's campaign, each finished scene's record, the talks, and what the story still owes the player (a clue missed in its scene that a later one needs);
+- **the current scene's own:** the beat and the path to it, established facts, the co-GM's notes and patches, who's present, and the scene's `world`. `freshScene` ([src/runtime/engine.ts:722](src/runtime/engine.ts#L722)) resets them when the next scene starts;
 - **what's pending:** an ending held for the player's answer, a wind-down turn, a threat that lands next turn, a brawl, the ending itself;
 - **what the boundary handed on:** where the next scene's prep is out of date, its rewritten opening, the lead, and what the player carried out.
 
@@ -293,7 +294,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (346) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 13 s | yes |
+| The unit tests alone (392) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 13 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |
@@ -349,7 +350,7 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 | A rule: `src/rules`, combat's bridge to the engine, the engine itself | [src/rules/README.md](src/rules/README.md#where-to-look-first): the dice stream, dice lines that other code parses, and the twin of each workaround in `src/game/combat/rules.ts`; [the same rule coded more than once](src/game/README.md#the-same-rule-coded-more-than-once) | `node --no-warnings --test src/rules/*.test.ts src/game/combat/*.test.ts`; the zoo's Rules Room, Burning Gallery and Arena: `node --no-warnings src/game/zoo/tour.ts --only rules,fire,arena` |
 | The world: `src/world` | [src/world/README.md](src/world/README.md#where-to-look-first): a new operation touches `WorldOp`, `applyOps`, the stage manager's schema and its `WORLD_LANGUAGE`; a physics change comes with the words the models are given | `node --no-warnings --test src/world/*.test.ts`; `tour.ts --only works,fire`; the stage manager eval (live) |
 | How the GM plays: `prompts/`, the director's questions, the GM's brief | [prompts/README.md](prompts/README.md) and [src/runtime/README.md](src/runtime/README.md#where-to-look-first): the decider's wording and thresholds are logic, directives are matched by their opening words, and whatever goes in the brief goes to the GM every turn | The evals, live, before and after the change: `--suite decision` for the director, `--suite reply` and `--suite trajectory` for the GM, then `npm run compare`. `calls.jsonl` has each prompt as it was sent. |
-| A turn: `src/runtime` | `playerTurn` ([src/runtime/engine.ts:197](src/runtime/engine.ts#L197)) holds four reply strategies, so check which approach flags gate a change; a new session field goes in `STORY_WIDE` ([src/runtime/talk.ts:40](src/runtime/talk.ts#L40)) or is reset by `freshScene` | No unit test drives a turn. `node --no-warnings --test src/runtime/*.test.ts` covers the decision and talks offline; then play `v2` live (the scene harness, the QA console, `smoke.py --live`, `tour.ts --live`) and run the decision suite. |
+| A turn: `src/runtime` | `playerTurn` ([src/runtime/engine.ts:206](src/runtime/engine.ts#L206)) holds four reply strategies, so check which approach flags gate a change; a new session field goes in `STORY_WIDE` ([src/runtime/talk.ts:40](src/runtime/talk.ts#L40)) or is reset by `freshScene` | No unit test drives a turn. `node --no-warnings --test src/runtime/*.test.ts` covers the decision and talks offline; then play `v2` live (the scene harness, the QA console, `smoke.py --live`, `tour.ts --live`) and run the decision suite. |
 | The UI: `src/app`, the look, the map's renderer | [src/app/README.md](src/app/README.md#where-to-look-first): what each method sets and clears between screens, the ways on from a scene, streaming, the mouse's picks, the side panels at 80x24 | The screens check (CI); `python3 src/app/smoke/smoke.py`; `npm run web:tui-check` if it uses OpenTUI in a new way; the zoo's Hall of Looks for a look |
 | The web build: `src/web` | [src/web/README.md](src/web/README.md#where-to-look-first): the Node stand-ins, the content allowlist, the key's handling, and the page both builds share | `npm run build:web` (CI); `npm run web:static-check`, `npm run web:check` and `npm run web:tui-check`; then the PR's preview link |
 | Lore and memory: `lore/`, `src/lore` | [lore/README.md](lore/README.md#where-to-look-first): every doc's `visibility` and `readers`; summaries are what disclosure reads; the fronts doc's shape is parsed | `node --no-warnings --test src/lore/fronts.test.ts src/runtime/talk.test.ts`; the lore greps; the memory eval (live) |

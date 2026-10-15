@@ -5,7 +5,7 @@ import { C } from "./theme.ts";
 import { BetweenScreen } from "./ui/between.tsx";
 import { CombatScreen } from "./ui/combat.tsx";
 import { useGame } from "./ui/common.tsx";
-import { CreatedScreen, CreateScreen, CreatingScreen } from "./ui/create.tsx";
+import { BackstoryScreen, ChooseScreen, CreatedScreen, CreateScreen, CreatingScreen, CustomScreen } from "./ui/create.tsx";
 import { EndScreen } from "./ui/end.tsx";
 import { ExploreScreen } from "./ui/explore.tsx";
 import { Overlay } from "./ui/overlay.tsx";
@@ -25,6 +25,9 @@ export function App({ game, onQuit }: { game: Game; onQuit: () => void }) {
       case "title": return <TitleScreen game={game} />;
       case "create": return <CreateScreen game={game} />;
       case "creating": return <CreatingScreen game={game} />;
+      case "choose": return <ChooseScreen game={game} />;
+      case "custom": return <CustomScreen game={game} />;
+      case "backstory": return <BackstoryScreen game={game} />;
       case "created": return <CreatedScreen game={game} />;
       case "explore": return <ExploreScreen game={game} />;
       case "scene": return <SceneScreen game={game} />;
