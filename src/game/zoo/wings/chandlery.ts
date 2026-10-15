@@ -84,7 +84,10 @@ const exhibits: Exhibit[] = [
       { id: "read-plan", label: "Read the plan", at: planAt, station: { name: "the plan, pinned to a post", glyph: "▤", color: "#d8cfa8" },
         run: () => ({ text: `The plan: ${CHANDLERY_PLAN.name}, ${CHANDLERY_PLAN.width} by ${CHANDLERY_PLAN.depth} feet, ${CHANDLERY_PLAN.walls} walls; rooms ${CHANDLERY_PLAN.rooms.map(r => `${r.name} (${r.where})`).join(", ")}; doors ${CHANDLERY_PLAN.doors.map(d => `${d.name} (${d.from} to ${d.to}, ${d.states.join(" and ")})`).join(", ")}; ${CHANDLERY_PLAN.things.length} things placed by relation; ${CHANDLERY_PLAN.people.map(p => `${p.name} ${p.relation} the ${p.target}`).join(", ")}.` }) },
       { id: "read-sketch", label: "Read the compiler's sketch and notes", at: planAt,
-        run: () => ({ text: `The compiler's top-down sketch, and what it fixed by itself: ${CHANDLERY.notes.length ? CHANDLERY.notes.join("; ") : "nothing needed fixing"}. ${sketch(CHANDLERY).split("\n").length} rows, ${CHANDLERY.map.width} squares wide.` }) },
+        run: () => {
+          const notes = CHANDLERY.notes.map(n => `${n.charAt(0).toUpperCase()}${n.slice(1).replace(/\.$/, "")}.`).join(" ");
+          return { text: `The compiler's sketch, from above, a square to five feet (# wall, . under a roof, , outside, + door, o window, ^ something hung from the beams, a letter for each thing by its name, a capital for a person, @ where you come in):\n${sketch(CHANDLERY)}\nWhat it fixed by itself: ${notes || "nothing needed fixing."}` };
+        } },
     ],
   },
   {

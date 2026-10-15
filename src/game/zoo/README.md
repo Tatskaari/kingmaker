@@ -12,12 +12,14 @@ A visit is a game of its own (`game.hub = "zoo"`), kept apart from the story: it
 
 ## Getting about
 
-- **Signs.** Right-click one (or face it and press e) to read it. Reading a sign, or setting its exhibit off, marks the exhibit seen.
-- **The next exhibit.** g walks you to the next exhibit you haven't seen, through the hall's doors; the sidebar names it and the way, and a gold marker floats over it.
+- **Signs.** Right-click one (or face it and press e) to read it: in the app it opens in full, in a card of its own that scrolls, with what can be set off by it from where you stand (1-9, or a click). Reading a sign, or setting its exhibit off, marks the exhibit seen. r (or a click on "What happens") reads the last things said in full; a line too long for the box shows its start there.
+- **The next exhibit.** g walks you to the next exhibit you haven't seen, through the hall's doors; the sidebar names it and the way, and a gold marker floats over it. Nearby lists the signs about you as well as the people.
+- **The camera.** A wing's map is framed rather than followed: the whole of it when it fits, and never half a screen of nothing past its edge (you come in at a corner, and what's to see is the other way).
 - **Setting things off.** Every trigger is in its tile's right-click menu (and the QA console's `use_<id>`): it walks you over first. You stand on a chalk circle to cast from it; a plate goes off when you walk onto it.
 - **From above.** v shows the wing's world as a scene's stage draws its place: people mid-walk, fires, haze, weather, effects.
 - **What happens.** What a trigger did is played on the map as a scene's turn would be: its rules lines through the director (a Fireball from you to the scarecrow, damage numbers), what changed in the wing's world (fires catching, splashes, debris, puffs), and a few cues for effects nothing in the game sets off yet (a goose's "!", a thrown ball, embers).
-- **The wings' worlds are live on the map.** Each wing has a scene world lined up with its map, always about: its people stand in the way and can be looked at, its puddles and fires lie on its ground. Each wing's "put everything back" lever starts it again.
+- **The wings' worlds are live on the map.** Each wing has a scene world lined up with its map, always about: its people stand in the way and can be looked at, its puddles and fires lie on its ground. Each wing's "put everything back" lever starts it again, and sees to you (a night's rest: hit points and spell slots back).
+- **The clock and the glyphs are the zoo's.** A booth plays at its own hour and the zoo's clock comes back after it; leaving the zoo puts the glyph set back to KM_GLYPHS's. On the title, x on the zoo's line (twice) puts the visit away, and the next one starts afresh.
 
 ## The wings
 
@@ -25,7 +27,7 @@ The hall's doors, round the walls: A the Burning Gallery, B the Works, C the Hal
 
 ### The Front Hall (`zoo-hall`)
 
-The screens, explained, and the things outside the world: the welcome; the story's first morning; the title screen; the wardrobe (seven ready-made builds made by the rules engine, and the tailor, who makes you from a sentence with the model); the mirror (your sheet in short); the explore and scene screens; slash commands; a scene that's over and the way on; overlays; the notebook; the combat keys; The End; saving and resuming; the mouse; the browser; settings; the clock (the time of day, everywhere); the glyph lever (ascii, nerd, plain, kingmaker); and the workshop's tools (the look gallery, headless frames, the QA console, the scene harness, places from a description, smoke tests, evals, the unused stand-ins).
+The screens, explained, and the things outside the world: the welcome; the story's first morning (a window onto Caerwyn as a new game has it, its hook and its lead, to look at); the title screen; the wardrobe (seven ready-made builds made by the rules engine, and the tailor, who makes you from a sentence with the model); the mirror (your sheet in short); the explore and scene screens; slash commands; a scene that's over and the way on; overlays; the notebook; the combat keys; The End (a curtain cord: the End screen for the visit so far, the booths played as its chapters; Enter comes back); saving and resuming; the mouse; the browser; settings; the clock (the time of day, everywhere); the glyph lever (ascii, nerd, plain, kingmaker); and the workshop's tools (the look gallery, headless frames, the QA console, the scene harness, places from a description, smoke tests, evals, the unused stand-ins).
 
 ### The Burning Gallery (`zoo-fire`)
 
@@ -33,7 +35,7 @@ The look layer's effects, set off as the game sets them off, with your own spell
 
 ### The Works (`zoo-works`)
 
-The world's physics and bookkeeping on benches, through the stage manager's operations and the rules for things: catching fire by material (wood, an iron stove, a wet rug, an oiled pan) and a bucket over it; burning oil, and water on it; six jugs to pour (water, oil, gin, ale, blood, grease); containers breaking open (a water butt, an ale keg, the gin jar with the drowned rat in it, a crate of apples); cold (a puddle to ice, a bonfire out); blood (the butcher's boy); the chandelier brought down; the testing rig (one dose of fire, bludgeoning, poison or thunder to stone, iron, wood, water and a sack: immunities, damaged and destroyed); Burning Hands' cone and a patch of Grease; the pay desk (coin that splits and joins); the cloakroom (gear leaving and rejoining your sheet); the stage manager's desk (move, place behind, create, something invented, a refusal, remove); the GM's ledger; the delegates' bell (an entrance with a group); the sand-glass; and signs for afterwards, exit scripts and the dust in a scene.
+The world's physics and bookkeeping on benches, through the stage manager's operations and the rules for things: catching fire by material (wood, an iron stove, a wet rug, an oiled pan) and a bucket over it; burning oil, and water on it; six jugs to pour (water, oil, gin, ale, blood, grease); containers breaking open (a water butt, an ale keg, the gin jar with the drowned rat in it, a crate of apples); cold (a puddle to ice, a bonfire out); blood (the butcher's boy); the chandelier brought down; the testing rig (one dose of fire, bludgeoning, poison or thunder to stone, iron, wood, water and a sack: immunities, damaged and destroyed); Burning Hands' cone and a patch of Grease; the pay desk (coin that splits and joins); the cloakroom (gear leaving and rejoining your sheet); the stage manager's desk (move, place behind, create, something invented, a refusal, remove); the GM's ledger; the delegates' bell (an entrance with a group); the sand-glass (it says what the minute did: what smoulders, what goes out, where smoke rises); the hoist, where the Hanged Clerk's own afterwards takes a waxwork of Prout away; and signs for exit scripts and the dust in a scene.
 
 ### The Hall of Looks (`zoo-looks`)
 
@@ -55,10 +57,12 @@ Short scenes with the real GM, in booths round a courtyard: step through a booth
 - **The Noon Bell**: pacing cues and endings that close, escalate and give a last chance; a freeform risky roll and a threat left hanging; walking out; the drizzle.
 - **The Silver Dice**: a name held back, staged secrets, pressure rolls, bystanders reacting to violence.
 - **The Lost Ledger**: an essential that relocates, the co-GM, memory (Madam Crust remembers the pie stall), an entrance with a group.
-- **The Practice Yard**: the rules read from what you say: casting, a blow, grapple and shove, a jump, class features, a rest.
-- **The Cracked Tankard**: a brawl that ends in "Roll for initiative!", fought on the tavern's floor, then its aftermath.
+- **The Practice Yard**: the rules read from what you say: casting (Fireball at the haystack is what it's for), a blow, grapple and shove (Wim spars for real), a jump (the ditch's ten feet, wherever you start), class features, a rest. It goes on until you say you're done.
+- **The Cracked Tankard**: a brawl that ends in "Roll for initiative!", fought on the tavern's floor (Kell beside you, patched up, if she's walking with you), then its aftermath, which ends when it's swept up.
 - **The repertory board**: any scene of the story's or the scene harness's, rehearsed out of order on its own place (the arc's on the story's maps), and nothing reaching the story.
-- Signs for the GM's turn, the boundary and fronts, memory, the co-GM, approaches, and places as their scenes left them (with a lever to put the booths back).
+- **The boundary desk**: the last scene you played, handed across a scene boundary as the story hands one on (the hand-off, the next scene's prep checked against it and its opening rewritten, how you'd hear of it, and the fronts moved on), without going anywhere. A booth goes to the next booth, with the zoo's own fronts (Madam Crust's pies, the noon bell, the auditor's round: src/game/zoo/fronts.ts, in the visit's own copy of the docs, never the authored lore); a rehearsed scene of the story to its own next scene, with the story's fronts, in the visit's copy.
+- **The house-style lever**: the booths play another way for the visit: v2 (the game's own), v2 played straight, actors, v2 with pressure rolls.
+- Signs for the GM's turn, memory, the co-GM, and places as their scenes left them (with a lever to put the booths back). After a rehearsal, its card says what became of the place afterwards (Prout taken off the hoist).
 
 Offline the GM can't speak: each scene still opens on its place, and `/exits` then `/end <id>` takes any of its endings (its exit script writes the notebook).
 
@@ -68,7 +72,7 @@ D&D as the scenes use it, without the GM: skill checks; your own spells (and a f
 
 ### The Arena (`zoo-arena`)
 
-Fights on the map, started by a ring's bell, on the arena's own map with everyone where its world has them; each ring starts fresh every time (you too: the attendants patch you up) and stays as the fight left it:
+Fights on the map, started by a ring's bell, on the arena's own map with everyone where its world has them; each ring starts fresh every time (its people made afresh by the rules, Kell patched up, and you too: the attendants give you a night's rest) and stays as the fight left it. Its lines say where it is ("the Arena is on fire"), not the Heron:
 
 - **The grain floor**: the Heron's fight rehearsed (Sallow, the Crakes, the lantern-boy, Kell), with grain dust, lanterns, a brazier and sacks.
 - **The porters' floor**: Hep Grist's brawlers.
@@ -100,7 +104,8 @@ node --no-warnings src/game/zoo/tour.ts [--live] [--only fire,arena] [--no-png] 
 
 ## How it's built
 
-- **`model.ts`:** wings, exhibits and triggers, and what a trigger did (`Outcome`: words, rules lines, cues, a scene to open, a fight to start).
+- **`model.ts`:** wings, exhibits and triggers, and what a trigger did (`Outcome`: words, rules lines, cues, a scene to open, a fight to start, something for the screen to show: The End, the window). The zoo's state's `show` asks the app, once each, for a sign's card, The End or the window.
+- **`window.ts`, `fronts.ts`:** the story's first morning as a new game has it (to look at); the zoo's own fronts doc, written into a visit's docs the first time the boundary desk is used.
 - **`wings/*.ts`:** one file a wing. Each has:
   - a grid drawn by hand, with marker letters for spots that the code reads (`marks`), or a compiled place;
   - a world lined up with the map, 5 ft to a tile from (0, 0);
@@ -145,8 +150,8 @@ To add an exhibit, give it a marker in its wing's grid and a sign (what it is, h
 
 ## What's only a sign
 
-Every feature in the inventory has an exhibit. Some can't be shown in the zoo itself, so their exhibit is a sign that says what it is and where to see it:
+Every feature in the inventory has an exhibit, and the story's own have one too: a new game's start is the hall's window, The End its curtain cord, the scene boundary and fronts the Theatre's boundary desk, and approaches its house-style lever. What's left can't be shown inside the zoo, so its exhibit is a sign that says what it is and where to see it:
 
-- **The story's own.** A new game's start, The End, and the scene boundary and fronts (zoo scenes end on the map with nothing handed on). The town by the hour is shown in miniature in the annexe.
-- **Tools outside the game.** The look gallery, headless frames, the QA console, the scene harness, approaches, evals, smoke tests, the browser, settings, and the unused stand-ins. The tour and `qa new --zoo` are the zoo's own uses of two of them.
-- **The model.** Offline, the GM's own work shows only as the scene opening on its place and taking its endings by `/end`: the Theatre's booths, rehearsals, a word with Kell, Kell's desk, the tailor, and the inventor's bench's invented looks. `--live` plays them.
+- **Tools outside the game.** The look gallery, headless frames, the QA console, the scene harness, evals, smoke tests, the browser, settings, and the unused stand-ins: each runs outside the game (a command line, a browser), so the zoo can only say how. The tour and `qa new --zoo` are the zoo's own uses of two of them.
+- **The town by the hour** is Caerwyn's own people, who only walk the story's map; the annexe shows the same mechanism in miniature.
+- **The model.** Offline, the GM's own work shows only as the scene opening on its place and taking its endings by `/end`: the Theatre's booths, rehearsals, a word with Kell, Kell's desk, the tailor, the boundary desk (the plain hand-off), and the inventor's bench's invented looks. `--live` plays them.

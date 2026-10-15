@@ -7,7 +7,7 @@ import {
 import type { Action, Done, Explorer, GameState } from "../play.ts";
 import { actionsAt as townActionsAt, exploreState, interactLabel as townInteractLabel, targets, town, townOf, type LeadTarget, type TileActions } from "../town.ts";
 import type { CombatResult, MapActor, Tile2 } from "../types.ts";
-import { point, zooOf, type Cue, type Exhibit, type Outcome, type Trigger, type Wing } from "./model.ts";
+import { point, zooOf, type Cue, type Exhibit, type Outcome, type Show, type Trigger, type Wing } from "./model.ts";
 import { HALL, ROOMS, WINGS, wingOf, type Room } from "./wings/index.ts";
 import { freshWorld, inWing, outfit } from "./world.ts";
 
@@ -107,13 +107,16 @@ export function zooLead(game: GameState): LeadTarget | undefined {
   if (ex.scene) return undefined;
   const next = nextExhibit(game);
   if (!next) return undefined;
-  if (next.wing.id === ex.map) return { at: next.sign, label: `${next.title} (${next.wing.name})`, onto: false };
+  if (next.wing.id === ex.map) return { at: next.sign, label: next.title, onto: false };
   const map = getMap(ex.map);
   const nearest = (exits: typeof map.exits) => [...exits].sort((a, b) => steps(a.at, ex.at) - steps(b.at, ex.at))[0];
   // The door to its wing, or to the wing its door is in (the chandlery is through the annexe); anywhere else, the way back to the hall.
   const to = (id: string | undefined) => (id ? nearest(map.exits.filter(e => e.to.map === id)) : undefined);
   const way = to(next.wing.id) ?? to(next.wing.via) ?? to(HALL.id) ?? nearest(map.exits);
-  return way ? { at: way.at, label: `${next.title} (${next.wing.name})`, onto: true, via: way.label } : undefined;
+  // "The Arena", not "The Arena (the Arena)": a wing's own sign is called what the wing is.
+  const bare = (t: string) => t.toLowerCase().replace(/^the /, "");
+  const label = bare(next.title) === bare(next.wing.name) ? next.title : `${next.title} (${next.wing.name})`;
+  return way ? { at: way.at, label, onto: true, via: way.label } : undefined;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -130,6 +133,13 @@ function report(game: GameState, map: string, lines: string[], cues: Cue[]): voi
   const z = zooOf(game);
   z.seq++;
   z.news = { seq: z.seq, map, lines, cues };
+}
+
+/** Something for the screen to show once beyond the map (a sign in full, The End, the window). */
+function show(game: GameState, kind: Show["kind"], id?: string): void {
+  const z = zooOf(game);
+  z.seq++;
+  z.show = { seq: z.seq, kind, ...(id ? { id } : {}) };
 }
 
 /** One step: the map's move, then what it walked into (a scene's host), into (a scene's room) or onto (a plate). */
@@ -208,6 +218,7 @@ async function run(game: GameState, session: SessionState, wing: Wing, exhibit: 
   saw(game, exhibit.id);
   const outcome: Outcome = await inWing(game, session, ex, wing, z => trigger.run(z));
   report(game, wing.id, outcome.lines ?? [], outcome.cues ?? []);
+  if (outcome.show) show(game, outcome.show);
   if (outcome.fight) zooOf(game).fight = { arena: outcome.fight, from: { map: ex.map, at: { ...ex.at } } };
   const text = [...said, outcome.text].filter(Boolean).join(" ");
   return { text, ...(outcome.open ? { open: outcome.open } : {}), ...(outcome.fight ? { fight: true } : {}) };
@@ -307,7 +318,8 @@ async function act(game: GameState, session: SessionState, id: string): Promise<
   // The town's way of walking about: look, examine, talk, doors and ways out.
   const sign = signRead(game, session, id);
   const done = town.act(game, session, id);
-  if (sign) saw(game, sign);
+  // A sign read is shown in full (the app's card), as well as said.
+  if (sign) { saw(game, sign); show(game, "sign", sign); }
   return afterTown(game, session, done, before);
 }
 

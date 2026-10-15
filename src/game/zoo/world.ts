@@ -107,7 +107,7 @@ export async function syncGear(z: Ctx): Promise<string[]> {
   const out: string[] = [];
   for (const e of Object.values(z.world.entities).filter(x => x.gear)) {
     let holder = e.parent ? z.world.entities[e.parent] : undefined;
-    while (holder && holder.kind !== "person" && holder.kind !== "area" && holder.kind !== "place" && holder.parent) holder = z.world.entities[holder.parent];
+    for (let n = 0; n < 20 && holder && holder.kind !== "person" && holder.kind !== "area" && holder.kind !== "place" && holder.parent; n++) holder = z.world.entities[holder.parent];
     const carried = holder?.player === true && !e.states.includes("destroyed") && !e.states.includes("gone");
     const line = await carryGear(z.session, e.gear!, carried).catch(() => undefined);
     if (line) out.push(line);

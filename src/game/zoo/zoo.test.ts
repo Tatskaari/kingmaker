@@ -228,3 +228,107 @@ test("the story's places aren't the zoo's to register, and a hub's scene opens a
   closeHubScene(s);
   assert.equal(s.world, undefined);
 });
+
+test("each ring starts fresh: its people made afresh by the rules, and Kell too, whatever the last fight left of them", async () => {
+  const game = await newZoo({ seed: 19 });
+  const arena = ARENAS["heron"]!;
+  const units = () => {
+    const fight = game.currentFight as unknown as { controller: { state(): { units: Record<string, { id: string; engineId: string }> } } };
+    return Object.fromEntries(Object.values(fight.controller.state().units).map(u => [u.id, u.engineId]));
+  };
+  const rings: Array<Record<string, string>> = [];
+  for (let ring = 1; ring <= 2; ring++) {
+    placePlayer(game.state, arena.wing, arena.outside);
+    assert.match(await game.act("use_bell-heron"), /Roll for initiative/);
+    rings.push(units());
+    for (let i = 0; i < 150 && !game.currentFight?.result(); i++) await game.act("auto");
+    await game.act("continue");
+  }
+  // Not the same people, bruised, carried over from the last fight: each is new to the rules.
+  for (const id of ["sallow", "crake-1", "crake-2", "lantern-boy", "kell"]) assert.notEqual(rings[1]![id], rings[0]![id], `${id} is made afresh for the second ring`);
+  // And the fight's end says where it was, not the Heron.
+  const notebook = game.session.rules?.npcs ?? {};
+  assert.ok(notebook.sallow, "the rules know who Sallow was in the last ring");
+});
+
+test("a sign read asks the screen to show it in full, once", async () => {
+  const game = await newZoo({ seed: 20 });
+  const sign = EXHIBITS.find(e => e.id === "wardrobe")!;
+  await game.act(`look@${sign.sign.x},${sign.sign.y}`);
+  const shown = zooOf(game.state).show!;
+  assert.equal(shown.kind, "sign");
+  assert.equal(shown.id, "wardrobe");
+  await game.act(`look@${sign.sign.x},${sign.sign.y}`);
+  assert.ok(zooOf(game.state).show!.seq > shown.seq, "read again, shown again");
+});
+
+test("the hall's window, its curtain cord and the Theatre's house-style lever and boundary desk", async () => {
+  const { readDoc, seedDoc } = await import("../../lore/docs.ts");
+  const { ZOO_FRONTS } = await import("./fronts.ts");
+  const game = await newZoo({ seed: 21 });
+  placePlayer(game.state, "zoo-hall", WINGS[0]!.entry);
+  assert.match(await game.act("use_first-morning"), /granary gate.*The lead is/s);
+  assert.equal(zooOf(game.state).show?.kind, "window");
+  assert.match(await game.act("use_ring-down"), /THE END.*bar tab/s);
+  assert.equal(zooOf(game.state).show?.kind, "end");
+  assert.equal(game.state.mode, "explore", "the zoo's End is a look at one: the visit carries on");
+  // The lever goes round the approaches, and back to the game's own.
+  placePlayer(game.state, "zoo-theatre", WINGS.find(w => w.id === "zoo-theatre")!.entry);
+  const seen: string[] = [];
+  for (let i = 0; i < 4; i++) { await game.act("use_approach-lever"); seen.push(game.session.approach); }
+  assert.deepEqual(seen, ["v2-straight", "actors", "v2-pressure", "v2"]);
+  // Nothing played yet: nothing to hand on.
+  assert.match(await game.act("use_boundary-desk"), /Nothing to hand on/);
+  // A booth played, the desk hands it on (offline, the plain hand-off), with the zoo's fronts in the visit's own copy.
+  const room = ROOMS.find(r => r.sceneId === "zoo-pie-stall")!;
+  placePlayer(game.state, room.map, { x: room.door.x, y: room.door.y + 1 });
+  await game.act(`walk@${room.door.x},${room.door.y - 1}`).catch(() => "");
+  await game.endScene("bought");
+  const said = await game.act("use_boundary-desk");
+  assert.match(said, /The Last Pie \(Bought, fair and square\).*The hand-off: .*The next scene, The Noon Bell/s);
+  assert.ok(readDoc(game.session.id, ZOO_FRONTS), "the zoo's fronts are in the visit's docs");
+  assert.equal(seedDoc(ZOO_FRONTS), undefined, "and not in the authored lore");
+});
+
+test("a booth plays at its own hour and the zoo's clock comes back after; a lever puts you back too", async () => {
+  const game = await newZoo({ seed: 22 });
+  placePlayer(game.state, "zoo-hall", WINGS[0]!.entry);
+  for (let i = 0; i < 3; i++) await game.act("use_clock-on");
+  assert.equal(game.state.story.time, "night");
+  const room = ROOMS.find(r => r.sceneId === "zoo-pie-stall")!;
+  placePlayer(game.state, room.map, { x: room.door.x, y: room.door.y + 1 });
+  await game.act(`walk@${room.door.x},${room.door.y - 1}`).catch(() => "");
+  assert.equal(game.state.story.time, "afternoon", "the pie stall's own hour");
+  await game.endScene("bought");
+  assert.equal(game.state.story.time, "night", "the zoo's clock again");
+  // Two Fireballs, then the gallery's lever: slots back.
+  placePlayer(game.state, "zoo-fire", WINGS.find(w => w.id === "zoo-fire")!.entry);
+  await game.act("use_fireball-scarecrow");
+  await game.act("use_fire-reset");
+  assert.match(game.session.rules?.status ?? "", /3rd 2\/2/);
+});
+
+test("the Works' hoist: the Hanged Clerk's own afterwards takes Prout away; the cone catches three straw men; coins join the purse", async () => {
+  const game = await newZoo({ seed: 23 });
+  const works = WINGS.find(w => w.id === "zoo-works")!;
+  placePlayer(game.state, works.id, works.entry);
+  assert.match(await game.act("use_run-afterwards"), /taken away/);
+  assert.ok(wingWorld(game.state, works.id)!.entities.prout!.states.includes("gone"));
+  assert.match(await game.act("use_cone-burning-hands"), /catching a straw man, a second straw man, a third straw man/);
+  await game.act("use_take-shilling");
+  const coins = (game.session.carried ?? []).filter(e => e.name === "shillings");
+  assert.equal(coins.length, 1, "one stack of shillings");
+  assert.equal(coins[0]!.quantity, 7);
+});
+
+test("the bump alley: each kind of wall's own line first, and a fence, a hedge or a window is never called a wall", async () => {
+  const game = await newZoo({ seed: 24 });
+  const annexe = WINGS.find(w => w.id === "zoo-annexe")!;
+  placePlayer(game.state, annexe.id, annexe.entry);
+  const said: Record<string, string> = {};
+  for (const id of ["bump-palace", "bump-plaster", "bump-brick", "bump-timber", "bump-fence", "bump-hedge", "bump-window"]) said[id] = await game.act(`use_${id}`);
+  assert.match(said["bump-palace"]!, /[Pp]alace/);
+  assert.match(said["bump-plaster"]!, /plaster|front wall/i);
+  assert.match(said["bump-brick"]!, /brick/i);
+  for (const id of ["bump-fence", "bump-hedge", "bump-window"]) assert.doesNotMatch(said[id]!, /\bwall\b/i, `${id}: ${said[id]}`);
+});

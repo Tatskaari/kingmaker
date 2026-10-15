@@ -65,7 +65,7 @@ function Talk({ game, card, lines }: { game: Game; card: Card; lines: NonNullabl
       <text>
         <span fg={done ? C.lead : C.faint}>{"▶ "}</span>
         <span fg={done ? C.lead : C.dim} attributes={done ? BOLD : 0}>{done ? "Back to the map" : "…"}</span>
-        <span fg={C.faint}>{typed ? TYPED : done ? "   Enter, or click (on the map, g walks you to the lead)" : `   ${who} hasn't finished`}</span>
+        <span fg={C.faint}>{typed ? TYPED : done ? `   Enter, or click (on the map, g walks you to ${game.isZoo ? "the next exhibit" : "the lead"})` : `   ${who} hasn't finished`}</span>
       </text>
     </Clickable>
     <box height={1} marginTop={height > 30 ? 1 : 0} flexShrink={0}><Keys items={[["Enter", done ? "back to the map" : "hurry them along", go], ["Esc", "menu", () => { game.overlay = { kind: "menu", index: 0 }; game.emit(); }]]} /></box>

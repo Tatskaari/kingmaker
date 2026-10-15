@@ -144,11 +144,14 @@ const exhibits: Exhibit[] = [
     [
       { id: "trapdoor", label: "Step through the trapdoor (it's a long way down)", at: at["7"]!, station: station("a trapdoor marked DO NOT", "▫", "#8a6038"), expect: ["poof"],
         run: async z => {
-          const j = await jump(z.session, { feet: 99, drop: 200 });
+          // A fall, not a jump: the rules' own (1d6 a ten feet, at most 20d6, and prone), without the jump's line.
+          const j = await jump(z.session, { feet: Number.POSITIVE_INFINITY, drop: 200 });
+          const lines = j.lines.filter(l => !/^Jump:/.test(l));
           const me = z.thing("player");
-          const down = /senseless|0 hit points|HP 0\//.test(j.account + j.lines.join(" "));
+          const down = /senseless|0 hit points|HP 0\//.test(j.account + lines.join(" "));
           if (down && !me.states.includes("unconscious")) me.states.push("unconscious");
-          return { text: `You step through the trapdoor. ${j.lines.join(" · ")}. ${down ? "Then nothing, for a while." : "You land, somehow, on your feet."}`, lines: j.lines };
+          if (lines.some(l => /You are prone/.test(l)) && !me.states.includes("prone")) me.states.push("prone");
+          return { text: `You step through the trapdoor. ${lines.join(" · ")}. ${down ? "Then nothing, for a while." : "You land in a heap, somehow still awake."}`, lines };
         } },
       { id: "salts", label: "Wave the smelling salts (come to)", at: at["8"]!, station: station("smelling salts", "!", "#e8e4d8"),
         run: async z => {

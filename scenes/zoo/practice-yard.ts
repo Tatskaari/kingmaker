@@ -52,8 +52,11 @@ export const practiceYard: Scene = {
       look: "A small, square woman with a clipboard, a whistle and the calm of someone who has seen every kind of accident.",
       voice: "Brisk, unflappable, in lists: 'Haystack, fine. Dummy, fine. Wim, not on fire.'",
       wants: "Visitors to try things safely, and to write down what broke.",
-      knows: ["What's in the yard and what it's for.", "The ditch is ten feet across and eight deep: most people clear it with a run-up."],
-      attitude: "Encouraging and unshockable; she blows her whistle at anything aimed at a person who hasn't agreed to it, and has the visitor out of the yard by the ear for setting fire to Wim.",
+      knows: [
+        "What's in the yard and what it's for: the haystack and the scarecrow are there to be set on fire (Fireball very much included), the dummy to be hit, Wim to be grabbed and shoved, the ditch to be jumped, the bottles to be thrown.",
+        "The ditch is ten feet across and eight deep: most people clear it with a run-up.",
+      ],
+      attitude: "Encouraging and unshockable. Fire at the haystack or the scarecrow is what they're for: she cheers it from a safe distance and writes it down, however big the spell. She blows her whistle at anything aimed at a person who hasn't agreed to it, and lectures about it at length, but she never sends anyone out of the yard: practice is over when the visitor says it is.",
     },
     {
       id: "wim", name: "Big Wim", called: "the sparring partner", statblock: "tough", weapon: "club",
@@ -61,7 +64,7 @@ export const practiceYard: Scene = {
       voice: "Slow, friendly, and delighted by anything that hurts a bit.",
       wants: "A good honest shove, a grapple, a bout.",
       knows: ["How to fall over properly.", "That a fighter's second wind is worth more than a sandwich."],
-      attitude: "Game for anything that isn't a weapon; hits back, cheerfully, if hit; doesn't like spells, at all.",
+      attitude: "Game for anything that isn't a weapon, and spars for real: he resists every grab and shove with all he's got, which is the point of him; hits back, cheerfully, if hit; doesn't like spells, at all.",
     },
   ],
   start: "practice",
@@ -69,11 +72,11 @@ export const practiceYard: Scene = {
     {
       id: "practice",
       title: "Practice",
-      direction: "The player tries things. The rules decide each: a spell from their own slots (or nothing, if it isn't theirs), a blow at the dummy or at Wim, a grapple or a shove Wim saves against, a jump over the ditch (Strength against the gap), a class feature, a rest. Narrate exactly what the rules decided; let Mistress Hobble write it down, and Wim enjoy it.",
-      cast: { hobble: "Write it down. Blow the whistle at anything dangerous to anyone who didn't agree to it.", wim: "Offer to be thrown about. Hit back if hit." },
-      pressure: "Mistress Hobble blows her whistle: the yard closes soon, and she'd like everything broken by then.",
+      direction: "The player tries things, one after another, and the yard is there for all of them. The rules decide each: a spell from their own slots (or nothing, if it isn't theirs), a blow at the dummy or at Wim, a grapple or a shove Wim saves against, a jump over the ditch (Strength against the gap), a class feature, a rest. Narrate exactly what the rules decided; let Mistress Hobble write it down, and Wim enjoy it, then let the player try the next thing. Setting the haystack or the scarecrow alight is the point of them. Nothing ends the practice but the player saying they're done.",
+      cast: { hobble: "Write it down. Cheer fire at the haystack. Blow the whistle at anything dangerous to anyone who didn't agree to it, and lecture, but never send the visitor away.", wim: "Offer to be thrown about. Hit back if hit." },
+      pressure: "Mistress Hobble taps her list with her pencil: there's a great deal on it nobody has tried yet.",
       transitions: [
-        { id: "done", on: "attempt", when: "The player says they've finished practising, thanks Mistress Hobble, or heads out of the gate.", to: "done" },
+        { id: "done", on: "attempt", when: "The player says in so many words that they've finished practising (\"that's me done\", \"I'm finished\", \"thank you, I'll be going\") or walks out of the gate. Trying something, hitting something, jumping or casting a spell is never finishing.", to: "done" },
       ],
     },
   ],
@@ -85,6 +88,6 @@ export const practiceYard: Scene = {
       script: world => { world.journal("Practised in the zoo's yard. Mistress Hobble has a list."); },
     },
   ],
-  limits: ["Real weapons against Wim: he spars with fists and a padded club; a blade gets the whistle, and the gate."],
+  limits: ["Real weapons against Wim: he spars with fists and a padded club; a blade gets the whistle and a lecture about blades."],
   world: practiceYardWorld,
 };

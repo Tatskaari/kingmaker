@@ -18,14 +18,14 @@ The game is mostly played with the mouse. On the map, click somewhere to walk th
 
 | where | keys |
 |---|---|
-| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/); z the zoo |
+| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/); z the zoo (x on it, twice, puts the visit away: the next one starts afresh) |
 | character | Tab between name and concept; Enter; on the sheet, r makes them again (or click the buttons) |
 | the sheet | ←→, Tab or 1–9 turn its pages (or click a tab); ↑↓, PgUp/PgDn or the wheel scroll a long page (on a page with spells, ↑↓ pick one instead, and Esc lets it go); a click on a spell, or Enter on the one picked, shows what it is, and ← Back, Esc, Enter or Backspace put the sheet back as it was; Esc, or a click outside it, puts it away |
-| explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; g walk to the lead (any key stops); c sheet; j notebook; ? help; Esc menu |
+| explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; g walk to the lead (any key stops); c sheet; j notebook; r What happens in full (or a click on it: a line too long for the box shows its start there); ? help; Esc menu. In the zoo, v from above, and a sign read opens in full (↑↓ scroll, 1–9 sets off what's listed, Esc closes) |
 | scene | type and press Enter: plain words are said, `*asterisks*` or `(brackets)` are done; 1–9 (or a click) chooses one of the core's choices, when there are any (a talk's lines, its goodbye, walking on); `/sheet` `/map` `/journal` `/help` (any time, even with the GM mid-sentence) `/save` `/quit` (typed, or clicked at the bottom; the old `#sheet` still works); PgUp/PgDn or the wheel scroll; a scene that's over waits for an Enter of its own or a click; Esc menu |
 | between scenes | Enter (or a click) hurries Kell along, then goes on to the map; Esc menu |
 | combat | arrows move 5 ft; Tab or 1–9 pick a target; a attack; z close in; c cast (Enter at the target, t on yourself); u knock over a lantern or brazier; d dash; g dodge; x disengage; f let the dice decide; m every option; e end turn; s sheet; when it's over, Enter (or a click) |
-| the end | Enter (or a click) back to the title; q quit |
+| the end | Enter (or a click) back to the title (in the zoo, back to the zoo); q quit |
 | anywhere | Ctrl+C saves and quits |
 
 A way on (a scene that's over, the moment between scenes) takes an Enter of its own, or a click. Typed characters never go on, and the Enter that ends a line typed at it only ends that line ("that went unsaid"; `wayOnKey` in `ui/common.tsx`, `typing` in `game.ts`): a line being typed as a scene ends doesn't carry the player past its last word, through Kell and onto the map, where the rest of it would walk.
@@ -34,7 +34,7 @@ For testing, in a scene, `/exits` lists the endings and `/end <id>` takes one no
 
 ### The zoo
 
-The title's "The zoo" (or z) opens the zoo (src/game/zoo/README.md): every feature of the game laid out on maps of its own, to see and try. Each exhibit has a sign, and a lever, bell, chalk circle or person to set it off from its right-click menu; g walks to the next exhibit you haven't seen, and v looks down on a wing from above. A visit is a game of its own: it's never offered as a game to Continue (the zoo carries on the latest visit), and nothing done in it reaches the story. The app plays the zoo's explorer and fights for it, plays what its exhibits set off on the map, goes to the battlefield for an arena bell and back to the map after, and after one of its scenes shows the notebook's entry (read back by Kell, if she's walking with you) on the way back to the map.
+The title's "The zoo" (or z) opens the zoo (src/game/zoo/README.md): every feature of the game laid out on maps of its own, to see and try. Each exhibit has a sign, which opens in full when read (with what can be set off by it), and a lever, bell, chalk circle or person to set it off from its right-click menu; g walks to the next exhibit you haven't seen, and v looks down on a wing from above. A wing's map is framed rather than followed: it fills the view, its way in at a corner. A visit is a game of its own: it's never offered as a game to Continue (the zoo carries on the latest visit), and nothing done in it reaches the story. The app plays the zoo's explorer and fights for it, plays what its exhibits set off on the map, goes to the battlefield for an arena bell and back to the map after, and after one of its scenes shows the notebook's entry (read back by Kell, if she's walking with you) and what became of the place afterwards on the way back to the map. Its window shows the story's first morning, and its curtain cord the End screen for the visit so far (Enter comes back). Leaving the zoo puts the glyph set back to KM_GLYPHS's.
 
 ### A scene, on screen
 
@@ -82,7 +82,7 @@ python3 src/app/smoke/smoke.py                # the real TUI under a pty, the wh
 python3 src/app/smoke/smoke.py --live         # real GM turns, quit and resume, /map, a real scene boundary, Kell after it, and a talk with her
 python3 src/app/smoke/smoke.py --live-fight   # a live-built wizard through to the Heron, casting from the spell picker
 KM_RUNS_DIR=runs/check node --experimental-ffi --no-warnings --import tsx src/app/smoke/scene-check.tsx   # the scene screens at 80 to 160 columns: every character drawn; the keys and clicks on them
-KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, a spell on the sheet clicked, the title, the End: side panels whole, the mouse
+KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, a spell on the sheet clicked, the title, the End, the zoo (its side panel, a sign's card, the help scrolled, a long line kept by its start): side panels whole, the mouse
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the core with the map and fights, no UI
 KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts                            # casting in a fight, headless
 node --no-warnings src/game/zoo/tour.ts                                                           # the zoo's tour: every exhibit set off headless, pictures and a report (--live for the GM)

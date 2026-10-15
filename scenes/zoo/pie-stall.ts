@@ -26,6 +26,8 @@ export const pieStallWorld: WorldSpec = {
     { id: "spare-pie", name: "a pie under the counter", kind: "item", in: "stall", size: "tiny", material: "flesh", tags: ["hidden"], description: "Madam Crust's own tea, which nobody was meant to know about." },
     { id: "price-board", name: "a chalked price board", kind: "object", in: "behind-the-counter", at: ft(7, 1), size: "small", material: "wood", tags: ["sign"], description: "PIES 2d. ASSEMBLY PIES 3d. QUESTIONS 1d. NO CREDIT, NO EXCEPTIONS, NO DOGS." },
     { id: "dog", name: "a hopeful dog", kind: "creature", in: "the-queue", at: ft(2, 5), description: "A dog of no breed and great patience, sitting very straight." },
+    // The booth's door (the theatre's, on the south wall): who comes later comes in by it.
+    { id: "booth-door", name: "the booth's door", kind: "feature", in: "the-queue", at: ft(4, 7), size: "large", material: "wood", tags: ["door", "fixed"], states: ["open"] },
   ],
   people: {
     player: { in: "the-queue", at: ft(4, 5) },

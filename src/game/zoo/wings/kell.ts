@@ -59,7 +59,7 @@ const exhibits: Exhibit[] = [
   },
   {
     id: "kell-walks", title: "Kell walks with you", sign: at["1"]!, shows: ["Kell walks with you"], tour: ["kell-follow"],
-    text: "Ask, and Kell follows a step behind you, taking your place as you move (or swapping with you, if she was in front). She comes through doors and ways out beside you, into scenes with you, and stands with you when you come out of one. She'll walk the whole zoo. Ask her to wait and she comes back here.",
+    text: "Ask, and Kell follows a step behind you, taking your place as you move (or swapping with you, if she was in front). She comes through doors and ways out beside you, waits by the door while you play a booth (the booths' scenes are written without her; the story's have her in every one), fights beside you in the Arena's rings and the tavern booth's brawl, and is there when you come out. She'll walk the whole zoo. Ask her to wait and she comes back here.",
     triggers: [
       { id: "kell-follow", label: "Ask Kell to walk with you", at: at.K!, when: z => z.game.story.flags.kell !== true,
         run: z => { z.game.story.flags.kell = true; exploreState(z.game); return { text: "Kell puts her pencil behind her ear. 'After you, investigator.' She falls in a step behind you." }; } },

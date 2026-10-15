@@ -71,6 +71,7 @@ export const tavern: Scene = {
         },
         { id: "blows", on: "attempt", when: "The player attacks, shoves or grabs one of the porters, or eggs them on.", to: "fight" },
         { id: "boils-over", on: "cue", when: "Two exchanges have gone by and nothing has been settled: the porters go for each other, and the player is in the way.", to: "fight" },
+        { id: "after-the-fight", on: "attempt", when: "The fight has already been fought, and the player is done with what's left of it: they help sweep up, stand a round, or leave.", to: "swept-up" },
       ],
     },
   ],
@@ -80,6 +81,12 @@ export const tavern: Scene = {
       outcome: "The porters accept a ruling and sit down, and nobody goes through the window.",
       closing: "Close on the two of them arguing amiably about something else, and the landlord putting down the tankard at last.",
       script: world => { world.journal("Settled a ha'penny between two porters in the Cracked Tankard without a window broken."); },
+    },
+    {
+      id: "swept-up", kind: "progress", title: "Swept up afterwards",
+      outcome: "The fight is over and the Cracked Tankard is put back together, more or less: whoever's standing has a drink on the house, whoever isn't is propped up by the fire, and the landlord sweeps up.",
+      closing: "Close on the landlord sweeping up round the ha'penny, which nobody has thought to pick up.",
+      script: world => { world.journal("A fight in the Cracked Tankard, over a ha'penny. Swept up afterwards. The ha'penny is still on the table."); },
     },
     {
       id: "fight", kind: "combat", title: "Roll for initiative",

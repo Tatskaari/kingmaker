@@ -165,6 +165,30 @@ const playing = () => {
   await shoot("fight", "A fight", "Tactical combat on the Heron's own floor, by the rules engine, for a ready-made fighter at the start of their turn: click a blue tile to move, someone to aim at, and them again to attack.", game);
 }
 
+{
+  // The zoo (the title's z): every feature laid out on maps of its own. The Burning Gallery a moment
+  // after Fireball at the scarecrow, then the hall with a sign read, its card open.
+  const { newZoo } = await import("../game/zoo/game.ts");
+  const { placePlayer } = await import("../game/zoo/explorer.ts");
+  const { WELCOME } = await import("../game/zoo/explorer.ts");
+  const zoo = await newZoo({ seed: 7 });
+  placePlayer(zoo.state, "zoo-fire", { x: 32, y: 14 });
+  const cast = await zoo.act("use_fireball-scarecrow");
+  const fire = new Game();
+  fire.core = zoo;
+  fire.screen = "explore";
+  fire.messages = [WELCOME, cast];
+  await shoot("zoo", "The zoo", "The zoo (z on the title screen): every feature of the game laid out on maps of its own, to see and try. Here the Burning Gallery, a moment after Fireball at the scarecrow from the chalk circle: the rules caught everything in its 20 feet, the straw and hay burn, the stone fireman is unharmed, the oil slick has caught.", fire);
+  placePlayer(zoo.state, "zoo-hall", { x: 4, y: 8 });
+  await zoo.act("look@4,7");
+  const hall = new Game();
+  hall.core = zoo;
+  hall.screen = "explore";
+  hall.messages = [WELCOME];
+  hall.overlay = { kind: "sign", exhibit: "wardrobe" };
+  await shoot("zoo-sign", "A sign in the zoo", "Every exhibit has a sign: read, it opens in full, with what can be set off by it from where you stand (1-9, or a click). The wardrobe makes you any of seven ready-made builds through the rules engine.", hall);
+}
+
 // ---------------------------------------------------------------------------------------------
 // The page.
 
@@ -228,7 +252,7 @@ const page = `<!doctype html>
 <h1>KINGMAKER V2</h1>
 <p class="sub">The Hanged Clerk of Caerwyn${commit ? ` · this preview is of ${esc(commit)}` : ""}</p>
 <p>A murder mystery in a terminal. You make a character, walk the town on the map and talk your way through scenes that a language model runs as the Game Master, under D&amp;D rules (the SRD 5.2.1) kept by a rules engine, and the fights are tactical, on the map.</p>
-<p>The game needs a terminal, or a small server that runs it in one for the browser, and a GM to talk to, so this page can't play it. What it shows are the game's own screens from this build, drawn offline for a ready-made character, cell for cell as a terminal shows them.</p>
+<p>The game needs a terminal, or a small server that runs it in one for the browser, and a GM to talk to, so this page can't play it. What it shows are the game's own screens from this build, drawn offline for a ready-made character, cell for cell as a terminal shows them, and two from the zoo, where every feature of the game is laid out to see and try.</p>
 <pre class="run">npm install
 npm run game                <span class="note"># in a terminal (80x24 or bigger); the GM needs OPENROUTER_API_KEY</span>
 npm run web                 <span class="note"># or in a browser, at http://127.0.0.1:7311/</span>

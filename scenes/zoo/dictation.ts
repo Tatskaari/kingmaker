@@ -61,7 +61,7 @@ export const dictation: Scene = {
       id: "noted", kind: "progress", title: "Noted",
       outcome: "Kell has the visitor's statement in her notebook.",
       closing: "Close on her reading it back in the words of the record, and 'Noted.'",
-      script: world => { world.journal("Gave Sergeant Kell a statement about the zoo, for the record. She read it back. Noted."); },
+      script: world => { world.journal("Gave Sergeant Kell a statement about the zoo, for the record."); },
     },
   ],
   world: dictationWorld,

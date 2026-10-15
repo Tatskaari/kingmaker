@@ -43,6 +43,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     else if (key.name === "v" && game.isZoo) { game.overlay = { kind: "stage" }; game.emit(); }
     else if (key.name === "c") void game.showSheet();
     else if (key.name === "j") { game.overlay = { kind: "journal" }; game.emit(); }
+    else if (key.name === "r") { game.overlay = { kind: "log" }; game.emit(); }
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
     else if (key.name === "escape" || key.name === "q") { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
   });
@@ -71,7 +72,14 @@ export function ExploreScreen({ game }: { game: Game }) {
   const inner = sideW - 4;
   const status = session.rules?.status ?? "";
   const you = truncate(session.player.name, Math.max(8, inner - 12));
-  const messages = game.messages.slice(-4).flatMap(m => wrap(m, width - 6));
+  // What happens: the newest line bright, the ones before it dim. A newest line too long for the
+  // box shows its start (a sign's title, a spell's first roll) and says how to read the rest.
+  const rows = msgH - 2;
+  const newest = game.messages.length ? wrap(game.messages.at(-1)!, width - 6) : [];
+  const cut = newest.length > rows;
+  const messages: Array<{ text: string; now: boolean }> = cut
+    ? [...newest.slice(0, rows - 1).map(text => ({ text, now: true })), { text: "… (more: r, or a click here, reads it all)", now: false }]
+    : [...game.messages.slice(-4, -1).flatMap(m => wrap(m, width - 6)).map(text => ({ text, now: false })), ...newest.map(text => ({ text, now: true }))].slice(-rows);
   // The way to the lead: the words Kell drew it in between scenes (leadWay), so the two agree.
   const way = lead ? wrap(leadWay(ex.at, lead), inner) : [];
   const when = wrap(TIME_WORDS[game.story.time], inner);
@@ -81,7 +89,8 @@ export function ExploreScreen({ game }: { game: Game }) {
   // The sidebar, a row at a time in the rows it has (a squeezed box draws its lines over each other):
   // first what's needed (where, when, you, the lead and the way, who's about, what e does), then
   // what fills the room (who you are, what the place is like, more of who's about).
-  const everyone = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel");
+  // In the zoo, the signs too: they're what there is to see.
+  const everyone = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel" || (zoo && /:sign:/.test(n.actor?.id ?? "")));
   let spare = mapH - 2 - (1 + when.length + 2 + (leadScene ? 2 + way.length : 0) + 2 + (fronts.length ? 1 + fronts.length : 0) + (walkingLines.length ? 1 + walkingLines.length : 0));
   const take = (want: number) => { const n = Math.max(0, Math.min(want, spare)); spare -= n; return n; };
   const nearFirst = take(Math.max(1, Math.min(3, everyone.length)));
@@ -99,6 +108,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     ["click", "walk"], ["right-click", "act"], ["g", zoo ? "next exhibit" : "the lead", button(() => void game.toLead())],
     ...(zoo ? [["v", "from above", button(() => { game.overlay = { kind: "stage" }; game.emit(); })] satisfies KeyHint] : []), ["c", "sheet", button(() => void game.showSheet())],
     ["j", "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
+    ["r", "what happened", button(() => { game.overlay = { kind: "log" }; game.emit(); })],
   ];
 
   /** What's drawn in the map cell a mouse event is over (as last drawn: a frame of the map you were on before a door doesn't count). */
@@ -176,8 +186,9 @@ export function ExploreScreen({ game }: { game: Game }) {
         {walkingLines.length ? <text fg={C.lead} marginTop={1} height={walkingLines.length} flexShrink={0}>{walkingLines.join("\n")}</text> : null}
       </box>
     </box>
-    <box height={msgH} border borderColor={C.border} title=" What happens " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden">
-      {messages.slice(-(msgH - 2)).map((m, i, all) => <text key={i} fg={i === all.length - 1 ? C.text : C.dim}>{m}</text>)}
+    <box height={msgH} border borderColor={C.border} title=" What happens " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden"
+      onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT && !game.overlay && !game.menu) { game.overlay = { kind: "log" }; game.emit(); } }}>
+      {messages.map((m, i) => <text key={i} fg={m.now ? C.text : C.dim}>{m.text}</text>)}
     </box>
     <box height={1} paddingX={1}>
       {info && !game.menu ? <Pointer title={info.title} distance={steps(ex.at, info.at)} arrow={ARROW[direction(ex.at, info.at)] ?? ""} actions={info.actions.map(a => a.label)} width={width - 2} />

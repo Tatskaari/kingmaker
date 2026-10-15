@@ -43,8 +43,14 @@ export function zooFights(): TacticalFights {
         if (!arena) throw new Error(`There's no ring called ${ring.arena} in the arena.`);
         // Every ring starts fresh, the visitor too: the attendants patch you up and hand your slots back (a night's rest).
         await rest(session, "long");
+        // The ring's own people come back whole as well: the rules make them afresh, as at their first fight.
+        fresh(session, [...arena.enemies.flatMap(e => (e.castId ? [e.castId] : [])), "kell"]);
         setup = enterRing(game, session, arena);
-      } else setup = roomFight(game, session, room!);
+      } else {
+        // Kell comes to a booth's fight patched up after the last one (the scene's own people keep their bruises).
+        fresh(session, ["kell"]);
+        setup = roomFight(game, session, room!);
+      }
       const combat = await startCombat(setup, session);
       const fight = new TacticalFight(combat, [], () => factory.pace);
       fight.begin();
@@ -55,6 +61,14 @@ export function zooFights(): TacticalFights {
   // The app paces the other side's turns through whichever factory it was given: the story's fights hear it too.
   Object.defineProperty(factory, "pace", { get: () => story.pace, set: v => { story.pace = v; }, enumerable: true });
   return factory;
+}
+
+/**
+ * The rules forget who these people were in the last fight: the next fight makes them afresh from
+ * their statblocks, at full health and with nothing on them (a ring's fighters, Kell).
+ */
+function fresh(session: SessionState, castIds: string[]): void {
+  for (const id of castIds) if (session.rules?.npcs[id]) delete session.rules.npcs[id];
 }
 
 /** Free spots near where people want to stand, inside a rectangle of tiles. */
@@ -86,7 +100,12 @@ function roomFight(game: GameState, session: SessionState, room: Room): CombatSe
   const wanted = op?.enemies?.[0];
   const where = (id: string) => field.people[id] ?? { x: rect.x + Math.floor(rect.w / 2), y: rect.y + Math.floor(rect.h / 2) };
   const combatants: CombatantSetup[] = [{ id: "player", name: session.player.name, side: "player", role: "player", at: spot(where("player")) }];
-  if (game.story.flags.kell === true) combatants.push({ id: "kell", castId: "kell", name: "Sergeant Agnes Kell", side: "ally", role: "ally", statblock: "guard", weapon: "club", at: spot(where("player")) });
+  if (game.story.flags.kell === true) {
+    combatants.push({ id: "kell", castId: "kell", name: "Sergeant Agnes Kell", side: "ally", role: "ally", statblock: "guard", weapon: "club", at: spot(where("player")) });
+    // The booth's scene was written without her: its GM hears who she is for the aftermath.
+    const kell = "Sergeant Agnes Kell of the watch (she: forties, a rain cape, an oilcloth notebook, a truncheon she has never been seen to draw) came in with the player and fought at their side.";
+    if (!session.established.includes(kell)) session.established.push(kell);
+  }
   // The leader first, then the rest of the cast who are there and can fight, up to the number the ending asked for.
   const present = scene.cast.filter(c => c.statblock && c.id !== "kell" && world.entities[c.id] && !world.entities[c.id]!.states.includes("gone"));
   const ordered = [...present.filter(c => c.id === wanted?.leader), ...present.filter(c => c.id !== wanted?.leader)];
@@ -96,7 +115,7 @@ function roomFight(game: GameState, session: SessionState, room: Room): CombatSe
   const inside = (t: Tile2) => t.x >= rect.x && t.y >= rect.y && t.x < rect.x + rect.w && t.y < rect.y + rect.h;
   const out = { x: room.door.x + (room.door.x - insideOf(rect, room.door).x), y: room.door.y + (room.door.y - insideOf(rect, room.door).y) };
   return {
-    map: { ...field.map, exits: [{ at: room.door, to: { map: room.map, at: out }, label: `the door of ${room.name}` }] }, combatants, sceneId: session.sceneId,
+    map: { ...field.map, exits: [{ at: room.door, to: { map: room.map, at: out }, label: `the door of ${room.name}` }] }, combatants, sceneId: session.sceneId, place: room.name,
     seed: (session.seed + 7907 * (session.rollCount + 1)) >>> 0,
     props: field.lights.filter(l => inside(l.at) || (l.ref && combatants.some(c => c.id === l.ref))), dust: field.dust.filter(inside), fuel: field.fuel.filter(inside),
   };
@@ -151,7 +170,7 @@ function enterRing(game: GameState, session: SessionState, arena: Arena): Combat
   // Only the ring's own lights, dust and sacks; its gate the one way out.
   const gate = { at: arena.gate, to: { map: arena.wing, at: arena.outside }, label: `the ${arena.name}'s gate` };
   return {
-    map: { ...field.map, exits: [gate] }, combatants, sceneId: arena.wing, seed: (session.seed + 7919 * (session.rollCount + 1)) >>> 0,
+    map: { ...field.map, exits: [gate] }, combatants, sceneId: arena.wing, seed: (session.seed + 7919 * (session.rollCount + 1)) >>> 0, place: "the Arena",
     props: field.lights.filter(l => inside(l.at) || (l.ref && combatants.some(c => c.id === l.ref))),
     dust: field.dust.filter(inside), fuel: field.fuel.filter(inside),
   };

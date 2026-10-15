@@ -1,10 +1,13 @@
 import { sceneById, SCENES } from "../../../../scenes/index.ts";
 import type { Character } from "../../../runtime/scene.ts";
+import { boundaryPreview } from "../../../runtime/engine.ts";
+import { APPROACHES } from "../../../runtime/approaches.ts";
 import { buildWorld } from "../../../world/scene-world.ts";
+import { zooFronts } from "../fronts.ts";
 import { actorsFromWorld, sceneTrigger, type MapOverlay } from "../../map/index.ts";
 import { T, type PlaceRegion } from "../../map/tiles.ts";
 import type { MapActor, Tile2, TileMap } from "../../types.ts";
-import { marks, rect, type Exhibit, type Plan, type Trigger, type Wing } from "../model.ts";
+import { marks, rect, type Ctx, type Exhibit, type Outcome, type Plan, type Trigger, type Wing } from "../model.ts";
 import { COBBLES, floorFor } from "./common.ts";
 import { toHall } from "./hall.ts";
 
@@ -105,6 +108,40 @@ export function roomPreviews(rooms: Array<{ sceneId: string; map: string; region
   return out;
 }
 
+/** The approaches the house-style lever goes round (src/runtime/approaches.ts), the game's own first. */
+const STYLES = ["v2", "v2-straight", "actors", "v2-pressure"];
+
+/**
+ * The boundary desk: the last scene the visitor played, handed across a scene boundary exactly as
+ * the story hands one on (boundaryPreview), without going anywhere: a booth goes to the next booth,
+ * with the zoo's own fronts; a rehearsed scene of the story to its own next scene, with the story's.
+ */
+async function crossAtDesk(z: Ctx): Promise<Outcome> {
+  const s = z.session;
+  const last = s.history.at(-1);
+  if (!last || last.sceneId !== s.sceneId) return { text: "The boundary clerk looks up from his ledger. \"Nothing to hand on. Play a booth, or rehearse a scene, and bring me how it ended.\"" };
+  const scene = sceneById(last.sceneId);
+  const exit = scene.exits.find(e => e.id === last.exitId);
+  const order = [...BOOTHS.map(b => b.sceneId)];
+  // A booth goes on to the next booth; a scene of the story to its own next, with the story's fronts;
+  // one the story goes nowhere from (the harness's) to the first booth, with the zoo's.
+  const story = !scene.id.startsWith("zoo-") && !!exit?.next;
+  const nextId = story ? exit!.next! : order[(order.indexOf(scene.id) + 1) % order.length]!;
+  const next = sceneById(nextId);
+  const b = await boundaryPreview(s, next.id, story ? undefined : zooFronts(s.id));
+  const moved = b.fronts.map(f => f.replace(/^ticked: /, "ticked ").replace(/^struck: /, "struck out ").replace(/^bill: /, "a bill to come due: "));
+  return {
+    text: [
+      `The boundary clerk takes ${scene.title} (${exit?.title ?? last.exitId}) and does on paper what the story does between scenes.`,
+      `The hand-off: ${b.handoff.split("\n").slice(1).join(" ").replace(/\s+/g, " ").trim() || b.handoff}`,
+      `The next scene, ${next.title}, checked against it: ${b.adjustments.length ? b.adjustments.join(" ") : "nothing in its prep is out of date (or the model wasn't asked)."}`,
+      b.opening ? `Its opening, as it stands now: ${b.opening}` : `Its opening stands as written.`,
+      b.lead ? `How you'd hear of it: ${b.lead}` : "",
+      `The fronts: ${moved.length ? `${moved.join("; ")}.` : "nothing moved (nothing in motion was touched, or the model wasn't asked)."}`,
+    ].filter(Boolean).join(" "),
+  };
+}
+
 /** How the tour plays the rehearsals it takes (the rest end at their first ending that isn't a fight). */
 const REHEARSALS: Record<string, Plan> = {
   "hanged-clerk": { exit: "case-made", say: ["Good morning, Sergeant. Who found him?", "I'd like to look at the rope."] },
@@ -132,32 +169,40 @@ const exhibits: Exhibit[] = [
     [], { needsModel: true, scene: { id: "zoo-pie-stall", exit: "bought", say: ["Good morning! How much for the last pie?", "*leans on the counter* Threepence, or the dog gets it.", "Fine. Fourpence, then."] } }),
   sign("belfry", "2", "The Noon Bell", ["Pacing cues", "Endings: closing, escalating, the last chance", "Freeform risky checks", "Threats hanging over the player", "An ending of their own, and walking out", "Stuck and drifting scenes", "Weather (gallery only)"],
     "A pigeon has nested in the noon bell, and it's a few minutes to noon. Try: talking the bell-ringer round; climbing the ladder to move the nest (an Athletics check); something no route covers, like climbing the frame or wedging the clapper (a freeform roll, risky either way, and a slip leaves a danger hanging over you that lands next turn); doing nothing (the clock runs on: a minute to noon, then noon, which you didn't choose, so it warns you first and waits a turn); or walking out (an ending of your own). It's drizzling in the arches: the only weather in the game, from this booth's dressing, seen from above.",
-    [], { needsModel: true, scene: { id: "zoo-belfry", exit: "spared", say: ["Is that a pigeon in the bell?", "Could you hold off ringing it, just this once?"] } }),
+    [], { needsModel: true, scene: { id: "zoo-belfry", exit: "spared", say: ["Is that a pigeon in the bell?", "*climbs up the bell frame to wedge the clapper with my hat*", "Could you hold off ringing it, just this once?"] } }),
   sign("cards", "3", "The Silver Dice", ["Names held back", "Staged secrets", "Pressure rolls (the v2-pressure approach, scene harness)", "Reactions to violence"],
     "A woman winning every throw. Until someone says her name, she's \"the woman with the silver dice\": in the narration, the dice lines and the barks. What she hides comes out a step at a time (a tell, guard up, torn, told), only when you give her reason; pressing her is ruled yes, no, or a roll from the stakes and your leverage. Try watching her hands (Perception), asking to see the dice, pressing her about money, and, if you must, grabbing her wrist: the two gamblers react, each their own way. This booth turns on staged secrets and pressure rolls for itself.",
-    [], { needsModel: true, scene: { id: "zoo-card-sharp", exit: "paid-back", say: ["*watches her hands as she throws*", "May I see those dice?"] } }),
+    [], { needsModel: true, scene: { id: "zoo-card-sharp", exit: "paid-back", say: ["*watches her hands as she throws*", "*leans in* You owe somebody money, don't you? Who?", "May I see those dice?"] } }),
   sign("ledger", "4", "The Lost Ledger", ["Essentials and relocation", "The co-GM", "Memory (the docs service)", "Entrances and groups"],
     "The ledger's lost and the auditor's coming. Where it is (under the cat) is something this scene needs you to find: if you search elsewhere, it comes to you through whoever you're dealing with. Try something nobody planned for (the quick co-GM gets three seconds to add a way). Dawdle and the auditor arrives with his two assistants, each a person of their own at the door; Madam Crust comes in behind them for her receipt, remembering you if you met at the pie stall (memories written in the background after each turn).",
     [], { needsModel: true, scene: { id: "zoo-ledger", exit: "found", say: ["Where did you last see the ledger?", "*looks under the cat*"] } }),
   sign("yard", "5", "The Practice Yard", ["Casting in a scene", "Spells on things, and spells that make surfaces", "A blow in a scene", "Grapple and shove", "Jumping", "Class features in a scene", "Rests", "Bystanders", "Spells running out"],
     "The rules in a scene, read by the GM's decider and decided by the engine. Try: \"(I cast Fireball at the haystack)\" (your own spells from your own slots, or a fizzle); \"I hit the dummy\" (one attack); \"I grab Wim\" and \"I shove him over\" (he saves against your Strength); \"I jump the ditch with a run-up\" (Strength against the gap: fall short and you're in it); \"(I cast Grease by the barrel)\"; \"I take a breather\" (Second Wind, in the fighter's mail); \"I rest for an hour\" (a short rest). The Rules Room does all this without the GM.",
-    [], { needsModel: true, scene: { id: "zoo-practice-yard", exit: "done", say: ["(I cast Fire Bolt at the haystack)", "I jump the ditch with a run-up."] } }),
+    [], { needsModel: true, scene: { id: "zoo-practice-yard", exit: "done", say: ["(I cast Fire Bolt at the haystack)", "I jump the ditch with a run-up.", "I grab Wim, then try to shove him over.", "That's me done, thank you, Mistress Hobble."] } }),
   sign("tavern", "6", "The Cracked Tankard", ["Roll for initiative", "After the fight", "Reactions to violence"],
-    "Two porters about to fight over a ha'penny. Settle it (a check) and nobody goes through the window. Lay hands on one, egg them on, or let it boil over, and it ends in \"Roll for initiative!\": a fight on the tavern's own floor, everyone where its world has them, its lantern on the beam to bring down, and Kell beside you if she's walking with you. When it's over the scene picks up for the aftermath. Offline: /end fight goes straight to it.",
-    [], { needsModel: true, scene: { id: "zoo-tavern", exit: "fight", after: "settled", say: ["Gentlemen, it's a ha'penny."] } }),
+    "Two porters about to fight over a ha'penny. Settle it (a check) and nobody goes through the window. Lay hands on one, egg them on, or let it boil over, and it ends in \"Roll for initiative!\": a fight on the tavern's own floor, everyone where its world has them, its lantern on the beam to bring down, and Kell beside you if she's walking with you. When it's over the scene picks up for the aftermath, and ends when it's swept up. Offline: /end fight goes straight to the fight, then /end swept-up.",
+    [], { needsModel: true, scene: { id: "zoo-tavern", exit: "fight", after: "swept-up", say: ["Gentlemen, it's a ha'penny."] } }),
   sign("repertory", "r", "The repertory board (rehearsals)", ["The Hanged Clerk", "The interludes", "The Drowned Rat", "The Heron Warehouse", "The King's Morning", "Other scenes (scene harness only)", "Afterwards", "Exit scripts (world-update scripts)", "Kell in the story's scenes", "Levelling up at a milestone", "Roll for initiative"],
-    "Any scene of the story, or of the scene harness, from the top, out of order: the zoo's own session plays it on its own place (the arc's are on the story's maps: you're taken there and back), with its cast, its checks, its cues and its endings. Nothing done in a rehearsal reaches the story. Offline, /exits lists a scene's endings and /end <id> takes one: its exit script writes the notebook, and its afterwards (Prout taken down) is applied. Rehearse the Heron and end it with /end fight for the map fight; the King's Morning levels you up as it opens.",
+    "Any scene of the story, or of the scene harness, from the top, out of order: the zoo's own session plays it on its own place (the arc's are on the story's maps: you're taken there and back), with its cast, its checks, its cues and its endings. Nothing done in a rehearsal reaches the story. Offline, /exits lists a scene's endings and /end <id> takes one: its exit script writes the notebook, and its afterwards (Prout taken down) is applied. Rehearse the Heron and end it with /end fight for the map fight; the King's Morning levels you up as it opens (the hall's wardrobe puts you back to five).",
     REPERTORY, { tour: ["rehearse-hanged-clerk", "rehearse-heron-warehouse", "rehearse-kings-morning", "rehearse-warren-hostage"] }),
   sign("gm", "g", "The GM's turn", ["The GM's turn"],
     "Everything you say in a scene is one call to the GM (Luna), which narrates and voices everyone in the house's comic style, from the scene's prep and a note on where things stand now, streamed as it comes. Before it, the decider has read your turn (a route, a roll, a spell, something the scene can't offer); after it, what happened is judged and the stage manager writes it into the world. A reply that repeats itself word for word is asked for again."),
   sign("boundary", "h", "The scene boundary, and fronts", ["The scene boundary", "Fronts: the world moves between scenes"],
-    "Not here: the zoo's scenes are exhibits, not a story, so each ends back on the map with nothing handed on. In the story, a scene's end is where the model writes the hand-off (how things stand), checks the coming scenes against what happened (a scene play has settled is skipped), rewrites the next opening, and moves the world's fronts on (the Purveyor's man, dear bread). To see it, play the story; offline it falls back to a plain hand-off."),
+    "The zoo's scenes are exhibits, not a story: each ends back on the map with nothing handed on. In the story, a scene's end is where the model writes the hand-off (how things stand), checks the coming scenes against what happened (a scene play has settled is skipped), rewrites the next opening, and moves the world's fronts on (the Purveyor's man, dear bread). The boundary desk does all of that, on paper, for the last booth you played: its hand-off, the next booth's prep checked and its opening rewritten, and the zoo's own fronts moved on (Madam Crust's pies, the noon bell, the auditor's round). A rehearsed scene of the story goes to its own next scene, with the story's fronts, in this visit's copy. It needs the model: offline you get the plain hand-off.",
+    [{ id: "boundary-desk", label: "Take your last scene across the boundary (the boundary desk)", at: { x: 10, y: 22 }, station: { name: "the boundary desk", glyph: "▬", color: "#a07a52" },
+      run: z => crossAtDesk(z) }], { needsModel: true }),
   sign("memory", "m", "What people remember", ["Memory (the docs service)"],
     "The lore docs and each person's memory index are in the GM's prep; each turn the notes that bear on the moment are opened; after each turn a background review writes first-person memories. In the zoo: meet Madam Crust at the pie stall, then meet her again in the ledger office, where she walks in remembering. It needs the model (and a minute between: the reviews run in the background)."),
   sign("cogm", "k", "The co-GM", ["The co-GM", "Stuck and drifting scenes"],
     "On a turn the decider judges off the graph (a way through no route covers), the reply waits up to three seconds for the quick co-GM, which can add a route with a roll, move an essential, or leave notes. Every few turns the full co-GM reviews the scene in the background. After each reply the scene is judged on track, drifting or stuck; the reply after a stuck exchange has to break the loop. The ledger office and the belfry are good places to wander off the graph."),
   sign("approaches", "p", "Approaches", ["Approaches (scene harness and evals)"],
-    "The same scenes run other ways, in the scene harness (npm run scene): one GM voice (the game's v2), actors who each know only what they know, speculative replies, a holding beat while the co-GM works, staged secrets, pressure rolls, a plain style. The game always plays v2; the card room switches staged secrets and pressure rolls on for itself, as a taste."),
+    "The same scenes run other ways, in the scene harness (npm run scene): one GM voice (the game's v2), actors who each know only what they know, speculative replies, a holding beat while the co-GM works, staged secrets, pressure rolls, a plain style. The game always plays v2. The house-style lever beside this sign changes how the booths here play, for this visit: v2, v2 played straight, actors, or v2 with pressure rolls (the card room switches staged secrets and pressure rolls on for itself either way). Pull it, then play a booth.",
+    [{ id: "approach-lever", label: "Pull the house-style lever (the booths play another way)", at: { x: 25, y: 22 }, station: { name: "the house-style lever", glyph: "╤", color: "#c8b28a" },
+      run: z => {
+        const next = STYLES[(STYLES.indexOf(z.session.approach) + 1) % STYLES.length] ?? "v2";
+        z.session.approach = next;
+        return { text: `Clunk. The booths now play ${next}: ${APPROACHES[next]!.description}${next === "v2" ? " (The game's own.)" : " (Pull again for the next; v2 is the game's own.)"}` };
+      } }], { tour: ["approach-lever", "approach-lever", "approach-lever", "approach-lever"] }),
   sign("left-as-it-was", "q", "Places as their scenes left them", ["Places as their scenes left them", "A scene's place on the map", "Roofs off and cutaways"],
     "A scene's place on the map shows its live world while it's played (people where they stand, the fires, the puddles; /map in a scene shows it with its roof off), and afterwards keeps what the scene did to it: things broken, moved or burning, what was spilled. Play the practice yard and set fire to the haystack, then come out and look. Walk into a booth and its roof comes off and its front walls are cut down so you can see in. The lever puts every booth back.",
     [{ id: "theatre-reset", label: "Pull the lever: put the booths back", at: { x: 21, y: 14 }, station: { name: "the booths' lever", glyph: "╥", color: "#9ab0c0" },

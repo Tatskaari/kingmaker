@@ -107,7 +107,8 @@ const exhibits: Exhibit[] = [
   {
     id: "flash", title: "The night-watchman (a flash)", sign: at.f!, shows: ["Flash"],
     text: "An area spell that's not fire, thunder or lightning flashes the cells it covers, with a shockwave, in its colour. Sleep is a 5-foot sphere: cast it on the night-watchman, who is asleep already, and who will tell you so.",
-    triggers: [{ id: "sleep-watchman", expect: ["shockwave", "flash"], label: "Cast Sleep on the night-watchman", at: at["6"]!, station: chalk, stand: true, run: z => cast(z, "sleep", ["watchman"]) }],
+    triggers: [{ id: "sleep-watchman", expect: ["shockwave", "flash", "bark"], label: "Cast Sleep on the night-watchman", at: at["6"]!, station: chalk, stand: true,
+      run: async z => ({ ...(await cast(z, "sleep", ["watchman"])), cues: [{ kind: "line", id: "watchman", text: "“Not asleep,” he mumbles. “Resting my eyes.”" }] }) }],
   },
   {
     id: "colours", title: "The colour chart", sign: at.g!, shows: ["Bolt (and Magic Missile's darts)"],

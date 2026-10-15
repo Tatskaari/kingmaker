@@ -272,6 +272,54 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   await setup.dispose();
 }
 
+// ---------------------------------------------------------------------------------------------
+// The zoo: its map's side panel at 80x24 and up, a sign read in full (its card), the help scrolled
+// to its end at 80x24, and a long line in What happens kept by its start.
+
+{
+  const { newZoo } = await import("../../game/zoo/game.ts");
+  const { EXHIBITS, placePlayer, WELCOME } = await import("../../game/zoo/explorer.ts");
+  const zoo = await newZoo({ seed: 4 });
+  placePlayer(zoo.state, "zoo-hall", { x: 4, y: 8 });
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const game = new Game();
+    game.core = zoo;
+    game.screen = "explore";
+    game.messages = [WELCOME];
+    const setup = await testRender(<><ExploreScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+    await setup.renderOnce();
+    let frame = setup.captureCharFrame();
+    if (show) console.log(`zoo ${w}x${h}\n${frame}`);
+    const side = flat(panel(frame, "The zoo").join(" "));
+    const lead = game.leadTarget();
+    const wanted = ["The wardrobe corner", "Wren Ashdown", "Next: ", ...(lead ? [lead.label.slice(0, 10)] : []), "Nearby"];
+    const missing = wanted.filter(t => !side.includes(flat(t)));
+    checks.push([`the zoo's side panel at ${w}x${h}: every line whole${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
+    // A long line in What happens shows its start, and says how to read the rest.
+    game.messages = [...game.messages, EXHIBITS.find(e => e.id === "wardrobe")!.text];
+    await act(async () => { game.emit(); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    const happens = flat(panel(frame, "What happens").join(" "));
+    checks.push([`the zoo ${w}x${h}: a long line in What happens keeps its start ("Who you are is a build")`, happens.includes("Who you are is a build") && (w > 100 || happens.includes("r, or a click here"))]);
+    // Read the wardrobe's sign: its card, title and first words in view, its robes to set off.
+    await act(async () => { await game.doAt({ x: 4, y: 7 }, { id: "look@4,7", label: "Look at the sign", kind: "examine" }); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (show) console.log(`zoo sign ${w}x${h}\n${frame}`);
+    const card = flat(frame);
+    checks.push([`the zoo ${w}x${h}: a sign read opens its card, its title and first words in view`, game.overlay?.kind === "sign" && card.includes("The wardrobe") && card.includes("Who you are is a build") && card.includes("1 Put on")]);
+    game.overlay = { kind: "help" };
+    await act(async () => { game.emit(); });
+    await setup.renderOnce();
+    for (let i = 0; i < 20; i++) act(() => setup.mockInput.pressArrow("down"));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`the zoo ${w}x${h}: the help scrolls to its last line`, flat(frame).includes("carries on your visit")]);
+    await setup.dispose();
+  }
+}
+
 let failed = 0;
 for (const [what, ok] of checks) {
   console.log(`${ok ? "ok" : "FAIL"}: ${what}`);

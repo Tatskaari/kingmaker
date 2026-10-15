@@ -1,5 +1,6 @@
 import { damageThing, joinWorld, worldView, type Entity } from "../../../world/scene-world.ts";
 import { spill } from "../../../world/systems.ts";
+import { sceneById } from "../../../../scenes/index.ts";
 import { T } from "../../map/tiles.ts";
 import { feet, marks, point, rect, type Ctx, type Exhibit, type Outcome, type Trigger, type Wing } from "../model.ts";
 import { passTurn, syncGear } from "../world.ts";
@@ -36,7 +37,7 @@ const GRID = `
 %.....k...........9.........................E..#
 %.m............n........q........r.............#
 %..............................................#
-%..............................................#
+%..........................Z...................#
 %.......!.....?.......[........................#
 %.....s.....t.......u......v...x...y....]......#
 X.@.z..........................................#
@@ -44,7 +45,7 @@ X.@.z..........................................#
 %%%%%%%%%%%%%%%%+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
 `;
 
-const MARKS = "CSRP1ao2b_3cWKGAdpB5eYfH6gUNOT7h8ijklmQL9nVq0JFEwr!s?t[uvxy]@z";
+const MARKS = "CSRP1ao2b_3cWKGAdpB5eYfH6gUNOT7h8ijklmQL9nVq0JFEwr!s?t[uvxy]@zZ";
 const at = marks(GRID, MARKS);
 const ID = "zoo-works";
 const FLOOR = T("floor", { style: "flags" });
@@ -137,9 +138,10 @@ const exhibits: Exhibit[] = [
       { id: "rig-thunder", label: "Give every specimen 30 thunder", at: at["7"]!, expect: ["float:unharmed", "debris"], run: z => rig(z, 30, "thunder", "The rig shouts at the specimens, extremely loudly.") },
     ]),
   sign("cone", "m", "The straw men (areas catch by shape)", ["Areas catch by shape", "Spells on things, and spells that make surfaces"],
-    "A spell's area catches everyone and everything in it that nobody's holding: a sphere or cylinder round where it's aimed, a cube in front of a caster whose range is self, a cone or a line out from the caster. Burning Hands is a 15-foot cone: from the chalk circle three straw men are in it and the fourth, further off, isn't. Things don't dodge: one roll of the dice for them all. Grease spreads a slick.",
+    "A spell's area catches everyone and everything in it that nobody's holding: a sphere or cylinder round where it's aimed, a cube in front of a caster whose range is self, a cone or a line out from the caster. Burning Hands is a 15-foot cone, as wide at its end as half its length: from the chalk circle, aimed at the near straw man, it catches him and the two behind him, and the fourth, further off, isn't in it. Things don't dodge: one roll of the dice for them all. Grease spreads a slick.",
     [
-      { id: "cone-burning-hands", label: "Cast Burning Hands at the straw men", at: at["8"]!, station: { name: "a chalk circle (cast from here)", glyph: "○", color: "#e8e4d8" }, stand: true, expect: ["ignite"], run: z => cast(z, "burning-hands", ["straw-man-2"]) },
+      // Aimed at the near one, straight along the row: the other two are three steps out and one to either side, inside the cone's spread.
+      { id: "cone-burning-hands", label: "Cast Burning Hands at the straw men", at: at["8"]!, station: { name: "a chalk circle (cast from here)", glyph: "○", color: "#e8e4d8" }, stand: true, expect: ["ignite"], run: z => cast(z, "burning-hands", ["straw-man-1"]) },
       { id: "cone-grease", label: "Cast Grease on the far straw man", at: at["8"]!, stand: true, expect: ["splash"], run: z => cast(z, "grease", ["straw-man-4"]) },
     ]),
   sign("pay-desk", "n", "The pay desk (inventory and coin)", ["Inventory and coin"],
@@ -184,7 +186,13 @@ const exhibits: Exhibit[] = [
     "Each turn of story time: whatever's burning takes 1d10 fire and sets flammable things within five feet alight; burned-out wrecks smoulder a turn and go out; oil burns off things that don't burn; a burning patch burns what stands in it and spreads, then burns out to a scorch mark and smoke; clouds drift off; puddles dry after twenty turns. Set some of the Works alight, then turn the glass.",
     [sandGlass("works-sandglass", at["["]!)], { tour: ["works-sandglass", "works-sandglass", "works-sandglass"] }),
   sign("afterwards", "v", "Afterwards", ["Afterwards"],
-    "What happens to a place offstage when its scene ends, whatever the ending, applied before the map takes the place over: in the Hanged Clerk, Prout is taken off the hoist (to the watch house, or onto the dead-cart). It waits if a fight comes first. The Theatre's repertory board rehearses the Hanged Clerk: end it, then look at the hoist."),
+    "What happens to a place offstage when its scene ends, whatever the ending, applied before the map takes the place over: in the Hanged Clerk, Prout is taken off the hoist (to the watch house under a sheet, or onto the dead-cart). It waits if a fight comes first. The hoist by this sign has a waxwork of Prout on it: run the Hanged Clerk's own afterwards on it, the very operation its scene ends with, and watch him go. (Rehearse the Hanged Clerk in the Theatre, and the card at its end says what became of the place.)",
+    [{ id: "run-afterwards", label: "Run the Hanged Clerk's afterwards on the hoist", at: at.Z!, station: bench("a hoist, borrowed from Pinch Lane", "╥", "#a07a52"), expect: ["poof"],
+      when: z => !!z.world.entities.prout && !z.world.entities.prout.states.includes("gone"),
+      run: z => {
+        const changes = z.ops(sceneById("hanged-clerk").afterwards ?? []);
+        return { text: `The Hanged Clerk is over, and what happens to Pinch Lane offstage happens here, by the same operation: ${changes.map(c => `${c.charAt(0).toUpperCase()}${c.slice(1)}`).join("; ")}.`, lines: changes };
+      } }]),
   sign("exit-scripts", "x", "Exit scripts", ["Exit scripts (world-update scripts)"],
     "Each ending runs its authored script into a recording world as the scene ends: quests started, advanced or failed; flags; items for you (Prout's page, Hobb's token, the true book); attitudes, memories and promises; the notebook's lines; and a fight's line-up. Every booth in the Theatre has them: end one (/end works offline) and open the notebook (j)."),
   sign("dust-store", "y", "A dust explosion in a scene", ["A dust explosion in a scene"],
@@ -246,8 +254,8 @@ export const works: Wing = {
       { id: "straw-man-4", name: "a fourth straw man, further off", in: "works-floor", at: feet(at.l!), size: "medium", material: "cloth" },
       { id: "toll-keeper", name: "the toll-keeper", kind: "person", in: "works-floor", at: feet(at.Q!), description: "A toll-keeper with a toll and no road." },
       { id: "pay-table", name: "a pay table", in: "works-floor", at: feet(at.L!), size: "medium", material: "wood", tags: ["furniture", "container"] },
-      { id: "table-shilling", name: "shillings", kind: "item", in: "pay-table", size: "tiny", material: "silver", description: "A shilling somebody left." },
-      { id: "drop-square", name: "a chalked square on the floor", kind: "feature", in: "works-floor", at: feet(at["9"]!), size: "small", material: "stone", tags: ["fixed"] },
+      { id: "table-shilling", name: "shillings", kind: "item", in: "pay-table", size: "tiny", material: "silver", quantity: 1, description: "A shilling somebody left." },
+      { id: "drop-square", name: "the chalked square", kind: "feature", in: "works-floor", at: feet(at["9"]!), size: "small", material: "stone", tags: ["fixed"] },
       { id: "attendant", name: "the cloakroom attendant", kind: "person", in: "works-floor", at: feet(at.V!), description: "Takes your things, gives you a ticket, and is the last man in the zoo to trust with either." },
       { id: "sm-desk", name: "the stage manager's desk", kind: "feature", in: "works-floor", at: feet(at["0"]!), size: "medium", material: "wood", tags: ["fixed"] },
       { id: "sm-porter", name: "a porter", kind: "person", in: "works-floor", at: feet(at.J!), description: "A porter who goes where he's told, which makes him invaluable to the stage manager." },
@@ -255,6 +263,10 @@ export const works: Wing = {
       { id: "bolted-bench", name: "a bench bolted to the floor", kind: "object", in: "works-floor", at: feet(at.E!), size: "large", material: "wood", tags: ["fixed"] },
       { id: "window", name: "the window", kind: "feature", in: "works-floor", at: feet(at.w!), size: "medium", material: "glass", tags: ["fixed"] },
       { id: "delegates-door", name: "the delegates' door", kind: "feature", in: "works-floor", at: feet({ x: 16, y: 27 }), size: "medium", material: "wood", tags: ["door"], states: ["closed"] },
+      // The Hanged Clerk's hoist, in miniature: its afterwards (remove "prout") finds him here by his id.
+      { id: "works-hoist", name: "a hoist beam", kind: "feature", in: "works-floor", at: feet(at.Z!), size: "large", material: "wood", tags: ["fixed"] },
+      { id: "works-hoist-rope", name: "the hoist rope", kind: "item", in: "works-hoist", size: "small", material: "rope", tags: ["hanging", "fixed"] },
+      { id: "prout", name: "the waxwork of Wendell Prout", kind: "object", in: "works-hoist-rope", size: "medium", material: "cloth", tags: ["body"], states: ["hanging"], description: "A waxwork of the hanged clerk, very like, in darned stockings and no boots. Somebody has hung a label on him: AFTERWARDS." },
     ],
     people: { player: { in: "works-floor", at: feet(at["@"]!) } },
   },

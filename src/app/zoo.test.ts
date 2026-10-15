@@ -89,3 +89,33 @@ test("walking into a booth opens its scene; /end takes an ending; its card goes 
   assert.equal(app.screen, "explore");
   assert.equal(exploreState(app.core!.state).map, "zoo-theatre");
 });
+
+test("a sign read opens its card, with what can be set off by it; a number sets one off", async () => {
+  const app = new Game();
+  await app.zoo();
+  const { EXHIBITS } = await import("../game/zoo/explorer.ts");
+  const sign = EXHIBITS.find(e => e.id === "numbers")!;
+  placePlayer(app.core!.state, "zoo-fire", { x: sign.sign.x, y: sign.sign.y + 1 });
+  app.openMenu(sign.sign, 10, 10);
+  await app.chooseFromMenu(app.menu!.actions.findIndex(a => /^look/.test(a.id)));
+  assert.deepEqual(app.overlay, { kind: "sign", exhibit: "numbers" });
+  const offers = app.zooTriggers("numbers");
+  assert.deepEqual(offers.map(a => a.id), ["use_numbers-bell"]);
+  await app.useFromCard(offers[0]!.id);
+  assert.equal(app.overlay, undefined);
+  assert.match(app.messages.at(-1) ?? "", /one of everything/);
+});
+
+test("the zoo's curtain cord shows The End, and Enter comes back to the zoo", async () => {
+  const app = new Game();
+  await app.zoo();
+  const found = triggerById("ring-down")!;
+  placePlayer(app.core!.state, found.wing.id, { x: 31, y: 12 });
+  app.openMenu({ x: 31, y: 11 }, 10, 10);
+  await app.chooseFromMenu(app.menu!.actions.findIndex(a => a.id === "use_ring-down"));
+  assert.equal(app.screen, "end");
+  assert.ok(app.ending, "the epilogue for the visit so far");
+  app.backFromEnd();
+  assert.equal(app.screen, "explore");
+  assert.equal(app.core!.state.mode, "explore");
+});

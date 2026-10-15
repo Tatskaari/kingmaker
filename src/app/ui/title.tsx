@@ -36,7 +36,7 @@ export function TitleScreen({ game }: { game: Game }) {
   useEffect(() => { game.loadSaves(); }, [game]);
   // The game x was pressed on: x again deletes it, anything else keeps it.
   const [doomed, setDoomed] = useState<string | undefined>();
-  const items: Array<{ label: string; detail?: string; save?: Resumable; run: () => void }> = [
+  const items: Array<{ label: string; detail?: string; save?: Resumable; zoo?: boolean; run: () => void }> = [
     ...game.saves.slice(0, 3).map((r, i) => ({
       label: i === 0 ? "Continue" : "Continue an older game",
       detail: describe(r),
@@ -45,7 +45,8 @@ export function TitleScreen({ game }: { game: Game }) {
     })),
     { label: "New game", detail: "make a character and take the case", run: () => game.newCharacter() },
     // The zoo: every feature laid out to see and try, kept apart from the story's games.
-    { label: "The zoo", detail: game.zooVisit ? "carry on your visit: every feature, laid out to see and try" : "every feature of the game, laid out to see and try", run: () => openZoo() },
+    // A visit can go the way of a game (x, twice): the next one starts fresh.
+    { label: "The zoo", detail: game.zooVisit ? "carry on your visit: every feature, laid out to see and try (x starts afresh)" : "every feature of the game, laid out to see and try", ...(game.zooVisit ? { save: game.zooVisit } : {}), zoo: true, run: () => openZoo() },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
   const at = Math.min(index, items.length - 1);
@@ -65,7 +66,7 @@ export function TitleScreen({ game }: { game: Game }) {
     if (!save || loading) return;
     if (doomed !== save.id) { setDoomed(save.id); return; }
     setDoomed(undefined);
-    game.deleteSave(save);
+    if (items[at]!.zoo) game.deleteZooVisits(); else game.deleteSave(save);
   };
   useKeyboard(key => {
     if (game.overlay || loading || key.defaultPrevented || game.screen !== "title") return;
@@ -97,8 +98,8 @@ export function TitleScreen({ game }: { game: Game }) {
       {items.map((item, i) => {
         const on = i === at;
         const going = !!item.save && item.save.id === doomed;
-        const label = going ? "Delete this game?" : item.label;
-        const detail = going ? `${item.save!.session.player.name}'s, for good: x again deletes it` : item.detail;
+        const label = going ? (item.zoo ? "Start the zoo afresh?" : "Delete this game?") : item.label;
+        const detail = going ? (item.zoo ? "this visit goes, for good: x again, and z starts a new one" : `${item.save!.session.player.name}'s, for good: x again deletes it`) : item.detail;
         return <Clickable key={i} height={1} flexShrink={0} onClick={() => pick(i)} onHover={() => select(i)}>
           <text>
             <span fg={going ? C.danger : on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>

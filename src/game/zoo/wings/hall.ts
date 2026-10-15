@@ -1,10 +1,14 @@
+import { sceneById } from "../../../../scenes/index.ts";
+import { sessionSpend } from "../../../llm/openrouter.ts";
 import { sheetText, createCharacter } from "../../../rules/dnd.ts";
+import type { SessionState } from "../../../runtime/session.ts";
 import { setGlyphSet, glyphSet, type GlyphSet } from "../../look/glyphs.ts";
 import { T } from "../../map/tiles.ts";
 import type { StoryState } from "../../types.ts";
 import { exploreState } from "../../town.ts";
 import { BUILDS, refit, wear, wearing, ZOO_LEVEL } from "../builds.ts";
 import { feet, marks, rect, type Exhibit, type Trigger, type Wing } from "../model.ts";
+import { firstMorningText } from "../window.ts";
 
 /**
  * The front hall: where the zoo starts and its doors go off to the wings. The wardrobe, the
@@ -26,7 +30,7 @@ const GRID = `
 %..................................#
 %.....b..e..f..g..h..i..j..k..l....#
 %..................................H
-%..a......m..n..0..p..s............#
+%..a..s...m..n..0..p...............#
 %.@................................#
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 `;
@@ -70,6 +74,16 @@ const SET_WORDS: Record<GlyphSet, string> = {
 };
 
 const TAILORED = "a retired lighthouse keeper with a lantern, a bad knee and an encyclopaedic knowledge of shipwrecks";
+
+/** The End of a visit so far, in words, as the End screen lays it out: the last closing words, the booths played, the bar tab. */
+function theEnd(session: SessionState): string {
+  const closing = [...session.transcript].reverse().find(e => e.kind === "narration")?.text ?? "And that, as they say in Caerwyn, was that.";
+  const chapters = session.history.map((h, i) => {
+    const scene = sceneById(h.sceneId);
+    return `${i + 1}. ${scene.title}: ${scene.exits.find(e => e.id === h.exitId)?.title ?? h.exitId}.`;
+  });
+  return `THE END. ${closing} How it went: ${chapters.length ? chapters.join(" ") : "nothing yet (the Theatre's booths are the chapters)."} The GM's bar tab this sitting: $${sessionSpend().toFixed(2)}. The King has graciously declined to pay it.`;
+}
 
 const sign = (id: string, mark: string, title: string, shows: string[], text: string, triggers: Trigger[] = [], needsModel = false, extra: Partial<Exhibit> = {}): Exhibit =>
   ({ id, title, shows, sign: at[mark]!, text, triggers, ...(needsModel ? { needsModel } : {}), ...extra });
@@ -119,7 +133,9 @@ export const hall: Wing = {
     sign("welcome", "a", "Welcome to the Zoo", ["Walking by key", "Click to walk", "Pointer hover", "The explore screen"],
       "Everything the game does, standing still long enough to be looked at. Walk with the arrows or WASD (up is up the screen), or click where you want to be. Right-click anything for what you can do with it, or face it and press e. g walks you to the next exhibit you haven't seen; v looks down on a wing from above. Nothing done in the zoo happens in Caerwyn, which Caerwyn would like on record."),
     sign("story-start", "s", "The story's first morning", ["A new game's start"],
-      "Not here: the zoo starts you in its hall, a level-five wizard with no case. A new game of the story starts on the Caerwyn map, in the lane by the granary gate, on the morning of the eve of the Assembly, with the hook in What happens and the lead on the granary yard, where Kell is waiting inside the gate. New game on the title screen, when you're ready to be a level-three investigator."),
+      "The zoo starts you in its hall, a level-five wizard with no case. A new game of the story starts on the Caerwyn map, in the lane by the granary gate, on the morning of the eve of the Assembly, with the hook in What happens and the lead on the granary yard, where Kell is waiting inside the gate. Look out of the window beside this sign and there it is, as a new game has it, not yet played: you can look, not go. New game on the title screen, when you're ready to be a level-three investigator.",
+      [{ id: "first-morning", label: "Look out of the window at the story's first morning", at: { x: 7, y: 13 }, station: { name: "a window onto Caerwyn", glyph: "▯", color: "#c8e0f0" },
+        run: () => ({ text: firstMorningText(), show: "window" }) }]),
     sign("title-screen", "b", "The title screen", ["The title screen"],
       "KINGMAKER in block letters, a tagline, and the games you can carry on with (x on one, twice, sends it to runs/deleted/). The zoo has its own line there, and its visits are kept apart from the story's saves: a zoo visit is never offered as a game to Continue, and the story never sees the zoo."),
     sign("wardrobe", "c", "The wardrobe", ["Character creation", "Making a character"],
@@ -154,7 +170,9 @@ export const hall: Wing = {
     sign("combat-keys", "k", "The combat screen's keys", ["The combat screen's keys"],
       "In a fight: a or Enter attack, z close in, c cast, u knock over, d dash, g dodge, x disengage, l leave, f let the dice decide, m every option, e or Space end the turn; Tab, Shift-Tab or 1-9 pick a target; s the sheet. What can't be done is said in the status line. The Arena has fights to try them in."),
     sign("the-end", "l", "The End", ["The End"],
-      "THE END in block letters, the last scene's closing words, how each scene ended, and the GM's bar tab for the sitting (the King has graciously declined to pay it). The story's own; the zoo has no end, only a way back to the title (Esc)."),
+      "THE END in block letters, the last scene's closing words, how each scene ended, and the GM's bar tab for the sitting (the King has graciously declined to pay it). In the story it comes after the King's morning. The zoo has no end, so pull the curtain cord beside this sign for The End of your visit so far (the booths you've played are its chapters); Enter brings you back to the hall.",
+      [{ id: "ring-down", label: "Pull the curtain cord (The End, for your visit so far)", at: { x: 31, y: 11 }, station: { name: "the curtain cord", glyph: "¡", color: "#c84040" },
+        run: z => ({ text: theEnd(z.session), show: "end" }) }]),
     sign("saving", "m", "Saving, resuming and recovering", ["Saving, resuming and recovering"],
       "The game saves as it goes (runs/sessions/<id>/: game.json, state.json, app.json), Ctrl+C saves and quits, and Continue picks up wherever you were, mid-fight included. A turn that fails part-way goes back to the last save. The zoo saves the same way, under its own visits."),
     sign("mouse", "n", "The mouse", ["The mouse"],

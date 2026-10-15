@@ -1,5 +1,6 @@
-import { castSpell, attack, type Outcome as RulesOutcome } from "../../../rules/dnd.ts";
+import { castSpell, attack, rest, type Outcome as RulesOutcome } from "../../../rules/dnd.ts";
 import type { WorldOp } from "../../../world/scene-world.ts";
+import { verb } from "../../../world/systems.ts";
 import { T, type TileDef } from "../../map/tiles.ts";
 import type { Tile2 } from "../../types.ts";
 import { freshWorld, passTurn } from "../world.ts";
@@ -23,7 +24,9 @@ export function told(lines: string[], lead = ""): string {
 /** A spell cast by the visitor at things or people in the wing (their own spells, from their own slots: or not at all). */
 export async function cast(z: Ctx, spell: string, targets: string[], lead = ""): Promise<Outcome> {
   const out: RulesOutcome = await castSpell(z.session, [], spell, targets);
-  return { text: told(out.lines, lead), lines: out.lines };
+  // Out of slots: where in the zoo they come back.
+  const dry = out.lines.some(l => /No spell slots left/i.test(l));
+  return { text: `${told(out.lines, lead)}${dry ? " (In the zoo, a wing's put-it-all-back lever, the Rules Room's cot or an arena bell give your slots back.)" : ""}`, lines: out.lines };
 }
 
 /** A blow at something or someone in the wing: one attack through the engine (weapon "improvised" for a thrown bottle). */
@@ -44,20 +47,24 @@ export function sandGlass(id: string, at: Tile2): Trigger {
     id, label: "Turn the sand-glass (a minute passes)", at, station: { name: "a sand-glass", glyph: "⌛", color: "#e0c890" },
     run: async z => {
       const lines = await passTurn(z);
-      return { text: lines.length ? `A minute passes. ${lines.join(" · ")}` : "A minute passes. Nothing here is in any hurry.", lines };
+      if (lines.length) return { text: `A minute passes. ${lines.join(" · ")}`, lines };
+      // Nothing changed, but a fire may be burning steadily on (a slick with turns to go).
+      const burning = Object.values(z.world.entities).find(e => e.states.includes("burning") && !e.states.includes("gone"));
+      return { text: burning ? `A minute passes. ${burning.name.charAt(0).toUpperCase()}${burning.name.slice(1)} ${verb(burning.name, "burns", "burn")} on.` : "A minute passes. Nothing here is in any hurry.", lines };
     },
   };
 }
 
-/** The wing's "put everything back" lever: its world as it was when the zoo opened. */
+/** The wing's "put everything back" lever: its world as it was when the zoo opened, and the visitor seen to (a night's rest). */
 export function resetLever(id: string, at: Tile2): Trigger {
   return {
-    id, label: "Pull the lever: put everything back", at, station: { name: "the put-it-all-back lever", glyph: "╥", color: "#9ab0c0" },
-    run: z => {
+    id, label: "Pull the lever: put everything back (you too)", at, station: { name: "the put-it-all-back lever", glyph: "╥", color: "#9ab0c0" },
+    run: async z => {
       const fresh = freshWorld(z.wing, { name: z.session.player.name });
       z.ex.roam = { ...(z.ex.roam ?? {}), [z.wing.id]: fresh };
       delete z.zoo.turns[z.wing.id];
-      return { text: `Clunk. A great many small men in brown coats put ${z.wing.name} back exactly as it was, and leave without making eye contact.` };
+      const rested = await rest(z.session, "long").catch(() => undefined);
+      return { text: `Clunk. A great many small men in brown coats put ${z.wing.name} back exactly as it was, and leave without making eye contact. The last of them hands you back your hit points and your spell slots, and asks you to sign for them.${rested?.status ? ` (${rested.status})` : ""}` };
     },
   };
 }

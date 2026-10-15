@@ -6,9 +6,12 @@ import { BOLD, ITALIC, Keys, SCROLLBAR, useGame, wrap } from "./common.tsx";
 export function EndScreen({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
+  // The zoo's End (its curtain cord) is a look at one: the visit carries on, so Enter goes back to it.
+  const zoo = game.isZoo && game.core?.state.mode !== "end";
+  const back = () => (zoo ? game.backFromEnd() : game.toTitle());
   useKeyboard(key => {
     if (game.overlay || game.screen !== "end" || key.defaultPrevented) return;
-    if (key.name === "return" || key.name === "escape") { key.preventDefault(); game.toTitle(); }
+    if (key.name === "return" || key.name === "escape") { key.preventDefault(); back(); }
     else if (key.name === "q") game.quit();
   });
   const end = game.ending;
@@ -36,6 +39,6 @@ export function EndScreen({ game }: { game: Game }) {
       {tab.map((l, i) => <text key={`t${i}`} fg={C.faint} attributes={ITALIC} flexShrink={0}>{l}</text>)}
     </box>
     {/* Buttons too: a click goes back to the title, or quits. */}
-    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title", () => game.toTitle()], ["q", "quit", () => game.quit()]]} /></box>
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", zoo ? "back to the zoo" : "back to the title", back], ["q", "quit", () => game.quit()]]} /></box>
   </box>;
 }

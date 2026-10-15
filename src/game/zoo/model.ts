@@ -41,7 +41,12 @@ export interface Outcome {
   open?: string;
   /** An arena whose fight starts (the arena's rings). */
   fight?: string;
+  /** Something for the screen to show beyond the map (the app's): The End, as the story ends; the window onto the story's first morning. */
+  show?: Show["kind"];
 }
+
+/** Something the last thing done asks the screen to show once (a sign's card, The End, the window), numbered like the news. */
+export interface Show { seq: number; kind: "sign" | "end" | "window"; id?: string }
 
 /** What a trigger is given: the game, the wing it's in and its world, and a few hands for the work. */
 export interface Ctx {
@@ -165,6 +170,8 @@ export interface ZooState {
   seq: number;
   /** The fight in progress from the map: its arena, and where the player stood. */
   fight?: { arena: string; from: { map: string; at: Tile2 } };
+  /** What the screen should show once, beyond the map: the sign just read, in full; The End; the window. */
+  show?: Show;
 }
 
 export interface News {

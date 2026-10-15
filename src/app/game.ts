@@ -3,12 +3,13 @@ import { Game as Core, type Action, type Explorer, type GameState } from "../gam
 import { TacticalFight, type CombatController, type TacticalFights } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
+import { setGlyphSet } from "../game/look/glyphs.ts";
 import { mapFights } from "../game/fights.ts";
 import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
 import { actionsAt, exploreState, interactLabel, leadTarget, town, walkId, type LeadTarget, type TileActions } from "../game/town.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
-import { WELCOME, zoo } from "../game/zoo/explorer.ts";
+import { EXHIBITS, WELCOME, zoo } from "../game/zoo/explorer.ts";
 import { zooFights } from "../game/zoo/fights.ts";
 import { newZoo } from "../game/zoo/game.ts";
 import { lookFor, playNews, type Look } from "../game/zoo/look.ts";
@@ -123,7 +124,13 @@ export type Overlay =
   | { kind: "spells"; spells: Array<{ id: string; name: string; level: number }>; index: number }
   | { kind: "actions"; index: number }
   /** A zoo wing's world from above (v), as a scene's stage draws its place. */
-  | { kind: "stage" };
+  | { kind: "stage" }
+  /** A zoo sign read, in full, with what can be set off by it (by its exhibit's id). */
+  | { kind: "sign"; exhibit: string }
+  /** What happens, in full: the last few things said on the map (r, or a click on the box). */
+  | { kind: "log" }
+  /** The window onto the story's first morning (the zoo's hall): Caerwyn as a new game has it. */
+  | { kind: "window" };
 
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
@@ -201,6 +208,8 @@ export class Game {
   private fightLook?: { fight: CombatController; fx: Effects; seen: number; dust: Tile2[] };
   /** A zoo wing's look on the map: what its exhibits set off, played once each (the zoo's news, by number). */
   private wingLook?: { world: SceneWorld; look: Look; seq: number };
+  /** The zoo's last thing shown beyond the map (a sign's card, The End), by number: each is shown once. */
+  private shownSeq = 0;
 
   constructor() {
     // The other side's turns: redraw after each, and give the player a beat to see it land.
@@ -269,6 +278,12 @@ export class Game {
     this.loadSaves();
   }
 
+  /** Every zoo visit goes the same way (runs/deleted/): the title's zoo starts a new one. */
+  deleteZooVisits(): void {
+    try { for (const v of zooVisits(1000)) deleteSave(v.id); } catch (error) { this.error = `Couldn't put the zoo back: ${(error as Error).message}`; }
+    this.loadSaves();
+  }
+
   newCharacter(): void {
     this.screen = "create";
     this.emit();
@@ -305,6 +320,8 @@ export class Game {
     this.messages = extras?.messages ?? [];
     this.journal = extras?.journal ?? [];
     this.overlay = undefined;
+    // What the zoo showed before the save was shown then (a sign's card isn't opened again on loading).
+    this.shownSeq = core.state.hub ? zooOf(core.state).show?.seq ?? 0 : 0;
     this.targetIndex = 0; this.targetId = undefined;
     switch (core.state.mode) {
       case "combat":
@@ -344,6 +361,7 @@ export class Game {
       this.messages = [WELCOME];
       this.overlay = undefined;
       this.wingLook = undefined;
+      this.shownSeq = 0;
       this.screen = "explore";
       this.saveExtras();
     } catch (error) {
@@ -586,9 +604,49 @@ export class Game {
     // A fight from the map (the zoo's arena): straight onto the battlefield.
     if (core.state.mode === "combat" && this.screen === "explore") { this.walking = false; this.menu = undefined; this.targetIndex = 0; this.targetId = undefined; this.screen = "combat"; }
     this.playZooNews();
+    this.showZoo();
     if (!options.quiet) this.saveExtras();
     this.emit();
     return { text, said };
+  }
+
+  /** What the zoo asks the screen to show beyond the map, once: a sign's card, The End, the window. */
+  private showZoo(): void {
+    const core = this.core;
+    if (!core?.state.hub || core.state.mode !== "explore" || this.screen !== "explore") return;
+    const s = zooOf(core.state).show;
+    if (!s || s.seq <= this.shownSeq) return;
+    this.shownSeq = s.seq;
+    this.walking = false;
+    this.menu = undefined;
+    if (s.kind === "sign" && s.id) this.overlay = { kind: "sign", exhibit: s.id };
+    else if (s.kind === "window") this.overlay = { kind: "window" };
+    // The End, as the story ends it, for the visit so far: Enter comes back to the zoo (backFromEnd).
+    else if (s.kind === "end") { this.ending = epilogue(core.session); this.overlay = undefined; this.screen = "end"; }
+  }
+
+  /** The zoo's End was a look at one: back to the hall, the visit carrying on. */
+  backFromEnd(): void {
+    this.ending = undefined;
+    this.screen = "explore";
+    this.emit();
+  }
+
+  /** What a zoo exhibit offers to set off from where the player stands now (its sign's card lists them). */
+  zooTriggers(exhibit: string): Action[] {
+    const core = this.core;
+    const found = EXHIBITS.find(e => e.id === exhibit);
+    if (!core || !found || core.state.mode !== "explore") return [];
+    const ids = new Set(found.triggers.map(t => `use_${t.id}`));
+    return zoo.actions(core.state, core.session).filter(a => ids.has(a.id));
+  }
+
+  /** Set off one of an exhibit's triggers from its card: the card closes, and it's done as from its menu. */
+  async useFromCard(id: string): Promise<void> {
+    this.overlay = undefined;
+    this.emit();
+    if (!this.core || this.busy || this.core.state.mode !== "explore") return;
+    await this.explore(id);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -970,9 +1028,16 @@ export class Game {
     const core = this.core!;
     const ex = exploreState(core.state);
     const notebook = this.journal.find(j => j.sceneId === sceneId)?.lines ?? [];
+    // What became of the place offstage (the scene's afterwards: Prout taken off the hoist), as its ending applied it.
+    const scene = sceneById(sceneId);
+    const nameOf = (id: string) => scene.world?.things.find(t => t.id === id)?.name ?? scene.cast.find(c => c.id === id)?.name ?? id;
+    const after = (scene.afterwards ?? []).map(o => o.op === "remove" ? `${capital(nameOf(o.what))} is ${o.text ?? "gone"}.` : `${capital(nameOf(o.what))}: ${o.op}${o.text ? ` (${o.text})` : ""}.`);
     const card: Card = {
-      title: `${sceneById(sceneId).title}: over`,
-      lines: [...(notebook.length ? ["Your notebook:", ...notebook, ""] : []), "Nothing in the zoo moves the story on. The next exhibit is where g walks you.", "", "Press Enter to go back to the map."],
+      title: `${scene.title}: over`,
+      lines: [
+        ...(notebook.length ? ["Your notebook:", ...notebook, ""] : []), ...(after.length ? ["Afterwards, offstage:", ...after, ""] : []),
+        "Nothing in the zoo moves the story on. The next exhibit is where g walks you.", "", "Press Enter to go back to the map.",
+      ],
       next: "explore",
     };
     const friend = ex.followers.find(f => f.map === ex.map) ?? ex.followers[0];
@@ -1210,6 +1275,8 @@ export class Game {
   }
 
   toTitle(): void {
+    // The zoo's glyph lever was the zoo's: the story draws with KM_GLYPHS's set again.
+    if (this.core?.state.hub) setGlyphSet(undefined);
     this.screen = "title";
     this.overlay = undefined;
     this.card = undefined;
