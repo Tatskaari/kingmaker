@@ -1,8 +1,9 @@
 """
 Headless smoke test of the playable game: run the real OpenTUI app under a pseudo-terminal, drive
 it with keystrokes and the mouse (xterm's SGR 1006 reports: the title's buttons, a click to walk, a
-right-click menu, a talk's choice, clicks on the way on, on commands and on the map's keys, and in
-the fight a blue tile, someone to aim at and the end-turn button), and grep the screen. By default
+right-click menu, someone in a scene's place pointed at, right-clicked, looked at and clicked to
+talk to, a talk's choice, clicks on the way on, on commands and on the map's keys, and in the fight
+a blue tile, someone to aim at and the end-turn button), and grep the screen. By default
 it plays the whole arc offline (an invalid API key, so the GM can't speak: scenes are ended with
 the /end testing command), including typing on as a scene ends (it goes nowhere), a save, quit and
 Continue, and a whole fight. With --live it plays real scene turns against the GM instead, a real
@@ -198,6 +199,37 @@ def mouse(app):
     expect(app, r"The Hanged Clerk ·", "choosing it walks over to her and her scene opens", timeout=40)
 
 
+def scene_place(app):
+    """The scene's place by mouse (SGR 1006): point at Kell in the list under it (the bottom line says who), right-click her for her menu, Look (a glance: a quiet note, not a turn), Esc; a click starts the line with her name; Tab picks her out by key."""
+    at = app.find("K Sergeant Agnes Kell")
+    if not at:
+        path = dump(app, "no-kell-in-the-list")
+        print(f"FAIL: Kell is listed under the scene's place (screen in {path})")
+        app.close()
+        sys.exit(1)
+    x, y = at[0] + 4, at[1]
+    app.point(x, y)
+    expect(app, r"Sergeant Agnes Kell +· +just inside the gate, notebook out +· +click to talk", "pointing at Kell under the scene's place says who she is, what she's doing, what a click does")
+    app.click(x, y, button=2)
+    expect(app, r"1 Talk to them.*2 Look at them.*Esc never mind", "a right-click on her opens her menu")
+    keys(app, "2")
+    expect(app, r"◉ +Sergeant Agnes Kell\. Just inside the gate, notebook out\. Beside", "Look: a quiet note of what a glance shows of her")
+    app.click(x, y, button=2)
+    expect(app, r"Esc never mind", "her menu again")
+    keys(app, "esc")
+    gone(app, r"Esc never mind", "Esc puts the scene's menu away")
+    app.click(x, y)
+    expect(app, r"│ Sergeant Kell, +│", "a click on her starts the line with her name")
+    for _ in range(len("Sergeant Kell, ")):
+        keys(app, "backspace", settle=0.02)
+    expect(app, IDLE, "the box is empty again")
+    app.point(1, 1)
+    keys(app, "tab")
+    expect(app, r"Sergeant Agnes Kell +· +just inside the gate", "Tab picks out the nearest in the place")
+    keys(app, "esc")
+    app.pump(0.3)
+
+
 def kell_way(app):
     """The way Kell draws in her notebook between scenes: (arrow, paces), or None."""
     m = re.search(r"notebook’s\s+margin:\s+(.*?)\s([↖↑↗→↘↓↙←•])\s+(\d+)\s+paces", re.sub(r"[│╭╮╰╯]", " ", app.text()), re.S)
@@ -364,6 +396,8 @@ def offline():
     expect(app, r"couldn't open the scene", "offline: the GM can't speak (expected)", timeout=40)
     expect(app, r"The yard behind the King", "the scene's place is drawn beside the transcript")
     expect(app, r"Plain words are what you say.*\*looks over my shoulder\*.*\(I cast Fireball\)", "how to talk: plain words said, asterisks and brackets done")
+    # The place by mouse: pointing, a right-click's menu, a look, a click that starts a line, Tab.
+    scene_place(app)
     say(app, "/map")
     expect(app, r"╔═ The yard behind the King's Granary", "/map shows the scene's place")
     keys(app, "esc")

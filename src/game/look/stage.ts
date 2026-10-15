@@ -62,7 +62,95 @@ export interface StageView {
   weather?: Weather;
   /** Ids to leave out (people who've left, a cast filter). */
   omit?: Set<string>;
+  /** Filled in with what's drawn where, for the mouse: pick.at(x, y) is who or what is in a cell, and the floor there. */
+  pick?: StagePicks;
+  /** What the pointer is on, lit up: someone or something (every cell drawn for them), or a cell of floor. */
+  hover?: string | { x: number; y: number };
 }
+
+/** What's in a cell of a stage frame: who or what is drawn there, and the floor under it. */
+export interface StagePick {
+  /** Who or what is drawn there (the topmost: people over things over the floor), by world id. */
+  id?: string;
+  /** What else was drawn in the cell, under it (topmost first): the rope Prout hangs from, the puddle Cob stands in. */
+  under?: string[];
+  /** The area the cell is in (the place's own id outside every area; none past the place's edge). */
+  area?: string;
+  /** What the ground is ("cobbles", "boards", "river", "void" past the edge). */
+  ground?: string;
+  /** A wall there, and what it's built of; a window in it. */
+  wall?: string;
+  window?: boolean;
+  /** Something the dressing has lying there: a puddle, mud, straw. */
+  patch?: string;
+  /** The cell's middle, in the world's feet. */
+  at: Point;
+}
+
+/**
+ * What a stage frame drew where, for the mouse (as the map's Picks are for the town): for each cell,
+ * who or what is drawn in it, and the floor under it. renderStage fills it in as it paints, so
+ * picking agrees with drawing: a click on someone's letter is a click on them, on a puddle's
+ * ripples the puddle, on a wall the wall the world knows (what the dressing draws in its stead).
+ */
+export class StagePicks {
+  w = 0;
+  h = 0;
+  /** The scene the frame was of. */
+  scene = "";
+  private cells: StageCells = { owner: new Int32Array(0), ids: [], drew: [], layers: new Map() };
+  private floor: (x: number, y: number) => Omit<StagePick, "id" | "under"> = () => ({ at: { x: 0, y: 0 } });
+
+  /** Take a frame's picks (renderStage calls this). */
+  fill(w: number, h: number, scene: string, cells: StageCells, floor: (x: number, y: number) => Omit<StagePick, "id" | "under">): void {
+    this.w = w; this.h = h; this.scene = scene; this.cells = cells; this.floor = floor;
+  }
+
+  /** Who or what is drawn in a cell (and what's under them), and the floor there; undefined off the frame. */
+  at(x: number, y: number): StagePick | undefined {
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return undefined;
+    const i = y * this.w + x;
+    const o = this.cells.owner[i] ?? -1;
+    const under = (this.cells.layers.get(i) ?? []).filter(n => n !== o).reverse().map(n => this.cells.ids[n]!);
+    return { ...this.floor(x, y), ...(o >= 0 ? { id: this.cells.ids[o]! } : {}), ...(under.length ? { under } : {}) };
+  }
+
+  /** Everyone and everything drawn in the frame (covered or not), once each, in the order they were drawn. */
+  shown(): string[] {
+    return this.cells.ids.filter((_, n) => this.cells.drew[n]?.length);
+  }
+
+  /** Where someone or something is drawn (the middle of what shows of them, or of where they're covered); undefined if nowhere. */
+  cellOf(id: string): { x: number; y: number } | undefined {
+    const cells = cellsFor(this.cells, id);
+    const i = cells[Math.floor(cells.length / 2)];
+    return i === undefined ? undefined : { x: i % this.w, y: Math.floor(i / this.w) };
+  }
+}
+
+/** Whose each cell of a frame is: its owner (the last drawn there), and everyone else who was drawn there. */
+export interface StageCells {
+  /** By cell: an index into ids, or -1. */
+  owner: Int32Array;
+  ids: string[];
+  /** By index into ids: every cell each one drew. */
+  drew: number[][];
+  /** Cells more than one drew, and who did (in the order they drew). */
+  layers: Map<number, number[]>;
+}
+
+/** The cells that show someone or something; if none do, the cells they're drawn in under something else. */
+function cellsFor(cells: StageCells, id: string): number[] {
+  const n = cells.ids.indexOf(id);
+  if (n < 0) return [];
+  const own = (cells.drew[n] ?? []).filter(i => cells.owner[i] === n);
+  return own.length ? own : cells.drew[n] ?? [];
+}
+
+/** The pointer's highlight (the map's own). */
+const HOVER = rgbOf("#9ab8e8");
+/** What each wall style is built of, so a wall the dressing draws stands in for the world's wall of that stuff. */
+const WALL_MATERIAL: Record<WallStyle, string> = { stone: "stone", brick: "stone", bank: "stone", palace: "stone", plaster: "stone", timber: "wood", hedge: "wood", glass: "glass" };
 
 export interface StageLayout {
   scale: number;
@@ -198,6 +286,43 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     return sx >= 0 && sy >= 0 && sx < w && sy < h ? sy * w + sx : -1;
   };
 
+  // Whose each cell is, as it's drawn (for the mouse, and the pointer's highlight): the last to
+  // draw a cell owns it, so people own theirs over the table they stand at; the rest are under them.
+  const tracked: StageCells | undefined = view.pick || typeof view.hover === "string" ? { owner: new Int32Array(w * h).fill(-1), ids: [], drew: [], layers: new Map() } : undefined;
+  const owner = tracked?.owner;
+  const ownerOf = new Map<string, number>();
+  const owning = (id: string | undefined): ((i: number) => void) | undefined => {
+    if (!tracked || !id) return undefined;
+    let n = ownerOf.get(id);
+    if (n === undefined) { n = tracked.ids.length; tracked.ids.push(id); tracked.drew.push([]); ownerOf.set(id, n); }
+    const k = n;
+    return i => {
+      if (i < 0 || i >= tracked.owner.length) return;
+      const was = tracked.owner[i]!;
+      if (was === k) return;
+      if (was >= 0) {
+        const layer = tracked.layers.get(i) ?? [was];
+        if (!layer.includes(k)) layer.push(k);
+        tracked.layers.set(i, layer);
+      }
+      tracked.owner[i] = k;
+      tracked.drew[k]!.push(i);
+    };
+  };
+  // What the dressing draws in the world's stead (the yard wall, the river, the river steps): a
+  // cell of it belongs to the nearest of them that it could be (a timber wall isn't the stone one).
+  const dressed = (dressing.hide ?? []).map(id => world.entities[id]).filter((e): e is Entity => !!e && !e.states.includes("gone"));
+  const standIn = (re: RegExp, p: Point, material?: string): string | undefined => {
+    let best: { id: string; d: number } | undefined;
+    for (const e of dressed) {
+      if (!re.test(`${e.id} ${e.name}`) || (material && e.material && e.material !== material)) continue;
+      const q = positionOf(world, e.id);
+      const d = q ? Math.hypot(q.x - p.x, q.y - p.y) : Infinity;
+      if (!best || d < best.d) best = { id: e.id, d };
+    }
+    return best?.id;
+  };
+
   // 1. Ground, and the area states that change it (exploded floors are scorched).
   const areaStates = st.areas.map(a => world.entities[a.id]?.states ?? []);
   for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
@@ -211,6 +336,9 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     const pk = st.patch[si]!;
     if (pk) cell = surfaceCell(SURFACE_KINDS[pk - 1]!, cell, cx, cy, st.depth[si]!, st.indoor[si] ? { ...tctx, indoor: true } : tctx);
     put(canvas, cx, cy, cell);
+    if (owner && dressed.length && (g === "river" || g === "water" || g === "deep-water" || g === "steps")) {
+      owning(standIn(g === "steps" ? /step|stair/i : /river|water|stream|canal/i, L.toFeet(cx, cy)))?.(cy * w + cx);
+    }
   }
 
   // 2. Surfaces in the world (puddles, oil, blood, ash...), some of them burning.
@@ -220,6 +348,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     const rx = Math.ceil(sp.radius / s) + 1, ry = Math.ceil(sp.radius / (2 * s)) + 1;
     const burning = sp.states.includes("burning");
     const frozen = sp.states.includes("frozen");
+    const own = owning(world.entities[sp.id] ? sp.id : undefined);
     for (let cy = c.y - ry; cy <= c.y + ry; cy++) for (let cx = c.x - rx; cx <= c.x + rx; cx++) {
       if (!canvas.inside(cx, cy)) continue;
       const p = L.toFeet(cx, cy);
@@ -232,12 +361,13 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       let cell = surfaceCell(frozen ? "ice" : sp.kind, under, cx, cy, depth, si >= 0 && st.indoor[si] ? { ...tctx, indoor: true } : tctx);
       if (burning && depth > 0.15) cell = flameCell(sp.kind === "spirits" ? "blue" : "fire", cell, cx, cy, clamp01(depth * 1.2), { ...tctx, seed: sp.seed });
       put(canvas, cx, cy, cell);
+      own?.(i);
     }
     if (burning) lights.push({ x: c.x, y: c.y, radius: (sp.radius + 10) / s, color: rgbOf(sp.kind === "spirits" ? FLAME_LIGHT.blue : FLAME_LIGHT.fire), intensity: 1.1 + 0.25 * noise1(t / 120, sp.seed) });
   }
 
   // 3. Walls, windows; doors where door things stand.
-  const doorCells = new Map<number, { look: Look; open: boolean }>();
+  const doorCells = new Map<number, { look: Look; open: boolean; id: string }>();
   for (const e of Object.values(world.entities)) {
     if (!e.tags.includes("door") || e.states.includes("gone")) continue;
     const p = where(e.id);
@@ -252,7 +382,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     }
     if (best === undefined) continue;
     const look = lookOf(e, { t, time: view.time, glyphs: set, seed: seedOf(e.id) });
-    doorCells.set(best, { look, open: e.states.includes("open") || e.states.includes("destroyed") || e.states.includes("broken") });
+    doorCells.set(best, { look, open: e.states.includes("open") || e.states.includes("destroyed") || e.states.includes("broken"), id: e.id });
   }
   for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
     const si = at(cx, cy);
@@ -263,15 +393,18 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       const fg = rgbOf(door.look.fg);
       canvas.put(cx, cy, door.look.glyph, fg, door.open ? rgbOf("#120e0a") : scale(fg, 0.42), BOLD);
       if (!door.open) opaque[i] = 1;
+      owning(door.id)?.(i);
       continue;
     }
     if (st.window[si]) {
       const lit = view.time === "night" || view.time === "evening";
       canvas.put(cx, cy, inSet((cx + cy) % 3 ? "▒" : "░", set), rgbOf(lit ? "#e8c070" : "#b8dcf0"), rgbOf(lit ? "#3a2a1a" : "#3a5a74"));
       canvas.spec[i] = 0.4;
+      if (owner && dressed.length) owning(standIn(/window/i, L.toFeet(cx, cy)))?.(i);
       continue;
     }
     const style = WALLS[st.wall[si]! - 1]!;
+    if (owner && dressed.length) owning(standIn(/wall/i, L.toFeet(cx, cy), WALL_MATERIAL[style]))?.(i);
     put(canvas, cx, cy, wallCell(style, cx - shake.dx, cy - shake.dy, tctx));
     canvas.flags[i] = canvas.flags[i]! | WALL;
     // Glass lets the light through.
@@ -302,8 +435,9 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   for (const { e, look, c } of order) {
     if (look.light) lights.push({ x: c.x + 0.5, y: c.y + 0.5, radius: look.light.radius / s, color: rgbOf(look.light.color), intensity: look.light.intensity });
     const fp = footprintCells(e, look, s);
-    if (fp && (fp.w > 1 || fp.h > 1) && look.stamp) stamp(canvas, look, e, c, fp, t, tctx);
-    else drawOne(canvas, look, e, c, t, set);
+    const own = owning(e.id);
+    if (fp && (fp.w > 1 || fp.h > 1) && look.stamp) stamp(canvas, look, e, c, fp, t, tctx, own);
+    else drawOne(canvas, look, e, c, t, set, own);
     if (look.burning) emitters.push({ kind: "fire", x: c.x, y: c.y, w: fp?.w ?? 1, h: fp?.h ?? 1, seed: seedOf(e.id), strength: look.burning, flame: look.flame ?? "fire" });
     else if (e.states.includes("smouldering")) emitters.push({ kind: "smoulder", x: c.x, y: c.y, w: fp?.w ?? 1, h: 1, seed: seedOf(e.id), strength: 0.5, flame: "fire" });
     if (e.states.some(x => x === "asleep" || x === "unconscious" || x === "sleeping")) emitters.push({ kind: "zzz", x: c.x, y: c.y, w: 1, h: 1, seed: seedOf(e.id), strength: 1, flame: "fire" });
@@ -393,6 +527,8 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   for (const cl of clouds) {
     const c = L.toCell(cl);
     const rx = Math.ceil(cl.radius * 1.4 / s) + 1, ry = Math.ceil(cl.radius * 1.4 / (2 * s)) + 1;
+    // A cloud is what's pointed at where nothing else is: through it, people and things are still themselves.
+    const own = owning(world.entities[cl.id] ? cl.id : undefined);
     for (let cy = c.y - ry; cy <= c.y + ry; cy++) for (let cx = c.x - rx; cx <= c.x + rx; cx++) {
       if (!canvas.inside(cx, cy)) continue;
       const d = cloudDensity(cx, cy, c, cl.radius / s, tctx, cl.seed) * cl.density;
@@ -400,6 +536,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       const i = cy * w + cx;
       const cell = cloudCell(cl.kind, { glyph: canvas.glyph[i]!, fg: canvas.fg[i]!, bg: canvas.bg[i]! }, d, tctx);
       canvas.glyph[i] = cell.glyph; canvas.fg[i] = cell.fg; canvas.bg[i] = cell.bg;
+      if (own && d >= 0.25 && owner![i]! < 0) own(i);
     }
   }
 
@@ -426,11 +563,39 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     if (canvas.spec[i]!) canvas.fg[i] = glint(canvas.fg[i]!, field, i, canvas.spec[i]!);
   }
 
+  // The pointer's highlight, in the light (as the map's): everything drawn for whoever or whatever
+  // it's on, or the bit of floor.
+  if (view.hover !== undefined) {
+    // Someone covered by what's in front of them (the rope under Prout) lights up where they are.
+    const lit = typeof view.hover === "string" ? (tracked ? cellsFor(tracked, view.hover) : [])
+      : canvas.inside(view.hover.x, view.hover.y) ? [view.hover.y * w + view.hover.x] : [];
+    for (const i of lit) {
+      canvas.bg[i] = mix(canvas.bg[i]!, HOVER, 0.5);
+      canvas.fg[i] = mix(canvas.fg[i]!, rgbOf("#ffffff"), 0.25);
+    }
+  }
+
   // 9. Floating text: damage, alerts, barks. Never darkened, never on top of one another (barks
   // first: what people say matters most; numbers find room round them).
   if (fx) {
     const taken = new Uint8Array(w * h);
     for (const tx of [...fx.texts].sort((a, b) => (a.style === "bark" ? 0 : 1) - (b.style === "bark" ? 0 : 1))) text(canvas, tx, L, taken, set);
+  }
+
+  // What's where, for the mouse: whose each cell is, and the floor under it (read when asked).
+  if (view.pick && tracked) {
+    const root = world.entities[world.root]!;
+    view.pick.fill(w, h, world.scene, tracked, (cx, cy) => {
+      const si = at(cx, cy);
+      const feet = L.toFeet(cx, cy);
+      if (si < 0) return { at: feet, ground: "void" };
+      const ai = st.area[si]!;
+      const inside = !!root.rect && feet.x >= root.rect.x && feet.y >= root.rect.y && feet.x < root.rect.x + root.rect.w && feet.y < root.rect.y + root.rect.h;
+      const area = ai >= 0 ? st.areas[ai]!.id : inside ? root.id : undefined;
+      const wall = st.wall[si] ? WALLS[st.wall[si]! - 1] : undefined;
+      const patch = st.patch[si] ? SURFACE_KINDS[st.patch[si]! - 1] : undefined;
+      return { at: feet, ground: GROUNDS[st.ground[si]!]!, ...(area ? { area } : {}), ...(wall ? { wall } : {}), ...(st.window[si] ? { window: true } : {}), ...(patch ? { patch } : {}) };
+    });
   }
   return canvas;
 }
@@ -458,8 +623,8 @@ function footprintCells(e: Entity, look: Look, s: number): { w: number; h: numbe
   return { w: Math.max(1, Math.round((look.footprint[0] * k) / s)), h: Math.max(1, Math.round((look.footprint[1] * k) / (2 * s))) };
 }
 
-/** One glyph (or a scattered group of them: a flock, a crowd), with a rope above if it hangs. */
-function drawOne(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, t: number, set: GlyphSet): void {
+/** One glyph (or a scattered group of them: a flock, a crowd), with a rope above if it hangs. `own` takes each cell drawn for it. */
+function drawOne(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, t: number, set: GlyphSet, own?: (i: number) => void): void {
   const alpha = look.alpha ?? 1;
   // Someone you can see stays findable in any light; the hidden stay faint.
   const flags = (look.bold ? BOLD : 0) | (look.glow ? GLOW : 0) | (look.being ? BEING | (alpha < 1 ? FAINT : 0) : 0) | (e.player ? GLOW : 0);
@@ -486,15 +651,17 @@ function drawOne(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: numbe
     if (look.bg) canvas.bg[i] = rgbOf(look.bg);
     canvas.flags[i] = flags;
     canvas.spec[i] = 0;
+    own?.(i);
   }
   if (e.states.includes("hanging") && canvas.inside(c.x, c.y - 1)) {
     const sway = noise1(t / 1300, seedOf(e.id)) > 0.5;
     canvas.put(c.x, c.y - 1, inSet(sway ? "│" : "╎", set), rgbOf("#c8a878"));
+    own?.((c.y - 1) * canvas.w + c.x);
   }
 }
 
-/** Big things over several cells: a tabletop, the bar's hull, the hearth, the elm's canopy, a stack of sacks. */
-function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, fp: { w: number; h: number }, t: number, tctx: TerrainContext): void {
+/** Big things over several cells: a tabletop, the bar's hull, the hearth, the elm's canopy, a stack of sacks. `own` takes each cell drawn for it. */
+function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, fp: { w: number; h: number }, t: number, tctx: TerrainContext, own?: (i: number) => void): void {
   const set = tctx.glyphs ?? "ascii";
   const x0 = c.x - Math.floor(fp.w / 2), y0 = c.y - Math.floor(fp.h / 2);
   const fg = rgbOf(look.fg);
@@ -533,6 +700,7 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
         if (ember) { f = ramp(FLAME_RAMPS.ember, 0.5 + 0.5 * noise1(t / 200, seed + dx)); canvas.flags[i] = GLOW; }
       }
       canvas.glyph[i] = glyph; canvas.fg[i] = f;
+      own?.(i);
       continue;
     }
     switch (look.stamp) {
@@ -570,6 +738,7 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
             glyph = g(heat > 0.72 ? "▲" : heat > 0.56 ? "^" : "*");
             f = ramp(fl, clamp01(0.35 + heat * 0.6)); b = ramp(fl, clamp01(0.08 + heat * 0.28));
             canvas.glyph[i] = glyph; canvas.fg[i] = f; canvas.bg[i] = b; canvas.flags[i] = GLOW | BOLD; canvas.spec[i] = 0;
+            own?.(i);
             continue;
           }
           f = mix(f, rgbOf("#3a2a1a"), 0.5);
@@ -583,6 +752,7 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
         if (burning > 0) {
           const cell = flameCell(flame, { glyph: " ", fg: rgbOf("#2a1a10"), bg: rgbOf("#1a1008") }, x, y, burning, { ...tctx, seed });
           canvas.glyph[i] = cell.glyph; canvas.fg[i] = cell.fg; canvas.bg[i] = cell.bg; canvas.flags[i] = GLOW | BOLD; canvas.spec[i] = 0;
+          own?.(i);
           continue;
         }
         glyph = g(r < 0.4 ? "∙" : r < 0.6 ? "," : " "); f = rgbOf("#5a5450"); b = rgbOf("#1c1a18");
@@ -594,12 +764,14 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
       // A burning table: flames run over it, the wood showing between them.
       const cell = flameCell(flame, { glyph, fg: f, bg: b ?? canvas.bg[i]! }, x, y, burning * (0.7 + 0.3 * noise2(dx * 0.6, dy, seed)), { ...tctx, seed });
       canvas.glyph[i] = cell.glyph; canvas.fg[i] = cell.fg; canvas.bg[i] = cell.bg; canvas.flags[i] = cell.glow ? GLOW | BOLD : 0; canvas.spec[i] = 0;
+      own?.(i);
       continue;
     }
     canvas.glyph[i] = glyph; canvas.fg[i] = f;
     if (b !== undefined) canvas.bg[i] = b;
     canvas.flags[i] = look.bold ? BOLD : 0;
     canvas.spec[i] = 0;
+    own?.(i);
   }
 }
 

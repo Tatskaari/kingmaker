@@ -14,6 +14,7 @@ const { BEING_CONTRAST } = await import("./look/light.ts");
 const { CAST, enterScene, newExploration, renderExplore, toPlain } = await import("./map/index.ts");
 const { town } = await import("./town.ts");
 const { fightEffects, fightLooks, fightView, stageView, townView } = await import("./views.ts");
+const { StagePicks } = await import("./look/stage.ts");
 import type { GameState } from "./play.ts";
 import type { StyledLine } from "./types.ts";
 import type { SessionState } from "../runtime/session.ts";
@@ -45,6 +46,37 @@ test("a scene's place: from above (the stage, dressed), and on the map with the 
   const plain = toPlain(townView(game, session, { w: 80, h: 24 }, { t: 500, effects: fx }));
   assert.match(plain, /full keg/, "the bark is over the map of the place");
   assert.doesNotMatch(toPlain(townView(game, session, { w: 80, h: 24 }, { color: false, effects: fx })), /full keg/, "but not in plain text");
+});
+
+test("a scene's place from above says what's drawn where, for the mouse (people over things, the rope under Prout, the walls the world knows), and lights up what the pointer's on", () => {
+  const scene = sceneById("hanged-clerk");
+  const world = buildWorld(scene.id, scene.world!, ["kell", "cob", "moll"].map(id => ({ id, name: scene.cast.find(c => c.id === id)!.name })), { name: "Odo" });
+  const session = { sceneId: scene.id, world } as unknown as SessionState;
+  const size = { w: 50, h: 15 };
+  const pick = new StagePicks();
+  const plain = stageView(session, size, { t: 1000, time: "morning", glyphs: "ascii", pick })!;
+  for (const id of ["player", "kell", "cob", "moll", "prout", "satchel", "water-butt"]) {
+    const at = pick.cellOf(id);
+    assert.ok(at, `${id} is drawn somewhere`);
+    if (id !== "prout") assert.equal(pick.at(at.x, at.y)?.id, id, `a click on ${id} is on them`);
+  }
+  assert.equal(plain.glyph[pick.cellOf("player")!.y * size.w + pick.cellOf("player")!.x], "@", "where the player is picked is where the @ is");
+  const prout = pick.cellOf("hoist-rope")!;
+  assert.deepEqual(pick.at(prout.x, prout.y), { ...pick.at(prout.x, prout.y), id: "prout", under: ["hoist-rope", "hoist-beam"] }, "Prout hangs from the rope, on the beam: they're under him");
+  assert.ok(pick.shown().includes("hoist-beam"), "what's covered is still in the place");
+  // The yard wall the dressing draws is the world's yard wall; the floor says what it is.
+  const cells = Array.from({ length: size.w * size.h }, (_, i) => pick.at(i % size.w, Math.floor(i / size.w))!);
+  assert.ok(cells.some(c => c.id === "yard-wall" && c.wall === "stone"), "the yard wall");
+  assert.ok(cells.some(c => !c.id && c.area === "yard" && c.ground === "cobbles"), "the yard's cobbles");
+  assert.ok(cells.some(c => !c.id && c.area === "loft" && c.wall === "timber"), "the loft's timber walls are only walls");
+  // The pointer lights up everyone it's on, and nothing else; a cell of floor by itself.
+  const lit = stageView(session, size, { t: 1000, time: "morning", glyphs: "ascii", hover: "kell" })!;
+  const changed = (a: typeof plain, b: typeof plain) => [...a.bg.keys()].filter(i => a.bg[i] !== b.bg[i]);
+  const kell = pick.cellOf("kell")!;
+  assert.deepEqual(changed(plain, lit), [kell.y * size.w + kell.x], "Kell's cell, lit up");
+  assert.deepEqual(changed(plain, stageView(session, size, { t: 1000, time: "morning", glyphs: "ascii", hover: { x: 3, y: 9 } })!), [9 * size.w + 3]);
+  const hidden = stageView(session, size, { t: 1000, time: "morning", glyphs: "ascii", hover: "hoist-rope" })!;
+  assert.deepEqual(changed(plain, hidden), [prout.y * size.w + prout.x], "the rope under Prout lights up where it is");
 });
 
 test("people stay findable in the dark and keep their colours: the Rat in the evening and at night, the Heron at night, from above and on the map", () => {
