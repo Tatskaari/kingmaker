@@ -19,7 +19,7 @@ process.env.KM_COST_LEDGER = join(RUNS, "cost-ledger.jsonl");
 process.env.OPENROUTER_API_KEY = "offline";
 const { sceneById } = await import("../../scenes/index.ts");
 const { buildWorld, joinWorld } = await import("../world/scene-world.ts");
-const { effectiveScene, nowNote, outOfSight, presentCast, prompt, sceneBrief } = await import("./brief.ts");
+const { effectiveScene, genderOf, nowNote, outOfSight, presentCast, prompt, sceneBrief } = await import("./brief.ts");
 const { chainScene, forceEnding } = await import("./engine.ts");
 const { fakeOpenRouter } = await import("../llm/fake-openrouter.ts");
 
@@ -95,6 +95,24 @@ test("the prep's essentials each say whether the player has come across them, an
   const ratBrief = sceneBrief(owed, { ...at("drowned-rat"), patches: [] });
   assert.match(ratBrief, /\[missed in an earlier scene, and the story still needs it: its things are where the world has them, with whoever has them, out of the player's sight until they find them or someone shows them; the narration never says where they are\]/);
   assert.doesNotMatch(ratBrief, /stays where the world has it/);
+});
+
+test("the player character as they are: a woman isn't sir, their past is what it says, and they do only what the player says", () => {
+  const nim = { name: "Nim Bramblefoot", concept: "a halfling cutpurse and smooth liar", modifiers: {}, backstory: { text: "I tell folk I'm a cooper's girl. I'm not.", summary: "Nim Bramblefoot is a river-raised halfling cutpurse, freed after two years in irons for a strongbox theft Tobin Wick pinned on her. She owes Old Marrow forty silver by the next new moon, carries a grudge against Tobin, and took this case for reasons not yet stated.", personality: [], ideals: [], bonds: [], flaws: [] } };
+  const caelith = { name: "Caelith Ondraviel", concept: "an elf wizard and college pedant, certain he is the cleverest in any room", modifiers: {}, backstory: { text: "Caelith took his robes at forty.", summary: "Caelith Ondraviel is a young elf wizard sent away from his college after publicly challenging its Provost's prize decision.", personality: [], ideals: [], bonds: [], flaws: [] } };
+  const wren = { name: "Wren Ashdown", concept: "a soft-spoken former pickpocket who now carries letters for hire", modifiers: {} };
+  assert.equal(genderOf(nim), "woman");
+  assert.equal(genderOf(caelith), "man");
+  assert.equal(genderOf(wren), undefined);
+  const scene = sceneById("hanged-clerk");
+  const brief = (player: SessionState["player"]) => sceneBrief(scene, { ...at("hanged-clerk"), player });
+  assert.match(brief(nim), /She's a woman: people speak of her as she and her, and address her as they'd address a woman \(mistress, missus, miss or madam, as fits who's talking\), never as sir\./);
+  assert.match(brief(caelith), /He's a man: people speak of him as he and him/);
+  assert.match(brief(wren), /Nothing says whether they're a man or a woman: until the player shows it, people address them by name or by what they're here as, not as sir or madam\./);
+  assert.match(brief(caelith), /it's all there is of their past: nobody adds to it \(a prison, a crime, a debt or a trade it doesn't have\)/);
+  const gm = prompt("gm");
+  assert.match(gm, /They do what the player says, the way the player says it, and no more: they don't hurry, slip or fall, step outside, or take anyone anywhere unless the player says so/);
+  assert.match(gm, /Nor do they say the player's words back to them/);
 });
 
 test("the boundary keeps the author's word on who isn't there yet when it rewrites the next opening (the Heron opened on the Master, who comes at midnight)", async () => {

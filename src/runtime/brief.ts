@@ -3,7 +3,7 @@ import { worldView, type Entity } from "../world/scene-world.ts";
 import { PHYSICS } from "../world/systems.ts";
 import { join } from "node:path";
 import type { Beat, Character, Exit, Scene, Transition } from "./scene.ts";
-import type { Entry, ScenePatch, SessionState } from "./session.ts";
+import type { Entry, PlayerCharacter, ScenePatch, SessionState } from "./session.ts";
 import { titleCase } from "./dice.ts";
 
 const PROMPTS_DIR = join(import.meta.dirname, "..", "..", "prompts");
@@ -197,6 +197,29 @@ export function playerWho(state: SessionState): string {
 }
 
 /**
+ * Whether the player character is a man or a woman, as their backstory's summary (written in the
+ * third person at character creation) or their concept has it, when it plainly says: Tull and Hobb
+ * called a woman "sir" nine times, while Kell wrote "she".
+ */
+export function genderOf(player: Pick<PlayerCharacter, "concept" | "backstory">): "woman" | "man" | undefined {
+  const text = `${player.backstory?.summary ?? ""} ${player.concept}`;
+  const count = (re: RegExp) => text.match(re)?.length ?? 0;
+  const she = count(/\b(she|her|hers|herself|woman|girl|lady)\b/gi);
+  const he = count(/\b(he|him|his|himself|man|boy|lad)\b/gi);
+  if (she > 2 * he) return "woman";
+  if (he > 2 * she) return "man";
+  return undefined;
+}
+
+/** How people speak of and to the player character. */
+function addressLine(player: PlayerCharacter): string {
+  const gender = genderOf(player);
+  if (gender === "woman") return " She's a woman: people speak of her as she and her, and address her as they'd address a woman (mistress, missus, miss or madam, as fits who's talking), never as sir.";
+  if (gender === "man") return " He's a man: people speak of him as he and him, and address him as they'd address a man (sir, mister or master, as fits who's talking).";
+  return " Nothing says whether they're a man or a woman: until the player shows it, people address them by name or by what they're here as, not as sir or madam.";
+}
+
+/**
  * The player character's own backstory, for the GM: who they are in short (every brief), and where
  * the whole of it is (`inNotes`: the GM's notes from the docs service have it, so it isn't repeated;
  * otherwise it's here in full). Their past, known in the story only where someone would know it.
@@ -210,7 +233,7 @@ function backstoryBrief(state: SessionState, inNotes: boolean): string {
   return [
     `\nWho they are, from their own backstory: ${b.summary}${traits.length ? ` (${traits.join(". ")}.)` : ""}`,
     inNotes ? "The whole of their backstory, in their own words, is in your notes (the player character's doc)." : `Their backstory, in their own words:\n${b.text.trim().split(/\n+/).map(l => `> ${l}`).join("\n")}`,
-    "It's their past, and true for them: let it colour the world when it would (a face from home, an old debt coming due, a name that means something to them), but people in the story know of it only what they'd plausibly know (someone from that past, something that was public) or what the player tells or shows them. Nobody brings it up out of nowhere. What it says of the story's own people and places is what they believe or heard: where your prep says otherwise, your prep is the truth.",
+    "It's their past, and true for them: let it colour the world when it would (a face from home, an old debt coming due, a name that means something to them), but people in the story know of it only what they'd plausibly know (someone from that past, something that was public) or what the player tells or shows them. Nobody brings it up out of nowhere. What it says of the story's own people and places is what they believe or heard: where your prep says otherwise, your prep is the truth. And it's all there is of their past: nobody adds to it (a prison, a crime, a debt or a trade it doesn't have), not even in passing.",
     "When the player tells someone of their past without saying it word for word (\"I tell her where I'm from\"), they tell it as their backstory has it: show what they told, in its own details, and how the listener takes it.",
   ].join("\n");
 }
@@ -295,7 +318,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
     ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose. Each says whether the player has come across it. Until they have, it's behind the screen: they don't know it, and the narration doesn't tell it; nobody here says it, writes it down or acts on it as known unless they know it themselves (their card says so, or they've just seen it).\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${e.missed ? ` [missed in an earlier scene, and the story still needs it: ${OWED_PLACE}]` : ""}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : " [not come across yet]"}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
-    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it. ${STRANGER}${skillSummary(state)}${backstoryBrief(state, !!options.docs)}`,
+    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character.${addressLine(state.player)} Other people only know their name if they've been told it. ${STRANGER}${skillSummary(state)}${backstoryBrief(state, !!options.docs)}`,
     `## Table rules (for out-of-character questions)\n${state.rules
       ? "- The game runs D&D rules: it rolls the dice for checks, saving throws, spells, attacks and rests, and you're told each result (🎲). You never roll, ask for a roll or invent numbers.\n- The player can see their character sheet out of game (/sheet). Levels come at story milestones. A real fight moves to the battle map."
       : "- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- There's no experience or loot system yet."}\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
