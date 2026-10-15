@@ -3,7 +3,8 @@ import { Game as Core, type Action, type Explorer, type GameState } from "../gam
 import { TacticalFight, type CombatController, type TacticalFights } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
-import { setGlyphSet } from "../game/look/glyphs.ts";
+import { lookOf } from "../game/look/appearance.ts";
+import { glyphSet, setGlyphSet } from "../game/look/glyphs.ts";
 import { mapFights } from "../game/fights.ts";
 import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
 import type { AimAt, AimView, MenuItem, MenuView } from "../game/menu.ts";
@@ -21,6 +22,8 @@ import { sheetData, spellInfo, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries, unnamed } from "../runtime/brief.ts";
 import { thingActions, type SceneContext, type SceneTarget, type SpellFacts, type ThingActions } from "../game/scene-menu.ts";
 import type { TurnHooks } from "../runtime/engine.ts";
+import { speakersOf } from "../runtime/knowledge.ts";
+import { speechIn, withSpeakers, type Markup } from "../runtime/markup.ts";
 import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
 import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
@@ -28,6 +31,7 @@ import { talkOf } from "../../scenes/talk.ts";
 import { repairCampaign } from "./rules-repair.ts";
 import { deleteSave, loadExtras, resumable, saveExtras, zooVisits, type JournalEntry, type Resumable } from "./save.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, leadWay, LEVEL, notebookLines, TIME_WORDS, type Epilogue } from "./story.ts";
+import { C } from "./theme.ts";
 
 /** The story's map and fights (Caerwyn), or a hub's (the zoo: src/game/zoo), by what a game is. */
 const explorerFor = (game: Pick<GameState, "hub"> | undefined): Explorer => (game?.hub === "zoo" ? zoo : town);
@@ -57,6 +61,8 @@ export interface Line {
   text: string;
   /** The scene it's in: the next scene's opening can stream in while the last one is still on screen. */
   scene?: string;
+  /** A GM reply's markup: who says each line, and its marked phrases (src/runtime/markup.ts). */
+  marked?: Markup;
 }
 
 export interface Card {
@@ -182,7 +188,13 @@ export type Overlay =
   /** What happens, in full: the last few things said on the map (r, or a click on the box). */
   | { kind: "log" }
   /** The window onto the story's first morning (the zoo's hall): Caerwyn as a new game has it. */
-  | { kind: "window" };
+  | { kind: "window" }
+  /**
+   * A marked phrase opened (a click, or Enter on what Tab picked out): the GM's note on it, and what
+   * the player knows of what it's about. By the line it's in (an index into `lines`) and its place in
+   * that line's marks; where on screen it was clicked, when it was.
+   */
+  | { kind: "mark"; line: number; mark: number; x?: number; y?: number };
 
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
@@ -231,6 +243,10 @@ export class Game {
   menu?: TileMenu;
   /** The scene's right-click menu (on its place, or the list under it), while it's open. */
   sceneMenu?: SceneMenu;
+  /** A marked phrase of the last reply that Tab picked out (by its line in `lines` and its place in that line's marks): Enter opens it, Esc lets go. */
+  markFocus?: { line: number; mark: number };
+  /** A marked phrase the pointer is on: the bottom line says what it is. */
+  markPointed?: { line: number; mark: number };
   /** The action menu, while it's open (m on the map). */
   doMenu?: DoMenu;
   /** Aiming something from the action menu on the map. */
@@ -877,7 +893,7 @@ export class Game {
   private lineOf(e: Entry): Line {
     // The rules' lines with no roll in them are news, not dice: what you carry, what's burning.
     const kind = e.kind === "roll" && !isRoll(e.text) ? "info" : e.kind;
-    return { kind, speaker: e.speaker, ...(e.kind === "dialogue" || e.kind === "player" ? { name: this.nameOf(e.speaker) } : {}), text: e.text, ...(e.scene ? { scene: e.scene } : {}) };
+    return { kind, speaker: e.speaker, ...(e.kind === "dialogue" || e.kind === "player" ? { name: this.nameOf(e.speaker) } : {}), text: e.text, ...(e.scene ? { scene: e.scene } : {}), ...(e.marked ? { marked: e.marked } : {}) };
   }
 
   private header(): Line {
@@ -890,6 +906,7 @@ export class Game {
     this.shown = this.session!.sceneId;
     this.lines = [this.header()];
     this.live = undefined;
+    this.forgetMarks();
     this.status = undefined;
     this.busy = busy;
     this.over = undefined;
@@ -901,6 +918,7 @@ export class Game {
   private showSceneSoFar(): void {
     this.shown = this.session!.sceneId;
     this.lines = [this.header(), ...sceneEntries(this.session!).map(e => this.lineOf(e))];
+    this.forgetMarks();
     // A summons's opening may still be streaming in: it carries on, now on screen.
     if (this.live?.scene !== this.shown) this.live = undefined;
     this.over = undefined;
@@ -922,9 +940,10 @@ export class Game {
         this.notice();
         this.emit();
       },
-      onText: text => {
+      onText: (text, markup) => {
         if (!this.live) return;
         this.live.text = text;
+        if (markup) this.live.marked = markup;
         if (this.live.scene === this.shown) this.emitSoon();
       },
       onEntry: entry => {
@@ -990,6 +1009,7 @@ export class Game {
     this.busy = GM_BUSY[this.busyTurn++ % GM_BUSY.length]!;
     this.status = undefined;
     this.choices = [];
+    this.markFocus = undefined;
     this.emit();
     const before = core.session.sceneId;
     const stop = this.watch();
@@ -1337,6 +1357,74 @@ export class Game {
     this.emit();
   }
 
+  // -------------------------------------------------------------------------------------------
+  // The GM's marked phrases (src/runtime/markup.ts): each person's colour, Tab, and the popover
+
+  /** Markup found from the prose, for narration that came without any (an older save, the GM offline): by its text. */
+  private derived = new Map<string, Markup>();
+
+  /**
+   * A line's markup: its own, or, for narration without any, its quoted lines as spoken, with the
+   * speaker found from the prose as the look's barks find them. Nothing for other lines.
+   */
+  markupOf(line: Line): Markup | undefined {
+    if (line.marked) return line.marked;
+    if (line.kind !== "narration" || !/[“"]/.test(line.text)) return undefined;
+    let found = this.derived.get(line.text);
+    if (!found) {
+      const session = this.session, shown = this.shownScene;
+      const people = session && shown ? speakersOf(sceneById(shown), { ...session, ...(this.shownWorld ? { world: this.shownWorld } : {}) }) : [];
+      found = { speech: withSpeakers({ text: line.text, speech: speechIn(line.text), marks: [] }, people).speech, marks: [] };
+      if (this.derived.size > 200) this.derived.clear();
+      this.derived.set(line.text, found);
+    }
+    return found;
+  }
+
+  /**
+   * A spoken line's colour: the speaker's, as the place draws them (their glyph's colour); the
+   * player's own blue for words of theirs; gold for anyone not in the place, or nobody anyone can tell.
+   */
+  speechColor(id: string | undefined): string {
+    if (id === "you" || id === "player") return C.player;
+    const e = id ? this.shownWorld?.entities[id] : undefined;
+    if (!e || e.player || e.states.includes("gone") || (e.kind !== "person" && e.kind !== "creature")) return C.speech;
+    return lookOf({ ...e, states: [] }, { glyphs: glyphSet() }).fg;
+  }
+
+  /** The last reply's marks, in order: what Tab goes through first. None when the last reply has none. */
+  lastMarks(): Array<{ line: number; mark: number }> {
+    const i = this.lines.findLastIndex(l => l.kind === "narration" || l.kind === "dialogue");
+    const marks = i >= 0 ? this.lines[i]!.marked?.marks ?? [] : [];
+    return marks.map((_, mark) => ({ line: i, mark }));
+  }
+
+  /** The transcript's lines are new (another scene, or the scene again from its save): what was picked out of them goes. */
+  private forgetMarks(): void {
+    this.markFocus = undefined;
+    this.markPointed = undefined;
+    if (this.overlay?.kind === "mark") this.overlay = undefined;
+  }
+
+  /** Open a marked phrase: the GM's note on it, and what the player knows of what it's about (where it was clicked, if it was). */
+  openMark(line: number, mark: number, x?: number, y?: number): void {
+    if (!this.lines[line]?.marked?.marks[mark] || this.screen !== "scene") return;
+    this.sceneMenu = undefined;
+    this.overlay = { kind: "mark", line, mark, ...(x !== undefined ? { x } : {}), ...(y !== undefined ? { y } : {}) };
+    this.emit();
+  }
+
+  /** Tab with a mark open: the next of the same reply's (or the one before), opened where the last one was. */
+  stepMark(by: number): void {
+    const o = this.overlay;
+    if (o?.kind !== "mark") return;
+    const n = this.lines[o.line]?.marked?.marks.length ?? 0;
+    if (n < 2) return;
+    this.overlay = { ...o, mark: (o.mark + by + n) % n };
+    this.markFocus = { line: o.line, mark: this.overlay.mark };
+    this.emit();
+  }
+
   /**
    * A glance at something in the place (the menu's Look, worded by lookText: what anyone could
    * see, never the world's descriptions, which are the GM's): at once, as a quiet note in the
@@ -1504,6 +1592,9 @@ export class Game {
       // A spell and what it did land as a burst of lines: show them together.
       if (!this.rolled.length) setTimeout(() => this.animateRolls(), 0);
       this.rolled.push(entry.text);
+    } else if (entry.kind === "narration" && entry.marked?.speech.some(s => s.speaker)) {
+      // Who says what is known (the GM's tags): each short line over whoever said it.
+      look.director.barksFromSpeech(world, entry.marked.speech.map(s => ({ speaker: s.speaker, text: entry.text.slice(s.start, s.end) })), performance.now());
     } else if (entry.kind === "narration") look.director.barksFrom(world, entry.text, performance.now(), this.called());
     else if (entry.kind === "dialogue") look.director.barkLine(world, entry.speaker, entry.text, performance.now());
   }

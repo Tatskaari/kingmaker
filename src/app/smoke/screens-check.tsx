@@ -651,6 +651,84 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// The GM's markup in a scene (src/runtime/markup.ts), at 80x24 and 130x42: each speaker's lines in
+// the colour the place draws them in, paragraphs broken where the speaker changes, the marked
+// phrases underlined in their kind's colour; a click on one opens its popover (the GM's note, and
+// what the player knows of what it's about), and Esc or a click outside closes it; Tab picks out
+// the last reply's marks first (the bottom line says what each is), Enter opens it, Tab in the
+// popover goes on to the next, and Tab past the last goes on into the place.
+
+{
+  const { markedYard } = await import("./marks-demo.tsx");
+  const { lookOf } = await import("../../game/look/appearance.ts");
+  const { C } = await import("../theme.ts");
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const { session, lines } = await markedYard();
+    const game = new Game();
+    game.core = { session, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }) } as unknown as Core;
+    game.screen = "scene";
+    game.lines = lines;
+    const setup = await testRender(<><SceneScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+    const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
+    const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+    await setup.renderOnce();
+    let frame = await draw();
+    if (show) console.log(`marks ${w}x${h}\n${frame}`);
+    /** The colour and attributes the first cell of some text is drawn with. */
+    const style = (text: string) => {
+      for (const line of setup.captureSpans().lines) {
+        let row = "";
+        for (const s of line.spans) { if ((row + s.text).includes(text) && s.text.includes(text.slice(0, 3))) return { fg: hex(s.fg), underline: (s.attributes & 8) !== 0 }; row += s.text; }
+      }
+      return undefined;
+    };
+    const color = (id: string) => lookOf({ ...session.world!.entities[id]!, states: [] }, { glyphs: "ascii" }).fg.toLowerCase();
+    checks.push([`marks ${w}x${h}: the girl's line in her colour, as the place draws her (${style("“Leave him be.")?.fg})`, style("“Leave him be.")?.fg === color("moll")]);
+    checks.push([`marks ${w}x${h}: Kell's line in hers (${style("“You told the boy")?.fg})`, style("“You told the boy")?.fg === color("kell")]);
+    checks.push([`marks ${w}x${h}: the narration in the GM's own colour`, style("The boy looks at your hands")?.fg === C.gm]);
+    // A paragraph breaks where the speaker or the kind of text changes, at a sentence's edge.
+    const rows = frame.split("\n");
+    checks.push([`marks ${w}x${h}: "Kell's pencil stops." is a paragraph of its own, and her line starts the next`, rows.some((r, i) => /│ Kell's pencil stops\. +│/.test(r) && rows[i + 1]!.includes("│ “You told the boy"))]);
+    // The marks: underlined, in their kind's colour.
+    const why = style("He don't talk"), you = style("you're asking him");
+    checks.push([`marks ${w}x${h}: a why underlined in its colour (${why?.fg}), and a you in its own (${you?.fg})`, why?.fg === C.why && why.underline && you?.fg === C.you && you.underline]);
+    // A click on a mark: its popover, with the note and the deed it's about.
+    const p = at(frame, "asking him");
+    if (p) await act(async () => { await setup.mockMouse.click(p.x, p.y); });
+    frame = await draw();
+    if (show) console.log(`marks ${w}x${h}, a mark clicked\n${frame}`);
+    checks.push([`marks ${w}x${h}: a click on a mark opens it: the GM's note, and what the player did`, game.overlay?.kind === "mark" && /You did this/.test(frame) && /You barked at him/.test(frame) && /What you did/.test(frame) && /Boy! Stop that/.test(frame)]);
+    const outside = { x: w - 3, y: h - 2 };
+    await act(async () => { await setup.mockMouse.click(outside.x, outside.y); });
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: a click outside it closes it`, !game.overlay && !/You barked at him/.test(frame)]);
+    // By key: Tab picks out the last reply's mark, Enter opens it, Esc closes it, Tab past it goes into the place.
+    await act(async () => { await setup.mockMouse.moveTo(1, 1); });
+    act(() => setup.mockInput.pressTab());
+    frame = await draw();
+    const bottom = frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
+    checks.push([`marks ${w}x${h}: Tab picks out the last reply's mark, and the bottom line says what it is (${bottom})`, game.markFocus?.mark === 0 && /^You did this: you're asking him for help/.test(bottom)]);
+    checks.push([`marks ${w}x${h}: the mark Tab picked out is lit`, setup.captureSpans().lines.some(l => l.spans.some(s => s.text.includes("you're") && hex(s.bg) === C.highlightBg))]);
+    act(() => setup.mockInput.pressEnter());
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: Enter opens it`, game.overlay?.kind === "mark" && /You barked at him/.test(frame)]);
+    await esc();
+    checks.push([`marks ${w}x${h}: Esc closes it, and the mark stays picked out`, !game.overlay && game.markFocus?.mark === 0]);
+    act(() => setup.mockInput.pressTab());
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: Tab past the last mark goes on into the place`, !game.markFocus && /Sergeant Agnes Kell/.test(frame.split("\n").filter(r => r.trim()).at(-1)!)]);
+    // An earlier reply's mark, by the mouse: the stairs' grudge, in the girl's line.
+    const q = at(await draw(), "talk to the watch");
+    if (q) await act(async () => { await setup.mockMouse.click(q.x, q.y); });
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: an earlier reply's mark opens too (Why)`, game.overlay?.kind === "mark" && /Why/.test(frame) && /good coat/.test(frame)]);
+    await esc();
+    await setup.dispose();
+  }
+}
+
 let failed = 0;
 for (const [what, ok] of checks) {
   console.log(`${ok ? "ok" : "FAIL"}: ${what}`);
