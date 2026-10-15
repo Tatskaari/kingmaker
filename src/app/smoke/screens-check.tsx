@@ -5,10 +5,10 @@
  * the map's keys at the bottom as buttons; a click on a blue tile moves there, a click on someone on
  * the other side aims at them and a click on your target attacks, and the fight's options are
  * buttons; in a scene at 80x24 and 130x42, pointing at someone in the place (and in the list under
- * it) says who, a right-click opens their menu without covering the conversation, Look notes what's
- * known, a deed goes as the turn, a click starts the line with their name, and Tab and Enter do it
- * by key while the box keeps its keys; the title's New game and Continue, and the End's way back,
- * by a click.
+ * it) says who, a right-click opens their menu without covering the conversation, a glance notes
+ * what anyone could see (never the GM's descriptions), a deed goes as the turn, an attack takes two
+ * choices, a click starts the line with their name, and Tab and Enter do it by key while the box
+ * keeps its keys; the title's New game and Continue, and the End's way back, by a click.
  *
  *   KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx [--show]
  */
@@ -250,7 +250,7 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     await setup.renderOnce();
     frame = setup.captureCharFrame();
     if (show) console.log(`scene ${w}x${h}, Cob's menu\n${frame}`);
-    checks.push([`scene ${w}x${h}: a right-click on Cob opens his menu: talk, look, give, go over, attack, cast`, /1 Talk to them/.test(frame) && /2 Look at them/.test(frame) && /3 Give them something…/.test(frame) && /5 Attack them/.test(frame) && /6 Cast a spell at them…/.test(frame) && /Esc never mind/.test(frame)]);
+    checks.push([`scene ${w}x${h}: a right-click on Cob opens his menu: talk, look, look him over, give, go over, cast, and last attack`, /1 Talk to them/.test(frame) && /2 Look at them/.test(frame) && /3 Look them over/.test(frame) && /4 Give them something…/.test(frame) && /6 Cast a spell at them…/.test(frame) && /7 Attack them…/.test(frame) && /Esc never mind/.test(frame)]);
     checks.push([`scene ${w}x${h}: the menu hides none of the conversation`, words(frame, w - side - 3).every((r, i) => r === before[i])]);
     await esc();
     await setup.renderOnce();
@@ -260,10 +260,25 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     act(() => setup.mockInput.pressKey("2"));
     await setup.renderOnce();
     frame = setup.captureCharFrame();
-    checks.push([`scene ${w}x${h}: Look notes what the world knows of him, and sends nothing`, /◉ +The boy in the too-big boots\. Under the/.test(frame) && !sent.length]);
+    checks.push([`scene ${w}x${h}: Look notes what a glance shows of him, and sends nothing`, /◉ +The boy in the too-big boots\. Under the/.test(frame) && !sent.length]);
+    // A glance at Prout is a glance: the GM's description (what a close look finds) stays the GM's.
+    const look = (id: string, under?: string[]) => { game.openSceneMenu({ id, ...(under ? { under } : {}) }, cob.x, cob.y); const text = game.sceneMenu?.actions.find(a => a.id === "look")?.look ?? ""; game.closeSceneMenu(); return text; };
+    const prout = look("prout", ["hoist-rope", "hoist-beam"]);
+    checks.push([`scene ${w}x${h}: a glance at Prout keeps the GM's description back (${prout})`, /^Wendell Prout's body: hanging from the hoist rope\./.test(prout) && !/cord mark|swelling|palms/.test(prout)]);
+    const roll = look("granary-roll");
+    checks.push([`scene ${w}x${h}: and at the Roll (${roll})`, /^The Royal Granary Roll/.test(roll) && !/Sallow|goblins/.test(roll)]);
+    // An attack is two choices: with what.
+    await act(async () => { await setup.mockMouse.click(cob.x, cob.y, 2); });
+    const attack = game.sceneMenu?.actions.findIndex(a => a.id === "attack") ?? -1;
+    act(() => setup.mockInput.pressKey(String(attack + 1)));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`scene ${w}x${h}: choosing to attack asks with what, and sends nothing yet (${game.sceneMenu?.title})`, attack >= 0 && /with…$/.test(game.sceneMenu?.title ?? "") && /Your bare hands/.test(frame) && !sent.length]);
+    await esc();
     // A deed from a further menu: what to give him, sent as the turn.
     await act(async () => { await setup.mockMouse.click(cob.x, cob.y, 2); });
-    act(() => setup.mockInput.pressKey("3"));
+    const giving = game.sceneMenu?.actions.findIndex(a => a.id === "give") ?? -1;
+    act(() => setup.mockInput.pressKey(String(giving + 1)));
     await setup.renderOnce();
     frame = setup.captureCharFrame();
     const pennies = game.sceneMenu?.actions.findIndex(a => a.id.startsWith("give:pennies")) ?? -1;
@@ -300,6 +315,12 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     await esc();
     await esc();
     checks.push([`scene ${w}x${h}: Esc lets go of what Tab picked out, then it's the game's menu`, game.overlay?.kind === "menu"]);
+    game.closeOverlay();
+    // What you carry: under your own @, each thing with its own menu.
+    game.openSceneMenu({ id: "player" }, cob.x, cob.y);
+    const things = game.sceneMenu?.actions.find(a => a.id === "things");
+    checks.push([`scene ${w}x${h}: your things are under your own menu (${things?.choices?.map(c => c.label).join(", ")})`, !!things?.choices?.some(c => /pennies/.test(c.label) && c.choices?.some(d => d.id === "put-down"))]);
+    game.closeSceneMenu();
     await setup.dispose();
   }
 }

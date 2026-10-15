@@ -35,8 +35,8 @@ export type Screen = "title" | "create" | "creating" | "created" | "explore" | "
 export interface Line {
   /**
    * "info": the rules' word on what changed without a roll (what you carry, what's burning); "roll"
-   * keeps the dice. "look": what the player looked at in the place (the menu's Look), a quiet note
-   * of the screen's own: it isn't a turn, and the GM never hears it.
+   * keeps the dice. "look": a glance at something in the place (the menu's Look), a quiet note of
+   * the screen's own: it isn't a turn, and the GM never hears it.
    */
   kind: EntryKind | "header" | "error" | "info" | "look";
   /** Speaker id (a cast id, "gm", "player", "dice", "system"). */
@@ -953,9 +953,9 @@ export class Game {
   }
 
   /**
-   * Looking at something in the place (the menu's Look, worded by lookText from what the world
-   * knows): at once, as a quiet note in the transcript. It isn't a turn. The same look twice running
-   * is noted once.
+   * A glance at something in the place (the menu's Look, worded by lookText: what anyone could
+   * see, never the world's descriptions, which are the GM's): at once, as a quiet note in the
+   * transcript. It isn't a turn. The same look twice running is noted once.
    */
   lookNote(text: string): void {
     if (!text) return;

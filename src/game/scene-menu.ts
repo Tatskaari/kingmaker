@@ -5,13 +5,17 @@ import type { Action } from "./play.ts";
 
 /**
  * Pointing at things in a scene's place, and the right-click menu there (the scene's side of what
- * the map's actionsAt is for the town): what the pointer is on, in a line; what looking at it says,
- * from what the world knows (its states, its notes, its description, who has it); and what can be
- * done with it, worded for the scene. Looking is instant and doesn't use the turn. Talking starts
- * the player's line with the name ("Cob, "). The rest are deeds, sent as the player's turn as if
- * typed, in brackets ("(I pick up Prout's satchel)"), so the director, the rules and the GM take
- * them as they take typed ones. Only what fits is offered: nobody picks up a door, or a burning
- * desk, or talks to a puddle.
+ * the map's actionsAt is for the town): what the pointer is on, in a line; what a glance at it
+ * shows (its states, where it is or who has it, what the story has said of it); and what can be
+ * done with it, worded for the scene. A glance is instant and doesn't use the turn. It never
+ * shows the world's descriptions: those are written for the GM, and hold what the scene means to
+ * be found by looking properly (the cord mark under the noose, the countersign in the Roll), so
+ * looking properly is a deed the GM answers ("(I take a close look at the tally desk)"). Talking
+ * starts the player's line with the name ("Cob, "). The rest are deeds, sent as the player's turn
+ * as if typed, in brackets ("(I pick up Prout's satchel)"), so the director, the rules and the GM
+ * take them as they take typed ones. Only what fits is offered: nobody picks up a door, or a
+ * burning desk, or talks to a puddle; and a blow at someone takes two clicks (with what?), so a
+ * stray one never starts a fight.
  */
 
 /**
@@ -33,7 +37,7 @@ export interface SceneAction extends Action {
   line?: string;
   /** Talking: what the player's line starts with, in the box ("Cob, "). */
   start?: string;
-  /** Looking: what's seen, at once (it doesn't use the turn). */
+  /** Looking: what a glance shows, at once (it doesn't use the turn). */
   look?: string;
   /** A further choice (what to give, which spell, something else that's there): its menu's title, and its actions. */
   title?: string;
@@ -163,7 +167,10 @@ const READABLE = /\b(book|ledger|roll|page|letter|notice|sign|signboard|placard|
 /** States worth saying (gone things aren't pointed at; hanging goes without saying when it's said what from). */
 const states = (e: Entity, held?: string) => e.states.filter(s => s !== "gone" && !(s === "hanging" && held?.startsWith("hanging")));
 
-/** What someone's doing, as the world has it noted (the latest note first). */
+/**
+ * What the story has said of someone or something, as the world has it noted (the latest first):
+ * where people stood as the scene opened, then what the narration and the rules established.
+ */
 const doing = (e: Entity) => [...e.notes].reverse().map(n => n.text.replace(/\.$/, ""));
 
 // ---------------------------------------------------------------------------------------------
@@ -206,11 +213,32 @@ export function pointedAt(world: SceneWorld, target: SceneTarget, ctx: SceneCont
   return { title: e.player ? `You (${e.name})` : capital(nameOf(world, e, ctx)), detail: bits.join(" · ") };
 }
 
+/** In, on or at a part of the place, as it's said: in the tally loft, on the floor, at the bar. */
+const into = (area: string) => `${/\b(floor|stairs|steps|wharf|walk|barge|landing|deck|roof|quay)\b/i.test(area) ? "on" : /\b(bar|counter)\b/i.test(area) ? "at" : "in"} ${area}`;
+
 /**
- * Looking at what was clicked, from what the world knows: its states, what it is (its
- * description), what's been noted of it, who has it; for the player, what they carry; for the
- * floor, the area and what's underfoot. Where the world knows nothing, the map's own words for a
- * look at someone or something minding its own business.
+ * Where someone or something is from the player, in a few words: "beside you", "about 20 feet
+ * away", "about 30 feet away, in the tally loft" (another part of the place). No distance for what
+ * the place is built of (a wall, the river: they're everywhere along it).
+ */
+function whereFrom(world: SceneWorld, e: Entity, ctx: SceneContext): string {
+  const here = areaOf(world, "player"), there = areaOf(world, e.id);
+  const part = here && there && there.kind === "area" && here.id !== there.id ? into(nameOf(world, there, ctx)) : "";
+  const d = e.kind === "feature" && (e.size === "huge" || e.size === "gargantuan") ? Infinity : feetFrom(world, e.id);
+  const far = !Number.isFinite(d) ? "" : d <= 5 ? "beside you" : `about ${Math.max(10, Math.round(d / 5) * 5)} feet away`;
+  return [far, part].filter(Boolean).join(", ");
+}
+
+/** Sentences from bits: each trimmed, capitalised, its full stop its own. */
+const said = (parts: string[]) => parts.map(p => p.trim().replace(/\.$/, "")).filter(Boolean).map(capital).join(". ");
+
+/**
+ * A glance at what was clicked: what anyone could see from where they stand. Its name (as the
+ * player knows it), how it is (its states), who has it or what it's in, on or hanging from, what
+ * the story has said of it (the world's notes), and where it is from the player; for the player,
+ * what they carry; for the floor, the part of the place and what's underfoot. Never the world's
+ * descriptions: they're written for the GM ("a level cord mark under the noose burn", "countersigned
+ * J. Sallow"), and what they hold is found by looking properly, which is a turn the GM answers.
  */
 export function lookText(world: SceneWorld, target: SceneTarget, ctx: SceneContext = {}): string {
   if ("floor" in target) {
@@ -218,15 +246,11 @@ export function lookText(world: SceneWorld, target: SceneTarget, ctx: SceneConte
     const area = floorArea(world, pick);
     const what = pick.wall || pick.window ? capital(floorWords(pick)) : `Underfoot: ${floorWords(pick)}`;
     if (!area) return `${what}.`;
-    const name = capital(nameOf(world, area, ctx));
-    const about = area.description?.replace(/\.$/, "");
-    // "The lane beyond the yard wall..." says which it is itself.
-    const said = !about ? name : about.toLowerCase().startsWith(name.toLowerCase()) ? about : `${name}: ${about}`;
-    return `${said}. ${what}.`;
+    const st = area.states.filter(s => s !== "gone");
+    return `${said([`${capital(nameOf(world, area, ctx))}${st.length ? `, ${st.join(", ")}` : ""}`, ...doing(area).slice(0, 2), what])}.`;
   }
   const e = world.entities[target.id];
   if (!present(e)) return "There's nothing there any more.";
-  const said = (parts: string[]) => parts.map(p => p.trim().replace(/\.$/, "")).filter(Boolean).map(capital).join(". ");
   const held = isPerson(e) ? undefined : heldWords(world, e, ctx);
   const st = states(e, held);
   if (e.player) {
@@ -234,11 +258,10 @@ export function lookText(world: SceneWorld, target: SceneTarget, ctx: SceneConte
     const have = things.length ? `You have ${things.length > 1 ? `${things.slice(0, -1).join(", ")} and ${things.at(-1)}` : things[0]}` : "Your hands are empty";
     return `${said([`You${st.length ? `, ${st.join(", ")}` : ""}`, ...doing(e).slice(0, 2), have])}.`;
   }
-  const name = capital(nameOf(world, e, ctx));
-  const head = `${name}${st.length ? `, ${st.join(", ")}` : ""}`;
-  const known = [e.description ?? "", ...doing(e).slice(0, 2)].filter(Boolean);
-  if (!known.length && !held) return `${head}, ${isPerson(e) ? "minding their own business, which is more than you're doing" : "doing nothing in particular, and doing it well"}.`;
-  return `${said([held ? `${head}: ${held}` : head, ...known])}.`;
+  const head = `${capital(nameOf(world, e, ctx))}${st.length ? `, ${st.join(", ")}` : ""}`;
+  // What you carry is yours ("your shortsword", "12 pennies"): no saying who has it, or where.
+  if (ownerOf(world, e.id)?.player) return `${said([head, ...doing(e).slice(0, 2)])}.`;
+  return `${said([held ? `${head}: ${held}` : head, ...doing(e).slice(0, 2), whereFrom(world, e, ctx)])}.`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -253,18 +276,37 @@ function feetFrom(world: SceneWorld, id: string): number {
   return me && it ? distance(me, it) : Infinity;
 }
 
-/** Can the player pick it up: a small enough thing, loose (not fixed, chained, burning or hanging), not a body or a stick of furniture. */
+/**
+ * Can the player pick it up and pocket it: something small (a satchel, the spectacles, a jar of
+ * pennies), loose (not fixed, chained, burning or hanging), not a body, a stick of furniture, or
+ * something full of drink (the ale keg, the jar of gin).
+ */
 function takeable(e: Entity): boolean {
   if (e.kind !== "item" && e.kind !== "object") return false;
-  if (e.kind === "object" && !["tiny", "small", "medium"].includes(e.size ?? "medium")) return false;
-  if (e.tags.some(t => t === "fixed" || t === "furniture" || t === "body") || e.states.some(s => ["chained", "fixed", "burning", "hanging", "destroyed"].includes(s))) return false;
-  return !e.tags.includes("hanging") && e.material !== "liquid";
+  if (!["tiny", "small"].includes(e.size ?? (e.kind === "item" ? "tiny" : "medium"))) return false;
+  if (e.tags.some(t => ["fixed", "furniture", "body", "hanging", "liquid"].includes(t)) || e.states.some(s => ["chained", "fixed", "burning", "hanging", "destroyed"].includes(s))) return false;
+  return e.material !== "liquid";
 }
 
-/** Can it be struck at (to break it, cut it, smash it): a thing with hit points, still whole, not a body, a liquid, or the size of a building. */
-function breakable(e: Entity): boolean {
-  if (!e.hp || e.states.includes("destroyed") || e.tags.includes("body") || e.material === "liquid") return false;
-  return e.size !== "huge" && e.size !== "gargantuan";
+/**
+ * What's worth striking at, and what that's called: a shut door (broken down) or a shut box
+ * (broken open), what would spill or catch (a keg, a jar of spirits, a lit lantern) and glass, all
+ * smashed. Not everything with hit points: nobody needs to attack the spectacles, the rules board,
+ * a cleat or the fire.
+ */
+function breaking(e: Entity): { label: string; text: string } | undefined {
+  if (!e.hp || e.states.includes("destroyed") || e.tags.includes("body") || e.material === "liquid" || e.size === "gargantuan") return undefined;
+  const st = new Set(e.states);
+  if (e.tags.includes("door")) {
+    if (st.has("open") || st.has("broken")) return undefined;
+    return e.size === "large" || e.size === "huge" ? { label: "Break it down", text: "try to break down" } : { label: "Break it open", text: "try to break open" };
+  }
+  if (e.material === "glass" && e.kind === "feature") return { label: "Smash it", text: "smash" };
+  if (e.size === "huge") return undefined;
+  if ((e.tags.includes("container") || CONTAINER.test(headOf(e.name))) && (st.has("closed") || st.has("shut") || st.has("locked"))) return { label: "Break it open", text: "break open" };
+  const lamp = e.tags.includes("light") && !e.tags.includes("fire") && !e.tags.includes("hearth") && (st.has("lit") || st.has("burning"));
+  if (lamp || e.tags.includes("liquid") || e.tags.includes("spirits")) return { label: "Smash it", text: "smash" };
+  return undefined;
 }
 
 /** What can be done to a thing in particular (open it, light it, put it out, read it, get it down...), in the scene's words. */
@@ -284,7 +326,8 @@ function uses(world: SceneWorld, e: Entity): SceneAction[] {
     else add("open", "Open it", `open ${name}`);
   } else if (e.tags.includes("container") || CONTAINER.test(head)) {
     if (st.has("closed") || st.has("shut") || st.has("locked")) add("open", "Open it", `open ${name}`);
-    else if (!st.has("empty") && e.material !== "liquid") add("look-inside", "Look inside", `look inside ${name}`);
+    // What's in a keg or a jar of gin goes without saying.
+    else if (!st.has("empty") && e.material !== "liquid" && !e.tags.includes("liquid")) add("look-inside", "Look inside", `look inside ${name}`);
   }
   if (light) {
     if (st.has("lit") || st.has("burning")) add("put-out", "Put it out", `put out ${name}`);
@@ -294,30 +337,41 @@ function uses(world: SceneWorld, e: Entity): SceneAction[] {
   // Something hanging (a body from a rope, a lantern from the beams) can be got down; a rope with something on it, cut.
   if ((st.has("hanging") || (e.tags.includes("body") && heldBy(world, e))) && !own) add("get-down", "Get it down", `get ${name} down`);
   if (/\b(rope|cord|line|noose)\b/.test(head) && Object.values(world.entities).some(c => c.parent === e.id && present(c))) add("cut", "Cut it", `cut ${name}`);
-  if (e.tags.includes("evidence") || e.tags.includes("body")) add("examine", "Examine it closely", `examine ${name} closely`);
   if (e.tags.includes("sign") || READABLE.test(head)) add("read", "Read it", `read ${name}`);
   return out;
 }
 
 /** What the rules' effects of a spell do to whoever it's aimed at, as against what it does for them. */
 const HOSTILE = new Set(["attack", "auto-hit", "save", "hp-pool-knockout", "weaponAttack", "aura-damage"]);
+const HELPFUL = new Set(["heal", "buff", "stabilize"]);
+/** The odd spell that only makes sense on some things (the rules give it no effects to go by): mending what's broken. */
+const ONLY_ON: Record<string, (e: Entity) => boolean> = {
+  mending: e => e.states.some(s => /\b(broken|damaged|bent|torn|cracked|smashed)\b/.test(s)) || /\b(broken|smashed|torn|bent|cracked)\b/i.test(e.name),
+};
 
 /**
- * Does a spell fit what it would be cast at? On someone else: not what only reaches the caster
- * (Shield, Misty Step), though what's thrown from the hand (Produce Flame) is; on yourself: not
- * what harms or goes out from you (Fire Bolt, Burning Hands); on a thing or a spill: what works on
- * things (a bolt, an area, a light), not healing or blessing; on your own things, only the gentle
- * kind. A spell the rules haven't described yet fits anything: the rules have the last word.
+ * Does a spell fit what it would be cast at? Nothing that calls something up (Find Familiar, an
+ * Unseen Servant): that's cast at nobody. On someone else: what harms or helps them, or fills an
+ * area round them (not Shield, Mage Hand or Light), and what's thrown from the hand (Produce
+ * Flame); on yourself: what only reaches you, or helps (Shield, Detect Magic, Cure Wounds), not
+ * what harms or goes out from you (Fire Bolt, Burning Hands) or works on things (Mage Hand); on a
+ * thing or a spill: what works on things (a bolt, an area, a light, a hand), not healing,
+ * blessing or putting to sleep; on your own things, only the gentle kind (Light, Mending). A spell
+ * the rules haven't described yet fits anything: the rules have the last word.
  */
-function fits(sp: SpellFacts, at: "someone" | "self" | "thing" | "own"): boolean {
+function fits(sp: SpellFacts, at: "someone" | "self" | "thing" | "own", e?: Entity): boolean {
   if (sp.range === undefined) return true;
+  if (e && ONLY_ON[sp.id] && !ONLY_ON[sp.id]!(e)) return false;
   const effects = sp.effects ?? [];
+  if (effects.includes("summon")) return false;
   const hostile = effects.some(k => HOSTILE.has(k));
+  const helpful = effects.some(k => HELPFUL.has(k));
   const selfOnly = /^self$/i.test(sp.range.trim());
-  if (at === "someone") return !selfOnly || hostile;
-  if (at === "self") return !hostile && !/^self\s*\(/i.test(sp.range);
-  const onThings = !effects.some(k => k === "heal" || k === "buff" || k === "stabilize") && (sp.area || !effects.length || effects.some(k => k === "attack" || k === "auto-hit" || k === "zone")) && !selfOnly;
-  return at === "thing" ? onThings : onThings && !hostile;
+  if (at === "someone") return hostile || helpful || (!!sp.area && !selfOnly);
+  if (at === "self") return !hostile && !/^self\s*\(/i.test(sp.range) && (selfOnly || helpful);
+  if (at === "own") return !hostile && !helpful && !selfOnly && !sp.area && !effects.length;
+  return !helpful && !effects.includes("hp-pool-knockout") && (!selfOnly || effects.includes("attack"))
+    && (!!sp.area || !effects.length || effects.some(k => k === "attack" || k === "auto-hit" || k === "zone"));
 }
 
 /**
@@ -325,8 +379,8 @@ function fits(sp: SpellFacts, at: "someone" | "self" | "thing" | "own"): boolean
  * them ("(I cast Fire Bolt at Cob)"), what helps or works on them on them ("(I cast Cure Wounds on
  * Sergeant Agnes Kell)", "(I cast Light on the hoist rope)"); "on myself" for the player.
  */
-function spellChoices(ctx: SceneContext, at: "someone" | "self" | "thing" | "own", who: string): SceneAction[] {
-  return [...(ctx.spells ?? [])].filter(sp => fits(sp, at)).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+function spellChoices(ctx: SceneContext, at: "someone" | "self" | "thing" | "own", who: string, e?: Entity): SceneAction[] {
+  return [...(ctx.spells ?? [])].filter(sp => fits(sp, at, e)).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
     .map(sp => {
       const harms = sp.range === undefined || (sp.effects ?? []).some(k => HOSTILE.has(k)) || !!sp.area;
       return { id: `cast:${sp.id}`, label: `${sp.name} (${levelWords(sp.level)})`, kind: "use" as const, line: deed(`cast ${sp.name} ${at === "self" || at === "own" || !harms ? "on" : "at"} ${who}`) };
@@ -334,20 +388,31 @@ function spellChoices(ctx: SceneContext, at: "someone" | "self" | "thing" | "own
 }
 
 /** A spell to cast, if any fit: the choice's menu. */
-function castAt(ctx: SceneContext, at: "someone" | "self" | "thing" | "own", who: string, label: string, title: string): SceneAction[] {
-  const choices = spellChoices(ctx, at, who);
+function castAt(ctx: SceneContext, at: "someone" | "self" | "thing" | "own", who: string, label: string, title: string, e?: Entity): SceneAction[] {
+  const choices = spellChoices(ctx, at, who, e);
   return choices.length ? [{ id: "cast", label, kind: "use", title, choices }] : [];
+}
+
+/** A blow at someone, with what: each weapon the player carries, or their bare hands (the rules' unarmed strike). */
+function withWhat(world: SceneWorld, ctx: SceneContext, who: string): SceneAction[] {
+  return [
+    ...carried(world).filter(c => c.tags.includes("weapon")).map((w): SceneAction => ({ id: `attack:${w.id}`, label: capital(nameOf(world, w, ctx)), kind: "fight", line: deed(`attack ${who} with ${mine(w)}`) })),
+    { id: "attack:unarmed", label: "Your bare hands", kind: "fight", line: deed(`attack ${who} with my bare hands`) },
+  ];
 }
 
 /**
  * What can be done with what was clicked in a scene's place, the most natural first (the left
- * click's): for someone, talk to them, look, give them something you carry, go over, attack them,
- * cast at them; for yourself, look, and cast on yourself; for a thing, look, take it, what it's for
- * (open it, light it, put it out, get it down, read it...), give it or put it down if it's yours,
- * go over, attack it, cast at it; for a surface, look, put it out if it's burning, go over, cast at
- * it; for the floor, look, and go over there if it's somewhere else. Whatever else is drawn there
- * (the rope Prout hangs from) comes last, with its own menu. While the GM has the floor, deeds
- * wait (only looking and starting a line); once the scene is over, there's only looking.
+ * click's): for someone, talk to them, look (a glance), look them over (a turn), give them
+ * something you carry, go over, cast at them, and last attack them (with what: two clicks, never
+ * one); for yourself, look, your things (each with its own menu), and cast on yourself; for a
+ * thing, look, put it out if it's burning, look closely, take it, what it's for (open it, light
+ * it, put it out, get it down, read it...), give it or put it down if it's yours, go over, cast at
+ * it, and last break or smash it if that's worth doing; for a surface, look, put it out if it's
+ * burning, look closely, go over, cast at it; for the floor, look, and go over there if it's
+ * somewhere else. Whatever else is drawn there (the rope Prout hangs from) comes last, with its
+ * own menu. While the GM has the floor, deeds wait (only looking and starting a line); once the
+ * scene is over, there's only looking.
  */
 export function thingActions(world: SceneWorld, target: SceneTarget, ctx: SceneContext = {}): ThingActions {
   const look: SceneAction = { id: "look", label: "Look", kind: "examine", look: lookText(world, target, ctx) };
@@ -373,11 +438,15 @@ export function thingActions(world: SceneWorld, target: SceneTarget, ctx: SceneC
   const name = nameOf(world, e, ctx);
   const title = e.player ? "You" : capital(name);
   const actions: SceneAction[] = [];
-  const also = (target.under ?? []).map(id => world.entities[id]).filter(present).filter(u => u.id !== e.id)
-    .map((u): SceneAction => { const more = thingActions(world, { id: u.id }, ctx); return { id: `also:${u.id}`, label: `${more.title}…`, kind: "examine", title: more.title, choices: more.actions }; });
+  /** Someone or something else's own menu, as a choice in this one. */
+  const menuOf = (id: string, as: string): SceneAction => { const more = thingActions(world, { id }, ctx); return { id: `${as}:${id}`, label: `${more.title}…`, kind: "examine", title: more.title, choices: more.actions }; };
+  const also = (target.under ?? []).map(id => world.entities[id]).filter(present).filter(u => u.id !== e.id).map(u => menuOf(u.id, "also"));
   const people = Object.values(world.entities).filter(p => isPerson(p) && present(p) && !p.player);
   if (e.player) {
     actions.push({ ...look, label: "Look at yourself" });
+    // What you carry isn't drawn: it's here, each thing with its own menu (give it, put it down, cast on it).
+    const things = carried(world);
+    if (things.length) actions.push({ id: "things", label: "Your things…", kind: "examine", title: "Your things", choices: things.map(c => menuOf(c.id, "thing")) });
     if (deeds) actions.push(...castAt(ctx, "self", "myself", "Cast a spell on yourself…", "Cast on yourself…"));
     return { title, actions: [...actions, ...also] };
   }
@@ -386,11 +455,13 @@ export function thingActions(world: SceneWorld, target: SceneTarget, ctx: SceneC
     if (!ctx.over) actions.push({ id: "talk", label: `Talk to ${them}`, kind: "talk", start: `${addressOf(e, ctx)}, ` });
     actions.push({ ...look, label: `Look at ${them}` });
     if (deeds) {
+      actions.push({ id: "examine", label: `Look ${them} over`, kind: "examine", line: deed(`take a good look at ${name}`) });
       const mineNow = carried(world);
       if (mineNow.length) actions.push({ id: "give", label: `Give ${them} something…`, kind: "use", title: `Give ${name}…`, choices: mineNow.map(c => ({ id: `give:${c.id}`, label: capital(nameOf(world, c, ctx)), kind: "use", line: deed(`give ${name} ${mine(c)}`) })) });
       if (feetFrom(world, e.id) > 5) actions.push({ id: "go", label: `Go over to ${them}`, kind: "move", line: deed(`go over to ${name}`) });
-      actions.push({ id: "attack", label: `Attack ${them}`, kind: "fight", line: deed(`attack ${name}`) });
       actions.push(...castAt(ctx, "someone", name, `Cast a spell at ${them}…`, `Cast at ${name}…`));
+      // Last, and two clicks: a blow starts a fight (or an arrest, or a brawl), and a stray click mustn't.
+      actions.push({ id: "attack", label: `Attack ${them}…`, kind: "fight", title: `Attack ${name} with…`, choices: withWhat(world, ctx, name) });
     }
     return { title, actions: [...actions, ...also] };
   }
@@ -400,25 +471,32 @@ export function thingActions(world: SceneWorld, target: SceneTarget, ctx: SceneC
   const owner = ownerOf(world, e.id);
   const yours = !!owner?.player;
   const it = the(name);
+  // What it's for, after a close look (but a fire is put out first).
+  const doings: SceneAction[] = [];
   if (e.kind === "surface") {
-    if (e.states.includes("burning")) actions.push({ id: "put-out", label: "Put the fire out", kind: "use", line: deed(`try to put out the fire on ${it}`) });
+    if (e.states.includes("burning")) doings.push({ id: "put-out", label: "Put the fire out", kind: "use", line: deed(`try to put out the fire on ${it}`) });
   } else if (yours) {
-    actions.push(...uses(world, e));
-    if (people.length) actions.push({ id: "give", label: "Give it to someone…", kind: "use", title: `Give ${name} to…`, choices: people.map(p => ({ id: `give-to:${p.id}`, label: capital(nameOf(world, p, ctx)), kind: "use", line: deed(`give ${nameOf(world, p, ctx)} ${mine(e)}`) })) });
-    actions.push({ id: "put-down", label: "Put it down", kind: "use", line: deed(`put down ${mine(e)}`) });
+    doings.push(...uses(world, e));
+    if (people.length) doings.push({ id: "give", label: "Give it to someone…", kind: "use", title: `Give ${name} to…`, choices: people.map(p => ({ id: `give-to:${p.id}`, label: capital(nameOf(world, p, ctx)), kind: "use", line: deed(`give ${nameOf(world, p, ctx)} ${mine(e)}`) })) });
+    doings.push({ id: "put-down", label: "Put it down", kind: "use", line: deed(`put down ${mine(e)}`) });
   } else if (owner && isPerson(owner)) {
     // Someone else has it: it's theirs to hand over, or to have taken from them.
-    actions.push({ id: "take", label: `Take it from ${nameOf(world, owner, ctx)}`, kind: "use", line: deed(`take ${it} from ${nameOf(world, owner, ctx)}`) });
+    doings.push({ id: "take", label: `Take it from ${nameOf(world, owner, ctx)}`, kind: "use", line: deed(`take ${it} from ${nameOf(world, owner, ctx)}`) });
   } else {
-    if (takeable(e)) actions.push({ id: "take", label: "Take it", kind: "use", line: deed(holder ? `take ${it} from ${the(nameOf(world, holder, ctx))}` : `pick up ${it}`) });
-    actions.push(...uses(world, e));
+    if (takeable(e)) doings.push({ id: "take", label: "Take it", kind: "use", line: deed(holder ? `take ${it} from ${the(nameOf(world, holder, ctx))}` : `pick up ${it}`) });
+    doings.push(...uses(world, e));
   }
+  const fire = e.states.includes("burning") ? doings.findIndex(a => a.id === "put-out") : -1;
+  if (fire >= 0) actions.push(...doings.splice(fire, 1));
+  actions.push({ id: "examine", label: "Look closely", kind: "examine", line: deed(`take a close look at ${yours ? mine(e) : it}`) }, ...doings);
   // Over to it: to whoever has it, or what it lies in or on; what hangs is gone over to itself.
   const lies = holder && !isPerson(holder) && !e.states.includes("hanging") && !e.tags.includes("hanging") && !e.tags.includes("body");
   const where = owner && isPerson(owner) ? owner : lies ? holder : e;
   if (!yours && feetFrom(world, where.id) > 5) actions.push({ id: "go", label: "Go over to it", kind: "move", line: deed(`go over to ${where === e ? it : isPerson(where) ? nameOf(world, where, ctx) : the(nameOf(world, where, ctx))}`) });
-  if (!yours && e.kind !== "surface" && breakable(e) && !(owner && isPerson(owner))) actions.push({ id: "attack", label: "Attack it", kind: "fight", line: deed(`attack ${it}`) });
-  actions.push(...(yours ? castAt(ctx, "own", mine(e), "Cast a spell on it…", `Cast on ${name}…`) : castAt(ctx, "thing", it, "Cast a spell at it…", `Cast at ${name}…`)));
+  actions.push(...(yours ? castAt(ctx, "own", mine(e), "Cast a spell on it…", `Cast on ${name}…`, e) : castAt(ctx, "thing", it, "Cast a spell at it…", `Cast at ${name}…`, e)));
+  // Last: breaking it, where that's worth doing (a shut door, a keg, a lit lantern).
+  const blow = !yours && e.kind !== "surface" && !(owner && isPerson(owner)) ? breaking(e) : undefined;
+  if (blow) actions.push({ id: "attack", label: blow.label, kind: "fight", line: deed(`${blow.text} ${it}`) });
   return { title, actions: [...actions, ...also] };
 }
 
