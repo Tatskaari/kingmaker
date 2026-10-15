@@ -15,8 +15,9 @@ JSON carries as `attribution`:
 > Creative Commons Attribution 4.0 International License, available at
 > https://creativecommons.org/licenses/by/4.0/legalcode.
 
-"Dungeons & Dragons" and "D&D" are trademarks of Wizards of the Coast; this project isn't affiliated
-with, endorsed by or sponsored by them.
+The game shows it at the end of every spell's description (`spellPage` in
+`src/app/ui/sheet-layout.ts`). The SRD asks for no other attribution to Wizards of the Coast than
+this one, so there isn't any.
 
 ## Where the words come from
 

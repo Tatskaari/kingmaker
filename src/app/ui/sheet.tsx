@@ -19,7 +19,11 @@ const READ = 100;
 
 const spans = (runs: Run[], bg?: string) => runs.map((r, j) => <span key={j} fg={r.fg ?? C.text} {...(r.bg || bg ? { bg: r.bg ?? bg } : {})} {...(attributesOf(r) ? { attributes: attributesOf(r) } : {})}>{r.text}</span>);
 
-/** A row as laid out; a spell on it is a button (it lights up under the mouse, and when it's picked). */
+/**
+ * A row as laid out; a spell on it is a button: it lights up under the mouse, and the one picked
+ * with the keys has a colour of its own (its faint marks lifted to stay readable on it), so the
+ * pointer over another doesn't hide which one Enter shows.
+ */
 function SheetRow({ row, picked, onSpell }: { row: Row; picked?: string | undefined; onSpell?: (id: string) => void }) {
   if (!row.length) return <text height={1} flexShrink={0}> </text>;
   if (!onSpell || !row.some(r => r.spell)) return <text height={1} flexShrink={0}>{spans(row)}</text>;
@@ -31,8 +35,8 @@ function SheetRow({ row, picked, onSpell }: { row: Row; picked?: string | undefi
   }
   return <box height={1} flexDirection="row" flexShrink={0}>
     {parts.map((p, i) => p.spell
-      ? <Clickable key={i} height={1} flexShrink={0} onClick={() => onSpell(p.spell!)} {...(p.spell === picked ? { backgroundColor: C.highlightBg } : {})}>
-        <text height={1} flexShrink={0}>{spans(p.runs)}</text>
+      ? <Clickable key={i} height={1} flexShrink={0} onClick={() => onSpell(p.spell!)} {...(p.spell === picked ? { backgroundColor: C.pickBg } : {})}>
+        <text height={1} flexShrink={0}>{spans(p.spell === picked ? p.runs.map(r => (r.fg === C.faint ? { ...r, fg: C.dim } : r)) : p.runs)}</text>
       </Clickable>
       : <text key={i} height={1} flexShrink={0}>{spans(p.runs)}</text>)}
   </box>;
@@ -197,9 +201,9 @@ export function SheetView({ data, who, width, height, active, keys = [], onClose
   }
 
   const hints: Hint[] = [
-    ...(pick ? [["Enter", "about it", () => show(pick)] as Hint] : []),
-    // A spell picked has Enter: the caller's Enter waits.
-    ...keys.filter(([k]) => !(pick && k === "Enter")),
+    ...(pick ? [["Enter", "about it", () => show(pick)] as Hint, ["Esc", "let go", () => setPicked(undefined)] as Hint] : []),
+    // A spell picked has Enter and Esc: the caller's wait.
+    ...keys.filter(([k]) => !(pick && (k === "Enter" || k === "Esc"))),
     ...(tabs ? [["←→", "pages"] as Hint] : []),
     ...(spells.length ? [["↑↓", pick ? "spells" : "a spell"] as Hint] : maxTop ? [["↑↓", "scroll"] as Hint] : []),
   ];

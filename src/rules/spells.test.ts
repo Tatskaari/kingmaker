@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dnd, spellCard } from "./dnd.ts";
+import { pregenSession, PREGENS } from "../game/combat/pregen.ts";
+import type { Character } from "../runtime/scene.ts";
+import { castSpell, dnd, sheetData, spellCard, type Build } from "./dnd.ts";
 import { srdAttribution, srdSpell, type SrdBlock } from "./spells.ts";
 
 /**
@@ -97,4 +99,44 @@ test("the SRD's text: every spell the engine has, by id, under the SRD 5.2.1's o
   assert.ok(srdSpell("bestow-curse")!.text.filter(b => typeof b === "object" && "item" in b).length === 4);
   assert.ok(srdSpell("find-steed")!.text.some(b => typeof b === "object" && "heading" in b && b.heading === "Otherworldly Steed"));
   assert.equal(srdSpell("not-a-spell"), undefined);
+});
+
+test("what the engine adds for the caster is on their card, as a cast rolls it: a Life cleric's heals, Agonizing Blast, Potent Cantrip", async () => {
+  const card = async (build: Build, id: string, name: string) => {
+    const d = await sheetData(await pregenSession({ build, name, seed: 1 }));
+    return d!.spellcasting!.spells.flatMap(g => g.spells).find(s => s.id === id)!.details!;
+  };
+  /** The lines of the spell cast once by each of these characters (seeds), at the straw man or themselves. */
+  const casts = async (build: Build, id: string, target: string, seeds: number) => {
+    const dummy = [{ id: "dummy", name: "the straw man", statblock: "commoner" }] as unknown as Character[];
+    const out: string[] = [];
+    for (let seed = 1; seed <= seeds; seed++) out.push((await castSpell(await pregenSession({ build, seed }), dummy, id, [target])).lines.join("\n"));
+    return out;
+  };
+
+  // Heals: the engine adds the caster's Wisdom modifier, and the Life cleric's Disciple of Life (2 + the slot's level).
+  const cleric = PREGENS.cleric!.build;
+  const cure = await card(cleric, "cure-wounds", "Brother Odo");
+  assert.deepEqual(cure.does, ["Heals 2d8 + 6 hit points (+3 your Wisdom modifier, +3 Disciple of Life)"]);
+  assert.deepEqual(cure.scaling, ["With a higher slot: +2d8 healing and +1 from Disciple of Life for each level above 1st"]);
+  const healed = (await casts(cleric, "cure-wounds", "player", 12)).map(l => Number(/You regain (\d+) HP/.exec(l)?.[1]));
+  assert.ok(healed.every(n => n >= 8 && n <= 22), `2d8 + 6 each time: ${healed.join(", ")}`);
+  assert.ok(healed.some(n => n > 16), `more than 2d8 alone: ${healed.join(", ")}`);
+
+  // Agonizing Blast: the warlock's Charisma modifier on every Eldritch Blast that hits.
+  const warlock: Build = { classId: "warlock", subclassId: "fiend-patron", speciesId: "tiefling", backgroundId: "criminal", abilities: ["CHA", "CON", "DEX", "WIS", "INT", "STR"],
+    skills: ["deception", "intimidation", "arcana"], feat: "alert", cantrips: ["eldritch-blast", "minor-illusion"], spells: ["hex", "hellish-rebuke", "charm-person", "misty-step"],
+    weapons: ["dagger", "crossbow-light"], armor: "leather-armor", shield: false };
+  assert.deepEqual((await card(warlock, "eldritch-blast", "Vesna Coil")).does, ["Ranged spell attack, +4 to hit: 1d10 + 2 force on a hit (+2 Agonizing Blast)"]);
+  const blasts = (await casts(warlock, "eldritch-blast", "dummy", 6)).filter(l => /: hit/.test(l));
+  assert.ok(blasts.length, "a hit to see");
+  for (const l of blasts) assert.match(l, /Damage: 1d10\+2 \(\d+\+2\) force/);
+
+  // Potent Cantrip (the Evoker's): a damaging cantrip saved against still does half; a missed one does nothing (the game's way).
+  const evoker = { ...PREGENS.wizard!.build, cantrips: ["acid-splash", "fire-bolt", "light"] };
+  assert.deepEqual((await card(evoker, "acid-splash", "Pell Marrow")).does, ["Dexterity save, DC 13: 1d6 acid, half as much on a success (Potent Cantrip)"]);
+  assert.deepEqual((await card(evoker, "fire-bolt", "Pell Marrow")).does, ["Ranged spell attack, +5 to hit: 1d10 fire on a hit"]);
+  const saved = (await casts(evoker, "acid-splash", "dummy", 8)).filter(l => /Dexterity save: .*: saved/.test(l));
+  assert.ok(saved.length && saved.every(l => /takes \d+ acid damage/.test(l)), `half on a success:\n${saved.join("\n")}`);
+  for (const l of (await casts(evoker, "fire-bolt", "dummy", 6)).filter(l => /: miss/.test(l))) assert.doesNotMatch(l, /damage/);
 });

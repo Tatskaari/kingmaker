@@ -36,8 +36,26 @@ export const srdSpell = (id: string): SrdSpell | undefined => loadSrd().spells[i
 /** The SRD 5.2.1's attribution statement, word for word as it asks for it. */
 export const srdAttribution = (): string => loadSrd().attribution;
 
-/** Whoever's casting, for the numbers: their character level (cantrips grow with it), spell save DC and spell attack bonus. */
-export interface Caster { level: number; saveDC: number; attackBonus: number }
+/** Whoever's casting, for the numbers: their character level (cantrips grow with it), spell save DC and spell attack bonus, and what the engine adds for them. */
+export interface Caster { level: number; saveDC: number; attackBonus: number; extras?: Extras }
+
+/** A part of a roll the engine adds for the caster, and where it's from: 2, "Agonizing Blast". */
+export interface Bonus { amount: number; from: string }
+
+/**
+ * What the engine adds to a caster's spells when they're cast, beyond the spells' own numbers
+ * (sheetData works it out from the engine's effect stack for the character):
+ */
+export interface Extras {
+  /** To the damage of a spell's attack or save: a feature (Agonizing Blast's Charisma on Eldritch Blast), a feat, a condition. Primary is the spell's first damage; the rest gets only what goes by damage type. */
+  damage(spell: Dnd.SpellDef, type: string | undefined, primary: boolean): Bonus[];
+  /** To every heal with dice: the engine adds the caster's Wisdom modifier, whatever their class. */
+  heal?: Bonus;
+  /** To a heal from a slot: Disciple of Life's 2 + the slot's level. */
+  healBoost?: { flat: number; perLevel: number; from: string };
+  /** Potent Cantrip, by its name, when they have it: a damaging cantrip saved against still does half (a missed one does nothing: the game drops the engine's half damage on a miss). */
+  potentCantrip?: string;
+}
 
 /** Names for what the mechanics refer to by id (the engine's content): conditions and items. */
 export interface Names { condition(id: string): string | undefined; item(id: string): string | undefined }
@@ -52,6 +70,8 @@ export interface SpellDetails {
   levelLine: string;
   /** The engine's casting time, with a reaction's or bonus action's trigger where the SRD gives one. */
   castingTime: string;
+  /** The SRD's, where the game's is another (Barkskin: the game's an Action, the SRD's a Bonus Action). */
+  srdCastingTime?: string;
   range: string;
   components: { verbal: boolean; somatic: boolean; material?: string };
   duration: string;
@@ -61,10 +81,27 @@ export interface SpellDetails {
   does: string[];
   /** The area it fills: "a 20-foot-radius sphere". */
   area?: string;
-  /** How it grows: a cantrip with the caster's level, a spell with a higher slot. */
+  /** How it grows: a cantrip with the caster's level, a spell with a higher slot (or nothing more, where the SRD's grows and the game's doesn't). */
   scaling: string[];
+  /** Whether a fight on the map offers it (inFights). */
+  inFights: boolean;
   /** The SRD's description, in its own words; undefined when there isn't one. */
   text?: SrdBlock[];
+  /** With the SRD's words, its attribution statement, as it asks for it wherever they're used. */
+  credit?: string;
+}
+
+/** The kinds of mechanics a fight on the map plays out (src/game/combat/skirmish.ts). */
+const FIGHT_KINDS = new Set(["attack", "save", "auto-hit", "heal", "hp-pool-knockout", "buff"]);
+
+/**
+ * Whether a fight on the map offers a spell (when it's ready, and there's a slot): one cast as an
+ * action or a bonus action, all of whose mechanics the fight plays out. A reaction, a spell that
+ * takes a minute or more, or one the rules roll nothing for is for a scene.
+ */
+export function inFights(spell: Dnd.SpellDef): boolean {
+  const effects = spell.mechanicalEffects ?? [];
+  return !/reaction|minute|hour/i.test(spell.castingTime) && effects.length > 0 && effects.every(m => FIGHT_KINDS.has(String(m.kind)));
 }
 
 type Effect = { kind: string; [key: string]: unknown };
@@ -75,6 +112,8 @@ const NUMBER = ["no", "one", "two", "three", "four", "five", "six", "seven", "ei
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const ordinal = (n: number) => ["0th", "1st", "2nd", "3rd"][n] ?? `${n}th`;
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+/** Dice and a number added to them: plus("1d10", 2) is "1d10 + 2". */
+const plus = (dice: string, n: number) => (!n ? dice : !dice ? String(n) : `${dice} ${n > 0 ? "+" : "-"} ${Math.abs(n)}`);
 const unmarked = (t: string) => t.replace(/\*\*|_/g, "");
 const article = (name: string) => `${/^[aeiou]/i.test(name) ? "an" : "a"} ${name}`;
 /** "a, b or c". */
@@ -97,24 +136,36 @@ export function spellDetails(spell: Dnd.SpellDef, caster?: Caster, names?: Names
   const area = areaOf(spell);
   const terms = new Terms(spell, caster, names, !!area);
   for (const e of (spell.mechanicalEffects ?? []) as Effect[]) terms.effect(e);
+  // The SRD's grows with a higher slot ("Using a Higher-Level Spell Slot."), and the game's doesn't: say so.
+  const upcasts = srd?.text.some(b => typeof b === "string" && /^_Using a Higher-Level Spell Slot\._/.test(b));
+  if (spell.level > 0 && upcasts && !terms.scaling.some(t => t.startsWith("With a higher slot"))) terms.scaling.push("With a higher slot: nothing more in this game");
+  const time = castingTime(spell, srd);
   return {
     id: spell.id, name: spell.name, level: spell.level, school: spell.school,
     levelLine: `${spell.level ? `Level ${spell.level} ${capital(spell.school)}` : `${capital(spell.school)} Cantrip`} (${spell.classes.map(capital).sort().join(", ")})`,
-    castingTime: castingTime(spell, srd),
+    castingTime: time.game,
+    ...(time.srd ? { srdCastingTime: time.srd } : {}),
     range: spell.range,
     components: { verbal: !!c.verbal, somatic: !!c.somatic, ...(c.material ? { material: c.material } : {}) },
     duration: spell.duration, concentration: spell.concentration, ritual: spell.ritual,
     does: terms.does,
     ...(area ? { area } : {}),
     scaling: terms.scaling,
-    ...(srd ? { text: srd.text } : {}),
+    inFights: inFights(spell),
+    ...(srd ? { text: srd.text, credit: srdAttribution() } : {}),
   };
 }
 
-/** The engine's casting time, or the SRD's where it only adds the trigger ("Reaction, which you take when..."). */
-function castingTime(spell: Dnd.SpellDef, srd: SrdSpell | undefined): string {
+/**
+ * The engine's casting time, or the SRD's where it only adds to it: a trigger ("Reaction, which you
+ * take when..."), names for the ways ("Action (Overgrowth) or 8 hours (Enrichment)"). Where the SRD's
+ * is another (Barkskin's Bonus Action, the game's Action), that too: the game plays its own.
+ */
+function castingTime(spell: Dnd.SpellDef, srd: SrdSpell | undefined): { game: string; srd?: string } {
   const said = unmarked(srd?.castingTime ?? "").replace(/ or Ritual$/, "");
-  return said.startsWith(`${spell.castingTime}, which`) ? said : spell.castingTime;
+  if (!said || said === spell.castingTime) return { game: spell.castingTime };
+  if (said.startsWith(`${spell.castingTime}, which`) || said.replace(/ \([^)]*\)/g, "") === spell.castingTime) return { game: said };
+  return { game: spell.castingTime, srd: said };
 }
 
 /** The area, as the game catches things in it (caughtIn in src/world/scene-world.ts): a sphere's size is its radius, a cube's its side. */
@@ -164,8 +215,24 @@ class Terms {
     return `${either(all)} (your choice)`;
   }
 
-  /** Dice of a type ("1d10 fire"): a cantrip's as they are at the caster's level, and how they grow. */
-  private damage(e: Effect): string {
+  /** What the engine adds to a line's numbers for the caster, and where from ("+2 Agonizing Blast"), said after it. */
+  private notes: string[] = [];
+  /** A line, with what the engine added to it: "... 1d10 + 2 force on a hit (+2 Agonizing Blast)". */
+  private say(line: string) {
+    this.does.push(this.notes.length ? `${line} (${this.notes.join(", ")})` : line);
+    this.notes = [];
+  }
+  private added(bonus: Bonus[]): number {
+    this.notes.push(...bonus.map(b => `${signed(b.amount)} ${b.from}`));
+    return bonus.reduce((n, b) => n + b.amount, 0);
+  }
+
+  /**
+   * Dice of a type ("1d10 fire"): a cantrip's as they are at the caster's level, and how they grow;
+   * with what the engine adds to them for the caster when it's a spell's attack or save that rolls
+   * them ("1d10 + 2 force"), the first damage everything, any more only what goes by damage type.
+   */
+  private damage(e: Effect, adds?: { primary: boolean }): string {
     const dice = String(e["damageDice"] ?? "");
     const types = (e["casterChoosesDamageType"] as { allowed?: string[] } | undefined)?.allowed;
     const type = types ? `${either(types)} (your choice)` : String(e["damageType"] ?? "");
@@ -177,15 +244,18 @@ class Terms {
     const extra = Number(e["extraDicePerSlotLevel"] ?? 0);
     if (extra && this.spell.level > 0) this.higher(`+${extra}d${die(dice)} ${types ? "damage" : type}`);
     const now = this.spell.level === 0 && grows ? more(dice, count(grows) * tier(this.caster?.level ?? 1)) : dice;
-    return `${now} ${type}`.trim();
+    // A chosen type gets only what doesn't go by type: which type it'll be isn't known yet.
+    const bonus = adds ? (this.caster?.extras?.damage(this.spell, types ? undefined : String(e["damageType"] ?? ""), adds.primary) ?? []).filter(b => b.amount) : [];
+    return `${plus(now, this.added(bonus))} ${type}`.trim();
   }
 
   effect(e: Effect): void {
     switch (e.kind) {
       case "attack": {
-        const hit = [...(e["damageDice"] ? [this.damage(e)] : []), ...(e["conditionOnHit"] ? [this.condition(String(e["conditionOnHit"]))] : [])];
+        const hit = [...(e["damageDice"] ? [this.damage(e, { primary: true })] : []), ...(e["conditionOnHit"] ? [this.condition(String(e["conditionOnHit"]))] : [])];
         const bonus = this.caster ? `, ${signed(this.caster.attackBonus)} to hit` : "";
-        this.does.push(`${e["attackKind"] === "melee" ? "Melee" : "Ranged"} spell attack${bonus}${hit.length ? `: ${hit.join(" and ")} on a hit` : ""}`);
+        // A miss is a miss, Potent Cantrip or not: the game drops the engine's half damage on one (missesMiss in dnd.ts).
+        this.say(`${e["attackKind"] === "melee" ? "Melee" : "Ranged"} spell attack${bonus}${hit.length ? `: ${hit.join(" and ")} on a hit` : ""}`);
         if (e["explodeOnMaxDie"]) this.does.push("A damage die that rolls its highest rolls another");
         if (e["cantripBeamScaling"]) {
           const beams = 1 + tier(this.caster?.level ?? 1);
@@ -196,16 +266,21 @@ class Terms {
       }
       case "save": case "aura-damage": case "trap": {
         const ability = String(e[e.kind === "save" ? "ability" : "saveAbility"]);
+        // The engine adds the caster's damage riders to a save spell's damage, not to an aura's or a trap's.
+        const adds = e.kind === "save";
         const dmg = [
-          ...(e["damageDice"] ? [this.damage(e)] : []),
-          ...((e["additionalDamage"] as Effect[] | undefined) ?? []).map(x => this.damage(x)),
+          ...(e["damageDice"] ? [this.damage(e, adds ? { primary: true } : undefined)] : []),
+          ...((e["additionalDamage"] as Effect[] | undefined) ?? []).map(x => this.damage(x, adds ? { primary: false } : undefined)),
         ].join(" and ");
         const fail = [
           ...(e["conditionOnFail"] ? [`${this.condition(String(e["conditionOnFail"]))}${e["conditionEndsOnDamage"] ? " until it's hurt" : ""}`] : []),
           ...(e["pushedFeetOnFail"] ? [`pushed ${e["pushedFeetOnFail"]} feet away`] : []),
           ...(e["casterChoosesVariant"] ? [this.choices(e["casterChoosesVariant"] as Variants)] : []),
         ];
-        const half = e["halfOnSuccess"] === true;
+        // Potent Cantrip: a damaging cantrip saved against still does half.
+        const potent = adds && dmg && this.spell.level === 0 && e["halfOnSuccess"] !== true ? this.caster?.extras?.potentCantrip : undefined;
+        if (potent) this.notes.push(potent);
+        const half = e["halfOnSuccess"] === true || !!potent;
         const head = `${ABILITY[ability] ?? ability} save${this.dc()}`;
         let line = dmg && !fail.length ? `${head}: ${dmg}${half ? ", half as much on a success" : " on a failure"}`
           : dmg ? `${head}: ${dmg} and ${fail.join(" and ")} on a failure${half ? ", half the damage on a success" : ""}`
@@ -214,7 +289,7 @@ class Terms {
         if (e["largeCreatureAdvantage"]) line += " (a Large or bigger creature has Advantage)";
         if (e.kind === "aura-damage") line = `In it${this.area ? "" : ` (within ${e["rangeFeet"]} feet)`}: ${line}`;
         if (e.kind === "trap") line = `${e["label"] ?? "The trap"}, when it's set off: ${line}`;
-        this.does.push(line);
+        this.say(line);
         return;
       }
       case "auto-hit": {
@@ -225,11 +300,16 @@ class Terms {
         return;
       }
       case "heal": {
+        // The engine adds the caster's Wisdom modifier to a heal with dice, and a healing boost (Disciple of Life) to one from a slot.
         const dice = e["amountDice"] as string | undefined;
         const flat = Number(e["flatAmount"] ?? 0);
-        this.does.push(`Heals ${[dice, flat ? String(flat) : ""].filter(Boolean).join(" + ")} hit points`);
+        const x = this.caster?.extras;
+        const boost = x?.healBoost && this.spell.level > 0 ? x.healBoost : undefined;
+        const adds = [...(dice && x?.heal ? [x.heal] : []), ...(boost ? [{ amount: boost.flat + boost.perLevel * this.spell.level, from: boost.from }] : [])].filter(b => b.amount);
+        this.say(`Heals ${plus([dice, flat ? String(flat) : ""].filter(Boolean).join(" + "), this.added(adds))} hit points`);
         const extra = Number(e["extraDicePerSlotLevel"] ?? 0);
-        if (extra && dice) this.higher(`+${extra}d${die(dice)} healing`);
+        const gains = [...(extra && dice ? [`+${extra}d${die(dice)} healing`] : []), ...(boost?.perLevel ? [`+${boost.perLevel} from ${boost.from}`] : [])];
+        if (gains.length) this.higher(gains.join(" and "));
         return;
       }
       case "buff": {

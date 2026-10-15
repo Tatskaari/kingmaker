@@ -1,4 +1,5 @@
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.js";
+import { inFights } from "../../rules/spells.ts";
 import type { CombatResult, Tile2 } from "../types.ts";
 import { flavour, has as hasFlavour, hash, listing } from "./flavour.ts";
 import { areaTiles, clearShot, explore, FEET, feetBetween, findPath, fromFeet, fromKey, key, line, neighbours, rangeFeet, same, solid, steps, toFeet, type PathRules } from "./grid.ts";
@@ -24,7 +25,6 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const possessive = (name: string) => (name === "you" ? "your" : name.endsWith("s") ? `${name}'` : `${name}'s`);
 const reason = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error:\s*/, "");
 /** The spell effects a fight on the map can play out (summons, zones and teleports aren't here yet). */
-const SUPPORTED = new Set(["attack", "save", "auto-hit", "heal", "hp-pool-knockout", "buff"]);
 /** Buffs cast on a foe: the caster marks them. */
 const FOE_MARKS = new Set(["hunters-mark", "hex"]);
 /** The sheet's attack bonus with a weapon (the engine calls the instance weaponInstanceId; the typings say instanceId). */
@@ -409,9 +409,9 @@ export class Skirmish {
       for (const sp of group.spells) {
         if (group.level > 0 && !sp.prepared && !sp.alwaysPrepared) continue;
         const spell = this.t.kit.engine.content.spells.get(sp.spellId);
-        if (!spell || /reaction|minute|hour/i.test(spell.castingTime)) continue;
+        // An action or bonus action the map plays out (the spell's card on the sheet says the same).
+        if (!spell || !inFights(spell)) continue;
         const effects = spell.mechanicalEffects ?? [];
-        if (!effects.length || !effects.every(m => SUPPORTED.has(String(m.kind)))) continue;
         const slot = spell.level === 0 ? 0 : [1, 2, 3, 4, 5, 6, 7, 8, 9].find(l => l >= spell.level && free(l) > 0) ?? -1;
         if (slot < 0) continue;
         const heal = effects.some(m => m.kind === "heal");

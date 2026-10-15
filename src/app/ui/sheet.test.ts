@@ -262,11 +262,20 @@ test("a spell picked, laid out: the card, the game's terms and the SRD's words, 
   assert.match(plain(sleep), /Components V, S, M \(a pinch of sand or rose petals\)/);
   const detect = plain(spellPage((await spellCard("detect-magic", { level: 3, saveDC: 13, attackBonus: 5 }))!, 76));
   assert.match(detect, /Casting time Action, or as a ritual \(10 minutes longer, no slot\)/);
-  // Nothing to roll: it says so. No SRD text: the rules alone, and nothing in the text's place.
-  assert.match(plain(spellPage((await spellCard("mage-hand"))!, 76)), /In this game ─+\nNo rolls: it does what it says below, as the GM plays it\.\n\nFrom the SRD 5\.2\.1/);
-  const bare = plain(spellPage({ ...(await spellCard("fire-bolt"))!, text: undefined }, 76));
+  // Nothing to roll: it says so, and that a fight doesn't offer it. No SRD text: the rules alone, and nothing in the text's place.
+  const hand = plain(spellPage((await spellCard("mage-hand"))!, 76));
+  assert.match(hand, /In this game ─+\nNo rolls: it does what it says below, as the GM plays it\.\nNot in a fight on the map: cast it in a scene\.\n\nFrom the SRD 5\.2\.1/);
+  // The SRD's words come with its attribution statement, word for word, at the end.
+  assert.match(hand.replace(/\s+/g, " "), /The hand can't attack, activate magic items, or carry more than 10 pounds\. This work includes material from the System Reference Document 5\.2\.1 \(“SRD 5\.2\.1”\) by Wizards of the Coast LLC, available at https:\/\/www\.dndbeyond\.com\/srd\. The SRD 5\.2\.1 is licensed under the Creative Commons Attribution 4\.0 International License, available at https:\/\/creativecommons\.org\/licenses\/by\/4\.0\/legalcode\.$/);
+  const bare = plain(spellPage({ ...(await spellCard("fire-bolt"))!, text: undefined, credit: undefined }, 76));
   assert.match(bare, /Ranged spell attack: 1d10 fire on a hit/);
-  assert.doesNotMatch(bare, /SRD|hurl/);
+  assert.doesNotMatch(bare, /SRD|hurl|a fight/);
+  // A reaction is for a scene; where the SRD's casting time is another, it's beside the game's; where the SRD's grows with a slot and the game's doesn't, the card says so.
+  assert.match(plain(spellPage((await spellCard("shield"))!, 76)), /Not in a fight on the map: cast it in a scene\./);
+  assert.match(plain(spellPage((await spellCard("barkskin"))!, 76)), /Casting time Action \(the SRD's: Bonus Action\)/);
+  assert.equal((await spellCard("plant-growth"))!.castingTime, "Action (Overgrowth) or 8 hours (Enrichment)");
+  assert.deepEqual((await spellCard("scorching-ray", { level: 3, saveDC: 13, attackBonus: 5 }))!.scaling, ["With a higher slot: nothing more in this game"]);
+  assert.deepEqual((await spellCard("divine-smite"))!.scaling, ["With a higher slot: nothing more in this game"]);
   // Tables, lists and a stat block, inside the box.
   for (const id of ["augury", "teleport", "bestow-curse", "find-steed", "prismatic-spray", "confusion"]) {
     for (const r of spellPage((await spellCard(id))!, 76)) assert.ok(width(r) <= 76, `${id}: a row ${width(r)} wide: ${plain([r])}`);
@@ -299,9 +308,16 @@ test("SheetView: a spell clicked, or picked with ↓ and Enter, shows what it is
   // Its spells, drawn a button each, land exactly where they're laid out.
   const laid = plain(sheetPages(d, state.player, 76, 21, { bar: true })[2]!.rows).split("\n");
   assert.deepEqual(sheet.split("\n").slice(1, 1 + laid.length).map(l => l.trimEnd()), laid.map(l => l.trimEnd()));
-  // ↓ picks the first spell, and Enter shows it.
+  // ↓ picks the first spell (Esc lets it go, it says), and Enter shows it.
   setup.mockInput.pressArrow("down");
-  assert.match(hints(await frame()), /Enter about it/);
+  assert.match(hints(await frame()), /Enter about it\s+·\s+Esc let go/);
+  // The spell picked has a colour of its own: the pointer over another doesn't hide which one Enter shows.
+  const { rgbToHex } = await import("@opentui/core");
+  const bgOf = (text: string) => { for (const l of setup.captureSpans().lines) for (const sp of l.spans) if (sp.text.includes(text)) return rgbToHex(sp.bg).slice(0, 7); return undefined; };
+  const pointAt = sheet.split("\n").findIndex(r => r.includes("Burning Hands"));
+  await setup.mockMouse.moveTo(sheet.split("\n")[pointAt]!.indexOf("Burning Hands") + 3, pointAt);
+  await frame();
+  assert.deepEqual([bgOf("Fire Bolt"), bgOf("Burning Hands")], [C.pickBg, C.highlightBg]);
   setup.mockInput.pressEnter();
   const fire = await frame();
   assert.match(fire, /← Back {2}Fire Bolt[\s\S]*In this game[\s\S]*Ranged spell attack, \+5 to hit: 1d10 fire on a hit[\s\S]*You hurl a mote of fire/);

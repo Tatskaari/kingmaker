@@ -303,7 +303,6 @@ function spellsSection(d: SheetData, w: number): Row[] {
   if (sc.pact) rows.push(...flow([[run("Pact slots ", C.dim), ...pips(sc.pact.max - sc.pact.used, sc.pact.max)], [run(`all ${ordinal(sc.pact.level)} level, back on a short rest`, C.faint)]], w, [run("  ")]));
   const all = sc.spells.flatMap(g => g.spells);
   const legend = [
-    ...(all.some(s => s.details) ? [[run("click a spell to read it", C.faint, { italic: true })]] : []),
     ...(all.some(s => s.always) ? [[run("gold", C.lead), run(" always prepared", C.faint)]] : []),
     ...(all.some(s => !s.ready) ? [[run("dim", C.faint), run(" not prepared", C.faint)]] : []),
     ...(all.some(s => s.concentration) ? [[run("(C) concentration", C.faint)]] : []),
@@ -569,9 +568,11 @@ function field(label: string, value: Run[], w: number): Row[] {
 
 /**
  * A spell, picked on the sheet, for a box w wide: its name and the SRD's line for it (level, school,
- * classes); its casting time (a ritual's way too), range, duration (concentration marked) and
- * components with the material; what it does in this game, at the caster's numbers (the attack or
- * save, the damage, the area, how it grows); then the SRD's description in its own words.
+ * classes); its casting time (a ritual's way too, and the SRD's where it's another), range, duration
+ * (concentration marked) and components with the material; what it does in this game, at the
+ * caster's numbers (the attack or save, the damage and what the engine adds to it, the area, how it
+ * grows), and whether a fight on the map offers it; then the SRD's description in its own words,
+ * and its attribution statement.
  */
 export function spellPage(d: SpellDetails, w: number): Row[] {
   const dot = [run(" · ", C.faint)];
@@ -581,7 +582,7 @@ export function spellPage(d: SpellDetails, w: number): Row[] {
   const parts = [...(c.verbal ? ["V"] : []), ...(c.somatic ? ["S"] : []), ...(c.material ? [`M (${c.material})`] : [])];
   const conc = d.concentration && /^concentration/i.test(d.duration);
   const card: Array<[string, Run[]]> = [
-    ["Casting time", [run(d.castingTime, C.text), ...(d.ritual ? [run(", or as a ritual (10 minutes longer, no slot)", C.lead)] : [])]],
+    ["Casting time", [run(d.castingTime, C.text), ...(d.srdCastingTime ? [run(` (the SRD's: ${d.srdCastingTime})`, C.dim)] : []), ...(d.ritual ? [run(", or as a ritual (10 minutes longer, no slot)", C.lead)] : [])]],
     ["Range", [run(d.range, C.text)]],
     ["Duration", conc ? [run("Concentration", C.warn), run(d.duration.slice("Concentration".length), C.text)] : [run(d.duration, C.text)]],
     ["Components", [run(parts.join(", ") || "none", C.text)]],
@@ -600,12 +601,14 @@ export function spellPage(d: SpellDetails, w: number): Row[] {
   const terms = [...d.does, ...(d.area ? [`Area: ${d.area}`] : []), ...d.scaling];
   for (const t of terms) rows.push(...flow(words([run(t, C.text)]), w, [run(" ")], 2));
   if (!d.does.length) rows.push(...prose(`No rolls: it does what it says${d.text ? " below" : ""}, as the GM plays it.`, w, C.dim, { italic: true }));
+  if (!d.inFights) rows.push(...prose("Not in a fight on the map: cast it in a scene.", w, C.dim, { italic: true }));
 
   if (d.text?.length) {
     const tag = [run(" CC BY 4.0", C.faint)];
     const head = [run("From the SRD 5.2.1", C.title, { bold: true })];
     const rest = w - widthOf(head) - widthOf(tag) - 1;
     rows.push([], rest > 0 ? [...head, run(` ${"─".repeat(rest)}`, C.border), ...tag] : rule("From the SRD 5.2.1", w), ...description(d.text, w));
+    if (d.credit) rows.push([], ...prose(d.credit, w, C.faint));
   }
   return rows.map(r => (widthOf(r) > w ? fit(r, w) : r));
 }

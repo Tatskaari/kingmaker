@@ -7,7 +7,7 @@ import type { SessionState } from "../runtime/session.ts";
 import { startingPurse } from "../world/inventory.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
-import { spellDetails, type Caster, type Names, type SpellDetails } from "./spells.ts";
+import { spellDetails, type Caster, type Extras, type Names, type SpellDetails } from "./spells.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -645,6 +645,8 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
     }));
 
   const sc = s.spellcasting?.classes[0];
+  // Their numbers for a spell's details, and what the engine adds to their spells.
+  const caster: Caster | undefined = sc && { level: s.totalLevel, saveDC: sc.saveDC, attackBonus: sc.attackBonus, extras: spellExtras(ctx.E, content, ctx.campaign.state, c) };
   const pact = (s.spellSlots as { pactSlots?: { level: number; count: number } }).pactSlots;
   const saves = s.savingThrows as Record<Dnd.Ability, { total: number; breakdown?: Array<{ source: string }> }>;
   const conditions = [
@@ -674,7 +676,7 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
         const def = content.spells.get(sp.spellId);
         return {
           id: sp.spellId, name: sp.name, ready: g.level === 0 || sp.prepared || sp.alwaysPrepared, always: sp.alwaysPrepared && g.level > 0, concentration: !!def?.concentration, ritual: !!def?.ritual,
-          ...(def ? { details: spellDetails(def, { level: s.totalLevel, saveDC: sc.saveDC, attackBonus: sc.attackBonus }, namesIn(content)) } : {}),
+          ...(def ? { details: spellDetails(def, caster, namesIn(content)) } : {}),
         };
       }) })),
     } } : {}),
@@ -864,6 +866,70 @@ export async function spellInfo(spellId: string): Promise<Dnd.SpellDef | undefin
 
 /** What the mechanics name by id, by the engine's names for them. */
 const namesIn = (content: Dnd.Content): Names => ({ condition: id => content.conditions.get(id)?.name, item: id => content.items.get(id)?.name });
+
+type Effect = Record<string, unknown>;
+
+/**
+ * The character's effects by where they come from, named, as the engine gathers them for its effect
+ * stack: their class and subclass features to their level, the options chosen for them, their feats
+ * (the background's too), their species' traits and what's on them now. A feat any of these grants
+ * comes under its own name.
+ */
+function effectSources(content: Dnd.Content, campaign: Dnd.CampaignState, c: Dnd.EngineCharacter): Array<{ name: string; effect: Effect }> {
+  const out: Array<{ name: string; effect: Effect }> = [];
+  const add = (name: string, effects: unknown) => {
+    for (const e of (effects as Effect[] | undefined) ?? []) {
+      const feat = e["kind"] === "GrantFeat" ? content.feats.get(String(e["featId"])) : undefined;
+      if (feat) add(feat.name, feat["effects"]);
+      else out.push({ name, effect: e });
+    }
+  };
+  for (const k of c.classes) {
+    const tables = [content.classes.get(k.classId)?.["levelTable"], k.subclassId ? content.subclasses.get(k.subclassId)?.["levelGrants"] : undefined] as Array<Grants | undefined>;
+    for (const table of tables) {
+      for (const [level, row] of Object.entries(table ?? {})) if (Number(level) <= k.level) for (const f of Array.isArray(row) ? row : row.features ?? []) add(f.name, f.effects);
+    }
+  }
+  for (const p of Object.values(campaign.pendingChoices)) {
+    if (p.forCharacterId !== c.id || !p.resolution) continue;
+    const picked = (p.resolution as { selectedOptionIds?: string[] }).selectedOptionIds ?? [];
+    for (const o of p.options.filter(o => picked.includes(o.id))) add(o.label, o["effects"]);
+  }
+  const origin = content.backgrounds.get(c.backgroundId)?.["originFeatId"];
+  for (const id of new Set([...c.featsTaken, ...(origin ? [String(origin)] : [])])) { const feat = content.feats.get(id); if (feat) add(feat.name, feat["effects"]); }
+  const species = content.species.get(c.speciesId);
+  if (species) add(species.name, species["traits"]);
+  for (const a of c.appliedConditions) { const cond = content.conditions.get(a.conditionId); if (cond) add(cond.name, cond["effects"]); }
+  return out;
+}
+
+/**
+ * What the engine adds to the character's spells when they're cast (Extras in src/rules/spells.ts),
+ * from its own effect stack for them, as its cast-spell planner asks it: the damage modifiers for a
+ * spell (by its id, school, level and damage type), the Wisdom modifier it adds to every heal with
+ * dice, the healing boost of a heal from a slot, and Potent Cantrip. Each is named for the feature,
+ * feat, choice or condition it comes from.
+ */
+function spellExtras(E: typeof Dnd, content: Dnd.Content, campaign: Dnd.CampaignState, c: Dnd.EngineCharacter): Extras {
+  const stack = E.buildEffectStack({ character: c, content, itemInstances: campaign.itemInstances, pendingChoices: campaign.pendingChoices });
+  const sources = effectSources(content, campaign, c);
+  const nameOf = (test: (e: Effect) => boolean) => sources.find(s => test(s.effect))?.name;
+  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const boost = stack.healingBoostFor(1), perLevel = stack.healingBoostFor(2) - boost;
+  return {
+    damage(spell, type, primary) {
+      const facts = new Map<string, unknown>([["event.damageType", type], ...(primary ? [["event.spellSchool", spell.school], ["event.spellId", spell.id], ["event.spellLevel", spell.level]] as const : [])]);
+      return stack.modifierBreakdown("damage", facts).filter(m => m.value).map(m => {
+        const from = nameOf(e => e["kind"] === "AddModifier" && e["target"] === "damage" && same(e["condition"], m.predicate)) ?? (m.source === "condition" ? "what's on you" : "your features");
+        // "Agonizing Blast (Eldritch Blast)" on Eldritch Blast's own card is Agonizing Blast.
+        return { amount: m.value, from: from.endsWith(` (${spell.name})`) ? from.slice(0, -(spell.name.length + 3)) : from };
+      });
+    },
+    heal: { amount: Math.floor((c.abilityScores.WIS - 10) / 2), from: "your Wisdom modifier" },
+    ...(boost ? { healBoost: { flat: boost - perLevel, perLevel, from: nameOf(e => e["kind"] === "BoostHealing") ?? "your features" } } : {}),
+    ...(stack.hasPotentCantrip() ? { potentCantrip: nameOf(e => e["kind"] === "GrantPotentCantrip") ?? "Potent Cantrip" } : {}),
+  };
+}
 
 /** A spell's details as the sheet shows them when it's picked (src/rules/spells.ts), for a caster at their numbers. */
 export async function spellCard(spellId: string, caster?: Caster): Promise<SpellDetails | undefined> {
