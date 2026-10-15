@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -288,4 +288,18 @@ test("before its count, a cue needs the rest of its condition to hold clearly; t
 
 test("no cue fires on a word out of character: that isn't time passing in the scene", async () => {
   assert.equal(await cueRead(0.95, { ...yard(), turnsInBeat: 9 }, { ooc: ["out_of_character", 0.95] }), undefined);
+});
+
+// The consequences flag: what the player does that the world would answer, not what they ask for.
+const BOOT = "I don't want your boots. I just want to see what's making that noise. I assume you got them from the body. Could be evidence.";
+
+test("a courteous ask isn't daft: the question says so, and the bill wants a clear read", async () => {
+  const flag = async (p: number) => (await decideBefore(scripted({ daft: ["consequential", p, { none: 1 - p }] }), scene, yard(), BOOT, { speaker: false, consequences: true })).daft;
+  assert.equal(await flag(0.63), undefined, "the granary's polite look at the evidence was billed at 0.63");
+  assert.equal(await flag(DAFT_CONFIDENCE), true);
+  const decider = scripted({});
+  await decideBefore(decider, scene, yard(), BOOT, { speaker: false, consequences: true });
+  const daft = decider.asked[0]!.daft!;
+  assert.match(daft.instructions, /Earnest play isn't daft, however bold: asking for something \(to see it, for help, for evidence\), an honest offer \(food, coin, a trade\), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan/);
+  assert.match(daft.instructions, /a scam, a bluff or a lie/, "a trick still is");
 });

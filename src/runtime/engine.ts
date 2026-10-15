@@ -497,8 +497,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
     if (exit) directive.push(`The scene may be reaching its end (${exit.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
   }
-  // A ruling decided this turn's consequences, and its payoff: no bill or payoff on top of it.
-  if (pre.daft && !pre.ooc && !considered) directive.push(CONSEQUENCE_DIRECTIVE);
+  // A ruling decided this turn's consequences, and its payoff: no bill or payoff on top of it. Nor
+  // when the dice have already decided the act (a route's roll, a freeform one): its outcome is the bill.
+  if (pre.daft && !pre.ooc && !considered && !pre.move?.roll && !pre.freeform) directive.push(CONSEQUENCE_DIRECTIVE);
   if (pre.earned && !pre.ooc && !pre.move?.roll && !considered) directive.push(EARNED_DIRECTIVE);
   if (pre.pressure && !pre.ooc && !pre.move) {
     // The dice line names them as the player knows them (the woman with the silver dice, until she's Sal).

@@ -122,6 +122,26 @@ function cueQuestion(cues: Transition[], exchanges: number): ChoiceQuestion {
   return { ...q, criteria: { ...Object.fromEntries(cues.map(t => [t.id, counted(t)])), not_yet: q.criteria.not_yet! } };
 }
 
+/**
+ * Something daft, reckless or cheeky that the world would answer (the consequences flag): what the
+ * player does or says, not what they ask for. A courteous ask, an honest offer, a case made or a plan
+ * is never billed, however bold. Brother Ambrose's polite look at the evidence (the granary's T18),
+ * eel for a look in Cob's boot (the Rat's T43) and a safe house for Hobb's mother (T57) were billed at
+ * 0.60 to 0.63 under the old wording, and read 0.02 to 0.38 under this one (pressing the King, 0.59);
+ * the absurd round's daft acts read 0.93 to 0.99 under it, but for a purse of buttons (0.56, and
+ * 0.44 before). Hence the bar: 0.7.
+ */
+export const DAFT_CONFIDENCE = 0.7;
+
+const DAFT_QUESTION: ChoiceQuestion = {
+  instructions: "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking someone or what they hold dear, an insult, taking, using or spoiling what's someone else's without asking, a scam, a bluff or a lie, or going back on their word? Judge what the player actually does or says, by how the people here would take it, not by whether it's funny. Earnest play isn't daft, however bold: asking for something (to see it, for help, for evidence), an honest offer (food, coin, a trade), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan (where someone could hide, what to do tonight), even one the others turn down.",
+  criteria: {
+    consequential: "Yes: something daft, reckless or cheeky that in this world would provoke a real reaction or carry a real risk.",
+    harmless: "It's playful, but nobody here would mind or be put at risk.",
+    none: "Nothing daft or reckless in it: ordinary talk and questions, or earnest play (an ask, an honest offer, a case made, a plan).",
+  },
+};
+
 /** The cue the decider chose, if its read clears the bar: a clear read, and a clearer one before its count. */
 function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
   const cue = cues.find(t => t.id === read?.choice);
@@ -613,10 +633,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     criteria: { earned: "Yes: they've just done what it takes; it should land now.", not_yet: "No: they're still working on it, asking, or haven't done what it takes." },
   };
   if (options.consequences) {
-    questions.daft = {
-      instructions: "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking or making free with what someone holds dear, a scam or a bluff, an insult, a broken promise or a deal walked away from? Judge by how the people here would take it, not by whether it's funny.",
-      criteria: { consequential: "Yes: in this world it would provoke a real reaction or carry a real risk.", harmless: "It's playful, but nobody here would mind or be put at risk.", none: "Nothing daft or reckless in it." },
-    };
+    questions.daft = DAFT_QUESTION;
   }
   if (options.rules && !options.forced) {
     questions.mechanic = {
@@ -748,7 +765,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
-  const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= DAFT_CONFIDENCE;
   const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;

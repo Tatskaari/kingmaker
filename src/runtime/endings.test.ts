@@ -44,3 +44,27 @@ test("a word out of character isn't an exchange: the scene's clock doesn't move"
     plain.restore();
   }
 });
+
+/** What the GM was told for the turn's reply (the last of its input: the per-turn note). */
+const told = (fake: { sent: Array<{ instructions?: string; input?: Array<{ content: string }> }> }) =>
+  fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!.input!.at(-1)!.content;
+
+test("a daft act gets its bill, unless the dice have already decided it", async () => {
+  const bill = /this one isn't free/;
+  const billed = fakeOpenRouter({ choices: { daft: "consequential" }, replies: ["Moll shrieks."] });
+  try {
+    await playerTurn(yard("endings-billed"), "*pulls a face at Moll and pelts her with gravel*");
+    assert.match(told(billed), bill);
+  } finally {
+    billed.restore();
+  }
+  const rolled = fakeOpenRouter({ choices: { daft: "consequential", attempt: "examine-body", roll_call: "route" }, replies: ["You lean in close."] });
+  try {
+    const state = yard("endings-rolled");
+    await playerTurn(state, "*shins up the hoist rope one-handed, showing off, to get a look at his neck*");
+    assert.equal(state.path.at(-1)?.roll?.skill, "medicine", "the route's roll decided it");
+    assert.doesNotMatch(told(rolled), bill, "its outcome is the bill");
+  } finally {
+    rolled.restore();
+  }
+});

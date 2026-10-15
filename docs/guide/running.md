@@ -50,6 +50,7 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 - **The world plays it straight, and that's where the comedy comes from.**
 - **People deal with daft ideas on their own terms.** They believe them, dispute them, cite their own rules against them, take offence or see an opportunity. They never step outside the story to grade the joke.
 - **Every daft act sends a bill.** The decider flags a consequential daft act, and the GM is told to follow it through to a consequence, good or bad, now or plainly coming.
+- **Asking isn't daft.** An earnest ask, an honest offer, a case made or a plan is never billed, however bold: Brother Ambrose's polite look at the evidence in Cob's boot, eel for a look in it, and a safe house for Hobb's mother were each told "this one isn't free". The flag wants a clear read (0.7), and where the dice decided the act, their outcome is the bill.
 - **The stakes stay real.** A threat stays a threat however funny the player is being.
 
 ## Dice: rolls belong to edges, and say why
