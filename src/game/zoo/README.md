@@ -152,7 +152,7 @@ To add an exhibit, give it a marker in its wing's grid and a sign (what it is, h
 
 ## What's only a sign
 
-Every feature in the inventory has an exhibit, and the story's own have one too: a new game's start is the hall's window, The End its curtain cord, the scene boundary and fronts the Theatre's boundary desk, and approaches its house-style lever. What's left can't be shown inside the zoo, so its exhibit is a sign that says what it is and where to see it:
+Every feature in the inventory has an exhibit. The three that came after it was drawn up are on the signs of the ones they joined: the action menu (m, which works in every wing) on the annexe's right-click sign, the scene's place by mouse on the hall's scene screen sign, and the static build on its browser sign. The story's own features have one too: a new game's start is the hall's window, The End its curtain cord, the scene boundary and fronts the Theatre's boundary desk, and approaches its house-style lever. What's left can't be shown inside the zoo, so its exhibit is a sign that says what it is and where to see it:
 
 - **Tools outside the game.** The look gallery, headless frames, the QA console, the scene harness, evals, smoke tests, the browser, settings, and the unused stand-ins: each runs outside the game (a command line, a browser), so the zoo can only say how. The tour and `qa new --zoo` are the zoo's own uses of two of them.
 - **The town by the hour** is Caerwyn's own people, who only walk the story's map; the annexe shows the same mechanism in miniature.

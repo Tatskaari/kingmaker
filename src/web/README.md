@@ -95,7 +95,7 @@ So the server and WebSocket add about a millisecond, and xterm parses and draws 
 `npm run build:web` makes `dist/web`: the whole game as a static site, played entirely in the browser. The PR preview workflow publishes it to GitHub Pages under `/kingmaker/pr-preview/pr-<N>/`. Every URL in it is relative, so it works from any path.
 
 ```sh
-npm run build:web                            # dist/web: about 4.5 MB (1.2 MB gzipped), built in under a second
+npm run build:web                            # dist/web: 22 files, about 5.4 MB (1.4 MB gzipped), built in under a second
 node --no-warnings src/web/static/serve.ts   # http://127.0.0.1:7312/kingmaker/pr-preview/pr-650/ (any static file server will do)
 npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo too (about 3 minutes)
 npm run web:static-check -- --live           # also the key from ~/secrets typed into the key form, and a real GM reply
@@ -160,4 +160,3 @@ As V1 kept it:
 - A key OpenRouter accepts can still run out of credit. That shows up only when the GM fails to answer.
 - Fonts are the viewer's own. Adwaita Mono is only on GNOME systems, so elsewhere a few map symbols (▬ ▫ ▾ ‿) come from fallback fonts. Serving Adwaita Mono (it's SIL OFL) would fix that.
 - No touch keyboard, so it needs a real keyboard. Chromium and Firefox have been tried (the static build in both), Safari not yet.
-- An Enter that reaches the game in the same read as the letters before it sends the line without them. This happens with a paste, or with keystrokes bunched up by a slow link. The scene's input submits what it last drew. It's the game's, and it happens under a plain pty too; the fix belongs in `src/app/ui/scene.tsx`.
