@@ -283,22 +283,27 @@ export function toward(world: SceneWorld, e: Entity, to: Entity, feet: number): 
  */
 export function caughtIn(world: SceneWorld, shape: string, size: number, origin: Point, aim: Point): Entity[] {
   const all = Object.values(world.entities).filter(e => e.kind !== "place" && e.kind !== "area" && present(e) && !heldBy(world, e));
+  return all.filter(e => inArea(shape, size, origin, aim, positionOf(world, e.id)!));
+}
+
+/**
+ * Is a point inside a spell's area (feet): a sphere or cube around `aim`, a cone or line from
+ * `origin` towards it. caughtIn's test, for whatever else must agree with it (the map's aim).
+ */
+export function inArea(shape: string, size: number, origin: Point, aim: Point, p: Point): boolean {
   const dir = { x: aim.x - origin.x, y: aim.y - origin.y };
   const len = Math.hypot(dir.x, dir.y) || 1;
   const unit = { x: dir.x / len, y: dir.y / len };
-  return all.filter(e => {
-    const p = positionOf(world, e.id)!;
-    const v = { x: p.x - origin.x, y: p.y - origin.y };
-    const along = v.x * unit.x + v.y * unit.y;
-    const across = Math.abs(v.x * unit.y - v.y * unit.x);
-    switch (shape) {
-      case "sphere": case "cylinder": return distance(p, aim) <= size;
-      case "cube": return Math.abs(p.x - aim.x) <= size / 2 && Math.abs(p.y - aim.y) <= size / 2;
-      case "cone": return along > 0 && along <= size && across <= along / 2;
-      case "line": return along > 0 && along <= size && across <= 2.5;
-      default: return distance(p, aim) <= size;
-    }
-  });
+  const v = { x: p.x - origin.x, y: p.y - origin.y };
+  const along = v.x * unit.x + v.y * unit.y;
+  const across = Math.abs(v.x * unit.y - v.y * unit.x);
+  switch (shape) {
+    case "sphere": case "cylinder": return distance(p, aim) <= size;
+    case "cube": return Math.abs(p.x - aim.x) <= size / 2 && Math.abs(p.y - aim.y) <= size / 2;
+    case "cone": return along > 0 && along <= size && across <= along / 2;
+    case "line": return along > 0 && along <= size && across <= 2.5;
+    default: return distance(p, aim) <= size;
+  }
 }
 
 /** The person or container holding a thing, if it's carried or inside something. */

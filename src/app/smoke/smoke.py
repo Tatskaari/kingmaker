@@ -389,6 +389,13 @@ def offline():
     expect(app, r"Character sheet.*Saving throws", "a click on a tab turns back to it")
     keys(app, "esc")
     gone(app, r"Saving throws", "Esc puts the sheet away")
+    # The action menu (m): what the character can do, by kind, what can't be done now dimmed with why;
+    # a click on Hide is the rules' Stealth check, in the news.
+    keys(app, "m")
+    expect(app, r"What will you do\?.*Actions.*Hide\s+slip out of sight.*Dash\s+only in a fight", "m opens the action menu: by kind, what can't be done now says why")
+    click(app, "Hide", "a click on Hide in the action menu")
+    expect(app, r"Stealth check to slip out of sight", "Hide is the rules' Stealth check, in the news")
+    gone(app, r"What will you do\?", "the menu goes once it's done")
     # A step with the arrows: up the screen, then back.
     walk(app, "left right")
     # Then the mouse: a click to walk, a right-click for what to do; Kell's scene opens from hers (g opens the later ones).

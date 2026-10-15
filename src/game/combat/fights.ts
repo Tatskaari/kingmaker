@@ -61,6 +61,13 @@ export function tacticalFights(options: TacticalOptions = {}): TacticalFights {
       if (!s?.combat) return standinFights.load(saved, session);
       return new TacticalFight(resumeCombat(s.combat, session, loaded), s.unseen ?? [], () => factory.pace);
     },
+    // A fight that broke out on the map (the town's people came at the player): as it stands, where everyone is.
+    async startWith(setup: CombatSetup, session: SessionState): Promise<Fight> {
+      const combat = await startCombat(setup, session);
+      const fight = new TacticalFight(combat, [], () => factory.pace);
+      fight.begin();
+      return fight;
+    },
   };
   return factory;
 }

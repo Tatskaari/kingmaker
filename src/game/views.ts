@@ -1,5 +1,5 @@
 import type { SessionState } from "../runtime/session.ts";
-import { positionOf, type Point } from "../world/scene-world.ts";
+import { positionOf, type Point, type SceneWorld } from "../world/scene-world.ts";
 import type { CombatController } from "./combat/index.ts";
 import type { Canvas } from "./look/canvas.ts";
 import { dressingFor } from "./look/dressings.ts";
@@ -8,7 +8,7 @@ import { CAST_LOOKS } from "./look/people.ts";
 import type { Effects } from "./look/effects.ts";
 import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
 import { renderStage, type StagePicks } from "./look/stage.ts";
-import { battlefield, regionForScene, render, tileToFeet, toPlain, type Picks, type RenderOptions, type Viewport } from "./map/index.ts";
+import { battlefield, getMap, regionForScene, render, tileToFeet, toPlain, townRegion, type Picks, type RenderOptions, type Viewport } from "./map/index.ts";
 import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
@@ -39,17 +39,32 @@ export interface ViewOptions {
   pick?: Picks;
 }
 
+export interface TownViewOptions extends ViewOptions {
+  /** Outside a scene, the town's world the effects play in (src/game/town-world.ts: a spell at a door, a stall on fire). */
+  town?: SceneWorld;
+  /** Tinted tiles (aiming: how far it reaches, who it could be aimed at, what an area covers). */
+  marks?: RenderOptions["marks"];
+  /** The tile aimed at, bracketed. */
+  cursor?: Tile2;
+}
+
 /**
  * The town round the player; in a scene, the scene's place with its world (where everyone is now)
- * and its effects. With `pick`, what's drawn where, for the mouse; `hover` lights up a tile.
+ * and its effects. With `pick`, what's drawn where, for the mouse; `hover` lights up a tile. Outside
+ * a scene, the effects play in the town's own world (`town`), lined up with the whole map.
  */
-export function townView(game: GameState, session: SessionState | undefined, size: Viewport, options: ViewOptions = {}): StyledLine[] {
+export function townView(game: GameState, session: SessionState | undefined, size: Viewport, options: TownViewOptions = {}): StyledLine[] {
   const ex = exploreState(game);
   const world = ex.scene && session?.world && session.world.scene === ex.scene ? session.world : undefined;
   const place = world ? regionForScene(world.scene) : undefined;
-  const effects = place && world && options.effects ? { region: place.region, frame: options.effects.frame(options.t ?? 0, id => positionOf(world, id)) } : undefined;
+  const town = !world && options.town ? options.town : undefined;
+  const effects = place && world && options.effects ? { region: place.region, frame: options.effects.frame(options.t ?? 0, id => positionOf(world, id)) }
+    : town && options.effects ? { region: townRegion(getMap(ex.map)), frame: options.effects.frame(options.t ?? 0, id => positionOf(town, id)) } : undefined;
   // Whoever's behind a building shows through it, a little greyer (the user's call): see map/xray.ts.
-  return xrayExplore(ex, size, { ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...pick(options) });
+  return xrayExplore(ex, size, {
+    ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...pick(options),
+    ...(options.marks?.length ? { marks: options.marks } : {}), ...(options.cursor ? { cursor: options.cursor } : {}),
+  });
 }
 
 export const townText = (game: GameState, session: SessionState | undefined, size: Viewport) => toPlain(townView(game, session, size, { color: false }));
@@ -94,6 +109,8 @@ export interface FightViewOptions extends ViewOptions {
   cursor?: Tile2;
   /** The time of day (the light). */
   time?: StoryState["time"];
+  /** What stands round a fight that broke out on the map (the town's stalls, its people standing back): the scene's world has it otherwise. */
+  scenery?: MapActor[];
 }
 
 /**
@@ -108,7 +125,7 @@ export function fightView(fight: CombatController, session: SessionState | undef
   const fighters = new Set(Object.values(G.units).flatMap(u => [u.id, u.castId ?? u.id]));
   const field = session?.world ? battlefield(session.sceneId, session.world) : undefined;
   // The place round the fight: everything the world has but the fighters and the lights the fight now owns.
-  const scenery: MapActor[] = (field?.actors ?? []).filter(a => a.map === G.map.id && a.kind !== "player" && !fighters.has(a.ref ?? a.id) && !G.props[a.ref ?? a.id] && !G.props[a.id]);
+  const scenery: MapActor[] = (options.scenery ?? field?.actors ?? []).filter(a => a.map === G.map.id && a.kind !== "player" && !fighters.has(a.ref ?? a.id) && !fighters.has(a.id) && !G.props[a.ref ?? a.id] && !G.props[a.id]);
   const active = view.turn ? G.units[view.turn.id]?.at : undefined;
   const centre = options.centre ?? active ?? G.units[G.pc]?.at ?? { x: Math.floor(G.map.width / 2), y: Math.floor(G.map.height / 2) };
   // The badly hurt are bloodied; the lanterns and braziers are the world's own (the look knows them by it).
@@ -118,7 +135,8 @@ export function fightView(fight: CombatController, session: SessionState | undef
     ...(a.states?.includes("badly hurt") ? { states: [...a.states, "bloodied"] } : {}),
   }))];
   // The scene's world lines up with the fight's map: its surfaces lie on the floor, and effects land where the fighters stand.
-  const region = session?.world ? G.map.regions.find(r => r.sceneId === session.world!.scene && r.worldOrigin) : undefined;
+  // A fight that broke out on the map plays its effects in the town's feet (the whole map, from its corner).
+  const region = session?.world ? G.map.regions.find(r => r.sceneId === session.world!.scene && r.worldOrigin) : options.scenery ? townRegion(G.map) : undefined;
   const world = region && session?.world ? { region, world: session.world } : undefined;
   const effects = region && options.effects ? { region, frame: options.effects.frame(options.t ?? 0, id => { const u = G.units[id] ?? G.props[id]; return u ? tileToFeet(region, u.at) : undefined; }) } : undefined;
   // Where the dust went up, the floor is scorched.
@@ -136,9 +154,9 @@ export function fightView(fight: CombatController, session: SessionState | undef
  * numbers over the hurt, and the grain dust going up over where it hung (`dust`: the tiles it hung
  * over before these lines). Lines it doesn't know pass. Returns how many it showed.
  */
-export function fightEffects(fx: Effects, fight: CombatController, lines: Array<{ text: string }>, t: number, dust: Tile2[] = []): number {
+export function fightEffects(fx: Effects, fight: CombatController, lines: Array<{ text: string }>, t: number, dust: Tile2[] = [], onMap = false): number {
   const G = fight.state();
-  const region = G.map.regions.find(r => r.worldOrigin);
+  const region = onMap ? townRegion(G.map) : G.map.regions.find(r => r.worldOrigin);
   if (!region) return 0;
   const bare = (s: string) => s.trim().toLowerCase().replace(/^the /, "");
   const unit = (name: string) => { const n = bare(name); return n === "you" ? G.units[G.pc] : Object.values(G.units).find(u => bare(u.called) === n || bare(u.name) === n); };

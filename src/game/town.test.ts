@@ -35,8 +35,14 @@ function newGame(): { game: GameState; session: SessionState } {
 }
 
 /** Act, as the core does: an action that opens the scene opens it (enterScene, then the scene's world). */
+/** Walking, looking and talking are done at once (the action menu's rules acts are promises: see menu.test.ts). */
+function sync<T>(done: T | Promise<T>): T {
+  if (done instanceof Promise) throw new Error("expected an act done at once");
+  return done;
+}
+
 function act(game: GameState, session: SessionState, id: string): { text: string; scene?: boolean } {
-  const done = town.act(game, session, id);
+  const done = sync(town.act(game, session, id));
   if (done.scene) {
     game.mode = "scene";
     town.enterScene!(game, session);
@@ -152,7 +158,7 @@ test("between scenes, talking to someone who walks with you stops for a word wit
   assert.equal(exploreState(game).followers[0]?.id, "kell");
   assert.ok(town.actions(game, session).some(a => a.id === "talk_kell"), "Kell is there to talk to");
   const at = { ...exploreState(game).at };
-  const done = town.act(game, session, "talk_kell");
+  const done = sync(town.act(game, session, "talk_kell"));
   assert.deepEqual(done.talk?.with, "kell", done.text);
   assert.ok(!done.scene, "the story's scene waits");
   assert.match(done.text, /You go over to Sergeant Kell/);
@@ -162,7 +168,7 @@ test("between scenes, talking to someone who walks with you stops for a word wit
   // The app's e does the same.
   const facing = exploreState(game).followers[0]!.at;
   exploreState(game).facing = { x: Math.sign(facing.x - at.x), y: Math.sign(facing.y - at.y) };
-  assert.equal(town.act(game, session, "interact").talk?.with, "kell");
+  assert.equal(sync(town.act(game, session, "interact")).talk?.with, "kell");
 });
 
 test("a scene's place keeps what the scene did to it (leaveScene before the world goes)", () => {

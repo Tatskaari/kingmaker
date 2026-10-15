@@ -93,6 +93,8 @@ export interface CombatantSetup {
   castId?: string;
   /** How the AI fights them: "bruiser", "villain", "coward", "ally", "brawler", "archer" (combat module; defaults by side). */
   role?: string;
+  /** Their letter on the battlefield, when the name's first letter won't tell them apart (two palace guards: G and g). */
+  glyph?: string;
 }
 
 export interface CombatSetup {
@@ -118,4 +120,6 @@ export interface CombatResult {
   rounds: number;
   /** Facts for the story and the map: { heron_burned: true, sallow: "arrested" }. */
   flags?: Record<string, string | number | boolean>;
+  /** Where everyone ended up on the fight's map, by cast id (or the fight's own id; "player" for the player). */
+  positions?: Record<string, Tile2>;
 }

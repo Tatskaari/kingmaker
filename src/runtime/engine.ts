@@ -28,6 +28,8 @@ export interface TurnHooks {
   onText?(text: string): void;
   /** A finished visible entry (rolls, system lines, completed speech). */
   onEntry?(entry: Entry): void;
+  /** The game core has just gone into a scene (or a talk), before its opening streams in: show it now. */
+  onScene?(): void;
 }
 
 export interface TurnResult {
@@ -187,8 +189,12 @@ function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" 
   void scene;
 }
 
-/** One player turn: decide, (roll), reply, track the beat, maybe end the scene. */
-export async function playerTurn(state: SessionState, input: string, hooks: TurnHooks = {}): Promise<TurnResult> {
+/**
+ * One player turn: decide, (roll), reply, track the beat, maybe end the scene. `mechanic`: what the
+ * rules resolve this turn, chosen already (the map's action menu: a spell at someone, a shove), so
+ * the decider isn't asked what the player is doing with the rules, only everything else.
+ */
+export async function playerTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<TurnResult> {
   if (state.ended) throw new Error(`Scene ${state.sceneId} has already ended (${state.ended.exitId}).`);
   const authored = sceneById(state.sceneId);
   applyPendingRepairs(authored, state);
@@ -289,7 +295,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     : undefined;
   const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
   const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], features: state.rules.features ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, ...(rules ? { rules } : {}) });
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}) });
   if (pre.offGraph) state.offGraphTurn = state.turn;
   // A failed roll stands: don't have something else hand over what the dice just withheld.
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
@@ -338,7 +344,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     // Moved first, in the same turn: the spell or blow comes from where they ended up.
     if (state.world && (m.kind === "cast" || m.kind === "attack" || m.kind === "wrestle") && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
     const before = state.world ? Object.fromEntries(Object.values(state.world.entities).map(e => [e.id, [...e.states]])) : undefined;
-    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : m.kind === "jump" ? leap(state, m) : m.kind === "feature" ? useFeature(state, present, m.feature, m.target) : rest(state, m.length))
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input), said: input }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : m.kind === "jump" ? leap(state, m) : m.kind === "feature" ? useFeature(state, present, m.feature, m.target) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);

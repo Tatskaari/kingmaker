@@ -85,7 +85,7 @@ export function initialState(kit: Kit, setup: CombatSetup, session: SessionState
       ...(weaponName ? { weaponName } : {}), at: c.at, hp: Math.max(0, ch.hp.current), maxHp: ch.hp.max, ac: sheet.ac.total, speed: speed ?? sheet.speeds["walk"] ?? 30,
       initiative: 0, state: ch.hp.current > 0 ? "fighting" : "down", conditions: ch.appliedConditions.map(a => a.conditionId),
       ...(parry ? { parry: { bonus: parry, ready: true } } : {}),
-      glyph: GLYPHS[c.castId ?? c.id] ?? (c.side === "player" ? "@" : c.name.replace(/^(the|a|an) /i, "").charAt(0)[c.side === "enemy" ? "toUpperCase" : "toLowerCase"]()),
+      glyph: c.glyph ?? GLYPHS[c.castId ?? c.id] ?? (c.side === "player" ? "@" : c.name.replace(/^(the|a|an) /i, "").charAt(0)[c.side === "enemy" ? "toUpperCase" : "toLowerCase"]()),
       color: COLOURS[c.castId ?? c.id] ?? COLOURS[c.side]!, ...(c.castId ? { castId: c.castId } : {}),
     };
   }

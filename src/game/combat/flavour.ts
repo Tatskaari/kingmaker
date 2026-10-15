@@ -65,6 +65,21 @@ const pools: Record<string, string[]> = {
   "stable:player": ["You stop sliding. Out cold on the boards, but you'll live, probably."],
   "dying:player": ["Three bad rolls. In a fairer world that would be that; here, it's somebody else's problem to drag you out (you don't die in this fight, but it was close)."],
   "rise:player": ["You come up off the boards with a gasp, which nobody expected, least of all you."],
+
+  // A fight that broke out on the town's own map (src/game/menu.ts): the street's lines, where the Heron's won't do.
+  "down:player@caerwyn": ["You go down on the cobbles. They've been swept for the Assembly, which is something."],
+  "victory@caerwyn": ["And then it's over. Caerwyn, which has seen worse on a market day, goes back to its bunting.", "And then it's quiet, except for the pigeons, who have opinions."],
+  "surrender:any@caerwyn": ["{Who} looks at the state of things, looks at the people watching, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands up, where the whole street can see them."],
+  "surrender@caerwyn": ["It's over: the last of them has their hands up in the middle of the street."],
+  "defeat@caerwyn": ["The last thing you see is the cobbles coming up to meet you, and a great many boots stepping round."],
+  "defeat:gang@caerwyn": ["The last thing you see is the cobbles coming up to meet you, and a great many boots stepping round."],
+  "fled@caerwyn": ["You leave the fight behind you, fast, and Caerwyn closes over where it was."],
+  "flee:bruiser@caerwyn": ["{Who} decides the Assembly isn't paying enough for this, and makes off up the street."],
+  "flee:coward@caerwyn": ["{Who} runs for it, which is the first sensible thing anyone's done in a while."],
+  "stable:player@caerwyn": ["You stop sliding. Out cold on the cobbles, but you'll live, probably."],
+  "rise:player@caerwyn": ["You come up off the cobbles with a gasp, which nobody expected, least of all you."],
+  "coals:fizzle@caerwyn": ["The coals hiss on the damp cobbles and sulk."],
+  "brazier@caerwyn": ["{Who} put{s} a boot to the brazier. It goes over with a clang and a spray of coals, and every head in the street turns."],
 };
 
 export function hash(...parts: Array<string | number>): number {
@@ -73,9 +88,12 @@ export function hash(...parts: Array<string | number>): number {
   return h;
 }
 
-/** A line for the moment, or undefined when there's none for it. {Who}/{who}, {s} and {weapon} fill in. */
-export function flavour(kind: string, seed: number, who?: { called: string; you: boolean; weapon?: string }): string | undefined {
-  const pool = pools[kind];
+/**
+ * A line for the moment, or undefined when there's none for it. {Who}/{who}, {s} and {weapon} fill
+ * in. `place`: the fight's map, for its own lines where it has them (Caerwyn's street isn't the Heron).
+ */
+export function flavour(kind: string, seed: number, who?: { called: string; you: boolean; weapon?: string }, place?: string): string | undefined {
+  const pool = (place ? pools[`${kind}@${place}`] : undefined) ?? pools[kind];
   if (!pool?.length) return undefined;
   const line = pool[seed % pool.length]!;
   const name = who?.called ?? "someone";

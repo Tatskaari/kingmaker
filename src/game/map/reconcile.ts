@@ -213,9 +213,101 @@ export interface OverlayScene {
   surfaces?: { place: Rect; patches: Entity[] };
 }
 
-export interface MapOverlay { scenes: Record<string, OverlayScene> }
+export interface MapOverlay {
+  scenes: Record<string, OverlayScene>;
+  /** What happened to each map's own things outside scenes (src/game/town-world.ts), by map id. */
+  town?: Record<string, TownChanges>;
+}
+
+/** A thing of the town's (a door, a cart, a stall) as the rules left it. */
+export interface ThingChange {
+  states: string[];
+  /** Hit points left, when hurt. */
+  hp?: number;
+  /** What it's called (a door the map has no actor for). */
+  name?: string;
+  at?: Tile2;
+  /** When it happened: what was burning has burned out by a later time of day. */
+  time?: StoryState["time"];
+}
+
+/**
+ * What the rules did to a map's own things outside scenes (Fireball at a door, a Fire Bolt at a
+ * stall): the things as they were left, the people as they were left until the story's clock moves
+ * on (the town's people are the time of day's), and what was spilled or scorched.
+ */
+export interface TownChanges {
+  things: Record<string, ThingChange>;
+  /** The town's people as the rules (or a fight) left them, until the clock moves on: their states, and where a fight left them. */
+  people?: { time: StoryState["time"]; states: Record<string, string[]>; at?: Record<string, Tile2> };
+  /** The world's surfaces (puddles, scorch marks, burning patches), in the map's feet (5 ft a tile from its corner). */
+  surfaces?: Entity[];
+  surfacesTime?: StoryState["time"];
+}
 
 export const emptyOverlay = (): MapOverlay => ({ scenes: {} });
+
+/** The region a town's world lines up with: the whole map, its (0, 0) feet at the map's corner. */
+export function townRegion(map: TileMap): Region {
+  return { id: `${map.id}:town`, name: map.name, rect: { x: 0, y: 0, w: map.width, h: map.height }, worldOrigin: { x: 0, y: 0 } };
+}
+
+/** States that say a thing is no longer what it was: what's in the way isn't, a door is a hole. */
+const WRECKED = ["destroyed", "broken"];
+
+/**
+ * The map's actors with what happened to the town's own things applied: a burnt stall, a door
+ * broken open (an actor on its tile, which is how the map knows a door's state), people run off or
+ * knocked flat until the clock moves on. By a later time of day what was burning has burned out.
+ */
+export function withTownChanges(overlay: MapOverlay, mapId: string, now: StoryState["time"] | undefined, actors: MapActor[]): MapActor[] {
+  const town = overlay.town?.[mapId];
+  if (!town) return actors;
+  const people = town.people && town.people.time === now ? town.people.states : {};
+  const where = town.people && town.people.time === now ? town.people.at ?? {} : {};
+  const out: MapActor[] = [];
+  const seen = new Set<string>();
+  for (const a of actors) {
+    seen.add(a.id);
+    const person = people[a.id];
+    if (person) {
+      if (person.includes("gone")) continue;
+      const down = person.some(s => DOWN.includes(s));
+      out.push({ ...a, states: [...(a.states ?? []).filter(s => !["hurt", "badly hurt", "down", "unconscious", "prone", "cowering"].includes(s)), ...person], ...(down ? { blocks: false } : {}), ...(where[a.id] ? { at: { ...where[a.id]! } } : {}) });
+      continue;
+    }
+    const change = town.things[a.id];
+    out.push(change ? changed(a, change, now) : a);
+  }
+  // Doors the map draws as its tiles: an actor on the tile says how it was left. A door some scene
+  // has a thing of its own for (the yard gate, before its scene and after) is that scene's, not the town's.
+  const held = new Set(actors.filter(a => a.kind === "object").map(a => `${a.at.x},${a.at.y}`));
+  for (const [id, change] of Object.entries(town.things)) {
+    if (seen.has(id) || !change.at || held.has(`${change.at.x},${change.at.y}`)) continue;
+    out.push(changed({ id, name: change.name ?? "a door", kind: "object", glyph: "+", color: "#a0703a", map: mapId, at: { ...change.at } }, change, now));
+  }
+  return out;
+}
+
+function changed(a: MapActor, change: ThingChange, now: StoryState["time"] | undefined): MapActor {
+  const later = !!now && !!change.time && TIMES.indexOf(now) > TIMES.indexOf(change.time);
+  const burnt = later && change.states.includes("burning");
+  const states = burnt ? [...new Set([...change.states.filter(s => s !== "burning" && s !== "damaged"), "destroyed", "burnt"])] : change.states;
+  const { blocks: _blocks, ...rest } = a;
+  return { ...rest, states, ...(a.blocks && !states.some(s => WRECKED.includes(s)) ? { blocks: true } : {}) };
+}
+
+/** The town's own spills and scorch marks on a map, for the renderer to lay on the ground. */
+export function townSurfaces(overlay: MapOverlay, map: TileMap, now?: StoryState["time"]): Array<{ region: Region; world: SceneWorld }> {
+  const town = overlay.town?.[map.id];
+  if (!town?.surfaces?.length) return [];
+  const later = !!now && !!town.surfacesTime && TIMES.indexOf(now) > TIMES.indexOf(town.surfacesTime);
+  const region = townRegion(map);
+  const root = `${map.id}:town:place`;
+  const entities: Record<string, Entity> = { [root]: { id: root, name: map.name, kind: "place", parent: null, rect: { x: 0, y: 0, w: map.width * FEET_PER_TILE, h: map.height * FEET_PER_TILE }, tags: [], states: [], notes: [] } };
+  for (const e of town.surfaces.filter(e => !later || !e.tags.includes("cloud"))) entities[e.id] = later && e.states.includes("burning") ? { ...e, name: "a scorch mark", tags: ["ash"], states: [] } : e;
+  return [{ region, world: { scene: `${map.id}:town`, root, entities, log: [] } }];
+}
 
 /**
  * Keep a scene's world on the map after it ends. Call it when the scene ends, before chainScene

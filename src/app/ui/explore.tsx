@@ -12,7 +12,11 @@ import { sceneById } from "../../../scenes/index.ts";
 import type { Game, TileMenu } from "../game.ts";
 import { ARROW, leadWay, TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
+import type { Aiming, DoMenu } from "../game.ts";
+import { ActionMenu, menuKey, menuLayout, type MenuGroup } from "./actions.tsx";
 import { BOLD, fit, FPS, ITALIC, Keys, useGame, wrap, type KeyHint } from "./common.tsx";
+import { ELEMENTS } from "../../game/look/director.ts";
+import { mix } from "../../game/map/palette.ts";
 
 /** Arrow keys and WASD move with the screen (up is straight up), steered along the streets; the numpad's corners go along them exactly. */
 const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home", "pageup", "end", "pagedown"]);
@@ -34,12 +38,15 @@ export function ExploreScreen({ game }: { game: Game }) {
   const [hover, setHover] = useState<{ at: Tile2; from: "map" | "list" } | undefined>(undefined);
   useKeyboard(key => {
     if (game.overlay || game.screen !== "explore" || key.defaultPrevented) return;
-    if (game.menu) { key.preventDefault(); menuKey(game, game.menu, key); return; }
+    if (game.doMenu) { key.preventDefault(); doMenuKey(game, game.doMenu, key, width, height); return; }
+    if (game.aiming) { key.preventDefault(); aimKey(game, key); return; }
+    if (game.menu) { key.preventDefault(); tileMenuKey(game, game.menu, key); return; }
     // Any key stops a walk.
     if (game.walking) { game.walking = false; key.preventDefault(); return; }
     if (WALK.has(key.name) && !key.ctrl) { game.walk(key.name); return; }
     key.preventDefault();
     if (key.name === "e" || key.name === "return" || key.name === "space") game.interact();
+    else if (key.name === "m") game.openActions();
     else if (key.name === "g") void game.toLead();
     else if (key.name === "c") void game.showSheet();
     else if (key.name === "j") { game.overlay = { kind: "journal" }; game.emit(); }
@@ -82,20 +89,28 @@ export function ExploreScreen({ game }: { game: Game }) {
   let spare = mapH - 2 - (1 + when.length + 2 + (leadScene ? 2 + way.length : 0) + 2 + (fronts.length ? 1 + fronts.length : 0) + (walkingLines.length ? 1 + walkingLines.length : 0));
   const take = (want: number) => { const n = Math.max(0, Math.min(want, spare)); spare -= n; return n; };
   const nearFirst = take(Math.max(1, Math.min(3, everyone.length)));
+  // The spell slots left (the status line's second part), before who you are: they change as you play.
+  const slots = /spell slots ([^,]+(?:, \d\w\w \d+\/\d+)*)/.exec(status)?.[1];
+  const slotsLine = slots && take(1) ? truncate(`Slots: ${slots}`, inner) : undefined;
   const build = upTo(wrap(session.player.build ?? session.player.concept, inner), take(2), inner);
   const aboutLines = about ? upTo(wrap(about, inner), take(3), inner) : [];
   const near = everyone.slice(0, nearFirst + take(everyone.length - nearFirst));
-  // The tile lit up on the map: the menu's while it's open, else the pointer's.
-  const lit = game.menu?.at ?? hover?.at;
+  // The tile lit up on the map: the menu's while it's open, else the pointer's (aiming has its own cursor).
+  const lit = game.aiming ? undefined : game.menu?.at ?? game.doMenu?.view.at ?? hover?.at;
+  const aim = game.aiming;
+  const marks = aim ? aimMarks(aim) : undefined;
   // The keys at the bottom, the ones that do something as buttons too; as many as fit, the mouse's
-  // first. Like any key, a click on one while walking only stops the walk.
+  // first. Like any key, a click on one while walking only stops the walk. Narrow, they say less.
   const button = (run: () => void) => () => { if (game.walking) { game.walking = false; game.emit(); } else run(); };
   const overlay = (kind: "help" | "journal" | "menu") => button(() => { game.overlay = kind === "menu" ? { kind, index: 0 } : { kind }; game.emit(); });
-  const gap = width < 100 ? " · " : "  ·  ";
+  const narrow = width < 100;
+  const gap = narrow ? " · " : "  ·  ";
   const hints: KeyHint[] = [
-    ["click", "walk"], ["right-click", "act"], ["g", "the lead", button(() => void game.toLead())], ["c", "sheet", button(() => void game.showSheet())],
-    ["j", "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
+    ...(narrow ? [] : [["click", "walk"] as KeyHint]), ["right-click", "act"], ["m", "actions", button(() => game.openActions())],
+    ["g", narrow ? "lead" : "the lead", button(() => void game.toLead())], ["c", "sheet", button(() => void game.showSheet())],
+    ["j", narrow ? "notes" : "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
   ];
+  const menuGroups = game.doMenu ? groupsOf(game.doMenu) : undefined;
 
   /** What's drawn in the map cell a mouse event is over (as last drawn: a frame of the map you were on before a door doesn't count). */
   const pickAt = (e: MouseEvent) => {
@@ -105,6 +120,12 @@ export function ExploreScreen({ game }: { game: Game }) {
   const onMapDown = (e: MouseEvent) => {
     if (game.overlay) return;
     const hit = pickAt(e);
+    // Aiming: a click does it there (if it can be done there; the bottom line says why not), a right-click thinks better of it.
+    if (game.aiming) {
+      if (e.button === MouseButton.RIGHT) game.cancelAim();
+      else if (e.button === MouseButton.LEFT && hit) { game.aimTo(hit.at); game.fire(); }
+      return;
+    }
     if (e.button === MouseButton.RIGHT) { if (hit) game.openMenu(hit.at, e.x, e.y); else game.closeMenu(); return; }
     if (e.button !== MouseButton.LEFT) return;
     // A click outside the menu just closes it; a click on the map walks there (and stops a walk under way).
@@ -114,6 +135,8 @@ export function ExploreScreen({ game }: { game: Game }) {
   };
   const onMapMove = (e: MouseEvent) => {
     const hit = pickAt(e);
+    // Aiming, the pointer is the aim.
+    if (game.aiming) { if (hit) game.aimTo(hit.at); return; }
     if (hit?.at.x === hover?.at.x && hit?.at.y === hover?.at.y && hover?.from === "map") return;
     setHover(hit ? { at: hit.at, from: "map" } : undefined);
   };
@@ -125,7 +148,12 @@ export function ExploreScreen({ game }: { game: Game }) {
         <lookCanvas ref={canvas} width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay}
           painter={(w, h, now) => {
             const pick = new Picks();
-            const lines = townView(core.state, session, { w, h }, { t: now, pick, ...(lit ? { hover: lit } : {}) });
+            // What the player does on the map plays out in the town's world: a bolt, a burst, the splinters.
+            const look = game.townFx();
+            const lines = townView(core.state, session, { w, h }, {
+              t: now, pick, ...(lit ? { hover: lit } : {}), ...(look ? { effects: look.fx, town: look.world } : {}),
+              ...(marks ? { marks } : {}), ...(aim ? { cursor: aim.at } : {}),
+            });
             picks.current = pick;
             return lines;
           }}
@@ -135,7 +163,8 @@ export function ExploreScreen({ game }: { game: Game }) {
         <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
         <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
         {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}
-        <text marginTop={1} height={1} flexShrink={0}><span fg={C.player} attributes={BOLD}>{you}</span><span fg={C.dim}>{truncate(` · ${status.split(",")[0] ?? ""}`, Math.max(0, inner - you.length))}</span></text>
+        <text marginTop={1} height={1} flexShrink={0}><span fg={C.player} attributes={BOLD}>{you}</span><span fg={C.dim}>{truncate(` · ${status.split(",")[0] ?? ""}`, Math.max(0, inner - you.length - (ex.hidden ? 9 : 0)))}</span>{ex.hidden ? <span fg={C.lead}>{" · hidden"}</span> : null}</text>
+        {slotsLine ? <text fg={C.dim} height={1} flexShrink={0}>{slotsLine}</text> : null}
         {build.length ? <text fg={C.faint} height={build.length} flexShrink={0}>{build.join("\n")}</text> : null}
         {leadScene ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{"The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
@@ -151,10 +180,12 @@ export function ExploreScreen({ game }: { game: Game }) {
           return <box key={`${n.actor?.id ?? n.label}`} flexShrink={0} height={1} {...(pointing ? { backgroundColor: C.highlightBg } : {})}
             onMouseDown={(e: MouseEvent) => {
               if (game.overlay) return;
+              // Aiming, a click on someone in the list aims there and does it.
+              if (game.aiming) { if (e.button === MouseButton.LEFT) { game.aimTo(n.at); game.fire(); } else game.cancelAim(); return; }
               if (e.button === MouseButton.RIGHT) game.openMenu(n.at, e.x, e.y);
               else if (e.button === MouseButton.LEFT) { if (game.menu) game.closeMenu(); else void game.walkTo(n.at); }
             }}
-            onMouseOver={() => setHover({ at: n.at, from: "list" })} onMouseOut={() => setHover(h => (h?.from === "list" ? undefined : h))}>
+            onMouseOver={() => { if (game.aiming) game.aimTo(n.at); else setHover({ at: n.at, from: "list" }); }} onMouseOut={() => setHover(h => (h?.from === "list" ? undefined : h))}>
             <text>
               <span fg={seen?.fg ?? n.actor?.color ?? C.lead} attributes={BOLD}>{`${seen?.glyph ?? n.actor?.glyph ?? "»"} `}</span>
               <span fg={scene ? C.lead : C.text}>{truncate(n.actor?.name ?? n.label, inner - 12)}</span>
@@ -172,12 +203,79 @@ export function ExploreScreen({ game }: { game: Game }) {
       {messages.slice(-(msgH - 2)).map((m, i, all) => <text key={i} fg={i === all.length - 1 ? C.text : C.dim}>{m}</text>)}
     </box>
     <box height={1} paddingX={1}>
-      {info && !game.menu ? <Pointer title={info.title} distance={steps(ex.at, info.at)} arrow={ARROW[direction(ex.at, info.at)] ?? ""} actions={info.actions.map(a => a.label)} width={width - 2} />
+      {aim ? <AimLine aiming={aim} width={width - 2} />
+        : info && !game.menu && !game.doMenu ? <Pointer title={info.title} distance={steps(ex.at, info.at)} arrow={ARROW[direction(ex.at, info.at)] ?? ""} actions={info.actions.map(a => a.label)} width={width - 2} />
         : <Keys items={fit(hints, width - 2, gap.length)} gap={gap} />}
     </box>
     {game.menu ? <MenuBox game={game} menu={game.menu} width={width} height={height} /> : null}
+    {game.doMenu && menuGroups ? <ActionMenu title={game.doMenu.view.title} groups={menuGroups} index={game.doMenu.index} width={width} height={height} scroll={game.doMenu}
+      anchor={game.doMenu.x !== undefined && game.doMenu.y !== undefined ? { x: game.doMenu.x, y: game.doMenu.y } : undefined}
+      onPick={i => { if (game.doMenu && game.doMenu.index !== i) { game.doMenu.index = i; game.emit(); } }} onChoose={i => game.chooseAction(i)} onClose={() => game.closeActions()} /> : null}
   </box>;
 }
+
+/** The menu's kinds and lines, as the menu box draws them. */
+function groupsOf(menu: DoMenu): MenuGroup[] {
+  return menu.view.sections.map(s => ({ title: s.title, ...(s.note ? { note: s.note } : {}), lines: s.entries.map(e => ({ name: e.name, summary: e.summary, ...(e.why ? { why: e.why } : {}), ...(e.aiming ? { aims: true } : {}) })) }));
+}
+
+/** Keys while the action menu's open: ↑↓ pick, ←→ a kind, Enter or a number does it, Esc puts it away. */
+function doMenuKey(game: Game, menu: DoMenu, key: KeyEvent, width: number, height: number): void {
+  const groups = groupsOf(menu);
+  const layout = menuLayout(groups, menu.index, width, height, menu.x !== undefined && menu.y !== undefined ? { x: menu.x, y: menu.y } : undefined, menu.top);
+  const r = menuKey(key, groups, menu.index, layout);
+  if (r.close) game.closeActions();
+  else if (r.choose !== undefined) game.chooseAction(r.choose);
+  else if (r.index !== undefined && r.index !== menu.index) { menu.index = r.index; game.emit(); }
+}
+
+/** Keys while aiming: the arrows move the aim, Tab goes through what's in reach, t is yourself, Enter does it, Esc (or m, back to the menu) thinks better of it. */
+function aimKey(game: Game, key: KeyEvent): void {
+  if (key.name === "escape" || key.name === "q") game.cancelAim();
+  else if (key.name === "m") { game.cancelAim(); game.openActions(); }
+  else if (key.name === "tab") game.aimNext(key.shift);
+  else if (key.name === "t") game.aimSelf();
+  else if (key.name === "return" || key.name === "enter" || key.name === "kpenter" || key.name === "space" || key.name === "e") game.fire();
+  else if (WALK.has(key.name)) game.aimStep(key.name);
+}
+
+/** The tiles aiming tints: how far it reaches (a faint ring), who and what it could be aimed at, and what an area would cover, in its element's colour. */
+function aimMarks(aim: Aiming): Array<{ at: Tile2; color: string; glyph?: string }> {
+  const out = new Map<string, { at: Tile2; color: string }>();
+  for (const t of aim.view.ring) out.set(`${t.x},${t.y}`, { at: t, color: "#4a4128" });
+  for (const t of aim.view.targets) out.set(`${t.at.x},${t.at.y}`, { at: t.at, color: "#8a6a1c" });
+  const element = aim.item.spell?.element;
+  const tint = mix(ELEMENTS[element ?? ""] ?? "#c79bf2", "#201010", 0.45);
+  for (const t of aim.check?.area ?? []) out.set(`${t.x},${t.y}`, { at: t, color: aim.check?.ok ? tint : "#5a2424" });
+  return [...out.values()];
+}
+
+/**
+ * The bottom line while aiming: what it would do where it's aimed (or why not), and the keys. An
+ * upcast says its slot, a leap what it goes over and what it takes; an area that would catch you
+ * says so in red, and asks for the Enter or click again.
+ */
+function AimLine({ aiming, width }: { aiming: Aiming; width: number }) {
+  const check = aiming.check;
+  const ok = !!check?.ok;
+  const item = aiming.item;
+  const you = !!check?.caught?.includes("you");
+  const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? "…" : ""}` : "";
+  const slot = item.spell && item.spell.slot > item.spell.level && !item.spell.ritual ? ` (${ORDINAL[item.spell.slot]}-level slot)` : "";
+  const what = `${item.name}${slot}${ok && check?.target ? ` → ${check.target}` : ""}${check?.feet ? ` · ${check.feet} ft` : ""}`;
+  // Asked once already: what it costs first, so a narrow screen still says it.
+  const how = !ok ? ` · ${check?.why ?? "point at something"}`
+    : aiming.confirm && you ? " · it catches you too: Enter or click again to do it anyway"
+    : `${check?.note ? ` · ${check.note}` : ""}${caught} · click or Enter`;
+  const keys = width >= 100 ? ` · Tab next${aiming.view.self ? " · t you" : ""} · Esc cancel` : " · Esc cancel";
+  return <text flexShrink={0} height={1}>
+    <span fg={ok ? C.title : C.dim} attributes={BOLD}>{truncate(what, width)}</span>
+    <span fg={ok ? (you ? C.danger : C.text) : C.warn}>{truncate(how, Math.max(0, width - what.length))}</span>
+    <span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length - how.length))}</span>
+  </text>;
+}
+
+const ORDINAL = ["cantrip", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
 
 /** The hint line while the pointer is over the map: what's there, how far, and what a click and a right-click do. */
 function Pointer({ title, distance, arrow, actions, width }: { title: string; distance: number; arrow: string; actions: string[]; width: number }) {
@@ -218,7 +316,7 @@ function MenuBox({ game, menu, width, height }: { game: Game; menu: TileMenu; wi
 }
 
 /** Keys while the menu's open: ↑↓ (or w/s) choose, Enter does it, 1–9 do that one, anything else closes it. */
-function menuKey(game: Game, menu: TileMenu, key: KeyEvent): void {
+function tileMenuKey(game: Game, menu: TileMenu, key: KeyEvent): void {
   const n = menu.actions.length;
   const digit = /^[1-9]$/.test(key.sequence ?? "") ? Number(key.sequence) - 1 : -1;
   if (key.name === "up" || key.name === "w") { menu.index = (menu.index + n - 1) % Math.max(1, n); game.emit(); }

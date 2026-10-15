@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, Keys, SCROLLBAR, useGame, wrap, type KeyHint } from "./common.tsx";
+import { ActionMenu, fightGroups, menuKey, menuLayout } from "./actions.tsx";
 import { Place } from "./place.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView } from "./sheet.tsx";
@@ -16,6 +17,9 @@ const HELP: Record<string, string[]> = {
     "e (or Enter) talks to whoever you're facing, looks at things, and goes through doors. Bumping into someone whose scene is waiting opens it too.",
     "The sidebar says where you are, what time it is, who is about (arrows point the way on screen) and which way the lead lies.",
     "Once Kell walks with you, e beside her (or a right-click on her) stops for a word between scenes. The story waits; walk on, or say goodbye, when you're done.",
+    "m (or its button) lists what you can do, by kind: cantrips, spells by level with your slots, class features with their uses, actions (attack, leap, hide, throw, shove, grab, rest). What can't be done now is dimmed, with why. Click one, or ↑↓ and Enter, or its number; ←→ jump a kind. Right-click someone, then Do something…, for the same list aimed at them.",
+    "Aiming: point and click; or Tab through what's in reach, the arrows to move the aim, t for yourself, Enter. The faint ring is how far it reaches; an area shows what it covers and who it catches, and if that's you it says so in red and asks for the Enter or the click again. Esc, or a right-click, thinks better of it.",
+    "It's the rules': a Fireball breaks a door down, and it stays down. Hurt someone and the town reacts: people run, the guards come on, and it's a fight on the map. What you do to someone or something whose scene is waiting (Kell, the yard gate) opens it, your act first; to Kell, a talk. Hidden, you stay so until you move or speak to anyone.",
     "c shows your character sheet, j your notebook. Esc opens the menu (save and quit). The keys at the bottom are buttons too. The game saves as you go.",
   ],
   scene: [
@@ -35,15 +39,15 @@ const HELP: Record<string, string[]> = {
     "One action a turn: a attack your target, c cast (at your target, or t on yourself), u knock over a lantern or brazier beside you, d dash, g dodge, x disengage. z closes in on your target.",
     "Tab (or 1–9) picks a target: it's bracketed on the map. Melee needs you next to them; bows reach further, at disadvantage past their range.",
     "Mind the grain dust (the brown tiles): fire in it goes up all at once, and takes everyone in it with it.",
-    "m lists every option you have, e (or Space) ends your turn, f lets the dice decide it. s shows your sheet.",
+    "m lists every option you have, by kind (attacks, cantrips, spells by level with your slots, things to knock over, moving, the rest), as the map's m does; e (or Space) ends your turn, f lets the dice decide it. s shows your sheet.",
     "When it's over, Enter (or a click) takes the story on: how it ended goes into what happens next.",
   ],
 };
 
 const MENU = ["Back to the game", "Save and return to the title", "Save and quit"];
+/** Keys that scroll the help and the notebook: a line (±1), a page (±2), all the way (±3). */
+const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, pagedown: 2, home: -3, end: 3 };
 const CLOSE = ["escape", "return", "space", "c", "s", "q"];
-/** What scrolls the help and the notebook, on a screen too short for them (as the wheel does). */
-const SCROLL = ["up", "down", "pageup", "pagedown", "home", "end"];
 
 export function Overlay({ game }: { game: Game }) {
   useGame(game);
@@ -77,16 +81,21 @@ export function Overlay({ game }: { game: Game }) {
       return;
     }
     if (o.kind === "actions") {
-      const actions = game.fightActions;
-      if (key.name === "up") o.index = (o.index + actions.length - 1) % Math.max(1, actions.length);
-      else if (key.name === "down") o.index = (o.index + 1) % Math.max(1, actions.length);
-      else if (key.name === "escape" || key.name === "m") { game.closeOverlay(); return; }
-      else if (key.name === "return") { pickAction(game, actions[o.index]?.id); return; }
-      game.emit();
+      // The fight's options, by kind: the action menu's own keys.
+      const { groups, ids } = fightMenu(game);
+      const r = menuKey(key, groups, o.index, menuLayout(groups, o.index, width, height, undefined, o.top));
+      if (r.close) game.closeOverlay();
+      else if (r.choose !== undefined) pickAction(game, ids[r.choose]);
+      else if (r.index !== undefined) { o.index = r.index; game.emit(); }
       return;
     }
-    // The help and the notebook scroll by key too; any of these keys closes them, and the scene map.
-    if ((o.kind === "help" || o.kind === "journal") && SCROLL.includes(key.name)) { scroll.current?.handleKeyPress(key); return; }
+    if ((o.kind === "help" || o.kind === "journal") && SCROLL_KEYS[key.name] !== undefined) {
+      const page = Math.max(3, Math.min(height - 2, 40) - 6);
+      const by = SCROLL_KEYS[key.name]!;
+      scroll.current?.scrollBy(Math.abs(by) === 2 ? Math.sign(by) * page : Math.abs(by) === 3 ? Math.sign(by) * 100000 : by);
+      return;
+    }
+    // Any of these keys closes the help, the notebook and the scene map.
     if (CLOSE.includes(key.name) || key.name === "j" || key.sequence === "?") game.closeOverlay();
   });
   if (!o) return null;
@@ -134,7 +143,7 @@ export function Overlay({ game }: { game: Game }) {
           {j.lines.map((l, k) => <text key={k} fg={C.text} wrapMode="word">{`· ${l}`}</text>)}
           {stood(j.sceneId) ? <text fg={C.dim} wrapMode="word">{stood(j.sceneId)!}</text> : null}
         </box>) : <text fg={C.dim}>Nothing yet. The notebook is new, and smells of it.</text>}
-      </scrollbox>, [["Esc", "close", close]]);
+      </scrollbox>, [["Esc", "close", close], ["↑↓", "scroll"]]);
     }
     case "help": {
       const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
@@ -156,18 +165,18 @@ export function Overlay({ game }: { game: Game }) {
         <span fg={i === o.index ? C.title : C.text}>{s.name}</span><span fg={C.faint}>{s.level ? ` (level ${s.level})` : " (cantrip)"}</span>
       </text></Clickable>)}</box>, [["↑↓", "choose"], ["Enter", "cast at the target"], ["t", "cast on yourself"], ["Esc", "never mind", close]]);
     case "actions": {
-      const actions = game.fightActions;
-      const rows = h - 4;
-      const first = Math.max(0, Math.min(o.index - Math.floor(rows / 2), actions.length - rows));
-      return box("Your options", <box flexDirection="column">{actions.slice(first, first + rows).map((a, j) => {
-        const i = first + j;
-        return <Clickable key={a.id} height={1} onClick={() => pickAction(game, a.id)}><text>
-          <span fg={i === o.index ? C.lead : C.dim}>{i === o.index ? "▶ " : "  "}</span>
-          <span fg={i === o.index ? C.title : C.text}>{truncate(a.label, w - 8)}</span>
-        </text></Clickable>;
-      })}</box>, [["↑↓", "choose"], ["Enter", "do it"], ["Esc", "never mind", close]]);
+      // Every option the fight has, by kind: the same menu as the map's m.
+      const { groups, ids } = fightMenu(game);
+      return <ActionMenu title="Your options" groups={groups} index={Math.min(o.index, Math.max(0, ids.length - 1))} width={width} height={height} scroll={o}
+        onPick={i => { if (o.index !== i) { o.index = i; game.emit(); } }} onChoose={i => pickAction(game, ids[i])} onClose={close} />;
     }
   }
+}
+
+/** The fight's options as the action menu groups them. */
+function fightMenu(game: Game): ReturnType<typeof fightGroups> {
+  const fight = game.fight;
+  return fightGroups(game.fightActions, fight?.options().spells ?? [], fight?.view().player.slots ?? "");
 }
 
 /** The menu's choices, by key or click: back to the game, save to the title, or save and quit. */

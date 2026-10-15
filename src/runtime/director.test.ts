@@ -111,3 +111,18 @@ test("a question with one option is answered without asking", async () => {
   assert.deepEqual(decision.answers.feature, { choice: "second-wind", probabilities: { "second-wind": 1 } });
   assert.equal(decision.costUsd, 0);
 });
+
+test("an act chosen already (the map's menu) is the turn's: the decider isn't asked what it is, and nothing else rolls for it", async () => {
+  const decider = scripted({ attempt: ["other_risky", 0.95] });
+  const forced = { kind: "cast" as const, spell: "fire-bolt", targets: ["hoist-rope"] };
+  const withBolt: RulesOptions = { ...rules, spells: [{ id: "fire-bolt", name: "Fire Bolt", level: 0 }] };
+  const pre = await decideBefore(decider, scene, yard(), "(I cast Fire Bolt at the hoist rope)", { speaker: false, freeform: true, rules: withBolt, forced });
+  assert.deepEqual(pre.mechanic, forced);
+  assert.equal(decider.asked.length, 1, "one call: no details to ask for");
+  assert.equal(decider.asked[0]!.mechanic, undefined, "not asked what the rules resolve");
+  assert.equal(pre.freeform, undefined, "the act is its own resolution: no freeform roll on top");
+  // A route's check for the same turn waits for a turn of its own.
+  const held = await decideBefore(scripted({ attempt: ["examine-body", 0.9] }), scene, yard(), "(I cast Fire Bolt at the hoist rope)", { speaker: false, freeform: true, rules: withBolt, forced });
+  assert.equal(held.move, undefined);
+  assert.deepEqual(held.mechanic, forced);
+});

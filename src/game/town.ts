@@ -5,7 +5,10 @@ import {
   actorsAt, actorsHere, direction, enterScene, getMap, inRect, interact, isDoorway, isLive, leadMarker, leaveScene, look, lookAt, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
   setStory, steps, tileAt, tileName, isStructure, travel, walkPlan, whereabouts, type ExploreState, type PlaceRegion,
 } from "./map/index.ts";
+import { catalogue } from "../rules/actions.ts";
+import { aimView, checkAim, doMenuAct, isMenuAct, menuOf, menuText, storyRoute, type AimAt, type AimView, type Ctx, type Done as MenuDone, type MenuView, type Rested, type Spotted } from "./menu.ts";
 import type { Action, Explorer, GameState } from "./play.ts";
+import { townWorld } from "./town-world.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
 import { townText } from "./views.ts";
 
@@ -35,12 +38,20 @@ import { townText } from "./views.ts";
  *   look@<x>,<y>                            look at what's there, from where you stand
  *   talk@<x>,<y>, enter@<x>,<y>             talk to whoever's there, step into the place there (walking over first)
  *   travel@<x>,<y>, door@<x>,<y>            go through the way out or the door there (walking up to it first)
+ *
+ * And the action menu's (src/game/menu.ts: spells, class features, a leap, hiding, a rest):
+ *   cast_<spell>[_self|@<x>,<y>], feature_<id>[_self|@<x>,<y>], attack@<x>,<y>, throw@<x>,<y>,
+ *   shove@<x>,<y>, grapple@<x>,<y>, jump@<x>,<y>, hide, rest_short, rest_short_recover, rest_long, use_<item>
  */
 
 export interface TownState {
   ex: ExploreState;
   /** The last few things that happened on the map, newest last. */
   log: string[];
+  /** When the player last rested, by the story's clock (once each a time of day). */
+  rested?: Rested;
+  /** Where they were seen trying to hide (not again from there before the clock moves on). */
+  spotted?: Spotted;
 }
 
 /** How far a QA observation lists what's in sight, in steps. */
@@ -213,7 +224,8 @@ function leadWords(lead: NonNullable<ReturnType<typeof leadTarget>>, from: Tile2
 // ---------------------------------------------------------------------------------------------
 // Doing things.
 
-interface Done { text: string; scene?: boolean; talk?: { with: string; where: string } }
+/** What an act came to: what's said, and whether a scene, a talk or a fight opens (src/game/menu.ts). */
+type Done = MenuDone;
 
 /** What a walk came to: how far, what was said on the way, and how it stopped. */
 interface Walk { walked: number; said: string[]; scene: boolean; travelled: boolean; blocked?: string }
@@ -333,7 +345,9 @@ export function actionsAt(game: GameState, session: SessionState | undefined, at
     const label = `${exit.label} (${getMap(exit.to.map).name})`;
     add({ id: sighted.find(s => s.kind === "travel" && !s.actor && s.label === label)?.id ?? `travel@${tile}`, label, kind: "travel" });
   } else if (t.terrain === "door") {
-    add({ id: `door@${tile}`, label: t.blocks ? "Try the door" : "Go through the door", kind: "use" });
+    // A door broken down is a doorway (the rules' work on the town's world).
+    const broken = actorsHere(ex).some(a => a.at.x === at.x && a.at.y === at.y && (a.states ?? []).some(s => s === "destroyed" || s === "broken"));
+    add({ id: `door@${tile}`, label: broken ? "Step into the broken doorway" : t.blocks ? "Try the door" : "Go through the door", kind: "use" });
   }
   // The lead's place, when it's walked into (the granary yard).
   const place = (map.regions as PlaceRegion[]).find(r => r.trigger === "enter" && r.sceneId && isLive(ex.story, r.sceneId) && inRect(r.rect, at) && !inRect(r.rect, ex.at));
@@ -398,6 +412,33 @@ export function interactLabel(game: GameState, session?: SessionState): { label:
   return { label: it.interaction.label, scene: it.interaction.kind === "scene" };
 }
 
+// ---------------------------------------------------------------------------------------------
+// The action menu (the app's m): src/game/menu.ts, over the town's world.
+
+const menuCtx = (game: GameState, session: SessionState): Ctx => ({ game, session, ex: exploreState(game), keep: townOf(game) });
+
+/** What the player can do here, by kind (spells, features, actions, what they carry), and what's in reach; `at`: aimed at that tile already. */
+export function actionMenu(game: GameState, session: SessionState, at?: Tile2): MenuView | undefined {
+  return menuOf(menuCtx(game, session), at);
+}
+
+/** What one of the menu's entries can be aimed at from here: its reach, and who and what is in it. */
+export function aimFor(game: GameState, session: SessionState, key: string): AimView | undefined {
+  const ctx = menuCtx(game, session);
+  const entry = entryOf(ctx, key);
+  return entry ? aimView(ctx, townWorld(ctx.ex), entry) : undefined;
+}
+
+/** Aiming one of the menu's entries at a tile: whether it can be (and why not, there), what it would catch, and the action id to do it with. */
+export function aimAt(game: GameState, session: SessionState, key: string, at: Tile2): AimAt | undefined {
+  const ctx = menuCtx(game, session);
+  const entry = entryOf(ctx, key);
+  return entry ? checkAim(ctx, townWorld(ctx.ex), entry, at) : undefined;
+}
+
+/** A menu entry as the rules have it (what it needs and why it can't be done at all), before what's in reach is counted. */
+const entryOf = (ctx: Ctx, key: string) => catalogue(ctx.session, { rested: ctx.keep.rested && ctx.keep.rested.time === ctx.ex.story.time ? ctx.keep.rested : {} })?.entries.find(e => e.key === key);
+
 function walkTowardsLead(game: GameState): Done {
   const ex = exploreState(game);
   const lead = leadTarget(game);
@@ -407,6 +448,20 @@ function walkTowardsLead(game: GameState): Done {
   const walk = walkPath(game, path);
   const text = told(walk, `towards ${lead.label}`).join(" ") || `You're at ${lead.label}.`;
   return { text, ...(walk.scene ? { scene: true } : {}) };
+}
+
+/**
+ * Does an act show a hidden player? Moving does (there's no creeping on the map: the street is open),
+ * as do going through a door, a word with anyone, and a scene or a talk opening. Looking about, and
+ * a step that went nowhere, don't.
+ */
+function showsYou(game: GameState, id: string, was: { map: string; at: Tile2 }, done: Done): boolean {
+  const ex = exploreState(game);
+  if (id === "look" || /^look@/.test(id)) return false;
+  if (ex.map !== was.map || ex.at.x !== was.at.x || ex.at.y !== was.at.y || done.scene || done.talk) return true;
+  if (/^(talk|enter|travel|door|open_door)/.test(id)) return true;
+  // Interacting with whoever you face is talking to them.
+  return id === "interact" && actorsHere(ex).some(a => a.at.x === ex.at.x + ex.facing.x && a.at.y === ex.at.y + ex.facing.y && isPerson(a));
 }
 
 export const town: Explorer = {
@@ -428,6 +483,7 @@ export const town: Explorer = {
       ...(near.length ? [`Further off: ${near.slice(0, 10).map(t => `${t.actor!.name} (${where(t.distance, t.direction)})`).join(", ")}.`] : []),
       ...(lead ? [`The story is heading for ${sceneById(game.story.lead!).title}: ${leadWords(lead, ex.at)}.`] : []),
       ...(town.log.length ? [`Recently: ${town.log.slice(-3).join(" ")}`] : []),
+      ...(ex.scene ? [] : [menuText(menuCtx(game, session))].filter(Boolean)),
     ].join("\n\n");
   },
 
@@ -456,11 +512,39 @@ export const town: Explorer = {
       if (r.moved || r.trigger || r.travelled) out.push({ id: `walk_${name}`, label: `Step ${name} (${ON_SCREEN[name]} on the map)${r.trigger ? `: ${r.trigger.label}` : r.travelled ? `: ${r.travelled.label}` : ""}`, kind: "move" });
     }
     out.push({ id: "look", label: "Look around", kind: "examine" });
+    // The action menu's: what needs no aiming, and the nearest of what's in reach for what does (observe lists the rest).
+    if (!ex.scene) {
+      const ctx = menuCtx(game, session);
+      const menu = menuOf(ctx);
+      const tw = menu ? townWorld(ctx.ex) : undefined;
+      for (const e of menu?.sections.flatMap(s => s.entries) ?? []) {
+        if (e.why || !e.act) continue;
+        const kind: Action["kind"] = e.key === "jump" ? "move" : e.effect === "harm" ? "fight" : e.key.startsWith("rest") ? "wait" : "use";
+        if (e.id) { out.push({ id: e.id, label: `${e.name}: ${e.summary}`, kind }); continue; }
+        const view = aimView(ctx, tw!, e);
+        // The nearest; for an area, the nearest it doesn't catch you in.
+        const near = e.aim.kind === "area" ? view.targets.find(t => !(checkAim(ctx, tw!, e, t.at).caught ?? []).includes("you")) : view.targets[0];
+        if (view.selfReady) out.push({ id: `${e.act}_self`, label: `${e.name} on yourself (${e.summary})`, kind });
+        if (near) out.push({ id: near.id, label: `${e.name} ${e.key === "jump" ? "to" : e.effect === "harm" ? "at" : "on"} ${near.name} (${e.summary})`, kind });
+      }
+    }
     return out;
   },
 
   act(game, session, id) {
     const ex = exploreState(game);
+    const was = { map: ex.map, at: { ...ex.at }, facing: { ...ex.facing } };
+    // The action menu's: at once when it opens someone's scene or a talk (the app shows it opening), else the rules' work.
+    if (isMenuAct(id)) {
+      const ctx = menuCtx(game, session);
+      const routed = storyRoute(ctx, id);
+      if (routed) { note(game, routed.text); return routed; }
+      return doMenuAct(ctx, id).then(done => {
+        const lines = done.text.split("\n").filter(Boolean);
+        note(game, [...new Set([lines[0], lines.at(-1)])].filter(Boolean).join(" "));
+        return done;
+      });
+    }
     let done: Done;
     const step = /^walk_(\w+)$/.exec(id);
     const byTile = /^(walk|look|talk|enter|travel|door)@(\d+),(\d+)$/.exec(id);
@@ -492,12 +576,46 @@ export const town: Explorer = {
       if (!t) throw new Error(`Unavailable action: ${id}. Observe again for what's in sight.`);
       done = goTo(game, t, !/^go_to_/.test(id) || t.kind === "travel" || t.kind === "enter");
     }
+    // Out of sight only until you show yourself: a step out into the open, a door, a word with anyone, a scene.
+    if (ex.hidden && showsYou(game, id, was, done)) {
+      delete ex.hidden;
+      done = { ...done, text: [done.text, "(You're in plain sight again.)"].filter(Boolean).join("\n") };
+    }
     note(game, done.text);
     return done;
   },
 
+  /**
+   * A fight that broke out on the map is over: the player stands where it left them, and whoever
+   * went down or ran stays that way until the story's clock moves on (the rules keep their hurts).
+   */
+  afterFight(game, session, result) {
+    const ex = exploreState(game);
+    const map = getMap(ex.map);
+    const at = result.positions?.["player"];
+    if (at && standable(map, at)) ex.at = { ...at };
+    const town = ((ex.overlay.town ??= {})[ex.map] ??= { things: {} });
+    if (!town.people || town.people.time !== ex.story.time) town.people = { time: ex.story.time, states: {} };
+    const fell: string[] = [];
+    for (const c of result.casualties) {
+      const states = c.state === "down" || c.state === "dead" ? ["down"] : c.state === "fled" ? ["gone"] : c.state === "surrendered" ? ["cowering"] : undefined;
+      if (!states || !c.id.includes(":")) continue;
+      town.people.states[c.id] = states;
+      // Where the fight left them: whoever went down lies there, not back at their post.
+      const at = result.positions?.[c.id];
+      if (at && !states.includes("gone")) town.people.at = { ...town.people.at, [c.id]: { ...at } };
+      if (states[0] === "down") fell.push(c.name);
+    }
+    void session;
+    const said = fell.length ? `${capital(fell.join(" and "))} ${fell.length === 1 ? "lies" : "lie"} where they fell. Caerwyn steps round.` : undefined;
+    if (said) note(game, said);
+    return said;
+  },
+
   enterScene(game, session) {
     const ex = exploreState(game);
+    // Whoever the scene is with sees you come in.
+    delete ex.hidden;
     enterScene(ex, session.sceneId);
   },
 

@@ -370,6 +370,7 @@ export function summarise(G: CombatG): CombatResult {
   if (G.flags["fire"]) flags["heron_burned"] = true;
   for (const u of units) if (u.castId && u.id !== G.pc) flags[u.castId] = u.arrested ? "arrested" : walked(u) ? "walked off" : u.state === "fighting" ? "standing" : u.state;
   const rounds = G.round;
-  return { outcome: G.outcome!, summary: `${sentences.join(". ")}. It took ${rounds} round${rounds === 1 ? "" : "s"}.`, casualties, rounds, flags };
+  const positions = Object.fromEntries(units.map(u => [u.id === G.pc ? "player" : u.castId ?? u.id, { ...u.at }]));
+  return { outcome: G.outcome!, summary: `${sentences.join(". ")}. It took ${rounds} round${rounds === 1 ? "" : "s"}.`, casualties, rounds, flags, positions };
 }
 
