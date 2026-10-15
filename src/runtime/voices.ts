@@ -67,9 +67,6 @@ function asWritten(scene: Scene, state: SessionState, e: Entry): string {
   return markupOf(withSpeakers({ text: e.text, speech: speechIn(e.text), marks: [] }, speakersOf(scene, state)), name);
 }
 
-/** The last word before the GM writes: its markup, as its instructions have it. */
-const MARKUP_REMINDER = "Mark this reply up for the screen as your instructions say: [who] before every spoken line; when someone refuses, bristles or comes round for a reason, their line in round brackets with a why; the first time someone, somewhere or a custom comes up that their character would know and a newcomer wouldn't, those words with a know; words that call back something the player did, with a you.";
-
 /** Multi-turn chat history for the single-GM voice: player turns as user, GM replies as assistant. */
 function gmHistory(scene: Scene, state: SessionState): Message[] {
   const messages: Message[] = [];
@@ -124,8 +121,9 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
     { role: "developer", content: `${sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, lastHandoffOnly: docs })}\n\n${knowledgeBrief(state)}` },
     ...(lore ? [{ role: "developer" as const, content: lore }] : []),
     ...gmHistory(scene, state),
-    // Volatile memory goes after the conversation so the cached prefix survives a newly opened note.
-    { role: "developer", content: [memory, nowNote(scene, state, directive, { remind: MARKUP_REMINDER })].filter(Boolean).join("\n\n") },
+    // Volatile memory goes after the conversation so the cached prefix survives a newly opened note;
+    // the markup's reminder (prompts/gm-markup.md) goes in just before the reply's directives.
+    { role: "developer", content: [memory, nowNote(scene, state, directive, { remind: prompt("gm-markup") })].filter(Boolean).join("\n\n") },
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
