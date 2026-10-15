@@ -135,6 +135,8 @@ test("a closing doesn't show again what the scene has shown (Kell's arrest of Ho
     const told = fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!.input!.at(-1)!.content;
     assert.match(told, /The scene is ending: Sergeant Kell has arrested Big Hobb/);
     assert.match(told, /What the scene has already shown has happened: don't show it again or say any line of it twice; if this ending's moment has already played, close from where it stands\./);
+    // And in the story's voice: plain fates, only the promises made, none of the game's words.
+    assert.match(told, /Tell it in the story's own voice: what became of people, said plainly as what became of them[^\n]*only the promises actually made in play; never the game's words \(established, the story, this scene, between scenes\)\./);
     assert.equal(state.ended?.exitId, "taken-in");
   } finally {
     fake.restore();
@@ -172,6 +174,10 @@ test("the boundary keeps the author's word on who isn't there yet when it rewrit
     const verdict = fake.sent.find(b => b.text?.format?.name === "boundary")!;
     assert.match(verdict.instructions!, /Nobody is there sooner than its prep brings them on \("at the midnight bell the Master comes"\) unless play has sent them there already/);
     assert.match(verdict.instructions!, /and who isn't there yet: "Don't show Master Sallow: he isn't here yet"\) and drop or change only what the adjustments make untrue/);
+    // The world's turn brings what's come due into the next scene as what happens there (the bills for the
+    // granary fire and the attack on Sallow were in the King's GM's lore, and never showed).
+    const fronts = fake.sent.find(b => b.text?.format?.name === "fronts")!;
+    assert.match(fronts.instructions!, /and first any bill \(listed already, or new\) that comes due there, as what happens there and who brings it/);
   } finally {
     fake.restore();
   }

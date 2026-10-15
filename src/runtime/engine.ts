@@ -270,7 +270,7 @@ function heldEnding(state: SessionState, pending: NonNullable<SessionState["pend
     state.pendingExit = { ...pending, extended: true };
     return { line: `The scene is on the brink of: ${exit.title} (${exit.outcome}). It hasn't closed: the player is answering it, and their response may change that. Answer what they ask, let whoever they challenge or call on answer, and let what they do change things if it would; play it honestly.` };
   }
-  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
+  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} ${STORY_VOICE} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
 }
 
 /** A word out of character while an ending is held or winding down: answered, and nothing moves on. */
@@ -287,9 +287,15 @@ function oocHold(exit: Exit, how: "held" | "closing"): string {
  */
 const ONCE = "What the scene has already shown has happened: don't show it again or say any line of it twice; if this ending's moment has already played, close from where it stands.";
 
+/**
+ * A closing is told in the story's voice: the last one read as bookkeeping ("what came of it is not
+ * established here… the King's promise cannot bring them back into this room", of a promise never made).
+ */
+const STORY_VOICE = "Tell it in the story's own voice: what became of people, said plainly as what became of them (what isn't settled yet is how things stand: \"Hobb waits in the cells for the Assizes\"), and only the promises actually made in play; never the game's words (established, the story, this scene, between scenes).";
+
 /** The wind-down reply: the player's last turn answered (a challenge to someone in the room lands), then the close. */
 function closingDirective(exit: Exit): string {
-  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
+  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} ${STORY_VOICE} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
 }
 
 /**
@@ -1171,7 +1177,7 @@ async function moveOn(story: string, next: Scene, fronts: string): Promise<(Fron
       "- ticked: the unticked steps (\"- [ ]\") that what happened, or the time passing until the next scene opens, has now made true. Give each by its front (the ## heading) and the step's bold opening words. A step ticks because its condition is met or its hour has come, never because it would be dramatic, and nobody acts on what they couldn't have learned (each step says who learns what, and from whom).",
       "- struck: unticked steps that play has made impossible or meaningless (the person is arrested, dead or gone, the thing destroyed, the matter settled), with why in a few words.",
       "- bills: usually none. When the player did something reckless, violent or daft in the last scene that the world would answer later, a line for each such consequence: \"If <what happened>: <who answers it, how, and where it will show>\". The bills already listed are on their way: never add one again, and add only what none of them covers. At most two.",
-      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM. Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
+      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM, and first any bill (listed already, or new) that comes due there, as what happens there and who brings it (\"Sallow gives his account of the Heron first: he calls the investigator a violent intruder and the true book stolen\"). Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
     ].join("\n"),
     input: [{ role: "user", content: `${story}\n\n## The next scene: ${next.title}\nWhen and where: ${next.setting}\nIts opening: ${next.opening}\n\n## What's in motion (GM only)\n${fronts}` }],
     json: { name: "fronts", schema: { type: "object", additionalProperties: false, required: ["ticked", "struck", "bills", "shows"], properties: {
