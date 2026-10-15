@@ -68,7 +68,7 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   const lore = docs ? memoryBrief(scene, state, "stable") : undefined;
   const memory = docs ? memoryBrief(scene, state, "live") : undefined;
   const input: Message[] = [
-    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, lastHandoffOnly: docs, docs }) },
+    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, docs }) },
     ...(lore ? [{ role: "developer" as const, content: lore }] : []),
     ...gmHistory(scene, state),
     // Volatile memory goes after the conversation so the cached prefix survives a newly opened note.

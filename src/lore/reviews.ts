@@ -23,6 +23,7 @@ export const CATEGORIES: Record<string, string> = {
   improvised_detail: "Did the player or the GM introduce a concrete story detail not already established in the scene's prep or lore? Flag it for GM reconciliation so the story can evolve collaboratively. If the player introduces a detail and the characters don't explicitly deny it, flag it: implicit acceptance, hedging, topic changes and simply going along all qualify. Explicit rejection of the player's claim, already established facts, requests, future proposals and clearly hypothetical examples alone do not qualify. Preserve the distinction between a shared fact, belief and unresolved claim; the flag does not decide which it is.",
   relationship_or_knowledge_change: "Would the player expect a character to remember something newly learned, or behave differently after a meaningful change in trust, suspicion, affection, hostility or forgiveness? Flag learning a consequential secret, accepting an apology, or a reaction showing changed feelings, including towards the player character after something they did. Mere repeated facts, routine pleasantries or a player claim without a character reaction are not enough.",
   conversational_exchange: "Would the player expect an agreed gift, payment, handover or trade to take effect? Flag accepted terms or a narrated exchange. Rejected offers, requests with no agreement and hypothetical trades do not qualify.",
+  witnessed: "Did someone present see or hear for themselves something the story may need them to tell or swear to later: a confession or admission, who came or went and when, something handed over, taken or found, a crime, a name said? Flag it for anyone who was there to see or hear it, including whoever stood watch or kept out of the way, and a companion of the player's. Routine talk, and what everyone already knew, do not qualify.",
   other_world_update: "Did the exchange narrate a consequential, lasting change in the world whose effect later scenes should show: something broken, left, marked or moved in a place, a change in someone's condition, a public event? Passing gestures and descriptions of the moment don't count.",
 };
 
@@ -61,7 +62,7 @@ export const FLAG_THRESHOLD = 0.4;
  */
 type ReviewKind = "memories" | "lore";
 const FIRES: Record<ReviewKind, string[]> = {
-  memories: ["immediate_commitment", "deferred_commitment", "general_commitment", "relationship_or_knowledge_change", "conversational_exchange"],
+  memories: ["immediate_commitment", "deferred_commitment", "general_commitment", "relationship_or_knowledge_change", "conversational_exchange", "witnessed"],
   lore: ["improvised_detail", "other_world_update"],
 };
 const PROMPTS: Record<ReviewKind, (flags: string[]) => string[]> = {
@@ -69,6 +70,8 @@ const PROMPTS: Record<ReviewKind, (flags: string[]) => string[]> = {
     ...(flags.some(f => f.endsWith("_commitment")) ? ["review/commitment"] : []),
     ...(flags.includes("relationship_or_knowledge_change") ? ["review/relationship"] : []),
     ...(flags.includes("conversational_exchange") ? ["review/exchange"] : []),
+    // What a witness saw and heard for themselves (Kell watching Sallow come in at the Heron's land door).
+    ...(flags.includes("witnessed") ? ["review/witnessed"] : []),
   ],
   lore: flags => [...(flags.includes("improvised_detail") ? ["review/improvised"] : []), ...(flags.includes("other_world_update") ? ["review/world"] : []), "review/focused"],
 };

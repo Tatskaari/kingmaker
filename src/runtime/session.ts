@@ -318,6 +318,8 @@ export interface SessionState {
     sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>;
     /** What moved in the world's fronts at this boundary (ticked and struck steps, new bills). */
     fronts?: string[];
+    /** The facts play settled in that scene (its routes', its rulings', the co-GM's): the GM of every later scene has them. */
+    facts?: string[];
   }>;
 }
 

@@ -220,18 +220,33 @@ function backstoryBrief(state: SessionState, inNotes: boolean): string {
  */
 const STRANGER = "Before the story began, none of its people had met them (whoever sent for them aside): they know them only from what's happened in play since, and of their past only what they'd plausibly know or have been told. If the player claims an old acquaintance with one of them (\"You'll remember me\"), it isn't so, and that person says so in their own way; people from the player's own past are another matter.";
 
+/**
+ * The story so far, for the GM: every scene's hand-off, earliest first, each with the facts play
+ * settled there, and the last scene's last moments word for word. Every one, not only the last: the
+ * King's GM never knew Hobb had confessed at the Rat, two scenes back, when the rest were story notes
+ * that disclosure had to open (and didn't, turn after turn).
+ */
+function storySoFar(state: SessionState): string {
+  const last = state.history.at(-1)!;
+  const scenes = state.history.map(h => [h.summary.trim(), ...(h.facts?.length ? [`Settled in play there:\n${bullets(h.facts)}`] : [])].join("\n"));
+  return [
+    `## What happened just before this scene\nThis is what actually happened in the story, scene by scene, the last one just before this. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said, who admitted what), what happened wins: adapt the prep to it. It doesn't change what this scene is about. It's your knowledge, not everyone's: people here know only what they saw, did or have been told (here, or earlier where they were there), so someone who wasn't there knows nothing of it until they hear it, and doesn't ask about it, refer to it or guess at it before then.`,
+    scenes.join("\n\n"),
+    ...(last.lastMoments?.length ? [`The last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}`] : []),
+  ].join("\n\n");
+}
+
 /** Stable prep for the GM: everything that doesn't change turn to turn (cache-friendly prefix). */
-export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; lastHandoffOnly?: boolean; docs?: boolean } = {}): string {
+export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; docs?: boolean } = {}): string {
   options = { secrets: true, ...options };
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const cast = scene.cast.map(c => castBlock(scene, options.secrets ? c : { ...c, secrets: [] }, present.has(c.id))).join("\n\n");
-  const last = state.history.at(-1);
   return [
     `# Your prep for this scene: ${scene.title}`,
     `## The place\n${scene.setting}`,
     `## What this scene is about\n${scene.premise}`,
     ...(scene.background?.length ? [`## Background\n${bullets(scene.background)}`] : []),
-    ...(last ? [`## What happened just before this scene\nThis is what actually happened in the story. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said), what happened wins: adapt the prep to it. It doesn't change what this scene is about. It's your knowledge, not everyone's: people here know only what they saw, did or have been told, so someone who wasn't there doesn't know it unless they hear it.\n\n${(options.lastHandoffOnly ? [last] : state.history).map(h => h.summary).join("\n\n")}${options.lastHandoffOnly && state.history.length > 1 ? "\n\n(Earlier scenes are in the story notes under \"What people remember\".)" : ""}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
+    ...(state.history.length ? [storySoFar(state)] : []),
     ...(state.adjustments?.length ? [`## Where the prep is out of date\nThe story has moved on from parts of this prep. These are true now, and they override anything in the prep that says otherwise:\n${bullets(state.adjustments)}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
