@@ -97,6 +97,21 @@ test("a talk sets the waiting scene aside and puts it back exactly; the story's 
   assert.match(state.transcript.at(-1)!.text, /walks on/);
 });
 
+test("a talk knows what the scenes knew: the companion's card in the last scene they were in, and what the lead says they did", () => {
+  const state = between("talk-knew");
+  startTalk(state, "kell", "the granary lane in Caerwyn, evening");
+  const facts = state.established.join("\n");
+  // Asked how she knew the thief's real name, Kell made something up, then wouldn't say: her card had it.
+  assert.match(facts, /What Sergeant Agnes Kell knew in The Hanged Clerk \(their prep there: still true, and theirs to tell as they would when it comes up\): She has never met the King's investigator: this morning a palace page came to the watch house/);
+  assert.doesNotMatch(facts, /Three days ago Prout came to the watch house/, "her card's secrets stay the talk's own business");
+  assert.match(facts, /That's what happened: whatever it says Sergeant Agnes Kell did, saw or told Wren Ashdown, they did, saw and told, and they stand by it in their own words/);
+  leaveTalk(state);
+  // Nobody the story has met yet: no card, no line.
+  const fresh = { ...between("talk-knew-none"), history: [] };
+  startTalk(fresh, "kell", "the granary lane in Caerwyn, evening");
+  assert.doesNotMatch(fresh.established.join("\n"), /What Sergeant Agnes Kell knew in/);
+});
+
 test("what they're keeping back goes on their card for the talk only (a patch on the talk scene)", () => {
   const state = between("talk-card");
   startTalk(state, "kell", "the granary lane in Caerwyn, evening");

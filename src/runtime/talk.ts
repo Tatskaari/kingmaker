@@ -4,7 +4,7 @@ import { respond, respondJson } from "../llm/openrouter.ts";
 import { sceneApproach } from "./approaches.ts";
 import { withhold } from "../lore/disclosure.ts";
 import { characterEntry, linksIn, memoryLines, permitted, readDoc, saveMemory, titleOf, type Doc } from "../lore/docs.ts";
-import { sceneById } from "../../scenes/index.ts";
+import { SCENES, sceneById } from "../../scenes/index.ts";
 import { talkOf, talkSceneId, TOLD } from "../../scenes/talk.ts";
 import { nameTokens, playerWho, sceneEntries, scriptTranscript } from "./brief.ts";
 import { GUARD_STAGES, type Mechanic } from "./director.ts";
@@ -68,7 +68,7 @@ export function startTalk(state: SessionState, companion: string, where: string)
   Object.assign(state, {
     sceneId: scene.id, beat: scene.start, turnsInBeat: 0, path: [], canon: [], notes: null, notesTurn: null,
     patches: [], repairs: [], whispers: [], entered: [], absent: [], memory: { opened: [] }, landed: [], hinted: [], guard: {},
-    established: facts(state, companionOf(scene).name, record, where, waiting.lead),
+    established: [...facts(state, companionOf(scene).name, record, where, waiting.lead), ...knewThere(state, companion, companionOf(scene).name)],
   } satisfies Partial<SessionState>);
   state.talk = { with: companion, where, waiting, suggestions: [] };
 }
@@ -87,13 +87,29 @@ function facts(state: SessionState, name: string, record: TalkRecord, where: str
     record.count === 1
       ? `This is the first time ${player} has stopped for a word with ${name} between scenes.`
       : `This is the ${ordinal(record.count)} time ${player} has stopped for a word with ${name} between scenes.`,
-    ...(lead ? [`Where the story goes next, as ${player} knows it (if it comes up, ${name} says what they know of it, once): ${lead}`] : []),
+    // What the lead says the companion did or told is theirs: Kell flatly denied the sighting it gave her.
+    ...(lead ? [`Where the story goes next, and how the time since passed, as ${player} knows it: ${lead} That's what happened: whatever it says ${name} did, saw or told ${player}, they did, saw and told, and they stand by it in their own words (if it comes up, they say what they know of it, once).`] : []),
     ...(already.length ? [`Of their own story, ${name} has already told ${player}: ${already.join("; ")}. Told is told: if it comes up again, even asked for, a line back to it at most ("You know that one."), never the story or its words again.`] : []),
     topic
       ? `In this talk, the only part of their own story ${name} may open up about is ${topic} (what they're keeping back, on their card), and only as far as they've opened up; the rest of their past stays theirs for now.`
       : `In this talk ${name} keeps their own story to themselves: what anyone could know of them, and no more.`,
     ...(held ? [`Not in this talk, however it comes up: the deepest of ${name}'s own story (their note "${titleOf(held)}": ${held.meta.summary || "what it holds"}). It comes in a later talk, once things stand well between them. Asked about it now, they take the question as asked and decline it, not even the gist: a non-answer in their own manner ("Another time."), without lying, and the talk moves on.`] : []),
   ];
+}
+
+/**
+ * What the companion knew in the last scene of the story they were in (their card there, still
+ * true), for the talk's GM, which otherwise has only their lore and memories: asked how she knew the
+ * thief's real name, Kell made something up, then wouldn't say, though her card at the granary had
+ * it plainly (a palace page came to the watch house with it).
+ */
+function knewThere(state: SessionState, companion: string, name: string): string[] {
+  for (const h of [...state.history].reverse()) {
+    const scene = SCENES.find(s => s.id === h.sceneId);
+    const card = scene?.cast.find(c => c.id === companion);
+    if (scene && card?.knows.length) return [`What ${name} knew in ${scene.title} (their prep there: still true, and theirs to tell as they would when it comes up): ${card.knows.join(" ")}`];
+  }
+  return [];
 }
 
 const speak = (hooks: TurnHooks) => {
@@ -305,12 +321,13 @@ function prepare(state: SessionState, scene: Scene, prep: Plan, held?: Doc): voi
   // The deepest stays out of the talk however it comes up: named as not this talk's, and its note withheld.
   if (held) withhold(state, held.path);
   const note = prep.willing === "yes" ? confidences(state, talk.with).find(d => d.path === prep.note && d.path !== held?.path) : undefined;
+  const knew = knewThere(state, talk.with, name);
   if (!note || !prep.what.trim()) {
-    state.established = facts(state, name, record, talk.where, talk.waiting.lead, told, undefined, held);
+    state.established = [...facts(state, name, record, talk.where, talk.waiting.lead, told, undefined, held), ...knew];
     return;
   }
   const topic = prep.topic.trim() || titleOf(note);
-  state.established = facts(state, name, record, talk.where, talk.waiting.lead, told, topic, held);
+  state.established = [...facts(state, name, record, talk.where, talk.waiting.lead, told, topic, held), ...knew];
   talk.confide = { note: note.path, topic, what: prep.what.trim(), memory: prep.memory.trim() || `I told ${state.player.name} about ${topic}.` };
   const secret = [prep.what.trim(), prep.shows.trim() ? `It shows first as: ${prep.shows.trim().replace(/\.$/, "")}.` : "", prep.opens.trim() ? `What would bring it out: ${prep.opens.trim().replace(/\.$/, "")}.` : ""].filter(Boolean).join(" ");
   state.patches.push({ turn: state.turn, why: `What ${name} might open up about in this talk: ${topic}.`, cast: { id: talk.with, secrets: [secret] } });
