@@ -88,7 +88,11 @@ const MOVE = /^(?:move|go|walk|run|head|get|step|hurry|dash)(?: over)? (?:to|tow
 const USE = /^(?:knock over|kick over|tip over|topple|bring down|knock down|pull down|upend|overturn)\s+(.+)$|^(?:knock|kick|tip|bring|pull)\s+(.+?)\s+(?:over|down)$/;
 const SHOVE = /^(?:shove|push|trip|knock down)\s+(.+?)(?:\s+(over|down|back|away))?$|^(?:knock|shove|push)\s+(.+?)\s+(over|down|back|away)$/;
 const GRAPPLE = /^(?:grapple|grab|seize|tackle|pin|grab hold of|get hold of|wrestle)\s+(.+)$/;
-const ATTACK = /^(?:attack|hit|strike|stab|slash|swing at|shoot(?: at)?|fire at|punch|kick|smack|whack|thump|clobber|bash|cut|fight)\s+(.+?)(?:\s+with\s+(.+))?$/;
+const ATTACK = /^(?:attack|hit|strike|stab|slash|swing at|shoot(?: at)?|fire at|punch|kick|smack|whack|thump|clobber|bash|cut|fight|unarmed strike|unarmed attack|headbutt|elbow|knee|jab|uppercut)\s+(.+?)(?:\s+with\s+(.+))?$/;
+/** A blow with no weapon in it: the rules' Unarmed Strike. */
+const FISTS = /^(?:punch|kick|unarmed|headbutt|elbow|knee|jab|uppercut)\b/;
+/** A barbarian's Reckless Attack: declared, then the blow ("reckless attack the big porter", "attack him recklessly"). */
+const RECKLESS = /^(?:reckless(?:ly)?\s+(?:attack|strike|swing at|hit)|swing wild(?:ly)? at|go reckless(?:ly)? at)\s+(.+?)(?:\s+with\s+(.+))?$|^(?:attack|hit|strike|swing at)\s+(.+?)\s+recklessly(?:\s+with\s+(.+))?$/;
 const THROW = /^(?:throw|hurl|fling|toss|lob|chuck)\s+(.+?)\s+at\s+(.+)$/;
 const CAST = /^cast\s+(.+)$/;
 const URGE = /^(intimidate|threaten|scare|frighten|menace|persuade|convince|talk round|talk down|deceive|bluff|trick|fool|charm)\s+(.+?)(?:\s+(?:into|to)\s+(.+))?$/;
@@ -131,7 +135,7 @@ function commandText(text: string): string | undefined {
   return t.replace(/^([a-z]+?)s\b(?=\s|$)/, (all, verb: string) => (KNOWN_VERBS.has(verb) ? verb : all));
 }
 
-const KNOWN_VERBS = new Set(["attack", "hit", "strike", "stab", "slash", "shoot", "punch", "kick", "cast", "move", "walk", "run", "head", "shove", "push", "grab", "grapple", "tackle", "dash", "dodge", "disengage", "intimidate", "threaten", "persuade", "deceive", "approach", "charge", "knock", "topple", "trip", "smack", "whack", "bash", "throw", "hurl"]);
+const KNOWN_VERBS = new Set(["attack", "hit", "strike", "stab", "slash", "shoot", "punch", "kick", "headbutt", "cast", "move", "walk", "run", "head", "shove", "push", "grab", "grapple", "tackle", "dash", "dodge", "disengage", "intimidate", "threaten", "persuade", "deceive", "approach", "charge", "knock", "topple", "trip", "smack", "whack", "bash", "throw", "hurl"]);
 
 /** One command of a line: its steps (and what it was aimed at, for an "it" or a "him" after), a refusal, or undefined if it isn't one. */
 function command(part: string, turn: Turn, last: Target | undefined): Read | undefined {
@@ -169,13 +173,21 @@ function command(part: string, turn: Turn, last: Target | undefined): Read | und
   if (m) return throwSteps(m[1]!, target(m[2]!, turn, last, "unit"), turn, m[2]!);
   m = CAST.exec(part);
   if (m) return castCommand(m[1]!, turn, last);
+  m = RECKLESS.exec(part);
+  if (m) return recklessSteps(m[1] ?? m[3]!, m[2] ?? m[4], turn, last);
   m = ATTACK.exec(part);
   if (m) {
-    const verb = part.split(" ")[0]!;
-    const weapon = m[2] ?? (verb === "punch" || verb === "kick" ? "fists" : undefined);
+    const weapon = m[2] ?? (FISTS.test(part) ? "fists" : undefined);
     return attackSteps(target(m[1]!, turn, last, "unit"), weapon, turn, m[1]);
   }
   return undefined;
+}
+
+/** Reckless Attack, then the blow: or why not (it's a barbarian's, before their first attack of the turn). */
+function recklessSteps(words: string, weapon: string | undefined, turn: Turn, last: Target | undefined): Read {
+  if (!turn.o.reckless) return { refusal: turn.s.whyNotReckless(turn.me) ?? "You can't attack recklessly now." };
+  const blow = attackSteps(target(words, turn, last, "unit"), weapon, turn, words);
+  return "steps" in blow ? { ...blow, steps: [{ id: "reckless", uses: "free" }, ...blow.steps] } : blow;
 }
 
 /**

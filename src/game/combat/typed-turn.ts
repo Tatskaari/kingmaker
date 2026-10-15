@@ -13,7 +13,8 @@ import type { Skirmish } from "./skirmish.ts";
  */
 
 /** One of the fight's action ids, and what of the turn it uses ("both": a bonus-action spell whose first swing wants the action too, Spiritual Weapon). */
-export interface Step { id: string; uses: "action" | "attack" | "bonus" | "both" | "move" | "end" }
+/** What a step spends: "free" is nothing (declaring Reckless Attack). */
+export interface Step { id: string; uses: "action" | "attack" | "bonus" | "both" | "move" | "end" | "free" }
 
 /**
  * What a reading of a command can come to. `unread`: its words didn't name anything the parser
@@ -241,6 +242,8 @@ export function urgeSteps(t: Target | undefined, skill: InfluenceSkill, urge: Ur
 }
 
 export const IMPROVISED = /\b(?:improvis\w*|bottle|stool|chair|bench|plank|stick|fists?|hands?|bare|tankard|mug|jug|anything|elbow|head|knee|boot|foot|feet|chain|pole|brick|stone|rock|candlestick|pan|poker)\b/;
+/** Of those, a blow with no weapon at all: the rules' Unarmed Strike, called that. */
+export const UNARMED = /\b(?:fists?|hands?|bare|unarmed|elbow|head|knee|boot|foot|feet|punch\w*|kick\w*|headbutt\w*)\b/;
 
 export function attackSteps(t: Target | undefined, weaponWords: string | undefined, turn: Turn, words?: string): Read {
   // A thing to hit (a lantern in the beams): as the fight offers it.
@@ -256,7 +259,8 @@ export function attackSteps(t: Target | undefined, weaponWords: string | undefin
   const weapon = weaponWords && !improvised ? weaponNamed(weaponWords, turn) : undefined;
   if (weaponWords && !improvised && !weapon) return { refusal: `You haven't got "${weaponWords.trim()}" to hand: ${turn.me.weapons.map(w => turn.s.namer().weapon(w)).join(" or ") || "only your fists"}.`, unread: true };
   const slug = weapon ? slugOf(turn.s.namer().weapon(weapon)) : undefined;
-  const id = improvised ? `attack_${u.id}_with_improvised` : slug ? `attack_${u.id}_with_${slug}` : `attack_${u.id}`;
+  const fists = improvised && UNARMED.test(norm(weaponWords!));
+  const id = improvised ? `attack_${u.id}_with_${fists ? "unarmed" : "improvised"}` : slug ? `attack_${u.id}_with_${slug}` : `attack_${u.id}`;
   const now = improvised ? steps(turn.me.at, u.at) <= 1 : turn.o.attacks.some(a => a.target === u.id && (!weapon || a.weapon === weapon));
   if (now) return { steps: [{ id, uses: "attack" }], target: t };
   // Not from here: in close first, with a blade or a fist, if there's a way to get beside them.

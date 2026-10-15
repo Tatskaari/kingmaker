@@ -17,6 +17,8 @@ const NAMED = new RegExp(`\\b(?:my|a|an|the|his|her|their|your|this|that|with)\\
 /** Thrown: what's thrown is the word after the verb (a punch thrown is a blow; a fire bolt hurled is a spell). */
 const THROWN = /\b(?:throw|throws|threw|hurl|hurls|hurled|fling|flings|flung|toss|tosses|tossed|lob|lobs|lobbed|chuck|chucks|chucked)\s+(?:(?:my|a|an|the|his|her|this|that|some|another|one of my)\s+)?([a-z-]+)/;
 const NOT_THROWN = /^(?:punch|punches|kick|kicks|jab|hook|haymaker|uppercut|glance|look|insult|insults|curse|word|words|fire|firebolt|bolt|spell|ray|glare|fit|tantrum|myself|himself|herself|caution|shade|light|shadow)$/;
+/** A blow with no weapon in it, in the line's own words: the rules' Unarmed Strike. */
+const FISTS = /\b(?:punch\w*|kick(?:s|ed|ing)?|headbutt\w*|fists?|unarmed|bare[- ]?hand\w*|elbow(?:s|ed)?|knee(?:s|d)?|uppercut\w*)\b(?! (?:over|down)\b)/;
 
 export function asWorded(text: string, plan: Step[], turn: Turn): { steps: Step[]; note?: string } | { refusal: string } {
   const at = plan.findIndex(s => /^attack_/.test(s.id));
@@ -26,7 +28,23 @@ export function asWorded(text: string, plan: Step[], turn: Turn): { steps: Step[
   const words = norm(text.replace(/[*()]/g, " "));
   const thrown = thrownAt(words, u, turn);
   if (thrown) return thrown;
+  const fists = fistsWorded(words, plan, at, u, turn);
+  if (fists) return fists;
   return weaponWorded(words, plan, at, u, m[2], turn);
+}
+
+/**
+ * A punch or a kick, and no weapon named: the rules' Unarmed Strike, whatever the read made of it
+ * (a swing of the handaxe, something to hand), closing in first if they aren't beside them.
+ */
+function fistsWorded(words: string, plan: Step[], at: number, u: Unit, turn: Turn): { steps: Step[] } | { refusal: string } | undefined {
+  if (!FISTS.test(words) || [...words.matchAll(NAMED)].length) return undefined;
+  const blow: Step = { id: `attack_${u.id}_with_unarmed`, uses: "attack" };
+  const before = plan.slice(0, at).filter(s => s.id !== `close_${u.id}`);
+  const after = plan.slice(at + 1);
+  if (tilesBetween(turn.me.at, u.at) <= 1) return { steps: [...before, blow, ...after] };
+  if (!turn.o.actionUsed && besideThem(u.at, turn)) return { steps: [...before, { id: `close_${u.id}`, uses: "move" }, blow, ...after] };
+  return { refusal: `${cap(u.called)} is out of reach for a punch or a kick, and you can't get beside them this turn.` };
 }
 
 /** A throw at someone out of arm's reach: not yet (the engine's reach check refuses a thrown weapon past 5 ft), and what reaches them instead. */
