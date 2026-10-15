@@ -124,6 +124,12 @@ describe("the plain commands, with no model", () => {
     await fighter.say("shove the crake over", {}, { decider: null, voice: null });
     assert.match((await offline("dodge", fighter)).refusal ?? "", /already used your action/);
     assert.match((await offline("attack the crake", fighter)).refusal ?? "", /attack's spent/);
+    // A bonus action beside the action: Healing Word (a cleric's) and a blow; not two bonus actions.
+    const cleric = await heron("cleric", BESIDE);
+    assert.deepEqual((await offline("cast healing word on kell and attack the crake", cleric)).steps, ["cast_healing-word_kell", "attack_crake-1"]);
+    assert.match((await offline("cast healing word on kell and cast shield of faith on kell", cleric)).refusal ?? "", /two bonus actions/);
+    const both = await readLine("I clout the crake with my mace and call a word of healing to Kell", cleric, stub({ deed: "attack:crake-1:mace", bonus: "cast:healing-word:kell" }));
+    assert.deepEqual(both.steps, ["attack_crake-1_with_mace", "cast_healing-word_kell"]);
   });
 
   it("say the GM is offline for a line that isn't a plain command", async () => {
