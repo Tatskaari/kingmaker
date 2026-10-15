@@ -4,6 +4,8 @@ import type { StyledLine } from "../types.ts";
 import { BOLD, Canvas } from "./canvas.ts";
 import { rgbOf } from "./color.ts";
 import type { DoorShape, OverlayFrame } from "./door-art.ts";
+import type { LampShape } from "./lamp-art.ts";
+import { moveLamp } from "./lamps.ts";
 import { moveDoor, overlaySequence, wantOverlay } from "./overlay.ts";
 
 /**
@@ -24,10 +26,11 @@ import { moveDoor, overlaySequence, wantOverlay } from "./overlay.ts";
  *
  * In the browser builds, a painter can also say where the frame's doors are ({ frame, doors }:
  * src/game/look/overlay.ts), for attachOverlay (below) to send the page, which draws them as pictures.
+ * Its lamp posts go with them ({ lamps }: src/game/look/lamps.ts).
  */
 
-/** A frame, and (in the browser builds) its doors, in the frame's own cells. */
-export type Painted = Canvas | StyledLine[] | { frame: Canvas | StyledLine[]; doors?: DoorShape[] };
+/** A frame, and (in the browser builds) its doors and lamp posts, in the frame's own cells. */
+export type Painted = Canvas | StyledLine[] | { frame: Canvas | StyledLine[]; doors?: DoorShape[]; lamps?: LampShape[] };
 export type Painter = (w: number, h: number, now: number) => Painted;
 
 /** The canvases on screen, for the overlay to ask where their doors are. */
@@ -55,6 +58,8 @@ export class LookCanvasRenderable extends Renderable {
   private colors = new Map<number, RGBA>();
   /** The last frame's doors, in the frame's own cells (the browser builds' overlay). */
   private doors: DoorShape[] | undefined;
+  /** And its lamp posts. */
+  private lamps: LampShape[] | undefined;
   /** Milliseconds the last frame took to paint (for a frame-rate readout). */
   lastPaintMs = 0;
 
@@ -87,6 +92,19 @@ export class LookCanvasRenderable extends Renderable {
     return this.doors.flatMap(d => moveDoor(d, ox, oy, keep) ?? []);
   }
 
+  /** The last frame's lamp posts on the screen, as doorsOnScreen has its doors: only where the frame going out shows this canvas's drawing. */
+  lampsOnScreen(shows: (x: number, y: number, glyph: string, fg: number, bg: number) => boolean): LampShape[] {
+    const last = this.last;
+    if (!this.lamps?.length || !last || this.isDestroyed || !this.visible) return [];
+    const { cells } = last, ox = Math.trunc(this.x), oy = Math.trunc(this.y);
+    const keep = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= cells.w || y >= cells.h) return false;
+      const i = y * cells.w + x, glyph = cells.glyph[i]!;
+      return !!glyph && shows(ox + x, oy + y, glyph, cells.fg[i]!, cells.bg[i]!);
+    };
+    return this.lamps.flatMap(l => moveLamp(l, ox, oy, keep) ?? []);
+  }
+
   set painter(p: Painter | undefined) { this._painter = p; this.fresh = true; this.requestRender(); }
   get painter(): Painter | undefined { return this._painter; }
   set fps(fps: number | undefined) { this._fps = fps; }
@@ -114,6 +132,7 @@ export class LookCanvasRenderable extends Renderable {
       const painted = p(w, h, now);
       const frame = painted instanceof Canvas || Array.isArray(painted) ? painted : painted.frame;
       this.doors = painted instanceof Canvas || Array.isArray(painted) ? undefined : painted.doors;
+      this.lamps = painted instanceof Canvas || Array.isArray(painted) ? undefined : painted.lamps;
       const cells = cellsOf(frame, w, h);
       // What hasn't visibly changed is drawn as it was.
       const was = last?.cells;
@@ -250,6 +269,7 @@ function beforeFrame(renderer: CliRenderer, data: string): boolean {
  * cells that show its view's drawing in the frame going out, so whatever's drawn over the view (a
  * menu, a card, the sheet) hides it there. The terminal game draws its ASCII alone: no sequence,
  * nothing extra worked out.
+ * The lamp posts in view go in the same sequence, by the same rules (src/game/look/lamps.ts).
  */
 export function attachOverlay(renderer: CliRenderer): boolean {
   if (!process.env.KM_IN_BROWSER || process.env.KM_DOORS === "off" || typeof renderer.addPostProcessFn !== "function") return false;
@@ -259,11 +279,13 @@ export function attachOverlay(renderer: CliRenderer): boolean {
     let shown: Shown;
     try { shown = shownIn(buffer); } catch { return; }
     const doors: DoorShape[] = [];
+    const lamps: LampShape[] = [];
     for (const canvas of canvases) {
       if (canvas.isDestroyed) { canvases.delete(canvas); continue; }
       doors.push(...canvas.doorsOnScreen((x, y, glyph, fg, bg) => same(shown(x, y), glyph, fg, bg)));
+      lamps.push(...canvas.lampsOnScreen((x, y, glyph, fg, bg) => same(shown(x, y), glyph, fg, bg)));
     }
-    const frame: OverlayFrame = { cols: renderer.width, rows: renderer.height, doors };
+    const frame: OverlayFrame & { lamps?: LampShape[] } = { cols: renderer.width, rows: renderer.height, doors, ...(lamps.length ? { lamps } : {}) };
     const message = overlaySequence(frame);
     if (message !== sent && beforeFrame(renderer, message)) sent = message;
   });

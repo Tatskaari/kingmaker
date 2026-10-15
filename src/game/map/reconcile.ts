@@ -289,10 +289,17 @@ export function withTownChanges(overlay: MapOverlay, mapId: string, now: StorySt
   return out;
 }
 
+/** The map's own marks on its things, which the town's world leaves out (src/game/town-world.ts): how it draws them, not how they are. */
+const MARKS = ["post", "lamp", "scenery"];
+
 function changed(a: MapActor, change: ThingChange, now: StoryState["time"] | undefined): MapActor {
   const later = !!now && !!change.time && TIMES.indexOf(now) > TIMES.indexOf(change.time);
   const burnt = later && change.states.includes("burning");
-  const states = burnt ? [...new Set([...change.states.filter(s => s !== "burning" && s !== "damaged"), "destroyed", "burnt"])] : change.states;
+  const changedTo = burnt ? [...new Set([...change.states.filter(s => s !== "burning" && s !== "damaged"), "destroyed", "burnt"])] : change.states;
+  // What still stands keeps the map's marks: a lamp post lit by the Light cantrip is still up its
+  // post (and a lamp). A wreck is only a wreck, on the ground.
+  const marks = changedTo.includes("destroyed") ? [] : (a.states ?? []).filter(s => MARKS.includes(s));
+  const states = [...new Set([...marks, ...changedTo])];
   const { blocks: _blocks, ...rest } = a;
   return { ...rest, states, ...(a.blocks && !states.some(s => WRECKED.includes(s)) ? { blocks: true } : {}) };
 }

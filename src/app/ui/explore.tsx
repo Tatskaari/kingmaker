@@ -5,6 +5,7 @@ import { glyphSet } from "../../game/look/glyphs.ts";
 import { actorLook } from "../../game/look/map.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
 import { mapDoors, overlayWanted } from "../../game/look/overlay.ts";
+import { mapLamps } from "../../game/look/lamps.ts";
 import { direction, look, nearby, Picks, steps, whereabouts } from "../../game/map/index.ts";
 import type { Tile2 } from "../../game/types.ts";
 import { townView } from "../../game/views.ts";
@@ -177,7 +178,7 @@ export function ExploreScreen({ game }: { game: Game }) {
               ...(marks ? { marks } : {}), ...(aim ? { cursor: aim.at } : {}),
             });
             picks.current = pick;
-            return doors ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
+            return doors ? { frame: lines, doors: mapDoors(pick, lines), lamps: mapLamps(pick, lines) } : lines;
           }}
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>

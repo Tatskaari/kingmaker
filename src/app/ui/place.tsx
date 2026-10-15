@@ -4,6 +4,7 @@ import { lookOf } from "../../game/look/appearance.ts";
 import { glyphSet } from "../../game/look/glyphs.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
 import { mapDoors, overlayWanted, stageDoors } from "../../game/look/overlay.ts";
+import { mapLamps, stageLamps } from "../../game/look/lamps.ts";
 import { StagePicks, type StagePick } from "../../game/look/stage.ts";
 import { Picks } from "../../game/map/index.ts";
 import { nameOf, sameTarget, type SceneTarget } from "../../game/scene-menu.ts";
@@ -104,12 +105,12 @@ export function Place({ game, width, height, legend = true, view = "stage", poin
         const pick = pointing || doors ? new StagePicks({ doors }) : undefined;
         const frame = stageView(stage, { w, h }, { t: now, time, glyphs, ...(look ? { effects: look.fx, positions: id => look.director.tweens.at(id, now) } : {}), ...(pick ? { pick } : {}), ...(hover !== undefined ? { hover } : {}) });
         if (pick && pointing) pointing.picks.current = pick;
-        return frame && pick && doors ? { frame, doors: stageDoors(pick, frame) } : frame ?? [];
+        return frame && pick && doors ? { frame, doors: stageDoors(pick, frame), lamps: stageLamps(pick) } : frame ?? [];
       }
       : (w, h, now) => {
         const pick = overlayWanted() ? new Picks({ doors: true }) : undefined;
         const lines = townView(core.state, session, { w, h }, { t: now, ...(look ? { effects: look.fx } : {}), ...(pick ? { pick } : {}) });
-        return pick ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
+        return pick ? { frame: lines, doors: mapDoors(pick, lines), lamps: mapLamps(pick, lines) } : lines;
       }} />
     {listed.map(e => {
       const seen = lookOf(e, { glyphs });

@@ -4,6 +4,9 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { chromium, firefox, type Page } from "playwright";
+import type { LampFrame } from "../../game/look/lamp-art.ts";
+import type { StyledLine } from "../../game/types.ts";
+import { laneGame, putSaves, type SaveFile } from "./lane.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
 
 /**
@@ -21,12 +24,23 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  * Each picture is <view>-<scale>x-doors-<on|off>.png (firefox-<view>-... in Firefox), the terminal's
  * text beside it (.txt). --dir shoots another build (an older one, for a before and after: it has no
  * door sheet); --no-build shoots dist/web as it is.
+ *
+ * The lamp posts (src/web/page/lamps.ts) have pictures of their own, with the lamps on and off
+ * (?lamps=off: the doors still drawn, so it's the lamps alone that change):
+ * <view>-<scale>x-lamps-<on|off>.png. `lamps` is a sheet of every look a lamp post has
+ * (src/game/look/lamp-sheet.ts, left to right: by the hour, lit, put out, soaked, broken) on the map
+ * (above) and on a place from above (below), by day (left) and at night (right); `lamp-day` and
+ * `lamp-night` are the granary lane's lamp posts in a game put in the browser's saves
+ * (src/web/static/lane.ts), each with a crop round every lamp post in view (-crop-<lamp>.png).
+ *
+ *        [--lamps on,off] [--only lamps,lamp-day,lamp-night]
  */
 
 const { values } = parseArgs({
   options: {
     dir: { type: "string" }, "no-build": { type: "boolean" }, out: { type: "string" },
     scales: { type: "string" }, doors: { type: "string" }, only: { type: "string" }, browser: { type: "string" },
+    lamps: { type: "string" },
   },
 });
 const FIREFOX = values.browser === "firefox";
@@ -37,6 +51,9 @@ const OUT = resolve(values.out ?? join(ROOT, "runs", "web-shots", RUN));
 const SCALES = (values.scales ?? "1,1.2").split(",").map(Number).filter(n => n > 0);
 const DOORS = (values.doors ?? "on,off").split(",").filter(d => d === "on" || d === "off");
 const VIEWS = ["lane", "hall", "doors"].filter(v => (values.only ? values.only.split(",").includes(v) : v !== "doors" || !values.dir));
+const LAMPS = (values.lamps ?? "on,off").split(",").filter(d => d === "on" || d === "off");
+/** The lamps' own views: their pictures go on and off with ?lamps=off. */
+const LAMP_VIEWS = ["lamps", "lamp-day", "lamp-night"].filter(v => (values.only ? values.only.split(",").includes(v) : v !== "lamps" || !values.dir));
 // The static check's screen: 130x42 cells of 9x18 CSS pixels, and the page's frame round them.
 const COLS = 130, ROWS = 42;
 const WINDOW = { width: COLS * 9 + 20, height: ROWS * 18 + 16 + 26 };
@@ -104,6 +121,61 @@ async function open(page: Page, view: string): Promise<void> {
   await waitFor(page, "The lead:.*Hanged Clerk");
 }
 
+/**
+ * The lamp sheet as the terminal's bytes: every look a lamp post has on the map (above) and on a
+ * place from above (below), by day (left) and at night (right), and their lamps (the OSC), as the
+ * game sends them.
+ */
+async function lampSheetBytes(): Promise<string> {
+  process.env.KM_GLYPHS = "kingmaker";
+  const { LAMP_SHEET_CAMERA, lampSheet, lampStage } = await import("../../game/look/lamp-sheet.ts");
+  const { mapLamps, moveLamp, stageLamps } = await import("../../game/look/lamps.ts");
+  const { overlaySequence } = await import("../../game/look/overlay.ts");
+  const { dressingFor } = await import("../../game/look/dressings.ts");
+  const { renderStage, StagePicks } = await import("../../game/look/stage.ts");
+  const { Picks, render, toAnsi } = await import("../../game/map/index.ts");
+  const half = Math.floor((COLS - 2) / 2), top = 26;
+  const blocks: Array<{ lines: StyledLine[]; lamps: ReturnType<typeof mapLamps>; x: number; y: number }> = [];
+  for (const [i, time] of (["morning", "night"] as const).entries()) {
+    const { map, lamps } = lampSheet(time);
+    const pick = new Picks({ doors: true });
+    const lines = render(map, lamps, LAMP_SHEET_CAMERA, { w: half, h: top }, { cutaway: false, time, t: 0, pick });
+    blocks.push({ lines, lamps: mapLamps(pick, lines), x: i * (half + 2), y: 0 });
+    const world = lampStage();
+    const stage = new StagePicks({ doors: true });
+    const canvas = renderStage(world, dressingFor(world.scene), { w: half, h: ROWS - top, t: 0, time, pick: stage });
+    blocks.push({ lines: canvas.toLines(), lamps: stageLamps(stage), x: i * (half + 2), y: top });
+  }
+  // Two by two: the night's beside the day's, a gap between.
+  const frame: StyledLine[] = Array.from({ length: ROWS }, () => []);
+  for (const b of blocks) b.lines.forEach((line, k) => { const row = frame[b.y + k]; if (row) row.push(...(b.x ? [{ text: "  " }] : []), ...line); });
+  const lamps = blocks.flatMap(b => b.lamps.flatMap(l => moveLamp(l, b.x, b.y, () => true) ?? []));
+  const sheet: LampFrame = { cols: COLS, rows: ROWS, doors: [], lamps };
+  return `\x1b[?25l\x1b[2J\x1b[H${overlaySequence(sheet)}\x1b[?2026h${toAnsi(frame).split("\n").join("\r\n")}\x1b[?2026l`;
+}
+
+/** The lane's lamp post games (src/web/static/lane.ts), made once. */
+const laneGames: Partial<Record<"morning" | "night", SaveFile[]>> = {};
+
+/** To a lamp view: the lamp sheet, or the granary lane's lamp posts by day or at night, in a game put in the browser's saves. */
+async function openLamps(page: Page, view: string): Promise<void> {
+  if (view === "lamps") {
+    // As the door sheet: the page waits for a key, so nothing else draws.
+    await page.waitForSelector("#gate:not([hidden])", { timeout: 30000 });
+    await page.evaluate(`document.getElementById("gate").hidden = true; document.getElementById("frame").inert = false`);
+    await page.evaluate(`km.term.write(${JSON.stringify(await lampSheetBytes())})`);
+    return;
+  }
+  const time = view === "lamp-day" ? "morning" : "night";
+  const files = (laneGames[time] ??= await laneGame(join(OUT, `fixture-lane-${time}`), time));
+  await waitFor(page, "Hanged Clerk of Caerwyn");
+  await putSaves(page, files);
+  await page.reload();
+  await waitFor(page, "Continue.*Vesper Hale");
+  await press(page, "Enter");
+  await waitFor(page, "The lead:.*Hanged Clerk");
+}
+
 const { server, url } = await serveStatic(DIR, DEFAULT_BASE, 0);
 const shots: string[] = [];
 try {
@@ -123,6 +195,30 @@ try {
         writeFileSync(join(OUT, `${name}.txt`), await text(page));
         shots.push(join(OUT, `${name}.png`));
         console.log(`${name}.png (devicePixelRatio ${await page.evaluate("devicePixelRatio")})`);
+        await context.close();
+      }
+      for (const view of LAMP_VIEWS) for (const lamps of LAMPS) {
+        const context = FIREFOX ? await browser.newContext({ viewport: WINDOW, deviceScaleFactor: scale }) : await browser.newContext({ viewport: null });
+        const page = await context.newPage();
+        // The sheet has the page wait for a key (no ?offline); the lane is played offline.
+        await page.goto(`${url}?size=${COLS}x${ROWS}${view === "lamps" ? "" : "&offline"}${lamps === "off" ? "&lamps=off" : ""}`);
+        await openLamps(page, view);
+        await sleep(1500);
+        const name = `${FIREFOX ? "firefox-" : ""}${view}-${scale}x-lamps-${lamps}`;
+        await page.screenshot({ path: join(OUT, `${name}.png`) });
+        writeFileSync(join(OUT, `${name}.txt`), await text(page));
+        shots.push(join(OUT, `${name}.png`));
+        console.log(`${name}.png (devicePixelRatio ${await page.evaluate("devicePixelRatio")})`);
+        if (view !== "lamps") {
+          // Each lamp post in view, close up: 13 cells across, 6 down, round its lantern (the game says where, lamps on or off).
+          const where = (await page.evaluate("km.doors && km.doors.frame && km.doors.frame.lamps ? km.doors.frame.lamps.map(l => ({ id: l.id, x: l.x, y: l.y })) : []")) as Array<{ id: string; x: number; y: number }>;
+          const box = (await page.evaluate(`(() => { const r = document.querySelector(".xterm-screen").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width / km.term.cols, h: r.height / km.term.rows }; })()`)) as { x: number; y: number; w: number; h: number };
+          for (const l of where) {
+            const crop = `${name}-crop-${l.id.replace(/^.*:/, "").replace(/\W+/g, "-")}.png`;
+            await page.screenshot({ path: join(OUT, crop), clip: { x: box.x + (l.x - 6) * box.w, y: box.y + (l.y - 3) * box.h, width: 13 * box.w, height: 6 * box.h } });
+            shots.push(join(OUT, crop));
+          }
+        }
         await context.close();
       }
     } finally {

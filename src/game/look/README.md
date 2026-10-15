@@ -43,6 +43,9 @@ It holds no game state. `Effects` and `Director` are objects the callers make an
 | `door-art.ts` | The doors as pictures over the ASCII in the browser (src/web/README.md): their looks (`doorLook`: shut, open, locked, barred, broken), the art (the ASCII-plus spike's, in art pixels a cell's 7th and 15th), and what the game tells the page. Pure: the page bundles it too. |
 | `overlay.ts` | Where the doors are in a frame of the map or the stage, from its picks: the cells each door's picture may paint (not over what's nearer, nor what's drawn over the map). |
 | `door-sheet.ts` | Every door look on both faces of a wall, on a little map of its own, for the tests and the pictures. |
+| `lamp-art.ts` | The lamp posts as pictures over the ASCII in the browser, after the doors (src/web/README.md): their looks (`lampLook`: lit, out, broken, by their own state or else the hour), which things are lamp posts, the art (the ASCII-plus spike's lamp, on the doors' art grid) and its glow, and the frame the page is told (`LampFrame`: the doors' and the lamps). Pure: the page bundles it too. |
+| `lamps.ts` | Where the lamp posts are in a frame of the map or the stage, as `overlay.ts` has the doors: the cells each picture and its glow may paint, by the doors' rules, held still through a lamp's flicker. `attachOverlay` sends them with the doors. |
+| `lamp-sheet.ts` | Every lamp look in a street, on a little map and on a place from above, for the tests and the pictures. |
 | `index.ts` | The module's exports, with a summary of each part. |
 | `vignettes.ts`, `gallery.tsx`, `dump.ts`, `smoke.py` | The gallery, its headless dump and its smoke test. |
 | `frames.ts` | Headless frames of the game's own views (src/game/views.ts) with the look. |

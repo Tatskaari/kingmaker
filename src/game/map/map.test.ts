@@ -10,7 +10,7 @@ import type { MapActor, StoryState, Tile2 } from "../types.ts";
 import {
   CAST, MAPS, SCREEN_KEYS, actorsFromWorld, areaHazards, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
   move, newExploration, nearby, overlayActors, overlayRegionStates, overlaySurfaces, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
-  type PlaceRegion,
+  withTownChanges, type PlaceRegion, type ThingChange,
 } from "./index.ts";
 
 const MORNING: StoryState = { time: "morning", played: [], lead: "hanged-clerk", flags: {} };
@@ -251,6 +251,21 @@ test("the overlay: what a scene did stays on the map after it, and fires burn ou
   assert.equal(later.some(a => a.ref === "nan-quill"), false, "people move on with the story");
   // And the town shows nothing from it unless the place itself burned.
   assert.deepEqual(captureScene(emptyOverlay(), regionForScene("drowned-rat")!.region, w).scenes["drowned-rat"]!.states, []);
+});
+
+test("a town change keeps the map's own marks on what it leaves standing: a lamp post Light lit is still up its post, a wreck isn't", () => {
+  const lamp: MapActor = { id: "caerwyn:lamp-post@28,9", name: "a lamp post", kind: "object", glyph: "¤", color: "#e8c070", map: "caerwyn", at: { x: 28, y: 9 }, states: ["lamp", "post"] };
+  const after = (change: ThingChange, now: StoryState["time"] = "morning") =>
+    withTownChanges({ ...emptyOverlay(), town: { caerwyn: { things: { [lamp.id]: change } } } }, "caerwyn", now, [lamp])[0]!;
+  assert.deepEqual([...after({ states: ["lit"] }).states!].sort(), ["lamp", "lit", "post"], "lit by the Light cantrip: still a lamp, up its post");
+  assert.deepEqual([...after({ states: ["unlit", "wet"] }).states!].sort(), ["lamp", "post", "unlit", "wet"], "doused: still up its post");
+  assert.deepEqual(after({ states: ["destroyed"] }).states, ["destroyed"], "wrecked: on the ground");
+  assert.ok(!after({ states: ["burning"], time: "morning" }, "night").states!.includes("post"), "burned out by a later hour: on the ground");
+  // As it's drawn: the lamp a row up, its post under it.
+  const size = { w: 40, h: 20 };
+  const { x, y } = screenOf(lamp.at, lamp.at, size);
+  const rows = toPlain(render(getMap("caerwyn"), [after({ states: ["lit"] })], lamp.at, size, { color: false, glyphs: "ascii" })).split("\n").map(r => [...r]);
+  assert.deepEqual([rows[y - 1]![x], rows[y]![x]], ["¤", "│"], "the lit lamp up its post");
 });
 
 test("the Heron goes up in smoke: ablaze from the town that night, a charred ruin the next morning", () => {
