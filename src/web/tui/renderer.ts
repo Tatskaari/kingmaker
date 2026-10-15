@@ -97,8 +97,8 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   private cursor = { x: 1, y: 1, visible: false, style: "block", blinking: true, color: "" };
   private shownCursor = { x: 0, y: 0, visible: true, style: "", blinking: false, color: "" };
   private frameCursorSet = false;
-  /** Frames drawn and bytes written (for the page's checks). */
-  readonly stats = { frames: 0, bytes: 0 };
+  /** Frames drawn, bytes written, and the time frames took (for the page's checks). */
+  readonly stats = { frames: 0, bytes: 0, renderMs: 0, slowestMs: 0 };
 
   constructor(width: number, height: number, config: CliRendererConfig = {}) {
     super();
@@ -209,6 +209,9 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       this.paint(work, delta);
       this.flush();
       this.stats.frames++;
+      const took = performance.now() - now;
+      this.stats.renderMs += took;
+      this.stats.slowestMs = Math.max(this.stats.slowestMs, took);
       this.emit(CliRenderEvents.FRAME);
     } catch (error) {
       console.error("Render error:", error);

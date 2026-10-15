@@ -40,11 +40,12 @@ export function isFontFile(name: string): boolean {
   return FILE.test(name);
 }
 
-export function fontFaceCss(fonts: WebFont[]): string {
+/** The fonts' @font-face rules; `base` is where the font files are (the server's /fonts/, or fonts/ beside a static fonts.css). */
+export function fontFaceCss(fonts: WebFont[], base = "/fonts/"): string {
   return fonts.map(font => {
     const lines = [
       `  font-family: "${cssString(font.family)}";`,
-      `  src: url("/fonts/${encodeURIComponent(font.file)}") format("${font.file.toLowerCase().endsWith(".otf") ? "opentype" : "truetype"}");`,
+      `  src: url("${base}${encodeURIComponent(font.file)}") format("${font.file.toLowerCase().endsWith(".otf") ? "opentype" : "truetype"}");`,
       `  font-weight: ${font.weight};`,
       `  font-style: ${font.style};`,
       "  font-display: block;",

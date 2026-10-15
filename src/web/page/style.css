@@ -146,3 +146,42 @@ html, body {
   opacity: 0.55;
   cursor: default;
 }
+
+/* Server or static build (<html data-mode="static">): each has its own words in the key form. */
+html:not([data-mode="static"]) .static-only,
+html[data-mode="static"] .server-only {
+  display: none;
+}
+
+/* The static build keeps a line under the terminal for the key: what's kept, and changing or forgetting it. */
+html[data-mode="static"] #frame {
+  padding-bottom: 26px;
+}
+
+#key-bar {
+  position: fixed;
+  right: 10px;
+  bottom: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dim);
+}
+
+#key-bar[hidden] {
+  display: none;
+}
+
+#key-bar button {
+  margin-left: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--title);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#key-bar button[hidden] {
+  display: none;
+}

@@ -1,11 +1,15 @@
-import { Terminal } from "/vendor/xterm.mjs";
-import { FitAddon } from "/vendor/addon-fit.mjs";
-import { WebglAddon } from "/vendor/addon-webgl.mjs";
-import { Unicode11Addon } from "/vendor/addon-unicode11.mjs";
+import { Terminal } from "./vendor/xterm.mjs";
+import { FitAddon } from "./vendor/addon-fit.mjs";
+import { WebglAddon } from "./vendor/addon-webgl.mjs";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs";
 
-// The page's half of Kingmaker in the browser (src/web/README.md): xterm.js draws the game that
-// runs in a pty on the server, and keystrokes and output go over one WebSocket. Binary messages
-// are the terminal's bytes either way; text messages are JSON for everything else.
+// The page's half of Kingmaker in the browser (src/web/README.md): xterm.js draws the game, and
+// keystrokes and output go over a transport. Served by src/web/server.ts, the game runs in a pty
+// on the server and the transport is one WebSocket (binary messages are the terminal's bytes,
+// text messages JSON for everything else). In the static build (<html data-mode="static">), the
+// game runs in a Web Worker on this page and worker-transport.js speaks the same messages.
+
+const STATIC = document.documentElement.dataset.mode === "static";
 
 // The game's palette (src/app/theme.ts). The game paints in truecolor, so these show around its
 // edges and wherever something asks for a plain ANSI colour.
@@ -46,7 +50,7 @@ const $ = id => document.getElementById(id);
 const stats = { bytesIn: 0, messagesIn: 0, bytesOut: 0 };
 const statsWaiters = [];
 const encoder = new TextEncoder();
-let ws;
+let transport;
 let playing = false;
 let renderer = "dom";
 
@@ -156,17 +160,28 @@ window.addEventListener("focus", () => {
 window.addEventListener("beforeunload", event => {
   if (playing) event.preventDefault();
 });
-$("notice-button").addEventListener("click", () => {
+// In the static build the game is on this page: going away is Ctrl+C's way out (it saves).
+window.addEventListener("pagehide", () => transport?.leaving?.());
+document.addEventListener("visibilitychange", () => { if (document.hidden) transport?.flush?.(); });
+$("notice-button").addEventListener("click", async () => {
+  // The static build: a closed game's last notes are finished (and saved) before the next game reads the saves.
+  if (transport?.finishing?.()) {
+    $("notice-text").textContent = "Finishing the GM's notes on your last turn first (they're kept with the game)…";
+    $("notice-button").disabled = true;
+    await transport.settled();
+    $("notice-button").disabled = false;
+  }
   $("notice").hidden = true;
   term.reset();
   term.write("\x1b[?25l");
   connect();
 });
 
-// For the browser check (src/web/check.ts) and anyone curious in the console.
+// For the browser checks (src/web/check.ts, src/web/static/check.ts) and anyone curious in the console.
 window.km = {
   term,
   stats,
+  static: STATIC,
   get renderer() {
     return renderer;
   },
@@ -187,65 +202,101 @@ window.km = {
       control({ type: "stats" });
     });
   },
+  /** The static build: write the game's saves to IndexedDB now; resolves when they're in. */
+  flush() {
+    return transport?.flush?.() ?? Promise.resolve();
+  },
+  /** The static build: whether a closed game is still finishing the GM's notes on its last turn. */
+  finishing() {
+    return transport?.finishing?.() ?? false;
+  },
 };
 
-connect();
+await connect();
 
-function connect() {
-  const url = new URL("/play", location.href);
+async function connect() {
+  let settled = false;
+  const handlers = {
+    bytes(data) {
+      stats.bytesIn += data.length;
+      stats.messagesIn++;
+      term.write(data);
+    },
+    message(message) {
+      switch (message.type) {
+        case "hello":
+          if (message.needKey) askForKey(message.error);
+          else start({});
+          return;
+        case "started":
+          playing = true;
+          $("gate").hidden = true;
+          $("notice").hidden = true;
+          transport?.started?.(message);
+          term.focus();
+          return;
+        case "exit":
+          settled = true;
+          playing = false;
+          // The game hands back an empty screen with the cursor showing; there's nothing to type into.
+          term.write("\x1b[?25l");
+          showNotice("The game has closed (it saves as it goes).", "Play again");
+          return;
+        case "error":
+          settled = true;
+          playing = false;
+          showNotice(message.message, "Try again");
+          return;
+        case "stats":
+          statsWaiters.shift()?.(message);
+          return;
+      }
+    },
+    closed(current) {
+      if (transport !== current || settled) return;
+      playing = false;
+      showNotice("Lost the connection to the server.", "Reconnect");
+    },
+  };
+  if (STATIC) {
+    transport?.close?.();
+    const { workerTransport } = await import("./worker-transport.js");
+    // ?glyphs=ascii draws letters, as the smoke test plays; ?jobdelay=<ms> holds back the background jobs (for the check).
+    transport = workerTransport(handlers, { offline: params.has("offline"), glyphs: params.get("glyphs") ?? undefined, jobDelayMs: Number(params.get("jobdelay")) || undefined, askForKey });
+  } else {
+    transport = socketTransport(handlers);
+  }
+}
+
+/** The server's transport: one WebSocket to /play beside the page. */
+function socketTransport(handlers) {
+  const url = new URL("play", location.href);
   url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(url);
   socket.binaryType = "arraybuffer";
-  ws = socket;
-  let settled = false;
+  const self = {
+    send(message) {
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+    },
+    sendBytes(bytes) {
+      if (socket.readyState !== WebSocket.OPEN) return false;
+      socket.send(bytes);
+      return true;
+    },
+  };
   socket.onmessage = event => {
-    if (typeof event.data !== "string") {
-      stats.bytesIn += event.data.byteLength;
-      stats.messagesIn++;
-      term.write(new Uint8Array(event.data));
-      return;
-    }
-    const message = JSON.parse(event.data);
-    switch (message.type) {
-      case "hello":
-        if (message.needKey) askForKey(message.error);
-        else start({});
-        return;
-      case "started":
-        playing = true;
-        $("gate").hidden = true;
-        $("notice").hidden = true;
-        term.focus();
-        return;
-      case "exit":
-        settled = true;
-        playing = false;
-        // The game hands back an empty screen with the cursor showing; there's nothing to type into.
-        term.write("\x1b[?25l");
-        showNotice("The game has closed (it saves as it goes).", "Play again");
-        return;
-      case "error":
-        settled = true;
-        playing = false;
-        showNotice(message.message, "Try again");
-        return;
-      case "stats":
-        statsWaiters.shift()?.(message);
-        return;
-    }
+    if (typeof event.data !== "string") handlers.bytes(new Uint8Array(event.data));
+    else handlers.message(JSON.parse(event.data));
   };
-  socket.onclose = () => {
-    if (ws !== socket || settled) return;
-    playing = false;
-    showNotice("Lost the connection to the server.", "Reconnect");
-  };
+  socket.onclose = () => handlers.closed(self);
+  return self;
 }
 
 function start(extra) {
   control({ type: "start", cols: term.cols, rows: term.rows, ...extra });
 }
 
-function askForKey(error) {
+function askForKey(error, options = {}) {
   const input = $("key");
   const problem = $("key-error");
   $("gate").hidden = false;
@@ -256,7 +307,7 @@ function askForKey(error) {
   $("key-form").onsubmit = event => {
     event.preventDefault();
     const key = input.value.trim();
-    // The key goes straight to the server and isn't kept on the page.
+    // The key goes straight to the game and isn't kept on the page (the static build keeps it in localStorage, as V1 did).
     input.value = "";
     if (!key) {
       problem.hidden = false;
@@ -264,15 +315,17 @@ function askForKey(error) {
       input.focus();
       return;
     }
-    // The server asks OpenRouter about it first: "started" closes the form, a refusal reopens it.
+    // The key is checked with OpenRouter first: "started" closes the form, a refusal reopens it.
     problem.hidden = true;
     checking(true);
-    start({ key });
+    if (options.onKey) options.onKey(key);
+    else start({ key });
   };
   $("offline").onclick = () => {
     input.value = "";
     $("gate").hidden = true;
-    start({ offline: true });
+    if (options.onOffline) options.onOffline();
+    else start({ offline: true });
     term.focus();
   };
 }
@@ -291,12 +344,11 @@ function showNotice(text, button) {
 }
 
 function control(message) {
-  if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+  transport?.send(message);
 }
 
 function sendBytes(bytes) {
-  if (!playing || ws?.readyState !== WebSocket.OPEN) return;
-  ws.send(bytes);
+  if (!playing || !transport?.sendBytes(bytes)) return;
   stats.bytesOut += bytes.length;
 }
 
@@ -312,11 +364,11 @@ function resize() {
   }
 }
 
-// Glyph fonts (assets/fonts, served with /fonts.css) are loaded before the terminal measures its
+// Glyph fonts (assets/fonts, served with fonts.css) are loaded before the terminal measures its
 // cells, so their glyphs are there from the first frame.
 async function loadFonts() {
   try {
-    const fonts = await (await fetch("/fonts.json")).json();
+    const fonts = await (await fetch("fonts.json")).json();
     await Promise.all(fonts.map(font => document.fonts.load(`${font.style} ${font.weight} ${fontSize}px "${font.family}"`, font.sample).catch(() => [])));
     return [...new Set(fonts.map(font => font.family))];
   } catch {
