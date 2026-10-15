@@ -29,6 +29,13 @@ export async function dnd(): Promise<{ E: typeof Dnd; pack: unknown }> {
   return loaded;
 }
 
+let reading: Dnd.Content | undefined;
+/** The SRD's content (classes, species, backgrounds, spells...), from an engine made once just to read it. */
+export async function srdContent(): Promise<Dnd.Content> {
+  if (!reading) { const { E, pack } = await dnd(); reading = E.createEngine({ contentPacks: [pack], rng: E.seededRNG(1) }).content; }
+  return reading;
+}
+
 interface Ctx { E: typeof Dnd; engine: Dnd.Engine; campaign: Dnd.Campaign; apply(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] }
 
 async function engineFor(seed: number) {
@@ -143,7 +150,7 @@ const ARMOR: Record<string, string[]> = {
   heavy: ["ring-mail", "chain-mail", "splint", "plate"],
 };
 /** Spellcasting at the levels we start at (2024 rules): cantrips, prepared spells, highest spell level by character level. */
-const CASTING: Record<string, { cantrips: number; prepared: (level: number) => number; maxSpell: (level: number) => number }> = {
+export const CASTING: Record<string, { cantrips: number; prepared: (level: number) => number; maxSpell: (level: number) => number }> = {
   bard: { cantrips: 2, prepared: l => l + 3, maxSpell: l => Math.min(9, Math.ceil(l / 2)) },
   cleric: { cantrips: 3, prepared: l => l + 3, maxSpell: l => Math.min(9, Math.ceil(l / 2)) },
   druid: { cantrips: 2, prepared: l => l + 3, maxSpell: l => Math.min(9, Math.ceil(l / 2)) },
@@ -173,45 +180,101 @@ export interface Build {
   /** Most to least important: the standard array (15, 14, 13, 12, 10, 8) is assigned in this order. */
   abilities: string[];
   skills: string[]; feat: string; cantrips: string[]; spells: string[]; weapons: string[]; armor: string; shield: boolean;
+  /** A fighter's, paladin's or ranger's Fighting Style, by the choice's option id ("dueling"); without one, the engine's first. */
+  style?: string;
 }
 
-async function chooseBuild(concept: string, level: number, content: Dnd.Content): Promise<Build> {
+/** The Fighting Styles a class chooses from (its option ids, from the class's own table), none for most. */
+export function styleOptions(classId: string, content: Dnd.Content): string[] {
+  const table = content.classes.get(classId)?.["levelTable"] as Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> | undefined;
+  const offers = Object.values(table ?? {}).flatMap(row => row.features ?? []).flatMap(f => f.effects ?? [])
+    .filter(e => e["kind"] === "OfferChoice" && String(e["choiceId"]).startsWith("fighting-style"));
+  return offers.flatMap(e => ((e["options"] as Array<{ id: string }> | undefined) ?? []).map(o => o.id));
+}
+
+/**
+ * The Fighting Style that fits how a build fights, where its class has one: a bow's Archery, a
+ * two-handed weapon's Great Weapon Fighting, two light blades' Two-Weapon Fighting, a shield's
+ * Defense, one blade alone's Dueling (what the class offers: a paladin has no Archery).
+ */
+export function styleFor(build: Build, content: Dnd.Content): string | undefined {
+  const options = styleOptions(build.classId, content);
+  if (!options.length) return undefined;
+  const item = (id: string | undefined) => content.items.get(id ?? "") as Record<string, unknown> | undefined;
+  const props = (id: string | undefined) => (item(id)?.["properties"] as string[] | undefined) ?? [];
+  const main = build.weapons[0];
+  const lightPair = props(main).includes("light") && build.weapons.slice(1).some(w => item(w)?.["attackKind"] === "melee" && props(w).includes("light"));
+  const wanted = item(main)?.["attackKind"] === "ranged" ? "archery"
+    : props(main).includes("two-handed") ? "great-weapon"
+    : build.shield ? "defense"
+    : lightPair ? "two-weapon"
+    : "dueling";
+  return options.includes(wanted) ? wanted : options.includes("defense") ? "defense" : options[0];
+}
+
+/**
+ * What a model choosing a build may choose from, for a level: the SRD's classes, subclasses, species,
+ * backgrounds, origin feats, skills, weapons, armour and spells (by id, a spell with its level and
+ * classes). One build (chooseBuild) or three (src/rules/builds.ts) are asked for with it.
+ */
+export function buildMenu(level: number, content: Dnd.Content): string {
   const list = (m: Map<string, Dnd.Named>) => [...m.values()].map(v => `${v.id} (${v.name})`).join(", ");
   const maxSpell = Math.min(9, Math.ceil(level / 2));
   const spells = [...content.spells.values()].filter(s => s.level <= maxSpell).sort((a, b) => a.level - b.level || a.id.localeCompare(b.id))
     .map(s => `${s.id} [${s.level ? `level ${s.level}` : "cantrip"}; ${s.classes.join(" ")}]`).join("\n");
   const feats = [...content.feats.values()].filter(f => f["category"] === "origin").map(f => f.id).join(", ");
+  return [
+    `Classes: ${list(content.classes)}`, `Subclasses: ${list(content.subclasses)}`, `Species: ${list(content.species)}`, `Backgrounds: ${list(content.backgrounds)}`,
+    `Origin feats: ${feats}`, `Skills: ${SKILLS.map(engineSkill).join(", ")}`, `Abilities: ${ABILITIES.join(", ")}`,
+    `Weapons: ${WEAPONS.join(", ")}`, `Armour: none, ${Object.values(ARMOR).flat().join(", ")}`, `Spells (id [level; classes]):\n${spells}`,
+  ].join("\n\n");
+}
+
+/** A build's fields as a JSON schema's properties (the model's answer, before settleBuild makes it legal). */
+export const BUILD_FIELDS = ["classId", "subclassId", "speciesId", "backgroundId", "abilities", "skills", "feat", "cantrips", "spells", "weapons", "armor", "shield", "style"] as const;
+export const BUILD_SCHEMA: Record<string, unknown> = {
+  classId: { type: "string" }, subclassId: { type: "string" }, speciesId: { type: "string" }, backgroundId: { type: "string" },
+  abilities: { type: "array", items: { type: "string" }, description: "All six abilities, most important first" },
+  skills: { type: "array", items: { type: "string" }, description: "Skills they'd be trained in, most characteristic first (up to 6)" },
+  feat: { type: "string", description: "One origin feat" },
+  cantrips: { type: "array", items: { type: "string" } }, spells: { type: "array", items: { type: "string" } },
+  weapons: { type: "array", items: { type: "string" }, description: "One to three weapons, main weapon first" },
+  armor: { type: "string" }, shield: { type: "boolean" },
+  style: { type: "string", description: "A fighter's, paladin's or ranger's Fighting Style, to fit how they fight: archery, defense, dueling, great-weapon, protection or two-weapon (a paladin has no archery or two-weapon, a ranger no great-weapon or protection). Anyone else: none" },
+};
+
+/** How a build is chosen for a concept: what fits who they are, not what's strongest, from the lists' ids. */
+export const BUILD_GUIDE = `Choose what fits who they are and how they'd go about things, not what's strongest: a palace inspector might be a rogue (Investigation, Insight), a hedge witch a druid, a brawling ex-soldier a fighter, a silver-tongued con artist a bard. Use only ids from the lists. Spells must be on the class's list (ids marked with the class): give cantrips and levelled spells that suit the concept, including some useful outside a fight. Weapons and armour are what they'd carry; armour "none" if they wouldn't wear any.`;
+
+async function chooseBuild(concept: string, level: number, content: Dnd.Content): Promise<Build> {
   const build = await respondJson<Build>({
     operation: "rules.build", effort: "low",
-    instructions: `You turn a tabletop character concept into a D&D (2024 rules, SRD 5.2.1) build for a level ${level} character. Choose what fits who they are and how they'd go about things, not what's strongest: a palace inspector might be a rogue (Investigation, Insight), a hedge witch a druid, a brawling ex-soldier a fighter, a silver-tongued con artist a bard. Use only ids from the lists. Spells must be on the class's list (ids marked with the class): give cantrips and levelled spells that suit the concept, including some useful outside a fight. Weapons and armour are what they'd carry; armour "none" if they wouldn't wear any.`,
-    input: [{ role: "user", content: [
-      `Character concept: ${concept}`,
-      `Classes: ${list(content.classes)}`, `Subclasses: ${list(content.subclasses)}`, `Species: ${list(content.species)}`, `Backgrounds: ${list(content.backgrounds)}`,
-      `Origin feats: ${feats}`, `Skills: ${SKILLS.map(engineSkill).join(", ")}`, `Abilities: ${ABILITIES.join(", ")}`,
-      `Weapons: ${WEAPONS.join(", ")}`, `Armour: none, ${Object.values(ARMOR).flat().join(", ")}`, `Spells (id [level; classes]):\n${spells}`,
-    ].join("\n\n") }],
-    json: { name: "build", schema: { type: "object", additionalProperties: false, required: ["classId", "subclassId", "speciesId", "backgroundId", "abilities", "skills", "feat", "cantrips", "spells", "weapons", "armor", "shield"], properties: {
-      classId: { type: "string" }, subclassId: { type: "string" }, speciesId: { type: "string" }, backgroundId: { type: "string" },
-      abilities: { type: "array", items: { type: "string" }, description: "All six abilities, most important first" },
-      skills: { type: "array", items: { type: "string" }, description: "Skills they'd be trained in, most characteristic first (up to 6)" },
-      feat: { type: "string", description: "One origin feat" },
-      cantrips: { type: "array", items: { type: "string" } }, spells: { type: "array", items: { type: "string" } },
-      weapons: { type: "array", items: { type: "string" }, description: "One to three weapons, main weapon first" },
-      armor: { type: "string" }, shield: { type: "boolean" },
-    } } },
+    instructions: `You turn a tabletop character concept into a D&D (2024 rules, SRD 5.2.1) build for a level ${level} character. ${BUILD_GUIDE}`,
+    input: [{ role: "user", content: [`Character concept: ${concept}`, buildMenu(level, content)].join("\n\n") }],
+    json: { name: "build", schema: { type: "object", additionalProperties: false, required: [...BUILD_FIELDS], properties: BUILD_SCHEMA } },
   });
   return build;
 }
 
-/** A legal build from whatever the model suggested: unknown ids fall back to the class's defaults. */
-function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Content): Build {
-  const classId = raw.classId && content.classes.has(raw.classId) ? raw.classId : "rogue";
+/** An id as the SRD's lists have it, however a model wrote it ("Cleric", "Life Domain", "hunter's mark"). */
+export const srdId = (s: string): string => s.trim().toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+/** A legal build from whatever the model suggested: ids as the lists have them, and unknown ones fall back to the class's defaults. */
+export function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Content): Build {
+  /** The id, as the list has it, if it's on the list. */
+  const known = (list: { has(id: string): boolean }, s: unknown): string | undefined => { const id = typeof s === "string" ? srdId(s) : ""; return id && list.has(id) ? id : undefined; };
+  const ids = (list: unknown): string[] => (Array.isArray(list) ? list.filter((s): s is string => typeof s === "string").map(srdId) : []);
+  const classId = known(content.classes, raw.classId) ?? "rogue";
   const cls = content.classes.get(classId)!;
   const kit = KITS[classId] ?? KITS.rogue!;
   const casting = CASTING[classId];
+  const weapons = ids(raw.weapons).filter(w => WEAPONS.includes(w));
+  const armor = typeof raw.armor === "string" ? srdId(raw.armor) : undefined;
+  // "Great Weapon Fighting" and "Fighting Style: Defense" are the choice's "great-weapon" and "defense".
+  const style = typeof raw.style === "string" ? srdId(raw.style).replace(/^fighting-style\W*/, "").replace(/-fighting$/, "") : undefined;
   const onList = (id: string, levels: (l: number) => boolean) => { const s = content.spells.get(id); return !!s && s.classes.includes(classId) && levels(s.level); };
   const pickSpells = (wanted: string[] | undefined, levels: (l: number) => boolean, count: number) => {
-    const chosen = [...new Set((wanted ?? []).filter(id => onList(id, levels)))].slice(0, count);
+    const chosen = [...new Set(ids(wanted).filter(id => onList(id, levels)))].slice(0, count);
     for (const s of [...content.spells.values()].sort((a, b) => a.id.localeCompare(b.id))) {
       if (chosen.length >= count) break;
       if (onList(s.id, levels) && !chosen.includes(s.id)) chosen.push(s.id);
@@ -220,20 +283,22 @@ function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Content): 
   };
   const armorProf = (cls["armorProficiencies"] as string[] | undefined) ?? [];
   const armorOk = (id: string) => Object.entries(ARMOR).some(([kind, ids]) => ids.includes(id) && armorProf.some(p => p.toLowerCase().includes(kind)));
-  const abilities = [...new Set([...(raw.abilities ?? []).map(a => a.toUpperCase()).filter(a => ABILITIES.includes(a as Dnd.Ability)), ...ABILITIES])];
+  // "WIS" or "Wisdom": the first three letters are the ability's.
+  const abilities = [...new Set([...ids(raw.abilities).map(a => a.toUpperCase().slice(0, 3)).filter(a => ABILITIES.includes(a as Dnd.Ability)), ...ABILITIES])];
   return {
     classId,
-    subclassId: raw.subclassId && content.subclasses.has(raw.subclassId) ? raw.subclassId : "",
-    speciesId: raw.speciesId && content.species.has(raw.speciesId) ? raw.speciesId : "human",
-    backgroundId: raw.backgroundId && content.backgrounds.has(raw.backgroundId) ? raw.backgroundId : "criminal",
+    subclassId: known(content.subclasses, raw.subclassId) ?? "",
+    speciesId: known(content.species, raw.speciesId) ?? "human",
+    backgroundId: known(content.backgrounds, raw.backgroundId) ?? "criminal",
     abilities,
-    skills: (raw.skills ?? []).map(s => s.toLowerCase().replace(/[ _]/g, "-")),
-    feat: raw.feat && content.feats.has(raw.feat) ? raw.feat : "alert",
+    skills: ids(raw.skills),
+    feat: known(content.feats, raw.feat) ?? "alert",
     cantrips: casting ? pickSpells(raw.cantrips, l => l === 0, casting.cantrips) : [],
     spells: casting ? pickSpells(raw.spells, l => l >= 1 && l <= casting.maxSpell(level), casting.prepared(level)) : [],
-    weapons: [...new Set((raw.weapons ?? []).filter(w => WEAPONS.includes(w)))].slice(0, 3).concat(raw.weapons?.some(w => WEAPONS.includes(w)) ? [] : kit.weapons),
-    armor: raw.armor && raw.armor !== "none" && armorOk(raw.armor) ? raw.armor : raw.armor === "none" ? "none" : kit.armor,
+    weapons: weapons.length ? [...new Set(weapons)].slice(0, 3) : kit.weapons,
+    armor: armor && armor !== "none" && armorOk(armor) ? armor : armor === "none" ? "none" : kit.armor,
     shield: (raw.shield ?? kit.shield) && armorProf.some(p => p.toLowerCase().includes("shield")),
+    ...(style && styleOptions(classId, content).includes(style) ? { style } : {}),
   };
 }
 
@@ -288,7 +353,10 @@ export async function createCharacter(state: SessionState, level = 3, given?: Pa
   // A ready-made build (a pregenerated character) skips the model; otherwise it's asked for one.
   let raw: Partial<Build> = given ?? {};
   if (!given) try { raw = await chooseBuild(`${state.player.name}: ${state.player.concept}`, level, content); } catch { /* the class defaults stand in */ }
-  const build = settleBuild(raw, level, content);
+  const settled = settleBuild(raw, level, content);
+  // A chosen build without a Fighting Style gets the one that fits its weapons (a ready-made build keeps the engine's first).
+  const style = given || settled.style ? undefined : styleFor(settled, content);
+  const build = style ? { ...settled, style } : settled;
   const cls = content.classes.get(build.classId)!;
   const scores = Object.fromEntries(ABILITIES.map(a => [a, STANDARD_ARRAY[build.abilities.indexOf(a)] ?? 10])) as Record<Dnd.Ability, number>;
   // Background ability increases (2024): +2 and +1 among the background's three, to the ones that matter most.
@@ -319,7 +387,7 @@ export async function createCharacter(state: SessionState, level = 3, given?: Pa
   const shield = gear.find(g => g.definitionId === "shield");
   if (shield) equip(shield.id, "shield");
   // Preferences in order: what the build asked for, then its abilities for any score increases.
-  const prefer = [...build.skills, build.feat, build.subclassId, ...build.cantrips, ...build.spells, "medium", "ability-score-improvement",
+  const prefer = [...build.skills, build.feat, build.subclassId, ...(build.style ? [build.style] : []), ...build.cantrips, ...build.spells, "medium", "ability-score-improvement",
     ...build.abilities.flatMap(a => [a.toLowerCase(), ABILITY_NAME[a as Dnd.Ability].toLowerCase()])].filter(Boolean).map(k => k.toLowerCase());
   offerClassSkills(ctx, pc.id, build.classId, build.backgroundId);
   ctx.apply(engine.plan.offerCharacterChoices(ctx.campaign.state, { characterId: pc.id }).events);
@@ -393,6 +461,25 @@ function grantResources(ctx: Ctx, pcId: string): void {
   ctx.campaign = loadWellFormed(ctx.E, JSON.stringify(raw), ctx.engine);
 }
 
+/**
+ * What the dice add to a weapon attack's damage that the engine's sheet leaves out: its effect
+ * stack's damage modifiers, asked as its attack planner asks them (Dueling's +2 with a melee weapon
+ * and no weapon in the other hand, a magic bow's), so the sheet and a build's card say what lands.
+ */
+function damageAdded(ctx: Ctx, c: Dnd.EngineCharacter, s: Dnd.CharacterSheet): (a: { attackKind: string; weaponInstanceId?: string; instanceId?: string; properties?: string[]; damage: { type: string } }) => number {
+  const campaign = ctx.campaign.state, content = ctx.engine.content;
+  const stack = ctx.E.buildEffectStack({ character: c, content, itemInstances: campaign.itemInstances, pendingChoices: campaign.pendingChoices, characters: campaign.characters });
+  const offHand = c.equipped.offHand ? content.items.get(campaign.itemInstances[c.equipped.offHand]?.definitionId ?? "") as { itemKind?: string } | undefined : undefined;
+  return a => {
+    const instance = a.weaponInstanceId ?? a.instanceId;
+    const props = a.properties ?? [];
+    // The ability its damage is with, as the engine picks it: Dexterity for a bow, or for a finesse weapon when it's the better.
+    const ability = (a.attackKind === "ranged" && !props.includes("thrown")) || (props.includes("finesse") && s.abilityModifiers.DEX >= s.abilityModifiers.STR) ? "DEX" : "STR";
+    return stack.modifierSum("damage", new Map<string, unknown>([["event.attackKind", a.attackKind], ["bearer.offHandHasWeapon", offHand?.itemKind === "weapon"],
+      ["event.damageType", a.damage.type], ["event.weaponId", instance ? campaign.itemInstances[instance]?.definitionId ?? "" : ""], ["event.damageAbility", ability]]));
+  };
+}
+
 function sheetOf(ctx: Ctx, id: string): Dnd.CharacterSheet {
   const s = ctx.campaign.state;
   return ctx.E.buildCharacterSheet({ character: s.characters[id]!, itemInstances: s.itemInstances, content: ctx.engine.content, characters: s.characters, pendingChoices: s.pendingChoices });
@@ -442,6 +529,7 @@ export async function sheetText(state: SessionState): Promise<string> {
   const content = engine.content;
   // Gear the story has parted them from: off the sheet (a second one of the same kind would stay, but that's rare).
   const goneNames = new Set((state.rules.gone ?? []).map(g => content.items.get(ctx.campaign.state.itemInstances[g]?.definitionId ?? "")?.name).filter((n): n is string => !!n));
+  const added = damageAdded(ctx, c, s);
   const lines = [
     `${c.name}: ${buildLine(ctx, id)}`,
     `AC ${s.ac.total} · HP ${c.hp.current}/${s.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""} · Speed ${s.speeds["walk"] ?? 30} ft · Initiative ${signed(s.initiative.modifier)} · Proficiency ${signed(s.proficiencyBonus)} · Hit Dice ${c.classes.map(k => `${k.hitDiceRemaining}/${k.level} d${content.classes.get(k.classId)?.hitDie ?? "?"}`).join(", ")}`,
@@ -450,7 +538,7 @@ export async function sheetText(state: SessionState): Promise<string> {
     `Skills: ${s.skills.filter(k => k.proficiency !== "none").map(k => `${titleSkill(k.skill)} ${signed(k.modifier)}${k.proficiency === "expertise" ? " (expertise)" : ""}`).join(", ") || "none trained"}`,
     `Other skills: ${s.skills.filter(k => k.proficiency === "none").map(k => `${titleSkill(k.skill)} ${signed(k.modifier)}`).join(", ")}`,
     `Passive: ${Object.entries(s.passiveScores).map(([k, v]) => `${titleSkill(k)} ${v}`).join(", ")}`,
-    `Attacks: ${s.attacks.filter((a, i) => s.attacks.findIndex(b => b.name === a.name) === i).filter(a => !goneNames.has(a.name)).map(a => `${a.name} ${signed(a.attackBonus)} (${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""} ${a.damage.type})`).join("; ")}`,
+    `Attacks: ${s.attacks.filter((a, i) => s.attacks.findIndex(b => b.name === a.name) === i).filter(a => !goneNames.has(a.name)).map(a => { const m = a.damage.modifier + added(a); return `${a.name} ${signed(a.attackBonus)} (${a.damage.dice}${m ? signed(m) : ""} ${a.damage.type})`; }).join("; ")}`,
   ];
   if (s.spellcasting?.classes.length) {
     const sc = s.spellcasting.classes[0]!;
@@ -466,6 +554,11 @@ export async function sheetText(state: SessionState): Promise<string> {
   lines.push(`Conditions: ${conditions.join(", ") || "none"}${c.heroicInspiration ? " · Heroic Inspiration" : ""}`);
   lines.push(`Equipment: ${s.inventory.items.filter(i => !state.rules!.gone?.includes(i.instanceId)).map(i => `${i.name}${i.equippedSlot ? ` (${i.equippedSlot === "mainHand" ? "in hand" : "worn"})` : ""}`).filter(n => !/^Unarmed/.test(n)).join(", ") || "nothing"}`);
   lines.push(`Languages: ${s.knownLanguages.map(l => l[0]!.toUpperCase() + l.slice(1)).join(", ")}`);
+  const story = storyOf(state).story;
+  if (story) {
+    const traits = ([["Personality", story.personality], ["Ideals", story.ideals], ["Bonds", story.bonds], ["Flaws", story.flaws]] as const).filter(([, v]) => v.length);
+    lines.push(...traits.map(([k, v]) => `${k}: ${v.join("; ")}`), `Backstory:\n${story.backstory.split(/\n+/).map(p => `  ${p.trim()}`).filter(p => p.trim()).join("\n")}`);
+  }
   return lines.join("\n");
 }
 
@@ -526,6 +619,8 @@ export interface SheetData {
   purse: Array<{ name: string; quantity: number }>;
   languages: string[];
   proficiencies: { armor: string[]; weapons: string[]; tools: string[] };
+  /** Their backstory from character creation, and what it says of them (personality, ideals, bonds, flaws). */
+  story?: { backstory: string; personality: string[]; ideals: string[]; bonds: string[]; flaws: string[] };
 }
 
 type Feature = { id: string; name: string; effects?: Array<Record<string, unknown>> };
@@ -660,15 +755,20 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
   if (!state.world && !state.carried && !state.history.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
 
   const held = new Set([c.equipped.mainHand, c.equipped.offHand].filter(Boolean));
+  const added = damageAdded(ctx, c, s);
+  const dice = (d: { dice: string; modifier: number }, plus: number) => `${d.dice}${d.modifier + plus ? signed(d.modifier + plus) : ""}`;
   const attacks = (s.attacks as Array<Dnd.CharacterSheet["attacks"][number] & { weaponInstanceId?: string; versatileDamage?: { dice: string; modifier: number }; range?: { normal: number; long: number }; properties?: string[]; mastery?: string }>)
     .filter((a, i, all) => all.findIndex(b => b.name === a.name) === i)
     .filter(a => (a.weaponInstanceId ? !gone.has(a.weaponInstanceId) : !goneNames.has(a.name)))
-    .map(a => ({
-      name: a.name, kind: a.attackKind, bonus: a.attackBonus, damage: `${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""}`, type: a.damage.type,
-      ...(a.versatileDamage ? { versatile: `${a.versatileDamage.dice}${a.versatileDamage.modifier ? signed(a.versatileDamage.modifier) : ""}` } : {}),
-      ...(a.range ? { range: a.range } : {}), properties: a.properties ?? [], ...(a.mastery ? { mastery: a.mastery } : {}),
-      held: !!a.weaponInstanceId && held.has(a.weaponInstanceId),
-    }));
+    .map(a => {
+      const plus = added(a);
+      return {
+        name: a.name, kind: a.attackKind, bonus: a.attackBonus, damage: dice(a.damage, plus), type: a.damage.type,
+        ...(a.versatileDamage ? { versatile: dice(a.versatileDamage, plus) } : {}),
+        ...(a.range ? { range: a.range } : {}), properties: a.properties ?? [], ...(a.mastery ? { mastery: a.mastery } : {}),
+        held: !!a.weaponInstanceId && held.has(a.weaponInstanceId),
+      };
+    });
 
   const sc = s.spellcasting?.classes[0];
   // Their numbers for a spell's details, and what the engine adds to their spells.
@@ -715,7 +815,14 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
       weapons: prof.weapons.map(w => capitalise(w.replace(/^martial-(\w+)$/, "martial ($1)"))),
       tools: [...new Set(prof.tools.map(toolName))],
     },
+    ...storyOf(state),
   };
+}
+
+/** The backstory part of the sheet, when there is one. */
+function storyOf(state: SessionState): Pick<SheetData, "story"> {
+  const b = state.player.backstory;
+  return b?.text.trim() ? { story: { backstory: b.text.trim(), personality: b.personality, ideals: b.ideals, bonds: b.bonds, flaws: b.flaws } } : {};
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import { castSpell, comeTo, jump, levelUp, passTime, rest, skillCheck, useFeatur
 import { describeRoll } from "../../../runtime/dice.ts";
 import type { Skill } from "../../../runtime/scene.ts";
 import { T } from "../../map/tiles.ts";
-import { BUILDS, wear, wearing } from "../builds.ts";
+import { BUILDS, inRobes, wear, wearing } from "../builds.ts";
 import { feet, marks, rect, type Ctx, type Exhibit, type Outcome, type Trigger, type Wing } from "../model.ts";
 import { cast, floorFor, strike, told } from "./common.ts";
 import { toHall } from "./hall.ts";
@@ -71,7 +71,7 @@ async function leap(z: Ctx, feetOver: number, runUp: boolean, landing: { x: numb
 /** The costume rail: the same robes as the hall's wardrobe, for the class features. */
 const rail = (id: string): Trigger => ({
   id: `rail-${id}`, label: `Put on ${BUILDS[id]!.robes} from the rail`, at: at["4"]!, ...(id === "fighter" ? { station: station("the costume rail", "▥", "#a07a52") } : {}),
-  when: z => wearing(z.session) !== id, expect: ["poof"],
+  when: z => !inRobes(z.session, id), expect: ["poof"],
   run: async z => ({ text: `You put on ${BUILDS[id]!.robes}. ${await wear(z.session, id, z.world)}`, cues: [{ kind: "effect", effect: "poof", at: { id: "player" }, radius: 2 }] }),
 });
 

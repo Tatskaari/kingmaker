@@ -42,7 +42,7 @@ Memories aren't here. They're written in play, into each game's copy, beside the
 | The docs store ([src/lore/docs.ts](../src/lore/docs.ts)) | Everything: `readDoc` tries a game's copy first, then lore/; `characterEntry` scans the `private.md` files for their `character` ids, once per process |
 | Disclosure ([src/lore/disclosure.ts](../src/lore/disclosure.ts)) | Each person's `private.md` and the notes it links to; the scene's `lore` docs for the GM |
 | The review agents ([src/lore/reviews.ts](../src/lore/reviews.ts)) | Search, read, edit and create, with their edits in the game's copy |
-| The boundary ([src/runtime/engine.ts](../src/runtime/engine.ts)) | `World/Fronts.md` (a scene's `fronts`), in the game's copy |
+| The boundary ([src/runtime/engine.ts](../src/runtime/engine.ts)) | `World/Fronts.md` (a scene's `fronts`), in the game's copy; and the "What they do next" section of the `gm.md` of each of the last scene's people who are in the scenes to come (`errandsOf`): what they do in the time between, which is how the player can hear where the story goes next |
 | Talks ([scenes/talk.ts](../scenes/talk.ts), [src/runtime/talk.ts](../src/runtime/talk.ts)) | A companion's `private.md` (their voice) and `public.md` (their look), their `knowledge/` notes, and `gm.md` (to judge which story is the deepest) |
 | Scenes ([scenes/](../scenes/)) | Name docs in their `lore` and `fronts` |
 | The fights' AI ([src/game/combat/ai.ts](../src/game/combat/ai.ts)) | Nothing at run time: it's coded from Sallow's and the Crakes' `gm.md`, so a change to how they fight there needs a change there too |

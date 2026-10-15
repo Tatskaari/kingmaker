@@ -47,11 +47,14 @@ export const BUILDS: Record<string, ZooBuild> = {
   },
 };
 
-/** The build the visitor is wearing now, by its class. */
+/** The build the visitor is wearing now, by its class (a class feature's to ask: the tailor's fighter has Second Wind too). */
 export function wearing(session: SessionState): string | undefined {
   const line = session.player.build ?? "";
   return Object.values(BUILDS).find(b => new RegExp(`\\b${b.build.classId}\\b`, "i").test(line))?.id;
 }
+
+/** Are these the robes the visitor has on (the wardrobe's and the rail's to ask)? A tailor's cut of the same class isn't them. */
+export const inRobes = (session: SessionState, id: string): boolean => session.player.concept === BUILDS[id]?.concept;
 
 /**
  * Become another build: a new character sheet from the engine (the same name; the build's concept),

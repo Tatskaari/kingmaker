@@ -13,7 +13,7 @@ visibility: "gm"
 - **Tell**: lavender. The more frightened he is, the more he dabs, and the more polite he gets.
 
 ## His shadow, before he's met
-The flower smell in the loft (Cob); the crown in Moll's fist, office silver; his name on Tull's order; "Master", and a stop, from Hobb; heron pennies in Nan's jar and on Dilly's table; the quart Nan won't sell. If he's wary, the Crakes on the wharf with a lantern before midnight, and two lanterns at the Heron's land door where there's usually one.
+The flower smell in the loft (Cob); the crown in Moll's fist, office silver; his name on Tull's order; a gentleman with a silver-topped cane beside the flour wagons at noon, with a big man nursing a bandaged hand at his elbow (Kell sees them, and follows the big man); "Master", and a stop, from Hobb; heron pennies in Nan's jar and on Dilly's table; the quart Nan won't sell. If he's wary, the Crakes on the wharf with a lantern before midnight, and two lanterns at the Heron's land door where there's usually one.
 
 ## The racket
 - King's Road grain wagons bound for the palace are written off in the Royal Granary Roll as "lost to goblins", each countersigned "J. Sallow, for the Royal Purveyor". The grain goes to the Heron warehouse by night, still in the palace's wheat-ear sacks, is re-sacked under the heron mark of a Saltmere grain factor and sold downriver.
@@ -34,12 +34,13 @@ The flower smell in the loft (Cob); the crown in Moll's fist, office silver; his
 - That Scrope, who keeps the true book, was Prout's oldest friend.
 - That Prout wrote to the King first, and that a watch sergeant sent him to the palace.
 - That the goblins know him by his lavender water, that Snikkit saw the grey hood, and that Gubbin kept the courier's letters for the seals.
-- How frightened Hobb is, how much he's drinking, and how many people have noticed the hand.
+- How frightened Hobb is, how much he's drinking, and how many people have noticed the hand: among them a watch sergeant eating a pie with the granary porters at noon, who followed Hobb down to the Drowned Rat.
 - That the Marshal remembers every change to the order of procession, and who asked for it.
 
 ## What he does next, if nobody stops him
 Nobody acts on what they couldn't know: each step needs the news to have reached him. [What's in motion](../../World/Fronts.md) has the same steps as the city sees them, ticked as play makes them true.
 - **The morning**: at his desk in the palace back courts with the feast's grain accounts, the Captain's order signed at his request.
+- **The noon bell**: he walks beside his flour wagons through the granary quarter, up to the palace for the feast under wheat-ear canvas, with Hobb at his elbow (he likes a big man behind him, and never thinks what a bandaged hand looks like beside him). Where the wagons turn up the hill he sends Hobb off to drink until the night's work, and goes on to the palace.
 - **If Prout goes into the Captain's book as a murder, with no granary child taken in for it**: by the afternoon bells the Captain mentions it to him at the palace, without fuss. He's wary, not warned: he knows a sergeant signed the clerk in for the King's investigator, not what they have. Before the tenth bell he sends the Crakes down the river stairs to find out who's been asking after his porter (they're barred from the Rat, so they ask at the pump on the stairs); before midnight they walk the wharf with a lantern, and there are two lanterns at the Heron's land door.
 - **If anyone shows a wheat-ear crown or says "Silvertop" where the office will hear of it** (the palace, the kitchens, the Corn Exchange): he learns a granary girl kept his coin, and sends his lantern-boy to find out which one. A Crake asks after "the girl in the shawl" in the granary quarter.
 - **If Hobb runs to him from the Rat**: he knows the King's investigator and a watch sergeant are asking about the loft. He comes to the Heron at the bell sharp and hurrying, with Hobb at his heels, wants the true book sewn into oilcloth and aboard the barge first, and decides Hobb is a loose end: when the last sack is down, the Crakes walk Hobb home along the wharf, by the water.

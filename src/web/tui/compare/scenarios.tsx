@@ -117,6 +117,68 @@ export const synthetic: Scenario[] = [
     node: () => <box border title=" say " height={3} width={30}><input value="" placeholder="Say it" focused /></box>,
     steps: [{ type: "The quick brown fox jumps over the lazy dog and keeps going" }],
   },
+  // The multi-line box (the backstory's): its placeholder wrapped, text typed until it wraps and
+  // scrolls, a click that puts the cursor in the text and what's typed there (the view holds still
+  // while a click's selection holds), moves by visual line, the wheel, and its colours.
+  {
+    name: "textarea placeholder", width: 40, height: 8,
+    node: () => <box width={40} height={8} backgroundColor="#15131a" flexDirection="column">
+      <box border borderStyle="rounded" borderColor="#c9a24a" title=" Your backstory " height={6} width={30} paddingX={1}>
+        <textarea placeholder="Where you're from, what you owe, who you've lost, why you took this case." placeholderColor="#5c564d" textColor="#ddd5c4" focused />
+      </box>
+      <text fg="#5c564d">under it</text>
+    </box>,
+  },
+  {
+    name: "textarea typed, wrapped and scrolled", width: 40, height: 9,
+    node: () => <box width={40} height={9} backgroundColor="#15131a" flexDirection="column">
+      <box border title=" story " height={7} width={30} paddingX={1}>
+        <textarea placeholder="Write it here" textColor="#ddd5c4" focused />
+      </box>
+      <text>below</text>
+    </box>,
+    steps: [{ type: "I grew up on the wharves of Caerwyn, mending nets for the Bargee's Guild until the river took my father." }, { keys: ["RETURN"] }, { type: "Second para. More words here to wrap around the box edge and beyond, and on." }],
+  },
+  {
+    name: "textarea click, type, move", width: 40, height: 8,
+    node: () => <box width={40} height={8} backgroundColor="#15131a" flexDirection="column">
+      <box border title=" story " height={6} width={30} paddingX={1}>
+        <textarea initialValue={"Short.\nSecond line here, long enough to wrap round the edge of the box twice over at least, and then some more words after that to make it scroll."} textColor="#ddd5c4" focused />
+      </box>
+      <text>below</text>
+    </box>,
+    steps: [{ click: [5, 4] }, { type: "QRS" }, { keys: ["ARROW_LEFT"] }, { type: "x" }, { click: [4, 1] }, { type: "T" }, { keys: ["BACKSPACE"] }, { click: [5, 2] }, { keys: ["RETURN"] }],
+  },
+  {
+    name: "textarea down, up, end, home", width: 40, height: 8,
+    node: () => <box width={40} height={8} backgroundColor="#15131a" flexDirection="column">
+      <box border title=" story " height={6} width={30} paddingX={1}>
+        <textarea initialValue={"Café owner’s son.\nSecond line here, long enough to wrap round the edge of the box twice over at least, and then some more words after that to make it scroll, and scroll again."} textColor="#ddd5c4" focused />
+      </box>
+    </box>,
+    steps: [{ keys: ["ARROW_RIGHT", "ARROW_RIGHT", "ARROW_RIGHT", "ARROW_RIGHT", "ARROW_RIGHT"] }, { keys: ["ARROW_DOWN", "ARROW_DOWN", "ARROW_DOWN", "ARROW_DOWN", "ARROW_DOWN"] }, { type: "!" }, { keys: ["ARROW_UP", "ARROW_UP", "ARROW_UP"] }, { type: "?" }, { keys: ["END"] }, { type: "#" }, { keys: ["HOME"] }, { type: "@" }],
+  },
+  {
+    name: "textarea wheel", width: 40, height: 8,
+    node: () => <box width={40} height={8} backgroundColor="#15131a" flexDirection="column">
+      <box border title=" story " height={6} width={30} paddingX={1}>
+        <textarea initialValue={"One.\nTwo.\nThree.\nFour.\nFive.\nSix.\nSeven.\nEight, and a line long enough to wrap round.\nNine."} textColor="#ddd5c4" focused />
+      </box>
+    </box>,
+    steps: [{ scroll: [5, 3, "down"] }, { scroll: [5, 3, "down"] }, { scroll: [5, 3, "down"] }, { type: "a" }, { scroll: [5, 3, "up"] }, { type: "b" }],
+  },
+  {
+    name: "textarea colours, focused and not", width: 40, height: 9,
+    node: () => <box width={40} height={9} backgroundColor="#15131a" flexDirection="column">
+      <box border title=" focused " height={4} width={30}>
+        <textarea initialValue="It has the keys." textColor="#8a8273" focusedTextColor="#ddd5c4" backgroundColor="#1b1922" focusedBackgroundColor="#3b3550" focused />
+      </box>
+      <box border title=" not " height={4} width={30}>
+        <textarea initialValue={"It hasn't.\nTwo lines."} textColor="#8a8273" focusedTextColor="#ddd5c4" backgroundColor="#1b1922" focusedBackgroundColor="#3b3550" />
+      </box>
+    </box>,
+    steps: [{ type: " More." }],
+  },
   {
     name: "ascii font", width: 80, height: 8,
     node: () => <box width={80} height={8} alignItems="center" justifyContent="center" backgroundColor="#15131a">

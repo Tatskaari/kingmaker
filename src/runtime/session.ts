@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RollResult } from "./dice.ts";
-import type { Beat, Skill, Transition } from "./scene.ts";
+import type { Beat, Essential, Skill, Transition } from "./scene.ts";
 import type { Operation } from "../world/dsl.ts";
 import { untangle, type Entity, type SceneWorld } from "../world/scene-world.ts";
 
@@ -14,6 +14,24 @@ export interface PlayerCharacter {
   modifiers: Partial<Record<Skill, number>>;
   /** Their D&D build in a line ("human rogue 3 (thief), criminal background"), when the rules engine made the sheet. */
   build?: string;
+  /** Their own backstory, from character creation (src/lore/backstory.ts): the sheet shows it, and the GM knows it. */
+  backstory?: Backstory;
+}
+
+/**
+ * The player's backstory, written (or drafted, or worked in from their notes) at character
+ * creation and checked against the world's lore: the whole of it, and what it says of them. It
+ * changes no mechanics (the background chosen with the build does that).
+ */
+export interface Backstory {
+  /** The whole of it, in the player's words (with any lore fix they accepted). */
+  text: string;
+  /** Who they are, in a sentence or two (in the third person): what every GM brief says of them. */
+  summary: string;
+  personality: string[];
+  ideals: string[];
+  bonds: string[];
+  flaws: string[];
 }
 
 /** D&D mechanics (src/rules/dnd.ts): the engine's campaign, and who in the story it has given stats. */
@@ -66,7 +84,7 @@ export interface TurnMetric {
   calls: number;
 }
 
-/** Changes made to the scene's prep during play (the co-GM's, a talk's), kept separate from authored data. */
+/** Changes made to the scene's prep during play (the co-GM's, a talk's, the boundary's), kept separate from authored data. */
 export interface ScenePatch {
   turn: number;
   /** Improvised beat bridging back to the authored ones. */
@@ -77,6 +95,11 @@ export interface ScenePatch {
   cast?: { id: string; secrets: string[] };
   /** A route ruled out (a considered ruling's outcome): gone from that beat ("*": from anywhere) for the rest of the scene. */
   close?: { beat: string; id: string };
+  /**
+   * An essential the boundary brought over from an earlier scene, where the player missed it (its
+   * `missed` says which): this scene's own prep for it, or the boundary's placing of it here.
+   */
+  essential?: Essential;
   why: string;
 }
 
@@ -104,6 +127,31 @@ export interface RulingRecord {
   changed: string;
   costUsd: number;
   latencyMs: number;
+}
+
+/**
+ * What the story still owes the player: an essential of a scene already over that the rest of the
+ * story needs (`later`), which they didn't come across there. It goes from boundary to boundary
+ * until they do (src/runtime/owed.ts).
+ */
+export interface Owed {
+  /** The scene it was placed in, and its id there ("hanged-clerk", "page"). */
+  from: string;
+  id: string;
+  /** The essential as that scene wrote it. */
+  essential: Essential;
+  /** The player has had a sign of it already (a reply pointed towards it): nobody points at it again. */
+  hinted?: boolean;
+  /**
+   * The things it's in, as the last world they were in left them, when someone has them: each
+   * with what's inside it, the outermost held by its holder (`parent`, a cast id). They go with
+   * their holder into each next scene's world (the page is still in the boot, on Cob's feet).
+   */
+  things?: Entity[];
+  /** Who has its things now (cast ids, or "player"). */
+  holders?: string[];
+  /** Where it is now, in a few words, for the boundary ("a folded page sewn into the left boot's lining, in Prout's good black boots, with Cob"). */
+  where?: string;
 }
 
 /** How far someone has opened up about what they're keeping back (staged secrets): it never goes back. */
@@ -235,6 +283,8 @@ export interface SessionState {
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */
   carried?: Entity[];
+  /** What the story still owes the player from scenes already over (kept across scenes, and a talk's). */
+  owed?: Owed[];
   /** A word with a companion between scenes, in progress (the scene the story is heading for waits). */
   talk?: TalkState;
   /** Each companion's talks with the player so far, by cast id. */

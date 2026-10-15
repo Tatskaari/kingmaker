@@ -1,3 +1,4 @@
+import type { Build } from "../../rules/dnd.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import type { Dressing } from "../look/stage.ts";
 import type { EffectKind } from "../look/effects.ts";
@@ -172,6 +173,8 @@ export interface ZooState {
   fight?: { arena: string; from: { map: string; at: Tile2 } };
   /** What the screen should show once, beyond the map: the sign just read, in full; The End; the window. */
   show?: Show;
+  /** The tailor's three cuts from a sentence (character creation's three builds), to put one on. */
+  tailor?: { concept: string; cuts: Array<{ build: Build; line: string; plays: string }>; note?: string };
 }
 
 export interface News {

@@ -174,3 +174,4 @@ Prep is written before play. The boundary is where it catches up (`crossBoundary
 1. The hand-off is written, and in parallel the upcoming scenes are checked against what happened. Each scene lists what it `assumes`. A scene whose premise play has already settled is skipped for its `overtaken` target. In arc QA, a climax settled inside the Rat went straight to the King.
 2. The next scene's opening is rewritten to start where the story actually is.
 3. The GM gets a "where the prep is out of date" list that outranks the prep.
+4. The player gets the lead: why they're going where the story goes next, and how the time passed. It's told from what they learned in play and from what the people going on with them did in the time between, as their lore says (Kell's afternoon), in names the player has heard. Without those, a fast model explaining the way on made up a source ("Kell finds a porter's name in the old arrest book") and gave away a name the player couldn't know.

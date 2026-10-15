@@ -1,13 +1,14 @@
 import { sceneById } from "../../../../scenes/index.ts";
 import { sessionSpend } from "../../../llm/openrouter.ts";
+import { threeBuilds } from "../../../rules/builds.ts";
 import { sheetText, createCharacter } from "../../../rules/dnd.ts";
 import type { SessionState } from "../../../runtime/session.ts";
 import { setGlyphSet, glyphSet, type GlyphSet } from "../../look/glyphs.ts";
 import { T } from "../../map/tiles.ts";
 import type { StoryState } from "../../types.ts";
 import { exploreState } from "../../town.ts";
-import { BUILDS, refit, wear, wearing, ZOO_LEVEL } from "../builds.ts";
-import { feet, marks, rect, type Exhibit, type Trigger, type Wing } from "../model.ts";
+import { BUILDS, inRobes, refit, wear, ZOO_LEVEL } from "../builds.ts";
+import { feet, marks, rect, zooOf, type Exhibit, type Trigger, type Wing } from "../model.ts";
 import { firstMorningText } from "../window.ts";
 
 /**
@@ -90,12 +91,38 @@ const sign = (id: string, mark: string, title: string, shows: string[], text: st
 
 const wardrobe: Trigger[] = Object.values(BUILDS).map(b => ({
   id: `wear-${b.id}`, label: `Put on ${b.robes} (become ${b.name})`, at: at.W!, station: { name: "the wardrobe", glyph: "▥", color: "#a07a52" },
-  when: z => wearing(z.session) !== b.id,
+  when: z => !inRobes(z.session, b.id),
   run: async z => {
     const line = await wear(z.session, b.id, z.world);
     return { text: `You put on ${b.robes}. The rules engine makes you over: ${line}`, cues: [{ kind: "effect", effect: "poof", at: { id: "player" }, radius: 2 }] };
   },
 }));
+
+const ORDINAL = ["first", "second", "third"];
+
+/**
+ * The tailor: character creation's three builds from a sentence (one model call, each made legal by
+ * the engine; offline, the class defaults the sentence's words suggest), as three cuts to put on.
+ */
+const tailor: Trigger[] = [{
+  id: "tailor", label: "Have the tailor measure you for three cuts, from a sentence", at: "tailor",
+  run: async z => {
+    const offer = await threeBuilds(z.session.player.name, TAILORED, ZOO_LEVEL);
+    zooOf(z.game).tailor = { concept: TAILORED, cuts: offer.options.map(o => ({ build: o.build, line: o.line, plays: o.plays })), ...(offer.note ? { note: offer.note } : {}) };
+    const cuts = offer.options.map((o, i) => `${i + 1}) ${o.line}: ${o.plays}`).join(" ");
+    return { text: `"A retired lighthouse keeper," says the tailor, through the pins, "with a lantern and a bad knee." He holds up three cuts, as character creation offers three builds: ${cuts}${offer.note ? ` (${offer.note})` : ""} Put one on, from the tailor's menu.`, cues: [{ kind: "effect", effect: "sparks", at: { id: "tailor" }, color: "#e8d8a0", amount: 0.4 }] };
+  },
+}, ...[0, 1, 2].map((i): Trigger => ({
+  id: `tailor-cut-${i + 1}`, label: `Put on the tailor's ${ORDINAL[i]} cut`, at: "tailor",
+  when: z => !!zooOf(z.game).tailor?.cuts[i],
+  run: async z => {
+    const cut = zooOf(z.game).tailor!.cuts[i]!;
+    z.session.player.concept = zooOf(z.game).tailor!.concept;
+    const line = await createCharacter(z.session, ZOO_LEVEL, cut.build);
+    refit(z.session, z.world);
+    return { text: `You put on the tailor's ${ORDINAL[i]} cut. The rules engine makes you over: ${line}`, cues: [{ kind: "effect", effect: "poof", at: { id: "player" } }] };
+  },
+}))];
 
 export const hall: Wing = {
   id: "zoo-hall",
@@ -139,16 +166,8 @@ export const hall: Wing = {
     sign("title-screen", "b", "The title screen", ["The title screen"],
       "KINGMAKER in block letters, a tagline, and the games you can carry on with (x on one, twice, sends it to runs/deleted/). The zoo has its own line there, and its visits are kept apart from the story's saves: a zoo visit is never offered as a game to Continue, and the story never sees the zoo."),
     sign("wardrobe", "c", "The wardrobe", ["Character creation", "Making a character"],
-      "Who you are is a build: class, species, background, the standard array, skills, an origin feat, spells and kit, made legal by the rules engine and levelled to five. In the story one model call picks the build from a sentence about you; offline the class defaults stand in, which is why so many investigators turn out to be human rogues. Here the robes are ready-made: put some on and you are that build, with its spells and nobody else's. The tailor makes you from a sentence, when the model is about.",
-      [...wardrobe, {
-        id: "tailor", label: "Have the tailor make you from a sentence", at: "tailor",
-        run: async z => {
-          z.session.player.concept = TAILORED;
-          const line = await createCharacter(z.session, ZOO_LEVEL);
-          refit(z.session, z.world);
-          return { text: `"A retired lighthouse keeper," says the tailor, through the pins, "with a lantern and a bad knee." The rules make the rest: ${line}`, cues: [{ kind: "effect", effect: "poof", at: { id: "player" } }] };
-        },
-      }], true, { tour: ["tailor", "wear-fighter", "wear-rogue", "wear-cleric", "wear-barbarian", "wear-bard", "wear-sorcerer", "wear-wizard"] }),
+      "Who you are is a build: class, species, background, the standard array, skills, an origin feat, spells and kit, made legal by the rules engine and levelled to five. In the story one model call offers three builds from a sentence about you, as cards (how each would play, its hit points, armour and main attack or spells), and you take one or make your own from the SRD's lists; then you write your backstory (or have one drafted, or your notes worked in), it's checked against the world's lore, and the GM is told who you are. Offline the three are the class defaults your words suggest. Here the robes are ready-made: put some on and you are that build, with its spells and nobody else's. The tailor measures you for three cuts from a sentence, the way the story does, and you put one on.",
+      [...wardrobe, ...tailor], true, { tour: ["tailor", "tailor-cut-2", "wear-fighter", "wear-rogue", "wear-cleric", "wear-barbarian", "wear-bard", "wear-sorcerer", "wear-wizard"] }),
     sign("sheet", "d", "Your character sheet", ["The character sheet"],
       "c on the map (s in a fight, /sheet in a scene) shows everything the engine knows about you, laid out: hit points, abilities, skills, attacks, spells with their slots, features, what you carry and the purse, with a portrait for each class. On a small screen it's in pages. The mirror beside this sign reads you the short version.",
       [{

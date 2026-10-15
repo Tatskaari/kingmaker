@@ -131,13 +131,17 @@ export function Keys({ items, gap = "  ·  " }: { items: KeyHint[]; gap?: string
 /**
  * Something to click: it lights up under the mouse (`onHover`: and says so), and a left click on it
  * (pressed and let go on it) does it. On the letting go, so the screen it leads to doesn't get half
- * a click.
+ * a click. The pointer going from one thing in it to another isn't leaving it: OpenTUI's "out"
+ * reaches it from its children too (as the native renderer re-checks what's under the pointer after
+ * a frame, between a press and its letting go), and a card's click was lost to its own text.
  */
 export function Clickable({ onClick, onHover, children, backgroundColor, ...box }: Omit<BoxProps, "onMouseDown" | "onMouseUp" | "onMouseOver" | "onMouseOut"> & { onClick: () => void; onHover?: () => void; children?: ReactNode }) {
   const [hover, setHover] = useState(false);
   const pressed = useRef(false);
-  return <box {...box} {...(hover ? { backgroundColor: C.highlightBg } : backgroundColor ? { backgroundColor } : {})}
-    onMouseOver={() => { setHover(true); onHover?.(); }} onMouseOut={() => { setHover(false); pressed.current = false; }}
+  const self = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const inside = (e: MouseEvent) => { const b = self.current; return !!b && e.x >= b.x && e.x < b.x + b.width && e.y >= b.y && e.y < b.y + b.height; };
+  return <box {...box} ref={self as never} {...(hover ? { backgroundColor: C.highlightBg } : backgroundColor ? { backgroundColor } : {})}
+    onMouseOver={() => { setHover(true); onHover?.(); }} onMouseOut={(e: MouseEvent) => { if (inside(e)) return; setHover(false); pressed.current = false; }}
     onMouseDown={(e: MouseEvent) => { if (e.button === 0) { e.stopPropagation(); pressed.current = true; } }}
     onMouseUp={(e: MouseEvent) => { if (e.button === 0 && pressed.current) { e.stopPropagation(); pressed.current = false; onClick(); } }}>
     {children}

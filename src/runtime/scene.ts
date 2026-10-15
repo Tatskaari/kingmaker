@@ -87,6 +87,13 @@ export interface Transition {
    * the reply, never offered beforehand as something the player's turn simply achieves.
    */
   given?: boolean;
+  /**
+   * The essential this route brings the player (an id among the scene's essentials). The route is
+   * there only while the scene has it (one prepped for if the player missed it in an earlier scene
+   * is the scene's only when the boundary brings it over), and once the player has come across it,
+   * it isn't offered again.
+   */
+  essential?: string;
 }
 
 export interface Beat {
@@ -121,6 +128,11 @@ export interface Exit {
  * Something the scene needs the player to come across for its endings to be reachable: a clue,
  * a piece of information, an opportunity. Authors say where it was placed; when play goes
  * elsewhere, the GM and co-GM move it to whatever the player is engaging with.
+ *
+ * One the rest of the story needs too (`later`) goes on when the scene ends without the player
+ * coming across it: into the next scene that holds, as one of its essentials, placed where that
+ * scene's people and world can bring it out (src/runtime/owed.ts). A later scene can prep it for
+ * itself (`missed`).
  */
 export interface Essential {
   id: string;
@@ -132,6 +144,23 @@ export interface Essential {
   carriers?: string[];
   /** What it opens up once the player has it. */
   unlocks: string;
+  /**
+   * What later in the story needs it, in a line ("the King's morning needs proof he can hold"). If
+   * the player hasn't come across it by the time this scene ends, the story still owes it them: it
+   * goes on into the next scene that holds, and on again, until they do.
+   */
+  later?: string;
+  /**
+   * The things in this scene's world it's in (their ids: "ledger-page"). They stay where they are:
+   * while it's owed, whoever holds them takes them into the next scene's world.
+   */
+  things?: string[];
+  /**
+   * This scene's own prep for an earlier scene's essential, for if the player missed it there
+   * ("hanged-clerk:page": the scene's id and the essential's). It's this scene's only while that one
+   * is still owed and the boundary judges it can come up here, in place of the boundary's own placing.
+   */
+  missed?: string;
 }
 
 export interface Scene {
@@ -235,5 +264,17 @@ export function validateScene(scene: Scene): string[] {
   }
   for (const t of scene.anytime ?? []) if (t.to && !ids.has(t.to)) problems.push(`anytime.${t.id} -> unknown ${t.to}`);
   for (const c of scene.cast) if (c.enters && !scene.beats.some(b => b.id === c.enters)) problems.push(`${c.id} enters at unknown beat ${c.enters}`);
+  // Essentials: their ids, the routes that bring them, the things they're in, and what they stand for.
+  const essentials = new Set<string>();
+  for (const e of scene.essentials ?? []) {
+    if (essentials.has(e.id)) problems.push(`duplicate essential ${e.id}`);
+    essentials.add(e.id);
+    for (const c of e.carriers ?? []) if (!castIds.has(c)) problems.push(`essential ${e.id} carried by unknown ${c}`);
+    for (const t of e.things ?? []) if (scene.world && !scene.world.things.some(x => x.id === t)) problems.push(`essential ${e.id} is in unknown thing ${t}`);
+    if (e.missed && !/^[\w-]+:[\w-]+$/.test(e.missed)) problems.push(`essential ${e.id} stands for "${e.missed}", not "<scene>:<essential>"`);
+  }
+  for (const t of [...scene.beats.flatMap(b => b.transitions), ...(scene.anytime ?? [])]) {
+    if (t.essential && !essentials.has(t.essential)) problems.push(`${t.id} brings unknown essential ${t.essential}`);
+  }
   return problems;
 }

@@ -31,7 +31,8 @@ const has = (facts: string[], fact: string) => facts.includes(fact);
 /** Kell's one voice line, shared by every scene she's in (her private.md holds the rest). */
 export const KELL_VOICE = "Dry, calm and sparing: short sentences, and 'Noted.' only when something goes in the notebook. Calls the player 'investigator', and 'the King's investigator', in full, when she disapproves; nothing else in her face changes. Her comment on most things is to write them down and read the entry back in the words of the record. 'That's a theory, investigator. I can't arrest a theory.' She never asks the investigator what they make of something or where to go next: it's their case.";
 
-const pageItem = {
+/** The page as an item the player can carry and read (the exit scripts', and the Rat's, if it comes out there). */
+export const pageItem = {
   id: "prout-ledger-page",
   name: "Page from the Royal Granary Roll",
   content: "A dozen grain wagons for the King's Road this past month, each marked 'lost to goblins' and countersigned 'J. Sallow, for the Royal Purveyor'. Beside each, in Prout's small pencil, what the same wagon weighed at the river warehouses two days later. At the foot, underlined: 'Not goblins. Who pays the hedge-folk?'",
@@ -56,6 +57,7 @@ export const hangedClerk: Scene = {
       wants: "To see Prout off that hook as anything but a suicide before the dead-cart comes at noon, without putting a word in her notebook she couldn't swear to; the nearer noon gets, the harder those two pull against each other. To find out whether the King's investigator is worth her notebook. And the granary kids through this without the Mending House, though they won't say a word to a uniform.",
       fears: "A wrong name in her notebook. Prout in the pit by sundown with nobody having looked. The King's investigator turning out to be a bully or a fool.",
       knows: [
+        "She has never met the King's investigator: this morning a palace page came to the watch house for a sergeant to go with them, and the Captain sent her. Whatever they claim, she knows them from today.",
         "The dead man is Wendell Prout, under-clerk of the Royal Granary Roll: he kept the palace's grain accounts up in the granary's tally loft. Fussy, honest, unmarried; no debts, enemies or drink that anyone knows of. The King, apparently, remembers how he took his tea.",
         "The porters found him at first light. The palace had reported him missing the evening before.",
         "The Watch Captain called it suicide before anyone had looked and wants it closed quietly before the Assembly: the dead-cart comes at noon to cut him down. Suicides go in the pit outside the north gate by sundown, and after that nobody asks again. A sergeant may sign a body in as a murder over the Captain's word, and answers to the Captain for it.",
@@ -394,7 +396,11 @@ export const hangedClerk: Scene = {
   ],
   essentials: [
     { id: "not-suicide", what: "Prout didn't hang himself: he was struck and strangled, then hoisted up for show.", placedWith: ["the body (cord mark, the blow to the head)", "Cob's account of the loft", "the scraped heels of Prout's boots"], carriers: ["cob"], unlocks: "Kell treating it as murder" },
-    { id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], carriers: [], unlocks: "the motive, and the name Sallow" },
+    {
+      id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], carriers: [], unlocks: "the motive, and the name Sallow",
+      // Missed here, it goes on with the boots (the Drowned Rat has prep for it: Cob is Nan's pot-boy there).
+      later: "the King's morning needs proof he can hold, and the page is Sallow's countersignature in writing on every 'lost' wagon", things: ["ledger-page"],
+    },
     { id: "silvertop", what: "A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night.", placedWith: ["Cob ('Silvertop')", "Moll, if she cracks"], carriers: ["cob", "moll"], unlocks: "naming Sallow as the man behind it" },
   ],
   world: hangedClerkWorld,
