@@ -7,6 +7,7 @@ import type { SessionState } from "../runtime/session.ts";
 import { startingPurse } from "../world/inventory.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
+import { spellDetails, type Caster, type Names, type SpellDetails } from "./spells.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -484,7 +485,8 @@ export interface SheetData {
     slots: Array<{ level: number; max: number; used: number }>;
     /** A warlock's: all of one level, back on a short rest. */
     pact?: { level: number; max: number; used: number };
-    spells: Array<{ level: number; spells: Array<{ id: string; name: string; ready: boolean; always: boolean; concentration: boolean; ritual: boolean }> }>;
+    /** Each with its details, for when it's picked on the sheet: the card, the game's terms at their numbers, the SRD's words (src/rules/spells.ts). */
+    spells: Array<{ level: number; spells: Array<{ id: string; name: string; ready: boolean; always: boolean; concentration: boolean; ritual: boolean; details?: SpellDetails }> }>;
   };
   /** Class and subclass features to their level, with what was chosen for them and their uses. */
   features: Array<{ name: string; from: string; level: number; choice?: string; uses?: Uses }>;
@@ -670,7 +672,10 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
       ...(pact?.count ? { pact: { level: pact.level, max: pact.count, used: Number(c["pactSlotsUsed"] ?? 0) } } : {}),
       spells: s.spellcasting!.spellsByLevel.filter(g => g.spells.length).map(g => ({ level: g.level, spells: g.spells.map(sp => {
         const def = content.spells.get(sp.spellId);
-        return { id: sp.spellId, name: sp.name, ready: g.level === 0 || sp.prepared || sp.alwaysPrepared, always: sp.alwaysPrepared && g.level > 0, concentration: !!def?.concentration, ritual: !!def?.ritual };
+        return {
+          id: sp.spellId, name: sp.name, ready: g.level === 0 || sp.prepared || sp.alwaysPrepared, always: sp.alwaysPrepared && g.level > 0, concentration: !!def?.concentration, ritual: !!def?.ritual,
+          ...(def ? { details: spellDetails(def, { level: s.totalLevel, saveDC: sc.saveDC, attackBonus: sc.attackBonus }, namesIn(content)) } : {}),
+        };
       }) })),
     } } : {}),
     features, feats, traits, conditions,
@@ -855,6 +860,16 @@ function readySpells(sheet: Dnd.CharacterSheet): SpellChoice[] {
 export async function spellInfo(spellId: string): Promise<Dnd.SpellDef | undefined> {
   const { engine } = await engineFor(0);
   return engine.content.spells.get(spellId);
+}
+
+/** What the mechanics name by id, by the engine's names for them. */
+const namesIn = (content: Dnd.Content): Names => ({ condition: id => content.conditions.get(id)?.name, item: id => content.items.get(id)?.name });
+
+/** A spell's details as the sheet shows them when it's picked (src/rules/spells.ts), for a caster at their numbers. */
+export async function spellCard(spellId: string, caster?: Caster): Promise<SpellDetails | undefined> {
+  const { engine } = await engineFor(0);
+  const spell = engine.content.spells.get(spellId);
+  return spell && spellDetails(spell, caster, namesIn(engine.content));
 }
 
 /** Cast one of the player's spells at story characters (or themselves, or nobody in particular). */

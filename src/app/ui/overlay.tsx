@@ -1,12 +1,12 @@
 import type { MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, Keys, SCROLLBAR, useGame, type KeyHint } from "./common.tsx";
 import { Place } from "./place.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
-import { SheetView } from "./sheet.tsx";
+import { SheetView, type SheetHandle } from "./sheet.tsx";
 
 const HELP: Record<string, string[]> = {
   explore: [
@@ -45,12 +45,13 @@ export function Overlay({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
   const o = game.overlay;
+  const sheet = useRef<SheetHandle>(null);
   useKeyboard(key => {
     const o = game.overlay;
     if (!o || key.defaultPrevented) return;
-    // The sheet takes its own keys (pages, scrolling); these close it.
+    // The sheet takes its own keys (pages, scrolling, a spell picked or open); these close it.
     if (o.kind === "sheet") {
-      if (CLOSE.includes(key.name)) { key.preventDefault(); game.closeOverlay(); }
+      if (CLOSE.includes(key.name) && !sheet.current?.wants(key)) { key.preventDefault(); game.closeOverlay(); }
       return;
     }
     key.preventDefault();
@@ -108,7 +109,7 @@ export function Overlay({ game }: { game: Game }) {
           border borderStyle="double" borderColor={C.borderHot} title=" Character sheet " backgroundColor={C.panel} flexDirection="column" paddingX={1}>
           {o.error || !game.session
             ? <box flexDirection="column" flexGrow={1}><text fg={C.danger} wrapMode="word" flexGrow={1}>{o.error ?? "No character yet."}</text><Keys items={[["Esc", "close"]]} /></box>
-            : <SheetView data={o.sheet} who={game.session.player} width={sw - 4} height={sh - 2} active onClose={close} keys={[["Esc", "close", close]]} />}
+            : <SheetView ref={sheet} data={o.sheet} who={game.session.player} width={sw - 4} height={sh - 2} active onClose={close} keys={[["Esc", "close", close]]} />}
         </box>
       </>;
     }

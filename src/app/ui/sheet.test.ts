@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 process.env.KM_LOOK_MODEL = "off";
-const { carryGear, castSpell, createCharacter, sheetData, useFeature } = await import("../../rules/dnd.ts");
+const { carryGear, castSpell, createCharacter, sheetData, spellCard, useFeature } = await import("../../rules/dnd.ts");
 const { PREGENS } = await import("../../game/combat/pregen.ts");
-const { sheetHeight, sheetPages } = await import("./sheet-layout.ts");
+const { sheetHeight, sheetPages, spellOn, spellPage, spellsOn } = await import("./sheet-layout.ts");
+const { C } = await import("../theme.ts");
 const { PORTRAIT_CLASSES, PORTRAIT_H, PORTRAIT_W, PORTRAITS, portraitCaption, portraitLines } = await import("./portraits.ts");
 import type { SessionState } from "../../runtime/session.ts";
 import type { Row } from "./sheet-layout.ts";
@@ -237,6 +238,93 @@ test("SheetView through OpenTUI: drawn exactly as laid out, and the pages turn w
     assert.match(setup.captureCharFrame(), /Attacks/, `${cls}: → turns the page`);
     await setup.dispose();
   }
+  await unregister();
+});
+
+test("a spell picked, laid out: the card, the game's terms and the SRD's words, at 80x24 and wider", async () => {
+  const d = (await sheetData(await made("wizard")))!;
+  // On the sheet, each spell is something to pick, in reading order, its marks with it.
+  const page = sheetPages(d, { name: "", concept: "" }, 76, 21, { bar: true }).find(p => spellsOn(p.rows).length)!;
+  assert.deepEqual(spellsOn(page.rows).slice(0, 4), ["fire-bolt", "light", "ray-of-frost", "burning-hands"]);
+  assert.equal(page.rows.flat().filter(r => r.spell === "sleep").map(r => r.text).join(""), "Sleep (C)");
+  for (const w of [76, 126]) {
+    const rows = spellPage(spellOn(d, "burning-hands")!, w);
+    for (const r of rows) assert.ok(width(r) <= w, `a row ${width(r)} wide at ${w}: ${plain([r])}`);
+    const text = plain(rows);
+    assert.match(text, /^Burning Hands {2}Level 1 Evocation \(Sorcerer, Wizard\)/);
+    assert.match(text, /Casting time Action · Range Self \(15-foot cone\) · Duration Instantaneous/);
+    assert.match(text, /In this game ─+\nDexterity save, DC 13: 3d6 fire, half as much on a success\nArea: a 15-foot cone from you\nWith a higher slot: \+1d6 fire for each level above 1st/);
+    assert.match(text, /From the SRD 5\.2\.1 ─+ CC BY 4\.0\nA thin sheet of flames shoots forth from you\./);
+  }
+  // Concentration stands out; a ritual says what it costs; the material is there in full.
+  const sleep = spellPage(spellOn(d, "sleep")!, 76);
+  assert.equal(sleep.flat().find(r => r.text === "Concentration")?.fg, C.warn);
+  assert.match(plain(sleep), /Components V, S, M \(a pinch of sand or rose petals\)/);
+  const detect = plain(spellPage((await spellCard("detect-magic", { level: 3, saveDC: 13, attackBonus: 5 }))!, 76));
+  assert.match(detect, /Casting time Action, or as a ritual \(10 minutes longer, no slot\)/);
+  // Nothing to roll: it says so. No SRD text: the rules alone, and nothing in the text's place.
+  assert.match(plain(spellPage((await spellCard("mage-hand"))!, 76)), /In this game ─+\nNo rolls: it does what it says below, as the GM plays it\.\n\nFrom the SRD 5\.2\.1/);
+  const bare = plain(spellPage({ ...(await spellCard("fire-bolt"))!, text: undefined }, 76));
+  assert.match(bare, /Ranged spell attack: 1d10 fire on a hit/);
+  assert.doesNotMatch(bare, /SRD|hurl/);
+  // Tables, lists and a stat block, inside the box.
+  for (const id of ["augury", "teleport", "bestow-curse", "find-steed", "prismatic-spray", "confusion"]) {
+    for (const r of spellPage((await spellCard(id))!, 76)) assert.ok(width(r) <= 76, `${id}: a row ${width(r)} wide: ${plain([r])}`);
+  }
+  assert.match(plain(spellPage((await spellCard("augury"))!, 76)), /Omens\nOmen {10}For Results That Will Be …\nWeal {10}Good/);
+});
+
+test("SheetView: a spell clicked, or picked with ↓ and Enter, shows what it is; Esc or ← Back put the sheet back as it was", async () => {
+  const { register } = await import("tsx/esm/api");
+  const unregister = register();
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
+  const { testRender } = await import("@opentui/react/test-utils");
+  const React = await import("react");
+  const { SheetView } = await import("./sheet.tsx");
+  const state = await made("wizard");
+  const d = (await sheetData(state))!;
+  const handle = React.createRef<import("./sheet.tsx").SheetHandle>();
+  let closed = 0;
+  const setup = await testRender(React.createElement(SheetView, { ref: handle, data: d, who: state.player, width: 76, height: 22, active: true, onClose: () => { closed++; } }), { width: 76, height: 22 });
+  const frame = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+  const page = (f: string) => f.split("\n").slice(0, 21).join("\n");
+  const hints = (f: string) => f.split("\n")[21]!;
+  // A lone Esc reaches the app once the terminal is sure it's not the start of a sequence.
+  const esc = async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 60)); };
+  await frame();
+  setup.mockInput.pressKey("3");
+  const sheet = await frame();
+  assert.match(sheet, /3 Combat · Spells[\s\S]*Burning Hands/);
+  assert.match(hints(sheet), /↑↓ a spell/);
+  // Its spells, drawn a button each, land exactly where they're laid out.
+  const laid = plain(sheetPages(d, state.player, 76, 21, { bar: true })[2]!.rows).split("\n");
+  assert.deepEqual(sheet.split("\n").slice(1, 1 + laid.length).map(l => l.trimEnd()), laid.map(l => l.trimEnd()));
+  // ↓ picks the first spell, and Enter shows it.
+  setup.mockInput.pressArrow("down");
+  assert.match(hints(await frame()), /Enter about it/);
+  setup.mockInput.pressEnter();
+  const fire = await frame();
+  assert.match(fire, /← Back {2}Fire Bolt[\s\S]*In this game[\s\S]*Ranged spell attack, \+5 to hit: 1d10 fire on a hit[\s\S]*You hurl a mote of fire/);
+  assert.match(hints(fire), /Esc back to the sheet/);
+  assert.ok(handle.current!.wants({ name: "c" } as never), "a spell open takes every key");
+  // Esc: the same page as it was, Fire Bolt still picked; Esc again lets it go, and the caller has Esc back.
+  await esc();
+  const back = await frame();
+  assert.equal(page(back), page(sheet), "the sheet as it was");
+  assert.match(hints(back), /Enter about it/);
+  await esc();
+  assert.match(hints(await frame()), /↑↓ a spell/);
+  assert.equal(handle.current!.wants({ name: "escape" } as never), false);
+  // A click on a spell shows it; a click on ← Back puts it away.
+  const rows = sheet.split("\n");
+  const y = rows.findIndex(r => r.includes("Burning Hands"));
+  await setup.mockMouse.click(rows[y]!.indexOf("Burning Hands") + 3, y);
+  const hands = await frame();
+  assert.match(hands, /← Back {2}Burning Hands[\s\S]*Dexterity save, DC 13: 3d6 fire, half as much on a success[\s\S]*A thin sheet of flames/);
+  await setup.mockMouse.click(hands.split("\n")[0]!.indexOf("Back"), 0);
+  assert.equal(page(await frame()), page(sheet), "back as it was");
+  assert.equal(closed, 0);
+  await setup.dispose();
   await unregister();
 });
 
