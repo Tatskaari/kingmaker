@@ -35,6 +35,8 @@ export interface PlaceRegion extends Region {
   lockedAfter?: string;
   /** The outside of a scene's place on another map (the Heron seen from the town): it shows what the scene did to it. */
   exteriorOf?: string;
+  /** What its locked doors say when they're tried (the town's own places have theirs in explore.ts). */
+  locked?: string;
 }
 
 export interface DecorDef {

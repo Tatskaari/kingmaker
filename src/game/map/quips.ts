@@ -12,6 +12,8 @@ export interface QuipMemory {
   quips?: number;
   /** The last one, never said twice running. */
   lastQuip?: string;
+  /** The kinds of wall walked into so far: the first of each kind gets its own line. */
+  styles?: string[];
 }
 
 /** What the player walked into. */
@@ -56,7 +58,23 @@ const WALL_STYLES: Record<string, string[]> = {
   panel: ["The counting-box's panelling. Whatever's counted in there, it isn't you."],
 };
 
-const WINDOWS = ["You press your nose to the glass. Somebody inside presses theirs back. Neither of you learns anything."];
+const WINDOWS = [
+  "You press your nose to the glass. Somebody inside presses theirs back. Neither of you learns anything.",
+  "A window. You can see in, and you can't get in, which is the arrangement windows have with everyone.",
+  "The glass holds. The face behind it draws the curtain, slowly, to make a point.",
+];
+
+/** Fences and hedges aren't walls, and won't be called it. */
+const FENCES = [
+  "A fence, doing the one thing fences do, and doing it well.",
+  "You lean on the fence. The fence leans back.",
+  "The fence is in the way. It's never had a day off, and it isn't starting now.",
+];
+const HEDGES = [
+  "A hedge, thick with sparrows and the Assembly Committee's idea of topiary.",
+  "You walk into the hedge. It keeps a twig, a sparrow's good opinion and a little of your dignity.",
+  "The hedge rustles at you. Something in it disapproves.",
+];
 
 const WATER = [
   "The river is high, fast and freezing. You decide to stay the investigator rather than become evidence.",
@@ -169,7 +187,18 @@ const fill = (line: string, name: string) => line.replace(/\{Name\}/g, capital(n
 /** The house's line for walking into something. */
 export function bumpLine(memory: QuipMemory, bump: Bump): string {
   switch (bump.kind) {
-    case "wall": return quip(memory, [...(bump.terrain === "window" ? WINDOWS : []), ...(WALL_STYLES[bump.style ?? ""] ?? []), ...WALLS]);
+    case "wall": {
+      if (bump.terrain === "window") return quip(memory, WINDOWS);
+      if (bump.terrain === "fence" || bump.style === "fence") return quip(memory, FENCES);
+      if (bump.style === "hedge") return quip(memory, HEDGES);
+      const own = WALL_STYLES[bump.style ?? ""] ?? [];
+      // The first walk into a kind of wall gets its own line (the palace's, the warehouse's); after that, any of the house's.
+      if (own.length && !(memory.styles ?? []).includes(bump.style!)) {
+        memory.styles = [...(memory.styles ?? []), bump.style!];
+        return quip(memory, own, WALLS);
+      }
+      return quip(memory, [...own, ...WALLS]);
+    }
     case "water": return quip(memory, WATER);
     case "tree": return quip(memory, TREES);
     case "edge": return quip(memory, EDGES);
@@ -188,7 +217,10 @@ export function bumpLine(memory: QuipMemory, bump: Bump): string {
 /** The house's line for looking at a bit of the map with nothing on it: a wall, the river, a tree, the ground. */
 export function placeLine(memory: QuipMemory, what: { terrain: string; style?: string }): string {
   const t = what.terrain;
-  if (t === "wall" || t === "window" || t === "fence" || t === "door") return quip(memory, [...(WALL_STYLES[what.style ?? ""] ?? []), ...LOOK_WALL]);
+  if (t === "window") return quip(memory, WINDOWS);
+  if (t === "fence" || what.style === "fence") return quip(memory, FENCES);
+  if (what.style === "hedge") return quip(memory, HEDGES);
+  if (t === "wall" || t === "door") return quip(memory, [...(WALL_STYLES[what.style ?? ""] ?? []), ...LOOK_WALL]);
   if (t === "deep-water") return quip(memory, LOOK_WATER);
   if (t === "tree") return quip(memory, LOOK_TREE);
   return quip(memory, GROUND[what.style && GROUND[what.style] ? what.style : t] ?? GROUND.floor!);

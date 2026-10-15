@@ -743,7 +743,8 @@ function townFight(c: Ctx, tw: TownWorld, fighters: Entity[]): CombatSetup {
     const glyph = twins ? (n === 0 ? letter.toUpperCase() : n === 1 ? letter.toLowerCase() : String(n + 1)) : undefined;
     combatants.push({ id: clean(f.name), castId: f.id, name, side: "enemy", role: statblock === "guard" ? "bruiser" : "brawler", statblock, ...(statblock === "guard" ? { weapon: "spear" } : {}), ...(glyph ? { glyph } : {}), at: tileOfFeet(f.at!) });
   }
-  return { map: tw.map, combatants, seed: (c.session.seed + 7 * (c.session.rollCount + 1)) >>> 0 };
+  // Its lines say where it is ("Palace Street is on fire"), not the Heron.
+  return { map: tw.map, combatants, seed: (c.session.seed + 7 * (c.session.rollCount + 1)) >>> 0, place: whereabouts(c.ex).place };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -33,6 +33,26 @@ export interface ExploreState extends QuipMemory {
   steps: number;
   /** Out of sight (a Stealth check made on the map): until they do something that shows them. */
   hidden?: boolean;
+  /**
+   * Worlds live on maps outside any scene, by map id (the zoo's wings: src/game/zoo): their people
+   * and things are about on the map, in the way and to be looked at, and its puddles and fires lie
+   * on its ground. Each lines up with the region of its map whose sceneId is the world's (roamRegion).
+   * The player is the map's: the world's own player entity isn't drawn.
+   */
+  roam?: Record<string, SceneWorld>;
+}
+
+/** The region a world live on a map lines up with (its sceneId is the world's, and it has a world origin). */
+export function roamRegion(map: TileMap, world: SceneWorld): PlaceRegion | undefined {
+  return (map.regions as PlaceRegion[]).find(r => r.sceneId === world.scene && r.worldOrigin);
+}
+
+/** A map's live world outside a scene, as map actors (its own ids, prefixed with the world's), less any it's asked to leave out. */
+function roamActors(state: ExploreState, map: TileMap, skip?: { x: number; y: number; w: number; h: number }): MapActor[] {
+  const world = state.roam?.[map.id];
+  const region = world ? roamRegion(map, world) : undefined;
+  if (!world || !region) return [];
+  return actorsFromWorld(region, world, { map, player: false }).filter(a => !skip || !inRect(skip, a.at)).map(a => ({ ...a, id: `${world.scene}:${a.id}` }));
 }
 
 export interface MoveResult {
@@ -77,9 +97,12 @@ export function setStory(state: ExploreState, story: StoryState): void {
   syncFollowers(state);
 }
 
-/** Kell walks with the investigator once the granary's done, unless the story has parted them (flags.kell === false). */
+/**
+ * Kell walks with the investigator once the granary's done, unless the story has parted them
+ * (flags.kell === false); or whenever the story says she does (flags.kell === true: the zoo's Kell).
+ */
 function syncFollowers(state: ExploreState): void {
-  const withKell = state.story.played.length > 0 && state.story.flags.kell !== false && state.story.flags.kell !== "absent";
+  const withKell = (state.story.played.length > 0 || state.story.flags.kell === true) && state.story.flags.kell !== false && state.story.flags.kell !== "absent";
   const has = state.followers.some(f => f.id === "kell");
   if (withKell && !has) {
     const at = besideSpot(state, state.map, state.at);
@@ -91,7 +114,7 @@ function syncFollowers(state: ExploreState): void {
 /** A free spot beside a tile for someone walking with the player: standable, empty, not a way out. */
 function besideSpot(state: ExploreState, mapId: string, at: Tile2): Tile2 {
   const map = getMap(mapId);
-  const taken = new Set([...presence(state.story, mapId), ...overlayActors(state.overlay, mapId, state.story.time)].filter(a => a.blocks).map(a => `${a.at.x},${a.at.y}`));
+  const taken = new Set([...presence(state.story, mapId, state.overlay), ...overlayActors(state.overlay, mapId, state.story.time), ...roamActors(state, map)].filter(a => a.blocks).map(a => `${a.at.x},${a.at.y}`));
   const ok = (p: Tile2) => (p.x !== at.x || p.y !== at.y) && walkable(map, p) && !taken.has(`${p.x},${p.y}`) && !map.exits.some(e => e.at.x === p.x && e.at.y === p.y);
   return nearestWalk(map, at, ok, 3) ?? nearestTile(map, at, ok, 3) ?? { ...at };
 }
@@ -106,17 +129,20 @@ function besideSpot(state: ExploreState, mapId: string, at: Tile2): Tile2 {
  */
 export function actorsHere(state: ExploreState, world?: SceneWorld, mapId = state.map): MapActor[] {
   const map = getMap(mapId);
-  // The town as the story has it, what scenes left in their places, and what the rules did to the town's own things since.
-  let actors = withTownChanges(state.overlay, mapId, state.story.time, [...presence(state.story, mapId), ...overlayActors(state.overlay, mapId, state.story.time)]);
+  // The town as the story has it (and the maps that aren't the story's, as whoever registered them has
+  // them), what scenes left in their places, and what the rules did to the town's own things since.
+  let actors = withTownChanges(state.overlay, mapId, state.story.time, [...presence(state.story, mapId, state.overlay), ...overlayActors(state.overlay, mapId, state.story.time)]);
   const live = state.scene && world ? regionForScene(state.scene) : undefined;
   if (live && live.map.id === mapId && world) {
-    // The scene's own world replaces the preview of its place, and has the player in it.
-    actors = actors.filter(a => !a.id.startsWith(`${state.scene}:`));
+    // The scene's own world replaces the preview of its place, and has the player in it. A world
+    // live on the rest of the map (a zoo's wing) stays about outside the scene's place.
+    actors = [...actors.filter(a => !a.id.startsWith(`${state.scene}:`)), ...roamActors(state, map, live.region.rect)];
     const fromWorld = actorsFromWorld(live.region, world, { map });
     const me = fromWorld.find(a => a.kind === "player");
     if (me) { state.at = { ...me.at }; state.map = mapId; }
     return [...actors, ...fromWorld.map(a => (a.kind === "player" ? a : { ...a, id: `${state.scene}:${a.id}` }))];
   }
+  actors.push(...roamActors(state, map));
   // In a scene with a world, Kell is in the world; in one without (the King's morning), she walks in with you.
   for (const f of state.followers) if (f.map === mapId) {
     actors.push({ id: f.id, name: f.name, kind: "person", glyph: f.glyph, color: f.color, map: mapId, at: f.at, ref: f.id, blocks: true,
@@ -289,10 +315,11 @@ const LOCKED: Record<string, string> = {
 
 /** What a locked door says, if it's one with something particular to say (the granary's padlock, the Heron's bar). */
 function placeLocked(map: TileMap, at: Tile2): string | undefined {
-  const near = (map.regions as PlaceRegion[]).filter(r => inRect({ x: r.rect.x - 1, y: r.rect.y - 1, w: r.rect.w + 2, h: r.rect.h + 2 }, at) && LOCKED[r.id]);
+  const line = (r: PlaceRegion) => r.locked ?? LOCKED[r.id];
+  const near = (map.regions as PlaceRegion[]).filter(r => inRect({ x: r.rect.x - 1, y: r.rect.y - 1, w: r.rect.w + 2, h: r.rect.h + 2 }, at) && line(r));
   const region = regionAt(map, at);
-  if (region && LOCKED[region.id]) return LOCKED[region.id]!;
-  if (near[0]) return LOCKED[near[0].id]!;
+  if (region && line(region)) return line(region)!;
+  if (near[0]) return line(near[0])!;
   if (map.id === "drowned-rat") return "The slop hatch. It opens straight onto the river, it's Cob-sized, and the river under it is fast and cold.";
   if (map.id === "heron") return LOCKED["heron-wharf-end"]!;
   if (map.id === "caerwyn" && at.y >= 33 && at.y <= 36) return "A warehouse door, locked, with a notice: NO LOITERING. NO HOOKS. NO QUESTIONS.";
@@ -632,8 +659,12 @@ export function exploreFrame(state: ExploreState, viewport: Viewport, options: R
   const camera = exploreCamera(state, viewport, world, actors);
   const place = state.scene ? regionForScene(state.scene) : undefined;
   const live = place && world && place.map.id === state.map ? { region: place.region, world } : undefined;
-  const worlds = [...overlaySurfaces(state.overlay, map, state.story.time), ...townSurfaces(state.overlay, map, state.story.time), ...(live ? [live] : [])];
-  const hazards = live ? areaHazards(live.region, live.world, map) : undefined;
+  // A world live on the map outside the scene (a zoo's wing): its puddles, smoke and fires too.
+  const roaming = state.roam?.[map.id];
+  const roamed = roaming && roamRegion(map, roaming) ? { region: roamRegion(map, roaming)!, world: roaming } : undefined;
+  // What the rules spilled and scorched on the town's own ground (src/game/town-world.ts) lies there too.
+  const worlds = [...overlaySurfaces(state.overlay, map, state.story.time), ...townSurfaces(state.overlay, map, state.story.time), ...(roamed ? [roamed] : []), ...(live ? [live] : [])];
+  const hazards = mergeHazards([live, roamed].filter((w): w is NonNullable<typeof w> => !!w).map(w => areaHazards(w.region, w.world, map)));
   // In a scene, every room with someone in it opens up, not just the player's.
   const reveal = state.scene ? actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at) : [];
   return {
@@ -660,7 +691,8 @@ export function exploreFrame(state: ExploreState, viewport: Viewport, options: R
  */
 export function exploreCamera(state: ExploreState, viewport: Viewport, world?: SceneWorld, actors = actorsHere(state, world)): Tile2 {
   const place = state.scene ? regionForScene(state.scene) : undefined;
-  if (!place || place.map.id !== state.map) return { ...state.at };
+  // A map with a world of its own about (a zoo's wing) is framed, not followed: see framed.
+  if (!place || place.map.id !== state.map) return state.roam?.[state.map] ? framed(getMap(state.map), state.at, viewport) : { ...state.at };
   const r = place.region.rect;
   const fits = (w: number, h: number) => 2 * (w + h) + 6 <= viewport.w && w + h + 6 <= viewport.h;
   if (fits(r.w, r.h)) return { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
@@ -669,6 +701,37 @@ export function exploreCamera(state: ExploreState, viewport: Viewport, world?: S
 }
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/** The hazards of the worlds on a map (a scene's, a wing's), as one; undefined when there are none. */
+function mergeHazards(all: Array<{ fire: Tile2[]; dust: Tile2[]; scorched: Tile2[] }>): { fire: Tile2[]; dust: Tile2[]; scorched: Tile2[] } | undefined {
+  if (!all.length) return undefined;
+  if (all.length === 1) return all[0];
+  return { fire: all.flatMap(h => h.fire), dust: all.flatMap(h => h.dust), scorched: all.flatMap(h => h.scorched) };
+}
+
+/**
+ * The camera on a small map, all of whose corners matter (a zoo's wing, its exhibits round its
+ * walls): the whole of it when it fits, centred; otherwise following the player, but never leaving
+ * a half-screen of nothing past the map's edge (you come in at a corner, and what's to see is the
+ * other way). The player stays comfortably on screen.
+ */
+function framed(map: TileMap, at: Tile2, viewport: Viewport): Tile2 {
+  const corners = [{ x: 0, y: 0 }, { x: map.width - 1, y: 0 }, { x: 0, y: map.height - 1 }, { x: map.width - 1, y: map.height - 1 }].map(t => ({ col: 2 * (t.x + t.y), row: t.y - t.x }));
+  const me = { col: 2 * (at.x + at.y), row: at.y - at.x };
+  const cx = Math.floor(viewport.w / 2), cy = Math.floor(viewport.h * 0.56);
+  // Where the window starts on the projected plane, along one axis: on the player, then held inside
+  // the map's extent (with room for walls standing up at the far edge), or centred on it if it fits.
+  const axis = (want: number, size: number, lo: number, hi: number) => {
+    const start = want, span = hi - lo;
+    if (span <= size) return lo - Math.floor((size - span) / 2);
+    return Math.max(lo, Math.min(hi - size, start));
+  };
+  const col = axis(me.col - cx, viewport.w, Math.min(...corners.map(c => c.col)) - 2, Math.max(...corners.map(c => c.col)) + 3) + cx;
+  const row = axis(me.row - cy, viewport.h, Math.min(...corners.map(c => c.row)) - 5, Math.max(...corners.map(c => c.row)) + 2) + cy;
+  // Back to a tile (the camera's): the nearest whose projection is that point.
+  const camera = { x: Math.round((col / 2 - row) / 2), y: Math.round((col / 2 + row) / 2) };
+  return keepInView(camera, at, viewport);
+}
 
 /** Move a camera towards someone until they're comfortably on screen. */
 function keepInView(camera: Tile2, who: Tile2, viewport: Viewport): Tile2 {

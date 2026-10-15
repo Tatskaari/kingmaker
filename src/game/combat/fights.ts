@@ -324,5 +324,5 @@ function arenaEncounter(session: SessionState): CombatSetup {
     const label = (e.asset ?? "ruffian").replace(/-/g, " ");
     for (let i = 0; i < rest; i++) combatants.push({ id: `${e.asset ?? "foe"}-${i + 1}`, name: `a ${label}${rest > 1 ? ` (${i + 1})` : ""}`, side: "enemy", role: kind.role, statblock: kind.statblock, ...(kind.weapon ? { weapon: kind.weapon } : {}), at: { x: kind.role === "archer" ? 2 : 5, y: row++ % 7 + 1 } });
   }
-  return { map, combatants: combatants.filter(c => !solid(map, c.at)), sceneId: session.sceneId, seed: (session.seed + 7 * (session.rollCount + 1)) >>> 0 };
+  return { map, combatants: combatants.filter(c => !solid(map, c.at)), sceneId: session.sceneId, seed: (session.seed + 7 * (session.rollCount + 1)) >>> 0, place: "the room" };
 }

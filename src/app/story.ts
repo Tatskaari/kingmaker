@@ -38,7 +38,7 @@ export const ARROW: Record<string, string> = { north: "↖", "north-east": "↑"
  * can't disagree.
  */
 export function leadWay(from: Tile2, lead: { at: Tile2; label: string; via?: string | undefined }): string {
-  return `${lead.via ? `${lead.via}, then on to ` : ""}${lead.label} ${ARROW[direction(from, lead.at)] ?? ""} ${steps(from, lead.at)} paces`.replace(/ {2,}/g, " ");
+  return `${lead.via ? `${lead.via}, then on to ` : ""}${lead.label} ${ARROW[direction(from, lead.at)] ?? ""} ${steps(from, lead.at)} pace${steps(from, lead.at) === 1 ? "" : "s"}`.replace(/ {2,}/g, " ");
 }
 
 /**
@@ -71,6 +71,8 @@ export function epilogue(session: SessionState): Epilogue {
     return { sceneId, title: scene.title, ending: scene.exits.find(e => e.id === exitId)?.title ?? exitId };
   };
   const chapters = session.history.filter(h => !sceneById(h.sceneId).interlude).map(h => chapter(h.sceneId, h.exitId));
-  if (session.ended) chapters.push(chapter(session.sceneId, session.ended.exitId));
+  // The last scene's ending, unless it's on the record already (a hub's scene is, as soon as it's over).
+  const recorded = session.history.at(-1);
+  if (session.ended && !(recorded?.sceneId === session.sceneId && recorded.exitId === session.ended.exitId)) chapters.push(chapter(session.sceneId, session.ended.exitId));
   return { closing: last?.text ?? "And that, as they say in Caerwyn, was that.", chapters, spentUsd: sessionSpend() };
 }

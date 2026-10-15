@@ -7,7 +7,7 @@ import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, unnamed } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { applyOps, areaOf, buildWorld, heldBy, joinWorld, positionOf, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
+import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
@@ -376,7 +376,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.daft && !pre.ooc) directive.push(CONSEQUENCE_DIRECTIVE);
   if (pre.earned && !pre.ooc && !pre.move?.roll) directive.push(EARNED_DIRECTIVE);
   if (pre.pressure && !pre.ooc && !pre.move) {
-    if (pre.pressure.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.pressure.roll, pressureReason(scene, pre.pressure)) });
+    // The dice line names them as the player knows them (the woman with the silver dice, until she's Sal).
+    if (pre.pressure.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.pressure.roll, pressureReason(scene, pre.pressure, state.rules?.aliases ?? unnamed(scene, state))) });
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `pressure:${pre.pressure.target}:${pre.pressure.band}`, source: "pre", ...(pre.pressure.roll ? { roll: pre.pressure.roll } : {}) });
     directive.push(pressureDirective(scene, pre.pressure));
   }
@@ -409,8 +410,14 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // A turn the rules resolve (a spell, a blow, a rest) is already answered: a route the co-GM opens
   // for it waits for the next turn rather than rolling on top of the act.
   const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.mechanic && !pre.limit && !pre.ooc && !ended && pre.offGraph === true;
-  const stall = approach.repair === "stall" && offGraphTurn && !pre.relocate?.length;
-  if (approach.repair === "quick-block" && offGraphTurn && quickEarly) {
+  // A freeform roll has already decided this turn's attempt: a route the co-GM opens for it lands
+  // next turn, rather than rolling again on top of it (one climb, one roll).
+  if (approach.repair === "quick-block" && offGraphTurn && quickEarly && pre.freeform) {
+    const turn = state.turn;
+    void quickEarly.then(r => { if (r) { try { writeRepair(state, { ...r, turn }); } catch { /* best effort */ } } });
+  }
+  const stall = approach.repair === "stall" && offGraphTurn && !pre.relocate?.length && !pre.freeform;
+  if (approach.repair === "quick-block" && offGraphTurn && quickEarly && !pre.freeform) {
     // One coherent reply: wait for the quick co-GM until the deadline (from the start of the turn),
     // re-decide, then answer. A late result lands next turn; the speculative reply stays usable.
     const repairing = quickEarly;
@@ -528,6 +535,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let postDecisionMs = 0;
   let leftPlace = false;
   const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
+  // Whoever came on this turn (a cue's entrance, someone called in) is in the world before the stage
+  // manager reads it: otherwise it makes them again from the reply ("a young man in livery") beside
+  // the cast's own, who joins the world at the end of the turn.
+  if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn);
   // The stage manager keeps the world in step with what the reply established, alongside the decision.
   const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn, {
     rules: state.transcript.filter(e => e.turn === state.turn && e.kind === "roll" && (e.scene ?? state.sceneId) === state.sceneId).map(e => e.text),
@@ -593,7 +604,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (state.world && state.rules) {
     for (const e of Object.values(state.world.entities).filter(x => x.gear)) {
       let holder = e.parent ? state.world.entities[e.parent] : undefined;
-      while (holder && holder.kind !== "person" && holder.kind !== "area" && holder.kind !== "place" && holder.parent) holder = state.world.entities[holder.parent];
+      for (let n = 0; n < 20 && holder && holder.kind !== "person" && holder.kind !== "area" && holder.kind !== "place" && holder.parent; n++) holder = state.world.entities[holder.parent];
       const carried = holder?.player === true && !e.states.includes("destroyed") && !e.states.includes("gone");
       const line = await carryGear(state, e.gear!, carried).catch(() => undefined);
       if (line) push(state, hooks, { speaker: "dice", kind: "roll", text: line });
@@ -684,18 +695,49 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   // What the player carries goes with them into the next scene's world.
   if (state.world) state.carried = carriedBy(state.world.entities, "player");
   delete state.world;
+  freshScene(state, next);
+  Object.assign(state, { adjustments, opening, lead });
+  saveSession(state);
+  return state;
+}
+
+/**
+ * The session starts a scene afresh: nothing of the last scene's own state carries on (its beat and
+ * path, its prep's patches, the co-GM's notes, what was pending). A wind-down or ending pending when
+ * the scene ended (a /end) belongs to that scene, not the next.
+ */
+function freshScene(state: SessionState, next: Scene): void {
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
-    adjustments, opening, lead, fought: [],
+    fought: [],
   });
   delete state.ended;
   delete state.threat;
   delete state.brawl;
-  // A wind-down or ending pending when the scene ended (a /end) belongs to that scene, not the next.
   delete state.closing; delete state.pendingExit; delete state.endingLead;
-  saveSession(state);
-  return state;
+}
+
+/**
+ * A hub's scenes (the zoo's: src/game/zoo): the session plays another scene from its start, as it's
+ * written. Nothing of the last carries on but the player, what they carry, their sheet, the dice and
+ * the record of how scenes ended: no hand-off and no lead, because a hub's scenes are exhibits, not a
+ * story. The scene can be one it has played before.
+ */
+export function openHubScene(state: SessionState, sceneId: string): void {
+  const next = sceneById(sceneId);
+  closeHubScene(state);
+  freshScene(state, next);
+  delete state.adjustments; delete state.opening; delete state.lead;
+}
+
+/**
+ * A hub's scene is over and its map takes over (the explorer has kept what the scene did to its
+ * place): what the player carries comes out of its world, and the world goes.
+ */
+export function closeHubScene(state: SessionState): void {
+  if (state.world) state.carried = carriedBy(state.world.entities, "player");
+  delete state.world;
 }
 
 /**
@@ -704,7 +746,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
  * skipped) and where that scene's prep is out of date. Prep is written before play; this is where
  * it catches up.
  */
-async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[] }> {
+async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[], frontsDoc?: string): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
   const ended = `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
   const story = [
@@ -742,7 +784,7 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     } } },
   }).catch(() => undefined);
   // What's in motion in the world (the GM's fronts), as it stands in this session, moves on here too.
-  const frontsPath = scene.fronts ?? candidates.find(c => c.fronts)?.fronts;
+  const frontsPath = frontsDoc ?? scene.fronts ?? candidates.find(c => c.fronts)?.fronts;
   const fronts = frontsPath ? frontsText(state.id, frontsPath) : undefined;
   const moving = fronts ? moveOn(story, candidates[0]!, fronts) : Promise.resolve(undefined);
   const [text, result, motion] = await Promise.all([handoff, verdict, moving]);
@@ -758,6 +800,21 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const shows = chosen.id === candidates[0]!.id ? motion?.shows ?? [] : [];
   const adjustments = [...(result?.adjustments ?? []).slice(0, 10), ...shows.slice(0, 2)].map(a => a.trim()).filter(Boolean);
   return { handoff: text, sceneId: chosen.id, adjustments, skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved };
+}
+
+/**
+ * The scene boundary, crossed without moving on (the zoo's boundary desk): the hand-off of the scene
+ * the session last played, a next scene's prep checked against what happened (what's out of date,
+ * its opening rewritten, how the player hears of it), and the fronts moved on in the session's copy
+ * of their doc, all exactly as chainScene does them; but the session stays where it is.
+ */
+export async function boundaryPreview(state: SessionState, nextId: string, frontsDoc?: string): Promise<{ handoff: string; adjustments: string[]; opening?: string; lead?: string; fronts: string[] }> {
+  const scene = sceneById(state.sceneId);
+  const exitId = state.ended?.exitId ?? state.history.findLast(h => h.sceneId === scene.id)?.exitId;
+  const exit = scene.exits.find(e => e.id === exitId);
+  if (!exit) throw new Error(`${scene.title} hasn't ended: there's nothing to hand on yet.`);
+  const crossed = await crossBoundary(scene, state, exit, "the party won", [sceneById(nextId)], frontsDoc);
+  return { handoff: crossed.handoff, adjustments: crossed.adjustments, ...(crossed.opening ? { opening: crossed.opening } : {}), ...(crossed.lead ? { lead: crossed.lead } : {}), fronts: crossed.fronts };
 }
 
 /**
@@ -800,10 +857,8 @@ export function transcriptMarkdown(state: SessionState, options: { allScenes?: b
 async function leap(state: SessionState, j: Jumping): Promise<Outcome> {
   const world = state.world;
   const landing = world && j.to ? (j.to.near ?? j.to.area) : undefined;
-  const from = world ? positionOf(world, "player") : undefined;
-  const there = world && landing ? positionOf(world, landing) : undefined;
-  // Landing by something, not in it: the gap is the distance less a stride.
-  const measured = from && there && j.how !== "down" ? Math.max(5, Math.round((Math.hypot(there.x - from.x, there.y - from.y) - 5) / 5) * 5) : undefined;
+  // The gap, as the world has it (the ditch's ten feet, not the walk to its far side): see jumpGap.
+  const measured = world && landing && j.how === "long" ? jumpGap(world, landing, j.over) : undefined;
   const feet = j.how === "high" ? j.feet ?? 5 : measured ?? j.feet ?? 10;
   const drop = j.how === "down" ? Math.max(j.drop, 10) : j.drop;
   const result = j.how === "down"
@@ -919,9 +974,11 @@ function moveToAct(state: SessionState, from: ActFrom, aim: string | undefined):
 }
 
 /** Everything someone holds, and what those things hold. */
-function carriedBy(entities: Record<string, Entity>, holder: string): Entity[] {
+export function carriedBy(entities: Record<string, Entity>, holder: string): Entity[] {
   const out: Entity[] = [];
-  const walk = (id: string) => { for (const e of Object.values(entities).filter(x => x.parent === id && !x.states.includes("gone"))) { out.push({ ...e, notes: e.notes.slice(-2) }); walk(e.id); } };
+  // Each once: a loop in the tree (something inside what it holds) mustn't go round for ever.
+  const seen = new Set<string>([holder]);
+  const walk = (id: string) => { for (const e of Object.values(entities).filter(x => x.parent === id && !x.states.includes("gone") && !seen.has(x.id))) { seen.add(e.id); out.push({ ...e, notes: e.notes.slice(-2) }); walk(e.id); } };
   walk(holder);
   return out;
 }

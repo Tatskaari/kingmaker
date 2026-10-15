@@ -10,13 +10,17 @@ import { asciiMap } from "../world/scene-world.ts";
 import { sessionDir } from "../runtime/session.ts";
 import { transcriptMarkdown } from "../runtime/engine.ts";
 import { sceneById } from "../../scenes/index.ts";
+import { exploreState } from "../game/town.ts";
+import { wingWorld } from "../game/zoo/explorer.ts";
+import { loadZoo, newZoo } from "../game/zoo/game.ts";
 
 /**
  * Headless QA for the playable game (V1's QA console, without the socket): observe the game, then
  * act with an action id from the latest observation ("talk_kell", "go_to_lead"), or, in a scene,
  * say something. State is saved between commands, so each command is its own process. It plays the
  * same game as the terminal app: Caerwyn on the isometric map (src/game/town.ts) and tactical
- * fights on the scene's own place (src/game/fights.ts).
+ * fights on the scene's own place (src/game/fights.ts). Or the zoo (qa new --zoo: src/game/zoo), where
+ * every exhibit's trigger is an action (use_...), kept apart from the story.
  */
 
 const fights = mapFights();
@@ -24,6 +28,7 @@ const fights = mapFights();
 const USAGE = `Kingmaker playable game: headless QA
 
   qa new --session <id> --as "Name: concept" [--level 3] [--seed N]   start a game (builds your D&D character)
+  qa new --session <id> --zoo [--seed N]       visit the zoo instead: every feature laid out to see and try
   qa observe --session <id>                     what you see, and the actions you can take
   qa act --session <id> --id <action id>        take an action from the latest observation (in a talk, say_1... says that line)
   qa say --session <id> <what you say or do>    in a scene: speak (plain words) or act (*asterisks* or (parentheses))
@@ -60,6 +65,13 @@ async function main(): Promise<void> {
   const id = flag(args, "session");
   if (!command || command === "help" || command === "--help" || !id) { console.log(USAGE); return; }
   setCallLog(join(sessionDir(id), "calls.jsonl"));
+  if (command === "new" && args.includes("--zoo")) {
+    const seed = flag(args, "seed");
+    const game = await newZoo({ id, ...(seed ? { seed: Number(seed) } : {}) });
+    console.log(`Zoo visit ${game.state.id}: you are ${game.session.player.name}, ${game.session.player.build}.\n`);
+    print(game.observe(), id);
+    return;
+  }
   if (command === "new") {
     const who = flag(args, "as") ?? "Wren Ashdown: a quick-witted investigator lent to the case by the King";
     const level = Number(flag(args, "level") ?? 3);
@@ -70,7 +82,7 @@ async function main(): Promise<void> {
     return;
   }
   if (!Game.exists(id)) throw new Error(`No game ${id}: start one with qa new --session ${id} --as "Name: concept"`);
-  const game = Game.load(id, town, fights);
+  const game = Game.hubOf(id) === "zoo" ? loadZoo(id) : Game.load(id, town, fights);
   if (command === "observe") { print(game.observe(), id); return; }
   if (command === "act") {
     const action = flag(args, "id");
@@ -111,6 +123,9 @@ async function main(): Promise<void> {
     // The map as the player sees it (in a scene, its place with everyone where they are now), then the scene's world from above.
     console.log(townText(game.state, game.session, { w: Number(flag(args, "w") ?? 100), h: Number(flag(args, "h") ?? 30) }));
     if (game.state.mode === "scene" && game.session.world) console.log(`\n${asciiMap(game.session.world)}`);
+    // A zoo wing's world, from above.
+    const wing = game.state.hub === "zoo" && game.state.mode === "explore" ? wingWorld(game.state, exploreState(game.state).map) : undefined;
+    if (wing) console.log(`\n${asciiMap(wing)}`);
     return;
   }
   if (command === "transcript") { console.log(transcriptMarkdown(game.session, { allScenes: true })); return; }

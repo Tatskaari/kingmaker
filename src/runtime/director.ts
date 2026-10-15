@@ -487,7 +487,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
         cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
         attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
-        grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
+        grapple: "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
         jump: "Jumping: across a gap or over something, up onto something, or down from it.",
         ...(options.rules.features?.length ? { feature: `Using one of their class features: ${options.rules.features.map(f => f.name).join(", ")}.` } : {}),
@@ -683,8 +683,9 @@ const STAKES_GLOSS: Record<string, string> = { guarded: "a sore point", dangerou
 const MODIFIER_GLOSS: Record<string, string> = { strong: "your leverage helps", excellent: "you've given them every reason", weak: "you've given them no reason to", hostile: "they don't trust you", friendly: "they like you" };
 
 /** The dice line's reason: the goal, then what's at stake for them and what helped or hurt (§3.6). */
-export function pressureReason(scene: Scene, p: PressureCheck): string {
-  const name = scene.cast.find(c => c.id === p.target)?.name ?? p.target;
+/** A pressure roll's reason, for its dice line: by what the player calls them, until they've heard their name (`aliases`). */
+export function pressureReason(scene: Scene, p: PressureCheck, aliases: Record<string, string> = {}): string {
+  const name = aliases[p.target] ?? scene.cast.find(c => c.id === p.target)?.name ?? p.target;
   const goal = (PRESSURE_GOAL[p.skill] ?? PRESSURE_GOAL.persuasion!)(name);
   const modifier = MODIFIER_GLOSS[p.approach] ?? MODIFIER_GLOSS[p.disposition];
   const gloss = [STAKES_GLOSS[p.stakes], modifier].filter(Boolean).join("; ");

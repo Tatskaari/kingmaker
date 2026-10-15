@@ -103,6 +103,8 @@ npm run web:static-check -- --live           # also the key from ~/secrets typed
 
 `serve.ts` takes `--port`, `--base` (the path to serve under) and `--dir`. The page takes `?offline`, `?size=130x42`, `?font=17` as the server's does, and `?glyphs=ascii` to draw letters rather than Kingmaker Glyphs.
 
+CI builds it too: `moon.yml`'s `build` is this build, and its `check` is the typecheck, the tests and the screens check (`npm run check`; `.github/workflows/check.yml` runs both).
+
 ### How it works
 
 - **The page** is the server's (`src/web/page`), marked `<html data-mode="static">`. `client.js` then takes `worker-transport.js` instead of the WebSocket. That speaks the server's messages (hello, started, exit, error), so the rest of the page is the same. `fonts.css` and `fonts.json` are made at build time, as the server makes them when asked.
@@ -111,7 +113,7 @@ npm run web:static-check -- --live           # also the key from ~/secrets typed
 - **The game** runs in a Web Worker (`worker.js`, `src/web/static/worker.ts`). It's the real `src/app`, bundled with esbuild, started as `src/app/main.tsx` starts it, on a renderer whose terminal is the page's (`game.tsx`). The page's xterm.js gets its bytes as the worker's messages, and the worker gets the keys, the mouse and resizes back.
 - **OpenTUI** is native code, so the bundle has `src/web/tui` in its place: OpenTUI's renderables (box, text, scrollbox, input, ASCII font), the React reconciler, Yoga layout (yoga-layout's WebAssembly build), and OpenTUI's native painting and diffing, all redone in JavaScript. `@opentui/core` and `@opentui/react` are aliased to it in this bundle only. The terminal game and the server still use OpenTUI. `npm run web:tui-check` renders 42 screens (11 small ones, 31 of the game's) both ways and compares them cell for cell: characters, colours and attributes.
 - **Node**, as far as the game uses it, comes from `src/web/static/node`:
-  - `fs` is a file system in memory. The game's content (`lore/` and `prompts/` Markdown, the rules' starter pack) is mounted read-only from `content.json`, which the build makes from an allowlist. Nothing else from the repo goes in.
+  - `fs` is a file system in memory. The game's content (`lore/` and `prompts/` Markdown, the rules' starter pack, the SRD's spell descriptions in `vendor/srd-spells` for the sheet's spell pages) is mounted read-only from `content.json`, which the build makes from an allowlist. Nothing else from the repo goes in. The scenes (the story's and the zoo's) and the zoo's wings are modules, bundled with the game.
   - `runs/` is writable, and every change to it is written through to IndexedDB within a second, one record a file. It's read back before the game starts. Each place the game is published has a database of its own, named after its path (`kingmaker-v2 /kingmaker/pr-preview/pr-650/`), so a preview's games are its own. Another preview's build might not read them, or might rewrite them as it reads them. (V1 keeps its games in `kingmaker` on the same origin; V2 keeps out of it.)
   - The rest are small: `path`, `os`, `url`, `crypto` (synchronous SHA-1 and SHA-256), `module` (`createRequire` for boardgame.io's CommonJS client), `process` (the environment), `child_process` (which throws).
   - Where these do less than Node, the build checks the game doesn't ask for more (`src/web/static/shims.ts`): it fails if a module it bundles calls `createHash` with a hash `crypto` hasn't got. esbuild already fails it on a missing module or export. Either way the preview isn't published broken.

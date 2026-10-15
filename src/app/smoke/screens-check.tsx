@@ -1,17 +1,19 @@
 /**
- * The map, the fight, a scene's place, the title and the End, drawn by the real screens and played
- * with the mouse, no model calls (a ready-made character offline): the map's and the fight's side
- * panels at 80x24 and up, every line drawn whole (a squeezed panel draws its lines over each other);
- * the map's keys at the bottom as buttons; a click on a blue tile moves there, a click on someone on
- * the other side aims at them and a click on your target attacks, and the fight's options are
- * buttons; in a scene at 80x24 and 130x42, pointing at someone in the place (and in the list under
- * it) says who on the bottom line (the GM's spinner and the game's word stay up), a right-click
- * opens their menu without covering the conversation, a glance notes what anyone could see (never
- * the GM's descriptions), a deed goes as the turn, an attack takes two choices, a right-click on
- * the open menu opens what's under it and chooses nothing, a click starts the line with their
- * name, and Tab and Enter do it by key while the box keeps its keys (Enter on what the mouse only
- * rests on opens nothing); the help scrolls by key; the title's New game and Continue, and the
- * End's way back, by a click.
+ * The map, the fight, the sheet, a scene's place, the title and the End, drawn by the real screens
+ * and played with the mouse, no model calls (a ready-made character offline): the map's and the
+ * fight's side panels at 80x24 and up, every line drawn whole (a squeezed panel draws its lines over
+ * each other); the map's keys at the bottom as buttons; a click on a blue tile moves there, a click
+ * on someone on the other side aims at them and a click on your target attacks, and the fight's
+ * options are buttons; a spell on the sheet clicked shows what it is, and ← Back (or Esc) puts the
+ * sheet back as it was; in a scene at 80x24 and 130x42, pointing at someone in the place (and in the
+ * list under it) says who on the bottom line (the GM's spinner and the game's word stay up), a
+ * right-click opens their menu without covering the conversation, a glance notes what anyone could
+ * see (never the GM's descriptions), a deed goes as the turn, an attack takes two choices, a
+ * right-click on the open menu opens what's under it and chooses nothing, a click starts the line
+ * with their name, and Tab and Enter do it by key while the box keeps its keys (Enter on what the
+ * mouse only rests on opens nothing); the help scrolls by key; the title's New game and Continue,
+ * and the End's way back, by a click; the zoo's side panel, a sign's card, its help scrolled, and a
+ * long line in What happens kept by its start.
  *
  *   KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx [--show]
  */
@@ -510,6 +512,61 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The sheet: a spell on it clicked, what it is in the sheet's own box, and back; the same by keys.
+
+const wizard = await Core.create({ player: `Pell Marrow: ${PREGENS.wizard!.concept}`, level: 3, build: PREGENS.wizard!.build, explorer: town, fights: mapFights() });
+for (const [w, h] of [[80, 24], [130, 42]] as const) {
+  const game = new Game();
+  game.core = wizard;
+  game.screen = "explore";
+  await game.showSheet();
+  const setup = await testRender(<Overlay game={game} />, { width: w, height: h });
+  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+  // A lone Esc reaches the app once the terminal is sure it isn't the start of a sequence.
+  const esc = () => act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 60)); });
+  let frame = await draw();
+  // To the spells by a click on their page's tab (the first "Spells" on screen).
+  const tab = at(frame, "Spells");
+  if (tab) await act(async () => { await setup.mockMouse.click(tab.x, tab.y); });
+  const sheet = await draw();
+  if (show) console.log(`sheet ${w}x${h}\n${sheet}`);
+  const spell = at(sheet, "Burning Hands");
+  checks.push([`the sheet ${w}x${h}: a click on its tab turns to the spells`, !!spell]);
+  if (spell) await act(async () => { await setup.mockMouse.click(spell.x, spell.y); });
+  frame = await draw();
+  if (show) console.log(`spell ${w}x${h}\n${frame}`);
+  // Each of these whole, inside the sheet's box.
+  const box = flat(frame.split("\n").filter(r => r.includes("║")).join(" "));
+  const wanted = [
+    "← Back", "Burning Hands Level 1 Evocation (Sorcerer, Wizard)", "Casting time Action · Range Self (15-foot cone) · Duration Instantaneous", "Components V, S",
+    "In this game", "Dexterity save, DC 13: 3d6 fire, half as much on a success", "Area: a 15-foot cone from you", "With a higher slot: +1d6 fire for each level above 1st",
+    "From the SRD 5.2.1", "CC BY 4.0", "A thin sheet of flames shoots forth from you.", "Esc back to the sheet",
+  ];
+  const missing = wanted.filter(t => !box.includes(t));
+  checks.push([`the sheet ${w}x${h}: a click on Burning Hands shows it, every line whole${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !!spell && !missing.length]);
+  // In the sheet's own box, its sides unbroken from top to bottom (a line too long would push one out).
+  const lines = frame.split("\n");
+  const top = lines.findIndex(r => r.includes("╔")), bottom = lines.findIndex(r => r.includes("╚"));
+  const left = lines[top]?.indexOf("╔") ?? -1, right = lines[top]?.indexOf("╗") ?? -1;
+  checks.push([`the sheet ${w}x${h}: the spell in the sheet's own box, its sides unbroken`, top >= 0 && bottom > top && bottom < h && lines.slice(top + 1, bottom).every(r => r[left] === "║" && r[right] === "║")]);
+  const back = at(frame, "← Back");
+  if (back) await act(async () => { await setup.mockMouse.click(back.x, back.y); });
+  checks.push([`the sheet ${w}x${h}: a click on ← Back puts the sheet back as it was`, (await draw()) === sheet]);
+  // By keys: ↓ picks the first spell, Enter shows it, Esc puts it back, Esc lets it go, Esc puts the sheet away.
+  act(() => setup.mockInput.pressArrow("down"));
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`the sheet ${w}x${h}: ↓ and Enter show Fire Bolt`, /← Back {2}Fire Bolt/.test(frame) && frame.includes("Ranged spell attack, +5 to hit: 1d10 fire on a hit") && frame.includes("You hurl a mote of fire")]);
+  await esc();
+  frame = await draw();
+  checks.push([`the sheet ${w}x${h}: Esc goes back to the sheet, Fire Bolt still picked`, frame.includes("Burning Hands") && frame.includes("Enter about it") && game.overlay?.kind === "sheet"]);
+  await esc();
+  await esc();
+  checks.push([`the sheet ${w}x${h}: Esc lets the spell go, then puts the sheet away`, !game.overlay]);
+  await setup.dispose();
+}
+
+// ---------------------------------------------------------------------------------------------
 // The title and the End, by a click.
 
 {
@@ -544,6 +601,54 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   if (p) await act(async () => { await setup.mockMouse.click(p.x, p.y); });
   checks.push(["the End: a click goes back to the title", back === 1]);
   await setup.dispose();
+}
+
+// ---------------------------------------------------------------------------------------------
+// The zoo: its map's side panel at 80x24 and up, a sign read in full (its card), the help scrolled
+// to its end at 80x24, and a long line in What happens kept by its start.
+
+{
+  const { newZoo } = await import("../../game/zoo/game.ts");
+  const { EXHIBITS, placePlayer, WELCOME } = await import("../../game/zoo/explorer.ts");
+  const zoo = await newZoo({ seed: 4 });
+  placePlayer(zoo.state, "zoo-hall", { x: 4, y: 8 });
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const game = new Game();
+    game.core = zoo;
+    game.screen = "explore";
+    game.messages = [WELCOME];
+    const setup = await testRender(<><ExploreScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+    await setup.renderOnce();
+    let frame = setup.captureCharFrame();
+    if (show) console.log(`zoo ${w}x${h}\n${frame}`);
+    const side = flat(panel(frame, "The zoo").join(" "));
+    const lead = game.leadTarget();
+    const wanted = ["The wardrobe corner", "Wren Ashdown", "Next: ", ...(lead ? [lead.label.slice(0, 10)] : []), "Nearby"];
+    const missing = wanted.filter(t => !side.includes(flat(t)));
+    checks.push([`the zoo's side panel at ${w}x${h}: every line whole${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
+    // A long line in What happens shows its start, and says how to read the rest.
+    game.messages = [...game.messages, EXHIBITS.find(e => e.id === "wardrobe")!.text];
+    await act(async () => { game.emit(); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    const happens = flat(panel(frame, "What happens").join(" "));
+    checks.push([`the zoo ${w}x${h}: a long line in What happens keeps its start ("Who you are is a build")`, happens.includes("Who you are is a build") && (w > 100 || happens.includes("r, or a click here"))]);
+    // Read the wardrobe's sign: its card, title and first words in view, its robes to set off.
+    await act(async () => { await game.doAt({ x: 4, y: 7 }, { id: "look@4,7", label: "Look at the sign", kind: "examine" }); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (show) console.log(`zoo sign ${w}x${h}\n${frame}`);
+    const card = flat(frame);
+    checks.push([`the zoo ${w}x${h}: a sign read opens its card, its title and first words in view`, game.overlay?.kind === "sign" && card.includes("The wardrobe") && card.includes("Who you are is a build") && card.includes("1 Put on")]);
+    game.overlay = { kind: "help" };
+    await act(async () => { game.emit(); });
+    await setup.renderOnce();
+    for (let i = 0; i < 20; i++) act(() => setup.mockInput.pressArrow("down"));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`the zoo ${w}x${h}: the help scrolls to its last line`, flat(frame).includes("carries on your visit")]);
+    await setup.dispose();
+  }
 }
 
 let failed = 0;

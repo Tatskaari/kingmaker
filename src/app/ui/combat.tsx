@@ -49,7 +49,7 @@ export function fightCommand(game: Game, command: Command): void {
     case "cast": {
       const spells = fight.options().spells;
       if (spells.length) { game.overlay = { kind: "spells", spells: spells.map(s => ({ id: s.id, name: s.name, level: s.level })), index: 0 }; game.emit(); }
-      else show("No spells to cast just now. You do, however, have a sword.");
+      else show("No spells to cast just now. You do, however, have whatever's in your hands.");
       break;
     }
     case "use": { const use = game.fightActions.find(a => a.id.startsWith("use_")); if (use) void game.combatAct(use.id); else show("Nothing in reach to knock over. Get next to a lantern or a brazier."); break; }
@@ -123,8 +123,9 @@ export function CombatScreen({ game }: { game: Game }) {
     centre: me.state === "fighting" ? me.at : view.turn ? G.units[view.turn.id]?.at ?? me.at : me.at, marks, ...(target ? { cursor: target.at } : {}), time: game.story.time,
   };
   const fx = game.fightFx();
-  // A fight that broke out on the map: the town stands round it (its stalls, Kell, the people who stood back).
-  const scenery = game.core.state.fightOnMap ? actorsHere(exploreState(game.core.state)) : undefined;
+  // A fight that broke out on the map: the town stands round it (its stalls, Kell, the people who stood
+  // back). A fight from the map with a world of its own (a zoo ring's: the session's while it lasts) has that round it.
+  const scenery = game.core.state.fightOnMap && !game.session?.world ? actorsHere(exploreState(game.core.state)) : undefined;
   const log = view.log.map(showLine).flatMap(l => wrap(l, mapW - 4)).slice(-(logH - 2));
   const inner = sideW - 4;
   // Everyone's letter, as the battlefield has them.
@@ -257,7 +258,7 @@ export function CombatScreen({ game }: { game: Game }) {
           </text>
         </box>
         {view.over ? <Clickable marginTop={gapRows} height={1} flexShrink={0} onClick={() => void game.afterCombat()}>
-          <text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>See what comes of it</span><span fg={C.faint}>{"   Enter, or click"}</span></text>
+          <text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{game.core?.state.fightOnMap ? "Back to the map" : "See what comes of it"}</span><span fg={C.faint}>{"   Enter, or click"}</span></text>
         </Clickable> : myTurn ? <box flexDirection="column" marginTop={gapRows} flexShrink={0}>
           {/* The options, as buttons: what a key does, a click does too. */}
           <Row><Hint k="click" what="a blue tile to move there" /></Row>

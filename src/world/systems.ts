@@ -24,6 +24,18 @@ const NAMES: Record<string, string> = {
 const NONBURNING = new Set(["iron", "steel", "brass", "silver", "stone", "glass", "crystal", "ice", "liquid"]);
 
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** Is a thing's name plural ("stacks of flour sacks", "the trestles", "three left gloves"), for its verb? */
+export function isPlural(name: string): boolean {
+  const n = name.toLowerCase().replace(/^(the|some)\s+/, "");
+  if (/^(a|an|one|another)\s/.test(n)) return false;
+  if (/^(two|three|four|five|six|seven|eight|nine|ten|several|many|\d+)\s/.test(n)) return true;
+  const head = (n.split(/\s+of\s+/)[0] ?? n).trim().split(/\s+/).at(-1) ?? "";
+  return /[^s]s$/.test(head) && !/(ss|us|is|as)$/.test(head);
+}
+
+/** The verb that goes with a thing's name: one form for one ("catches"), another for many ("catch"). */
+export const verb = (name: string, one: string, many: string) => (isPlural(name) ? many : one);
 const live = (e: Entity) => !e.states.includes("gone");
 const isSurface = (e: Entity) => e.kind === "surface";
 const log = (world: SceneWorld, turn: number, text: string) => world.log.push({ turn, text, by: "rules" });
@@ -70,16 +82,16 @@ export function ignite(world: SceneWorld, target: Entity, turn: number): string[
   if (!live(target) || target.states.includes("burning")) return [];
   if (isSurface(target)) {
     if (!target.tags.some(t => FLAMMABLE.has(t))) {
-      if (target.tags.includes("water") || target.tags.includes("ice")) return [`${capital(target.name)} hisses`];
+      if (target.tags.includes("water") || target.tags.includes("ice")) return [`${capital(target.name)} ${verb(target.name, "hisses", "hiss")}`];
       return [];
     }
     target.states.push("burning");
     target.ttl = BURNS_FOR[target.tags.find(t => FLAMMABLE.has(t))!] ?? 3;
-    log(world, turn, `${target.name} catches fire`);
-    return [`${capital(target.name)} catches fire`];
+    log(world, turn, `${target.name} ${verb(target.name, "catches", "catch")} fire`);
+    return [`${capital(target.name)} ${verb(target.name, "catches", "catch")} fire`];
   }
   if (target.kind === "person" || target.kind === "creature") return [];
-  if (target.states.includes("wet")) return [`${capital(target.name)} steams, but it's too wet to catch`];
+  if (target.states.includes("wet")) return [`${capital(target.name)} ${verb(target.name, "steams, but it's", "steam, but they're")} too wet to catch`];
   if (target.states.includes("oiled")) {
     // Oil burns on anything, even metal, until it's burned off.
     target.states = [...target.states.filter(s => s !== "oiled"), "burning"];
@@ -89,11 +101,11 @@ export function ignite(world: SceneWorld, target: Entity, turn: number): string[
   }
   if (!target.tags.includes("flammable") || (target.material && NONBURNING.has(target.material))) {
     if (!target.states.includes("scorched")) target.states.push("scorched");
-    return [`The flames lick ${target.name} and die: it's scorched, not burning`];
+    return [`The flames lick ${target.name} and die: ${verb(target.name, "it's", "they're")} scorched, not burning`];
   }
   target.states.push("burning");
-  log(world, turn, `${target.name} catches fire`);
-  return [`${capital(target.name)} catches fire`];
+  log(world, turn, `${target.name} ${verb(target.name, "catches", "catch")} fire`);
+  return [`${capital(target.name)} ${verb(target.name, "catches", "catch")} fire`];
 }
 
 /** Water over something (a bucket, a spell, the river): fire out, wet and scorched, a puddle underneath and a puff of steam. */
@@ -110,7 +122,7 @@ export function douse(world: SceneWorld, target: Entity, turn: number, options: 
     if (target.states.includes("burning")) {
       target.states = target.states.filter(s => s !== "burning");
       delete target.ttl;
-      lines.push(`${capital(target.name)} is put out in a hiss of steam`);
+      lines.push(`${capital(target.name)} ${verb(target.name, "is", "are")} put out in a hiss of steam`);
       if (at) spill(world, "steam", at, 4, turn);
     }
     return lines;
@@ -118,13 +130,13 @@ export function douse(world: SceneWorld, target: Entity, turn: number, options: 
   if (target.states.includes("burning")) {
     target.states = target.states.filter(s => s !== "burning");
     if (!target.states.includes("scorched") && !target.states.includes("destroyed")) target.states.push("scorched");
-    lines.push(`${capital(target.name)} is put out in a hiss of steam: scorched and dripping`);
+    lines.push(`${capital(target.name)} ${verb(target.name, "is", "are")} put out in a hiss of steam: scorched and dripping`);
     log(world, turn, `${target.name} was put out`);
     if (at) spill(world, "steam", at, 4, turn);
   }
   if (!target.states.includes("wet")) target.states.push("wet");
   if (options.puddle !== false && at && !heldBy(world, target)) spill(world, "water", at, Math.max(2, Math.round(((target.size === "large" || target.size === "huge") ? 5 : 3))), turn);
-  return lines.length ? lines : [`${capital(target.name)} is soaked`];
+  return lines.length ? lines : [`${capital(target.name)} ${verb(target.name, "is", "are")} soaked`];
 }
 
 /** Cold: water freezes to ice, fires go out, liquids frost over. */
@@ -136,8 +148,8 @@ export function chill(world: SceneWorld, target: Entity, turn: number): string[]
     log(world, turn, `a puddle froze to ice`);
     return ["The water freezes to a sheet of ice"];
   }
-  if (target.states.includes("burning")) { target.states = target.states.filter(s => s !== "burning"); return [`${capital(target.name)} is put out by the cold`]; }
-  if (target.material === "liquid" && !target.states.includes("frozen")) { target.states.push("frozen"); return [`${capital(target.name)} freezes`]; }
+  if (target.states.includes("burning")) { target.states = target.states.filter(s => s !== "burning"); return [`${capital(target.name)} ${verb(target.name, "is", "are")} put out by the cold`]; }
+  if (target.material === "liquid" && !target.states.includes("frozen")) { target.states.push("frozen"); return [`${capital(target.name)} ${verb(target.name, "freezes", "freeze")}`]; }
   return [];
 }
 
@@ -157,7 +169,7 @@ export function breakOpen(world: SceneWorld, target: Entity, turn: number, cause
   if (!liquid || !at) return [];
   const radius = target.size === "large" || target.size === "huge" ? 6 : target.size === "medium" ? 4 : 2;
   const { lines, surface } = spill(world, liquid, at, radius, turn);
-  lines.unshift(`${capital(target.name)} breaks open: ${surface.name} spreads across the floor`);
+  lines.unshift(`${capital(target.name)} ${verb(target.name, "breaks", "break")} open: ${surface.name} spreads across the floor`);
   if (cause === "fire" && FLAMMABLE.has(liquid)) lines.push(...ignite(world, surface, turn));
   return lines;
 }
@@ -182,7 +194,8 @@ export function surfaceTick(world: SceneWorld, turn: number, seed: number): stri
     if (s.states.includes("burning")) {
       // What stands in a burning patch burns; flammable patches touching it catch.
       for (const t of Object.values(world.entities).filter(e => !isSurface(e) && live(e) && (e.kind === "object" || e.kind === "item" || e.kind === "feature") && !heldBy(world, e) && positionOf(world, e.id) && distance(positionOf(world, e.id)!, at) <= (s.radius ?? 2))) {
-        lines.push(...damageThing(world, t, d6(), "fire", turn));
+        // What the fire can't hurt (the drip tray under the oil) isn't news every minute.
+        lines.push(...damageThing(world, t, d6(), "fire", turn).filter(l => !/: unharmed by/.test(l)));
         if (live(t) && !t.states.includes("destroyed")) lines.push(...ignite(world, t, turn).filter(l => !/scorched, not burning/.test(l)));
       }
       for (const n of surfacesAt(world, at, (s.radius ?? 2) + 2).filter(n => n !== s && n.tags.some(t => FLAMMABLE.has(t)) && !n.states.includes("burning"))) lines.push(...ignite(world, n, turn));
@@ -207,7 +220,7 @@ export function surfaceTick(world: SceneWorld, turn: number, seed: number): stri
   // Something on fire makes smoke where it stands.
   for (const e of Object.values(world.entities).filter(x => !isSurface(x) && live(x) && x.states.includes("burning"))) {
     const at = positionOf(world, e.id);
-    if (at && !surfacesAt(world, at, 1).some(s => s.tags.includes("smoke"))) spill(world, "smoke", at, 3, turn);
+    if (at && !surfacesAt(world, at, 1).some(s => s.tags.includes("smoke"))) { spill(world, "smoke", at, 3, turn); lines.push(`Smoke rises from ${e.name}`); }
   }
   return lines;
 }

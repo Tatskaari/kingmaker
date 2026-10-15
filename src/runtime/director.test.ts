@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { decideBefore, type RulesOptions } from "./director.ts";
+import { decideBefore, pressureReason, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -125,4 +125,12 @@ test("an act chosen already (the map's menu) is the turn's: the decider isn't as
   const held = await decideBefore(scripted({ attempt: ["examine-body", 0.9] }), scene, yard(), "(I cast Fire Bolt at the hoist rope)", { speaker: false, freeform: true, rules: withBolt, forced });
   assert.equal(held.move, undefined);
   assert.deepEqual(held.mechanic, forced);
+});
+
+test("a pressure roll's dice line names its target as the player knows them, until they've heard the name", () => {
+  const scene = sceneById("zoo-card-sharp");
+  const check = { target: "sal", skill: "persuasion" as const, stakes: "sore", approach: "none", disposition: "neutral", ruling: "roll" as const };
+  assert.match(pressureReason(scene, check, { sal: "the woman with the silver dice" }), /the woman with the silver dice/);
+  assert.doesNotMatch(pressureReason(scene, check, { sal: "the woman with the silver dice" }), /Sal/);
+  assert.match(pressureReason(scene, check), /Silver Sal Mordaunt/);
 });
