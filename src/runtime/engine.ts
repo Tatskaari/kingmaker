@@ -161,9 +161,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}, opti
   const scene = sceneById(state.sceneId);
   const approach = approachById(state.approach);
   const before = state.transcript.length;
-  const directive = state.history.length
-    ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep). The opening, as it stands after what actually happened: ${state.opening ?? scene.opening} Pick up after the last scene's closing lines rather than repeating them. Keep it to a short paragraph or two and end on something the player can respond to.`]
-    : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
+  const directive = [openingDirective(scene, state)];
   await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
   if (approach.staging) state.guard ??= {};
   // The place as a world: where everyone and everything starts, with what the player carried in.
@@ -213,6 +211,17 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}, opti
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);
+}
+
+/**
+ * How a scene opens: all of its opening, none of which has happened yet, picking up from how the
+ * last scene ended. "Pick up after the last scene's closing lines" beside an opening the boundary had
+ * written as prose ending on the landlady's question ("Sergeant, are you on duty?") had the GM begin
+ * after it, with Kell answering a question the player never heard (four Rat openings in nine).
+ */
+export function openingDirective(scene: Scene, state: SessionState): string {
+  if (!state.history.length) return `Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`;
+  return `Open the scene: show the whole of the opening below, from its first glance to the moment it ends on. None of it has happened yet; the player sees all of it now, for the first time. It picks up from how the last scene ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep), without repeating that scene's closing lines. The opening, as it stands after what actually happened: ${state.opening ?? scene.opening} Keep it to a short paragraph or two, and end on what it ends on: something the player can respond to.`;
 }
 
 /**
@@ -1153,7 +1162,7 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
       "Everything you write must already be true: what happened in play, or what people did on their own in the time between scenes, as their lore below says. Make up no fact and no source for one: no record, message, witness, order or find that neither of those has (the one exception is the lead's, below, when play gave the player no way on). The player knows only what they saw and heard in play and what someone tells them, and knows nobody by name until they've heard the name: the list below has the people of these scenes whose names they haven't, and the same goes for anyone else.",
       "1. scenes: for each upcoming scene, in order, judge whether what it takes for granted still holds. A scene is overtaken when play has already done, prevented or bypassed what it is about (its central matter is settled, the people it needs are gone, the thing it's built around has already happened).",
       "2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Nobody is there sooner than its prep brings them on (\"at the midnight bell the Master comes\") unless play has sent them there already: that's the scene's to play. Write each as a short statement of what is true instead, so its GM can adapt (\"Hobb is in the watch-house cells, not on the hoist.\"). Leave out everything that still fits. An empty list is fine.",
-      "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on, and who isn't there yet: \"Don't show Master Sallow: he isn't here yet\") and drop or change only what the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). It's told to the player, so anyone whose name they haven't heard goes by what they'd call them. If nothing needs changing, return the author's opening as it is.",
+      "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on, and who isn't there yet: \"Don't show Master Sallow: he isn't here yet\") and drop or change only what the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). Write it as the author did: directions for its GM (what to show, in what order, what to end on: \"End on the landlady asking the sergeant whether she's on duty\"), never the scene's prose or its spoken lines; the GM writes those. It's told to the player, so anyone whose name they haven't heard goes by what they'd call them. If nothing needs changing, return the author's opening as it is.",
       "4. lead: one or two sentences of second-person fiction that the player reads as the time passes. Having read it, they know where the story goes next (that first scene that holds: its place), why they're going and what they hope to find out there, in their own terms (what they've seen and been told, never what the scene is about), and how the time between passed for them. Its reasons are what they learned in play and what someone tells them of what they did in the time between (in that person's own reasoning, as their lore has it), joined up the way the player would join them; never the coming scenes' prep or the GM's truth, not even as a hope. Anyone whose name they haven't heard goes by what they'd call them, and anyone they've never met or heard of comes in as they were seen (\"a woman in a grey hood\"). What someone tells them doesn't go against what that person said in play: what they found out since is told as new (\"I couldn't tell you who, this morning; this afternoon I saw him\"). It's always the story, never a note about it (what the story does or doesn't say, or that there's no lead): if play gave them no reason to go there, they pick up the trail in the time between from someone who'd know and say (a regular at the last place, a neighbour, whoever was about), told as plainly as that, and no more than that person would know. No game talk.",
       ...(owed.length ? [OWED_INSTRUCTION] : []),
     ].join("\n"),

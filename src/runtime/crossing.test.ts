@@ -7,7 +7,7 @@ const RUNS = mkdtempSync(join(tmpdir(), "km-crossing-"));
 process.env.KM_RUNS_DIR = RUNS;
 process.env.KM_COST_LEDGER = join(RUNS, "cost-ledger.jsonl");
 process.env.OPENROUTER_API_KEY = "offline";
-const { chainScene, forceEnding, lastChance, openScene, playerTurn } = await import("./engine.ts");
+const { chainScene, forceEnding, lastChance, openingDirective, openScene, playerTurn } = await import("./engine.ts");
 const { sceneById } = await import("../../scenes/index.ts");
 const { effectiveScene } = await import("./brief.ts");
 const { memoryLines, memoryIndexPath, readDoc } = await import("../lore/docs.ts");
@@ -112,6 +112,29 @@ test("who's in the next scene goes by the boundary's word on what's true now, no
     assert.match(presence.questions["cob"]!.instructions, /true_now is what's true by the time it starts, and it has the last word on who is where/);
     assert.ok(state.absent?.includes("cob"));
     assert.ok(!state.world?.entities["cob"], "not in the Rat's world either");
+    // The opening is shown whole: none of it has happened yet.
+    const opening = fake.sent.find(b => b.instructions?.startsWith("You are the Game Master"))!.input!.findLast(m => m.role === "developer")!.content;
+    assert.match(opening, /Open the scene: show the whole of the opening below, from its first glance to the moment it ends on\. None of it has happened yet; the player sees all of it now, for the first time\./);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("the opening on entry is all shown, and the boundary writes it as directions, not the scene's lines (Kell answered a question the player never heard)", async () => {
+  const state = { ...ratOpening("crossing-opening", []), opening: "At the Rat's door at dusk, the din drops as you step in. The landlady looks at the rules board, then at Kell. “Sergeant, are you on duty?”" };
+  const directive = openingDirective(sceneById("drowned-rat"), state);
+  assert.match(directive, /None of it has happened yet; the player sees all of it now, for the first time\./);
+  assert.match(directive, /without repeating that scene's closing lines\. The opening, as it stands after what actually happened: At the Rat's door at dusk/);
+  assert.match(directive, /end on what it ends on: something the player can respond to\.$/);
+  assert.doesNotMatch(directive, /Pick up after the last scene's closing lines rather than repeating them/);
+  assert.match(openingDirective(sceneById("hanged-clerk"), { ...state, history: [] }), /^Open the scene\. Open on the yard: Prout turning slowly/, "the story's first scene, as it's written");
+  const fake = fakeOpenRouter({ replies: ["Kell signs Prout in as murdered."] });
+  try {
+    const granary: SessionState = { ...ratOpening("crossing-opening-boundary", []), sceneId: "hanged-clerk", beat: "yard", history: [], transcript: [] };
+    forceEnding(granary, "case-made");
+    await chainScene(granary, "the party won", { skipInterludes: true });
+    const verdict = fake.sent.find(b => b.text?.format?.name === "boundary")!;
+    assert.match(verdict.instructions!, /Write it as the author did: directions for its GM \(what to show, in what order, what to end on: "End on the landlady asking the sergeant whether she's on duty"\), never the scene's prose or its spoken lines; the GM writes those\./);
   } finally {
     fake.restore();
   }
