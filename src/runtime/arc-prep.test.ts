@@ -15,10 +15,12 @@ import type { SessionState } from "./session.ts";
 
 /**
  * The Caerwyn arc's prep, as a player's report found it (Brother Ambrose, a rogue with Persuasion +0,
- * Insight +6 and Investigation +7, played to The End and found his good plans shot down). Each test
- * holds a fix in the scenes to what the report's analysts traced the plan's failure to, without
- * model calls: the routes the decider is offered, what a no-dice route does with a scripted decider,
- * where the world puts people, and what the exit scripts write.
+ * Insight +6 and Investigation +7, played to The End and found his good plans shot down), and as the
+ * first whole-game QA pass found it (three personas, a goals tester and a robustness tester; the
+ * turns quoted are theirs). Each test holds a fix in the scenes to what was traced to the prep,
+ * without model calls: the routes the decider is offered and how they're worded, what a no-dice
+ * route does with a scripted decider, what a ruling that counts as a route brings, where the world
+ * puts people, and what the exit scripts write.
  */
 
 /** A decider that answers from a script (choice, its probability, the others'), and keeps what it was asked. */
