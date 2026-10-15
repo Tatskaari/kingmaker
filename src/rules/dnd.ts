@@ -34,6 +34,31 @@ async function engineFor(seed: number) {
   return { E, engine: E.createEngine({ contentPacks: [pack], rng: E.seededRNG(seed) }) };
 }
 
+/** An engine for reading only (no dice are rolled with it): menus and the like, synchronously. */
+let reader: { engine: Dnd.Engine; campaign?: string; read?: RulesNow } | undefined;
+
+/** The player's character as the rules have it this moment: the engine's character, its sheet, and the content. */
+export interface RulesNow { E: typeof Dnd; content: Dnd.Content; character: Dnd.EngineCharacter; sheet: Dnd.CharacterSheet }
+
+/**
+ * The player's character now, read synchronously (what a menu needs to say what they can do): the
+ * engine must have loaded once in this process (await dnd()). Undefined before that, or for a
+ * session from before the rules engine. Kept until the campaign changes.
+ */
+export function rulesNow(state: SessionState): RulesNow | undefined {
+  if (!state.rules || !loaded) return undefined;
+  const { E, pack } = loaded;
+  reader ??= { engine: E.createEngine({ contentPacks: [pack], rng: E.seededRNG(1) }) };
+  if (reader.campaign !== state.rules.campaign || !reader.read) {
+    const ctx: Ctx = { E, engine: reader.engine, campaign: loadWellFormed(E, state.rules.campaign, reader.engine), apply: e => e };
+    const character = ctx.campaign.state.characters[state.rules.pc];
+    if (!character) return undefined;
+    reader.read = { E, content: reader.engine.content, character, sheet: sheetOf(ctx, state.rules.pc) };
+    reader.campaign = state.rules.campaign;
+  }
+  return reader.read;
+}
+
 /** Open the session's campaign with a fresh seeded generator, so a session's dice can be replayed. */
 async function open(state: SessionState): Promise<Ctx> {
   if (!state.rules) throw new Error("This session has no rules-engine character.");
@@ -847,6 +872,24 @@ export async function castable(state: SessionState): Promise<SpellChoice[]> {
   return readySpells(sheetOf(ctx, state.rules.pc));
 }
 
+/** A warlock's pact slots (all of one level, back on a short rest), when the sheet has them. */
+export function pactOf(sheet: Dnd.CharacterSheet): { level: number; count: number } | undefined {
+  const pact = (sheet.spellSlots as { pactSlots?: { level: number; count: number } }).pactSlots;
+  return pact?.count ? pact : undefined;
+}
+
+/**
+ * The slot a spell of this level would be cast from: the lowest free slot at its level or above,
+ * else a warlock's pact slot (cast at the pact's level). 0 when there's none left.
+ */
+export function slotFor(sheet: Dnd.CharacterSheet, me: Dnd.EngineCharacter, level: number): number {
+  const free = (l: number) => (sheet.spellSlots.slotsByLevel[l - 1] ?? 0) - (me.spellSlotsUsed[String(l)] ?? 0);
+  const slot = [1, 2, 3, 4, 5, 6, 7, 8, 9].find(l => l >= level && free(l) > 0);
+  if (slot) return slot;
+  const pact = pactOf(sheet);
+  return pact && pact.level >= level && pact.count - Number(me["pactSlotsUsed"] ?? 0) > 0 ? pact.level : 0;
+}
+
 /** Cantrips plus prepared spells (class, feat and always-prepared), from the derived sheet. */
 function readySpells(sheet: Dnd.CharacterSheet): SpellChoice[] {
   return (sheet.spellcasting?.spellsByLevel ?? []).flatMap(g => g.spells.filter(sp => g.level === 0 || sp.prepared || sp.alwaysPrepared)).map(sp => ({ id: sp.spellId, name: sp.name, level: sp.level }));
@@ -857,8 +900,38 @@ export async function spellInfo(spellId: string): Promise<Dnd.SpellDef | undefin
   return engine.content.spells.get(spellId);
 }
 
-/** Cast one of the player's spells at story characters (or themselves, or nobody in particular). */
-export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean } = {}): Promise<Outcome> {
+/**
+ * What a spell asks its caster to choose, which the engine won't cast it without: the element
+ * (Chromatic Orb, Sorcerous Burst) or the way it works (Command's word, Hex's ability). The one the
+ * player's words name (`said`), when they name one; else an element is fire where fire's allowed
+ * (it's what the world's things feel), else the first on offer. A way isn't guessed: that would
+ * cast it a way the player didn't say (see spellVariants).
+ */
+export function casterChoice(spell: Dnd.SpellDef, said = ""): { kind: "damageType" | "variant"; value: string } | undefined {
+  const named = (keys: string[]) => keys.find(k => [k, ABILITY_NAME[k as Dnd.Ability]].some(w => w && new RegExp(`\\b${w.replace(/-/g, "[- ]").replace(/s\b/g, "'?s")}\\b`, "i").test(said)));
+  for (const m of spell.mechanicalEffects ?? []) {
+    const allowed = ((m["casterChoosesDamageType"] ?? m["damageTypeChoice"]) as { allowed?: string[] } | undefined)?.allowed;
+    if (allowed?.length) return { kind: "damageType", value: named(allowed) ?? (allowed.includes("fire") ? "fire" : allowed[0]!) };
+    const way = named(spellVariants(spell) ?? []);
+    if (way) return { kind: "variant", value: way };
+  }
+  return undefined;
+}
+
+/** The ways a spell can be cast that its caster must choose between (Command's word, Hex's ability), when it has them. */
+export function spellVariants(spell: Dnd.SpellDef): string[] | undefined {
+  for (const m of spell.mechanicalEffects ?? []) {
+    const variants = (m["casterChoosesVariant"] as { variants?: Array<{ key: string }> } | undefined)?.variants;
+    if (variants?.length) return variants.map(v => v.key);
+  }
+  return undefined;
+}
+
+/**
+ * Cast one of the player's spells at story characters (or themselves, or nobody in particular).
+ * `said`: the player's words, for what the spell asks them to choose (an element, which way).
+ */
+export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean; said?: string } = {}): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const spell = ctx.engine.content.spells.get(spellId);
@@ -871,20 +944,27 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   }
   // A ritual takes ten minutes longer and no slot (if the spell is one).
   const ritual = options.ritual === true && spell.ritual;
+  // What the spell asks its caster to choose (an element, which way), when it asks.
+  const choice = casterChoice(spell, options.said);
+  const ways = spellVariants(spell);
+  if (ways && !choice) {
+    close(state, ctx);
+    const list = ways.map(w => ABILITY_NAME[w as Dnd.Ability] ?? w.replace(/-/g, " ")).join(", ");
+    return { lines: [`(${spell.name} is cast one of ${ways.length} ways: ${list}. Say which.)`], directive: `The player cast ${spell.name} without saying which way it works (${list}). Nothing happens yet and nothing is spent: ask them which, in a few words.` };
+  }
   let slotLevel = ritual ? spell.level : 0;
   if (spell.level > 0 && !ritual) {
-    const sheet = sheetOf(ctx, pcId);
-    const free = (l: number) => (sheet.spellSlots.slotsByLevel[l - 1] ?? 0) - (me.spellSlotsUsed[String(l)] ?? 0);
-    slotLevel = [1, 2, 3, 4, 5, 6, 7, 8, 9].find(l => l >= spell.level && free(l) > 0) ?? 0;
+    slotLevel = slotFor(sheetOf(ctx, pcId), me, spell.level);
     if (!slotLevel) {
       close(state, ctx);
-      return { lines: [`(No spell slots left for ${spell.name}: a long rest restores them.)`], directive: `The player tried to cast ${spell.name}, but their character has no spell slots left for it. The magic doesn't come; show that in a few words and let them do something else.` };
+      const pact = !!pactOf(sheetOf(ctx, pcId));
+      return { lines: [`(No spell slots left for ${spell.name}: ${pact ? "a short rest restores pact slots" : "a long rest restores them"}.)`], directive: `The player tried to cast ${spell.name}, but their character has no spell slots left for it. The magic doesn't come; show that in a few words and let them do something else.` };
     }
   }
   // Who and what it reaches: an area spell catches everything in its shape (the world knows where
   // things are); otherwise its targets. People go to the engine; things take the rules here.
   const world = state.world;
-  let beings = targetIds.filter(t => t === "self" || t === "player" || cast.some(c => c.id === t) || (world?.entities[t]?.kind === "person" && !world.entities[t]!.player));
+  let beings = targetIds.filter(t => t === "self" || t === "player" || cast.some(c => c.id === t) || isBeingEntity(world?.entities[t]));
   let things: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && isThingEntity(e)) : [];
   let surfaces: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && e.kind === "surface") : [];
   let area: string | undefined;
@@ -912,7 +992,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const aimAt = world ? positionOf(world, targetIds.find(t => world.entities[t]) ?? "player") : undefined;
   const targetPosition = aimAt ? { x: Math.round(aimAt.x / 5), y: Math.round(aimAt.y / 5) } : { x: 0, y: 0 };
   try {
-    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}) }).events));
+    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}), ...(choice ? { casterChoice: choice } : {}) }).events));
   } catch (error) {
     // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
     if (!things.length) {
@@ -925,13 +1005,13 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const { lines, account } = describe(ctx, state, events, () => spell.name);
   // Things: they don't dodge or save; an attack spell still has to hit.
   if (world && things.length) {
-    const hit = objectDamage(ctx, state, world, spell, slotLevel, things);
+    const hit = objectDamage(ctx, state, world, spell, slotLevel, things, choice?.kind === "damageType" ? choice.value : undefined);
     lines.push(...hit.lines);
     account.push(...hit.account);
   }
   // The world's physics: the spell's element meets the surfaces it reached, and some spells make one.
   if (world) {
-    const element = String((spell.mechanicalEffects ?? []).find(m => m["damageType"])?.["damageType"] ?? "");
+    const element = String((spell.mechanicalEffects ?? []).find(m => m["damageType"])?.["damageType"] ?? (choice?.kind === "damageType" ? choice.value : ""));
     const physics = [...(element ? elemental(world, surfaces, element, state.turn) : []), ...spellSurface(world, spell.id, targetIds, state.turn)];
     lines.push(...physics);
     account.push(...physics.map(p => p.toLowerCase()));
@@ -951,6 +1031,8 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
 }
 
 const isThingEntity = (e: Entity) => e.kind === "object" || e.kind === "item" || e.kind === "feature";
+/** Someone in the world who isn't the player: a person, or a creature (a goose has hit points too). */
+const isBeingEntity = (e: Entity | undefined): e is Entity => !!e && (e.kind === "person" || e.kind === "creature") && !e.player;
 
 /** Spells that make a surface: water from nowhere, a patch of grease. */
 function spellSurface(world: SceneWorld, spellId: string, targetIds: string[], turn: number): string[] {
@@ -996,13 +1078,13 @@ function rollDice(expr: string, random: () => number): { total: number; text: st
 }
 
 /** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
-function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: Dnd.SpellDef, slotLevel: number, things: Entity[]): { lines: string[]; account: string[] } {
+function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: Dnd.SpellDef, slotLevel: number, things: Entity[], chosen?: string): { lines: string[]; account: string[] } {
   const lines: string[] = [];
   const account: string[] = [];
   const random = rng(state.seed + 9973 * state.rollCount);
   const effect = (spell.mechanicalEffects ?? []).find(m => m["damageDice"] || m["damageDicePerDart"]);
   if (!effect) return { lines, account };
-  const type = String(effect["damageType"] ?? "force");
+  const type = String(effect["damageType"] ?? chosen ?? "force");
   const sheet = sheetOf(ctx, state.rules!.pc);
   const level = sheet.totalLevel;
   let dice = String(effect["damageDice"] ?? effect["damageDicePerDart"]);
@@ -1130,7 +1212,7 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
     close(state, ctx);
     return { lines, directive: `Rules: the player struck at ${thing.name} with ${name.toLowerCase()}. ${capitalise(account.join("; "))}. Narrate exactly that, and let the people present react.` };
   }
-  const target = cast.find(c => c.id === targetId) ?? (state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined);
+  const target = cast.find(c => c.id === targetId) ?? (isBeingEntity(state.world?.entities[targetId]) ? bystander(state.world!.entities[targetId]!) : undefined);
   if (!target) { close(state, ctx); return { lines: [], directive: "" }; }
   const npc = ensureNpc(ctx, state, target);
   const events = ctx.apply(ctx.engine.plan.attack(ctx.campaign.state, { attackerId: pcId, targetId: npc, weaponInstanceId: weapon! }).events);
@@ -1150,7 +1232,7 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
 export async function wrestle(state: SessionState, cast: Character[], targetId: string, how: "grapple" | "prone" | "push"): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
-  const target = cast.find(c => c.id === targetId) ?? (state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined);
+  const target = cast.find(c => c.id === targetId) ?? (isBeingEntity(state.world?.entities[targetId]) ? bystander(state.world!.entities[targetId]!) : undefined);
   if (!target) { close(state, ctx); return { lines: [], directive: "" }; }
   const npc = ensureNpc(ctx, state, target);
   let events: Dnd.EngineEvent[];
@@ -1403,19 +1485,53 @@ export async function jump(state: SessionState, j: Jump): Promise<JumpOutcome> {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Class features: what a fighter, barbarian, bard or sorcerer can do outside a fight too.
+// Class features: what a fighter, barbarian, bard, sorcerer, paladin or cleric can do outside a fight too.
 
-const FEATURES: Array<{ id: string; name: string; classId: string; target: "self" | "creature" }> = [
-  { id: "second-wind", name: "Second Wind", classId: "fighter", target: "self" },
-  { id: "rage", name: "Rage", classId: "barbarian", target: "self" },
-  { id: "bardic-inspiration", name: "Bardic Inspiration", classId: "bard", target: "creature" },
-  { id: "innate-sorcery", name: "Innate Sorcery", classId: "sorcerer", target: "self" },
+/**
+ * A class feature with uses (an engine resource), and the engine's intent for it. `target`: the
+ * user, or someone (yourself too, when `self`: Lay on Hands, Divine Spark). The intent gets the
+ * engine ids of the user and of whoever it's for, and the engine's state (for how much to heal).
+ */
+interface FeatureRule {
+  id: string; name: string; classId: string; subclassId?: string; resource: string;
+  target: "self" | "creature"; self?: boolean;
+  intent: (E: typeof Dnd, me: string, to: string | undefined, state: Dnd.CampaignState) => { type: string; [key: string]: unknown };
+}
+
+/** How many hit points someone is short of their maximum (as the engine has them). */
+const missingHp = (state: Dnd.CampaignState, id: string) => { const c = state.characters[id]; return c ? Math.max(0, c.hp.max - Math.max(0, c.hp.current)) : 0; };
+const resourceLeft = (state: Dnd.CampaignState, id: string, resource: string) => (state.characters[id] as unknown as { resources?: Resource[] } | undefined)?.resources?.find(r => r.resourceId === resource)?.current ?? 0;
+
+const FEATURES: FeatureRule[] = [
+  { id: "second-wind", name: "Second Wind", classId: "fighter", resource: "second-wind", target: "self", intent: (E, me) => E.bonusActionIntent("second-wind", me) },
+  { id: "rage", name: "Rage", classId: "barbarian", resource: "rage", target: "self", intent: (E, me) => E.bonusActionIntent("rage", me) },
+  { id: "bardic-inspiration", name: "Bardic Inspiration", classId: "bard", resource: "bardic-inspiration", target: "creature", intent: (_E, me, to) => ({ type: "BardicInspiration", bardId: me, recipientId: to }) },
+  { id: "innate-sorcery", name: "Innate Sorcery", classId: "sorcerer", resource: "innate-sorcery", target: "self", intent: (E, me) => E.bonusActionIntent("innate-sorcery", me) },
+  // As much as the hurt needs, out of what's left in the pool.
+  { id: "lay-on-hands", name: "Lay on Hands", classId: "paladin", resource: "lay-on-hands", target: "creature", self: true,
+    intent: (_E, me, to, s) => ({ type: "LayOnHands", paladinId: me, targetId: to ?? me, mode: "heal", amount: Math.max(1, Math.min(resourceLeft(s, me, "lay-on-hands"), missingHp(s, to ?? me))) }) },
+  { id: "divine-spark", name: "Divine Spark", classId: "cleric", resource: "channel-divinity", target: "creature", self: true, intent: (_E, me, to) => ({ type: "DivineSpark", clericId: me, targetId: to ?? me, mode: "heal" }) },
+  { id: "preserve-life", name: "Preserve Life", classId: "cleric", subclassId: "life-domain", resource: "channel-divinity", target: "self",
+    intent: (_E, me, _to, s) => ({ type: "PreserveLife", clericId: me, allocations: [{ targetId: me, amount: Math.max(1, Math.min(5 * (s.characters[me]?.classes.find(k => k.classId === "cleric")?.level ?? 1), missingHp(s, me))) }] }) },
+  { id: "sacred-weapon", name: "Sacred Weapon", classId: "paladin", subclassId: "oath-of-devotion", resource: "channel-divinity", target: "self", intent: (_E, me) => ({ type: "SacredWeapon", paladinId: me }) },
+  { id: "magical-cunning", name: "Magical Cunning", classId: "warlock", resource: "magical-cunning", target: "self", intent: (_E, me) => ({ type: "MagicalCunning", warlockId: me }) },
 ];
 
 function featuresOf(ctx: Ctx, id: string): NonNullable<NonNullable<SessionState["rules"]>["features"]> {
   const c = ctx.campaign.state.characters[id]!;
-  return FEATURES.filter(f => c.classes.some(k => k.classId === f.classId)).map(({ id, name, target }) => ({ id, name, target }));
+  return FEATURES.filter(f => c.classes.some(k => k.classId === f.classId && (!f.subclassId || k.subclassId === f.subclassId))).map(({ id, name, target }) => ({ id, name, target }));
 }
+
+/** A class feature's rule, for a menu: whose it is, what it spends, and whether it takes someone. */
+export function featureRule(id: string): Omit<FeatureRule, "intent"> | undefined {
+  const f = FEATURES.find(x => x.id === id);
+  if (!f) return undefined;
+  const { intent: _intent, ...rule } = f;
+  return rule;
+}
+
+/** The class features with uses that the rules can resolve, in the order a menu lists them. */
+export const FEATURE_IDS = FEATURES.map(f => f.id);
 
 /** A class feature, through the engine's own intent for it (uses, rests and all). */
 export async function useFeature(state: SessionState, cast: Character[], featureId: string, targetId?: string): Promise<Outcome> {
@@ -1423,11 +1539,12 @@ export async function useFeature(state: SessionState, cast: Character[], feature
   if (!feature) return { lines: [], directive: "" };
   const ctx = await open(state);
   const pcId = state.rules!.pc;
-  const who = feature.target === "creature" ? cast.find(c => c.id === targetId) ?? (targetId && state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined) : undefined;
-  if (feature.target === "creature" && !who) { close(state, ctx); return { lines: [`(${feature.name} needs someone to give it to.)`], directive: "" }; }
+  const onSelf = !targetId || targetId === "self" || targetId === "player";
+  const who = feature.target === "creature" && !onSelf ? cast.find(c => c.id === targetId) ?? (isBeingEntity(state.world?.entities[targetId!]) ? bystander(state.world!.entities[targetId!]!) : undefined) : undefined;
+  if (feature.target === "creature" && !who && !feature.self) { close(state, ctx); return { lines: [`(${feature.name} needs someone to give it to.)`], directive: "" }; }
   let events: Dnd.EngineEvent[];
   try {
-    const intent = ctx.E.bonusActionIntent(feature.id, pcId, who ? { targetId: ensureNpc(ctx, state, who) } : {});
+    const intent = feature.intent(ctx.E, pcId, who ? ensureNpc(ctx, state, who) : undefined, ctx.campaign.state);
     const method = intent.type.charAt(0).toLowerCase() + intent.type.slice(1);
     events = ctx.apply((ctx.engine.plan[method] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, intent).events);
   } catch (error) {
@@ -1438,10 +1555,63 @@ export async function useFeature(state: SessionState, cast: Character[], feature
   const { lines, account } = describe(ctx, state, events, () => feature.name);
   const statusText = status(ctx, pcId);
   if (events.some(e => /^(ConditionApplied|EffectStarted)$/.test(e.type))) state.rules!.timed = true;
+  if (who && state.world && state.rules!.npcs[who.id]) syncBeings(ctx, state, state.world, [{ id: who.id, engine: state.rules!.npcs[who.id]!.id }]);
   close(state, ctx);
   return {
     lines: [`${feature.name}${who ? ` for ${calledBy(state, who)}` : ""}`, ...lines, `${state.player.name}: ${statusText}`],
     directive: `Rules: the player used ${feature.name}${who ? ` on ${calledBy(state, who)}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It takes effect as the feature describes."} Narrate exactly that, in the fiction, briefly.`,
+    status: statusText,
+  };
+}
+
+/**
+ * Arcane Recovery (a wizard, with a short rest, once a day): spent slots back, as many levels'
+ * worth as the feature has points left (half the wizard's level, rounded up), the highest first and
+ * none above 5th. The rest itself is rest()'s.
+ */
+export async function arcaneRecovery(state: SessionState): Promise<Outcome> {
+  const ctx = await open(state);
+  const pcId = state.rules!.pc;
+  const me = ctx.campaign.state.characters[pcId]!;
+  const points = resourceLeft(ctx.campaign.state, pcId, "arcane-recovery-points");
+  const spent = Object.entries(me.spellSlotsUsed).map(([l, n]) => ({ level: Number(l), n })).filter(s => s.n > 0 && s.level <= 5).sort((a, b) => b.level - a.level);
+  const regained: Array<{ level: number; count: number }> = [];
+  let left = points;
+  for (const s of spent) {
+    const count = Math.min(s.n, Math.floor(left / s.level));
+    if (count > 0) { regained.push({ level: s.level, count }); left -= count * s.level; }
+  }
+  if (!regained.length) {
+    close(state, ctx);
+    return { lines: [points ? "(Arcane Recovery: no spent slot it could bring back.)" : "(Arcane Recovery is used: it comes back with a long rest.)"], directive: "" };
+  }
+  ctx.apply([event(ctx.E, "ResourceSpent", { characterId: pcId, resourceId: "arcane-recovery-points", amount: points - left }),
+    ...regained.map(r => event(ctx.E, "SpellSlotsRegained", { characterId: pcId, slotLevel: r.level, count: r.count, source: "arcane-recovery" }))]);
+  const statusText = status(ctx, pcId);
+  close(state, ctx);
+  const what = regained.map(r => `${r.count} ${ordinal(r.level)}-level slot${r.count > 1 ? "s" : ""}`).join(" and ");
+  return { lines: [`Arcane Recovery: ${what} back`, `${state.player.name}: ${statusText}`], directive: `Rules: the player used Arcane Recovery and got back ${what}. Narrate it briefly.`, status: statusText };
+}
+
+/** Something the player carries that's used up (a potion), by the engine's own rule for it. */
+export async function useItem(state: SessionState, instanceId: string): Promise<Outcome> {
+  const ctx = await open(state);
+  const pcId = state.rules!.pc;
+  const def = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instanceId]?.definitionId ?? "");
+  let events: Dnd.EngineEvent[];
+  try {
+    events = ctx.apply((ctx.engine.plan["consumeItem"] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, { characterId: pcId, instanceId }).events);
+  } catch (error) {
+    close(state, ctx);
+    return { lines: [`(${def?.name ?? "That"}: ${error instanceof Error ? error.message : String(error)})`], directive: "" };
+  }
+  const { lines, account } = describe(ctx, state, events, () => def?.name ?? "it");
+  refresh(ctx, state);
+  const statusText = status(ctx, pcId);
+  close(state, ctx);
+  return {
+    lines: [`${def?.name ?? "It"}: used`, ...lines, `${state.player.name}: ${statusText}`],
+    directive: `Rules: the player used ${def?.name ?? "something they carry"}. ${account.length ? `${capitalise(account.join("; "))}.` : "It takes effect as it says."} Narrate it briefly.`,
     status: statusText,
   };
 }
