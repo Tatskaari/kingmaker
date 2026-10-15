@@ -273,7 +273,19 @@ export class Game {
   }
 
   async resume(r: Resumable): Promise<void> {
-    const core = Core.load(r.id, this.explorer, this.fights);
+    let core: Core;
+    try {
+      core = Core.load(r.id, this.explorer, this.fights);
+      // What its screen reads first, read now: a save this version of the game can't make sense of
+      // (one from another build of it, say) is said on the title, rather than breaking the screen.
+      if (core.state.mode === "scene" || core.state.mode === "combat") sceneById(core.session.sceneId);
+      if (core.state.mode !== "end") exploreState(core.state);
+    } catch (error) {
+      this.error = `That game couldn't be loaded: ${message(error)}`;
+      this.loadSaves();
+      return;
+    }
+    this.error = undefined;
     if (repairCampaign(core.session)) core.save();
     this.core = core;
     setCallLog(join(sessionDir(r.id), "calls.jsonl"));

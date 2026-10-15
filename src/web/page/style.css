@@ -146,3 +146,77 @@ html, body {
   opacity: 0.55;
   cursor: default;
 }
+
+/* Server or static build (<html data-mode="static">): each has its own words in the key form. */
+html:not([data-mode="static"]) .static-only,
+html[data-mode="static"] .server-only {
+  display: none;
+}
+
+/* The static build keeps a line under the terminal for the key: what's kept, and changing or forgetting it. */
+html[data-mode="static"] #frame {
+  padding-bottom: 26px;
+}
+
+#key-bar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 0 10px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* Whether this browser is keeping the game, on the left, until it is. */
+#key-bar [data-storage] {
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--danger);
+}
+
+#key-bar [data-storage][hidden] {
+  display: none;
+}
+
+/* Until the game draws its first screen (or the page asks for a key). */
+#loading {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  transform: translateY(-50%);
+  text-align: center;
+  color: var(--dim);
+  font-size: 14px;
+}
+
+#loading[hidden] {
+  display: none;
+}
+
+#key-bar[hidden] {
+  display: none;
+}
+
+#key-bar button {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--title);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#key-bar button[hidden] {
+  display: none;
+}

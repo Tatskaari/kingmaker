@@ -128,6 +128,8 @@ function gameEnv(source: KeySource, key?: string): Record<string, string> {
   }
   env.TERM = "xterm-256color";
   env.COLORTERM = "truecolor";
+  // The game is on a web page (src/app/ui/title.tsx: Esc on the title doesn't quit).
+  env.KM_IN_BROWSER = "1";
   if (source === "offline") env.OPENROUTER_API_KEY = "offline";
   if (source === "page" && key) env.OPENROUTER_API_KEY = key;
   return env;

@@ -21,7 +21,8 @@ let loaded: { E: typeof Dnd; pack: unknown } | undefined;
 /** The engine and its content, loaded on first use (~70 ms; the pack is pre-validated JSON). */
 export async function dnd(): Promise<{ E: typeof Dnd; pack: unknown }> {
   if (!loaded) {
-    const E = await import(new URL("dnd-srd-engine.js", VENDOR).href) as typeof Dnd;
+    // A literal path, so a bundler (the browser build) can follow it; Node resolves it the same way.
+    const E = await import("../../vendor/dnd-srd-engine/dnd-srd-engine.js") as typeof Dnd;
     loaded = { E, pack: JSON.parse(readFileSync(new URL("starter-pack.json", VENDOR), "utf8")) };
   }
   return loaded;
