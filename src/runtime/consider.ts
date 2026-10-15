@@ -118,6 +118,8 @@ export function workedOn(scene: Scene, ruling: Pick<Ruling, "target" | "skill">)
  */
 export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | "judged"> & { hollow?: string }): Verdict {
   const j = ruling.judged;
+  // The same push that already failed here gets the same answer, whatever else the review says.
+  if (j.sameAgain) return { kind: "no", why: "the same push again, with nothing new" };
   if (ruling.hollow) return { kind: "no", why: ruling.hollow };
   if (workedOn(scene, ruling)) {
     const said = `${j.stakes}, ${j.approach.replace("_", " ")}, ${j.disposition}`;
@@ -125,7 +127,6 @@ export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | 
     if (j.approach === "free") return { kind: "yes", why: `they'd do it anyway (${said})` };
     if (j.stakes === "trivial" && !lie) return { kind: "yes", why: `it costs them nothing (${said})` };
     if (j.approach === "no_chance") return { kind: "no", why: `it pulls a lever that can't move them (${said})` };
-    if (j.sameAgain) return { kind: "no", why: `the same push again (${said})` };
     const gap = (RESIST[j.stakes] ?? 1) - (LEVER[j.approach] ?? 0) - (WARMTH[j.disposition] ?? 0);
     if (gap <= -1 && !lie) return { kind: "yes", why: `overwhelming (${said})` };
     return { kind: "roll", dc: Math.min(18, Math.max(10, 9 + 3 * gap)), why: said };
@@ -189,7 +190,7 @@ function rulingSchema(scene: Scene, state: SessionState) {
       stakes: { type: "string", enum: ["trivial", "guarded", "dangerous", "ruinous"], description: "Working on someone: what giving in would cost them, as they see it." },
       approach: { type: "string", enum: ["free", "no_chance", "weak", "plausible", "strong", "excellent"], description: "Working on someone: what the player says, offers or shows, against who this person is. A lie is judged as if it were true (whether it's believed is the roll's to decide, so it isn't marked down for being a lie). free: they'd do it anyway, or it follows up on what they've already given, agreed to or been paid for; no_chance: a lever that can't move them, or something nothing would get from them (or a lie they'd know at once is false); weak: no real reason; plausible: some reason, not aimed at them; strong: real leverage on them; excellent: aimed squarely at what they want or fear." },
       disposition: { type: "string", enum: ["hostile", "wary", "friendly"], description: "Working on someone: how they feel about the player right now." },
-      same_again: { type: "boolean", description: "The same push that already failed in this scene (one of your rulings, or a route's roll), with nothing new on the table." },
+      same_again: { type: "boolean", description: "True only when this is the same push as a try that failed in this scene (your earlier rulings, and the routes rolled that failed, each with the player's own words): the same ask of the same person by the same means, reworded, repeated or louder, or more of the same (a bigger bribe, a harder threat), with nothing new on the table. New evidence or an argument not made before, a different lever (another kind of offer, a promise that answers what they fear), a different ask or person, or a changed situation is a new try: false. False when nothing has failed here." },
       difficulty: { type: "string", enum: ["trivial", "easy", "moderate", "hard", "impossible"], description: "A feat (no one being worked on): how hard, here and now." },
       reason: { type: "string", description: "For the dice line, which the player reads: what they're after, as they put it this turn ('to talk the ferryman into crossing tonight'). Never the answer, and nothing only you know: no name they haven't heard, nothing from your prep they haven't come across (where someone was, what they saw or hide). They're 'you'." },
       success: outcome("success"),
@@ -223,8 +224,18 @@ function leaning(read: PreDecision["considered"]): string {
   return bits.length ? `(The decider's read: ${bits.join("; ")}.)` : "";
 }
 
-/** The review's input: where the scene stands, its routes, what's been tried and established, and the turn to rule on. */
-function reviewInput(scene: Scene, state: SessionState, playerTurn: string, read: PreDecision["considered"], context: ReviewContext): string {
+/** What the player said and did on a turn of this scene, in their own words (clipped), for the record of what was tried. */
+function theirWords(state: SessionState, turn: number): string {
+  const words = sceneEntries(state).filter(e => e.turn === turn && e.speaker === "player").map(e => e.text.trim()).join(" ");
+  return words ? ` The player: "${words.length > 300 ? `${words.slice(0, 300).trimEnd()}…` : words}"` : "";
+}
+
+/**
+ * The review's input: where the scene stands, its routes, what's been tried (each try with the
+ * player's own words, so the same push again can be told from a new one) and established, and the
+ * turn to rule on.
+ */
+export function reviewInput(scene: Scene, state: SessionState, playerTurn: string, read: PreDecision["considered"], context: ReviewContext = {}): string {
   const beat = currentBeat(scene, state);
   const { checks, outcomes } = routesNow(scene, state);
   const line = (t: Transition) => t.check
@@ -233,9 +244,9 @@ function reviewInput(scene: Scene, state: SessionState, playerTurn: string, read
   const beats = scene.beats.map(b => `- [${b.id}] ${b.title}: ${b.direction.split(/(?<=\.)\s/).slice(0, 2).join(" ")}`);
   const endings = scene.exits.filter(e => e.id !== IMPROVISED_EXIT_ID).map(e => `- [${e.id}] ${e.title}: ${e.outcome}`);
   const essentials = (scene.essentials ?? []).map(e => `- [${e.id}] ${e.what} (placed with: ${e.placedWith.join("; ")}) ${state.landed?.includes(e.id) ? "ALREADY COME ACROSS" : "NOT YET"}`);
-  const rulings = (state.rulings ?? []).map(r => `- turn ${r.turn}: ${r.act} (${r.target}; ${r.kind === "roll" ? `${titleCase(r.skill)} DC ${r.dc}, ${r.roll ? describeRoll(r.roll) : "rolled"}` : r.kind === "yes" ? "no roll: it worked" : "no roll: it couldn't work like that"}): ${r.changed}`);
+  const rulings = (state.rulings ?? []).map(r => `- turn ${r.turn}: ${r.act} (${r.target}; ${r.kind === "roll" ? `${titleCase(r.skill)} DC ${r.dc}, ${r.roll ? describeRoll(r.roll) : "rolled"}` : r.kind === "yes" ? "no roll: it worked" : "no roll: it couldn't work like that"}): ${r.changed}.${theirWords(state, r.turn)}`);
   // The routes' own rolls that failed: the same push again gets the same answer there too.
-  const failed = failedTries(scene, state, { rulings: false });
+  const failed = failedTries(scene, state, { rulings: false }).map(f => `${f}${theirWords(state, Number(/^turn (\d+):/.exec(f)?.[1] ?? NaN))}`);
   const strangers = Object.entries(unnamed(scene, state)).map(([id, called]) => `${scene.cast.find(c => c.id === id)?.name} ("${called}")`);
   const pending = context.pending ?? state.pendingExit;
   const read_ = leaning(read);
@@ -246,7 +257,7 @@ function reviewInput(scene: Scene, state: SessionState, playerTurn: string, read
     `## Routes from here that simply happen\n${outcomes.map(line).join("\n") || "(none)"}`,
     ...(essentials.length ? [`## What the player needs to come across\n${essentials.join("\n")}`] : []),
     `## Established so far\n${[...state.established, ...state.canon].map(f => `- ${f}`).join("\n") || "(nothing yet)"}`,
-    ...(rulings.length ? [`## Your earlier rulings in this scene\n${rulings.join("\n")}`] : []),
+    ...(rulings.length ? [`## Your earlier rulings in this scene (each with what the player said and did)\n${rulings.join("\n")}`] : []),
     ...(failed.length ? [`## Routes you wrote that were rolled in this scene and failed\n${failed.map(f => `- ${f}`).join("\n")}`] : []),
     ...(pending ? [`## On the brink\nUnless this turn changes things, the scene ends next: ${scene.exits.find(e => e.id === pending.exitId)?.title ?? pending.exitId}. A success can stop it; a failure lets it happen (lead there).`] : []),
     ...(state.world ? [`## The world right now (who and what is where)\n${worldView(state.world)}`] : []),
@@ -364,9 +375,11 @@ export function toRuling(scene: Scene, state: SessionState, json: RulingJson, me
   };
   const success = fix(json.success, "success"), failure = fix(json.failure, "failure");
   const hollow = success.gets === "none" ? "no roll could get them that here" : !differs(success, failure) ? "either way it comes to the same" : undefined;
+  // The same push again only when something has failed here to be the same as.
+  const sameAgain = json.same_again === true && failedTries(scene, state).length > 0;
   return {
     act, target: json.target, skill, lie: json.lie === true,
-    judged: { stakes: json.stakes, approach: json.approach, disposition: json.disposition, sameAgain: json.same_again === true, difficulty: json.difficulty },
+    judged: { stakes: json.stakes, approach: json.approach, disposition: json.disposition, sameAgain, difficulty: json.difficulty },
     reason: diceReason(scene, state, json.reason, { target: json.target, skill }, context.unheard),
     success, failure, ...(hollow ? { hollow } : {}),
     costUsd: meta.costUsd, latencyMs: meta.latencyMs,

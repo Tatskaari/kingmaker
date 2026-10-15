@@ -10,7 +10,7 @@ process.env.OPENROUTER_API_KEY = "offline";
 const { sceneById } = await import("../../scenes/index.ts");
 const { effectiveScene, presentCast } = await import("./brief.ts");
 const { rng } = await import("./dice.ts");
-const { diceReason, landRuling, settleRuling, toRuling, verdict } = await import("./consider.ts");
+const { diceReason, landRuling, reviewInput, settleRuling, toRuling, verdict } = await import("./consider.ts");
 const { playerTurn } = await import("./engine.ts");
 const { owedAtEnd } = await import("./owed.ts");
 const { sessionDir } = await import("./session.ts");
@@ -80,6 +80,40 @@ const LINING = json(
   outcome({ happens: "Cob jeers and bolts behind the water butt and through the gap into the granary, boots and all.", gets: "none", establishes: ["Cob has bolted into the granary through the gap behind the water butt."], closes: ["win-cob"] }),
 );
 const META = { costUsd: 0.002, latencyMs: 4000 };
+
+/** A ruling on record that failed: the penny for a look, as the goals tester's granary had it (goals#58). */
+const PENNY = { turn: 2, act: "Offer a penny for a look in Cob's left boot", target: "cob", skill: "persuasion" as const, kind: "roll" as const, dc: 15, why: "guarded, weak, hostile",
+  roll: { skill: "persuasion", dc: 15, die: 6, modifier: 2, total: 8, success: false, critical: null }, went: "failure" as const,
+  changed: "Cob snatches the penny and backs toward the water butt, clamping a hand over the left boot", costUsd: 0, latencyMs: 0 };
+
+test("the same push again gets the same answer, whatever else the review says; but only when something has failed here to be the same as (goals#58, robust#74)", () => {
+  // The goals tester's T3: "Fair's fair: let me have that look", after the penny failed, judged trivial and the same push.
+  const state = yard(0);
+  state.rulings = [PENNY];
+  const fair = toRuling(scene, state, { ...LINING, stakes: "trivial", approach: "weak", disposition: "hostile", same_again: true }, META);
+  assert.equal(fair.judged.sameAgain, true);
+  assert.deepEqual(verdict(scene, fair), { kind: "no", why: "the same push again, with nothing new" }, "trivial stakes don't make it a yes");
+  assert.equal(verdict(scene, { ...fair, judged: { ...fair.judged, approach: "free" } }).kind, "no", "nor does free");
+  assert.equal(verdict(scene, { target: "world", skill: "athletics", judged: judged({ difficulty: "easy", sameAgain: true }) }).kind, "no", "a feat that failed, tried the same way again");
+  // Nothing has failed in this scene: the review's same_again is no reason to refuse.
+  const fresh = yard(0);
+  const first = toRuling(scene, fresh, { ...LINING, same_again: true }, META);
+  assert.equal(first.judged.sameAgain, false);
+  assert.equal(verdict(scene, first).kind, "roll");
+});
+
+test("the review is given what was tried, each try in the player's own words, to tell the same push from a new one (wizard#15)", () => {
+  const state = yard(0);
+  state.rulings = [PENNY];
+  state.transcript.push(
+    { turn: 2, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Not buying the boots, Cob. (I hold up a silver penny.) This is yours if I can see what's crackling in there." },
+    { turn: 3, scene: "hanged-clerk", speaker: "player", kind: "player", text: "You saw him jump, Moll? Tell it again." },
+  );
+  state.path.push({ turn: 3, from: "yard", to: "yard", via: "catch-moll", source: "pre", roll: { skill: "insight", dc: 13, die: 4, modifier: 1, total: 5, success: false, critical: null } });
+  const input = reviewInput(scene, state, "The drizzle started before midnight, and the loft door is barred. Who taught you that story?", undefined);
+  assert.match(input, /## Your earlier rulings in this scene \(each with what the player said and did\)\n- turn 2: Offer a penny .*backs toward the water butt, clamping a hand over the left boot\. The player: "Not buying the boots, Cob\. \(I hold up a silver penny\.\) This is yours/);
+  assert.match(input, /## Routes you wrote that were rolled in this scene and failed\n- turn 3: The player presses on the holes in Moll's .* The player: "You saw him jump, Moll\? Tell it again\."/);
+});
 
 test("a ruling is held to the scene: an outcome counts as the route it amounts to, closes only ways of trying, and always changes something", () => {
   const state = yard(0);
