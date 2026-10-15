@@ -342,6 +342,47 @@ test("no cue fires on a word out of character: that isn't time passing in the sc
   assert.equal(await cueRead(0.95, { ...yard(), turnsInBeat: 9 }, { ooc: ["out_of_character", 0.95] }), undefined);
 });
 
+// The player's own exit against a cue that ends the scene.
+const at = (sceneId: string, beat: string, turnsInBeat: number): SessionState => ({ ...yard(), sceneId, beat, turnsInBeat });
+
+test("a cue's ending that the player is plainly leaving by closes as theirs, in this reply; not when they're staying", async () => {
+  // The goals run's g7 T15: "(I leave the Rat for the Heron, token in my pocket.)" read as walking out
+  // (0.57) and letting Hobb go (0.16), and the eleventh bell (0.70) took the scene to What Big Hobb
+  // knows, but held it for the answer they'd just given: they had to leave a second time.
+  const rat = effectiveScene(sceneById("drowned-rat"), []);
+  const confession = at("drowned-rat", "confession", 5);
+  const leave = await decideBefore(scripted({ attempt: ["walk-out", 0.57, { "let-him-go": 0.16, brawl: 0.01, none: 0.26 }], cue: ["bell-talked", 0.7, { not_yet: 0.3 }] }), rat, confession, "(I leave the Rat for the Heron, token in my pocket.)", { speaker: false });
+  assert.equal(leave.move?.transition.id, "bell-talked");
+  assert.equal(leave.move?.exit?.id, "hobb-talks");
+  assert.equal(leave.move?.chosen, true, "their own choice: it closes now");
+  // Talking on, the bell's ending waits for their answer, as any ending they didn't choose.
+  const stay = await decideBefore(scripted({ cue: ["bell-talked", 0.7, { not_yet: 0.3 }] }), rat, confession, "Did he pay you on the night, Hobb?", { speaker: false });
+  assert.equal(stay.move?.exit?.id, "hobb-talks");
+  assert.equal(stay.move?.chosen, false);
+  // Leaving by a way out that isn't the bell's (walking out on him), the bell waits a reply: what they did is read after it.
+  const other = await decideBefore(scripted({ attempt: ["walk-out", 0.57, { "let-him-go": 0.04, brawl: 0.02, none: 0.37 }], cue: ["bell-talked", 0.7, { not_yet: 0.3 }] }), rat, confession, "(I've had enough of this. I go.)", { speaker: false });
+  assert.equal(other.move, undefined);
+});
+
+test("a cue doesn't end the scene over the player's own ending, or over one held for their answer; a fight doesn't wait", async () => {
+  // The goals run's g7 T31: walking off the wharf with the true book read 0.56 for Out with the true
+  // book, under the bar, and the cast-off cue (0.60) closed the scene as The barge sails.
+  const heron = effectiveScene(sceneById("heron-warehouse"), []);
+  const midnight = at("heron-warehouse", "midnight", 7);
+  const WALK = "(I tuck the ledger under my arm and turn up the wharf, away from the Heron.) Sergeant, will you walk me to the palace?";
+  const going = await decideBefore(scripted({ attempt: ["away-with-book", 0.56, { attack: 0.01, "give-up": 0.01, none: 0.42 }], cue: ["cast-off", 0.6, { not_yet: 0.4 }] }), heron, midnight, WALK, { speaker: false });
+  assert.equal(going.move, undefined, "the barge waits a reply");
+  const dithering = await decideBefore(scripted({ cue: ["cast-off", 0.6, { not_yet: 0.4 }] }), heron, midnight, "(I hang back behind the sacks and watch.)", { speaker: false });
+  assert.equal(dithering.move?.transition.id, "cast-off", "with the player going nowhere, the barge sails");
+  const proof = heron.exits.find(e => e.id === "proof-taken")!;
+  const held = await decideBefore(scripted({ cue: ["cast-off", 0.9, { not_yet: 0.1 }], brink: ["answers", 0.9] }), heron, midnight, "Kell, did you see him take it?", { speaker: false, brink: proof });
+  assert.equal(held.move, undefined, "the ending held for their answer isn't replaced");
+  // The crossroads' goblins don't wait for a party walking off without Tam.
+  const road = effectiveScene(sceneById("crossroads-ambush"), []);
+  const strike = await decideBefore(scripted({ attempt: ["walk-away", 0.5, { none: 0.5 }], cue: ["goblins-lose-patience", 0.9, { not_yet: 0.1 }] }), road, at("crossroads-ambush", "ambush", 3), "Come on, we're leaving.", { speaker: false });
+  assert.equal(strike.move?.transition.id, "goblins-lose-patience");
+});
+
 // The consequences flag: what the player does that the world would answer, not what they ask for.
 const BOOT = "I don't want your boots. I just want to see what's making that noise. I assume you got them from the body. Could be evidence.";
 

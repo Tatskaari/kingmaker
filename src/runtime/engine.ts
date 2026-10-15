@@ -288,6 +288,7 @@ function closingDirective(exit: Exit): string {
  * doing with nothing left hanging (`whyItWaits`); a fight ends the scene at once.
  */
 function moveOnAfterReply(scene: Scene, state: SessionState, post: PostDecision, hooks: TurnHooks, onStage: Set<string>): Exit | undefined {
+  const from = state.beat;
   if (post.move) {
     if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll, post.move.transition.check?.reason) });
     applyMove(state, scene, post.move, "post");
@@ -296,7 +297,10 @@ function moveOnAfterReply(scene: Scene, state: SessionState, post: PostDecision,
   // (An ending the dice decided before the reply stands, unless a fight has broken out.)
   if (post.move?.exit) return state.closing && post.move.exit.kind !== "combat" ? undefined : reachEnding(state, post.move.exit, post.move.transition.id, waits);
   if (!post.ending) { delete state.endingLead; return undefined; }
-  if (post.move || state.closing || state.pendingExit) return undefined;
+  // An outcome that moved the scene on makes the read of where it stood stale; one that kept it where
+  // it was (a fact established) doesn't. (The Heron's book in hand, read again each turn, threw away
+  // "Out with the true book" at 0.42, 0.59 and 0.51 as the player walked off the wharf with it.)
+  if ((post.move && post.move.to !== from) || state.closing || state.pendingExit) return undefined;
   const exit = endingReached(scene, state, post.ending);
   if (!exit) return undefined;
   state.path.push({ turn: state.turn, from: state.beat, to: exit.id, via: "ending-reached", source: "post" });

@@ -91,6 +91,7 @@ This is narrative repair; see [experiments/deviation-repair.md](../experiments/d
 - **Endings.**
   - An ending the player chooses closes in that reply.
   - One they didn't choose is held for their answer: a question, a challenge or a try holds it once more.
+  - A cue's ending (other than a fight) doesn't land over the player's own way out: not while one is held for their answer, nor while they're going for an ending of their own. When they're plainly leaving by a way that leads where the cue does, it's their choice, and it closes in that reply. In the QA pass, walking off the wharf with the book became "The barge sails", and "(I leave the Rat for the Heron)" was held for the answer it had just given.
   - One that happens in the fiction waits for their answer too, unless it was their own doing and nothing is left hanging: then it gets a wind-down, whose reply answers their last turn first (a challenge to someone in the room lands). In Brother Ambrose's game, Kell signed Prout in as persons unknown while he asked Cob what he saw, and the King put it off as Sallow walked in; the turns that followed were spent closing.
   - A word out of character never closes anything: it's answered, and the turn is given back.
   - "An ending of their own" catches resolutions the prep didn't foresee, and inherits the next scene when every authored exit agrees on one.

@@ -16,7 +16,7 @@ type Fake = ReturnType<typeof fakeOpenRouter>;
 /**
  * The engine's gates for considered rolls, played through `playerTurn` with OpenRouter stood in for:
  * what the prep, the rules and the same push again settle before the GM's review would, and when a
- * turn goes to it all the same.
+ * turn goes to it all the same; and the player's own way out of a scene.
  */
 
 /** A seed whose first d20 is neither 1 nor 20: with a big modifier either way, the outcome is certain. */
@@ -163,6 +163,26 @@ test("a class feature with a risky act beside it gets the act's ruling, after th
     await playerTurn(state, "*I catch my breath, then bellow at the kids to get down off that wall, now.*");
     assert.ok(state.path.some(p => p.via === "rules:feature:second-wind"), "the feature is used");
     assert.deepEqual(state.rulings?.map(r => r.act), [ROAR.act], "and the roar is ruled on");
+  } finally {
+    fake.restore();
+  }
+});
+
+// The player's own exit. The goals run's g7 T29 to T31: the player walked off the wharf with the true
+// book, and each turn's after-read had the book in hand (an outcome that kept the scene where it was)
+// beside Out with the true book at 0.42, 0.59 and 0.51, which led every time and was thrown away every
+// time; the cast-off cue closed the scene as The barge sails.
+test("an outcome after the reply that keeps the scene where it was doesn't throw away where it stands: an ending that leads twice is reached", async () => {
+  const fake = fakeOpenRouter({ choices: { outcome: "book-in-hand", ending: "proof-taken", own_exit: "theirs" }, odds: { ending: 0.5 }, replies: ["You walk on up the wharf, the ledger under your arm."] });
+  try {
+    const state: SessionState = { ...yard("gates-away-with-book"), sceneId: "heron-warehouse", beat: "midnight", turnsInBeat: 3 };
+    await playerTurn(state, "(I bolt for the river door with the ledger before the Crakes can close in.)");
+    assert.ok(state.established.some(f => /true book in their hands/.test(f)), "the book's in hand");
+    assert.equal(state.beat, "midnight", "and the scene is where it was");
+    assert.deepEqual([state.endingLead?.exitId, state.endingLead?.count], ["proof-taken", 1], "the read of where it stands is kept");
+    assert.equal(state.closing?.exitId, undefined, "not yet: once, at 0.5");
+    await playerTurn(state, "(I tuck the ledger under my arm and turn up the wharf, away from the Heron.)");
+    assert.equal(state.closing?.exitId, "proof-taken", "leading twice, it's reached, and it's their own doing");
   } finally {
     fake.restore();
   }

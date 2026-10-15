@@ -817,7 +817,22 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // Nor does one fire on a word out of character: that isn't time passing in the scene.
   const earnedNow = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const ooc = decision.answers.ooc?.choice === "out_of_character";
-  const cue = attempt || earnedNow || ooc ? undefined : firedCue(cues, decision.answers.cue, state.turnsInBeat);
+  const fired = attempt || earnedNow || ooc ? undefined : firedCue(cues, decision.answers.cue, state.turnsInBeat);
+  // Nor does a cue end the scene over the player's own way out (a fight aside: danger doesn't wait).
+  // It waits while an ending is held for their answer, which it would replace, and while they're
+  // going for an ending of their own: the routes that settle the scene, read together as an attempt
+  // is (0.45), though none surely enough to take (walking off the wharf with the book, 0.56, became
+  // "The barge sails"). And when they're plainly leaving (0.6, together) by a way that leads where
+  // the cue does, the cue's ending is their own choice, and it closes in this reply ("(I leave the
+  // Rat for the Heron)" read 0.57 and 0.16 between two ways out, and the eleventh bell's ending, the
+  // second's, was held for the answer they'd just given).
+  const pOf = (t: Transition) => decision.answers.attempt?.probabilities?.[t.id] ?? (answer === t.id ? 1 : 0);
+  const exitOf = (t: Transition) => t.check ? t.check.onSuccess : t.to;
+  const leavingBy = attempts.filter(t => endsScene(scene, t));
+  const leaving = leavingBy.reduce((sum, t) => sum + pOf(t), 0);
+  const cueEnding = fired && endsScene(scene, fired) && scene.exits.find(e => e.id === exitOf(fired))?.kind !== "combat" ? exitOf(fired) : undefined;
+  const theirsToo = !!cueEnding && !options.brink && leaving >= SCENE_ENDING_CONFIDENCE && leavingBy.some(t => exitOf(t) === cueEnding && pOf(t) >= 0.1);
+  const cue = cueEnding && !theirsToo && (options.brink || leaving >= 0.45) ? undefined : fired;
   // Something the player simply does that settles the scene (setting off, handing it over) is
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
@@ -884,6 +899,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // the route stays open for when they do.
   const held = act && attempt?.check && !considered && !sameAgain ? attempt : undefined;
   let move = chosen && !held ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", method) : undefined;
+  // (The cue's ending is the one the player is leaving by: their choice, as their own route's would be.)
+  if (move && chosen === cue && theirsToo) move = { ...move, chosen: true };
   let freeform: FreeformCheck | undefined;
   let combined = decision;
   if (answer === "other_risky" && !move && !considered && !limitBlocks && !actSettles && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
