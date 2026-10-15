@@ -101,6 +101,46 @@ test("the SRD's text: every spell the engine has, by id, under the SRD 5.2.1's o
   assert.equal(srdSpell("not-a-spell"), undefined);
 });
 
+test("a spell rolls the save DC and attack bonus the sheet and its card show, before and after the level 4 Ability Score Improvement", async () => {
+  const dummy = [{ id: "dummy", name: "the straw man", statblock: "commoner" }] as unknown as Character[];
+  for (const [pregen, level, dc, bonus, attack, save] of [
+    ["wizard", 3, 13, 5, "fire-bolt", "burning-hands"], ["wizard", 4, 14, 6, "fire-bolt", "burning-hands"], ["wizard", 5, 15, 7, "scorching-ray", "fireball"],
+    ["cleric", 5, 15, 7, "guiding-bolt", "sacred-flame"],
+  ] as const) {
+    const at = `${pregen} ${level}`;
+    const sc = (await sheetData(await pregenSession({ pregen, level, seed: 4 })))!.spellcasting!;
+    assert.deepEqual([sc.saveDC, sc.attackBonus], [dc, bonus], `${at}: the sheet`);
+    const cards = sc.spells.flatMap(g => g.spells);
+    assert.match(cards.find(s => s.id === attack)!.details!.does[0]!, new RegExp(`\\+${bonus} to hit`), `${at}: ${attack}'s card`);
+    assert.match(cards.find(s => s.id === save)!.details!.does[0]!, new RegExp(`DC ${dc}\\b`), `${at}: ${save}'s card`);
+    const hit = (await castSpell(await pregenSession({ pregen, level, seed: 4 }), dummy, attack, ["dummy"])).lines.join("\n");
+    assert.match(hit, new RegExp(`your attack on the straw man: \\d+ \\+${bonus} = `), `${at}: ${attack} as it's cast`);
+    const saved = (await castSpell(await pregenSession({ pregen, level, seed: 4 }), dummy, save, ["dummy"])).lines.join("\n");
+    assert.match(saved, new RegExp(`save: \\d+ [+-]\\d+ = \\d+ vs DC ${dc}:`), `${at}: ${save} as it's cast`);
+  }
+});
+
+test("rays and beams are an attack each, at a person as at a thing: Scorching Ray's three (four from a 3rd-level slot), Eldritch Blast's two at level 5", async () => {
+  const dummy = [{ id: "dummy", name: "the straw man", statblock: "commoner" }] as unknown as Character[];
+  const attacks = (lines: string[]) => lines.filter(l => /your attack on the straw man/.test(l)).length;
+  const wizard = await pregenSession({ pregen: "wizard", level: 5, seed: 6 });
+  const ray = await castSpell(wizard, dummy, "scorching-ray", ["dummy"]);
+  assert.match(ray.lines[0]!, /^Cast Scorching Ray \(2nd-level slot\) on the straw man/);
+  assert.equal(attacks(ray.lines), 3, ray.lines.join("\n"));
+  // With the 2nd-level slots spent, the next comes from a 3rd-level one: a ray more.
+  await castSpell(wizard, dummy, "scorching-ray", ["dummy"]);
+  await castSpell(wizard, dummy, "scorching-ray", ["dummy"]);
+  const fourth = await castSpell(wizard, dummy, "scorching-ray", ["dummy"]);
+  assert.match(fourth.lines[0]!, /\(3rd-level slot\)/);
+  assert.equal(attacks(fourth.lines), 4, fourth.lines.join("\n"));
+  const warlock: Build = { classId: "warlock", subclassId: "fiend-patron", speciesId: "tiefling", backgroundId: "criminal", abilities: ["CHA", "CON", "DEX", "WIS", "INT", "STR"],
+    skills: ["deception", "intimidation", "arcana"], feat: "alert", cantrips: ["eldritch-blast", "minor-illusion"], spells: ["hex", "charm-person", "misty-step"],
+    weapons: ["dagger"], armor: "leather-armor", shield: false };
+  const blast = await castSpell(await pregenSession({ build: warlock, level: 5, seed: 6 }), dummy, "eldritch-blast", ["dummy"]);
+  assert.equal(attacks(blast.lines), 2, blast.lines.join("\n"));
+  assert.equal(attacks((await castSpell(await pregenSession({ build: warlock, level: 3, seed: 6 }), dummy, "eldritch-blast", ["dummy"])).lines), 1);
+});
+
 test("what the engine adds for the caster is on their card, as a cast rolls it: a Life cleric's heals, Agonizing Blast, Potent Cantrip", async () => {
   const card = async (build: Build, id: string, name: string) => {
     const d = await sheetData(await pregenSession({ build, name, seed: 1 }));

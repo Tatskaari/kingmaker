@@ -129,6 +129,18 @@ const die = (dice: string) => /d(\d+)/.exec(dice)?.[1] ?? "";
 /** Cantrips grow at character levels 5, 11 and 17. */
 const tier = (level: number) => (level >= 17 ? 3 : level >= 11 ? 2 : level >= 5 ? 1 : 0);
 
+/**
+ * Spells that are several attacks at once, a ray or a beam each, and how many by the slot they're
+ * cast with and the caster's level: Scorching Ray's three, one more for each slot level above 2nd;
+ * Eldritch Blast's beams, more at levels 5, 11 and 17. The engine rolls one attack for each target
+ * it's handed, so the game hands it one for each ray (castSpell in dnd.ts, a fight's cast), and
+ * rolls each ray at a thing itself.
+ */
+export const RAYS: Record<string, (slot: number, level: number) => number> = {
+  "scorching-ray": slot => 3 + Math.max(0, slot - 2),
+  "eldritch-blast": (_, level) => 1 + tier(level),
+};
+
 /** The details of a spell for whoever's casting it (without a caster: no numbers, and a cantrip as it starts). */
 export function spellDetails(spell: Dnd.SpellDef, caster?: Caster, names?: Names): SpellDetails {
   const c = (spell.components ?? {}) as { verbal?: boolean; somatic?: boolean; material?: string };
@@ -261,6 +273,12 @@ class Terms {
           const beams = 1 + tier(this.caster?.level ?? 1);
           if (beams > 1) this.does.push(`${capital(NUMBER[beams]!)} beams, each its own attack`);
           this.scaling.push("Grows with you: two beams at level 5, three at 11, four at 17");
+        } else if (RAYS[this.spell.id]) {
+          const rays = RAYS[this.spell.id]!;
+          const n = rays(this.spell.level, this.caster?.level ?? 1);
+          this.does.push(`${capital(NUMBER[n] ?? String(n))} rays, each its own attack`);
+          const gain = rays(this.spell.level + 1, this.caster?.level ?? 1) - n;
+          if (gain > 0) this.higher(gain === 1 ? "one more ray" : `${NUMBER[gain] ?? gain} more rays`);
         }
         return;
       }

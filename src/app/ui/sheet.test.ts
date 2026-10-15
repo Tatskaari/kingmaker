@@ -48,8 +48,10 @@ test("a fighter's sheet: abilities and saves, Second Wind and Action Surge with 
   assert.deepEqual([athletics.proficiency, athletics.modifier], ["proficient", 5]);
   assert.equal(d.skills.find(s => s.id === "arcana")!.proficiency, "none");
   const sword = d.attacks.find(a => a.name === "Longsword")!;
-  assert.deepEqual([sword.bonus, sword.damage, sword.type, sword.versatile, sword.held], [7, "1d8+3", "slashing", "1d10+3", true]);
-  assert.deepEqual(d.attacks.find(a => a.name === "Longbow")!.range, { normal: 150, long: 600 });
+  assert.deepEqual([sword.bonus, sword.damage, sword.type, sword.versatile, sword.held], [5, "1d8+3", "slashing", "1d10+3", true]);
+  // The Archery fighting style is the bow's: +2 to ranged attacks only.
+  const bow = d.attacks.find(a => a.name === "Longbow")!;
+  assert.deepEqual([bow.bonus, bow.range], [5, { normal: 150, long: 600 }]);
   const feature = (name: string) => d.features.find(f => f.name === name);
   assert.deepEqual(feature("Second Wind")!.uses, { current: 2, max: 2, recharge: "short rest" });
   assert.deepEqual(feature("Action Surge")!.uses, { current: 1, max: 1, recharge: "short rest" });
@@ -274,7 +276,9 @@ test("a spell picked, laid out: the card, the game's terms and the SRD's words, 
   assert.match(plain(spellPage((await spellCard("shield"))!, 76)), /Not in a fight on the map: cast it in a scene\./);
   assert.match(plain(spellPage((await spellCard("barkskin"))!, 76)), /Casting time Action \(the SRD's: Bonus Action\)/);
   assert.equal((await spellCard("plant-growth"))!.castingTime, "Action (Overgrowth) or 8 hours (Enrichment)");
-  assert.deepEqual((await spellCard("scorching-ray", { level: 3, saveDC: 13, attackBonus: 5 }))!.scaling, ["With a higher slot: nothing more in this game"]);
+  // Scorching Ray's rays are an attack each, as the game rolls them, one more for each slot level above 2nd.
+  const rays = (await spellCard("scorching-ray", { level: 3, saveDC: 13, attackBonus: 5 }))!;
+  assert.deepEqual([rays.does, rays.scaling], [["Ranged spell attack, +5 to hit: 2d6 fire on a hit", "Three rays, each its own attack"], ["With a higher slot: one more ray for each level above 2nd"]]);
   assert.deepEqual((await spellCard("divine-smite"))!.scaling, ["With a higher slot: nothing more in this game"]);
   // Tables, lists and a stat block, inside the box.
   for (const id of ["augury", "teleport", "bestow-curse", "find-steed", "prismatic-spray", "confusion"]) {

@@ -1,5 +1,5 @@
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.js";
-import { inFights } from "../../rules/spells.ts";
+import { inFights, RAYS } from "../../rules/spells.ts";
 import type { CombatResult, Tile2 } from "../types.ts";
 import { flavour, has as hasFlavour, hash, listing } from "./flavour.ts";
 import { areaTiles, clearShot, explore, FEET, feetBetween, findPath, fromFeet, fromKey, key, line, neighbours, rangeFeet, same, solid, steps, toFeet, type PathRules } from "./grid.ts";
@@ -474,7 +474,10 @@ export class Skirmish {
     }
     let events: Dnd.EngineEvent[] = [];
     if (targets.length) {
-      try { events = this.t.plan("castSpell", { characterId: u.engineId, spellId, slotLevel: slot, targetIds: targets.map(v => v.engineId) }); } catch (e) { return `${spell.name} can't be cast like that: ${reason(e)}`; }
+      // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, at whoever's aimed at.
+      const rays = RAYS[spellId]?.(slot, this.t.sheet(u.engineId).totalLevel);
+      const aimed = rays ? Array.from({ length: rays }, (_, i) => targets[i % targets.length]!.engineId) : targets.map(v => v.engineId);
+      try { events = this.t.plan("castSpell", { characterId: u.engineId, spellId, slotLevel: slot, targetIds: aimed }); } catch (e) { return `${spell.name} can't be cast like that: ${reason(e)}`; }
     } else {
       // At the dust, a lantern or bare boards: it goes off, but the engine wants a creature, so spend it here.
       this.t.apply([

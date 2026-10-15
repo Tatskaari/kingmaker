@@ -7,7 +7,7 @@ import type { SessionState } from "../runtime/session.ts";
 import { startingPurse } from "../world/inventory.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
-import { spellDetails, type Caster, type Extras, type Names, type SpellDetails } from "./spells.ts";
+import { RAYS, spellDetails, type Caster, type Extras, type Names, type SpellDetails } from "./spells.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -812,6 +812,21 @@ function nameOf(ctx: Ctx, state: SessionState, id: string): string {
   return (castId && state.rules!.aliases?.[castId]) || (ctx.campaign.state.characters[id]?.name ?? "someone");
 }
 
+/** A damage roll in the engine's DamageRolled: its expression is the base dice ("2d6"), its rolls every die rolled. */
+export interface DamageRoll { expression: string; rolls: number[]; modifier: number; type: string }
+
+/**
+ * "Damage: 4d6 (3+1+1+6) fire": the dice as many as were rolled, which is more than the expression
+ * says on a critical hit (doubled) and for a cantrip that's grown with the caster's level.
+ */
+export function damageLine(rolls: DamageRoll[]): string {
+  const dice = (r: DamageRoll) => {
+    const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(r.expression.replace(/\s/g, ""));
+    return m && r.rolls.length > Number(m[1]) ? `${r.rolls.length}d${m[2]}${m[3] ?? ""}` : r.expression;
+  };
+  return `Damage: ${rolls.map(r => `${dice(r)}${r.modifier ? signed(r.modifier) : ""} (${r.rolls.join("+")}${r.modifier ? signed(r.modifier) : ""}) ${r.type}`).join(" + ")}`;
+}
+
 /** Dice lines and a plain account of a planner's events. */
 function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weaponName: (id: string) => string): { lines: string[]; account: string[] } {
   const lines: string[] = [];
@@ -829,8 +844,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         break;
       }
       case "DamageRolled": {
-        const rolls = (e["rolls"] as Array<{ expression: string; rolls: number[]; modifier: number; type: string }>);
-        lines.push(`Damage: ${rolls.map(r => `${r.expression}${r.modifier ? signed(r.modifier) : ""} (${r.rolls.join("+")}${r.modifier ? signed(r.modifier) : ""}) ${r.type}`).join(" + ")}`);
+        lines.push(damageLine(e["rolls"] as DamageRoll[]));
         break;
       }
       case "DamageApplied": {
@@ -1082,8 +1096,11 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   // A zone (Zone of Truth, Silence...) sits somewhere: where it's aimed, or where the caster stands (in 5-foot squares).
   const aimAt = world ? positionOf(world, targetIds.find(t => world.entities[t]) ?? "player") : undefined;
   const targetPosition = aimAt ? { x: Math.round(aimAt.x / 5), y: Math.round(aimAt.y / 5) } : { x: 0, y: 0 };
+  // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, shared out among whoever's aimed at.
+  const rays = RAYS[spell.id]?.(slotLevel, sheetOf(ctx, pcId).totalLevel);
+  const aimed = rays && people.length ? Array.from({ length: rays }, (_, i) => people[i % people.length]!.engine) : people.map(p => p.engine);
   try {
-    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}), ...(choice ? { casterChoice: choice } : {}) }).events));
+    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: aimed, ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}), ...(choice ? { casterChoice: choice } : {}) }).events));
   } catch (error) {
     // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
     if (!things.length) {
@@ -1179,15 +1196,10 @@ function rollDice(expr: string, random: () => number): { total: number; text: st
   return { total: Math.max(0, rolls.reduce((a, b) => a + b, 0) + mod), text: `${expr} (${rolls.join("+")}${mod ? signed(mod) : ""})` };
 }
 
-/** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
-/** Spells that are several attacks at once: how many, by the slot and the caster's level. */
-const RAYS: Record<string, (slot: number, level: number) => number> = {
-  "scorching-ray": slot => 3 + Math.max(0, slot - 2),
-  "eldritch-blast": (_, level) => (level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1),
-};
 /** Spells whose damage adds the caster's spellcasting modifier. */
 const ADDS_MODIFIER = new Set(["spiritual-weapon"]);
 
+/** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
 function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: Dnd.SpellDef, slotLevel: number, things: Entity[], chosen?: string): { lines: string[]; account: string[] } {
   const lines: string[] = [];
   const account: string[] = [];

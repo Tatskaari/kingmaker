@@ -1,5 +1,5 @@
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.js";
-import { dnd } from "../../rules/dnd.ts";
+import { damageLine, dnd, type DamageRoll } from "../../rules/dnd.ts";
 import type { CombatG, Unit } from "./model.ts";
 
 /**
@@ -232,8 +232,7 @@ export function diceLines(table: Table, events: Dnd.EngineEvent[], names: Namer,
         break;
       }
       case "DamageRolled": {
-        const rolls = e["rolls"] as Array<{ expression: string; rolls: number[]; modifier: number; type: string }>;
-        lines.push(`Damage: ${rolls.map(r => `${r.expression}${r.modifier ? signed(r.modifier) : ""} (${r.rolls.join("+")}${r.modifier ? signed(r.modifier) : ""}) ${r.type}`).join(" + ")}`);
+        lines.push(damageLine(e["rolls"] as DamageRoll[]));
         break;
       }
       case "DamageApplied": {
