@@ -29,7 +29,7 @@ The 5-second budget applies to the reply that resolves the player's turn. Everyt
 These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a playtest showed it was needed.
 
 - **The player's ideas are the best material.** Look for the version of an unexpected idea that works in this world, and let the world respond honestly.
-- **People are people.** They have their own wants, fears and secrets, and only know what they could know. A hand-off from earlier scenes is the GM's knowledge, not everyone's.
+- **People are people.** They have their own wants, fears and secrets, and only know what they could know: what they've seen, been there for or been told in their hearing. The story so far (every scene's hand-off, in the GM's prep) is the GM's knowledge, not everyone's: nobody asks about or guesses at what they haven't heard of. *(Brother Ambrose's King asked after a barge nobody had told him of.)*
 - **Prep is a spine, not a script.** Let the player wander, then let the world pull the threads back together through a character's need or a consequence.
 - **The world has edges.** Things that would change what's possible aren't there unless the prep says so. Say "no, but" in the fiction, and show what is possible instead.
 - **Tie improvisation to what's in play.** A detail that opens a new mystery promises a story nobody has prepared.
@@ -37,7 +37,7 @@ These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a pla
 - **Reveals land in steps.** A secret shows first as something that doesn't fit. It comes out when the player has given a reason, one new thing per reply. Once the player has done the work, it lands. Something the scene needs is never withheld for long.
 - **People move on.** Nobody repeats the same plea every reply.
 - **Keep it moving.** Short, vivid replies that end on something the player can respond to.
-- **The player character is theirs.** Never decide what they say, do, think or feel.
+- **The player character is theirs.** Never decide what they say, do, think or feel. A question put to them is theirs to answer: nobody answers it for them or over them, a companion included, and a companion speaks to what they saw themselves when called on. *(Brother Ambrose's Kell answered the King's question for him, with what she hadn't seen.)*
 - **Reading the player.** Plain words are their character talking; *asterisks* or (parentheses) are what they do; a turn that narrates ("I open the door") is read by sense. The decider's attempt, rules and out-of-character questions read turns the same way.
 - **Stay at the threshold.** A scene ends at the edge of the next place, and the next scene picks up from there.
 - **Fights are the player's call,** or a danger they saw coming and chose to meet.

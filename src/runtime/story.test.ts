@@ -49,6 +49,9 @@ test("the GM's prep has the whole story, scene by scene: every hand-off, what pl
   assert.ok(brief.indexOf("The Hanged Clerk") < brief.indexOf("The Drowned Rat") && brief.indexOf("The Drowned Rat") < brief.indexOf("The Heron Warehouse"), "earliest first");
   assert.match(brief, /someone who wasn't there knows nothing of it until they hear it, and doesn't ask about it, refer to it or guess at it before then/);
   assert.doesNotMatch(brief, /Earlier scenes are in the story notes/);
+  // Where the boundary says the prep is out of date, that's the GM's knowledge too (the King knew of the Heron's ledger from it).
+  const adjusted = sceneBrief(scene, { ...morning(), adjustments: ["The ledger was left in the counting-box under Scrope's hand; it is gone with the emptied Heron."] }, { docs: true });
+  assert.match(adjusted, /## Where the prep is out of date\n[^\n]*Like the story so far, they're your knowledge: people here know of them only what they saw, were there for or have been told\.\n- The ledger was left/);
 });
 
 test("a scene's facts go on with the story, and the hand-off keeps what was admitted and what a companion saw", async () => {
@@ -69,6 +72,21 @@ test("a scene's facts go on with the story, and the hand-off keeps what was admi
   } finally {
     fake.restore();
   }
+});
+
+test("nobody answers a question put to the player for them, and nobody knows what they couldn't (the King's morning: Kell answered for the investigator, and the King asked after a barge nobody had told him of)", async () => {
+  const gm = prompt("gm");
+  assert.match(gm, /A question put to the player character is theirs to answer: nobody answers it for them, over them or before them \(a companion included\), and the reply stops on it\./);
+  assert.match(gm, /A companion speaks to what they saw themselves when the player calls on them, or once if the player's word is doubted, and never to what they didn't see\./);
+  assert.match(gm, /What you know of the story \(your prep, earlier scenes, what happened elsewhere\) isn't theirs, so nobody asks about, names or guesses at something they haven't heard of\./);
+  assert.match(prompt("actor"), /A question put to the player's character is theirs to answer: don't answer it for them or over them\./);
+  assert.match(prompt("narrator"), /a question put to them is theirs to answer, not anyone else's/);
+  // The actors' next speaker: after a question to the player's character, it's the player's turn.
+  const { decideNextSpeaker } = await import("./director.ts");
+  const asked: string[] = [];
+  const decider = { name: "scripted", async decide(_s: unknown, q: Record<string, { instructions: string }>) { asked.push(q.next!.instructions); return { answers: { next: { choice: "player", probabilities: { player: 1 } } }, latencyMs: 0, costUsd: 0, decider: "scripted" }; } };
+  await decideNextSpeaker(decider, effectiveScene(sceneById("kings-morning"), []), morning(), "Majesty.", ["King Aldren"]);
+  assert.match(asked[0]!, /If someone has just put a question to the player's character, it's always player: nobody answers it for them\./);
 });
 
 test("what someone saw or heard for themselves is a memory of theirs: a companion's included", () => {
