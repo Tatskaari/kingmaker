@@ -68,14 +68,20 @@ export interface Ruling {
   reason: string;
   success: RulingOutcome;
   failure: RulingOutcome;
-  /** Why its success is no success (a refusal, or no different from its failure): then nothing is rolled, and it's a no. */
+  /** Why its success is no success (a refusal, as the review wrote it): then nothing is rolled, and that refusal is the answer. */
   hollow?: string;
+  /** Why the dice don't matter (either way it comes to the same, and it gets them what they were after): then it's a yes. */
+  foregone?: string;
   costUsd: number;
   latencyMs: number;
 }
 
-/** Roll or not, and at what. */
-export interface Verdict { kind: "roll" | "yes" | "no"; dc?: number; why: string }
+/**
+ * Roll or not, and at what. A no says which kind (`no`): the same push again (the answer it got
+ * before), the review's own refusal (`hollow`: its success gets them nothing), or a plain no from
+ * the person or the world (a lever that can't move them, too far, can't be done like this).
+ */
+export interface Verdict { kind: "roll" | "yes" | "no"; dc?: number; why: string; no?: "same_again" | "hollow" | "refused" }
 
 /** What the review is told beyond the scene, and how it's run. */
 export interface ReviewContext {
@@ -115,26 +121,28 @@ export function workedOn(scene: Scene, ruling: Pick<Ruling, "target" | "skill">)
  * rolls at 10); a roll at DC 12, 15 or 18 for a gap of 1 to 3; and no at 4 or more, or for a lever
  * that can't move them, the reply showing what would reach them. Fewer, meaningful rolls, as the
  * table's rules have it. A feat is DC 10, 13 or 16, or plainly done, or plainly can't be. A success
- * that gives nothing its failure doesn't (a refusal) leaves nothing to roll for: it's a no.
+ * that gets them nothing (a refusal) leaves nothing to roll for: it's a no, and that refusal is the
+ * answer; one that comes to the same as its failure, and gets them what they were after, is a yes.
  */
-export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | "judged"> & { hollow?: string }): Verdict {
+export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | "judged"> & { hollow?: string; foregone?: string }): Verdict {
   const j = ruling.judged;
   // The same push that already failed here gets the same answer, whatever else the review says.
-  if (j.sameAgain) return { kind: "no", why: "the same push again, with nothing new" };
-  if (ruling.hollow) return { kind: "no", why: ruling.hollow };
+  if (j.sameAgain) return { kind: "no", no: "same_again", why: "the same push again, with nothing new" };
+  if (ruling.hollow) return { kind: "no", no: "hollow", why: ruling.hollow };
+  if (ruling.foregone) return { kind: "yes", why: ruling.foregone };
   if (workedOn(scene, ruling)) {
     const said = `${j.stakes}, ${j.approach.replace("_", " ")}, ${j.disposition}`;
     const lie = ruling.skill === "deception";
     if (j.approach === "free") return { kind: "yes", why: `they'd do it anyway (${said})` };
     if (j.stakes === "trivial" && !lie) return { kind: "yes", why: `it costs them nothing (${said})` };
-    if (j.approach === "no_chance") return { kind: "no", why: `it pulls a lever that can't move them (${said})` };
+    if (j.approach === "no_chance") return { kind: "no", no: "refused", why: `it pulls a lever that can't move them (${said})` };
     const gap = (RESIST[j.stakes] ?? 1) - (LEVER[j.approach] ?? 0) - (WARMTH[j.disposition] ?? 0);
     if (gap <= 0 && !lie) return { kind: "yes", why: `that's enough to move them (${said})` };
-    if (gap >= 4) return { kind: "no", why: `not like this: it's too far from what would move them (${said})` };
+    if (gap >= 4) return { kind: "no", no: "refused", why: `not like this: it's too far from what would move them (${said})` };
     return { kind: "roll", dc: Math.max(10, 9 + 3 * gap), why: said };
   }
   if (j.difficulty === "trivial") return { kind: "yes", why: "nothing stands in the way" };
-  if (j.difficulty === "impossible") return { kind: "no", why: "it can't be done like this" };
+  if (j.difficulty === "impossible") return { kind: "no", no: "refused", why: "it can't be done like this" };
   return { kind: "roll", dc: FEAT_DC[j.difficulty] ?? 13, why: j.difficulty };
 }
 
@@ -163,8 +171,8 @@ function outcomeSchema(went: "success" | "failure", places: string[], outcomes: 
     required: ["happens", "gets", "to", "counts_as", "establishes", "reveals", "closes"],
     properties: {
       happens: { type: "string", description: went === "success"
-        ? "What happens, decided, for the GM to narrate: they get what they were after, as they asked for it (never a refusal), and the method shows. What comes out, in its own terms, as it comes out. One to three concrete sentences naming who does what."
-        : "What happens, decided, for the GM to narrate: it doesn't work, and it costs the player something they can feel or makes someone act (they bolt, call for help, warn someone, name a price, turn on the player; a way shut for good; time or something lost). A refusal, or a refusal written down, isn't enough. One to three concrete sentences naming who does what." },
+        ? "What happens if it works, decided, for the GM to narrate: they get what they were after, as they asked for it (never a refusal), and the method shows. What comes out, in its own terms, as it comes out. One to three concrete sentences naming who does what. (If nothing could get them that here, write instead the honest no they'd get, in the person's own words and showing what would reach them, with gets none: then there's no roll, and that no costs them nothing.)"
+        : "What happens if it's rolled and fails, decided, for the GM to narrate: it doesn't work, and it costs the player something they can feel or makes someone act (they bolt, call for help, warn someone, name a price, turn on the player; a way shut for good; time or something lost). A refusal, or a refusal written down, isn't enough. One to three concrete sentences naming who does what." },
       gets: { type: "string", enum: [...GETS], description: "How much of what the player was after this outcome gives them: all, some, or none." },
       to: { type: "string", enum: ["stay", ...places], description: "A beat or ending the scene moves to, only when what happens is what it's about; stay otherwise." },
       counts_as: { type: "string", enum: ["none", ...outcomes], description: "If what happens is what one of the scene's routes that simply happen describes (something found, said or settled), that route: its facts come with it and it leads where it leads." },
@@ -373,17 +381,21 @@ export function toRuling(scene: Scene, state: SessionState, json: RulingJson, me
     const outcome = toOutcome(scene, state, o);
     const happens = outcome.happens || (went === "success" ? "It works: they get what they were after." : "It doesn't work, and it costs them: the person they were working on digs in, and this way is shut for now.");
     // An outcome that changes nothing is no outcome: what happens stays on the record at least.
-    return changes(outcome) ? { ...outcome, happens } : { ...outcome, happens, establishes: [`When the player tried this (${act.replace(/\.$/, "")}), ${went === "success" ? "it worked" : "it failed"}: ${happens}`] };
+    const how = went === "failure" ? "it failed" : outcome.gets === "none" ? "it didn't work" : "it worked";
+    return changes(outcome) ? { ...outcome, happens } : { ...outcome, happens, establishes: [`When the player tried this (${act.replace(/\.$/, "")}), ${how}: ${happens}`] };
   };
   const success = fix(json.success, "success"), failure = fix(json.failure, "failure");
-  const hollow = success.gets === "none" ? "no roll could get them that here" : !differs(success, failure) ? "either way it comes to the same" : undefined;
+  // A success that gets them nothing is a refusal: no roll could get them that here, and the refusal is the answer.
+  // One that comes to the same as its failure, and gets them what they were after, needs no dice either: it's a yes.
+  const hollow = success.gets === "none" ? "no roll could get them that here" : undefined;
+  const foregone = !hollow && !differs(success, failure) ? "either way it comes to the same" : undefined;
   // The same push again only when something has failed here to be the same as.
   const sameAgain = json.same_again === true && failedTries(scene, state).length > 0;
   return {
     act, target: json.target, skill, lie: json.lie === true,
     judged: { stakes: json.stakes, approach: json.approach, disposition: json.disposition, sameAgain, difficulty: json.difficulty },
     reason: diceReason(scene, state, json.reason, { target: json.target, skill }, context.unheard),
-    success, failure, ...(hollow ? { hollow } : {}),
+    success, failure, ...(hollow ? { hollow } : {}), ...(foregone ? { foregone } : {}),
     costUsd: meta.costUsd, latencyMs: meta.latencyMs,
   };
 }
@@ -459,8 +471,8 @@ const ONLY_THIS = "What comes out is what's written here, in these terms, and no
 /** The outcome stands as decided: people react to it, but nothing in the reply turns it round (no one spots what went unnoticed). */
 const DECIDED = "Decided, and it stands (people react to it, but nothing in this reply undoes, reverses or spoils it)";
 
-/** The ruling's own route: a check from here with each outcome's target and facts, or what happens without one. */
-export function rulingRoute(scene: Scene, state: SessionState, ruling: Ruling, v: Verdict): Transition {
+/** The ruling's own route: a check from here with each outcome's target and facts, or what happens without one (`played`: a no's refusal). */
+export function rulingRoute(scene: Scene, state: SessionState, ruling: Ruling, v: Verdict, played?: RulingOutcome): Transition {
   const id = `considered-${state.turn}`;
   const when = `The player's attempt: ${ruling.act.replace(/\.$/, "")}.`;
   const text = (o: RulingOutcome) => `${DECIDED}: ${o.happens} ${ONLY_THIS}`;
@@ -474,26 +486,60 @@ export function rulingRoute(scene: Scene, state: SessionState, ruling: Ruling, v
       },
     };
   }
-  const o = v.kind === "yes" ? ruling.success : ruling.failure;
+  const o = played ?? (v.kind === "yes" ? ruling.success : refusalOf(ruling, v));
   return { id, on: "attempt", when, to: o.to ?? state.beat, ...(o.establishes.length ? { establishes: o.establishes } : {}) };
+}
+
+/** A plain no: nothing moves, nothing comes out, nothing is shut, nothing is lost. */
+const NO_CHANGE: RulingOutcome = { happens: "", gets: "none", establishes: [], reveals: [], closes: [] };
+
+/**
+ * What a no without dice plays: an honest refusal, never the failure's cost (that's for a roll that
+ * went against them). The review's own, when the success it wrote gets them nothing (Hobb pressing
+ * the coin back: "Coin won't keep her safe"), shutting nothing; otherwise the person's (or the
+ * world's) plain no, which moves nothing and costs nothing. The same push again keeps the answer it
+ * got before.
+ */
+export function refusalOf(ruling: Ruling, v: Verdict): RulingOutcome {
+  return v.no === "hollow" ? { ...ruling.success, closes: [] } : NO_CHANGE;
+}
+
+/**
+ * The GM's direction for a no without dice: the same answer as before for the same push, the
+ * review's own refusal, or a plain no; each an honest one that shows what would reach them and costs
+ * nothing more, unless the attempt itself sets something off.
+ */
+function noDirective(v: Verdict, o: RulingOutcome, who: string | undefined): string {
+  const honest = "It's an honest no: it costs the player nothing more than the no (nobody bolts, calls for help or turns on them for it), unless the attempt itself sets something off (a grab that's felt, a shout that's heard).";
+  if (v.no === "same_again") {
+    return who
+      ? `No dice: this is the same push that already failed in this scene, with nothing new on the table, so it gets the same answer it got before. ${who} holds, as before, in their own words, and a little impatience shows. Nothing new comes out, nothing is given or lost, and nothing already said is taken back.`
+      : "No dice: this is the same try that already failed in this scene, with nothing changed, so it goes as it went before. Nothing new comes of it, nothing is lost, and nothing already said is taken back.";
+  }
+  if (v.no === "hollow") return `No dice: this can't get them what they're after (${v.why}). ${DECIDED}: ${o.happens} ${ONLY_THIS} ${honest} Their reaction shows what would reach them (what they want, what they fear), in their own words, without spelling it out. Nothing already said is taken back.`;
+  return who
+    ? `No dice: ${who} won't, not like this (${v.why}). They say no in their own words and character, and their reaction shows what kind of thing would reach them (what they want, what they fear), without spelling it out. ${honest} Nothing comes out, and nothing already said is taken back.`
+    : `No dice: it can't be done like this (${v.why}). Show plainly what stops it, and let what's around hint at what might work instead, without spelling it out. ${honest} Nothing already said is taken back.`;
 }
 
 /**
  * A settled considered turn: the move to make (like any route's), the GM's direction, the record,
- * and what came out (`found`, which the player has now come across, as the ruling says) or was kept
- * back by how it went (`withheld`: the other outcome's, which no reply can let slip this turn).
+ * and what came out (`found`, as the ruling says) or was kept back by how it went (`withheld`: what
+ * the outcome not played would have brought out, which no reply can let slip this turn).
  */
 export interface Settled { move: Move; directive: string[]; record: RulingRecord; dice?: string; found: string[]; withheld: string[] }
 
 /**
- * Settle the ruling: roll (the rules), choose the outcome, and set its changes in the scene's own
- * machinery (patches for the ways of trying it closes; the move carries the beat and the facts). The
- * caller applies the move as it applies any route's, tells the GM `directive`, and lands what came out.
+ * Settle the ruling: roll (the rules), choose the outcome (a no without dice plays its refusal), and
+ * set its changes in the scene's own machinery (patches for the ways of trying it closes; the move
+ * carries the beat and the facts). The caller applies the move as it applies any route's, tells the
+ * GM `directive`, and lands what came out.
  */
 export async function settleRuling(scene: Scene, state: SessionState, ruling: Ruling, onStep?: (step: ConsiderStep) => void): Promise<Settled> {
   const v = verdict(scene, ruling);
   const name = (id: string) => state.rules?.aliases?.[id] ?? unnamed(scene, state)[id] ?? scene.cast.find(c => c.id === id)?.name ?? id;
-  const route = rulingRoute(scene, state, ruling, v);
+  const refusal = v.kind === "no" ? refusalOf(ruling, v) : undefined;
+  const route = rulingRoute(scene, state, ruling, v, refusal);
   let move: Move;
   if (v.kind === "roll") {
     onStep?.("roll");
@@ -502,11 +548,14 @@ export async function settleRuling(scene: Scene, state: SessionState, ruling: Ru
     move = { transition: route, phase: "attempt", to: route.to!, chosen: v.kind === "yes", ...exitOf(scene, route.to!) };
   }
   const went = v.kind === "yes" || move.roll?.success ? "success" : "failure";
-  const o = went === "success" ? ruling.success : ruling.failure;
-  const other = went === "success" ? ruling.failure : ruling.success;
+  const o = refusal ?? (went === "success" ? ruling.success : ruling.failure);
+  // What the outcome not played would have brought out is kept back (for a no, what either would have).
+  const others = refusal ? [ruling.success, ruling.failure] : [went === "success" ? ruling.failure : ruling.success];
   for (const patch of patchesFor(scene, state, ruling, o)) state.patches.push(patch);
   const method = went === "success" && workedOn(scene, ruling) && (ruling.skill === "intimidation" || ruling.skill === "deception")
     ? ` ${name(ruling.target)} gives way, but will remember how: ${ruling.skill === "deception" ? "the lie is believed, for now" : "they're frightened, and resentful"}.` : "";
+  const person = scene.cast.some(c => c.id === ruling.target) ? name(ruling.target) : undefined;
+  const who = person && `${person[0]!.toUpperCase()}${person.slice(1)}`;
   const lines: string[] = [];
   if (v.kind === "roll") {
     // The check's text is the decided outcome (moveDirective says so with the dice); the method on top.
@@ -515,16 +564,17 @@ export async function settleRuling(scene: Scene, state: SessionState, ruling: Ru
   } else if (v.kind === "yes") {
     lines.push(`No dice needed (${v.why}): what the player is attempting works, in the people's own way and voice. ${DECIDED}: ${o.happens} ${ONLY_THIS}${method}`, ...moveDirective(scene, state, move));
   } else {
-    lines.push(`No dice: this can't work like this (${v.why}). ${DECIDED}: ${o.happens} ${ONLY_THIS} Their reaction shows their own concerns (what they want, what they fear), in their own words; nobody tells the player what would work. Nothing already said is taken back.`, ...moveDirective(scene, state, move));
+    lines.push(noDirective(v, o, who), ...moveDirective(scene, state, move));
   }
   if (o.closes.length) lines.push(`From here on this way of trying is shut, for the rest of the scene: ${o.closes.map(id => routesNow(scene, state).checks.find(t => t.id === id)?.when.replace(/\.$/, "") ?? id).join("; ")}.`);
+  const plainNo = refusal === NO_CHANGE ? (v.no === "same_again" ? "the same answer as before: nothing changed" : `${who ? `${who} said no` : "it couldn't be done like that"}, and nothing else changed`) : undefined;
   const record: RulingRecord = {
     turn: state.turn, act: ruling.act, target: ruling.target, skill: ruling.skill, kind: v.kind, ...(v.dc ? { dc: v.dc } : {}), why: v.why,
-    ...(move.roll ? { roll: move.roll } : {}), went, changed: changed(scene, o), costUsd: ruling.costUsd, latencyMs: ruling.latencyMs,
+    ...(move.roll ? { roll: move.roll } : {}), went, changed: plainNo ?? changed(scene, o), costUsd: ruling.costUsd, latencyMs: ruling.latencyMs,
   };
   return {
     move, directive: lines, record, ...(move.roll ? { dice: describeRoll(move.roll, ruling.reason) } : {}),
-    found: o.reveals, withheld: other.reveals.filter(id => !o.reveals.includes(id)),
+    found: o.reveals, withheld: [...new Set(others.flatMap(x => x.reveals))].filter(id => !o.reveals.includes(id)),
   };
 }
 

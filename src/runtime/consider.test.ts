@@ -67,7 +67,7 @@ test("the verdict: the guidance's grid for someone worked on, as designed (yes a
   // The barbarian's game: an excellent approach at a gap of 0 needs no roll (it failed on a 4 at DC 10),
   // and a weak one on a hostile holder of something dangerous is a no, not a third DC 18 in five turns.
   assert.equal(on({ stakes: "dangerous", approach: "excellent", disposition: "wary" }).kind, "yes", "barbarian#48's T42");
-  assert.deepEqual(on({ stakes: "dangerous", approach: "weak", disposition: "hostile" }), { kind: "no", why: "not like this: it's too far from what would move them (dangerous, weak, hostile)" }, "barbarian#48's T11");
+  assert.deepEqual(on({ stakes: "dangerous", approach: "weak", disposition: "hostile" }), { kind: "no", no: "refused", why: "not like this: it's too far from what would move them (dangerous, weak, hostile)" }, "barbarian#48's T11");
   assert.equal(on({ approach: "excellent", disposition: "friendly" }, "deception").dc, 10, "a lie that would be enough can always be seen through: it rolls, low");
   assert.equal(on({ stakes: "ruinous", approach: "weak", disposition: "hostile" }, "deception").kind, "no", "and one too far is a no like any other");
   assert.equal(on({ approach: "free", disposition: "hostile" }).kind, "yes", "they'd do it anyway");
@@ -104,7 +104,7 @@ test("the same push again gets the same answer, whatever else the review says; b
   state.rulings = [PENNY];
   const fair = toRuling(scene, state, { ...LINING, stakes: "trivial", approach: "weak", disposition: "hostile", same_again: true }, META);
   assert.equal(fair.judged.sameAgain, true);
-  assert.deepEqual(verdict(scene, fair), { kind: "no", why: "the same push again, with nothing new" }, "trivial stakes don't make it a yes");
+  assert.deepEqual(verdict(scene, fair), { kind: "no", no: "same_again", why: "the same push again, with nothing new" }, "trivial stakes don't make it a yes");
   assert.equal(verdict(scene, { ...fair, judged: { ...fair.judged, approach: "free" } }).kind, "no", "nor does free");
   assert.equal(verdict(scene, { target: "world", skill: "athletics", judged: judged({ difficulty: "easy", sameAgain: true }) }).kind, "no", "a feat that failed, tried the same way again");
   // Nothing has failed in this scene: the review's same_again is no reason to refuse.
@@ -152,22 +152,73 @@ test("a lie is rolled as Deception, however friendly its words: by the review's 
   assert.equal(toRuling(scene, state, { ...LINING, skill: "intimidation", lie: true }, META).skill, "intimidation", "a bluffed threat is still a threat");
 });
 
-test("a success that's no success (a refusal, or the same as its failure) is a no, without dice", async () => {
+test("a success that's no success is a no without dice, and its own refusal is the answer, not the failure's cost; one that comes to the same either way is a yes", async () => {
   const state = yard(30);
   const refusal = toRuling(scene, state, json(
     outcome({ happens: "Kell refuses to put her truncheon to the lock.", gets: "none", establishes: ["Kell refuses to break the padlock without lawful authority."] }),
     outcome({ happens: "Kell refuses, and writes the claim down.", gets: "none", establishes: ["Kell refuses to break the padlock without lawful authority.", "Kell has written down the player's claim."] }),
   ), META);
   assert.equal(refusal.hollow, "no roll could get them that here");
+  const settled = await settleRuling(scene, state, refusal);
+  assert.equal(settled.move.roll, undefined, "nothing rolled");
+  assert.deepEqual([settled.record.kind, settled.record.went], ["no", "failure"]);
+  assert.match(settled.directive[0]!, /^No dice: this can't get them what they're after \(no roll could get them that here\)\. Decided, and it stands [^:]*: Kell refuses to put her truncheon to the lock\. .*It's an honest no: it costs the player nothing more than the no/);
+  assert.doesNotMatch(settled.directive.join("\n"), /writes the claim down/, "not the failure's cost");
+  assert.deepEqual(settled.move.transition.establishes, ["Kell refuses to break the padlock without lawful authority."]);
+  // The same either way, and it gets them what they were after: the dice don't matter, and it's a yes.
   const same = toRuling(scene, state, json(
     outcome({ happens: "Cob takes the shilling.", gets: "some", establishes: ["Cob has the player's shilling."] }),
     outcome({ happens: "Cob takes the shilling.", gets: "some", establishes: ["Cob has the player's shilling."] }),
   ), META);
-  assert.equal(same.hollow, "either way it comes to the same");
-  const settled = await settleRuling(scene, state, refusal);
-  assert.equal(settled.move.roll, undefined, "nothing rolled");
-  assert.deepEqual([settled.record.kind, settled.record.went], ["no", "failure"]);
-  assert.match(settled.directive[0]!, /^No dice: this can't work like this \(no roll could get them that here\)\. Decided, and it stands [^:]*: Kell refuses, and writes the claim down\./);
+  assert.deepEqual([same.hollow, same.foregone], [undefined, "either way it comes to the same"]);
+  const took = await settleRuling(scene, state, same);
+  assert.deepEqual([took.move.roll, took.record.kind, took.record.went], [undefined, "yes", "success"]);
+});
+
+/** The Drowned Rat with Hobb talking (the confession beat), as the barbarian had it. */
+function rat(beat = "confession"): SessionState {
+  return {
+    id: `consider-rat-${Math.random().toString(36).slice(2, 8)}`, sceneId: "drowned-rat", approach: "v2", seed: plainSeed(), rollCount: 0,
+    player: { name: "Grukka", concept: "a half-orc barbarian with a greataxe", modifiers: { persuasion: 0, intimidation: 3, sleight_of_hand: 0 } },
+    turn: 24, beat, turnsInBeat: 2, path: [], established: [], canon: [], notes: null, notesTurn: null,
+    patches: [], repairs: [], transcript: [], metrics: [], history: [],
+  };
+}
+
+test("a no without dice is an honest refusal: all his coin for Hobb's mum gets 'Coin won't keep her safe', not Hobb bolting (barbarian#38)", async () => {
+  const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  const state = rat();
+  // The review's answer at the barbarian's T24, as it came.
+  const ruling = toRuling(drownedRat, state, {
+    act: "Offer Hobb all your coin in exchange for what would keep his mother safe tonight", target: "hobb", lie: false, skill: "persuasion",
+    stakes: "dangerous", approach: "weak", disposition: "wary", same_again: false, difficulty: "trivial", reason: "to get Hobb to tell you what would keep his mother safe tonight",
+    success: outcome({ happens: "Hobb looks at the coins, then closes your fingers around them with his good hand. “Keep it, sir. Coin won’t keep her safe. Don’t go near her. Please.” He turns toward the door, still frightened, but stays to hear what you say next.", gets: "none", establishes: ["Hobb has refused Grukka's money"] }),
+    failure: outcome({ happens: "Hobb stares at the coins, then recoils as if they were a threat. “No, sir. Don’t buy her.” He pushes past toward the dark stairs; Kell moves after him, notebook in hand, as Hobb bolts from the Rat.", gets: "none", to: "hobb-fled", counts_as: "hobb-runs", establishes: ["Hobb has fled into the dark to warn his master"], closes: ["turn-hobb", "mum-safe"] }),
+  }, META);
+  const settled = await settleRuling(drownedRat, state, ruling);
+  assert.deepEqual([settled.record.kind, settled.record.went, settled.move.to, settled.move.exit], ["no", "failure", "confession", undefined], "he stays, and the scene with him");
+  assert.match(settled.directive[0]!, /Coin won’t keep her safe/);
+  assert.doesNotMatch(settled.directive.join("\n"), /Hobb bolts|hobb-fled|is shut/);
+  assert.deepEqual(state.patches, [], "nothing shut: mum-safe is still a way to try");
+  // Asked plainly with nothing on the table that could move him: a plain no, and nothing else.
+  const plain = await settleRuling(drownedRat, state, { ...ruling, hollow: undefined, judged: { ...ruling.judged, approach: "no_chance" } });
+  assert.match(plain.directive[0]!, /^No dice: The big man with the bandaged hand won't, not like this \(it pulls a lever that can't move them \(dangerous, no chance, wary\)\)\. They say no in their own words and character, and their reaction shows what kind of thing would reach them/);
+  assert.deepEqual([plain.move.to, plain.move.transition.establishes, plain.record.changed], ["confession", undefined, "The big man with the bandaged hand said no, and nothing else changed"]);
+  assert.deepEqual(plain.withheld, [], "nothing either way would have brought out");
+});
+
+test("a no to the same push keeps the answer it got before; a follow-up that gives the player the same either way is a yes, not a failure (barbarian#38's T32)", async () => {
+  const state = yard(0);
+  state.rulings = [PENNY];
+  const again = await settleRuling(scene, state, toRuling(scene, state, { ...LINING, same_again: true }, META));
+  assert.match(again.directive[0]!, /^No dice: this is the same push that already failed in this scene, with nothing new on the table, so it gets the same answer it got before\. The boy in the too-big boots holds, as before/);
+  assert.deepEqual([again.move.to, again.move.transition.establishes, again.record.changed], ["yard", undefined, "the same answer as before: nothing changed"]);
+  // The barbarian's T32: the practical bits of what Hobb had agreed to, written the same either way.
+  const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  const told = outcome({ happens: "Hobb nods toward the downriver wharves. “Eleventh bell. The river door, off the plank walk. Show the token at the grille.”", gets: "all", counts_as: "told-heron", establishes: ["Hobb has told Grukka how to use the token at the river-door grille."], reveals: ["none"], closes: ["none"] });
+  const follow = toRuling(drownedRat, rat(), { ...LINING, act: "Ask Hobb how to use the token and when to go", target: "hobb", approach: "plausible", success: told, failure: told }, META);
+  const settled = await settleRuling(drownedRat, rat(), follow);
+  assert.deepEqual([settled.record.kind, settled.record.went, settled.record.why], ["yes", "success", "either way it comes to the same"]);
 });
 
 test("the dice line says nothing the player hasn't heard: names as they'd call people, 'you', and the plain goal for a place they don't know of", () => {
@@ -218,7 +269,7 @@ test("a ruling settled: a roll it loses costs what failure costs, a way of tryin
   assert.deepEqual(state.landed, ["silvertop"]);
 });
 
-test("a ruling with no roll: yes takes success's way, no takes failure's, and an ending the player didn't choose is held for their answer", async () => {
+test("a ruling with no roll: yes takes success's way, no stays where it is and costs nothing; a roll lost towards an ending the player didn't choose holds it for their answer", async () => {
   const yes = yard(0);
   const free = await settleRuling(scene, yes, toRuling(scene, yes, { ...LINING, approach: "free" }, { costUsd: 0, latencyMs: 0 }));
   assert.equal(free.move.roll, undefined);
@@ -226,11 +277,16 @@ test("a ruling with no roll: yes takes success's way, no takes failure's, and an
   assert.deepEqual([free.move.to, free.move.chosen, free.record.kind], ["motive", true, "yes"]);
   assert.deepEqual(free.move.transition.establishes, [PAGE]);
   assert.match(free.directive[0]!, /^No dice needed \(they'd do it anyway/);
+  const tull = outcome({ happens: "Kell has had enough: she tells Tull to take him.", gets: "none", to: "closed-suicide" });
   const no = yard(0);
-  const ruled = await settleRuling(scene, no, toRuling(scene, no, { ...LINING, approach: "no_chance", failure: outcome({ happens: "Kell has had enough: she tells Tull to take him.", gets: "none", to: "closed-suicide" }) }, { costUsd: 0, latencyMs: 0 }));
-  assert.deepEqual([ruled.move.to, ruled.move.chosen, ruled.move.exit?.id, ruled.record.kind], ["closed-suicide", false, "closed-suicide", "no"]);
-  assert.match(ruled.directive[0]!, /^No dice: this can't work like this \(it pulls a lever that can't move them/);
-  assert.match(ruled.directive[1]!, /Things are escalating towards this/);
+  const ruled = await settleRuling(scene, no, toRuling(scene, no, { ...LINING, approach: "no_chance", failure: tull }, { costUsd: 0, latencyMs: 0 }));
+  assert.deepEqual([ruled.move.to, ruled.move.exit, ruled.record.kind], ["yard", undefined, "no"], "a no isn't the failure's cost");
+  assert.match(ruled.directive[0]!, /^No dice: The boy in the too-big boots won't, not like this \(it pulls a lever that can't move them/);
+  assert.doesNotMatch(ruled.directive.join("\n"), /Tull/);
+  const lost = yard(-30);
+  const rolled = await settleRuling(scene, lost, toRuling(scene, lost, { ...LINING, failure: tull }, { costUsd: 0, latencyMs: 0 }));
+  assert.deepEqual([rolled.move.roll?.success, rolled.move.to, rolled.move.chosen, rolled.move.exit?.id], [false, "closed-suicide", false, "closed-suicide"]);
+  assert.match(rolled.directive[1]!, /Things are escalating towards this/);
 });
 
 test("a considered turn, played: one decision, the GM's ruling a step at a time, the roll, the move, and a reply that plays what was decided", async () => {
