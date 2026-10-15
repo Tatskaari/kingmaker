@@ -348,10 +348,13 @@ function reachEnding(state: SessionState, exit: Exit, via: string, waits: string
 /**
  * Does the turn go to the GM's review (considered rolls)? A roll is wanted that nothing the author
  * wrote settles, or it's a plan off the graph; and nothing else this turn has answered it (a route's
- * move, the rules, a limit, the same push again, out of character) or is winding the scene down.
+ * move, a route the author gave no dice read with confidence, the rules, a limit, the same push
+ * again, out of character) or is winding the scene down. (The thief's crown for Cob's paper read as
+ * the bribe route at .81 and off the graph at .84, and the review's ruling played instead of the
+ * haggling the author wrote.)
  */
 function wantsReview(state: SessionState, pre: PreDecision): boolean {
-  const answered = !!(pre.move || pre.mechanic || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain);
+  const answered = !!(pre.move || pre.mechanic || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain || pre.byPrep);
   return !state.closing && !answered && !!(pre.considered || pre.offGraph);
 }
 

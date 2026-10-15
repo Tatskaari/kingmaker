@@ -330,6 +330,11 @@ export interface PreDecision {
   ooc?: boolean;
   /** The outcome route the player's action simply achieves, no dice needed. */
   plainTransition?: Transition;
+  /**
+   * That route was read with an attempt's confidence: it's the prep's own answer to the turn (a bribe
+   * gets haggling, trust needs no roll), so no ruling of the GM's overrides it, whatever off_graph says.
+   */
+  byPrep?: boolean;
   /** The player is reaching for something the scene says it can't offer. */
   limit?: string;
   move?: Move;
@@ -877,7 +882,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   return {
     ...(mechanic ? { mechanic } : {}),
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
-    ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
+    ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(plainTransition && plainSettles ? { byPrep: true } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
     ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
     ...(considered ? { considered } : {}), ...(sameAgain ? { sameAgain } : {}),
     ...(decision.answers.brink?.choice === "answers" ? { answering: true } : {}),

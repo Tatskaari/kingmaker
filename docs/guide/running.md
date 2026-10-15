@@ -73,7 +73,7 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 This is narrative repair; see [experiments/deviation-repair.md](../experiments/deviation-repair.md) and [research/gm-techniques.md](../research/gm-techniques.md).
 
 - **Essentials.** The prep says what the player must come across, where it was placed, who carries it, and that it can move. This is the biggest lever we found.
-- **The GM's ruling.** In `v2`, a turn the decider judges off the graph goes to the GM's review, as a roll nobody wrote does: a roll or not, and what each outcome changes, then one coherent reply.
+- **The GM's ruling.** In `v2`, a turn the decider judges off the graph goes to the GM's review, as a roll nobody wrote does: a roll or not, and what each outcome changes, then one coherent reply. Not when the decider also reads it, with confidence, as a route the author gave no dice: that's the prep's answer, and it stands (a thief's crown for Cob's paper read as the bribe route and off the graph at once, and the review's ruling sent the kids through the board instead of the haggling the author wrote).
 - **The quick co-GM** (`v2-quick`). On a turn the decider judges off the graph, the runtime waits up to 3 s for it. It opens a route (with a roll and a reason when uncertain) or moves a missed essential, then the reply goes out as one coherent answer. In the QA runs it took a median 4.4 s, so it usually missed its deadline, and its late route landed a turn after the attempt.
 - **The background co-GM** reviews between turns. It leaves notes and whispers, and adds routes and "no, but" alternatives. Whispers are what's on a person's mind, never terms or hints. Notes last two turns, and closings don't see them.
 - **The six techniques:**
