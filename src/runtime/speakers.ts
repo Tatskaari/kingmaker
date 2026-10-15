@@ -13,7 +13,7 @@ export const SPEECH = "said|says|shouts|calls|mutters|snaps|adds|asks|cries|yell
 /** A speech tag that's the player's: "…,” you say. */
 const YOU_SAY = /^[^a-z]*you\s+(say|said|add|added|ask|asked|reply|replied|tell|told|answer|answered|call|called|shout|shouted|mutter|muttered|whisper|whispered|snap|snapped)\b/;
 /** Words too common to tell people apart by. */
-const GENERIC = /^(person|people|fellow|figure|someone|stranger|woman|children)$/;
+const GENERIC = /^(person|people|fellow|figure|someone|stranger|man|men|woman|women|child|children|one|two|lot)$/;
 /** A name after one of these is someone being looked at or talked about, not the speaker. */
 const MENTIONED = /\b(at|to|from|with|toward|towards|past|beside|behind|for|of|about|over|by|than|like|and)\s+$/;
 /** Words of a name that don't tell people apart in prose ("Sergeant" is any sergeant). */
@@ -24,14 +24,15 @@ const TITLE = /^(the|sergeant|corporal|master|mister|madam|missus|mistress|big|o
 /**
  * The names that mean someone in prose: their name, its distinctive words, what the story calls
  * them before the player knows the name ("the landlady"), and that alias's head word when it's
- * distinctive ("lighterman").
+ * distinctive ("lighterman", "boy": the boy in the too-big boots is the scene's one boy; two who
+ * share it are told apart by neither, see distinct).
  */
 export function namesFor(name: string, called?: string, aka: string[] = []): string[] {
   const lower = name.toLowerCase();
   const alias = called?.toLowerCase().replace(/^(the|a|an)\s+/, "");
   const head = alias?.split(/\s+(with|in|by|from|at|on)\s+/)[0]!.split(/\s+/).at(-1);
   return [...new Set([lower, ...lower.split(/\s+/).filter(w => w.length >= 3 && !COMMON.test(w)),
-    ...(alias ? [alias] : []), ...(head && head.length >= 6 && !GENERIC.test(head) ? [head] : []),
+    ...(alias ? [alias] : []), ...(head && head.length >= 3 && !GENERIC.test(head) ? [head] : []),
     ...aka.map(a => a.toLowerCase())])];
 }
 

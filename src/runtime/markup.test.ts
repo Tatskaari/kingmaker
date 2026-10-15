@@ -180,6 +180,10 @@ test("who says each line: the tag, a speech tag carrying on, or the prose", () =
   // A new sentence that isn't a speech tag doesn't carry the speaker on.
   const n = withSpeakers(parseMarkup("[Kell] “Out!” The boy flinches. “Me?”"), PEOPLE);
   assert.deepEqual(n.speech.map(s => s.speaker), ["kell", undefined]);
+  // Someone the player knows only by sight, told by what they're called ("the boy in the too-big boots" is the scene's boy).
+  const yard = [...PEOPLE, { id: "cob", names: namesFor("Cob", "the boy in the too-big boots") }];
+  const o = withSpeakers(parseMarkup("A scrawny boy in enormous boots lobs a stone at the body. “Hold still!” [the boy] “Nearly got him.”"), yard);
+  assert.deepEqual(o.speech.map(s => s.speaker), ["cob", "cob"]);
 });
 
 test("written back out, the markup reads the same", () => {
