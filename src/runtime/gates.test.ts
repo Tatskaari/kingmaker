@@ -61,7 +61,7 @@ test("a route the author gave no dice, read with an attempt's confidence, settle
     await playerTurn(state, CROWN);
     assert.equal(reviewed(fake), false, "no ruling asked for");
     assert.equal(state.rulings, undefined);
-    assert.match(told(fake), /No dice needed: what the player is doing simply works \(The player offers coin, food or a trade as the price of a look in Cob's boot/);
+    assert.match(told(fake), /No dice needed: what the player is doing simply works \(The player offers Cob something as the price of a look in his boot/);
     assert.doesNotMatch(told(fake), /Decided, and it stands/);
   } finally {
     fake.restore();
