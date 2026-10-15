@@ -633,7 +633,7 @@ function questionsFor(turn: Turn, deeds: Deed[]): Record<string, ChoiceQuestion>
       criteria: { nobody: "They say nothing aloud: it's all deeds.", room: "Everyone, or nobody in particular.", ...Object.fromEntries(earshot.map(u => [u.id, `${u.name} (${u.side === "enemy" ? "on the other side" : "on their side"})`])) },
     },
     urge: {
-      instructions: "Do their words (or what they do) urge someone on the other side to stop fighting? It counts whether or not it would work: a demand to surrender (\"Give it up!\", \"Drop it!\"), a threat, an offer, an argument or a lie meant to make them stop, run or hold off. Only a taunt or a battle cry with no such demand in it doesn't.",
+      instructions: "Is the player trying, by words or by a show (a roar, brandishing a weapon, a menacing step), to make someone on the other side stop fighting: give up, leave, or hold back? It counts whether or not it would work: a demand to surrender (\"Give it up!\", \"Drop it!\"), a threat, an offer, an argument, a lie, or a show of force to scare them off. Only a taunt or a battle cry meant to rile them rather than stop them doesn't.",
       criteria: { no: "No: nobody is being urged to stop.", yield: "To give up: surrender, drop their weapon, put their hands up, give it up.", go: "To leave the fight: run, clear off, get out, walk away.", hold: "To hold back: stop, wait, stay where they are, think again for a moment." },
     },
   };
