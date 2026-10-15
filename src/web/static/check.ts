@@ -5,6 +5,8 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { OVERLAY_OSC } from "../../game/look/door-art.ts";
+import { doorsDrawn, doorsSeen, doorSync, placed, placement, watchDoorSync, type DoorsSeen, type Placement } from "../doors-check.ts";
 import { allowed, CONTENT } from "./content.ts";
 import { dbName } from "./persist.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
@@ -24,7 +26,10 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  *                                                       kept in IndexedDB through reloads; x x
  *                                                       deleting a game; the zoo (a sign,
  *                                                       an exhibit, a spell's SRD page, the action
- *                                                       menu, from above); resizing; one
+ *                                                       menu, from above); the doors drawn as
+ *                                                       pictures (on the right cells at 1x and 2x,
+ *                                                       in step with the frames, under a menu, a
+ *                                                       Fireball breaking one; ?doors=off); resizing; one
  *                                                       tab at a time; a browser that won't keep
  *                                                       anything; the key form (OpenRouter faked: no
  *                                                       key goes anywhere, a report from the title
@@ -105,7 +110,7 @@ function filesIn(dir: string): string[] {
 function inspect(): void {
   const files = filesIn(DIST);
   const top = [...new Set(files.map(f => relative(DIST, f).split("/")[0]!))].sort();
-  const expected = ["chunks", "client.js", "content.json", "fonts", "fonts.css", "fonts.json", "index.html", "style.css", "vendor", "worker-transport.js", "worker.js"];
+  const expected = ["chunks", "client.js", "content.json", "doors.js", "fonts", "fonts.css", "fonts.json", "index.html", "style.css", "vendor", "worker-transport.js", "worker.js"];
   if (JSON.stringify(top) === JSON.stringify(expected)) ok(`dist/web holds the page, the game's bundle, the fonts and the content, and nothing else (${files.length} files)`);
   else fail(`dist/web's top level: ${top.join(", ")}`);
   const bytes = files.reduce((n, f) => n + statSync(f).size, 0);
@@ -147,7 +152,8 @@ function inspect(): void {
   if (stamp && stamped && preload.includes(`worker.js?v=${stamp}`) && preload.includes(`content.json?v=${stamp}`) && preload.length >= 5 && !missing.length) {
     ok(`the build's stamp (${stamp}) is on the page's files, and it lists the ${preload.length} files the game loads at once, all there`);
   } else fail(`the build's stamp: ${stamp}; the page's files stamped: ${stamped}; preloads ${preload.join(" ")}${missing.length ? `, missing ${missing.join(", ")}` : ""}`);
-  if (/from "\.\/vendor\/xterm\.mjs\?v=/.test(readFileSync(join(DIST, "client.js"), "utf8"))) ok("client.js asks for xterm.js with the stamp too");
+  const client = readFileSync(join(DIST, "client.js"), "utf8");
+  if (/from "\.\/vendor\/xterm\.mjs\?v=/.test(client) && client.includes(`from "./doors.js?v=${stamp}"`)) ok("client.js asks for xterm.js and the doors' pictures (doors.js) with the stamp too");
   else fail("client.js's imports aren't stamped");
 }
 
@@ -528,13 +534,14 @@ const traffic = (page: Page) =>
   page.evaluate(`km.serverStats().then(s => ({ toPage: s.toPage, frames: s.frames, renderMs: s.renderMs, slowestMs: s.slowestMs, messagesIn: km.stats.messagesIn }))`) as Promise<Traffic>;
 
 async function rate(page: Page, what: string, during: () => Promise<void>): Promise<void> {
-  const before = await traffic(page);
+  const doorBytes = () => page.evaluate("window.doorSync ? doorSync.bytes : 0") as Promise<number>;
+  const before = await traffic(page), doorsBefore = await doorBytes();
   const started = Date.now();
   await during();
-  const after = await traffic(page);
+  const after = await traffic(page), doorsAfter = await doorBytes();
   const elapsed = (Date.now() - started) / 1000;
   const frames = after.frames - before.frames;
-  note(`bandwidth, ${what} (${elapsed.toFixed(1)}s): ${((after.toPage - before.toPage) / 1000 / elapsed).toFixed(1)} KB/s from the game to the page, ${((after.messagesIn - before.messagesIn) / elapsed).toFixed(1)} messages/s; ${(frames / elapsed).toFixed(1)} frames/s in the worker, ${(frames ? (after.renderMs - before.renderMs) / frames : 0).toFixed(1)} ms a frame (the slowest yet ${after.slowestMs.toFixed(0)} ms)`);
+  note(`bandwidth, ${what} (${elapsed.toFixed(1)}s): ${((after.toPage - before.toPage) / 1000 / elapsed).toFixed(1)} KB/s from the game to the page (${((doorsAfter - doorsBefore) / 1000 / elapsed).toFixed(1)} KB/s of it where the doors are), ${((after.messagesIn - before.messagesIn) / elapsed).toFixed(1)} messages/s; ${(frames / elapsed).toFixed(1)} frames/s in the worker, ${(frames ? (after.renderMs - before.renderMs) / frames : 0).toFixed(1)} ms a frame (the slowest yet ${after.slowestMs.toFixed(0)} ms)`);
 }
 
 /**
@@ -591,6 +598,7 @@ async function play(browser: Browser, url: string): Promise<void> {
   const seen = watch(context);
   try {
     const { page, ms } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+    await watchDoorSync(page);
     const toTitle = ms + await waitFor(page, "Hanged Clerk of Caerwyn", "the title screen, the game in a Web Worker");
     note(`time to the title screen, a first visit (nothing cached): ${toTitle} ms`);
     const renderer = await page.evaluate("km.renderer");
@@ -839,6 +847,191 @@ async function zoo(browser: Browser, url: string): Promise<void> {
     else ok("the zoo visit isn't offered as a game to Continue");
   } finally {
     await context.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The doors, drawn as pictures over the ASCII where the game says they are (src/web/page/doors.ts)
+
+/** The porters' door, on the granary lane: a wizard's Fireball (the action menu's) breaks it. */
+const PORTERS = "caerwyn:door@52,5";
+
+interface SaveFile { path: string; data: string; mtimeMs: number }
+
+/**
+ * A wizard's game (level 5, so Fireball) standing on the granary lane by the porters' lodgings,
+ * made here as the game makes one (offline: the rules engine, no GM), as the files the browser keeps.
+ */
+async function wizardGame(): Promise<SaveFile[]> {
+  const runs = join(OUT, "fixture-runs");
+  mkdirSync(runs, { recursive: true });
+  const was = { runs: process.env.KM_RUNS_DIR, key: process.env.OPENROUTER_API_KEY };
+  process.env.KM_RUNS_DIR = runs;
+  process.env.OPENROUTER_API_KEY = "offline";
+  try {
+    const { Game: Core } = await import("../../game/play.ts");
+    const { town, exploreState } = await import("../../game/town.ts");
+    const { mapFights } = await import("../../game/fights.ts");
+    const { PREGENS } = await import("../../game/combat/pregen.ts");
+    const core = await Core.create({ player: `Vesper Hale: ${PREGENS.wizard!.concept}`, level: 5, build: PREGENS.wizard!.build, explorer: town, fights: mapFights(), seed: 11 });
+    exploreState(core.state).at = { x: 47, y: 9 };
+    core.save();
+  } finally {
+    if (was.runs === undefined) delete process.env.KM_RUNS_DIR; else process.env.KM_RUNS_DIR = was.runs;
+    if (was.key === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = was.key;
+  }
+  return filesIn(runs).map(file => ({ path: `/kingmaker/runs/${relative(runs, file).split("\\").join("/")}`, data: readFileSync(file, "utf8"), mtimeMs: statSync(file).mtimeMs }));
+}
+
+/** Files put in this preview's saves (IndexedDB), as the worker keeps them: the next game to start reads them. */
+const putSaves = (page: Page, files: SaveFile[]) => page.evaluate(`(async () => {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open(${JSON.stringify(DB)}, 1);
+    request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains("files")) request.result.createObjectStore("files", { keyPath: "path" }); };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("files", "readwrite");
+      for (const file of ${JSON.stringify(files)}) tx.objectStore("files").put(file);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+})()`);
+
+/** The box of a bordered panel round some text (its rounded corners), in cells. */
+async function boxAround(page: Page, title: string): Promise<{ left: number; top: number; right: number; bottom: number } | undefined> {
+  const grid = await cells(page);
+  const at = await find(page, title);
+  if (!at) return undefined;
+  const row = grid[at.row]!;
+  let left = at.col, right = at.col, bottom = at.row;
+  while (left > 0 && row[left] !== "╭") left--;
+  while (right < row.length - 1 && row[right] !== "╮") right++;
+  while (bottom < grid.length - 1 && grid[bottom]![left] !== "╰") bottom++;
+  return row[left] === "╭" && row[right] === "╮" ? { left, top: at.row, right, bottom } : undefined;
+}
+
+/**
+ * The doors in the browser: drawn where the game says, on the cells it says, at 1x and 2x (a real
+ * device scale factor); in step with the frames as the map scrolls under you; hidden under the action
+ * menu and back when it goes; changed when a door is (Fireball at the porters' door, from the action
+ * menu, on a wizard's game put in this browser's saves); and ?doors=off leaves the ASCII alone.
+ */
+async function doors(url: string): Promise<void> {
+  const game = await wizardGame();
+  for (const scale of [1, 2]) {
+    const browser = await chromium.launch({ args: [`--force-device-scale-factor=${scale}`, `--window-size=${VIEWPORT.width},${VIEWPORT.height}`] });
+    try {
+      const context = await browser.newContext({ viewport: null });
+      watch(context);
+      const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+      await waitFor(page, "Hanged Clerk of Caerwyn", `at ${scale}x: the title, for the doors`);
+      await putSaves(page, game);
+      await page.reload();
+      await waitFor(page, "Continue.*Vesper Hale", `at ${scale}x: the wizard's game, put in this browser's saves, is offered`);
+      await watchDoorSync(page);
+      await press(page, "Enter");
+      await waitFor(page, "The lead:.*Hanged Clerk", `at ${scale}x: on the granary lane, by the porters' lodgings`);
+      const seen = await doorsDrawn(page, 3, PORTERS);
+      if (seen && seen.drawn >= 3 && seen.doors.some(d => d.id === PORTERS)) ok(`at ${scale}x: the doors on the lane are drawn as pictures (${seen.drawn} of ${seen.doors.length}: ${seen.doors.map(d => `${d.id.replace("caerwyn:", "")} ${d.look}`).join(", ")})`);
+      else { fail(`at ${scale}x: the doors on the lane: ${JSON.stringify(seen)}`); continue; }
+      const where = await placement(page);
+      if (placed(where, scale) && where.drawn > 1000) {
+        ok(`at ${scale}x: every pixel of them is in a cell the game said they may paint (${where.drawn} device pixels), on a canvas exactly over xterm's (${where.size} device pixels, ${where.cell} a cell)`);
+      } else fail(`at ${scale}x: the doors' placement: ${JSON.stringify(where)}`);
+      await shot(page, `doors-${scale}x`);
+      if (scale !== 1) continue;
+
+      // In step: walking scrolls the map under you, and the doors with it.
+      const before = (await doorSync(page)).taken;
+      for (const key of ["ArrowLeft", "ArrowLeft", "ArrowLeft", "ArrowRight", "ArrowRight", "ArrowRight", "a", "d"]) {
+        await page.keyboard.press(key);
+        await sleep(350);
+      }
+      await sleep(600);
+      const sync = await doorSync(page);
+      if (sync.taken - before >= 6 && !sync.takenOff && !sync.drawnOff && sync.drawn > 0) {
+        ok(`walking, the doors keep in step with the frames: taken ${sync.taken} times and drawn with xterm ${sync.drawn} times, on the cells of the frame they came with every time (${sync.cells} cells compared)`);
+      } else fail(`walking, the doors out of step: ${JSON.stringify(sync)}`);
+
+      // Under the action menu: hidden where it covers them, back when it goes.
+      const count = (await doorsSeen(page))?.drawn ?? 0;
+      await press(page, "m");
+      await waitFor(page, "What will you do\\?", "m: the action menu, over the map");
+      const menu = await boxAround(page, "What will you do?");
+      let under: Placement | undefined;
+      for (let i = 0; i < 20 && menu; i++) {
+        under = await placement(page, menu);
+        if (!under.cellsInside && !under.drawnInside) break;
+        await sleep(150);
+      }
+      await shot(page, "doors-under-menu");
+      if (menu && under && !under.cellsInside && !under.drawnInside && !under.outside) ok(`under the action menu (cells ${menu.left}-${menu.right} by ${menu.top}-${menu.bottom}) the doors are hidden: none of their cells or pixels is in it`);
+      else fail(`the doors under the action menu: ${JSON.stringify({ menu, under })}`);
+      await press(page, "Escape");
+      let back = 0;
+      for (let i = 0; i < 20 && back < count; i++) { await sleep(150); back = (await doorsSeen(page))?.drawn ?? 0; }
+      if (back >= count) ok(`and back when it goes (${back} drawn)`);
+      else fail(`after the menu, ${back} doors drawn, ${count} before it`);
+
+      // A door's state: Fireball at the porters' door, from the action menu aimed at it, breaks it.
+      const door = (await doorsSeen(page))!.doors.find(d => d.id === PORTERS)!;
+      const look = door.look;
+      const box = await cellBox(page);
+      const region = `(() => { const c = km.doors.canvas, k = km.doors.cell; const x = ${door.x - 3} * k.width, y = ${door.y - 4} * k.height;
+        return Array.from(c.getContext("2d").getImageData(x, y, 8 * k.width, 7 * k.height).data).join(","); })()`;
+      const pictureBefore = (await page.evaluate(region)) as string;
+      await page.mouse.click(box.x + (door.x + 0.5) * box.w, box.y + (door.y + 0.5) * box.h, { button: "right" });
+      await waitFor(page, "The door of the porters' lodgings.*Do something…", "a right-click on the porters' door: its menu");
+      await press(page, "2");
+      await waitFor(page, "Do something: the door of the porters' lodgings.*Fireball", "Do something…: the action menu, aimed at the door");
+      await clickOn(page, "Fireball");
+      await waitFor(page, "Fireball → the door of the porters' lodgings", "Fireball, aimed at the porters' door");
+      await press(page, "Enter");
+      // Broken, and drawn so once the fireball's burst has gone from over it (the doors stop changing).
+      let broken: DoorsSeen["doors"][number] | undefined;
+      for (let i = 0; i < 60 && broken?.look !== "broken"; i++) { await sleep(200); broken = (await doorsSeen(page))?.doors.find(d => d.id === PORTERS); }
+      let said = -1;
+      for (let i = 0; i < 40; i++) {
+        const now = (await doorsSeen(page))?.received ?? 0;
+        if (now === said) break;
+        said = now;
+        await sleep(1200);
+      }
+      broken = (await doorsSeen(page))?.doors.find(d => d.id === PORTERS);
+      const pictureAfter = (await page.evaluate(region)) as string;
+      await shot(page, "doors-fireball");
+      if (broken?.look === "broken" && pictureAfter !== pictureBefore) ok(`Fireball at the porters' door breaks it, and its picture changes with it (${look} to broken)`);
+      else fail(`the porters' door after the Fireball: ${JSON.stringify(broken)}, its picture ${pictureAfter === pictureBefore ? "the same" : "changed"}`);
+      const after = await placement(page);
+      if (!after.outside) ok("and every pixel of the doors is still in a cell the game said they may paint");
+      else fail(`after the Fireball, ${after.outside} pixels outside the doors' cells`);
+    } finally {
+      await browser.close();
+    }
+  }
+
+  // ?doors=off: the ASCII alone.
+  const plain = await chromium.launch();
+  try {
+    const context = await plain.newContext({ viewport: VIEWPORT });
+    watch(context);
+    const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}&doors=off`);
+    await page.evaluate(`window.doorsSaid = 0; km.term.parser.registerOscHandler(${OVERLAY_OSC}, () => { window.doorsSaid++; return false; })`);
+    await waitFor(page, "Hanged Clerk of Caerwyn", "?doors=off: the title");
+    await press(page, "z");
+    await waitFor(page, "Next: Welcome to the Zoo", "?doors=off: the zoo's Front Hall, its doors round the walls");
+    await sleep(1500);
+    const none = await page.evaluate(`km.doors === undefined && !document.querySelector(".km-doors") && window.doorsSaid === 0`);
+    if (none) ok("?doors=off leaves the ASCII alone: no overlay, and the game in the worker doesn't say where the doors are");
+    else fail(`?doors=off: an overlay ${await page.evaluate("!!document.querySelector('.km-doors')")}, the game said where the doors are ${await page.evaluate("window.doorsSaid")} times`);
+  } finally {
+    await plain.close();
   }
 }
 
@@ -1148,6 +1341,7 @@ try {
   await besideTheTerminal(browser, server.url);
   await play(browser, server.url);
   await zoo(browser, server.url);
+  await doors(server.url);
   await resize(browser, server.url);
   await twoTabs(browser, server.url);
   await noStorage(browser, server.url);

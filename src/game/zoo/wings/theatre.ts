@@ -36,16 +36,16 @@ const GRID = `
 %WWWW+WWWWW.WWWW+WWWWW.WWWW+WWWWW.WWWW+WWWWW.....#
 %................................................#
 %...1..........2..........3..........4...........#
-%.................................==============.#
+%.....................WWWWWWWWWW..==============.#
+%.....................WeeeeeevvW..=yyyyyddyyyyy=.#
+%.....g...s...........WeeeeeevvW..=yyyyyddyyyyy=.#
+%...................q.WeeeeeevvW5.=yyyyyddyyyyy=.#
+%.....................WeeeeeevvW..Gyyyyyddyyyyy=.#
+%.....................WeeeeeevvW..=yyyyyddyyyyy=.#
+%...........R.........WeeeeeevvW..=yyyyyddyyyyy=.#
+%.........r...........WWWW+WWWWW..=yyyyyddyyyyy=.#
 %.................................=yyyyyddyyyyy=.#
-%.....g...s.......................=yyyyyddyyyyy=.#
-%...................q...........5.=yyyyyddyyyyy=.#
-%.................................Gyyyyyddyyyyy=.#
-%.................................=yyyyyddyyyyy=.#
-%...........R.....................=yyyyyddyyyyy=.#
-%.........r.......................=yyyyyddyyyyy=.#
-%.................................=yyyyyddyyyyy=.#
-%.................................==============.#
+%.......................7.........==============.#
 %................................................#
 %........h....m....k....p.........WWWWWWWWWWWW...#
 %.................................WttttttttttW...#
@@ -58,7 +58,7 @@ X.................................WttttttttttW...#
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
 `;
 
-const MARKS = "@a123456Rrghmkpqs";
+const MARKS = "@a1234567Rrghmkpqs";
 const at = marks(GRID, MARKS);
 const ID = "zoo-theatre";
 
@@ -72,6 +72,7 @@ const BOOTHS: Booth[] = [
   { sceneId: "zoo-ledger", id: "zoo-theatre-ledger", name: "the ledger office", label: "Go into the ledger office", rect: { x: 35, y: 2, w: 8, h: 6 }, origin: { x: 34, y: 1 }, door: { x: 38, y: 8 }, description: "A booth set up as a cramped office with a lost ledger and a cat." },
   { sceneId: "zoo-practice-yard", id: "zoo-theatre-yard", name: "the practice yard", label: "Go into the practice yard", rect: { x: 35, y: 12, w: 12, h: 8 }, origin: { x: 34, y: 11 }, door: { x: 34, y: 15 }, description: "A fenced yard with a ditch down the middle and things in it to be hit, burned, jumped over and thrown about." },
   { sceneId: "zoo-tavern", id: "zoo-theatre-tavern", name: "the Cracked Tankard", label: "Go into the Cracked Tankard", rect: { x: 35, y: 23, w: 10, h: 5 }, origin: { x: 34, y: 22 }, door: { x: 34, y: 25 }, description: "A booth set up as a low tavern, two porters on their feet over a ha'penny." },
+  { sceneId: "zoo-ferry", id: "zoo-theatre-ferry", name: "the ferry stairs", label: "Go down to the ferry", rect: { x: 23, y: 12, w: 8, h: 6 }, origin: { x: 22, y: 11 }, door: { x: 26, y: 18 }, description: "A booth set up as a landing at the foot of Caerwyn's river stairs: a ferry that carries only its own, and an eel-wife who remembers." },
 ];
 
 /** The booths as the zoo's rooms: stepping into one opens its scene. */
@@ -183,6 +184,9 @@ const exhibits: Exhibit[] = [
   sign("tavern", "6", "The Cracked Tankard", ["Roll for initiative", "After the fight", "Reactions to violence"],
     "Two porters about to fight over a ha'penny. Settle it (a check) and nobody goes through the window. Lay hands on one, egg them on, or let it boil over, and it ends in \"Roll for initiative!\": a fight on the tavern's own floor, everyone where its world has them, its lantern on the beam to bring down, and Kell beside you if she's walking with you. You can still talk in it (type, as you did in the scene): tell them it's a ha'penny, and see who listens. When it's over the scene picks up for the aftermath, and ends when it's swept up. Offline: /end fight goes straight to the fight, then /end swept-up.",
     [], { needsModel: true, scene: { id: "zoo-tavern", exit: "fight", after: "swept-up", say: ["Gentlemen, it's a ha'penny."], fight: ["say:Gentlemen! It's a ha'penny. Put the stools down before somebody loses an ear.", "say:shove the big porter over"] } }),
+  sign("ferry", "7", "The Ferry Stairs", ["The GM's markup: why, know and you", "Each speaker's lines in their colour"],
+    "A landing at the foot of Caerwyn's river stairs, and a ferry that carries the stairs' own and whoever they speak for. Every refusal here has a reason, and the reason shows: the GM marks the words a moment turns on, and a moment after the reply they're underlined in the conversation, on a coral tint for why someone acts as they do, teal for what your character would know and a newcomer wouldn't, lavender for something you did. Click one (or Tab to it, then Enter) for a note on it, written from what you know (never from the GM's secrets), and what you know of what it's about. Each person's lines come in their own colour, the colour they're drawn in on the map. Try: being short with the eel-wife, then asking her son for a crossing (he won't carry anyone who was rude to his mother, nor a stranger nobody's spoken for); saying the watch sent you (the stairs' grudge); and making it up to her. Offline, /end ferried crosses.",
+    [], { needsModel: true, scene: { id: "zoo-ferry", exit: "ferried", say: ["*steps round the eel-wife* Not now, you old trout. Ferryman! Take me across.", "Sergeant Kell of the watch sent me, so you'll take me across in the watch's name.", "*sighs* I'm sorry, Mother. That was rude of me. I'll buy an eel, a yard of it, at your price.", "Would you speak for me to your son, then? I need to get across."] } }),
   sign("repertory", "r", "The repertory board (rehearsals)", ["The Hanged Clerk", "The interludes", "The Drowned Rat", "The Heron Warehouse", "The King's Morning", "Other scenes (scene harness only)", "Afterwards", "Exit scripts (world-update scripts)", "Kell in the story's scenes", "Levelling up at a milestone", "Roll for initiative"],
     "Any scene of the story, or of the scene harness, from the top, out of order: the zoo's own session plays it on its own place (the arc's are on the story's maps: you're taken there and back), with its cast, its checks, its cues and its endings. Nothing done in a rehearsal reaches the story. Offline, /exits lists a scene's endings and /end <id> takes one: its exit script writes the notebook, and its afterwards (Prout taken down) is applied. Rehearse the Heron and end it with /end fight for the map fight; the King's Morning levels you up as it opens (the hall's wardrobe puts you back to five).",
     REPERTORY, { tour: ["rehearse-hanged-clerk", "rehearse-heron-warehouse", "rehearse-kings-morning", "rehearse-warren-hostage"] }),
@@ -226,6 +230,7 @@ export const theatre: Wing = {
       X: T("door", { style: "stone", height: 1 }),
       f: T("boards", { roof: "plaster", roofHeight: 2 }), b: T("floor", { style: "flags", roof: "timber", roofHeight: 2 }), c: T("floor", { style: "carpet", roof: "plaster", roofHeight: 2 }),
       o: T("boards", { roof: "timber", roofHeight: 2 }), t: T("boards", { roof: "tar", roofHeight: 2 }), y: T("dirt"), d: T("water"),
+      e: T("floor", { style: "flags", roof: "timber", roofHeight: 2 }), v: T("water"),
       ...floorFor(MARKS, COBBLES),
     },
     regions: BOOTHS.map((b): PlaceRegion => ({ id: b.id, name: b.name, rect: b.rect, sceneId: b.sceneId, worldOrigin: b.origin, trigger: "enter", label: b.label, description: b.description })),

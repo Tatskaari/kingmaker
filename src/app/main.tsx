@@ -1,6 +1,6 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
-import { registerLookCanvas } from "../game/look/opentui.ts";
+import { attachOverlay, registerLookCanvas } from "../game/look/opentui.ts";
 import { App } from "./app.tsx";
 import { Game, message } from "./game.ts";
 import { attachReporting, unhandled } from "./report.ts";
@@ -23,6 +23,8 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
 // The world's views paint themselves, live (<lookCanvas>).
 registerLookCanvas();
 const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
+// In a browser (the server build: KM_IN_BROWSER), the page draws the doors as pictures over the ASCII; in a terminal, nothing.
+attachOverlay(renderer);
 const game = new Game();
 // A report of a problem (b, /report, the Esc menu) has what was on screen, and what went wrong on the way.
 attachReporting(game, renderer);

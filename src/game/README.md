@@ -12,7 +12,7 @@ Its subdirectories have docs of their own: [map/](map/README.md) (tile maps, exp
 
 | file | what's in it |
 |---|---|
-| [`play.ts`](play.ts) | [`Game`](play.ts#L156) and [`GameState`](play.ts#L42); the modes and the story flow between them; the [`Explorer`](play.ts#L84), [`Fight`](play.ts#L121) and [`FightFactory`](play.ts#L145) interfaces; `Observation` and `Action` |
+| [`play.ts`](play.ts) | [`Game`](play.ts#L158) and [`GameState`](play.ts#L44); the modes and the story flow between them; the [`Explorer`](play.ts#L86), [`Fight`](play.ts#L123) and [`FightFactory`](play.ts#L147) interfaces; `Observation` and `Action` |
 | [`types.ts`](types.ts) | The seams between the map, combat and the app: `TileMap`, `MapActor`, `Region`, `StoryState`, `CombatSetup`, `CombatResult`, styled lines |
 | [`town.ts`](town.ts) | [`town`](town.ts#L473), the story's Explorer: the map module's exploration behind action ids (walking, talking, doors, ways out, the lead), the right-click menu ([`actionsAt`](town.ts#L325)), and the action menu's entry points ([`actionMenu`](town.ts#L425), [`aimFor`](town.ts#L430), [`aimAt`](town.ts#L437)) |
 | [`town-world.ts`](town-world.ts) | [`townWorld(ex)`](town-world.ts#L130): the map's things and people as a scene world, for the rules out of scenes; [`keepTown`](town-world.ts#L256), which writes what the rules changed into the map's overlay |
@@ -33,7 +33,7 @@ Its subdirectories have docs of their own: [map/](map/README.md) (tile maps, exp
 - `hub` and `hubTime` for a zoo visit;
 - `settings`: the player's, kept with the game. `suggestions` is false when they've turned the suggested lines off (src/runtime/suggest.ts); scenes and talks then ask for none.
 
-[`Game.save()`](play.ts#L208) writes both files, synchronously, after every act and every line said.
+[`Game.save()`](play.ts#L210) writes both files, synchronously, after every act and every line said.
 
 ## How it fits
 
@@ -71,10 +71,10 @@ stateDiagram-v2
 
 | transition | where |
 |---|---|
-| into a scene or a talk | [`beginScene`](play.ts#L409), [`beginTalk`](play.ts#L392). An act that opened it is the scene's first turn, its mechanic already chosen ([play.ts:254](play.ts#L254)) |
-| a scene ends | [`afterScene`](play.ts#L423): a fight if the ending says so; otherwise the explorer keeps the place (`leaveScene`) and [`onward`](play.ts#L507) chains the next scene (a lead to walk to, a summons, or The End). A hub's scene goes back to its map ([`backToHub`](play.ts#L444)) |
-| a fight from the map | [`beginFight`](play.ts#L460), with `fightOnMap` set |
-| a fight ends | [`afterFight`](play.ts#L476): back on the map (the explorer's `afterFight`), or the scene's aftermath (`resumeAfterFight`); the player comes round (`comeTo`); a story fight's flags go into the story |
+| into a scene or a talk | [`beginScene`](play.ts#L411), [`beginTalk`](play.ts#L394). An act that opened it is the scene's first turn, its mechanic already chosen ([play.ts:256](play.ts#L256)) |
+| a scene ends | [`afterScene`](play.ts#L425): a fight if the ending says so; otherwise the explorer keeps the place (`leaveScene`) and [`onward`](play.ts#L510) chains the next scene (a lead to walk to, a summons, or The End). A hub's scene goes back to its map ([`backToHub`](play.ts#L446)) |
+| a fight from the map | [`beginFight`](play.ts#L463), with `fightOnMap` set |
+| a fight ends | [`afterFight`](play.ts#L479): back on the map (the explorer's `afterFight`), or the scene's aftermath (`resumeAfterFight`); the player comes round (`comeTo`); a story fight's flags go into the story |
 
 ### Action ids
 
@@ -145,7 +145,7 @@ Scenes, the town map, the map's ageing of what was left, and fights each have th
 | what catches fire | `ignite`, by tags, material and wetness ([systems.ts:81](../world/systems.ts#L81)); never a person | the same `ignite`, on materials guessed from names ([town-world.ts:68](town-world.ts#L68)) | the tiles of any fire spell, a broken lit prop, and `fuel` tiles (flammable things on the battlefield) ([skirmish.ts:888](combat/skirmish.ts#L888)) |
 | fire over time | `tick`: 1d10 a turn to what burns, spreading 5 ft, wrecks smouldering ([scene-world.ts:715](../world/scene-world.ts#L715)); burning surfaces ([systems.ts:188](../world/systems.ts#L188)); only while something burns | nothing burns on: it's `burning` until a later time of day, when the map makes it destroyed and burnt ([map/reconcile.ts:294](map/reconcile.ts#L294), and again for played scenes' leftovers, region states and spills in the same file), or until the player rests ([menu.ts:819](menu.ts#L819)) | fire runs along the fuel each round ([`spreadFire`](combat/skirmish.ts#L933)) |
 | fire and people | never: the player is hurt by fire only through the rules (a spell, or `hazard` when their area explodes) | never | starting a turn beside fire costs 1d6, DEX DC 10 for half ([`scorch`](combat/skirmish.ts#L945)), through the engine's trap rules |
-| grain dust | a `dusty` area explodes when something in it burns: 4d6 fire to each thing in it, and the player's save through `hazard` ([src/runtime/engine.ts:329](../runtime/engine.ts#L329)) | none | dust tiles explode when fire reaches them: 5d6 fire to everyone in them, DEX DC 13 for half ([`explode`](combat/skirmish.ts#L905)) |
+| grain dust | a `dusty` area explodes when something in it burns: 4d6 fire to each thing in it, and the player's save through `hazard` ([src/runtime/engine.ts:363](../runtime/engine.ts#L363)) | none | dust tiles explode when fire reaches them: 5d6 fire to everyone in them, DEX DC 13 for half ([`explode`](combat/skirmish.ts#L905)) |
 | damage to things | [`damageThing`](../world/scene-world.ts#L689): AC and HP by material and size, immunities by material; the rules roll our own dice for it ([`objectDamage`](../rules/dnd.ts#L1310)) | the same, on guessed materials | only props (lanterns, braziers) with a fixed AC and HP ([setup.ts:112](combat/setup.ts#L112)); any hit breaks one ([`attackProp`](combat/skirmish.ts#L471)) |
 | breaking | [`destroy`](../world/scene-world.ts#L660): what it held falls out, what hung from it falls; [`breakOpen`](../world/systems.ts#L166) spills a container | the same; a broken door can be walked through (the map drops its `blocks`) | [`breakProp`](combat/skirmish.ts#L870): a lit lantern sets fire where it lands, a brazier on its neighbours too |
 | a spell's area | [`caughtIn`](../world/scene-world.ts#L370) in feet, through walls | the same, and the aim shows it ([`areaReach`](menu.ts#L328)) | [`areaTiles`](combat/grid.ts#L157) on tiles, stopped by walls |
@@ -192,8 +192,8 @@ With `OPENROUTER_API_KEY=offline` the console can walk, look and use the action 
 - **Refusals come two ways.** On the map and in a scene, an id that isn't there throws (`Unavailable action: …`); on the map, one that's there but can't be done now comes back as a line in brackets ("(Hide: not now, …)"). In a fight an unknown id comes back as a line too. Neither changes the game.
 - **The story leaks into the core.** `FIRST_SCENE` is the hanged clerk; the town's reactions and rests speak for Kell and Caerwyn; combat's `encounterFor` special-cases the Heron.
 - **Reactions to violence are decided twice:** by the model in scenes, by a fixed table on the map (the table above).
-- **The story's flags come only from a fight's result** ([play.ts:492](play.ts#L492)); the zoo sets its own. An exit script's `setFlag` is recorded and not applied (src/world's DSL).
+- **The story's flags come only from a fight's result** ([play.ts:495](play.ts#L495)); the zoo sets its own. An exit script's `setFlag` is recorded and not applied (src/world's DSL).
 - **The town's world is rebuilt for every menu, aim and act,** from the map's actors and the overlay, and the menu checks every entry against everything in reach. Each QA observation includes the menu, so observing costs a menu build.
-- **A fight from the map needs `startWith`.** A factory without it gets the act's text back and no fight ([play.ts:250](play.ts#L250)).
+- **A fight from the map needs `startWith`.** A factory without it gets the act's text back and no fight ([play.ts:252](play.ts#L252)).
 - **menu.ts awaits the rules engine at import** (top-level `await dnd()`), so anything that imports town.ts loads the engine.
 - **`places.ts` and `fight-standin.ts` are museum pieces;** the zoo's hall has a sign that says so.

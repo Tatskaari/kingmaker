@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { SessionState } from "../../runtime/session.ts";
 import type { Canvas } from "../look/canvas.ts";
 import { dressingFor } from "../look/dressings.ts";
-import { renderStage } from "../look/stage.ts";
+import { renderStage, type StagePicks } from "../look/stage.ts";
 import { toAnsi, toPlain, type Viewport } from "../map/index.ts";
 import type { GameState } from "../play.ts";
 import { exploreState } from "../town.ts";
@@ -28,13 +28,13 @@ export function mapPicture(game: GameState, session: SessionState | undefined, s
   return townView(game, session, size, { t, ...(look ? { effects: look.fx } : {}), ...(lead ? { lead: { at: lead.at, label: lead.label } } : {}) });
 }
 
-/** A wing's world from above (v), with its effects and whoever's mid-walk where the director has them. */
-export function stagePicture(game: GameState, size: Viewport, t: number, look?: Look): Canvas | undefined {
+/** A wing's world from above (v), with its effects and whoever's mid-walk where the director has them; `pick` says what's drawn where. */
+export function stagePicture(game: GameState, size: Viewport, t: number, look?: Look, pick?: StagePicks): Canvas | undefined {
   const ex = exploreState(game);
   const world = look?.world ?? ex.roam?.[ex.map];
   if (!world) return undefined;
   return renderStage(world, dressingFor(world.scene), {
-    w: size.w, h: size.h, t, time: game.story.time, ...(look ? { effects: look.fx, positions: id => look.director.tweens.at(id, t) } : {}),
+    w: size.w, h: size.h, t, time: game.story.time, ...(look ? { effects: look.fx, positions: id => look.director.tweens.at(id, t) } : {}), ...(pick ? { pick } : {}),
   });
 }
 

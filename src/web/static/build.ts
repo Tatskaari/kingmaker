@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
+import { doorsModule } from "../bundle.ts";
 import { fontFaceCss, fontList, webFonts } from "../fonts.ts";
 import { CONTENT } from "./content.ts";
 import { importMeta, openTuiFonts, stubModules, virtualModules } from "./plugins.ts";
@@ -114,6 +115,8 @@ if (problems.length) {
 // The page's files (index.html last, with the build's stamp)
 
 for (const file of ["worker-transport.js", "style.css"]) copyFileSync(join(PAGE, file), join(OUT, file));
+// The doors' pictures over the terminal (src/web/page/doors.ts, and the art it shares with the game).
+writeFileSync(join(OUT, "doors.js"), doorsModule(true));
 
 const xterm = dirname(dirname(require.resolve("@xterm/xterm")));
 const addon = (name: string) => dirname(dirname(require.resolve(`@xterm/addon-${name}`)));
@@ -161,9 +164,9 @@ const stamp = (() => {
   return hash.digest("hex").slice(0, 12);
 })();
 const v = `?v=${stamp}`;
-// client.js's own imports (xterm.js and its addons) carry the stamp too.
-const versionedClient = client.replace(/(from\s+"\.\/vendor\/[\w.-]+\.mjs)"/g, `$1${v}"`);
-if (versionedClient === client) throw new Error("client.js changed: the static build couldn't stamp its imports");
+// client.js's own imports (xterm.js and its addons, the doors) carry the stamp too.
+const versionedClient = client.replace(/(from\s+"\.\/(?:vendor\/[\w.-]+\.mjs|doors\.js))"/g, `$1${v}"`);
+if (versionedClient === client || !versionedClient.includes(`"./doors.js${v}"`)) throw new Error("client.js changed: the static build couldn't stamp its imports");
 writeFileSync(join(OUT, "client.js"), versionedClient);
 // What the game loads before its first screen, for the page to fetch all at once (client.js): the worker, its chunks, the content.
 const preload = [

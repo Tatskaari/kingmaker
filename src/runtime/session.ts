@@ -1,12 +1,21 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RollResult } from "./dice.ts";
+import type { Markup, MarkupStats } from "./markup.ts";
+import type { NotesUsage } from "./notes.ts";
 import type { Beat, Essential, Skill, Transition } from "./scene.ts";
 import type { Operation } from "../world/dsl.ts";
 import { untangle, type Entity, type SceneWorld } from "../world/scene-world.ts";
 
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
-export interface Entry { turn: number; speaker: string; kind: EntryKind; text: string; scene?: string }
+export interface Entry {
+  turn: number; speaker: string; kind: EntryKind;
+  /** What the player reads: the GM's markup taken out (src/runtime/markup.ts). */
+  text: string;
+  scene?: string;
+  /** A GM reply's markup: who says each line, and the notes on its phrases, as offsets into `text`. */
+  marked?: Markup;
+}
 
 export interface PlayerCharacter {
   name: string;
@@ -84,6 +93,10 @@ export interface TurnMetric {
   postDecisionMs: number;
   costUsd: number;
   calls: number;
+  /** How the turn's GM replies kept to the markup (spoken lines tagged, marks made and dropped). */
+  markup?: MarkupStats;
+  /** The notes written on the turn's replies (src/runtime/notes.ts): how many, what they cost, how long the slowest took. */
+  notes?: NotesUsage;
 }
 
 /** Changes made to the scene's prep during play (the co-GM's, a talk's, the boundary's), kept separate from authored data. */
@@ -309,6 +322,8 @@ export interface SessionState {
     sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>;
     /** What moved in the world's fronts at this boundary (ticked and struck steps, new bills). */
     fronts?: string[];
+    /** The notebook's lines the scene's ending wrote (its exit script's journal): what the player has on record of it. */
+    journal?: string[];
   }>;
 }
 

@@ -39,7 +39,10 @@ It holds no game state. `Effects` and `Director` are objects the callers make an
 | `dressings.ts` | What the story's scene worlds are built of (floors, walls, glass, windows, water), by scene: `DRESSINGS`, `dressingFor`. |
 | `map.ts` | The face the isometric map renderer calls (below). |
 | `canvas.ts` | The frame (cells), with `toLines()` (StyledLine[]), `toAnsi()`, `toPlain()` and `toJSON()`. |
-| `opentui.ts` | `<lookCanvas>`: a live OpenTUI renderable that paints frames (a Canvas, or styled lines) straight into the buffer, at most `fps` new frames a second. |
+| `opentui.ts` | `<lookCanvas>`: a live OpenTUI renderable that paints frames (a Canvas, or styled lines) straight into the buffer, at most `fps` new frames a second. `attachOverlay`: in the browser builds, where the doors are, to the page, with each frame that changes them. |
+| `door-art.ts` | The doors as pictures over the ASCII in the browser (src/web/README.md): their looks (`doorLook`: shut, open, locked, barred, broken), the art (the ASCII-plus spike's, in art pixels a cell's 7th and 15th), and what the game tells the page. Pure: the page bundles it too. |
+| `overlay.ts` | Where the doors are in a frame of the map or the stage, from its picks: the cells each door's picture may paint (not over what's nearer, nor what's drawn over the map). |
+| `door-sheet.ts` | Every door look on both faces of a wall, on a little map of its own, for the tests and the pictures. |
 | `index.ts` | The module's exports, with a summary of each part. |
 | `vignettes.ts`, `gallery.tsx`, `dump.ts`, `smoke.py` | The gallery, its headless dump and its smoke test. |
 | `frames.ts` | Headless frames of the game's own views (src/game/views.ts) with the look. |
@@ -93,6 +96,7 @@ director.spellsFrom(world, ruleLines, now, aliases);          // "Cast Fireball 
 director.rulesLines(world, ruleLines, now, aliases);          // "X takes 7 fire damage", "the big man takes 7 damage" float a 7
 director.observe(world, now);                                 // after every turn: walks, fires, douses, spills, wrecks (and hurt the lines didn't float)
 director.barksFrom(world, gmReply, now, called);              // short quoted lines over their speakers (called: "the landlady")
+director.barksFromSpeech(world, lines, now);                    // the same, when who said each line is known (the GM's markup)
 director.barkLine(world, "kell", line, now);                  // a cast member's own short line
 
 renderStage(world, dressing, { w, h, t: now, time, effects: fx, positions: id => director.tweens.at(id, now) });  // a Canvas
@@ -116,7 +120,7 @@ The plug-in point is `src/game/views.ts`: every picture of the world the game dr
 - **Effects** (`RenderOptions.effects`: an `EffectFrame` in a region's world feet) are projected: sprites by their feet and height, areas cell by cell, the frame's shake on the camera, and floating text (barks, damage numbers) last and unlit.
 - **Plain text** (`color: false`, the QA console's `townText`) stays quiet: the palette's static ground, no motion, no effects, no icons, single-width glyphs.
 
-**A scene's place from above** is `stageView` (the stage with `dressingFor(scene)`). The app keeps one `Effects` and one `Director` per scene (`Game.sceneLook()` in `src/app/game.ts`): primed when the scene's place is first drawn; the rules' lines go to `spellsFrom`, `rulesLines` and `observe` as they land (in that order: a number floats once); the GM's reply to `barksFrom` (and a cast member's own line to `barkLine`); and after every turn `observe` animates what the stage manager changed. The scene screen draws the stage beside the transcript (a live `<lookCanvas>`); `/map` shows the same place on the isometric map with the same effects.
+**A scene's place from above** is `stageView` (the stage with `dressingFor(scene)`). The app keeps one `Effects` and one `Director` per scene (`Game.sceneLook()` in `src/app/game.ts`): primed when the scene's place is first drawn; the rules' lines go to `spellsFrom`, `rulesLines` and `observe` as they land (in that order: a number floats once); the GM's reply to `barksFromSpeech` when its markup says who said each line, else to `barksFrom` (and a cast member's own line to `barkLine`); who says a quoted line is src/runtime/speakers.ts, which the transcript's colours share; and after every turn `observe` animates what the stage manager changed. The scene screen draws the stage beside the transcript (a live `<lookCanvas>`); `/map` shows the same place on the isometric map with the same effects.
 
 **The town between scenes** has its own `Effects` and `Director` (`Game.townFx()`), playing what the action menu's acts did in the town's world: the spell from the player to its aim, the numbers over what it hurt, the splinters and smoke of what it broke, a puff for whoever ran. In a zoo wing it's the wing's own look (`Game.mapFx()`), which plays the exhibits' news.
 

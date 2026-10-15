@@ -3,7 +3,9 @@ import type { RefObject } from "react";
 import { lookOf } from "../../game/look/appearance.ts";
 import { glyphSet } from "../../game/look/glyphs.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
+import { mapDoors, overlayWanted, stageDoors } from "../../game/look/overlay.ts";
 import { StagePicks, type StagePick } from "../../game/look/stage.ts";
+import { Picks } from "../../game/map/index.ts";
 import { nameOf, sameTarget, type SceneTarget } from "../../game/scene-menu.ts";
 import { stageView, townView } from "../../game/views.ts";
 import { sceneById } from "../../../scenes/index.ts";
@@ -97,12 +99,18 @@ export function Place({ game, width, height, legend = true, view = "stage", poin
   return <box flexDirection="column" flexShrink={0}>
     <lookCanvas ref={pointing?.canvas} width={width} height={Math.max(Math.min(6, least), height - shown)} fps={FPS} live={view === "map" || !game.overlay} {...mouse} painter={view === "stage"
       ? (w, h, now) => {
-        const pick = pointing ? new StagePicks() : undefined;
+        // In a browser, the doors are drawn as pictures over the place: the picks keep where they are.
+        const doors = overlayWanted();
+        const pick = pointing || doors ? new StagePicks({ doors }) : undefined;
         const frame = stageView(stage, { w, h }, { t: now, time, glyphs, ...(look ? { effects: look.fx, positions: id => look.director.tweens.at(id, now) } : {}), ...(pick ? { pick } : {}), ...(hover !== undefined ? { hover } : {}) });
         if (pick && pointing) pointing.picks.current = pick;
-        return frame ?? [];
+        return frame && pick && doors ? { frame, doors: stageDoors(pick, frame) } : frame ?? [];
       }
-      : (w, h, now) => townView(core.state, session, { w, h }, { t: now, ...(look ? { effects: look.fx } : {}) })} />
+      : (w, h, now) => {
+        const pick = overlayWanted() ? new Picks({ doors: true }) : undefined;
+        const lines = townView(core.state, session, { w, h }, { t: now, ...(look ? { effects: look.fx } : {}), ...(pick ? { pick } : {}) });
+        return pick ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
+      }} />
     {listed.map(e => {
       const seen = lookOf(e, { glyphs });
       const states = e.states.filter(s => s !== "gone" && s !== "lit");

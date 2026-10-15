@@ -222,6 +222,40 @@ test("what the player has found out is settled, as a companion's told stories ar
   assert.deepEqual(made.lines.map(l => l.text), ["Sergeant, the wagons were countersigned. By whom, though?", "(I read the page again)"], "a word of what's been found isn't hidden any more (countersigned)");
 });
 
+test("the GM's markup never reaches the lines: the call is given a marked reply as the player reads it, and a line that comes back marked up isn't offered", async () => {
+  const state = yard("suggest-markup");
+  state.turn = 1;
+  state.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Was it you who found him, Sergeant?" });
+  // A reply as the transcript keeps it: the words the player reads, and its markup beside them (who says each line, a why on a phrase).
+  const text = "Kell's pencil stops. “Not you,” she says. “Out.”";
+  const first = text.indexOf("“Not"), firstEnd = text.indexOf("”", first) + 1, second = text.indexOf("“Out");
+  state.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "gm", kind: "narration", text, marked: {
+    speech: [{ start: first, end: firstEnd, speaker: "kell", tag: "Kell" }, { start: second, end: text.length, speaker: "kell", tag: "Kell" }],
+    marks: [{ start: first + 1, end: firstEnd - 2, kind: "why", note: "You called her a liar in front of the boy." }],
+  } });
+  const decider: Decider = { name: "stub", decide: async (_facts, questions) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id.startsWith("roll_") ? "risky" : "fine", probabilities: {} }])), latencyMs: 1, costUsd: 0, decider: "stub" }) };
+  let brief = "";
+  const made = await propose(state, {
+    decider,
+    ask: async request => {
+      brief = request.input[0]!.content;
+      return { costUsd: 0, latencyMs: 1, text: [
+        "say: [you] “Who found him, then?”",
+        "say: “Fair enough.”[why: She's the watch.]",
+        "say: [Kell] “Out.”",
+        "do: (I step back from (the hoist)[know: The granary's sack hoist.])",
+        "do: (I look up at the body)",
+        "try: (I try to talk the boy down with a pie)",
+      ].join("\n") };
+    },
+  });
+  assert.ok(brief.includes(text), "the reply's words, as the player reads them");
+  assert.doesNotMatch(brief, /\[(?:Kell|you)\]|\[(?:why|know|you):|You called her a liar/, "none of the GM's markup, nor its notes");
+  assert.deepEqual(made.lines.map(l => l.text), ["(I look up at the body)", "(I try to talk the boy down with a pie)"]);
+  assert.deepEqual(made.dropped.filter(d => d.why === "the GM's markup").length, 4);
+  assert.ok(made.lines.every(l => !/[[\]]/.test(l.text)));
+});
+
 test("a reply cut short loses its last line, which may be half a line", async () => {
   const decider: Decider = { name: "stub", decide: async (_facts, questions) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id.startsWith("roll_") ? "risky" : "fine", probabilities: {} }])), latencyMs: 1, costUsd: 0, decider: "stub" }) };
   const made = await propose(yard("suggest-cut"), {

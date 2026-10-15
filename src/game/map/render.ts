@@ -5,6 +5,7 @@ import { areaCell, type EffectFrame, type FloatText } from "../look/effects.ts";
 import { glyphSet, inSet, plainText, type GlyphSet } from "../look/glyphs.ts";
 import { shadeBeing, shadeBy } from "../look/light.ts";
 import { actorLook, dustAt, fireAt, groundAt, surfaceLayer, type ActorLook, type LookFrame, type SurfaceLayer } from "../look/map.ts";
+import { doorLook, type DoorLook } from "../look/door-art.ts";
 import { clamp01, hash01, noise2, seedOf } from "../look/noise.ts";
 import { BLOCKS, DAYLIGHT, DEFAULT_STYLE, FIRE, GROUND, TREE, WINDOW_LIGHT, hash, pick, scale, type BlockLook, type GroundLook } from "./palette.ts";
 import { raiseFor } from "./looks.ts";
@@ -78,32 +79,73 @@ export interface RenderOptions {
 }
 
 /**
+ * A door the renderer drew in a wall's face, for the browser's overlay (src/game/look/overlay.ts),
+ * which draws it there as a picture over the ASCII: where it is, how it looks, the light on it, and
+ * the cells the ASCII door took from its wall, as the wall had them (lit as the wall is), so the
+ * picture can give them back.
+ */
+export interface DoorPick {
+  at: Tile2;
+  /** Its tile's centre cell (as drawn, the shake and all), and how many rows its wall stands. */
+  sc: number;
+  sr: number;
+  height: number;
+  /** The wall's face it opens through: south (to the right of its tile on screen) or west (to the left). */
+  face: "south" | "west";
+  look: DoorLook;
+  /** The light on its tile, and the least of it built things keep (as its wall's cells are lit). */
+  light: { r: number; g: number; b: number };
+  floor: number;
+  wall: Array<{ x: number; y: number; ch: string; fg: string; bg: string }>;
+}
+
+/**
  * What a frame drew where, for the mouse: for each viewport cell, the map tile whose drawing shows
  * there (a wall's face belongs to the wall, a lamp up its post to the lamp's tile, the lead's marker
  * to the lead) and who or what is drawn in it. render() fills it in as it paints, so picking always
  * agrees with drawing: a click on someone's letter is a click on them, wherever the camera is.
+ *
+ * Asked for (new Picks({ doors: true })), it also keeps the doors drawn in walls (DoorPick) and the
+ * cells drawn over the map once it was painted (`over`: effects, floating text, the pointer's and
+ * aiming's highlights, the lead's marker, you seen through a wall), for the browser's overlay.
  */
 export class Picks {
   w = 0;
   h = 0;
   /** The map the frame was of. */
   map = "";
+  /** The doors drawn in walls' faces (when asked for). */
+  doors?: DoorPick[];
+  /** By cell: 1 where something was drawn over the map after it was painted (when asked for). */
+  over?: Uint8Array;
   private width = 1;
   private tiles: Int32Array = new Int32Array(0);
   private actors: Array<MapActor | undefined> = [];
 
+  constructor(options: { doors?: boolean } = {}) {
+    if (options.doors) this.doors = [];
+  }
+
+  /** Whether render() is to keep the doors and what's drawn over the map. */
+  get tracking(): boolean { return !!this.doors; }
+
   /** Take a frame's picks (render() calls this). */
-  fill(w: number, h: number, map: TileMap, tiles: Int32Array, actors: Array<MapActor | undefined>): void {
+  fill(w: number, h: number, map: TileMap, tiles: Int32Array, actors: Array<MapActor | undefined>, doors?: { doors: DoorPick[]; over: Uint8Array }): void {
     this.w = w; this.h = h; this.map = map.id; this.width = map.width; this.tiles = tiles; this.actors = actors;
+    if (doors && this.doors) { this.doors = doors.doors; this.over = doors.over; }
   }
 
   /**
    * Some cells' picks from another frame of the same view, by index (y * w + x): x-ray shows what's
-   * behind a building through it, and a click there is on what shows.
+   * behind a building through it, and a click there is on what shows. Those cells show a blend of
+   * the two frames, so they count as drawn over the map.
    */
   take(from: Picks, cells: Iterable<number>): void {
     if (from.map !== this.map || from.w !== this.w || from.h !== this.h) return;
-    for (const i of cells) { this.tiles[i] = from.tiles[i]!; this.actors[i] = from.actors[i]; }
+    for (const i of cells) {
+      this.tiles[i] = from.tiles[i]!; this.actors[i] = from.actors[i];
+      if (this.over) this.over[i] = 1;
+    }
   }
 
   /** The tile drawn at a viewport cell and who or what is drawn there; undefined where nothing of the map is. */
@@ -228,6 +270,12 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   // Whose each cell is (the tile being painted, and who or what on it): for the mouse, and the pointer's highlight.
   const owner = new Int32Array(w * h).fill(-1);
   const drawn: Array<MapActor | undefined> | undefined = options.pick ? new Array(w * h) : undefined;
+  // For the browser's overlay (Picks): the doors drawn in walls, and what's drawn over the map once
+  // it's painted (`late`: everything put from then on), with the tinted and bracketed tiles.
+  const over = options.pick?.tracking && !text ? new Uint8Array(w * h) : undefined;
+  const doorPicks: Array<DoorPick & { raw: Array<{ x: number; y: number; cell: Cell }> }> | undefined = over ? [] : undefined;
+  const cover = (sx: number, sy: number) => { if (over && sx >= 0 && sy >= 0 && sx < w && sy < h) over[sy * w + sx] = 1; };
+  let late = false;
   let tile = -1, actor: MapActor | undefined;
   const put = (sx: number, sy: number, ch: string, fg: string | RGB, bg?: string | RGB, extra: { bold?: boolean; glow?: boolean; floor?: number; being?: boolean } = {}) => {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
@@ -239,6 +287,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     cell.being = extra.being ? cell.ch : "";
     owner[sy * w + sx] = tile;
     if (drawn) drawn[sy * w + sx] = actor;
+    if (late) cover(sx, sy);
   };
   /** A cell as the look layer takes one (hex), for laying something over it. */
   const under = (sx: number, sy: number) => { const c = cells[sy]![sx]!; return { glyph: c.ch, fg: hexOf(c.fg === NONE ? INK : c.fg), bg: hexOf(c.bg === NONE ? INK : c.bg) }; };
@@ -251,6 +300,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
       const cell = cells[sy]![sx]!;
       cell.bg = mixRGB(cell.bg === NONE ? rgbOf("#101014") : cell.bg, rgbOf(m.color), 0.45); cell.glow = true;
+      cover(sx, sy);
     }
     if (m.glyph) put(sc, sr, m.glyph, m.color, undefined, { bold: true, glow: true });
   };
@@ -325,9 +375,11 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       if (options.cursor && options.cursor.x === x && options.cursor.y === y) {
         const glow = { bold: true, glow: true };
         put(sc - 1, sr, "[", "#ffe680", undefined, glow); put(sc + 1, sr, "]", "#ffe680", undefined, glow);
+        cover(sc - 1, sr); cover(sc + 1, sr);
       }
     }
   }
+  late = true;
 
   function paintTile(at: Tile2, t: MapTile, sc: number, sr: number, states: string[]): void {
     const { x, y } = at;
@@ -474,6 +526,14 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const colour = open ? "#1a1410" : locked ? "#6b3f1e" : "#9a6436";
     const col = through === "south" ? sc + 1 : sc - 1;
     const struct = { floor: BLOCK_FLOOR };
+    if (doorPicks) {
+      // The wall as block() just drew it, in the cells the door takes (lit once everything is painted).
+      const raw: Array<{ x: number; y: number; cell: Cell }> = [];
+      const keep = (x: number, y: number) => { if (x >= 0 && y >= 0 && x < w && y < h) raw.push({ x, y, cell: { ...cells[y]![x]! } }); };
+      for (let r = sr - Math.min(2, height - 1); r <= sr; r++) keep(col, r);
+      keep(sc, sr + 1);
+      doorPicks.push({ at: { ...at }, sc, sr, height, face: through, look: doorLook(states, !!t.blocks), light: { ...light }, floor: BLOCK_FLOOR * 0.7, wall: [], raw });
+    }
     for (let r = sr - Math.min(2, height - 1); r <= sr; r++) put(col, r, open ? " " : r === sr ? "▙" : "█", colour, scale(colour, 0.6), struct);
     put(sc, sr + 1, "▀", colour, scale(colour, 0.5), struct);
   }
@@ -620,6 +680,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
         if (cell.bg === NONE) cell.bg = INK;
       }
       if (sp.glow) cell.glow = true;
+      cover(sx, sy);
     }
     for (const area of frame.areas) {
       const c = planeOf(o, area);
@@ -635,6 +696,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
         cell.fg = mixRGB(cell.fg === NONE ? INK : cell.fg, a.fg, a.mixFg);
         if (a.bg !== undefined) cell.bg = mixRGB(cell.bg === NONE ? INK : cell.bg, a.bg, a.mixBg);
         if (a.glow) cell.glow = true;
+        cover(sx, sy);
       }
     }
   }
@@ -673,6 +735,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       if (owner[i] !== hovered) continue;
       const cell = cells[Math.floor(i / w)]![i % w]!;
       cell.bg = mixRGB(cell.bg === NONE ? INK : cell.bg, HOVER, 0.3);
+      if (over) over[i] = 1;
       cell.glow = true;
     }
   }
@@ -742,6 +805,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       if (x < 0 || y < 0 || x >= w || y >= h) return;
       const cell = cells[y]![x]!;
       cell.ch = plain ? inSet(ch, "plain") : ch; cell.fg = fg; if (bg !== undefined) cell.bg = bg; cell.bold = bold; cell.glow = true;
+      cover(x, y);
     };
     const body = plain ? plainText(tx.text) : tx.text;
     if (tx.style === "bark") {
@@ -780,7 +844,16 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     });
   }
 
-  options.pick?.fill(w, h, map, owner, drawn ?? []);
+  // The doors' walls, lit as the light pass lit the cells round them.
+  const doorsDrawn = doorPicks?.map(({ raw, ...d }) => ({
+    ...d,
+    wall: raw.map(({ x, y, cell: c }) => ({
+      x, y, ch: c.ch,
+      fg: hexOf(c.fg === NONE ? INK : c.glow ? c.fg : shadeBy(c.fg, c.light.r, c.light.g, c.light.b, c.floor)),
+      bg: hexOf(c.bg === NONE ? INK : c.glow ? c.bg : shadeBy(c.bg, c.light.r, c.light.g, c.light.b, c.floor * 0.7)),
+    })),
+  }));
+  options.pick?.fill(w, h, map, owner, drawn ?? [], doorsDrawn && over ? { doors: doorsDrawn, over } : undefined);
   return cells.map(row => toSpans(row, !text));
 }
 

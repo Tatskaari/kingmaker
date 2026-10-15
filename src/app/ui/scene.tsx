@@ -10,7 +10,10 @@ import type { Suggestion } from "../../runtime/session.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import { COMMANDS, commandNamed, type Game, type Line, type Over, type SceneMenu } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
-import { C, personColor } from "../theme.ts";
+import { C, MARK_LABEL, MARK_TINT, personColor } from "../theme.ts";
+import { replyRows, type Style } from "../reply.ts";
+import type { Markup } from "../../runtime/markup.ts";
+import { Reply } from "./reply.tsx";
 import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, SCROLLBAR, Spinner, useGame, wayOnKey, wrap, type KeyHint } from "./common.tsx";
 import { MenuBox } from "./menu.tsx";
 import { Place, type PlacePointing } from "./place.tsx";
@@ -49,10 +52,30 @@ export function partsOf(lines: Line[]): Part[] {
   return parts;
 }
 
-/** The conversation, in turns: each exchange in its own box, the latest the brightest; `live` is the reply streaming in. */
-export function Transcript({ lines, live }: { lines: Line[]; live?: Line | undefined }) {
-  const parts = partsOf(live ? [...lines, live] : lines);
+/**
+ * What the transcript needs to show the GM's markup (src/runtime/markup.ts): each line's markup,
+ * each speaker's colour, the mark Tab picked out, and what a click or the pointer on one does. A
+ * line is known by its place in the transcript's lines (the live one comes after them).
+ */
+export interface MarkView {
+  markup: (line: Line) => Markup | undefined;
+  color: (speaker: string | undefined) => string;
+  focus?: { line: number; mark: number } | undefined;
+  open?: (line: number, mark: number, x: number, y: number) => void;
+  point?: (line: number, mark: number | undefined) => void;
+}
+
+/**
+ * The conversation, in turns: each exchange in its own box, the latest the brightest; `live` is the
+ * reply streaming in. With `width` (the columns it has) and `marks`, the GM's replies are drawn
+ * with their markup: each person's lines in their colour, in paragraphs, the marked phrases to click.
+ */
+export function Transcript({ lines, live, width, marks }: { lines: Line[]; live?: Line | undefined; width?: number; marks?: MarkView }) {
+  const all = live ? [...lines, live] : lines;
+  const parts = partsOf(all);
   const last = parts.findLastIndex(p => p.kind === "turn");
+  const index = new Map(all.map((l, i) => [l, i]));
+  const shown: Shown | undefined = width && marks ? { width: width - 4, marks, index } : undefined;
   return <box flexDirection="column" flexShrink={0}>
     {parts.map((part, i) => part.kind === "header"
       ? <box key={i} flexDirection="column" marginBottom={1} flexShrink={0}>
@@ -61,8 +84,16 @@ export function Transcript({ lines, live }: { lines: Line[]; live?: Line | undef
       </box>
       : part.kind === "rule" ? <Rule key={i} line={part.line} />
       : part.kind === "note" ? <Note key={i} line={part.line} />
-      : <Turn key={i} lines={part.lines} latest={i === last} live={live} />)}
+      : <Turn key={i} lines={part.lines} latest={i === last} live={live} shown={shown} />)}
   </box>;
+}
+
+/** How a turn's replies are drawn with their markup: the columns inside a turn's box, and what to draw it with. */
+interface Shown { width: number; marks: MarkView; index: Map<Line, number> }
+
+/** A reply's markup as drawn: what Tab picked out lit up, and colours by speaker and kind. */
+export function replyStyle(marks: MarkView, focus?: number): Style {
+  return { narration: C.gm, speech: marks.color, voice: C.speech, mark: kind => MARK_TINT[kind], ...(focus !== undefined ? { focus: { mark: focus, fg: C.bg, bg: kind => C[kind] } } : {}) };
 }
 
 /** Something looked at in the place: a quiet note between turns, the look's mark in its own margin (it isn't a turn, and the GM never hears it). */
@@ -85,16 +116,18 @@ function Rule({ line }: { line: Line }) {
 /** About how many rows a conversation takes at a width (for a panel sized to fit it): its turns, their borders, the gaps. */
 export function transcriptRows(lines: Line[], width: number): number {
   const inner = width - 4;
+  const style: Style = { narration: "", speech: () => "", mark: () => "" };
   return partsOf(lines).reduce((n, part) => {
     if (part.kind === "note") return n + 1 + wrap(part.line.text, width - 5).length;
     if (part.kind !== "turn") return n + 1 + (part.kind === "header" ? 1 + wrap(part.line.text, width).length : 0);
-    const rows = part.lines.map((l, i) => (i ? 1 : 0) + wrap(l.kind === "dialogue" ? `${l.name ?? l.speaker}: ${l.text}` : l.text, l.kind === "player" || isMarked(l) ? inner - 3 : inner).length);
+    const rows = part.lines.map((l, i) => (i ? 1 : 0) + (l.kind === "narration" && l.marked ? replyRows(l.text, l.marked, inner, style).length
+      : wrap(l.kind === "dialogue" ? `${l.name ?? l.speaker}: ${l.text}` : l.text, l.kind === "player" || isMarked(l) ? inner - 3 : inner).length));
     return n + 2 + rows.reduce((a, b) => a + b, 0);
   }, 0);
 }
 
 /** One exchange: the player's line (under their name, with a bar down its side), then all that answered it. */
-function Turn({ lines, latest, live }: { lines: Line[]; latest: boolean; live?: Line | undefined }) {
+function Turn({ lines, latest, live, shown }: { lines: Line[]; latest: boolean; live?: Line | undefined; shown?: Shown | undefined }) {
   const said = lines[0]?.kind === "player" ? lines[0] : undefined;
   const answer = said ? lines.slice(1) : lines;
   return <box border borderStyle="rounded" borderColor={latest ? C.border : EDGE} paddingX={1} flexDirection="column" flexShrink={0}
@@ -106,15 +139,25 @@ function Turn({ lines, latest, live }: { lines: Line[]; latest: boolean; live?: 
       const prev = i ? answer[i - 1] : said;
       // The rules' lines come in bursts: no gap between them.
       const close = !!prev && isMarked(prev) && isMarked(line);
-      return <Entry key={i} line={line} live={line === live} gap={prev && !close ? 1 : 0} />;
+      return <Entry key={i} line={line} live={line === live} gap={prev && !close ? 1 : 0} shown={shown} />;
     })}
   </box>;
 }
 
 const isMarked = (line: Line) => line.kind === "roll" || line.kind === "info";
 
-function Entry({ line, live, gap }: { line: Line; live?: boolean; gap: number }) {
+function Entry({ line, live, gap, shown }: { line: Line; live?: boolean; gap: number; shown?: Shown | undefined }) {
   const cursor = live ? <span fg={C.title}>▍</span> : null;
+  // A GM reply with its markup: each person's lines in their colour, in paragraphs, its marks to click.
+  const markup = shown && line.kind === "narration" ? shown.marks.markup(line) : undefined;
+  if (shown && markup) {
+    const at = shown.index.get(line) ?? -1;
+    const focus = shown.marks.focus?.line === at ? shown.marks.focus.mark : undefined;
+    return <box marginTop={gap} flexShrink={0}>
+      <Reply text={line.text} markup={markup} width={shown.width} style={replyStyle(shown.marks, focus)} cursor={live ? C.title : undefined}
+        onOpen={(m, x, y) => shown.marks.open?.(at, m, x, y)} onPoint={m => shown.marks.point?.(at, m)} />
+    </box>;
+  }
   switch (line.kind) {
     case "player":
       return <text marginTop={gap} wrapMode="word" flexShrink={0} fg={C.player}>{line.text}</text>;
@@ -136,6 +179,9 @@ function Entry({ line, live, gap }: { line: Line; live?: boolean; gap: number })
       return <text marginTop={gap} wrapMode="word" flexShrink={0}><span fg={C.gm}>{line.text}</span>{cursor}</text>;
   }
 }
+
+/** The scene's place panel's width beside the conversation: a narrow one at 80 columns, none narrower. */
+export const sceneSide = (width: number) => (width >= 100 ? Math.min(62, Math.floor(width * 0.42)) : width >= 80 ? 26 + Math.floor((width - 80) / 4) : 0);
 
 /** Something to pick above the box: one of the core's choices (a line to say or do, or walking on), or a command being typed. */
 interface Pick { key: string; label: string; color: string; run: () => void }
@@ -294,7 +340,7 @@ export function SceneScreen({ game }: { game: Game }) {
     : game.busy ? talkRows.current : toPick.length;
 
   // The place needs room to be drawn: beside the transcript, a narrow panel on a narrow terminal (80 columns).
-  const side = width >= 100 ? Math.min(62, Math.floor(width * 0.42)) : width >= 80 ? 26 + Math.floor((width - 80) / 4) : 0;
+  const side = sceneSide(width);
   const narrow = width < 100;
   // The place: pointing at what's in it, and its menu.
   const world = game.shownWorld;
@@ -337,6 +383,7 @@ export function SceneScreen({ game }: { game: Game }) {
   const step = (by: number) => setPointer(was => {
     const p = picks.current;
     if (!world || !p || p.scene !== world.scene) return was;
+    if (game.markFocus) { game.markFocus = undefined; game.emit(); }
     const all = pointOrder(world, p.shown());
     if (!all.length) return was;
     const at = was && "id" in was.target ? all.indexOf(was.target.id) : -1;
@@ -346,6 +393,30 @@ export function SceneScreen({ game }: { game: Game }) {
     const there = cell ? p.at(cell.x, cell.y) : undefined;
     return { target: { id, ...(there?.id === id && there.under ? { under: there.under } : {}) }, from: "keys" };
   });
+  /** What's in the place, in Tab's order (none until it's been drawn). */
+  const placeOrder = () => (world && picks.current?.scene === world.scene ? pointOrder(world, picks.current.shown()) : []);
+  /**
+   * Tab: the last reply's marked phrases first (what was just read), then on through the place, and
+   * round again; Shift+Tab the other way. Picking out a mark lets go of what the keys had in the place.
+   */
+  const tab = (by: number) => {
+    const marks = game.lastMarks();
+    const things = placeOrder();
+    const focus = game.markFocus;
+    const at = focus ? marks.findIndex(m => m.line === focus.line && m.mark === focus.mark) : -1;
+    // The bottom line says what Tab picked out, whatever mark the pointer was resting on.
+    const pick = (m: { line: number; mark: number } | undefined) => { game.markFocus = m; if (m) game.markPointed = undefined; if (m && pointer?.from === "keys") setPointer(undefined); game.emit(); };
+    if (at >= 0) {
+      const next = at + by;
+      if (next >= 0 && next < marks.length) return pick(marks[next]);
+      if (things.length) { pick(undefined); return step(by); }
+      return pick(marks[(next + marks.length) % marks.length]);
+    }
+    const on = pointer?.from === "keys" && "id" in pointer.target ? things.indexOf(pointer.target.id) : -1;
+    const edge = on >= 0 && ((by > 0 && on === things.length - 1) || (by < 0 && on === 0));
+    if (marks.length && (edge || (on < 0 && (by > 0 || !things.length)))) return pick(by > 0 ? marks[0] : marks.at(-1));
+    if (world) step(by);
+  };
   const pointing: PlacePointing = {
     lit: game.sceneMenu?.target ?? pointer?.target,
     picks, canvas, point, hit,
@@ -370,12 +441,17 @@ export function SceneScreen({ game }: { game: Game }) {
     } else if (key.name === "escape") {
       key.preventDefault();
       // Esc lets go of what Tab picked out first; then it's the game's menu.
-      if (pointer?.from === "keys") setPointer(undefined);
+      if (game.markFocus) { game.markFocus = undefined; game.emit(); }
+      else if (pointer?.from === "keys") setPointer(undefined);
       else { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
-    } else if (key.name === "tab" && world) {
-      // The box has no use for Tab: it goes through what's in the place.
+    } else if (key.name === "tab" && (world || game.lastMarks().length)) {
+      // The box has no use for Tab: it goes through the last reply's marks, then what's in the place.
       key.preventDefault();
-      step(key.shift ? -1 : 1);
+      tab(key.shift ? -1 : 1);
+    } else if (isEnter(key) && !typed() && game.markFocus) {
+      // Enter with nothing in the box, on a mark Tab picked out: what it says.
+      key.preventDefault();
+      game.openMark(game.markFocus.line, game.markFocus.mark);
     } else if ((key.name === "up" || key.name === "down") && world && !typed()) {
       // With nothing in the box, the arrows go through the place too.
       key.preventDefault();
@@ -420,6 +496,18 @@ export function SceneScreen({ game }: { game: Game }) {
 
   if (!session || !shown) return null;
   const scene = sceneById(shown);
+  // The GM's replies with their markup: each speaker's colour, the mark Tab picked out, a click opens one.
+  const markView: MarkView = {
+    markup: line => game.markupOf(line), color: id => game.speechColor(id), focus: game.overlay ? undefined : game.markFocus,
+    open: (line, mark, x, y) => game.openMark(line, mark, x, y),
+    point: (line, mark) => {
+      const was = game.markPointed;
+      if (mark === undefined) { if (was?.line !== line) return; game.markPointed = undefined; }
+      else if (was?.line === line && was.mark === mark) return;
+      else game.markPointed = { line, mark };
+      game.emit();
+    },
+  };
   const inner = side - 4;
   const moved = session.sceneId !== shown;
   const here = moved ? [] : presentCast(scene, session);
@@ -439,7 +527,7 @@ export function SceneScreen({ game }: { game: Game }) {
   const keys: KeyHint[] = [
     ...(over ? [["Enter", "go on", () => { clear(); game.continueScene(); }] as KeyHint] : picking ? [[`1–${toPick.length}`, suggested ? "into the box" : "choose one"] as KeyHint] : []),
     ...(["sheet", "map", "journal", "help"] as const).map((name): KeyHint => [`/${name}`, "", () => { game.peek(`/${name}`); }]),
-    ["Esc", "menu"], ...(world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
+    ["Esc", "menu"], ...(game.lastMarks().length ? [["Tab", world && side ? "marks, the place" : "marks"] as KeyHint] : world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
     ["/report", "a problem", () => { game.peek("/report"); }],
   ];
   // What the pointer's on, and the bottom line about it in place of the keys (as the map's), while no menu's open.
@@ -450,15 +538,28 @@ export function SceneScreen({ game }: { game: Game }) {
   // What Tab picked out: Enter opens its menu while the box is empty and the scene's on (once it's over, Enter goes on).
   const hint = !first ? undefined : pointer?.from === "keys" ? (over || draft ? { long: "Esc lets go", short: "Esc: let go" } : { long: "Enter for what you can do  ·  Esc lets go", short: "Enter: more · Esc: let go" })
     : first.id === "talk" ? { long: "click to talk  ·  right-click for more", short: "click: talk · right: more" } : { long: "click to look  ·  right-click for more", short: "click: look · right: more" };
+  // A marked phrase picked out (Tab) or pointed at: what it is, on the bottom line.
+  const markAt = !menu && !game.overlay ? game.markPointed ?? game.markFocus : undefined;
+  const marked = markAt ? game.lines[markAt.line] : undefined;
+  const theMark = markAt ? marked?.marked?.marks[markAt.mark] : undefined;
+  const markLine = theMark && marked ? {
+    title: `${MARK_LABEL[theMark.kind]}: ${marked.text.slice(theMark.start, theMark.end)}`,
+    // On a narrow screen, what to do about it before the start of its note (the popover has it whole).
+    detail: narrow ? "" : theMark.note,
+    hint: game.markPointed ? { long: "click to see why", short: "click: why" } : { long: "Enter to read it  ·  Esc lets go", short: "Enter: read · Esc: let go" },
+  } : undefined;
+  if (markLine && theMark?.kind !== "why") markLine.hint = game.markPointed ? { long: "click to read it", short: "click: read" } : markLine.hint;
   // The menu stays in the panel (and the three columns of the conversation's edge: its border and scrollbar, never its words), above the box.
   const bounds = { x: width - side - 3, y: 0, w: side + 3, h: height - 4 };
+  // The conversation's frame: everything but the status line, what's to pick, the box and the bottom line.
+  game.talkArea = { w: width - side, h: height - 5 - kept };
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg} onMouseDown={() => game.closeSceneMenu()}>
     <box flexDirection="row" flexGrow={1} minHeight={0}>
       <box flexGrow={1} border borderColor={C.border} title={` ${scene.title} · ${TIME_WORDS[scene.time ?? game.story.time].split(",")[0]} `} titleAlignment="left" flexDirection="column" paddingX={1}>
         {/* The scrollbar is laid over a column kept for it (see SCROLLBAR): the talk never loses a character under it. */}
         {/* Not focusable: a click on the conversation leaves the box with the keys. */}
         <scrollbox ref={scroll} focusable={false} flexGrow={1} minHeight={0} scrollX={false} stickyScroll stickyStart="bottom" viewportCulling={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
-          <Transcript lines={game.lines} live={live} />
+          <Transcript lines={game.lines} live={live} width={width - side - 5} marks={markView} />
         </scrollbox>
       </box>
       {side ? <box width={side} border borderColor={C.border} title=" At the scene " flexDirection="column" paddingX={1} overflow="hidden">
@@ -491,7 +592,8 @@ export function SceneScreen({ game }: { game: Game }) {
           : "Say it out loud; *asterisks* or (brackets) to do things"} />
     </box>}
     <box height={1} paddingX={1} flexShrink={0}>
-      {pointed ? <PointerLine title={pointed.title} detail={pointed.detail} width={width - 2} hint={hint} />
+      {markLine ? <PointerLine title={markLine.title} detail={markLine.detail} width={width - 2} hint={markLine.hint} />
+        : pointed ? <PointerLine title={pointed.title} detail={pointed.detail} width={width - 2} hint={hint} />
         : <Keys items={fit(keys, width - 2, width < 100 ? 3 : 5)} gap={width < 100 ? " · " : "  ·  "} />}
     </box>
     {/* A right-click on the menu is one on what's under it (it may cover what was aimed at): never a choice. */}

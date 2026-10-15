@@ -24,6 +24,7 @@ import { buildWorld, joinWorld } from "../../../world/scene-world.ts";
 import { placePlayer, WELCOME } from "../../../game/zoo/explorer.ts";
 import { newZoo } from "../../../game/zoo/game.ts";
 import type { Scenario } from "./scenarios.tsx";
+import { markedYard } from "../../../app/smoke/marks-demo.tsx";
 
 /**
  * The game's own screens for the comparison, set up as src/app/smoke's checks set them up (a
@@ -91,6 +92,27 @@ function suggestedGame(): Game {
   game.core = { session: own, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }), suggestionsOn: true } as unknown as Game["core"];
   game.screen = "scene";
   game.lines = lines;
+  return game;
+}
+
+/** The granary yard a few turns in, its replies with the GM's markup (src/app/smoke/marks-demo.tsx). */
+const marked = await markedYard();
+function markedGame(): Game {
+  const game = new Game();
+  game.core = { session: marked.session, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }) } as unknown as Game["core"];
+  game.screen = "scene";
+  game.lines = [...marked.lines];
+  return game;
+}
+
+/** The marked yard with its suggested lines over the box (in a copy of its session, so the other scenes' have none). */
+function markedSuggestedGame(): Game {
+  const own = { ...marked.session, suggestions: { scene: marked.session.sceneId, turn: marked.session.turn, lines: SUGGESTED } };
+  const game = new Game();
+  game.core = { session: own, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }), suggestionsOn: true } as unknown as Game["core"];
+  game.screen = "scene";
+  game.lines = [...marked.lines];
+  game.choices = SUGGESTED.map((s, i): Action => ({ id: `say_${i + 1}`, label: s.text, kind: "say" }));
   return game;
 }
 
@@ -260,6 +282,34 @@ export const appScenarios: Scenario[] = [
     game.suggestionsExpected = () => true;
     game.suggestionsComing = () => true;
     return { node: <SceneScreen game={game} /> };
+  }),
+  // The GM's markup: each speaker's lines in their colour, in paragraphs, the marks underlined; one picked out by Tab, one open.
+  ...sizes("scene marked", [[130, 42], [80, 24]], () => {
+    const game = markedGame();
+    return { node: <><SceneScreen game={game} /><Overlay game={game} /></> };
+  }),
+  ...sizes("scene mark picked", [[80, 24]], () => {
+    const game = markedGame();
+    game.markFocus = game.lastMarks()[0];
+    return { node: <><SceneScreen game={game} /><Overlay game={game} /></> };
+  }),
+  ...sizes("scene mark open", [[130, 42], [80, 24]], () => {
+    const game = markedGame();
+    const m = game.lastMarks()[0]!;
+    game.openMark(m.line, m.mark, 12, 9);
+    return { node: <><SceneScreen game={game} /><Overlay game={game} /></> };
+  }),
+  // The marks and the suggested lines together: the lines numbered over the box, the last reply's mark picked out by Tab, then open.
+  ...sizes("scene marked with suggestions", [[130, 42], [80, 24]], () => {
+    const game = markedSuggestedGame();
+    game.markFocus = game.lastMarks()[0];
+    return { node: <><SceneScreen game={game} /><Overlay game={game} /></> };
+  }),
+  ...sizes("scene mark open over suggestions", [[80, 24]], () => {
+    const game = markedSuggestedGame();
+    const m = game.lastMarks()[0]!;
+    game.openMark(m.line, m.mark);
+    return { node: <><SceneScreen game={game} /><Overlay game={game} /></> };
   }),
   ...sizes("scene growing", [[100, 40]], () => {
     const game = sceneGame("scene");

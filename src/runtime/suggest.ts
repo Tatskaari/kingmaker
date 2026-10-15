@@ -30,12 +30,17 @@ import type { SessionState, Suggestion } from "./session.ts";
  * people hide stays behind the screen: a line can only ask after it.
  *
  * Vetted before they're offered: first by what can be read off the words (`screen`: the player's own
- * words and deeds only, no name they haven't heard, no word of what's still hidden, nothing the
- * scene's limits name, nothing just said or offered last time), then by the GM's own judge, the
- * session's decider, given every fact (`judge`: does a line give away or take for granted what's
- * hidden, reach for what the scene can't offer, or decide for someone else; would a risky try really
- * take a roll), then a mix of kinds (`mix`). The call and the judge take about two and a half seconds
- * between them, and the stage manager about four and a half: the lines are there before the turn is.
+ * words and deeds only, none of the GM's markup, no name they haven't heard, no word of what's still
+ * hidden, nothing the scene's limits name, nothing just said or offered last time), then by the GM's
+ * own judge, the session's decider, given every fact (`judge`: does a line give away or take for
+ * granted what's hidden, reach for what the scene can't offer, or decide for someone else; would a
+ * risky try really take a roll), then a mix of kinds (`mix`). The call and the judge take about two
+ * and a half seconds between them, and the stage manager about four and a half: the lines are there
+ * before the turn is.
+ *
+ * The call is given the replies as the player reads them (each entry's `text`), never the GM's
+ * markup (src/runtime/markup.ts: who says each line, the notes on its marks), which only the GM's
+ * own history puts back; and a line that comes back with any (`screen`) isn't offered.
  */
 
 /** The kinds, in the order they're listed. */
@@ -508,10 +513,12 @@ type Dropped = Array<{ text: string; why: string }>;
 
 /**
  * The lines worth offering, by what can be read off their words, and why the rest were dropped: the
- * player's own words and deeds (a deed is "(I ...)", and speech isn't anyone else's), short enough to
- * read at a glance, no name the player hasn't heard, no word of what's hidden or of a place or name
- * they haven't met, nothing the limits name, nothing they've just said or were offered last time,
- * nothing twice, and a way out only when one fits.
+ * player's own words and deeds (a deed is "(I ...)", and speech isn't anyone else's), none of the GM's
+ * markup (src/runtime/markup.ts: a speaker's tag, a note, anything else in square brackets, which the
+ * call is never shown but might write all the same), short enough to read at a glance, no name the
+ * player hasn't heard, no word of what's hidden or of a place or name they haven't met, nothing the
+ * limits name, nothing they've just said or were offered last time, nothing twice, and a way out only
+ * when one fits.
  */
 export function screen(candidates: Suggestion[], v: Vetting): { kept: Suggestion[]; dropped: Dropped } {
   const dropped: Dropped = [];
@@ -523,6 +530,7 @@ export function screen(candidates: Suggestion[], v: Vetting): { kept: Suggestion
     const name = v.names.find(n => new RegExp(`\\b${escape(n)}\\b`, "i").test(s.text));
     const proper = words(s.text).filter(w => /^\p{Lu}/u.test(w)).map(stem).find(w => v.proper.includes(w));
     const reason = why
+      ?? (/[[\]]/.test(s.text) ? "the GM's markup" : undefined)
       ?? (s.text.length > 150 ? "too long" : undefined)
       ?? (name ? `a name not heard: ${name}` : undefined)
       ?? (proper ? `a name or place not met: ${proper}` : undefined)
