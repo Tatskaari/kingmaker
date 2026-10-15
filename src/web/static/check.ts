@@ -1015,6 +1015,27 @@ async function live(browser: Browser, url: string): Promise<void> {
     await waitFor(page, "Say it out loud", "the GM replied", 180000);
     const reply = await text(page);
     await shot(page, "gm-reply");
+    // A considered turn: something a roll should settle that none of the scene's routes does. The
+    // status line says the GM is considering, then moves on a step at a time, as in a terminal.
+    // (Whether the decider flags the turn is the model's call: one it doesn't is noted, not failed.)
+    const sideways = "*I crouch to the boy's height and nod at his enormous boots* Tell you what, champ: let me have a proper look at the backs of those heels, right here on your feet, and there's a hot pie in it. Nobody touches the laces.";
+    await page.keyboard.type(sideways, { delay: 8 });
+    await sleep(150);
+    await press(page, "Enter");
+    const statuses: string[] = [];
+    for (const t0 = Date.now(); ;) {
+      const screen = await text(page);
+      const status = /(The GM [^\n│]*?…|[A-Z][\w' ]+ is speaking…)/.exec(screen)?.[1];
+      if (status && statuses.at(-1) !== status) {
+        statuses.push(status);
+        if (/considering the ramifications/.test(status)) await shot(page, "gm-considering");
+      }
+      if ((Date.now() - t0 > 3000 && /Say it out loud/.test(screen)) || Date.now() - t0 > 180000) break;
+      await sleep(100);
+    }
+    if (statuses.some(s => /considering the ramifications/.test(s))) ok(`a considered turn, the status line a step at a time: ${statuses.join(" → ")}`);
+    else note(`the decider didn't send this turn to the GM's ruling this time: ${statuses.join(" → ")}`);
+    await shot(page, "gm-ruling");
     // Ctrl+C straight after the reply: the GM's notes on the turn (the scene CLI's remember job, in
     // the worker) are still to be written. The worker finishes them before it goes, and Play again
     // waits for that, so the next game reads them.
