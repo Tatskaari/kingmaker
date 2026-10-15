@@ -82,14 +82,21 @@ export function knowledgeBrief(state: SessionState): string {
 
 // --- Who speaks: the scene's people by the names that mean them in prose.
 
-/** Everyone who might speak in a reply: the scene's cast (those here first), then the rest of the place's people. */
+/**
+ * Everyone who might speak in a reply: the scene's cast (those here first), then the rest of the
+ * place's people. The cast who aren't here are away: known by their names only (someone the
+ * narration names may call from off, or come in), never by what they're called or look like ("the
+ * porter" isn't Hobb when Hobb is in the cells).
+ */
 export function speakersOf(scene: Scene, state: SessionState): Speaker[] {
   const here = presentCast(scene, state);
-  const cast = [...here, ...scene.cast.filter(c => !here.includes(c))];
-  const out: Speaker[] = cast.map(c => speaker(c.id, c.name, c.called, c.aka));
+  const out: Speaker[] = [
+    ...here.map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look })),
+    ...scene.cast.filter(c => !here.includes(c)).map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look, away: true })),
+  ];
   for (const e of Object.values(state.world?.entities ?? {})) {
     if ((e.kind !== "person" && e.kind !== "creature") || e.player || e.states.includes("gone") || out.some(p => p.id === e.id || p.id === e.cast)) continue;
-    out.push(speaker(e.id, e.name));
+    out.push(speaker(e.id, e.name, undefined, [], { look: e.description }));
   }
   return distinct(out);
 }
