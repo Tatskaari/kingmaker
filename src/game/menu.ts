@@ -1,15 +1,15 @@
-import { SCENES } from "../../scenes/index.ts";
+import { SCENES, sceneById } from "../../scenes/index.ts";
 import { catalogue, entryLabel, rangeFeet, type Aim, type Entry, type Section } from "../rules/actions.ts";
-import { arcaneRecovery, attack as rulesAttack, castSpell, dnd, jump, rest, rulesNow, skillCheck, useFeature, useItem, wrestle, type Outcome } from "../rules/dnd.ts";
+import { arcaneRecovery, areaPlacement, attack as rulesAttack, castSpell, dnd, jump, rest, rulesNow, skillCheck, useFeature, useItem, wrestle, type Outcome } from "../rules/dnd.ts";
 import { describeRoll } from "../runtime/dice.ts";
 import type { Mechanic } from "../runtime/director.ts";
 import type { Character } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
-import type { Entity } from "../world/scene-world.ts";
-import { areaTiles, line } from "./combat/grid.ts";
+import { caughtIn, inArea, positionOf, type Entity } from "../world/scene-world.ts";
+import { line } from "./combat/grid.ts";
 import { direction, doorState, getMap, inBounds, inRect, isLive, isStructure, regionAt, steps, tileAt, tileName, whereabouts, type ExploreState, type PlaceRegion } from "./map/index.ts";
 import type { GameState } from "./play.ts";
-import { companion, entityAt, feetOf, keepTown, tileOfFeet, townWorld, type TownWorld } from "./town-world.ts";
+import { companion, entityAt, feetOf, keepTown, tileOfFeet, townWorld, type TownWorld, type Waiting } from "./town-world.ts";
 import type { CombatSetup, CombatantSetup, MapActor, StoryState, Tile2, TileMap } from "./types.ts";
 
 /**
@@ -39,12 +39,15 @@ await dnd();
 /** What the explorer keeps between acts, for the menu: when the player last rested, by the story's clock. */
 export interface Rested { time: StoryState["time"]; short?: boolean; long?: boolean }
 
+/** Where the player was seen trying to hide, and by whom (by the story's clock): not again from there. */
+export interface Spotted { time: StoryState["time"]; at: Tile2; by: string }
+
 export interface Ctx {
   game: GameState;
   session: SessionState;
   ex: ExploreState;
-  /** The explorer's own state, which keeps `rested`. */
-  keep: { rested?: Rested };
+  /** The explorer's own state, which keeps `rested` and `spotted`. */
+  keep: { rested?: Rested; spotted?: Spotted };
 }
 
 /** What doing something on the map came to, for the core (play.ts). */
@@ -147,8 +150,11 @@ function youHurt(c: Ctx): boolean {
   return !!r && Math.max(0, r.character.hp.current) < r.character.hp.max;
 }
 
-/** A story person: someone whose scene is waiting, or who walks with the player and has a talk in them. */
-interface Story { kind: "waiting"; sceneId: string; castId: string; name: string; at: Tile2 }
+/**
+ * Someone or something of a place whose scene is still to come (Kell inside the granary gate, the
+ * gate itself): the scene's to play. `id` is theirs in the scene's world.
+ */
+type Story = { kind: "waiting"; at: Tile2; name: string } & Pick<Waiting, "id" | "sceneId" | "person" | "live">;
 
 /** Who or what is at a tile, as the menu aims at it. */
 type Aimed =
@@ -157,9 +163,15 @@ type Aimed =
   | { kind: "thing"; at: Tile2; name: string; entity: Entity }
   | Story;
 
+const overhead = (states: string[]) => states.some(s => s === "hanging" || s === "overhead");
+const story = (w: Waiting, at: Tile2): Story => ({ kind: "waiting", id: w.id, sceneId: w.sceneId, person: w.person, live: w.live, name: w.name, at });
+
 function aimedAt(tw: TownWorld, ex: ExploreState, at: Tile2): Aimed | undefined {
   if (at.x === ex.at.x && at.y === ex.at.y) return { kind: "self", at, name: "you" };
-  for (const w of tw.waiting.values()) if (w.at.x === at.x && w.at.y === at.y) return { kind: "waiting", sceneId: w.sceneId, castId: w.castId, name: w.name, at };
+  // The scene's own: whoever waits there, else what's there (not what hangs overhead, unless that's all).
+  const theirs = [...tw.waiting.values()].filter(w => w.at.x === at.x && w.at.y === at.y);
+  const w = theirs.find(x => x.person) ?? theirs.find(x => !overhead(x.states)) ?? theirs[0];
+  if (w) return story(w, at);
   const e = entityAt(tw, at, { people: true, things: true });
   if (!e) return undefined;
   if (e.kind === "person" || e.kind === "creature") return { kind: "being", at, name: e.name, entity: e, companion: !!companion(tw, e.id) };
@@ -170,7 +182,14 @@ function aimedAt(tw: TownWorld, ex: ExploreState, at: Tile2): Aimed | undefined 
 function aimables(tw: TownWorld, ex: ExploreState): Aimed[] {
   const seen = new Set<string>();
   const out: Aimed[] = [{ kind: "self", at: { ...ex.at }, name: "you" }];
-  for (const w of tw.waiting.values()) out.push({ kind: "waiting", sceneId: w.sceneId, castId: w.castId, name: w.name, at: w.at });
+  for (const w of tw.waiting.values()) {
+    const key = `${w.at.x},${w.at.y}`;
+    if (seen.has(key) || (!w.person && overhead(w.states)) || steps(w.at, ex.at) > 32) continue;
+    const a = aimedAt(tw, ex, w.at);
+    if (!a || a.kind === "self") continue;
+    seen.add(key);
+    out.push(a);
+  }
   for (const e of Object.values(tw.world.entities)) {
     // What hangs overhead (bunting, a washing line) can be aimed at by pointing, but isn't one of what Tab goes through.
     if (!e.at || e.player || e.kind === "place" || e.kind === "area" || e.kind === "surface" || e.states.includes("gone") || e.tags.includes("hanging")) continue;
@@ -198,6 +217,8 @@ export interface AimAt {
   label: string;
   /** What's aimed at, in a few words ("the cabbage cart", "yourself", "the market square"). */
   target?: string;
+  /** More on how it goes, for the hint line: a leap's "over a cabbage cart", "Athletics, DC 12". */
+  note?: string;
   /** The tiles an area covers, aimed here. */
   area?: Tile2[];
   /** Who and what that area catches (you included). */
@@ -206,6 +227,15 @@ export interface AimAt {
 }
 
 const SOCIAL_WHY = "only someone the story knows (Kell, or someone whose scene is waiting): a passer-by has nothing to be talked round to";
+
+/** "a, b and c". */
+const listing = (names: string[]) => (names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+
+/** What an act at someone or something of a waiting scene says it does. */
+const OPENS = (w: Story) => (w.person ? " (their scene opens)" : " (the scene opens)");
+
+/** Why not, at what a scene still to come keeps for later (a place that isn't the lead yet). */
+const LATER = (w: Story) => `${the(w.name)} belongs to a scene that's for later in the story (${sceneById(w.sceneId).title})`;
 
 /**
  * Can an entry be aimed at a tile from where the player stands, and what would it do there?
@@ -216,7 +246,7 @@ export function checkAim(c: Ctx, tw: TownWorld, entry: Entry, at: Tile2, options
   const actors = tw.mapActors;
   const feet = feetBetween(ex.at, at);
   const name = entryLabel(entry);
-  const no = (why: string, label = name): AimAt => ({ ok: false, why, label, feet });
+  const no = (why: string, label = name, more: Partial<AimAt> = {}): AimAt => ({ ok: false, why, label, feet, ...more });
   if (entry.why) return no(entry.why);
   const aim = entry.aim;
   if (aim.kind === "none" || aim.kind === "self") return { ok: true, id: entry.act, label: name, feet: 0 };
@@ -226,11 +256,21 @@ export function checkAim(c: Ctx, tw: TownWorld, entry: Entry, at: Tile2, options
     if (fromSelf && feet === 0) return no("which way? Point it away from you");
     if (!fromSelf && feet > aim.range) return no(`out of reach: ${feet} ft (it reaches ${aim.range} ft)`);
     if (!fromSelf && !clearLine(map, actors, ex.at, at)) return no("no clear line to there");
-    const area = options.area === false ? undefined : areaTiles(map, aim.shape, aim.size, ex.at, at, fromSelf);
-    const caught = area ? caughtBy(tw, ex, area) : undefined;
     const where = aimedAt(tw, ex, at);
     const there = where && where.kind !== "self" ? the(where.name) : tileName(ex, at);
-    return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `${name} ${fromSelf ? "towards" : "on"} ${there}`, target: `${fromSelf ? "towards " : ""}${there}`, ...(area ? { area } : {}), ...(caught ? { caught } : {}), feet };
+    const reach = areaReach(tw, ex, aim, at, where, options.area !== false);
+    const shown = reach.tiles ? { area: reach.tiles, caught: reach.caught! } : {};
+    // What a scene still to come holds is the scene's: an area that reaches it is the scene's to play,
+    // so it's aimed at one of them (the scene opens with it), or not at all.
+    if (where?.kind === "waiting" && !where.live) return no(LATER(where), name, shown);
+    const later = reach.scene.find(w => !w.live);
+    if (later) return no(LATER(story(later, later.at)), name, shown);
+    if (reach.scene.length && where?.kind !== "waiting") {
+      const names = [...reach.scene].sort((a, b) => Number(b.person) - Number(a.person)).filter((w, i, all) => all.findIndex(x => x.name === w.name) === i).map(w => the(w.name));
+      return no(`it would catch ${listing(names.slice(0, 2))}${names.length > 2 ? " and more" : ""}: aim it at ${reach.scene.length > 1 ? "one of them" : names[0]}, and their scene opens`, name, shown);
+    }
+    const opens = where?.kind === "waiting" ? OPENS(where) : "";
+    return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `${name} ${fromSelf ? "towards" : "on"} ${there}${opens}`, target: `${fromSelf ? "towards " : ""}${there}${opens}`, ...shown, feet };
   }
   if (aim.kind === "tile") {
     if (feet === 0) return no("you're already here");
@@ -245,7 +285,9 @@ export function checkAim(c: Ctx, tw: TownWorld, entry: Entry, at: Tile2, options
       const most = Math.floor(easy * 1.5 / FEET) * FEET;
       if (feet * 2 > easy * 3) return no(run ? `too far: ${feet} ft (${most} ft at most)` : `too far from a standing start: ${feet} ft (${most} ft at most; a run-up needs 10 ft clear behind you)`);
       const hard = feet > easy ? ` (Athletics, DC ${10 + feet - easy})` : "";
-      return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `Leap ${feet} ft${way.low.length ? ` over ${way.low.slice(0, 2).join(" and ")}` : ""}${hard}`, target: tileName(ex, at), feet };
+      const over = way.low.length ? `over ${way.low.slice(0, 2).join(" and ")}` : "";
+      const note = [over, hard.trim().replace(/^\(|\)$/g, "")].filter(Boolean).join(", ");
+      return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `Leap ${feet} ft${over ? ` ${over}` : ""}${hard}`, target: tileName(ex, at), ...(note ? { note } : {}), feet };
     }
     if (!clearLine(map, actors, ex.at, at)) return no("you can't see a clear way to there");
     return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `${name} to ${tileName(ex, at)}`, target: tileName(ex, at), feet };
@@ -256,33 +298,63 @@ export function checkAim(c: Ctx, tw: TownWorld, entry: Entry, at: Tile2, options
   if (who.kind === "self") {
     if (!aim.self) return no("not on yourself");
     if (entry.heals && !youHurt(c)) return no("you're not hurt", `${name} on yourself`);
+    if (entry.cures && !cureFor(c, entry)) return no("nothing to cure", `${name} on yourself`);
     return { ok: true, id: `${entry.act}_self`, label: `${name} on yourself`, target: "yourself", feet: 0 };
   }
-  if (aim.kind === "creature" && who.kind === "thing") return no(`not on ${the(who.name)}`);
+  const thing = who.kind === "thing" || (who.kind === "waiting" && !who.person);
+  if (aim.kind === "creature" && thing) return no(`not on ${the(who.name)}`);
+  if (who.kind === "waiting" && !who.live) return no(LATER(who));
   if (who.kind === "thing" && who.entity.states.includes("destroyed")) return no(`${the(who.name)} is past it`);
   if (entry.effect === "social" && who.kind === "being" && !who.companion) return no(SOCIAL_WHY);
-  // Healing someone who isn't hurt does nothing (Kell, and anyone whose scene is waiting, are the story's to play).
+  // Healing someone who isn't hurt does nothing: the town's people are hurt when the rules hurt them,
+  // and whoever waits for their scene is as the scene starts them (fine). Kell walking with you is a talk's.
   if (entry.heals && who.kind === "being" && !who.companion && !who.entity.states.some(s => HURT.includes(s))) return no(`${capital(the(who.name))} isn't hurt`);
+  if (entry.heals && who.kind === "waiting") return no(`${capital(the(who.name))} isn't hurt`);
+  if (entry.cures && (who.kind === "being" ? !who.companion && !who.entity.states.some(s => CURES.includes(s)) : who.kind === "waiting")) return no(`${the(who.name)} has nothing to cure`);
   const range = Math.max(aim.range, FEET);
   if (feet > range) return no(`out of reach: ${feet} ft (it reaches ${range} ft)`);
   if (feet > FEET && !clearLine(map, actors, ex.at, at)) return no("no clear line to there");
   const verb = entry.effect === "harm" ? "at" : "on";
-  return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `${name} ${verb} ${the(who.name)}${who.kind === "waiting" ? " (their scene opens)" : ""}`, target: `${the(who.name)}${who.kind === "waiting" ? " (their scene opens)" : ""}`, feet };
+  const opens = who.kind === "waiting" ? OPENS(who) : "";
+  return { ok: true, id: `${entry.act}@${at.x},${at.y}`, label: `${name} ${verb} ${the(who.name)}${opens}`, target: `${the(who.name)}${opens}`, feet };
 }
 
-/** Who and what an area's tiles catch: the town's people and things in it, and you. */
-function caughtBy(tw: TownWorld, ex: ExploreState, area: Tile2[]): string[] {
-  const inside = new Set(area.map(t => `${t.x},${t.y}`));
-  const names: string[] = [];
-  for (const e of Object.values(tw.world.entities)) {
-    if (!e.at || e.kind === "place" || e.kind === "area" || e.kind === "surface" || e.states.includes("gone")) continue;
-    const t = tileOfFeet(e.at);
-    if (!inside.has(`${t.x},${t.y}`)) continue;
-    const n = e.player ? "you" : e.name;
-    if (!names.includes(n)) names.push(n);
+/**
+ * What an area aimed at a tile reaches, as the rules will have it: castSpell's own placement (from
+ * you towards the aim, centred where the aimed thing stands) and its own test of what's inside
+ * (caughtIn, in feet; walls don't stop it). `tiles`: the tiles whose middles it covers, and who and
+ * what it catches by name, you first; `scene`: what of a scene still to come it reaches.
+ */
+function areaReach(tw: TownWorld, ex: ExploreState, aim: Extract<Aim, { kind: "area" }>, at: Tile2, where: Aimed | undefined, tiles: boolean): { tiles?: Tile2[]; caught?: string[]; scene: Waiting[] } {
+  const target = where && (where.kind === "being" || where.kind === "thing") ? positionOf(tw.world, where.entity.id) : feetOf(at);
+  const { origin, centre } = areaPlacement(tw.world, aim, aim.fromSelf, target);
+  const inside = (p: { x: number; y: number }) => inArea(aim.shape, aim.size, origin, centre, p);
+  const scene = [...tw.waiting.values()].filter(w => inside(feetOf(w.at)));
+  if (!tiles) return { scene };
+  const out: Tile2[] = [];
+  const r = Math.ceil(aim.size / FEET) + 1;
+  const a = tileOfFeet(origin), b = tileOfFeet(centre);
+  for (let y = Math.max(0, Math.min(a.y, b.y) - r); y <= Math.min(tw.map.height - 1, Math.max(a.y, b.y) + r); y++) {
+    for (let x = Math.max(0, Math.min(a.x, b.x) - r); x <= Math.min(tw.map.width - 1, Math.max(a.x, b.x) + r); x++) {
+      const t = { x, y };
+      if (tileAt(tw.map, t).terrain !== "wall" && inside(feetOf(t))) out.push(t);
+    }
   }
-  void ex;
-  return names.sort((a, b) => Number(b === "you") - Number(a === "you"));
+  // Whoever and whatever it catches, as castSpell counts them (a cone or a cube from you leaves you out).
+  const caught = caughtIn(tw.world, aim.shape, aim.size, origin, centre).filter(e => e.kind !== "surface" && !(e.player && aim.fromSelf));
+  const rank = (e: Entity) => (e.player ? 0 : e.kind === "person" || e.kind === "creature" ? 1 : 2);
+  const names = [...caught.sort((x, y) => rank(x) - rank(y)).map(e => (e.player ? "you" : e.name)), ...scene.map(w => w.name)];
+  return { tiles: out, caught: [...new Set(names)], scene };
+}
+
+/** What a cure ends that the town's people can have (the rules keep them on them). */
+const CURES = ["poisoned", "blinded", "deafened", "paralyzed", "paralysed"];
+
+/** Has the player something this cure ends? */
+function cureFor(c: Ctx, entry: Entry): boolean {
+  const r = rulesNow(c.session);
+  const have = (r?.character.appliedConditions ?? []).map(a => a.conditionId);
+  return (entry.cures ?? []).some(x => have.includes(x));
 }
 
 export interface AimView {
@@ -295,6 +367,11 @@ export interface AimView {
   self: boolean;
   /** Aimed at yourself, it would be done now (a heal needs you hurt). */
   selfReady: boolean;
+  /**
+   * Where the aim starts: the nearest target, and for an area the nearest whose area leaves you out
+   * (a Fireball's nearest target is often the elm beside you); undefined with nothing in reach.
+   */
+  start?: Tile2;
 }
 
 /** What an entry can be aimed at from here: its reach, and the targets in it. */
@@ -326,7 +403,9 @@ export function aimView(c: Ctx, tw: TownWorld, entry: Entry): AimView {
     }
   }
   const self = (entry.aim.kind === "target" || entry.aim.kind === "creature") && entry.aim.self;
-  return { entry, ring, targets, self, selfReady: self && checkAim(c, tw, entry, ex.at).ok };
+  const clear = entry.aim.kind === "area" ? targets.find(t => !(checkAim(c, tw, entry, t.at).caught ?? []).includes("you")) : undefined;
+  const start = clear ?? targets[0];
+  return { entry, ring, targets, self, selfReady: self && checkAim(c, tw, entry, ex.at).ok, ...(start ? { start: { ...start.at } } : {}) };
 }
 
 const reachOf = (aim: Aim) => (aim.kind === "none" || aim.kind === "self" ? 0 : aim.range);
@@ -342,11 +421,15 @@ export function menuOf(c: Ctx, at?: Tile2): MenuView | undefined {
   const where = at ? aimedAt(tw, c.ex, at) : undefined;
   const sections = cat.sections.map(s => ({ ...s, entries: s.entries.map((e): MenuItem => {
     if (e.why) return e;
+    const not = mapWhy(c, e);
+    if (not) return { ...e, why: not };
     if (e.aim.kind === "none" || e.aim.kind === "self") return { ...e, id: e.act };
     if (at) {
-      // Aimed already: at what was right-clicked.
+      // Aimed already: at what was right-clicked. An area is aimed there on the map first, so you see
+      // what it covers and who it catches (you, perhaps) before it goes off.
       const check = checkAim(c, tw, e, at, { area: false });
-      return check.ok ? { ...e, id: check.id! } : { ...e, why: check.why ?? "not there" };
+      if (!check.ok) return { ...e, why: check.why ?? "not there" };
+      return e.aim.kind === "area" ? { ...e, aiming: true } : { ...e, id: check.id! };
     }
     // An area can go anywhere in reach: there's always somewhere to aim it.
     if (e.aim.kind === "area") return { ...e, aiming: true };
@@ -357,6 +440,7 @@ export function menuOf(c: Ctx, at?: Tile2): MenuView | undefined {
       const people = e.effect === "social" && aimables(tw, c.ex).some(a => a.kind === "being" && feetBetween(c.ex.at, a.at) <= reach);
       const why = e.aim.kind === "tile" ? `nowhere to land within ${e.aim.range} ft`
         : e.heals ? `nobody in reach is hurt${view.self ? " (you included)" : ""}`
+        : e.cures ? `nobody in reach has anything it cures${view.self ? " (you included)" : ""}`
         : people ? SOCIAL_WHY : `${e.aim.kind === "creature" ? "nobody" : "nobody and nothing"} in reach (${reach} ft)`;
       return { ...e, why };
     }
@@ -438,7 +522,8 @@ export async function doMenuAct(c: Ctx, id: string): Promise<Done> {
   const stem = id.replace(/@\d+,\d+$/, "").replace(/_self$/, "");
   const entry = cat.entries.find(e => e.act === stem && e.act);
   if (!entry) throw new Error(`Unavailable action: ${id}. Observe again for what you can do.`);
-  if (entry.why) return { text: `(${entry.name}: not now, ${entry.why}.)` };
+  const why = entry.why ?? mapWhy(c, entry);
+  if (why) return { text: `(${entry.name}: not now, ${why}.)` };
   // Aimed: is it in reach from here, at something it can be aimed at?
   const self = id.endsWith("_self");
   if (at || self) {
@@ -484,8 +569,10 @@ export async function doMenuAct(c: Ctx, id: string): Promise<Done> {
       if (spell.id === "arcane-lock" && target?.kind === "thing") out = { ...out, lines: [...out.lines, ...shutLock(target.entity)] };
       if ((spell.id === "light" || spell.id === "continual-flame") && target?.kind === "thing" && !target.entity.states.includes("lit")) { target.entity.states.push("lit"); out = { ...out, lines: [...out.lines, `${capital(target.name)} shines like a torch`] }; }
       if (entry.aim.kind === "tile" && at) {
+        // Where you come out, said before you're there (after, it's only "you").
+        const there = `${feetBetween(ex.at, at)} ft ${direction(ex.at, at)}, on ${tileName(ex, at)}`;
         ex.at = { ...at };
-        out = { ...out, lines: [...out.lines, `You step out of the mist ${tileName(ex, at) === "you" ? "here" : `on ${tileName(ex, at)}`}`] };
+        out = { ...out, lines: [...out.lines, `You step out of the mist ${there}`] };
         const opened = stepsInto(c, at);
         if (opened) return { text: [...out.lines, opened.text].join("\n"), scene: true, lines: out.lines };
       }
@@ -526,7 +613,8 @@ function stepsInto(c: Ctx, at: Tile2): { text: string } | undefined {
 function result(c: Ctx, tw: TownWorld, out: Outcome, how: { act: Entry; target?: Aimed; wasHidden?: boolean }): Done {
   const { ex } = c;
   const lines = [...out.lines];
-  const refused = /^\(/.test(lines[0] ?? "");
+  // Refused, or a help (a heal for someone who's down, a blessing): nobody's the worse for it, so nobody minds.
+  const refused = /^\(/.test(lines[0] ?? "") || how.act.effect === "help";
   // A blow or a harmful spell at someone is violence whether or not it lands.
   const aimed = how.target?.kind === "being" && how.act.effect === "harm" ? [how.target.entity] : [];
   const hurt = refused ? [] : [...new Set([...aimed, ...victims(tw)])];
@@ -541,10 +629,20 @@ function result(c: Ctx, tw: TownWorld, out: Outcome, how: { act: Entry; target?:
   return { text: lines.join("\n"), lines: out.lines, ...(fight ? { fight } : {}) };
 }
 
-/** People the rules just hurt, knocked down or set alight. */
+/** How hurt the rules have someone: brought round from down to hurt is better, not a new hurt. */
+const SEVERITY: Record<string, number> = { hurt: 1, "badly hurt": 2, down: 3, unconscious: 3, dead: 4 };
+const worst = (states: string[]) => Math.max(0, ...states.map(s => SEVERITY[s] ?? 0));
+
+/** People the rules just hurt (or hurt worse), knocked down, set alight or took hold of. */
 function victims(tw: TownWorld): Entity[] {
-  return Object.values(tw.world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && changedTo(tw, e, ["hurt", "badly hurt", "down", "burning", "prone", "unconscious", "grappled"]));
+  return Object.values(tw.world.entities).filter(e => {
+    if ((e.kind !== "person" && e.kind !== "creature") || e.player) return false;
+    const was = statesBefore(tw, e);
+    return worst(e.states) > worst(was) || e.states.some(s => ["burning", "prone", "grappled", "restrained", "frightened", "poisoned", "blinded", "paralyzed", "asleep"].includes(s) && !was.includes(s));
+  });
 }
+
+const statesBefore = (tw: TownWorld, e: Entity) => (tw.before.get(e.id) ?? "").split("#")[0]!.split("|").filter(Boolean);
 
 /** Things the rules just set burning or broke. */
 function wrecked(tw: TownWorld): Entity[] {
@@ -552,7 +650,7 @@ function wrecked(tw: TownWorld): Entity[] {
 }
 
 function changedTo(tw: TownWorld, e: Entity, states: string[]): boolean {
-  const was = (tw.before.get(e.id) ?? "").split("#")[0]!.split("|");
+  const was = statesBefore(tw, e);
   return e.states.some(s => states.includes(s) && !was.includes(s));
 }
 
@@ -567,6 +665,8 @@ const SAYS: Record<TownReaction, string> = {
 const SAY_MANY: Record<TownReaction, string> = {
   fight: "come at you", flee: "run for it", raise_alarm: "run off shouting for the watch", cower: "duck behind whatever's nearest", intervene: "shout at you to stop it", unmoved: "carry on regardless",
 };
+/** A name that's more than one ("pigeons", "porters going down to the Rat"): no article, and its first word a plural. */
+const plural = (name: string) => !/^(a|an|the)\s/i.test(name) && /^[a-z]+s\b/.test(name);
 
 /**
  * Everyone about takes what the player did, each by what they are (the town has no GM between
@@ -607,10 +707,14 @@ export function townReactions(tw: TownWorld, ex: ExploreState, act: { victims: E
   }
   for (const g of groups.slice(0, 5)) {
     const e = tw.world.entities[g.ids[0]!]!;
-    if (e.cast === "kell") { lines.push(`Kell: "Investigator! ${hurtPerson ? "That is assault, and I am the watch." : "That was somebody's."}" She writes it down.`); continue; }
+    // From hiding, nobody knows it was you: Kell wants to know who, and the guards look about them (below).
+    if (e.cast === "kell") { lines.push(act.hidden ? `Kell: "Who did that?" She looks about her, and writes it down.` : `Kell: "Investigator! ${hurtPerson ? "That is assault, and I am the watch." : "That was somebody's."}" She writes it down.`); continue; }
     if (/goose/i.test(e.name) && g.r === "unmoved") { lines.push("The goose looks at you as if you owe it money. You may, now."); continue; }
-    const many = g.ids.length > 1;
-    const who = many ? `${g.ids.length === 2 ? "Both" : `All ${g.ids.length}`} ${e.name.replace(/^(a|an|the)\s+/i, "")}s` : capital(e.name);
+    if (act.hidden && g.r === "intervene") continue;
+    // Pigeons run; a pair of guards are both of them.
+    const base = e.name.replace(/^(a|an|the)\s+/i, "");
+    const many = g.ids.length > 1 || plural(e.name);
+    const who = g.ids.length > 1 ? `${g.ids.length === 2 ? "Both" : `All ${g.ids.length}`} ${plural(e.name) ? base : `${base}s`}` : capital(e.name);
     lines.push(`${who} ${(many ? SAY_MANY : SAYS)[g.r]}${g.r === "fight" && !act.hidden ? `, and mean${many ? "" : "s"} it` : ""}.`);
   }
   if (groups.length > 5) lines.push(`Everyone else about gets out of the way.`);
@@ -623,9 +727,21 @@ function townFight(c: Ctx, tw: TownWorld, fighters: Entity[]): CombatSetup {
   const used = new Set<string>();
   const clean = (name: string) => { const base = name.toLowerCase().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "someone"; let id = base; for (let n = 2; used.has(id); n++) id = `${base}-${n}`; used.add(id); return id; };
   const combatants: CombatantSetup[] = [{ id: "player", name: c.session.player.name, side: "player", role: "player", at: { ...c.ex.at } }];
+  // Two of a kind are told apart: the first palace guard (G), the second (g).
+  const ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth"];
+  const kinds = new Map<string, number>();
+  for (const f of fighters) kinds.set(f.name, (kinds.get(f.name) ?? 0) + 1);
+  const seen = new Map<string, number>();
   for (const f of fighters) {
     const statblock = f.stats?.statblock ?? "commoner";
-    combatants.push({ id: clean(f.name), castId: f.id, name: f.name.replace(/^a /, "a "), side: "enemy", role: statblock === "guard" ? "bruiser" : "brawler", statblock, ...(statblock === "guard" ? { weapon: "spear" } : {}), at: tileOfFeet(f.at!) });
+    const n = seen.get(f.name) ?? 0;
+    seen.set(f.name, n + 1);
+    const base = f.name.replace(/^(a|an|the)\s+/i, "");
+    const twins = (kinds.get(f.name) ?? 1) > 1;
+    const name = twins ? `the ${ORDINALS[n] ?? `${n + 1}th`} ${base}` : f.name;
+    const letter = (base.split(/\s+/).at(-1) ?? base).charAt(0);
+    const glyph = twins ? (n === 0 ? letter.toUpperCase() : n === 1 ? letter.toLowerCase() : String(n + 1)) : undefined;
+    combatants.push({ id: clean(f.name), castId: f.id, name, side: "enemy", role: statblock === "guard" ? "bruiser" : "brawler", statblock, ...(statblock === "guard" ? { weapon: "spear" } : {}), ...(glyph ? { glyph } : {}), at: tileOfFeet(f.at!) });
   }
   return { map: tw.map, combatants, seed: (c.session.seed + 7 * (c.session.rollCount + 1)) >>> 0 };
 }
@@ -646,23 +762,29 @@ function actText(entry: Entry, name: string, weapon?: string): string {
   return `(I use ${entry.name} on ${who})`;
 }
 
-function mechanicFor(entry: Entry, target: string): Mechanic {
-  if (entry.spell) return { kind: "cast", spell: entry.spell.id, targets: [target] };
-  if (entry.key === "attack") return { kind: "attack", target };
-  if (entry.key === "throw") return { kind: "attack", target, weapon: "improvised" };
+/**
+ * What the rules resolve, as a scene's first turn. `feet`: how far off the player stood on the map,
+ * so the scene's rules do it from as far away (the scene puts the player at its own start, which
+ * for the granary yard is beside Kell: a Fireball at her from the lane would catch you there too).
+ */
+function mechanicFor(entry: Entry, target: string, feet = 0): Mechanic {
+  const from = feet > FEET ? { from: { backOff: feet } } : {};
+  if (entry.spell) return { kind: "cast", spell: entry.spell.id, targets: [target], ...from };
+  if (entry.key === "attack") return { kind: "attack", target, ...from };
+  if (entry.key === "throw") return { kind: "attack", target, weapon: "improvised", ...from };
   if (entry.key === "shove") return { kind: "wrestle", target, how: "prone" };
   if (entry.key === "grapple") return { kind: "wrestle", target, how: "grapple" };
   return { kind: "feature", feature: entry.key.replace(/^feature:/, ""), target };
 }
 
-/** Anything done to someone whose scene is waiting opens it: the act is its first turn, for the scene's rules to resolve. */
+/** Anything done to someone or something whose scene is waiting opens it: the act is its first turn, for the scene's rules to resolve. */
 function storyAct(c: Ctx, entry: Entry, who: Story, at: Tile2): Done {
   const weapon = entry.key === "attack" ? catalogue(c.session)?.weapon?.name : undefined;
   const reach = feetBetween(c.ex.at, at);
   return {
-    text: reach > FEET ? `You turn to ${who.name}.` : `You go over to ${who.name}.`,
+    text: reach > FEET ? `You turn to ${the(who.name)}.` : `You go over to ${the(who.name)}.`,
     scene: true,
-    act: { text: actText(entry, who.name, weapon), mechanic: mechanicFor(entry, who.castId) },
+    act: { text: actText(entry, the(who.name), weapon), mechanic: mechanicFor(entry, who.id, reach) },
   };
 }
 
@@ -700,21 +822,39 @@ async function restNow(c: Ctx, kind: "short" | "long", recover: boolean): Promis
   return { text: [...out.lines, ...(more?.lines ?? []), how, ...(burnt ? ["The fires have burned themselves out."] : [])].join("\n"), lines: out.lines };
 }
 
-/** A Stealth check against whoever's watching (the sharpest eyes about), and out of sight if it's made. */
+/** How far off people see you, for hiding (in steps). */
+const SIGHT = 8;
+
+/**
+ * A Stealth check against whoever's watching (the sharpest eyes about, the town's people and
+ * whoever waits for their scene), and out of sight if it's made: until you move or do something
+ * (town.ts). Failed, they've seen you try: not again from here before the clock moves on.
+ */
 async function hideNow(c: Ctx, tw: TownWorld): Promise<Done> {
   const { session, ex } = c;
-  const watchers = Object.values(tw.world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.some(s => ["gone", "down", "unconscious"].includes(s)) && e.at && steps(tileOfFeet(e.at), ex.at) <= 8);
-  const passive = (e: Entity) => (e.stats?.statblock === "guard" ? 12 : e.cast ? 13 : 10);
-  const dc = Math.max(10, ...watchers.map(passive));
-  const sharpest = watchers.sort((a, b) => passive(b) - passive(a))[0];
+  const town = Object.values(tw.world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.some(s => ["gone", "down", "unconscious"].includes(s)) && e.at && steps(tileOfFeet(e.at), ex.at) <= SIGHT)
+    .map(e => ({ name: e.name, passive: e.stats?.statblock === "guard" ? 12 : e.cast ? 13 : 10 }));
+  // The story's people are sharp: Kell is the watch, and Cob and Moll live by noticing.
+  const theirs = [...tw.waiting.values()].filter(w => w.person && steps(w.at, ex.at) <= SIGHT).map(w => ({ name: w.name, passive: 13 }));
+  const watchers = [...town, ...theirs];
+  const dc = Math.max(10, ...watchers.map(w => w.passive));
+  const sharpest = watchers.sort((a, b) => b.passive - a.passive)[0];
   const roll = await skillCheck(session, "stealth", dc);
   ex.hidden = roll.success || undefined;
   if (!ex.hidden) delete ex.hidden;
+  if (!roll.success && sharpest) c.keep.spotted = { time: ex.story.time, at: { ...ex.at }, by: sharpest.name };
   const line = describeRoll(roll, sharpest ? `to slip out of sight of ${the(sharpest.name)}` : "to slip out of sight");
   const said = roll.success
     ? (watchers.length ? "You're out of sight. Nobody about is looking your way, which in Caerwyn on Assembly eve is an achievement." : "Out of sight, with nobody about to be out of sight of. It's good practice.")
     : sharpest ? `${capital(the(sharpest.name))} is looking right at you, with interest.` : "There's nowhere much to hide here: anyone who came along would see you.";
   return { text: `${line}\n${said}`, lines: [line] };
+}
+
+/** Why the map won't do an entry now, whatever the rules say: you've been seen trying to hide here. */
+function mapWhy(c: Ctx, entry: Entry): string | undefined {
+  const s = c.keep.spotted;
+  if (entry.key === "hide" && s && s.time === c.ex.story.time && s.at.x === c.ex.at.x && s.at.y === c.ex.at.y) return `${the(s.by)} saw you try: somewhere else, perhaps`;
+  return undefined;
 }
 
 /** A leap to a tile: the rules' jump (within reach it simply happens; farther takes Athletics), and where you land. */

@@ -62,13 +62,15 @@ test("slots run out: the spells that need one say so, and a ritual needs none", 
   for (let i = 0; i < 4; i++) assert.doesNotMatch((await castSpell(state, [], "sleep", [])).lines[0]!, /^\(/);
   let c = catalogue(state)!;
   assert.ok(titles(c).includes("1st level (0/4 slots)"), titles(c).join(" | "));
-  // With the 1st-level slots gone, a 1st-level spell goes up into a 2nd-level one.
+  // With the 1st-level slots gone, a 1st-level spell goes up into a 2nd-level one, and says so.
   assert.equal(entry(c, "spell:magic-missile").why, undefined);
   assert.equal(entry(c, "spell:magic-missile").spell?.slot, 2);
+  assert.match(entry(c, "spell:magic-missile").summary, /\(a 2nd-level slot: no 1st-level left\)$/);
   // The 2nd-level slots too: now it's done until a rest.
   for (let i = 0; i < 2; i++) assert.doesNotMatch((await castSpell(state, [], "scorching-ray", [])).lines[0]!, /^\(/);
   c = catalogue(state)!;
-  assert.match(entry(c, "spell:magic-missile").why!, /no 1st-level slots left \(a long rest\)/);
+  // A wizard can get some back with a short rest (Arcane Recovery): the line says so.
+  assert.match(entry(c, "spell:magic-missile").why!, /no 1st-level slots left \(a long rest, or Arcane Recovery with a short one\)/);
   assert.match(entry(c, "spell:scorching-ray").why!, /no 2nd-level slots left/);
   // Detect Magic is a ritual: ten minutes, and no slot.
   const detect = entry(c, "spell:detect-magic");

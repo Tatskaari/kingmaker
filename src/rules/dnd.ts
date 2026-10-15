@@ -970,12 +970,9 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   let area: string | undefined;
   const shape = spell["targeting"] as { shape: string; size: number } | undefined;
   if (world && shape) {
-    const origin = positionOf(world, "player")!;
     const aimId = targetIds.find(t => t !== "self" && t !== "player" && world.entities[t]);
-    const aim = aimId ? positionOf(world, aimId)! : origin;
-    // A cube from the caster sits in front of them, towards where they aim.
     const fromCaster = /^self/i.test(spell.range);
-    const centre = fromCaster && shape.shape === "cube" ? towards(origin, aim, shape.size / 2) : aim;
+    const { origin, centre } = areaPlacement(world, shape, fromCaster, aimId ? positionOf(world, aimId) : undefined);
     const caught = caughtIn(world, shape.shape, shape.size, origin, centre);
     beings = caught.filter(e => e.kind === "person" || e.kind === "creature").map(e => e.player ? "player" : e.id);
     if (fromCaster) beings = beings.filter(b => b !== "player");
@@ -1044,6 +1041,17 @@ function spellSurface(world: SceneWorld, spellId: string, targetIds: string[], t
   return [];
 }
 
+/**
+ * Where a spell's area sits in a world, as castSpell puts it: it goes out from the caster (the
+ * player) towards the aim, a cube from the caster sitting in front of them; anything else centres on
+ * the aim (or on the caster, aimed at nothing). The map's aim works it out the same way.
+ */
+export function areaPlacement(world: SceneWorld, shape: { shape: string; size: number }, fromCaster: boolean, aim?: { x: number; y: number }): { origin: { x: number; y: number }; centre: { x: number; y: number } } {
+  const origin = positionOf(world, "player")!;
+  const at = aim ?? origin;
+  return { origin, centre: fromCaster && shape.shape === "cube" ? towards(origin, at, shape.size / 2) : at };
+}
+
 function towards(from: { x: number; y: number }, to: { x: number; y: number }, feet: number) {
   const d = Math.hypot(to.x - from.x, to.y - from.y) || 1;
   return { x: from.x + ((to.x - from.x) / d) * feet, y: from.y + ((to.y - from.y) / d) * feet };
@@ -1078,6 +1086,14 @@ function rollDice(expr: string, random: () => number): { total: number; text: st
 }
 
 /** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
+/** Spells that are several attacks at once: how many, by the slot and the caster's level. */
+const RAYS: Record<string, (slot: number, level: number) => number> = {
+  "scorching-ray": slot => 3 + Math.max(0, slot - 2),
+  "eldritch-blast": (_, level) => (level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1),
+};
+/** Spells whose damage adds the caster's spellcasting modifier. */
+const ADDS_MODIFIER = new Set(["spiritual-weapon"]);
+
 function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: Dnd.SpellDef, slotLevel: number, things: Entity[], chosen?: string): { lines: string[]; account: string[] } {
   const lines: string[] = [];
   const account: string[] = [];
@@ -1092,21 +1108,29 @@ function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: D
   const cantripTier = spell.level === 0 && effect["cantripScalingDice"] ? (level >= 17 ? 3 : level >= 11 ? 2 : level >= 5 ? 1 : 0) : 0;
   const m = /^(\d+)d(\d+)(.*)$/.exec(dice);
   if (m && (extra || cantripTier)) dice = `${Number(m[1]) + extra + cantripTier}d${m[2]}${m[3]}`;
+  // A spell that adds its caster's modifier to the damage (Spiritual Weapon: 1d8 + it).
+  const sc = sheet.spellcasting?.classes[0];
+  if (ADDS_MODIFIER.has(spell.id) && sc) { const mod = sheet.abilityModifiers[sc.ability]; if (mod) dice = `${dice}${signed(mod)}`; }
   // One roll for an area (as the rules have it); darts and single targets roll per thing.
   const shared = rollDice(dice, random);
-  const attackBonus = sheet.spellcasting?.classes[0]?.attackBonus ?? 0;
+  const attackBonus = sc?.attackBonus ?? 0;
+  // Rays and beams are an attack each (Scorching Ray's three, one more a slot above 2nd; Eldritch Blast's by level).
+  const rays = RAYS[spell.id]?.(slotLevel, level) ?? 1;
   for (const t of things) {
     if (effect["kind"] === "attack") {
-      const d20 = 1 + Math.floor(random() * 20);
-      const total = d20 + attackBonus;
-      const hits = d20 === 20 || (d20 !== 1 && total >= (t.ac ?? 10));
-      lines.push(`${spell.name} at ${t.name}: ${d20} ${signed(attackBonus)} = ${total} vs AC ${t.ac ?? 10}: ${hits ? "hit" : "miss"}`);
-      if (!hits) { account.push(`it missed ${t.name}`); continue; }
-      const dmg = rollDice(dice, random);
-      lines.push(`Damage: ${dmg.text} ${type}`);
-      const out = damageThing(world, t, dmg.total, type, state.turn);
-      lines.push(...out);
-      account.push(...out.map(o => o.toLowerCase()));
+      for (let ray = 1; ray <= rays; ray++) {
+        const d20 = 1 + Math.floor(random() * 20);
+        const total = d20 + attackBonus;
+        const hits = d20 === 20 || (d20 !== 1 && total >= (t.ac ?? 10));
+        lines.push(`${spell.name}${rays > 1 ? ` (${ray} of ${rays})` : ""} at ${t.name}: ${d20} ${signed(attackBonus)} = ${total} vs AC ${t.ac ?? 10}: ${hits ? "hit" : "miss"}`);
+        if (!hits) { account.push(`${rays > 1 ? `ray ${ray} ` : "it "}missed ${t.name}`); continue; }
+        const dmg = rollDice(dice, random);
+        lines.push(`Damage: ${dmg.text} ${type}`);
+        const out = damageThing(world, t, dmg.total, type, state.turn);
+        lines.push(...out);
+        account.push(...out.map(o => o.toLowerCase()));
+        if (t.states.includes("destroyed")) break;
+      }
     } else if (effect["kind"] === "auto-hit") {
       const darts = Number(effect["dartsAtBaseSlot"] ?? 3) + Number(effect["extraDartsPerSlotLevel"] ?? 0) * Math.max(0, slotLevel - spell.level);
       const total = Array.from({ length: darts }, () => rollDice(dice, random).total).reduce((a, b) => a + b, 0);

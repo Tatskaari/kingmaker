@@ -128,7 +128,7 @@ export class Skirmish {
     for (const line of diceLines(this.t, events, this.namer(), label)) this.log("dice", line);
   }
   say(kind: string, who?: Unit, salt: string | number = ""): void {
-    const line = flavour(kind, hash(this.G.round, this.G.log.length, kind, who?.id ?? "", salt), who ? this.you(who) : undefined);
+    const line = flavour(kind, hash(this.G.round, this.G.log.length, kind, who?.id ?? "", salt), who ? this.you(who) : undefined, this.G.map.id);
     if (line) this.log("narration", line, who?.id);
   }
   event(type: string, rest: Record<string, unknown>): Dnd.EngineEvent { return this.t.event(type, rest); }

@@ -133,6 +133,8 @@ export interface Aiming {
   check?: AimAt;
   /** Which of the targets in reach Tab is on. */
   index: number;
+  /** An area that would catch you, asked about once already: the next Enter or click does it. */
+  confirm?: boolean;
 }
 
 export type Overlay =
@@ -470,20 +472,23 @@ export class Game {
     if (item.why) { menu.index = index; this.emit(); return; }
     this.doMenu = undefined;
     if (item.id) void this.act(item.id);
-    else if (item.aiming) this.startAiming(item);
+    else if (item.aiming) this.startAiming(item, menu.view.at);
     else this.emit();
   }
 
-  /** Aim an entry on the map: at the nearest thing in reach to begin with (or yourself, or where you stand). */
-  startAiming(item: MenuItem): void {
+  /**
+   * Aim an entry on the map: at `at` (what was right-clicked), else at the nearest thing in reach (for
+   * an area, the nearest whose area leaves you out), else where you stand.
+   */
+  startAiming(item: MenuItem, at?: Tile2): void {
     const core = this.core;
     if (!core) return;
     const view = aimFor(core.state, core.session, item.key);
     if (!view) { this.emit(); return; }
     const ex = exploreState(core.state);
-    const at = view.targets[0]?.at ?? { ...ex.at };
-    this.aiming = { item, view, at, index: 0 };
-    this.aiming.check = aimAtTile(core.state, core.session, item.key, at);
+    const start = at ?? view.start ?? { ...ex.at };
+    this.aiming = { item, view, at: { ...start }, index: Math.max(0, view.targets.findIndex(t => t.at.x === start.x && t.at.y === start.y)) };
+    this.aiming.check = aimAtTile(core.state, core.session, item.key, start);
     this.emit();
   }
 
@@ -493,6 +498,7 @@ export class Game {
     if (!core || !aiming || (aiming.at.x === at.x && aiming.at.y === at.y)) return;
     aiming.at = { ...at };
     aiming.check = aimAtTile(core.state, core.session, aiming.item.key, at);
+    delete aiming.confirm;
     this.emit();
   }
 
@@ -523,10 +529,11 @@ export class Game {
     this.aimTo(exploreState(core.state).at);
   }
 
-  /** Do it, where it's aimed: if it can be done there. */
+  /** Do it, where it's aimed: if it can be done there. An area that would catch you asks first (the bottom line says so, in red). */
   fire(): void {
-    const check = this.aiming?.check;
-    if (!check?.ok || !check.id) { this.emit(); return; }
+    const aiming = this.aiming, check = aiming?.check;
+    if (!aiming || !check?.ok || !check.id) { this.emit(); return; }
+    if (check.caught?.includes("you") && !aiming.confirm) { aiming.confirm = true; this.emit(); return; }
     this.aiming = undefined;
     void this.act(check.id);
   }
@@ -622,11 +629,19 @@ export class Game {
   /** An explore action through the core; stepping into the lead's place opens its scene. What it said, and whether it's shown. */
   private async explore(id: string, options: { quiet?: boolean } = {}): Promise<{ text: string; said: boolean }> {
     const core = this.core!;
-    const run = core.act(id, this.hooks());
-    // The core switches to the scene before the opening streams in: show it as it comes.
-    const opening = core.state.mode === "scene";
-    if (opening) { this.walking = false; this.menu = undefined; this.doMenu = undefined; this.aiming = undefined; this.sceneView("The GM sets the scene…"); }
-    if (!options.quiet || opening) this.emit();
+    // The core switches to the scene before the opening streams in: show it as it comes. A walk into
+    // the lead's place does it at once; a menu act (a leap into the yard) only once the rules have rolled.
+    let opening = false;
+    const open = () => {
+      if (opening) return;
+      opening = true;
+      this.walking = false; this.menu = undefined; this.doMenu = undefined; this.aiming = undefined;
+      this.sceneView("The GM sets the scene…");
+      this.emit();
+    };
+    const run = core.act(id, { ...this.hooks(), onScene: open });
+    if (core.state.mode === "scene") open();
+    if (!options.quiet && !opening) this.emit();
     let text = "", said = false;
     try {
       text = await run;

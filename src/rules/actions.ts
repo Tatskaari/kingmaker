@@ -55,6 +55,8 @@ export interface Entry {
   why?: string;
   /** It heals: no use on someone who isn't hurt. */
   heals?: boolean;
+  /** The conditions it ends (Lesser Restoration: blinded, deafened, paralysed, poisoned): no use on someone who has none of them. */
+  cures?: string[];
   /** The game core's action id, or its stem for an aimed one: "cast_fire-bolt" (+ "@x,y" or "_self"), "rest_short". */
   act: string;
   spell?: { id: string; level: number; slot: number; pact?: boolean; ritual?: boolean; concentration: boolean; bonus?: boolean; element?: string };
@@ -297,6 +299,14 @@ export const SOCIAL_SPELLS = new Set(["charm-person", "charm-monster", "suggesti
 const FOE_MARKS = new Set(["hunters-mark", "hex", "bane", "faerie-fire"]);
 /** Spells aimed at a thing rather than a person: a lock, a weapon, a tear. */
 const AT_THINGS = new Set(["knock", "arcane-lock", "mending", "light", "continual-flame", "magic-weapon", "arcanists-magic-aura", "magic-mouth", "glyph-of-warding", "mage-hand", "identify"]);
+/**
+ * Harmful spells the SRD aims at a creature only ("each dart strikes a creature of your choice"):
+ * not at a door or a lamp post. (Fire Bolt, Eldritch Blast, Starry Wisp, Poison Spray and the like
+ * say "a creature or an object".)
+ */
+const AT_CREATURES = new Set(["magic-missile", "sacred-flame", "ray-of-frost", "chill-touch", "guiding-bolt", "shocking-grasp", "acid-splash", "inflict-wounds", "vicious-mockery",
+  "ice-knife", "ray-of-sickness", "mind-spike", "blindness-deafness", "hold-person", "dissonant-whispers", "spiritual-weapon", "hideous-laughter", "ray-of-enfeeblement", "vampiric-touch",
+  "bestow-curse", "phantasmal-force", "witch-bolt", "toll-the-dead", "mind-sliver", "hunters-mark", "hex", "bane"]);
 /** Spells that take you somewhere: a spot to step to. */
 const STEPS: Record<string, number> = { "misty-step": 30 };
 
@@ -334,7 +344,7 @@ export function spellAim(spell: Dnd.SpellDef): Aim {
   if (range === 0) return { kind: "self" };
   const effect = spellEffect(spell);
   if (AT_THINGS.has(spell.id)) return { kind: "target", range, self: range <= 5 };
-  if (effect === "harm") return { kind: "target", range, self: false };
+  if (effect === "harm") return { kind: AT_CREATURES.has(spell.id) ? "creature" : "target", range, self: false };
   if (effect === "social") return { kind: "creature", range, self: false };
   if (effect === "help") return { kind: "creature", range, self: true };
   return { kind: "target", range, self: range <= 5 };
@@ -453,6 +463,8 @@ export function catalogue(state: SessionState, context: Context = {}): Catalogue
   const mod = sc ? sheet.abilityModifiers[sc.ability] : 0;
   const pact = pactOf(sheet);
   const ready = (sheet.spellcasting?.spellsByLevel ?? []).flatMap(g => g.spells.filter(sp => g.level === 0 || sp.prepared || sp.alwaysPrepared));
+  // A wizard's Arcane Recovery, unspent: a short rest brings some slots back.
+  const recoverable = ((c as unknown as { resources?: Array<{ resourceId: string; current: number }> }).resources ?? []).some(x => x.resourceId === "arcane-recovery-points" && x.current > 0);
   const seen = new Set<string>();
   const spellEntries: Entry[] = [];
   for (const sp of ready) {
@@ -465,13 +477,19 @@ export function catalogue(state: SessionState, context: Context = {}): Catalogue
     const ritual = def.ritual && def.level > 0;
     const aim = spellAim(def);
     const element = String((def.mechanicalEffects ?? []).find(m => m["damageType"])?.["damageType"] ?? (casterChoice(def)?.kind === "damageType" ? casterChoice(def)!.value : ""));
-    const why = cantAct ?? spellWhy(def) ?? (def.level && !slot && !ritual ? (pact ? "no pact slots left (a short rest)" : `no ${ORDINAL[def.level]}-level slots left (a long rest)`) : undefined);
+    const why = cantAct ?? spellWhy(def) ?? (def.level && !slot && !ritual ? (pact ? "no pact slots left (a short rest)" : `no ${ORDINAL[def.level]}-level slots left (a long rest${recoverable ? ", or Arcane Recovery with a short one" : ""})`) : undefined);
+    const fx = def.mechanicalEffects ?? [];
+    const cures = fx.flatMap(m => (m.kind === "remove-condition" ? ((m["eligibleConditionIds"] as string[] | undefined) ?? []) : []));
+    // Its own level's slots spent, it takes a higher one (and does more for it).
+    const upcast = def.level && slot > def.level && !ritual && !(pact && slot === pact.level) ? ` (a ${ORDINAL[slot]}-level slot: no ${ORDINAL[def.level]}-level left)` : "";
     spellEntries.push({
       key: `spell:${def.id}`, group: def.level ? "spells" : "cantrips", name: def.name,
-      summary: `${spellSummary(def, total, mod)}${ritual ? " (a ritual: no slot)" : ""}`,
+      summary: `${spellSummary(def, total, mod)}${ritual ? " (a ritual: no slot)" : upcast}`,
       aim, effect: spellEffect(def), act: `cast_${def.id}`,
       ...(why ? { why } : {}),
-      ...((def.mechanicalEffects ?? []).some(m => m.kind === "heal") ? { heals: true } : {}),
+      // A heal that does more besides (Aid raises your maximum too) is worth it to someone who's whole.
+      ...(fx.some(m => m.kind === "heal") && !fx.some(m => m.kind === "buff") ? { heals: true } : {}),
+      ...(cures.length ? { cures } : {}),
       spell: { id: def.id, level: def.level, slot: ritual ? 0 : slot, ...(slot && pact && slot === pact.level && !(sheet.spellSlots.slotsByLevel[slot - 1]) ? { pact: true } : {}), ...(ritual ? { ritual: true } : {}), concentration: def.concentration, ...(/bonus/i.test(def.castingTime) ? { bonus: true } : {}), ...(element ? { element } : {}) },
     });
   }

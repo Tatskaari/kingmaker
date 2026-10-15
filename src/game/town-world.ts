@@ -1,6 +1,6 @@
 import { talkable } from "../../scenes/talk.ts";
 import { areaAt, objectStats, type Entity, type Material, type SceneWorld, type Size } from "../world/scene-world.ts";
-import { actorsHere, getMap, PLACES, tileAt, tileName, townRegion, type ExploreState, type MapOverlay } from "./map/index.ts";
+import { actorsHere, feetToTile, getMap, isLive, PLACES, regionForScene, tileAt, tileName, townRegion, type ExploreState, type MapOverlay } from "./map/index.ts";
 import type { MapActor, Region, StoryState, Tile2, TileMap } from "./types.ts";
 
 /**
@@ -16,10 +16,25 @@ import type { MapActor, Region, StoryState, Tile2, TileMap } from "./types.ts";
  * overlay, the people (hurt, knocked flat, run off) until the story's clock moves on, and what was
  * spilled or scorched.
  *
- * Not in it: a place whose scene hasn't been played yet (its people and things are the scene's to
- * show); its waiting people come back as `waiting`, since anything done to them opens their scene.
+ * Not in it: a place whose scene hasn't been played yet. Its people and things (its doors, and what
+ * of the town its world has too, like the old elm over the yard wall) are the scene's to show, and
+ * come back as `waiting`: anything done to them opens their scene, so the GM plays it from the facts.
  * Ways out to other maps stay the story's (the Drowned Rat's door opens at dusk however it's knocked).
  */
+
+/** Someone or something of a place whose scene is still to come: the scene's, not the town's. */
+export interface Waiting {
+  /** Its id in the scene's world (a cast id, or a thing's id there). */
+  id: string;
+  sceneId: string;
+  at: Tile2;
+  name: string;
+  /** Someone (Kell, Moll), not something (the yard gate). */
+  person: boolean;
+  /** The scene can open now (it's the lead): what's done to them opens it. Otherwise it's for later in the story. */
+  live: boolean;
+  states: string[];
+}
 
 export interface TownWorld {
   world: SceneWorld;
@@ -30,8 +45,8 @@ export interface TownWorld {
   mapActors: MapActor[];
   /** What the map drew for each entity (by entity id). */
   actors: Map<string, MapActor>;
-  /** People whose scene is waiting for the player (the lead's place, unplayed): by actor id. */
-  waiting: Map<string, { castId: string; sceneId: string; at: Tile2; name: string }>;
+  /** The people and things of places whose scene is still to come (the lead's place, unplayed): by actor id. */
+  waiting: Map<string, Waiting>;
   /** How everything was when it was built (states and hit points), to tell what the rules changed. */
   before: Map<string, string>;
 }
@@ -82,6 +97,28 @@ function statblockOf(a: MapActor): string {
   return "commoner";
 }
 
+const plainName = (n: string) => n.toLowerCase().replace(/^(the|a|an)\s+/, "");
+
+/**
+ * The things of the places on a map whose scenes are still to come, by tile and name: what the
+ * town has that the scene's world has too (the old elm leaning over the yard wall is the lane's in
+ * the scene) is the scene's until it's played.
+ */
+function sceneThings(map: TileMap, story: StoryState): Map<string, { sceneId: string; id: string }> {
+  const out = new Map<string, { sceneId: string; id: string }>();
+  for (const place of Object.values(PLACES)) {
+    if (place.map !== map.id || story.played.includes(place.sceneId)) continue;
+    const region = regionForScene(place.sceneId)?.region;
+    if (!region) continue;
+    for (const t of place.world.things) {
+      if (!t.at) continue;
+      const at = feetToTile(region, { x: t.at[0], y: t.at[1] });
+      out.set(`${at.x},${at.y}|${plainName(t.name)}`, { sceneId: place.sceneId, id: t.id });
+    }
+  }
+  return out;
+}
+
 /** Build the town's world for the map the player is on. */
 export function townWorld(ex: ExploreState): TownWorld {
   const map = getMap(ex.map);
@@ -98,19 +135,27 @@ export function townWorld(ex: ExploreState): TownWorld {
   const changes = ex.overlay.town?.[map.id];
   const doorsDrawn = new Set<string>();
   const mapActors = actorsHere(ex);
+  const shared = sceneThings(map, ex.story);
   for (const a of mapActors) {
     if (a.map !== map.id) continue;
     if (a.kind === "player") {
       place({ id: "player", name: "you", kind: "person", parent: root, tags: [], states: ex.hidden ? ["hidden"] : [], notes: [], player: true }, a.at);
       continue;
     }
-    // A place whose scene is still to come is the scene's: its people wait for it.
+    const onDoor = tileAt(map, a.at).terrain === "door" && a.kind === "object";
+    // A place whose scene is still to come is the scene's: its people wait for it, and its things (its doors too) are its own.
     const scene = a.id.includes(":") ? a.id.split(":")[0]! : undefined;
-    if (scene && PLACES[scene] && !ex.story.played.includes(scene)) {
-      if (isPerson(a) && a.interaction?.kind === "scene") waiting.set(a.id, { castId: a.ref ?? a.id.slice(scene.length + 1), sceneId: a.interaction.sceneId, at: { ...a.at }, name: a.name });
+    const theirs = scene && PLACES[scene] && !ex.story.played.includes(scene) ? { sceneId: scene, id: baseId(a.ref && isPerson(a) ? a.ref : a.id.slice(scene.length + 1)) } : shared.get(`${a.at.x},${a.at.y}|${plainName(a.name)}`);
+    if (theirs) {
+      if (onDoor) doorsDrawn.add(`${a.at.x},${a.at.y}`);
+      const person = isPerson(a);
+      // Its people are only about while it's the lead (they're waiting for the player); its things are there either way.
+      if (!person || a.interaction?.kind === "scene") {
+        waiting.set(a.id, { id: theirs.id, sceneId: theirs.sceneId, at: { ...a.at }, name: a.name, person, live: isLive(ex.story, theirs.sceneId), states: [...(a.states ?? [])] });
+      }
       continue;
     }
-    if (tileAt(map, a.at).terrain === "door" && a.kind === "object") doorsDrawn.add(`${a.at.x},${a.at.y}`);
+    if (onDoor) doorsDrawn.add(`${a.at.x},${a.at.y}`);
     const id = baseId(a.id);
     if (entities[id]) continue;
     actors.set(id, a);

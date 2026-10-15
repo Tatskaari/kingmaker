@@ -89,6 +89,9 @@ export function ExploreScreen({ game }: { game: Game }) {
   let spare = mapH - 2 - (1 + when.length + 2 + (leadScene ? 2 + way.length : 0) + 2 + (fronts.length ? 1 + fronts.length : 0) + (walkingLines.length ? 1 + walkingLines.length : 0));
   const take = (want: number) => { const n = Math.max(0, Math.min(want, spare)); spare -= n; return n; };
   const nearFirst = take(Math.max(1, Math.min(3, everyone.length)));
+  // The spell slots left (the status line's second part), before who you are: they change as you play.
+  const slots = /spell slots ([^,]+(?:, \d\w\w \d+\/\d+)*)/.exec(status)?.[1];
+  const slotsLine = slots && take(1) ? truncate(`Slots: ${slots}`, inner) : undefined;
   const build = upTo(wrap(session.player.build ?? session.player.concept, inner), take(2), inner);
   const aboutLines = about ? upTo(wrap(about, inner), take(3), inner) : [];
   const near = everyone.slice(0, nearFirst + take(everyone.length - nearFirst));
@@ -160,7 +163,8 @@ export function ExploreScreen({ game }: { game: Game }) {
         <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
         <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
         {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}
-        <text marginTop={1} height={1} flexShrink={0}><span fg={C.player} attributes={BOLD}>{you}</span><span fg={C.dim}>{truncate(` · ${status.split(",")[0] ?? ""}`, Math.max(0, inner - you.length))}</span></text>
+        <text marginTop={1} height={1} flexShrink={0}><span fg={C.player} attributes={BOLD}>{you}</span><span fg={C.dim}>{truncate(` · ${status.split(",")[0] ?? ""}`, Math.max(0, inner - you.length - (ex.hidden ? 9 : 0)))}</span>{ex.hidden ? <span fg={C.lead}>{" · hidden"}</span> : null}</text>
+        {slotsLine ? <text fg={C.dim} height={1} flexShrink={0}>{slotsLine}</text> : null}
         {build.length ? <text fg={C.faint} height={build.length} flexShrink={0}>{build.join("\n")}</text> : null}
         {leadScene ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{"The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
@@ -246,20 +250,32 @@ function aimMarks(aim: Aiming): Array<{ at: Tile2; color: string; glyph?: string
   return [...out.values()];
 }
 
-/** The bottom line while aiming: what it would do where it's aimed (or why not), and the keys. */
+/**
+ * The bottom line while aiming: what it would do where it's aimed (or why not), and the keys. An
+ * upcast says its slot, a leap what it goes over and what it takes; an area that would catch you
+ * says so in red, and asks for the Enter or click again.
+ */
 function AimLine({ aiming, width }: { aiming: Aiming; width: number }) {
   const check = aiming.check;
   const ok = !!check?.ok;
+  const item = aiming.item;
+  const you = !!check?.caught?.includes("you");
   const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? "…" : ""}` : "";
-  const what = `${aiming.item.name}${ok && check?.target ? ` → ${check.target}` : ""}${check?.feet ? ` · ${check.feet} ft` : ""}`;
-  const how = ok ? `${caught} · click or Enter` : ` · ${check?.why ?? "point at something"}`;
+  const slot = item.spell && item.spell.slot > item.spell.level && !item.spell.ritual ? ` (${ORDINAL[item.spell.slot]}-level slot)` : "";
+  const what = `${item.name}${slot}${ok && check?.target ? ` → ${check.target}` : ""}${check?.feet ? ` · ${check.feet} ft` : ""}`;
+  // Asked once already: what it costs first, so a narrow screen still says it.
+  const how = !ok ? ` · ${check?.why ?? "point at something"}`
+    : aiming.confirm && you ? " · it catches you too: Enter or click again to do it anyway"
+    : `${check?.note ? ` · ${check.note}` : ""}${caught} · click or Enter`;
   const keys = width >= 100 ? ` · Tab next${aiming.view.self ? " · t you" : ""} · Esc cancel` : " · Esc cancel";
   return <text flexShrink={0} height={1}>
     <span fg={ok ? C.title : C.dim} attributes={BOLD}>{truncate(what, width)}</span>
-    <span fg={ok ? (check?.caught?.includes("you") ? C.danger : C.text) : C.warn}>{truncate(how, Math.max(0, width - what.length))}</span>
+    <span fg={ok ? (you ? C.danger : C.text) : C.warn}>{truncate(how, Math.max(0, width - what.length))}</span>
     <span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length - how.length))}</span>
   </text>;
 }
+
+const ORDINAL = ["cantrip", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
 
 /** The hint line while the pointer is over the map: what's there, how far, and what a click and a right-click do. */
 function Pointer({ title, distance, arrow, actions, width }: { title: string; distance: number; arrow: string; actions: string[]; width: number }) {

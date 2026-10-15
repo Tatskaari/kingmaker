@@ -223,7 +223,20 @@ export function move(state: ExploreState, dx: number, dy: number, world?: SceneW
   const trigger = triggerAt(state, map, to, here);
   if (trigger) r.trigger = trigger;
   if (region && region.id !== before?.id) r.message = `You come into ${region.name}.`;
+  // A door broken open into a building the map has no inside for: a doorway, and no further.
+  if (t.terrain === "door" && region && door === "open" && !hasInside(map, region) && actors.some(a => a.at.x === to.x && a.at.y === to.y && (a.states ?? []).some(s => s === "destroyed" || s === "broken"))) {
+    r.message = `You stand in what's left of the doorway of ${region.name}. There's no further in: past the splinters it's dark, and full of other people's things.`;
+  }
   return r;
+}
+
+/** Has a place anywhere to walk inside it, past its doors? (Most of the town's houses are their walls.) */
+function hasInside(map: TileMap, region: PlaceRegion): boolean {
+  for (let y = region.rect.y; y < region.rect.y + region.rect.h; y++) for (let x = region.rect.x; x < region.rect.x + region.rect.w; x++) {
+    const t = tileAt(map, { x, y });
+    if (t.terrain !== "door" && walkable(map, { x, y })) return true;
+  }
+  return false;
 }
 
 /** Follow a travel interaction (or an exit): the player, and whoever walks with them, arrive on the other map. */

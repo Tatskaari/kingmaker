@@ -1,6 +1,6 @@
-import type { MouseEvent } from "@opentui/core";
+import type { MouseEvent, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, Keys, SCROLLBAR, useGame, type KeyHint } from "./common.tsx";
@@ -18,8 +18,8 @@ const HELP: Record<string, string[]> = {
     "The sidebar says where you are, what time it is, who is about (arrows point the way on screen) and which way the lead lies.",
     "Once Kell walks with you, e beside her (or a right-click on her) stops for a word between scenes. The story waits; walk on, or say goodbye, when you're done.",
     "m (or its button) lists what you can do, by kind: cantrips, spells by level with your slots, class features with their uses, actions (attack, leap, hide, throw, shove, grab, rest). What can't be done now is dimmed, with why. Click one, or ↑↓ and Enter, or its number; ←→ jump a kind. Right-click someone, then Do something…, for the same list aimed at them.",
-    "Aiming: point and click; or Tab through what's in reach, the arrows to move the aim, t for yourself, Enter. The faint ring is how far it reaches; an area shows what it covers and who it catches (mind yourself). Esc, or a right-click, thinks better of it.",
-    "It's the rules': a Fireball breaks a door down, and it stays down. Hurt someone and the town reacts: people run, the guards come on, and it's a fight on the map. What you do to someone whose scene is waiting opens it, your act first; to Kell, a talk.",
+    "Aiming: point and click; or Tab through what's in reach, the arrows to move the aim, t for yourself, Enter. The faint ring is how far it reaches; an area shows what it covers and who it catches, and if that's you it says so in red and asks for the Enter or the click again. Esc, or a right-click, thinks better of it.",
+    "It's the rules': a Fireball breaks a door down, and it stays down. Hurt someone and the town reacts: people run, the guards come on, and it's a fight on the map. What you do to someone or something whose scene is waiting (Kell, the yard gate) opens it, your act first; to Kell, a talk. Hidden, you stay so until you move or speak to anyone.",
     "c shows your character sheet, j your notebook. Esc opens the menu (save and quit). The keys at the bottom are buttons too. The game saves as you go.",
   ],
   scene: [
@@ -43,12 +43,16 @@ const HELP: Record<string, string[]> = {
 };
 
 const MENU = ["Back to the game", "Save and return to the title", "Save and quit"];
+/** Keys that scroll the help and the notebook: a line (±1), a page (±2), all the way (±3). */
+const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, pagedown: 2, home: -3, end: 3 };
 const CLOSE = ["escape", "return", "space", "c", "s", "q"];
 
 export function Overlay({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
   const o = game.overlay;
+  // The help and the notebook scroll (the keys and the wheel) when they're longer than the screen.
+  const scroll = useRef<ScrollBoxRenderable>(null);
   useKeyboard(key => {
     const o = game.overlay;
     if (!o || key.defaultPrevented) return;
@@ -81,6 +85,12 @@ export function Overlay({ game }: { game: Game }) {
       if (r.close) game.closeOverlay();
       else if (r.choose !== undefined) pickAction(game, ids[r.choose]);
       else if (r.index !== undefined) { o.index = r.index; game.emit(); }
+      return;
+    }
+    if ((o.kind === "help" || o.kind === "journal") && SCROLL_KEYS[key.name] !== undefined) {
+      const page = Math.max(3, Math.min(height - 2, 40) - 6);
+      const by = SCROLL_KEYS[key.name]!;
+      scroll.current?.scrollBy(Math.abs(by) === 2 ? Math.sign(by) * page : Math.abs(by) === 3 ? Math.sign(by) * 100000 : by);
       return;
     }
     // Help, journal, scene map: any of these keys closes them.
@@ -125,20 +135,20 @@ export function Overlay({ game }: { game: Game }) {
     case "journal": {
       const history = game.session?.history ?? [];
       const stood = (sceneId: string) => history.find(h => h.sceneId === sceneId)?.summary.split("\n").slice(1).join("\n").trim();
-      return box("The investigator's notebook", <scrollbox flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+      return box("The investigator's notebook", <scrollbox ref={scroll} flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
         {game.journal.length ? game.journal.map((j, i) => <box key={i} flexDirection="column" marginBottom={1} flexShrink={0}>
           <text fg={C.title} attributes={BOLD}>{`${j.title}: ${j.ending}`}</text>
           {j.lines.map((l, k) => <text key={k} fg={C.text} wrapMode="word">{`· ${l}`}</text>)}
           {stood(j.sceneId) ? <text fg={C.dim} wrapMode="word">{stood(j.sceneId)!}</text> : null}
         </box>) : <text fg={C.dim}>Nothing yet. The notebook is new, and smells of it.</text>}
-      </scrollbox>, [["Esc", "close", close]]);
+      </scrollbox>, [["Esc", "close", close], ["↑↓", "scroll"]]);
     }
     case "help": {
       const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
       // It scrolls (the wheel) when the screen's too small for all of it, as the notebook does.
-      return box("How to play", <scrollbox flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+      return box("How to play", <scrollbox ref={scroll} flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
         {HELP[mode]!.map((l, i) => <text key={i} fg={C.text} wrapMode="word" marginBottom={1} flexShrink={0}>{`· ${l}`}</text>)}
-      </scrollbox>, [["Esc", "close", close], ["wheel", "scroll"]]);
+      </scrollbox>, [["Esc", "close", close], ["↑↓ PgDn", "scroll"]]);
     }
     case "menu":
       return box("Menu", <box flexDirection="column" paddingY={1}>{MENU.map((m, i) => <Clickable key={i} height={1} onClick={() => pickMenu(game, i)}><text>

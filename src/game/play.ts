@@ -275,6 +275,7 @@ export class Game {
     // The talk is the scene from now (the app shows it at once, as the greeting streams in).
     startTalk(this.session, talk.with, talk.where);
     this.state.mode = "scene";
+    hooks.onScene?.();
     const entries = await openTalk(this.session, hooks);
     return `— ${sceneById(this.session.sceneId).title} —\n\n${render(this.session, entries)}`;
   }
@@ -291,6 +292,7 @@ export class Game {
     this.state.mode = "scene";
     this.state.story.time = scene.time ?? this.state.story.time;
     this.explorer.enterScene?.(this.state, this.session);
+    hooks.onScene?.();
     const entries = await openScene(this.session, hooks);
     return `— ${scene.title} —\n\n${render(this.session, entries)}`;
   }
@@ -335,7 +337,9 @@ export class Game {
       this.state.mode = "explore";
       const woke = await comeTo(this.session).catch(() => undefined);
       const kept = this.explorer.afterFight?.(this.state, this.session, result);
-      return [`The fight: ${result.summary}`, woke, kept].filter(Boolean).join("\n\n");
+      // The story's hand-off says "the player"; the news on the map says "you".
+      const told = result.summary.replace(/\bThe player was\b/g, "You were").replace(/\bThe player\b/g, "You").replace(/\bthe player\b/g, "you");
+      return [`The fight: ${told}`, woke, kept].filter(Boolean).join("\n\n");
     }
     this.state.mode = "scene";
     for (const [k, v] of Object.entries(result.flags ?? {})) this.state.story.flags[k] = v;

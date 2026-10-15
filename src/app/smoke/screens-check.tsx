@@ -15,7 +15,7 @@ import { sceneById } from "../../../scenes/index.ts";
 import { pregenSession, PREGENS, TacticalFight } from "../../game/combat/index.ts";
 import { mapFights } from "../../game/fights.ts";
 import { registerLookCanvas } from "../../game/look/opentui.ts";
-import { leadTarget, town } from "../../game/town.ts";
+import { aimFor, leadTarget, town } from "../../game/town.ts";
 import { Game as Core, type GameState } from "../../game/play.ts";
 import { exploreState } from "../../game/town.ts";
 import { actorsHere, nearby, Picks, screenOf } from "../../game/map/index.ts";
@@ -30,6 +30,7 @@ import { wrap } from "../ui/common.tsx";
 import { CombatScreen } from "../ui/combat.tsx";
 import { EndScreen } from "../ui/end.tsx";
 import { ExploreScreen } from "../ui/explore.tsx";
+import { Overlay } from "../ui/overlay.tsx";
 import { TitleScreen } from "../ui/title.tsx";
 
 process.env.KM_GLYPHS ??= "ascii";
@@ -177,9 +178,59 @@ for (const walking of [false, true]) {
     frame = setup.captureCharFrame();
     const aimedAtDoor = game.doMenu ? entriesOf(game.doMenu.view) : [];
     checks.push([`menu ${w}x${h}: a right-click's "Do something…" opens it aimed at the door`, game.doMenu?.view.at?.x === door.x && /Do something: the door/.test(flat(frame))
-      && aimedAtDoor.find(e => e.key === "spell:fireball")?.id === "cast_fireball@52,5" && /not on/.test(aimedAtDoor.find(e => e.key === "shove")?.why ?? "")]);
+      && aimedAtDoor.find(e => e.key === "spell:fire-bolt")?.id === "cast_fire-bolt@52,5" && /not on/.test(aimedAtDoor.find(e => e.key === "shove")?.why ?? "")]);
+    // An area from there is aimed at the door first, so you see what it covers and who it catches before it goes off.
+    const ball = aimedAtDoor.findIndex(e => e.key === "spell:fireball");
+    if (ball >= 0) await act(async () => { game.chooseAction(ball); });
+    checks.push([`menu ${w}x${h}: Fireball from "Do something…" is aimed at the door, not cast (${game.aiming?.check?.label ?? "not aiming"})`, !game.doMenu && game.aiming?.at.x === door.x && game.aiming.at.y === door.y && done.length === 1]);
+    await act(async () => { game.cancelAim(); });
+    if (w === 80) {
+      // A pointer resting over the menu doesn't take the keys' pick from them as the list scrolls (at 80x24 the menu covers the map).
+      await act(async () => { await setup.mockMouse.moveTo(Math.floor(w / 2), Math.floor(h / 2)); });
+      await act(async () => { setup.mockInput.pressKey("m"); });
+      await setup.renderOnce();
+      const all = game.doMenu ? entriesOf(game.doMenu.view) : [];
+      const picked: number[] = [game.doMenu?.index ?? -1];
+      for (let i = 0; i < all.length + 2 && game.doMenu; i++) {
+        await act(async () => { setup.mockInput.pressKey("ARROW_DOWN"); });
+        await setup.renderOnce();
+        picked.push(game.doMenu?.index ?? -1);
+      }
+      const steady = picked.every((n, i) => i === 0 || n === (picked[i - 1]! + 1) % all.length);
+      const rests = ["rest:short", "rest:long"].every(k => picked.some(n => all[n]?.key === k));
+      checks.push([`menu ${w}x${h}: with the pointer resting on it, ↓ goes down a line at a time, as far as the rests (${picked.slice(0, 12).join(" ")}…)`, all.length > 10 && steady && rests]);
+      await act(async () => { game.closeActions(); });
+    }
     void actorsHere;
     await setup.dispose();
+  }
+  // The help at 80x24 is longer than the screen: the keys scroll it (PgDn, ↓), and it stays open while they do.
+  {
+    const game = new Game();
+    game.core = wizard;
+    game.screen = "explore";
+    game.overlay = { kind: "help" };
+    const setup = await testRender(<Overlay game={game} />, { width: 80, height: 24 });
+    await setup.renderOnce();
+    const before = setup.captureCharFrame();
+    await act(async () => { setup.mockInput.pressKey("\u001b[6~"); });
+    await setup.renderOnce();
+    await act(async () => { setup.mockInput.pressKey("ARROW_DOWN"); });
+    await setup.renderOnce();
+    const after = setup.captureCharFrame();
+    checks.push(["help 80x24: PgDn and ↓ scroll it, and it stays open", game.overlay?.kind === "help" && before.includes("· e (or Enter) talks to whoever") && !after.includes("· e (or Enter) talks to whoever")]);
+    await setup.dispose();
+  }
+  // A leap into the granary yard opens its scene, and the screen goes with it (the rules roll first, so it opens late).
+  {
+    const fighter = await Core.create({ player: "Brann: a fighter who takes walls at a run", level: 3, build: PREGENS.fighter!.build, explorer: town, fights: mapFights(), seed: 5 });
+    exploreState(fighter.state).at = { x: 42, y: 9 };
+    const game = new Game();
+    game.core = fighter;
+    game.screen = "explore";
+    const leap = aimFor(fighter.state, fighter.session, "jump")?.targets.find(t => /the yard behind/.test(t.name));
+    if (leap) await game.act(leap.id);
+    checks.push([`a leap into the granary yard (${leap?.id ?? "none"}) shows its scene opening: ${game.screen}, ${game.lines[0]?.name ?? "no header"}`, !!leap && (game.screen as string) === "scene" && game.lines[0]?.kind === "header" && (fighter.state.mode as string) === "scene"]);
   }
   // For real, on the town: the door comes down and stays down.
   exploreState(wizard.state).at = { x: 47, y: 9 };

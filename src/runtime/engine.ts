@@ -28,6 +28,8 @@ export interface TurnHooks {
   onText?(text: string): void;
   /** A finished visible entry (rolls, system lines, completed speech). */
   onEntry?(entry: Entry): void;
+  /** The game core has just gone into a scene (or a talk), before its opening streams in: show it now. */
+  onScene?(): void;
 }
 
 export interface TurnResult {

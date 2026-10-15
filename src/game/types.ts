@@ -93,6 +93,8 @@ export interface CombatantSetup {
   castId?: string;
   /** How the AI fights them: "bruiser", "villain", "coward", "ally", "brawler", "archer" (combat module; defaults by side). */
   role?: string;
+  /** Their letter on the battlefield, when the name's first letter won't tell them apart (two palace guards: G and g). */
+  glyph?: string;
 }
 
 export interface CombatSetup {

@@ -238,7 +238,8 @@ export interface ThingChange {
  */
 export interface TownChanges {
   things: Record<string, ThingChange>;
-  people?: { time: StoryState["time"]; states: Record<string, string[]> };
+  /** The town's people as the rules (or a fight) left them, until the clock moves on: their states, and where a fight left them. */
+  people?: { time: StoryState["time"]; states: Record<string, string[]>; at?: Record<string, Tile2> };
   /** The world's surfaces (puddles, scorch marks, burning patches), in the map's feet (5 ft a tile from its corner). */
   surfaces?: Entity[];
   surfacesTime?: StoryState["time"];
@@ -263,6 +264,7 @@ export function withTownChanges(overlay: MapOverlay, mapId: string, now: StorySt
   const town = overlay.town?.[mapId];
   if (!town) return actors;
   const people = town.people && town.people.time === now ? town.people.states : {};
+  const where = town.people && town.people.time === now ? town.people.at ?? {} : {};
   const out: MapActor[] = [];
   const seen = new Set<string>();
   for (const a of actors) {
@@ -271,15 +273,17 @@ export function withTownChanges(overlay: MapOverlay, mapId: string, now: StorySt
     if (person) {
       if (person.includes("gone")) continue;
       const down = person.some(s => DOWN.includes(s));
-      out.push({ ...a, states: [...(a.states ?? []).filter(s => !["hurt", "badly hurt", "down", "unconscious", "prone", "cowering"].includes(s)), ...person], ...(down ? { blocks: false } : {}) });
+      out.push({ ...a, states: [...(a.states ?? []).filter(s => !["hurt", "badly hurt", "down", "unconscious", "prone", "cowering"].includes(s)), ...person], ...(down ? { blocks: false } : {}), ...(where[a.id] ? { at: { ...where[a.id]! } } : {}) });
       continue;
     }
     const change = town.things[a.id];
     out.push(change ? changed(a, change, now) : a);
   }
-  // Doors the map draws as its tiles: an actor on the tile says how it was left.
+  // Doors the map draws as its tiles: an actor on the tile says how it was left. A door some scene
+  // has a thing of its own for (the yard gate, before its scene and after) is that scene's, not the town's.
+  const held = new Set(actors.filter(a => a.kind === "object").map(a => `${a.at.x},${a.at.y}`));
   for (const [id, change] of Object.entries(town.things)) {
-    if (seen.has(id) || !change.at) continue;
+    if (seen.has(id) || !change.at || held.has(`${change.at.x},${change.at.y}`)) continue;
     out.push(changed({ id, name: change.name ?? "a door", kind: "object", glyph: "+", color: "#a0703a", map: mapId, at: { ...change.at } }, change, now));
   }
   return out;

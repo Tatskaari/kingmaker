@@ -1,6 +1,8 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useState } from "react";
 import { sceneById } from "../../../scenes/index.ts";
+import { whereabouts } from "../../game/map/index.ts";
+import { exploreState } from "../../game/town.ts";
 import type { Game } from "../game.ts";
 import type { Resumable } from "../save.ts";
 import { timeOf, TIME_WORDS } from "../story.ts";
@@ -23,7 +25,9 @@ function ago(ms: number): string {
 
 function describe(r: Resumable): string {
   const scene = (() => { try { return sceneById(r.session.sceneId).title; } catch { return r.session.sceneId; } })();
-  const where = r.game.mode === "scene" ? `in ${scene}` : r.game.mode === "combat" ? `fighting at ${scene}` : `heading for ${scene}`;
+  // A fight that broke out on the map is where the map has the player, not at the scene the story's heading for.
+  const street = r.game.mode === "combat" && r.game.fightOnMap ? (() => { try { return whereabouts(exploreState(r.game)).place; } catch { return undefined; } })() : undefined;
+  const where = r.game.mode === "scene" ? `in ${scene}` : street ? `fighting in ${street}` : r.game.mode === "combat" ? `fighting at ${scene}` : `heading for ${scene}`;
   return `${r.session.player.name}: ${TIME_WORDS[r.game.story.time ?? timeOf(r.session.sceneId)].split(",")[0]}, ${where} (${ago(r.mtime)})`;
 }
 

@@ -115,7 +115,9 @@ export function ActionMenu({ title, groups, index, width, height, anchor, scroll
   const { left, top, w, h, room, start, rows, visible } = layout;
   const inner = w - 4;
   const nameW = Math.min(28, Math.max(12, ...rows.map(r => (r.kind === "line" ? r.line.name.length + (r.line.aims ? 2 : 0) : 0))));
-  const lines = rows.slice(start, start + room);
+  // A kind's heading on the last row, its lines all below the fold, waits to head the list as it scrolls.
+  const lines: Array<Row | Line | undefined> = rows.slice(start, start + room);
+  if (lines.length === room && lines.at(-1)?.kind === "head" && start + room < rows.length) lines[lines.length - 1] = undefined;
   const count = groups.reduce((n, g) => n + g.lines.length, 0);
   const picked = rows.find((r): r is Line => r.kind === "line" && r.index === index)?.line;
   const detail = picked ? `${picked.name}${picked.summary ? `: ${picked.summary}` : ""}${picked.why ? `. Not now: ${picked.why}.` : ""}` : "";
@@ -134,6 +136,7 @@ export function ActionMenu({ title, groups, index, width, height, anchor, scroll
       onMouseDown={(e: MouseEvent) => e.stopPropagation()}>
       <box height={room} flexDirection="column" flexShrink={0} overflow="hidden">
         {lines.map((r, k) => {
+          if (!r) return <text key="fold" height={1} flexShrink={0}>{" "}</text>;
           if (r.kind === "head") {
             const edge = k === 0 && more.above ? " ↑" : "";
             return <text key={`h${r.group}`} height={1} flexShrink={0}>
@@ -147,15 +150,20 @@ export function ActionMenu({ title, groups, index, width, height, anchor, scroll
           const off = !!r.line.why;
           const label = `${r.line.name}${r.line.aims ? " ▸" : ""}`;
           const said = off ? r.line.why! : r.line.summary;
+          // There's more above: the top line says so at its end.
+          const edge = k === 0 && more.above ? " ↑" : "";
           // A line with nothing more to say has the whole width for its name.
-          const nameRoom = said ? nameW : inner - 2;
+          const nameRoom = said ? nameW : inner - 2 - edge.length;
+          // Picked by the pointer only when it moves: OpenTUI re-sends "over" to whatever a re-laid-out
+          // list puts under a pointer that's resting, which would steal the keyboard's pick as it scrolls.
           return <box key={`l${r.index}`} height={1} flexShrink={0} {...(on ? { backgroundColor: C.highlightBg } : {})}
-            onMouseOver={() => { if (!on) onPick(r.index); }}
+            onMouseMove={() => { if (!on) onPick(r.index); }}
             onMouseDown={(e: MouseEvent) => { e.stopPropagation(); if (e.button === MouseButton.LEFT) onChoose(r.index); }}>
             <text>
               <span fg={on ? C.lead : C.faint}>{`${n >= 0 && n < 9 ? n + 1 : " "} `}</span>
               <span fg={off ? C.faint : on ? C.title : C.text} {...(on && !off ? { attributes: BOLD } : {})}>{said ? truncate(label, nameRoom).padEnd(nameRoom) : truncate(label, nameRoom)}</span>
-              {said ? <span fg={off ? C.faint : C.dim} {...(off ? { attributes: ITALIC } : {})}>{truncate(` ${said}`, Math.max(0, inner - 2 - nameW))}</span> : null}
+              {said ? <span fg={off ? C.faint : C.dim} {...(off ? { attributes: ITALIC } : {})}>{truncate(` ${said}`, Math.max(0, inner - 2 - nameW - edge.length)).padEnd(Math.max(0, edge ? inner - 2 - nameW - edge.length : 0))}</span> : null}
+              {edge ? <span fg={C.faint}>{edge}</span> : null}
             </text>
           </box>;
         })}
