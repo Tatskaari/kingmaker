@@ -201,7 +201,7 @@ export class Game {
       case "combat": {
         const over = this.fight?.result();
         return { mode: "combat", text: `${recent}${this.fight?.observe() ?? ""}${over ? `\n\nHow it went: ${over.summary}` : ""}`,
-          actions: over ? [{ id: "continue", label: this.state.fightOnMap ? "Back to the map" :"See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [] };
+          actions: over ? [{ id: "continue", label: this.state.fightOnMap ? "Back to the map" : "See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [] };
       }
       case "end":
         return { mode: "end", text: `${recent}The End.`, actions: [] };
