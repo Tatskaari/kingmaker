@@ -162,3 +162,60 @@ test("the King's Morning: Kell swears to what she saw and heard when the King as
   assert.match(king.beats.find(b => b.id === "reckoning")!.cast!.kell!, /If the King asks who will swear/);
   assert.match(king.cast.find(c => c.id === "king")!.attitude, /a sergeant's sworn record/);
 });
+
+// --- The Drowned Rat: Hobb -------------------------------------------------------------------
+
+const rat = sceneById("drowned-rat");
+const plainRat = effectiveScene(rat, []);
+const TALKED = route(rat, "big-hobb", "hobb-breaks").establishes![0]!;
+const NAMED = route(rat, "confession", "told-master").establishes![0]!;
+
+test("the Rat: a confession that stops short of the name ends on what he told, wherever the scene had got to", () => {
+  // The report's tracker sat in on-his-feet when Hobb owned to the loft (T55) and went to work (T65).
+  const breaks = route(rat, "on-his-feet", "hobb-breaks");
+  assert.equal(breaks.to, "confession");
+  assert.deepEqual(breaks.establishes, [TALKED]);
+  assert.equal(route(rat, "on-his-feet", "gone-talked").to, "hobb-talks");
+  assert.match(route(rat, "on-his-feet", "gone").when, /without having owned to any of it/);
+  assert.match(rat.exits.find(e => e.id === "hobb-talks")!.outcome, /or the heart of it: at the least, his part in the loft[\s\S]*in Kell's notebook as he said it/);
+  // Whichever way they broke him, he has broken.
+  for (const [beat, id] of [["big-hobb", "win-hobb"], ["big-hobb", "scare-hobb"], ["big-hobb", "trick-hobb"], ["on-his-feet", "catch-him"], ["on-his-feet", "last-word"]] as const) {
+    assert.deepEqual(route(rat, beat, id).check?.establishes?.success, [TALKED], `${id} succeeding is Hobb breaking`);
+  }
+});
+
+test("the Rat: Kell remembers what Hobb owned to, however the scene ends, and the notebook says what he said", () => {
+  const partial = ending(plainRat, "hobb-talks", [TALKED]);
+  assert.match(remembered(partial, "kell").join(" "), /owned that he held Prout's arms in the tally loft while his master \(he wouldn't say the name\) killed him/);
+  assert.match(journal(partial)[0]!, /^Big Hobb owned to the loft/);
+  assert.doesNotMatch(JSON.stringify(partial), /Master Sallow killed/, "nobody puts a name in his mouth");
+  const named = ending(plainRat, "hobb-talks", [TALKED, NAMED]);
+  assert.match(remembered(named, "kell").join(" "), /while Master Sallow killed him/);
+  for (const exit of ["taken-in", "hobb-fled", "thrown-out", "gone-to-work"]) {
+    assert.match(remembered(ending(plainRat, exit, [TALKED]), "kell").join(" "), /owned that he held Prout's arms/, `${exit}: Kell has it`);
+    assert.ok(!remembered(ending(plainRat, exit, []), "kell").some(f => /owned that/.test(f)), `${exit}: nothing to remember if he owned to nothing`);
+  }
+});
+
+test("the Rat: his mum kept safe tonight is a plan with a way in, rolled where it could go either way, and the limit doesn't forbid it", () => {
+  for (const beat of ["big-hobb", "on-his-feet", "confession"]) {
+    const mum = route(rat, beat, "mum-safe");
+    assert.equal(mum.check?.skill, "persuasion");
+    assert.equal(mum.check?.onSuccess, "confession");
+    assert.equal(mum.check?.onFailure, undefined, "a no costs ground, and keeps the scene going");
+    assert.match(mum.when, /Kell, for a night[\s\S]*Dilly, aboard the Dabchick[\s\S]*Nan/);
+    assert.equal(mum.check?.establishes?.success?.length, 1);
+  }
+  assert.match(route(rat, "confession", "turn-hobb").when, /his mum got safe tonight is that/);
+  const limit = rat.limits!.find(l => /before the bell/.test(l) && /Shambles/.test(l))!;
+  assert.match(limit, /^The player going anywhere else themselves/);
+  assert.match(limit, /Sending is another matter[\s\S]*fetch Hobb's mum/);
+  assert.match(rat.cast.find(c => c.id === "kell")!.knows.join(" "), /can be talked into one night/);
+  assert.match(rat.cast.find(c => c.id === "dilly")!.knows.join(" "), /cabin aft on the Dabchick/);
+  const safe = route(rat, "big-hobb", "mum-safe").check!.establishes!.success!;
+  assert.match(journal(ending(plainRat, "hobb-talks", [TALKED, ...safe])).join(" "), /Hobb's mum is to be fetched from the Shambles tonight/);
+});
+
+test("the Rat: Hobb's token is only brass, and he needs no token to get in", () => {
+  assert.match(rat.cast.find(c => c.id === "hobb")!.secrets!.join(" "), /the gang know his face at the grille, so he has no need of it tonight/);
+});

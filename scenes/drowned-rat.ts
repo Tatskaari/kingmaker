@@ -18,7 +18,13 @@ import { KELL_VOICE, pageItem } from "./hanged-clerk.ts";
  *
  * Kell and Cob are written neutral to how the granary went: what they remember of the player comes
  * from the hand-off and their memories, not from these cards. Every ending chains into the Heron, so
- * each outcome says where Hobb is, what the player holds and whether Sallow has been warned.
+ * each outcome says where Hobb is, what the player holds and whether Sallow has been warned. A
+ * confession that stops short of the Master's name is still a confession: Hobb owning to the loft
+ * and going to his night's work ends on what he told them, wherever the scene had got to, and
+ * whatever he owned to is in Kell's notebook as he said it, however the scene ends. His mum's safety,
+ * the thing that would turn him, can be got for her tonight from someone in the room (Kell, for a
+ * night; Dilly's barge; Nan, who knows every bolt-hole on the stairs), on a roll where it could go
+ * either way.
  *
  * If the granary didn't give up Prout's page, it's still sewn into the boot on Cob's feet, and the
  * boundary brings it over (src/runtime/owed.ts): then it's one of this scene's essentials, with ways
@@ -28,7 +34,9 @@ import { KELL_VOICE, pageItem } from "./hanged-clerk.ts";
 
 const IDENTIFIED = "The player has picked out Big Hobb Mallory, in the fireside corner, as the big man with the bandaged hand.";
 const HERON = "The player knows that Hobb does night work at the Heron warehouse, at the downriver end of the wharves.";
-const TALKED = "Big Hobb has broken and is telling the player what he knows: the loft, his master and the Heron.";
+const TALKED = "Big Hobb has broken and begun to tell the player what he did, the loft first: he held the clerk while his master killed him, and hauled the rope. The rest (his master's name, the Heron) comes as he's asked.";
+const NAMED = "Big Hobb has named his master to the player: Master Sallow of the Royal Purveyor's office.";
+const MUM_SAFE = "Hobb's mum is to be kept safe tonight: someone here has agreed to take her in, out of the Master's reach, and she'll be fetched from the Shambles before he thinks to look.";
 const TOKEN = "Hobb has handed over his brass river-door token for the Heron warehouse.";
 const INSIDE = "Hobb has agreed to be the player's man inside the Heron tonight.";
 const PAGE = "Prout's page is out of the lining of Cob's left boot: razored from the Royal Granary Roll, a dozen King's Road grain wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and, at the foot, 'Not goblins. Who pays the hedge-folk?'";
@@ -52,6 +60,23 @@ function keepToken(world: WorldApi, outcome: SceneOutcome): void {
   if (has(outcome.established, TOKEN)) world.player.addItem(world.newItem(tokenItem));
 }
 
+/**
+ * What Hobb owned to, in Kell's notebook as he said it, however the scene ends (`always`: the ending
+ * is his telling it, so it's there even if the record missed the moment he broke).
+ */
+function kellRecords(world: WorldApi, outcome: SceneOutcome, options: { always?: boolean } = {}): void {
+  if (!options.always && !has(outcome.established, TALKED)) return;
+  const master = has(outcome.established, NAMED) ? "Master Sallow" : "his master (he wouldn't say the name)";
+  world.character("kell").remember(`In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while ${master} killed him, and hauled the rope. It's in her notebook as he said it.`);
+}
+
+/** Hobb's mum, if someone here agreed to take her in tonight. */
+function mumKeptSafe(world: WorldApi, outcome: SceneOutcome): void {
+  if (!has(outcome.established, MUM_SAFE)) return;
+  world.promise({ by: "player", to: "hobb", what: "See his mum taken in somewhere safe tonight, out of the Master's reach." });
+  world.journal("Hobb's mum is to be fetched from the Shambles tonight and kept somewhere safe, out of the Master's reach.");
+}
+
 /** Prout's page, if it came out of Cob's boot tonight. */
 function keepPage(world: WorldApi, outcome: SceneOutcome): void {
   if (!has(outcome.established, PAGE)) return;
@@ -67,7 +92,7 @@ const winHobb: Transition = {
     skill: "persuasion", dc: 14,
     success: "Something gives. Hobb looks at his wrapped hand for a long moment and says, very quietly, 'I only held the rope.' The loft comes out first, haltingly; the rest will come as he's asked.",
     failure: "Hobb shakes his head and drinks, and his eyes go to the door: not here, not yet. He heard it, though, and he's closer to leaving.",
-    onSuccess: "confession",
+    onSuccess: "confession", establishes: { success: [TALKED] },
   },
 };
 
@@ -78,7 +103,7 @@ const scareHobb: Transition = {
     skill: "intimidation", dc: 15,
     success: "For a moment the player frightens him more than his master does, and the loft comes out in a terrified rush; the rest will come as he's asked. He won't forget who frightened it out of him.",
     failure: "His master frightens him more than anyone in this room. Hobb comes up out of his chair like a wall falling over and makes for the door.",
-    onSuccess: "confession", onFailure: "on-his-feet",
+    onSuccess: "confession", onFailure: "on-his-feet", establishes: { success: [TALKED] },
   },
 };
 
@@ -89,9 +114,25 @@ const trickHobb: Transition = {
     skill: "deception", dc: 13,
     success: "He swallows it whole and, in a panic, blurts out a piece more than they asked for (to prove he's kept faith, or to save his own skin), and he'll answer the next question too.",
     failure: "He sees through it, and that's the worst thing it could be: proof that people are asking. He's up out of his chair and making for the door.",
-    onSuccess: "confession", onFailure: "on-his-feet",
+    onSuccess: "confession", onFailure: "on-his-feet", establishes: { success: [TALKED] },
   },
 };
+
+/**
+ * Hobb's mum kept out of the Master's reach tonight: what would turn him, got for her from whoever
+ * could give it (Kell for a night, Dilly's barge, Nan's bolt-holes), on a roll where it could go
+ * either way. Asked for by the player, not promised with nothing behind it.
+ */
+const mumSafe = (onSuccess: string): Transition => ({
+  id: "mum-safe", on: "attempt",
+  when: "The player tries to get Hobb's mum kept safe tonight, out of the Master's reach, by asking someone here who could give her that to take her in (Kell, for a night in her own room or at the watch house; Dilly, aboard the Dabchick at the foot of the stairs; Nan, who knows every bolt-hole on the stairs), where it could go either way. (Promising it with nothing behind it isn't this, and nor is the player going across the city themselves before the bell.)",
+  check: { reason: "to get someone to take Hobb's mum in tonight",
+    skill: "persuasion", dc: 12,
+    success: "Whoever was asked grumbles and gives way: Kell, for one night in her own room, and it goes in the book ('One night. It's written down.'); or Dilly, aboard the Dabchick under the onions, as long as nobody in a uniform sets foot on her; or Nan, who has a word with a widow on the landing who owes her. Someone will fetch her from the Shambles tonight, before the Master thinks to look. Hobb looks from one of them to the other for a long moment, and his shoulders come down: he believes it. If he hasn't told it yet, it starts now, very quietly: 'I only held the rope.'",
+    failure: "Whoever was asked won't, not like that and not tonight (Kell won't call her room a safe house or keep it from her own notebook; Dilly won't have the watch anywhere near her barge; Nan won't have the gentleman's trouble on her stairs), and Hobb heard the no: he's nearer the door for it. But the need is out in the open now, and the others in the room haven't been asked.",
+    onSuccess, establishes: { success: [MUM_SAFE] },
+  },
+});
 
 /** The Rat's own sport: elbows on the table, Nan referees. Open while Hobb is still in his chair. */
 const armWrestle = (beat: string): Transition => ({
@@ -189,7 +230,7 @@ export const drownedRat: Scene = {
         "Who, which costs him most: he says 'the Master', and gives the name only when asked for it straight, in a whisper: Master Sallow of the Royal Purveyor's office, who struck the clerk with the head of his cane and used the cord.",
         "Only if asked: at first light the Master went back to look, and paid a granary girl a silver crown to say she'd seen the clerk jump.",
         "His night work, if asked: the Heron warehouse, at the downriver end of the wharves, re-sacking ('It's the King's grain, sir. Everyone knows. Nobody says.'). Tonight's a loading night, a barge for Saltmere; he's due on the hoist at the eleventh bell, and the Master comes at the midnight bell to see it off.",
-        "How he gets in, if asked: a brass heron token on the string round his neck, shown at the grille of the river door off the plank walk. It's only brass; he'll give it up if asked. He knows his own part of the night (the hoist, the door, the bell) and not how the rest of it works.",
+        "How he gets in, if asked: a brass heron token on the string round his neck, shown at the grille of the river door off the plank walk. It's only brass, and the gang know his face at the grille, so he has no need of it tonight: he'll give it up if asked. He knows his own part of the night (the hoist, the door, the bell) and not how the rest of it works.",
       ],
       attitude: "Polite, slow and closed: he wants to be left alone with his drink. More frightened of his master than of anyone in this room, until someone gives him reason to be otherwise. Torn: the strongest man on the river stairs, and the most frightened man in the Rat. Threats he can stand (he's been threatened all his life); kindness undoes him, because it makes him want to tell. Push him clumsily and he bolts, and frightened men run to their masters. Arlo's challenge presses it: wrestle, and the hand shows; refuse a third time, and he gives up the chair in front of everyone. No fighter unless cornered, and then a door falling on you. Ties here: Mrs Quill, whose barrels he's carried since he was Cob's size; Dilly, who feeds him and is winning his silver; Arlo, who could have the chair and welcome, if it didn't mean showing the hand; Nan's loud little pot-boy, whom he once gave the end of his pie (he doesn't know the boy was in the loft).",
     },
@@ -208,7 +249,7 @@ export const drownedRat: Scene = {
         "A gill: Big Hobb Mallory is the big lad in the fireside corner, champion of the Rat at the arm-wrestling these eleven years, and he's been drinking for two since last night.",
         "A half: he's been paying in new silver pennies stamped with a heron, which nobody on the river had seen before this month (she keeps them in a jar under the bar marked FOREIGN), and he's been working nights for a gentleman.",
         "A pint: the gentleman's work is at the Heron warehouse, at the downriver end of the wharves; Hobb's due there at the eleventh bell, and tonight's a loading night, with a Saltmere barge in. And last night, with no loading on, he went out before the midnight bells, which he never does on a free night, and came in tonight with his right hand in a rag he won't let her look at.",
-        "Hobb sends his wages to his mum in the Shambles every week, without fail. That one's free; everybody knows it.",
+        "Hobb sends his wages to his mum in the Shambles every week, without fail. That one's free; everybody knows it. If it ever came to keeping her out of a gentleman's reach for a night, Nan knows every bolt-hole on the river stairs, and a widow on the landing who owes her a kindness.",
         "Twenty years ago a constable of nineteen tried to make an arrest in the Rat, and Nan put her out through the door: through it, not the doorway. The constable was Agnes Kell. Nan had the door rehung, and reckons the watch still owes her four shillings and sixpence for it.",
         "Cob is her pot-boy on busy nights, for a penny and a bowl of eel stew. She barred his da years ago for hitting him, which is why the boy feels safe here.",
         "Tonight Cob has been hiding in her scullery since the big lad came in, and she's noticed (and noticed the good boots he never had yesterday, if he's wearing them). Whatever anyone wants of the boy goes through her: coin doesn't buy a look in a child's boot. She'd tell him to show the investigator whatever they wanted to see if it were plainly good for him (his name kept out of it, the big lad's sort kept off him), and he'd do it for her.",
@@ -236,6 +277,7 @@ export const drownedRat: Scene = {
         "She can arrest a man for murder on real evidence (his own admission, a witness who saw him, a wound that matches) and take him to the watch-house cells, by the book and outside Nan's door: an arrest is watch on duty.",
         "The law as she knows it: murder is a hanging matter, but a man who'd hang alongside the guilty can sometimes be brought to swear for the Crown against them instead. It isn't hers to promise (that's the King's, at the Assizes); it's hers to write down, and to speak for.",
         "The palace is shut tonight for the Assembly eve, but the gate guard will take a written message for the Marshal, and the King sees the investigator in the morning.",
+        "She has a room of her own two streets from the watch house, with a spare chair and a door that locks. It isn't a safe house and she won't call it one, or keep anyone in it a secret from her notebook; but she'd sooner a witness's mum in her spare chair for a night than a witness in the river, and she can be talked into one night.",
       ],
       secrets: [
         "Prout's visit three days ago, and her sending him to the palace. If it came out at the granary, it's told, and she doesn't tell it again. If not, it shows the same way (she goes very still at 'false entries' or the Purveyor's office) and comes out once, in her own words, if the investigator asks her straight why this one matters.",
@@ -296,7 +338,7 @@ export const drownedRat: Scene = {
       knows: [
         "Hobb plays at her table every night, and since last night he's been playing like a man trying to lose: he's lost a pile of new silver to her, every penny stamped with a heron.",
         "He told her tonight he's due at work at the eleventh bell, 'at the Heron', and that he'd sooner be dead.",
-        "She's fed him since he was a lad carrying Nan's barrels: bread and dripping on the Dabchick's deck.",
+        "She's fed him since he was a lad carrying Nan's barrels: bread and dripping on the Dabchick's deck. There's a cabin aft on the Dabchick, and she has hidden strays in it before; for her lamb's old mum she would, as long as nobody in a uniform sets foot aboard (the onions).",
         "What she reckons is wrong with him: he's got himself mixed up in some Saltmere smuggling at the Heron, past the tide-waiters, and it's frightened the life out of him. She'd tell him there's no rope for a bit of smuggling, if he'd only say. (She's wrong about what it is.)",
       ],
       secrets: [
@@ -351,7 +393,7 @@ export const drownedRat: Scene = {
           to: "confession", establishes: [TALKED],
         },
         { id: "heron-learned", when: "The player has learned that Hobb does night work at the Heron warehouse downriver (from Hobb, Nan's gossip, Dilly, the regulars, or the heron on the new pennies).", to: "big-hobb", establishes: [HERON] },
-        winHobb, scareHobb, trickHobb, armWrestle("big-hobb"), ...pageRoutes("big-hobb"),
+        winHobb, scareHobb, trickHobb, mumSafe("confession"), armWrestle("big-hobb"), ...pageRoutes("big-hobb"),
         bell("The player has been at Hobb a good while (at least six exchanges at this point) without him breaking, or is going round in circles: the eleventh bell rings across the water, and Hobb gets up to go to work."),
       ],
     },
@@ -373,7 +415,7 @@ export const drownedRat: Scene = {
             skill: "athletics", dc: 13,
             success: "They bring him down on the wet steps, or pin him against the river wall. He doesn't fight. He sits there in the drizzle like a felled tree, and it starts coming out of him, the loft first.",
             failure: "He's faster than he looks and more frightened than they are: up the stairs, through the bunting and gone into the dark.",
-            onSuccess: "confession", onFailure: "hobb-fled",
+            onSuccess: "confession", onFailure: "hobb-fled", establishes: { success: [TALKED] },
           },
         },
         {
@@ -383,11 +425,18 @@ export const drownedRat: Scene = {
             skill: "persuasion", dc: 14,
             success: "Hobb stops with his hand on the door. His shoulders go down. He comes back to the corner, sits, and says, 'I only held the rope.'",
             failure: "He shakes his head, says he's sorry, and goes out into the dark, down the stairs towards the wharves.",
-            onSuccess: "confession", onFailure: "gone-to-work",
+            onSuccess: "confession", onFailure: "gone-to-work", establishes: { success: [TALKED] },
           },
         },
+        mumSafe("confession"),
+        {
+          id: "hobb-breaks",
+          when: "Hobb, on his feet or in the doorway, has broken and begun to tell what he did or who he does it for (the loft, his master, the Heron), however it came out.",
+          to: "confession", establishes: [TALKED],
+        },
         { id: "sat-down", when: "Hobb has sat back down, or been talked back to his corner, without having told what he knows.", to: "big-hobb" },
-        { id: "gone", when: "Hobb has gone out of the Rat to his night's work (not bolting) without telling what he knows, and the player has let him go or gone out after him to follow.", to: "gone-to-work" },
+        { id: "gone-talked", when: "Hobb has gone out of the Rat to his night's work (not bolting) after owning to some of it (the loft and his part in it, his master, the Heron or his token), and the player has let him go or gone out after him to follow.", to: "hobb-talks" },
+        { id: "gone", when: "Hobb has gone out of the Rat to his night's work (not bolting) without having owned to any of it (not the loft, his master or the Heron), and the player has let him go or gone out after him to follow.", to: "gone-to-work" },
         { id: "got-away", when: "Hobb has bolted out of the Rat and away up the stairs into the dark, and nobody went after him, or they've lost him.", to: "hobb-fled" },
       ],
     },
@@ -405,11 +454,12 @@ export const drownedRat: Scene = {
       pressure: "The eleventh bell rings across the water. Hobb gets to his feet, because he has to be at the river door when it stops.",
       transitions: [
         { id: "told-heron", when: "Hobb has told the player about the Heron warehouse: what goes on there, tonight's loading, or how to get in.", to: "confession", establishes: [HERON] },
+        { id: "told-master", when: "Hobb has named his master to the player: Master Sallow of the Royal Purveyor's office.", to: "confession", establishes: [NAMED] },
         { id: "token-given", when: "Hobb has handed over his brass river-door token for the Heron (to the player or to Kell).", to: "confession", establishes: [TOKEN] },
         { id: "inside-man", when: "Hobb has agreed to help the player at the Heron tonight: to open the river door to them, keep the gang off them, or point out the clerk's book.", to: "confession", establishes: [INSIDE] },
         {
           id: "turn-hobb", on: "attempt",
-          when: "The player tries to talk Hobb into going back into the Heron tonight as their man inside, where his fear of his master could still win. (A promise that truly answers his fear needs no dice.)",
+          when: "The player tries to talk Hobb into going back into the Heron tonight as their man inside, where his fear of his master could still win. (A promise that truly answers his fear needs no dice: his mum got safe tonight is that.)",
           check: { reason: "to talk Hobb into being your man inside the Heron",
             skill: "persuasion", dc: 14,
             success: "Hobb swallows, nods and says he'll do it: he'll open the river door to their knock and keep the gang off them, for as long as his nerve holds.",
@@ -419,6 +469,7 @@ export const drownedRat: Scene = {
         },
         { id: "let-him-go", on: "attempt", when: "The player is done at the Rat: they leave with what Hobb told them, letting him go to his night's work (or taking him along), without having him arrested.", to: "hobb-talks" },
         { id: "hobb-runs", when: "Hobb's nerve has gone and he's bolting for the door (at the word 'arrest', or at the thought of his master).", to: "on-his-feet" },
+        mumSafe("confession"),
         ...pageRoutes("confession"),
         { id: "bell-talked", on: "cue", when: "The player has had Hobb's story a while (at least five exchanges at this point) without deciding what becomes of him: the eleventh bell, and Hobb has to go to work.", to: "hobb-talks" },
       ],
@@ -437,26 +488,28 @@ export const drownedRat: Scene = {
   exits: [
     {
       id: "hobb-talks", kind: "progress", title: "What Big Hobb knows",
-      outcome: "Big Hobb has told the player what he knows (his master, the loft, the Heron warehouse and how to get in at night), and the player is leaving the Rat with it. Hobb isn't under arrest and hasn't run: he's going to his night's work at the Heron, as their man inside if he agreed to be, or keeping his head down if not.",
+      outcome: "Big Hobb has told the player what he knows, or the heart of it: at the least, his part in the loft (he held the clerk's arms while his master killed him, then hauled him up on the rope), and as much of the rest as they asked for (his master's name, the Heron warehouse and how to get in at night). The player is leaving the Rat with it, and it's in Kell's notebook as he said it. Hobb isn't under arrest and hasn't run: he's going to his night's work at the Heron, as their man inside if he agreed to be, or keeping his head down if not.",
       closing: "Close on the player leaving the Rat with what they came for: Hobb's face as they go (or his broad back going down the stairs ahead of them at the bell), Nan's look, the river below. Kell closes her notebook on it.",
       next: "wharf-night",
       script: (world, outcome) => {
         const hobb = world.character("hobb");
+        const named = has(outcome.established, NAMED);
         hobb.moveTo("heron-warehouse");
-        hobb.remember("He told the King's investigator what happened in the tally loft, who his master is, and how to get into the Heron.");
+        hobb.remember(named ? "He told the King's investigator what happened in the tally loft, and who his master is." : "He told the King's investigator what he did in the tally loft. He didn't say his master's name.");
         if (has(outcome.established, INSIDE)) world.promise({ by: "hobb", to: "player", what: "Open the Heron's river door to the player tonight and keep the gang off them." });
         keepToken(world, outcome);
-        world.character("kell").remember("In the Drowned Rat, Big Hobb Mallory said he held Prout while Master Sallow killed him, and told us about the Heron warehouse. She wrote it all down.");
+        kellRecords(world, outcome, { always: true });
         world.setFlag("hobb_identified", true);
         heronLead(world);
-        world.quest("purveyors-man").advance("hobb_talked", "Big Hobb Mallory says Master Sallow killed Prout in the tally loft and had Hobb hoist him; the stolen grain goes through the Heron warehouse.");
-        world.journal("Big Hobb talked. The grain goes through the Heron warehouse, and tonight a barge is loading there.");
+        world.quest("purveyors-man").advance("hobb_talked", `Big Hobb Mallory says ${named ? "Master Sallow" : "his master"} killed Prout in the tally loft while Hobb held his arms, and had Hobb hoist him; the stolen grain goes through the Heron warehouse.`);
+        world.journal(`${named ? "Big Hobb talked: he held Prout in the loft while Master Sallow killed him." : "Big Hobb owned to the loft: he held Prout while his master killed him, and hauled the rope."} The grain goes through the Heron warehouse, and tonight a barge is loading there.`);
+        mumKeptSafe(world, outcome);
         keepPage(world, outcome);
       },
     },
     {
       id: "taken-in", kind: "progress", title: "Taken in",
-      outcome: "Sergeant Kell has arrested Big Hobb, on evidence she accepts, and is taking him up the river stairs to the watch-house cells. Whatever he told the player before he was taken, they have; he won't be at the Heron tonight.",
+      outcome: "Sergeant Kell has arrested Big Hobb, on evidence she accepts, and is taking him up the river stairs to the watch-house cells. Whatever he told the player before he was taken, they have, and whatever he owned to is in Kell's notebook as he said it; he won't be at the Heron tonight.",
       closing: "Close on the arrest done by the book outside Nan's door: Kell's proper words, Hobb's great shoulders going down, the Rat silent behind them, the river below. Kell will see him locked up and come on to wherever the investigator is going next.",
       next: "wharf-night",
       script: (world, outcome) => {
@@ -464,17 +517,19 @@ export const drownedRat: Scene = {
         hobb.moveTo("watch-house");
         hobb.remember("Sergeant Kell arrested him outside the Drowned Rat for the clerk's death, with the King's investigator there.");
         world.character("kell").remember("She arrested Big Hobb Mallory for Prout's murder outside the Drowned Rat and took him to the watch-house cells.");
+        kellRecords(world, outcome);
         keepToken(world, outcome);
         world.setFlag("hobb_identified", true);
         if (knowsHeron(outcome)) heronLead(world);
         world.quest("purveyors-man").advance("hobb_arrested", "Big Hobb Mallory, the big man with the bandaged hand, is in the watch-house cells.");
         world.journal("Kell took Big Hobb in. He's in the watch-house cells tonight.");
+        mumKeptSafe(world, outcome);
         keepPage(world, outcome);
       },
     },
     {
       id: "hobb-fled", kind: "other", title: "Hobb runs",
-      outcome: "Big Hobb has run from the Rat and got away into the dark. Frightened out of his wits, he's gone where his feet always take him: to his master, to warn him that the King's investigator and a watch sergeant are asking about the loft. Whatever he told the player before he ran, they have.",
+      outcome: "Big Hobb has run from the Rat and got away into the dark. Frightened out of his wits, he's gone where his feet always take him: to his master, to warn him that the King's investigator and a watch sergeant are asking about the loft. Whatever he told the player before he ran, they have, and whatever he owned to is in Kell's notebook as he said it.",
       closing: "Close on the empty doorway, the wet stairs and the dark; the Rat's silence, and Nan's look, which says whose fault that was.",
       next: "wharf-night",
       script: (world, outcome) => {
@@ -485,7 +540,9 @@ export const drownedRat: Scene = {
         world.setFlag("hobb_identified", true);
         world.setFlag("sallow_warned", true);
         if (knowsHeron(outcome)) heronLead(world);
+        kellRecords(world, outcome);
         world.journal("Big Hobb ran from the Drowned Rat, and he'll have gone straight to his master.");
+        mumKeptSafe(world, outcome);
         keepPage(world, outcome);
       },
     },
@@ -501,7 +558,9 @@ export const drownedRat: Scene = {
         world.character("hobb").moveTo("heron-warehouse");
         if (has(outcome.established, IDENTIFIED) || has(outcome.established, TALKED)) world.setFlag("hobb_identified", true);
         if (knowsHeron(outcome)) heronLead(world);
+        kellRecords(world, outcome);
         world.journal("Thrown out of the Drowned Rat by Nan Quill and her cudgel, Manners.");
+        mumKeptSafe(world, outcome);
         keepPage(world, outcome);
       },
     },
@@ -514,7 +573,9 @@ export const drownedRat: Scene = {
         world.character("hobb").moveTo("heron-warehouse");
         if (has(outcome.established, IDENTIFIED)) world.setFlag("hobb_identified", true);
         if (knowsHeron(outcome)) heronLead(world);
+        kellRecords(world, outcome);
         world.journal("Big Hobb went off to his night's work at the bell without telling us what he knows.");
+        mumKeptSafe(world, outcome);
         keepPage(world, outcome);
       },
     },
@@ -560,7 +621,7 @@ export const drownedRat: Scene = {
     "Credit, IOUs or 'the King will pay': rule one. Money on the bar, goods Nan will take at her own valuation, or nothing.",
     "Master Sallow himself, or anyone who'll say his name aloud for money: he wouldn't be seen dead on the river stairs, nobody in the Rat will say where he is, and Nan doesn't sell quarts.",
     "Another way out of the Rat, or a private room to talk in: it's one long room and a scullery. The only door opens onto the stairs; the scullery's slop hatch onto the river is just big enough for Cob, and the river under it is fast and cold.",
-    "Going anywhere else tonight before the bell (Hobb's lodgings, the palace offices, the watch house for help): the trail is here, and at the bell it goes downriver with Hobb. His lodging is a room in the Shambles across the city, with his mum in it.",
+    "The player going anywhere else themselves before the bell (Hobb's lodgings, the palace offices, the watch house for help): the trail is here, and at the bell it goes downriver with Hobb. His lodging is a room in the Shambles across the city, with his mum in it. Sending is another matter, and not this: a written message to the Marshal by the palace gate, or someone to fetch Hobb's mum tonight and take her somewhere safe, if someone here will.",
     "Buying magic here (truth potions, charms, a hedge-wizard for hire): there's none to be had on the river stairs, and Nan sells gossip, not truth. (The player's own spells are theirs, and work as the rules say.)",
   ],
   anchors: ["river-stairs", "rat-door", "bar", "rules-board", "fireside-corner", "card-table", "champions-chair", "scullery", "slop-hatch"],
