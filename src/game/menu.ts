@@ -23,6 +23,7 @@ import type { CombatSetup, CombatantSetup, MapActor, StoryState, Tile2, TileMap 
  *   attack@x,y, throw@x,y, shove@x,y, grapple@x,y           a blow with the weapon in hand, a stone, a shove, a grab
  *   jump@x,y                                                a leap to a tile in reach (the rules' jump: farther takes Athletics)
  *   hide                                                    a Stealth check against whoever's watching
+ *   lift@x,y                                                a pocket picked beside someone: Sleight of Hand, DC 10 asleep, 15 awake
  *   rest_short, rest_short_recover, rest_long               an hour (and Arcane Recovery), a night: once each before the clock moves on
  *   use_<item>                                              something carried that's used up (a potion)
  *
@@ -47,8 +48,11 @@ export interface Ctx {
   session: SessionState;
   ex: ExploreState;
   /** The explorer's own state, which keeps `rested` and `spotted`. */
-  keep: { rested?: Rested; spotted?: Spotted };
+  keep: { rested?: Rested; spotted?: Spotted; lifted?: Lifted };
 }
+
+/** Whose pockets the player has tried, by the story's clock: tried once, by a time of day (lifted, or caught at it). */
+export interface Lifted { time: StoryState["time"]; who: string[] }
 
 /** What doing something on the map came to, for the core (play.ts). */
 export interface Done {
@@ -473,7 +477,7 @@ export function menuText(c: Ctx): string {
 // Doing it.
 
 const STEM = /^(cast|feature)_(.+?)(?:_(self)|@(\d+),(\d+))?$/;
-const BLOW = /^(attack|throw|shove|grapple|jump)@(\d+),(\d+)$/;
+const BLOW = /^(attack|throw|shove|grapple|jump|lift)@(\d+),(\d+)$/;
 
 /** Is this one of the menu's action ids? */
 export const isMenuAct = (id: string) => STEM.test(id) || BLOW.test(id) || /^(hide|rest_short|rest_short_recover|rest_long)$/.test(id) || /^use_.+$/.test(id);
@@ -544,6 +548,8 @@ export async function doMenuAct(c: Ctx, id: string): Promise<Done> {
   if (entry.key === "jump") return leapNow(c, tw, at!);
   if (entry.group === "items") return result(c, tw, await useItem(session, id.slice("use_".length)), { act: entry, wasHidden });
   const target = self ? undefined : at ? aimedAt(tw, ex, at) : undefined;
+  // Someone the story keeps for a scene, or who walks with you, is the scene's or the talk's to play: say it there.
+  if (entry.key === "lift") return target?.kind === "being" && !target.companion ? liftNow(c, target.entity) : { text: "(Lift a purse: not theirs, on the map: in a scene, say how you go about it.)" };
   // Someone the story is keeping for a scene: the act opens it.
   if (target?.kind === "waiting") return storyAct(c, entry, target, at!);
   if (target?.kind === "being" && target.companion && (entry.effect === "harm" || entry.effect === "social")) return talkAct(c, tw, entry, target);
@@ -854,6 +860,31 @@ async function hideNow(c: Ctx, tw: TownWorld): Promise<Done> {
     ? (watchers.length ? `You're out of sight. Nobody about is looking your way, which ${tw.roam ? "in a zoo whose exhibits look back" : "in Caerwyn on Assembly eve"} is an achievement.` : "Out of sight, with nobody about to be out of sight of. It's good practice.")
     : sharpest ? `${capital(the(sharpest.name))} is looking right at you, with interest.` : "There's nowhere much to hide here: anyone who came along would see you.";
   return { text: `${line}\n${said}`, lines: [line] };
+}
+
+/**
+ * A pocket picked on the map: a Sleight of Hand check, DC 10 while they sleep and 15 while they're
+ * awake. Made, a few coins go into the player's pockets (`carried`, which the next scene and the
+ * sheet read); missed, they wake (or turn) with a hand on your wrist, and you back off with nothing.
+ * Either way, not them again before the clock moves on.
+ */
+async function liftNow(c: Ctx, who: Entity): Promise<Done> {
+  const { session, ex } = c;
+  const tried = c.keep.lifted?.time === ex.story.time ? c.keep.lifted.who : [];
+  if (tried.includes(who.id)) return { text: `(Lift a purse: not now, you've tried ${the(who.name)} already.)` };
+  c.keep.lifted = { time: ex.story.time, who: [...tried, who.id] };
+  const asleep = /\basleep\b/i.test(who.name) || who.states.includes("asleep");
+  const roll = await skillCheck(session, "sleight_of_hand", asleep ? 10 : 15);
+  const line = describeRoll(roll, `to lift ${the(who.name)}'s purse`);
+  if (!roll.success) return { text: `${line}
+${capital(the(who.name))} ${asleep ? "wakes with a grunt" : "turns"} and a hand closes on your wrist. You let go, and back off with nothing but a look to remember.`, lines: [line] };
+  const pennies = 1 + ((session.seed + 7 * session.rollCount) % 6);
+  const pockets = (session.carried ??= []);
+  const like = pockets.find(e => e.name === "pennies" && e.parent === "player" && e.quantity !== undefined);
+  if (like) like.quantity = (like.quantity ?? 0) + pennies;
+  else pockets.push({ id: pockets.some(e => e.id === "pennies") ? `pennies-${pockets.length + 1}` : "pennies", name: "pennies", kind: "item", parent: "player", tags: [], states: [], notes: [], quantity: pennies });
+  return { text: `${line}
+A light touch, and ${pennies} ${pennies === 1 ? "penny" : "pennies"} ${pennies === 1 ? "is" : "are"} yours. ${capital(the(who.name))} ${asleep ? "sleeps on" : "doesn't notice a thing"}.`, lines: [line] };
 }
 
 /** Why the map won't do an entry now, whatever the rules say: you've been seen trying to hide here. */

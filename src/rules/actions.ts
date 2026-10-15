@@ -541,11 +541,13 @@ export function catalogue(state: SessionState, context: Context = {}): Catalogue
   const reach = jumpReachFor(sheet.abilityScores.STR);
   const athletics = sheet.skills.find(k => k.skill === "athletics")?.modifier ?? 0;
   const stealth = sheet.skills.find(k => k.skill === "stealth")?.modifier ?? 0;
+  const sleight = sheet.skills.find(k => k.skill === "sleight-of-hand")?.modifier ?? 0;
   const main = mainWeapon(r);
   const actions: Entry[] = [];
   if (main) actions.push({ key: "attack", group: "actions", name: `Attack (${main.name.toLowerCase()})`, summary: `${main.dice} ${main.type}, ${main.range > 5 ? `${main.range} ft` : "in reach"}`, aim: { kind: "target", range: main.long ?? main.range, self: false }, effect: "harm", act: "attack", ...(cantAct ? { why: cantAct } : {}) });
   actions.push({ key: "jump", group: "actions", name: "Leap", summary: `${reach.long} ft with a run-up, ${reach.standingLong} standing (more takes Athletics ${signed(athletics)})`, aim: { kind: "tile", range: Math.floor(reach.long * 1.5 / 5) * 5, jump: { long: reach.long, standing: reach.standingLong } }, effect: "none", act: "jump", ...(cantAct ? { why: cantAct } : conditions.includes("prone") ? { why: "you're on the ground: get up first" } : {}) });
   actions.push({ key: "hide", group: "actions", name: "Hide", summary: `slip out of sight: a Stealth check (${signed(stealth)})`, aim: { kind: "none" }, effect: "none", act: "hide", ...(cantAct ? { why: cantAct } : {}) });
+  actions.push({ key: "lift", group: "actions", name: "Lift a purse", summary: `pick someone's pocket: a Sleight of Hand check (${signed(sleight)}), easier while they sleep`, aim: { kind: "creature", range: 5, self: false }, effect: "none", act: "lift", ...(cantAct ? { why: cantAct } : {}) });
   actions.push({ key: "throw", group: "actions", name: "Throw something", summary: "a stone, or whatever's to hand: 1d4, 20 ft", aim: { kind: "target", range: 60, self: false }, effect: "harm", act: "throw", ...(cantAct ? { why: cantAct } : {}) });
   actions.push({ key: "shove", group: "actions", name: "Shove someone over", summary: `your Strength against theirs: down they go`, aim: { kind: "creature", range: 5, self: false }, effect: "harm", act: "shove", ...(cantAct ? { why: cantAct } : {}) });
   actions.push({ key: "grapple", group: "actions", name: "Grab hold of someone", summary: "hold them fast, until they break free", aim: { kind: "creature", range: 5, self: false }, effect: "harm", act: "grapple", ...(cantAct ? { why: cantAct } : {}) });

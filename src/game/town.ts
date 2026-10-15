@@ -8,7 +8,7 @@ import {
   setStory, steps, tileAt, tileName, isStructure, travel, walkPlan, whereabouts, type ExploreState, type PlaceRegion,
 } from "./map/index.ts";
 import { catalogue } from "../rules/actions.ts";
-import { aimView, checkAim, doMenuAct, isMenuAct, menuOf, menuText, storyRoute, type AimAt, type AimView, type Ctx, type Done as MenuDone, type MenuView, type Rested, type Spotted } from "./menu.ts";
+import { aimView, checkAim, doMenuAct, isMenuAct, menuOf, menuText, storyRoute, type AimAt, type AimView, type Ctx, type Done as MenuDone, type Lifted, type MenuView, type Rested, type Spotted } from "./menu.ts";
 import type { Action, Explorer, GameState } from "./play.ts";
 import { townWorld } from "./town-world.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
@@ -54,6 +54,8 @@ export interface TownState {
   rested?: Rested;
   /** Where they were seen trying to hide (not again from there before the clock moves on). */
   spotted?: Spotted;
+  /** Whose pockets they've tried (not again before the clock moves on). */
+  lifted?: Lifted;
 }
 
 /** How far a QA observation lists what's in sight, in steps. */

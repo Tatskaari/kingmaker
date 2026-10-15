@@ -457,3 +457,17 @@ test("healing someone who's down isn't violence: Healing Word on a guard who wen
   assert.doesNotMatch(text, /come at you|Roll for initiative/);
   assert.equal(c.state.mode, "explore");
 });
+
+test("lift a purse: a Sleight of Hand check beside someone, a few coins into your pockets or a hand on your wrist, and not them twice (thief#12)", async () => {
+  const g = await play(PREGENS.rogue!.build, 3, 5);
+  const porter = actorsHere(exploreState(g.state)).find(a => /porter/.test(a.name))!;
+  standAt(g, porter.at.x + 1, porter.at.y);
+  assert.equal(item(g, "lift").why, undefined);
+  const before = (g.session.carried ?? []).find(e => e.name === "pennies")?.quantity ?? 0;
+  const text = await g.act(`lift@${porter.at.x},${porter.at.y}`);
+  assert.match(text, /^Sleight of Hand check to lift .*'s purse: \d+ [+-] ?\d+ = \d+ vs DC 15: (success|failure)/im, "awake: DC 15");
+  const got = (g.session.carried ?? []).find(e => e.name === "pennies")?.quantity ?? 0;
+  if (/: success/.test(text)) assert.ok(got > before, "coins in your pockets");
+  else { assert.equal(got, before); assert.match(text, /a hand closes on your wrist/); }
+  assert.match(await g.act(`lift@${porter.at.x},${porter.at.y}`), /you've tried .* already/);
+});
