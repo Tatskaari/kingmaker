@@ -40,7 +40,7 @@ const kell: Character = {
 /** Pressing the King to act: a roll only where what he's been given doesn't make it plain, and a failure that costs time, not the morning. */
 const pressTheKing: Transition = {
   id: "press-the-king", on: "attempt",
-  when: "The player presses the King to act today rather than after the Assembly (to arrest or charge Sallow, to set the record straight, to keep a promise made to Hobb or the children), where it could go either way because what they've given him doesn't make it plain. (Asking for Sallow to be sent in to explain himself isn't this: the King grants that at once. With the true book or Prout's page in his hands, a sergeant's sworn record that points at Sallow, Sallow giving himself away in his own hearing, or Sallow already in a cell, no dice are needed: he acts.)",
+  when: "The player presses the King to act today rather than after the Assembly (to arrest or charge Sallow, to set the record straight, to keep a promise made to Hobb or the children), where it could go either way because what they've given him doesn't make it plain. (Asking for Sallow to be made to explain himself isn't this, even in the same breath as an accusation: hearing him comes first, and the King grants it at once. With the true book or Prout's page in his hands, a sergeant's sworn record that points at Sallow, Sallow giving himself away in his own hearing, or Sallow already in a cell, no dice are needed: he acts.)",
   check: { reason: "to get the King to act before the procession", skill: "persuasion", dc: 15,
     success: "The King puts his cup down, looks at the investigator for a long moment, and says, 'Yes.' Then, to the Marshal: 'Garran, see to it.'",
     failure: "The King sighs and pats the investigator's arm, and reaches for 'after the Assembly' without quite getting there: he looks at the clock instead. 'On whose word, Majesty?' the Marshal asks, of nobody in particular, and calls the minutes, fewer now. Asking won't move him on its own: he wants something he can hold, and someone to stand behind it in front of him. Nothing is settled yet, but the morning is going.",
@@ -50,7 +50,7 @@ const pressTheKing: Transition = {
 /** Having Sallow in from the gallery to explain himself: a small thing, which the King grants without dice. */
 const sendForSallow: Transition = {
   id: "send-for-sallow", on: "attempt",
-  when: "The player asks for Master Sallow (in the gallery outside with the Purveyor's party, if he's free this morning) to be sent in to explain himself in front of the King, or calls him in by name. No dice: it's a small thing, and the King grants it at once ('Garran, ask Master Sallow to step in').",
+  when: "The player asks for Master Sallow (in the gallery outside with the Purveyor's party, if he's free this morning) to be made to explain himself in front of the King ('make him explain', 'ask him where the grain went', 'call him in'), or calls him in by name, even in the same breath as accusing him or pressing the King: hearing him out comes first. No dice: it's a small thing, and the King grants it at once ('Garran, ask Master Sallow to step in').",
   to: "face-to-face",
 };
 

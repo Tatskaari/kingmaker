@@ -117,7 +117,7 @@ test("the King's Morning: a failed press costs minutes and ground, and only the 
   assert.equal(press.check?.onFailure, undefined, "a failure keeps the scene where it is");
   assert.doesNotMatch(press.check!.failure, /holding the door|looked into most thoroughly, after the Assembly/, "the failure isn't the put-off ending's condition");
   assert.match(press.check!.failure, /On whose word[\s\S]*minutes[\s\S]*Nothing is settled yet/);
-  assert.match(press.when, /sent in to explain himself isn't this/);
+  assert.match(press.when, /made to explain himself isn't this, even in the same breath as an accusation/);
   assert.match(press.when, /sergeant's sworn record that points at Sallow, Sallow giving himself away in his own hearing[^)]*no dice are needed/);
   const putOff = route(king, "reckoning", "put-off");
   assert.match(putOff.when, /gone down to the procession[\s\S]*let it rest/);
@@ -130,6 +130,7 @@ test("the King's Morning: the player can have Sallow sent in to explain himself,
     const send = route(king, beat, "send-for-sallow");
     assert.equal(send.check, undefined);
     assert.equal(send.to, "face-to-face");
+    assert.match(send.when, /'make him explain'[\s\S]*even in the same breath as accusing him or pressing the King: hearing him out comes first/, "the report's turn asked for both");
   }
   // Not on stage until he's sent for: then he comes in.
   const sallow = king.cast.find(c => c.id === "sallow")!;
@@ -249,7 +250,7 @@ test("Cob: at the granary the boot has ways in of its own, a polite ask is a rol
     const coax = route(clerk, beat, "coax-cob");
     assert.equal(coax.check?.skill, "persuasion");
     assert.equal(coax.check?.dc, 12);
-    assert.match(coax.when, /politely and with the boots staying his/);
+    assert.match(coax.when, /see or feel what's crackling in it, with the boots staying his/);
     assert.equal(coax.check?.onSuccess, "motive");
     assert.equal(coax.check?.onFailure, undefined, "a no keeps the boot reachable");
     const trust = route(clerk, beat, "trust-cob");

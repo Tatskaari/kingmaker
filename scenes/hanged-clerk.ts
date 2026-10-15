@@ -61,7 +61,7 @@ const kindToCob = (beat: string): Transition => ({
 
 const coaxCob: Transition = {
   id: "coax-cob", on: "attempt", essential: "page",
-  when: "The player asks Cob to let them look in his left boot (or feel what crackles in it), politely and with the boots staying his, or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Paying or trading for a look isn't this: that's haggling. (After a kindness with nothing asked back, for someone he trusts, or with a promise that answers what he's afraid of, it needs no dice.)",
+  when: "The player asks Cob to let them look in his left boot, or see or feel what's crackling in it, with the boots staying his (it's what's in them they're after, not the boots), or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Paying or trading for a look isn't this: that's haggling. (After a kindness with nothing asked back, for someone he trusts, or with a promise that answers what he's afraid of, it needs no dice.)",
   check: { reason: "to get Cob to let you look in his boot",
     skill: "persuasion", dc: 12,
     success: "Cob scowls at them for a long moment, then sits on the edge of the water butt, unlaces the string and holds the left boot out at arm's length: 'Look, then. And Cob's having it straight back.' In the lining is something folded and stiff, held in with small neat stitches, and out comes a page, folded small and gone soft at the corners. Cob can't read it; anyone who can sees a dozen grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled weights beside them.",
