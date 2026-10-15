@@ -200,7 +200,7 @@ export function fightGroups(actions: Array<{ id: string; label: string }>, spell
     else if (spell && spell.level === 0) put("cantrips", "Cantrips", 1, a.id, { name: (name ?? a.label).replace(/^Cast /, ""), summary: detail });
     else if (spell) put(`spells-${spell.level}`, `${ORD[spell.level]} level`, 1 + spell.level, a.id, { name: (name ?? a.label).replace(/^Cast /, ""), summary: detail }, left[ORD[spell.level]!] ? `${left[ORD[spell.level]!]} slots` : undefined);
     else if (/^use_/.test(a.id)) put("things", "Things to hand", 20, a.id, { name: name ?? a.label, summary: detail });
-    else if (/^(close_|step_|move_|make_for|leave$)/.test(a.id)) put("moving", "Moving", 30, a.id, { name: name ?? a.label, summary: detail });
+    else if (/^(close_|step_|move_|make_for|back_off$|leave$)/.test(a.id)) put("moving", "Moving", 30, a.id, { name: name ?? a.label, summary: detail });
     else put("actions", "Actions", 40, a.id, { name: name ?? a.label, summary: detail || rest.join(" ") });
   }
   const sorted = [...buckets.values()].sort((a, b) => a.order - b.order);

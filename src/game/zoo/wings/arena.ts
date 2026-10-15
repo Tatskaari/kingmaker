@@ -27,7 +27,7 @@ const GRID = `
 %BffffffffffffffffffB..BhhhhhhhhhhhhB...y...z....#
 %Bffffffff3fffffffffB..Bhhhhh5hhhhhhB............#
 %BBBBBBBBBDBBBBBBBBBB..BBBBBBDBBBBBBB............#
-%...a..b....d..............e...g.................#
+%...a..b....d..............e...g.....V.!.........#
 X.@..............................................#
 %......l.....m.............n...o.................#
 %=========E==========..======E=======............#
@@ -52,7 +52,7 @@ const ON_GRAIN = "SCcLwWvkKTZ12N3";
 const ON_HEPS = "GPQRt45";
 const ON_PIT = "OAYUjJi6";
 const ON_RUN = "FHI7";
-const ON_FLAGS = "@abdeglmnoqsuxyz089M";
+const ON_FLAGS = "@abdeglmnoqsuxyz089MV!";
 const TREES = "^&";
 const at = marks(GRID, ON_GRAIN + ON_HEPS + ON_PIT + ON_RUN + ON_FLAGS + TREES);
 const ID = "zoo-arena";
@@ -100,9 +100,13 @@ const WOLVES = registerArena({
 
 const bell = { name: "a fight bell", glyph: "♫", color: "#e8c070" };
 
-/** A ring's bell: ring it and the fight starts, the ring set out fresh. */
-function ringBell(id: string, arena: Arena, at: { x: number; y: number }, label: string, text: string, fight: string[]): Trigger {
-  return { id, label, at, station: bell, expect: ["fight"], plan: { fight }, run: () => ({ text, fight: arena.id }) };
+/**
+ * A ring's bell: ring it and the fight starts, the ring set out fresh. `fight` is how the tour
+ * opens it: action ids, and lines typed as the player would type them ("say:..."), read the same
+ * way (the plain commands with no model; the rest by the decider, or offline the GM's absence).
+ */
+function ringBell(id: string, arena: Arena, at: { x: number; y: number }, label: string, text: string, fight: string[], expect: string[] = ["fight"]): Trigger {
+  return { id, label, at, station: bell, expect, plan: { fight }, run: () => ({ text, fight: arena.id }) };
 }
 
 const sign = (id: string, mark: string, title: string, shows: string[], text: string, triggers: Trigger[] = []): Exhibit =>
@@ -113,16 +117,19 @@ const exhibits: Exhibit[] = [
     "Four rings, each a fight on the map, as the story fights them: the same engine for every roll, the same screen, the same AI, everyone keeping their cast letter and colour. Ring a ring's bell by its gate and it's \"Roll for initiative!\". Each ring starts fresh every time its bell is rung, and so do you (the attendants patch you up and hand your spell slots back); when a fight's over it stays as the fight left it, bodies and scorch marks and all, which is the arena's idea of a souvenir. The fights are saved as they go: quit mid-fight and Continue picks it up."),
   sign("heron-ring", "d", "The grain floor (the Heron, rehearsed)", ["Who fights", "Lanterns and braziers", "The grain dust goes up", "Fire spreading", "Nerve, surrender and walking off", "How the other side fights", "Kell's arrests", "Spells in a fight"],
     "The story's own fight, on a floor of its own: Master Sallow (a sword-cane duellist: two thrusts a turn, a parry, and an air of mild disappointment), the talking Crake and the silent Crake (cudgels, a shilling extra for the uniform), and the lantern-boy, who has a lantern and no ambition. The floor is thick with grain dust, there are lanterns in the beams, a brazier for cold hands, and sacks to catch: fire anywhere in the dust sets all of it off. The draught keeps the dust off the gate, which is where you start, by design. Kell comes too; it's her arrest.",
-    [ringBell("bell-heron", HERON, at.b!, "Ring the bell: the Heron's fight (Sallow, the Crakes, the lantern-boy)", "You ring the bell. On the grain floor, Master Sallow looks up from his gloves, and Kell is already beside you. \"Investigator,\" she says. \"I'll take the uniform's share.\"", ["cast_fireball_at_sallow"])]),
+    [ringBell("bell-heron", HERON, at.b!, "Ring the bell: the Heron's fight (Sallow, the Crakes, the lantern-boy)", "You ring the bell. On the grain floor, Master Sallow looks up from his gloves, and Kell is already beside you. \"Investigator,\" she says. \"I'll take the uniform's share.\"",
+      ["say:cast fireball at sallow", "say:Master Sallow! The King's watch. Put the cane down, there's a good fellow."], ["fight", "typed"])]),
   sign("porters-ring", "g", "The porters' floor (a brawl)", ["Moving", "Attacking", "How the other side fights"],
     "Hep Grist and three of her porters, before midnight, as the Heron's fight goes when Sallow hasn't come yet: brawlers with sack-knives, who gang up and don't stop to talk. A good place to try moving (click a blue tile, or the arrows: you can pass a friend but not stop on them, and leaving someone's reach gets you swung at), closing in (z), and Extra Attack, which comes at level five.",
     [ringBell("bell-porters", PORTERS, at.e!, "Ring the bell: Hep Grist and her porters", "You ring the bell. Hep Grist spits on her hands. Her porters, who are paid by the sack, look at you as if you were one.", ["dodge"])]),
   sign("goblin-pit", "m", "The goblin pit (arrows and cover)", ["Attacking", "Spells in a fight"],
     "A goblin boss, a goblin with a scimitar, and two goblin archers who keep their distance and shoot from behind the rocks. Ranged attacks need a clear shot; someone in the way is half cover; past a bow's normal range is disadvantage. The scene harness's other scenes (the warren, the crossroads) fight goblins like these in a plain room. Lightning Bolt is a line: line them up.",
-    [ringBell("bell-goblins", GOBLINS, at.l!, "Ring the bell: the goblin pit", "You ring the bell. In the pit, four goblins stop arguing about the bell and start arguing about you.", ["cast_lightning-bolt_at_goblin-boss"])]),
+    [ringBell("bell-goblins", GOBLINS, at.l!, "Ring the bell: the goblin pit", "You ring the bell. In the pit, four goblins stop arguing about the bell and start arguing about you.",
+      ["cast_lightning-bolt_at_goblin-boss", "say:Your lads are half cooked, boss. Throw that scimitar down and we'll say no more about it."])]),
   sign("wolf-run", "o", "The wolf run (pack tactics)", ["Attacking", "Down, death saves and nearly dying"],
     "Three wolves. A wolf with a friend beside its target has advantage (Pack Tactics), so they come in together and they come in from the sides. Keep your back to a tree, or bring Kell. If you go down, you make death saves at the start of your turns; nobody dies in the zoo, which the wolves were not told.",
-    [ringBell("bell-wolves", WOLVES, at.n!, "Ring the bell: the wolf run", "You ring the bell. Three wolves get up, unhurriedly, as if they'd been expecting you for some time.", [])]),
+    [ringBell("bell-wolves", WOLVES, at.n!, "Ring the bell: the wolf run", "You ring the bell. Three wolves get up, unhurriedly, as if they'd been expecting you for some time.",
+      ["say:Back! Go on, get back, the lot of you!", "say:cast fire bolt at the nearest wolf"], ["fight", "typed"])]),
   sign("battlefield", "q", "The battlefield on screen", ["The battlefield on screen"],
     "A fight is drawn on the place's own map with its roof off: blue tiles where you can move, your target in brackets, the dust in brown, the fire, the scorch after the blast, the world's spills, and the people not in the fight standing back. Bolts, fireballs, sparks on hits, damage numbers and the blast, with its shake. Beside it: the initiative list (health words, x for down, ! for yielded), the target, whose turn it is, the options as buttons, and the log with its 🎲 lines."),
   sign("pacing", "s", "Pacing and targeting", ["Pacing and targeting", "Moving"],
@@ -134,7 +141,11 @@ const exhibits: Exhibit[] = [
   sign("resuming", "y", "Resuming mid-fight", ["Resuming mid-fight", "Saving, resuming and recovering"],
     "A game saved mid-fight resumes on the battlefield (\"You pick yourself up where you left off: mid-brawl.\"): quit with Esc or Ctrl+C in the middle of a ring and Continue on the title screen. A fight saved by the old one-action stand-in would carry on as one, if you can find one."),
   sign("headless", "z", "Headless fights and the combat demo", ["Headless fights and the combat demo"],
-    "The QA console fights by action id: attack_crake-1, attack_<target>_with_<weapon>, cast_fire-bolt_sallow, cast_fireball_at_<target> (or at tile coordinates), use_brazier, close_sallow, move_12_6, step_north, make_for_the_door, leave, dash, dodge, disengage, auto, end_turn, with a text grid and a key. The combat demo (src/game/combat/demo.ts) plays both sides by AI. The zoo's tour fights every ring this way."),
+    "The QA console fights by action id: attack_crake-1, attack_<target>_with_<weapon> (or _with_improvised), cast_fire-bolt_sallow, cast_fireball_at_<target> (or at tile coordinates, or _slot3 for a higher slot), use_brazier, shove_hep, push_hep, grapple_hep, urge_intimidation_yield_hep, check_perception_13, close_sallow, back_off, move_12_6, step_north, make_for_the_door, leave, dash, dodge, disengage, auto, end_turn, with a text grid and a key. Or it types, as the player does: qa say reads a line onto the same ids. The combat demo (src/game/combat/demo.ts) plays both sides by AI. The zoo's tour fights every ring this way, typing as it goes."),
+  sign("typing", "V", "Talking in a fight", ["Typing in a fight"],
+    "You can type in a fight, as in a scene: Enter (or a click on the box under the log), and say what you do. Plain words are said out loud, and whoever you say them to answers, in a line. *Asterisks* or (brackets) are done, and so are plain commands: attack the goblin boss, cast fire bolt at the nearest wolf, move to the brazier and kick it over, shove Hep over, end turn. It's read onto this turn's own options, done by the rules exactly as a click would do it, and then the GM says how it looked. Talking is free. Telling someone to give up, clear off or hold back is your action and a Charisma check, at disadvantage while they're keen on the fight; someone who'd gladly stop needs no roll, and someone who never would just answers back. What can't be done says why, and costs nothing. Offline, only the plain commands work, and anything else says so. Ring the bell and try it on Hep's porters, who have heard it all before.",
+    [ringBell("bell-typing", PORTERS, at["!"]!, "Ring the bell, and say your piece: Hep's porters, typed at", "You ring the bell. Hep Grist looks up from her sack-needle. \"Talkers,\" she says, to nobody in particular. \"We get a lot of talkers.\"",
+      ["say:Hep! Nobody's paying you enough to get set on fire. Clear off, and take your lads with you.", "say:cast fire bolt at hep", "say:end turn", "say:*I crack the nearest porter across the knuckles with my staff*", "say:end turn"], ["fight", "typed"])]),
   sign("down", "0", "Down, death saves and nearly dying", ["Down, death saves and nearly dying", "Knocked out, and coming to"],
     "At 0 hit points you make death saves at the start of your turns: a natural 20 gets you up, three successes and you're stable, three failures and you \"very nearly died\", because nobody dies in these fights. Everyone else is out cold, unless the damage was massive; the lantern-boy is only ever knocked flat. Back on the map you come round with 1 hit point. The wolves are the likeliest to show you."),
   sign("leaving", "8", "Leaving, and how it ends", ["Leaving, and how it ends"],

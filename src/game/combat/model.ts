@@ -65,11 +65,26 @@ export interface Prop {
 
 export interface LogLine {
   round: number;
-  /** dice: rules results (🎲 in the app). narration: what it looks like. turn: whose turn. system: notices. */
-  kind: "dice" | "narration" | "turn" | "system";
+  /**
+   * dice: rules results (🎲 in the app). narration: what it looks like. turn: whose turn. system:
+   * notices. said: words spoken aloud (a typed line, and whoever answers it): `who` says them.
+   */
+  kind: "dice" | "narration" | "turn" | "system" | "said";
   text: string;
-  /** The unit it's about, when there is one. */
+  /** The unit it's about, when there is one (who says it, for a "said" line). */
   who?: string;
+}
+
+/** A log line as the fight's text shows it: 🎲 for the dice, (brackets) for notices, › for what the player typed. */
+export function show(l: LogLine): string {
+  switch (l.kind) {
+    case "turn": return `— ${l.text} —`;
+    case "dice": return `🎲 ${l.text}`;
+    case "system": return `(${l.text})`;
+    // The player's own line, as typed; anyone else's words come with their name already.
+    case "said": return l.who === "player" ? `› ${l.text}` : l.text;
+    default: return l.text;
+  }
 }
 
 export interface CombatG {
@@ -114,11 +129,41 @@ export interface CombatG {
   place?: string;
 }
 
+/** The skills a word to someone on the other side is tried with (the Influence action). */
+export type InfluenceSkill = "intimidation" | "persuasion" | "deception" | "performance";
+/**
+ * What they're urged to do: yield (hands up, out of the fight), go (leave it: they make for the way
+ * out, and give up if they can't get there), or hold (hold back: they let their next turn go by).
+ */
+export type Urge = "yield" | "go" | "hold";
+/**
+ * How the one urged takes it (the 2024 rules' Influence: willing needs no roll; hesitant rolls, at
+ * disadvantage while they're hostile, which everyone fighting you is unless the fight has gone out
+ * of them). Unwilling is never rolled: it's words, and costs nothing. The fight's state says which
+ * (Skirmish.moodOf: Sallow with his Crakes on their feet is unwilling, a Crake whose paymaster is
+ * down is willing); a read of who they are can only make it harder.
+ */
+export type Mood = "willing" | "wavering" | "hostile";
+export type Willingness = Mood | "unwilling";
+/** The skills a look or a think is rolled with (the Search and Study actions). */
+export type CheckSkill = "perception" | "insight" | "medicine" | "survival" | "investigation" | "arcana" | "history" | "nature" | "religion";
+
 export type PlayerAction =
   | { kind: "move"; to: Tile2 }
+  /** weapon: an instance id, or "improvised" (a bottle, a chair leg: the rules' unarmed strike, called what it is). */
   | { kind: "attack"; target: string; weapon?: string }
-  | { kind: "cast"; spell: string; target?: string; at?: Tile2 }
+  /** slot: a higher slot than the lowest the spell can take (an upcast). */
+  | { kind: "cast"; spell: string; target?: string; at?: Tile2; slot?: number }
   | { kind: "use"; prop: string }
+  /** A grab (grappled: they can't move), a shove over (prone), or a shove away (pushed 5 ft): the target saves. */
+  | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push" }
+  /**
+   * Words with the weight of an action behind them: urging someone on the other side to give it up.
+   * mood: a read of how they'd take it, which can only make it harder than the fight's state has it.
+   */
+  | { kind: "influence"; target: string; skill: InfluenceSkill; urge: Urge; mood?: Mood }
+  /** Looking for something, or working it out: a check the rules roll, which changes nothing on the board. */
+  | { kind: "check"; skill: CheckSkill; dc: number }
   | { kind: "dash" } | { kind: "dodge" } | { kind: "disengage" }
   | { kind: "leave" }
   | { kind: "end" };
@@ -136,6 +181,14 @@ export interface PlayerOptions {
   attacks: Array<{ target: string; name: string; weapon: string; weaponName: string; bonus: number; advantage?: "advantage" | "disadvantage"; note?: string }>;
   spells: Array<{ id: string; name: string; level: number; slot: number; targeting: "unit" | "area" | "self"; area?: { shape: string; size: number }; range: number; fire: boolean; targets: Array<{ id: string; name: string }> }>;
   props: Array<{ id: string; name: string; how: string }>;
+  /** Who's close enough to grab or shove (beside you, on the other side), while the action's free. */
+  wrestle: Array<{ id: string; name: string }>;
+  /**
+   * Who's close enough to hear you urge them to give it up (on the other side, standing), while the
+   * action's free, and how they'd take it as the fight stands (why, when it's never).
+   */
+  hear: Array<{ id: string; name: string; understands: boolean; mood: Willingness; why: string }>;
+  bonusActionUsed: boolean;
   dash: boolean;
   dodge: boolean;
   disengage: boolean;

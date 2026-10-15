@@ -108,7 +108,10 @@ export function reportText(r: TourReport): string {
     for (const s of x.steps) {
       const mark = s.error ? "!!" : s.skipped ? "--" : s.ok ? "  " : "!!";
       lines.push(`  ${mark} ${s.label}${s.played.length ? ` [${[...new Set(s.played)].join(" ")}]` : ""}${s.missing.length ? ` MISSING ${s.missing.join(" ")}` : ""}${s.skipped ? ` (${s.skipped})` : ""}${s.error ? ` ERROR ${s.error}` : ""}`);
-      if (s.said) lines.push(`       ${s.said.replace(/\s+/g, " ").slice(0, 220)}`);
+      // What it said, then each of a fight's or a scene's own steps (an id, a line typed or said) on a line of its own.
+      const [head = "", ...parts] = s.said.split(/\n(?=> |The fight: |\/end )/);
+      if (head.trim()) lines.push(`       ${head.replace(/\s+/g, " ").slice(0, 220)}`);
+      for (const part of parts) lines.push(`       ${part.replace(/\s+/g, " ").slice(0, 320)}`);
     }
   }
   if (r.failures.length) lines.push("", "Failures:", ...r.failures.map(f => `  ${f}`));
@@ -116,6 +119,14 @@ export function reportText(r: TourReport): string {
 }
 
 const slug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
+
+/** What a typed line came to, for the report: the rules' lines and anyone's answer (the others' turns after it left out), or why not. */
+function typedSaid(said: string): string {
+  const lines = said.split("\n").filter(Boolean);
+  const turn = lines.findIndex((l, i) => i > 0 && /^— Round \d+: /.test(l) && !/your turn/.test(l));
+  const own = (turn < 0 ? lines : lines.slice(0, turn)).filter(l => !l.startsWith("›")).join(" ").replace(/\s+/g, " ").slice(0, 400);
+  return own || (turn >= 0 ? "(the turn passes, and the others go)" : "(nothing)");
+}
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 class Tour {
@@ -317,8 +328,12 @@ class Tour {
     };
     shots("start");
     for (const id of plan.fight ?? []) {
-      const said = await this.core.act(id).catch(e => `(${message(e)})`);
-      step.said += `\n> ${id}: ${said.split("\n").slice(0, 3).join(" ").slice(0, 200)}`;
+      // A line typed as the player would ("say:..."), read the same way, or an action id.
+      const line = id.startsWith("say:") ? id.slice(4) : undefined;
+      const said = line === undefined ? await this.core.act(id).catch(e => `(${message(e)})`) : await this.core.say(line).catch(e => `(${message(e)})`);
+      step.said += line === undefined ? `\n> ${id}: ${said.split("\n").slice(0, 3).join(" ").slice(0, 200)}` : `\n> "${line}": ${typedSaid(said)}`;
+      // Typed and done (not refused, not the GM's absence): the rules took it.
+      if (line !== undefined && said.trim().startsWith("›")) step.played.push("typed");
       play();
     }
     if (plan.fight?.length) shots("first");

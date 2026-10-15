@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import type { Game } from "boardgame.io";
 import type { _ClientImpl, ClientOpts } from "boardgame.io/dist/types/src/client/client.js";
 import type { Tile2 } from "../types.ts";
-import type { CombatG } from "./model.ts";
+import type { CheckSkill, CombatG, InfluenceSkill, Mood, Urge } from "./model.ts";
 import type { Rules } from "./rules.ts";
 import { Skirmish } from "./skirmish.ts";
 
@@ -42,8 +42,11 @@ export function combatGame(initial: CombatG, rules: Rules): Game<CombatG> {
     moves: {
       move: ({ G }, to: Tile2) => act(G, s => s.move(me(s), to)),
       attack: ({ G }, target: string, weapon?: string) => act(G, s => s.attack(me(s), target, weapon)),
-      cast: ({ G }, spell: string, target?: string, at?: Tile2) => act(G, s => s.cast(me(s), spell, target, at)),
+      cast: ({ G }, spell: string, target?: string, at?: Tile2, slot?: number) => act(G, s => s.cast(me(s), spell, target, at, slot)),
       use: ({ G }, prop: string) => act(G, s => s.use(me(s), prop)),
+      wrestle: ({ G }, target: string, how: "grapple" | "prone" | "push") => act(G, s => s.wrestle(me(s), target, how)),
+      influence: ({ G }, target: string, skill: InfluenceSkill, urge: Urge, mood?: Mood) => act(G, s => s.influence(me(s), target, skill, urge, mood)),
+      check: ({ G }, skill: CheckSkill, dc: number) => act(G, s => s.check(me(s), skill, dc)),
       dash: ({ G }) => act(G, s => s.simple(me(s), "dash")),
       dodge: ({ G }) => act(G, s => s.simple(me(s), "dodge")),
       disengage: ({ G }) => act(G, s => s.simple(me(s), "disengage")),

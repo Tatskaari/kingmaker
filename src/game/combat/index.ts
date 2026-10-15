@@ -16,6 +16,10 @@
  *   const result = combat.result();                      // CombatResult for chainScene / resumeAfterFight
  *
  * Or, in the play loop (src/game/play.ts): `fights: tacticalFights()` instead of the stand-in.
+ * There a line can be typed as well as an action taken by id (`TacticalFight.say`): typed.ts reads
+ * it onto the turn's own actions (plain commands with no model, typed-decider.ts for the rest),
+ * typed-plan.ts walks the plan on the board before any of it's done, the fight does it as it does
+ * a click, and voice.ts gives the GM's line on what the rules did.
  *
  * Rules decisions:
  * - The grid is 5 ft a tile; diagonals cost 5 ft (2024). Movement goes a step at a time through
@@ -26,8 +30,39 @@
  *   with a clear shot, half cover from people in the way; Pack Tactics counts allies by side.
  *   Thrown weapons can't be thrown beyond 5 ft yet (the engine's reach check refuses them).
  * - Spells: the player's ready spells whose effects the engine resolves (attack, save, auto-hit,
- *   heal, Sleep-like, buffs), cast with an action or bonus action; areas (sphere, cube, cone, line)
- *   are laid on tiles with line of effect from their origin, and catch everyone in them.
+ *   heal, Sleep-like, buffs), cast with an action or bonus action, from the lowest slot they take
+ *   or a higher one asked for (an upcast: `cast_<spell>_<target>_slot<n>`); areas (sphere, cube,
+ *   cone, line) are laid on tiles with line of effect from their origin, and catch everyone in them.
+ * - A grab and a shove are the engine's Grapple and Shove (2024: the action, and the target's
+ *   Strength or Dexterity save against the attacker's Strength DC): grappled, they can't move until
+ *   whoever holds them is down, gone or stepped away; knocked over, they get up as their turn starts
+ *   for half their movement (the engine leaves standing up to the board); shoved away, a tile
+ *   straight back if there's floor there. Something to hand that isn't a weapon is the rules'
+ *   unarmed strike (1d4), called an improvised weapon, and proficient as an unarmed strike is (the
+ *   2024 rules would leave proficiency out for something that isn't like a weapon you know: a
+ *   simplification). A shove takes the whole action, as the engine has it, not one of its attacks.
+ * - A word with weight is 2024's Influence action, at someone on the other side within earshot
+ *   (60 ft). How they take it is the fight's (`Skirmish.moodOf`, from the AI's own reasons to fight
+ *   on or give up): never, for Sallow while his hired hands stand (it's words, and costs nothing);
+ *   gladly, for hired hands whose paymaster is down, or anyone the fight's gone out of (no roll);
+ *   in two minds, badly hurt, alone or outnumbered; otherwise hostile. A read of who they are (the
+ *   decider's) can only make it harder. Otherwise it's a Charisma check by its skill
+ *   (intimidation, persuasion, deception, performance), at disadvantage while they're hostile,
+ *   against 15 or their Intelligence. Urged to yield, they surrender; to go, they make for the way
+ *   out on their turns (giving up if they can't get there); to hold back, their next turn goes by.
+ *   A failure can't be tried the same way on them again that fight. A beast understands only a
+ *   threat. A look or a think is the Search or Study action: a check that changes nothing on the
+ *   board. Talking costs nothing: only urging takes the action.
+ * - A typed line is walked on the board before any of it is done (typed-plan.ts): where each
+ *   move would leave the player and with what movement, and whether each act could be done from
+ *   there, the dice aside. A move before an act goes somewhere the act can be done from (a step
+ *   back that keeps the line for the Fire Bolt). What couldn't be done is refused, and nothing's
+ *   spent; what the dice then overtake (the one a second blow was for went down to the first)
+ *   stops there, and says so.
+ * - Spiritual Weapon (a bonus action that swings as it's cast and lasts) wants the action unspent
+ *   too, as the engine has it: it isn't offered once the action's gone.
+ * - Table talk (what the player typed, who answered, the GM's line on what the rules did) is kept
+ *   beside the rules' log, never in it (`note`; `view().log` shows both, in order), and saved with it.
  * - At 0 hit points: the player makes the engine's death saves at the start of their turns (a
  *   natural 20 gets them up). This story doesn't kill the player in a fight: three failures (or
  *   massive damage) leave them out of it and "nearly died", and they're written back at 0 HP,
@@ -38,7 +73,8 @@
  *   paymaster is down, yielding or gone walk out (not beaten, so not arrested). Sallow with nobody
  *   left to fight for him (or his nerve gone) runs if the way out is clear and nobody's on him, and
  *   otherwise yields.
- * - The end: no enemy able to fight is a victory (a "surrender" when the villain yielded); nobody
+ * - The end: no enemy able to fight is a victory (a "surrender" when the villain yielded, or, with
+ *   nobody in charge, when the last of them to drop out of it put their hands up); nobody
  *   able on the player's side is a defeat; the player going out of a door is "fled". On a win, Kell
  *   (if she was in it) arrests the beaten and the yielded.
  * - The Heron's grain dust explodes when fire reaches it (a fire spell's area or line, a broken
@@ -54,6 +90,7 @@ export { heronEncounter, type HeronOptions } from "./heron.ts";
 export { HERON_LAYOUT, HERON_MAP_ID, heronMap } from "./heron-grid.ts";
 export { arenaMap, encounterFor, show as showLine, tacticalFights, TacticalFight, type Field, type TacticalFights, type TacticalOptions } from "./fights.ts";
 export { gridStyled, gridText, KEY, legend, type GridOptions } from "./render.ts";
+export { headOf } from "./typed-turn.ts";
 export { pregenSession, PREGENS } from "./pregen.ts";
 export { STATBLOCKS, wellFormed, type CombatStatblock } from "./rules.ts";
 export type { PlayerStyle } from "./ai.ts";

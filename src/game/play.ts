@@ -119,8 +119,24 @@ export interface Fight {
   observe(): string;
   actions(): Action[];
   act(id: string): Promise<string>;
+  /**
+   * A line typed in the fight, as in a scene: plain words are said (and answered), deeds in
+   * *asterisks* or (brackets), or plain commands ("attack sallow", "end turn"), are read onto the
+   * turn's own actions and done as act() does them. A fight that can't take words has none.
+   */
+  say?(line: string, hooks?: SayHooks): Promise<string>;
   result(): CombatResult | undefined;
   save(): unknown;
+}
+
+/** What a typed line in a fight tells whoever's watching, as it goes: the scene's hooks, and two of its own. */
+export interface SayHooks extends TurnHooks {
+  /** The line is being read: what it comes to is the decider's to choose (a moment, online). */
+  onReading?(): void;
+  /** The rules have done what it came to: their lines are in the fight's log, and the GM's line follows. */
+  onRules?(): void;
+  /** Aborted, the GM's line is cut short where it's got to (the player waved it on): the rules' lines stand. */
+  skip?: AbortSignal;
 }
 
 export interface FightFactory {
@@ -202,8 +218,9 @@ export class Game {
       }
       case "combat": {
         const over = this.fight?.result();
+        const words = !over && this.fight?.say ? { hint: "You're in a fight: act by id, or say what you do. Plain words are said; *asterisks* or (brackets), or plain commands (attack sallow, cast fire bolt at the nearest crake, move to the brazier, end turn), are done." } : {};
         return { mode: "combat", text: `${recent}${this.fight?.observe() ?? ""}${over ? `\n\nHow it went: ${over.summary}` : ""}`,
-          actions: over ? [{ id: "continue", label: this.state.fightOnMap ? "Back to the map" : "See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [] };
+          actions: over ? [{ id: "continue", label: this.state.fightOnMap ? "Back to the map" : "See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [], ...words };
       }
       case "end":
         return { mode: "end", text: `${recent}The End.`, actions: [] };
@@ -259,10 +276,12 @@ export class Game {
   }
 
   /**
-   * Something the player says or does in a scene (or in a talk). `mechanic`: what the rules resolve
-   * this turn, already chosen (the action menu's act), rather than read from the words.
+   * Something the player says or does in a scene (or in a talk), or types in a fight. `mechanic`:
+   * what the rules resolve this turn, already chosen (the action menu's act), rather than read from
+   * the words.
    */
-  async say(text: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<string> {
+  async say(text: string, hooks: SayHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<string> {
+    if (this.state.mode === "combat") return this.sayInFight(text, hooks);
     if (this.state.mode !== "scene") throw new Error("You're not in a scene: pick an action instead.");
     this.state.recent = [];
     const talk = this.session.talk;
@@ -274,6 +293,19 @@ export class Game {
     const after = over ? `\n\n${talk ? this.afterTalk() : await this.afterScene(hooks)}` : "";
     this.save();
     return `${shown}${after}`;
+  }
+
+  /** A line typed in a fight: the fight reads it and does it (Fight.say); once it's over, "continue" goes on. */
+  private async sayInFight(text: string, hooks: SayHooks): Promise<string> {
+    const fight = this.fight;
+    if (!fight) throw new Error("There's no fight to speak of.");
+    this.state.recent = [];
+    if (fight.result()) throw new Error(`The fight is over: "continue" to see what comes of it.`);
+    if (!fight.say) throw new Error("This fight doesn't take words: pick an action instead.");
+    const said = await fight.say(text, hooks);
+    const result = fight.result();
+    this.save();
+    return result ? `${said}\n\nThe fight is over: ${result.summary}` : said;
   }
 
   /** For QA and testing: end the current scene through one of its exits now, and go on as the story would. */

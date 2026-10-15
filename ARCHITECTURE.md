@@ -50,6 +50,7 @@ flowchart TB
   web -->|"jobs, in the worker"| runtime
   core -->|"the action menu"| rules
   combat -->|"the engine"| rules
+  combat -->|"a typed line: the decider, the GM's line"| llm
   runtime <--> scenes
   scenes -->|"talks"| lsvc
   runtime <--> rules
@@ -77,7 +78,7 @@ The arrows drawn are the main ones. Every import between components that the gam
 4. the services: src/rules; then src/world and src/lore;
 5. src/llm, and the content.
 
-Imports of types only, and imports that only tests and dev tools make, are left out of the diagram and of that rule, and some of them go up: the map and the look import `src/game/types.ts`, and the rules' tests import combat's `pregen.ts`. This was checked against every import in the code at f5c6549, and the collapsed table at the end of this section lists them all.
+Imports of types only, and imports that only tests and dev tools make, are left out of the diagram and of that rule, and some of them go up: the map and the look import `src/game/types.ts`, and the rules' tests import combat's `pregen.ts`. This was checked against every import in the code at f5c6549, and src/game/combat's again when fights took typed lines (it calls src/llm now, for the decider and the GM's line); the collapsed table at the end of this section lists them all.
 
 ### The components
 
@@ -90,7 +91,7 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | The game core | `src/game` | `Game` (`play.ts`): the modes (explore, scene, combat, the End), the action ids and the story's flow; the town's explorer, the action menu, and every picture (`views.ts`). | [src/game](src/game/README.md) |
 | The map | `src/game/map` | Tile maps, walking, the isometric renderer and x-ray, and the overlay of what scenes and the rules left in each place. | [src/game/map](src/game/map/README.md) |
 | Places from a description | `src/game/map/generate` | A model's plan of a place, compiled into a map and a world. The zoo's chandlery is one, compiled from a plan written by hand. | [src/game/map/generate](src/game/map/generate/README.md) |
-| Fights | `src/game/combat` | Tactical fights on the map: boardgame.io run headless, the rules engine for every roll, the board's hazards, and the AI for everyone else. | [src/game/combat](src/game/combat/README.md) |
+| Fights | `src/game/combat` | Tactical fights on the map: boardgame.io run headless, the rules engine for every roll, the board's hazards, and the AI for everyone else; a line typed in a fight read onto the turn's own actions (the decider choosing among them), walked on the board, done as a click, and given the GM's line. | [src/game/combat](src/game/combat/README.md) |
 | The look | `src/game/look` | How anything looks, from its name: glyphs, colour, light, effects, and the director that turns what changed in a world into motion. | [src/game/look](src/game/look/README.md) |
 | The zoo | `src/game/zoo` | Every feature laid out on maps of its own (10 maps, 143 exhibits), and a headless tour that sets each one off and checks what the view played. | [src/game/zoo](src/game/zoo/README.md) |
 | The scene runtime | `src/runtime` | A player's line in, the GM's reply out: the director and its decider, the voices, the co-GM, scene boundaries, companion talks and the background jobs. It owns the session's state. | [src/runtime](src/runtime/README.md) |
@@ -111,15 +112,15 @@ How to write scenes, why the runtime does what it does, and how to test it are i
 ### How the parts connect
 
 - **One UI, three hosts.** src/app runs in a terminal, under a pty per browser tab in the server build, or in a Web Worker in the static build. What reaches a browser page is the terminal's bytes, never the game's data ([the three ways to play](#the-three-ways-to-play)).
-- **Play goes through the core.** The app, the QA console, the zoo's tour and the smoke tests play the same `Game` ([src/game/play.ts](src/game/play.ts)) by the same action ids, or say a line in a scene. The scene harness and the evals call the runtime directly, with no map and no fights. The app also reaches into the core's state, session and world as it draws; the QA console plays only through the core's calls, and reads its state for commands such as `qa map` and `qa sheet`.
-- **Three ways into the rules.** In a scene, the runtime's decider picks a mechanic and src/rules resolves it on the scene's world. On the map, the action menu ([src/game/menu.ts](src/game/menu.ts)) calls the same functions on a world rebuilt from the map for each act. In a fight, src/game/combat drives the same engine through a bridge of its own. Fire, damage and breaking are coded separately for each ([the table](src/game/README.md#the-same-rule-coded-more-than-once)).
+- **Play goes through the core.** The app, the QA console, the zoo's tour and the smoke tests play the same `Game` ([src/game/play.ts](src/game/play.ts)) by the same action ids, or say a line in a scene or a fight. The scene harness and the evals call the runtime directly, with no map and no fights. The app also reaches into the core's state, session and world as it draws; the QA console plays only through the core's calls, and reads its state for commands such as `qa map` and `qa sheet`.
+- **Three ways into the rules.** In a scene, the runtime's decider picks a mechanic and src/rules resolves it on the scene's world. On the map, the action menu ([src/game/menu.ts](src/game/menu.ts)) calls the same functions on a world rebuilt from the map for each act. In a fight, src/game/combat drives the same engine through a bridge of its own, and a typed line is read onto the fight's own action ids (src/game/combat/typed.ts), not the scene's mechanics. Fire, damage and breaking are coded separately for each ([the table](src/game/README.md#the-same-rule-coded-more-than-once)).
 - **The runtime has a shared kernel.** src/lore, src/world, src/rules and scenes/ import parts of the runtime: its types ([scene.ts](src/runtime/scene.ts), [session.ts](src/runtime/session.ts)), the dice ([dice.ts](src/runtime/dice.ts)), the session's folder (`sessionDir`), and [brief.ts](src/runtime/brief.ts) for the prompt loader, who's present, the transcript and `withImprovisedEnding`. The runtime imports each of them in turn, which is why those arrows have two heads.
 - **The background jobs are processes.** `afterTurn` ([src/runtime/background.ts:37](src/runtime/background.ts#L37)) starts the scene harness's `remember` and `repair` commands, detached. The server build finds them by a tag and gives them up to 3 minutes after a game ends; the static build runs the same functions in its worker. The scene harness has its own copy of the rule that starts them ([src/cli/scene.ts:69](src/cli/scene.ts#L69)).
 - **Exit scripts are recorded, not applied.** A scene's exit script runs against a recording world. The game reads back only `startCombat` (who a fight sets out) and `journal` (the notebook); a script's flags, quests and items change nothing in play.
 - **Some state is global, and set at import.** Importing the zoo installs its ten maps in the map module's tables, and the app and the QA console both import it. [src/rules/actions.ts](src/rules/actions.ts), [src/game/menu.ts](src/game/menu.ts), [src/game/combat/fights.ts](src/game/combat/fights.ts) and [src/game/zoo/fights.ts](src/game/zoo/fights.ts) load the rules engine at import (about 70 ms, once per process).
 
 <details>
-<summary>Every import between components, at f5c6549</summary>
+<summary>Every import between components, at f5c6549 (src/game/combat's since)</summary>
 
 | Component | Imports at run time | Types only | Only in tests and dev tools |
 |---|---|---|---|
@@ -129,7 +130,7 @@ How to write scenes, why the runtime does what it does, and how to test it are i
 | src/app | src/game, src/game/zoo, src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/llm | src/world | |
 | src/game/zoo | src/game, src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/world, src/lore, src/llm | | src/app |
 | src/game | src/game/combat, src/game/map, src/game/look, src/runtime, scenes/, src/rules, src/world | | |
-| src/game/combat | src/game, src/runtime, scenes/, src/rules, src/world | vendor/dnd-srd-engine | |
+| src/game/combat | src/game, src/runtime, scenes/, src/rules, src/world, src/llm | vendor/dnd-srd-engine | |
 | src/game/map, with generate/ | src/game/look, scenes/, src/world, src/llm | src/game | |
 | src/game/look | src/game/map, scenes/, src/world, src/llm | src/game | src/app, src/game/combat, src/runtime |
 | src/runtime | scenes/, src/rules, src/world, src/lore, src/llm | | |

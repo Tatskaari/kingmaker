@@ -16,7 +16,7 @@ import { zooFights } from "../game/zoo/fights.ts";
 import { newZoo } from "../game/zoo/game.ts";
 import { lookFor, playNews, type Look } from "../game/zoo/look.ts";
 import { zooOf } from "../game/zoo/model.ts";
-import { setCallLog } from "../llm/openrouter.ts";
+import { modelOffline, setCallLog } from "../llm/openrouter.ts";
 import { fileReport, type Where } from "../report/dump.ts";
 import { noteError, noteGame, recentScreens } from "../report/recent.ts";
 import { sheetData, spellInfo, type SheetData } from "../rules/dnd.ts";
@@ -192,6 +192,9 @@ export type Overlay =
    */
   | { kind: "report"; screen?: string; from?: string; sending?: boolean; said?: string; failed?: boolean; problem?: string };
 
+/** A fight's answer that holds a line for a second word (TacticalFight.say): the box keeps the line, for Enter to say it again. */
+const SAY_AGAIN = /Say it again to do it anyway/;
+
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
   "The GM looks up the rules, then decides against them…", "The GM pretends this was the plan all along…", "The GM consults a table that may not exist…",
@@ -225,6 +228,19 @@ export class Game {
   targetIndex = 0;
   /** Who's aimed at: held by id, so someone else moving doesn't change it (the list is sorted by distance). */
   targetId: string | undefined;
+  /**
+   * The fight's box has the keys (Enter, or a click on it): the letters type. Esc, or a click
+   * anywhere else, gives them back to the fight's own keys.
+   */
+  fightBox = false;
+  /** The GM's line on a typed turn, streaming in (who says it: a unit's id, or "gm"). */
+  fightLive?: { who: string; text: string };
+  /** The fight's answer to a typed line that came to nothing (why not: nothing was spent), under the log until the next. */
+  fightReply?: string;
+  /** A line sent before the box could take it (the others' turns, the GM still speaking): why it's waiting, under the log while it waits. */
+  fightWait?: string;
+  /** Cuts the GM's line on a typed turn short (Esc, or a fight key, while it streams): the rules' lines stand. */
+  private fightSkip?: AbortController;
   overlay?: Overlay;
   /** The sheet the rules engine just made (the created screen). */
   sheet?: SheetData;
@@ -410,7 +426,7 @@ export class Game {
     this.overlay = undefined;
     // What the zoo showed before the save was shown then (a sign's card isn't opened again on loading).
     this.shownSeq = core.state.hub ? zooOf(core.state).show?.seq ?? 0 : 0;
-    this.targetIndex = 0; this.targetId = undefined;
+    this.freshFight();
     this.doMenu = undefined; this.aiming = undefined; this.townLook = undefined; this.wingLook = undefined;
     switch (core.state.mode) {
       case "combat":
@@ -827,7 +843,7 @@ export class Game {
     // A fight from the map (the people about came at the player, or a zoo ring's bell): straight onto the battlefield.
     if (core.state.mode === "combat" && this.screen === "explore") {
       this.walking = false; this.menu = undefined; this.doMenu = undefined; this.aiming = undefined;
-      this.targetIndex = 0; this.targetId = undefined;
+      this.freshFight();
       this.screen = "combat";
       this.animateFight();
     }
@@ -1201,7 +1217,7 @@ export class Game {
     if (core.state.mode === "scene" && core.session.sceneId === this.shown && core.session.ended) { void this.moveOn(() => core.carryOn(this.hooks())); return; }
     switch (core.state.mode) {
       case "end": this.toEnd(); break;
-      case "combat": this.targetIndex = 0; this.targetId = undefined; this.screen = "combat"; break;
+      case "combat": this.freshFight(); this.screen = "combat"; break;
       case "explore": this.screen = this.card ? "between" : "explore"; break;
       default: this.showSceneSoFar();
     }
@@ -1384,6 +1400,12 @@ export class Game {
   // -------------------------------------------------------------------------------------------
   // Combat
 
+  /** A fight comes on screen (or goes): no target held, the keys the fight's own, nothing typed answered. */
+  private freshFight(): void {
+    this.targetIndex = 0; this.targetId = undefined;
+    this.fightBox = false; this.fightLive = undefined; this.fightReply = undefined; this.fightWait = undefined;
+  }
+
   /** Who the player can aim at: everyone on the other side still in it, nearest first. */
   fightTargets(): Array<{ id: string; name: string; at: { x: number; y: number } }> {
     const c = this.fight;
@@ -1412,6 +1434,8 @@ export class Game {
     if (id === "continue") { await this.afterCombat(); return; }
     this.busy = "…";
     this.status = undefined;
+    this.fightReply = undefined;
+    this.fightWait = undefined;
     this.emit();
     try {
       const said = await core.act(id, this.hooks());
@@ -1424,6 +1448,55 @@ export class Game {
     this.animateFight();
     this.busy = undefined;
     this.emit();
+  }
+
+  /**
+   * A line typed in the fight's box, as in a scene's: the core reads it onto the turn (plain
+   * commands with no model, the decider for the rest) and does it as a click would. What the rules
+   * did shows at once, then the GM's line streams into the log (Esc or a fight key waves it on),
+   * then the others' turns, paced. A line that comes to nothing says why under the log, and
+   * nothing's spent. True when the line is worth saying again as it was (the rules want a second
+   * word first: a Fireball that catches a friend), for the box to keep it.
+   */
+  async combatSay(text: string): Promise<boolean> {
+    const core = this.core;
+    if (!core || this.busy || core.state.mode !== "combat" || !text.trim()) return false;
+    this.busy = "…";
+    this.status = undefined;
+    this.fightReply = undefined;
+    this.fightWait = undefined;
+    const skip = new AbortController();
+    this.fightSkip = skip;
+    this.emit();
+    const name = (who: string) => this.fight?.state().units[who]?.called ?? who;
+    let again = false;
+    try {
+      const said = await core.say(text, {
+        skip: skip.signal,
+        onReading: () => { this.busy = modelOffline() ? "…" : "The GM considers it…"; this.emit(); },
+        // The rules first: what they did is on the board and in the log before the GM says a word.
+        onRules: () => { this.animateFight(); this.busy = "…"; this.emit(); },
+        onSpeaker: who => { this.fightLive = { who, text: "" }; this.busy = who === "gm" ? "The GM is speaking…" : `${capital(name(who))} is speaking…`; this.emit(); },
+        onText: t => { if (this.fightLive) { this.fightLive.text = t; this.emitSoon(); } },
+      });
+      // A line that came to nothing comes back in brackets: why, under the log.
+      const refusal = /^\(([^\n]+)\)$/.exec(said.trim());
+      if (refusal) this.fightReply = refusal[1];
+      again = !!refusal && SAY_AGAIN.test(refusal[1]!);
+    } catch (error) {
+      this.fightReply = `That didn't work: ${this.failed(`a fight: "${text}"`, error)}`;
+    }
+    this.fightSkip = undefined;
+    this.fightLive = undefined;
+    this.animateFight();
+    this.busy = undefined;
+    this.emit();
+    return again;
+  }
+
+  /** Waves the GM's line on a typed turn on, where it's got to (the rules' lines stand). */
+  skipFightLine(): void {
+    this.fightSkip?.abort();
   }
 
   /**
@@ -1447,6 +1520,7 @@ export class Game {
     const core = this.core;
     const result = core?.currentFight?.result();
     if (!core || !result || this.busy) return;
+    this.freshFight();
     const session = core.session;
     const said = { victory: "We won the fight.", surrender: "We won: they gave up.", defeat: "We lost the fight, and I woke up on the floor.", fled: "We got out of there." }[result.outcome];
     const fell = result.casualties.filter(c => c.state !== "standing" && c.id !== "kell").map(c => `${c.name} ${c.state === "down" ? "went down" : c.state}`);
@@ -1725,6 +1799,7 @@ export class Game {
     this.over = undefined;
     this.choices = [];
     this.typing = false;
+    this.freshFight();
     this.shown = undefined;
     // Another game's scene is news to nobody.
     this.look = undefined;

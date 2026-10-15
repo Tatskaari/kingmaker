@@ -31,7 +31,8 @@ const USAGE = `Kingmaker playable game: headless QA
   qa new --session <id> --zoo [--seed N]       visit the zoo instead: every feature laid out to see and try
   qa observe --session <id>                     what you see, and the actions you can take
   qa act --session <id> --id <action id>        take an action from the latest observation (in a talk, say_1... says that line)
-  qa say --session <id> <what you say or do>    in a scene: speak (plain words) or act (*asterisks* or (parentheses))
+  qa say --session <id> <what you say or do>    in a scene: speak (plain words) or act (*asterisks* or (parentheses));
+                                                in a fight the same, or a plain command ("attack sallow", "end turn"), read onto the turn's actions
   qa end --session <id> [--exit <exit id>]      for testing: end the scene now through one of its exits (lists them without --exit)
   qa sheet --session <id>                       your character sheet
   qa map --session <id> [--w 100] [--h 30]      the map where you are (in a scene: its place, and its world from above)
@@ -101,7 +102,7 @@ async function main(): Promise<void> {
     if (!text) throw new Error("Usage: qa say --session <id> <what you say or do>");
     console.log(await game.say(text));
     const now = game.observe();
-    // Still in the scene: what just happened was the scene, so only a talk's next choices.
+    // Still in the scene: what just happened was the scene, so only a talk's next choices. A fight shows its board again, as act does.
     if (now.mode !== "scene") { console.log(); print(now, id); } else if (now.actions.length) { console.log(); options(now, id); }
     return;
   }

@@ -49,6 +49,15 @@ export function apiKey(): string {
   return key;
 }
 
+/**
+ * No model to be had: no key, or one that isn't an OpenRouter key at all (the offline runs' "offline",
+ * the web server's --offline). Whatever would ask a model can say so at once rather than wait on a
+ * refusal (a key OpenRouter turns down still has to be asked to find out).
+ */
+export function modelOffline(): boolean {
+  try { return !/^sk-or-/.test(apiKey()); } catch { return true; }
+}
+
 let logFile: string | undefined = process.env.KM_CALL_LOG;
 /** Point model-call logging at a JSONL file (per session or eval run). */
 export function setCallLog(path: string | undefined): void {
