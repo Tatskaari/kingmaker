@@ -23,6 +23,7 @@
     "compare": "node --no-warnings src/eval/compare.ts",
     "qa": "node --no-warnings src/cli/qa.ts",
     "report": "node --no-warnings src/cli/report.ts",
+    "docs:anchors": "node --no-warnings src/cli/doc-anchors.ts",
     "glyphs": "python3 tools/glyphs/build.py --install",
     "glyphs:build": "python3 tools/glyphs/build.py",
     "glyphs:uninstall": "python3 tools/glyphs/build.py --uninstall",

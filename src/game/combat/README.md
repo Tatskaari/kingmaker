@@ -27,7 +27,7 @@ The rules decisions (what a diagonal costs, who rolls death saves, when Sallow y
 | [`voice.ts`](voice.ts) | The GM's line on a typed turn (prompts/fight.md): whoever was spoken to answering, or the GM saying what the rules did, given every fact of the fight |
 | [`rules.ts`](rules.ts) | The bridge to the engine: `Kit` (one engine and one dice stream a fight), [`Table`](rules.ts#L28) (the live campaign during a move), [`Rules`](rules.ts#L108) (the campaign kept in memory between moves); statblocks ([`STATBLOCKS`](rules.ts#L155), `statblockFor`, `createNpc`); [`diceLines`](rules.ts#L220) |
 | [`setup.ts`](setup.ts) | [`initialState`](setup.ts#L34): the session's campaign, the people as engine characters, the engine's encounter and initiative, the props, the dust and the fuel |
-| [`model.ts`](model.ts) | The types: [`CombatG`](model.ts#L75), `Unit`, `Prop`, `LogLine`, `PlayerAction`, `PlayerOptions`, `CombatView` |
+| [`model.ts`](model.ts) | The types: [`CombatG`](model.ts#L90), `Unit`, `Prop`, `LogLine`, `PlayerAction`, `PlayerOptions`, `CombatView` |
 | [`grid.ts`](grid.ts) | Pure tile geometry: paths (`findPath`, `explore`), lines (`line`, `clearShot`), [`areaTiles`](grid.ts#L157), `rangeFeet` |
 | [`ai.ts`](ai.ts) | [`decide`](ai.ts#L39): the next step for everyone else, as the cast's notes in lore/Cast have them; and for the player, for the demo and "let the dice decide" |
 | [`heron.ts`](heron.ts), [`heron-grid.ts`](heron-grid.ts) | The Heron's fight as a `CombatSetup` ([`heronEncounter`](heron.ts#L40): Sallow and his Crakes, or Hep's gang before midnight; Kell on your side), and a grid of its own for when the map module has none |

@@ -25,6 +25,7 @@ The authored lore in [lore/](../../lore/README.md) is the seed: Markdown files w
 | [disclosure.ts](disclosure.ts) | `disclose` (each turn, per scope), `keepOpened`, `withhold`, and `memoryBrief` (what the GM is shown, in a stable part and a live part) |
 | [reviews.ts](reviews.ts) | `memory: "docs"`: the attention filter (`attend`, V1's seven categories), the two review agents and their tools (`reviewTurn`), and `broadcastEnding` |
 | [remember.ts](remember.ts) | `memory: "lite"`: one merged review of a flagged turn (`rememberTurn`), and one memory per person at a scene's end (`rememberScene`) |
+| [backstory.ts](backstory.ts) | Character creation's backstory: `draftBackstory` (one from the concept and build), `workIn` (notes made a story, keeping every name, place and number), `checkLore` (what doesn't fit the world, with a fix: checked against `canonFor`, the public lore only, and the story's `PREMISE`, never a GM's or a character's own doc, since what it says goes to the player as written), `applyFix`, `premiseSlips`, `finishBackstory` (who they are and their traits, for the sheet and the GM), and `MOST_WORDS` |
 | [fronts.ts](fronts.ts) | `frontsText` and `moveFronts`: steps ticked and struck, and bills added, in this game's copy of a fronts doc |
 
 **Docs written in play,** in the overlay:
@@ -34,7 +35,7 @@ The authored lore in [lore/](../../lore/README.md) is the seed: Markdown files w
 | `Cast/<Name>/memories/index.md` and a note per memory | A person's memories (`characters/<id>/memories/` for someone with no lore entry) | private to `character:<id>` | `saveMemory`: the review agents, the lite reviews, `broadcastEnding`, talks |
 | `story/index.md`, `story/scenes/<scene>.md` | The scenes played so far: each one's hand-off and how it ended | gm | `savePlayedScene`, at a boundary |
 | `story/facts/<id>.md` | Shared facts, each a note of its own (lite) | public | `saveFact` |
-| `Player/<name>.md` | Who the player character is, and what they've told or shown people about themselves | gm | `playerDoc`, then the world-facts agent |
+| `Player/<name>.md` | Who the player character is: their backstory in their own words and what it says of them (from character creation), and what they've told or shown people about themselves | gm | `writePlayerBackstory` when the session is made, `playerDoc`, then the world-facts agent |
 | Any lore path | The world-facts agent's edits and new docs | as written | `editDoc`, `createDoc` |
 | `World/Fronts.md` | The story's fronts, as this game has moved them | gm | `moveFronts` at a boundary; the world-facts agent mid-scene |
 | `Zoo/Fronts.md` | The zoo's own fronts, for its boundary desk | gm | [src/game/zoo/fronts.ts](../game/zoo/fronts.ts) |
@@ -65,6 +66,7 @@ flowchart TB
 | [src/runtime/jobs.ts](../runtime/jobs.ts) | `reviewTurn` or `rememberTurn`, after each turn, in the background |
 | [src/runtime/talk.ts](../runtime/talk.ts), [scenes/talk.ts](../../scenes/talk.ts) | A companion's lore entry, notes and memories (`characterEntry`, `seedDoc`, `readDoc`, `linksIn`, `permitted`, `memoryLines`, `saveMemory`), and `withhold` |
 | The scene harness, the evals, the zoo | `listDocs` and `readDoc` (`scene memories`), the memory evals, the zoo's own fronts |
+| [src/app](../app/README.md#making-a-character), [src/cli/qa.ts](../cli/qa.ts) | Character creation's backstory: `draftBackstory`, `workIn`, `checkLore`, `applyFix`, `finishBackstory` |
 
 It calls [src/llm](../llm/README.md) (`JevDecider` for disclosure and the attention filter, `runTools` for the agents, `respondJson` for the lite reviews), [src/runtime/brief.ts](../runtime/brief.ts) (who is present, the transcript, `prompt`), `sessionDir` from [src/runtime/session.ts](../runtime/session.ts), and the review prompts in [prompts/](../../prompts/README.md).
 
@@ -73,7 +75,7 @@ It calls [src/llm](../llm/README.md) (`JevDecider` for disclosure and the attent
 ### Access
 
 - **Scopes.** `gm`, and `character:<cast id>` for each person present.
-- **`permitted`** ([docs.ts:95](docs.ts#L95)). The GM reads everything. A `gm` doc is the GM's alone; a `public` doc is anyone's; a `private` doc is only its `readers`'.
+- **`permitted`** ([docs.ts:98](docs.ts#L98)). The GM reads everything. A `gm` doc is the GM's alone; a `public` doc is anyone's; a `private` doc is only its `readers`'.
 - **Defaults.** A doc with no frontmatter counts as `gm`; one with frontmatter but no `visibility` counts as `public`.
 
 ### Disclosure

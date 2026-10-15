@@ -60,6 +60,8 @@ flowchart LR
 
 **A QA command** (qa.ts:62): load the game (with the zoo's explorer if `game.json` says `hub: "zoo"`), do one thing, let the core save, and print the observation: the mode, what the player sees, the hint and the actions with their ids. After `act` or `say` in a scene it doesn't print the scene again, only what can be done next.
 
+Beside them, `doc-anchors.ts` (`npm run docs:anchors`) keeps the docs' line links pointing at what they meant: a link named for a symbol goes to its definition, and any other follows its line from the commit that wrote it, through the diff. `--check` only lists what's moved, and fails if anything has. Run it after a merge.
+
 ## Where to look first
 
 - **A new command or flag:** the `USAGE` string and `main()` in each file. Both are flat `if` chains on the command name.
@@ -83,6 +85,8 @@ npm run qa -- observe --session z1
 npm run qa -- act --session z1 --id go_to_lead
 npm run qa -- map --session z1 --w 100 --h 30
 npm run qa -- new --session g1 --as "Tamsin Vell: a disgraced palace auditor"   # a story game (the model builds the character)
+npm run qa -- builds --session g2 --as "Brother Odo: a large, gentle hedge-priest"   # character creation's three builds, as cards
+npm run qa -- new --session g2 --as "Brother Odo: a large, gentle hedge-priest" --build 1 --backstory-file /abs/odo.md --accept-fixes   # one of them, with a backstory checked against the lore
 npm run qa -- end --session g1                                      # in a scene, lists its exits; --exit <id> takes one
 npm run qa -- dump --session g1 --output /abs/path --description "what went wrong"
 ```
