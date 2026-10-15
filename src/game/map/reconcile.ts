@@ -114,7 +114,7 @@ export function actorsFromWorld(region: Region, world: SceneWorld, options: From
     const blocks = big && !door && !aloft && !e.states.includes("destroyed") && e.kind !== "item";
     const actor: MapActor = {
       id: e.id, name: e.name, kind: e.kind === "item" ? "item" : "object", glyph: look.glyph, color: look.color, map: map.id, at, ref: e.id,
-      ...(states.length ? { states } : {}), ...(blocks ? { blocks: true } : {}),
+      ...(states.length ? { states } : {}), ...(blocks ? { blocks: true } : {}), ...(e.quantity !== undefined ? { quantity: e.quantity } : {}),
       ...(e.description ? { interaction: { kind: "examine" as const, text: e.description, label: `Look at ${e.name}` } } : {}),
     };
     out.push(actor);

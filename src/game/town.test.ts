@@ -282,3 +282,25 @@ test("people go by what the player would call them until their names are heard, 
   ex.overlay.scenes["test"] = { map: ex.map, region: "test", things: [thing, ...crates.slice(1)], states: [] };
   assert.ok(targets(game, session).some(t => t.id === "examine_strongbox"), "a way in: offered");
 });
+
+test("coins a scene left on the cobbles can be picked up: off the map and into your pockets (wizard#34)", () => {
+  const { game, session } = newGame();
+  // The granary played (an unplayed scene's things wait for it).
+  game.story.played.push("hanged-clerk");
+  game.story.lead = "drowned-rat";
+  const ex = exploreState(game);
+  ex.story.played = [...game.story.played];
+  ex.story.lead = game.story.lead;
+  const at = { x: ex.at.x + 2, y: ex.at.y };
+  ex.overlay.scenes["hanged-clerk"] = { map: ex.map, region: "granary-yard", things: [{ id: "pennies", name: "pennies", kind: "item", glyph: "$", color: "#c8a060", map: ex.map, at, quantity: 3 }], states: [] };
+  const take = targets(game, session).find(t => t.id === "take_pennies");
+  assert.equal(take?.label, "Pick up 3 pennies");
+  const done = sync(town.act(game, session, "take_pennies"));
+  assert.match(done.text, /You pick up 3 pennies\./);
+  assert.deepEqual(session.carried?.map(e => [e.name, e.quantity, e.parent]), [["pennies", 3, "player"]]);
+  assert.ok(!targets(game, session).some(t => t.id === "take_pennies"), "gone from the map");
+  // More of the same join them.
+  ex.overlay.scenes["hanged-clerk"]!.things.push({ id: "pennies-2", name: "pennies", kind: "item", glyph: "$", color: "#c8a060", map: ex.map, at, quantity: 2 });
+  sync(town.act(game, session, "take_pennies"));
+  assert.deepEqual(session.carried?.map(e => [e.name, e.quantity]), [["pennies", 5]]);
+});

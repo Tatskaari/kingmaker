@@ -57,6 +57,8 @@ export interface MapActor {
   ref?: string;
   /** States worth drawing (burning, destroyed, down...). */
   states?: string[];
+  /** A stack's count (three pennies on the cobbles), from the scene's world. */
+  quantity?: number;
   blocks?: boolean;
   /** What happens when the player interacts with it. */
   interaction?: Interaction;
