@@ -68,13 +68,14 @@ D&D as the scenes use it, without the GM: skill checks; your own spells (and a f
 
 ### The Arena (`zoo-arena`)
 
-Fights on the map, started by a ring's bell, on the arena's own map with everyone where its world has them; each ring starts fresh every time and stays as the fight left it:
+Fights on the map, started by a ring's bell, on the arena's own map with everyone where its world has them; each ring starts fresh every time (you too: the attendants patch you up) and stays as the fight left it:
 
 - **The grain floor**: the Heron's fight rehearsed (Sallow, the Crakes, the lantern-boy, Kell), with grain dust, lanterns, a brazier and sacks.
 - **The porters' floor**: Hep Grist's brawlers.
 - **The goblin pit**: archers keeping their distance behind rocks (ranged attacks, cover).
 - **The wolf run**: Pack Tactics.
-- Signs for the battlefield on screen, pacing and targeting, the turn's options, after the fight, resuming, headless fights, death saves, leaving, and the story's fights.
+- **Leaving**: the wolf run's second rope, for running for the gate (disengage, the gate, l: fled).
+- Signs for the battlefield on screen, pacing and targeting, the turn's options, after the fight, resuming, headless fights, death saves, and the story's fights.
 
 ### Kell's Corner (`zoo-kell`)
 

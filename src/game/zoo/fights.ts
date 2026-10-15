@@ -1,3 +1,4 @@
+import { rest } from "../../rules/dnd.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import { areaAt, positionOf, type Entity, type SceneWorld } from "../../world/scene-world.ts";
 import { engineReady, startCombat, TacticalFight, type TacticalFights } from "../combat/index.ts";
@@ -40,6 +41,8 @@ export function zooFights(): TacticalFights {
       if (ring) {
         const arena = ARENAS[ring.arena];
         if (!arena) throw new Error(`There's no ring called ${ring.arena} in the arena.`);
+        // Every ring starts fresh, the visitor too: the attendants patch you up and hand your slots back (a night's rest).
+        await rest(session, "long");
         setup = enterRing(game, session, arena);
       } else setup = roomFight(game, session, room!);
       const combat = await startCombat(setup, session);

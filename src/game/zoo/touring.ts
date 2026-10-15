@@ -340,6 +340,8 @@ class Tour {
     const result = this.core.currentFight?.result();
     if (!result) { step.error ??= "the fight didn't end"; return; }
     step.said += `\nThe fight: ${result.summary}`;
+    // How it ended, for a plan that runs away ("fled").
+    step.played.push(result.outcome);
     try {
       step.said += `\n${(await this.core.act("continue")).replace(/\s+/g, " ").slice(0, 300)}`;
     } catch (error) {
