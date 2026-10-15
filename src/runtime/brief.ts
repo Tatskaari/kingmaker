@@ -298,6 +298,9 @@ function guardNote(scene: Scene, state: SessionState): string | undefined {
   return `## How far people have opened up\nPeople give up what they're hiding the way they would at a good table: something that doesn't fit shows first; picked at, their guard goes up and something personal shows; kept at, what they're torn between comes out in their own words; only then does the thing itself come out, told, bargained over or refused, depending on how the player has treated them. A reply takes someone one step at most, and only when the player has given them a reason; proof, or leverage that really reaches them, can take them straight to the end. Nothing that's out goes back in.\n${holders.map(c => `- ${c.name}: ${GUARD_NOTE[state.guard?.[c.id]?.stage ?? "surface"]}`).join("\n")}`;
 }
 
+/** Does this reply close the scene? (Its directives say so, by their opening words.) */
+const closes = (directive: string[]) => directive.some(d => d.startsWith("This reply closes the scene") || d.startsWith("The scene is ending"));
+
 export function nowNote(scene: Scene, state: SessionState, directive: string[], options: { castNotes?: boolean } = {}): string {
   const beat = currentBeat(scene, state);
   const present = new Set(presentCast(scene, state).map(c => c.id));
@@ -316,7 +319,9 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
     ...(guardNote(scene, state) ? [guardNote(scene, state)!] : []),
     // Co-GM notes steer the middle of a scene; a closing works from what happened, not stale steering.
-    ...(!state.closing && !state.pendingExit && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
+    // An ending held for the player's answer isn't a closing: the notes are for that answer (the
+    // Heron's note to stage Sallow initialling the page was kept from the GM while the barge was held).
+    ...(!state.closing && !closes(directive) && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(playerNow(state) ? [playerNow(state)!] : []),
     ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would.\n${strangers.join("\n")}`] : []),

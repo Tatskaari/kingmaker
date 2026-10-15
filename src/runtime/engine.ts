@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
 import { landRuling, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
@@ -218,6 +218,103 @@ function moveTaken(state: SessionState, move: Move, lines: string[], pending: Se
   return { lines };
 }
 
+type PostDecision = Awaited<ReturnType<typeof decideAfter>>;
+const FIGHT_CLOSE = " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold.";
+
+/**
+ * The player's turn with an ending held for their answer. A word out of character leaves it as it
+ * was: nothing in the story moves on. A turn that answers it (an ask, a challenge, something new, a
+ * try that might change things) holds it once more. Any other turn lets it land in this reply, with
+ * the player's turn answered first.
+ */
+function heldEnding(state: SessionState, pending: NonNullable<SessionState["pendingExit"]>, exit: Exit, pre: PreDecision, considered: boolean): { line: string; ended?: Exit } {
+  if (pre.ooc) {
+    state.pendingExit = pending;
+    return { line: oocHold(exit, "held") };
+  }
+  if ((pre.plain || pre.freeform || considered || pre.answering) && !pending.extended) {
+    state.pendingExit = { ...pending, extended: true };
+    return { line: `The scene is on the brink of: ${exit.title} (${exit.outcome}). It hasn't closed: the player is answering it, and their response may change that. Answer what they ask, let whoever they challenge or call on answer, and let what they do change things if it would; play it honestly.` };
+  }
+  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
+}
+
+/** A word out of character while an ending is held or winding down: answered, and nothing moves on. */
+function oocHold(exit: Exit, how: "held" | "closing"): string {
+  const where = how === "held"
+    ? `the scene is on the brink of ${exit.title}, which hasn't happened yet: the player's next turn in character is their answer to it`
+    : `the scene has come to ${exit.title}, and it closes on the player's next turn in character, not in this reply`;
+  return `Nothing in the story moves on while you answer: ${where}. Then give the turn back.`;
+}
+
+/** The wind-down reply: the player's last turn answered (a challenge to someone in the room lands), then the close. */
+function closingDirective(exit: Exit): string {
+  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
+}
+
+/**
+ * What the after-reply decision found, applied: an outcome route taken (its dice, its move), then
+ * where the story stands. An ending reached there waits for the player's answer unless it's their own
+ * doing with nothing left hanging (`whyItWaits`); a fight ends the scene at once.
+ */
+function moveOnAfterReply(scene: Scene, state: SessionState, post: PostDecision, hooks: TurnHooks, onStage: Set<string>): Exit | undefined {
+  if (post.move) {
+    if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll, post.move.transition.check?.reason) });
+    applyMove(state, scene, post.move, "post");
+  }
+  const waits = whyItWaits(post, arrivals(scene, state, onStage));
+  // (An ending the dice decided before the reply stands, unless a fight has broken out.)
+  if (post.move?.exit) return state.closing && post.move.exit.kind !== "combat" ? undefined : reachEnding(state, post.move.exit, post.move.transition.id, waits);
+  if (!post.ending) { delete state.endingLead; return undefined; }
+  if (post.move || state.closing || state.pendingExit) return undefined;
+  const exit = endingReached(scene, state, post.ending);
+  if (!exit) return undefined;
+  state.path.push({ turn: state.turn, from: state.beat, to: exit.id, via: "ending-reached", source: "post" });
+  return reachEnding(state, exit, "ending-reached", waits);
+}
+
+/** Where the story stands: an ending that leads twice running (or clearly) has been reached. */
+function endingReached(scene: Scene, state: SessionState, ending: NonNullable<PostDecision["ending"]>): Exit | undefined {
+  const lead = state.endingLead?.exitId === ending.exitId ? state.endingLead.count + 1 : 1;
+  state.endingLead = { exitId: ending.exitId, count: lead, probability: ending.probability };
+  const exit = scene.exits.find(e => e.id === ending.exitId);
+  if (!exit || !(ending.probability >= 0.6 || (lead >= 2 && ending.probability >= 0.35))) return undefined;
+  delete state.endingLead;
+  return exit;
+}
+
+/**
+ * Why an ending found after the reply waits for the player's answer, as one they didn't choose before
+ * the reply does: they asked something the reply left hanging, someone has just come in (Sallow, at
+ * the King's door, as the King put it off), or it isn't their own doing (Kell signing Prout in as
+ * murder by persons unknown as the player asked Cob what he saw).
+ */
+function whyItWaits(post: PostDecision, arrived: string[]): string | undefined {
+  if (post.unanswered) return "the player asked something the reply left unanswered";
+  if (arrived.length) return `${arrived.join(" and ")} just came in`;
+  if (!post.theirs) return "it isn't the player's own doing";
+  return undefined;
+}
+
+/** Who is here now and wasn't when the player spoke. */
+function arrivals(scene: Scene, state: SessionState, onStage: Set<string>): string[] {
+  return presentCast(scene, state).filter(c => !onStage.has(c.id)).map(c => c.name);
+}
+
+/**
+ * An ending the after-reply decision found: a fight that has broken out ends the scene now; one
+ * already held for the player stays as it is; one that waits is held for their answer; and one the
+ * player chose, with nothing hanging, gets one wind-down turn.
+ */
+function reachEnding(state: SessionState, exit: Exit, via: string, waits: string | undefined): Exit | undefined {
+  if (exit.kind === "combat") { delete state.pendingExit; return exit; }
+  if (state.pendingExit?.exitId === exit.id) return undefined;
+  delete state.pendingExit;
+  if (waits) state.pendingExit = { exitId: exit.id, turn: state.turn, via, extended: false, waits };
+  else state.closing = { exitId: exit.id, turn: state.turn };
+  return undefined;
+}
+
 /**
  * Does the turn go to the GM's review (considered rolls)? A roll is wanted that nothing the author
  * wrote settles, or it's a plan off the graph; and nothing else this turn has answered it (a route's
@@ -263,6 +360,9 @@ function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" 
 export async function playerTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic; suggest?: boolean } = {}): Promise<TurnResult> {
   if (state.ended) throw new Error(`Scene ${state.sceneId} has already ended (${state.ended.exitId}).`);
   const authored = sceneById(state.sceneId);
+  // Who was on stage as the player spoke (before a co-GM's move brings anyone on): whoever is here
+  // after the reply and wasn't has just come in, and an ending found then waits for the player.
+  const onStage = new Set(presentCast(authored, state).map(c => c.id));
   applyPendingRepairs(authored, state);
   let scene = effectiveScene(authored, state.patches);
   const approach = sceneApproach(state, authored);
@@ -294,23 +394,28 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     repairMs = performance.now() - repairStarted;
   }
 
-  // Wind-down turn: the story already reached an ending; answer the player and close.
+  // Wind-down turn: the story already reached an ending; answer the player and close. A word out of
+  // character is answered, and the close waits for their next turn in character.
   if (state.closing) {
     const exit = scene.exits.find(e => e.id === state.closing!.exitId)!;
-    const closing = [`The scene is ending: ${exit.outcome} Answer the player's last turn and bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't add new events, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`];
+    const asked = await outOfCharacter(decider, scene, state, input).catch(() => undefined);
+    const ooc = asked?.ooc === true;
+    const lines = ooc ? [OOC_DIRECTIVE, oocHold(exit, "closing")] : [closingDirective(exit)];
     const replyStarted = performance.now();
     const close = approach.voice === "gm"
-      ? await gmReply(scene, state, closing, speakHooks(textHooks, "gm", "narration"), "gm.closing")
-      : await narratorReply(scene, state, [...closing, "You may give a character a brief last word if it fits."], speakHooks(textHooks, "gm", "narration"));
+      ? await gmReply(scene, state, lines, speakHooks(textHooks, "gm", "narration"), ooc ? "gm.reply" : "gm.closing")
+      : await narratorReply(scene, state, ooc ? lines : [...lines, "You may give a character a brief last word if it fits."], speakHooks(textHooks, "gm", "narration"));
     push(state, hooks, { speaker: "gm", kind: "narration", text: close.text });
-    delete state.closing;
-    if (authored.createsCharacter) await extractCharacter(authored, state);
-    finishScene(state, authored, exit);
-    const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd, calls: 1 };
+    if (!ooc) {
+      delete state.closing;
+      if (authored.createsCharacter) await extractCharacter(authored, state);
+      finishScene(state, authored, exit);
+    } else if (options.suggest) startSuggesting(state, hooks);
+    const metric: TurnMetric = { turn: state.turn, preDecisionMs: asked?.decision.latencyMs ?? 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd + (asked?.decision.costUsd ?? 0), calls: asked ? 2 : 1 };
     state.metrics.push(metric);
     saveSession(state);
     snapshotSession(state);
-    return { entries: state.transcript.slice(before), ended: exit, metric };
+    return { entries: state.transcript.slice(before), ...(ooc ? {} : { ended: exit }), metric };
   }
 
   // The rules: a blow or a danger the last reply left hanging over the player lands now, before
@@ -365,7 +470,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], features: state.rules.features ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
   // (Considered rolls ask whether a roll is wanted in this same call: no extra latency on ordinary turns.)
   const considers = approach.considered === true && approach.voice === "gm";
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off" || considers, relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, considered: considers, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}) });
+  // An ending held for the player's answer: the decision asks whether they're answering it.
+  const brink = state.pendingExit ? scene.exits.find(e => e.id === state.pendingExit!.exitId) : undefined;
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off" || considers, relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, considered: considers, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}), ...(brink ? { brink } : {}) });
   // A failed roll stands: don't have something else hand over what the dice just withheld.
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
   const preDecisionMs = performance.now() - started;
@@ -493,7 +600,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   }
   // The background co-GM is for the scene's direction: a plan off the graph the GM has ruled on doesn't need it now.
   if (pre.offGraph && !considered) state.offGraphTurn = state.turn;
-  if (state.endingLead && !pre.move && !considered && !state.closing) {
+  if (state.endingLead && !pre.move && !considered && !state.closing && !pre.ooc) {
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
     if (exit) directive.push(`The scene may be reaching its end (${exit.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
   }
@@ -513,20 +620,15 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   }
   if (pre.ooc) directive.push(OOC_DIRECTIVE);
   else if (pre.plainTransition && !pre.limit && !pre.move && !considered) directive.push(plainDirective(pre.plainTransition));
-  if (pre.limit) directive.push(limitDirective(pre.limit));
-  if (wasStuck && !pre.move && !considered) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
+  // (Out of character, the answer says plainly what the game can't do, and the scene isn't pushed on.)
+  if (pre.limit && !pre.ooc) directive.push(limitDirective(pre.limit));
+  if (wasStuck && !pre.move && !considered && !pre.ooc) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
   // An ending held for the player's answer: a move answers it (a ruling's success, or its own ending);
   // a ruling that failed without one is like any try that might change things.
   if (pending && !pre.move && !(considered && (considered.record.went === "success" || considered.move.exit))) {
-    const exit = scene.exits.find(e => e.id === pending.exitId)!;
-    if ((pre.plain || pre.freeform || considered) && !pending.extended) {
-      // The player is doing something that might change things: hold the ending one more turn.
-      state.pendingExit = { ...pending, extended: true };
-      directive.push(`The scene is on the brink of: ${exit.title} (${exit.outcome}). The player's response may change that; play it honestly.`);
-    } else {
-      ended = exit;
-      directive.push(`This reply closes the scene: ${exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold." : ""}`);
-    }
+    const held = heldEnding(state, pending, scene.exits.find(e => e.id === pending.exitId)!, pre, !!considered);
+    directive.push(held.line);
+    if (held.ended) ended = held.ended;
   }
 
   const spoken: Spoken[] = [];
@@ -683,36 +785,18 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     postDecisionMs = performance.now() - postStarted;
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.status) state.sceneStatus = post.status;
-    if (post.threat && !state.closing) state.threat = { ...post.threat, turn: state.turn };
-    if (post.left && !state.closing && !post.move?.exit) leftPlace = true;
-    judgedLanded = post.landed ?? [];
-    if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
-    // Staged secrets never go back: what's out stays out.
-    for (const [id, stage] of Object.entries(post.guard ?? {})) {
-      const was = state.guard?.[id]?.stage ?? "surface";
-      if (GUARD_STAGES.indexOf(stage) > GUARD_STAGES.indexOf(was)) state.guard = { ...(state.guard ?? {}), [id]: { stage, turn: state.turn } };
-    }
-    // Where the story stands: an ending that leads twice running (or clearly) closes the scene.
-    if (post.ending && !post.move && !state.closing && !state.pendingExit) {
-      const lead = state.endingLead?.exitId === post.ending.exitId ? state.endingLead.count + 1 : 1;
-      state.endingLead = { exitId: post.ending.exitId, count: lead, probability: post.ending.probability };
-      const exit = scene.exits.find(e => e.id === post.ending!.exitId);
-      if (exit && (post.ending.probability >= 0.6 || (lead >= 2 && post.ending.probability >= 0.35))) {
-        state.path.push({ turn: state.turn, from: state.beat, to: exit.id, via: "ending-reached", source: "post" });
-        if (exit.kind === "combat") ended = exit;
-        else state.closing = { exitId: exit.id, turn: state.turn };
-        delete state.endingLead;
+    // A word out of character moves nothing on in the story: only how the scene is going is kept.
+    if (!pre.ooc) {
+      if (post.threat && !state.closing) state.threat = { ...post.threat, turn: state.turn };
+      if (post.left && !state.closing && !post.move?.exit) leftPlace = true;
+      judgedLanded = post.landed ?? [];
+      if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
+      // Staged secrets never go back: what's out stays out.
+      for (const [id, stage] of Object.entries(post.guard ?? {})) {
+        const was = state.guard?.[id]?.stage ?? "surface";
+        if (GUARD_STAGES.indexOf(stage) > GUARD_STAGES.indexOf(was)) state.guard = { ...(state.guard ?? {}), [id]: { stage, turn: state.turn } };
       }
-    } else if (!post.ending) delete state.endingLead;
-    if (post.move) {
-      if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll, post.move.transition.check?.reason) });
-      applyMove(state, scene, post.move, "post");
-      if (post.move.exit) {
-        delete state.pendingExit;
-        // A fight has already broken out in the reply; anything else gets one wind-down turn.
-        if (post.move.exit.kind === "combat") ended = post.move.exit;
-        else state.closing = { exitId: post.move.exit.id, turn: state.turn };
-      }
+      ended = moveOnAfterReply(scene, state, post, hooks, onStage) ?? ended;
     }
   }
   // What a ruling brought out has been come across, as the ruling says (which settles anything the

@@ -267,7 +267,7 @@ export interface SessionState {
   metrics: TurnMetric[];
   ended?: { exitId: string; turn: number; operations: Operation[]; warnings: string[] };
   /** An ending the player didn't choose is coming; they get one last chance to respond. */
-  pendingExit?: { exitId: string; turn: number; via: string; extended: boolean };
+  pendingExit?: { exitId: string; turn: number; via: string; extended: boolean; waits?: string };
   /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
   closing?: { exitId: string; turn: number };
   /** D&D mechanics, when the session has a rules-engine character sheet. */

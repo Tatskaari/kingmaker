@@ -431,7 +431,7 @@ export function snapshotDetail(dump: Dump, which: string, raw = false): string {
   const scene = s.sceneId;
   const out = [[
     `Snapshot ${snap.name} (written ${snap.mtime})`,
-    `  ${titleOf(scene)} (${scene}), beat ${s.beat}, turn ${s.turn} (${s.turnsInBeat} in the beat)${s.sceneStatus ? `; ${s.sceneStatus}` : ""}${s.endingLead ? `; leaning to ${s.endingLead.exitId} (${s.endingLead.count}×)` : ""}${s.pendingExit ? `; ending pending: ${s.pendingExit.exitId}` : ""}${s.closing ? `; closing: ${s.closing.exitId}` : ""}${s.ended ? `; ended: ${s.ended.exitId}` : ""}`,
+    `  ${titleOf(scene)} (${scene}), beat ${s.beat}, turn ${s.turn} (${s.turnsInBeat} in the beat)${s.sceneStatus ? `; ${s.sceneStatus}` : ""}${s.endingLead ? `; leaning to ${s.endingLead.exitId} (${s.endingLead.count}×)` : ""}${s.pendingExit ? `; ending pending: ${s.pendingExit.exitId}${s.pendingExit.waits ? ` (it waits: ${s.pendingExit.waits})` : ""}` : ""}${s.closing ? `; closing: ${s.closing.exitId}` : ""}${s.ended ? `; ended: ${s.ended.exitId}` : ""}`,
     ...(s.rules?.status ? [`  ${s.player.name}: ${s.rules.status}`] : []),
     ...(s.landed?.length || s.hinted?.length ? [`  landed: ${(s.landed ?? []).join(", ") || "-"}; hinted: ${(s.hinted ?? []).join(", ") || "-"}`] : []),
     ...(s.guard && Object.keys(s.guard).length ? [`  guard: ${Object.entries(s.guard).map(([k, g]) => `${k} ${g.stage}`).join(", ")}`] : []),

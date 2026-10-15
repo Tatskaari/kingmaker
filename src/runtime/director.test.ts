@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -302,4 +302,27 @@ test("a courteous ask isn't daft: the question says so, and the bill wants a cle
   const daft = decider.asked[0]!.daft!;
   assert.match(daft.instructions, /Earnest play isn't daft, however bold: asking for something \(to see it, for help, for evidence\), an honest offer \(food, coin, a trade\), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan/);
   assert.match(daft.instructions, /a scam, a bluff or a lie/, "a trick still is");
+});
+
+// Endings that wait for the player's answer: what the decisions are asked, in the calls they make anyway.
+test("with an ending held, the decision asks whether the player is answering it; only then", async () => {
+  const exit = scene.exits.find(e => e.id === "open-case")!;
+  const held = scripted({ brink: ["answers", 0.68, { lets_it_happen: 0.32 }] });
+  const pre = await decideBefore(held, scene, yard(), "Cob, you'll be safe. Can you tell me exactly what you heard and saw?", { speaker: false, brink: exit });
+  assert.equal(pre.answering, true);
+  assert.match(held.asked[0]!.brink!.instructions, /^The scene is about to end like this: Murder by persons unknown\./);
+  assert.match(held.asked[0]!.brink!.criteria.answers!, /calling someone out \(even just their name, said to them\)/);
+  const thanks = await decideBefore(scripted({ brink: ["lets_it_happen", 0.99] }), scene, yard(), "Thank you, Sergeant.", { speaker: false, brink: exit });
+  assert.equal(thanks.answering, undefined, "letting it happen");
+  const none = scripted({});
+  await decideBefore(none, scene, yard(), "Who found him?", { speaker: false });
+  assert.equal(none.asked[0]!.brink, undefined);
+});
+
+test("after the reply: whether the player left something unanswered, and whether an ending would be their own doing", async () => {
+  const after = (picks: Parameters<typeof scripted>[0]) => decideAfter(scripted(picks), scene, yard(), "Shall we go? And who found him?", "Kell closes her notebook.");
+  const left = await after({ ask: ["unanswered", 0.55, { none: 0.45 }], own_exit: ["theirs", 0.9] });
+  assert.deepEqual([left.unanswered, left.theirs], [true, true]);
+  const unsure = await after({ own_exit: ["theirs", 0.55, { no: 0.45 }] });
+  assert.deepEqual([unsure.unanswered, unsure.theirs], [undefined, undefined], "only a clear read is the player's own exit");
 });

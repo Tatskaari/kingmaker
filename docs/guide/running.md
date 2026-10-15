@@ -87,8 +87,9 @@ This is narrative repair; see [experiments/deviation-repair.md](../experiments/d
   NPC initiative and rejoining remain the weakest.
 - **Endings.**
   - An ending the player chooses closes in that reply.
-  - One they didn't choose is held for one last response.
-  - One that happens in the fiction gets a wind-down.
+  - One they didn't choose is held for their answer: a question, a challenge or a try holds it once more.
+  - One that happens in the fiction waits for their answer too, unless it was their own doing and nothing is left hanging: then it gets a wind-down, whose reply answers their last turn first (a challenge to someone in the room lands). In Brother Ambrose's game, Kell signed Prout in as persons unknown while he asked Cob what he saw, and the King put it off as Sallow walked in; the turns that followed were spent closing.
+  - A word out of character never closes anything: it's answered, and the turn is given back.
   - "An ending of their own" catches resolutions the prep didn't foresee, and inherits the next scene when every authored exit agrees on one.
 
 ## Pacing a reveal
