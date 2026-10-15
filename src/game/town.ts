@@ -1,12 +1,14 @@
-import { sceneById } from "../../scenes/index.ts";
+import { SCENES, sceneById } from "../../scenes/index.ts";
+import { asHeard, strangers } from "../runtime/brief.ts";
 import { talkable } from "../../scenes/talk.ts";
 import type { SessionState } from "../runtime/session.ts";
+import type { Entity } from "../world/scene-world.ts";
 import {
   actorsAt, actorsHere, direction, enterScene, exitLabel, getMap, inRect, interact, isDoorway, isLive, leadMarker, leaveScene, look, lookAt, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
   setStory, steps, tileAt, tileName, isStructure, travel, walkPlan, whereabouts, type ExploreState, type PlaceRegion,
 } from "./map/index.ts";
 import { catalogue } from "../rules/actions.ts";
-import { aimView, checkAim, doMenuAct, isMenuAct, menuOf, menuText, storyRoute, type AimAt, type AimView, type Ctx, type Done as MenuDone, type MenuView, type Rested, type Spotted } from "./menu.ts";
+import { aimView, checkAim, doMenuAct, isMenuAct, menuOf, menuText, storyRoute, type AimAt, type AimView, type Ctx, type Done as MenuDone, type Lifted, type MenuView, type Rested, type Spotted } from "./menu.ts";
 import type { Action, Explorer, GameState } from "./play.ts";
 import { townWorld } from "./town-world.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
@@ -52,6 +54,8 @@ export interface TownState {
   rested?: Rested;
   /** Where they were seen trying to hide (not again from there before the clock moves on). */
   spotted?: Spotted;
+  /** Whose pockets they've tried (not again before the clock moves on). */
+  lifted?: Lifted;
 }
 
 /** How far a QA observation lists what's in sight, in steps. */
@@ -146,13 +150,26 @@ export function targets(game: GameState, session?: SessionState): Target[] {
     .sort((a, b) => steps(a.at, from) - steps(b.at, from) || a.id.localeCompare(b.id));
   // A stack spread over three tiles, or a crowd of four, is one thing to look at: the nearest of it.
   const seen = new Set<string>();
+  // People go by what the player would call them until they've heard their names, as in the scenes.
+  const unheard = unheardNames(game, session);
   for (const a of actors) {
     if (a.ref) { if (seen.has(a.ref)) continue; seen.add(a.ref); }
     const i = a.interaction!;
     const verb = i.kind === "scene" ? i.verb : i.kind === "travel" ? "travel" : /^talk/i.test(i.label) ? "talk" : "examine";
     const name = slug(a.ref && !a.ref.includes(":") && isPerson(a) ? a.ref : a.name) || "someone";
     const d = steps(a.at, from);
-    out.push({ id: unique(`${verb}_${name}`), label: i.label, kind: verb === "talk" ? "talk" : verb === "examine" ? "examine" : verb === "travel" ? "travel" : "enter", at: a.at, distance: d, direction: direction(from, a.at), actor: a, interaction: i });
+    // Only what there's a way to (the dead-cart in the gate puts the yard's things out of reach).
+    if (d > 1 && !pathTo(ex, a.at, world)) continue;
+    const shown = isPerson(a) && unheard.length ? { ...a, name: asHeard(a.name, unheard) } : a;
+    const label = isPerson(a) && unheard.length ? asHeard(i.label, unheard) : i.label;
+    out.push({ id: unique(`${verb}_${name}`), label, kind: verb === "talk" ? "talk" : verb === "examine" ? "examine" : verb === "travel" ? "travel" : "enter", at: a.at, distance: d, direction: direction(from, a.at), actor: shown, interaction: i });
+  }
+  // What a scene left lying about that can be picked up (coins on the cobbles), if there's a way to it.
+  // (In a scene, it's said: the scene's world has it.)
+  for (const a of (ex.scene ? [] : actorsHere(ex, world)).filter(a => a.kind === "item" && a.id.includes(":") && !unplayed(a) && !(a.states ?? []).some(s => ["burning", "destroyed", "hidden", "overhead", "hanging"].includes(s)) && steps(a.at, from) <= SIGHT)) {
+    const d = steps(a.at, from);
+    if (d > 1 && !pathTo(ex, a.at, world)) continue;
+    out.push({ id: unique(`take_${slug(a.name) || "it"}`), label: `Pick up ${a.quantity && a.quantity > 1 ? `${a.quantity} ` : ""}${a.name.replace(/^(the|some) /i, "")}`, kind: "use", at: a.at, distance: d, direction: direction(from, a.at), actor: a });
   }
   // Ways out to other maps (a door, the stairs, along the wharf): one per way, its nearest tile.
   const exits = new Map<string, TileMap["exits"][number]>();
@@ -179,6 +196,35 @@ export function targets(game: GameState, session?: SessionState): Target[] {
     out.push({ id: unique(`go_to_${slug(r.name)}`), label: `Walk to ${r.name}`, kind: "move", at, distance: steps(at, from), direction: direction(from, at), onto: true, area: r.rect });
   }
   return out.sort((a, b) => a.distance - b.distance);
+}
+
+/** The story's people whose names the player hasn't heard, and what they'd call them: what they've been told (the scenes played, the one they're bound for) and heard in play. */
+export function unheardNames(game: GameState, session?: SessionState): Array<{ name: string; called: string }> {
+  if (!session?.transcript) return [];
+  const told = [...(session.history ?? []).map(h => h.sceneId), game.story.lead ?? ""].map(id => SCENES.find(sc => sc.id === id)?.hook ?? "");
+  return strangers(SCENES, session, told);
+}
+
+/**
+ * Pick up something a scene left lying about: off the map (the scene's place keeps it no longer) and
+ * into the player's pockets, which the next scene's world and the sheet read (`carried`). A stack
+ * joins a like one.
+ */
+function pickUp(game: GameState, session: SessionState, a: MapActor): string {
+  const ex = exploreState(game);
+  const [sceneId, local] = [a.id.slice(0, a.id.indexOf(":")), a.id.slice(a.id.indexOf(":") + 1)];
+  const left = ex.overlay.scenes[sceneId];
+  if (left) left.things = left.things.filter(t => t.id !== local && t.id !== a.id);
+  const pockets = (session.carried ??= []);
+  const like = a.quantity !== undefined ? pockets.find(e => e.name === a.name && e.quantity !== undefined && e.parent === "player") : undefined;
+  if (like) like.quantity = (like.quantity ?? 0) + (a.quantity ?? 1);
+  else {
+    let id = local.replace(/[^a-z0-9-]/gi, "-") || "thing";
+    for (let n = 2; pockets.some(e => e.id === id); n++) id = `${local}-${n}`;
+    const thing: Entity = { id, name: a.name, kind: "item", parent: "player", tags: [], states: [], notes: [], ...(a.quantity !== undefined ? { quantity: a.quantity } : {}) };
+    pockets.push(thing);
+  }
+  return `You pick up ${a.quantity && a.quantity > 1 ? `${a.quantity} ` : ""}${a.name.replace(/^(the|some) /i, "")}.`;
 }
 
 /** The standable tile of a rectangle nearest a tile (by steps). */
@@ -485,7 +531,7 @@ export const town = {
     return [
       `${w.map}: ${w.place}, ${w.time.replace("-", " ")}. You are the @; on this map north is up-left and east is up-right.`,
       townText(game, session, { w: 80, h: 24 }),
-      look(ex),
+      asHeard(look(ex), unheardNames(game, session)),
       ...(near.length ? [`Further off: ${near.slice(0, 10).map(t => `${t.actor!.name} (${where(t.distance, t.direction)})`).join(", ")}.`] : []),
       ...(lead ? [`The story is heading for ${sceneById(game.story.lead!).title}: ${leadWords(lead, ex.at)}.`] : []),
       ...(town.log.length ? [`Recently: ${town.log.slice(-3).join(" ")}`] : []),
@@ -574,6 +620,12 @@ export const town = {
       if (!dx && !dy) throw new Error(`Unavailable action: ${id}`);
       const r = move(ex, dx, dy);
       done = { text: r.message ?? (r.moved ? "The door gives, and you go through." : ""), ...(sceneOpens(game, r.trigger) ? { scene: true } : {}) };
+    } else if (/^take_/.test(id)) {
+      const t = targets(game, session).find(x => x.id === id);
+      if (!t?.actor) throw new Error(`Unavailable action: ${id}. Observe again for what's in sight.`);
+      const walked = goTo(game, t, false);
+      const there = steps(exploreState(game).at, t.at) <= 1;
+      done = there ? { text: [walked.text === "You're already there." ? "" : walked.text, pickUp(game, session, t.actor)].filter(Boolean).join(" ") } : walked;
     } else {
       const all = targets(game, session);
       // go_to_<x> walks over to anything in sight (its talk_/examine_ id names it too); the verbs walk over and use it.

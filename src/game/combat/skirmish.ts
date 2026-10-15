@@ -422,10 +422,11 @@ export class Skirmish {
   attack(u: Unit, targetId: string, weaponId?: string): string | undefined {
     if (!this.isTurnOf(u)) return "It isn't their turn.";
     if (!this.able(u)) return `${cap(this.you(u).called)} can't attack.`;
-    const improvised = weaponId === "improvised";
+    // A fist or a boot is the rules' Unarmed Strike; a bottle or a stool, the same blow called what it is.
+    const improvised = weaponId === "improvised" || weaponId === "unarmed";
     const weapon = improvised ? this.improvised(u) : weaponId && u.weapons.includes(weaponId) ? weaponId : u.weapons[0];
     if (!weapon) return improvised ? "There's nothing to hand to swing." : "Nothing to attack with.";
-    const label = improvised ? "Improvised weapon" : undefined;
+    const label = weaponId === "unarmed" ? "Unarmed Strike" : improvised ? "Improvised weapon" : undefined;
     const prop = this.G.props[targetId];
     if (prop) return this.attackProp(u, prop, weapon, label);
     const target = this.unit(targetId);
@@ -433,9 +434,10 @@ export class Skirmish {
     if (target.id === u.id) return "Attacking yourself is a matter for the Assizes.";
     const check = this.attackCheck(u, target, weapon);
     if (check.error) return check.error;
+    const advantage = this.wild(u, check.melee, check.advantage);
     const intent: Record<string, unknown> = {
       attackerId: u.engineId, targetId: target.engineId, weaponInstanceId: weapon, attackerHasAllyAdjacentToTarget: check.packed,
-      ...(check.advantage ? { advantage: check.advantage } : {}), ...(check.cover ? { cover: check.cover } : {}),
+      ...(advantage ? { advantage } : {}), ...(check.cover ? { cover: check.cover } : {}),
     };
     const say = this.isYou(u) ? undefined : `attack:${u.castId ?? u.role}`;
     if (say && hash(this.G.round, u.id, this.G.log.length) % 3 === 0) this.say(say, u);
@@ -465,6 +467,37 @@ export class Skirmish {
     }
     this.settle();
     return undefined;
+  }
+
+  /**
+   * A barbarian's Reckless Attack (from 2nd level), declared before their first attack of the turn:
+   * their blows have advantage this turn, and blows at them have it until their next turn (the
+   * engine keeps that half).
+   */
+  reckless(u: Unit): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    const why = this.whyNotReckless(u);
+    if (why) return why;
+    try { this.t.plan("recklessAttack", { encounterId: this.G.encounterId, combatantId: u.engineId }); } catch (e) { return reason(e); }
+    this.log("dice", `Reckless Attack: ${this.isYou(u) ? "your" : `${possessive(u.called)}`} blows have advantage this turn, and so do blows at ${this.isYou(u) ? "you" : "them"} until ${this.isYou(u) ? "your" : "their"} next turn`, u.id);
+    return undefined;
+  }
+
+  /** Why Reckless Attack can't be declared now (undefined when it can). */
+  whyNotReckless(u: Unit): string | undefined {
+    const barbarian = this.t.char(u.engineId)?.classes.some(c => c.classId === "barbarian" && c.level >= 2);
+    if (!barbarian) return "Reckless Attack is a barbarian's, from 2nd level.";
+    if (this.recklessNow(u)) return "You're already attacking recklessly this turn.";
+    if ((this.usage(u)?.attacksMadeThisTurn ?? 0) > 0) return "Reckless Attack is declared before your first attack of the turn.";
+    return undefined;
+  }
+
+  private recklessNow(u: Unit): boolean { return (this.usage(u) as { recklessAttackActive?: boolean } | undefined)?.recklessAttackActive === true; }
+
+  /** A blow's advantage: a reckless barbarian's in hand to hand, against what the range or the light would give it. */
+  private wild(u: Unit, melee: boolean, given?: "advantage" | "disadvantage"): "advantage" | "disadvantage" | undefined {
+    if (!melee || !this.recklessNow(u)) return given;
+    return given === "disadvantage" ? undefined : "advantage";
   }
 
   /** A blow or a shot at a thing (a lantern): the weapon's attack against its armour class. */
@@ -998,7 +1031,7 @@ export class Skirmish {
     const u = this.pc();
     const ready = this.isTurnOf(u) && this.able(u) && !this.G.outcome;
     const use = this.usage(u);
-    const empty: PlayerOptions = { ready: false, movementLeft: 0, actionUsed: true, moves: [], attacks: [], spells: [], props: [], wrestle: [], hear: [], bonusActionUsed: true, dash: false, dodge: false, disengage: false };
+    const empty: PlayerOptions = { ready: false, movementLeft: 0, actionUsed: true, moves: [], attacks: [], unarmed: [], reckless: false, spells: [], props: [], wrestle: [], hear: [], bonusActionUsed: true, dash: false, dodge: false, disengage: false };
     if (!ready || !use) return empty;
     const canAttack = !use.actionUsed || (use.attacksMadeThisTurn > 0 && use.attacksMadeThisTurn < this.attacksPerAction(u));
     const targets = this.units.filter(v => v.state === "fighting" && this.hostile(u, v) && v.role !== "coward");
@@ -1016,6 +1049,10 @@ export class Skirmish {
         if (w) attacks.push({ target: p.id, name: `the ${p.name}`, weapon: w, weaponName: this.namer().weapon(w), bonus: attackBonus(this.t.sheet(u.engineId), w), note: this.dustAt(p.at) ? "it hangs over the dust" : "" });
       }
     }
+    // A punch or a kick for whoever's beside you, with or without a weapon in hand.
+    const fist = canAttack ? this.improvised(u) : undefined;
+    const unarmed = fist ? targets.filter(v => steps(u.at, v.at) <= 1).map(v => ({ target: v.id, name: v.name, bonus: attackBonus(this.t.sheet(u.engineId), fist) })) : [];
+    const reckless = canAttack && !this.whyNotReckless(u);
     const spells = this.spellChoices(u).filter(s => (s.bonus ? !use.bonusActionUsed && !(s.hurls && use.actionUsed) : !use.actionUsed)).map(s => ({
       id: s.id, name: s.name, level: s.level, slot: s.slot, targeting: s.targeting, range: s.range, fire: s.fire,
       ...(s.spell["targeting"] ? { area: s.spell["targeting"] as { shape: string; size: number } } : {}),
@@ -1030,7 +1067,7 @@ export class Skirmish {
     const hear = use.actionUsed ? [] : targets.filter(v => this.able(v) && feetBetween(u.at, v.at) <= EARSHOT).map(v => ({ id: v.id, name: v.name, understands: this.understands(v), ...this.moodOf(v) }));
     const exit = this.exitAt(u.at);
     return {
-      ready, movementLeft: this.movementLeft(u), actionUsed: use.actionUsed, moves: this.moveTargets(u), attacks, spells, props, wrestle, hear, bonusActionUsed: use.bonusActionUsed,
+      ready, movementLeft: this.movementLeft(u), actionUsed: use.actionUsed, moves: this.moveTargets(u), attacks, unarmed, reckless, spells, props, wrestle, hear, bonusActionUsed: use.bonusActionUsed,
       dash: !use.actionUsed && !use.dashed, dodge: !use.actionUsed, disengage: !use.actionUsed && !use.disengaged,
       ...(exit ? { leave: exit.label } : {}),
     };

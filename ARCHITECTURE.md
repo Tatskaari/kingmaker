@@ -223,7 +223,7 @@ Each game is two mutable JSON documents, the session (`state.json`) and the game
 
 | File | What it is | Written by | Read by |
 |---|---|---|---|
-| `state.json` | The session, `SessionState` ([src/runtime/session.ts:229](src/runtime/session.ts#L229)) | `saveSession`, at the end of each turn (a temp file, then a rename), and again by `Game.save` | `loadSession`; the co-GM's job |
+| `state.json` | The session, `SessionState` ([src/runtime/session.ts:231](src/runtime/session.ts#L231)) | `saveSession`, at the end of each turn (a temp file, then a rename), and again by `Game.save` | `loadSession`; the co-GM's job |
 | `game.json` | The game, `GameState` ([src/game/play.ts:44](src/game/play.ts#L44)): the mode, the story (time of day, scenes played, the lead, flags), the map's `ExploreState`, and a fight in progress | `Game.save`, after every act and line | `Game.load` |
 | `app.json` | The notebook and the latest messages | [src/app/save.ts](src/app/save.ts) | the app |
 | `snapshots/<scene>-turn-NNN.json` | The session after each turn | `snapshotSession` | the memory job; eval fixtures (copied into `evals/fixtures/`); the world eval (the scenes that ended); the End's chapters |

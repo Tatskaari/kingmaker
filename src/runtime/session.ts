@@ -64,6 +64,8 @@ export interface RulesState {
   status?: string;
   /** A spell with a listed duration is running: story time passing can end it. */
   timed?: boolean;
+  /** A barbarian's Rage: the minutes of story time it has left (it lasts ten; a knock-out or a rest ends it sooner). */
+  rage?: number;
   /** The player's gear (engine item instances), mirrored into scene worlds as things they carry. */
   gear?: Array<{ id: string; name: string; kind: "weapon" | "armor" | "shield" | "item"; slot?: "mainHand" | "offHand" | "armor" | "shield" }>;
   /** Gear the story has parted them from (given away, dropped, left behind): off the sheet until they get it back. */
@@ -296,6 +298,11 @@ export interface SessionState {
   rules?: RulesState;
   /** A blow or a danger the last reply left hanging over the player (rules sessions). */
   threat?: Threat;
+  /**
+   * The turn a hold caught the player (a grab they failed to resist, or gave in to): it stands with
+   * no more saving throws until they break free or the story lets them go (src/runtime/threats.ts).
+   */
+  held?: number;
   /**
    * A fight the player's violence started in the scene (decided reactions: some fight, some flee):
    * who goes for the player and who's with them. The game plays it out on the map; elsewhere the

@@ -150,8 +150,13 @@ export type CheckSkill = "perception" | "insight" | "medicine" | "survival" | "i
 
 export type PlayerAction =
   | { kind: "move"; to: Tile2 }
-  /** weapon: an instance id, or "improvised" (a bottle, a chair leg: the rules' unarmed strike, called what it is). */
+  /**
+   * weapon: an instance id, "unarmed" (a punch, a kick: the rules' Unarmed Strike), or "improvised"
+   * (a bottle, a chair leg: the same unarmed strike, called what it is).
+   */
   | { kind: "attack"; target: string; weapon?: string }
+  /** A barbarian's Reckless Attack, before their first attack of the turn: advantage on their blows, and on blows at them until their next turn. */
+  | { kind: "reckless" }
   /** slot: a higher slot than the lowest the spell can take (an upcast). */
   | { kind: "cast"; spell: string; target?: string; at?: Tile2; slot?: number }
   | { kind: "use"; prop: string }
@@ -179,6 +184,10 @@ export interface PlayerOptions {
   /** Tiles the player can move to this turn. */
   moves: Tile2[];
   attacks: Array<{ target: string; name: string; weapon: string; weaponName: string; bonus: number; advantage?: "advantage" | "disadvantage"; note?: string }>;
+  /** Who's beside you to punch or kick (an Unarmed Strike), while you've an attack left, and its bonus. */
+  unarmed: Array<{ target: string; name: string; bonus: number }>;
+  /** A barbarian's Reckless Attack can be declared now (before the turn's first attack). */
+  reckless: boolean;
   spells: Array<{ id: string; name: string; level: number; slot: number; targeting: "unit" | "area" | "self"; area?: { shape: string; size: number }; range: number; fire: boolean; targets: Array<{ id: string; name: string }> }>;
   props: Array<{ id: string; name: string; how: string }>;
   /** Who's close enough to grab or shove (beside you, on the other side), while the action's free. */

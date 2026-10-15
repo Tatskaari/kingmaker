@@ -372,3 +372,60 @@ describe("a typed line, done through the fight", () => {
     assert.deepEqual(spent(f), before);
   });
 });
+
+describe("fists and a barbarian's Reckless Attack (barbarian#45)", () => {
+  const BARBARIAN = { classId: "barbarian", subclassId: "path-of-the-berserker", speciesId: "orc", backgroundId: "soldier", abilities: ["STR", "CON", "DEX", "WIS", "CHA", "INT"], skills: ["athletics", "intimidation"], feat: "savage-attacker", cantrips: [], spells: [], weapons: ["greataxe", "handaxe"], armor: "none", shield: false } as unknown as import("../../rules/dnd.ts").Build;
+  /** As `heron`, for an orc barbarian. */
+  async function barbarian(at: Record<string, Tile2> = {}): Promise<TacticalFight> {
+    for (let seed = 1; seed < 40; seed++) {
+      const session = await pregenSession({ build: BARBARIAN, seed: 3, level: 3 });
+      session.established.push("Master Sallow has come to the Heron.");
+      const setup = heronEncounter(heronMap(), session, { sallow: true, seed });
+      const combat = await startCombat({ ...setup, combatants: setup.combatants.map((c: CombatantSetup) => (at[c.id] ? { ...c, at: at[c.id]! } : c)) }, session);
+      if (combat.state().order[0] !== combat.state().pc) continue;
+      const fight = new TacticalFight(combat, []);
+      fight.begin();
+      return fight;
+    }
+    throw new Error("no seed where the player goes first");
+  }
+
+  it("offers a punch for whoever's beside you, and Reckless Attack before the first blow", async () => {
+    const f = await barbarian(BESIDE);
+    const o = f.controller.options();
+    assert.deepEqual(o.unarmed.map(u => u.target), ["crake-1"]);
+    assert.equal(o.reckless, true);
+    const ids = f.actions().map(a => a.id);
+    assert.ok(ids.includes("attack_crake-1_with_unarmed") && ids.includes("reckless"), ids.join(", "));
+    // Not a fighter's.
+    const fighter = await heron("fighter", BESIDE);
+    assert.equal(fighter.controller.options().reckless, false);
+    assert.match((await offline("reckless attack the talking crake", fighter)).refusal ?? "", /Reckless Attack is a barbarian's/);
+  });
+
+  it("reads a punch, an unarmed strike and a reckless attack in plain words", async () => {
+    const f = await barbarian(BESIDE);
+    assert.deepEqual((await offline("punch the talking crake", f)).steps, ["attack_crake-1_with_unarmed"]);
+    assert.deepEqual((await offline("reckless attack the talking crake", f)).steps, ["reckless", "attack_crake-1"]);
+    assert.deepEqual((await offline("attack the talking crake recklessly", f)).steps, ["reckless", "attack_crake-1"]);
+    const far = await barbarian({ "crake-1": { x: 19, y: 6 } });
+    assert.deepEqual((await offline("move to the talking crake, then unarmed strike the talking crake", far)).steps, ["close_crake-1", "attack_crake-1_with_unarmed"]);
+  });
+
+  it("a punch the decider took for a swing of the axe is the punch the player said", async () => {
+    const f = await barbarian(BESIDE);
+    const r = await readLine("*I barge past and punch the talking crake square in the face*", f, stub({ deed: "attack:crake-1:greataxe" }));
+    assert.deepEqual(r.steps, ["attack_crake-1_with_unarmed"]);
+  });
+
+  it("does it: Reckless Attack declared, the blow at advantage, and an Unarmed Strike called that", async () => {
+    const f = await barbarian(BESIDE);
+    await f.say("reckless attack the talking crake", {}, { decider: null, voice: null });
+    const log = f.controller.view().log.map(l => l.text);
+    assert.ok(log.some(l => /^Reckless Attack: your blows have advantage this turn/.test(l)), log.join("\n"));
+    assert.ok(log.some(l => /^Greataxe: your attack on the talking Crake: \d+\/\d+ \(advantage\)/.test(l)), log.join("\n"));
+    const g = await barbarian(BESIDE);
+    await g.say("punch the talking crake", {}, { decider: null, voice: null });
+    assert.ok(g.controller.view().log.some(l => /^Unarmed Strike: your attack on the talking Crake/.test(l.text)), g.controller.view().log.map(l => l.text).join("\n"));
+  });
+});

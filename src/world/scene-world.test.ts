@@ -61,3 +61,42 @@ test("a jump is the gap, not the walk to it: the practice yard's ditch is ten fe
   // Into the ditch from beside it: areas that touch, so the world can't say.
   assert.equal(jumpGap(world, "ditch"), undefined);
 });
+
+test("saying where a held thing is doesn't move it: his greataxe on his back is still his (barbarian#35)", () => {
+  // As the stage manager wrote it at the Heron: "place grukka-greataxe → player (on)", which dropped
+  // the axe at his feet, and the rules took it off his sheet.
+  const world = stall();
+  applyOps(world, [op({ op: "create", name: "a greataxe", kind: "item", to: "player" })], 1, "stage");
+  assert.equal(world.entities.greataxe!.parent, "player");
+  for (const how of ["on", "in", "under", "near", "beside", "behind", ""]) {
+    const r = applyOps(world, [op({ op: "place", what: "greataxe", to: "player", how })], 2, "stage");
+    assert.deepEqual([r.changes, r.problems], [[], []], how);
+    assert.equal(world.entities.greataxe!.parent, "player", `"${how}" the player: still carried`);
+  }
+  applyOps(world, [op({ op: "move", what: "greataxe", to: "player" })], 2, "stage");
+  assert.equal(world.entities.greataxe!.parent, "player", "a move to beside him too");
+  // Slung on someone else's back, it's theirs; under someone, it's on the floor where they stand.
+  applyOps(world, [op({ op: "place", what: "greataxe", to: "crust", how: "on" })], 3, "stage");
+  assert.equal(world.entities.greataxe!.parent, "crust");
+  applyOps(world, [op({ op: "create", name: "a penny", kind: "item", to: "the-queue" }), op({ op: "place", what: "penny", to: "player", how: "under" })], 4, "stage");
+  assert.equal(world.entities.penny!.parent === "player", false);
+  assert.deepEqual(world.entities.penny!.at, world.entities.player!.at);
+  // Thrown away from him, it goes.
+  applyOps(world, [op({ op: "give", what: "greataxe", to: "player" }), op({ op: "place", what: "greataxe", to: "player", how: "away", feet: 10 })], 5, "stage");
+  assert.notEqual(world.entities.greataxe!.parent, "player");
+  // Nobody is carried "on" someone: Madam Crust on the player stands where he is.
+  applyOps(world, [op({ op: "place", what: "crust", to: "player", how: "on" })], 6, "stage");
+  assert.notEqual(world.entities.crust!.parent, "player");
+});
+
+test("something of someone's by name is made in their hands, and a thing with no name isn't made (barbarian#54)", () => {
+  const world = stall();
+  applyOps(world, [op({ op: "create", name: "Madam Crust's ledger", kind: "object", to: "crust", how: "near" })], 1, "stage");
+  assert.equal(Object.values(world.entities).find(e => e.name === "Madam Crust's ledger")!.parent, "crust", "hers, in her hands, not on the floor by her");
+  applyOps(world, [op({ op: "create", name: "Crust's handcart", kind: "object", to: "crust", how: "near" })], 1, "stage");
+  assert.notEqual(Object.values(world.entities).find(e => e.name === "Crust's handcart")!.parent, "crust", "too big to be in anyone's hands");
+  const before = Object.keys(world.entities).length;
+  const r = applyOps(world, [op({ op: "create", name: "", kind: "item", to: "crust" })], 2, "stage");
+  assert.equal(Object.keys(world.entities).length, before);
+  assert.match(r.problems[0]!, /needs a name/);
+});

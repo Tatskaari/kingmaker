@@ -164,6 +164,9 @@ export class TacticalFight implements Fight {
       const other = o.attacks.find(b => b.target === a.target && b.weapon !== a.weapon);
       if (other) out.push({ id: `attack_${a.target}_with_${slug(other.weaponName)}`, label: `Attack ${named(a.target)} with ${other.weaponName}`, kind: "fight" });
     }
+    // A punch or a kick for whoever's beside you; a barbarian's Reckless Attack before the first blow.
+    for (const f of o.unarmed) out.push({ id: `attack_${f.target}_with_unarmed`, label: `Punch or kick ${named(f.target)} (Unarmed Strike ${f.bonus >= 0 ? "+" : ""}${f.bonus})`, kind: "fight" });
+    if (o.reckless) out.push({ id: "reckless", label: "Attack recklessly this turn (Reckless Attack: advantage on your blows, and on blows at you until your next turn)", kind: "fight" });
     for (const s of o.spells) {
       const fire = s.fire && G.dust.length ? " (fire: mind the dust)" : "";
       if (s.targeting === "self") out.push({ id: `cast_${s.id}`, label: `Cast ${s.name}${s.slot ? ` (${ordinal(s.slot)} slot)` : ""}`, kind: "fight" });
@@ -338,7 +341,7 @@ export class TacticalFight implements Fight {
     const G = this.combat.state();
     const pc = G.units[G.pc]!;
     if (id === "end_turn") return { kind: "end" };
-    if (id === "dash" || id === "dodge" || id === "disengage" || id === "leave") return { kind: id };
+    if (id === "dash" || id === "dodge" || id === "disengage" || id === "leave" || id === "reckless") return { kind: id };
     if (id === "back_off") return this.named({ kind: "back" });
     // A spell from a higher slot than its lowest: the same cast, upcast.
     let m = /^(cast_.+)_slot(\d)$/.exec(id);
@@ -349,7 +352,7 @@ export class TacticalFight implements Fight {
     if (m && DIRS[m[1]!]) { const d = DIRS[m[1]!]!; return { kind: "move", to: { x: pc.at.x + d.x, y: pc.at.y + d.y } }; }
     m = /^attack_(.+?)(?:_with_(.+))?$/.exec(id);
     if (m) {
-      if (m[2] === "improvised") return { kind: "attack", target: m[1]!, weapon: "improvised" };
+      if (m[2] === "improvised" || m[2] === "unarmed") return { kind: "attack", target: m[1]!, weapon: m[2] };
       // Plain attack_<target> is the attack it was listed as: the first weapon that reaches them (a bow across the room).
       const attacks = this.combat.options().attacks.filter(a => a.target === m![1]);
       const weapon = m[2] ? pc.weapons.find(w => slug(attacks.find(a => a.weapon === w)?.weaponName ?? "") === m![2]) : attacks[0]?.weapon;

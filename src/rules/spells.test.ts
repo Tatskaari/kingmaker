@@ -180,3 +180,71 @@ test("what the engine adds for the caster is on their card, as a cast rolls it: 
   assert.ok(saved.length && saved.every(l => /takes \d+ acid damage/.test(l)), `half on a success:\n${saved.join("\n")}`);
   for (const l of (await casts(evoker, "fire-bolt", "dummy", 6)).filter(l => /: miss/.test(l))) assert.doesNotMatch(l, /damage/);
 });
+
+test("a spell from the slot the player's words ask for, an aim nobody could make out asked about, and a Rage that ends (wizard#17, barbarian#44)", async () => {
+  const { castSpell: cast, createCharacter, passTime, rest, useFeature, comeTo } = await import("./dnd.ts");
+  const crake = [{ id: "crake-1", name: "the talking Crake", statblock: "thug" }] as unknown as Character[];
+  // "Magic Missile at second level": four darts, from a 2nd-level slot.
+  const wizard = await pregenSession({ pregen: "wizard", seed: 6 });
+  const up = await cast(wizard, crake, "magic-missile", ["crake-1"], { said: "*I cast Magic Missile at second level: four darts into the Crake's back*" });
+  assert.match(up.lines[0]!, /^Cast Magic Missile \(2nd-level slot\) on /);
+  assert.equal(up.lines.filter(l => /takes \d+ force damage/.test(l)).length, 4, up.lines.join("\n"));
+  assert.match(wizard.rules!.status!, /2nd 1\/2/);
+  // "My strongest slot" is the highest free; no word of it is the lowest.
+  const plain = await cast(wizard, crake, "magic-missile", ["crake-1"], { said: "Magic Missile at the Crake" });
+  assert.match(plain.lines[0]!, /\(1st-level slot\)/);
+  // Aimed at a thing nobody could make out: asked, and nothing spent.
+  const before = wizard.rules!.status;
+  const asked = await cast(wizard, [], "fire-bolt", [], { said: "Fire Bolt up there", unclear: true });
+  assert.match(asked.lines[0]!, /^\(Fire Bolt: at what\?/);
+  assert.equal(wizard.rules!.status, before);
+  // A Rage: ten minutes, or until a rest or a knock-out (it had outlasted both).
+  const state = { id: "rage-ends", sceneId: "hanged-clerk", approach: "v2", seed: 3, rollCount: 0, player: { name: "Grukka", concept: "a half-orc barbarian", modifiers: {} },
+    turn: 0, beat: "yard", turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null, patches: [], repairs: [], transcript: [], metrics: [], history: [] } as import("../runtime/session.ts").SessionState;
+  await createCharacter(state, 3, { classId: "barbarian", subclassId: "path-of-the-berserker", speciesId: "orc", backgroundId: "soldier", abilities: ["STR", "CON", "DEX", "WIS", "CHA", "INT"], skills: ["athletics", "intimidation"], feat: "savage-attacker", cantrips: [], spells: [], weapons: ["greataxe", "handaxe"], armor: "none", shield: false } as Build);
+  await useFeature(state, [], "rage");
+  assert.match(state.rules!.status!, /raging/);
+  assert.deepEqual(await passTime(state, 5), []);
+  assert.deepEqual(await passTime(state, 5), ["Your rage burns out"]);
+  assert.doesNotMatch(state.rules!.status!, /raging/);
+  await rest(state, "short");
+  await useFeature(state, [], "rage");
+  assert.doesNotMatch((await rest(state, "long")).lines.join("\n"), /raging/);
+  await useFeature(state, [], "rage");
+  await comeTo(state);
+  assert.doesNotMatch(state.rules!.status!, /raging/);
+});
+
+test("Detect Magic says what it senses: on the map there's no GM to (wizard#34)", async () => {
+  const { buildWorld } = await import("../world/scene-world.ts");
+  const { hangedClerkWorld } = await import("../../scenes/worlds/hanged-clerk.ts");
+  const build = { ...PREGENS.wizard!.build, spells: ["detect-magic", ...PREGENS.wizard!.build.spells] } as Build;
+  const state = await pregenSession({ build, seed: 4, sceneId: "hanged-clerk" });
+  state.world = buildWorld("hanged-clerk", hangedClerkWorld, [], { name: state.player.name });
+  assert.ok((await castSpell(state, [], "detect-magic", [], { ritual: true })).lines.includes("You sense no magic within 30 feet"));
+  state.world.entities.satchel!.tags.push("magic");
+  assert.ok((await castSpell(state, [], "detect-magic", [], { ritual: true })).lines.includes("You sense magic within 30 feet: Prout's satchel"));
+});
+
+test("what a spell conjured goes when the spell does, and with the scene: the lights and the hand don't stay on the map (wizard#34)", async () => {
+  const { buildWorld, applyOps } = await import("../world/scene-world.ts");
+  const { hangedClerkWorld } = await import("../../scenes/worlds/hanged-clerk.ts");
+  const { markConjured, dispelConjured } = await import("./dnd.ts");
+  const world = buildWorld("hanged-clerk", hangedClerkWorld, [], { name: "Pell" });
+  const blank = { what: "", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  // As the stage manager wrote the wizard's turns: the lights, then the hand, each the turn it was cast.
+  applyOps(world, [{ ...blank, op: "create", name: "four pigeon-shaped lights", kind: "object", to: "yard" }], 5, "stage");
+  applyOps(world, [{ ...blank, op: "create", name: "a spectral hand", kind: "object", to: "yard" }, { ...blank, op: "create", name: "a basket of eels", kind: "object", to: "yard" }], 6, "stage");
+  markConjured(world, "dancing-lights", 5);
+  markConjured(world, "mage-hand", 6);
+  const lights = Object.values(world.entities).find(e => e.name === "four pigeon-shaped lights")!;
+  const hand = Object.values(world.entities).find(e => e.name === "a spectral hand")!;
+  const eels = Object.values(world.entities).find(e => e.name === "a basket of eels")!;
+  assert.ok(lights.tags.includes("conjured:dancing-lights") && hand.tags.includes("conjured:mage-hand") && !eels.tags.includes("conjured"));
+  // Dancing Lights runs out: the lights go, the hand stays.
+  dispelConjured(world, ["dancing-lights"], 7);
+  assert.deepEqual([lights.states.includes("gone"), hand.states.includes("gone")], [true, false]);
+  // The scene ends: whatever a spell conjured goes; the eels stay.
+  dispelConjured(world, undefined, 8);
+  assert.deepEqual([hand.states.includes("gone"), eels.states.includes("gone")], [true, false]);
+});

@@ -42,6 +42,7 @@ export function combatGame(initial: CombatG, rules: Rules): Game<CombatG> {
     moves: {
       move: ({ G }, to: Tile2) => act(G, s => s.move(me(s), to)),
       attack: ({ G }, target: string, weapon?: string) => act(G, s => s.attack(me(s), target, weapon)),
+      reckless: ({ G }) => act(G, s => s.reckless(me(s))),
       cast: ({ G }, spell: string, target?: string, at?: Tile2, slot?: number) => act(G, s => s.cast(me(s), spell, target, at, slot)),
       use: ({ G }, prop: string) => act(G, s => s.use(me(s), prop)),
       wrestle: ({ G }, target: string, how: "grapple" | "prone" | "push") => act(G, s => s.wrestle(me(s), target, how)),

@@ -78,13 +78,13 @@ The turn itself is the runtime's ([src/runtime/README.md](../runtime/README.md#o
 
 ### The operations
 
-[`applyOps(world, ops, turn, by)`](scene-world.ts#L497) is the world's one way in for the stage manager, scripts and the runtime. It returns what changed in plain words (`changes`) and what couldn't be done (`problems`), and never throws.
+[`applyOps(world, ops, turn, by)`](scene-world.ts#L503) is the world's one way in for the stage manager, scripts and the runtime. It returns what changed in plain words (`changes`) and what couldn't be done (`problems`), and never throws.
 
 | op | does |
 |---|---|
-| `move`, `place` | to an area, or near, behind, beside, under, on or in something; `away`/`toward` by `feet`. Saying where someone already is isn't a move. |
+| `move`, `place` | to an area, or near, behind, beside, under, on or in something; `away`/`toward` by `feet`. On or in someone is carried (an axe slung on his back); under someone is on the floor where they stand. Saying where someone already is isn't a move, nor is saying where someone has a thing of theirs ("his greataxe on his back" leaves it carried). |
 | `give`, `drop` | through the inventory's `settle`: found wherever it is, part of a stack by `quantity` |
-| `create` | someone or something new the story brought in, near something or in someone's hands |
+| `create` | someone or something new the story brought in, near something or in someone's hands (an item made beside someone, or a thing of theirs by name: "Kell's notebook"); one with no name isn't made |
 | `state`, `note`, `forget` | states added and removed (`burning` goes through `ignite`); notes written and cleared |
 | `remove`, `destroy`, `break` | leaves the scene; wrecked (what it held falls out, what hung from it falls); broken (a container spills) |
 | `ignite`, `douse`, `spill`, `chill`, `bleed` | the physics verbs |
@@ -95,12 +95,12 @@ Selectors ([`select`](scene-world.ts#L410)) take an id, a name, or a model's way
 
 - **Fire.** Wood, cloth, paper, rope and leather burn; metal, stone and glass only scorch; wet things won't catch; a thing with oil on it burns, metal too, for two turns. Each `tick`, a burning thing takes 1d10 fire and sets alight what's flammable within 5 ft; fire in a `dusty` area explodes it (4d6 fire to every thing in it). A wreck burned to 0 HP burns a turn more, then smoulders.
 - **Surfaces.** Oil, spirits and grease burn for 4, 2 and 3 turns, burning what stands in them, then leave ash and smoke. Water puts fire out; water on burning oil spreads it. Cold freezes a puddle to ice. Water dries in 20 turns, smoke drifts off in 3, steam in 2.
-- **Damage to things** ([`damageThing`](scene-world.ts#L689)): nothing feels poison or psychic, and each material shrugs off its own list (stone takes no fire); damaged at half, destroyed at none, with what's left in words. A broken container spills what it held, alight if fire broke it.
+- **Damage to things** ([`damageThing`](scene-world.ts#L702)): nothing feels poison or psychic, and each material shrugs off its own list (stone takes no fire); damaged at half, destroyed at none, with what's left in words. A broken container spills what it held, alight if fire broke it.
 - **People** don't take damage from the world here: their hit points are the rules engine's (src/rules).
 
 ### The DSL
 
-An exit script is `(world: WorldApi, outcome) => void` in `scenes/*.ts`. It runs when the scene ends, against [`recordingWorld`](dsl.ts#L74) and the asset catalogue, and its operations are kept on `SessionState.ended.operations`. Only two kinds are read back: `journal` (the notebook: [src/app/story.ts:56](../app/story.ts#L56)) and `startCombat` (who a fight sets out: [src/game/combat/fights.ts:457](../game/combat/fights.ts#L457), [heron.ts:43](../game/combat/heron.ts#L43), [src/game/zoo/fights.ts:103](../game/zoo/fights.ts#L103)). The scribe writes a script of its own from the transcript, adding to the author's or reconciling with it: the scene CLI saves it beside the session (`world-<scene>.ts`), and the evals score it.
+An exit script is `(world: WorldApi, outcome) => void` in `scenes/*.ts`. It runs when the scene ends, against [`recordingWorld`](dsl.ts#L74) and the asset catalogue, and its operations are kept on `SessionState.ended.operations`. Only two kinds are read back: `journal` (the notebook: [src/app/story.ts:56](../app/story.ts#L56)) and `startCombat` (who a fight sets out: [src/game/combat/fights.ts:460](../game/combat/fights.ts#L460), [heron.ts:43](../game/combat/heron.ts#L43), [src/game/zoo/fights.ts:103](../game/zoo/fights.ts#L103)). The scribe writes a script of its own from the transcript, adding to the author's or reconciling with it: the scene CLI saves it beside the session (`world-<scene>.ts`), and the evals score it.
 
 ## Where to look first
 
@@ -126,7 +126,7 @@ The zoo's Works wing ([src/game/zoo/README.md](../game/zoo/README.md#the-works-z
 
 - **The same rules are coded again elsewhere.** Fire, damage to things and breaking are coded here for scenes, and separately for the town map, for fights and in the map's ageing of what's left: see [the table in src/game/README.md](../game/README.md#the-same-rule-coded-more-than-once). Bugs that come of it:
   - people don't burn outside fights: `ignite` does nothing to a person, and a burning surface burns only things ([systems.ts:196](systems.ts#L196));
-  - something the story creates can't catch fire: `create` gives it no `flammable` tag ([scene-world.ts:526](scene-world.ts#L526));
+  - something the story creates can't catch fire: `create` gives it no `flammable` tag ([scene-world.ts:534](scene-world.ts#L534));
   - the look director waits for a "fire spread to" log line ([src/game/look/director.ts:140](../game/look/director.ts#L140)) that nothing writes (the world logs "X catches fire").
 - **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:521](../runtime/engine.ts#L521)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
 - **Spell areas ignore walls.** `caughtIn` is geometry in feet (its comment says the map will add walls). Fights lay areas on tiles and walls stop them ([src/game/combat/grid.ts `areaTiles`](../game/combat/grid.ts#L157)), so one Fireball can catch different people in a scene and in a fight.

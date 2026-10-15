@@ -149,6 +149,7 @@ class Controller implements CombatController {
     switch (action.kind) {
       case "move": m["move"]!(action.to); break;
       case "attack": m["attack"]!(action.target, action.weapon); break;
+      case "reckless": m["reckless"]!(); break;
       case "cast": m["cast"]!(action.spell, action.target, action.at, "slot" in action ? action.slot : undefined); break;
       case "use": m["use"]!(action.prop); break;
       case "wrestle": m["wrestle"]!(action.target, action.how); break;

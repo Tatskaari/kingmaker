@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, sameAgainDirective, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, namedThing, pressureReason, sameAgainDirective, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -418,4 +418,23 @@ test("after the reply: whether the player left something unanswered, and whether
   assert.deepEqual([left.unanswered, left.theirs], [true, true]);
   const unsure = await after({ own_exit: ["theirs", 0.55, { no: 0.45 }] });
   assert.deepEqual([unsure.unanswered, unsure.theirs], [undefined, undefined], "only a clear read is the player's own exit");
+});
+
+test("a spell's aim on a weak read is what the player named, a doubtful second target is dropped, and an aim nobody can make out is asked (wizard#17)", async () => {
+  const doors = [{ id: "loft-door", name: "the loft door" }, { id: "yard-doors", name: "the yard doors" }, { id: "tally-desk", name: "the tally desk" }, { id: "smashed-lantern", name: "a smashed lantern" }];
+  assert.equal(namedThing(doors, "*I aim a Fire Bolt at the padlocked yard doors' hasp*"), "yard-doors");
+  assert.equal(namedThing(doors, "the Mage Hand goes through the slot to the chained tally book"), "tally-desk");
+  assert.equal(namedThing(doors, "I fling it at the door"), undefined, "a tie names nothing");
+  const spells = { spells: [{ id: "fire-bolt", name: "Fire Bolt", level: 0 }, { id: "magic-missile", name: "Magic Missile", level: 1 }], weapons: [], things: doors };
+  const cast = async (said: string, picks: Record<string, [string, number, Record<string, number>?]>) =>
+    (await decideBefore(scripted({ mechanic: ["cast", 0.95], ...picks }), scene, yard(), said, { speaker: false, rules: spells })).mechanic;
+  // As played: the loft door at .44 against the yard doors at .14, for the yard doors' hasp.
+  assert.deepEqual(await cast("*I aim a Fire Bolt at the padlocked yard doors' hasp*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.44, { "yard-doors": 0.14 }] }), { kind: "cast", spell: "fire-bolt", targets: ["yard-doors"] });
+  // A sure read stands.
+  assert.deepEqual(await cast("*Fire Bolt at the loft door*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.9] }), { kind: "cast", spell: "fire-bolt", targets: ["loft-door"] });
+  // Nothing named, and no clear lead: asked.
+  assert.deepEqual(await cast("*I hurl a Fire Bolt up there*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.29, { "yard-doors": 0.25 }] }), { kind: "cast", spell: "fire-bolt", targets: [], unclear: true });
+  // Magic Missile into the Crake's back (.99), and Sallow at .56 is dropped.
+  const crakeCast = await decideBefore(scripted({ mechanic: ["cast", 0.95], spell: ["magic-missile", 0.9], aim_cob: ["yes", 0.99], aim_kell: ["yes", 0.56] }), scene, yard(), "*Magic Missile straight into the boy*", { speaker: false, rules: spells });
+  assert.deepEqual(crakeCast.mechanic, { kind: "cast", spell: "magic-missile", targets: ["cob"] });
 });

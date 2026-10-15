@@ -5,7 +5,7 @@ import { describeRoll, rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { startingPurse } from "../world/inventory.ts";
-import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
+import { caughtIn, damageThing, heldBy, positionOf, within, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
 import { RAYS, spellDetails, type Caster, type Extras, type Names, type SpellDetails } from "./spells.ts";
 
@@ -160,6 +160,46 @@ export const CASTING: Record<string, { cantrips: number; prepared: (level: numbe
   paladin: { cantrips: 0, prepared: l => l + 1, maxSpell: l => (l < 5 ? 1 : Math.min(5, Math.ceil(l / 4))) },
   ranger: { cantrips: 0, prepared: l => l + 1, maxSpell: l => (l < 5 ? 1 : Math.min(5, Math.ceil(l / 4))) },
 };
+
+/** The class's cantrips at a level (2024 rules): the count above, one more from 4th level and another from 10th. */
+export function cantripsAt(classId: string, level: number): number {
+  const base = CASTING[classId]?.cantrips ?? 0;
+  return base ? base + (level >= 4 ? 1 : 0) + (level >= 10 ? 1 : 0) : 0;
+}
+
+/** The school a subclass is about (an evoker's evocations), when it's one. */
+const SUBCLASS_SCHOOL: Record<string, string> = { evoker: "evocation" };
+
+/**
+ * Spells to add to a caster's (`count` of them, at the levels given): the ones asked for first, in
+ * order; then the highest level first, in the subclass's school (or the one the spells they have
+ * mostly are), in the SRD's own order (its staples first: Fireball, then Counterspell).
+ */
+function moreSpells(content: Dnd.Content, classId: string, have: string[], wanted: string[], levels: (l: number) => boolean, count: number, subclass = ""): string[] {
+  const onList = (id: string) => { const sp = content.spells.get(id); return !!sp && sp.classes.includes(classId) && levels(sp.level); };
+  const chosen = [...new Set(wanted.filter(id => onList(id) && !have.includes(id)))].slice(0, count);
+  const schools = have.map(id => content.spells.get(id)?.school).filter((x): x is string => !!x);
+  const most = (x: string) => schools.filter(y => y === x).length;
+  const school = SUBCLASS_SCHOOL[subclass] ?? [...schools].sort((a, b) => most(b) - most(a))[0];
+  const order = [...content.spells.keys()];
+  const rest = [...content.spells.values()].filter(sp => onList(sp.id) && !have.includes(sp.id) && !chosen.includes(sp.id))
+    .sort((a, b) => b.level - a.level || Number(b.school === school) - Number(a.school === school) || order.indexOf(a.id) - order.indexOf(b.id));
+  return [...chosen, ...rest.map(sp => sp.id)].slice(0, count);
+}
+
+/**
+ * A caster's spells with one at the highest level they can cast, when that's above 1st (a level 3
+ * wizard's 2nd-level slots): the last ritual among them makes way for it (the least missed), or else
+ * the last of them.
+ */
+function withTopSpell(content: Dnd.Content, classId: string, subclass: string, spells: string[], wanted: string[], top: number): string[] {
+  if (top < 2 || !spells.length || spells.some(id => content.spells.get(id)?.level === top)) return spells;
+  const [add] = moreSpells(content, classId, spells, wanted, l => l === top, 1, subclass);
+  if (!add) return spells;
+  const rituals = spells.filter(id => content.spells.get(id)?.ritual);
+  const out = rituals.length ? rituals.at(-1)! : spells.at(-1)!;
+  return [...spells.filter(id => id !== out), add];
+}
 const KITS: Record<string, { weapons: string[]; armor: string; shield: boolean }> = {
   barbarian: { weapons: ["greataxe", "handaxe"], armor: "none", shield: false },
   bard: { weapons: ["rapier", "dagger"], armor: "leather-armor", shield: false },
@@ -293,8 +333,8 @@ export function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Con
     abilities,
     skills: ids(raw.skills),
     feat: known(content.feats, raw.feat) ?? "alert",
-    cantrips: casting ? pickSpells(raw.cantrips, l => l === 0, casting.cantrips) : [],
-    spells: casting ? pickSpells(raw.spells, l => l >= 1 && l <= casting.maxSpell(level), casting.prepared(level)) : [],
+    cantrips: casting ? pickSpells(raw.cantrips, l => l === 0, cantripsAt(classId, level)) : [],
+    spells: casting ? withTopSpell(content, classId, srdId(String(raw.subclassId ?? "")), pickSpells(raw.spells, l => l >= 1 && l <= casting.maxSpell(level), casting.prepared(level)), ids(raw.spells), casting.maxSpell(level)) : [],
     weapons: weapons.length ? [...new Set(weapons)].slice(0, 3) : kit.weapons,
     armor: armor && armor !== "none" && armorOk(armor) ? armor : armor === "none" ? "none" : kit.armor,
     shield: (raw.shield ?? kit.shield) && armorProf.some(p => p.toLowerCase().includes("shield")),
@@ -553,6 +593,10 @@ export async function sheetText(state: SessionState): Promise<string> {
   const conditions = c.appliedConditions.map(a => content.conditions.get(a.conditionId)?.name ?? a.conditionId).filter(n => !/active$/i.test(n));
   lines.push(`Conditions: ${conditions.join(", ") || "none"}${c.heroicInspiration ? " · Heroic Inspiration" : ""}`);
   lines.push(`Equipment: ${s.inventory.items.filter(i => !state.rules!.gone?.includes(i.instanceId)).map(i => `${i.name}${i.equippedSlot ? ` (${i.equippedSlot === "mainHand" ? "in hand" : "worn"})` : ""}`).filter(n => !/^Unarmed/.test(n)).join(", ") || "nothing"}`);
+  // The purse and pockets are the story's world's, as on the sheet's screen.
+  const { purse, carrying } = pocketsOf(state);
+  lines.push(`Purse: ${purse.map(p => countOfCoins(p.name, p.quantity)).join(", ") || "empty"}`);
+  if (carrying.length) lines.push(`Carrying: ${carrying.map(c => `${c.quantity > 1 ? `${c.quantity} ` : ""}${c.name}${c.in ? ` (in ${c.in})` : ""}`).join(", ")}`);
   lines.push(`Languages: ${s.knownLanguages.map(l => l[0]!.toUpperCase() + l.slice(1)).join(", ")}`);
   const story = storyOf(state).story;
   if (story) {
@@ -563,6 +607,29 @@ export async function sheetText(state: SessionState): Promise<string> {
 }
 
 const titleSkill = (id: string) => id.replace(/-/g, " ").replace(/\b\w/g, ch => ch.toUpperCase()).replace(/ Of /g, " of ");
+
+/** "2 silver crowns", "a shilling": a coin stack in words. */
+const countOfCoins = (name: string, n: number) => (n === 1 ? `1 ${name.replace(/^(the|some) /i, "")}` : `${n} ${name.replace(/^(the|some) /i, "")}`);
+
+/** What they carry in the story's world (or carried out of the last one), apart from their gear: coins go in the purse. */
+function pocketsOf(state: SessionState): { purse: Array<{ name: string; quantity: number }>; carrying: Array<{ name: string; quantity: number; in?: string }> } {
+  const entities = state.world?.entities ?? Object.fromEntries((state.carried ?? []).map(e => [e.id, e]));
+  const onPlayer = (e: Entity) => {
+    for (let p = e.parent, n = 0; p && n < 20; p = entities[p]?.parent ?? null, n++) {
+      if (p === "player") return true;
+      // In someone else's hands, or put down somewhere: not theirs to carry.
+      const up = entities[p];
+      if (!up || up.kind === "person" || up.kind === "area" || up.kind === "place") return false;
+    }
+    return false;
+  };
+  const things = Object.values(entities).filter(e => e.id !== "player" && !e.gear && !e.states.includes("gone") && onPlayer(e));
+  const purse = things.filter(e => COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1 }));
+  const carrying = things.filter(e => !COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1, ...(e.parent && e.parent !== "player" ? { in: entities[e.parent]?.name ?? e.parent } : {}) }));
+  // Before the story begins, the purse it starts them with.
+  if (!state.world && !state.carried && !state.history?.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
+  return { purse, carrying };
+}
 
 /** Uses of a feature (the engine's class resources): Second Wind 2/2, back on a short rest. */
 export interface Uses {
@@ -737,22 +804,7 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
   }
   const toolName = (t: string) => content.items.get(t)?.name ?? TOOL_KIND[t] ?? capitalWords(t);
 
-  // What they carry in the story's world (or carried out of the last one), apart from their gear: coins go in the purse.
-  const entities = state.world?.entities ?? Object.fromEntries((state.carried ?? []).map(e => [e.id, e]));
-  const onPlayer = (e: Entity) => {
-    for (let p = e.parent, n = 0; p && n < 20; p = entities[p]?.parent ?? null, n++) {
-      if (p === "player") return true;
-      // In someone else's hands, or put down somewhere: not theirs to carry.
-      const up = entities[p];
-      if (!up || up.kind === "person" || up.kind === "area" || up.kind === "place") return false;
-    }
-    return false;
-  };
-  const things = Object.values(entities).filter(e => e.id !== "player" && !e.gear && !e.states.includes("gone") && onPlayer(e));
-  const purse = things.filter(e => COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1 }));
-  const carrying = things.filter(e => !COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1, ...(e.parent && e.parent !== "player" ? { in: entities[e.parent]?.name ?? e.parent } : {}) }));
-  // Before the story begins, the purse it starts them with.
-  if (!state.world && !state.carried && !state.history.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
+  const { purse, carrying } = pocketsOf(state);
 
   const held = new Set([c.equipped.mainHand, c.equipped.offHand].filter(Boolean));
   const added = damageAdded(ctx, c, s);
@@ -874,6 +926,12 @@ export interface Outcome {
   directive: string;
   /** The player's status after it, when it changed. */
   status?: string;
+  /** A danger's saving throw: whether the player saved. */
+  saved?: boolean;
+  /** It put the player down (0 hit points): what they meant to do this turn doesn't happen. */
+  down?: boolean;
+  /** The player's Shield went up against it (a reaction: their turn doesn't cast it again). */
+  shielded?: boolean;
 }
 
 function ensureNpc(ctx: Ctx, state: SessionState, who: Character): string {
@@ -1031,6 +1089,21 @@ export function slotFor(sheet: Dnd.CharacterSheet, me: Dnd.EngineCharacter, leve
   return pact && pact.level >= level && pact.count - Number(me["pactSlotsUsed"] ?? 0) > 0 ? pact.level : 0;
 }
 
+const SLOT_WORDS: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9 };
+
+/**
+ * The slot level the player's words ask a spell to be cast from: "at second level", "a 3rd-level
+ * slot", "upcast to 2nd"; "my strongest (highest, biggest, best) slot" is the highest they have free.
+ */
+export function askedSlot(sheet: Dnd.CharacterSheet, me: Dnd.EngineCharacter, said: string | undefined): number | undefined {
+  const text = (said ?? "").toLowerCase();
+  const m = /\b(1st|2nd|3rd|[4-9]th|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)[- ](?:level|circle)\b/.exec(text);
+  if (m) return SLOT_WORDS[m[1]!] ?? Number.parseInt(m[1]!, 10);
+  if (!/\b(?:strongest|highest|biggest|best|most powerful|top)\s+(?:remaining\s+|spell\s+)?slot\b/.test(text)) return undefined;
+  const free = (l: number) => (sheet.spellSlots.slotsByLevel[l - 1] ?? 0) - (me.spellSlotsUsed[String(l)] ?? 0);
+  return [9, 8, 7, 6, 5, 4, 3, 2, 1].find(l => free(l) > 0);
+}
+
 /** Cantrips plus prepared spells (class, feat and always-prepared), from the derived sheet. */
 function readySpells(sheet: Dnd.CharacterSheet): SpellChoice[] {
   return (sheet.spellcasting?.spellsByLevel ?? []).flatMap(g => g.spells.filter(sp => g.level === 0 || sp.prepared || sp.alwaysPrepared)).map(sp => ({ id: sp.spellId, name: sp.name, level: sp.level }));
@@ -1146,7 +1219,7 @@ export function spellVariants(spell: Dnd.SpellDef): string[] | undefined {
  * Cast one of the player's spells at story characters (or themselves, or nobody in particular).
  * `said`: the player's words, for what the spell asks them to choose (an element, which way).
  */
-export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean; said?: string } = {}): Promise<Outcome> {
+export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean; said?: string; unclear?: boolean } = {}): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const spell = ctx.engine.content.spells.get(spellId);
@@ -1156,6 +1229,11 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     close(state, ctx);
     const what = spell?.name ?? "that spell";
     return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: /sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
+  }
+  // Aimed at something, but at what wasn't clear: say which, and nothing's spent.
+  if (options.unclear && !targetIds.length && !/^self\b/i.test(spell.range)) {
+    close(state, ctx);
+    return { lines: [`(${spell.name}: at what? Say what it's aimed at.)`], directive: `The player cast ${spell.name}, but what at wasn't clear. Nothing happens yet and nothing is spent: ask them what they're aiming it at, in a few words.` };
   }
   // A ritual takes ten minutes longer and no slot (if the spell is one).
   const ritual = options.ritual === true && spell.ritual;
@@ -1169,7 +1247,9 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   }
   let slotLevel = ritual ? spell.level : 0;
   if (spell.level > 0 && !ritual) {
-    slotLevel = slotFor(sheetOf(ctx, pcId), me, spell.level);
+    // From a higher slot when the player's words ask for one ("at second level", "my strongest slot").
+    slotLevel = slotFor(sheetOf(ctx, pcId), me, Math.max(spell.level, askedSlot(sheetOf(ctx, pcId), me, options.said) ?? 0));
+    if (!slotLevel) slotLevel = slotFor(sheetOf(ctx, pcId), me, spell.level);
     if (!slotLevel) {
       close(state, ctx);
       const pact = !!pactOf(sheetOf(ctx, pcId));
@@ -1232,6 +1312,9 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     account.push(...physics.map(p => p.toLowerCase()));
   }
   if (world) syncBeings(ctx, state, world, people);
+  // What a sensing spell senses is the world's: on the map there's no GM to say it.
+  const sensed = world ? sensing(world, spell.id) : undefined;
+  if (sensed) { lines.push(sensed); account.push(sensed.toLowerCase()); }
   if (events.some(e => /^(ConcentrationStarted|SpellEffectStarted|ConditionApplied)$/.test(e.type))) state.rules!.timed = true;
   const statusText = status(ctx, pcId);
   close(state, ctx);
@@ -1243,6 +1326,13 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     directive: `Rules: the player cast ${head}${area ? `, which caught ${named.join(", ") || "nobody and nothing"}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It has no roll: it simply takes effect as the spell describes."} Narrate exactly this, in the fiction: what working the spell looks and sounds like here, its effect as the rules describe it (${facts}), and how the people present react to someone casting a spell at all. The world already shows what it burned or broke. Don't add effects the spell doesn't have.`,
     status: statusText,
   };
+}
+
+/** What Detect Magic finds within its 30 feet: what the world tags magic (nothing in Caerwyn is, yet). */
+function sensing(world: SceneWorld, spellId: string): string | undefined {
+  if (spellId !== "detect-magic") return undefined;
+  const found = within(world, "player", 30, e => e.tags.includes("magic") || e.tags.includes("magical")).map(e => e.name);
+  return found.length ? `You sense magic within 30 feet: ${found.join(", ")}` : "You sense no magic within 30 feet";
 }
 
 const isThingEntity = (e: Entity) => e.kind === "object" || e.kind === "item" || e.kind === "feature";
@@ -1389,8 +1479,10 @@ export async function carryGear(state: SessionState, instanceId: string, carried
   const me = ctx.campaign.state.characters[pcId]!;
   const name = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instanceId]?.definitionId ?? "")?.name ?? "that";
   let slot: string | undefined;
-  if (carried) gone.delete(instanceId);
-  else {
+  if (carried) {
+    gone.delete(instanceId);
+    rewear(ctx, me, pcId, state.rules.gear?.find(g => g.id === instanceId)?.kind, instanceId);
+  } else {
     gone.add(instanceId);
     slot = (Object.entries(me.equipped).find(([s, v]) => s !== "attuned" && v === instanceId)?.[0]);
     if (slot) ctx.apply([event(ctx.E, "ItemUnequipped", { characterId: pcId, slot })]);
@@ -1402,6 +1494,14 @@ export async function carryGear(state: SessionState, instanceId: string, carried
   // Armour coming off changes your AC; say so.
   const acNote = slot === "armor" || slot === "shield" ? ` (AC now ${ac})` : "";
   return carried ? `You have your ${name.toLowerCase()} again` : `You no longer have your ${name.toLowerCase()}${acNote}`;
+}
+
+/** Gear back in the player's hands is wielded or worn again, where nothing else has taken its place (a weapon in hand, armour on). */
+function rewear(ctx: Ctx, me: Dnd.EngineCharacter, pcId: string, kind: string | undefined, instanceId: string): void {
+  const slot = kind === "weapon" ? "mainHand" : kind === "armor" ? "armor" : kind === "shield" ? "shield" : undefined;
+  if (!slot || me.equipped[slot]) return;
+  try { ctx.apply(ctx.engine.plan.equip(ctx.campaign.state, { characterId: pcId, instanceId, slot }).events); }
+  catch { /* The engine says no (a shield with a two-handed weapon): carried, not worn. */ }
 }
 
 function weaponsOf(ctx: Ctx, id: string): WeaponChoice[] {
@@ -1496,23 +1596,62 @@ export async function wrestle(state: SessionState, cast: Character[], targetId: 
   };
 }
 
-/** Someone the last reply left swinging at the player gets their attack (start of the player's next turn). */
-export async function attackOnPlayer(state: SessionState, attacker: Character): Promise<Outcome> {
+/**
+ * Someone the last reply left swinging at the player gets their attack (start of the player's next
+ * turn). `shield`: the player answers it with the Shield spell, which goes up before the blow lands
+ * (a reaction comes before what it answers): +5 AC against it, for a 1st-level slot.
+ */
+export async function attackOnPlayer(state: SessionState, attacker: Character, options: { shield?: boolean } = {}): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const npc = ensureNpc(ctx, state, attacker);
   const weapon = state.rules!.npcs[attacker.id]!.weapon;
-  const events = ctx.apply(ctx.engine.plan.attack(ctx.campaign.state, { attackerId: npc, targetId: pcId, weaponInstanceId: weapon }).events);
+  const shield = options.shield ? raiseShield(ctx, pcId) : undefined;
+  const planned = ctx.engine.plan.attack(ctx.campaign.state, { attackerId: npc, targetId: pcId, weaponInstanceId: weapon }).events;
+  const events = ctx.apply(shield ? shielded(planned, pcId) : planned);
   const weaponName = (id: string) => ctx.engine.content.items.get(ctx.campaign.state.itemInstances[id]?.definitionId ?? id)?.name ?? "Attack";
   const { lines, account } = describe(ctx, state, events, weaponName);
   const down = knockedDown(ctx, state);
   const statusText = status(ctx, pcId);
   close(state, ctx);
+  const raised = shield ? ` The player's Shield went up first (${shield}): +5 AC against the blow, until their next turn.` : "";
   return {
-    lines: [...lines, ...(events.some(e => e.type === "DamageApplied") ? [`${state.player.name}: ${statusText}`] : [])],
-    directive: `Rules, before the player's turn: ${calledBy(state, attacker)}'s attack resolved. ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
+    lines: [...(shield ? [`Cast Shield (${shield}): +5 AC against the blow`] : []), ...lines, ...(events.some(e => e.type === "DamageApplied") || shield ? [`${state.player.name}: ${statusText}`] : [])],
+    directive: `Rules, before the player's turn: ${calledBy(state, attacker)}'s attack resolved.${raised} ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
     status: statusText,
+    ...(down ? { down: true } : {}),
+    ...(shield ? { shielded: true } : {}),
   };
+}
+
+/** The Shield spell as a reaction: spends the slot and says which, if the player has it ready, a slot for it, and their wits about them. */
+function raiseShield(ctx: Ctx, pcId: string): string | undefined {
+  const me = ctx.campaign.state.characters[pcId]!;
+  const sheet = sheetOf(ctx, pcId);
+  if (me.hp.current <= 0 || me.appliedConditions.some(a => a.conditionId === "unconscious") || !readySpells(sheet).some(sp => sp.id === "shield")) return undefined;
+  const slotLevel = slotFor(sheet, me, 1);
+  if (!slotLevel) return undefined;
+  ctx.apply([event(ctx.E, "SpellSlotConsumed", { characterId: pcId, slotLevel })]);
+  return `${ordinal(slotLevel)}-level slot`;
+}
+
+/** An attack on the player with Shield up: against AC 5 higher, so a hit that doesn't beat it misses, and its damage never comes. */
+function shielded(events: Dnd.EngineEvent[], pcId: string): Dnd.EngineEvent[] {
+  const blocked = new Set<string>();
+  const out = events.map(e => {
+    if (e.type !== "AttackRolled" || String(e["targetId"]) !== pcId) return e;
+    const ac = Number(e["targetAC"]) + 5;
+    const stillHits = e["critical"] === true || (e["hit"] === true && Number(e["total"]) >= ac);
+    if (e["hit"] === true && !stillHits) blocked.add(e.id);
+    return { ...e, targetAC: ac, hit: stillHits };
+  });
+  // What the blocked blow caused (its damage, and what the damage did) goes with it.
+  let spread = true;
+  while (spread) {
+    spread = false;
+    for (const e of out) if (!blocked.has(e.id) && blocked.has(String(e["causedByEventId"]))) { blocked.add(e.id); spread = true; }
+  }
+  return out.filter(e => e.type === "AttackRolled" || !blocked.has(e.id));
 }
 
 /** Outside a fight on the map, dropping to 0 HP knocks the player out; it doesn't kill them. */
@@ -1520,7 +1659,9 @@ function knockedDown(ctx: Ctx, state: SessionState): string {
   const me = ctx.campaign.state.characters[state.rules!.pc]!;
   if (me.hp.current > 0) return "";
   ctx.apply([event(ctx.E, "Stabilized", { targetId: me.id })]);
-  return " The player drops to 0 hit points: they're knocked senseless (unconscious, but stable). The story goes on around them for a moment: someone drags them clear, takes them, or leaves them; they come to soon after with 1 hit point.";
+  // Out cold, nobody rages.
+  endRage(ctx, state);
+  return " The player drops to 0 hit points: they're knocked senseless (unconscious, but stable), and whatever they meant to do this turn doesn't happen. The story goes on around them for a moment: someone drags them clear, takes them, or leaves them. Then they come to, with 1 hit point (the rules bring them round as their next turn begins): conscious, able to talk, act and cast again, but one more wound puts them down.";
 }
 
 const HAZARDS: Record<string, { ability: Dnd.Ability; damage?: string; text: string }> = {
@@ -1560,6 +1701,8 @@ export async function hazard(state: SessionState, kind: string, severity: "glanc
     lines,
     directive: `Rules, before the player's turn: the danger hanging over them (${h.text}) resolved with a saving throw: ${account.join("; ")}.${success ? " They avoid the worst of it." : " It catches them."}${down} Narrate that first, briefly, then what the player does.`,
     status: statusText,
+    saved: success,
+    ...(down ? { down: true } : {}),
   };
 }
 
@@ -1577,10 +1720,55 @@ export async function passTime(state: SessionState, minutes: number): Promise<st
   const before = effects();
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
   const ended = ctx.apply(Array.isArray(planned) ? planned : planned.events);
-  const names = ended.map(e => before[String(e["effectInstanceId"])]?.spellId).filter((id): id is string => !!id).map(id => ctx.engine.content.spells.get(id)?.name ?? id);
-  state.rules!.timed = Object.values(effects()).some(e => e.durationMinutes !== undefined);
+  const endedIds = ended.map(e => before[String(e["effectInstanceId"])]?.spellId).filter((id): id is string => !!id);
+  const names = endedIds.map(id => ctx.engine.content.spells.get(id)?.name ?? id);
+  // What the spells conjured goes with them (the lights wink out, the hand is gone).
+  if (state.world) dispelConjured(state.world, endedIds, state.turn);
+  // A Rage lasts ten minutes.
+  const rage = state.rules.rage !== undefined ? state.rules.rage - minutes : undefined;
+  const calmed = rage !== undefined && rage <= 0 && endRage(ctx, state);
+  if (rage !== undefined && rage > 0) state.rules.rage = rage;
+  state.rules!.timed = Object.values(effects()).some(e => e.durationMinutes !== undefined) || state.rules.rage !== undefined;
   close(state, ctx);
-  return names.length ? [`${[...new Set(names)].join(", ")} ${names.length === 1 ? "has" : "have"} run out`] : [];
+  return [...(names.length ? [`${[...new Set(names)].join(", ")} ${names.length === 1 ? "has" : "have"} run out`] : []), ...(calmed ? ["Your rage burns out"] : [])];
+}
+
+/**
+ * What a spell conjures into the world, by what the story calls it (the stage manager writes it in,
+ * from the GM's reply): tagged as the spell's, it goes when the spell does, and with the scene.
+ */
+const CONJURED: Record<string, RegExp> = {
+  "dancing-lights": /\b(lights?|globes?|orbs?|wisps?|pigeons?|lanterns?)\b/i, "mage-hand": /\bhands?\b/i,
+  "unseen-servant": /\bservant\b/i, "floating-disk": /\bdis[ck]\b/i, "spiritual-weapon": /\bweapon\b/i,
+};
+
+/** Tag what this turn's spell conjured (created this turn, called what it conjures). */
+export function markConjured(world: SceneWorld, spellId: string, turn: number): void {
+  const called = CONJURED[spellId];
+  if (!called) return;
+  for (const e of Object.values(world.entities)) if (e.created === turn && e.kind !== "person" && called.test(e.name) && !e.tags.includes(`conjured:${spellId}`)) e.tags.push("conjured", `conjured:${spellId}`);
+}
+
+/** What these spells conjured (or every spell's, when none are named: the scene is over) is gone. */
+export function dispelConjured(world: SceneWorld, spellIds: string[] | undefined, turn: number): void {
+  for (const e of Object.values(world.entities)) {
+    if (!e.tags.includes("conjured") || e.states.includes("gone")) continue;
+    if (spellIds && !spellIds.some(id => e.tags.includes(`conjured:${id}`))) continue;
+    e.states = [...e.states, "gone"];
+    world.log.push({ turn, text: `${e.name} ${/s$/.test(e.name) ? "fade" : "fades"} away`, by: "rules" });
+  }
+}
+
+/** How long a Rage lasts, in minutes of story time (2024 rules: up to ten minutes). */
+const RAGE_MINUTES = 10;
+
+/** The player's Rage ends (knocked out, rested, or its time up). True if they were raging. */
+function endRage(ctx: Ctx, state: SessionState): boolean {
+  const pcId = state.rules!.pc;
+  const raging = ctx.campaign.state.characters[pcId]!.appliedConditions.filter(a => a.conditionId === "raging");
+  if (raging.length) ctx.apply(raging.map(() => event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: "raging" })));
+  delete state.rules!.rage;
+  return raging.length > 0;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1608,9 +1796,10 @@ export async function rest(state: SessionState, kind: "short" | "long"): Promise
   } else {
     ctx.apply(ctx.engine.plan.longRest(ctx.campaign.state, { participantIds: [pcId] }).events);
   }
-  // After a rest you're up and about: nobody rests an hour, or sleeps the night, and stays where they fell.
+  // After a rest you're up and about: nobody rests an hour, or sleeps the night, and stays where they fell (or still raging).
   const me = ctx.campaign.state.characters[pcId]!;
   for (const a of me.appliedConditions.filter(a => a.conditionId === "prone" || (a.conditionId === "unconscious" && me.hp.current > 0))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: a.conditionId })]);
+  endRage(ctx, state);
   // The rest takes time: spells with a listed duration run out (Aid doesn't outlast a night).
   ctx.apply([event(ctx.E, "InGameTimeAdvanced", { minutes: kind === "short" ? 60 : 480, reason: `${kind} rest` })]);
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
@@ -1636,7 +1825,7 @@ export async function levelUp(state: SessionState): Promise<string[]> {
   const maxBefore = sheetOf(ctx, pcId).effectiveHpMax;
   try {
     ctx.apply(ctx.engine.plan.levelUp(ctx.campaign.state, { characterId: pcId, classId: main.classId, hpStrategy: "average" }).events);
-    const picked = resolveChoices(ctx, pcId, state.rules.prefer ?? []);
+    const picked = [...resolveChoices(ctx, pcId, state.rules.prefer ?? []), ...learnSpells(ctx, pcId, main, state.rules.prefer ?? [])];
     grantResources(ctx, pcId);
     const sheet = sheetOf(ctx, pcId);
     refresh(ctx, state);
@@ -1646,6 +1835,31 @@ export async function levelUp(state: SessionState): Promise<string[]> {
     close(state, ctx);
     return [`(Level up failed: ${error instanceof Error ? error.message : String(error)})`];
   }
+}
+
+/**
+ * A caster's new spells at a level: the cantrips and prepared spells the level brings (a wizard's
+ * fourth cantrip and seventh spell at 4th), the build's own choices first, and a spell of the new
+ * highest level when they've none. Returns what they learned, in words.
+ */
+function learnSpells(ctx: Ctx, pcId: string, before: { classId: string; subclassId?: string; level: number }, prefer: string[]): string[] {
+  const { classId, subclassId = "" } = before;
+  const level = before.level + 1;
+  const casting = CASTING[classId];
+  if (!casting) return [];
+  const content = ctx.engine.content;
+  const me = ctx.campaign.state.characters[pcId]!;
+  const mine = [...new Set([...me.knownSpells, ...me.preparedSpells])].filter(id => content.spells.get(id)?.classes.includes(classId));
+  const cantrips = mine.filter(id => content.spells.get(id)!.level === 0);
+  const prepared = me.preparedSpells.filter(id => (content.spells.get(id)?.level ?? 0) >= 1);
+  const top = casting.maxSpell(level);
+  const newCantrips = moreSpells(content, classId, cantrips, prefer, l => l === 0, Math.max(0, cantripsAt(classId, level) - cantrips.length), subclassId);
+  const missing = Math.max(0, casting.prepared(level) - prepared.length);
+  const highest = prepared.some(id => content.spells.get(id)?.level === top) ? [] : moreSpells(content, classId, prepared, prefer, l => l === top, Math.min(1, missing), subclassId);
+  const newSpells = [...highest, ...moreSpells(content, classId, [...prepared, ...highest], prefer, l => l >= 1 && l <= top, missing - highest.length, subclassId)];
+  const added = [...newCantrips, ...newSpells];
+  for (const id of added) ctx.apply([event(ctx.E, "PreparedSpellsChanged", { characterId: pcId, removed: "", added: id, source: "level-up" })]);
+  return added.length ? [`learned ${added.map(id => content.spells.get(id)?.name ?? id).join(", ")}`] : [];
 }
 
 /**
@@ -1661,6 +1875,8 @@ export async function comeTo(state: SessionState): Promise<string | undefined> {
   // (The engine lets hit points run below zero, and healing starts from 0: this is 1 HP.)
   if (down) ctx.apply([event(ctx.E, "Healed", { targetId: me.id, amount: 1, source: "came-to" })]);
   for (const a of ctx.campaign.state.characters[me.id]!.appliedConditions.filter(a => a.conditionId === "prone" || (down && a.conditionId === "unconscious"))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: me.id, conditionId: a.conditionId })]);
+  // Coming to (from a knock-out, or at the next scene), any Rage is long over.
+  endRage(ctx, state);
   const line = down ? `You come to: ${status(ctx, me.id)}` : undefined;
   close(state, ctx);
   return line;
@@ -1800,6 +2016,7 @@ export async function useFeature(state: SessionState, cast: Character[], feature
   const { lines, account } = describe(ctx, state, events, () => feature.name);
   const statusText = status(ctx, pcId);
   if (events.some(e => /^(ConditionApplied|EffectStarted)$/.test(e.type))) state.rules!.timed = true;
+  if (events.some(e => e.type === "ConditionApplied" && e["conditionId"] === "raging")) state.rules!.rage = RAGE_MINUTES;
   if (who && state.world && state.rules!.npcs[who.id]) syncBeings(ctx, state, state.world, [{ id: who.id, engine: state.rules!.npcs[who.id]!.id }]);
   close(state, ctx);
   return {

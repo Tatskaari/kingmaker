@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 process.env.KM_LOOK_MODEL = "off";
-const { carryGear, castSpell, createCharacter, sheetData, spellCard, useFeature } = await import("../../rules/dnd.ts");
+const { carryGear, castSpell, createCharacter, sheetData, sheetText, spellCard, useFeature } = await import("../../rules/dnd.ts");
 const { PREGENS } = await import("../../game/combat/pregen.ts");
 const { sheetHeight, sheetPages, spellOn, spellPage, spellsOn } = await import("./sheet-layout.ts");
 const { C } = await import("../theme.ts");
@@ -86,6 +86,9 @@ test("a wizard's sheet: the spellbook by level, slots spent and back after a lon
   await carryGear(state, staff.id, false);
   const after = (await sheetData(state))!;
   assert.ok(!after.equipment.some(e => e.name === "Quarterstaff") && !after.attacks.some(a => a.name === "Quarterstaff"));
+  // Given back, it's in hand again (the barbarian's greataxe was carried after it came back, but never wielded).
+  assert.equal(await carryGear(state, staff.id, true), "You have your quarterstaff again");
+  assert.equal((await sheetData(state))!.equipment.find(e => e.name === "Quarterstaff")?.slot, "in hand");
 });
 
 test("a cleric's sheet: domain spells always prepared, Channel Divinity, a dwarf's darkvision; the purse and pockets from the story's world", async () => {
@@ -361,3 +364,15 @@ test("SheetView: a spell clicked, or picked with ↓ and Enter, shows what it is
   await unregister();
 });
 
+
+test("the sheet as text (the QA console's) has the purse and pockets beside the equipment (thief#12)", async () => {
+  const state = await made("fighter");
+  assert.match(await sheetText(state), /^Purse: 2 silver crowns, 6 shillings, 12 pennies$/m);
+  state.carried = [
+    { id: "pennies", name: "pennies", kind: "item", parent: "player", tags: [], states: [], notes: [], quantity: 3 },
+    { id: "letter", name: "a letter from the King", kind: "item", parent: "player", tags: [], states: [], notes: [] },
+  ];
+  const text = await sheetText(state);
+  assert.match(text, /^Purse: 3 pennies$/m);
+  assert.match(text, /^Carrying: a letter from the King$/m);
+});

@@ -148,7 +148,7 @@ function attackFrom(targetId: string, with_: string | undefined, there: Unit, tu
   const s = turn.s;
   const t = s.unit(targetId) ?? (s.G.props[targetId] ? { at: s.G.props[targetId]!.at, id: targetId, called: `the ${s.G.props[targetId]!.name}` } : undefined);
   if (!t) return undefined;
-  if (with_ === "improvised") return steps(there.at, t.at) > 1 ? from(`${cap(t.called)} is out of reach for a blow with something to hand (${feetBetween(there.at, t.at)} ft).`) : undefined;
+  if (with_ === "improvised" || with_ === "unarmed") return steps(there.at, t.at) > 1 ? from(`${cap(t.called)} is out of reach for ${with_ === "unarmed" ? "a punch or a kick" : "a blow with something to hand"} (${feetBetween(there.at, t.at)} ft).`) : undefined;
   const weapons = with_ ? turn.me.weapons.filter(w => slugOf(s.namer().weapon(w)) === with_) : turn.me.weapons;
   if (!weapons.length) return undefined;
   if (weapons.some(w => !s.attackCheck(there, t, w).error)) return undefined;

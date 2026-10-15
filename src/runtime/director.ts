@@ -207,7 +207,7 @@ export async function outOfCharacter(decider: Decider, scene: Scene, state: Sess
 }
 
 /** The cue the decider chose, if its read clears the bar: a clear read, and a clearer one before its count. */
-function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
+export function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
   const cue = cues.find(t => t.id === read?.choice);
   if (!cue) return undefined;
   const count = cueCount(cue);
@@ -408,7 +408,8 @@ export interface PreDecision {
 
 /** What the player is doing that the D&D rules resolve, and with what. */
 export type Mechanic =
-  | { kind: "cast"; spell: string; targets: string[]; from?: ActFrom }
+  /** unclear: aimed at a thing, but at which wasn't clear (the rules ask, rather than hit the wrong one). */
+  | { kind: "cast"; spell: string; targets: string[]; from?: ActFrom; unclear?: boolean }
   | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push"; from?: ActFrom }
   | { kind: "attack"; target: string; weapon?: string; from?: ActFrom }
   | { kind: "rest"; length: "short" | "long" }
@@ -566,11 +567,14 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   if (kind === "cast") {
     const spell = decision.answers.spell?.choice;
     if (!spell) return { decision };
-    const thing = decision.answers.aim_thing?.choice;
+    const people = aimedPeople(decision, present);
+    const thing = aimedThing(decision, things, playerTurn);
     // The thing first: an area spell centres on what it's aimed at.
-    const targets = [...(thing && thing !== "none" ? [thing] : []), ...present.filter(c => decision.answers[`aim_${c.id}`]?.choice === "yes").map(c => c.id), ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
+    const targets = [...(thing ? [thing] : []), ...people, ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
     const from = actFrom(targets.find(t => t !== "self"));
-    return { mechanic: { kind, spell, targets, ...(from ? { from } : {}) }, decision };
+    // Aimed at a thing, on a read too weak to act on, and nothing the player named: ask, rather than hit the wrong one.
+    const unclear = !targets.length && decision.answers.aim_thing?.choice !== undefined && decision.answers.aim_thing.choice !== "none";
+    return { mechanic: { kind, spell, targets, ...(from ? { from } : {}), ...(unclear ? { unclear: true } : {}) }, decision };
   }
   const target = decision.answers.target?.choice;
   if (kind === "grapple" || kind === "shove") {
@@ -582,6 +586,40 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   const from = actFrom(target);
   // "Something else" (a thrown stone, a bottle) is an improvised weapon, not their main one.
   return { mechanic: { kind, target, ...(weapon === "other" ? { weapon: "improvised" } : weapon ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
+}
+
+/** Who a spell is aimed at: a sure yes; and with someone surely aimed at, a doubtful yes is dropped (Magic Missile at the Crake, not split onto Sallow at .56). */
+function aimedPeople(decision: Decision, present: Array<{ id: string }>): string[] {
+  const yes = (id: string) => { const a = decision.answers[`aim_${id}`]; return a?.choice === "yes" ? a.probabilities?.yes ?? 1 : 0; };
+  const aimed = present.filter(c => yes(c.id) >= 0.5);
+  return (aimed.some(c => yes(c.id) >= 0.9) ? aimed.filter(c => yes(c.id) >= 0.7) : aimed).map(c => c.id);
+}
+
+/**
+ * The thing a spell is aimed at. A read under one in two isn't acted on as it stands: the thing the
+ * player's words name is (a Fire Bolt at "the padlocked yard doors' hasp" is at the yard doors, not
+ * the loft door read at .44), or a clear lead (.3 and twice the next), or nothing.
+ */
+function aimedThing(decision: Decision, things: Array<{ id: string; name: string }>, said: string): string | undefined {
+  const a = decision.answers.aim_thing;
+  const top = a?.choice && a.choice !== "none" ? a.choice : undefined;
+  const p = (id: string) => a?.probabilities?.[id] ?? (a?.choice === id ? 1 : 0);
+  if (top && p(top) >= 0.5) return top;
+  const named = namedThing(things, said);
+  if (named) return named;
+  const next = Math.max(0, ...things.filter(t => t.id !== top).map(t => p(t.id)));
+  return top && p(top) >= 0.3 && p(top) >= 2 * next ? top : undefined;
+}
+
+/** The thing the player's words name best: most of its name's words in theirs (a plural for a singular too), and no tie. */
+export function namedThing(things: Array<{ id: string; name: string }>, said: string): string | undefined {
+  const words = new Set(said.toLowerCase().replace(/['’]s\b/g, "").split(/[^a-z]+/).filter(Boolean).map(w => w.replace(/(?<=..)(es|s)$/, "")));
+  const score = (name: string) => {
+    const own = name.toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2 && !["the", "and", "with", "for"].includes(w)).map(w => w.replace(/(?<=..)(es|s)$/, ""));
+    return own.length ? own.filter(w => words.has(w)).length / own.length : 0;
+  };
+  const ranked = things.map(t => ({ id: t.id, s: score(t.name) })).filter(t => t.s >= 0.5).sort((x, y) => y.s - x.s);
+  return ranked[0] && ranked[0].s > (ranked[1]?.s ?? 0) ? ranked[0].id : undefined;
 }
 
 const SKILL_TEXT: Record<Skill, string> = {
@@ -947,10 +985,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     .slice(0, 1)
     .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  // The rules: a spell or a blow gets its details in a second small call; a rest needs none. Not
-  // when it starts a fight for the map.
+  // The rules: a spell or a blow gets its details in a second small call; a rest needs none. One
+  // that starts a fight for the map is still rolled here: the fight starts with the blow that started it.
   let mechanic: Mechanic | undefined;
-  if (options.rules && ruling && move?.exit?.kind !== "combat") {
+  if (options.rules && ruling) {
     // Chosen already: no details to ask for (a route's check waits for a turn of its own).
     if (options.forced) mechanic = options.forced;
     else if (ruling === "short_rest" || ruling === "long_rest") mechanic = { kind: "rest", length: ruling === "short_rest" ? "short" : "long" };
@@ -964,8 +1002,6 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       const also = details.decision.answers.also;
       if (held && also?.choice === "yes" && (also.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE) {
         move = await resolve(scene, state, held, "attempt", method);
-        // A check that tips the scene into a fight hands it to the map, blow and all.
-        if (move.exit?.kind === "combat") mechanic = undefined;
       }
       const only = details.decision.answers.means_only;
       if (asksMeans && mechanic && only?.choice === "yes" && (only.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE) considered = wanted;
