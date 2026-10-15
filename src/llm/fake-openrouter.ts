@@ -8,6 +8,9 @@
  *   quick co-GM), or one of `byName`'s by the schema's name; otherwise the GM's next line from
  *   `replies`, streamed as OpenRouter streams it.
  *
+ * - `stall`: structured calls (by the schema's name) that never answer, until the caller gives up.
+ * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
+ *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident.
  */
 
@@ -16,32 +19,56 @@ const QUIET = ["none", "not_yet", "on_track", "in_character", "covered", "harmle
 export interface FakeOpenRouter {
   /** What was asked of it, by endpoint, in order. */
   asked: string[];
+  /** What was sent, in order (the requests' bodies). */
+  sent: Request[];
   /** Put the real fetch back. */
   restore(): void;
 }
 
-export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string> } = {}): FakeOpenRouter {
+export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; stall?: string[]; capped?: Record<string, number> } = {}): FakeOpenRouter {
   const real = globalThis.fetch;
   const replies = options.replies ?? ["The GM nods. “Go on.”"];
   let next = 0;
   const asked: string[] = [];
+  const sent: Request[] = [];
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const body = (init?.body ? JSON.parse(String(init.body)) : {}) as Request;
     asked.push(new URL(url).pathname);
+    sent.push(body);
     if (url === "https://openrouter.ai/api/alpha/decisions") return json({ answers: answer(body.questions ?? {}, options.choices), usage: { cost: 0.0001 } });
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     const format = body.text?.format;
+    if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
+    if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
     const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema)) : replies[next++ % replies.length]!;
     return body.stream ? sse(text) : json(completed(text));
   };
-  return { asked, restore: () => { globalThis.fetch = real; } };
+  return { asked, sent, restore: () => { globalThis.fetch = real; } };
 }
 
-interface Request {
+export interface Request {
   questions?: Record<string, { criteria: Record<string, string> }>;
   text?: { format?: { type: string; name: string; schema: Schema } };
   stream?: boolean;
+  max_output_tokens?: number;
+  input?: Array<{ role: string; content: string }>;
+}
+
+/** A call that never answers: it fails only when the caller gives up on it (its signal). */
+function stalled(signal: AbortSignal | null | undefined): Promise<Response> {
+  return new Promise((_, reject) => {
+    const give = () => reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+    if (signal?.aborted) give();
+    else signal?.addEventListener("abort", give, { once: true });
+  });
+}
+
+/** A reply that ran to its token cap: junk, then incomplete, billed all the same. */
+function capped(cost: number): Response {
+  const response = { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [{ type: "message", content: [{ type: "output_text", text: "{\"act\":\"..." }] }], usage: { input_tokens: 12000, output_tokens: 1000, cost } };
+  const events = [{ type: "response.output_text.delta", delta: "{\"act\":\"..." }, { type: "response.incomplete", response }];
+  return new Response(`${events.map(e => `data: ${JSON.stringify(e)}\n\n`).join("")}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } });
 }
 interface Schema { type?: string | string[]; enum?: unknown[]; const?: unknown; properties?: Record<string, Schema>; required?: string[]; anyOf?: Schema[] }
 

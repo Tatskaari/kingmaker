@@ -155,6 +155,31 @@ function finalText(body: ResponseBody): string {
   return parts.join("\n");
 }
 
+/**
+ * What calls that failed had already cost, carried on the error they ended in: a reply that ran to
+ * its token cap is billed all the same, and the turn that made it counts it.
+ */
+export function costOf(error: unknown): number {
+  const cost = (error as { costUsd?: unknown } | undefined)?.costUsd;
+  return typeof cost === "number" ? cost : 0;
+}
+
+function costing(error: unknown, costUsd: number): Error {
+  const e = error instanceof Error ? error : new Error(String(error));
+  if (costUsd > 0) Object.assign(e, { costUsd: costOf(e) + costUsd });
+  return e;
+}
+
+/** The one retry after a try that failed, with what that try cost in its result (or its error). */
+async function retried(request: RespondRequest, spent: number): Promise<RespondResult> {
+  try {
+    const result = await respond({ ...request, noPhaseRetry: true });
+    return spent ? { ...result, costUsd: result.costUsd + spent } : result;
+  } catch (error) {
+    throw costing(error, spent);
+  }
+}
+
 /** OpenRouter Responses API with streaming; returns the final visible text. */
 export async function respond(request: RespondRequest): Promise<RespondResult> {
   const model = request.model ?? LUNA;
@@ -197,9 +222,11 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
       final = event.response;
     } else if (event.type === "response.failed" || event.type === "error") {
       const message = event.error?.message ?? event.response?.error?.message ?? "generation failed";
-      logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: message });
-      if (!request.noPhaseRetry) return respond({ ...request, noPhaseRetry: true });
-      throw new Error(`OpenRouter ${request.operation} failed: ${message}`);
+      const spent = event.response?.usage?.cost ?? 0;
+      logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: message, ...(spent ? { costUsd: spent } : {}) });
+      if (spent) recordCost("openrouter", request.operation, model, spent, performance.now() - started);
+      if (!request.noPhaseRetry) return retried(request, spent);
+      throw costing(new Error(`OpenRouter ${request.operation} failed: ${message}`), spent);
     }
   }
   const latencyMs = performance.now() - started;
@@ -211,9 +238,12 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     throw new Error(`OpenRouter ${request.operation}: stream ended without a final response`);
   }
   if (final.status !== "completed") {
-    logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `status ${final.status}`, details: final.incomplete_details, partial: streamed.slice(0, 4000), usage: final.usage });
-    if (!request.noPhaseRetry) return respond({ ...request, noPhaseRetry: true });
-    throw new Error(`OpenRouter ${request.operation}: response ${final.status} (${final.incomplete_details?.reason ?? "unknown"})`);
+    // Billed all the same (a reply that ran to its token cap is a long one): in the ledger, and the caller's count.
+    const spent = final.usage?.cost ?? 0;
+    logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `status ${final.status}`, details: final.incomplete_details, partial: streamed.slice(0, 4000), usage: final.usage, latencyMs: Math.round(latencyMs), costUsd: spent });
+    recordCost("openrouter", request.operation, model, spent, latencyMs);
+    if (!request.noPhaseRetry) return retried(request, spent);
+    throw costing(new Error(`OpenRouter ${request.operation}: response ${final.status} (${final.incomplete_details?.reason ?? "unknown"})`), spent);
   }
   const phases = (final.output ?? []).filter(item => item.type === "message").map(item => item.phase ?? "none");
   // Luna without reasoning occasionally splits a reply into a "commentary" message plus a
@@ -221,7 +251,7 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
   if (phases.length > 1 && !request.noPhaseRetry) {
     logCall({ provider: "openrouter", operation: request.operation, model, warning: "multi-phase output, retrying", phases, output: final.output });
     recordCost("openrouter", request.operation, model, final.usage?.cost ?? 0, latencyMs);
-    return respond({ ...request, noPhaseRetry: true });
+    return retried(request, final.usage?.cost ?? 0);
   }
   const text = finalText(final) || streamed;
   const usage = final.usage ?? {};
