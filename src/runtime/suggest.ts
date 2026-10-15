@@ -141,6 +141,7 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
       ...Object.values(state.world?.entities ?? {}).filter(e => e.tags.includes("hidden") || e.states.includes("hidden")).map(e => `Hidden: ${e.name}`),
     ].join("\n"),
     what_the_scene_cannot_offer: (scene.limits ?? []).map(l => `- ${known(limitHead(l))}`).join("\n") || "(nothing in particular)",
+    rolls_the_scene_calls_for: rolled(scene, state).map(t => `- ${known(t.when)} (${titleCase(t.check!.skill)})`).join("\n") || "(none of its own: any risky attempt)",
     what_the_player_knows: [
       `They came in knowing: ${state.lead ?? scene.hook}`,
       ...(state.history.length ? [`The story so far: ${state.history.at(-1)!.summary}`] : []),
@@ -152,7 +153,7 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
   lines.forEach((l, i) => {
     questions[`line_${i + 1}`] = { instructions: `A line offered to the player as something they might say or do next: "${l.text}". Judge it against what_the_player_knows, hidden_from_the_player and what_the_scene_cannot_offer.`, criteria: VERDICTS };
     if (l.kind === "try") questions[`roll_${i + 1}`] = {
-      instructions: `Would the game call for a roll if the player did this: "${l.text}"?`,
+      instructions: `Would the game call for a roll if the player did this: "${l.text}"? (The scene's own rolls are in rolls_the_scene_calls_for; anything else risky is rolled too.)`,
       criteria: { risky: "Yes: a risky attempt whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation.", safe: "No: ordinary talk or questions, looking around, or something where failing would only mean trying again." },
     };
   });
@@ -161,7 +162,8 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
   const dropped: Array<{ text: string; why: string }> = [];
   lines.forEach((l, i) => {
     const verdict = decision.answers[`line_${i + 1}`];
-    if (verdict && verdict.choice !== "fine" && (verdict.probabilities?.[verdict.choice] ?? 1) >= 0.5) { dropped.push({ text: l.text, why: WHY[verdict.choice] ?? verdict.choice }); return; }
+    // A clear verdict only: on the live turns, its leaks were judged 0.6 and over, and a bird asked what it saw half "can't offer".
+    if (verdict && verdict.choice !== "fine" && (verdict.probabilities?.[verdict.choice] ?? 1) >= 0.6) { dropped.push({ text: l.text, why: WHY[verdict.choice] ?? verdict.choice }); return; }
     const roll = decision.answers[`roll_${i + 1}`];
     kept.push(roll?.choice === "safe" && (roll.probabilities?.safe ?? 1) >= 0.6 ? { ...l, kind: "do" } : l);
   });
@@ -213,6 +215,12 @@ export function asTheyKnowIt(text: string, scene: Scene, state: SessionState): s
 }
 
 const phaseOf = (t: Transition) => t.on ?? (t.check ? "attempt" : "outcome");
+
+/** The ways on from here that take a roll (the current beat's and the scene's own), not yet won. */
+function rolled(scene: Scene, state: SessionState): Transition[] {
+  const spent = spentHere(state);
+  return [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].filter(t => t.check && !spent.has(t.id));
+}
 const firstSentence = (text: string) => /^.*?[.!?](?=\s|$)/.exec(text.trim())?.[0] ?? text.trim();
 
 /** A limit by what it rules out: its words before the reason (most are written "What's ruled out: why"). */
@@ -477,7 +485,7 @@ function same(a: string, b: string): boolean {
   const x = gist(a), y = gist(b);
   if (!x.size || !y.size) return a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim() === b.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   const shared = [...x].filter(w => y.has(w)).length;
-  return shared / new Set([...x, ...y]).size >= 0.6 || (shared === Math.min(x.size, y.size) && shared >= 3);
+  return (shared >= 2 && shared / new Set([...x, ...y]).size >= 0.5) || (shared === Math.min(x.size, y.size) && shared >= 3);
 }
 
 type Dropped = Array<{ text: string; why: string }>;

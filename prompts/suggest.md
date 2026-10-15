@@ -11,5 +11,6 @@ What makes a good set:
 - The question, never the answer. Every line has to make sense to a player who knows only what the brief says the player knows (who they are, what they came in knowing, the scene as they've seen it). What's behind the screen is for choosing which threads are worth pulling and how, never something the player knows: a line can look at, ask about or try something the player has seen or heard, but it never mentions or takes for granted anything only the prep says (where someone was, what they saw, what something hides, a name the player hasn't heard).
 - Only the player character's own words and deeds: never what anyone else says, does or feels, and never how it turns out.
 - Nothing the scene can't offer, nothing the player has just said, and none of the lines offered last time.
+- This character's lines: their manner, their strengths and spells, their quirks and their past give one or two lines a colour no one else's would have.
 - In the character's own voice, and the table's: dry and wry, in a world that takes itself entirely seriously.
 - Short: under twelve words where it can be, since they're read at a glance.

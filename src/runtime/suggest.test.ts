@@ -76,17 +76,19 @@ test("a mix of kinds: two to say at most, a deed, a risky try, and a way out onl
   assert.deepEqual(deeds.lines.map(l => l.text), ["Morning.", "(I look up)", "(I look down)", "(I look around)"]);
 });
 
-test("no repeats: not what the player has just said, not a line offered last time, not the same line twice", () => {
+test("no repeats: not what the player has just said, not a line offered last time (in other words too), not the same line twice", () => {
   const { lines, dropped } = vet(parseSuggestions([
     "say: Sergeant, who found him?",
     "say: Who found him, Sergeant? Who exactly?",
+    "say: You called it no suicide. What would you need to write instead?",
     "do: (I look up at the hanged man for a while)",
     "do: (I look up at the hanged man)",
     "try: (I try to coax the boy down from his stones)",
     "say: What did the porters see?",
-  ].join("\n")), vetted({ said: ["(I look up at the hanged man)"], offered: ["Who found him, Sergeant?"] }));
-  assert.deepEqual(lines.map(l => l.text), ["What did the porters see?", "(I try to coax the boy down from his stones)"]);
-  assert.deepEqual(dropped.map(d => d.why), ["offered last time", "offered last time", "just said", "just said"]);
+    "do: (I look down)",
+  ].join("\n")), vetted({ said: ["(I look up at the hanged man)"], offered: ["Who found him, Sergeant?", "You haven't called it suicide. What would you need to write otherwise?", "(I look up)"] }));
+  assert.deepEqual(lines.map(l => l.text), ["What did the porters see?", "(I look down)", "(I try to coax the boy down from his stones)"]);
+  assert.deepEqual(dropped.map(d => d.why), ["offered last time", "offered last time", "offered last time", "just said", "just said"]);
 });
 
 test("only the player's own words and deeds: no one else's lines, nobody else's doings", () => {
