@@ -160,6 +160,9 @@ def new_game(app, name, concept, by_click=False):
             if not now or now.group(0) != shown:
                 break
     expect(app, r"Character sheet.*AC \d+", "the rules engine made a sheet", timeout=120)
+    if not LIVE:
+        # Offline nobody checked it: the sheet says so over it.
+        expect(app, r"went in as you wrote it, without the lore check: the GM is offline", "offline, the sheet says the backstory went in unchecked")
     expect(app, r"1 Character.*2 Combat.*HP .*\d+/\d+.*STR.*DEX.*CON.*Saving throws", "the sheet: in pages, the numbers and the six abilities")
     keys(app, "right")
     expect(app, r"2 Combat.*Attacks.*Purse", "→ turns the sheet's page")

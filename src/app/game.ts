@@ -17,7 +17,7 @@ import { newZoo } from "../game/zoo/game.ts";
 import { lookFor, playNews, type Look } from "../game/zoo/look.ts";
 import { zooOf } from "../game/zoo/model.ts";
 import { gmOffline, setCallLog, type Ask } from "../llm/openrouter.ts";
-import { applyFix, checkLore, draftBackstory, finishBackstory, workIn, type LoreIssue } from "../lore/backstory.ts";
+import { applyFix, checkLore, draftBackstory, finishBackstory, tooLong, workIn, type LoreIssue } from "../lore/backstory.ts";
 import { ownBuild, picksOf, srdLists, threeBuilds, type BuildOption, type Offer, type OwnPicks, type SrdLists } from "../rules/builds.ts";
 import { sheetData, spellInfo, type Build, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries, unnamed } from "../runtime/brief.ts";
@@ -82,6 +82,10 @@ export interface Creation {
   busy?: string;
   /** A word for the player: the GM offline, couldn't be reached, nothing to work in. */
   note?: string;
+  /** Why the backstory went into the game without the lore check (the GM offline, or out of reach): the sheet says so over it. */
+  unchecked?: string;
+  /** The game made from this creation (its session id), until they set off: choosing again puts it away. */
+  made?: string;
 }
 
 export interface Line {
@@ -535,6 +539,7 @@ export class Game {
   async draftStory(): Promise<void> {
     const c = this.creation;
     if (!c || c.busy) return;
+    this.error = undefined;
     if (this.aiOffline) { c.note = "The GM is offline, so there's nobody to draft one: write it yourself, or skip it."; this.emit(); return; }
     c.busy = "draft";
     delete c.note;
@@ -550,9 +555,12 @@ export class Game {
   async workInStory(text = this.creation?.story ?? ""): Promise<void> {
     const c = this.creation;
     if (!c || c.busy) return;
+    this.error = undefined;
     c.story = text;
     if (this.aiOffline) { c.note = "The GM is offline, so there's nobody to work it in: it stays as you wrote it."; this.emit(); return; }
     if (!text.trim()) { c.note = "There's nothing in the box to work in yet: write a few notes first, or Draft one."; this.emit(); return; }
+    const long = tooLong(text);
+    if (long) { c.note = long; this.emit(); return; }
     c.busy = "work";
     delete c.note;
     this.emit();
@@ -590,7 +598,11 @@ export class Game {
   async finishStory(text = this.creation?.story ?? ""): Promise<void> {
     const c = this.creation;
     if (!c || c.busy) return;
+    this.error = undefined;
     c.story = text;
+    // Longer than the GM can be given every turn: it stays in the box, with how long it is.
+    const long = tooLong(text);
+    if (long) { c.note = long; this.emit(); return; }
     delete c.rewriting;
     delete c.again;
     if (!text.trim()) { await this.makeCharacter(); return; }
@@ -612,7 +624,14 @@ export class Game {
       this.emit();
       return;
     }
-    if (!checked.ok) c.note = checked.why;
+    // Not checked (the GM offline, or out of reach): it goes in, and the sheet says so over it.
+    if (checked.ok) delete c.unchecked;
+    else {
+      const reason = checked.reason ?? checked.why;
+      c.unchecked = c.again
+        ? `Your backstory went in with the fixes you took, but nobody checked them again: ${reason}.`
+        : `Your backstory went in as you wrote it, without the lore check: ${reason}.`;
+    }
     await this.makeCharacter();
   }
 
@@ -647,8 +666,10 @@ export class Game {
   async skipStory(): Promise<void> {
     const c = this.creation;
     if (!c || c.busy) return;
+    this.error = undefined;
     c.story = "";
     c.version++;
+    delete c.unchecked;
     await this.makeCharacter();
   }
 
@@ -663,6 +684,7 @@ export class Game {
     this.screen = "creating";
     this.emit();
     const text = c.story.trim();
+    if (!text) delete c.unchecked;
     const backstory = text ? await finishBackstory(text, this.who(), this.ask ? { ask: this.ask } : {}) : undefined;
     delete c.busy;
     await this.create(c.name, c.concept, c.chosen?.build, backstory);
@@ -686,12 +708,32 @@ export class Game {
       this.journal = [];
       this.messages = [`${TIME_WORDS[core.state.story.time]}. ${sceneById(core.session.sceneId).hook}`];
       this.screen = "created";
+      if (this.creation) this.creation.made = core.state.id;
       this.saveExtras();
     } catch (error) {
       this.error = `Character creation failed: ${message(error)}`;
       this.screen = this.creation?.chosen ? "backstory" : "create";
     }
     this.emit();
+  }
+
+  /**
+   * Not who they meant, from the sheet: back to the three builds (the backstory comes too), or, from
+   * before character creation offered them, made again. The game made from the one turned down goes
+   * to runs/deleted/, so the title doesn't offer it to carry on.
+   */
+  chooseAgain(): void {
+    const made = this.creation?.made ?? this.core?.state.id;
+    if (made && this.screen === "created") {
+      try { deleteSave(made); } catch { /* it stays on the title's list, then */ }
+      // Its calls were logged in its folder, which has gone: the next game's are logged in its own.
+      setCallLog(undefined);
+      if (this.creation) delete this.creation.made;
+      this.core = undefined;
+      this.sheet = undefined;
+    }
+    if (this.creation?.offer) this.backToBuilds();
+    else if (this.creating) void this.create(this.creating.name, this.creating.concept);
   }
 
   async resume(r: Resumable): Promise<void> {
@@ -817,6 +859,8 @@ export class Game {
   }
 
   begin(): void {
+    // Set off: the game is theirs (choosing again no longer applies).
+    if (this.creation) delete this.creation.made;
     this.screen = "explore";
     this.emit();
   }

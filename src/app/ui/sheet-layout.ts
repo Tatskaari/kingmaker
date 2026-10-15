@@ -360,10 +360,10 @@ function whoSection(d: SheetData, w: number): Row[] {
   return rows;
 }
 
-/** Their backstory, in their own words: a paragraph at a time. */
+/** Their backstory, in their own words: a blank line between paragraphs, and a line break where they made one. */
 function backstorySection(d: SheetData, w: number): Row[] {
-  const paragraphs = d.story!.backstory.split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean);
-  return [rule("Backstory", w), ...paragraphs.flatMap((p, i) => [...(i ? [[] as Row] : []), ...prose(p, w, C.text)])];
+  const paragraphs = d.story!.backstory.split(/\n\s*\n/).map(p => p.split("\n").map(l => l.trim()).filter(Boolean)).filter(p => p.length);
+  return [rule("Backstory", w), ...paragraphs.flatMap((lines, i) => [...(i ? [[] as Row] : []), ...lines.flatMap(l => prose(l, w, C.text))])];
 }
 
 // ---------------------------------------------------------------------------------------------

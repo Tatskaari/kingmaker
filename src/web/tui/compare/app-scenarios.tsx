@@ -103,6 +103,12 @@ const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye, a sharp 
 const offer = await threeBuilds("Tamsin Vell", CONCEPT, 3, {});
 const STORY = "I kept the accounts of a Saltmere grain factor for nine years, until the night I found the error that wasn't one.\n\nI owe Fat Jory three crowns, and my sister Ada a letter.";
 const DRAFT = "I was born above a chandler's shop on Tallow Lane, where the candles were cheap and the arguments cheaper.\n\nMy mother taught me to count; my father taught me to lie about it. I kept a factor's books for nine years, until the night I found an error that wasn't one, and said so, loudly, in front of the wrong man.";
+const LONG_ISSUE = {
+  quote: "I kept the accounts of a Saltmere grain factor for nine years, until the night I found the error that wasn't one.",
+  problem: "Saltmere's grain factors keep their own books in Saltmere, under seal, and a Caerwyn clerk couldn't have kept one's accounts for nine years without the Purveyor's office knowing her name, which the story's people don't.",
+  fix: "I kept the accounts of a Caerwyn corn-chandler for nine years, until the night I found an error that wasn't one, and learned that some sums are better left unchecked.",
+};
+const LONG_STORY = Array.from({ length: 16 }, (_, i) => `In my ${i + 1}${["st", "nd", "rd"][i] ?? "th"} year at the counting-house I learned that the Purveyor's office kept two sets of books, and that I would only ever see one.`).join("\n");
 function creationGame(screen: "choose" | "custom" | "backstory"): Game {
   const game = new Game();
   game.screen = screen;
@@ -179,6 +185,30 @@ export const appScenarios: Scenario[] = [
     const game = creationGame("backstory");
     game.creation!.issues = [{ quote: "a Saltmere grain factor", problem: "Saltmere's factors keep their own books in Saltmere, under seal.", fix: "a Caerwyn corn-chandler" }];
     return { node: <BackstoryScreen game={game} /> };
+  }),
+  // A long issue (the fix kept whole, the story above giving way), and rewriting it (what was said and suggested over the box).
+  ...sizes("backstory long issue", [[100, 30], [80, 24]], () => {
+    const game = creationGame("backstory");
+    game.creation!.issues = [LONG_ISSUE];
+    return { node: <BackstoryScreen game={game} /> };
+  }),
+  ...sizes("backstory rewriting", [[130, 42], [80, 24]], () => {
+    const game = creationGame("backstory");
+    game.creation!.rewriting = LONG_ISSUE;
+    return { node: <BackstoryScreen game={game} /> };
+  }),
+  // A long backstory in the box: its bar, and the wheel moving the view and the cursor with it, then a word typed where the cursor went.
+  ...[[130, 42], [80, 24]].map(([width, height]): Scenario => ({
+    name: `backstory wheel ${width}x${height}`, width: width!, height: height!,
+    node: () => { const game = creationGame("backstory"); game.creation!.story = LONG_STORY; return <BackstoryScreen game={game} />; },
+    steps: [{ wait: 20 }, { scroll: [20, 10, "up"] }, { scroll: [20, 10, "up"] }, { type: "Q" }, { scroll: [20, 10, "down"] }],
+  })),
+  ...sizes("created unchecked", [[130, 42], [80, 24]], () => {
+    const game = exploreGame();
+    game.screen = "created";
+    game.sheet = sheet;
+    game.creation = { name: "Tamsin Vell", concept: CONCEPT, index: 0, story: STORY, version: 1, issue: 0, unchecked: "Your backstory went in as you wrote it, without the lore check: the GM couldn't be reached (OpenRouter backstory.check HTTP 401: No auth credentials found)." };
+    return { node: <CreatedScreen game={game} /> };
   }),
   ...sizes("story sheet", [[130, 42], [80, 24]], () => {
     const game = exploreGame();

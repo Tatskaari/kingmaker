@@ -1,13 +1,13 @@
 import type { KeyEvent, MouseEvent, TextareaRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
-import { locate, type LoreIssue } from "../../lore/backstory.ts";
+import { locate, MOST_WORDS, wordCount, type LoreIssue } from "../../lore/backstory.ts";
 import type { BuildOption, Choice } from "../../rules/builds.ts";
 import type { Creation, Game } from "../game.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, LEVEL } from "../story.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, Spinner, useGame, wrap, type KeyHint } from "./common.tsx";
-import { cardRows, ownRows, storyRowOf, storyRows } from "./creation-layout.ts";
+import { cardRows, issueRows, ownRows, storyRowOf, storyRows } from "./creation-layout.ts";
 import { sheetHeight, type Row, type Run } from "./sheet-layout.ts";
 import { SheetView, type SheetHandle } from "./sheet.tsx";
 
@@ -136,13 +136,19 @@ function Card({ option, n, on, w, h, onPick, onChoose }: { option: BuildOption; 
 export function cardSize(c: Creation, width: number, height: number): { w: number; h: number; gap: number } {
   const gap = width >= 100 ? 2 : 1;
   const w = Math.min(46, Math.floor((width - 2 - gap * 2) / 3));
-  const fixed = 6 + conceptLines(c, width).length + (c.offer?.note ? 1 : 0);
+  const fixed = 6 + conceptLines(c, width).length + offerNote(c, width).length;
   const room = Math.max(8, Math.min(26, height - fixed));
   const tallest = Math.max(...(c.offer?.options ?? []).map(o => cardRows(o, w - 4, room - 2).length));
   return { w, h: Math.min(room, tallest + 2), gap };
 }
 
 const conceptLines = (c: Creation, width: number) => wrap(`${c.name}: ${c.concept}`, Math.min(width - 4, 120)).slice(0, 2);
+
+/** Why the three are the class defaults, when they are, in two lines at most (what it means comes first: the error after it gives way). */
+function offerNote(c: Creation, width: number): string[] {
+  const lines = c.offer?.note ? wrap(c.offer.note, Math.min(width - 4, 120)) : [];
+  return lines.length > 2 ? [lines[0]!, `${lines[1]!.slice(0, Math.min(width - 4, 120) - 1)}…`] : lines;
+}
 
 /** Three builds that fit the concept, as cards: click one (or ←→ and Enter, or 1-3); or make their own; or back to the concept. */
 export function ChooseScreen({ game }: { game: Game }) {
@@ -169,7 +175,7 @@ export function ChooseScreen({ game }: { game: Game }) {
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     <text fg={C.title} attributes={BOLD}>{`Three ways to be ${c.name}`}</text>
     {conceptLines(c, width).map((l, i) => <text key={i} fg={C.dim} attributes={ITALIC}>{l}</text>)}
-    {c.offer?.note ? <text fg={C.faint}>{wrap(c.offer.note, width - 4)[0]}</text> : null}
+    {offerNote(c, width).map((l, i) => <text key={`note${i}`} fg={C.faint}>{l}</text>)}
     <box flexDirection="row" marginTop={1} gap={size.gap} height={size.h} flexShrink={0}>
       {options.map((o, i) => <Card key={i} option={o} n={i + 1} on={i === at} w={size.w} h={size.h} onPick={() => game.pickCard(i)} onChoose={() => game.chooseBuild(i)} />)}
     </box>
@@ -286,9 +292,11 @@ function Reader({ rows, h, top, onScroll }: { rows: Row[]; h: number; top: numbe
 }
 
 /**
- * Their backstory: a box to write it in (it scrolls; a click puts the cursor where the box allows),
- * Draft one and Work it in (shown first, to take or leave), Skip and Done; then what the lore check
- * found, a fix at a time, to accept or rewrite. Offline the model's buttons say the GM is.
+ * Their backstory: a box to write it in (it scrolls, by the keys and the wheel, with a bar beside it;
+ * a click puts the cursor where the box allows), Draft one and Work it in (shown first, to take or
+ * leave), Skip and Done; then what the lore check found, a fix at a time, to accept or rewrite (the
+ * fix always shown whole before it can be accepted); and, rewriting one, what it said and suggested
+ * over the box. Offline the model's buttons say the GM is.
  */
 export function BackstoryScreen({ game }: { game: Game }) {
   useGame(game);
@@ -298,11 +306,26 @@ export function BackstoryScreen({ game }: { game: Game }) {
   const [button, setButton] = useState(3);
   const [choice, setChoice] = useState(0);
   const [top, setTop] = useState(0);
+  /** A word from the screen itself (a fix too long for it to show), until the view changes. */
+  const [said, setSaid] = useState<string | undefined>();
+  /** Bumped when the box's text, cursor or view changes: its word count and its bar are drawn from them. */
+  const [, setTick] = useState(0);
   const box = useRef<TextareaRenderable | null>(null);
   const issue: LoreIssue | undefined = c?.issues?.[c.issue];
   const mode = !c ? "write" : c.busy && c.busy !== "making" ? "busy" : c.proposal ? "proposal" : issue ? "issue" : "write";
-  // A new view starts at its top, with its first choice picked out.
-  useEffect(() => { setTop(0); setChoice(0); }, [mode, c?.issue, c?.proposal?.text]);
+  const w = Math.min(width - 2, 110);
+  const tall = height >= 30;
+  // Every row is always there (only what's in it changes), and the main box is the same height whatever
+  // it shows: OpenTUI leaves a box where it was when a row comes or goes and the screen re-centres.
+  // Besides the main box: the title and who, the prompts, the buttons, the note, the keys, and on a tall screen a row between each part.
+  const fixed = 6 + (tall ? 3 : 0);
+  const mainH = Math.max(6, Math.min(26, height - fixed - (tall ? 2 : 0)));
+  // What the lore check says of the issue on show: all of it if there's room, the fix whole before anything else
+  // (Accept puts it in), the story above keeping a row of its own; Accept waits when even the fix can't be shown.
+  const laid = mode === "issue" && issue ? issueRows(issue, w - 4, mainH - 5) : undefined;
+  const whole = !laid || laid.whole;
+  // A new view starts at its top, with its first choice picked out (Rewrite, when the fix can't be shown whole).
+  useEffect(() => { setTop(0); setChoice(whole ? 0 : 1); setSaid(undefined); }, [mode, c?.issue, c?.proposal?.text, whole]);
   // The box back (or its text put in from outside: a draft taken, a fix accepted): the cursor at its end, ready to go on.
   useEffect(() => { if (mode === "write" && !c?.rewriting) box.current?.gotoBufferEnd(); }, [mode, c?.version]);
   // Back to the box after a rewrite: the cursor at the words to rewrite.
@@ -319,6 +342,24 @@ export function BackstoryScreen({ game }: { game: Game }) {
     if (typeof t === "string") game.storyTyped(t);
     return game.creation?.story ?? "";
   };
+  /**
+   * The wheel in the box: the view moves three rows and the cursor with it. (OpenTUI's textarea moves
+   * the view a row and then the cursor into it, and on wrapped prose the cursor pulls the view back,
+   * so the wheel hardly moved it.) With nothing to scroll that way, nothing moves.
+   */
+  const wheel = (e: MouseEvent) => {
+    const b = box.current, dir = e.scroll?.direction;
+    if (!b || !e.scroll || (dir !== "up" && dir !== "down")) return;
+    // The textarea's own wheel comes after this one: it's had its turn.
+    (e.scroll as { direction: string }).direction = "none";
+    const h = Math.trunc(b.height), was = b.scrollY, at = b.cursorOffset, row = b.visualCursor.visualRow;
+    // The rows the view keeps between the cursor and its edge (a fifth of it), as the textarea keeps them.
+    const margin = Math.min(Math.max(1, Math.trunc(h * 0.2)), h > 1 ? Math.floor((h - 1) / 2) : 0);
+    if (dir === "up" && was > 0) for (let i = Math.max(0, row - margin) + 3; i > 0; i--) b.moveCursorUp();
+    else if (dir === "down") for (let i = Math.max(0, h - 1 - margin - row) + 3; i > 0; i--) b.moveCursorDown();
+    if (b.scrollY === was) b.cursorOffset = at;
+    setTick(t => t + 1);
+  };
   const offline = game.aiOffline;
   const actions: Array<{ label: string; run: () => void; dim?: boolean }> = [
     { label: offline ? "Draft one (GM offline)" : "Draft one", run: () => { read(); void game.draftStory(); }, dim: offline },
@@ -326,9 +367,10 @@ export function BackstoryScreen({ game }: { game: Game }) {
     { label: "Skip", run: () => void game.skipStory() },
     { label: "Done", run: () => void game.finishStory(read()) },
   ];
-  const choices: Array<{ label: string; run: () => void }> = mode === "proposal"
+  const tooLongToShow = "The fix is longer than this window can show: make the window bigger to read it all, or rewrite it yourself.";
+  const choices: Array<{ label: string; run: () => void; dim?: boolean }> = mode === "proposal"
     ? [{ label: "Use this", run: () => game.takeProposal() }, { label: "Keep mine", run: () => game.leaveProposal() }]
-    : mode === "issue" ? [{ label: "Accept the fix", run: () => void game.acceptFix() }, { label: "Rewrite it myself", run: () => game.rewriteIssue() }] : [];
+    : mode === "issue" ? [{ label: "Accept the fix", run: () => (whole ? void game.acceptFix() : setSaid(tooLongToShow)), dim: !whole }, { label: "Rewrite it myself", run: () => game.rewriteIssue() }] : [];
   const back = () => { read(); game.backToBuilds(); };
   useKeyboard((key: KeyEvent) => {
     if (game.overlay || key.defaultPrevented || game.screen !== "backstory" || !c) return;
@@ -357,18 +399,10 @@ export function BackstoryScreen({ game }: { game: Game }) {
     key.preventDefault();
   });
   if (!c) return <box width={width} height={height} backgroundColor={C.bg} />;
-  const w = Math.min(width - 2, 110);
-  const tall = height >= 30;
   const sub = c.chosen ? `${c.name} · ${c.chosen.line}` : c.name;
-  // A rewrite's reason, or a word from the GM's part: the note row, one line.
-  const rewriting = mode === "write" && c.rewriting ? `Rewrite this so it fits: ${c.rewriting.problem}${c.rewriting.quote ? ` ("${c.rewriting.quote}")` : ""}` : undefined;
-  const note = rewriting ?? c.note;
+  // A word for the player, one line: the screen's own, the GM's part's, or why making the game failed.
+  const note = said ?? c.note ?? game.error;
   const noteLine = note ? (note.length > w - 2 ? `${note.slice(0, w - 3)}…` : note) : "";
-  // Every row is always there (only what's in it changes), and the main box is the same height whatever
-  // it shows: OpenTUI leaves a box where it was when a row comes or goes and the screen re-centres.
-  // Besides the main box: the title and who, the prompts, the buttons, the note, the keys, and on a tall screen a row between each part.
-  const fixed = 6 + (tall ? 3 : 0);
-  const mainH = Math.max(6, Math.min(26, height - fixed - (tall ? 2 : 0)));
   const keys: KeyHint[] = mode === "proposal" || mode === "issue"
     ? [["Enter", choices[choice]!.label.toLowerCase(), choices[choice]!.run], ["Esc", choices[1]!.label.toLowerCase(), choices[1]!.run], ["↑↓", "scroll"]]
     : [["Tab", focus === "box" ? "to the buttons" : "back to writing"], ["Alt+Enter", "done", actions[3]!.run], ["Esc", "back to the builds", back]];
@@ -382,13 +416,8 @@ export function BackstoryScreen({ game }: { game: Game }) {
     </box>;
   } else if (mode === "issue") {
     const span = issue!.quote ? locate(c.story, issue!.quote) : undefined;
-    const said: Row[] = [
-      ...wrapRun(`Your story says: "${issue!.quote ?? "(the GM couldn't point at the words)"}"`, w - 4, C.text),
-      ...wrapRun(`The world says: ${issue!.problem}`, w - 4, C.warn),
-      ...wrapRun(`A fix that keeps its spirit: "${issue!.fix}"`, w - 4, C.good),
-    ];
-    const panelH = Math.min(said.length + 2, Math.max(5, Math.floor(mainH / 2)));
-    const storyH = Math.max(3, mainH - panelH);
+    const panelH = laid!.rows.length + 2;
+    const storyH = mainH - panelH;
     const rows = storyRows(c.story, w - 5, span);
     const quoteRow = span ? storyRowOf(c.story, w - 5, span.start) : 0;
     const shownTop = top || Math.max(0, quoteRow - 1);
@@ -397,15 +426,35 @@ export function BackstoryScreen({ game }: { game: Game }) {
         <Reader rows={rows} h={storyH - 2} top={shownTop} onScroll={by => setTop(Math.max(0, shownTop + by))} />
       </box>
       <box width={w} height={panelH} flexShrink={0} border borderStyle="rounded" borderColor={C.borderHot} title={` The lore check${c.again ? ", again, with the fixes in" : ""}: ${c.issue + 1} of ${c.issues!.length} `} titleAlignment="left" paddingX={1} flexDirection="column">
-        <Rows rows={said.slice(0, panelH - 2)} />
+        <Rows rows={laid!.rows} />
       </box>
     </box>;
   } else {
-    main = <box width={w} height={mainH} flexShrink={0} border borderStyle="rounded" borderColor={focus === "box" && mode === "write" ? C.borderHot : C.border} title=" Your backstory " titleAlignment="left" paddingX={1}>
-      <textarea key={c.version} ref={box} initialValue={c.story} placeholder={PLACEHOLDER} placeholderColor={C.faint} textColor={C.text} wrapMode="word"
-        focused={focus === "box" && mode === "write" && !game.overlay && game.screen === "backstory"}
-        onContentChange={() => { const t = box.current?.plainText; if (typeof t === "string") game.storyTyped(t); }}
-        onSubmit={() => actions[3]!.run()} onMouseDown={() => setFocus("box")} />
+    // Rewriting what the check found: what it said and what it suggested stay over the box.
+    const r = mode === "write" ? c.rewriting : undefined;
+    const over = r ? issueRows(r, w - 4, Math.max(3, Math.floor(mainH / 2) - 2), "It suggested").rows : [];
+    const overH = r ? over.length + 2 : 0;
+    const boxH = mainH - overH, innerH = boxH - 2;
+    // The box's bar: where the view is in the whole of it (laid out as the box wraps it, near enough), as the Reader's is.
+    const total = storyRows(c.story, w - 5).length;
+    const scrolled = Math.min(box.current?.scrollY ?? 0, Math.max(0, total - innerH));
+    const thumb = Math.max(1, Math.round((innerH * innerH) / Math.max(total, 1))), thumbAt = total > innerH ? Math.round(((innerH - thumb) * scrolled) / (total - innerH)) : 0;
+    const words = wordCount(c.story);
+    const title = words ? ` Your backstory · ${words === 1 ? "1 word" : `${words.toLocaleString("en-GB")} words`}${words > MOST_WORDS ? ` (${MOST_WORDS.toLocaleString("en-GB")} at most)` : ""} ` : " Your backstory ";
+    main = <box width={w} height={mainH} flexShrink={0} flexDirection="column">
+      {r ? <box width={w} height={overH} flexShrink={0} border borderStyle="rounded" borderColor={C.warn} title=" Rewrite this so it fits " titleAlignment="left" paddingX={1} flexDirection="column">
+        <Rows rows={over} />
+      </box> : null}
+      <box width={w} height={boxH} flexShrink={0} border borderStyle="rounded" borderColor={focus === "box" && mode === "write" ? C.borderHot : C.border} title={title} titleAlignment="left" paddingX={1} flexDirection="row">
+        <textarea key={c.version} ref={box} initialValue={c.story} placeholder={PLACEHOLDER} placeholderColor={C.faint} textColor={C.text} wrapMode="word" width={w - 5} height={innerH} flexShrink={0}
+          focused={focus === "box" && mode === "write" && !game.overlay && game.screen === "backstory"}
+          onContentChange={() => { const t = box.current?.plainText; if (typeof t === "string") game.storyTyped(t); setTick(n => n + 1); }}
+          onCursorChange={() => setTick(n => n + 1)} onMouseScroll={wheel}
+          onSubmit={() => actions[3]!.run()} onMouseDown={() => setFocus("box")} />
+        <box width={1} height={innerH} flexShrink={0} flexDirection="column">
+          {Array.from({ length: innerH }, (_, i) => <text key={i} height={1} fg={i >= thumbAt && i < thumbAt + thumb ? C.title : C.faint}>{total > innerH ? (i >= thumbAt && i < thumbAt + thumb ? "┃" : "│") : " "}</text>)}
+        </box>
+      </box>
     </box>;
   }
   const gap = tall ? <box height={1} flexShrink={0} /> : null;
@@ -419,26 +468,28 @@ export function BackstoryScreen({ game }: { game: Game }) {
     <box width={w} height={1} flexShrink={0} flexDirection="row" justifyContent="center" gap={2}>
       {mode === "busy" ? <Spinner label={c.busy === "draft" ? "The GM drafts one…" : c.busy === "work" ? "The GM works your notes in, keeping every word that matters…" : c.again ? "The GM checks it again, with the fixes in…" : "The GM checks your story against the world…"} />
         : mode === "write" ? actions.map((a, i) => <Button key={a.label} label={a.label} dim={a.dim} on={focus === "buttons" && i === button} onClick={() => { setButton(i); a.run(); }} />)
-        : choices.map((a, i) => <Button key={a.label} label={a.label} on={i === choice} onClick={a.run} />)}
+        : choices.map((a, i) => <Button key={a.label} label={a.label} dim={a.dim} on={i === choice} onClick={a.run} />)}
     </box>
-    <box width={w} height={1} flexShrink={0} alignItems="center"><text fg={rewriting ? C.warn : C.dim} attributes={ITALIC}>{noteLine}</text></box>
+    <box width={w} height={1} flexShrink={0} alignItems="center"><text fg={said ? C.warn : C.dim} attributes={ITALIC}>{noteLine}</text></box>
     {gap}
     <box width={w} height={1} flexShrink={0} alignItems="center"><Keys items={fit(keys, width - 2)} /></box>
   </box>;
 }
 
-/** Words in one colour, wrapped to w, as rows. */
-const wrapRun = (text: string, w: number, fg: string): Row[] => wrap(text, w).map(l => [{ text: l, fg }]);
 
 // ---------------------------------------------------------------------------------------------
 // The sheet the engine made.
 
-/** The sheet the rules engine made (the portrait, the lot, their backstory), then on to the map. */
+/**
+ * The sheet the rules engine made (the portrait, the lot, their backstory), then on to the map; over
+ * it, where the story starts, and, when the backstory went in without the lore check (the GM offline
+ * or out of reach), a word to say so.
+ */
 export function CreatedScreen({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
-  // Not who you meant: back to the builds (the backstory comes too), or, from before character creation offered them, made again.
-  const remake = () => { if (game.creation?.offer) game.backToBuilds(); else if (game.creating) void game.create(game.creating.name, game.creating.concept); };
+  // Not who you meant: back to the builds (the backstory comes too), or, from before character creation offered them, made again (the one turned down put away).
+  const remake = () => game.chooseAgain();
   const sheet = useRef<SheetHandle>(null);
   useKeyboard(key => {
     // A spell picked on the sheet takes Enter, and one open takes every key.
@@ -451,13 +502,17 @@ export function CreatedScreen({ game }: { game: Game }) {
   // Where the story starts, over the sheet (the map's "What happens" has all of it). Centred columns
   // don't measure wrapped text reliably: wrap it here and size the boxes to fit.
   const said = wrap(game.messages.at(-1) ?? "", w - 2);
-  const most = height > 30 ? 5 : 3;
+  // The backstory unchecked: two lines at most, taken from where the story starts.
+  const why = game.creation?.unchecked ? wrap(game.creation.unchecked, w - 2) : [];
+  const unchecked = why.length > 2 ? [why[0]!, `${why[1]!.slice(0, w - 3)}…`] : why;
+  const most = Math.max(1, (height > 30 ? 5 : 3) - unchecked.length);
   const intro = said.length > most ? [...said.slice(0, most - 1), `${said[most - 1]!.slice(0, w - 3)}…`] : said;
   const who = session?.player ?? { name: game.creating?.name ?? "", concept: game.creating?.concept ?? "" };
-  const sheetH = sheetHeight(game.sheet, who, w - 4, Math.max(8, Math.min(height - intro.length - (height > 30 ? 2 : 0), 58)) - 2) + 2;
+  const sheetH = sheetHeight(game.sheet, who, w - 4, Math.max(8, Math.min(height - intro.length - unchecked.length - (height > 30 ? 2 : 0), 58)) - 2) + 2;
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
-    <box width={w} height={intro.length} flexDirection="column" flexShrink={0} paddingX={1} {...(height > 30 ? { marginBottom: 1 } : {})}>
+    <box width={w} height={intro.length + unchecked.length} flexDirection="column" flexShrink={0} paddingX={1} {...(height > 30 ? { marginBottom: 1 } : {})}>
       {intro.map((l, i) => <text key={i} fg={C.text} flexShrink={0}>{l}</text>)}
+      {unchecked.map((l, i) => <text key={`unchecked${i}`} fg={C.warn} flexShrink={0}>{l}</text>)}
     </box>
     <box width={w} height={sheetH} border borderColor={C.border} title=" Character sheet " titleAlignment="left" paddingX={1} flexDirection="column" flexShrink={0}>
       {/* A new character (made again) starts on the first page. */}
