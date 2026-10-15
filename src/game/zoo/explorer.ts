@@ -5,6 +5,7 @@ import {
   type ExploreState,
 } from "../map/index.ts";
 import type { Action, ExploreDone as Done, Explorer, GameState } from "../play.ts";
+import { isMenuAct } from "../menu.ts";
 import { actionsAt as townActionsAt, exploreState, interactLabel as townInteractLabel, targets, town, townOf, type LeadTarget, type TileActions } from "../town.ts";
 import type { CombatResult, MapActor, Tile2 } from "../types.ts";
 import { point, zooOf, type Cue, type Exhibit, type Outcome, type Show, type Trigger, type Wing } from "./model.ts";
@@ -316,12 +317,14 @@ async function act(game: GameState, session: SessionState, id: string): Promise<
     if (walked.opened) return { text: walked.said.join(" "), open: walked.opened };
     return afterTown(game, session, { text: walked.said.join(" ") || (plan.reaches ? "You're already there." : "You're as near as you can get.") }, before);
   }
-  // The town's way of walking about: look, examine, talk, doors and ways out (and the action menu's
-  // acts, which take the rules a moment).
+  // The town's way of walking about: look, examine, talk, doors and ways out; and the action menu's
+  // acts (a spell, a leap, a rest), which the rules do on the wing's own world (src/game/town-world.ts).
   const sign = signRead(game, session, id);
   const done = await town.act(game, session, id);
   // A sign read is shown in full (the app's card), as well as said.
   if (sign) { saw(game, sign); show(game, "sign", sign); }
+  // What the menu's act did plays on the map as an exhibit's does (the zoo's news: its rules lines, and what changed in the world).
+  if (isMenuAct(id)) report(game, ex.map, (done as { lines?: string[] }).lines ?? done.text.split("\n").filter(Boolean), []);
   return afterTown(game, session, done, before);
 }
 
@@ -417,7 +420,16 @@ export const zoo = {
   actions,
 
   async act(game: GameState, session: SessionState, id: string): Promise<Done> {
+    const ex = exploreState(game);
+    const was = ex.hidden ? { map: ex.map, at: { ...ex.at } } : undefined;
     const done = await act(game, session, id);
+    // Hidden (the action menu's Hide) only until you show yourself, as in the town, whose own acts see
+    // to it: a step out into the open, a scene, an exhibit set off.
+    const shown = was && (ex.map !== was.map || ex.at.x !== was.at.x || ex.at.y !== was.at.y || !!done.open || !!done.scene || !!done.talk || (/^use_/.test(id) && !!triggerById(id.slice(4))));
+    if (shown && ex.hidden) {
+      delete ex.hidden;
+      done.text = [done.text, "(You're in plain sight again.)"].filter(Boolean).join("\n");
+    }
     note(game, done.text);
     syncPlayer(game);
     return done;

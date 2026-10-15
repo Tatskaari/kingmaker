@@ -16,6 +16,7 @@ A visit is a game of its own (`game.hub = "zoo"`), kept apart from the story: it
 - **The next exhibit.** g walks you to the next exhibit you haven't seen, through the hall's doors; the sidebar names it and the way, and a gold marker floats over it. Nearby lists the signs about you as well as the people.
 - **The camera.** A wing's map is framed rather than followed: the whole of it when it fits, and never half a screen of nothing past its edge (you come in at a corner, and what's to see is the other way).
 - **Setting things off.** Every trigger is in its tile's right-click menu (and the QA console's `use_<id>`): it walks you over first. You stand on a chalk circle to cast from it; a plate goes off when you walk onto it.
+- **The action menu.** m (or a right-click's Do something…) is the story's action menu (src/game/menu.ts), on the wing's own world: your spells, features and actions, aimed on the map, done by the rules to the wing's things and people and kept in its world. Its people take violence as the town's do (most run, some cower; a guard about comes at you, and the fight is on the wing's map), and nobody in a wing is the story's: no talks, and the waxwork of Kell is a waxwork. Hidden lasts until you step out into the open or set an exhibit off. What it did plays as an exhibit's does.
 - **From above.** v shows the wing's world as a scene's stage draws its place: people mid-walk, fires, haze, weather, effects.
 - **What happens.** What a trigger did is played on the map as a scene's turn would be: its rules lines through the director (a Fireball from you to the scarecrow, damage numbers), what changed in the wing's world (fires catching, splashes, debris, puffs), and a few cues for effects nothing in the game sets off yet (a goose's "!", a thrown ball, embers).
 - **The wings' worlds are live on the map.** Each wing has a scene world lined up with its map, always about: its people stand in the way and can be looked at, its puddles and fires lie on its ground. Each wing's "put everything back" lever starts it again, and sees to you (a night's rest: hit points and spell slots back).
@@ -116,12 +117,12 @@ node --no-warnings src/game/zoo/tour.ts [--live] [--only fire,arena] [--no-png] 
   - a dressing for the view from above, read off the map.
 - **`explorer.ts`:** the zoo behind the game core's Explorer.
   - It's a hub: it opens any of its scenes, each ending back on the map with nothing chained on, and fights start from the map.
-  - Walking, looking, doors and talk are the town's own (src/game/town.ts).
+  - Walking, looking, doors and talk are the town's own (src/game/town.ts), and so is the action menu, whose acts it reports as its news.
   - It adds the triggers, the next exhibit, scenes opened from their rooms, and plates.
 - **`world.ts`:** the wings' worlds.
   - A trigger runs with the player in the wing's world where they stand on the map, carrying what they carry, and with the session's world the wing's for the while, so the rules reach it as they reach a scene's.
   - Gear that changes hands changes the sheet.
-- **`fights.ts`, `arenas.ts`:** the arena's rings as fights on the arena's own map. The scenes' fights are the story's own (src/game/fights.ts).
+- **`fights.ts`, `arenas.ts`:** the arena's rings as fights on the arena's own map, and a fight that breaks out in a wing (set out as the town's is, its end kept in the wing's world). The scenes' fights are the story's own (src/game/fights.ts).
 - **`look.ts`, `pictures.ts`:** playing a trigger's news on a view's effects, and pictures without a terminal.
 - **`touring.ts`, `tour.ts`:** the tour.
 - **`scenes/zoo/`:** the zoo's scenes, authored like the story's (beats, checks, cues, exits with scripts), each on a booth's world.
@@ -133,6 +134,7 @@ The game core supports hubs for the zoo, and the story never takes these paths:
   - a hub's scene ends back on the map (`backToHub`);
   - a fight from the map ends there (`fightOnMap`, as a fight that breaks out on the town's map does).
 - **`runtime/engine.ts`:** `openHubScene` and `closeHubScene` open a scene afresh and close it without a hand-off.
+- **`town-world.ts`:** on a map with a world live on it, the rules' world for the action menu is that one (its own entities, changed in place; `keepTown` keeps what the rules add or take away in it).
 - **The map module:**
   - worlds live on maps outside scenes (`ExploreState.roam`);
   - places and presence registered from outside (`registerPlace`, `addPresence`);

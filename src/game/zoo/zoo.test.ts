@@ -332,3 +332,68 @@ test("the bump alley: each kind of wall's own line first, and a fence, a hedge o
   assert.match(said["bump-brick"]!, /brick/i);
   for (const id of ["bump-fence", "bump-hedge", "bump-window"]) assert.doesNotMatch(said[id]!, /\bwall\b/i, `${id}: ${said[id]}`);
 });
+
+test("the action menu acts on a wing's own world: a Fireball at the scarecrow burns it there, plays as the zoo's news, and nothing goes in the town's overlay", async () => {
+  const { actionMenu, aimAt } = await import("../town.ts");
+  const game = await newZoo({ seed: 25 });
+  placePlayer(game.state, "zoo-fire", { x: 30, y: 9 });
+  // The menu's targets are the wing's own things and people.
+  const fireball = actionMenu(game.state, game.session)?.sections.flatMap(s => s.entries).find(e => e.key === "spell:fireball");
+  assert.ok(fireball && !fireball.why, `Fireball is on offer (${fireball?.why})`);
+  const check = aimAt(game.state, game.session, "spell:fireball", { x: 36, y: 4 })!;
+  assert.equal(check.ok, true, check.why ?? "");
+  assert.match(check.target ?? "", /scarecrow/);
+  const seq = zooOf(game.state).seq;
+  const text = await game.act(check.id!);
+  assert.match(text, /Fireball/);
+  const world = wingWorld(game.state, "zoo-fire")!;
+  assert.ok(world.entities.scarecrow!.states.some(s => ["burning", "destroyed", "burnt"].includes(s)), `the scarecrow burns in the wing's world (${world.entities.scarecrow!.states.join(", ")})`);
+  const news = zooOf(game.state).news;
+  assert.ok(news && news.seq > seq && news.map === "zoo-fire" && news.lines.some(l => /Fireball/.test(l)), "the zoo's news has it, for the map to play");
+  assert.equal(exploreState(game.state).overlay.town?.["zoo-fire"], undefined, "the town's overlay isn't the zoo's");
+  // Kept with the visit: a reload has the scarecrow as the Fireball left it.
+  game.save();
+  assert.deepEqual(wingWorld(loadZoo(game.state.id).state, "zoo-fire")!.entities.scarecrow!.states, world.entities.scarecrow!.states);
+});
+
+test("hidden in the zoo until you step out into the open; a use_ that isn't an exhibit's is the menu's", async () => {
+  const game = await newZoo({ seed: 26 });
+  const fire = wingOf("zoo-fire")!;
+  placePlayer(game.state, fire.id, fire.entry);
+  exploreState(game.state).hidden = true;
+  assert.doesNotMatch(await game.act("look"), /plain sight/, "looking about doesn't show you");
+  assert.equal(exploreState(game.state).hidden, true);
+  assert.match(await game.act("walk_east"), /plain sight again/);
+  assert.equal(exploreState(game.state).hidden, undefined);
+  await assert.rejects(game.act("use_a-thing-nobody-has"), /Unavailable action: use_a-thing-nobody-has/);
+});
+
+test("a fight that breaks out in a wing is fought on its map, and its end is kept in the wing's world", async () => {
+  const { aimAt } = await import("../town.ts");
+  const game = await newZoo({ seed: 27 });
+  const world = wingWorld(game.state, "zoo-fire")!;
+  // A guard about, as the Works' delegate brings one: hurting someone in front of him starts a fight.
+  world.entities["test-guard"] = { id: "test-guard", name: "a guard", kind: "person", parent: world.entities.porter!.parent, at: { x: 7 * 5 + 2.5, y: 15 * 5 + 2.5 }, tags: [], states: [], notes: [], stats: { statblock: "guard" } };
+  placePlayer(game.state, "zoo-fire", { x: 9, y: 19 });
+  const check = aimAt(game.state, game.session, "spell:fire-bolt", { x: 9, y: 15 })!;
+  assert.equal(check.ok, true, check.why ?? "");
+  const text = await game.act(check.id!);
+  assert.match(text, /A guard comes at you/);
+  assert.equal(game.state.mode, "combat");
+  assert.equal(game.state.fightOnMap, true);
+  for (let i = 0; i < 80 && !game.currentFight!.result(); i++) {
+    const acts = game.currentFight!.actions();
+    if (!acts.length) break;
+    await game.act(acts.some(a => a.id === "auto") ? "auto" : "end_turn");
+  }
+  const result = game.currentFight!.result();
+  assert.ok(result, "the fight ends");
+  const after = await game.act("continue");
+  assert.match(after, /^The fight: /);
+  assert.equal(game.state.mode, "explore");
+  assert.equal(game.state.fightOnMap, undefined);
+  assert.equal(exploreState(game.state).map, "zoo-fire");
+  const guard = result!.casualties.find(c => c.id === "test-guard");
+  if (guard && guard.state !== "standing") assert.ok(world.entities["test-guard"]!.states.some(s => ["down", "gone", "cowering"].includes(s)), `the guard as the fight left him (${guard.state})`);
+  assert.equal(exploreState(game.state).overlay.town?.["zoo-fire"], undefined, "kept in the wing's world, not the town's overlay");
+});

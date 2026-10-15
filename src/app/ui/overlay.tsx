@@ -42,6 +42,7 @@ const HELP: Record<string, string[]> = {
   zoo: [
     "Every feature of the game, laid out to see and try. Read a sign (right-click it, or face it and press e): it opens in full, with what you can set off there.",
     "Set an exhibit off from its sign's card (1-9), or right-click its lever, bell, chalk circle or person. You're walked over first; you stand on a chalk circle to cast from it.",
+    "m lists what you can do, by kind, as on the story's map: your spells, features and actions, done by the rules to the wing's own things and people (a Fireball at the scarecrow burns it, and its people take it as the town's would). Right-click anything, then Do something…, for the same aimed at it.",
     "g walks you to the next exhibit you haven't seen (the gold marker). The hall's doors go to the wings; each wing's door goes back.",
     "v looks down on the wing from above: people walking, fires, the weather. r reads What happens in full.",
     "The Theatre's booths are scenes with the GM: step in. The Arena's bells start fights. Ask Kell, in her corner, and she walks with you.",

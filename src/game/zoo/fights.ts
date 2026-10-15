@@ -26,6 +26,8 @@ import { freshWorld } from "./world.ts";
  *   she's walking with you. The scene picks up from it afterwards, as the story's do.
  * - A rehearsal's fight is the story's own (src/game/fights.ts): the Heron on its floor, the others
  *   in a plain room.
+ * - A fight that breaks out in a wing (the action menu's violence, and a guard about: src/game/menu.ts)
+ *   is set out where everyone stands, as the town's is, and its end is kept in the wing's world.
  */
 
 await engineReady();
@@ -57,6 +59,8 @@ export function zooFights(): TacticalFights {
       return fight;
     },
     load: (saved, session) => story.load(saved, session),
+    // A fight that broke out in a wing, as it stands: the story's way of setting one out.
+    startWith: (setup, session) => story.startWith!(setup, session),
   };
   // The app paces the other side's turns through whichever factory it was given: the story's fights hear it too.
   Object.defineProperty(factory, "pace", { get: () => story.pace, set: v => { story.pace = v; }, enumerable: true });
@@ -187,7 +191,8 @@ onArenaOver((game: GameState, session: SessionState, result: CombatResult): stri
   delete z.fight;
   const ex = exploreState(game);
   const world = session.world;
-  if (!ring || !world || world.scene !== ring.wing) return `The fight: ${result.summary}`;
+  if (!ring) return afterBrawl(game, result);
+  if (!world || world.scene !== ring.wing) return `The fight: ${result.summary}`;
   ex.roam = { ...(ex.roam ?? {}), [ring.wing]: world };
   delete session.world;
   const region = roamRegion(getMap(ring.wing), world)!;
@@ -202,3 +207,29 @@ onArenaOver((game: GameState, session: SessionState, result: CombatResult): stri
   const fell = result.casualties.filter(c => c.state !== "standing").map(c => `${c.name} ${c.state === "down" ? "is down" : c.state}`);
   return [`The fight in the ${ring.name}: ${result.summary}`, fell.length ? `${fell.join("; ")}.` : "", fled ? "You're out through the gate." : "The ring stays as the fight left it until its bell is rung again."].filter(Boolean).join(" ");
 });
+
+/**
+ * A fight that broke out in a wing (its people came at the visitor, as the town's do): you stand
+ * where it left you, and the wing's world keeps how it left its people (who went down lies where
+ * they fell, who ran has gone, who gave up cowers) until the wing's lever puts it back.
+ */
+function afterBrawl(game: GameState, result: CombatResult): string {
+  const ex = exploreState(game);
+  const map = getMap(ex.map);
+  const world = ex.roam?.[ex.map];
+  const region = world ? roamRegion(map, world) : undefined;
+  const at = result.positions?.["player"];
+  if (at && !solid(map, at)) ex.at = { ...at };
+  const fell: string[] = [];
+  for (const c of world && region ? result.casualties : []) {
+    const e = world!.entities[c.id];
+    const states = c.state === "down" || c.state === "dead" ? ["down"] : c.state === "fled" ? ["gone"] : c.state === "surrendered" ? ["cowering"] : undefined;
+    if (!e || !states) continue;
+    e.states = [...e.states.filter(s => !["hurt", "badly hurt", "down", "unconscious", "prone", "cowering"].includes(s)), ...states];
+    const there = result.positions?.[c.id];
+    if (there && !states.includes("gone")) { e.at = tileToFeet(region!, there); e.parent = areaAt(world!, e.at).id; }
+    if (states[0] === "down") fell.push(e.name);
+  }
+  const lies = fell.length ? `${fell.join(" and ").replace(/^./, ch => ch.toUpperCase())} ${fell.length === 1 ? "lies" : "lie"} where they fell, and will until the wing is put back.` : "";
+  return [`The fight: ${result.summary}`, lies].filter(Boolean).join("\n\n");
+}

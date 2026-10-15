@@ -1533,13 +1533,14 @@ export class Game {
   /**
    * The town's look between scenes: one Effects and one Director for the map the player is on, and
    * the town's world they play in (src/game/town-world.ts). `fresh`: take the world as it is now (just
-   * before an act, so only what the act does is news). Undefined in a scene.
+   * before an act, so only what the act does is news). Undefined in a scene, and on a map with a world
+   * of its own (a zoo's wing), which has its own look (mapFx) and plays what's done there as the zoo's news.
    */
   townFx(fresh = false): { fx: Effects; director: Director; world: SceneWorld } | undefined {
     const core = this.core;
     if (!core || core.state.mode !== "explore") return this.townLook;
     const ex = exploreState(core.state);
-    if (ex.scene) return undefined;
+    if (ex.scene || ex.roam?.[ex.map]) return undefined;
     if (!this.townLook || this.townLook.map !== ex.map) {
       const fx = new Effects();
       const director = new Director(fx);
