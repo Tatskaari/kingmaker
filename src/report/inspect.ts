@@ -218,6 +218,11 @@ function turnSaid(session: SessionState, g: Group, player: Entry | undefined, ca
   const decided = (what: string, c: { n: number; call: Call }) => `  ${what} (${callTag(c)})${c.call.error ? "" : `: ${answersSaid(c.call)}`}`;
   for (const c of by(op => DECIDER.has(op))) lines.push(decided("decider", c));
   for (const c of by(op => op.startsWith("director.") && !DECIDER.has(op) && !AFTER.has(op))) lines.push(decided(String(c.call.operation).slice(9), c));
+  // A considered turn: the GM's ruling, as the session recorded it (or as the call answered, for another scene's).
+  for (const c of by(op => op === CONSIDER)) {
+    const ruling = (session.rulings ?? []).find(r => r.turn === g.turn);
+    lines.push(`  considered (${callTag(c)})${c.call.error ? "" : `: ${ruling ? rulingSaid(ruling) : String(c.call.text ?? "").slice(0, 400)}`}`);
+  }
   for (const s of steps) lines.push(`  path: ${s.from === s.to ? s.via : `${s.from} → ${s.to} via ${s.via}`}${s.roll ? ` (${describeRoll(s.roll)})` : ""} [${s.source}]`);
   const gm = by(isGm);
   for (const e of g.entries.slice(player ? 1 : 0)) {
@@ -231,10 +236,18 @@ function turnSaid(session: SessionState, g: Group, player: Entry | undefined, ca
   for (const c of by(op => AFTER.has(op))) lines.push(decided("after", c));
   for (const c of by(op => STAGE.has(op))) lines.push(`  stage (${callTag(c)})${c.call.error ? "" : `: ${opsSaid(c.call)}`}`);
   for (const l of world) lines.push(`    → ${l.by}: ${l.text}`);
-  const rest = calls.filter(c => { const op = String(c.call.operation); return !op.startsWith("director.") && !isGm(op) && !STAGE.has(op); });
+  const rest = calls.filter(c => { const op = String(c.call.operation); return !op.startsWith("director.") && !isGm(op) && !STAGE.has(op) && op !== CONSIDER; });
   if (rest.length) lines.push(`  also: ${rest.map(callTag).join(" · ")}`);
-  if (metric) lines.push(`  timing: decided ${ms(metric.preDecisionMs)} · first text ${ms(metric.firstTextMs)} · reply ${ms(metric.replyMs)} · after ${ms(metric.postDecisionMs)} · $${metric.costUsd.toFixed(4)} over ${metric.calls} calls`);
+  if (metric) lines.push(`  timing: decided ${ms(metric.preDecisionMs)}${metric.considerMs !== undefined ? ` · considered ${ms(metric.considerMs)}` : ""} · first text ${ms(metric.firstTextMs)} · reply ${ms(metric.replyMs)} · after ${ms(metric.postDecisionMs)} · $${metric.costUsd.toFixed(4)} over ${metric.calls} calls`);
   return lines.join("\n");
+}
+
+const CONSIDER = "consider";
+
+/** A ruling in a line: what was tried, the roll or why there was none, how it went and what it changed. */
+function rulingSaid(r: NonNullable<SessionState["rulings"]>[number]): string {
+  const how = r.kind === "roll" ? `${r.skill} DC ${r.dc}${r.roll ? `, rolled ${r.roll.total}` : ""}` : r.kind === "yes" ? "yes, no roll" : "no, no roll";
+  return `${r.act} (${r.target}): ${how} [${r.why}] → ${r.went}: ${r.changed}`;
 }
 
 /** "#12 director.before, 320 ms, $0.0004", flagged when it failed. */

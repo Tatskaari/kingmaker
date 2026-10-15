@@ -296,8 +296,8 @@ test("the hall's window, its curtain cord and the Theatre's house-style lever an
   // The lever goes round the approaches, and back to the game's own.
   placePlayer(game.state, "zoo-theatre", WINGS.find(w => w.id === "zoo-theatre")!.entry);
   const seen: string[] = [];
-  for (let i = 0; i < 4; i++) { await game.act("use_approach-lever"); seen.push(game.session.approach); }
-  assert.deepEqual(seen, ["v2-straight", "actors", "v2-pressure", "v2"]);
+  for (let i = 0; i < 5; i++) { await game.act("use_approach-lever"); seen.push(game.session.approach); }
+  assert.deepEqual(seen, ["v2-quick", "v2-straight", "actors", "v2-pressure", "v2"]);
   // Nothing played yet: nothing to hand on.
   assert.match(await game.act("use_boundary-desk"), /Nothing to hand on/);
   // A booth played, the desk hands it on (offline, the plain hand-off), with the zoo's fronts in the visit's own copy.
