@@ -6,7 +6,7 @@ import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
-import { landRuling, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
+import { landRuling, plainReason, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
@@ -630,7 +630,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
         const extra = await freeformCheck(decider, scene, state, input).catch(() => undefined);
         if (extra) {
           costUsd += extra.decision.costUsd; calls++;
-          push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(extra.check.roll) });
+          push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(extra.check.roll, plainReason(scene, state, extra.check.skill, input, unheardInStory(scene, state))) });
           state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: extra.check.roll });
           directive.push(freeformDirective(extra.check));
         }
@@ -839,9 +839,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       ended = moveOnAfterReply(scene, state, post, hooks, onStage) ?? ended;
     }
   }
-  // What a ruling brought out has been come across, as the ruling says (which settles anything the
-  // story owed the player there), and what its dice kept back hasn't, whatever the reply let slip;
-  // otherwise, what the after-reply decider read as come across.
+  // What the after-reply decider read as come across has been (which settles anything the story owed
+  // the player there), on a ruled turn too, except what a ruling's dice kept back, whatever the reply
+  // let slip.
   if (considered) landRuling(state, considered, judgedLanded);
   else if (judgedLanded.length) state.landed = [...new Set([...(state.landed ?? []), ...judgedLanded])];
   const staged = staging ? await staging : undefined;
