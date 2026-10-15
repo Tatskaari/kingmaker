@@ -11,7 +11,7 @@ npm run scene -- start hanged-clerk --session s1   # play one in the terminal
 
 ## What it is
 
-A scene is prep, not a script. The type is `Scene`, at [src/runtime/scene.ts:135](../src/runtime/scene.ts#L135), where most fields carry a comment. The GM improvises everything between the beats; the runtime keeps track of which beat the story is at, judges the routes the player takes, and closes the scene through one of its exits. Each exit can say which scene comes next, and a scene can say what it takes for granted, so the story skips it once play has made that untrue. The story's scenes share one world, Caerwyn on the eve of the Centennial Assembly, whose lore is in [lore/](../lore/README.md).
+A scene is prep, not a script. The type is `Scene`, at [src/runtime/scene.ts:164](../src/runtime/scene.ts#L164), where most fields carry a comment. The GM improvises everything between the beats; the runtime keeps track of which beat the story is at, judges the routes the player takes, and closes the scene through one of its exits. Each exit can say which scene comes next, and a scene can say what it takes for granted, so the story skips it once play has made that untrue. The story's scenes share one world, Caerwyn on the eve of the Centennial Assembly, whose lore is in [lore/](../lore/README.md).
 
 ## What it owns
 
@@ -29,7 +29,7 @@ A scene is prep, not a script. The type is `Scene`, at [src/runtime/scene.ts:135
 |---|---|---|
 | `hanged-clerk` | A clerk hanged behind the granary: an investigation, two kids who know more than they say, a watch sergeant with until noon. Morning; a world. | `caerwyn-afternoon` |
 | `caerwyn-afternoon` | Interlude: the market square on the eve of the Assembly | `drowned-rat` |
-| `drowned-rat` | A dockside dive with house rules, and a frightened big man with a bandaged hand. Evening; a world. | `wharf-night` |
+| `drowned-rat` | A dockside dive with house rules, and a frightened big man with a bandaged hand. Evening; a world. If the granary missed Prout's page, it's here too, still in the boot on Cob's feet. | `wharf-night` |
 | `wharf-night` | Interlude: the wharves after dark | `heron-warehouse` |
 | `heron-warehouse` | The King's grain re-sacked under a heron, a barge on the ebb, the true book. Night; a world; a fight exit. | `kings-morning` |
 | `kings-morning` | The report to the King before the procession. The next morning, after a long rest and a level; a world. | The End |
@@ -63,10 +63,10 @@ The Caerwyn arc. Solid arrows are the exits' `next`; a dotted arrow skips a scen
 | `setting`, `premise`, `hook`, `opening` | The place (for the GM), the scene's dramatic question, what the player knows walking in, and the direction for the opening | the GM's brief; the decider (the premise); the boundary (the premise and the opening); the app (the hook) |
 | `cast` | `Character` cards: look, voice, wants, fears, what they know, secrets, attitude. Also `called` (what the player calls them until they hear the name), `enters` (the beat they arrive at), `group` and `members`, and `statblock` and `weapon` for the rules. | the brief, the director, the actors, the rules, the world |
 | `start`, `beats` | Each beat has its direction, cast notes, one pressure for when things stall, and its transitions | the tracker, the GM's note, the co-GM |
-| transitions, `anytime` | Routes: `when` (prose the decider judges), `on` (`attempt` and `cue` are judged before the reply and `outcome` after it; a route with a check defaults to `attempt`, any other to `outcome`), `to` or a `check` (skill, DC, the reason shown with the dice, success and failure lines, `onSuccess`, `onFailure`), `establishes`, and `given` (only someone else can bring it about) | the director |
+| transitions, `anytime` | Routes: `when` (prose the decider judges), `on` (`attempt` and `cue` are judged before the reply and `outcome` after it; a route with a check defaults to `attempt`, any other to `outcome`), `to` or a `check` (skill, DC, the reason shown with the dice, success and failure lines, `onSuccess`, `onFailure`), `establishes`, `given` (only someone else can bring it about), and `essential` (the essential it brings: the route is there only while the scene has it, and goes once it's found) | the director |
 | `exits` | The only ways it ends: a `kind` (`combat` goes to the map), the outcome, how to close, `next`, and a `script` | the director, the brief, `finishScene`, `chainScene` |
 | `limits` | What the scene can't offer, so the GM can say "no, but" honestly | the director, the brief, the actors, the co-GM |
-| `essentials` | What the player must come across for the endings to be reachable: where it was placed, who carries it, what it opens up | the director (relocation, landed), the brief, the co-GM |
+| `essentials` | What the player must come across for the endings to be reachable: where it was placed, who carries it, what it opens up. One the rest of the story needs has `later` (what for) and `things` (the world's things it's in): missed here, the boundary carries it on. `missed` ("<scene>:<essential>") makes one this scene's own prep for an earlier scene's, for if the player missed it there. | the director (relocation, landed), the brief, the co-GM; the boundary (`later`, `things`, `missed`: [src/runtime/owed.ts](../src/runtime/owed.ts)) |
 | `background` | Facts carried in from before | the brief, the boundary |
 | `world`, `afterwards` | The place as a world, and the world ops applied when the scene ends, whatever the ending | `openScene`, `finishScene`, the game's maps |
 | `anchors` | Named spots that exit scripts refer to | the scripts' recording world |
@@ -96,6 +96,7 @@ Where a story scene sits on the map, and how its fight is set out, is the game's
 - **A combat exit needs a fight to set out.** Its script's `startCombat`, the place on the map, and the fight's setup in src/game/combat.
 - **Recurring characters are carded in every scene they're in.** Kell has four cards across the story's scenes (the two interludes share one) and one in the zoo, all with `KELL_VOICE` ([hanged-clerk.ts:32](hanged-clerk.ts#L32)); her lore entry is the one place for who she is. A card should read the state of the world ("as things stand between her and the investigator") rather than assume it.
 - **`assumes` and `overtaken`.** What the prep takes for granted, written so the boundary can judge it against what happened.
+- **`later` and `missed`.** An essential the story needs later, missed in its scene, is carried by the boundary into the next scene that holds ([src/runtime/owed.ts](../src/runtime/owed.ts)), placed with that scene's people, or by that scene's own prep for it (`missed`), whose routes (`essential`) are the scene's only while it's owed. A scene's prep for a missed essential must be written for the case where it was found too: its cards stay neutral ("only if the page is still in his boot"), since the essential and its routes aren't there then.
 - **Secrets and success lines.** A success line gives one piece of a secret, not all of it, and a truth the scene needs has more than one way in (its essentials).
 
 ## How to test it
@@ -113,7 +114,7 @@ Offline (`OPENROUTER_API_KEY=offline`), a scene still opens on its place in the 
 
 ## Known gaps and sharp edges
 
-- **Only the zoo's scenes are validated in a test** ([src/game/zoo/zoo.test.ts:69](../src/game/zoo/zoo.test.ts#L69)). The story's scenes are checked only by playing them; the one-liner above passes for all 24 at this head. `validateScene` doesn't check `next`, `overtaken`, the `lore` and `fronts` paths, essentials' carriers or the world's `people`. All of them hold today, but nothing checks them.
+- **What `validateScene` checks.** The zoo's scenes are validated in a test ([src/game/zoo/zoo.test.ts:69](../src/game/zoo/zoo.test.ts#L69)), and so are the story's ([src/runtime/owed.test.ts](../src/runtime/owed.test.ts)), with every `missed` standing for an essential the story carries; the one-liner above passes for all 24 at this head. It checks essentials' ids, carriers and `things`, and the routes that bring them, but not `next`, `overtaken`, the `lore` and `fronts` paths or the world's `people`. All of them hold today, but nothing checks them.
 - **Exit scripts are recorded, not applied.** Of their operations the game reads only `startCombat` and `journal`: a script's `setFlag`, `quest` or `addItem` changes nothing in play. What the player carries out of a scene is what its world says they hold.
 - **Prose is logic, and only evals test it.** The decider reads `when`, the GM reads the outcomes and closings, and a reworded route changes what the player can do.
 - **A talk's card is built once per process** from the authored lore ([talk.ts:48](talk.ts#L48)), so edits that play makes to the companion's lore don't change it.
