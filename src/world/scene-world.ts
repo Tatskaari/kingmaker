@@ -1,6 +1,6 @@
 import { rng } from "../runtime/dice.ts";
-import { inventory, ownerOf } from "./inventory.ts";
-import { bleed, breakOpen, chill, douse, ignite, liquidOf, spill, surfaceTick, type Liquid } from "./systems.ts";
+import { countOf, inventory, ownerOf } from "./inventory.ts";
+import { bleed, breakOpen, chill, douse, ignite, liquidOf, spill, surfaceTick, verb, type Liquid } from "./systems.ts";
 
 /**
  * The scene's world: an entity tree (the place, its areas, the things and people in them, what
@@ -84,6 +84,8 @@ export interface ThingSpec {
   description?: string;
   ac?: number;
   hp?: number;
+  /** How many, for a stack (a shilling left on a table is one of them: it joins the purse's shillings). */
+  quantity?: number;
 }
 
 export interface WorldSpec {
@@ -156,7 +158,7 @@ export function buildWorld(sceneId: string, spec: WorldSpec, people: Array<{ id:
     entities[t.id] = {
       id: t.id, name: t.name, kind, parent: null, size, material, tags, states: t.states ?? [], notes: [],
       ac: t.ac ?? stats.ac, hp: { current: t.hp ?? stats.hp, max: t.hp ?? stats.hp },
-      ...(t.description ? { description: t.description } : {}),
+      ...(t.description ? { description: t.description } : {}), ...(t.quantity !== undefined ? { quantity: t.quantity } : {}),
     };
   }
   // Things may sit in or on other things: place them once everything exists.
@@ -200,7 +202,91 @@ export function areaAt(world: SceneWorld, p: Point): Entity {
   return inside.sort((a, b) => a.rect!.w * a.rect!.h - b.rect!.w * b.rect!.h)[0] ?? world.entities[world.root]!;
 }
 
+/** Is `id` the same as `ancestor`, or held (however deep) by it? A cycle in the tree ends the walk. */
+export function isWithin(world: SceneWorld, id: string, ancestor: string): boolean {
+  const seen = new Set<string>();
+  for (let e = world.entities[id]; e && !seen.has(e.id); e = e.parent ? world.entities[e.parent] : undefined) {
+    if (e.id === ancestor) return true;
+    seen.add(e.id);
+  }
+  return false;
+}
+
+/**
+ * Break any loop in the tree (something held, however deep, by itself): a save written before the
+ * world refused such moves can have one, and every walk up or down the tree would go round it for
+ * ever. An area goes back under the place; anything else is put down in the area where it stands.
+ * Returns what it put right.
+ */
+export function untangle(world: SceneWorld): string[] {
+  const fixed: string[] = [];
+  for (const e of Object.values(world.entities)) {
+    if (!e.parent || e.id === world.root) continue;
+    const seen = new Set<string>([e.id]);
+    let p: Entity | undefined = world.entities[e.parent];
+    while (p && !seen.has(p.id)) { seen.add(p.id); p = p.parent ? world.entities[p.parent] : undefined; }
+    if (p?.id !== e.id) continue;
+    if (e.kind === "area" || e.kind === "place") e.parent = world.root;
+    else {
+      const root = world.entities[world.root]?.rect;
+      const at = e.at ?? positionOf(world, e.id) ?? (root ? { x: root.x + root.w / 2, y: root.y + root.h / 2 } : { x: 0, y: 0 });
+      e.at = { ...at };
+      const area = Object.values(world.entities).filter(a => a.kind === "area" && a.id !== e.id && a.rect && !isWithin(world, a.id, e.id) && at.x >= a.rect.x && at.x <= a.rect.x + a.rect.w && at.y >= a.rect.y && at.y <= a.rect.y + a.rect.h)
+        .sort((a, b) => a.rect!.w * a.rect!.h - b.rect!.w * b.rect!.h)[0];
+      e.parent = area?.id ?? world.root;
+    }
+    fixed.push(`${e.name} was inside itself; it's back in ${world.entities[e.parent]?.name ?? "the place"}`);
+  }
+  for (const f of fixed) world.log.push({ turn: world.log.at(-1)?.turn ?? 0, text: `(put right) ${f}`, by: "rules" });
+  return fixed;
+}
+
 export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/** The point of a rectangle nearest a point (the point itself, if it's inside). */
+const nearestIn = (r: Rect, p: Point): Point => ({ x: Math.min(r.x + r.w, Math.max(r.x, p.x)), y: Math.min(r.y + r.h, Math.max(r.y, p.y)) });
+/** How far apart two rectangles are, edge to edge (0 when they touch or overlap). */
+const rectGap = (a: Rect, b: Rect) => Math.hypot(Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w)), Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h)));
+/** How much of the straight line from p to q lies inside a rectangle (Liang–Barsky). */
+function across(p: Point, q: Point, r: Rect): number {
+  const d = { x: q.x - p.x, y: q.y - p.y };
+  let t0 = 0, t1 = 1;
+  for (const [step, room] of [[-d.x, p.x - r.x], [d.x, r.x + r.w - p.x], [-d.y, p.y - r.y], [d.y, r.y + r.h - p.y]] as Array<[number, number]>) {
+    if (step === 0) { if (room < 0) return 0; continue; }
+    const t = room / step;
+    if (step < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+  }
+  return t1 > t0 ? (t1 - t0) * Math.hypot(d.x, d.y) : 0;
+}
+
+/**
+ * How far a long jump to somewhere is, as the world has it: the gap, not the walk to it (a run-up
+ * or a stroll to the edge isn't jumping). Over something with an extent (a ditch: its own area, or
+ * the area it lies in), it's the stretch of it between you and where you land; from one area to
+ * another apart from it (one roof to the next), the gap between them; by a thing, the distance less
+ * a stride, since you land beside it. Undefined when the world can't say (areas that touch, where
+ * the gap isn't drawn): the decider's read of the scene stands.
+ */
+export function jumpGap(world: SceneWorld, landing: string, over?: string): number | undefined {
+  const from = positionOf(world, "player");
+  const target = world.entities[landing];
+  if (!from || !target) return undefined;
+  const round = (feet: number) => Math.max(5, Math.round(feet / 5) * 5);
+  const area = target.kind === "area" || target.kind === "place" ? target : undefined;
+  const to = area?.rect ? nearestIn(area.rect, from) : positionOf(world, landing);
+  if (!to) return undefined;
+  const here = areaOf(world, "player");
+  const o = over ? world.entities[over] : undefined;
+  const lies = o && !o.rect ? areaOf(world, o.id) : undefined;
+  const span = o?.rect ?? (lies && lies.id !== here?.id && lies.id !== world.root && lies.id !== area?.id ? lies.rect : undefined);
+  const crossed = span ? across(from, to, span) : 0;
+  if (crossed > 0) return round(crossed);
+  if (area?.rect && here?.rect && here.id !== world.root && here.id !== area.id && !isWithin(world, here.id, area.id)) {
+    const gap = rectGap(here.rect, area.rect);
+    return gap > 0 ? round(gap) : undefined;
+  }
+  return area ? undefined : round(distance(from, to) - 5);
+}
 
 export function feetBetween(world: SceneWorld, a: string, b: string): number | undefined {
   const pa = positionOf(world, a), pb = positionOf(world, b);
@@ -445,6 +531,13 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
       const targets = select(world, op.what);
       if (!targets.length) { problems.push(`${op.op}: nothing matches "${op.what}"`); continue; }
       for (const e of targets) {
+        // The place and its areas are where things are, not things: they don't move, change hands,
+        // leave or break ("the queue is behind Wren" is about the people in it). Moving one would
+        // put it inside itself, and every walk of the tree after that goes round for ever.
+        if ((e.kind === "area" || e.kind === "place") && ["move", "place", "give", "drop", "remove", "destroy", "break"].includes(op.op)) {
+          problems.push(`${op.op}: ${e.name} is part of the place, not something that ${op.op === "give" || op.op === "drop" ? "changes hands" : op.op === "remove" ? "leaves" : op.op === "destroy" || op.op === "break" ? "breaks" : "moves"}`);
+          continue;
+        }
         if (op.op === "move" || op.op === "place") {
           // What's built in or fixed (a door, a beam, a rope tied off over it) stays put: "it's tied off
           // up there" describes it, it doesn't move it. Breaking or cutting it is how it comes down.
@@ -452,6 +545,8 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           const where = placeIn(world, op.to, op.how);
           const dest = one(where.to, op.op);
           if (!dest) continue;
+          // Nothing goes in, on or by itself, or by what it's holding.
+          if (isWithin(world, dest.id, e.id)) { problems.push(`${op.op}: ${e.name} can't go ${where.how || "near"} ${dest.id === e.id ? "itself" : `${dest.name}, which it holds`}`); continue; }
           // Where they started, and where they were hiding, no longer holds once they move.
           e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
           const how = where.how || "near";
@@ -486,8 +581,10 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           const to = one(op.to, "give");
           if (!to) continue;
           if (ownerOf(world, e.id)?.id === to.id) continue;
+          // Said before it moves: a stack that joins another there is gone after.
+          const said = countOf(e.name, op.quantity || e.quantity);
           inventory(world, turn).settle(e.id, to.id, op.quantity ? { quantity: op.quantity } : {});
-          changes.push(`${to.name} now has ${op.quantity ? `${op.quantity} ` : ""}${e.name}`);
+          changes.push(`${to.name} now has ${said}`);
         } else if (op.op === "drop") {
           const holder = ownerOf(world, e.id);
           const near = op.to ? one(op.to, "drop") : holder;
@@ -495,7 +592,7 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           if (!room) { problems.push(`drop: can't tell where ${e.name} is`); continue; }
           const dropped = holder?.id === room.id ? e.id : inventory(world, turn).settle(e.id, room.id, op.quantity ? { quantity: op.quantity } : {});
           if (near && near.id !== holder?.id && world.entities[dropped]?.parent === room.id) world.entities[dropped]!.at = spotNear(world, near.id, 3);
-          changes.push(`${e.name} is on the floor${near ? ` by ${near.name}` : ""}`);
+          changes.push(`${countOf(e.name, op.quantity)} is on the floor${near ? ` by ${near.name}` : ""}`);
         } else if (op.op === "ignite") {
           changes.push(...ignite(world, e, turn));
         } else if (op.op === "douse") {
@@ -507,7 +604,7 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           changes.push(`${e.name} is bleeding`);
         } else if (op.op === "break") {
           destroy(world, e, turn, by, op.text || "broken");
-          changes.push(`${e.name} is broken`, ...breakOpen(world, e, turn));
+          changes.push(`${e.name} ${verb(e.name, "is", "are")} broken`, ...breakOpen(world, e, turn));
         } else if (op.op === "state") {
           // Fire and water go through the physics (metal doesn't burn; water leaves a puddle).
           if (op.add?.includes("burning")) { changes.push(...ignite(world, e, turn)); op = { ...op, add: op.add.filter(x => x !== "burning") }; }
@@ -534,7 +631,7 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           log(`${e.name} leaves${op.text ? ` (${op.text})` : ""}`);
         } else if (op.op === "destroy") {
           destroy(world, e, turn, by, op.text);
-          changes.push(`${e.name} is destroyed`);
+          changes.push(`${e.name} ${verb(e.name, "is", "are")} destroyed`);
         }
       }
     } catch (error) {
@@ -544,9 +641,10 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
   return { changes, problems };
 }
 
-function descendants(world: SceneWorld, id: string): Entity[] {
-  const kids = Object.values(world.entities).filter(e => e.parent === id);
-  return kids.flatMap(k => [k, ...descendants(world, k.id)]);
+function descendants(world: SceneWorld, id: string, seen = new Set<string>([id])): Entity[] {
+  const kids = Object.values(world.entities).filter(e => e.parent === id && !seen.has(e.id));
+  for (const k of kids) seen.add(k.id);
+  return kids.flatMap(k => [k, ...descendants(world, k.id, seen)]);
 }
 
 function note(e: Entity, text: string, turn: number, by: Note["by"]): void {
@@ -569,7 +667,7 @@ function destroy(world: SceneWorld, e: Entity, turn: number, by: WorldEvent["by"
       world.log.push({ turn, text: `${down.name} falls`, by });
     }
   }
-  world.log.push({ turn, text: `${e.name} is destroyed${remains ? ` (${remains})` : ""}`, by });
+  world.log.push({ turn, text: `${e.name} ${verb(e.name, "is", "are")} destroyed${remains ? ` (${remains})` : ""}`, by });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -593,13 +691,13 @@ export function damageThing(world: SceneWorld, e: Entity, amount: number, type: 
     destroy(world, e, turn, "rules", burnt ? "burned to a charred heap" : type === "thunder" || type === "force" ? "smashed to pieces" : "wrecked");
     // A burned-out wreck keeps burning a while, and can still set its neighbours alight.
     if (burnt && !heldBy(world, e)) e.states.push("burning");
-    lines.push(`${capital(e.name)} takes ${amount} ${type} damage and is destroyed`);
+    lines.push(`${capital(e.name)} ${verb(e.name, "takes", "take")} ${amount} ${type} damage and ${verb(e.name, "is", "are")} destroyed`);
     // A broken container spills what it held (fire sets a flammable spill alight).
     lines.push(...breakOpen(world, e, turn, type));
     return lines;
   }
   if (e.hp.current * 2 <= e.hp.max && !e.states.includes("damaged")) e.states.push("damaged");
-  lines.push(`${capital(e.name)} takes ${amount} ${type} damage (${e.states.includes("damaged") ? "badly damaged" : "scorched or dented"})`);
+  lines.push(`${capital(e.name)} ${verb(e.name, "takes", "take")} ${amount} ${type} damage (${e.states.includes("damaged") ? "badly damaged" : "scorched or dented"})`);
   if (type === "fire" && !heldBy(world, e)) lines.push(...ignite(world, e, turn).filter(l => !/scorched, not burning/.test(l)));
   if (type === "cold") lines.push(...chill(world, e, turn));
   return lines;
@@ -617,8 +715,13 @@ export function tick(world: SceneWorld, turn: number, seed: number): string[] {
   for (const e of burning) {
     // A wreck that has burned for a turn goes out (smouldering): it can't burn twice.
     if (e.states.includes("destroyed")) {
-      if (e.states.includes("smouldering")) { e.states = e.states.filter(s => s !== "burning"); continue; }
+      if (e.states.includes("smouldering")) {
+        e.states = e.states.filter(s => s !== "burning");
+        lines.push(`${capital(e.name)} ${verb(e.name, "stops", "stop")} burning, and ${verb(e.name, "smoulders", "smoulder")} on`);
+        continue;
+      }
       e.states.push("smouldering");
+      lines.push(`${capital(e.name)} ${verb(e.name, "burns", "burn")} down to ${verb(e.name, "a smouldering wreck", "smouldering wrecks")}`);
     }
     const area = areaOf(world, e.id);
     if (area?.states.includes("dusty") && !area.states.includes("exploded")) {
@@ -630,7 +733,8 @@ export function tick(world: SceneWorld, turn: number, seed: number): string[] {
     if (e.kind === "surface") continue; // burning patches burn by their own rules (surfaceTick)
     // Oil burning on something that doesn't burn goes out when it's burned off.
     if (e.ttl !== undefined && !e.tags.includes("flammable")) { e.ttl -= 1; if (e.ttl <= 0) { e.states = [...e.states.filter(s => s !== "burning"), "scorched"]; delete e.ttl; lines.push(`The fire on ${e.name} burns out`); continue; } }
-    lines.push(...damageThing(world, e, d(1, 10), "fire", turn));
+    // (Oil burning off iron is news when it catches, not every minute after: the iron is still unharmed.)
+    lines.push(...damageThing(world, e, d(1, 10), "fire", turn).filter(l => !/: unharmed by/.test(l)));
     for (const n of within(world, e.id, 5, x => isThing(x) && x.tags.includes("flammable") && !x.states.includes("burning") && !x.states.includes("destroyed") && !heldBy(world, x))) {
       const caught = ignite(world, n, turn);
       if (caught.some(l => /catches fire/.test(l))) lines.push(`The fire spreads to ${n.name}`);
@@ -645,15 +749,18 @@ const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 // ---------------------------------------------------------------------------------------------
 // What the GM sees: the player's surroundings in full, the rest of the place a level down.
 
-function describeEntity(world: SceneWorld, e: Entity, from?: Point, depth = 0): string {
+function describeEntity(world: SceneWorld, e: Entity, from?: Point, depth = 0, seen = new Set<string>()): string {
+  seen.add(e.id);
   const feet = from && positionOf(world, e.id) ? Math.round(distance(from, positionOf(world, e.id)!)) : undefined;
   const bits = [
     e.states.filter(s => s !== "gone").length ? e.states.filter(s => s !== "gone").join(", ") : "",
     feet !== undefined && depth === 0 && e.id !== "player" ? `${feet} ft away` : "",
   ].filter(Boolean);
-  const held = Object.values(world.entities).filter(c => c.parent === e.id && present(c));
+  // What it holds (never itself, or anything already listed: a loop in the tree is listed once).
+  const held = Object.values(world.entities).filter(c => c.parent === e.id && present(c) && !seen.has(c.id));
   const line = `${"  ".repeat(depth)}- ${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name} [${e.id}]${bits.length ? ` (${bits.join("; ")})` : ""}${e.notes.length ? `: ${e.notes.slice(-2).map(n => n.text).join("; ")}` : ""}`;
-  return [line, ...held.map(c => describeEntity(world, c, from, depth + 1))].join("\n");
+  for (const c of held) seen.add(c.id);
+  return [line, ...held.map(c => describeEntity(world, c, from, depth + 1, seen))].join("\n");
 }
 
 /**
@@ -665,7 +772,7 @@ export function worldView(world: SceneWorld, options: { full?: boolean } = {}): 
   const here = me ? areaOf(world, "player") : undefined;
   const from = me ? positionOf(world, "player") : undefined;
   const areas = Object.values(world.entities).filter(e => e.kind === "area");
-  const contents = (area: Entity) => Object.values(world.entities).filter(e => e.parent === area.id && present(e) && e.id !== "player");
+  const contents = (area: Entity) => Object.values(world.entities).filter(e => e.parent === area.id && e.id !== area.id && present(e) && e.id !== "player");
   const lines = [`${world.entities[world.root]!.name}${here ? `: the player is in ${here.name}` : ""}.`];
   const carried = me ? Object.values(world.entities).filter(e => e.parent === "player" && present(e)) : [];
   if (carried.length) lines.push(`The player carries: ${carried.map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name} [${e.id}]`).join(", ")}.`);

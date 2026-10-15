@@ -48,7 +48,7 @@ export function fightCommand(game: Game, command: Command): void {
     case "cast": {
       const spells = fight.options().spells;
       if (spells.length) { game.overlay = { kind: "spells", spells: spells.map(s => ({ id: s.id, name: s.name, level: s.level })), index: 0 }; game.emit(); }
-      else show("No spells to cast just now. You do, however, have a sword.");
+      else show("No spells to cast just now. You do, however, have whatever's in your hands.");
       break;
     }
     case "use": { const use = game.fightActions.find(a => a.id.startsWith("use_")); if (use) void game.combatAct(use.id); else show("Nothing in reach to knock over. Get next to a lantern or a brazier."); break; }

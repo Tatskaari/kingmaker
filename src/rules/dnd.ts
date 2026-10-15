@@ -403,7 +403,7 @@ function status(ctx: Ctx, id: string): string {
   const sheet = sheetOf(ctx, id);
   const slots = slotsLine(sheet, c);
   const conditions = c.appliedConditions.map(a => a.conditionId).filter(id => !id.endsWith("-active"));
-  return [`HP ${c.hp.current}/${sheet.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""}`, slots ? `spell slots ${slots}` : "", ...conditions].filter(Boolean).join(", ");
+  return [`HP ${Math.max(0, c.hp.current)}/${sheet.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""}`, slots ? `spell slots ${slots}` : "", ...conditions].filter(Boolean).join(", ");
 }
 
 export async function sheetText(state: SessionState): Promise<string> {
@@ -764,6 +764,9 @@ function ensureNpc(ctx: Ctx, state: SessionState, who: Character): string {
   return npc.id;
 }
 
+/** The SRD's conditions, which someone is (prone, grappled), as against what a feature gives them (Bardic Inspiration). */
+const SRD_CONDITIONS = new Set(["blinded", "charmed", "deafened", "frightened", "grappled", "incapacitated", "invisible", "paralyzed", "petrified", "poisoned", "prone", "restrained", "stunned", "unconscious", "dodged", "dodging", "raging", "concentrating"]);
+
 /** How someone looks after a hit, in words: the GM narrates it, the player never sees NPC hit points. */
 function hurt(c: Dnd.EngineCharacter): string {
   if (c.hp.current <= 0) return "down";
@@ -808,8 +811,9 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const amount = (e["components"] as Array<{ amount: number; type: string }>).map(c => `${c.amount} ${c.type}`).join(" and ");
         const target = chars()[String(e["targetId"])];
         const isPc = String(e["targetId"]) === state.rules!.pc;
-        lines.push(`${isPc ? "You take" : `${target ? who("targetId") : "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${target.hp.current}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
-        account.push(`${isPc ? "the player" : target ? who("targetId") : "the target"} took ${amount} damage${target ? `, now ${isPc ? `${target.hp.current}/${target.hp.max} HP` : hurt(target)}` : ""}`);
+        // The engine lets hit points run below zero; the story reads 0.
+        lines.push(`${isPc ? "You take" : `${target ? who("targetId") : "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${Math.max(0, target.hp.current)}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
+        account.push(`${isPc ? "the player" : target ? who("targetId") : "the target"} took ${amount} damage${target ? `, now ${isPc ? `${Math.max(0, target.hp.current)}/${target.hp.max} HP` : hurt(target)}` : ""}`);
         break;
       }
       case "SaveRolled": {
@@ -823,8 +827,16 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
       case "ConditionApplied": {
         const condition = ctx.engine.content.conditions.get(String(e["conditionId"]))?.name ?? String(e["conditionId"]);
         if (/active$/i.test(condition)) break;
-        lines.push(`${who("targetId") === "you" ? "You are" : `${who("targetId")} is`} ${condition.toLowerCase()}`);
-        account.push(`${who("targetId") === "you" ? "the player" : who("targetId")} is now ${condition.toLowerCase()}`);
+        const you = who("targetId") === "you";
+        // The SRD's conditions are states (prone, grappled), and so are the likes of Blessed and Hasted;
+        // the rest are what a feature or a spell gives (Bardic Inspiration, Innate Sorcery, Hunter's Mark).
+        if (SRD_CONDITIONS.has(String(e["conditionId"])) || /^\w+(ed|ing)\b|^heroic$/i.test(condition)) {
+          lines.push(`${you ? "You are" : `${who("targetId")} is`} ${condition.toLowerCase()}`);
+          account.push(`${you ? "the player" : who("targetId")} is now ${condition.toLowerCase()}`);
+        } else {
+          lines.push(`${you ? "You have" : `${who("targetId")} has`} ${condition}`);
+          account.push(`${you ? "the player" : who("targetId")} now has ${condition}`);
+        }
         break;
       }
       case "Healed": {
@@ -1370,6 +1382,9 @@ export async function rest(state: SessionState, kind: "short" | "long"): Promise
   } else {
     ctx.apply(ctx.engine.plan.longRest(ctx.campaign.state, { participantIds: [pcId] }).events);
   }
+  // After a rest you're up and about: nobody rests an hour, or sleeps the night, and stays where they fell.
+  const me = ctx.campaign.state.characters[pcId]!;
+  for (const a of me.appliedConditions.filter(a => a.conditionId === "prone" || (a.conditionId === "unconscious" && me.hp.current > 0))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: a.conditionId })]);
   // The rest takes time: spells with a listed duration run out (Aid doesn't outlast a night).
   ctx.apply([event(ctx.E, "InGameTimeAdvanced", { minutes: kind === "short" ? 60 : 480, reason: `${kind} rest` })]);
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
@@ -1407,15 +1422,20 @@ export async function levelUp(state: SessionState): Promise<string[]> {
   }
 }
 
-/** A dropped player comes to with 1 HP at the next scene. */
+/**
+ * A dropped player comes to with 1 HP at the next scene (or the smelling salts): out cold, and
+ * lying where they fell, are both over. Someone merely knocked over is back on their feet by then,
+ * without a word about it.
+ */
 export async function comeTo(state: SessionState): Promise<string | undefined> {
   if (!state.rules) return undefined;
   const ctx = await open(state);
   const me = ctx.campaign.state.characters[state.rules.pc]!;
-  if (me.hp.current > 0) { close(state, ctx); return undefined; }
-  ctx.apply([event(ctx.E, "Healed", { targetId: me.id, amount: 1, source: "came-to" })]);
-  for (const a of ctx.campaign.state.characters[me.id]!.appliedConditions.filter(a => a.conditionId === "unconscious")) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: me.id, conditionId: a.conditionId })]);
-  const line = `You come to: ${status(ctx, me.id)}`;
+  const down = me.hp.current <= 0;
+  // (The engine lets hit points run below zero, and healing starts from 0: this is 1 HP.)
+  if (down) ctx.apply([event(ctx.E, "Healed", { targetId: me.id, amount: 1, source: "came-to" })]);
+  for (const a of ctx.campaign.state.characters[me.id]!.appliedConditions.filter(a => a.conditionId === "prone" || (down && a.conditionId === "unconscious"))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: me.id, conditionId: a.conditionId })]);
+  const line = down ? `You come to: ${status(ctx, me.id)}` : undefined;
   close(state, ctx);
   return line;
 }

@@ -128,7 +128,7 @@ export class Skirmish {
     for (const line of diceLines(this.t, events, this.namer(), label)) this.log("dice", line);
   }
   say(kind: string, who?: Unit, salt: string | number = ""): void {
-    const line = flavour(kind, hash(this.G.round, this.G.log.length, kind, who?.id ?? "", salt), who ? this.you(who) : undefined);
+    const line = flavour(kind, hash(this.G.round, this.G.log.length, kind, who?.id ?? "", salt), who ? this.you(who) : undefined, this.G.place);
     if (line) this.log("narration", line, who?.id);
   }
   event(type: string, rest: Record<string, unknown>): Dnd.EngineEvent { return this.t.event(type, rest); }
@@ -192,7 +192,7 @@ export class Skirmish {
     // Everyone but the player is out cold, not dying: no death saves for them.
     if (!this.isYou(u) && !dead) this.t.apply([this.event("Stabilized", { targetId: u.engineId })]);
     if (dead) this.log("narration", `${cap(u.called)} is dead.`, u.id);
-    else this.say(this.isYou(u) ? "down:player" : u.castId && hasFlavour(`down:${u.castId}`) ? `down:${u.castId}` : "down:any", u);
+    else this.say(this.isYou(u) ? (this.G.dust.length ? "down:player" : "down:player:clean") : u.castId && hasFlavour(`down:${u.castId}`) ? `down:${u.castId}` : "down:any", u);
     if (this.isYou(u)) {
       this.log("system", "You're down. At the start of each of your turns you make a death save: three successes and you're stable, a natural 20 and you're back up. (In this story you can't die in the fight, but it can come close.)", u.id);
       if (c.deathSaves.failures >= 3) this.pcDeathState(c);
@@ -718,7 +718,9 @@ export class Skirmish {
   private end(outcome: NonNullable<CombatResult["outcome"]>): void {
     this.G.outcome = outcome;
     // Beaten by Hep's gang before the Master came, there are no good shoes to see.
-    this.say(outcome === "defeat" && !this.units.some(u => u.role === "villain") ? "defeat:gang" : outcome);
+    // Beaten: by the master (his shoes), by a gang of porters (their boots), or by whoever else.
+    const gang = this.units.some(u => u.side === "enemy" && (u.castId === "hep" || /porter/i.test(u.id)));
+    this.say(outcome === "defeat" && !this.units.some(u => u.role === "villain") ? (gang ? "defeat:gang" : "defeat:any") : outcome);
     // Won: the sergeant (on her feet, or come round with a lump like a hen's egg) puts the irons on the beaten.
     const sergeant = this.units.find(u => u.side === "ally" && u.castId === "kell" && u.state !== "fled");
     if (sergeant && (outcome === "victory" || outcome === "surrender")) {

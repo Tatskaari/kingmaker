@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { RollResult } from "./dice.ts";
 import type { Beat, Skill, Transition } from "./scene.ts";
 import type { Operation } from "../world/dsl.ts";
-import type { Entity, SceneWorld } from "../world/scene-world.ts";
+import { untangle, type Entity, type SceneWorld } from "../world/scene-world.ts";
 
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
 export interface Entry { turn: number; speaker: string; kind: EntryKind; text: string; scene?: string }
@@ -236,7 +236,11 @@ export function snapshotSession(state: SessionState): void {
 export function loadSession(id: string): SessionState {
   const file = join(sessionDir(id), "state.json");
   if (!existsSync(file)) throw new Error(`No session ${id} (looked in ${file})`);
-  return JSON.parse(readFileSync(file, "utf8")) as SessionState;
+  const state = JSON.parse(readFileSync(file, "utf8")) as SessionState;
+  // A world saved with something inside itself (before the world refused it) is put right, or every
+  // turn after it would fail going round the loop, and so would every retry from this save.
+  if (state.world) untangle(state.world);
+  return state;
 }
 
 export function newSessionId(sceneId: string): string {

@@ -658,7 +658,8 @@ export function exploreFrame(state: ExploreState, viewport: Viewport, options: R
  */
 export function exploreCamera(state: ExploreState, viewport: Viewport, world?: SceneWorld, actors = actorsHere(state, world)): Tile2 {
   const place = state.scene ? regionForScene(state.scene) : undefined;
-  if (!place || place.map.id !== state.map) return { ...state.at };
+  // A map with a world of its own about (a zoo's wing) is framed, not followed: see framed.
+  if (!place || place.map.id !== state.map) return state.roam?.[state.map] ? framed(getMap(state.map), state.at, viewport) : { ...state.at };
   const r = place.region.rect;
   const fits = (w: number, h: number) => 2 * (w + h) + 6 <= viewport.w && w + h + 6 <= viewport.h;
   if (fits(r.w, r.h)) return { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
@@ -673,6 +674,30 @@ function mergeHazards(all: Array<{ fire: Tile2[]; dust: Tile2[]; scorched: Tile2
   if (!all.length) return undefined;
   if (all.length === 1) return all[0];
   return { fire: all.flatMap(h => h.fire), dust: all.flatMap(h => h.dust), scorched: all.flatMap(h => h.scorched) };
+}
+
+/**
+ * The camera on a small map, all of whose corners matter (a zoo's wing, its exhibits round its
+ * walls): the whole of it when it fits, centred; otherwise following the player, but never leaving
+ * a half-screen of nothing past the map's edge (you come in at a corner, and what's to see is the
+ * other way). The player stays comfortably on screen.
+ */
+function framed(map: TileMap, at: Tile2, viewport: Viewport): Tile2 {
+  const corners = [{ x: 0, y: 0 }, { x: map.width - 1, y: 0 }, { x: 0, y: map.height - 1 }, { x: map.width - 1, y: map.height - 1 }].map(t => ({ col: 2 * (t.x + t.y), row: t.y - t.x }));
+  const me = { col: 2 * (at.x + at.y), row: at.y - at.x };
+  const cx = Math.floor(viewport.w / 2), cy = Math.floor(viewport.h * 0.56);
+  // Where the window starts on the projected plane, along one axis: on the player, then held inside
+  // the map's extent (with room for walls standing up at the far edge), or centred on it if it fits.
+  const axis = (want: number, size: number, lo: number, hi: number) => {
+    const start = want, span = hi - lo;
+    if (span <= size) return lo - Math.floor((size - span) / 2);
+    return Math.max(lo, Math.min(hi - size, start));
+  };
+  const col = axis(me.col - cx, viewport.w, Math.min(...corners.map(c => c.col)) - 2, Math.max(...corners.map(c => c.col)) + 3) + cx;
+  const row = axis(me.row - cy, viewport.h, Math.min(...corners.map(c => c.row)) - 5, Math.max(...corners.map(c => c.row)) + 2) + cy;
+  // Back to a tile (the camera's): the nearest whose projection is that point.
+  const camera = { x: Math.round((col / 2 - row) / 2), y: Math.round((col / 2 + row) / 2) };
+  return keepInView(camera, at, viewport);
 }
 
 /** Move a camera towards someone until they're comfortably on screen. */

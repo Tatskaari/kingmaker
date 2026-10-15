@@ -110,6 +110,8 @@ export interface CombatG {
   begun?: string;
   /** Dice from the start of the coming turn (a death save), shown after its header. */
   queued?: string[];
+  /** Where the fight is, for its lines ("You leave the Heron and its business behind you"): the Heron unless said. */
+  place?: string;
 }
 
 export type PlayerAction =

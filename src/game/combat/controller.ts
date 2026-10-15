@@ -346,8 +346,9 @@ export function summarise(G: CombatG): CombatResult {
   const villain = units.find(u => u.role === "villain");
   const fate = (u: Unit) => u.state === "surrendered" ? `surrendered${u.arrested ? " and Kell arrested him" : ""}` : u.state === "fled" ? "ran for it and got away" : u.state === "dead" ? "was killed" : u.state === "down" ? `was beaten senseless${u.arrested ? " and Kell put the irons on him" : ""}` : "was still on his feet at the end";
   const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-  if (G.flags["dust_exploded"]) sentences.push(`The grain dust exploded (set off by ${G.flags["lit_by"] === "player" ? "the player" : String(G.flags["lit_by"] ?? "the fire")}), and the Heron is on fire`);
-  else if (G.flags["fire"]) sentences.push("Fire got into the sacks, and the Heron is burning");
+  const place = G.place ?? "the Heron";
+  if (G.flags["dust_exploded"]) sentences.push(`The grain dust exploded (set off by ${G.flags["lit_by"] === "player" ? "the player" : String(G.flags["lit_by"] ?? "the fire")}), and ${place} is on fire`);
+  else if (G.flags["fire"]) sentences.push(`Fire got into the sacks, and ${place} is burning`);
   if (villain) sentences.push(`${cap(villain.called)} ${fate(villain)}`);
   const hired = units.filter(u => u.side === "enemy" && u !== villain && u.role !== "coward");
   const walked = (u: Unit) => !!G.flags[`walked:${u.id}`];

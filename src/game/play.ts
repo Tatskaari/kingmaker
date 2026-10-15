@@ -52,6 +52,8 @@ export interface GameState {
   hub?: string;
   /** The fight in progress started from the map (a hub's), not from a scene's ending: it ends back on the map. */
   fromMap?: boolean;
+  /** A hub's own hour, kept while one of its scenes plays at the scene's: it comes back when the scene's over. */
+  hubTime?: StoryState["time"];
 }
 
 /** What an explore action did: what the player sees, and what it opens. */
@@ -113,7 +115,8 @@ export interface FightFactory {
   load(saved: unknown, session: SessionState): Fight;
 }
 
-const FIRST_SCENE = "hanged-clerk";
+/** Where the story starts (a new game opens on its lead). */
+export const FIRST_SCENE = "hanged-clerk";
 const gameFile = (id: string) => join(sessionDir(id), "game.json");
 
 export class Game {
@@ -307,6 +310,8 @@ export class Game {
     if (open) openHubScene(this.session, open);
     const scene = sceneById(this.session.sceneId);
     this.state.mode = "scene";
+    // A hub's clock is its own (the zoo's clock): the scene plays at its hour, and the hub's comes back after.
+    if (this.explorer.hub) this.state.hubTime ??= this.state.story.time;
     this.state.story.time = scene.time ?? this.state.story.time;
     this.explorer.enterScene?.(this.state, this.session);
     const entries = await openScene(this.session, hooks);
@@ -341,6 +346,7 @@ export class Game {
     if (exitId) this.session.history.push({ sceneId: scene.id, exitId, summary: "" });
     closeHubScene(this.session);
     this.state.mode = "explore";
+    if (this.state.hubTime) { this.state.story.time = this.state.hubTime; delete this.state.hubTime; }
     this.explorer.afterScene?.(this.state, this.session);
     return `(${scene.title} is over: back on the map.)`;
   }

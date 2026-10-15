@@ -108,6 +108,8 @@ export interface CombatSetup {
   dust?: Tile2[];
   /** Tiles that burn once fire reaches them (sack stacks, a heap of empties); solid floor tiles when omitted. */
   fuel?: Tile2[];
+  /** Where the fight is, as its lines say it ("the floor of the Heron coming up to meet you"): the Heron unless said. */
+  place?: string;
 }
 
 export interface CombatResult {
