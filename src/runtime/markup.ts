@@ -226,7 +226,19 @@ class Reply {
     return true;
   }
 
-  private add(m: Mark): void {
+  /** The line just said (the text ends with its closing quote), or else the sentence just ended; nothing mid-sentence. */
+  lastSaid(): { start: number; end: number } | undefined {
+    const end = this.text.trimEnd().length;
+    const line = this.speech.at(-1);
+    if (line && line.end === end && /[”"]$/.test(this.text.slice(0, end))) return { start: line.start, end };
+    if (!/[.!?…]["”’)]*$/.test(this.text.slice(0, end))) return undefined;
+    const before = this.text.slice(0, end).replace(/[.!?…]["”’)]*$/, "");
+    const start = Math.max(before.lastIndexOf("\n"), ...[...before.matchAll(/[.!?…]["”’)]*\s+/g)].map(m => m.index + m[0].length - 1)) + 1;
+    const lead = this.text.slice(start, end).length - this.text.slice(start, end).trimStart().length;
+    return start + lead < end ? { start: start + lead, end } : undefined;
+  }
+
+  add(m: Mark): void {
     if (this.marks.some(o => m.start < o.end && o.start < m.end)) { this.stats.dropped++; return; }
     this.marks.push(m);
     this.stats.marks++;
@@ -326,8 +338,13 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
         if (n === "pending") return HOLD;
         if (n !== "none") return r.mark(raw.slice(p + 1, n.at), KIND_OF[label[1]!.toLowerCase()]!, inner.slice(label[0].length), labelAfter(r.text, raw.slice(p + 1, n.at))) ? n.at + 1 : gap(n.at + 1);
       }
-      // A note with no phrase to hang on: never shown.
-      r.stats.dropped++;
+      // A note straight after a line or a sentence, with no words of its own in brackets
+      // ([Dab] “Not you, now.”[why: …]): it's on the line, or the sentence, just said.
+      const last = r.lastSaid();
+      const n = inner.slice(label[0].length).trim().replace(/\s+/g, " ");
+      if (last && n) r.add({ ...last, kind: KIND_OF[label[1]!.toLowerCase()]!, note: n });
+      // A note with nothing before it to hang on: never shown.
+      else r.stats.dropped++;
       return gap(c.at + 1);
     }
     const k = c.at + 1;

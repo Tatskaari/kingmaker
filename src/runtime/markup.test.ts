@@ -116,6 +116,17 @@ test("a label after a finished sentence isn't shown: its note goes on the senten
   assert.deepEqual(phrases(o), ["why:she says, not meaning it"]);
 });
 
+test("a note straight after a line, with no words of its own, is on the line; after a sentence, on the sentence", () => {
+  // As the model wrote it in the zoo's ferry booth.
+  const m = withSpeakers(parseMarkup("The ferryman looks up. [the ferryman] “No.” He lets it sit. [the ferryman] “Not you, now.”[why: You insulted the eel-wife on her own landing.] The eel-wife shakes the eel."), PEOPLE);
+  assert.equal(m.text, "The ferryman looks up. “No.” He lets it sit. “Not you, now.” The eel-wife shakes the eel.");
+  assert.deepEqual(phrases(m), ["why:“Not you, now.”"]);
+  const n = parseMarkup("Dab keeps mending. He won't carry for the watch.[know: The river stairs leave the watch to its own business.] The river tugs.");
+  assert.deepEqual(phrases(n), ["know:He won't carry for the watch."]);
+  // Mid-sentence, it has nothing to hang on.
+  assert.equal(parseMarkup("He looks [why: rude] at you.").marks.length, 0);
+});
+
 test("a note on a line of its own lights up its phrase where it already stands", () => {
   const m = parseMarkup("Dab won't take you across.\n\n(won't take you across)[why: The stairs carry their own, and you're nobody's.]");
   assert.equal(m.text, "Dab won't take you across.");
