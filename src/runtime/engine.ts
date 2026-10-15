@@ -2,11 +2,11 @@ import { deciderFor } from "../llm/decide.ts";
 import { respond, respondJson } from "../llm/openrouter.ts";
 import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
-import { sceneById } from "../../scenes/index.ts";
+import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
-import { considerAct, settleRuling, type ConsiderStep, type Settled } from "./consider.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
+import { landRuling, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
@@ -218,6 +218,28 @@ function moveTaken(state: SessionState, move: Move, lines: string[], pending: Se
   return { lines };
 }
 
+/**
+ * Does the turn go to the GM's review (considered rolls)? A roll is wanted that nothing the author
+ * wrote settles, or it's a plan off the graph; and nothing else this turn has answered it (a route's
+ * move, the rules, a limit, the same push again, out of character) or is winding the scene down.
+ */
+function wantsReview(state: SessionState, pre: PreDecision): boolean {
+  const answered = !!(pre.move || pre.mechanic || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain);
+  return !state.closing && !answered && !!(pre.considered || pre.offGraph);
+}
+
+/** Everyone in the story whose name the player hasn't heard: the dice line calls them what the player would. */
+function unheardInStory(scene: Scene, state: SessionState): Array<{ name: string; called: string }> {
+  const hooks = [scene.hook, ...state.history.map(h => SCENES.find(s => s.id === h.sceneId)?.hook ?? "")];
+  return strangers([scene, ...SCENES], state, hooks);
+}
+
+/** What's been settled in this scene so far: its facts, and how the GM's rulings went. */
+function settledFacts(state: SessionState): string[] {
+  const rulings = (state.rulings ?? []).map(r => `${r.act.replace(/\.$/, "")}: ${r.went === "success" ? "it worked" : "it didn't"} (${r.changed})`);
+  return [...state.established, ...rulings].slice(-16);
+}
+
 function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" | "post"): void {
   // The route's own facts, then those of how its check went (a considered ruling's outcome).
   const byOutcome = move.roll && move.transition.check?.establishes ? (move.roll.success ? move.transition.check.establishes.success : move.transition.check.establishes.failure) ?? [] : [];
@@ -253,6 +275,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const textHooks: TurnHooks = { ...hooks, onText: text => { markText(); hooks.onText?.(text); } };
 
   state.turn++;
+  // What was settled before this turn (the stage manager holds to it when a reply recalls it).
+  const settledBefore = settledFacts(state);
   push(state, hooks, { speaker: "player", kind: "player", text: input });
   // People whose names the player hasn't heard go by what they'd call them, in the dice too.
   if (state.rules) state.rules.aliases = unnamed(scene, state);
@@ -346,6 +370,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
+  // Considered rolls: the GM's review starts at once, alongside the memory notes being opened (it
+  // doesn't read them), with its watchdog: past its deadline the turn rolls without it.
+  const reviewing = considers && wantsReview(state, pre)
+    ? reviewWithin(scene, state, input, pre.considered, { ...(state.pendingExit ? { pending: state.pendingExit } : {}), unheard: unheardInStory(scene, state), onStep: s => hooks.onStep?.(s) })
+    : undefined;
   let ended: Exit | undefined;
   let directive: string[] = [];
   const disclosed = disclosing ? await disclosing : undefined;
@@ -380,6 +409,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.freeform.roll) });
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
     directive = [freeformDirective(pre.freeform)];
+  } else if (pre.sameAgain) {
+    // The same push that already failed here, again: no dice, and the same answer.
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `same-again:${pre.sameAgain.id}`, source: "pre" });
+    directive = [sameAgainDirective(pre.sameAgain)];
   }
   // The rules resolve a spell, a blow or a rest; the GM narrates what they decided.
   if (pre.mechanic && state.rules) {
@@ -418,13 +451,15 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // roll it, the outcome's changes apply like any route's, and the reply plays what was decided.
   let considered: Settled | undefined;
   let considerMs: number | undefined;
-  if (considers && !state.closing && !ended && !pre.move && !pre.mechanic && !pre.freeform && !pre.pressure && !pre.limit && !pre.ooc && (pre.considered || pre.offGraph)) {
-    const reviewStarted = performance.now();
+  let considerError: string | undefined;
+  if (reviewing) {
     const step = (s: ConsiderStep) => hooks.onStep?.(s);
-    try {
-      const ruling = await considerAct(scene, state, input, pre.considered, step);
-      costUsd += ruling.costUsd; calls++;
-      considered = await settleRuling(scene, state, ruling, step);
+    const reviewed: Reviewed = await reviewing;
+    // What the review cost counts in the turn, whether or not it came back with a ruling.
+    costUsd += reviewed.costUsd; calls++;
+    considerMs = reviewed.ms;
+    if (reviewed.ruling) {
+      considered = await settleRuling(scene, state, reviewed.ruling, step);
       state.rulings = [...(state.rulings ?? []), considered.record];
       if (considered.dice) push(state, hooks, { speaker: "dice", kind: "roll", text: considered.dice });
       const from = state.beat;
@@ -440,9 +475,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       if (considered.record.went === "failure") delete pre.relocate;
       // The ways of trying it shut are gone from here on, for the decider and the GM.
       scene = effectiveScene(authored, state.patches);
-    } catch {
-      // No ruling (the review failed): the dice still decide a roll that was wanted, as a plain check.
+    } else {
+      // No ruling (the review failed, or ran past its deadline): the dice still decide a roll that
+      // was wanted, as a plain check.
+      considerError = reviewed.error;
       if (pre.considered) {
+        step("roll");
         const extra = await freeformCheck(decider, scene, state, input).catch(() => undefined);
         if (extra) {
           costUsd += extra.decision.costUsd; calls++;
@@ -452,7 +490,6 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
         }
       }
     }
-    considerMs = performance.now() - reviewStarted;
   }
   // The background co-GM is for the scene's direction: a plan off the graph the GM has ruled on doesn't need it now.
   if (pre.offGraph && !considered) state.offGraphTurn = state.turn;
@@ -626,6 +663,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   let postDecisionMs = 0;
   let leftPlace = false;
+  let judgedLanded: string[] = [];
   const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
   // Whoever came on this turn (a cue's entrance, someone called in) is in the world before the stage
   // manager reads it: otherwise it makes them again from the reply ("a young man in livery") beside
@@ -635,6 +673,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn, {
     rules: state.transcript.filter(e => e.turn === state.turn && e.kind === "roll" && (e.scene ?? state.sceneId) === state.sceneId).map(e => e.text),
     cast: presentCast(scene, state).map(c => ({ id: c.id, name: c.name, look: c.look })),
+    settled: settledBefore,
   }).catch(() => undefined) : undefined;
   if (!ended) {
     const postStarted = performance.now();
@@ -645,7 +684,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     if (post.status) state.sceneStatus = post.status;
     if (post.threat && !state.closing) state.threat = { ...post.threat, turn: state.turn };
     if (post.left && !state.closing && !post.move?.exit) leftPlace = true;
-    if (post.landed?.length) state.landed = [...new Set([...(state.landed ?? []), ...post.landed])];
+    judgedLanded = post.landed ?? [];
     if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
     // Staged secrets never go back: what's out stays out.
     for (const [id, stage] of Object.entries(post.guard ?? {})) {
@@ -675,6 +714,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       }
     }
   }
+  // What a ruling brought out has been come across, as the ruling says (which settles anything the
+  // story owed the player there), and what its dice kept back hasn't, whatever the reply let slip;
+  // otherwise, what the after-reply decider read as come across.
+  if (considered) landRuling(state, considered, judgedLanded);
+  else if (judgedLanded.length) state.landed = [...new Set([...(state.landed ?? []), ...judgedLanded])];
   const staged = staging ? await staging : undefined;
   if (staged) { costUsd += staged.costUsd; calls++; }
   // What the stage manager asked for and the world refused stays on record (a hand-over that failed).
@@ -710,7 +754,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (ended) { finishScene(state, authored, ended); stopSuggesting(state); }
   // When did text that actually answers the player start? (the follow-up, after a holding beat)
   const resolvingTextMs = followUpMs ?? firstTextMs;
-  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls, ...(considerMs !== undefined ? { considerMs } : {}) };
+  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls, ...(considerMs !== undefined ? { considerMs } : {}), ...(considerError ? { considerError } : {}) };
   state.metrics.push(metric);
   saveSession(state);
   snapshotSession(state);

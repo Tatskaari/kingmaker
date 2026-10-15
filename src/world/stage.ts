@@ -32,6 +32,7 @@ const INSTRUCTIONS = [
   "You keep the world model of a roleplaying scene in step with the story. After each exchange, write the operations that make the model show what the GM's reply has established. The GM reads the model before every reply, the map draws it, and the rules resolve spells and blows from it (who a Fireball catches depends on where everyone stands), so above all it has to be right about where people are, who holds what, what's open, shut, burning or broken, and who has come or gone.",
   "- The reply is what happened. Where the model disagrees with it (it may be out of date), the reply wins: put people where the reply has them. Only what has happened, though: not plans, offers, threats, glances or where people's attention goes.",
   "- The rules have already applied their dice (listed, if any): don't repeat or undo them, but do record knock-on effects the reply narrates (someone fleeing the flames, a fire put out with a bucket).",
+  "- What was settled before this exchange (listed, if any) stands, as the GM is told it does: the world already shows it. A reply that mentions or recalls it (\"the hand that held the crown now holds two silver pieces\") isn't it happening again: write nothing that repeats or reverses it, unless the reply plainly has it undone anew (handed back, taken back, stolen, lost).",
   "- People are often described rather than named (\"the pot-boy\", \"the big man\"): see who's who, and never create someone who is already in the world.",
   "- Create only someone who could act, or something someone could pick up, use, hide behind or be hurt by, that the story has just brought in. Never scenery: birds, leaves, smells, crowds or windows outside the place.",
   "- Prefer a move or a state to a note. A note is for something the model can't otherwise show that will matter later (who is hiding where, what is under what), written about one entity. When something someone was doing has stopped (they stopped throwing stones, got down off the wall), forget the note that says they're doing it.",
@@ -67,6 +68,11 @@ export interface StageContext {
   cast?: Array<{ id: string; name: string; look?: string }>;
   /** Reasoning: "low" was the most accurate in the eval (F1 0.82 vs 0.68), at about 5 s, off the path to first text. */
   effort?: Effort;
+  /**
+   * What was settled before this exchange (the scene's facts, the GM's rulings and how they went):
+   * it stands, so a reply that recalls a trade doesn't make it again, the other way round.
+   */
+  settled?: string[];
 }
 
 export async function stageManage(world: SceneWorld, player: { name: string }, playerTurn: string, reply: string, turn: number, context: StageContext = {}): Promise<{ changes: string[]; problems: string[]; costUsd: number }> {
@@ -79,6 +85,7 @@ export async function stageManage(world: SceneWorld, player: { name: string }, p
       `## The world before this exchange\n${worldView(world, { full: true })}`,
       ...(who.length ? [`Who's who (the story may describe them without naming them):\n${who.join("\n")}`] : []),
       `The player character is ${player.name} (id "player").`,
+      ...(context.settled?.length ? [`## Settled before this exchange (it stands, and the world already shows it)\n${context.settled.map(s => `- ${s}`).join("\n")}`] : []),
       `## The latest exchange\nPlayer: ${playerTurn}${context.rules?.length ? `\n\nRules (dice already rolled and applied to the world): ${context.rules.join("; ")}` : ""}\n\nGM: ${reply}`,
     ].join("\n\n") }],
     json: { name: "world_ops", schema: opSchema(world) },

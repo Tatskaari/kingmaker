@@ -106,8 +106,25 @@ export function presentCast(scene: Scene, state: SessionState): Character[] {
 const TITLES = new Set(["the", "a", "an", "big", "old", "young", "little", "master", "mister", "mr", "mrs", "miss", "sergeant", "corporal", "captain", "marshal", "king", "queen", "sir", "lady", "lord", "dame"]);
 
 /** Everything the player has been told or shown: these hooks, and every line of play but the dice (their own turns too). */
-const heardIn = (state: SessionState, hooks: string[]) => [...hooks, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
+export const heardIn = (state: SessionState, hooks: string[]) => [...hooks, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
 const namedIn = (c: Pick<Character, "name" | "aka">, heard: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard));
+
+/**
+ * Text the player will read (a dice line), with everyone whose name they haven't heard called what
+ * they'd call them: "Master Sallow" is "the gentleman with the silver-topped cane" until someone says it.
+ */
+export function asHeard(text: string, unheard: Array<{ name: string; called: string; aka?: string[] }>): string {
+  // Names as they're written (capitalised: "Will" is a name, "will" isn't), with any titles in front ("Master Sallow", "big Hobb").
+  const titles = [...TITLES].flatMap(t => [t, t[0]!.toUpperCase() + t.slice(1)]).join("|");
+  let out = text;
+  for (const s of unheard) {
+    // The whole name first, then any part of it.
+    for (const part of [s.name, ...nameTokens(s)]) {
+      out = out.replace(new RegExp(`\\b(?:(?:${titles})\\s+)*${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}('s)?\\b`, "g"), (_, own?: string) => `${s.called}${own ?? ""}`);
+    }
+  }
+  return out;
+}
 
 /**
  * The cast the player has heard named: in anything said or shown so far (the hook, every reply,

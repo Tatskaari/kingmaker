@@ -76,6 +76,8 @@ export interface TurnMetric {
   resolvingTextMs?: number | null;
   /** A considered turn: how long the GM's review took (its call, from the decision to the ruling). */
   considerMs?: number;
+  /** A considered turn whose review came back with no ruling (it failed, or ran past its deadline): why. The turn rolled a freeform check instead. */
+  considerError?: string;
   preDecisionMs: number;
   firstTextMs: number | null;
   replyMs: number;

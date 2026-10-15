@@ -68,6 +68,13 @@ const SCENE_ENDING_CONFIDENCE = 0.6;
 const CONSIDER_CONFIDENCE = 0.7;
 
 /**
+ * In a beat with no route with a roll the flag can only say "new" or "none", and reads lower: big
+ * asks of Moll in the motive beat read 0.57 to 0.63 and went unflagged. There the bar is lower,
+ * set where the controls (plain questions, making the case) still stay under it.
+ */
+export const CONSIDER_CONFIDENCE_OPEN = 0.5;
+
+/**
  * A check is rolled for the act it tests, so the attempt is judged against that act: getting to
  * where it can be done (getting him down, getting the door open) is an act of its own, for the
  * rules or the story, not a reason to roll this.
@@ -121,6 +128,35 @@ function rollCallQuestion(checks: Transition[]): ChoiceQuestion {
         : "Yes: an attempt like that, whose outcome is genuinely uncertain.",
       none: "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking properly, searching or working out what's in front of them, something that simply works, or something that plainly can't.",
     },
+  };
+}
+
+/**
+ * The tries that failed in this scene, in a line each: the routes' rolls that went against the
+ * player, and (`rulings`) the GM's considered rulings that did, or said no without dice. The same
+ * push again gets the same answer, however it's rolled.
+ */
+export function failedTries(scene: Scene, state: SessionState, options: { rulings?: boolean } = {}): string[] {
+  // The route as it was where it was rolled (beats can share an id: the yard's threat and the doubt beat's).
+  const route = (from: string, id: string) => [...(scene.beats.find(b => b.id === from)?.transitions ?? []), ...(scene.anytime ?? [])].find(t => t.id === id && t.check);
+  const rolled = state.path.flatMap(p => {
+    const t = p.roll && !p.roll.success ? route(p.from, p.via) : undefined;
+    return t ? [`turn ${p.turn}: ${t.when.replace(/\.$/, "")} (${describeRoll(p.roll!, t.check!.reason)}): ${t.check!.failure}`] : [];
+  });
+  const ruled = options.rulings === false ? [] : (state.rulings ?? []).filter(r => r.went === "failure")
+    .map(r => `turn ${r.turn}: ${r.act.replace(/\.$/, "")} (${r.roll ? describeRoll(r.roll) : "no roll: it couldn't work like that"}): ${r.changed}`);
+  return [...rolled, ...ruled];
+}
+
+/**
+ * The same push again (a try that failed, tried again with nothing new on the table), asked in the
+ * turn's own decision when something has failed in this scene: a route's roll isn't rolled again
+ * for it, as the GM's ruling wouldn't be.
+ */
+function sameAgainQuestion(tried: string[]): ChoiceQuestion {
+  return {
+    instructions: `Earlier in this scene the player tried these, and they failed:\n${tried.map(t => `- ${t}`).join("\n")}\nIs the player's latest turn the same push as one of those again: the same ask of the same person by the same means, reworded or louder, with nothing new on the table? A new lever (an offer, a threat or a promise not made before, evidence, something learned since), a different ask or person, or a real change in the situation since makes it a new try.`,
+    criteria: { same: "The same push again, with nothing new.", new: "A new try, or not one of these at all." },
   };
 }
 
@@ -186,10 +222,13 @@ export interface PreDecision {
    * Considered rolls: the player is attempting something a roll should settle that none of the
    * scene's routes does (another person, another ask, another payoff), so the GM rules on it before
    * replying. Nothing was rolled or moved for it here. `routes`: the routes with a roll the decider
-   * leant towards, nearest first; `means`: the method, when it was asked and sure; `earned`: how far
-   * it thought the player had already met the person's terms, when it half thought so.
+   * leant towards, nearest first; `means`: the method, when it's sure (asked in every beat when
+   * rolls are considered); `earned`: how far it thought the player had already met the person's
+   * terms, when it half thought so.
    */
   considered?: { probability: number; routes: Array<{ id: string; p: number }>; means?: Skill; earned?: number };
+  /** The route the player chose, not rolled again: the same push that already failed in this scene, with nothing new. */
+  sameAgain?: Transition;
 }
 
 /** What the player is doing that the D&D rules resolve, and with what. */
@@ -465,7 +504,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       },
     };
   }
-  if (attempts.some(t => t.check && SOCIAL.includes(t.check.skill))) {
+  // The method: for a route written for one social means, and (considered rolls) in every beat, so
+  // the GM's review hears a lie read as a lie wherever it's told.
+  if (options.considered || attempts.some(t => t.check && SOCIAL.includes(t.check.skill))) {
     questions.attempt_means = {
       instructions: "If the player is working on someone in their latest turn, by what means?",
       criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
@@ -474,6 +515,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   if (cues.length) questions.cue = question("cue", cues);
   // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
   if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
+  // The same push that already failed here, again: asked only once something has failed.
+  const tried = attempts.some(t => t.check) ? failedTries(scene, state) : [];
+  if (tried.length) questions.same_again = sameAgainQuestion(tried);
   if (options.offGraph) {
     const routes = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].map(t => t.when);
     questions.off_graph = {
@@ -540,9 +584,14 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   };
   if (scene.limits?.length) {
     questions.limit = {
-      // (Considered rolls: a forged warrant is a lie to be judged, not the real warrant the scene can't offer.)
-      instructions: `Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on it.${options.considered ? " Pretending isn't reaching for it: a fake, a forgery, a bluff or a lie about one of these is something the player is attempting, to be judged as that." : ""}`,
-      criteria: { ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])), none: "No: the player's turn doesn't depend on any of these." },
+      // (Considered rolls: a forged warrant is a lie to be judged, not the real warrant the scene can't
+      // offer; it has an answer of its own, so faking one isn't read as reaching for it.)
+      instructions: `Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on getting it.${options.considered ? " Faking one isn't reaching for it: a forged paper, a fake badge or a lie that they have one of these is a trick the player is attempting on someone (choose pretending), unless what they're after by it is itself one of these." : ""}`,
+      criteria: {
+        ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])),
+        ...(options.considered ? { pretending: "The player fakes or claims one of these as a trick on someone (a forgery, a fake, a lie that they have it), to get something else." } : {}),
+        none: "No: the player's turn doesn't depend on any of these.",
+      },
     };
   }
   if (options.speaker) {
@@ -612,7 +661,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const yes = (option: string) => call ? call.probabilities?.[option] ?? (call.choice === option ? 1 : 0) : 0;
   const settledByPrep = attempt ? !attempt.check || yes("route") >= yes("new") : !!plainEnding;
   const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
-  const considered = options.considered && yes("route") + yes("new") >= CONSIDER_CONFIDENCE && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !actSettles && !ooc && !forced
+  // (A beat with no route with a roll has a lower bar: there the flag can only say "new" or "none".)
+  const bar = attempts.some(t => t.check) ? CONSIDER_CONFIDENCE : CONSIDER_CONFIDENCE_OPEN;
+  const considered = options.considered && yes("route") + yes("new") >= bar && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !actSettles && !ooc && !forced
     ? {
       probability: yes("route") + yes("new"),
       routes: attempts.filter(t => t.check).map(t => ({ id: t.id, p: decision.answers.attempt?.probabilities?.[t.id] ?? 0 })).filter(r => r.p >= 0.05).sort((a, b) => b.p - a.p),
@@ -620,13 +671,17 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       ...(earnedRead >= 0.3 ? { earned: earnedRead } : {}),
     }
     : undefined;
-  const chosen = considered ? undefined : attempt ?? plainEnding ?? cue;
+  // The same push that already failed here isn't rolled again on a route's dice (the GM's ruling
+  // says no to it without them too): it gets the same answer.
+  const again = decision.answers.same_again;
+  const sameAgain = attempt?.check && !considered && again?.choice === "same" && (again.probabilities?.same ?? 1) >= SCENE_ENDING_CONFIDENCE ? attempt : undefined;
+  const chosen = considered || sameAgain ? undefined : attempt ?? plainEnding ?? cue;
   // (a plain action alongside a cue: the cue's beat change carries the reply)
   const method = attempt ? sureMeans : undefined;
   // When the rules resolve the player's act, that act is the turn: a route's check waits for the
   // act's details, and is rolled only if the player is also doing what the check is for. Otherwise
   // the route stays open for when they do.
-  const held = act && attempt?.check && !considered ? attempt : undefined;
+  const held = act && attempt?.check && !considered && !sameAgain ? attempt : undefined;
   let move = chosen && !held ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", method) : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
@@ -639,7 +694,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;
-  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move && !held && !considered ? scene.cast.find(c => c.id === pressed) : undefined;
+  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move && !held && !considered && !sameAgain ? scene.cast.find(c => c.id === pressed) : undefined;
   if (target) {
     const details = await pressureDetails(decider, scene, state, playerTurn, target);
     combined = { ...combined, answers: { ...combined.answers, ...details.answers }, latencyMs: combined.latencyMs + details.latencyMs, costUsd: combined.costUsd + details.costUsd };
@@ -699,8 +754,13 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
     ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
-    ...(considered ? { considered } : {}),
+    ...(considered ? { considered } : {}), ...(sameAgain ? { sameAgain } : {}),
   };
+}
+
+/** No dice for the same push again: it gets the same answer, and being pushed again shows. */
+export function sameAgainDirective(t: Transition): string {
+  return `No dice: the player is pushing for the same thing that already failed (${t.when.replace(/\.$/, "")}), with nothing new on the table, and it gets the same answer. Whoever they're pushing reacts to being pushed again, in their own way and words (patience wearing thin, a sharper no, a door closing); nothing changes hands, nobody gives way, and nothing already said is taken back.`;
 }
 
 /** Say yes: no roll needed, so what the player is doing simply works. */

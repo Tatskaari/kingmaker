@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { decideBefore, pressureReason, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -184,6 +184,62 @@ test("considered rolls: off, nothing is asked; on, a forgery isn't the real thin
   assert.doesNotMatch(off.asked[0]!.limit!.instructions, /forgery/);
   const on = scripted({});
   await decideBefore(on, scene, yard(), LINING, considered);
-  assert.match(on.asked[0]!.limit!.instructions, /a fake, a forgery, a bluff or a lie about one of these is something the player is attempting/);
+  assert.match(on.asked[0]!.limit!.instructions, /Faking one isn't reaching for it: a forged paper, a fake badge or a lie that they have one of these is a trick/);
+  assert.ok(on.asked[0]!.limit!.criteria.pretending, "faking one has an answer of its own");
   assert.equal(on.asked[0]!.attempt!.criteria.other_risky, undefined, "the flag stands in for the freeform roll's option");
+});
+
+const WRIT = "*holds up a folded tavern bill, seal-side out* Know what this is, Cob? The King's own writ of protection. Whoever helps the King's investigator is under the King's hand. Tell me what you saw.";
+
+test("considered rolls: a forged writ read as faking the limit goes to the GM, while reaching for the real thing is still a no", async () => {
+  const faked = await decideBefore(scripted({ roll_call: ["new", 0.9], limit: ["pretending", 0.7, { limit_3: 0.25 }] }), scene, yard(), WRIT, considered);
+  assert.equal(faked.limit, undefined);
+  assert.ok(faked.considered, "a lie to rule on");
+  const reached = await decideBefore(scripted({ roll_call: ["new", 0.9], limit: ["limit_3", 0.8] }), scene, yard(), "Then get the King to write it down for me. A warrant, today.", considered);
+  assert.ok(reached.limit);
+  assert.equal(reached.considered, undefined);
+});
+
+/** The yard once Cob and Moll have bolted from a threat that failed (scare-kids, rolled and lost). */
+function scared(): SessionState {
+  const state = yard();
+  state.path.push({ turn: 2, from: "yard", to: "yard", via: "scare-kids", source: "pre", roll: { skill: "intimidation", dc: 12, die: 5, modifier: 4, total: 9, success: false, critical: null } });
+  return state;
+}
+const AGAIN = "*plants herself in the gateway* I said nobody leaves! Come back here, or the watch drags you back by your ear and the boy goes to the Mending House!";
+
+test("the same push again: a route's roll that failed isn't rolled again for it, as the GM's ruling wouldn't be", async () => {
+  const decider = scripted({ attempt: ["scare-kids", 0.96], same_again: ["same", 0.85, { new: 0.15 }] });
+  const pre = await decideBefore(decider, scene, scared(), AGAIN, { speaker: false, considered: true });
+  assert.equal(pre.move, undefined, "no second roll");
+  assert.equal(pre.sameAgain?.id, "scare-kids");
+  assert.match(decider.asked[0]!.same_again!.instructions, /turn 2: The player tries to frighten the kids into talking.*Intimidation check to scare the children into talking: 5 \+ 4 = 9 vs DC 12: failure/s);
+  // Something new on the table: the route rolls as ever.
+  const fresh = await decideBefore(scripted({ attempt: ["scare-kids", 0.96], same_again: ["new", 0.8] }), scene, scared(), "*dangles Cob's da's belt* Remember this, lad?", { speaker: false, considered: true });
+  assert.equal(fresh.move?.roll?.skill, "intimidation");
+  assert.equal(fresh.sameAgain, undefined);
+  // Nothing has failed yet: nothing to ask.
+  const first = scripted({ attempt: ["scare-kids", 0.96] });
+  await decideBefore(first, scene, yard(), AGAIN, { speaker: false, considered: true });
+  assert.equal(first.asked[0]!.same_again, undefined);
+});
+
+test("considered rolls: the method is asked in every beat, so the GM's review hears a lie read as one wherever it's told", async () => {
+  const motive = { ...yard(), beat: "motive" };
+  const decider = scripted({ roll_call: ["new", 0.9], attempt_means: ["deception", 0.8] });
+  const pre = await decideBefore(decider, scene, motive, "There's a stone-throwing match at the palace tomorrow, Cob, and I can put your name down.", considered);
+  assert.ok(decider.asked[0]!.attempt_means, "asked in a beat with no social route");
+  assert.equal(pre.considered?.means, "deception");
+  // Rolls not considered: asked only where a route is written for one social means, as before.
+  const plain = scripted({});
+  await decideBefore(plain, scene, motive, "There's a stone-throwing match at the palace tomorrow.", { speaker: false, freeform: true });
+  assert.equal(plain.asked[0]!.attempt_means, undefined);
+});
+
+test("considered rolls: a beat with no route with a roll has a lower bar, which a big ask clears and a plain question doesn't", async () => {
+  const motive = { ...yard(), beat: "motive" };
+  const flag = async (state: SessionState, p: number) => (await decideBefore(scripted({ roll_call: ["new", p, { none: 1 - p }] }), scene, state, "Come with me to the palace this afternoon and tell the King yourself.", considered)).considered;
+  assert.ok(await flag(motive, CONSIDER_CONFIDENCE_OPEN + 0.05), "flagged where nothing could have rolled for it");
+  assert.equal(await flag(motive, CONSIDER_CONFIDENCE_OPEN - 0.05), undefined);
+  assert.equal(await flag(yard(), CONSIDER_CONFIDENCE_OPEN + 0.05), undefined, "where routes have rolls, the bar is as it was");
 });
