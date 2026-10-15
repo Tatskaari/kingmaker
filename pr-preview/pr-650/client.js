@@ -1,7 +1,8 @@
-import { Terminal } from "./vendor/xterm.mjs?v=d8c32f68e791";
-import { FitAddon } from "./vendor/addon-fit.mjs?v=d8c32f68e791";
-import { WebglAddon } from "./vendor/addon-webgl.mjs?v=d8c32f68e791";
-import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=d8c32f68e791";
+import { Terminal } from "./vendor/xterm.mjs?v=7bf2d57db873";
+import { FitAddon } from "./vendor/addon-fit.mjs?v=7bf2d57db873";
+import { WebglAddon } from "./vendor/addon-webgl.mjs?v=7bf2d57db873";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=7bf2d57db873";
+import { doorOverlay } from "./doors.js?v=7bf2d57db873";
 
 // The page's half of Kingmaker in the browser (src/web/README.md): xterm.js draws the game, and
 // keystrokes and output go over a transport. Served by src/web/server.ts, the game runs in a pty
@@ -164,6 +165,8 @@ function freshAtlas() {
   });
 }
 useWebgl();
+// The doors, drawn as pictures over the ASCII where the game says they are (src/web/page/doors.ts); ?doors=off leaves the ASCII alone.
+const doors = params.get("doors") === "off" ? undefined : doorOverlay(term);
 // No cursor until the game asks for one (it hides it anyway; this covers the moments before it starts).
 term.write("\x1b[?25l");
 resize();
@@ -241,6 +244,8 @@ window.km = {
     return renderer;
   },
   atlas,
+  /** The doors' overlay (undefined with ?doors=off): the last frame of doors the game sent, and how many are drawn. */
+  doors,
   get playing() {
     return playing;
   },
@@ -362,7 +367,8 @@ function socketTransport(handlers) {
 }
 
 function start(extra) {
-  control({ type: "start", cols: term.cols, rows: term.rows, window: windowSize(), ...extra });
+  // ?doors=off: the game needn't say where the doors are, as they aren't drawn.
+  control({ type: "start", cols: term.cols, rows: term.rows, window: windowSize(), ...(doors ? {} : { doors: false }), ...extra });
 }
 
 /** The browser's window, for a report of a problem (src/report): its size in CSS pixels and its pixel ratio ("1280x800@2"). */

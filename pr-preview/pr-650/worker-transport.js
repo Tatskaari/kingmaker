@@ -210,6 +210,7 @@ export function workerTransport(handlers, options) {
     worker.onerror = () => handlers.message({ type: "error", reload: true, message: "The game couldn't start in this browser: its files didn't load, or this browser can't run it. Reloading the page may help." });
     worker.postMessage({
       type: "start", cols: message.cols, rows: message.rows, ...(message.window ? { window: message.window } : {}), ...(key ? { key } : { offline: true }),
+      ...(message.doors === false ? { doors: false } : {}),
       ...(options.glyphs ? { glyphs: options.glyphs } : {}), ...(options.jobDelayMs ? { jobDelayMs: options.jobDelayMs } : {}),
     });
     key = "";
