@@ -132,7 +132,7 @@ As V1 kept it:
 
 ### What differs from the server version
 
-- **Saves** are in the browser (IndexedDB), per origin. Every preview on the same site sees the same games, and clearing the site's data loses them. Another browser or machine has its own.
+- **Saves** are in the browser (IndexedDB), per origin. Every preview on the same site sees the same games, and clearing the site's data loses them. Another browser or machine has its own. If the browser won't store a save (its storage full, say), the game says so on its status line and plays on, and the next save tries again. Without IndexedDB at all (some private windows), the game plays but isn't kept.
 - **Closing or reloading the tab** mid-game keeps what was played up to about a second before; the page also asks the game to save as it goes. A background job still running then is lost, and so are its notes on the last turn.
 - **Two tabs at once** each hold their own copy of the saves. A game played in one isn't seen in the other until it reloads, and whichever writes a file last wins.
 - **The End's bar tab** counts the background jobs' calls too, as they run in the game's own worker. In a terminal they're other processes, and the game counts only its own calls.

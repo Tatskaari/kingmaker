@@ -37,6 +37,11 @@ export function takeChanges(): Map<string, Change> {
   return out;
 }
 
+/** Changes that couldn't be persisted, back to be tried with the next (a newer change to the same path wins). */
+export function requeue(pending: Map<string, Change>): void {
+  for (const [path, change] of pending) if (!changes.has(path)) changes.set(path, change);
+}
+
 export function onChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };

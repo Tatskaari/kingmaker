@@ -1,4 +1,4 @@
-import { onChange, peek, restore, takeChanges } from "./node/fs.ts";
+import { onChange, peek, requeue, restore, takeChanges } from "./node/fs.ts";
 
 /**
  * runs/ kept in IndexedDB, from the worker (as V1 kept its games, in apps/web/src/game-worker.ts):
@@ -71,10 +71,11 @@ export class Store {
     return next;
   }
 
+  /** A write that fails (the browser's storage full, say) leaves its changes to be tried again with the next. */
   private write(): Promise<void> {
     const changes = takeChanges();
     if (!changes.size) return Promise.resolve();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const tx = this.db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
       for (const [path, change] of changes) {
@@ -85,6 +86,9 @@ export class Store {
       tx.oncomplete = () => { this.writes++; resolve(); };
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error ?? new Error("The save was aborted"));
+    }).catch(error => {
+      requeue(changes);
+      throw error;
     });
   }
 }

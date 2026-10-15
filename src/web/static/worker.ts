@@ -97,7 +97,12 @@ async function start(options: { cols: number; rows: number; key?: string; offlin
   mountReadOnly(content.files);
   try {
     store = await Store.open();
-    store.onError = error => fail(new Error(`Your game couldn't be saved in this browser: ${(error as Error)?.message ?? error}`));
+    // The game plays on (what it holds is the only copy now): it says so, and the next save tries again.
+    store.onError = error => {
+      const said = redact(`This browser wouldn't keep the game just now (${(error as Error)?.message ?? error}); it will try again.`);
+      console.warn(said);
+      void started?.then(({ game }) => { game.status = said; game.emit(); });
+    };
     await store.load();
     store.autosave();
   } catch (error) {
@@ -105,7 +110,7 @@ async function start(options: { cols: number; rows: number; key?: string; offlin
     console.warn("No IndexedDB here, so this game won't be kept:", error);
   }
   const { startGame } = await import("./game.tsx");
-  const game = await startGame({
+  const running = await startGame({
     cols: options.cols,
     rows: options.rows,
     write,
@@ -115,8 +120,12 @@ async function start(options: { cols: number; rows: number; key?: string; offlin
       job.catch(error => console.warn("A background job (the GM's notes on a turn) failed:", error)).finally(() => jobs.delete(job));
     },
   });
+  if (!store) {
+    running.game.status = "This browser won't keep games (no IndexedDB here): this one plays, but it won't be here next time.";
+    running.game.emit();
+  }
   scope.postMessage({ type: "started", offline });
-  return game;
+  return running;
 }
 
 /** Saved and gone: the page may end this worker once it hears so, or once it's idle if jobs were still running. */
