@@ -102,7 +102,8 @@ test("a talk knows what the scenes knew: the companion's card in the last scene 
   startTalk(state, "kell", "the granary lane in Caerwyn, evening");
   const facts = state.established.join("\n");
   // Asked how she knew the thief's real name, Kell made something up, then wouldn't say: her card had it.
-  assert.match(facts, /What Sergeant Agnes Kell knew in The Hanged Clerk \(their prep there: still true, and theirs to tell as they would when it comes up\): She has never met the King's investigator: this morning a palace page came to the watch house/);
+  assert.match(facts, /What Sergeant Agnes Kell knew in The Hanged Clerk \(their prep there, as things stood then; what's happened since is the story's\): She has never met the King's investigator: this morning a palace page came to the watch house/);
+  assert.match(facts, /It's theirs to tell, as they would, when it comes up\./);
   assert.doesNotMatch(facts, /Three days ago Prout came to the watch house/, "her card's secrets stay the talk's own business");
   assert.match(facts, /That's what happened: whatever it says Sergeant Agnes Kell did, saw or told Wren Ashdown, they did, saw and told, and they stand by it in their own words/);
   leaveTalk(state);

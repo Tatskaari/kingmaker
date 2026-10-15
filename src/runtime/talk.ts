@@ -107,7 +107,7 @@ function knewThere(state: SessionState, companion: string, name: string): string
   for (const h of [...state.history].reverse()) {
     const scene = SCENES.find(s => s.id === h.sceneId);
     const card = scene?.cast.find(c => c.id === companion);
-    if (scene && card?.knows.length) return [`What ${name} knew in ${scene.title} (their prep there: still true, and theirs to tell as they would when it comes up): ${card.knows.join(" ")}`];
+    if (scene && card?.knows.length) return [`What ${name} knew in ${scene.title} (their prep there, as things stood then; what's happened since is the story's): ${card.knows.join(" ")} It's theirs to tell, as they would, when it comes up.`];
   }
   return [];
 }
