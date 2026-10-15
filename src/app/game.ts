@@ -247,6 +247,8 @@ export class Game {
   markFocus?: { line: number; mark: number };
   /** A marked phrase the pointer is on: the bottom line says what it is. */
   markPointed?: { line: number; mark: number };
+  /** How big the scene screen draws the conversation's frame (the popover of a mark stays inside it). */
+  talkArea?: { w: number; h: number };
   /** The action menu, while it's open (m on the map). */
   doMenu?: DoMenu;
   /** Aiming something from the action menu on the map. */

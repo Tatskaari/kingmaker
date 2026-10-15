@@ -29,16 +29,23 @@ export const C = {
   /** Something picked with the keys (a spell on the sheet): apart from highlightBg, under the pointer. */
   pickBg: "#5a4600",
   targetBg: "#6b1f1f",
-  /** A spoken line by someone who isn't in the place (or nobody could tell who). */
+  /** A spoken line by someone who isn't in the place (or nobody could tell who): drawn italic, too, being nobody's own colour. */
   speech: "#e6c35c",
-  /** Marked phrases (src/runtime/markup.ts), underlined in a quiet colour each: a reason, what you'd know, something you did. */
-  why: "#f0a37e",
-  know: "#8fd3c7",
-  you: "#aab4ff",
+  /**
+   * The kinds of mark (src/runtime/markup.ts): a reason, what you'd know, something you did. The
+   * popover's frame and heading, and the bottom line; under the marked words, a tint of each
+   * (MARK_TINT), since the words keep their speaker's colour. Clear of everyone's colours.
+   */
+  why: "#f2a48c",
+  know: "#4fc1d1",
+  you: "#d7bde9",
 } as const;
 
 /** What each kind of mark is, in a word or two (the popover's heading, the bottom line). */
 export const MARK_LABEL = { why: "Why", know: "You'd know", you: "You did this" } as const;
+
+/** The tint under a marked phrase's words, by its kind: dark, so whoever says them keeps their colour. */
+export const MARK_TINT = { why: "#4a2c27", know: "#173c43", you: "#322a4f" } as const;
 
 /**
  * How the arc's people are known (Kell is K, Hobb is H, the Master is $) and their colours: the

@@ -9,7 +9,7 @@ import type { Markup, MarkKind } from "../runtime/markup.ts";
  */
 
 /** A run of one style within a row. `mark`: the index of the mark it's part of. */
-export interface Run { text: string; fg: string; underline?: boolean; bold?: boolean; bg?: string; mark?: number }
+export interface Run { text: string; fg: string; underline?: boolean; bold?: boolean; italic?: boolean; bg?: string; mark?: number }
 export type Row = Run[];
 
 export interface Style {
@@ -17,10 +17,18 @@ export interface Style {
   narration: string;
   /** A spoken line's colour, by who says it (undefined: nobody could tell). */
   speech: (speaker: string | undefined) => string;
-  /** A marked phrase's colour, by its kind. */
+  /**
+   * The colour `speech` gives a voice with nobody in the place to match it (nobody could tell who,
+   * or they aren't there): drawn in italics too, so it's never taken for someone's own colour.
+   */
+  voice?: string;
+  /**
+   * A marked phrase's kind, as a tint under its words: they keep their own colour (whoever says
+   * them, or the narration's), so a marked line is still plainly its speaker's.
+   */
   mark: (kind: MarkKind) => string;
-  /** The mark picked out (Tab, the pointer), drawn on this background. */
-  focus?: { mark: number; bg: string };
+  /** The mark picked out (Tab), drawn in reverse: in `fg` on its kind's own colour (`bg`). */
+  focus?: { mark: number; fg: string; bg: (kind: MarkKind) => string };
 }
 
 /** A paragraph's pieces: text of one kind (narration, a line, a mark within either). */
@@ -108,15 +116,17 @@ const widthOf = (s: string) => [...s].reduce((n, ch) => n + cellWidth(ch), 0);
 
 interface Cell { ch: string; run: Omit<Run, "text"> }
 
-/** A piece's style. */
+/** A piece's style: its speaker's colour (or the narration's), and a mark underlined on its kind's tint. */
 function styleOf(piece: Piece, markup: Markup, style: Style): Omit<Run, "text"> {
   const mark = piece.mark !== undefined ? markup.marks[piece.mark] : undefined;
-  const fg = mark ? style.mark(mark.kind) : piece.speech !== undefined ? style.speech(markup.speech[piece.speech]!.speaker) : style.narration;
-  const focused = mark && style.focus?.mark === piece.mark;
-  return { fg, ...(mark ? { underline: true, mark: piece.mark } : {}), ...(focused ? { bold: true, bg: style.focus!.bg } : {}) };
+  const fg = piece.speech !== undefined ? style.speech(markup.speech[piece.speech]!.speaker) : style.narration;
+  const italic = piece.speech !== undefined && fg === style.voice;
+  const focus = mark && style.focus?.mark === piece.mark ? style.focus : undefined;
+  if (mark && focus) return { fg: focus.fg, bg: focus.bg(mark.kind), underline: true, bold: true, mark: piece.mark };
+  return { fg, ...(italic ? { italic: true } : {}), ...(mark ? { underline: true, mark: piece.mark, bg: style.mark(mark.kind) } : {}) };
 }
 
-const sameRun = (a: Omit<Run, "text">, b: Omit<Run, "text">) => a.fg === b.fg && a.underline === b.underline && a.bold === b.bold && a.bg === b.bg && a.mark === b.mark;
+const sameRun = (a: Omit<Run, "text">, b: Omit<Run, "text">) => a.fg === b.fg && a.underline === b.underline && a.bold === b.bold && a.italic === b.italic && a.bg === b.bg && a.mark === b.mark;
 
 /** A paragraph's cells as rows of runs, word-wrapped to `width` (a word longer than a row is broken). */
 function wrapCells(cells: Cell[], width: number): Row[] {

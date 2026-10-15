@@ -9,7 +9,7 @@ import { presentCast } from "../../runtime/brief.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import { COMMANDS, commandNamed, type Game, type Line, type Over, type SceneMenu } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
-import { C, MARK_LABEL, personColor } from "../theme.ts";
+import { C, MARK_LABEL, MARK_TINT, personColor } from "../theme.ts";
 import { replyRows, type Style } from "../reply.ts";
 import type { Markup } from "../../runtime/markup.ts";
 import { Reply } from "./reply.tsx";
@@ -92,7 +92,7 @@ interface Shown { width: number; marks: MarkView; index: Map<Line, number> }
 
 /** A reply's markup as drawn: what Tab picked out lit up, and colours by speaker and kind. */
 export function replyStyle(marks: MarkView, focus?: number): Style {
-  return { narration: C.gm, speech: marks.color, mark: kind => C[kind], ...(focus !== undefined ? { focus: { mark: focus, bg: C.highlightBg } } : {}) };
+  return { narration: C.gm, speech: marks.color, voice: C.speech, mark: kind => MARK_TINT[kind], ...(focus !== undefined ? { focus: { mark: focus, fg: C.bg, bg: kind => C[kind] } } : {}) };
 }
 
 /** Something looked at in the place: a quiet note between turns, the look's mark in its own margin (it isn't a turn, and the GM never hears it). */
@@ -365,7 +365,8 @@ export function SceneScreen({ game }: { game: Game }) {
     const things = placeOrder();
     const focus = game.markFocus;
     const at = focus ? marks.findIndex(m => m.line === focus.line && m.mark === focus.mark) : -1;
-    const pick = (m: { line: number; mark: number } | undefined) => { game.markFocus = m; if (m && pointer?.from === "keys") setPointer(undefined); game.emit(); };
+    // The bottom line says what Tab picked out, whatever mark the pointer was resting on.
+    const pick = (m: { line: number; mark: number } | undefined) => { game.markFocus = m; if (m) game.markPointed = undefined; if (m && pointer?.from === "keys") setPointer(undefined); game.emit(); };
     if (at >= 0) {
       const next = at + by;
       if (next >= 0 && next < marks.length) return pick(marks[next]);
@@ -509,6 +510,8 @@ export function SceneScreen({ game }: { game: Game }) {
   if (markLine && theMark?.kind !== "why") markLine.hint = game.markPointed ? { long: "click to read it", short: "click: read" } : markLine.hint;
   // The menu stays in the panel (and the three columns of the conversation's edge: its border and scrollbar, never its words), above the box.
   const bounds = { x: width - side - 3, y: 0, w: side + 3, h: height - 4 };
+  // The conversation's frame: everything but the status line, what's to pick, the box and the bottom line.
+  game.talkArea = { w: width - side, h: height - 5 - toPick.length };
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg} onMouseDown={() => game.closeSceneMenu()}>
     <box flexDirection="row" flexGrow={1} minHeight={0}>
       <box flexGrow={1} border borderColor={C.border} title={` ${scene.title} · ${TIME_WORDS[scene.time ?? game.story.time].split(",")[0]} `} titleAlignment="left" flexDirection="column" paddingX={1}>

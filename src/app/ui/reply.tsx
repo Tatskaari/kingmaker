@@ -6,7 +6,7 @@ import { replyRows, type Run, type Style } from "../reply.ts";
 /**
  * A GM reply as the player reads it (src/app/reply.ts lays it out): narration, each person's lines
  * in their colour, paragraphs broken where the speaker or the kind of text changes, and the marked
- * phrases underlined in their kind's colour. A marked phrase is its own piece of text on its row,
+ * phrases underlined on their kind's tint. A marked phrase is its own piece of text on its row,
  * so the mouse knows it: pointing at it says what it is (`onPoint`), a click opens it (`onOpen`).
  */
 export interface ReplyProps {
@@ -21,7 +21,7 @@ export interface ReplyProps {
   onPoint?: (mark: number | undefined) => void;
 }
 
-const attributesOf = (r: Run) => (r.underline ? TextAttributes.UNDERLINE : 0) | (r.bold ? TextAttributes.BOLD : 0);
+const attributesOf = (r: Run) => (r.underline ? TextAttributes.UNDERLINE : 0) | (r.bold ? TextAttributes.BOLD : 0) | (r.italic ? TextAttributes.ITALIC : 0);
 
 const span = (r: Run, key: number) => <span key={key} fg={r.fg} {...(r.bg ? { bg: r.bg } : {})} {...(attributesOf(r) ? { attributes: attributesOf(r) } : {})}>{r.text}</span>;
 
