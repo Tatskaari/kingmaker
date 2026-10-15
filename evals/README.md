@@ -19,7 +19,7 @@ Two eval harnesses that run the game's model calls against the real model and sc
 | `src/eval/types.ts` | The case types: `ReplyCase`, `DecisionCase`, `TrajectoryCase`, `OpeningCase`. |
 | `src/eval/cases/*.ts` | The cases, as TypeScript lists (`CASES` in index.ts): 163 of them, 82 reply, 44 decision, 34 trajectory and 3 opening. `memory.ts` has the memory eval's two. |
 | `src/eval/fixtures.ts` | `buildFixture`: a moment in a scene, from a snapshot file or built by hand (beat, transcript, established facts, notes). |
-| `src/eval/judge.ts` | The judge: `judgeTurn`, `judgeTrajectory`, `judgeWorldUpdate`, on five dimensions (intent, consistency, characters, steering, craft) and the case's criterion. |
+| `src/eval/judge.ts` | The judge: `judgeTurn`, `judgeTrajectory`, `judgeWorldUpdate`, on five dimensions (intent, consistency, characters, steering, craft) and the case's criterion; and `judgeNotes`, the GM's notes on marked phrases checked against the prep (does one tell the player what they don't know? is it true? does its kind fit?). |
 | `src/eval/compare.ts` | `npm run compare`: per-approach and per-decider aggregates of runs, side by side. |
 | `src/eval/rejudge.ts` | Judges an earlier run's replies again with another judge and reports agreement. No GM calls. |
 | `src/eval/memory-eval.ts`, `memory-run.ts` | The memory eval (does a character remember, in a later scene, what the player did?) and a smoke runner for scripted memory sessions. |
@@ -61,7 +61,7 @@ flowchart LR
 2. For each case and sample, build the moment (`buildFixture`) and play it with each approach (`--approach`, or the case's own, or `gm,actors`) or each decider (`--decider`, default `jev,luna-none`).
 3. Check what's mechanical: the transition taken, the roll, the exit (reply cases); the choice against the acceptable ones (decision cases).
 4. Judge the rest (`judge.ts`): Luna at high reasoning by default, `KM_JUDGE_MODEL` and `KM_JUDGE_EFFORT` for another.
-5. Write `results.json` and a `summary.md` of means by case and approach, with latency and cost.
+5. Write `results.json` and a `summary.md` of means by case and approach, with latency and cost. A reply run also keeps how the GM kept to its markup (src/runtime/README.md, "The GM's markup"): its stats, its spoken lines tagged and with a speaker found, the turn's own cost, and its notes as `judgeNotes` judged them; the summary's Markup section adds them up, and lists the notes that leak or aren't true. The judge reads the reply as the player reads it, markup taken out.
 
 The suites:
 
@@ -94,6 +94,7 @@ npm run eval -- --suite opening
 npm run eval -- --suite world --from runs/sessions --mode reconcile         # the scribe on recorded endings (default mode: append)
 npm run compare -- runs/evals/<a> runs/evals/<b>                            # aggregates side by side
 KM_JUDGE_MODEL=openai/gpt-6-sol KM_JUDGE_EFFORT=medium node --no-warnings src/eval/rejudge.ts runs/evals/<a> [limit]
+KM_PROMPTS_DIR=/some/dir npm run eval -- --suite reply --approach v2 --label variant   # a prompt variant: a gm.md there is used in place of prompts/gm.md
 node --no-warnings src/eval/memory-eval.ts [--case id,id] [--approach v2-nomemory,v2,v2-memory-lite] [--samples 1]
 
 node --no-warnings evals/world/run.ts [--systems current,ops,tools] [--samples 2] [--cases id,...]
@@ -106,7 +107,7 @@ npx --no-install tsc --noEmit -p evals/world                                # th
 ## Known gaps and sharp edges
 
 - **CI runs none of this.** `.github/workflows/evals.yml` is V1's, kept through V2's fresh start: on a push to main it runs `moon run workspace:eval` and `scripts/publish-eval-history.ts`. V2's moon.yml has no `eval` task and there's no `scripts/` directory, so once V2 is on main the workflow fails (after its credentials check, which also needs the `OPENROUTER_EVAL_KEY` secret).
-- **The default approaches aren't the game's.** Without `--approach`, reply, trajectory and opening cases that don't name their own run `gm` and `actors` (`DEFAULT_APPROACHES`, src/eval/run.ts:75). The game plays `v2`.
+- **The default approaches aren't the game's.** Without `--approach`, reply, trajectory and opening cases that don't name their own run `gm` and `actors` (`DEFAULT_APPROACHES`, src/eval/run.ts:77). The game plays `v2`.
 - **The memory eval's defaults are out of date.** Without `--approach` it runs `v2` and `v2-memory`, which both have the docs service now (they differ only in freeform rolls), and its header still calls `v2` hand-offs only. `--approach v2-nomemory,v2,v2-memory-lite` compares no memory, the docs service and the lite reviews.
 - **run.ts is a script, not a module.** It makes its output directory, sets `KM_RUNS_DIR` and starts the run as it loads, so nothing can import its pieces.
 - **The judge is a model.** It's often stricter than a player would be, and some criteria are flawed. With 2–3 samples a case, ±3 of 20 is noise.
