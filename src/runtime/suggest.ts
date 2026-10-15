@@ -87,7 +87,7 @@ export function startSuggesting(state: SessionState, hooks: Pick<TurnHooks, "onS
 export interface Proposed { lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; text: string; costUsd: number; latencyMs: number; judgeMs?: number }
 
 /** A model to ask: OpenRouter's, or a test's stand-in. */
-export type Ask = (request: RespondRequest) => Promise<{ text: string; costUsd: number; latencyMs: number }>;
+export type Ask = (request: RespondRequest) => Promise<{ text: string; costUsd: number; latencyMs: number; cutShort?: boolean }>;
 
 /**
  * The lines for this moment: one call for them, then vetted, first by what can be read off the
@@ -97,13 +97,15 @@ export async function propose(state: SessionState, options: { signal?: AbortSign
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
   // Plain lines, not JSON: structured output costs about a second more (the talk's lines found so).
   const result = await (options.ask ?? respond)({
-    operation: "scene.suggest", effort: "none", maxOutputTokens: 200, asFarAsItGot: true,
+    // Six lines take about 120 tokens: a cap just over that bounds a reply that goes on thinking aloud, or says it all twice.
+    operation: "scene.suggest", effort: "none", maxOutputTokens: 150, asFarAsItGot: true,
     instructions: prompt("suggest"),
     input: [{ role: "user", content: suggestionBrief(scene, state) }],
     ...(options.signal ? { signal: options.signal } : {}),
   });
   const v = vetting(scene, state);
-  const screened = screen(parseSuggestions(result.text), v);
+  // Cut short, its last line may be half a line: it goes.
+  const screened = screen(parseSuggestions(result.cutShort ? result.text.slice(0, result.text.lastIndexOf("\n") + 1) : result.text), v);
   const judged = await judge(scene, state, screened.kept, options.decider ?? deciderFor(sceneApproach(state, scene).decider)).catch(() => undefined);
   const mixed = mix(judged?.lines ?? screened.kept, v.leave);
   return {
@@ -282,7 +284,7 @@ export function suggestionBrief(scene: Scene, state: SessionState): string {
     "# What the player knows of the scene",
     `## Who's here, as the player sees them\n${present.map(c => `- ${nameOf(c)}${called[c.id] ? " (the player hasn't heard their name: call them that)" : ""}${c.group ? ` (${known(c.group)})` : ""}: ${known(c.look)}`).join("\n") || "(nobody but the player)"}`,
     `## The scene so far (the latest last)\n${scriptTranscript(scene, state, entries.slice(-10)) || "(It's just begun.)"}`,
-    `# Not again\n${said ? `The player just said: ${said}\n` : ""}${offered.length ? `Offered last time:\n${offered.map(l => `- ${l}`).join("\n")}` : "Nothing offered yet."}`,
+    `# Not again\n${said ? `The player just said: ${said}\n` : ""}${offered.length ? `Offered last time (none of these again, not even in other words: the player has seen them):\n${offered.map(l => `- ${l}`).join("\n")}` : "Nothing offered yet."}`,
   ].join("\n\n");
 }
 

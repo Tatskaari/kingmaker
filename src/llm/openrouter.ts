@@ -39,6 +39,8 @@ export interface RespondResult {
   inputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
+  /** Out of tokens, and taken as far as it got (asFarAsItGot): its last line may be cut off. */
+  cutShort?: boolean;
 }
 
 export const LUNA = "openai/gpt-6-luna";
@@ -242,6 +244,7 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     inputTokens: usage.input_tokens ?? 0,
     outputTokens: usage.output_tokens ?? 0,
     reasoningTokens: usage.output_tokens_details?.reasoning_tokens ?? 0,
+    ...(cutShort ? { cutShort } : {}),
   };
   recordCost("openrouter", request.operation, model, result.costUsd, latencyMs);
   logCall({ provider: "openrouter", operation: request.operation, model, effort: body.reasoning.effort, request: { instructions: request.instructions, input: request.input, json: request.json?.name },

@@ -166,7 +166,7 @@ test("the call is given what the player knows, then the GM's prep behind the scr
   assert.match(brief, /the boy in the too-big boots \(the player hasn't heard their name: call them that\)/);
   assert.doesNotMatch(brief, /\bCob\b|\bMoll\b/, "anyone not yet named goes by what the player calls them, even in the prep");
   for (const limit of sceneById("hanged-clerk").limits!) assert.ok(brief.includes(limitHead(limit)), limit);
-  assert.match(brief, /# Not again\nOffered last time:\n- Lovely morning for it\./);
+  assert.match(brief, /# Not again\nOffered last time \(none of these again, not even in other words: the player has seen them\):\n- Lovely morning for it\./);
   assert.match(brief, /No leave line yet/);
 });
 
@@ -206,4 +206,13 @@ test("the lines land for the scene and turn they were made for, and the hooks sa
   } finally {
     fake.restore();
   }
+});
+
+test("a reply cut short loses its last line, which may be half a line", async () => {
+  const decider: Decider = { name: "stub", decide: async (_facts, questions) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id.startsWith("roll_") ? "risky" : "fine", probabilities: {} }])), latencyMs: 1, costUsd: 0, decider: "stub" }) };
+  const made = await propose(yard("suggest-cut"), {
+    decider,
+    ask: async () => ({ costUsd: 0.0001, latencyMs: 1, cutShort: true, text: "say: Sergeant, who found him?\ndo: (I look up at the body)\ntry: (I try to coax the boy down with a pie)\nsay: And what did the por" }),
+  });
+  assert.deepEqual(made.lines.map(l => l.text), ["Sergeant, who found him?", "(I look up at the body)", "(I try to coax the boy down with a pie)"]);
 });
