@@ -222,19 +222,34 @@ function backstoryBrief(state: SessionState, inNotes: boolean): string {
  */
 const STRANGER = "Before the story began, none of its people had met them (whoever sent for them aside): they know them only from what's happened in play since, and of their past only what they'd plausibly know or have been told. If the player claims an old acquaintance with one of them (\"You'll remember me\"), it isn't so, and that person says so in their own way; people from the player's own past are another matter.";
 
+/**
+ * The story so far, for the GM: every scene's hand-off, earliest first, each with the facts play
+ * settled there, and the last scene's last moments word for word. Every one, not only the last: the
+ * King's GM never knew Hobb had confessed at the Rat, two scenes back, when the rest were story notes
+ * that disclosure had to open (and didn't, turn after turn).
+ */
+function storySoFar(state: SessionState): string {
+  const last = state.history.at(-1)!;
+  const scenes = state.history.map(h => [h.summary.trim(), ...(h.facts?.length ? [`Settled in play there:\n${bullets(h.facts)}`] : [])].join("\n"));
+  return [
+    `## What happened just before this scene\nThis is what actually happened in the story, scene by scene, the last one just before this. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said, who admitted what), what happened wins: adapt the prep to it. It doesn't change what this scene is about. It's your knowledge, not everyone's: people here know only what they saw, did or have been told (here, or earlier where they were there), so someone who wasn't there knows nothing of it until they hear it, and doesn't ask about it, refer to it or guess at it before then.`,
+    scenes.join("\n\n"),
+    ...(last.lastMoments?.length ? [`The last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}`] : []),
+  ].join("\n\n");
+}
+
 /** Stable prep for the GM: everything that doesn't change turn to turn (cache-friendly prefix). */
-export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; lastHandoffOnly?: boolean; docs?: boolean } = {}): string {
+export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; docs?: boolean } = {}): string {
   options = { secrets: true, ...options };
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const cast = scene.cast.map(c => castBlock(scene, options.secrets ? c : { ...c, secrets: [] }, present.has(c.id))).join("\n\n");
-  const last = state.history.at(-1);
   return [
     `# Your prep for this scene: ${scene.title}`,
     `## The place\n${scene.setting}`,
     `## What this scene is about\n${scene.premise}`,
     ...(scene.background?.length ? [`## Background\n${bullets(scene.background)}`] : []),
-    ...(last ? [`## What happened just before this scene\nThis is what actually happened in the story. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said), what happened wins: adapt the prep to it. It doesn't change what this scene is about. It's your knowledge, not everyone's: people here know only what they saw, did or have been told, so someone who wasn't there doesn't know it unless they hear it.\n\n${(options.lastHandoffOnly ? [last] : state.history).map(h => h.summary).join("\n\n")}${options.lastHandoffOnly && state.history.length > 1 ? "\n\n(Earlier scenes are in the story notes under \"What people remember\".)" : ""}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
-    ...(state.adjustments?.length ? [`## Where the prep is out of date\nThe story has moved on from parts of this prep. These are true now, and they override anything in the prep that says otherwise:\n${bullets(state.adjustments)}`] : []),
+    ...(state.history.length ? [storySoFar(state)] : []),
+    ...(state.adjustments?.length ? [`## Where the prep is out of date\nThe story has moved on from parts of this prep. These are true now, and they override anything in the prep that says otherwise. Like the story so far, they're your knowledge: people here know of them only what they saw, were there for or have been told.\n${bullets(state.adjustments)}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
     ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${e.missed ? " [missed in an earlier scene, and the story still needs it: what it's in stays where the world has it, with whoever has it]" : ""}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
@@ -278,10 +293,33 @@ export function spentHere(state: SessionState): Set<string> {
   return spent;
 }
 
-/** The routes to offer now: not one already achieved here, nor one that brings what the player has already come across. */
+/**
+ * Has the scene left this beat, and has something been settled since (a fact established)? Then
+ * going back there would undo it: the Rat's confession beat, left for "Hobb rises to go to work",
+ * where the only way out for him was "without telling what he knows".
+ */
+export function leftBehind(state: SessionState, beat: string): boolean {
+  if (beat === state.beat) return false;
+  const left = state.path.findLast(p => p.from === beat && p.to !== beat);
+  return left?.known !== undefined && state.established.length > left.known;
+}
+
+/** The co-GM's routes (its improvised ones, and its bridging beats'), by id. */
+function coGmRoutes(state: SessionState): Set<string> {
+  return new Set(state.patches.flatMap(p => [...(p.transition ? [p.transition.transition.id] : []), ...(p.beat?.transitions.map(t => t.id) ?? [])]));
+}
+
+/** A co-GM route back to a beat the scene left before something was settled: it can't undo that. */
+const undoes = (state: SessionState, t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure].some(to => !!to && leftBehind(state, to));
+
+/**
+ * The routes to offer now: not one already achieved here, nor one that brings what the player has
+ * already come across, nor one of the co-GM's that would take the scene back past what's settled.
+ */
 export function openRoutes(transitions: Transition[], state: SessionState): Transition[] {
   const spent = spentHere(state);
-  return transitions.filter(t => !spent.has(t.id) && !(t.essential && state.landed?.includes(t.essential)));
+  const coGm = coGmRoutes(state);
+  return transitions.filter(t => !spent.has(t.id) && !(t.essential && state.landed?.includes(t.essential)) && !(coGm.has(t.id) && undoes(state, t)));
 }
 
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
@@ -299,6 +337,9 @@ function guardNote(scene: Scene, state: SessionState): string | undefined {
   if (!holders.length || !state.guard) return undefined;
   return `## How far people have opened up\nPeople give up what they're hiding the way they would at a good table: something that doesn't fit shows first; picked at, their guard goes up and something personal shows; kept at, what they're torn between comes out in their own words; only then does the thing itself come out, told, bargained over or refused, depending on how the player has treated them. A reply takes someone one step at most, and only when the player has given them a reason; proof, or leverage that really reaches them, can take them straight to the end. Nothing that's out goes back in.\n${holders.map(c => `- ${c.name}: ${GUARD_NOTE[state.guard?.[c.id]?.stage ?? "surface"]}`).join("\n")}`;
 }
+
+/** Does this reply close the scene? (Its directives say so, by their opening words.) */
+const closes = (directive: string[]) => directive.some(d => d.startsWith("This reply closes the scene") || d.startsWith("The scene is ending"));
 
 export function nowNote(scene: Scene, state: SessionState, directive: string[], options: { castNotes?: boolean; remind?: string } = {}): string {
   const beat = currentBeat(scene, state);
@@ -318,7 +359,9 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
     ...(guardNote(scene, state) ? [guardNote(scene, state)!] : []),
     // Co-GM notes steer the middle of a scene; a closing works from what happened, not stale steering.
-    ...(!state.closing && !state.pendingExit && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
+    // An ending held for the player's answer isn't a closing: the notes are for that answer (the
+    // Heron's note to stage Sallow initialling the page was kept from the GM while the barge was held).
+    ...(!state.closing && !closes(directive) && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(playerNow(state) ? [playerNow(state)!] : []),
     ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would.\n${strangers.join("\n")}`] : []),

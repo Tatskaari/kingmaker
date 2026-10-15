@@ -1,4 +1,4 @@
-import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
+import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, openRoutes, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, titleCase, type RollResult } from "./dice.ts";
 import { HAZARD_KINDS, rollFor, type SpellChoice, type WeaponChoice } from "../rules/dnd.ts";
@@ -73,6 +73,129 @@ const CONSIDER_CONFIDENCE = 0.7;
  * set where the controls (plain questions, making the case) still stay under it.
  */
 export const CONSIDER_CONFIDENCE_OPEN = 0.5;
+
+/**
+ * A pacing cue moves the scene on without the player's say, so it fires only on a clear read, as a
+ * route with a roll does. It had no bar: the Heron's Master came in at 0.57 against 0.43, one
+ * exchange after the player got inside. In the decision suite the cues that should fire read 0.87
+ * and 0.98 (and goblins losing patience at a roared threat 0.65, where the threat outranks it).
+ */
+export const CUE_CONFIDENCE = 0.6;
+
+/**
+ * A cue that counts exchanges ("at least five exchanges at this point") is checked against the
+ * engine's own count, the exchanges at this point (`turnsInBeat`, which an out-of-character turn
+ * doesn't add to). Before its count, only the rest of its condition can fire it ("or is lying low
+ * and waiting"), and only when that clearly holds.
+ */
+export const CUE_EARLY_CONFIDENCE = 0.8;
+
+const NUMBERS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const HOW_MANY = `\\d+|an?|a couple of|${NUMBERS.join("|")}`;
+/** How cues count exchanges: "at least five exchanges", "two exchanges have gone by", "has waited an exchange". */
+const COUNTED = [
+  new RegExp(`\\bat least (${HOW_MANY}) exchanges?\\b`, "i"),
+  new RegExp(`\\b(${HOW_MANY}) exchanges? (?:has|have) (?:gone by|passed)\\b`, "i"),
+  new RegExp(`\\bwaited (${HOW_MANY}) exchanges?\\b`, "i"),
+];
+
+/** The exchanges a cue's condition counts ("at least five exchanges"), if it counts them ("several" doesn't). */
+export function cueCount(t: Transition): number | undefined {
+  const n = COUNTED.map(re => re.exec(t.when)?.[1]?.toLowerCase()).find(Boolean);
+  if (!n) return undefined;
+  if (/^\d+$/.test(n)) return Number(n);
+  return n === "a" || n === "an" ? 1 : n === "a couple of" ? 2 : NUMBERS.indexOf(n) + 1;
+}
+
+/**
+ * The pacing cues, each that counts exchanges with the engine's count beside it: whether that much
+ * holds is the game's to say, and the decider judges the rest.
+ */
+function cueQuestion(cues: Transition[], exchanges: number): ChoiceQuestion {
+  const q = question("cue", cues);
+  const counted = (t: Transition) => {
+    const n = cueCount(t);
+    if (n === undefined) return t.when;
+    const so = exchanges >= n ? "so that much holds" : "so that part doesn't hold yet: choose this only if the rest of it clearly holds on its own";
+    return `${t.when} [The game's count: ${exchanges} exchange${exchanges === 1 ? "" : "s"} at this point so far, against the ${n} this asks for, ${so}.]`;
+  };
+  return { ...q, criteria: { ...Object.fromEntries(cues.map(t => [t.id, counted(t)])), not_yet: q.criteria.not_yet! } };
+}
+
+/**
+ * Something daft, reckless or cheeky that the world would answer (the consequences flag): what the
+ * player does or says, not what they ask for. A courteous ask, an honest offer, a case made or a plan
+ * is never billed, however bold. Brother Ambrose's polite look at the evidence (the granary's T18),
+ * eel for a look in Cob's boot (the Rat's T43) and a safe house for Hobb's mother (T57) were billed at
+ * 0.60 to 0.63 under the old wording, and read 0.02 to 0.38 under this one (pressing the King, 0.59);
+ * the absurd round's daft acts read 0.93 to 0.99 under it, but for a purse of buttons (0.56, and
+ * 0.44 before). Hence the bar: 0.7.
+ */
+export const DAFT_CONFIDENCE = 0.7;
+
+const DAFT_QUESTION: ChoiceQuestion = {
+  instructions: "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking someone or what they hold dear, an insult, taking, using or spoiling what's someone else's without asking, a scam, a bluff or a lie, or going back on their word? Judge what the player actually does or says, by how the people here would take it, not by whether it's funny. Earnest play isn't daft, however bold: asking for something (to see it, for help, for evidence), an honest offer (food, coin, a trade), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan (where someone could hide, what to do tonight), even one the others turn down.",
+  criteria: {
+    consequential: "Yes: something daft, reckless or cheeky that in this world would provoke a real reaction or carry a real risk.",
+    harmless: "It's playful, but nobody here would mind or be put at risk.",
+    none: "Nothing daft or reckless in it: ordinary talk and questions, or earnest play (an ask, an honest offer, a case made, a plan).",
+  },
+};
+
+const OOC_QUESTION: ChoiceQuestion = {
+  instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)? An action in *asterisks* or (parentheses) is in character: it's what their character does.",
+  criteria: { in_character: "In character: the player's character speaks or acts in the story.", out_of_character: "Out of character: a question or remark to the GM about the game or the situation." },
+};
+
+/**
+ * With an ending held for the player's answer: are they answering it (it waits once more), or
+ * letting it happen (it lands in this reply)? Asked only then, in the turn's one decision.
+ */
+function brinkQuestion(exit: Exit): ChoiceQuestion {
+  return {
+    instructions: `The scene is about to end like this: ${exit.title}. ${exit.outcome} In their latest turn, is the player answering that, or letting it happen?`,
+    criteria: {
+      lets_it_happen: "Letting it happen: they accept it or go along with it (agreeing, thanking someone, saying goodbye, leaving), or do something that doesn't bear on it.",
+      answers: "Answering it: they engage with it some other way: a question or a request to someone here, an objection, a challenge or calling someone out (even just their name, said to them), something new offered or shown, or a try to change it.",
+    },
+  };
+}
+
+/**
+ * After the reply, whether an ending found now would leave something hanging: a question or a request
+ * the reply hasn't answered. Asked every turn, in the call the turn makes anyway.
+ */
+const ASK_QUESTION: ChoiceQuestion = {
+  instructions: "Did the player's latest turn ask someone in the scene a question, or ask them for something, that the latest GM reply leaves unanswered (neither answered, granted nor refused)?",
+  criteria: {
+    unanswered: "Yes: they asked someone here something, or asked them for something, and the reply hasn't answered, granted or refused it.",
+    none: "No: they asked nothing of anyone here, or the reply answered, granted or refused it.",
+  },
+};
+
+/** After the reply, whether the scene is ending by the player's own choice (one wind-down turn), or through others (it waits for their answer). */
+const OWN_EXIT_QUESTION: ChoiceQuestion = {
+  instructions: "Is the player, in their latest turn, choosing to end the scene themselves: leaving or setting off, handing someone or something over, settling it their own way, or saying they're done here? Not if the scene is ending through what someone else decided or did, or how things now stand.",
+  criteria: {
+    theirs: "Yes: the player's own choice in their latest turn ends it.",
+    no: "No: if it's ending, that's other people's doing or how things stand, not the player's choice.",
+  },
+};
+
+/** Is the player's turn out of character? On its own, for a wind-down turn, which asks nothing else. */
+export async function outOfCharacter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string): Promise<{ ooc: boolean; decision: Decision }> {
+  const decision = await decider.decide(decisionState(scene, state, playerTurn), { ooc: OOC_QUESTION }, "director.ooc");
+  return { ooc: decision.answers.ooc?.choice === "out_of_character", decision };
+}
+
+/** The cue the decider chose, if its read clears the bar: a clear read, and a clearer one before its count. */
+function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
+  const cue = cues.find(t => t.id === read?.choice);
+  if (!cue) return undefined;
+  const count = cueCount(cue);
+  const bar = count !== undefined && exchanges < count ? CUE_EARLY_CONFIDENCE : CUE_CONFIDENCE;
+  return (read!.probabilities?.[cue.id] ?? 1) >= bar ? cue : undefined;
+}
 
 /**
  * A check is rolled for the act it tests, so the attempt is judged against that act: getting to
@@ -229,6 +352,8 @@ export interface PreDecision {
   considered?: { probability: number; routes: Array<{ id: string; p: number }>; means?: Skill; earned?: number };
   /** The route the player chose, not rolled again: the same push that already failed in this scene, with nothing new. */
   sameAgain?: Transition;
+  /** An ending is held for the player's answer (`brink`), and they're answering it: asking, objecting, challenging, offering or acting. */
+  answering?: boolean;
 }
 
 /** What the player is doing that the D&D rules resolve, and with what. */
@@ -483,7 +608,7 @@ function rulingOf(m: Mechanic): string {
  * rules resolve? `forced`: what the rules resolve this turn, chosen already (the map's action menu),
  * in place of asking.
  */
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; considered?: boolean; rules?: RulesOptions; forced?: Mechanic }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; considered?: boolean; rules?: RulesOptions; forced?: Mechanic; brink?: Exit }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -512,7 +637,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
     };
   }
-  if (cues.length) questions.cue = question("cue", cues);
+  if (cues.length) questions.cue = cueQuestion(cues, state.turnsInBeat);
   // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
   if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
   // The same push that already failed here, again: asked only once something has failed.
@@ -556,10 +681,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     criteria: { earned: "Yes: they've just done what it takes; it should land now.", not_yet: "No: they're still working on it, asking, or haven't done what it takes." },
   };
   if (options.consequences) {
-    questions.daft = {
-      instructions: "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking or making free with what someone holds dear, a scam or a bluff, an insult, a broken promise or a deal walked away from? Judge by how the people here would take it, not by whether it's funny.",
-      criteria: { consequential: "Yes: in this world it would provoke a real reaction or carry a real risk.", harmless: "It's playful, but nobody here would mind or be put at risk.", none: "Nothing daft or reckless in it." },
-    };
+    questions.daft = DAFT_QUESTION;
   }
   if (options.rules && !options.forced) {
     questions.mechanic = {
@@ -578,10 +700,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       },
     };
   }
-  questions.ooc = {
-    instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)? An action in *asterisks* or (parentheses) is in character: it's what their character does.",
-    criteria: { in_character: "In character: the player's character speaks or acts in the story.", out_of_character: "Out of character: a question or remark to the GM about the game or the situation." },
-  };
+  questions.ooc = OOC_QUESTION;
+  // An ending held for the player's answer: are they answering it, or letting it happen?
+  if (options.brink) questions.brink = brinkQuestion(options.brink);
   if (scene.limits?.length) {
     questions.limit = {
       // (Considered rolls: a forged warrant is a lie to be judged, not the real warrant the scene can't
@@ -624,15 +745,16 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
   // A pacing cue never interrupts a payoff the player has just earned: the world can wait a reply.
+  // Nor does one fire on a word out of character: that isn't time passing in the scene.
   const earnedNow = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const cue = attempt || earnedNow ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
+  const ooc = decision.answers.ooc?.choice === "out_of_character";
+  const cue = attempt || earnedNow || ooc ? undefined : firedCue(cues, decision.answers.cue, state.turnsInBeat);
   // Something the player simply does that settles the scene (setting off, handing it over) is
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
   const means = decision.answers.attempt_means?.choice;
   const sureMeans = means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
-  const ooc = decision.answers.ooc?.choice === "out_of_character";
   // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
   const limitChoice = decision.answers.limit?.choice;
   const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
@@ -690,7 +812,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
-  const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= DAFT_CONFIDENCE;
   const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;
@@ -755,6 +877,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
     ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
     ...(considered ? { considered } : {}), ...(sameAgain ? { sameAgain } : {}),
+    ...(decision.answers.brink?.choice === "answers" ? { answering: true } : {}),
   };
 }
 
@@ -933,7 +1056,7 @@ export function relocateDirective(scene: Scene, item: { essential: string; carri
 export const STALL_DIRECTIVE = "The player is trying something the scene's prep didn't plan for. Give a short, natural first beat that takes it seriously and buys a moment: show it being considered or set in motion (a reaction, a pause, a first step, a telling detail). Don't resolve it yet and don't refuse it. One to three sentences, ending mid-moment.";
 export const FOLLOW_UP_DIRECTIVE = "Carry straight on from your short beat just now, without repeating it: now resolve what the player is attempting.";
 
-export const OOC_DIRECTIVE = "The player has stepped out of character to ask you something. Answer truthfully, out of character, in at most two sentences, using the table rules in your prep and only what their character could perceive or reasonably guess. You don't decide the game's structure (scene order, when dice are rolled, the rules), so never agree to change it: if the game can't do something, say so plainly and offer the in-fiction way. Keep your prep behind the screen (the scene's aims, secrets and endings). Then hand the moment back to the scene; if their turn also had an in-character part, answer that in the fiction.";
+export const OOC_DIRECTIVE = "The player has stepped out of character to ask you something. Answer truthfully, out of character, in at most two sentences, using the table rules in your prep and only what their character could perceive or reasonably guess. If they're stuck or ask what they can do, name two or three concrete things in front of them (who is here and what they've shown they want or fear, where things and people are, something to look at or try), not the answers, and never tell them to drop what they're after: say what might get it. You don't decide the game's structure (scene order, when dice are rolled, the rules), so never agree to change it: if the game can't do something, say so plainly and offer the in-fiction way. Keep your prep behind the screen (the scene's aims, secrets and endings). Then hand the moment back to the scene; if their turn also had an in-character part, answer that in the fiction.";
 
 /** "No, but": the world answers honestly and keeps the player's underlying idea alive. */
 export function limitDirective(limit: string): string {
@@ -965,7 +1088,7 @@ export type ThreatRead = { kind: "attack"; by: string } | { kind: "hazard"; haza
 /** The player has left the scene's place altogether (asked after each reply in rules sessions). */
 export const LEFT_CONFIDENCE = 0.7;
 
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean; rules?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage>; threat?: ThreatRead; left?: boolean }> {
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean; rules?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage>; threat?: ThreatRead; left?: boolean; unanswered?: boolean; theirs?: boolean }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
@@ -1040,6 +1163,10 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     const q = question("outcome", outcomes);
     questions.outcome = { ...q, criteria: { ...Object.fromEntries(outcomes.map(t => [t.id, effect(t)])), none: q.criteria.none! } };
   }
+  // Whether an ending found now waits for the player's answer: something they asked is still hanging,
+  // or it isn't their own doing.
+  questions.ask = ASK_QUESTION;
+  questions.own_exit = OWN_EXIT_QUESTION;
   const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), questions, "director.after");
   const probabilities = decision.answers.outcome?.probabilities ?? {};
   let picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);
@@ -1078,7 +1205,13 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     if (kind === "hazard" && what) threat = { kind: "hazard", hazard: what, severity: decision.answers.threat_severity?.choice === "serious" ? "serious" : "glancing" };
   }
   const left = decision.answers.left?.choice === "gone" && (decision.answers.left?.probabilities?.gone ?? 1) >= LEFT_CONFIDENCE;
-  return { ...(left ? { left } : {}), ...(threat ? { threat } : {}), ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}) };
+  // (Unsure reads wait: a question left hanging on an even read, and only a clear read is the player's own exit.)
+  const unanswered = decision.answers.ask?.choice === "unanswered";
+  const theirs = decision.answers.own_exit?.choice === "theirs" && (decision.answers.own_exit?.probabilities?.theirs ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  return {
+    ...(left ? { left } : {}), ...(threat ? { threat } : {}), ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}),
+    ...(unanswered ? { unanswered } : {}), ...(theirs ? { theirs } : {}),
+  };
 }
 
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */
@@ -1097,7 +1230,7 @@ export async function decideNextSpeaker(decider: Decider, scene: Scene, state: S
   const cast = presentCast(scene, state);
   const decision = await decider.decide({ ...decisionState(scene, state, playerTurn), already_responded_this_turn: spoken }, {
     next: {
-      instructions: "In a tabletop roleplaying scene, the player took a turn and some characters have already responded (already_responded_this_turn, see the end of recent_transcript). Should anyone else react before the player acts again? Usually the answer is player: hand back to the player unless someone present would clearly jump in, or the GM needs to narrate a consequence.",
+      instructions: "In a tabletop roleplaying scene, the player took a turn and some characters have already responded (already_responded_this_turn, see the end of recent_transcript). Should anyone else react before the player acts again? Usually the answer is player: hand back to the player unless someone present would clearly jump in, or the GM needs to narrate a consequence. If someone has just put a question to the player's character, it's always player: nobody answers it for them.",
       criteria: {
         player: "Hand back to the player now.",
         ...Object.fromEntries(cast.map(c => [c.id, `${c.name} reacts or replies before the player acts.`])),
@@ -1107,6 +1240,13 @@ export async function decideNextSpeaker(decider: Decider, scene: Scene, state: S
   }, "director.next");
   return decision.answers.next!.choice;
 }
+
+/**
+ * A reply that closes the scene answers the player's turn first: what they ask someone here is
+ * answered, and a challenge to someone in the room lands (Brother Ambrose's "Sallow." to the man in
+ * the doorway got a polite nod and the procession).
+ */
+export const LAST_WORD = "Answer the player's turn first: if they ask someone here something, or challenge or call someone out, that person hears it and answers in their own way and character (a reaction, a retort, a slip), so it lands, though the ending stands.";
 
 /** How the GM is told about a move. */
 export function moveDirective(scene: Scene, state: SessionState, move: Move): string[] {
@@ -1118,7 +1258,7 @@ export function moveDirective(scene: Scene, state: SessionState, move: Move): st
   if (move.exit && !move.chosen) {
     lines.push(`Things are escalating towards this: ${move.exit.outcome} Don't let it happen yet. In this reply, escalate (a warning, a last demand, a countdown, a weapon raised) and stop with the moment hanging: the next move is the player's.`);
   } else if (move.exit) {
-    lines.push(`This reply closes the scene: ${move.exit.outcome} Land it on a moment that belongs to the player. What this ending should feel like: ${move.exit.closing} Don't narrate beyond the ending into what comes next.${move.exit.kind === "combat" ? " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold." : ""}`);
+    lines.push(`This reply closes the scene: ${move.exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${move.exit.closing} Don't narrate beyond the ending into what comes next.${move.exit.kind === "combat" ? " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold." : ""}`);
   } else if (move.to !== state.beat) {
     const beat = scene.beats.find(b => b.id === move.to)!;
     lines.push(`The scene has moved on to "${beat.title}": ${beat.direction} Play the start of this in your reply, growing out of what the player just did, and let the rest unfold over the next exchanges.`);

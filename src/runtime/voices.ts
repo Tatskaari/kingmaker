@@ -135,7 +135,7 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   const memory = docs ? memoryBrief(scene, state, "live") : undefined;
   const input: Message[] = [
     // The prep, then what the player knows of it (what a mark's note may explain): both stable through a scene.
-    { role: "developer", content: `${sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, lastHandoffOnly: docs, docs })}\n\n${knowledgeBrief(state)}` },
+    { role: "developer", content: `${sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, docs })}\n\n${knowledgeBrief(state)}` },
     ...(lore ? [{ role: "developer" as const, content: lore }] : []),
     ...gmHistory(scene, state),
     // Volatile memory goes after the conversation so the cached prefix survives a newly opened note;

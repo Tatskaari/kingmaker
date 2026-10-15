@@ -29,7 +29,7 @@ The 5-second budget applies to the reply that resolves the player's turn. Everyt
 These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a playtest showed it was needed.
 
 - **The player's ideas are the best material.** Look for the version of an unexpected idea that works in this world, and let the world respond honestly.
-- **People are people.** They have their own wants, fears and secrets, and only know what they could know. A hand-off from earlier scenes is the GM's knowledge, not everyone's.
+- **People are people.** They have their own wants, fears and secrets, and only know what they could know: what they've seen, been there for or been told in their hearing. The story so far (every scene's hand-off, in the GM's prep) is the GM's knowledge, not everyone's: nobody asks about or guesses at what they haven't heard of. *(Brother Ambrose's King asked after a barge nobody had told him of.)*
 - **Prep is a spine, not a script.** Let the player wander, then let the world pull the threads back together through a character's need or a consequence.
 - **The world has edges.** Things that would change what's possible aren't there unless the prep says so. Say "no, but" in the fiction, and show what is possible instead.
 - **Tie improvisation to what's in play.** A detail that opens a new mystery promises a story nobody has prepared.
@@ -37,7 +37,7 @@ These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a pla
 - **Reveals land in steps.** A secret shows first as something that doesn't fit. It comes out when the player has given a reason, one new thing per reply. Once the player has done the work, it lands. Something the scene needs is never withheld for long.
 - **People move on.** Nobody repeats the same plea every reply.
 - **Keep it moving.** Short, vivid replies that end on something the player can respond to.
-- **The player character is theirs.** Never decide what they say, do, think or feel.
+- **The player character is theirs.** Never decide what they say, do, think or feel. A question put to them is theirs to answer: nobody answers it for them or over them, a companion included, and a companion speaks to what they saw themselves when called on. *(Brother Ambrose's Kell answered the King's question for him, with what she hadn't seen.)*
 - **Reading the player.** Plain words are their character talking; *asterisks* or (parentheses) are what they do; a turn that narrates ("I open the door") is read by sense. The decider's attempt, rules and out-of-character questions read turns the same way.
 - **Stay at the threshold.** A scene ends at the edge of the next place, and the next scene picks up from there.
 - **Fights are the player's call,** or a danger they saw coming and chose to meet.
@@ -50,6 +50,7 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 - **The world plays it straight, and that's where the comedy comes from.**
 - **People deal with daft ideas on their own terms.** They believe them, dispute them, cite their own rules against them, take offence or see an opportunity. They never step outside the story to grade the joke.
 - **Every daft act sends a bill.** The decider flags a consequential daft act, and the GM is told to follow it through to a consequence, good or bad, now or plainly coming.
+- **Asking isn't daft.** An earnest ask, an honest offer, a case made or a plan is never billed, however bold: Brother Ambrose's polite look at the evidence in Cob's boot, eel for a look in it, and a safe house for Hobb's mother were each told "this one isn't free". The flag wants a clear read (0.7), and where the dice decided the act, their outcome is the bill.
 - **The stakes stay real.** A threat stays a threat however funny the player is being.
 
 ## Dice: rolls belong to edges, and say why
@@ -86,8 +87,9 @@ This is narrative repair; see [experiments/deviation-repair.md](../experiments/d
   NPC initiative and rejoining remain the weakest.
 - **Endings.**
   - An ending the player chooses closes in that reply.
-  - One they didn't choose is held for one last response.
-  - One that happens in the fiction gets a wind-down.
+  - One they didn't choose is held for their answer: a question, a challenge or a try holds it once more.
+  - One that happens in the fiction waits for their answer too, unless it was their own doing and nothing is left hanging: then it gets a wind-down, whose reply answers their last turn first (a challenge to someone in the room lands). In Brother Ambrose's game, Kell signed Prout in as persons unknown while he asked Cob what he saw, and the King put it off as Sallow walked in; the turns that followed were spent closing.
+  - A word out of character never closes anything: it's answered, and the turn is given back.
   - "An ending of their own" catches resolutions the prep didn't foresee, and inherits the next scene when every authored exit agrees on one.
 
 ## Pacing a reveal

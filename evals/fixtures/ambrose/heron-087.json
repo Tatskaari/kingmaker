@@ -1,0 +1,613 @@
+{
+ "id": "fixture",
+ "approach": "v2",
+ "seed": 47719434,
+ "rollCount": 5,
+ "player": {
+  "name": "Brother Ambrose Hake",
+  "concept": "A disgraced former temple bookkeeper. Heavy drinker, and has a nose for trouble. Smelt one too many things he shouldn't have, and was let go on the pretense of being a drunk (which he absolutely was)",
+  "modifiers": {
+   "persuasion": 0,
+   "deception": 0,
+   "intimidation": 0,
+   "insight": 6,
+   "performance": 0,
+   "perception": 4,
+   "investigation": 7,
+   "sleight_of_hand": 4,
+   "stealth": 4,
+   "athletics": -1,
+   "acrobatics": 2,
+   "animal_handling": 2,
+   "arcana": 3,
+   "history": 3,
+   "nature": 3,
+   "religion": 5,
+   "medicine": 2,
+   "survival": 2
+  },
+  "build": "human rogue 3 (Thief), acolyte background"
+ },
+ "turn": 87,
+ "transcript": [
+  {
+   "turn": 66,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The wharf falls quiet behind Hobb\u2019s retreating lantern. Ahead, the Heron\u2019s hoist swings sacks down into the broad barge; grain dust drifts through the light leaking between the boards. Saul pushes himself up from his brazier to begin his round, while Duchess snores across the land-door threshold. The river door lies along the slick plank walk, its grille dark.\n\nKell stands at your side, watching the old watchman. \u201cI\u2019ll stay where I can see who comes and goes,\u201d she says. \u201cUnless you want a witness inside.\u201d In your palm, Hobb\u2019s brass token is cold and greasy. The midnight bell is close."
+  },
+  {
+   "turn": 67,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "No you stand watch. I'll head inside (walks up to Saul)"
+  },
+  {
+   "turn": 67,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Kell stops where she is, taking up a position with a clear view of the land door. \u201cI\u2019ll stand watch, investigator,\u201d she says. Her pencil rests against the closed notebook.\n\nSaul turns at your approach, lifting his lantern. Duchess remains asleep across the threshold, one heavy paw twitching in a dream. \u201cWho goes there?\u201d he calls. \u201cSpeak up, and all\u2019s well.\u201d His right ear angles toward you. \u201cYou\u2019re the King\u2019s investigator, then?\u201d"
+  },
+  {
+   "turn": 68,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I suppose that describes me fairly well. Who might you be?"
+  },
+  {
+   "turn": 68,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "\u201cSaul Tench,\u201d he says, raising his lantern a little. \u201cWatchman here, and all\u2019s well.\u201d His gaze flicks to Kell, standing watch down the wharf, then back to you. Duchess snores between you and the wicket.\n\n\u201cOn a loading night, the land door\u2019s for the Master,\u201d Saul adds, louder than the dark requires. \u201cThe gang use the river grille and a brass token. Orders are orders, and all\u2019s well.\u201d He watches to see what you\u2019ll do."
+  },
+  {
+   "turn": 69,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "who's this Master you keep referring to?"
+  },
+  {
+   "turn": 69,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Saul shifts his lantern from your face to the brass token in your hand. \u201cMaster Sallow,\u201d he says, then turns his right ear toward you. \u201cPalace gentleman. Silver-topped cane. Lavender enough to announce him before his lantern-boy does.\u201d His mouth tightens briefly. \u201cHe comes at midnight. I hold the wicket, Duchess keeps off his ankles, and all\u2019s well.\u201d\n\nDuchess gives a damp snort without waking. Saul looks down at her, then back to you. \u201cThat\u2019s the Master. The land door\u2019s still for him.\u201d"
+  },
+  {
+   "turn": 70,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Who are the poeople inside?"
+  },
+  {
+   "turn": 70,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "\u201cInside?\u201d Saul shifts his lantern toward the warehouse. \u201cHep and her porters on the sacks; Hobb on the hoist; Mister Scrope up in his glass box with the book. All working, and all\u2019s well.\u201d He rubs his hands over the brazier. \u201cThe gang come through the river grille with a token. Land door\u2019s for the Master.\u201d"
+  },
+  {
+   "turn": 71,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Land door?"
+  },
+  {
+   "turn": 71,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "\u201cThe land door,\u201d Saul repeats, turning his right ear toward you. \u201cThis one. For the Master, at midnight. The gang use the river door.\u201d He taps the wicket with his lantern handle; the door stays barred.\n\nDuchess snores across the threshold. Behind you, Kell keeps watch without moving. The brass token rests in your hand; the river entrance is along the plank walk, beyond the warehouse\u2019s shadow. Saul waits by the brazier, watching you."
+  },
+  {
+   "turn": 72,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Well I was told to meet the master here. He gave me this token."
+  },
+  {
+   "turn": 72,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Saul eyes the token, then your face. \u201cThe Master gave you the token?\u201d He repeats it loudly, turning his right ear toward you. \u201cA buyer, then?\u201d His gaze flicks toward Kell, still watching the door.\n\nDuchess wakes, lifts her heavy head, and sniffs at your hand. The brass smells of Hobb and the warehouse; she gives a low, uncertain rumble. Saul\u2019s fingers tighten around his lantern handle. \u201cThat token\u2019s for the river grille. The land door is still the Master\u2019s.\u201d"
+  },
+  {
+   "turn": 73,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Aight well where do I have to go?"
+  },
+  {
+   "turn": 73,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Saul points down the wharf, toward the dark strip of planks running beside the warehouse over the water. \u201cRiver door. Along the plank walk, down at the waterline. Show the brass token at the grille and someone inside draws the bolt.\u201d\n\nDuchess sniffs your hand once more, then settles her head on her paws, still awake. Saul keeps his lantern trained on you. \u201cThat\u2019s where the gang goes in. Not the land door. And all\u2019s well.\u201d"
+  },
+  {
+   "turn": 74,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I follow his directions along the plank walk)"
+  },
+  {
+   "turn": 74,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The plank walk clings to the warehouse piles above the fast black river. It\u2019s slick underfoot, and the hoist swings overhead as sacks descend toward the Patience. Through gaps in the tarred boards, lanternlight catches the gang at work: wheat-ear sacks split open, grain poured into heron-marked ones.\n\nAt the waterline, the river door\u2019s grille is shut. As you approach, movement stirs inside; someone comes near the other side. The brass token is ready in your hand. A voice calls through the grille: \u201cHobb? You\u2019re late.\u201d"
+  },
+  {
+   "turn": 75,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "*I walk up to the man"
+  },
+  {
+   "turn": 75,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The figure on the far side of the grille is a porter in grain-white, broad-shouldered and flour-dusted. His eyes drop to the token in your hand; he doesn\u2019t reach for the bolt.\n\n\u201cNot Hobb,\u201d he says. \u201cWho are you, then?\u201d Beyond him, the hoist creaks, and a sack swings over the dark water."
+  },
+  {
+   "turn": 76,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Was sent here. Told there's some mechendise I might be interested in. Was given this (presents the coin thing Hobb gave me)"
+  },
+  {
+   "turn": 76,
+   "scene": "heron-warehouse",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check to talk your way into the Heron: 2 + 0 = 2 vs DC 13: failure"
+  },
+  {
+   "turn": 76,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The porter studies the token, then your face. \u201cThat\u2019s Hobb\u2019s,\u201d he says. He keeps his hand off the bolt. \u201cAnd you said the Master gave it to you.\u201d\n\nThe grille stays shut. Inside, he turns his head toward the floor and calls, \u201cHep! Someone\u2019s at the door with Hobb\u2019s token, says he\u2019s come for the Master.\u201d\n\nHobb pauses on the hoist. Across the gap, the porter keeps his eyes on you now, wary and watchful. The token has got you recognized\u2014not admitted."
+  },
+  {
+   "turn": 77,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Well Hobb gave it to me. Technically didn't get it directly from the master. Said it would get me into the heron."
+  },
+  {
+   "turn": 77,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The porter\u2019s suspicion eases a fraction. \u201cHobb gave it to you?\u201d He glances past you toward the hoist. Hobb is watching from the ropes, his wrapped hand held close. For a moment he meets your eye, then looks away.\n\nFrom inside, Hep Grist\u2019s winch-voice cuts through the creak of the hoist. \u201cIf he\u2019s come to talk, he can do it while he works. We\u2019re short a pair of hands.\u201d The porter unbolts the grille just enough to look you over. \u201cYou carrying anything heavier than a token?\u201d"
+  },
+  {
+   "turn": 78,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Sure I suppose I can lend you a hand. Will give me a good oportunity to peruse."
+  },
+  {
+   "turn": 78,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The porter gives a short nod and pulls the grille wide enough for you to pass. \u201cThen take a sack. Mind your feet.\u201d\n\nYou step onto the warehouse floor. Grain dust hangs in the lanternlight; the gang are slitting wheat-ear sacks and pouring their contents into heron-marked ones. Hep Grist looks you over once. \u201cThere. Hands, not talk. Take that to the chute.\u201d\n\nHobb watches from beside the hoist, his wrapped hand tucked close. He says nothing, but his eyes linger on the token. Hep points to a full sack waiting by the stacks. \u201cLift.\u201d"
+  },
+  {
+   "turn": 79,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I do as I'm told and make no immediate move to talk to hobb. Once they stop watching to eagerly I casually move closer and wait for him to give me the scoop)"
+  },
+  {
+   "turn": 79,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "You shoulder the sack to the chute. Grain rasps inside it; around you the gang keep their heads down and their hands moving. When you drift closer to Hobb, he goes rigid at the hoist, eyes fixed on the rope.\n\nThen lavender reaches the floor ahead of its owner.\n\nThe land door opens. Master Sallow enters with a lantern-boy and the two Crakes. Saul holds the wicket; Duchess rises with a growl. Hep\u2019s gang work faster, quieter. Up in the counting-box, Scrope stands, one hand still on the open green ledger.\n\nSallow\u2019s gaze sweeps the floor and settles on the sacks. \u201cForewoman. The count, if you please.\u201d"
+  },
+  {
+   "turn": 80,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I look around the room to assess the chain of command. Who here is pressganged, who's hired muscle, and who's loyal to the gang)"
+  },
+  {
+   "turn": 80,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "From the plank walk, you take in the room through the open river door. The six in grain-white work under Hep\u2019s eye, moving quickly and speaking little. Hobb is by the hoist, his bandaged hand held close; he looks frightened, not like a man eager for a fight.\n\nSallow\u2019s two Crakes are hired muscle: one talks, the other doesn\u2019t. Both are moving off from Sallow toward the floor. Above them, Scrope stands over the open green ledger, one hand planted on it.\n\n\u201cForty received,\u201d Scrope murmurs to Sallow. \u201cForty entered against the Granary Roll numbers. Your initials are on the prior pages, sir.\u201d\n\nSallow\u2019s lavender-scented attention turns toward the counting-box."
+  },
+  {
+   "turn": 81,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I keep a low profile but an open ear)"
+  },
+  {
+   "turn": 81,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "From the plank walk, you keep your head down and listen over the creak of the hoist.\n\n\u201cForty received, forty entered,\u201d Scrope murmurs. \u201cAgainst the Granary Roll numbers, as recorded. The prior pages bear your initials, sir.\u201d\n\nSallow\u2019s cane taps once on the floor. \u201cAnd tonight\u2019s count?\u201d\n\n\u201cNot yet complete, sir.\u201d\n\nHep calls out a number, and the gang answer with the rasp of sacks and needles. Hobb stays by the hoist, his wrapped hand held close, eyes lowered. Sallow turns toward Scrope\u2019s glass-sided box. \u201cThen we shall not pretend the count is complete.\u201d The green ledger remains open beneath Scrope\u2019s hand."
+  },
+  {
+   "turn": 82,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I try and ask Hobb what's going on)"
+  },
+  {
+   "turn": 82,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Hobb glances toward Sallow, then back to the hoist rope. His voice comes low, almost lost beneath the work.\n\n\u201cMaster\u2019s checking the count. Same as every loading night, sir.\u201d His bandaged hand tightens around the rope. \u201cI can\u2019t talk now.\u201d\n\nThe Crakes are moving through the floor, and Sallow stands below the counting-box while Scrope guards the open ledger. Hobb keeps his eyes down. \u201cNot with him here.\u201d"
+  },
+  {
+   "turn": 83,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I try and work my way around to get a view of the ledger discreetly)"
+  },
+  {
+   "turn": 83,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "You edge along the plank walk, keeping to the river door\u2019s shadow. Through the grille, the floor is busy enough that your movement draws no immediate call\u2014though the Crakes have spread out, and one stands between you and the counting-box stairs.\n\nScrope\u2019s voice carries from above the sacks. \u201cThe count is forty received, forty entered against the Granary Roll numbers. The prior pages bear your initials, sir.\u201d Sallow turns his face toward the clerk. The ledger lies open beneath Scrope\u2019s hand; from here, you can see the green cover and the brass clasp, but not the writing."
+  },
+  {
+   "turn": 84,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "(I get a bit closer to have a closer look)"
+  },
+  {
+   "turn": 84,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "You ease closer to the grille. Inside, Scrope adjusts the open ledger under his hand, careful not to smudge the page. \u201cFor completeness, sir,\u201d he murmurs, \u201cthe entries identify each wagon by its Granary Roll number. The matching receipts are here; the sale and your share follow. Your initials are against every page.\u201d\n\nSallow\u2019s expression goes still. \u201cThe count, Clerk.\u201d\n\n\u201cOf course, sir.\u201d Scrope\u2019s hand remains on the book. The Crake nearest the river door turns his head toward you."
+  },
+  {
+   "turn": 85,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Oh uh hi there. Business doing good?"
+  },
+  {
+   "turn": 85,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The Crake gives you a flat look. \u201cBusiness is excellent,\u201d he says. \u201cForty sacks, forty entries. The work\u2019s keeping us from discussing it.\u201d\n\nFrom the counting-box, Scrope\u2019s pen pauses. Sallow turns at the exchange, lavender trailing him even here. \u201cWho is this, exactly?\u201d he asks, mild as a man querying an invoice. The Crake stays between you and the stairs. The river door remains open behind you; Hobb grips the hoist rope a few feet away, silent."
+  },
+  {
+   "turn": 86,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Just an extra pair of hands to help out."
+  },
+  {
+   "turn": 86,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Sallow looks you over as if checking a line on a form. \u201cAn extra pair of hands,\u201d he says. \u201cI was under the impression the hands were already accounted for.\u201d\n\nThe talking Crake shifts to block the open river door more fully. Sallow\u2019s eyes move to the token in your hand, then to Hobb at the hoist. Hobb goes very still.\n\n\u201cPorter,\u201d Sallow says, calm and courteous. \u201cWho admitted this man?\u201d His gaze settles on Hep across the floor. \u201cAnd why is he not working?\u201d"
+  },
+  {
+   "turn": 87,
+   "scene": "heron-warehouse",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Do you know how heavy these sacks are? I've been loading them all night."
+  },
+  {
+   "turn": 87,
+   "scene": "heron-warehouse",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Sallow\u2019s eyes narrow slightly. \u201cI should hope so, Porter. They are not intended to be carried for their own amusement.\u201d\n\nHep answers before the Crake can. \u201cI put him to work, Master. We\u2019re short-handed, and he\u2019s carried a sack to the chute.\u201d She snaps her fingers toward the stacks. \u201cThen keep carrying. We have a count to finish.\u201d\n\nSallow\u2019s gaze stays on you a moment longer, measuring the answer against the token and Hobb\u2019s silence. \u201cVery well. Forewoman, the count.\u201d The Crake remains by the river door, blocking the way to the stairs."
+  }
+ ],
+ "metrics": [],
+ "history": [
+  {
+   "sceneId": "hanged-clerk",
+   "exitId": "open-case",
+   "summary": "Previous scene, \"The Hanged Clerk\", ended: Murder by persons unknown (hanged-clerk: open-case).\nBrother Ambrose Hake leaves the yard with Prout\u2019s death recorded as murder by persons unknown. The case is open, and Prout is being taken to the watch-house cold room, not the suicides\u2019 pit. No one has been identified as responsible.\n\n- **Ambrose:** In the yard with Kell, Cob, Moll, and Tull as the scene ends. He has learned that Prout had a thin mark distinct from the hoist burn, swelling at the back of his head, and clean palms. The cause and sequence of those injuries remain uncertain.\n- **Cob:** Near Moll and the open board, wary but somewhat reassured after Kell agreed to protect the children from being taken to the Mending House. He said he heard two men with a lantern arguing with Prout a little after midnight. One wanted \u201cthe page\u201d; then came a thump, a choking noise, and the hoist creaking. He hid until morning. His left boot crackles; he refused Ambrose\u2019s request to inspect it.\n- **Moll:** With Cob. She said she was across the lane in the cart shed and was not present when Prout died. She is guarded and protective of Cob.\n- **Kell:** Beside the body when she ordered it taken to the cold room. She has recorded the death as murder by persons unknown and is willing to stand behind that decision, but has named no culprit.\n- **Tull:** At the yard with the Captain\u2019s order, which directed the death to be closed as self-murder at the request of Master J. Sallow of the Royal Purveyor\u2019s office. He held the cart when Kell ordered it and sent the constables to take Prout to the cold room.\n- **Promise:** Ambrose still owes Cob a hot dinner. Cob agreed to crawl inside for that dinner; the body was ultimately brought down by Ambrose shooting through the hoist rope.\n- **Unresolved:** The two men, the \u201cpage,\u201d the boot\u2019s crackle, and Master Sallow\u2019s role have not been explained.",
+   "lastMoments": [
+    "Brother Ambrose Hake (player): Kell, I'm worried. Can you protect these kids until we get to the bottom of this?",
+    "Kell\u2019s gaze settles on Cob, still crouched behind Moll. \u201cYes. I can keep the watch from taking either of you to the Mending House. I can\u2019t promise what a gentleman may try.\u201d\n\nMoll\u2019s face stays guarded, but her fist loosens slightly. Kell turns to Tull. \u201cHold the cart. I\u2019m taking Prout in as a murder by persons unknown. The boy has given an account that needs recording.\u201d\n\nTull puts his helmet back on. \u201cYes, Sarge.\u201d He signals the constables to wait. Kell opens her notebook and looks to you. \u201cI can stand behind that, investigator. I can\u2019t write a name yet.\u201d",
+    "Brother Ambrose Hake (player): Cob, you'll be safe. Can you tell me exactly what you heard and saw?",
+    "Cob\u2019s shoulders ease a fraction. \u201cTwo men. A little after midnight. Lantern. Mister Prout argued with them. One wanted \u2018the page.\u2019 Then a thump, and a choking noise. The hoist creaked after. No sacks on it.\u201d He looks down at his boots. \u201cCob hid till morning.\u201d\n\nKell writes one line and underlines it. \u201cProut\u2019s death: murder by persons unknown.\u201d Tull signals the constables; they bring the cart for the body, under a sheet, to the watch-house cold room\u2014not the pit. Kell closes her notebook. \u201cAn open case beats a wrong one, investigator.\u201d"
+   ],
+   "fronts": [
+    "ticked: The Purveyor's man: If Prout goes into the Captain's book as a murder",
+    "struck: The Captain's book: Noon on the eve (Kell signed Prout in as a murder, so he avoids the pit.)",
+    "ticked: The Captain's book: If a sergeant signs Prout in as a murder",
+    "ticked: Dear bread: The noon and evening bells on the eve",
+    "ticked: The Assembly week: The eve, afternoon",
+    "ticked: The river tonight: Dusk on the eve"
+   ]
+  },
+  {
+   "sceneId": "drowned-rat",
+   "exitId": "gone-to-work",
+   "summary": "Previous scene, \"The Drowned Rat\", ended: Hobb goes to work (drowned-rat: gone-to-work).\nAmbrose is at the top of the wet river stairs with Hobb\u2019s brass Heron token in hand. Hobb has gone toward the Heron without it; he knows Ambrose has it and fears the Master will notice. Kell has not arrested him. The Rat\u2019s game is unfinished, and the message Kell could send to the Marshal remains unwritten.\n\n- Hobb admitted he held Prout in the loft and held the rope. He says he was coerced; he has not named the Master or explained the \u201cpage.\u201d\n- Hobb said his mother is upstairs over a tripe-dresser\u2019s in the Shambles. The Master knows where she lives and has asked after her.\n- Hobb said the token opens the Heron\u2019s river grille. He is due there for night work; the Master comes at midnight.\n- Ambrose told Hobb he would keep his mother safe and suggested he lay low, but no safe place or protection was arranged. Hobb said he could not leave his mother alone and went to work.\n- Kell said she could record Hobb\u2019s cooperation and speak for him, but could not guarantee what the King would do. She refused to make her home a secret safe house.\n- Cob is at the Rat with his hot stew. He said he knows no suitable safe place and refused to involve himself or take Ambrose to Hobb\u2019s mother.\n- Cob\u2019s left boot still crackles; he remains wary and has refused inspection. Ambrose\u2019s earlier dinner promise to Cob has been paid.\n- Hobb seemed frightened and burdened by his mother\u2019s danger; Kell was concerned but firm, and Cob was protective and wary.",
+   "lastMoments": [
+    "Brother Ambrose Hake (player): *I take the token and wish Hobb the best of luck*",
+    "The brass token is cold and greasy in your hand. Hobb gives you a small, tired nod from beside the door.\n\n\u201cThank you, sir,\u201d he says. \u201cI hope you can keep your word.\u201d\n\nThen he turns and climbs into the dark, toward the wharves and the Heron. Kell watches him go, but doesn\u2019t move to stop him.\n\n\u201cHe knows you have the token,\u201d she says quietly. \u201cIf the Master sees him arrive without it, he\u2019ll know something\u2019s wrong.\u201d\n\nBehind you, Cob holds his stew bowl close. The game sits unfinished; your cards remain face down before you.",
+    "Brother Ambrose Hake (player): Kell, what do we do? We can't just leave this man to his fate.",
+    "Kell looks toward the door Hobb has gone through. \u201cWe can\u2019t make his choices for him, investigator. But we can still stand behind the promise you made.\u201d\n\nOutside, Hobb\u2019s broad back descends the wet river stairs toward the wharves, his lantern swinging in the dark. You are at the top of the steps with the brass token in your hand."
+   ],
+   "fronts": [
+    "ticked: The Captain's book: Through the night",
+    "ticked: Dear bread: After dark on the eve",
+    "ticked: The Assembly week: The eve, after dark"
+   ]
+  }
+ ],
+ "talks": {
+  "kell": {
+   "count": 1,
+   "told": []
+  }
+ },
+ "sceneId": "heron-warehouse",
+ "beat": "midnight",
+ "turnsInBeat": 8,
+ "path": [
+  {
+   "turn": 76,
+   "from": "wharf",
+   "to": "wharf",
+   "via": "talk-past",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 13,
+    "die": 2,
+    "modifier": 0,
+    "total": 2,
+    "success": false,
+    "critical": null
+   }
+  },
+  {
+   "turn": 78,
+   "from": "wharf",
+   "to": "floor",
+   "via": "inside",
+   "source": "post"
+  },
+  {
+   "turn": 79,
+   "from": "floor",
+   "to": "midnight",
+   "via": "master-comes",
+   "source": "pre"
+  }
+ ],
+ "established": [
+  "Master Sallow has come to the Heron."
+ ],
+ "canon": [
+  "Scrope says matching receipts are kept with the true book, alongside the wagon entries and the sale and share."
+ ],
+ "notes": "Let Sallow\u2019s question get an answer and let Hep act on her own practical interests; don\u2019t repeat the ledger clue as another hint. Ambrose is still a worker on the floor, but Sallow is testing that story.",
+ "notesTurn": 86,
+ "patches": [
+  {
+   "turn": 67,
+   "transition": {
+    "beat": "wharf",
+    "transition": {
+     "id": "improv-67-0",
+     "when": "Ambrose asks Saul to let him through the land door as the King\u2019s investigator, appealing to Saul\u2019s duty or Kell\u2019s authority.",
+     "on": "attempt",
+     "check": {
+      "skill": "persuasion",
+      "dc": 12,
+      "reason": "to persuade Saul to let you through the land door",
+      "success": "Saul relents and lets Ambrose pass.",
+      "failure": "Saul holds to the Master\u2019s orders; Ambrose remains outside, with the river door and Hobb\u2019s token still available.",
+      "onSuccess": "floor"
+     }
+    }
+   },
+   "why": "A truthful appeal to Saul is distinct from bluffing and may overcome his fear of losing his place."
+  }
+ ],
+ "repairs": [
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 67,
+   "assessment": "Ambrose is pursuing a direct entrance through Saul, with Kell keeping watch as asked. The scene is moving; let Saul\u2019s response leave room for a truthful appeal or the token route.",
+   "status": "on_track",
+   "notes": "Saul keeps the land door for the Master on loading nights, but respects the King\u2019s name and Kell\u2019s standing. Have him state the restriction and let Ambrose choose how to answer; don\u2019t treat a truthful appeal as a deceptive bluff.",
+   "relocations": [
+    {
+     "essential": "way-in",
+     "technique": "soft_nudge",
+     "to": "saul",
+     "how": "As he holds the land door, Saul can mention that the gang use the river grille and a brass heron token; Ambrose already has Hobb\u2019s token."
+    }
+   ],
+   "costUsd": 0.0024973,
+   "latencyMs": 14576,
+   "patches": 1,
+   "canon": 0,
+   "whispers": 2
+  },
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 70,
+   "assessment": "The player is gathering information from Saul before choosing how to enter. The scene is on track; the token and river grille already offer a clear way in.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.002362175,
+   "latencyMs": 15965,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 0
+  },
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 73,
+   "assessment": "Ambrose is working out how to enter and has accepted the river-door route; the scene is moving toward getting inside. The way in has landed, and there\u2019s no need to force a check when he shows Hobb\u2019s token at the grille.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.000478495,
+   "latencyMs": 5355,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 0
+  },
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 76,
+   "assessment": "Ambrose has followed the token to the river door and tried a bluff; the failed check has created suspicion, not a dead end. The scene is on track, with Hep now able to decide whether to challenge him or put him to use.",
+   "status": "on_track",
+   "notes": "Let the porter\u2019s suspicion create a choice, not another closed door: Hep can question Ambrose or offer work if he\u2019ll make himself useful. Hobb knows Ambrose has the token and may recognize him, but is frightened of drawing the Master\u2019s attention.",
+   "relocations": [],
+   "costUsd": 0.002596175,
+   "latencyMs": 13224,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  },
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 79,
+   "assessment": "Ambrose has successfully got inside by taking a porter\u2019s work, and is trying to draw Hobb out without exposing himself. Sallow\u2019s arrival has naturally shifted the scene into its climax; the player still has room to choose how to act.",
+   "status": "on_track",
+   "notes": "Let the count demand expose what Scrope\u2019s ledger proves, without deciding whether Ambrose takes it or confronts Sallow. Hobb is frightened and may not speak until Ambrose makes a clear move; let Sallow notice the missing token only if it fits his attention in the moment.",
+   "relocations": [
+    {
+     "essential": "true-book",
+     "technique": "soft_nudge",
+     "to": "scrope",
+     "how": "As Scrope answers Sallow\u2019s demand for the count, let him cite the open ledger\u2019s Granary Roll numbers and the repeated \u201cJ.S.\u201d initials. The green book stays under his hand, visibly within reach from the floor."
+    }
+   ],
+   "costUsd": 0.002629925,
+   "latencyMs": 12891,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 4
+  },
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 82,
+   "assessment": "Ambrose is keeping a low profile while probing Hobb, leaning into the tense undercover play. Sallow\u2019s arrival has raised the stakes, but the book and witnesses remain within reach.",
+   "status": "on_track",
+   "notes": "Let Scrope\u2019s own punctiliousness carry the ledger detail to Ambrose naturally; don\u2019t repeat the hint if Ambrose doesn\u2019t take it up.",
+   "relocations": [
+    {
+     "essential": "true-book",
+     "technique": "soft_nudge",
+     "to": "scrope",
+     "how": "As Ambrose keeps listening, let Scrope\u2019s instinct to correct the account slip out: the open book tracks each King's Road wagon declared lost by its Granary Roll number, with Sallow\u2019s initials on the entries."
+    }
+   ],
+   "costUsd": 0.00177983,
+   "latencyMs": 24294,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 3
+  },
+  {
+   "sceneId": "heron-warehouse",
+   "turn": 86,
+   "assessment": "Ambrose is trying to stay inconspicuous and learn how the warehouse works; Sallow has now noticed him, creating a live opening for a bluff or a confrontation. The true-book clue has landed plainly through Scrope\u2019s statements about the Granary Roll numbers and Sallow\u2019s initials.",
+   "status": "on_track",
+   "notes": "Let Sallow\u2019s question get an answer and let Hep act on her own practical interests; don\u2019t repeat the ledger clue as another hint. Ambrose is still a worker on the floor, but Sallow is testing that story.",
+   "relocations": [],
+   "costUsd": 0.001144955,
+   "latencyMs": 12333,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 2
+  }
+ ],
+ "whispers": [
+  {
+   "to": "hep",
+   "note": "She wants the count finished and her gang\u2019s pay secured; she may take responsibility for putting an extra pair of hands to work, but will expect Ambrose to keep working.",
+   "turn": 86
+  },
+  {
+   "to": "sallow",
+   "note": "He wants to identify whether this unexpected worker is a threat without disrupting the loading; he is watching Hep\u2019s answer and Ambrose\u2019s response.",
+   "turn": 86
+  }
+ ],
+ "lastRepairTurn": 86,
+ "pressureOffered": [
+  "yard",
+  "doubt",
+  "dead-cart",
+  "the-rat",
+  "big-hobb",
+  "on-his-feet",
+  "confession",
+  "wharf",
+  "midnight"
+ ],
+ "offGraphTurn": 57,
+ "hinted": [
+  "kings-grain",
+  "true-book"
+ ],
+ "landed": [
+  "way-in",
+  "kings-grain"
+ ],
+ "entered": [],
+ "absent": [],
+ "guard": {},
+ "fought": [],
+ "adjustments": [
+  "You have Hobb\u2019s brass heron token; he went to the Heron without it, so Sallow may realize something is wrong when Hobb arrives.",
+  "Hobb confessed to holding Prout and the rope. Kell recorded his admission but did not arrest him.",
+  "Kell knows you have the token and that Hobb went to the Heron; she has not promised to protect Hobb\u2019s mother, who is still in her room over a tripe-dresser\u2019s in the Shambles.",
+  "Two lanterns burn at the Heron's land door.",
+  "The wharf is without the river watch; the watch is lining the procession route."
+ ],
+ "opening": "An hour or so after the Rat, near midnight, you and Kell reach the dark wharf with the Heron in view. Lantern light seeps through the cracks, grain dust swims in it, and the hoist swings sacks down into the barge. Saul\u2019s brazier glows by the land door, Duchess snores across the threshold, and the river runs high and black. Hobb has gone inside to work; you have his brass token. Sallow is not here yet. A watchman heaves himself up to begin his round, leaving you a moment to choose your approach.",
+ "lead": "Kell walks with you toward the Heron, where Hobb went after leaving the Rat; the token in your hand may get you through its river door, and the loading may hold proof of where the King\u2019s grain goes. The last of the Rat\u2019s noise falls behind you as midnight draws near.",
+ "lateRepairs": 1,
+ "sceneStatus": "on_track"
+}

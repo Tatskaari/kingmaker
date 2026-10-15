@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
-import { currentBeat, effectiveScene, presentCast, prompt, sceneBrief, sceneEntries, scriptTranscript, targetTitle } from "./brief.ts";
+import { currentBeat, effectiveScene, leftBehind, presentCast, prompt, sceneBrief, sceneEntries, scriptTranscript, targetTitle } from "./brief.ts";
 import { SKILLS, type Beat, type Scene, type Transition } from "./scene.ts";
 import { sessionDir, type RepairResult, type ScenePatch, type SessionState } from "./session.ts";
 
@@ -25,7 +25,7 @@ function repairSchema(scene: Scene) {
   const essentials = (scene.essentials ?? []).map(e => e.id);
   return {
     type: "object", additionalProperties: false,
-    required: ["assessment", "status", "notes", "whispers", "relocations", "no_but", "canon", "move_to", "add_beat", "add_transitions"],
+    required: ["assessment", "status", "notes", "whispers", "relocations", "no_but", "canon", "move_to", "move_to_because", "add_beat", "add_transitions"],
     properties: {
       relocations: {
         type: "array", description: "Things the scene needs that the player is missing because play went elsewhere, and where you're moving them.",
@@ -51,7 +51,8 @@ function repairSchema(scene: Scene) {
         } },
       },
       canon: { type: "array", items: { type: "string" }, description: "New improvised details that must now stay true. Only new ones." },
-      move_to: nullable({ type: "string", enum: beats, description: "Beat the story has actually reached, if the tracker is behind." }),
+      move_to: nullable({ type: "string", enum: beats, description: "Beat the story has actually reached, if the tracker is behind. Only ever forward: never a beat the scene has left behind." }),
+      move_to_because: nullable({ type: "string", description: "With move_to: what has happened in the story that puts it at that beat, as a short statement of fact that stays true from here on ('Hobb has admitted he held Prout in the loft and held the rope')." }),
       add_beat: nullable({
         type: "object", additionalProperties: false,
         required: ["id", "title", "direction", "pressure", "transitions"],
@@ -96,6 +97,7 @@ interface RepairJson {
   no_but: Array<{ approach: string; reason_in_fiction: string; alternative: string; alternative_route: string }>;
   canon: string[];
   move_to: string | null;
+  move_to_because: string | null;
   add_beat: { id: string; title: string; direction: string; pressure: string; transitions: Array<{ when: string; to: string }> } | null;
   add_transitions: Array<{ beat: string; when: string; on: "attempt" | "cue" | "outcome"; to: string; check: null | { skill: typeof SKILLS[number]; dc: number; reason: string; success: string; failure: string; on_failure: string | null }; why: string }>;
 }
@@ -122,6 +124,19 @@ function graphOutline(scene: Scene): string {
     (scene.anytime?.length ? `\n\n### From anywhere\n${scene.anytime.map(t => `- ${t.when} -> ${t.to}`).join("\n")}` : "");
 }
 
+/**
+ * What the tracker can't do, for the co-GM's review: go back to a beat the scene left before
+ * something was settled, or count a question to the GM as the scene's time passing.
+ */
+function trackerLimits(scene: Scene, state: SessionState): string {
+  const behind = scene.beats.filter(b => leftBehind(state, b.id)).map(b => `"${b.id}"`);
+  const ooc = state.oocTurns?.length ? state.oocTurns.join(", ") : "";
+  return [
+    ...(behind.length ? [`\nBehind it for good, since something has been settled since the scene left them (no move or route goes back there): ${behind.join(", ")}.`] : []),
+    ...(ooc ? [`\nTurns ${ooc} were out of character (the player asking the GM about the game): they aren't exchanges, and nothing in the scene moves on for them.`] : []),
+  ].join("");
+}
+
 export async function runRepair(authored: Scene, state: SessionState, options: { effort?: Effort; model?: string } = {}): Promise<RepairResult> {
   const scene = effectiveScene(authored, state.patches);
   const beat = currentBeat(scene, state);
@@ -130,7 +145,7 @@ export async function runRepair(authored: Scene, state: SessionState, options: {
     { role: "developer" as const, content: sceneBrief(scene, state) },
     { role: "developer" as const, content: `## The scene's beats and routes (ids in quotes)\n${graphOutline(scene)}` },
     { role: "user" as const, content: [
-      `## Tracker: the scene is at beat "${beat.id}" (${beat.title}); ${state.turnsInBeat} exchanges here, ${sinceMove} since anything moved.`,
+      `## Tracker: the scene is at beat "${beat.id}" (${beat.title}); ${state.turnsInBeat} exchanges here, ${sinceMove} since anything moved.${trackerLimits(scene, state)}`,
       `## Your notes still in effect\n${state.notes ?? "(none)"}${state.whispers?.length ? `\n${state.whispers.map(w => `- to ${w.to}: ${w.note}`).join("\n")}` : ""}`,
       `## Established so far\n${[...state.established, ...state.canon].map(x => `- ${x}`).join("\n") || "(nothing yet)"}`,
       ...(scene.essentials?.length ? [`## What the player needs to come across (essentials)\n${scene.essentials.map(e => `- [${e.id}] ${e.what} (placed with: ${e.placedWith.join("; ")}; opens up: ${e.unlocks}) ${state.landed?.includes(e.id) ? "LANDED" : "NOT YET"}`).join("\n")}`] : []),
@@ -183,31 +198,41 @@ function toRepairResult(scene: Scene, state: SessionState, json: RepairJson, met
   const relocationWhispers = relocations.filter(r => r.to !== "world").map(r => ({ to: r.to, note: `If it fits the moment, this reaches the player through you: ${r.how}` }));
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const moveTo = json.move_to && ids.has(json.move_to) && json.move_to !== state.beat ? json.move_to : undefined;
+  const because = json.move_to_because?.trim();
   return {
     turn: state.turn, assessment: json.assessment + (problems.length ? ` [rejected: ${problems.join("; ")}]` : ""), status: json.status,
     notes, whispers: [...json.whispers, ...relocationWhispers].filter(w => present.has(w.to) || scene.cast.some(c => c.id === w.to)), relocations, canon: json.canon, patches,
-    ...(moveTo ? { moveTo } : {}), costUsd: meta.costUsd, latencyMs: meta.latencyMs,
+    ...(moveTo ? { moveTo, ...(because ? { moveBecause: because } : {}) } : {}), costUsd: meta.costUsd, latencyMs: meta.latencyMs,
   };
 }
 
-export function repairFile(sessionId: string, turn: number): string {
-  return join(sessionDir(sessionId), `repair-${String(turn).padStart(3, "0")}.json`);
+/**
+ * A review's file: the full co-GM's, or a quick co-GM's that came too late for its turn, which has a
+ * file of its own (the Rat's T57: a late quick ruling on the safe-house plan was overwritten by the
+ * full review of the same turn, which writes to the same name).
+ */
+export function repairFile(sessionId: string, turn: number, quick = false): string {
+  return join(sessionDir(sessionId), `repair-${String(turn).padStart(3, "0")}${quick ? "-quick" : ""}.json`);
 }
 
 export function writeRepair(state: SessionState, result: RepairResult): void {
-  writeFileSync(repairFile(state.id, result.turn), JSON.stringify({ sceneId: state.sceneId, ...result }, null, 1));
+  writeFileSync(repairFile(state.id, result.turn, result.quick === true), JSON.stringify({ sceneId: state.sceneId, ...result }, null, 1));
 }
+
+/** Which review a result is, as merged ("57", "57-quick"): a turn can have both, and each is merged once. */
+const reviewKey = (r: { turn: number; quick?: boolean }) => `${r.turn}${r.quick ? "-quick" : ""}`;
 
 /** Merge background repair output that has arrived since the last turn. Returns the merged results. */
 export function applyPendingRepairs(scene: Scene, state: SessionState): RepairResult[] {
   const dir = sessionDir(state.id);
   if (!existsSync(dir)) return [];
-  const applied = new Set(state.repairs.map(r => r.turn));
-  const files = readdirSync(dir).filter(f => /^repair-\d+\.json$/.test(f)).sort();
+  const applied = new Set(state.repairs.map(reviewKey));
+  // (A turn's quick review sorts before its full one, which supersedes its notes.)
+  const files = readdirSync(dir).filter(f => /^repair-\d+(?:-quick)?\.json$/.test(f)).sort();
   const merged: RepairResult[] = [];
   for (const file of files) {
     const result = JSON.parse(readFileSync(join(dir, file), "utf8")) as RepairResult & { sceneId: string };
-    if (result.sceneId !== state.sceneId || applied.has(result.turn)) continue;
+    if (result.sceneId !== state.sceneId || applied.has(reviewKey(result))) continue;
     applyRepair(scene, state, result);
     merged.push(result);
   }
@@ -229,17 +254,27 @@ export function applyRepair(scene: Scene, state: SessionState, result: RepairRes
   }
   for (const fact of result.canon) if (!state.canon.includes(fact)) state.canon.push(fact);
   state.patches.push(...result.patches);
-  if (result.moveTo && result.turn === state.turn) {
-    const effective = effectiveScene(scene, state.patches);
-    if (effective.beats.some(b => b.id === result.moveTo)) {
-      state.path.push({ turn: state.turn, from: state.beat, to: result.moveTo, via: "repair", source: "repair" });
-      state.beat = result.moveTo;
-      state.turnsInBeat = 0;
-    }
-  }
+  const refused = result.moveTo && result.turn === state.turn ? moveTracker(scene, state, result.moveTo, result.moveBecause) : undefined;
   const { patches, canon, whispers, ...rest } = result;
-  state.repairs.push({ ...rest, patches: patches.length, canon: canon.length, whispers: whispers?.length ?? 0 });
+  state.repairs.push({ ...rest, ...(refused ? { assessment: `${rest.assessment} [move_to ${result.moveTo} refused: ${refused}]` } : {}), patches: patches.length, canon: canon.length, whispers: whispers?.length ?? 0 });
   state.lastRepairTurn = result.turn;
+}
+
+/**
+ * The co-GM's tracker move, made if it may be: it can't take the scene back to a beat it left before
+ * something was settled (the Rat's confession, undone by a move back to "Hobb gets up for work"),
+ * and a word out of character isn't the scene's time passing (the Rat's bell, rung on one). Made,
+ * what put the story there is a fact from then on. Why it wasn't made, if it wasn't.
+ */
+function moveTracker(scene: Scene, state: SessionState, to: string, because: string | undefined): string | undefined {
+  if (!effectiveScene(scene, state.patches).beats.some(b => b.id === to)) return "no such beat";
+  if (leftBehind(state, to)) return "the scene has left it, and something has been settled since";
+  if (state.oocTurns?.includes(state.turn)) return "the turn was out of character";
+  state.path.push({ turn: state.turn, from: state.beat, to, via: "repair", source: "repair", known: state.established.length });
+  if (because && !state.established.includes(because)) state.established.push(because);
+  state.beat = to;
+  state.turnsInBeat = 0;
+  return undefined;
 }
 
 /** Gate: repair when the scene isn't on track, or periodically as a backstop. */
@@ -313,7 +348,7 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
     patches.push({ turn: state.turn, transition: { beat: "*", transition }, why: result.note });
   }
   return {
-    turn: state.turn, assessment: `quick: ${result.move}`, status: "drifting", notes: notes.join("\n"), whispers, relocations, canon: [], patches,
+    turn: state.turn, quick: true, assessment: `quick: ${result.move}`, status: "drifting", notes: notes.join("\n"), whispers, relocations, canon: [], patches,
     costUsd: result._meta.costUsd, latencyMs: performance.now() - started,
   };
 }

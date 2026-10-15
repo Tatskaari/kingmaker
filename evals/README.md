@@ -23,7 +23,7 @@ Two eval harnesses that run the game's model calls against the real model and sc
 | `src/eval/compare.ts` | `npm run compare`: per-approach and per-decider aggregates of runs, side by side. |
 | `src/eval/rejudge.ts` | Judges an earlier run's replies again with another judge and reports agreement. No GM calls. |
 | `src/eval/memory-eval.ts`, `memory-run.ts` | The memory eval (does a character remember, in a later scene, what the player did?) and a smoke runner for scripted memory sessions. |
-| `evals/fixtures/<topic>/*.json` | 46 session snapshots from QA rounds and playtests (absurd-r1, memory, pacing, playtest-1, playtest-2, qa1): each a `SessionState` from real play, most taken just before a turn that went wrong. |
+| `evals/fixtures/<topic>/*.json` | 48 session snapshots from QA rounds and playtests (absurd-r1, ambrose, memory, pacing, playtest-1, playtest-2, qa1): each a `SessionState` from real play, most taken just before a turn that went wrong (ambrose's, from a reported game, trimmed of the rules engine and the world, which a decision doesn't read). |
 | `evals/world/run.ts` | The stage-manager eval's runner, with `--rescore` and `--report`. |
 | `evals/world/cases/*.json` | 26 labelled cases from real play: the world exactly as the stage manager read it, the exchange, and what the reply established. |
 | `evals/world/systems.ts` | The 14 systems compared (`current`, `stage`, `ops`, `tools`, `gm-block`, `decider-*` and their variants). |

@@ -127,7 +127,7 @@ export interface GameFiles {
   calls: { total: number; kept: Array<Record<string, unknown>> };
   /** memory-reviews.jsonl: the GM's notes on each turn (what people remember). */
   memoryReviews: unknown[];
-  /** The co-GM's reviews (repair-NNN.json). */
+  /** The co-GM's reviews (repair-NNN.json, and a quick co-GM's that came too late, repair-NNN-quick.json). */
   repairs: Array<{ name: string; repair: unknown }>;
   /** The docs overlay: the lore and memories this game wrote (runs/sessions/<id>/docs). */
   docs: Array<{ path: string; text: string }>;
@@ -252,7 +252,7 @@ function gameFiles(id: string, live: ReportInput["live"]): GameFiles {
     snapshots: snapshotsOf(join(dir, "snapshots")),
     calls: { total: calls.length, kept: calls.slice(-KEEP_CALLS) },
     memoryReviews: jsonLines(join(dir, "memory-reviews.jsonl")),
-    repairs: filesIn(dir).filter(f => /^repair-\d+\.json$/.test(f)).sort().map(name => ({ name, repair: jsonFile(join(dir, name)) })),
+    repairs: filesIn(dir).filter(f => /^repair-\d+(?:-quick)?\.json$/.test(f)).sort().map(name => ({ name, repair: jsonFile(join(dir, name)) })),
     docs: docsOf(join(dir, "docs")),
     ledger: ledgerOf(id, calls),
     others: filesIn(dir).filter(f => !KNOWN.test(f)).sort(),
@@ -260,7 +260,7 @@ function gameFiles(id: string, live: ReportInput["live"]): GameFiles {
 }
 
 /** What a game's folder is expected to hold (the rest is listed by name). */
-const KNOWN = /^(game\.json|state\.json|app\.json|calls\.jsonl|memory-reviews\.jsonl|repair-\d+\.json|snapshots|docs)$/;
+const KNOWN = /^(game\.json|state\.json|app\.json|calls\.jsonl|memory-reviews\.jsonl|repair-\d+(?:-quick)?\.json|snapshots|docs)$/;
 
 /** A JSON file, parsed; one that doesn't parse is kept as its text, which is what matters when a save is broken. */
 function jsonFile(path: string): unknown {

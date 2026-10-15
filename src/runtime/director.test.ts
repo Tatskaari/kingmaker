@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { CONSIDER_CONFIDENCE_OPEN, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -242,4 +242,87 @@ test("considered rolls: a beat with no route with a roll has a lower bar, which 
   assert.ok(await flag(motive, CONSIDER_CONFIDENCE_OPEN + 0.05), "flagged where nothing could have rolled for it");
   assert.equal(await flag(motive, CONSIDER_CONFIDENCE_OPEN - 0.05), undefined);
   assert.equal(await flag(yard(), CONSIDER_CONFIDENCE_OPEN + 0.05), undefined, "where routes have rolls, the bar is as it was");
+});
+
+// Pacing cues: a bar, as routes have, and the exchanges a cue counts checked by the engine's count.
+// The yard's dead-cart comes after "at least eight exchanges at this point" (the test's yard has had two).
+const IDLE = "(I sit on the edge of the water butt and wait to see what happens)";
+const cueRead = async (p: number, state: SessionState = yard(), extra: Parameters<typeof scripted>[0] = {}) =>
+  (await decideBefore(scripted({ cue: ["cart-comes", p, { not_yet: 1 - p }], ...extra }), scene, state, IDLE, { speaker: false })).move?.transition.id;
+
+test("a cue's counted condition is read off its text", () => {
+  const cue = (when: string) => cueCount({ id: "c", on: "cue", when, to: "x" });
+  assert.equal(cue("The player has been inside a good while (at least five exchanges at this point), or is lying low and waiting"), 5);
+  assert.equal(cue("he has waited at least two exchanges since he arrived"), 2);
+  assert.equal(cue("The scene has been at this point a good while (at least 6 exchanges)"), 6);
+  assert.equal(cue("Two exchanges have gone by and the pie is still on the tray"), 2, "the zoo's way of putting it");
+  assert.equal(cue("An exchange has passed with the courier loose in the current"), 1);
+  assert.equal(cue("The auditor has waited an exchange and there's no ledger."), 1);
+  assert.equal(cue("The conversation has gone on for several exchanges, or they start to leave"), undefined, "several isn't a count");
+});
+
+test("a cue fires only on a clear read: the Heron's Master at 0.57 against 0.43 waits", async () => {
+  const after = { ...yard(), turnsInBeat: 9 };
+  assert.equal(await cueRead(0.57, after), undefined);
+  assert.equal(await cueRead(CUE_CONFIDENCE, after), "cart-comes");
+  // An uncounted cue has the same bar: the crossroads' goblins strike as the party sets off.
+  const road = effectiveScene(sceneById("crossroads-ambush"), []);
+  const story: SessionState = { ...yard(), sceneId: "crossroads-ambush", beat: "story", turnsInBeat: 1 };
+  const strike = async (p: number) => (await decideBefore(scripted({ cue: ["goblins-strike", p, { not_yet: 1 - p }] }), road, story, "Let's get you home, Tam.", { speaker: false })).move?.transition.id;
+  assert.equal(await strike(0.55), undefined);
+  assert.equal(await strike(0.98), "goblins-strike");
+});
+
+test("before its count, a cue needs the rest of its condition to hold clearly; the decider is told the count", async () => {
+  const decider = scripted({ cue: ["cart-comes", 0.75, { not_yet: 0.25 }] });
+  const pre = await decideBefore(decider, scene, yard(), IDLE, { speaker: false });
+  assert.equal(pre.move, undefined, "two exchanges of the eight: 0.75 isn't clear enough");
+  assert.match(decider.asked[0]!.cue!.criteria["cart-comes"]!, /\[The game's count: 2 exchanges at this point so far, against the 8 this asks for, so that part doesn't hold yet: choose this only if the rest of it clearly holds on its own\.\]$/);
+  assert.equal(await cueRead(CUE_EARLY_CONFIDENCE), "cart-comes", "the player plainly idling and waiting");
+  // Once the count is reached, the usual bar.
+  const counted = scripted({ cue: ["cart-comes", 0.65, { not_yet: 0.35 }] });
+  const later = await decideBefore(counted, scene, { ...yard(), turnsInBeat: 8 }, IDLE, { speaker: false });
+  assert.equal(later.move?.transition.id, "cart-comes");
+  assert.match(counted.asked[0]!.cue!.criteria["cart-comes"]!, /\[The game's count: 8 exchanges at this point so far, against the 8 this asks for, so that much holds\.\]$/);
+});
+
+test("no cue fires on a word out of character: that isn't time passing in the scene", async () => {
+  assert.equal(await cueRead(0.95, { ...yard(), turnsInBeat: 9 }, { ooc: ["out_of_character", 0.95] }), undefined);
+});
+
+// The consequences flag: what the player does that the world would answer, not what they ask for.
+const BOOT = "I don't want your boots. I just want to see what's making that noise. I assume you got them from the body. Could be evidence.";
+
+test("a courteous ask isn't daft: the question says so, and the bill wants a clear read", async () => {
+  const flag = async (p: number) => (await decideBefore(scripted({ daft: ["consequential", p, { none: 1 - p }] }), scene, yard(), BOOT, { speaker: false, consequences: true })).daft;
+  assert.equal(await flag(0.63), undefined, "the granary's polite look at the evidence was billed at 0.63");
+  assert.equal(await flag(DAFT_CONFIDENCE), true);
+  const decider = scripted({});
+  await decideBefore(decider, scene, yard(), BOOT, { speaker: false, consequences: true });
+  const daft = decider.asked[0]!.daft!;
+  assert.match(daft.instructions, /Earnest play isn't daft, however bold: asking for something \(to see it, for help, for evidence\), an honest offer \(food, coin, a trade\), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan/);
+  assert.match(daft.instructions, /a scam, a bluff or a lie/, "a trick still is");
+});
+
+// Endings that wait for the player's answer: what the decisions are asked, in the calls they make anyway.
+test("with an ending held, the decision asks whether the player is answering it; only then", async () => {
+  const exit = scene.exits.find(e => e.id === "open-case")!;
+  const held = scripted({ brink: ["answers", 0.68, { lets_it_happen: 0.32 }] });
+  const pre = await decideBefore(held, scene, yard(), "Cob, you'll be safe. Can you tell me exactly what you heard and saw?", { speaker: false, brink: exit });
+  assert.equal(pre.answering, true);
+  assert.match(held.asked[0]!.brink!.instructions, /^The scene is about to end like this: Murder by persons unknown\./);
+  assert.match(held.asked[0]!.brink!.criteria.answers!, /calling someone out \(even just their name, said to them\)/);
+  const thanks = await decideBefore(scripted({ brink: ["lets_it_happen", 0.99] }), scene, yard(), "Thank you, Sergeant.", { speaker: false, brink: exit });
+  assert.equal(thanks.answering, undefined, "letting it happen");
+  const none = scripted({});
+  await decideBefore(none, scene, yard(), "Who found him?", { speaker: false });
+  assert.equal(none.asked[0]!.brink, undefined);
+});
+
+test("after the reply: whether the player left something unanswered, and whether an ending would be their own doing", async () => {
+  const after = (picks: Parameters<typeof scripted>[0]) => decideAfter(scripted(picks), scene, yard(), "Shall we go? And who found him?", "Kell closes her notebook.");
+  const left = await after({ ask: ["unanswered", 0.55, { none: 0.45 }], own_exit: ["theirs", 0.9] });
+  assert.deepEqual([left.unanswered, left.theirs], [true, true]);
+  const unsure = await after({ own_exit: ["theirs", 0.55, { no: 0.45 }] });
+  assert.deepEqual([unsure.unanswered, unsure.theirs], [undefined, undefined], "only a clear read is the player's own exit");
 });

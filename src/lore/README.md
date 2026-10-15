@@ -23,7 +23,7 @@ The authored lore in [lore/](../../lore/README.md) is the seed: Markdown files w
 |---|---|
 | [docs.ts](docs.ts) | The store: `readDoc` (the overlay first, then lore/), `writeDoc` (the overlay only), `seedDoc` (as authored), `parseDoc` (the frontmatter), `permitted` (who may read), `linksIn` (a doc's links), `characterEntry` (a cast id's lore entry), `errandsOf` (what someone does next if nobody stops them: their `gm.md`'s "What they do next"), memories (`saveMemory`, `memoryIndex`, `memoryLines`), the story index (`savePlayedScene`, `saveFact`), the player's doc, `searchDocs`, `editDoc`, `createDoc` |
 | [disclosure.ts](disclosure.ts) | `disclose` (each turn, per scope), `keepOpened`, `withhold`, and `memoryBrief` (what the GM is shown, in a stable part and a live part) |
-| [reviews.ts](reviews.ts) | `memory: "docs"`: the attention filter (`attend`, V1's seven categories), the two review agents and their tools (`reviewTurn`), and `broadcastEnding` |
+| [reviews.ts](reviews.ts) | `memory: "docs"`: the attention filter (`attend`, V1's seven categories and `witnessed`), the two review agents and their tools (`reviewTurn`), and `broadcastEnding` |
 | [remember.ts](remember.ts) | `memory: "lite"`: one merged review of a flagged turn (`rememberTurn`), and one memory per person at a scene's end (`rememberScene`) |
 | [backstory.ts](backstory.ts) | Character creation's backstory: `draftBackstory` (one from the concept and build), `workIn` (notes made a story, keeping every name, place and number), `checkLore` (what doesn't fit the world, with a fix: checked against `canonFor`, the public lore only, and the story's `PREMISE`, never a GM's or a character's own doc, since what it says goes to the player as written), `applyFix`, `premiseSlips`, `finishBackstory` (who they are and their traits, for the sheet and the GM), and `MOST_WORDS` |
 | [fronts.ts](fronts.ts) | `frontsText` and `moveFronts`: steps ticked and struck, and bills added, in this game's copy of a fronts doc |
@@ -87,10 +87,10 @@ It calls [src/llm](../llm/README.md) (`JevDecider` for disclosure and the attent
 
 ### Reviews (`memory: "docs"`)
 
-After each turn, a background job ([src/runtime/jobs.ts](../runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:168](reviews.ts#L168)) on that turn's snapshot.
+After each turn, a background job ([src/runtime/jobs.ts](../runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:171](reviews.ts#L171)) on that turn's snapshot.
 
-- **`attend`:** one Jev call with V1's seven attention categories. A category flagged at 0.4 or more (`FLAG_THRESHOLD`) fires its agent: a false flag costs a review that writes nothing, and a missed one loses the memory.
-- **The personal-memories agent** handles commitments, changes in trust or knowledge, and exchanges, with `save_memory`, `list_memories`, `read_doc` and `edit_doc`. It's told to write at most one memory per person present.
+- **`attend`:** one Jev call with V1's seven attention categories, and an eighth, `witnessed`: someone present saw or heard for themselves something the story may need them to tell or swear to later (an admission, who came in), a companion or whoever stood watch included. A category flagged at 0.4 or more (`FLAG_THRESHOLD`) fires its agent: a false flag costs a review that writes nothing, and a missed one loses the memory.
+- **The personal-memories agent** handles commitments, changes in trust or knowledge, exchanges, and what witnesses saw and heard (in its own words: what Hobb admitted, not that it was recorded), with `save_memory`, `list_memories`, `read_doc` and `edit_doc`. It's told to write at most one memory per person present.
 - **The world-facts agent** handles improvised details and lasting changes, with `search_lore`, `read_doc`, `edit_doc`, `create_doc`, `save_memory` and `list_memories`. It records a fact in the doc where it belongs, the player's claims about themselves in their doc, and talk anyone could hear in `World/Caerwyn now.md`. It may also tick or strike a front's step mid-scene, through `edit_doc` ([prompts/review/world.md](../../prompts/review/world.md)).
 - **How they run.** Each is a Luna tool loop at medium reasoning ([src/llm/tools.ts](../llm/tools.ts)), with prompts/review/system.md and its categories' prompts. They run in that order, so the second sees the first's edits. What each one changed goes in the session's `memory-reviews.jsonl`.
 
@@ -117,7 +117,7 @@ Talks ([src/runtime/talk.ts](../runtime/talk.ts)) keep a companion's stories wit
 ## Where to look first
 
 - **Access.** A new doc's `visibility` and `readers`, and any change to `permitted` or `parseDoc`. A private note whose frontmatter loses its `visibility` becomes everyone's.
-- **What the agents can write.** The tools' definitions ([reviews.ts:82](reviews.ts#L82)) and their handlers ([reviews.ts:112](reviews.ts#L112)). The paths come from the model; `save_memory` takes only people present.
+- **What the agents can write.** The tools' definitions ([reviews.ts:85](reviews.ts#L85)) and their handlers ([reviews.ts:115](reviews.ts#L115)). The paths come from the model; `save_memory` takes only people present.
 - **The thresholds:** `OPEN_THRESHOLD` (0.7), `PER_ROUND` (4), `MAX_OPEN` (24) and `URGENT` (0.9) in disclosure.ts; `FLAG_THRESHOLD` (0.4) in reviews.ts.
 - **The stable and live parts of `memoryBrief`.** Something that changes every turn, put in `stable`, spoils the GM's prompt cache on every turn.
 - **Writes go to the overlay.** `writeDoc` writes only to this game's copy. Nothing should write under lore/.

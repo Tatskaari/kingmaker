@@ -217,7 +217,11 @@ export interface RepairResult {
   relocations?: Array<{ essential: string; technique: string; to: string; how: string }>;
   canon: string[];
   patches: ScenePatch[];
+  /** A beat the story has reached, if the tracker is behind; and what has happened that puts it there (a fact, once it moves). */
   moveTo?: string;
+  moveBecause?: string;
+  /** The quick co-GM's (one fast call on an off-graph turn), not the full review: it has a file of its own. */
+  quick?: boolean;
   costUsd: number;
   latencyMs: number;
 }
@@ -232,8 +236,11 @@ export interface SessionState {
   turn: number;
   beat: string;
   turnsInBeat: number;
-  /** Transitions taken, in order. */
-  path: Array<{ turn: number; from: string; to: string; via: string; roll?: RollResult; source: "pre" | "post" | "repair" }>;
+  /**
+   * Transitions taken, in order. `known`: how many facts had been established when the move was made
+   * (before its own), so a beat left before something was settled is known (`leftBehind`, brief.ts).
+   */
+  path: Array<{ turn: number; from: string; to: string; via: string; roll?: RollResult; source: "pre" | "post" | "repair"; known?: number }>;
   established: string[];
   canon: string[];
   notes: string | null;
@@ -273,6 +280,8 @@ export interface SessionState {
   sceneStatus?: SceneStatus;
   lastRepairTurn?: number;
   patches: ScenePatch[];
+  /** The turns in this scene the player spoke out of character: not time passing in it, for the co-GM either. */
+  oocTurns?: number[];
   /** Considered turns' rulings in this scene, in order. */
   rulings?: RulingRecord[];
   repairs: Array<Omit<RepairResult, "patches" | "canon" | "whispers" | "relocations"> & { patches: number; canon: number; whispers: number; relocations?: Array<{ essential: string; technique: string; to: string; how: string }> }>;
@@ -280,7 +289,7 @@ export interface SessionState {
   metrics: TurnMetric[];
   ended?: { exitId: string; turn: number; operations: Operation[]; warnings: string[] };
   /** An ending the player didn't choose is coming; they get one last chance to respond. */
-  pendingExit?: { exitId: string; turn: number; via: string; extended: boolean };
+  pendingExit?: { exitId: string; turn: number; via: string; extended: boolean; waits?: string };
   /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
   closing?: { exitId: string; turn: number };
   /** D&D mechanics, when the session has a rules-engine character sheet. */
@@ -324,6 +333,8 @@ export interface SessionState {
     fronts?: string[];
     /** The notebook's lines the scene's ending wrote (its exit script's journal): what the player has on record of it. */
     journal?: string[];
+    /** The facts play settled in that scene (its routes', its rulings', the co-GM's): the GM of every later scene has them. */
+    facts?: string[];
   }>;
 }
 

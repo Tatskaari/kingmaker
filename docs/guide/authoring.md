@@ -17,7 +17,7 @@ A scene is GM prep for one place and one situation: a dramatic question, the peo
 - **Beats.** Three to five situations the scene passes through. Each has a direction (what it's for, how to play it), cast notes (what people are after here), and one **pressure**: what the world does if things stall. Pressures come from fronts or clocks (the noon dead-cart, the ebb).
 - **Routes** (transitions) are prose observations of the fiction, not commands:
   - **attempt:** the player tries something, maybe with a roll and a player-facing reason;
-  - **cue:** the world acts, for pacing;
+  - **cue:** the world acts, for pacing. It fires only on a clear read. A count of exchanges in its `when` ("at least five exchanges at this point", "two exchanges have gone by", "has waited an exchange") is checked by the engine against its own count of exchanges in the beat, which out-of-character turns don't add to, and the decider is told the result. Before the count is reached, only the rest of the condition ("or is lying low and waiting") can fire the cue, and only when it clearly holds;
   - **outcome:** something has happened.
 
   Mark scene-ending attempts as such in their `when`. Roll only where an attempt could really go either way.

@@ -151,7 +151,7 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
     rolls_the_scene_calls_for: rolled(scene, state).map(t => `- ${known(t.when)} (${titleCase(t.check!.skill)})`).join("\n") || "(none of its own: any risky attempt)",
     what_the_player_knows: [
       `They came in knowing: ${state.lead ?? scene.hook}`,
-      ...(state.history.length ? [`The story so far: ${state.history.at(-1)!.summary}`] : []),
+      ...(state.history.length ? [`The story so far, scene by scene: ${state.history.map(h => h.summary).join("\n\n")}`] : []),
       `Who's here, as they see them: ${present.map(c => `${called[c.id] ?? c.name}: ${known(c.look)}`).join(" ")}`,
       ...(foundOut(scene, state).length ? [`What they've found out here: ${foundOut(scene, state).map(known).join(" ")}`] : []),
       `The scene so far:\n${scriptTranscript(scene, state, sceneEntries(state).filter(e => e.kind !== "system").slice(-24))}`,
@@ -281,7 +281,7 @@ export function suggestionBrief(scene: Scene, state: SessionState): string {
   return [
     "# What the player knows: who they are, and what they came in knowing",
     `## Who they are\n${who(state)}`,
-    `## What they came in knowing\n${state.lead ?? scene.hook}${state.history.length ? `\n\nThe story so far: ${state.history.at(-1)!.summary}` : ""}`,
+    `## What they came in knowing\n${state.lead ?? scene.hook}${state.history.length ? `\n\nThe story so far, scene by scene:\n${state.history.map(h => h.summary).join("\n\n")}` : ""}`,
     "# Behind the screen (the GM's prep: the player knows none of it)",
     `## What the scene is about\n${known(scene.premise)}`,
     ...(present.length ? [`## What they're after\n${present.map(c => `- ${nameOf(c)}: ${known(c.wants)} With the player: ${known(firstSentence(c.attitude))}`).join("\n")}`] : []),
