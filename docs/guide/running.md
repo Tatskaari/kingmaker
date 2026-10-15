@@ -21,7 +21,7 @@ player turn
         co-GM review (notes, whispers, new routes) · attention filter → memory and lore agents
 ```
 
-The 5-second budget applies to the reply that resolves the player's turn. Everything the player doesn't need for that reply runs in the background, and its results land in later turns. A considered turn spends a few seconds of it on purpose (first text at about 5 to 7 s): the user's steer was that a few longer thinking turns with real consequences beat a holding beat that buys time.
+The 5-second budget applies to the reply that resolves the player's turn. Everything the player doesn't need for that reply runs in the background, and its results land in later turns. A considered turn spends a few seconds of it on purpose (first text at about 5 to 7 s, up to 12 s when OpenRouter is slow): the user's steer was that a few longer thinking turns with real consequences beat a holding beat that buys time.
 
 ## The GM's principles
 
