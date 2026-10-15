@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
-import { worldView } from "../world/scene-world.ts";
+import { worldView, type Entity } from "../world/scene-world.ts";
 import { PHYSICS } from "../world/systems.ts";
 import { join } from "node:path";
 import type { Beat, Character, Exit, Scene, Transition } from "./scene.ts";
-import type { Entry, ScenePatch, SessionState } from "./session.ts";
+import type { Entry, PlayerCharacter, ScenePatch, SessionState } from "./session.ts";
 import { titleCase } from "./dice.ts";
 
 const PROMPTS_DIR = join(import.meta.dirname, "..", "..", "prompts");
@@ -197,6 +197,29 @@ export function playerWho(state: SessionState): string {
 }
 
 /**
+ * Whether the player character is a man or a woman, as their backstory's summary (written in the
+ * third person at character creation) or their concept has it, when it plainly says: Tull and Hobb
+ * called a woman "sir" nine times, while Kell wrote "she".
+ */
+export function genderOf(player: Pick<PlayerCharacter, "concept" | "backstory">): "woman" | "man" | undefined {
+  const text = `${player.backstory?.summary ?? ""} ${player.concept}`;
+  const count = (re: RegExp) => text.match(re)?.length ?? 0;
+  const she = count(/\b(she|her|hers|herself|woman|girl|lady)\b/gi);
+  const he = count(/\b(he|him|his|himself|man|boy|lad)\b/gi);
+  if (she > 2 * he) return "woman";
+  if (he > 2 * she) return "man";
+  return undefined;
+}
+
+/** How people speak of and to the player character. */
+function addressLine(player: PlayerCharacter): string {
+  const gender = genderOf(player);
+  if (gender === "woman") return " She's a woman: people speak of her as she and her, and address her as they'd address a woman (mistress, missus, miss or madam, as fits who's talking), never as sir.";
+  if (gender === "man") return " He's a man: people speak of him as he and him, and address him as they'd address a man (sir, mister or master, as fits who's talking).";
+  return " Nothing says whether they're a man or a woman: until the player shows it, people address them by name or by what they're here as, not as sir or madam.";
+}
+
+/**
  * The player character's own backstory, for the GM: who they are in short (every brief), and where
  * the whole of it is (`inNotes`: the GM's notes from the docs service have it, so it isn't repeated;
  * otherwise it's here in full). Their past, known in the story only where someone would know it.
@@ -210,7 +233,7 @@ function backstoryBrief(state: SessionState, inNotes: boolean): string {
   return [
     `\nWho they are, from their own backstory: ${b.summary}${traits.length ? ` (${traits.join(". ")}.)` : ""}`,
     inNotes ? "The whole of their backstory, in their own words, is in your notes (the player character's doc)." : `Their backstory, in their own words:\n${b.text.trim().split(/\n+/).map(l => `> ${l}`).join("\n")}`,
-    "It's their past, and true for them: let it colour the world when it would (a face from home, an old debt coming due, a name that means something to them), but people in the story know of it only what they'd plausibly know (someone from that past, something that was public) or what the player tells or shows them. Nobody brings it up out of nowhere. What it says of the story's own people and places is what they believe or heard: where your prep says otherwise, your prep is the truth.",
+    "It's their past, and true for them: let it colour the world when it would (a face from home, an old debt coming due, a name that means something to them), but people in the story know of it only what they'd plausibly know (someone from that past, something that was public) or what the player tells or shows them. Nobody brings it up out of nowhere. What it says of the story's own people and places is what they believe or heard: where your prep says otherwise, your prep is the truth. And it's all there is of their past: nobody adds to it (a prison, a crime, a debt or a trade it doesn't have), not even in passing.",
     "When the player tells someone of their past without saying it word for word (\"I tell her where I'm from\"), they tell it as their backstory has it: show what they told, in its own details, and how the listener takes it.",
   ].join("\n");
 }
@@ -221,6 +244,47 @@ function backstoryBrief(state: SessionState, inNotes: boolean): string {
  * acquaintance, and puts the scene's own secrets in it (Prout's visit to the watch house, as theirs).
  */
 const STRANGER = "Before the story began, none of its people had met them (whoever sent for them aside): they know them only from what's happened in play since, and of their past only what they'd plausibly know or have been told. If the player claims an old acquaintance with one of them (\"You'll remember me\"), it isn't so, and that person says so in their own way; people from the player's own past are another matter.";
+
+/**
+ * Where something the story still owes the player is (the page in Cob's boot), as the GM is told
+ * it: "what it's in stays where the world has it" came back as "The folded page remains sewn
+ * inside Cob's left boot in the scullery", to a player who had never met Cob.
+ */
+const OWED_PLACE = "its things are where the world has them, with whoever has them, out of the player's sight until they find them or someone shows them; the narration never says where they are";
+
+/**
+ * What in the place is out of the player's sight: hidden (by its author, or in play), or inside
+ * something that is, and neither theirs nor what they've come across (an essential's things, once
+ * it has landed). The GM is told where it is, with that status: listed like anything else, a page
+ * sewn into a lining was narrated as staying there.
+ */
+export function outOfSight(scene: Scene, state: SessionState): Entity[] {
+  const world = state.world;
+  if (!world) return [];
+  const found = foundThings(scene, state);
+  const hidden = (e: Entity) => (e.tags.includes("hidden") || e.states.includes("hidden")) && !found.has(e.id);
+  const upFrom = (e: Entity): Entity[] => {
+    const chain: Entity[] = [];
+    for (let p: Entity | undefined = e, n = 0; p && n < 12 && p.kind !== "area" && p.kind !== "place"; p = p.parent ? world.entities[p.parent] : undefined, n++) chain.push(p);
+    return chain;
+  };
+  return Object.values(world.entities).filter(e => {
+    if (e.player || e.kind === "area" || e.kind === "place" || e.states.includes("gone") || e.states.includes("destroyed")) return false;
+    const chain = upFrom(e);
+    return !chain.some(p => p.player) && chain.some(hidden);
+  });
+}
+
+/** The things of what the player has come across here: an essential's, and what's owed them once it has landed. */
+function foundThings(scene: Scene, state: SessionState): Set<string> {
+  const landed = new Set(state.landed ?? []);
+  const ids = (scene.essentials ?? []).filter(e => landed.has(e.id)).flatMap(e => e.things ?? []);
+  for (const o of state.owed ?? []) {
+    const here = scene.essentials?.find(e => e.missed === `${o.from}:${o.id}`);
+    if (here && landed.has(here.id)) ids.push(...(o.essential.things ?? []));
+  }
+  return new Set(ids);
+}
 
 /**
  * The story so far, for the GM: every scene's hand-off, earliest first, each with the facts play
@@ -249,12 +313,12 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## What this scene is about\n${scene.premise}`,
     ...(scene.background?.length ? [`## Background\n${bullets(scene.background)}`] : []),
     ...(state.history.length ? [storySoFar(state)] : []),
-    ...(state.adjustments?.length ? [`## Where the prep is out of date\nThe story has moved on from parts of this prep. These are true now, and they override anything in the prep that says otherwise. Like the story so far, they're your knowledge: people here know of them only what they saw, were there for or have been told.\n${bullets(state.adjustments)}`] : []),
+    ...(state.adjustments?.length ? [`## Where the prep is out of date\nThe story has moved on from parts of this prep. These are true now, and they override anything in the prep that says otherwise. Like the story so far, they're your knowledge: people here know of them only what they saw, were there for or have been told. Where one is the world answering what the player did (an account given against them, a claim, someone demanding a reckoning), it comes up in this scene through the people it names, in their own words and acts, before the scene ends: a consequence never just vanishes.\n${bullets(state.adjustments)}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
-    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${e.missed ? " [missed in an earlier scene, and the story still needs it: what it's in stays where the world has it, with whoever has it]" : ""}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
+    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose. Each says whether the player has come across it. Until they have, it's behind the screen: they don't know it, and it comes out only through play (someone who knows it telling them, a thing found, a sign they notice), never in the narration's own words; nobody here says it, writes it down or acts on it as known unless they know it themselves (their card says so, or they've just seen it).\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${e.missed ? ` [missed in an earlier scene, and the story still needs it: ${OWED_PLACE}]` : ""}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : " [not come across yet]"}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
-    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it. ${STRANGER}${skillSummary(state)}${backstoryBrief(state, !!options.docs)}`,
+    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character.${addressLine(state.player)} Other people only know their name if they've been told it. ${STRANGER}${skillSummary(state)}${backstoryBrief(state, !!options.docs)}`,
     `## Table rules (for out-of-character questions)\n${state.rules
       ? "- The game runs D&D rules: it rolls the dice for checks, saving throws, spells, attacks and rests, and you're told each result (🎲). You never roll, ask for a roll or invent numbers.\n- The player can see their character sheet out of game (/sheet). Levels come at story milestones. A real fight moves to the battle map."
       : "- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- There's no experience or loot system yet."}\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
@@ -349,11 +413,14 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
   const castNotes = Object.entries(beat.cast ?? {}).filter(([id]) => present.has(id))
     .map(([id, note]) => `- ${scene.cast.find(c => c.id === id)?.name ?? id}: ${note}`);
   const transitions = openRoutes([...beat.transitions, ...(scene.anytime ?? [])], state);
-  const strangers = Object.entries(unnamed(scene, state)).filter(([id]) => present.has(id)).map(([id, called]) => `- ${scene.cast.find(c => c.id === id)!.name}: "${called}"`);
+  const strangers = Object.entries(unnamed(scene, state)).filter(([id]) => present.has(id)).map(([id, called]) => { const c = scene.cast.find(x => x.id === id)!; return `- ${c.name}${c.aka?.length ? ` (${c.aka.join(", ")})` : ""}: "${called}"`; });
+  const unseen = outOfSight(scene, state);
   const parts = [
     `## Where the scene is now: ${beat.title}\n${beat.direction}`,
     // Cast notes are a beat's opening agenda: once voiced, re-sending them turns them into repeated lines.
-    ...(options.castNotes !== false && castNotes.length && state.turnsInBeat <= 1 ? [`What people are after in this part of the scene (they pursue it naturally, react first to what just happened, and don't repeat themselves):\n${castNotes.join("\n")}`] : []),
+    ...(options.castNotes !== false && castNotes.length && state.turnsInBeat === 0 ? [`What people are after in this part of the scene (they pursue it naturally, react first to what just happened, and don't repeat themselves):\n${castNotes.join("\n")}`] : []),
+    // The second reply in a beat still has the agenda, with its status: Kell told Prout's visit again a turn after telling it.
+    ...(options.castNotes !== false && castNotes.length && state.turnsInBeat === 1 ? [`What people are after in this part of the scene. The last reply began it: whatever of it they've already said or done there is said and done, so they don't say or do it again; they go on to what's next in it, or react to what's new:\n${castNotes.join("\n")}`] : []),
     ...(options.castNotes !== false && castNotes.length && state.turnsInBeat > 1 ? [`People have already made their wants known here (${castNotes.map(n => n.split(":")[0]!.slice(2)).join(", ")}): now they act on them, wait, change tack or give ground; they don't restate them.`] : []),
     // Pressure is for stalls, and fires once: offered every turn, it gets replayed word for word.
     ...(beat.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(beat.id) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
@@ -364,10 +431,11 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     // An ending held for the player's answer isn't a closing: the notes are for that answer (the
     // Heron's note to stage Sallow initialling the page was kept from the GM while the barge was held).
     ...(!state.closing && !closes(directive) && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
-    ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
+    ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\nWhat has happened and been found, in the order it happened.${state.world ? " Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then, and where the world says otherwise, they've moved on (people who have left don't come back unless the story brings them)." : ""}\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(playerNow(state) ? [playerNow(state)!] : []),
-    ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would.\n${strangers.join("\n")}`] : []),
-    ...(state.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it.\n${PHYSICS}\n\n${worldView(state.world)}`] : []),
+    ...(state.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it. It's as things stood before the player's turn: what the player does in it (shutting a book and buttoning it into their coat, picking something up, crossing the room) has happened by your reply, and the world catches up after it. It's the truth behind the screen, not what the player has seen: of what people carry, the player sees what's out in the open (worn, in hand, held up), and of the rest (in a pocket, a fist, a lining, a box) they know only what they've seen or been told.${unseen.length ? ` Out of the player's sight, and nobody has shown or told them of it: ${unseen.map(e => `${e.name} [${e.id}]`).join("; ")}. Until they find it, the narration doesn't mention it or where it is.` : ""}\n${PHYSICS}\n\n${worldView(state.world)}`] : []),
+    // Last before the reply's form and directions: those, the details above and the world all use the names.
+    ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would. Your prep, the details established, the world and your directions use their names; your narration doesn't, until someone says it.\n${strangers.join("\n")}`] : []),
     // A word on the reply's form comes before what it must do, which has the last word.
     ...(options.remind ? [options.remind] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),

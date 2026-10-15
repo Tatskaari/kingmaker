@@ -4,7 +4,7 @@ import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
-import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
+import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, nameTokens, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
 import { landRuling, plainReason, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
@@ -22,7 +22,7 @@ import { markupLines, sumStats, type Markup } from "./markup.ts";
 import { nameAsKnown } from "./knowledge.ts";
 import { annotate, type NotesUsage } from "./notes.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
-import { errandsOf, savePlayedScene, writePlayerBackstory } from "../lore/docs.ts";
+import { errandsOf, saveMemory, savePlayedScene, writePlayerBackstory } from "../lore/docs.ts";
 import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
 import { rememberScene } from "../lore/remember.ts";
 import { broadcastEnding } from "../lore/reviews.ts";
@@ -161,9 +161,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}, opti
   const scene = sceneById(state.sceneId);
   const approach = approachById(state.approach);
   const before = state.transcript.length;
-  const directive = state.history.length
-    ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep). The opening, as it stands after what actually happened: ${state.opening ?? scene.opening} Pick up after the last scene's closing lines rather than repeating them. Keep it to a short paragraph or two and end on something the player can respond to.`]
-    : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
+  const directive = [openingDirective(scene, state)];
   await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
   if (approach.staging) state.guard ??= {};
   // The place as a world: where everyone and everything starts, with what the player carried in.
@@ -216,16 +214,31 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}, opti
 }
 
 /**
+ * How a scene opens: all of its opening, none of which has happened yet, picking up from how the
+ * last scene ended. "Pick up after the last scene's closing lines" beside an opening the boundary had
+ * written as prose ending on the landlady's question ("Sergeant, are you on duty?") had the GM begin
+ * after it, with Kell answering a question the player never heard (four Rat openings in nine).
+ */
+export function openingDirective(scene: Scene, state: SessionState): string {
+  if (!state.history.length) return `Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`;
+  return `Open the scene: show the whole of the opening below, from its first glance to the moment it ends on. None of it has happened yet; the player sees all of it now, for the first time. It picks up from how the last scene ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep), without repeating that scene's closing lines. The opening, as it stands after what actually happened: ${state.opening ?? scene.opening} Keep it to a short paragraph or two, and end on what it ends on: something the player can respond to.`;
+}
+
+/**
  * Who from earlier scenes is actually here? A recurring character's card can't know whether the
- * last scene ended with them taken in or fled; the hand-off does. Only confident "not here" counts.
+ * last scene ended with them taken in or fled; the hand-off does, and so does the boundary's word on
+ * what's true now (its adjustments: "Cob will not be at the Rat tonight", and he was, at .83, read
+ * from the hand-off alone). Only confident "not here" counts.
  */
 async function settlePresence(scene: Scene, state: SessionState, decider: ReturnType<typeof deciderFor>): Promise<void> {
   const handoff = state.history.at(-1)?.summary;
   if (!handoff) return;
-  const recurring = scene.cast.filter(c => handoff.includes(c.name.split(" ").at(-1)!) || handoff.includes(c.name.split(" ")[0]!));
+  const now = state.adjustments ?? [];
+  const told = [handoff, ...now].join("\n");
+  const recurring = scene.cast.filter(c => told.includes(c.name.split(" ").at(-1)!) || told.includes(c.name.split(" ")[0]!));
   if (!recurring.length) return;
-  const decision = await decider.decide({ previous_scene: handoff, new_scene: `${scene.title}: ${scene.setting}` }, Object.fromEntries(recurring.map(c => [c.id, {
-    instructions: `A new scene is starting right after the previous one ended as described. Going by what happened (not by what this scene's prep assumes), can ${c.name} be here at the start of the new scene, or does what happened rule it out (taken into custody, fled, left far behind, dead)?`,
+  const decision = await decider.decide({ previous_scene: handoff, ...(now.length ? { true_now: now } : {}), new_scene: `${scene.title}: ${scene.setting}` }, Object.fromEntries(recurring.map(c => [c.id, {
+    instructions: `A new scene is starting right after the previous one ended as described${now.length ? " (true_now is what's true by the time it starts, and it has the last word on who is where)" : ""}. Going by what happened (not by what this scene's prep assumes), can ${c.name} be here at the start of the new scene, or does what happened rule it out (taken into custody, fled, left far behind, dead, staying away)?`,
     criteria: { here: `${c.name} can be here (or nothing rules it out).`, not_here: `What happened rules out ${c.name} being here.` },
   }])), "director.presence");
   state.absent = recurring.filter(c => decision.answers[c.id]?.choice === "not_here" && (decision.answers[c.id]?.probabilities?.not_here ?? 1) >= 0.8).map(c => c.id);
@@ -266,7 +279,7 @@ function heldEnding(state: SessionState, pending: NonNullable<SessionState["pend
     state.pendingExit = { ...pending, extended: true };
     return { line: `The scene is on the brink of: ${exit.title} (${exit.outcome}). It hasn't closed: the player is answering it, and their response may change that. Answer what they ask, let whoever they challenge or call on answer, and let what they do change things if it would; play it honestly.` };
   }
-  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
+  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} ${STORY_VOICE} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
 }
 
 /** A word out of character while an ending is held or winding down: answered, and nothing moves on. */
@@ -277,9 +290,38 @@ function oocHold(exit: Exit, how: "held" | "closing"): string {
   return `Nothing in the story moves on while you answer: ${where}. Then give the turn back.`;
 }
 
+/**
+ * A closing tells what's left, once: Kell's arrest of Hobb, narrated as it happened, came again
+ * word for word in the close, from the exit's "Kell's proper words".
+ */
+const ONCE = "What the scene has already shown has happened: don't show it again or say any line of it twice; if this ending's moment has already played, close from where it stands.";
+
+/**
+ * A closing is told in the story's voice: the last one read as bookkeeping ("what came of it is not
+ * established here… the King's promise cannot bring them back into this room", of a promise never made).
+ */
+const STORY_VOICE = "Tell it in the story's own voice: what became of people, said plainly as what became of them (what isn't settled yet is how things stand: \"Hobb waits in the cells for the Assizes\"), and only the promises actually made in play; never the game's words (established, the story, this scene, between scenes).";
+
+/**
+ * What the scene still holds as it closes: an essential the player hasn't come across (not one the
+ * story carries on anyway: `later`, or brought over), with someone here who has it. Before the
+ * close, one of them lets it reach the player in their own way. In the Rat, once Hobb clammed up
+ * about the Heron, Nan, Dilly and Cob, who had it too, never said a word, and the boundary had no
+ * truthful way to the wharf.
+ */
+export function lastChance(scene: Scene, state: SessionState): string | undefined {
+  const here = new Set(presentCast(scene, state).map(c => c.id));
+  const landed = new Set(state.landed ?? []);
+  const open = (scene.essentials ?? []).filter(e => !landed.has(e.id) && !e.later && !e.missed)
+    .map(e => ({ what: e.what, by: (e.carriers ?? []).filter(id => here.has(id)) })).filter(x => x.by.length).slice(0, 2);
+  if (!open.length) return undefined;
+  const one = open.length === 1;
+  return `Before it closes: the player hasn't come across ${one ? "this" : "these"}, and the story goes on without ${one ? "it" : "them"} unless they do: ${open.map(x => `${x.what} (${x.by.map(id => nameIn(scene, state, id)).join(" or ")} could let it out)`).join("; ")}. If one of them would, as things stand (a word as the player goes, something they'd say anyway, a thing in plain sight), let it reach the player in this reply, once, in their own way; nobody who has refused it gives it up for nothing.`;
+}
+
 /** The wind-down reply: the player's last turn answered (a challenge to someone in the room lands), then the close. */
 function closingDirective(exit: Exit): string {
-  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
+  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} ${STORY_VOICE} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
 }
 
 /**
@@ -434,7 +476,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const exit = scene.exits.find(e => e.id === state.closing!.exitId)!;
     const asked = await outOfCharacter(decider, scene, state, input).catch(() => undefined);
     const ooc = asked?.ooc === true;
-    const lines = ooc ? [OOC_DIRECTIVE, oocHold(exit, "closing")] : [closingDirective(exit)];
+    const last = exit.kind === "combat" ? undefined : lastChance(scene, state);
+    const lines = ooc ? [OOC_DIRECTIVE, oocHold(exit, "closing")] : [closingDirective(exit), ...(last ? [last] : [])];
     const replyStarted = performance.now();
     const close = approach.voice === "gm"
       ? await gmReply(scene, state, lines, speakHooks(textHooks, "gm", "narration"), ooc ? "gm.reply" : "gm.closing")
@@ -670,6 +713,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     directive.push(held.line);
     if (held.ended) ended = held.ended;
   }
+  // A scene closing in this reply: what it still holds for the player, offered once through someone here.
+  const last = ended && ended.kind !== "combat" ? lastChance(scene, state) : undefined;
+  if (last) directive.push(last);
 
   const spoken: Spoken[] = [];
   const replyStarted = performance.now();
@@ -919,13 +965,38 @@ export async function resumeAfterFight(state: SessionState, summary: string, hoo
   const before = state.transcript.length;
   push(state, hooks, { speaker: "system", kind: "system", text: `The fight: ${summary}` });
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
-  const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went: if the player's side lost, they lost, and the winners do what they'd do with a beaten foe; nothing in the aftermath turns it round. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
+  const spoken = await gmReply(scene, state, [aftermathDirective(summary)], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
   // The reply's notes and the lines to suggest are made side by side: neither waits for the other.
   const noting = pushReply(scene, state, hooks, spoken);
   if (options.suggest) startSuggesting(state, hooks);
+  // What the aftermath did (the winners took the book) is in the world from now on, as a turn's reply is.
+  const staging = stageAftermath(scene, state, spoken.text);
   await noting;
+  await staging;
   saveSession(state);
   return state.transcript.slice(before);
+}
+
+/**
+ * The aftermath's direction. The fight's result is the summary's, not the world's or the details
+ * established before it: after a lost fight the GM had Sallow "down beside you" and the wizard
+ * waking with the ledger under his arm, though the summary had Sallow on his feet.
+ */
+function aftermathDirective(summary: string): string {
+  return `The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went, whatever the details established before it or the world's last word say: who is standing and who is down is as this says. If the player's side lost, they lost, and the winners do what they'd do with a beaten foe (what the player carried that they'd want is theirs to take, and they take it); nothing in the aftermath turns it round. Only people the world has here are here. Then hand the moment back to the player: the scene isn't over until the story says so.`;
+}
+
+/** The world takes in what the aftermath narrated (best effort, as a turn's stage manager is). */
+async function stageAftermath(scene: Scene, state: SessionState, text: string): Promise<void> {
+  if (!state.world) return;
+  const staged = await stageManage(state.world, state.player, "(The fight is over.)", text, state.turn, {
+    cast: presentCast(scene, state).map(c => ({ id: c.id, name: c.name, look: c.look })),
+    settled: settledFacts(state),
+  }).catch(() => undefined);
+  for (const problem of staged?.problems ?? []) state.world.log.push({ turn: state.turn, text: `(not done) ${problem}`, by: "stage" });
+  // (Only the player walking out takes them out of the place, as on a turn.)
+  const me = state.world.entities.player;
+  if (me?.states.includes("gone")) me.states = me.states.filter(s => s !== "gone");
 }
 
 /** Test harness: end the scene through a given exit now (as if play had reached it). */
@@ -958,6 +1029,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   const { handoff, sceneId, adjustments, skipped, opening, lead, fronts, owed: verdict } = await crossBoundary(scene, state, exit, combatResult, candidates, undefined, owed);
   const memory = approachById(state.approach).memory;
   if (memory === "docs") broadcastEnding(scene, state, exit);
+  if (memory === "docs") rememberBetween(scene, sceneById(sceneId), state, lead, adjustments);
   if (memory === "lite") await rememberScene(scene, state, `${exit.title}: ${exit.outcome}`).catch(() => undefined);
   if (memory) savePlayedScene(state.id, scene, exit.title, handoff);
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
@@ -974,6 +1046,28 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   bringOver(state, next, owed, verdict);
   saveSession(state);
   return state;
+}
+
+/**
+ * What the boundary says of someone in the time between (what the player heard of it, in the lead;
+ * how things stand for them, in the adjustments) goes into their own memory, so the next scene's GM
+ * and their talks know it as theirs. Kell's afternoon at the Purveyor's wagons was in the lead, and in
+ * the talk that followed she flatly denied it: her memories held only the granary.
+ */
+function rememberBetween(scene: Scene, next: Scene, state: SessionState, lead: string | undefined, adjustments: string[]): void {
+  const people = new Map([...scene.cast, ...next.cast].map(c => [c.id, c]));
+  for (const c of people.values()) {
+    const names = (text: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(text));
+    const lines = [...(lead && names(lead) ? [`As ${state.player.name} heard it in the time between: ${lead}`] : []), ...adjustments.filter(names)];
+    if (!lines.length) continue;
+    try {
+      saveMemory(state.id, { id: c.id, name: c.name }, {
+        title: `Between ${scene.title} and ${next.title}`,
+        context: "What I did and said in the time between, and how things stand for me now.",
+        content: lines.map(l => `- ${l}`).join("\n"),
+      }, { scene: next.id, turn: state.turn });
+    } catch { /* best effort, as the boundary's other records are */ }
+  }
 }
 
 /** The notebook's lines the ending of the scene just played wrote (its exit script's journal). */
@@ -1053,7 +1147,7 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const hookOf = (id: string) => { try { return sceneById(id).hook; } catch { return ""; } };
   const unheard = strangers([scene, ...candidates], state, [...state.history.map(h => hookOf(h.sceneId)), scene.hook]);
   const between = [
-    ...(errands.length ? [`## What people do between scenes (their lore, GM only)\nWhat each of the people the story goes on with does on their own if nobody stops them. In the time before the next scene it happens as written, unless what happened in play rules it out (they were taken in, hurt or sent elsewhere, or the reason for it is gone). They know only what they did and saw, and the player only what they're told of it or were there for.\n\n${errands.join("\n\n")}`] : []),
+    ...(errands.length ? [`## What people do between scenes (their lore, GM only)\nWhat each of the people the story goes on with does on their own if nobody stops them. In the time before the next scene it happens as written, unless what happened in play rules it out (they were taken in, hurt or sent elsewhere, or the reason for it is gone). Whatever begins with an \"if\" happens only when play has made the if true (if Prout went into the book as a suicide, nothing that follows his going in as a murder happens). They know only what they did and saw, and the player only what they're told of it or were there for.\n\n${errands.join("\n\n")}`] : []),
     ...(unheard.length ? [`## Names the player hasn't heard\nNobody has said these names where the player could hear: to the player, each is only what's in quotes until someone does.\n${unheard.map(s => `- ${s.name}: "${s.called}"`).join("\n")}`] : []),
   ];
   const handoff = respond({
@@ -1065,11 +1159,11 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     operation: "boundary", effort: "low",
     instructions: [
       "The upcoming scenes of a roleplaying game were written before play. Check them against what has actually happened in the story, and bring the player on to the next one.",
-      "Everything you write must already be true: what happened in play, or what people did on their own in the time between scenes, as their lore below says. Make up no fact and no source for one: no record, message, witness, order or find that neither of those has. The player knows only what they saw and heard in play and what someone tells them, and knows nobody by name until they've heard the name: the list below has the people of these scenes whose names they haven't, and the same goes for anyone else.",
+      "Everything you write must already be true: what happened in play, or what people did on their own in the time between scenes, as their lore below says. Make up no fact and no source for one: no record, message, witness, order or find that neither of those has (the one exception is the lead's, below, when play gave the player no way on). The player knows only what they saw and heard in play and what someone tells them, and knows nobody by name until they've heard the name: the list below has the people of these scenes whose names they haven't, and the same goes for anyone else.",
       "1. scenes: for each upcoming scene, in order, judge whether what it takes for granted still holds. A scene is overtaken when play has already done, prevented or bypassed what it is about (its central matter is settled, the people it needs are gone, the thing it's built around has already happened).",
-      "2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Write each as a short statement of what is true instead, so its GM can adapt (\"Hobb is in the watch-house cells, not on the hoist.\"). Leave out everything that still fits. An empty list is fine.",
-      "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on) and drop or change whatever the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). It's told to the player, so anyone whose name they haven't heard goes by what they'd call them. If nothing needs changing, return the author's opening as it is.",
-      "4. lead: one or two sentences of second-person fiction that the player reads as the time passes. Having read it, they know where the story goes next (that first scene that holds: its place), why they're going and what they hope to find out there, in their own terms (what they've seen and been told, never what the scene is about), and how the time between passed for them. Its reasons are what they learned in play and what someone tells them of what they did in the time between (in that person's own reasoning, as their lore has it), joined up the way the player would join them; never the coming scenes' prep or the GM's truth, not even as a hope. Anyone whose name they haven't heard goes by what they'd call them, and anyone they've never met or heard of comes in as they were seen (\"a woman in a grey hood\"). No game talk.",
+      "2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Nobody is there sooner than its prep brings them on (\"at the midnight bell the Master comes\") unless play has sent them there already: that's the scene's to play. Write each as a short statement of what is true instead, so its GM can adapt (\"Hobb is in the watch-house cells, not on the hoist.\"). Leave out everything that still fits. An empty list is fine.",
+      "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on, and who isn't there yet: \"Don't show Master Sallow: he isn't here yet\") and drop or change only what the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). Write it as the author did: directions for its GM (what to show, in what order, what to end on: \"End on the landlady asking the sergeant whether she's on duty\"), never the scene's prose or its spoken lines; the GM writes those. It's told to the player, so anyone whose name they haven't heard goes by what they'd call them. If nothing needs changing, return the author's opening as it is.",
+      "4. lead: one or two sentences of second-person fiction that the player reads as the time passes. Having read it, they know where the story goes next (that first scene that holds: its place), why they're going and what they hope to find out there, in their own terms (what they've seen and been told, never what the scene is about), and how the time between passed for them. Its reasons are what they learned in play and what someone tells them of what they did in the time between (in that person's own reasoning, as their lore has it), joined up the way the player would join them; never the coming scenes' prep or the GM's truth, not even as a hope. Anyone whose name they haven't heard goes by what they'd call them, and anyone they've never met or heard of comes in as they were seen (\"a woman in a grey hood\"). What someone tells them doesn't go against what that person said in play: what they found out since is told as new (\"I couldn't tell you who, this morning; this afternoon I saw him\"). It's always the story, never a note about it (what the story does or doesn't say, or that there's no lead): if play gave them no reason to go there, they pick up the trail in the time between from someone who'd know and say (a regular at the last place, a neighbour, whoever was about), told as plainly as that, and no more than that person would know. No game talk.",
       ...(owed.length ? [OWED_INSTRUCTION] : []),
     ].join("\n"),
     input: [{ role: "user", content: [story, ...between, ...(owed.length ? [owedText(owed)] : []), `## Upcoming scenes, in order (the GM's prep, written before play: the player knows none of it)\n${candidates.map(prep).join("\n\n")}`].join("\n\n") }],
@@ -1136,7 +1230,7 @@ async function moveOn(story: string, next: Scene, fronts: string): Promise<(Fron
       "- ticked: the unticked steps (\"- [ ]\") that what happened, or the time passing until the next scene opens, has now made true. Give each by its front (the ## heading) and the step's bold opening words. A step ticks because its condition is met or its hour has come, never because it would be dramatic, and nobody acts on what they couldn't have learned (each step says who learns what, and from whom).",
       "- struck: unticked steps that play has made impossible or meaningless (the person is arrested, dead or gone, the thing destroyed, the matter settled), with why in a few words.",
       "- bills: usually none. When the player did something reckless, violent or daft in the last scene that the world would answer later, a line for each such consequence: \"If <what happened>: <who answers it, how, and where it will show>\". The bills already listed are on their way: never add one again, and add only what none of them covers. At most two.",
-      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM. Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
+      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM, and first any bill (listed already, or new) that comes due there, as what happens there and who brings it (\"Sallow gives his account of the Heron first: he calls the investigator a violent intruder and the true book stolen\"). Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
     ].join("\n"),
     input: [{ role: "user", content: `${story}\n\n## The next scene: ${next.title}\nWhen and where: ${next.setting}\nIts opening: ${next.opening}\n\n## What's in motion (GM only)\n${fronts}` }],
     json: { name: "fronts", schema: { type: "object", additionalProperties: false, required: ["ticked", "struck", "bills", "shows"], properties: {

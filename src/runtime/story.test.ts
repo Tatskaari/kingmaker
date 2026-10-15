@@ -51,7 +51,8 @@ test("the GM's prep has the whole story, scene by scene: every hand-off, what pl
   assert.doesNotMatch(brief, /Earlier scenes are in the story notes/);
   // Where the boundary says the prep is out of date, that's the GM's knowledge too (the King knew of the Heron's ledger from it).
   const adjusted = sceneBrief(scene, { ...morning(), adjustments: ["The ledger was left in the counting-box under Scrope's hand; it is gone with the emptied Heron."] }, { docs: true });
-  assert.match(adjusted, /## Where the prep is out of date\n[^\n]*Like the story so far, they're your knowledge: people here know of them only what they saw, were there for or have been told\.\n- The ledger was left/);
+  assert.match(adjusted, /## Where the prep is out of date\n[^\n]*Like the story so far, they're your knowledge: people here know of them only what they saw, were there for or have been told\.[^\n]*\n- The ledger was left/);
+  assert.match(adjusted, /Where one is the world answering what the player did \(an account given against them, a claim, someone demanding a reckoning\), it comes up in this scene through the people it names/);
 });
 
 test("a scene's facts go on with the story, and the hand-off keeps what was admitted and what a companion saw", async () => {
