@@ -338,14 +338,16 @@ function settledFacts(state: SessionState): string[] {
 }
 
 function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" | "post"): void {
+  // (How much was settled before it: a beat left before something was settled can't be gone back to by the co-GM.)
+  const known = state.established.length;
   // The route's own facts, then those of how its check went (a considered ruling's outcome).
   const byOutcome = move.roll && move.transition.check?.establishes ? (move.roll.success ? move.transition.check.establishes.success : move.transition.check.establishes.failure) ?? [] : [];
   for (const fact of [...(move.transition.establishes ?? []), ...byOutcome]) if (!state.established.includes(fact)) state.established.push(fact);
   if (move.to !== state.beat) {
-    state.path.push({ turn: state.turn, from: state.beat, to: move.to, via: move.transition.id, source, ...(move.roll ? { roll: move.roll } : {}) });
+    state.path.push({ turn: state.turn, from: state.beat, to: move.to, via: move.transition.id, source, ...(move.roll ? { roll: move.roll } : {}), known });
     if (!move.exit) { state.beat = move.to; state.turnsInBeat = 0; }
   } else if (move.roll) {
-    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: move.transition.id, source, roll: move.roll });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: move.transition.id, source, roll: move.roll, known });
   }
   void scene;
 }
@@ -410,7 +412,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       delete state.closing;
       if (authored.createsCharacter) await extractCharacter(authored, state);
       finishScene(state, authored, exit);
-    } else if (options.suggest) startSuggesting(state, hooks);
+    } else {
+      state.oocTurns = [...(state.oocTurns ?? []), state.turn];
+      if (options.suggest) startSuggesting(state, hooks);
+    }
     const metric: TurnMetric = { turn: state.turn, preDecisionMs: asked?.decision.latencyMs ?? 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd + (asked?.decision.costUsd ?? 0), calls: asked ? 2 : 1 };
     state.metrics.push(metric);
     saveSession(state);
@@ -618,7 +623,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     for (const r of pre.relocate) directive.push(relocateDirective(scene, r));
     state.decidedRelocations = [...(state.decidedRelocations ?? []), ...pre.relocate.map(r => ({ ...r, turn: state.turn }))];
   }
-  if (pre.ooc) directive.push(OOC_DIRECTIVE);
+  // (On record, so the co-GM doesn't take a question to the GM for the scene's time passing.)
+  if (pre.ooc) { directive.push(OOC_DIRECTIVE); state.oocTurns = [...(state.oocTurns ?? []), state.turn]; }
   else if (pre.plainTransition && !pre.limit && !pre.move && !considered) directive.push(plainDirective(pre.plainTransition));
   // (Out of character, the answer says plainly what the game can't do, and the scene isn't pushed on.)
   if (pre.limit && !pre.ooc) directive.push(limitDirective(pre.limit));
@@ -938,7 +944,7 @@ function freshScene(state: SessionState, next: Scene): void {
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
-    fought: [], rulings: [],
+    fought: [], rulings: [], oocTurns: [],
   });
   delete state.ended;
   delete state.threat;

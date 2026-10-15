@@ -276,10 +276,33 @@ export function spentHere(state: SessionState): Set<string> {
   return spent;
 }
 
-/** The routes to offer now: not one already achieved here, nor one that brings what the player has already come across. */
+/**
+ * Has the scene left this beat, and has something been settled since (a fact established)? Then
+ * going back there would undo it: the Rat's confession beat, left for "Hobb rises to go to work",
+ * where the only way out for him was "without telling what he knows".
+ */
+export function leftBehind(state: SessionState, beat: string): boolean {
+  if (beat === state.beat) return false;
+  const left = state.path.findLast(p => p.from === beat && p.to !== beat);
+  return left?.known !== undefined && state.established.length > left.known;
+}
+
+/** The co-GM's routes (its improvised ones, and its bridging beats'), by id. */
+function coGmRoutes(state: SessionState): Set<string> {
+  return new Set(state.patches.flatMap(p => [...(p.transition ? [p.transition.transition.id] : []), ...(p.beat?.transitions.map(t => t.id) ?? [])]));
+}
+
+/** A co-GM route back to a beat the scene left before something was settled: it can't undo that. */
+const undoes = (state: SessionState, t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure].some(to => !!to && leftBehind(state, to));
+
+/**
+ * The routes to offer now: not one already achieved here, nor one that brings what the player has
+ * already come across, nor one of the co-GM's that would take the scene back past what's settled.
+ */
 export function openRoutes(transitions: Transition[], state: SessionState): Transition[] {
   const spent = spentHere(state);
-  return transitions.filter(t => !spent.has(t.id) && !(t.essential && state.landed?.includes(t.essential)));
+  const coGm = coGmRoutes(state);
+  return transitions.filter(t => !spent.has(t.id) && !(t.essential && state.landed?.includes(t.essential)) && !(coGm.has(t.id) && undoes(state, t)));
 }
 
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
