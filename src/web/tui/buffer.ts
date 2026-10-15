@@ -301,6 +301,12 @@ export class OptimizedBuffer {
   }
 
   /** The buffer's text, a row a line (wide characters once, as a terminal shows them). */
+  /** The cells' text as UTF-8 (OpenTUI's getRealCharBytes): a row a line with `addLineBreaks`, the rows run together without. */
+  getRealCharBytes(addLineBreaks = false): Uint8Array {
+    const text = this.charFrame();
+    return new TextEncoder().encode(addLineBreaks ? text : text.replace(/\n/g, ""));
+  }
+
   charFrame(): string {
     const rows: string[] = [];
     for (let y = 0; y < this.height; y++) {

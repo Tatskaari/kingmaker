@@ -5,6 +5,7 @@ import { connect } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type Page } from "playwright";
 import { WebSocket } from "ws";
 
@@ -13,8 +14,9 @@ import { WebSocket } from "ws";
  * with Playwright, the keys pressed as a player would. Screens go to runs/web/<run>/ as PNGs, each
  * with the terminal's text beside it (to compare with src/app/smoke's screens).
  *
- *   node --no-warnings src/web/check.ts              offline: the screens, keys, latency, bandwidth,
- *                                                    closing the tab, the cap, Origin and Host checks,
+ *   node --no-warnings src/web/check.ts              offline: the screens, keys, latency, bandwidth, a
+ *                                                    problem reported (saved on the server), closing
+ *                                                    the tab, the cap, Origin and Host checks,
  *                                                    requests and messages that mustn't stop the server
  *   node --no-warnings src/web/check.ts --live       the server's own key (~/secrets): a real GM reply
  *   node --no-warnings src/web/check.ts --key-form   no key on the server: the page asks for one, turns
@@ -503,6 +505,23 @@ async function offline(): Promise<void> {
     await waitFor(page, "couldn't open the scene", "offline: the GM can't speak (expected)", 40000);
     await sleep(500);
     await shot(page, "granary-scene");
+
+    // A problem reported mid-scene (/report): saved on the server, under its runs/reports, with what the page said of the browser.
+    await page.keyboard.type("/report", { delay: 15 });
+    await press(page, "Enter");
+    await waitFor(page, "What went wrong\\?", "/report asks what went wrong");
+    await page.keyboard.type("The GM never opened the scene", { delay: 10 });
+    await press(page, "Enter");
+    await waitFor(page, "Report saved.*tell", "the report is saved on the server, and the game says where, to tell Claude");
+    await shot(page, "report-saved");
+    const reports = join(runs, "reports");
+    const filed = existsSync(reports) ? readdirSync(reports).filter(f => f.endsWith(".json.gz")) : [];
+    const dump = filed.length ? JSON.parse(gunzipSync(readFileSync(join(reports, filed[0]!))).toString("utf8")) as { words: string; build: { host: string }; settings: { userAgent?: string; window?: string; terminal?: { cols: number } }; game?: { id: string } } : undefined;
+    if (dump?.words === "The GM never opened the scene" && dump.build.host === "server" && /Chrome/.test(dump.settings.userAgent ?? "") && /^\d+x\d+@[\d.]+$/.test(dump.settings.window ?? "") && dump.settings.terminal?.cols === COLS && dump.game) {
+      ok(`it's in the server's runs/reports (${filed[0]}): the server's game, the browser's agent and window (${dump.settings.window}), the game's files`);
+    } else fail(`the report on the server: ${filed.join(", ") || "none"}${dump ? `, ${JSON.stringify({ host: dump.build.host, ua: dump.settings.userAgent, window: dump.settings.window, terminal: dump.settings.terminal })}` : ""}`);
+    await press(page, "Enter");
+    await sleep(300);
 
     // PgUp and PgDn scroll the scene's transcript. Offline it's short, so #exits fills it past its
     // height first; then the transcript's top lines (between the first pair of │) must move and come back.

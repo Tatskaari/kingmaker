@@ -121,7 +121,10 @@ async function keyRefused(key: string): Promise<boolean> {
   }
 }
 
-function gameEnv(source: KeySource, key?: string): Record<string, string> {
+/** What the page says of the browser, for a report of a problem (src/report): its agent, and its window ("1280x800@2"). */
+interface PageSaid { userAgent?: string; window?: string }
+
+function gameEnv(source: KeySource, key: string | undefined, page: PageSaid): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(process.env)) {
     if (value !== undefined && !TERMINAL_ENV.test(name)) env[name] = value;
@@ -130,6 +133,9 @@ function gameEnv(source: KeySource, key?: string): Record<string, string> {
   env.COLORTERM = "truecolor";
   // The game is on a web page (src/app/ui/title.tsx: Esc on the title doesn't quit).
   env.KM_IN_BROWSER = "1";
+  env.KM_HOST = "server";
+  if (page.userAgent) env.KM_BROWSER_UA = page.userAgent.slice(0, 400);
+  if (page.window) env.KM_WINDOW = page.window;
   if (source === "offline") env.OPENROUTER_API_KEY = "offline";
   if (source === "page" && key) env.OPENROUTER_API_KEY = key;
   return env;
@@ -306,6 +312,8 @@ function play(ws: WebSocket, req: IncomingMessage): void {
   let fromPage = 0;
   let pending: Buffer[] = [];
   let flushing = false;
+  // What a report of a problem from this game says of the browser (its window, once the page says it).
+  const page: PageSaid = { ...(req.headers["user-agent"] ? { userAgent: req.headers["user-agent"] } : {}) };
 
   const control = (message: Record<string, unknown>) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(message));
@@ -344,7 +352,7 @@ function play(ws: WebSocket, req: IncomingMessage): void {
       game = new GameTerminal({
         cwd: ROOT,
         ...size,
-        env: gameEnv(source, key),
+        env: gameEnv(source, key, page),
         onData: chunk => {
           pending.push(chunk);
           if (!flushing) { flushing = true; setImmediate(flush); }
@@ -413,6 +421,7 @@ function play(ws: WebSocket, req: IncomingMessage): void {
       case "start": {
         if (game || checking) return;
         size = dimensions(message.cols, message.rows) ?? size;
+        if (typeof message.window === "string" && /^\d{1,5}x\d{1,5}@\d{1,2}(\.\d{1,4})?$/.test(message.window)) page.window = message.window;
         if (OFFLINE || message.offline === true) return start("offline");
         if (!keyNeeded()) return start("server");
         const key = typeof message.key === "string" ? message.key.trim() : "";

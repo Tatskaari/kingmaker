@@ -58,11 +58,12 @@ npm run web -- --port 8000 --max-games 2
 - **The page:** xterm.js 6 with the WebGL renderer, so xterm draws box and block characters itself and the map's ▚▞▀▄█ join up. Without WebGL it falls back to the DOM renderer, which takes them from the font. It uses Unicode 11 widths, so 🎲 takes two cells as the game expects. The theme is the game's palette, and the font stack starts with Adwaita Mono. Browser zoom changes the size, and so does `?font=17` (15 by default).
 - **Glyph fonts:** any `.ttf` or `.otf` in `assets/fonts/` gets an `@font-face` (`/fonts.css`) and goes at the front of the terminal's font stack, loaded before the terminal measures its cells. The family, weight and style come from the font's own tables, and its `unicode-range` from its cmap. A font of private-use glyphs (Kingmaker Glyphs, U+10E000 on) is used only for those and never changes the cell size.
 - **Output:** the game's bytes go to the page as they're read from the pty. permessage-deflate brings them down about 9 times, since a frame is mostly the same truecolor escape sequences. If the page falls a megabyte behind, the server stops reading the pty until it catches up.
+- **Reporting a problem** (b, `/report`, the Esc menu: src/app/README.md) saves the report on the server, under `runs/reports/`, as the terminal game does. The page tells the server its window's size as the game starts, and the server puts that and the browser's user agent in the game's environment (`KM_WINDOW`, `KM_BROWSER_UA`) for the report to say.
 
 ## Checking it
 
 ```sh
-npm run web:check                 # offline, about a minute: screens, keys, latency, bandwidth, tab close, the cap, HiDPI, Origin and Host, odd requests
+npm run web:check                 # offline, about a minute: screens, keys, latency, bandwidth, a report saved on the server, tab close, the cap, HiDPI, Origin and Host, odd requests
 npm run web:check -- --live       # the server's own key: a real GM reply
 npm run web:check -- --key-form   # no key on the server: the page asks, turns back the wrong kinds, and the key from ~/secrets goes in through it; a real GM reply
 npm run web:check -- --gpu        # any of the above with Chromium drawing on the GPU (Vulkan) rather than in software
@@ -97,7 +98,7 @@ So the server and WebSocket add about a millisecond, and xterm parses and draws 
 ```sh
 npm run build:web                            # dist/web: 22 files, about 5.4 MB (1.4 MB gzipped), built in under a second
 node --no-warnings src/web/static/serve.ts   # http://127.0.0.1:7312/kingmaker/pr-preview/pr-650/ (any static file server will do)
-npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo too (about 3 minutes)
+npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo and a report's download too (about 3 minutes)
 npm run web:static-check -- --live           # also the key from ~/secrets typed into the key form, and a real GM reply
 ```
 
@@ -119,6 +120,7 @@ CI builds it too: `moon.yml`'s `build` is this build, and its `check` is the typ
   - Where these do less than Node, the build checks the game doesn't ask for more (`src/web/static/shims.ts`): it fails if a module it bundles calls `createHash` with a hash `crypto` hasn't got. esbuild already fails it on a missing module or export. Either way the preview isn't published broken.
 - **Background jobs** between turns (the GM's notes: the memory review and the co-GM's repair) can't be processes here. They run in the worker, the same functions the scene CLI's `remember` and `repair` commands run (`src/runtime/jobs.ts`), started as the turn ends and never awaited by it. When the game closes, the worker finishes them and saves what they wrote before it goes (for up to 3 minutes, as the server allows), and Play again waits for that, saying so. `?jobdelay=<ms>` holds each job back, so the check can catch one running.
 - **Model calls** go from the worker straight to OpenRouter (`fetch`, streamed), with the player's key.
+- **Reporting a problem** (b, `/report`, the Esc menu: src/app/README.md): the report is made in the worker, the key taken out of it as everywhere (src/report/redact.ts), gzipped with `CompressionStream`, and handed to the page, which downloads it as `kingmaker-report-<time>.json.gz`. The game says "Downloaded kingmaker-report-….json.gz (your browser's downloads): tell Claude 'report …'", and the bar under it says so too. The build writes the commit it was built from into the game (and whether there was more than the commit); the worker tells the game the build's stamp, the browser's user agent and its window, for the report to say. `npm run report` looks for it in ~/Downloads.
 - **The build** fails if any file in `dist/web` holds the dev key (`~/secrets/kingmaker-dev-openrouter.txt`, read in the build, never printed) or anything shaped like an OpenRouter key. It leaves out boardgame.io's debug panel (Svelte, about 90 KB), which its client shows only outside production builds.
 - **The page's CSP** (a meta tag; GitHub Pages sends no headers of ours) allows scripts and workers from its own origin only, and connections to it and `https://openrouter.ai`. It doesn't reach into the worker, which would take a CSP from its own response's headers.
 
@@ -134,7 +136,7 @@ As V1 kept it:
 - A line under the terminal says it's kept, and offers to change or forget it. Forgetting it saves the game, stops it, and asks again. If the browser won't keep it (its site data blocked), the line says the key is for this page only. Play again still has it until the page closes.
 - Over a game that's playing, the form has Cancel (or Esc) to leave things as they were, and the game behind it takes nothing while it's up. A key pasted next to the form can't land in the game.
 - If OpenRouter turns the key down mid-game (revoked since it was kept, say), the page asks for another.
-- It's never in a URL, the saves, the call logs, or a console line or error message. The worker blanks it from everything it logs or reports, and from anything it draws. Anything shaped like an OpenRouter key that's pasted into the game itself is dropped before the game sees it, as it would go to the GM and into the saves.
+- It's never in a URL, the saves, the call logs, a report of a problem, or a console line or error message. The worker blanks it from everything it logs or reports, and from anything it draws. Anything shaped like an OpenRouter key that's pasted into the game itself is dropped before the game sees it, as it would go to the GM and into the saves.
 - Any page on the origin can read it: every preview, and V1. That's V1's way too, and every preview is this repo's own code (the workflow doesn't publish forks' PRs).
 - The check fakes OpenRouter for a made-up key and confirms it's kept, and isn't in any URL, console line or saved file. With `--live` it confirms the same for the real key, and that none of the files the check wrote hold it.
 
@@ -144,6 +146,7 @@ As V1 kept it:
   - a save it wouldn't take (its storage full, say): the game plays on, and the next save tries again;
   - no IndexedDB at all (some private windows, or this site's data blocked), or one that hasn't answered in 5 seconds: the game plays, but it goes when the page closes;
   - saves it couldn't read back: none are offered, but this game is kept.
+- **A report of a problem** is downloaded, not saved under `runs/reports/`: what the browser keeps is out of reach of anyone looking into it.
 - **Deleting a game** (x x on the title) deletes it for good the next time the game starts. In a terminal its folder is kept in `runs/deleted/` for anyone who wants to look, but nobody can look in a browser's, and it would be read back into the worker every time.
 - **Closing or reloading the tab** mid-game keeps what was played up to about a second before; the page also asks the game to save as it goes. A background job still running then is lost, and so are its notes on the last turn.
 - **One tab at a time:** each tab would hold its own copy of the saves, and whichever wrote a file last would win, undoing the other's progress. So a tab opened while another plays is told so, and doesn't start. "Play here instead" asks the other tab to save its game and let go (a BroadcastChannel); that tab says the game is being played elsewhere, and offers to take it back. The worker holds a Web Lock while it runs, named after the preview as its database is, and a reload lets go as its old page goes. A browser without Web Locks (or a page that isn't https or localhost) plays a copy in each tab, as before.

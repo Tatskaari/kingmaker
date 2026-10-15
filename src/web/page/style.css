@@ -173,16 +173,29 @@ html[data-mode="static"] #frame {
   white-space: nowrap;
 }
 
-/* Whether this browser is keeping the game, on the left, until it is. */
-#key-bar [data-storage] {
+/* On the left: whether this browser is keeping the game (until it is), and a report just downloaded. */
+#key-bar [data-notes] {
+  display: flex;
+  gap: 0 10px;
   margin-right: auto;
+  min-width: 0;
+}
+
+#key-bar [data-storage], #key-bar [data-report] {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+#key-bar [data-storage] {
   color: var(--danger);
 }
 
-#key-bar [data-storage][hidden] {
+#key-bar [data-report] {
+  color: var(--title);
+}
+
+#key-bar [data-storage][hidden], #key-bar [data-report][hidden] {
   display: none;
 }
 

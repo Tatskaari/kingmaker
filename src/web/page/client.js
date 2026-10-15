@@ -174,7 +174,7 @@ new ResizeObserver(() => {
   cancelAnimationFrame(resizing);
   resizing = requestAnimationFrame(resize);
 }).observe($("terminal"));
-term.onResize(({ cols, rows }) => control({ type: "resize", cols, rows }));
+term.onResize(({ cols, rows }) => control({ type: "resize", cols, rows, window: windowSize() }));
 term.onData(data => sendBytes(encoder.encode(data)));
 term.onBinary(data => sendBytes(Uint8Array.from(data, ch => ch.charCodeAt(0) & 255)));
 term.onTitleChange(title => {
@@ -362,7 +362,12 @@ function socketTransport(handlers) {
 }
 
 function start(extra) {
-  control({ type: "start", cols: term.cols, rows: term.rows, ...extra });
+  control({ type: "start", cols: term.cols, rows: term.rows, window: windowSize(), ...extra });
+}
+
+/** The browser's window, for a report of a problem (src/report): its size in CSS pixels and its pixel ratio ("1280x800@2"). */
+function windowSize() {
+  return `${Math.round(innerWidth)}x${Math.round(innerHeight)}@${Math.round(devicePixelRatio * 100) / 100}`;
 }
 
 function askForKey(error, options = {}) {
