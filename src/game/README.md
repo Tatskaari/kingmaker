@@ -30,7 +30,8 @@ Its subdirectories have docs of their own: [map/](map/README.md) (tile maps, exp
 - `mode`; `story` (the time of day, the scenes played, the lead, flags); `recent` (what the next observation says first);
 - `explore`, the explorer's own: for the town a `TownState` (the map's `ExploreState`, with its overlay of what scenes and the rules did to places; a short log; when the player last rested; where they were seen trying to hide);
 - `combat`, the fight in progress as its module saves it, and `fightOnMap` when it should end back on the map;
-- `hub` and `hubTime` for a zoo visit.
+- `hub` and `hubTime` for a zoo visit;
+- `settings`: the player's, kept with the game. `suggestions` is false when they've turned the suggested lines off (src/runtime/suggest.ts); scenes and talks then ask for none.
 
 [`Game.save()`](play.ts#L184) writes both files, synchronously, after every act and every line said.
 
@@ -44,8 +45,9 @@ Its subdirectories have docs of their own: [map/](map/README.md) (tile maps, exp
 | `Game.create({ player, explorer, fights, build?, seed?, level?, hub? })` | a new game: the session, the character (from the concept, or a ready-made build), the first lead |
 | `Game.load(id, explorer, fights)` | a saved game (`Game.hubOf(id)` says whose explorer it needs) |
 | `observe()` | what to show and the actions, for the mode |
-| `act(id, hooks)` | an explore or fight action, or a talk's line |
-| `say(text, hooks, { mechanic })` | a scene turn; `mechanic` is the rules' act already chosen (the action menu's) |
+| `act(id, hooks)` | an explore or fight action, or a suggested line (a scene's or a talk's) |
+| `say(text, hooks, { mechanic })` | a scene turn; `mechanic` is the rules' act already chosen (the action menu's). With the setting on, the runtime suggests the next lines after the reply, never waited for (`hooks.onSuggestions` says when they've come) |
+| `suggestionsOn`, `setSuggestions(on, hooks)`, `suggestNow(hooks)`, `suggested()` | the suggested lines' setting; asking for this moment's lines (a game loaded, the setting turned on); waiting for those on their way and saving them (the QA console does, before it lists the choices) |
 | `endScene(exitId)`, `carryOn()` | for QA: take one of a scene's endings now; go on from a scene that ended but never moved on |
 
 ## How it works
@@ -82,7 +84,7 @@ The ids are the core's contract with every client. A QA observation lists the on
 |---|---|---|
 | explore | [`town.act`](town.ts#L540) | `walk_<direction>` (north is up-left on screen), `go_to_lead`, `go_to_<who or where>`, `talk_<id>`, `examine_<id>`, `enter_<place>`, `travel_<way>`, `open_door_<direction>`, `interact`, `look`; by tile, for a click: `walk@x,y`, `look@x,y`, `talk@x,y`, `enter@x,y`, `travel@x,y`, `door@x,y` |
 | explore: the action menu | [`storyRoute`](menu.ts#L499), then [`doMenuAct`](menu.ts#L516) | `cast_<spell>`, `cast_<spell>_self`, `cast_<spell>@x,y`, and the same for `feature_<id>`; `attack@x,y`, `throw@x,y`, `shove@x,y`, `grapple@x,y`, `jump@x,y`; `hide`, `rest_short`, `rest_short_recover`, `rest_long`, `use_<item>` |
-| scene | `Game.say`; a talk's choices through `Game.act` | anything said; in a talk `say_1`…, `say_goodbye`, `walk_on` |
+| scene | `Game.say`; the suggested lines and a talk's choices through `Game.act` | anything said; the scene's suggested lines `say_1`…, once they've come; in a talk `say_1`…, `say_goodbye`, `walk_on` |
 | combat | [`TacticalFight.act`](combat/fights.ts#L184) | `attack_<target>[_with_<weapon>]`, `cast_<spell>` (on yourself), `cast_<spell>_<target>`, `cast_<spell>_at_<target>` or `_at_<x>_<y>` (an area), `use_<prop>`, `close_<id>`, `make_for_the_door`, `step_<direction>`, `move_<x>_<y>`, `leave`, `dash`, `dodge`, `disengage`, `auto`, `end_turn`; when it's over, `continue` |
 
 The zoo's explorer adds its own (each exhibit's `use_<trigger>`): see [zoo/](zoo/README.md).

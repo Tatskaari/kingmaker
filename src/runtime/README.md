@@ -14,7 +14,7 @@ Live runs need `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`
 
 ## What it is
 
-A session plays one authored scene at a time ([scenes/](../../scenes/README.md)). Each turn, the director asks a fast decider what the player is attempting and, after the reply, what has happened. The D&D rules ([src/rules](../rules/)) and the scene's world ([src/world](../world/)) settle what's theirs to settle: checks, spells, blows, fire. The GM voice narrates the result from a brief built from the scene's prep and from what people remember ([src/lore](../lore/README.md)). The session records the beat, the rolls, the transcript and what is still pending. Between turns a co-GM reviews the scene and patches the prep where play has left it. When a scene ends, the runtime crosses the boundary: it writes the hand-off, checks the coming scenes against what happened, rewrites the next opening and moves the world's fronts on. How all this is run (one voice or actors, which decider, when the co-GM runs, memory or not) is an approach, a preset in [approaches.ts](approaches.ts).
+A session plays one authored scene at a time ([scenes/](../../scenes/README.md)). Each turn, the director asks a fast decider what the player is attempting and, after the reply, what has happened. The D&D rules ([src/rules](../rules/)) and the scene's world ([src/world](../world/)) settle what's theirs to settle: checks, spells, blows, fire. The GM voice narrates the result from a brief built from the scene's prep and from what people remember ([src/lore](../lore/README.md)). The session records the beat, the rolls, the transcript and what is still pending. Between turns a co-GM reviews the scene and patches the prep where play has left it. After each reply, a small call suggests a few things the player might say or do next, never waited for. When a scene ends, the runtime crosses the boundary: it writes the hand-off, checks the coming scenes against what happened, rewrites the next opening and moves the world's fronts on. How all this is run (one voice or actors, which decider, when the co-GM runs, memory or not) is an approach, a preset in [approaches.ts](approaches.ts).
 
 ## What it owns
 
@@ -30,12 +30,13 @@ A session plays one authored scene at a time ([scenes/](../../scenes/README.md))
 | [repair.ts](repair.ts) | The co-GM: the full review (`runRepair`) and the quick one (`quickRepair`), and how their notes, whispers and patches apply. |
 | [background.ts](background.ts), [jobs.ts](jobs.ts) | The work after each turn (the memory review and the co-GM's review). `afterTurn` starts it, and jobs.ts is what it runs. |
 | [talk.ts](talk.ts) | Talks with a companion between scenes. |
+| [suggest.ts](suggest.ts) | The suggested lines: what the player might say or do next, from a GM reply (`startSuggesting`), vetted (`screen`, `judge`, `mix`), and kept for their scene and turn (`currentSuggestions`). |
 | [dice.ts](dice.ts) | The seeded RNG and d20 checks, shared with the rules and the world. |
 
 **State.** One `SessionState` per game ([session.ts:125](session.ts#L125)), a mutable JSON object:
 
 - **The story,** kept across scenes: the player, the turn count, the dice's seed and count, the transcript, per-turn metrics, the rules engine's campaign (`rules`), `history` (each finished scene's hand-off, its last moments, scenes skipped and fronts moved) and `talks`.
-- **The scene's own,** reset by `freshScene` ([engine.ts:709](engine.ts#L709)) when the next scene starts: the beat and the `path` of moves, facts established, the co-GM's notes, whispers and patches, who has entered or is absent, the scene's status, the memory notes opened, essentials landed or hinted, staged secrets (`guard`), exits already fought, and the place's `world`.
+- **The scene's own,** reset by `freshScene` ([engine.ts:709](engine.ts#L709)) when the next scene starts: the beat and the `path` of moves, facts established, the co-GM's notes, whispers and patches, who has entered or is absent, the scene's status, the memory notes opened, essentials landed or hinted, staged secrets (`guard`), exits already fought, the place's `world`, and the lines suggested for this moment (`suggestions`, for their scene and turn only).
 - **What's pending:** `pendingExit` (an ending held for the player's answer), `closing` (a wind-down turn), `endingLead`, `threat` (a blow or a danger that lands next turn), `brawl` and `ended`.
 - **From the boundary:** `adjustments`, `opening`, `lead`, and what the player `carried` out of the last scene's world.
 
@@ -56,7 +57,7 @@ The game core and the app keep `game.json` and `app.json` beside them.
 
 | Caller | What it calls |
 |---|---|
-| The game core, [src/game/play.ts](../game/play.ts) (the app, the QA console, the browser build and the zoo all play through it) | `createSession`; `openScene` as a scene begins; for each line `playerTurn` (or `talkTurn` in a talk) and then `afterTurn` ([play.ts:265](../game/play.ts#L265)); `forceEnding` for `/end`; `resumeAfterFight` after a fight on the map; `chainScene` with `skipInterludes` when a scene ends ([play.ts:431](../game/play.ts#L431)); `startTalk`, `openTalk`, `endTalk`, `leaveTalk`; `openHubScene` and `closeHubScene` for the zoo |
+| The game core, [src/game/play.ts](../game/play.ts) (the app, the QA console, the browser build and the zoo all play through it) | `createSession`; `openScene` as a scene begins; for each line `playerTurn` (or `talkTurn` in a talk) and then `afterTurn` ([play.ts:265](../game/play.ts#L265)), each with `suggest` from the game's setting; `currentSuggestions`, `startSuggesting`, `stopSuggesting` and `suggested` for its say_1… choices and the setting; `forceEnding` for `/end`; `resumeAfterFight` after a fight on the map; `chainScene` with `skipInterludes` when a scene ends ([play.ts:431](../game/play.ts#L431)); `startTalk`, `openTalk`, `endTalk`, `leaveTalk`; `openHubScene` and `closeHubScene` for the zoo |
 | The scene harness, [src/cli/scene.ts](../cli/scene.ts) | `createSession`, `openScene`, `playerTurn` and `chainScene`, opening the next scene at once. Its `remember` and `repair` commands are what the background jobs run. |
 | The evals, [src/eval/run.ts](../eval/run.ts) | `openScene`, `playerTurn` and `chainScene`, and `decideBefore`, `decideAfter` and `runRepair` on fixture states |
 | The browser build, [src/web/static/game.tsx](../web/static/game.tsx) | `setBackgroundRunner`, so the jobs run in the game's worker |
@@ -64,7 +65,7 @@ The game core and the app keep `game.json` and `app.json` beside them.
 
 | It calls | For |
 |---|---|
-| [src/llm](../llm/README.md) | `respond` and `respondJson` for every voice, the hand-off, the boundary verdict and the fronts; `deciderFor` for the director |
+| [src/llm](../llm/README.md) | `respond` and `respondJson` for every voice, the hand-off, the boundary verdict, the fronts and the suggested lines; `deciderFor` for the director and the suggested lines' judge |
 | [src/lore](../lore/README.md) | Memory each turn (`disclose`, `memoryBrief`); the boundary's records (`savePlayedScene`, `broadcastEnding`, `rememberScene`, `frontsText`, `moveFronts`); the docs store for talks |
 | [src/rules/dnd.ts](../rules/dnd.ts) | The character sheet, checks (`rollFor`), spells, attacks, grapples and shoves, jumps, class features, rests, hazards and NPCs' attacks, time passing, coming to, levelling up, and gear |
 | [src/world](../world/) | The place as a world (`buildWorld`, `joinWorld`, `applyOps`, `tick`, `worldView`), the stage manager (`stageManage`), and exit scripts run against a recording world (`recordingWorld`) |
@@ -73,7 +74,7 @@ The game core and the app keep `game.json` and `app.json` beside them.
 
 **What a caller can count on:**
 
-- **Hooks.** `TurnHooks` ([engine.ts:24](engine.ts#L24)): `onSpeaker` when someone starts speaking; `onText` with the text so far (accumulated, not a delta); `onEntry` for each finished entry (dice lines, system lines, finished speech); `onScene` from the core as it goes into a scene.
+- **Hooks.** `TurnHooks` ([engine.ts:24](engine.ts#L24)): `onSpeaker` when someone starts speaking; `onText` with the text so far (accumulated, not a delta); `onEntry` for each finished entry (dice lines, system lines, finished speech); `onScene` from the core as it goes into a scene; `onSuggestions` when the lines suggested after a reply have come (the session has them), which can be after the turn has returned.
 - **A turn saves at its end.** `playerTurn` writes `state.json` and a snapshot once, when it's done. It returns the entries it added, the exit if the scene ended, and the turn's metric.
 - **A turn that throws has already changed the session in memory:** the turn count, the player's line, rolls, the world. The GM reply and the decider calls aren't caught, so when one fails the caller goes back to the last save, as the app does ([src/app/game.ts:1002](../app/game.ts#L1002)). The QA console loads from disk for every command anyway.
 - **One turn at a time.** Nothing locks a session; callers send one turn after another.
@@ -141,6 +142,9 @@ sequenceDiagram
     Turn->>Rules: stageManage (world.stage)
   and
     Turn->>Dir: decideAfter (director.after)
+  and never waited for
+    Turn->>GM: the suggested lines (scene.suggest), then their judge (scene.suggest.judge)
+    GM-->>Core: onSuggestions, when they come
   end
   Turn->>Turn: endings, gear, save state.json and a snapshot
   Turn-->>Core: TurnResult
@@ -153,7 +157,7 @@ sequenceDiagram
 3. **What the dice and the rules decide.** A route's check is rolled (`rollFor`) and the move applied: a new beat, facts established, perhaps an ending. The rules resolve a spell, blow, grapple, jump, feature or rest, and violence draws a reaction from everyone present. Each decision becomes a directive, a short paragraph under "For this reply" in the GM's note.
 4. **Off the graph** ([engine.ts:420](engine.ts#L420)). In `v2`, a turn the decider judged off the graph waits for the quick co-GM until 3 s after the turn began. If it opened a route, the turn is decided again with it. A late answer is written as a repair file and lands next turn.
 5. **The reply.** One streamed GM call (`gm.reply`). For actors, up to four lines in all, the narrator's and the characters', with the decider choosing who speaks next (`director.next`).
-6. **After the reply, in parallel.** The stage manager writes what the reply established into the world (`world.stage`, [src/world/stage.ts](../world/stage.ts)). `decideAfter` ([director.ts:851](director.ts#L851)) reads what happened: an outcome route, which ending the story is at, the scene's status, essentials landed or hinted, how far secret-holders have opened up, a threat hanging over the player, and whether they've left the place.
+6. **After the reply, in parallel.** The stage manager writes what the reply established into the world (`world.stage`, [src/world/stage.ts](../world/stage.ts)). `decideAfter` ([director.ts:851](director.ts#L851)) reads what happened: an outcome route, which ending the story is at, the scene's status, essentials landed or hinted, how far secret-holders have opened up, a threat hanging over the player, and whether they've left the place. With `suggest`, the suggested lines start too ([below](#suggested-lines)); the turn doesn't wait for them.
 7. **Endings, gear and the save.** The table below says how a scene ends. Gear the story moved to or from the player changes their sheet; the turn's metric goes in `state.metrics`; the state and a snapshot are written. The caller then runs `afterTurn`.
 
 ### How a scene ends
@@ -222,6 +226,25 @@ A talk ([talk.ts](talk.ts)) is a scene built from a companion's lore ([scenes/ta
 
 That one thing goes on their card as a staged secret, with a `given` outcome route to the talk's "told" beat (`prepare`, [talk.ts:298](talk.ts#L298)). Their stories are told, now or held. What they've told is in the talk record and their memories, and isn't told again. The one thing for now comes out a step at a time. The deepest is held until the third talk: the GM is told its title and summary, and it's kept out of disclosure. `talkTurn` adds the next dialogue choices (`talk.suggest`) as the reply lands.
 
+### Suggested lines
+
+After a GM reply (an opening, a turn's, a fight's aftermath), with `suggest` (the game's setting, on unless turned off), `startSuggesting` ([suggest.ts](suggest.ts)) asks for three to five lines the player might say or do next, as a cRPG offers its dialogue choices. A talk has its own (`talk.suggest`). The scene harness and the evals don't ask.
+
+- **Off the critical path.** It starts once the reply is in, alongside the stage manager and `decideAfter`, and nothing waits for it. The lines land in `state.suggestions` for that scene and turn, if the session is still there, and `onSuggestions` says so. A turn sent before they come leaves them behind (and aborts the call), and a scene that ends stops them. On 18 live replies (16 turns and two openings) they came a median 2.8 s after the reply (the call 2.5 s, its judge 0.3 s), while the after-reply work took a median 4.1 s: in 11 of the 16 turns they were there before the turn was, and in the other 5 they came 0.6 to 1.8 s after it. A reply's lines cost a median $0.0009 (the call $0.0004, the judge $0.0005). The call's cap, 150 tokens, is just over six lines: a reply that goes on thinking aloud, or says it all twice, is cut there.
+- **What the call is given** (`suggestionBrief`, with [prompts/suggest.md](../../prompts/suggest.md)):
+  - what the player knows: who they are (concept, build, strengths, spells, what they carry, and character creation's backstory when there is one), what they came in knowing, and the story so far;
+  - behind the screen, the GM's prep on the threads: what each person here is after, the ways on from here and their rolls (by skill), what the scene still needs the player to come across and where, how it can end, and what it can't offer;
+  - the scene as the player has seen it: who's here, as they look, and the last ten entries;
+  - what's not to come again: the player's last line, and the lines offered last time.
+
+  Anyone whose name the player hasn't heard goes by what they'd call them, in the prep too (`asTheyKnowIt`). What changes least comes first, for the provider's cache.
+- **The kinds.** `say:` something to say. `do:` a deed in brackets. `try:` a risky try, "(I try to ...)", how and what for, which the decider reads as one of the scene's rolls or as `other_risky`. `leave:` a way out, only when one fits (`leaveFits`: the story at an ending, or four of the player's turns in).
+- **Vetted in three steps.**
+  - `screen`, by the words: the player's own words and deeds only; no name not heard; no proper name the prep has and the player hasn't met; no word particular to what's hidden here (the present cast's secrets and the essentials not yet come across, less every word another scene or the GM's prompt uses); nothing a limit names in its brackets; nothing just said or offered last time (by most of its words).
+  - `judge`, the session's decider, given every fact (what the player knows, what's hidden, what the scene can't offer, the scene's own rolls). A line that gives away or takes for granted what's hidden, reaches for what the scene can't offer, or decides for someone else goes, at 0.6 or more. A try that wouldn't take a roll becomes a deed. If the judge fails, the screened lines stand.
+  - `mix`: up to two to say, a deed, a try and a way out, filled to four from what's spare, five at most, in that order.
+- **No backticks in Luna's instructions.** The prompt had `kind: line` in backticks, and Luna (reasoning none) took 6 to 7 s more before its first word, every time; in the user's message they cost nothing. The call takes its reply as far as it got (`asFarAsItGot`): out of tokens, the lines so far, less the last, which may be half a line; in two phases, the final answer. The list ends at the first line that's neither tagged nor a deed, where the model has started thinking aloud.
+
 ### Reactions to violence
 
 The rules may resolve an act that hurt or caught people, or set something burning or broke it where people are (`violence`, [engine.ts:892](engine.ts#L892)). Then up to ten witnesses, the hurt first, each get a reaction from one decider call ([director.ts:772](director.ts#L772)): fight, flee, raise the alarm, cower, intervene, take the player's side, or carry on. The fleeing leave the scene and its world, and the cowering cower. If anyone fights, `state.brawl` records who, the first of them swings at the player at the start of the next turn (`state.threat`), and an authored ending due on the same turn waits.
@@ -233,13 +256,13 @@ The rules may resolve an act that hurt or caught people, or set something burnin
 - **The decider's questions are the logic.** The wording in director.ts is what the model judges, and the thresholds decide what counts: 0.6 (`SCENE_ENDING_CONFIDENCE`, [director.ts:61](director.ts#L61)) for endings, rolls, limits, pressure and the rules' act, and 0.45 for an ordinary route ([director.ts:535](director.ts#L535)). A reworded question needs the decision suite.
 - **Directives are matched by their opening words.** The engine drops a directive by its prefix when a later decision overrides it ("This reply closes the scene", "Something the scene needs is within reach": [engine.ts:330](engine.ts#L330), [:365](engine.ts#L365), [:438](engine.ts#L438)). Rewording one breaks its filter without an error.
 - **The brief.** Anything added to `sceneBrief` or `nowNote` goes to the GM on every turn. Keep what's stable in the prep and what changes in the note.
-- **Latency.** The budget is about 5 s to the text that answers the player. A new model call in the turn should run alongside the decision or the after-reply decision, not in front of the reply.
+- **Latency.** The budget is about 5 s to the text that answers the player. A new model call in the turn should run alongside the decision or the after-reply decision, not in front of the reply. The suggested lines aren't waited for at all: whoever shows them is told when they come.
 - **What may fail.** Calls wrapped in `.catch(() => undefined)` are best effort: presence, disclosure, the co-GM, the stage manager, the boundary's three calls. The GM reply and the decisions aren't, and a failure there fails the turn.
 
 ## How to test it
 
 ```sh
-node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider, and talks: offline
+node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider, talks, and the suggested lines (a stand-in model and judge): offline
 npm test                                          # every unit test (npm run check adds the typecheck and the screens check)
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the arc through the game core, offline
 npm run scene -- start drowned-rat --session t1   # live; then say, status and transcript
@@ -262,4 +285,5 @@ Offline, the flow smoke's openings fail (as expected), `/end` takes each scene's
 - **Background jobs race the next turn.** A co-GM review lands a turn or more late, and only if the scene hasn't changed. Memory reviews of consecutive turns can run at once, and the docs store writes whole files, so two of them adding to one memory index can lose a line. One `repair.lock` serves every repair job. The scene harness starts its jobs with its own copy of `afterTurn`'s gating ([src/cli/scene.ts:69](../cli/scene.ts#L69)).
 - **No unit of work.** A turn changes the session as it goes and saves once at the end. `chainScene` writes the docs (the fronts, the played scene, the ending's memories) before it saves the session, so a crash between the two leaves them out of step.
 - **A full snapshot every turn,** with the rules engine's event log inside `rules.campaign`, so the session folder grows with every turn.
-- **Process-wide state.** The prompt cache ([brief.ts:10](brief.ts#L10)), the background runner ([background.ts:30](background.ts#L30)), the talk scenes ([scenes/talk.ts:48](../../scenes/talk.ts#L48)), and src/llm's call log and spend are per process, so two games in one process share them.
+- **Process-wide state.** The prompt cache ([brief.ts:10](brief.ts#L10)), the background runner ([background.ts:30](background.ts#L30)), the talk scenes ([scenes/talk.ts:48](../../scenes/talk.ts#L48)), the suggested lines in flight (by session object) and the everyday words their screen leaves out ([suggest.ts](suggest.ts)), and src/llm's call log and spend are per process, so two games in one process share them.
+- **The suggested lines' guards are a net, not a wall.** The judge lets through a line that's a fair guess from what's been seen ("the cord mark and the wound on his head", once a thump and a choking noise have been heard), and it drops only on a clear verdict; the word-level screen drops the odd good line (one with a word only a secret has). Their cost, about a third of a GM reply's, isn't in the turn's metric.

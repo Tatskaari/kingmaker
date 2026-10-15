@@ -94,7 +94,7 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | Fights | `src/game/combat` | Tactical fights on the map: boardgame.io run headless, the rules engine for every roll, the board's hazards, and the AI for everyone else; a line typed in a fight read onto the turn's own actions (the decider choosing among them), walked on the board, done as a click, and given the GM's line. | [src/game/combat](src/game/combat/README.md) |
 | The look | `src/game/look` | How anything looks, from its name: glyphs, colour, light, effects, and the director that turns what changed in a world into motion. | [src/game/look](src/game/look/README.md) |
 | The zoo | `src/game/zoo` | Every feature laid out on maps of its own (10 maps, 143 exhibits), and a headless tour that sets each one off and checks what the view played. | [src/game/zoo](src/game/zoo/README.md) |
-| The scene runtime | `src/runtime` | A player's line in, the GM's reply out: the director and its decider, the voices, the co-GM, scene boundaries, companion talks and the background jobs. It owns the session's state. | [src/runtime](src/runtime/README.md) |
+| The scene runtime | `src/runtime` | A player's line in, the GM's reply out: the director and its decider, the voices, the co-GM, scene boundaries, companion talks, the suggested lines and the background jobs. It owns the session's state. | [src/runtime](src/runtime/README.md) |
 | The scenes | `scenes/` | GM prep as TypeScript data: the cast, the beats and the routes between them, the exits with their scripts, and the places as worlds. | [scenes](scenes/README.md) |
 | The docs service | `src/lore` | The lore as linked documents with a copy for each game, who may read what, what the GM is shown each turn, the memory reviews, and the fronts. | [src/lore](src/lore/README.md) |
 | The scene world | `src/world` | A scene's place as an entity tree in feet, its physics (fire, water, spills, breaking), the stage manager that keeps it in step with the story, and the exit scripts' API. | [src/world](src/world/README.md) |
@@ -182,6 +182,9 @@ sequenceDiagram
     RT->>RW: applyOps on the scene's world
   and
     RT->>LLM: decideAfter: outcome, ending, status (director.after)
+  and never waited for
+    RT->>LLM: what the player might say or do next, then judged (scene.suggest, scene.suggest.judge)
+    RT-->>App: the suggested lines, when they come (onSuggestions)
   end
   RT->>Disk: state.json, and a snapshot of the turn
   RT-->>Core: the turn's entries, and the exit if the scene ended
@@ -200,6 +203,7 @@ sequenceDiagram
 - **One decider call before the reply** asks everything the turn needs: is the player attempting one of the scene's routes, something risky that no route covers, or something the rules resolve; should a pacing cue fire; is it off the graph. Disclosure and the quick co-GM run alongside it, and an off-graph turn waits for the co-GM until 3 s after it began. The rules then settle what's theirs, and each decision reaches the GM as a directive under "For this reply".
 - **The reply streams.** The runtime calls the app's `onText` hook with the text so far as it grows. In a real 13-turn game the GM's first words came a median 1.4 s after the player's line ([productionise.md](docs/design/productionise.md#prediction)).
 - **The turn saves once, at its end** ([src/runtime/engine.ts:623](src/runtime/engine.ts#L623)). A call that fails before then leaves the session changed in memory, so the app goes back to the last save ([src/app/game.ts:1002](src/app/game.ts#L1002)).
+- **The suggested lines come when they're ready.** With the game's setting on, a small call after the reply proposes a few lines the player might say or do next, and the decider judges them against every fact; nothing waits for either. On live turns they came a median 2.8 s after the reply, usually before the stage manager had finished, at about $0.0009 a reply ([Suggested lines](src/runtime/README.md#suggested-lines)).
 - **Nothing waits for the background jobs.** The next turn merges the co-GM's notes if they've come and are for the same scene, and disclosure finds the new memories if the review has finished. In a terminal the jobs are separate processes that outlive the game.
 - **At a scene's end** the core sets out a fight, or the runtime crosses the boundary: the hand-off, a check of the coming scenes against what happened, the next opening rewritten, and the fronts moved on ([Scene boundaries](src/runtime/README.md#scene-boundaries)).
 
@@ -289,7 +293,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (297) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 13 s | yes |
+| The unit tests alone (345) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 13 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |

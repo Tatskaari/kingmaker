@@ -58,7 +58,7 @@ flowchart LR
 
 `scene play` does the same in a readline loop, with `/sheet`, `/map` and `/quit` (the old `#sheet` and `#map` too). `scene start` prints the opening and stops, so a QA player can go on with `scene say`.
 
-**A QA command** (qa.ts:62): load the game (with the zoo's explorer if `game.json` says `hub: "zoo"`), do one thing, let the core save, and print the observation: the mode, what the player sees, the hint and the actions with their ids. After `act` or `say` in a scene it doesn't print the scene again, only what can be done next.
+**A QA command** (qa.ts:62): load the game (with the zoo's explorer if `game.json` says `hub: "zoo"`), do one thing, let the core save, and print the observation: the mode, what the player sees, the hint and the actions with their ids. After `act` or `say` in a scene it doesn't print the scene again, only what can be done next. The scene's suggested lines come a moment after the reply, so `act` and `say` wait for them (`Game.suggested`) and list them as `say_1`…: `qa act --id say_2` says that line. `qa suggestions --session <id> [on|off]` is the game's setting, as the app's Esc menu and `/suggestions` have it.
 
 ## Where to look first
 
@@ -84,6 +84,7 @@ npm run qa -- act --session z1 --id go_to_lead
 npm run qa -- map --session z1 --w 100 --h 30
 npm run qa -- new --session g1 --as "Tamsin Vell: a disgraced palace auditor"   # a story game (the model builds the character)
 npm run qa -- end --session g1                                      # in a scene, lists its exits; --exit <id> takes one
+npm run qa -- suggestions --session g1 off                        # the suggested lines off (on asks for this moment's at once)
 npm run qa -- dump --session g1 --output /abs/path --description "what went wrong"
 ```
 
