@@ -6,7 +6,8 @@ import type { WorldSpec } from "../../src/world/scene-world.ts";
  * on the west; inside, the long re-sacking floor (dusty: a naked flame in here is a very bad idea),
  * the wheat-ear sacks down the north side and the heron sacks down the south, the counting-box up a
  * short stair in the north-east corner; the river door on the south side, reached by the plank walk
- * on the piles, with the hoist over it and the barge Patience alongside.
+ * on the piles, with the barge Patience alongside. The hoist is worked from the floor just inside the
+ * river door (its beam juts out over the barge), so whoever works it, Hobb, is in among the gang.
  *
  * It lines up with the map (src/game/map/maps/heron.ts) at 5 ft to a tile, (0, 0) at tile (2, 1).
  * Attach it to the scene with `world: heronWorld` (scenes/heron-warehouse.ts).
@@ -30,7 +31,8 @@ export const heronWorld: WorldSpec = {
     { id: "bollard", name: "a bollard at the wharf's edge", kind: "feature", in: "wharf", at: [22, 42], size: "small", material: "iron" },
     { id: "signboard", name: "the Heron's signboard", kind: "feature", in: "wharf", at: [32, 12], size: "medium", material: "wood", description: "A painted heron on one leg, looking down its beak at the wharf." },
     { id: "river-door", name: "the river door", kind: "feature", in: "plank-walk", at: [57, 62], size: "large", material: "wood", tags: ["door"], states: ["closed", "bolted"], description: "A low loading door at water level with a grille in it. The gang hold a brass heron token up to the grille, and whoever's nearest inside draws the bolt." },
-    { id: "hoist", name: "the hoist beam", kind: "feature", in: "plank-walk", at: [57, 67], size: "large", material: "wood", description: "Juts out over the river door, swinging sacks out and down into the barge on a creaking rope." },
+    { id: "hoist", name: "the hoist", kind: "feature", in: "floor", at: [62, 55], size: "large", material: "wood", description: "Worked from the floor, just inside the river door: a winch and a creaking rope that runs up and out over a pulley on the beam above the door, swinging sacks out and down into the barge. Whoever's on it is in among the gang, in plain view of the counting-box." },
+    { id: "hoist-rope", name: "the hoist rope", kind: "item", in: "hoist", size: "small", material: "rope", tags: ["fixed"], description: "Tarred and creaking, hauled hand over hand from the winch, out over the beam's pulley and down into the barge's hold." },
     { id: "river", name: "the river", kind: "feature", in: "plank-walk", at: [97, 72], size: "gargantuan", material: "liquid", tags: ["water"], description: "High, fast, black and cold under the floor, and the tide on the turn." },
     { id: "chute", name: "the chute", kind: "feature", in: "floor", at: [57, 57], size: "large", material: "wood", description: "A wooden chute from the floor down through the river door into the barge's hold. Sacks go down it with a noise like a giant swallowing." },
     { id: "wheat-ear-sacks", name: "the palace's wheat-ear sacks", in: "floor", at: [47, 17], size: "huge", material: "cloth", tags: ["evidence", "cover"], description: "Stacked to the beams down the north side, every one stamped with the royal wheat-ear: the King's grain, forty sacks still to go." },

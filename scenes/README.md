@@ -95,7 +95,7 @@ Where a story scene sits on the map, and how its fight is set out, is the game's
 - **`when` is logic.** The decider matches the player's turn against it. A route that would end the scene should say so; one with a roll should name the act the roll tests, not what has to happen first.
 - **Ids are shared.** Transition targets, exit ids and cast ids are referred to by eval cases, the smoke tests (`/end <exit>`), the fronts doc's "Ticked by" lines, the fights' setups and the world's `people`.
 - **A combat exit needs a fight to set out.** Its script's `startCombat`, the place on the map, and the fight's setup in src/game/combat.
-- **Recurring characters are carded in every scene they're in.** Kell has four cards across the story's scenes (the two interludes share one) and one in the zoo, all with `KELL_VOICE` ([hanged-clerk.ts:32](hanged-clerk.ts#L32)); her lore entry is the one place for who she is. A card should read the state of the world ("as things stand between her and the investigator") rather than assume it.
+- **Recurring characters are carded in every scene they're in.** Kell has four cards across the story's scenes (the two interludes share one) and one in the zoo, all with `KELL_VOICE` ([hanged-clerk.ts:39](hanged-clerk.ts#L39)); her lore entry is the one place for who she is. A card should read the state of the world ("as things stand between her and the investigator") rather than assume it.
 - **`assumes` and `overtaken`.** What the prep takes for granted, written so the boundary can judge it against what happened.
 - **`later` and `missed`.** An essential the story needs later, missed in its scene, is carried by the boundary into the next scene that holds ([src/runtime/owed.ts](../src/runtime/owed.ts)), placed with that scene's people, or by that scene's own prep for it (`missed`), whose routes (`essential`) are the scene's only while it's owed. A scene's prep for a missed essential must be written for the case where it was found too: its cards stay neutral ("only if the page is still in his boot"), since the essential and its routes aren't there then.
 - **Secrets and success lines.** A success line gives one piece of a secret, not all of it, and a truth the scene needs has more than one way in (its essentials).
@@ -107,7 +107,7 @@ npm run scene -- list
 npm run scene -- start drowned-rat --session s1   # then say, status (the path taken), transcript, map
 npm run qa -- new --session q1 --as "Wren Ashdown: a quick-witted ranger"   # the arc in the playable game; qa end --exit <id> takes an ending
 npm run eval -- --case <id>                       # an eval case by id (src/eval/cases/, by scene)
-npm test                                          # the zoo's test validates the zoo's scenes; the director's test plays hanged-clerk's yard
+npm test                                          # the zoo's test validates the zoo's scenes; the director's test plays hanged-clerk's yard; arc-prep's holds the arc's prep to what a player's report found (src/runtime/arc-prep.test.ts)
 node --no-warnings --input-type=module -e 'const { SCENES, ZOO_SCENES } = await import("./scenes/index.ts"); const { validateScene } = await import("./src/runtime/scene.ts"); for (const s of [...SCENES, ...ZOO_SCENES]) { const p = validateScene(s); if (p.length) console.log(s.id, p); }'   # every scene's ids and targets: silent when all is well
 ```
 

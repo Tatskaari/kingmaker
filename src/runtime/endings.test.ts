@@ -109,14 +109,15 @@ test("an ending found after the reply that isn't the player's own doing waits fo
 });
 
 test("an ending found as someone comes in waits for the player, even one they brought about", async () => {
-  // The King's morning, T93: the co-GM moved the scene on as the player spoke, Sallow came into the
-  // gallery as the King put it off, and the player's "Sallow." went into the closing.
-  const state: SessionState = { ...yard("endings-arrival"), sceneId: "kings-morning", beat: "report", turnsInBeat: 2 };
+  // The King's morning, T93: the co-GM moved the scene on as the player spoke, Sallow came in as an
+  // ending was found, and the player's "Sallow." went into the closing. (Sallow now comes in when the
+  // scene moves to "In front of the King", sent for; here the King decides in the same turn.)
+  const state: SessionState = { ...yard("endings-arrival"), sceneId: "kings-morning", beat: "reckoning", turnsInBeat: 2 };
   saveSession(state);
-  writeRepair(state, { turn: state.turn, assessment: "", status: "on_track", notes: "", canon: [], patches: [], moveTo: "reckoning", costUsd: 0, latencyMs: 0 });
-  await turn(state, "Make him explain where this grain came from.", { outcome: "put-off", own_exit: "theirs" });
-  assert.equal(state.beat, "reckoning");
-  assert.deepEqual([state.pendingExit?.exitId, state.pendingExit?.waits], ["after-the-assembly", "Master Josiah Sallow just came in"]);
+  writeRepair(state, { turn: state.turn, assessment: "", status: "on_track", notes: "", canon: [], patches: [], moveTo: "face-to-face", costUsd: 0, latencyMs: 0 });
+  await turn(state, "Make him explain where this grain came from.", { outcome: "king-acts", own_exit: "theirs" });
+  assert.equal(state.beat, "face-to-face");
+  assert.deepEqual([state.pendingExit?.exitId, state.pendingExit?.waits], ["justice", "Master Josiah Sallow just came in"]);
   assert.equal(state.closing, undefined);
   const answered = await turn(state, "Sallow.", { brink: "answers" });
   assert.equal(answered.ended, undefined, "the player's challenge to the man in the doorway gets a reply of its own");
