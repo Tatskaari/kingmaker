@@ -3,6 +3,7 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState, type ReactNode } from "react";
 import { showLine } from "../../game/combat/index.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
+import { mapDoors, overlayWanted } from "../../game/look/overlay.ts";
 import { actorsHere, direction, Picks, SCREEN_KEYS, steps } from "../../game/map/index.ts";
 import { exploreState } from "../../game/town.ts";
 import type { Tile2 } from "../../game/types.ts";
@@ -219,10 +220,12 @@ export function CombatScreen({ game }: { game: Game }) {
           {/* The battlefield, alive: the fire burns, the dust drifts, blows spark and spells fly as they happen. */}
           <lookCanvas ref={canvas} width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay}
             painter={(w, h, now) => {
-              const pick = new Picks();
+              // In a browser, the doors are drawn as pictures over the battlefield.
+              const doors = overlayWanted();
+              const pick = new Picks({ doors });
               const lines = fightView(fight, game.session, { w, h }, { ...shown, t: now, pick, ...(hover ? { hover } : {}), ...(fx ? { effects: fx } : {}), ...(scenery ? { scenery } : {}) });
               picks.current = pick;
-              return lines;
+              return doors ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
             }}
             onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(undefined)} />
         </box>

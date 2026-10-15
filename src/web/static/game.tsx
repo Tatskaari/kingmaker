@@ -1,7 +1,7 @@
 import { App } from "../../app/app.tsx";
 import { Game, message } from "../../app/game.ts";
 import { attachReporting, unhandled } from "../../app/report.ts";
-import { registerLookCanvas } from "../../game/look/opentui.ts";
+import { attachOverlay, registerLookCanvas } from "../../game/look/opentui.ts";
 import { setReportSink, stampOf } from "../../report/dump.ts";
 import { setBackgroundRunner } from "../../runtime/background.ts";
 import { rememberJob, repairJob } from "../../runtime/jobs.ts";
@@ -44,6 +44,8 @@ export async function startGame(options: {
   // The world's views paint themselves, live (<lookCanvas>).
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false, width: options.cols, height: options.rows, terminal: { write: options.write } });
+  // The page draws the doors as pictures over the ASCII (src/web/page/doors.ts): where they are goes out with each frame that moves them.
+  attachOverlay(renderer as unknown as Parameters<typeof attachOverlay>[0]);
   const game = new Game();
   // A report of a problem (b, /report, the Esc menu) has what was on screen, and goes to the page to
   // download: what's kept here is in this browser, where nobody investigating can read it.

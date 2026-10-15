@@ -45,7 +45,8 @@ export { bumpLine, placeLine, quip, type Bump, type QuipMemory } from "./quips.t
 export { presence, addPresence, liveScenes, isLive, leadMarker, regionOpen, sceneTrigger, type Presence } from "./presence.ts";
 export { actorsFromWorld, captureScene, overlayActors, overlayRegionStates, overlaySurfaces, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, townRegion, townSurfaces, withTownChanges, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions, type ThingChange, type TownChanges } from "./reconcile.ts";
 export { areaHazards, battlefield, spotsNear, reachable, type Battlefield } from "./setup.ts";
-export { render, project, screenOf, tileAtScreen, Picks, type RenderOptions, type Viewport } from "./render.ts";
+export { render, project, screenOf, tileAtScreen, Picks, type DoorPick, type RenderOptions, type Viewport } from "./render.ts";
+export { doorLook, type DoorLook } from "../look/door-art.ts";
 export { toAnsi, toPlain } from "./ansi.ts";
 export { buildMap, tileAt, regionAt, inBounds, inRect, isStructure, isRoofed, isDoorway, direction, steps, type MapTile, type PlaceRegion, type MapDef, type MapSpec, type TileDef, type DecorDef } from "./tiles.ts";
 export { CAST, lookForEntity, lookForName } from "./looks.ts";

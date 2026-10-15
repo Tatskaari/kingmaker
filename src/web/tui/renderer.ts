@@ -142,6 +142,18 @@ export class CliRenderer extends EventEmitter implements RenderContext {
     this.terminal.write(data);
   }
 
+  /** Bytes of the app's own to the terminal, in order with the frames (as OpenTUI's native session's write). */
+  writeRaw(data: string): boolean {
+    if (this._isDestroyed || !this.terminal) return false;
+    this.write(data);
+    return true;
+  }
+
+  /** Steps run on each frame's buffer once it's painted, before it goes out (OpenTUI's post-process functions). */
+  private postProcessFns: Array<(buffer: OptimizedBuffer, deltaTime: number) => void> = [];
+  addPostProcessFn(fn: (buffer: OptimizedBuffer, deltaTime: number) => void): void { this.postProcessFns.push(fn); }
+  removePostProcessFn(fn: (buffer: OptimizedBuffer, deltaTime: number) => void): void { this.postProcessFns = this.postProcessFns.filter(f => f !== fn); }
+
   // ------------------------------------------------------------------------------------------
   // Scheduling
 
@@ -207,6 +219,7 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       work = this.prepare();
       for (const { node } of work) Object.assign(node._layout, node._next);
       this.paint(work, delta);
+      for (const fn of this.postProcessFns) fn(this.next, delta);
       this.flush();
       this.stats.frames++;
       const took = performance.now() - now;

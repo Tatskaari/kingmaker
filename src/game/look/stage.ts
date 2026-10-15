@@ -1,13 +1,14 @@
 import { heldBy, positionOf, type Entity, type Point, type Rect, type SceneWorld } from "../../world/scene-world.ts";
 import { lookOf, type Look, type TimeOfDay } from "./appearance.ts";
 import { BEING, BOLD, Canvas, FAINT, GLOW, INK, UNLIT, WALL } from "./canvas.ts";
-import { FLAME_LIGHT, FLAME_RAMPS, mix, ramp, rgbOf, scale, type FlameName, type RGB } from "./color.ts";
+import { FLAME_LIGHT, FLAME_RAMPS, hexOf, mix, ramp, rgbOf, scale, type FlameName, type RGB } from "./color.ts";
 import { areaCell, type Effects } from "./effects.ts";
 import { inSet, plainText, type GlyphSet } from "./glyphs.ts";
 import { LightField, ambientOf, glint, shade, shadeBeing } from "./light.ts";
 import { clamp01, hash, hash01, noise1, noise2, noise3, seedOf, smoothstep } from "./noise.ts";
 import { SIZE_SCALE } from "./roles.ts";
 import { surfacesOf } from "./surfaces.ts";
+import { doorLook, type DoorLook } from "./door-art.ts";
 import {
   cloudCell, cloudDensity, flameCell, groundCell, rainAt, surfaceCell, wallCell,
   type CloudKind, type Ground, type SurfaceKind, type TCell, type TerrainContext, type WallStyle, type Weather,
@@ -88,22 +89,64 @@ export interface StagePick {
 }
 
 /**
+ * A door the stage drew in a wall's line (a cell of the wall, in the door's look), for the
+ * browser's overlay (src/game/look/overlay.ts), which draws it there as a plan draws a door, at a
+ * door's width: where it is, which way the wall runs, which side it opens to, how it looks, and the
+ * light and floor round it.
+ */
+export interface StageDoorPick {
+  id: string;
+  /** Its cell, in the wall's line. */
+  x: number;
+  y: number;
+  /** The way the wall runs: across the screen (x) or up and down it (y). */
+  along: "x" | "y";
+  /** The side it opens to: 1 south or east of the wall, -1 north or west. */
+  side: 1 | -1;
+  /** Feet per column, as the stage laid the place out (rows are twice that). */
+  scale: number;
+  /** A gate or double doors: twice a door's width, two leaves. */
+  wide: boolean;
+  look: DoorLook;
+  /** How brightly its cell is lit (as a level: the stage tints things its own way), and the floor's colour beside it, lit. */
+  light: number;
+  floor: string;
+}
+
+/**
  * What a stage frame drew where, for the mouse (as the map's Picks are for the town): for each cell,
  * who or what is drawn in it, and the floor under it. renderStage fills it in as it paints, so
  * picking agrees with drawing: a click on someone's letter is a click on them, on a puddle's
  * ripples the puddle, on a wall the wall the world knows (what the dressing draws in its stead).
+ *
+ * Asked for (new StagePicks({ doors: true })), it also keeps the doors drawn in walls
+ * (StageDoorPick), and the cells where something stands or is drawn over the floor and the walls
+ * (`covered`: people and things, effects, floating text, the pointer's highlight), for the browser's
+ * overlay.
  */
 export class StagePicks {
   w = 0;
   h = 0;
   /** The scene the frame was of. */
   scene = "";
+  /** The doors drawn in walls (when asked for). */
+  doors?: StageDoorPick[];
+  /** By cell: 1 where someone or something stands, or something's drawn over the floor and walls (when asked for). */
+  covered?: Uint8Array;
   private cells: StageCells = { owner: new Int32Array(0), ids: [], drew: [], layers: new Map() };
   private floor: (x: number, y: number) => Omit<StagePick, "id" | "under"> = () => ({ at: { x: 0, y: 0 } });
 
+  constructor(options: { doors?: boolean } = {}) {
+    if (options.doors) this.doors = [];
+  }
+
+  /** Whether renderStage is to keep the doors and what covers the floor. */
+  get tracking(): boolean { return !!this.doors; }
+
   /** Take a frame's picks (renderStage calls this). */
-  fill(w: number, h: number, scene: string, cells: StageCells, floor: (x: number, y: number) => Omit<StagePick, "id" | "under">): void {
+  fill(w: number, h: number, scene: string, cells: StageCells, floor: (x: number, y: number) => Omit<StagePick, "id" | "under">, doors?: { doors: StageDoorPick[]; covered: Uint8Array }): void {
     this.w = w; this.h = h; this.scene = scene; this.cells = cells; this.floor = floor;
+    if (doors && this.doors) { this.doors = doors.doors; this.covered = doors.covered; }
   }
 
   /** Who or what is drawn in a cell (and what's under them), and the floor there; undefined off the frame. */
@@ -367,7 +410,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   }
 
   // 3. Walls, windows; doors where door things stand.
-  const doorCells = new Map<number, { look: Look; open: boolean; id: string }>();
+  const doorCells = new Map<number, { look: Look; open: boolean; id: string; e: Entity; p: Point }>();
   for (const e of Object.values(world.entities)) {
     if (!e.tags.includes("door") || e.states.includes("gone")) continue;
     const p = where(e.id);
@@ -382,8 +425,11 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     }
     if (best === undefined) continue;
     const look = lookOf(e, { t, time: view.time, glyphs: set, seed: seedOf(e.id) });
-    doorCells.set(best, { look, open: e.states.includes("open") || e.states.includes("destroyed") || e.states.includes("broken"), id: e.id });
+    doorCells.set(best, { look, open: e.states.includes("open") || e.states.includes("destroyed") || e.states.includes("broken"), id: e.id, e, p });
   }
+  // For the browser's overlay (StagePicks): the doors drawn, and where something stands or is drawn over the floor and walls.
+  const covered = view.pick?.tracking && tracked ? new Uint8Array(w * h) : undefined;
+  const drawnDoors: Array<{ i: number; door: { look: Look; id: string; e: Entity; p: Point } }> = [];
   for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
     const si = at(cx, cy);
     if (si < 0 || !st.wall[si]) continue;
@@ -394,6 +440,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       canvas.put(cx, cy, door.look.glyph, fg, door.open ? rgbOf("#120e0a") : scale(fg, 0.42), BOLD);
       if (!door.open) opaque[i] = 1;
       owning(door.id)?.(i);
+      if (covered) drawnDoors.push({ i, door });
       continue;
     }
     if (st.window[si]) {
@@ -475,6 +522,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   });
 
   // 5. Effects: things on the ground, then in the air, then areas (rings, fireballs, flashes).
+  const beforeEffects = covered && fx ? snapshot(canvas) : undefined;
   if (fx) {
     for (const sp of fx.sprites) if (sp.layer === 0) sprite(canvas, sp, L, s, set);
     for (const sp of fx.sprites) if (sp.layer > 0) sprite(canvas, sp, L, s, set);
@@ -495,6 +543,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     }
     for (const l of fx.lights) { const c = L.toCell(l); lights.push({ x: c.x, y: c.y, radius: l.radius / s, color: l.color, intensity: l.intensity }); }
   }
+  if (covered && beforeEffects) changedSince(canvas, beforeEffects, covered);
 
   // 6. Life in the air: embers and smoke from what burns, steam, dust motes, snores.
   for (const em of emitters) emit(canvas, em, t, set, dressing.wind);
@@ -563,6 +612,27 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     if (canvas.spec[i]!) canvas.fg[i] = glint(canvas.fg[i]!, field, i, canvas.spec[i]!);
   }
 
+  // The doors, as they came out in the light (for the browser's overlay): which way the wall runs,
+  // the side each opens to (where it was authored: doors stand by their walls), how lit, and the floor.
+  const isWall = (cx: number, cy: number) => { const si = at(cx, cy); return si >= 0 && !!st.wall[si]; };
+  const doorsDrawn: StageDoorPick[] = covered ? drawnDoors.map(({ i, door }) => {
+    const cx = i % w, cy = Math.floor(i / w);
+    const along = isWall(cx, cy - 1) || isWall(cx, cy + 1) ? "y" : "x";
+    const feet = L.toFeet(cx, cy);
+    const side = along === "y" ? (door.p.x < feet.x - 1.5 ? -1 : 1) : (door.p.y < feet.y - 1.5 ? -1 : 1);
+    const authored = rgbOf(door.look.fg), drawnFg = canvas.fg[i]!;
+    const ratio = (k: number) => Math.max(0.12, Math.min(2.2, (((drawnFg >> k) & 255) + 1) / (((authored >> k) & 255) + 1)));
+    const light = Math.max(0.35, Math.min(1.05, ratio(16) * 0.3 + ratio(8) * 0.59 + ratio(0) * 0.11));
+    const bx = along === "x" ? cx : cx + side, by = along === "x" ? cy + side : cy;
+    const floor = canvas.inside(bx, by) ? canvas.bg[by * w + bx]! : canvas.bg[i]!;
+    const e = door.e;
+    return {
+      id: door.id, x: cx, y: cy, along, side, scale: s, look: doorLook(e.states),
+      wide: e.size === "large" || e.size === "huge" || e.size === "gargantuan" || /gate|doors\b/i.test(e.name),
+      light, floor: hexOf(floor),
+    };
+  }) : [];
+
   // The pointer's highlight, in the light (as the map's): everything drawn for whoever or whatever
   // it's on, or the bit of floor.
   if (view.hover !== undefined) {
@@ -572,14 +642,23 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     for (const i of lit) {
       canvas.bg[i] = mix(canvas.bg[i]!, HOVER, 0.5);
       canvas.fg[i] = mix(canvas.fg[i]!, rgbOf("#ffffff"), 0.25);
+      if (covered) covered[i] = 1;
     }
   }
 
   // 9. Floating text: damage, alerts, barks. Never darkened, never on top of one another (barks
   // first: what people say matters most; numbers find room round them).
   if (fx) {
+    const before = covered ? snapshot(canvas) : undefined;
     const taken = new Uint8Array(w * h);
     for (const tx of [...fx.texts].sort((a, b) => (a.style === "bark" ? 0 : 1) - (b.style === "bark" ? 0 : 1))) text(canvas, tx, L, taken, set);
+    if (covered && before) changedSince(canvas, before, covered);
+  }
+
+  // Whoever and whatever stands on the floor (people, things: drawn in step 4) covers it.
+  if (covered && tracked) {
+    const standing = new Set(order.map(x => ownerOf.get(x.e.id)).filter((n): n is number => n !== undefined));
+    for (let i = 0; i < w * h; i++) if (standing.has(tracked.owner[i]!)) covered[i] = 1;
   }
 
   // What's where, for the mouse: whose each cell is, and the floor under it (read when asked).
@@ -595,9 +674,21 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       const wall = st.wall[si] ? WALLS[st.wall[si]! - 1] : undefined;
       const patch = st.patch[si] ? SURFACE_KINDS[st.patch[si]! - 1] : undefined;
       return { at: feet, ground: GROUNDS[st.ground[si]!]!, ...(area ? { area } : {}), ...(wall ? { wall } : {}), ...(st.window[si] ? { window: true } : {}), ...(patch ? { patch } : {}) };
-    });
+    }, covered ? { doors: doorsDrawn, covered } : undefined);
   }
   return canvas;
+}
+
+/** A canvas's cells as they are now, to see what's drawn over them next. */
+function snapshot(canvas: Canvas): { glyph: string[]; fg: Int32Array; bg: Int32Array } {
+  return { glyph: canvas.glyph.slice(), fg: canvas.fg.slice(), bg: canvas.bg.slice() };
+}
+
+/** Mark the cells that changed since a snapshot. */
+function changedSince(canvas: Canvas, was: { glyph: string[]; fg: Int32Array; bg: Int32Array }, marks: Uint8Array): void {
+  for (let i = 0; i < marks.length; i++) {
+    if (canvas.glyph[i] !== was.glyph[i] || canvas.fg[i] !== was.fg[i] || canvas.bg[i] !== was.bg[i]) marks[i] = 1;
+  }
 }
 
 function rank(x: { e: Entity; look: Look }): number {
