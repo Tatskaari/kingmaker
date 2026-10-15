@@ -39,8 +39,17 @@ export function loadExtras(id: string): AppExtras | undefined {
 
 export interface Resumable { id: string; game: GameState; session: SessionState; mtime: number }
 
-/** Games in progress, most recent first (games that have reached The End are left out). */
+/** Story games in progress, most recent first (games that have reached The End are left out, and so are zoo visits). */
 export function resumable(limit = 5): Resumable[] {
+  return saves(game => !game.hub).slice(0, limit);
+}
+
+/** Zoo visits (src/game/zoo), most recent first: the title's zoo carries on the latest. */
+export function zooVisits(limit = 5): Resumable[] {
+  return saves(game => game.hub === "zoo").slice(0, limit);
+}
+
+function saves(keep: (game: GameState) => boolean): Resumable[] {
   const root = join(runsDir(), "sessions");
   if (!existsSync(root)) return [];
   const found: Resumable[] = [];
@@ -48,11 +57,11 @@ export function resumable(limit = 5): Resumable[] {
     if (!existsSync(gameFile(id))) continue;
     try {
       const game = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState;
-      if (game.mode === "end") continue;
+      if (game.mode === "end" || !keep(game)) continue;
       found.push({ id, game, session: loadSession(id), mtime: statSync(gameFile(id)).mtimeMs });
     } catch { /* a broken save is skipped */ }
   }
-  return found.sort((a, b) => b.mtime - a.mtime).slice(0, limit);
+  return found.sort((a, b) => b.mtime - a.mtime);
 }
 
 /**

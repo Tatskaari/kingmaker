@@ -8,7 +8,7 @@ import { CAST_LOOKS } from "./look/people.ts";
 import type { Effects } from "./look/effects.ts";
 import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
 import { renderStage } from "./look/stage.ts";
-import { battlefield, regionForScene, render, tileToFeet, toPlain, type Picks, type RenderOptions, type Viewport } from "./map/index.ts";
+import { battlefield, getMap, regionForScene, render, roamRegion, tileToFeet, toPlain, type Picks, type RenderOptions, type Viewport } from "./map/index.ts";
 import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
@@ -39,17 +39,26 @@ export interface ViewOptions {
   pick?: Picks;
 }
 
+export interface TownViewOptions extends ViewOptions {
+  /** A lead marker of the explorer's own (a hub's next exhibit), in place of the story's. */
+  lead?: { at: Tile2; label: string };
+}
+
 /**
  * The town round the player; in a scene, the scene's place with its world (where everyone is now)
- * and its effects. With `pick`, what's drawn where, for the mouse; `hover` lights up a tile.
+ * and its effects. Outside a scene, a world live on the map (a zoo's wing) has the effects instead.
+ * With `pick`, what's drawn where, for the mouse; `hover` lights up a tile.
  */
-export function townView(game: GameState, session: SessionState | undefined, size: Viewport, options: ViewOptions = {}): StyledLine[] {
+export function townView(game: GameState, session: SessionState | undefined, size: Viewport, options: TownViewOptions = {}): StyledLine[] {
   const ex = exploreState(game);
   const world = ex.scene && session?.world && session.world.scene === ex.scene ? session.world : undefined;
   const place = world ? regionForScene(world.scene) : undefined;
-  const effects = place && world && options.effects ? { region: place.region, frame: options.effects.frame(options.t ?? 0, id => positionOf(world, id)) } : undefined;
+  const roaming = !world ? ex.roam?.[ex.map] : undefined;
+  const roamed = roaming ? roamRegion(getMap(ex.map), roaming) : undefined;
+  const shown = world && place ? { region: place.region, world } : roaming && roamed ? { region: roamed, world: roaming } : undefined;
+  const effects = shown && options.effects ? { region: shown.region, frame: options.effects.frame(options.t ?? 0, id => positionOf(shown.world, id)) } : undefined;
   // Whoever's behind a building shows through it, a little greyer (the user's call): see map/xray.ts.
-  return xrayExplore(ex, size, { ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...pick(options) });
+  return xrayExplore(ex, size, { ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...(options.lead ? { lead: options.lead.at, leadLabel: options.lead.label } : {}), ...pick(options) });
 }
 
 export const townText = (game: GameState, session: SessionState | undefined, size: Viewport) => toPlain(townView(game, session, size, { color: false }));
@@ -100,7 +109,8 @@ export function fightView(fight: CombatController, session: SessionState | undef
   const view = fight.view();
   const G = fight.state();
   const fighters = new Set(Object.values(G.units).flatMap(u => [u.id, u.castId ?? u.id]));
-  const field = session?.world ? battlefield(session.sceneId, session.world) : undefined;
+  // The place round the fight is the world's (a scene's, or a zoo wing's for a fight from the map).
+  const field = session?.world ? battlefield(session.world.scene, session.world) : undefined;
   // The place round the fight: everything the world has but the fighters and the lights the fight now owns.
   const scenery: MapActor[] = (field?.actors ?? []).filter(a => a.map === G.map.id && a.kind !== "player" && !fighters.has(a.ref ?? a.id) && !G.props[a.ref ?? a.id] && !G.props[a.id]);
   const active = view.turn ? G.units[view.turn.id]?.at : undefined;

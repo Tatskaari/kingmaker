@@ -254,7 +254,7 @@ export function CombatScreen({ game }: { game: Game }) {
           </text>
         </box>
         {view.over ? <Clickable marginTop={gapRows} height={1} flexShrink={0} onClick={() => void game.afterCombat()}>
-          <text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>See what comes of it</span><span fg={C.faint}>{"   Enter, or click"}</span></text>
+          <text><span fg={C.lead}>{"▶ "}</span><span fg={C.lead} attributes={BOLD}>{game.core?.state.fromMap ? "Back to the map" : "See what comes of it"}</span><span fg={C.faint}>{"   Enter, or click"}</span></text>
         </Clickable> : myTurn ? <box flexDirection="column" marginTop={gapRows} flexShrink={0}>
           {/* The options, as buttons: what a key does, a click does too. */}
           <Row><Hint k="click" what="a blue tile to move there" /></Row>

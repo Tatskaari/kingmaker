@@ -18,7 +18,7 @@ The game is mostly played with the mouse. On the map, click somewhere to walk th
 
 | where | keys |
 |---|---|
-| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/) |
+| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/); z the zoo |
 | character | Tab between name and concept; Enter; on the sheet, r makes them again (or click the buttons) |
 | the sheet | ←→, Tab or 1–9 turn its pages (or click a tab); ↑↓, PgUp/PgDn or the wheel scroll a long page; Esc, or a click outside it, puts it away |
 | explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; g walk to the lead (any key stops); c sheet; j notebook; ? help; Esc menu |
@@ -31,6 +31,10 @@ The game is mostly played with the mouse. On the map, click somewhere to walk th
 A way on (a scene that's over, the moment between scenes) takes an Enter of its own, or a click. Typed characters never go on, and the Enter that ends a line typed at it only ends that line ("that went unsaid"; `wayOnKey` in `ui/common.tsx`, `typing` in `game.ts`): a line being typed as a scene ends doesn't carry the player past its last word, through Kell and onto the map, where the rest of it would walk.
 
 For testing, in a scene, `/exits` lists the endings and `/end <id>` takes one now.
+
+### The zoo
+
+The title's "The zoo" (or z) opens the zoo (src/game/zoo/README.md): every feature of the game laid out on maps of its own, to see and try. Each exhibit has a sign, and a lever, bell, chalk circle or person to set it off from its right-click menu; g walks to the next exhibit you haven't seen, and v looks down on a wing from above. A visit is a game of its own: it's never offered as a game to Continue (the zoo carries on the latest visit), and nothing done in it reaches the story. The app plays the zoo's explorer and fights for it, plays what its exhibits set off on the map, goes to the battlefield for an arena bell and back to the map after, and after one of its scenes shows the notebook's entry (read back by Kell, if she's walking with you) on the way back to the map.
 
 ### A scene, on screen
 
@@ -81,6 +85,7 @@ KM_RUNS_DIR=runs/check node --experimental-ffi --no-warnings --import tsx src/ap
 KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, the title, the End: side panels whole, the mouse
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the core with the map and fights, no UI
 KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts                            # casting in a fight, headless
+node --no-warnings src/game/zoo/tour.ts                                                           # the zoo's tour: every exhibit set off headless, pictures and a report (--live for the GM)
 ```
 
 The offline run uses an invalid API key, so the GM can't speak, and it ends scenes with `/end`. It covers:
@@ -91,7 +96,8 @@ The offline run uses an invalid API key, so the GM can't speak, and it ends scen
 - each scene staying up once it's over, typing on as it ends going nowhere (and walking nobody), Kell telling the news between scenes (typing at her going nowhere either) with the way the map's lead gives, and the notebook;
 - a talk with Kell between scenes (right-clicked in the Nearby list), its choices listed, walking on by a click, and straight back to the map;
 - save, quit and Continue (on the map, by a click, and mid-fight);
-- a whole tactical fight on the Heron's floor (a click on a blue tile, on someone to aim at, on the end-turn button, and on the way on), the aftermath, the summons, and The End (and back to the title by a click).
+- a whole tactical fight on the Heron's floor (a click on a blue tile, on someone to aim at, on the end-turn button, and on the way on), the aftermath, the summons, and The End (and back to the title by a click);
+- the zoo from the title (z): its map with the next exhibit, the view from above (v), and back to the title, where the visit is carried on and not offered as a game to Continue.
 
 The live run plays a real talk with Kell too: one of her suggested lines clicked, then the goodbye, and back to the map with no card between.
 

@@ -678,18 +678,49 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   // What the player carries goes with them into the next scene's world.
   if (state.world) state.carried = carriedBy(state.world.entities, "player");
   delete state.world;
+  freshScene(state, next);
+  Object.assign(state, { adjustments, opening, lead });
+  saveSession(state);
+  return state;
+}
+
+/**
+ * The session starts a scene afresh: nothing of the last scene's own state carries on (its beat and
+ * path, its prep's patches, the co-GM's notes, what was pending). A wind-down or ending pending when
+ * the scene ended (a /end) belongs to that scene, not the next.
+ */
+function freshScene(state: SessionState, next: Scene): void {
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
-    adjustments, opening, lead, fought: [],
+    fought: [],
   });
   delete state.ended;
   delete state.threat;
   delete state.brawl;
-  // A wind-down or ending pending when the scene ended (a /end) belongs to that scene, not the next.
   delete state.closing; delete state.pendingExit; delete state.endingLead;
-  saveSession(state);
-  return state;
+}
+
+/**
+ * A hub's scenes (the zoo's: src/game/zoo): the session plays another scene from its start, as it's
+ * written. Nothing of the last carries on but the player, what they carry, their sheet, the dice and
+ * the record of how scenes ended: no hand-off and no lead, because a hub's scenes are exhibits, not a
+ * story. The scene can be one it has played before.
+ */
+export function openHubScene(state: SessionState, sceneId: string): void {
+  const next = sceneById(sceneId);
+  closeHubScene(state);
+  freshScene(state, next);
+  delete state.adjustments; delete state.opening; delete state.lead;
+}
+
+/**
+ * A hub's scene is over and its map takes over (the explorer has kept what the scene did to its
+ * place): what the player carries comes out of its world, and the world goes.
+ */
+export function closeHubScene(state: SessionState): void {
+  if (state.world) state.carried = carriedBy(state.world.entities, "player");
+  delete state.world;
 }
 
 /**
@@ -913,7 +944,7 @@ function moveToAct(state: SessionState, from: ActFrom, aim: string | undefined):
 }
 
 /** Everything someone holds, and what those things hold. */
-function carriedBy(entities: Record<string, Entity>, holder: string): Entity[] {
+export function carriedBy(entities: Record<string, Entity>, holder: string): Entity[] {
   const out: Entity[] = [];
   const walk = (id: string) => { for (const e of Object.values(entities).filter(x => x.parent === id && !x.states.includes("gone"))) { out.push({ ...e, notes: e.notes.slice(-2) }); walk(e.id); } };
   walk(holder);

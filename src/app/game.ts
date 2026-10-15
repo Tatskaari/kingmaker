@@ -1,13 +1,18 @@
 import { join } from "node:path";
-import { Game as Core, type Action } from "../game/play.ts";
-import { TacticalFight, type CombatController } from "../game/combat/index.ts";
+import { Game as Core, type Action, type Explorer, type GameState } from "../game/play.ts";
+import { TacticalFight, type CombatController, type TacticalFights } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
 import { mapFights } from "../game/fights.ts";
 import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
-import { actionsAt, exploreState, leadTarget, town, walkId, type TileActions } from "../game/town.ts";
+import { actionsAt, exploreState, interactLabel, leadTarget, town, walkId, type LeadTarget, type TileActions } from "../game/town.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
+import { WELCOME, zoo } from "../game/zoo/explorer.ts";
+import { zooFights } from "../game/zoo/fights.ts";
+import { newZoo } from "../game/zoo/game.ts";
+import { lookFor, playNews, type Look } from "../game/zoo/look.ts";
+import { zooOf } from "../game/zoo/model.ts";
 import { setCallLog } from "../llm/openrouter.ts";
 import { sheetData, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries } from "../runtime/brief.ts";
@@ -17,8 +22,11 @@ import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf } from "../../scenes/talk.ts";
 import { repairCampaign } from "./rules-repair.ts";
-import { deleteSave, loadExtras, resumable, saveExtras, type JournalEntry, type Resumable } from "./save.ts";
+import { deleteSave, loadExtras, resumable, saveExtras, zooVisits, type JournalEntry, type Resumable } from "./save.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, leadWay, LEVEL, notebookLines, TIME_WORDS, type Epilogue } from "./story.ts";
+
+/** The story's map and fights (Caerwyn), or a hub's (the zoo: src/game/zoo), by what a game is. */
+const explorerFor = (game: Pick<GameState, "hub"> | undefined): Explorer => (game?.hub === "zoo" ? zoo : town);
 
 /**
  * The game as the terminal UI sees it. The story flow is the game core's (src/game/play.ts: explore,
@@ -113,7 +121,9 @@ export type Overlay =
   | { kind: "scene-map" }
   | { kind: "menu"; index: number }
   | { kind: "spells"; spells: Array<{ id: string; name: string; level: number }>; index: number }
-  | { kind: "actions"; index: number };
+  | { kind: "actions"; index: number }
+  /** A zoo wing's world from above (v), as a scene's stage draws its place. */
+  | { kind: "stage" };
 
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
@@ -125,9 +135,18 @@ const STEP_MS = () => Number(process.env.KM_APP_STEP_MS ?? 45);
 export class Game {
   screen: Screen = "title";
   saves: Resumable[] = [];
+  /** The latest zoo visit, if there is one: the title's zoo carries it on. */
+  zooVisit?: Resumable;
   core?: Core;
-  readonly explorer = town;
-  readonly fights = mapFights();
+  /** Fights for the story (on its scenes' places), and for the zoo (its arena too): one of each, both paced. */
+  private readonly storyFights = mapFights();
+  private readonly zooFights = zooFights();
+  /** The explorer for the game on screen: Caerwyn, or the zoo. */
+  get explorer(): Explorer { return explorerFor(this.core?.state); }
+  get fights(): TacticalFights { return this.fightsFor(this.core?.state); }
+  private fightsFor(game: Pick<GameState, "hub"> | undefined): TacticalFights { return game?.hub === "zoo" ? this.zooFights : this.storyFights; }
+  /** A zoo visit is on screen. */
+  get isZoo(): boolean { return this.core?.state.hub === "zoo"; }
   messages: string[] = [];
   journal: JournalEntry[] = [];
   lines: Line[] = [];
@@ -180,16 +199,20 @@ export class Game {
   private rolled: string[] = [];
   /** The fight's effects, and how much of its log they've shown (see fightFx). */
   private fightLook?: { fight: CombatController; fx: Effects; seen: number; dust: Tile2[] };
+  /** A zoo wing's look on the map: what its exhibits set off, played once each (the zoo's news, by number). */
+  private wingLook?: { world: SceneWorld; look: Look; seq: number };
 
   constructor() {
     // The other side's turns: redraw after each, and give the player a beat to see it land.
-    this.fights.pace = async () => {
+    const pace = async () => {
       if (this.screen !== "combat") return;
       this.animateFight();
       this.busy = "The others act…";
       this.emit();
       await sleep(DELAY());
     };
+    this.storyFights.pace = pace;
+    this.zooFights.pace = pace;
   }
 
   get session(): SessionState | undefined { return this.core?.session; }
@@ -236,6 +259,7 @@ export class Game {
 
   loadSaves(): void {
     this.saves = resumable();
+    this.zooVisit = zooVisits(1)[0];
     this.emit();
   }
 
@@ -257,7 +281,7 @@ export class Game {
     this.emit();
     try {
       const who = `${(name.trim() || DEFAULT_NAME).replace(/:/g, " ")}: ${concept.trim() || DEFAULT_CONCEPT}`;
-      const core = await Core.create({ player: who, level: LEVEL, explorer: this.explorer, fights: this.fights });
+      const core = await Core.create({ player: who, level: LEVEL, explorer: town, fights: this.storyFights });
       this.core = core;
       setCallLog(join(sessionDir(core.state.id), "calls.jsonl"));
       this.sheet = await sheetData(core.session);
@@ -273,7 +297,7 @@ export class Game {
   }
 
   async resume(r: Resumable): Promise<void> {
-    const core = Core.load(r.id, this.explorer, this.fights);
+    const core = Core.load(r.id, explorerFor(r.game), this.fightsFor(r.game));
     if (repairCampaign(core.session)) core.save();
     this.core = core;
     setCallLog(join(sessionDir(r.id), "calls.jsonl"));
@@ -303,8 +327,78 @@ export class Game {
     this.emit();
   }
 
+  /**
+   * The zoo (src/game/zoo): carry on the latest visit, or start one. No character to make: the
+   * visitor comes in wearing the wizard's robes (the wardrobe has the others). Kept apart from the
+   * story: a visit isn't a game to Continue, and nothing done in it reaches Caerwyn.
+   */
+  async zoo(): Promise<void> {
+    this.error = undefined;
+    const visit = zooVisits()[0];
+    if (visit) { await this.resume(visit); return; }
+    try {
+      const core = await newZoo({ fights: this.zooFights });
+      this.core = core;
+      setCallLog(join(sessionDir(core.state.id), "calls.jsonl"));
+      this.journal = [];
+      this.messages = [WELCOME];
+      this.overlay = undefined;
+      this.wingLook = undefined;
+      this.screen = "explore";
+      this.saveExtras();
+    } catch (error) {
+      this.error = `The zoo couldn't open: ${message(error)}`;
+    }
+    this.emit();
+  }
+
   // -------------------------------------------------------------------------------------------
   // Explore
+
+  /** Where g walks: the story's lead, or the zoo's next exhibit. */
+  leadTarget(): LeadTarget | undefined {
+    const core = this.core;
+    if (!core) return undefined;
+    return this.explorer.lead ? this.explorer.lead(core.state) : leadTarget(core.state);
+  }
+
+  /** What a tile offers (the right-click menu, the pointer's hint): the town's answers, or the zoo's (its levers too). */
+  actionsAt(at: Tile2): TileActions | undefined {
+    const core = this.core;
+    if (!core) return undefined;
+    return (this.explorer.actionsAt ?? actionsAt)(core.state, core.session, at);
+  }
+
+  /** What e would do now, in words. */
+  interactLabel(): { label: string; scene: boolean } | undefined {
+    const core = this.core;
+    if (!core) return undefined;
+    return (this.explorer.interactLabel ?? interactLabel)(core.state, core.session);
+  }
+
+  /** The zoo's effects on the map (and from above): what its exhibits set off. Undefined outside the zoo. */
+  mapFx(): Look | undefined {
+    const core = this.core;
+    if (!core?.state.hub || core.state.mode !== "explore") return undefined;
+    const ex = exploreState(core.state);
+    const world = ex.roam?.[ex.map];
+    if (!world) return undefined;
+    if (this.wingLook?.world !== world) this.wingLook = { world, look: lookFor(world), seq: zooOf(core.state).news?.seq ?? 0 };
+    return this.wingLook.look;
+  }
+
+  /** The zoo's latest news (what a lever, a bell, a spell did), played on the map once. */
+  private playZooNews(): void {
+    const core = this.core;
+    if (!core?.state.hub) return;
+    const look = this.mapFx();
+    const z = zooOf(core.state);
+    const w = this.wingLook;
+    if (!look || !w || !z.news || z.news.seq <= w.seq) return;
+    w.seq = z.news.seq;
+    if (z.news.map === exploreState(core.state).map) playNews(look, z.news, performance.now());
+    else look.director.observe(look.world, performance.now());
+  }
 
   begin(): void {
     this.screen = "explore";
@@ -335,14 +429,16 @@ export class Game {
   async toLead(): Promise<void> {
     const core = this.core;
     if (!core || this.busy || this.walking) return;
-    const lead = leadTarget(core.state);
-    if (!lead) { this.say(this.story.lead ? "The story will come to you from here." : "The story isn't heading anywhere just now."); this.emit(); return; }
+    const lead = this.leadTarget();
+    if (!lead) { this.say(this.isZoo ? "You've seen every exhibit. They don't mind being seen again." : this.story.lead ? "The story will come to you from here." : "The story isn't heading anywhere just now."); this.emit(); return; }
     const no = this.startWalk();
     // A walk can go through a door to another map: then the way on is worked out again from there.
     for (let leg = 0; leg < 4 && no === this.walkNo && this.walking && core.state.mode === "explore"; leg++) {
-      const target = leadTarget(core.state);
-      const path = target ? pathTo(exploreState(core.state), target.at) : undefined;
-      if (!target || !path?.length) { if (!path) this.say(`You can't see a way to ${lead.label} from here.`); break; }
+      const target = this.leadTarget();
+      const full = target ? pathTo(exploreState(core.state), target.at) : undefined;
+      // The zoo's exhibits are read from beside their signs, not stood on.
+      const path = full && target && this.isZoo && !target.onto ? full.slice(0, -1) : full;
+      if (!target || !path?.length) { if (!full) this.say(`You can't see a way to ${lead.label} from here.`); break; }
       await this.stepAlong(path, no);
     }
     this.endWalk(no);
@@ -374,7 +470,7 @@ export class Game {
     const core = this.core;
     if (!core || this.busy || core.state.mode !== "explore") return;
     this.walking = false;
-    this.menu = { ...actionsAt(core.state, core.session, at), x, y, index: 0 };
+    this.menu = { ...this.actionsAt(at)!, x, y, index: 0 };
     this.emit();
   }
 
@@ -412,7 +508,7 @@ export class Game {
         if (!done || core.state.mode !== "explore") { this.emit(); return; }
       }
       // Things in sight go by ids that follow who's nearest (the nearer guard is talk_palace_guard): ask again from here.
-      action = actionsAt(core.state, core.session, at).actions.find(a => a.label === action.label && a.kind === action.kind) ?? action;
+      action = this.actionsAt(at)!.actions.find(a => a.label === action.label && a.kind === action.kind) ?? action;
     }
     this.walking = false;
     await this.explore(action.id);
@@ -460,23 +556,36 @@ export class Game {
   private async explore(id: string, options: { quiet?: boolean } = {}): Promise<{ text: string; said: boolean }> {
     const core = this.core!;
     const run = core.act(id, this.hooks());
-    // The core switches to the scene before the opening streams in: show it as it comes.
-    const opening = core.state.mode === "scene";
-    if (opening) { this.walking = false; this.menu = undefined; this.sceneView("The GM sets the scene…"); }
+    // The core switches to the scene before the opening streams in: show it as it comes. A hub's
+    // actions answer a moment later (the rules engine has its say first): its scene is shown as it opens.
+    let opening = false;
+    const open = () => { opening = true; this.walking = false; this.menu = undefined; this.sceneView("The GM sets the scene…"); };
+    if (core.state.mode === "scene") open();
+    const watch = opening ? undefined : setInterval(() => { if (!opening && core.state.mode === "scene") { open(); this.emit(); } }, 15);
     if (!options.quiet || opening) this.emit();
-    let text = "", said = false;
+    let text = "", said = false, failed: { error: unknown } | undefined;
     try {
       text = await run;
+    } catch (error) {
+      failed = { error };
+    } finally {
+      if (watch) clearInterval(watch);
+    }
+    // Opened between two looks: the opening so far is in the transcript.
+    if (!opening && core.state.mode === "scene") { open(); this.showSceneSoFar(); }
+    if (!failed) {
       said = !opening && !!text && (!options.quiet || /^You come into|:/.test(text));
       if (said) this.say(text);
-    } catch (error) {
+    } else if (opening) {
       // A talk's greeting that never came isn't saved (the game is still on the map): walking on goes back to it.
-      if (opening) this.lines.push({ kind: "error", speaker: "system", text: core.session.talk ? `The GM couldn't open the talk: ${message(error)}. (Walk on to go back to the map.)` : `The GM couldn't open the scene: ${message(error)}. (/end <exit> skips ahead for testing.)` });
-      else this.say(message(error));
-    }
+      this.lines.push({ kind: "error", speaker: "system", text: core.session.talk ? `The GM couldn't open the talk: ${message(failed.error)}. (Walk on to go back to the map.)` : `The GM couldn't open the scene: ${message(failed.error)}. (/end <exit> skips ahead for testing.)` });
+    } else this.say(message(failed.error));
     this.busy = undefined;
     this.live = undefined;
     if (opening) { this.observeScene(); this.refreshChoices(); }
+    // A fight from the map (the zoo's arena): straight onto the battlefield.
+    if (core.state.mode === "combat" && this.screen === "explore") { this.walking = false; this.menu = undefined; this.targetIndex = 0; this.targetId = undefined; this.screen = "combat"; }
+    this.playZooNews();
     if (!options.quiet) this.saveExtras();
     this.emit();
     return { text, said };
@@ -757,6 +866,7 @@ export class Game {
       // A talk moves nothing on (the lead is still the lead): its way on goes straight back to the map.
       // After a scene of the story, the moment between scenes: Kell with the news, or the card.
       if (core.state.mode === "explore" && talkOf(shown)) this.card = undefined;
+      else if (core.state.mode === "explore" && core.state.hub) this.card = this.hubCard(shown);
       else if (core.state.mode === "explore") {
         this.card = this.leadCard(shown);
         this.messages = [...this.messages, `${TIME_WORDS[core.state.story.time]}. The lead: ${sceneById(session.sceneId).title}.`].slice(-20);
@@ -852,6 +962,24 @@ export class Game {
     return card;
   }
 
+  /**
+   * After one of a hub's scenes (the zoo's): its notebook entry, read back by whoever walks with the
+   * player (Kell, in the words of the record), then back to the map. Nothing moves on.
+   */
+  private hubCard(sceneId: string): Card {
+    const core = this.core!;
+    const ex = exploreState(core.state);
+    const notebook = this.journal.find(j => j.sceneId === sceneId)?.lines ?? [];
+    const card: Card = {
+      title: `${sceneById(sceneId).title}: over`,
+      lines: [...(notebook.length ? ["Your notebook:", ...notebook, ""] : []), "Nothing in the zoo moves the story on. The next exhibit is where g walks you.", "", "Press Enter to go back to the map."],
+      next: "explore",
+    };
+    const friend = ex.followers.find(f => f.map === ex.map) ?? ex.followers[0];
+    if (friend && notebook.length) card.talk = [{ kind: "dialogue", speaker: friend.id, name: friend.name, text: `“For the record.” She reads the entry back to you, in the words of the record: “${notebook.join(" ")}” She looks at it a moment longer. “Noted.”` }];
+    return card;
+  }
+
   private note(entry: JournalEntry): void {
     const i = this.journal.findIndex(j => j.sceneId === entry.sceneId);
     if (i >= 0) this.journal[i] = { ...entry, lines: [...new Set([...this.journal[i]!.lines, ...entry.lines])] };
@@ -937,6 +1065,24 @@ export class Game {
     const session = core.session;
     const said = { victory: "We won the fight.", surrender: "We won: they gave up.", defeat: "We lost the fight, and I woke up on the floor.", fled: "We got out of there." }[result.outcome];
     const fell = result.casualties.filter(c => c.state !== "standing" && c.id !== "kell").map(c => `${c.name} ${c.state === "down" ? "went down" : c.state}`);
+    // A fight from the map (the zoo's arena): a line in the notebook, and back on the map.
+    if (core.state.fromMap) {
+      const ring = zooOf(core.state).fight?.arena ?? "fight";
+      this.note({ sceneId: `arena:${ring}`, title: "The Arena", ending: "A fight", lines: [`${said}${fell.length ? ` ${capital(fell.join("; "))}.` : ""}`] });
+      this.busy = "The dust settles…";
+      this.emit();
+      try {
+        this.say((await core.act("continue", this.hooks())).replace(/\s+/g, " "));
+      } catch (error) {
+        this.say(`The fight's end couldn't be written down: ${message(error)}`);
+      }
+      this.busy = undefined;
+      this.fightLook = undefined;
+      this.screen = core.state.mode === "explore" ? "explore" : this.screen;
+      this.saveExtras();
+      this.emit();
+      return;
+    }
     this.note({ sceneId: session.sceneId, title: sceneById(session.sceneId).title, ending: "A fight", lines: [`${said}${fell.length ? ` ${capital(fell.join("; "))}.` : ""}`] });
     const before = session.sceneId;
     // Back to the scene: the GM tells the aftermath as it streams in.
@@ -1078,6 +1224,7 @@ export class Game {
     // Another game's scene is news to nobody.
     this.look = undefined;
     this.fightLook = undefined;
+    this.wingLook = undefined;
     this.loadSaves();
   }
 

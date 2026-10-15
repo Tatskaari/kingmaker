@@ -44,9 +44,16 @@ export function TitleScreen({ game }: { game: Game }) {
       run: () => { setLoading(`Finding your place in the story…`); void game.resume(r).finally(() => setLoading(undefined)); },
     })),
     { label: "New game", detail: "make a character and take the case", run: () => game.newCharacter() },
+    // The zoo: every feature laid out to see and try, kept apart from the story's games.
+    { label: "The zoo", detail: game.zooVisit ? "carry on your visit: every feature, laid out to see and try" : "every feature of the game, laid out to see and try", run: () => openZoo() },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
   const at = Math.min(index, items.length - 1);
+  function openZoo(): void {
+    if (loading || game.screen !== "title") return;
+    setLoading("Opening the zoo…");
+    void game.zoo().finally(() => setLoading(undefined));
+  }
   const pick = (i: number) => {
     if (loading || game.screen !== "title") return;
     if (doomed) { setDoomed(undefined); return; }
@@ -73,11 +80,12 @@ export function TitleScreen({ game }: { game: Game }) {
     else if (key.name === "return" || key.name === "space") pick(at);
     else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
+    else if (key.name === "z") openZoo();
     else if (key.name === "q" || key.name === "escape") game.quit();
   });
   const keys: KeyHint[] = doomed
     ? [["x", "delete it", doom], ["any other key", "keep it", () => setDoomed(undefined)]]
-    : [["↑↓", "choose"], ["Enter", "select", () => pick(at)], ...(items[at]!.save ? [["x", "delete", doom] satisfies KeyHint] : []), ["n", "new game", () => game.newCharacter()], ["q", "quit", () => game.quit()]];
+    : [["↑↓", "choose"], ["Enter", "select", () => pick(at)], ...(items[at]!.save ? [["x", "delete", doom] satisfies KeyHint] : []), ["n", "new game", () => game.newCharacter()], ["z", "the zoo", openZoo], ["q", "quit", () => game.quit()]];
   const wide = width >= 84;
   const w = Math.min(width - 4, 90);
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>

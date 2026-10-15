@@ -3,8 +3,11 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, Clickable, Keys, SCROLLBAR, useGame, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, FPS, Keys, SCROLLBAR, useGame, type KeyHint } from "./common.tsx";
 import { Place } from "./place.tsx";
+import { stagePicture } from "../../game/zoo/pictures.ts";
+import { wingOf } from "../../game/zoo/wings/index.ts";
+import { exploreState } from "../../game/town.ts";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView } from "./sheet.tsx";
 
@@ -26,6 +29,14 @@ const HELP: Record<string, string[]> = {
     "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this (those four any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
     "PgUp/PgDn (or the mouse wheel) scroll the conversation. When a scene ends, it waits for you: an Enter of its own, or a click, goes on. Whatever you were typing as it ended goes unsaid.",
     "For testing: /exits lists the scene's endings, /end <id> takes one now.",
+  ],
+  zoo: [
+    "Every feature of the game, laid out to see and try. Each exhibit has a sign: right-click it (or face it and press e) to read what it is and how to set it off.",
+    "Set an exhibit off from its menu: right-click the lever, bell, chalk circle or person by the sign. Everything but looking walks you over first. A chalk circle is cast from, so you stand on it; a plate goes off when you walk onto it.",
+    "g walks you to the next exhibit you haven't seen (the gold marker); the sidebar says which and the way. The hall's doors go to the wings; each wing's door goes back.",
+    "v looks down on the wing from above, as a scene's stage does: watch people walk, fires catch, and the weather (Esc closes it).",
+    "The Theatre's booths are scenes with the GM: step through a door. The Arena's bells start fights. Kell walks with you if you ask her, in her corner.",
+    "c shows your sheet (the hall's wardrobe changes who you are), j the notebook, Esc the menu. Nothing here reaches the story, and a visit is never offered as a game to Continue: the title's Zoo carries on the latest.",
   ],
   combat: [
     "By mouse: click a blue tile to move there; click someone on the other side to aim at them, and click them again to attack. The options on the right, and the keys at the bottom, are buttons.",
@@ -79,8 +90,8 @@ export function Overlay({ game }: { game: Game }) {
       game.emit();
       return;
     }
-    // Help, journal, scene map: any of these keys closes them.
-    if (CLOSE.includes(key.name) || key.name === "j" || key.sequence === "?") game.closeOverlay();
+    // Help, journal, scene map, the view from above: any of these keys closes them.
+    if (CLOSE.includes(key.name) || key.name === "j" || key.name === "v" || key.sequence === "?") game.closeOverlay();
   });
   if (!o) return null;
   const w = Math.min(width - 4, 104);
@@ -118,6 +129,14 @@ export function Overlay({ game }: { game: Game }) {
         ? <Place game={game} width={w - 4} height={h - 4} view="map" />
         : <text fg={C.dim}>This scene has no map of its own yet: it's all in the telling.</text>, [["Esc", "close", close]]);
     }
+    case "stage": {
+      // A zoo wing from above, alive: people mid-walk, its fires, its weather, what its exhibits set off.
+      const core = game.core;
+      const wing = core ? wingOf(exploreState(core.state).map) : undefined;
+      return box(wing ? `${wing.name.charAt(0).toUpperCase()}${wing.name.slice(1)}, from above` : "From above", core
+        ? <lookCanvas width={w - 4} height={h - 4} fps={FPS} live painter={(cw, ch, now) => stagePicture(core.state, { w: cw, h: ch }, now, game.mapFx()) ?? []} />
+        : null, [["Esc", "close", close], ["v", "close", close]]);
+    }
     case "journal": {
       const history = game.session?.history ?? [];
       const stood = (sceneId: string) => history.find(h => h.sceneId === sceneId)?.summary.split("\n").slice(1).join("\n").trim();
@@ -130,7 +149,7 @@ export function Overlay({ game }: { game: Game }) {
       </scrollbox>, [["Esc", "close", close]]);
     }
     case "help": {
-      const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
+      const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : game.isZoo ? "zoo" : "explore";
       return box("How to play", <box flexDirection="column">{HELP[mode]!.map((l, i) => <text key={i} fg={C.text} wrapMode="word" marginBottom={1}>{`· ${l}`}</text>)}</box>, [["Esc", "close", close]]);
     }
     case "menu":

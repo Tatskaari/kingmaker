@@ -55,11 +55,23 @@ const INTERLUDES: Record<string, { time: StoryState["time"]; next: string }> = {
   "wharf-night": { time: "night", next: "heron-warehouse" },
 };
 
-export const scenePlace = (sceneId: string): ScenePlace | undefined => PLACES[sceneId];
+/**
+ * Places of scenes that aren't the story's (the zoo's rooms, src/game/zoo): the map plays them as it
+ * plays the arc's (their region, where the player starts, the scene view), but nothing in the story
+ * leads to them, shows them in the town or opens them: whoever registers them does.
+ */
+const OTHER_PLACES: Record<string, ScenePlace> = {};
+
+export function registerPlace(place: ScenePlace): void {
+  if (PLACES[place.sceneId]) throw new Error(`${place.sceneId} is the story's place, not one to register`);
+  OTHER_PLACES[place.sceneId] = place;
+}
+
+export const scenePlace = (sceneId: string): ScenePlace | undefined => PLACES[sceneId] ?? OTHER_PLACES[sceneId];
 
 /** A scene's place: the map and the region (with its worldOrigin) it's played in. */
 export function regionForScene(sceneId: string): { map: TileMap; region: PlaceRegion } | undefined {
-  const place = PLACES[sceneId];
+  const place = scenePlace(sceneId);
   if (place) {
     const map = getMap(place.map);
     const region = map.regions.find(r => r.id === place.region) as PlaceRegion | undefined;
@@ -70,7 +82,7 @@ export function regionForScene(sceneId: string): { map: TileMap; region: PlaceRe
 
 /** Where the player stands when a scene opens: the world's own start for them, on its map. */
 export function sceneStart(sceneId: string): { map: string; at: Tile2 } | undefined {
-  const place = PLACES[sceneId];
+  const place = scenePlace(sceneId);
   const found = regionForScene(sceneId);
   if (!place || !found) return undefined;
   const start = place.world.people.player?.at;

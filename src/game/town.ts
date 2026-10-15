@@ -180,8 +180,11 @@ function nearestIn(rect: { x: number; y: number; w: number; h: number }, from: T
   return best;
 }
 
+/** Where g walks to: a tile, what it's called, whether to walk onto it, the way out first (`via`), the place it's in. */
+export interface LeadTarget { at: Tile2; label: string; onto: boolean; via?: string; area?: { x: number; y: number; w: number; h: number } }
+
 /** Where the lead is from here: its marker on this map, or the way out towards it (`via`). */
-export function leadTarget(game: GameState): { at: Tile2; label: string; onto: boolean; via?: string; area?: { x: number; y: number; w: number; h: number } } | undefined {
+export function leadTarget(game: GameState): LeadTarget | undefined {
   const ex = exploreState(game);
   const lead = game.story.lead;
   if (!lead || game.story.played.includes(lead) || ex.scene) return undefined;
@@ -409,7 +412,7 @@ function walkTowardsLead(game: GameState): Done {
   return { text, ...(walk.scene ? { scene: true } : {}) };
 }
 
-export const town: Explorer = {
+export const town = {
   start(game) {
     game.explore = { ex: newExploration(structuredClone(game.story)), log: [] } satisfies TownState as unknown as Record<string, unknown>;
   },
@@ -506,10 +509,10 @@ export const town: Explorer = {
     leaveScene(ex, session.world);
   },
 
-  afterScene(game) {
+  afterScene(game, _session) {
     // The map follows the story on (the time of day, the lead, Kell at the player's side); what
     // happened before the scene is old news.
     exploreState(game);
     townOf(game).log = [];
   },
-};
+} satisfies Explorer;

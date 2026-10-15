@@ -3,7 +3,7 @@ import type { Interaction, MapActor, StoryState, Tile2 } from "../types.ts";
 import { CAST, TOWNSFOLK_COLOR } from "./looks.ts";
 import { decorOf, getMap } from "./maps/index.ts";
 import { PLACES, regionForScene } from "./places.ts";
-import { actorsFromWorld, nearestTile } from "./reconcile.ts";
+import { actorsFromWorld, nearestTile, type MapOverlay } from "./reconcile.ts";
 import { inBounds, isStructure, tileAt, type PlaceRegion } from "./tiles.ts";
 
 /**
@@ -55,8 +55,17 @@ export function leadMarker(story: StoryState, mapId: string): { at: Tile2; label
   return undefined;
 }
 
+/**
+ * Who and what else is about on the maps that aren't the story's (the zoo's scene rooms, with their
+ * people waiting): given the story, the map and what scenes have left on their places.
+ */
+export type Presence = (story: StoryState, mapId: string, overlay?: MapOverlay) => MapActor[];
+const OTHERS: Presence[] = [];
+
+export function addPresence(p: Presence): void { if (!OTHERS.includes(p)) OTHERS.push(p); }
+
 /** Everyone and everything the story puts on a map (not the player, not followers). */
-export function presence(story: StoryState, mapId: string): MapActor[] {
+export function presence(story: StoryState, mapId: string, overlay?: MapOverlay): MapActor[] {
   const out: MapActor[] = [];
   const lit = story.time === "evening" || story.time === "night";
   for (const d of decorOf(mapId)) {
@@ -65,6 +74,7 @@ export function presence(story: StoryState, mapId: string): MapActor[] {
   }
   out.push(...places(story, mapId));
   if (mapId === "caerwyn") out.push(...town(story));
+  for (const p of OTHERS) out.push(...p(story, mapId, overlay));
   return out;
 }
 

@@ -38,7 +38,7 @@ export const ARROW: Record<string, string> = { north: "↖", "north-east": "↑"
  * can't disagree.
  */
 export function leadWay(from: Tile2, lead: { at: Tile2; label: string; via?: string | undefined }): string {
-  return `${lead.via ? `${lead.via}, then on to ` : ""}${lead.label} ${ARROW[direction(from, lead.at)] ?? ""} ${steps(from, lead.at)} paces`.replace(/ {2,}/g, " ");
+  return `${lead.via ? `${lead.via}, then on to ` : ""}${lead.label} ${ARROW[direction(from, lead.at)] ?? ""} ${steps(from, lead.at)} pace${steps(from, lead.at) === 1 ? "" : "s"}`.replace(/ {2,}/g, " ");
 }
 
 /**

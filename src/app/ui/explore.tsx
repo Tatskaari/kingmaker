@@ -5,7 +5,6 @@ import { glyphSet } from "../../game/look/glyphs.ts";
 import { actorLook } from "../../game/look/map.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
 import { direction, look, nearby, Picks, steps, whereabouts } from "../../game/map/index.ts";
-import { actionsAt, interactLabel, leadTarget } from "../../game/town.ts";
 import type { Tile2 } from "../../game/types.ts";
 import { townView } from "../../game/views.ts";
 import { sceneById } from "../../../scenes/index.ts";
@@ -41,6 +40,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     key.preventDefault();
     if (key.name === "e" || key.name === "return" || key.name === "space") game.interact();
     else if (key.name === "g") void game.toLead();
+    else if (key.name === "v" && game.isZoo) { game.overlay = { kind: "stage" }; game.emit(); }
     else if (key.name === "c") void game.showSheet();
     else if (key.name === "j") { game.overlay = { kind: "journal" }; game.emit(); }
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
@@ -53,7 +53,7 @@ export function ExploreScreen({ game }: { game: Game }) {
   useEffect(() => setHover(h => (h?.from === "list" ? undefined : h)), [ex?.map, ex?.at.x, ex?.at.y]);
   // What the pointer is over, and what a click there would do (asked again only when it moves to another tile, or the player does).
   const pointed = hover && core && ex ? `${hover.at.x},${hover.at.y}@${ex.map}:${ex.at.x},${ex.at.y}:${game.story.time}` : "";
-  const info = useMemo(() => (hover && core ? actionsAt(core.state, session, hover.at) : undefined), [pointed]);
+  const info = useMemo(() => (hover && core ? game.actionsAt(hover.at) : undefined), [pointed]);
   if (!core || !session || !ex) return null;
   const sideW = Math.min(48, Math.max(34, Math.floor(width * 0.32)));
   const msgH = 6;
@@ -62,9 +62,12 @@ export function ExploreScreen({ game }: { game: Game }) {
   const where = whereabouts(ex);
   // What the place is like (look()'s first line, without the "You're in ..." part the title already says).
   const about = (look(ex).split("\n")[0] ?? "").replace(/^You're [^.]*\.\s*/, "");
-  const lead = leadTarget(core.state);
-  const leadScene = game.story.lead ? sceneById(game.story.lead) : undefined;
-  const front = interactLabel(core.state, session);
+  const lead = game.leadTarget();
+  // The story's lead is a scene; the zoo's is the next exhibit not yet seen.
+  const zoo = game.isZoo;
+  const leadScene = zoo ? (lead ? { title: lead.label } : undefined) : game.story.lead ? sceneById(game.story.lead) : undefined;
+  const front = game.interactLabel();
+  const zooLook = game.mapFx();
   const inner = sideW - 4;
   const status = session.rules?.status ?? "";
   const you = truncate(session.player.name, Math.max(8, inner - 12));
@@ -93,7 +96,8 @@ export function ExploreScreen({ game }: { game: Game }) {
   const overlay = (kind: "help" | "journal" | "menu") => button(() => { game.overlay = kind === "menu" ? { kind, index: 0 } : { kind }; game.emit(); });
   const gap = width < 100 ? " · " : "  ·  ";
   const hints: KeyHint[] = [
-    ["click", "walk"], ["right-click", "act"], ["g", "the lead", button(() => void game.toLead())], ["c", "sheet", button(() => void game.showSheet())],
+    ["click", "walk"], ["right-click", "act"], ["g", zoo ? "next exhibit" : "the lead", button(() => void game.toLead())],
+    ...(zoo ? [["v", "from above", button(() => { game.overlay = { kind: "stage" }; game.emit(); })] satisfies KeyHint] : []), ["c", "sheet", button(() => void game.showSheet())],
     ["j", "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
   ];
 
@@ -125,20 +129,24 @@ export function ExploreScreen({ game }: { game: Game }) {
         <lookCanvas ref={canvas} width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay}
           painter={(w, h, now) => {
             const pick = new Picks();
-            const lines = townView(core.state, session, { w, h }, { t: now, pick, ...(lit ? { hover: lit } : {}) });
+            const lines = townView(core.state, session, { w, h }, {
+              t: now, pick, ...(lit ? { hover: lit } : {}),
+              // The zoo's exhibits play on the map, and its next exhibit is marked as the story's lead is.
+              ...(zooLook ? { effects: zooLook.fx } : {}), ...(zoo && lead ? { lead: { at: lead.at, label: lead.label } } : {}),
+            });
             picks.current = pick;
             return lines;
           }}
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>
-      <box width={sideW} height={mapH} border borderColor={C.border} title=" The investigation " flexDirection="column" paddingX={1} overflow="hidden">
+      <box width={sideW} height={mapH} border borderColor={C.border} title={zoo ? " The zoo " : " The investigation "} flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
         <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
         {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}
         <text marginTop={1} height={1} flexShrink={0}><span fg={C.player} attributes={BOLD}>{you}</span><span fg={C.dim}>{truncate(` · ${status.split(",")[0] ?? ""}`, Math.max(0, inner - you.length))}</span></text>
         {build.length ? <text fg={C.faint} height={build.length} flexShrink={0}>{build.join("\n")}</text> : null}
         {leadScene ? <box flexDirection="column" marginTop={1} flexShrink={0}>
-          <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{"The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
+          <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{zoo ? "Next: " : "The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
           {way.length ? <text fg={C.dim} height={way.length} flexShrink={0}>{way.join("\n")}</text> : null}
         </box> : null}
         <text fg={C.title} marginTop={1} height={1} flexShrink={0}>Nearby</text>
@@ -161,7 +169,7 @@ export function ExploreScreen({ game }: { game: Game }) {
               <span fg={C.faint}>{` ${n.distance <= 1 ? "here" : `${ARROW[n.direction] ?? ""} ${n.distance}`}`}</span>
             </text>
           </box>;
-        }) : nearFirst ? <text fg={C.faint} attributes={ITALIC} height={1} flexShrink={0}>{truncate("Nobody. Caerwyn is busy elsewhere.", inner)}</text> : null}
+        }) : nearFirst ? <text fg={C.faint} attributes={ITALIC} height={1} flexShrink={0}>{truncate(zoo ? "Nobody. The exhibits are mostly things." : "Nobody. Caerwyn is busy elsewhere.", inner)}</text> : null}
         {fronts.length ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           {fronts.map((l, i) => <text key={i} height={1} flexShrink={0}><span fg={C.title} attributes={BOLD}>{i ? "  " : "e "}</span><span fg={front?.scene ? C.lead : C.text}>{l}</span></text>)}
         </box> : null}

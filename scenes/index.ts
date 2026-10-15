@@ -15,6 +15,7 @@ import { heronWarehouse } from "./heron-warehouse.ts";
 import { caerwynAfternoon, wharfNight } from "./interludes.ts";
 import { crossroadsHoled, entranceHoled, tollHoled } from "./holed.ts";
 import { talkScene } from "./talk.ts";
+import { ZOO_SCENES } from "./zoo/index.ts";
 
 export const SCENES: Scene[] = [
   strangerCrossroads, crossroadsAmbush, crossroadsAftermath, crossroadsSituation,
@@ -22,9 +23,14 @@ export const SCENES: Scene[] = [
   crossroadsHoled, entranceHoled, tollHoled,
 ];
 
-/** Scenes as the runtime sees them: authored (or a talk with a companion), plus the built-in "ending of their own". */
+export { ZOO_SCENES };
+
+/**
+ * Scenes as the runtime sees them: authored (or a talk with a companion, or one of the zoo's own,
+ * which the story never leads to), plus the built-in "ending of their own".
+ */
 export function sceneById(id: string): Scene {
-  const scene = SCENES.find(s => s.id === id) ?? talkScene(id, castCard);
+  const scene = SCENES.find(s => s.id === id) ?? ZOO_SCENES.find(s => s.id === id) ?? talkScene(id, castCard);
   if (!scene) throw new Error(`Unknown scene ${id}. Known: ${SCENES.map(s => s.id).join(", ")}`);
   return withImprovisedEnding(scene);
 }
