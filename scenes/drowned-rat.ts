@@ -21,10 +21,12 @@ import { KELL_VOICE, pageItem } from "./hanged-clerk.ts";
  * each outcome says where Hobb is, what the player holds and whether Sallow has been warned. A
  * confession that stops short of the Master's name is still a confession: Hobb owning to the loft
  * and going to his night's work ends on what he told them, wherever the scene had got to, and
- * whatever he owned to is in Kell's notebook as he said it, however the scene ends. His mum's safety,
- * the thing that would turn him, can be got for her tonight from someone in the room (Kell, for a
- * night; Dilly's barge; Nan, who knows every bolt-hole on the stairs), on a roll where it could go
- * either way.
+ * whatever he owned to is in Kell's notebook as he said it, however the scene ends. Once he has owned
+ * to the loft, the rest (the name, the Heron, the token) comes as he's asked, each ask a route with no
+ * dice. His mum's safety, the thing that would turn him (he says so himself as he goes to work), can
+ * be got for her tonight from someone in the room (Kell, for a night; Dilly's barge; Nan, who knows
+ * every bolt-hole on the stairs), on a roll where it could go either way; however it's got, it opens
+ * him up.
  *
  * If the granary didn't give up Prout's page, it's still sewn into the boot on Cob's feet, and the
  * boundary brings it over (src/runtime/owed.ts): then it's one of this scene's essentials, with ways
@@ -133,9 +135,20 @@ const mumSafe = (onSuccess: string): Transition => ({
     skill: "persuasion", dc: 12,
     success: "Whoever was asked grumbles and gives way: Kell, for one night in her own room, and it goes in the book ('One night. It's written down.'); or Dilly, aboard the Dabchick under the onions, as long as nobody in a uniform sets foot on her; or Nan, who has a word with a widow on the landing who owes her. Someone will fetch her from the Shambles tonight, before the Master thinks to look. Hobb looks from one of them to the other for a long moment, and his shoulders come down: he believes it. If he hasn't told it yet, it starts now, very quietly: 'I only held the rope.'",
     failure: "Whoever was asked won't, not like that and not tonight (Kell won't call her room a safe house or keep it from her own notebook; Dilly won't have the watch anywhere near her barge; Nan won't have the gentleman's trouble on her stairs), and Hobb heard the no: he's nearer the door for it. But the need is out in the open now, and the others in the room haven't been asked.",
-    onSuccess, establishes: { success: [MUM_SAFE] },
+    onSuccess, establishes: { success: [MUM_SAFE, TALKED] },
   },
 });
+
+/**
+ * His mum taken in, however it came about (the roll above, a ruling standing in for it, someone
+ * here offering of their own accord): what it does to Hobb comes with it, so a ruling that counts as
+ * it can't drop the payoff. Only someone else can give it, so it's judged after the reply.
+ */
+const mumTakenIn: Transition = {
+  id: "mum-taken-in", given: true,
+  when: "Someone here has agreed to take Hobb's mum in tonight, out of the Master's reach (Kell, for a night in her own room; Dilly, aboard the Dabchick; Nan, with the widow on the landing who owes her), and Hobb has heard it. He believes it, and his shoulders come down: if he hasn't told it yet, it starts now, very quietly ('I only held the rope.'), and the rest comes as he's asked.",
+  to: "confession", establishes: [MUM_SAFE, TALKED],
+};
 
 /** The Rat's own sport: elbows on the table, Nan referees. Open while Hobb is still in his chair. */
 const armWrestle = (beat: string): Transition => ({
@@ -405,7 +418,7 @@ export const drownedRat: Scene = {
           to: "confession", establishes: [TALKED],
         },
         { id: "heron-learned", when: "The player has learned that Hobb does night work at the Heron warehouse downriver (from Hobb, Nan's gossip, Dilly, the regulars, or the heron on the new pennies).", to: "big-hobb", establishes: [HERON] },
-        winHobb, scareHobb, trickHobb, mumSafe("confession"), armWrestle("big-hobb"), ...pageRoutes("big-hobb"),
+        winHobb, scareHobb, trickHobb, mumSafe("confession"), mumTakenIn, armWrestle("big-hobb"), ...pageRoutes("big-hobb"),
         bell("The player has been at Hobb a good while (at least six exchanges at this point) without him breaking, or is going round in circles: the eleventh bell rings across the water, and Hobb gets up to go to work."),
       ],
     },
@@ -414,7 +427,7 @@ export const drownedRat: Scene = {
       title: "Out of his chair",
       direction: "Hobb is up and leaving, one way or the other: bolting in a panic because someone pushed too hard or too clumsily, or going to his night's work at the bell, as he must, because if he isn't at the river door when his master comes, his master will know something is wrong. This is a short, sharp moment: the door, the wet stairs and the dark are a few strides away. The player can let him go, follow him, stop him, or try one last time, and Kell will back a lawful arrest if there's evidence for one. Indoors, rule three holds; out on the stairs, it doesn't.",
       cast: {
-        hobb: "You want out: up the stairs into the dark if you're bolting, down to the wharves if you're going to work.",
+        hobb: "You want out: up the stairs into the dark if you're bolting, down to the wharves if you're going to work. Going to work, if anyone tries to stop you, you say why you must, once, before you go: if you're not at the river door when the Master comes, he'll know, and he knows where your mum lives.",
         kell: "If he's bolting and the investigator goes after him, go too. If he's going to work, say once, quietly, whether you have enough to take him in, and wait for the investigator's word.",
         "nan-quill": "Nobody fights in your house. Outside is the river's business.",
       },
@@ -436,11 +449,11 @@ export const drownedRat: Scene = {
           check: { reason: "to stop Big Hobb at the door and get the truth out of him",
             skill: "persuasion", dc: 14,
             success: "Hobb stops with his hand on the door. His shoulders go down. He comes back to the corner, sits, and says, 'I only held the rope.'",
-            failure: "He shakes his head, says he's sorry, and goes out into the dark, down the stairs towards the wharves.",
+            failure: "He shakes his head and says he's sorry, and why, at the door: if he isn't at the river door when the Master comes, the Master will know, and the Master knows where his mum lives. Then he goes out into the dark, down the stairs towards the wharves.",
             onSuccess: "confession", onFailure: "gone-to-work", establishes: { success: [TALKED] },
           },
         },
-        mumSafe("confession"),
+        mumSafe("confession"), mumTakenIn,
         {
           id: "hobb-breaks",
           when: "Hobb, on his feet or in the doorway, has broken and begun to tell what he did or who he does it for (the loft, his master, the Heron), however it came out.",
@@ -455,9 +468,9 @@ export const drownedRat: Scene = {
     {
       id: "confession",
       title: "I only held the rope",
-      direction: "Hobb is talking, or starting to. He begins where it hurts, with the rope, slowly and in pieces, wiping his face with his good hand, and he won't say more where the whole Rat can hear: the player has to find him somewhere quieter or give him a reason. The rest (his master, the Heron and tonight's loading, his token: see his secrets) comes out as the player asks for it, one thing per reply and in his own words. He knows only his own part of the night, so he doesn't brief anyone on the Heron. Answer what they actually ask, and never put questions in their mouth or run the interview for them. If he thinks he's talking to his master's people (a trick that worked), he tells it as proof he has kept faith, and it's the same truth. Kell writes it all down. When it's out, he asks what's to become of him: he's terrified of the noose and more terrified of his master, and he has to be at the river door at the eleventh bell or his master will know something is wrong. The beat ends on the player's choice: Kell takes him in, he goes to work (as their man inside, or keeping his head down), or he runs. Don't decide it for them.",
+      direction: "Hobb is talking, or starting to. He begins where it hurts, with the rope, slowly and in pieces, wiping his face with his good hand, and he won't say more where the whole Rat can hear: the player has to find him somewhere quieter or give him a reason. The rest (his master, the Heron and tonight's loading, his token: see his secrets) comes out as the player asks for it, with no dice, one thing per reply and in his own words. He knows only his own part of the night, so he doesn't brief anyone on the Heron. Answer what they actually ask, and never put questions in their mouth or run the interview for them. If he thinks he's talking to his master's people (a trick that worked), he tells it as proof he has kept faith, and it's the same truth. Kell writes it all down. When it's out, he asks what's to become of him: he's terrified of the noose and more terrified of his master, and he has to be at the river door at the eleventh bell or his master will know something is wrong. The beat ends on the player's choice: Kell takes him in, he goes to work (as their man inside, or keeping his head down), or he runs. Don't decide it for them.",
       cast: {
-        hobb: "Tell the loft first, then answer what you're asked, one thing at a time. When it's out, ask what's to become of you. The token's only brass: give it up if asked.",
+        hobb: "Tell the loft first, then answer what you're asked, one thing at a time: asked straight for the Master's name, you give it, in a whisper. When it's out, ask what's to become of you. The token's only brass: give it up if asked.",
         kell: "Write it down. You have enough to take him in now, and you'll say so, once; whether you do it tonight is the investigator's call. If you do, it's by the book, outside Nan's door.",
         "nan-quill": "Keep the room off his back, and keep your ears open.",
         dilly: "Sit with him. Glare at anyone who frightened it out of him.",
@@ -465,13 +478,31 @@ export const drownedRat: Scene = {
       },
       pressure: "The eleventh bell rings across the water. Hobb gets to his feet, because he has to be at the river door when it stops.",
       transitions: [
-        { id: "told-heron", when: "Hobb has told the player about the Heron warehouse: what goes on there, tonight's loading, or how to get in.", to: "confession", establishes: [HERON] },
-        { id: "told-master", when: "Hobb has named his master to the player: Master Sallow of the Royal Purveyor's office.", to: "confession", establishes: [NAMED] },
-        { id: "token-given", when: "Hobb has handed over his brass river-door token for the Heron (to the player or to Kell).", to: "confession", establishes: [TOKEN] },
-        { id: "inside-man", when: "Hobb has agreed to help the player at the Heron tonight: to open the river door to them, keep the gang off them, or point out the clerk's book.", to: "confession", establishes: [INSIDE] },
+        // The rest comes as he's asked, so each ask has a route the decider can match to the player's
+        // words, with no dice: "who's the Master?" isn't a push to roll for once the loft is out.
+        {
+          id: "told-heron",
+          when: "The player asks Hobb where he works, or where he's due at the bell, what goes on there tonight or how a body gets in, or Hobb tells it. No dice: the loft is out, and the rest comes as he's asked. He tells his own part of the night as he knows it: the Heron warehouse, at the downriver end of the wharves, re-sacking ('It's the King's grain, sir. Everyone knows. Nobody says.'); tonight's a loading night, with a barge for Saltmere; he's due on the hoist at the eleventh bell, the gang go in at the river door off the plank walk, showing a brass heron token at its grille, and the Master comes at the midnight bell to see the barge off.",
+          to: "confession", establishes: [HERON],
+        },
+        {
+          id: "told-master",
+          when: "The player asks Hobb straight for his master's name (who he is, who he does it for, who 'the Master' is), or Hobb gives it. No dice: the loft is out, and the rest comes as he's asked. It costs him most, so it comes in a whisper, with a look at the door: Master Sallow of the Royal Purveyor's office, who struck the clerk with the head of his cane and used the cord.",
+          to: "confession", establishes: [NAMED],
+        },
+        {
+          id: "token-given",
+          when: "The player asks Hobb for his brass river-door token (the heron on the greasy string round his neck), or Hobb hands it over, to the player or to Kell. No dice: it's only brass, and the gang know his face at the grille, so he has no need of it tonight. He pulls it over his head and holds it out: shown at the grille of the Heron's river door, it gets the bolt drawn.",
+          to: "confession", establishes: [TOKEN],
+        },
+        {
+          id: "inside-man",
+          when: "The player asks Hobb to be their man inside the Heron tonight (to open the river door to their knock, keep the gang off them, or point out the clerk's book) once his mum is to be kept safe tonight or they've made him a promise that truly answers his fear, or Hobb agrees to it of his own accord. No dice: he swallows, nods and says he'll do it, for as long as his nerve holds.",
+          to: "confession", establishes: [INSIDE],
+        },
         {
           id: "turn-hobb", on: "attempt",
-          when: "The player tries to talk Hobb into going back into the Heron tonight as their man inside, where his fear of his master could still win. (A promise that truly answers his fear needs no dice: his mum got safe tonight is that.)",
+          when: "The player tries to talk Hobb into going back into the Heron tonight as their man inside, while his fear of his master could still win: his mum isn't safe yet, and nothing they've promised answers his fear. (Once his mum is to be kept safe tonight, or for a promise that truly answers his fear, it needs no dice: that isn't this.)",
           check: { reason: "to talk Hobb into being your man inside the Heron",
             skill: "persuasion", dc: 14,
             success: "Hobb swallows, nods and says he'll do it: he'll open the river door to their knock and keep the gang off them, for as long as his nerve holds.",
@@ -481,7 +512,7 @@ export const drownedRat: Scene = {
         },
         { id: "let-him-go", on: "attempt", when: "The player is done at the Rat: they leave with what Hobb told them, letting him go to his night's work (or taking him along), without having him arrested.", to: "hobb-talks" },
         { id: "hobb-runs", when: "Hobb's nerve has gone and he's bolting for the door (at the word 'arrest', or at the thought of his master).", to: "on-his-feet" },
-        mumSafe("confession"),
+        mumSafe("confession"), mumTakenIn,
         ...pageRoutes("confession"),
         { id: "bell-talked", on: "cue", when: "The player has had Hobb's story a while (at least five exchanges at this point) without deciding what becomes of him: the eleventh bell, and Hobb has to go to work.", to: "hobb-talks" },
       ],

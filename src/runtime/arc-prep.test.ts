@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
@@ -207,9 +208,9 @@ test("the Rat: his mum kept safe tonight is a plan with a way in, rolled where i
     assert.equal(mum.check?.onSuccess, "confession");
     assert.equal(mum.check?.onFailure, undefined, "a no costs ground, and keeps the scene going");
     assert.match(mum.when, /Kell, for a night[\s\S]*Dilly, aboard the Dabchick[\s\S]*Nan/);
-    assert.equal(mum.check?.establishes?.success?.length, 1);
+    assert.deepEqual(mum.check?.establishes?.success?.slice(1), [TALKED], "and on a success he has begun to tell it");
   }
-  assert.match(route(rat, "confession", "turn-hobb").when, /his mum got safe tonight is that/);
+  assert.match(route(rat, "confession", "turn-hobb").when, /Once his mum is to be kept safe tonight, or for a promise that truly answers his fear, it needs no dice/);
   const limit = rat.limits!.find(l => /before the bell/.test(l) && /Shambles/.test(l))!;
   assert.match(limit, /^The player going anywhere else themselves/);
   assert.match(limit, /Sending is another matter[\s\S]*fetch Hobb's mum/);
@@ -221,6 +222,69 @@ test("the Rat: his mum kept safe tonight is a plan with a way in, rolled where i
 
 test("the Rat: Hobb's token is only brass, and he needs no token to get in", () => {
   assert.match(rat.cast.find(c => c.id === "hobb")!.secrets!.join(" "), /the gang know his face at the grille, so he has no need of it tonight/);
+});
+
+test("the Rat: once he has owned to the loft, the rest comes as he's asked: the name, the Heron and the token are asks with no dice", async () => {
+  // The QA pass: asked straight for the Master's name (the barbarian's T23 and T27), where he works and the token (rb-2m2, g7 T11, g11 T5), each went to a ruling and a roll.
+  const asks = { "told-master": /^The player asks Hobb straight for his master's name/, "told-heron": /^The player asks Hobb where he works/, "token-given": /^The player asks Hobb for his brass river-door token/ };
+  for (const [id, words] of Object.entries(asks)) {
+    const t = route(rat, "confession", id);
+    assert.equal(t.check, undefined, `${id}: no dice`);
+    assert.equal(t.on, undefined, `${id}: it simply happens, so the decider sees it beside the rolls`);
+    assert.equal(t.given, undefined, `${id}: the player's to ask for`);
+    assert.match(t.when, words);
+    assert.match(t.when, /No dice/);
+    assert.equal(t.establishes?.length, 1);
+  }
+  assert.match(route(rat, "confession", "told-master").when, /in a whisper[\s\S]*Master Sallow of the Royal Purveyor's office/);
+  assert.match(route(rat, "confession", "token-given").when, /it's only brass, and the gang know his face at the grille/);
+  assert.match(route(rat, "confession", "told-heron").when, /the Heron warehouse[\s\S]*the eleventh bell[\s\S]*brass heron token[\s\S]*the midnight bell/);
+  assert.match(rat.beats.find(b => b.id === "confession")!.cast!.hobb!, /asked straight for the Master's name, you give it, in a whisper/);
+  // The barbarian's T23, read as the ask: no ruling, though the roll call said a roll was wanted.
+  const state = at("drowned-rat", "confession", { established: [TALKED] });
+  const t23 = "(I put a hand on his big shoulder, not hard.) You held the rope. The Master did the killing. I heard you. Now: this Master. Name, and where he keeps himself.";
+  const pre = await decideBefore(scripted({ attempt: ["plain:told-master", 0.6, { none: 0.3 }], roll_call: ["new", 0.86, { route: 0.07 }] }), rat, state, t23, considered);
+  assert.equal(pre.plainTransition?.id, "told-master");
+  assert.equal(pre.considered, undefined, "no Persuasion DC 15 for the name");
+  // Being his man inside follows the same way, once his mum is safe: a roll only while his fear could still win.
+  assert.match(route(rat, "confession", "inside-man").when, /^The player asks Hobb to be their man inside the Heron tonight[\s\S]*once his mum is to be kept safe tonight[\s\S]*No dice/);
+  assert.match(route(rat, "confession", "turn-hobb").when, /while his fear of his master could still win: his mum isn't safe yet/);
+});
+
+test("the Rat: his mum made safe opens him up, however it came about, so a ruling standing in for the roll keeps the payoff", () => {
+  const MUM_SAFE = route(rat, "big-hobb", "mum-safe").check!.establishes!.success![0]!;
+  for (const beat of ["big-hobb", "on-his-feet", "confession"]) {
+    const taken = route(rat, beat, "mum-taken-in");
+    assert.equal(taken.given, true, "someone else's to give: judged after the reply, never the player's to simply take");
+    assert.equal(taken.check, undefined);
+    assert.equal(taken.to, "confession");
+    assert.deepEqual(taken.establishes, [MUM_SAFE, TALKED]);
+    assert.match(taken.when, /Kell, for a night in her own room; Dilly, aboard the Dabchick; Nan, with the widow on the landing[\s\S]*'I only held the rope\.'/);
+  }
+  // The goals tester's g10 T11: a ruling stood in for mum-safe (Dilly's cabin), counted as nothing, and Hobb didn't open up. Counted as this route, he does.
+  const state = at("drowned-rat", "big-hobb");
+  const outcome = (happens: string, counts_as: string) => ({ happens, gets: counts_as === "none" ? "none" : "all", to: "stay", counts_as, establishes: [], reveals: [], closes: [] });
+  const ruling = toRuling(plainRat, state, {
+    act: "Ask Dilly to take Hobb's mum aboard the Dabchick tonight", target: "dilly", lie: false, skill: "persuasion",
+    stakes: "dangerous", approach: "strong", disposition: "friendly", same_again: false, difficulty: "moderate", reason: "to get the bargewoman to take his mum in tonight",
+    success: outcome("Dilly offers the Dabchick's cabin aft for Hobb's mum, as long as no uniform sets foot aboard.", "mum-taken-in"),
+    failure: outcome("Dilly won't have the watch near her barge.", "none"),
+  }, { costUsd: 0, latencyMs: 0 });
+  assert.equal(ruling.success.countsAs, "mum-taken-in");
+  assert.equal(ruling.success.to, "confession", "the confession beat, where the rest comes as he's asked");
+  assert.ok(ruling.success.establishes.includes(TALKED) && ruling.success.establishes.includes(MUM_SAFE));
+  // And what he owned to is in Kell's notebook, whichever way the scene then ends.
+  assert.match(remembered(ending(plainRat, "taken-in", ruling.success.establishes), "kell").join(" "), /owned that he held Prout's arms/);
+});
+
+test("the Rat: going to work, Hobb says why he must, so his mum is on the table before the scene can close", () => {
+  // The wizard's T40-T42: the appeal at the door failed, and his mum came out only in the reply that closed the scene.
+  const feet = rat.beats.find(b => b.id === "on-his-feet")!;
+  assert.match(feet.cast!.hobb!, /Going to work, if anyone tries to stop you, you say why you must, once[\s\S]*he knows where your mum lives/);
+  assert.match(route(rat, "on-his-feet", "last-word").check!.failure, /the Master knows where his mum lives\. Then he goes out/);
+  // And in a talk afterwards (which reads her lore, not the Rat's card), Kell says what she could do instead of refusing outright.
+  const lore = readFileSync(new URL("../../lore/Cast/Sergeant Agnes Kell/private.md", import.meta.url), "utf8");
+  assert.match(lore, /asked for those you say no, plainly, and say what you could do instead[\s\S]*a spare chair and a door that locks[\s\S]*you can be talked into one night/);
 });
 
 // --- Cob and his boot ------------------------------------------------------------------------
