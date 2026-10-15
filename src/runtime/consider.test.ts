@@ -78,7 +78,33 @@ test("the verdict: the guidance's grid for someone worked on, as designed (yes a
   // A feat: no one being worked on (or a skill that isn't for people).
   const feat = (difficulty: Judged["difficulty"]) => verdict(scene, { target: "world", skill: "athletics", judged: judged({ difficulty }) });
   assert.deepEqual(["trivial", "easy", "moderate", "hard", "impossible"].map(d => feat(d as Judged["difficulty"]).dc ?? feat(d as Judged["difficulty"]).kind), ["yes", 10, 13, 16, "no"]);
-  assert.equal(verdict(scene, { target: "cob", skill: "sleight_of_hand", judged: judged({ difficulty: "hard" }) }).dc, 16, "palming is a feat, whoever's pocket");
+  assert.equal(verdict(scene, { target: "world", skill: "sleight_of_hand", judged: judged({ difficulty: "hard" }) }).dc, 16, "taking a thing nobody's watching is a feat");
+});
+
+test("a lift, a snatch or a slip past someone is a contest with them, and rolled; contradictory reads are reconciled, and a success written as being caught is no success (thief#1, barbarian#53)", async () => {
+  const lift = (j: Partial<Judged>, target = "cob", where = scene) => verdict(where, { target, skill: "sleight_of_hand", judged: judged(j) });
+  assert.deepEqual(lift({ difficulty: "trivial" }), { kind: "roll", dc: 12, why: "guarded to lose, plausible cover, wary: they could notice" }, "not 'nothing stands in the way': Cob could notice");
+  // The thief's T56: Sallow's purse, picked in front of the King, the Marshal and Kell, was ruled trivial and done without a roll.
+  assert.deepEqual(lift({ stakes: "dangerous", approach: "plausible", disposition: "hostile", difficulty: "trivial" }, "sallow", sceneById("kings-morning")), { kind: "roll", dc: 18, why: "dangerous to lose, plausible cover, hostile: they could notice" });
+  assert.equal(lift({ stakes: "trivial", approach: "excellent", disposition: "friendly" }).dc, 10, "even their eyes elsewhere at the perfect moment rolls: it can always be noticed");
+  assert.equal(verdict(scene, { target: "moll", skill: "stealth", judged: judged({ stakes: "ruinous", approach: "weak", disposition: "hostile" }) }).dc, 18, "a long shot past someone watching is still a try");
+  assert.equal(lift({ approach: "free" }).kind, "yes", "they'd let them anyway");
+  // The thief's T4: no chance, but trivial; the two reads disagree, so it's tried.
+  assert.deepEqual(lift({ approach: "no_chance", difficulty: "trivial" }), { kind: "roll", dc: 15, why: "guarded to lose, weak cover, wary: they could notice" });
+  assert.equal(lift({ approach: "no_chance", difficulty: "impossible" }).kind, "no", "both reads say it can't be done under their eyes");
+  // And as the review wrote T4: its "success" is Cob catching the thief's wrist and shutting a way of trying. That's no success.
+  const state = yard(7);
+  const caught = toRuling(scene, state, {
+    act: "secretly feel inside Cob's left boot", target: "cob", lie: false, skill: "sleight_of_hand", stakes: "guarded", approach: "no_chance", disposition: "wary", same_again: false, difficulty: "trivial", reason: "to feel for what Cob has tucked inside his left boot",
+    success: outcome({ happens: "Your fingers find something stiff in the boot lining, but Cob catches your wrist and yanks the boot away before you can get it out.", gets: "some", establishes: ["Cob knows Nim tried to feel inside his boot without permission."], closes: ["coax-cob"] }),
+    failure: outcome({ happens: "Cob jerks away and bolts behind the water butt and through the loose board into the granary.", gets: "none", establishes: ["Cob has fled into the granary through the loose board."], closes: ["coax-cob"] }),
+  }, META);
+  assert.equal(caught.hollow, "no roll could get them that here");
+  const settled = await settleRuling(scene, state, caught);
+  assert.deepEqual([settled.record.kind, settled.record.went, state.patches], ["no", "failure", []], "not recorded as a success, and the polite ask (coax-cob) stays open");
+  assert.match(settled.directive[0]!, /^No dice: this can't get them what they're after .*Cob catches your wrist/);
+  const plain = await settleRuling(scene, yard(7), { ...caught, hollow: undefined, judged: { ...caught.judged, difficulty: "impossible" } });
+  assert.match(plain.directive[0]!, /^No dice: not like this \(it can't be done under their eyes like this \(guarded to lose, no chance cover, wary\)\)\. Show plainly what stops it/, "the no isn't Cob's to give: he never knew");
 });
 
 type OutcomeJson = { happens: string; gets: string; to: string; counts_as: string; establishes: string[]; reveals: string[]; closes: string[] };
@@ -131,17 +157,19 @@ test("a ruling is held to the scene: an outcome counts as the route it amounts t
   const state = yard(0);
   const ruling = toRuling(scene, state, {
     ...LINING,
-    success: outcome({ happens: "He opens it.", gets: "all", counts_as: "page-found", reveals: ["page", "nonsense"], closes: ["concede", "catch-moll"] }),
+    success: outcome({ happens: "He opens it.", gets: "all", counts_as: "page-found", reveals: ["page", "nonsense"] }),
     failure: outcome({ happens: "Cob shakes his head.", gets: "none" }),
   }, META);
   assert.equal(ruling.success.to, "motive", "the page found leads where its route leads");
   assert.deepEqual(ruling.success.establishes, [PAGE], "with the route's own facts (the exit scripts read them)");
   assert.deepEqual(ruling.success.reveals, ["page"]);
-  assert.deepEqual(ruling.success.closes, ["catch-moll"], "giving up isn't a way of trying the ruling can shut");
   assert.equal(ruling.failure.to, undefined);
   assert.equal(ruling.failure.establishes.length, 1, "a failure that changed nothing is on the record at least");
   assert.match(ruling.failure.establishes[0]!, /it failed: Cob shakes his head\./);
   assert.equal(ruling.hollow, undefined);
+  // What a failure shuts is a way of trying (a route with a roll): never giving up.
+  const shut = toRuling(scene, state, { ...LINING, failure: outcome({ happens: "Moll swears blind it's true and drags Cob off through the gap.", gets: "none", closes: ["concede", "catch-moll"] }) }, META, { read: { probability: 0.8, routes: [{ id: "catch-moll", p: 0.4 }] } });
+  assert.deepEqual(shut.failure.closes, ["catch-moll"], "giving up isn't a way of trying the ruling can shut");
 });
 
 test("a lie is rolled as Deception, however friendly its words: by the review's read, or the decider's", () => {

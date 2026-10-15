@@ -107,9 +107,21 @@ const MAX_OUTPUT_TOKENS = 1000;
  */
 export const considerDeadlineMs = (): number => Number(process.env.KM_CONSIDER_DEADLINE_MS ?? 12_000);
 
-/** Whether the act is someone being worked on (the guidance's grid), or a feat (its difficulty). */
+/** Taking something from under someone's nose, a grab, or slipping past them: a contest with whoever could notice. */
+const CONTEST: readonly Skill[] = ["sleight_of_hand", "stealth", "athletics"];
+
+/**
+ * A lift, a snatch or a slip past someone in the cast: their attention and what they stand to lose
+ * against the player's cover, so it's rolled like working on them (Cob's boot, Sallow's purse in
+ * front of the King), not ruled a feat. Taking a thing nobody's watching is a feat.
+ */
+export function contest(scene: Scene, ruling: Pick<Ruling, "target" | "skill">): boolean {
+  return CONTEST.includes(ruling.skill) && scene.cast.some(c => c.id === ruling.target);
+}
+
+/** Whether the act is someone being worked on (the guidance's grid), a contest with them included, or a feat (its difficulty). */
 export function workedOn(scene: Scene, ruling: Pick<Ruling, "target" | "skill">): boolean {
-  return (SOCIAL.includes(ruling.skill) || ruling.skill === "insight") && scene.cast.some(c => c.id === ruling.target);
+  return ((SOCIAL.includes(ruling.skill) || ruling.skill === "insight") && scene.cast.some(c => c.id === ruling.target)) || contest(scene, ruling);
 }
 
 /**
@@ -120,7 +132,10 @@ export function workedOn(scene: Scene, ruling: Pick<Ruling, "target" | "skill">)
  * costs them nothing, or the gap is 0 or less (never for a lie, which can always be seen through: it
  * rolls at 10); a roll at DC 12, 15 or 18 for a gap of 1 to 3; and no at 4 or more, or for a lever
  * that can't move them, the reply showing what would reach them. Fewer, meaningful rolls, as the
- * table's rules have it. A feat is DC 10, 13 or 16, or plainly done, or plainly can't be. A success
+ * table's rules have it. A lift, a snatch or a slip past someone is a contest with them: rolled at
+ * 10 to 18 on the same steps (their attention, what they stand to lose, against the player's cover),
+ * unless they'd let them anyway or it plainly can't be done under their eyes. A feat is DC 10, 13 or
+ * 16, or plainly done, or plainly can't be. A success
  * that gets them nothing (a refusal) leaves nothing to roll for: it's a no, and that refusal is the
  * answer; one that comes to the same as its failure, and gets them what they were after, is a yes.
  */
@@ -130,6 +145,17 @@ export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | 
   if (j.sameAgain) return { kind: "no", no: "same_again", why: "the same push again, with nothing new" };
   if (ruling.hollow) return { kind: "no", no: "hollow", why: ruling.hollow };
   if (ruling.foregone) return { kind: "yes", why: ruling.foregone };
+  if (contest(scene, ruling)) {
+    // Rolled: they could notice. A yes only if they'd let them anyway, and a no only when both of the
+    // review's reads say it can't be done (no chance under their eyes, and impossible as a feat); when
+    // they disagree (no chance, but nothing stands in the way), it's tried.
+    const approach = j.approach === "no_chance" && j.difficulty !== "impossible" ? "weak" : j.approach;
+    const said = `${j.stakes} to lose, ${approach.replace("_", " ")} cover, ${j.disposition}`;
+    if (approach === "free") return { kind: "yes", why: `they'd let them anyway (${said})` };
+    if (approach === "no_chance") return { kind: "no", no: "refused", why: `it can't be done under their eyes like this (${said})` };
+    const gap = (RESIST[j.stakes] ?? 1) - (LEVER[approach] ?? 0) - (WARMTH[j.disposition] ?? 0);
+    return { kind: "roll", dc: Math.min(18, Math.max(10, 9 + 3 * gap)), why: `${said}: they could notice` };
+  }
   if (workedOn(scene, ruling)) {
     const said = `${j.stakes}, ${j.approach.replace("_", " ")}, ${j.disposition}`;
     const lie = ruling.skill === "deception";
@@ -171,7 +197,7 @@ function outcomeSchema(went: "success" | "failure", places: string[], outcomes: 
     required: ["happens", "gets", "to", "counts_as", "establishes", "reveals", "closes"],
     properties: {
       happens: { type: "string", description: went === "success"
-        ? "What happens if it works, decided, for the GM to narrate: they get what they were after, as they asked for it (never a refusal), and the method shows. What comes out, in its own terms, as it comes out. One to three concrete sentences naming who does what. (If nothing could get them that here, write instead the honest no they'd get, in the person's own words and showing what would reach them, with gets none: then there's no roll, and that no costs them nothing.)"
+        ? "What happens if it works, decided, for the GM to narrate: they get what they were after, as they asked for it (never a refusal, never caught or found out), and the method shows. What comes out, in its own terms, as it comes out. One to three concrete sentences naming who does what. (If nothing could get them that here, write instead the honest no they'd get, in the person's own words and showing what would reach them, with gets none: then there's no roll, and that no costs them nothing.)"
         : "What happens if it's rolled and fails, decided, for the GM to narrate: it doesn't work, and it costs the player something they can feel or makes someone act (they bolt, call for help, warn someone, name a price, turn on the player; a way shut for good; time or something lost). A refusal, or a refusal written down, isn't enough. One to three concrete sentences naming who does what." },
       gets: { type: "string", enum: [...GETS], description: "How much of what the player was after this outcome gives them: all, some, or none." },
       to: { type: "string", enum: ["stay", ...places], description: "A beat or ending the scene moves to, only when what happens is what it's about; stay otherwise." },
@@ -194,14 +220,14 @@ function rulingSchema(scene: Scene, state: SessionState) {
     required: ["act", "target", "lie", "skill", "stakes", "approach", "disposition", "same_again", "difficulty", "reason", "success", "failure"],
     properties: {
       act: { type: "string", description: "What the player is attempting, in a few words." },
-      target: { type: "string", enum: [...present, "world"], description: "Who they're working on, or world for a feat." },
+      target: { type: "string", enum: [...present, "world"], description: "Who they're working on: the one they're persuading, threatening, fooling or reading, or the one who could catch a lift, a snatch or a slip past them. world for a feat that nobody present could notice or stop." },
       lie: { type: "boolean", description: "Does the player's turn rest on something they know isn't so: a lie, a bluff, a forgery or a fake, a made-up claim or a promise they can't keep? Then the skill is Deception, however friendly the words." },
-      skill: { type: "string", enum: [...SKILLS], description: "The skill that decides it, by the player's method." },
-      stakes: { type: "string", enum: ["trivial", "guarded", "dangerous", "ruinous"], description: "Working on someone: what giving in would cost them, as they see it." },
-      approach: { type: "string", enum: ["free", "no_chance", "weak", "plausible", "strong", "excellent"], description: "Working on someone: what the player says, offers or shows, against who this person is. A lie is judged as if it were true (whether it's believed is the roll's to decide, so it isn't marked down for being a lie). free: they'd do it anyway, or it follows up on what they've already given, agreed to or been paid for; no_chance: a lever that can't move them, or something nothing would get from them (or a lie they'd know at once is false); weak: no real reason; plausible: some reason, not aimed at them; strong: real leverage on them; excellent: aimed squarely at what they want or fear." },
-      disposition: { type: "string", enum: ["hostile", "wary", "friendly"], description: "Working on someone: how they feel about the player right now." },
+      skill: { type: "string", enum: [...SKILLS], description: "The skill that decides it, by the player's method (a lift or a snatch from someone is Sleight of Hand, slipping past them Stealth)." },
+      stakes: { type: "string", enum: ["trivial", "guarded", "dangerous", "ruinous"], description: "Working on someone (a lift, a snatch or a slip past them included): what giving in, or losing it, would cost them, as they see it." },
+      approach: { type: "string", enum: ["free", "no_chance", "weak", "plausible", "strong", "excellent"], description: "Working on someone: what the player says, offers or shows, against who this person is. A lie is judged as if it were true (whether it's believed is the roll's to decide, so it isn't marked down for being a lie). free: they'd do it anyway, or it follows up on what they've already given, agreed to or been paid for; no_chance: a lever that can't move them, or something nothing would get from them (or a lie they'd know at once is false); weak: no real reason; plausible: some reason, not aimed at them; strong: real leverage on them; excellent: aimed squarely at what they want or fear. For a lift, a snatch or a slip past someone, it's how well the method and the cover beat their attention: weak, clumsy or in plain view; plausible, a fair try; strong, good cover or a real distraction; excellent, their eyes are elsewhere at just the moment; no_chance only if it truly can't be done under their eyes." },
+      disposition: { type: "string", enum: ["hostile", "wary", "friendly"], description: "Working on someone: how they feel about the player right now (for a lift: a friendly or distracted mark is off guard, a wary or hostile one watches)." },
       same_again: { type: "boolean", description: "True only when this is the same push as a try that failed in this scene (your earlier rulings, and the routes rolled that failed, each with the player's own words): the same ask of the same person by the same means, reworded, repeated or louder, or more of the same (a bigger bribe, a harder threat), with nothing new on the table. New evidence or an argument not made before, a different lever (another kind of offer, a promise that answers what they fear), a different ask or person, or a changed situation is a new try: false. False when nothing has failed here." },
-      difficulty: { type: "string", enum: ["trivial", "easy", "moderate", "hard", "impossible"], description: "A feat (no one being worked on): how hard, here and now." },
+      difficulty: { type: "string", enum: ["trivial", "easy", "moderate", "hard", "impossible"], description: "A feat (no one being worked on, and nobody present who could notice or stop it): how hard, here and now." },
       reason: { type: "string", description: "For the dice line, which the player reads: what they're after, as they put it this turn ('to talk the ferryman into crossing tonight'). Never the answer, and nothing only you know: no name they haven't heard, nothing from your prep they haven't come across (where someone was, what they saw or hide). They're 'you'." },
       success: outcome("success"),
       failure: outcome("failure"),
@@ -385,9 +411,10 @@ export function toRuling(scene: Scene, state: SessionState, json: RulingJson, me
     return changes(outcome) ? { ...outcome, happens } : { ...outcome, happens, establishes: [`When the player tried this (${act.replace(/\.$/, "")}), ${how}: ${happens}`] };
   };
   const success = fix(json.success, "success"), failure = fix(json.failure, "failure");
-  // A success that gets them nothing is a refusal: no roll could get them that here, and the refusal is the answer.
+  // A success that gets them nothing is a refusal: no roll could get them that here, and the refusal is
+  // the answer. So is one that shuts a way of trying (a lift written as being caught, its wrist seized).
   // One that comes to the same as its failure, and gets them what they were after, needs no dice either: it's a yes.
-  const hollow = success.gets === "none" ? "no roll could get them that here" : undefined;
+  const hollow = success.gets === "none" || success.closes.length ? "no roll could get them that here" : undefined;
   const foregone = !hollow && !differs(success, failure) ? "either way it comes to the same" : undefined;
   // The same push again only when something has failed here to be the same as.
   const sameAgain = json.same_again === true && failedTries(scene, state).length > 0;
@@ -519,7 +546,7 @@ function noDirective(v: Verdict, o: RulingOutcome, who: string | undefined): str
   if (v.no === "hollow") return `No dice: this can't get them what they're after (${v.why}). ${DECIDED}: ${o.happens} ${ONLY_THIS} ${honest} Their reaction shows what would reach them (what they want, what they fear), in their own words, without spelling it out. Nothing already said is taken back.`;
   return who
     ? `No dice: ${who} won't, not like this (${v.why}). They say no in their own words and character, and their reaction shows what kind of thing would reach them (what they want, what they fear), without spelling it out. ${honest} Nothing comes out, and nothing already said is taken back.`
-    : `No dice: it can't be done like this (${v.why}). Show plainly what stops it, and let what's around hint at what might work instead, without spelling it out. ${honest} Nothing already said is taken back.`;
+    : `No dice: not like this (${v.why}). Show plainly what stops it, and let what's around hint at what might work instead, without spelling it out. ${honest} Nothing already said is taken back.`;
 }
 
 /**
@@ -554,7 +581,8 @@ export async function settleRuling(scene: Scene, state: SessionState, ruling: Ru
   for (const patch of patchesFor(scene, state, ruling, o)) state.patches.push(patch);
   const method = went === "success" && workedOn(scene, ruling) && (ruling.skill === "intimidation" || ruling.skill === "deception")
     ? ` ${name(ruling.target)} gives way, but will remember how: ${ruling.skill === "deception" ? "the lie is believed, for now" : "they're frightened, and resentful"}.` : "";
-  const person = scene.cast.some(c => c.id === ruling.target) ? name(ruling.target) : undefined;
+  // (Whose no it is: the person worked on, not the one a lift was tried on, who never got to say.)
+  const person = scene.cast.some(c => c.id === ruling.target) && !contest(scene, ruling) ? name(ruling.target) : undefined;
   const who = person && `${person[0]!.toUpperCase()}${person.slice(1)}`;
   const lines: string[] = [];
   if (v.kind === "roll") {
