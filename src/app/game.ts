@@ -23,7 +23,8 @@ import { sheetData, spellInfo, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries, unnamed } from "../runtime/brief.ts";
 import { thingActions, type SceneContext, type SceneTarget, type SpellFacts, type ThingActions } from "../game/scene-menu.ts";
 import type { TurnHooks } from "../runtime/engine.ts";
-import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
+import { sessionDir, type Entry, type EntryKind, type SessionState, type Suggestion } from "../runtime/session.ts";
+import { currentSuggestions, suggesting } from "../runtime/suggest.ts";
 import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf } from "../../scenes/talk.ts";
@@ -91,6 +92,7 @@ export const COMMANDS: Array<{ name: string; what: string; testing?: boolean }> 
   { name: "journal", what: "the investigator's notebook" },
   { name: "help", what: "how to play" },
   { name: "report", what: "[what went wrong]: report a problem, saved for Claude" },
+  { name: "suggestions", what: "[on|off]: the suggested lines over the box" },
   { name: "save", what: "save the game" },
   { name: "quit", what: "save, and back to the title" },
   { name: "exits", what: "the scene's endings (for testing)", testing: true },
@@ -439,6 +441,8 @@ export class Game {
         this.emit();
         // The scene ended but the story hadn't moved on (quit in between): carry on from there.
         if (core.session.ended) await this.moveOn(() => core.carryOn(this.hooks()));
+        // Saved before the suggested lines came (or with them off then): they're asked for now.
+        else core.suggestNow(this.hooks());
         break;
       case "end":
         this.toEnd();
@@ -968,7 +972,58 @@ export class Game {
         this.notice();
         this.emit();
       },
+      onSuggestions: () => this.suggestionsCame(),
     };
+  }
+
+  /**
+   * The suggested lines have come, a moment after the reply (TurnHooks.onSuggestions): shown as they
+   * come (the GM may still be making a note), and saved with the game if the turn that asked for them
+   * is over already.
+   */
+  suggestionsCame(): void {
+    const core = this.core;
+    if (this.screen !== "scene" || this.over || core?.state.mode !== "scene" || this.session?.sceneId !== this.shownScene) return;
+    this.refreshChoices();
+    if (!this.busy) { try { core.save(); } catch (error) { noteError("saving the suggested lines", error); } }
+    this.emit();
+  }
+
+  /**
+   * The suggested lines over the box, for a scene of the story (a talk's lines are its own): on in
+   * the game's settings, with the GM to be had, and a scene on screen that isn't over.
+   */
+  suggestionsExpected(): boolean {
+    const core = this.core;
+    return !!core && core.state.mode === "scene" && !core.session.talk && !core.session.ended && core.suggestionsOn && !this.over
+      && this.session?.sceneId === this.shownScene && !modelOffline();
+  }
+
+  /** A scene's suggested lines for this moment are on their way. */
+  suggestionsComing(): boolean {
+    return !!this.session && suggesting(this.session);
+  }
+
+  /** What kind each suggested line is (to say, to do, a risky try, a way out), as the screen colours them; the talks' lines are all to say. */
+  suggestionKinds(): Array<Suggestion["kind"]> {
+    const session = this.session;
+    return session && !session.talk ? currentSuggestions(session).map(s => s.kind) : [];
+  }
+
+  /**
+   * Turn the suggested lines on or off (or over, with nothing said), from the Esc menu or
+   * /suggestions: the game's setting, saved with it (now, unless the GM has the floor: then with the
+   * turn). Turned on in a scene, the lines for this moment are asked for at once.
+   */
+  setSuggestions(on?: boolean): void {
+    const core = this.core;
+    if (!core) return;
+    const next = on ?? !core.suggestionsOn;
+    core.setSuggestions(next, this.hooks());
+    if (!this.busy) { try { core.save(); } catch (error) { noteError("saving the settings", error); } }
+    if (this.screen === "scene" && !this.busy && !this.over) this.refreshChoices();
+    this.status = next ? "Suggested lines on: a few things to say or do come up over the box after each reply." : "Suggested lines off. (/suggestions, or the Esc menu, brings them back.)";
+    this.emit();
   }
 
   /**
@@ -997,8 +1052,9 @@ export class Game {
   }
 
   /**
-   * A command that only opens something (/sheet, /map, /journal, /help, /report): it works any
-   * time, with the GM mid-sentence or the scene over. True when the text was one.
+   * A command that only opens something (/sheet, /map, /journal, /help, /report), or turns the
+   * suggested lines on or off (/suggestions): it works any time, with the GM mid-sentence or the
+   * scene over. True when the text was one.
    */
   peek(raw: string): boolean {
     const text = raw.trim();
@@ -1009,6 +1065,8 @@ export class Game {
     else if (name === "map" || name === "journal" || name === "help") { this.overlay = name === "map" ? { kind: "scene-map" } : { kind: name }; this.emit(); }
     // What went wrong can come with it (/report Kell asked twice): then it goes at once.
     else if (name === "report") { this.openReport(); if (rest.length) void this.sendReport(rest.join(" ")); }
+    // The suggested lines, any time: on, off, or over (with nothing said).
+    else if (name === "suggestions") this.setSuggestions(/^(on|yes)$/i.test(rest[0] ?? "") ? true : /^(off|no)$/i.test(rest[0] ?? "") ? false : undefined);
     else return false;
     return true;
   }
