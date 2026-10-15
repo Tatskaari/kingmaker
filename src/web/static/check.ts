@@ -7,6 +7,8 @@ import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { OVERLAY_OSC } from "../../game/look/door-art.ts";
 import { doorsDrawn, doorsSeen, doorSync, placed, placement, watchDoorSync, type DoorsSeen, type Placement } from "../doors-check.ts";
+import { lampPicture, lampShown, lampsSeen } from "../lamps-check.ts";
+import { LANE_LAMP, laneGame } from "./lane.ts";
 import { allowed, CONTENT } from "./content.ts";
 import { dbName } from "./persist.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
@@ -39,6 +41,10 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  *                                                       (held back, so Ctrl+C catches them running)
  *                                                       finished and saved before the next game
  *   ... --no-build                                      check the dist/web there is
+ *
+ * The lamp posts are checked after the doors: drawn as pictures on the right cells at 1x and 2x, by
+ * day and at night, held still while you are, lit by Light from the action menu, and left to the
+ * ASCII with ?lamps=off and ?doors=off.
  *
  * KM_WEB_CHECK_DEBUG=1 prints the page's and the worker's console, and every request.
  */
@@ -979,6 +985,123 @@ async function doors(url: string): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// The lamp posts, drawn as pictures with the doors (src/web/page/lamps.ts)
+
+/** On the lane by its lamp post, in a game put in this browser's saves (the overlay's OSC counted from before the game starts, with `count`). */
+async function toTheLamp(page: Page, files: SaveFile[], what: string, count = false): Promise<void> {
+  await waitFor(page, "Hanged Clerk of Caerwyn", `${what}: the title`);
+  await putSaves(page, files);
+  await page.reload();
+  await waitFor(page, "Continue.*Vesper Hale", `${what}: the wizard's game by the lamp post, put in this browser's saves, is offered`);
+  if (count) await page.evaluate(`window.doorsSaid = 0; km.term.parser.registerOscHandler(${OVERLAY_OSC}, () => { window.doorsSaid++; return false; })`);
+  await press(page, "Enter");
+  await waitFor(page, "The lead:.*Hanged Clerk", `${what}: on the lane by its lamp post`);
+}
+
+/**
+ * The lamp posts in the browser: the lane's drawn where the game says, on the cells it says, at 1x
+ * and 2x (a real device scale factor), by day (pale) and at night (lit, with its glow), covering the
+ * game's ¤ and post; standing still at night, nothing new sent (its flicker doesn't move it); lit by
+ * the action menu's Light by day, and its picture lit with it; ?lamps=off leaves them to the ASCII
+ * (the doors still drawn), and ?doors=off leaves both.
+ */
+async function lamps(url: string): Promise<void> {
+  // A wizard (Light among its cantrips: a touch) by the lane's lamp post, by day and at night (src/web/static/lane.ts).
+  const games = { morning: await laneGame(join(OUT, "fixture-lane-morning"), "morning"), night: await laneGame(join(OUT, "fixture-lane-night"), "night") };
+  for (const scale of [1, 2]) {
+    const browser = await chromium.launch({ args: [`--force-device-scale-factor=${scale}`, `--window-size=${VIEWPORT.width},${VIEWPORT.height}`] });
+    try {
+      for (const time of ["morning", "night"] as const) {
+        const when = time === "night" ? "at night" : "by day";
+        const context = await browser.newContext({ viewport: null });
+        watch(context);
+        try {
+          const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+          await toTheLamp(page, games[time], `at ${scale}x, ${when}`);
+          const look = time === "night" ? "lit" : "out";
+          const seen = await lampShown(page, LANE_LAMP, look);
+          const lamp = seen?.lamps.find(l => l.id === LANE_LAMP);
+          if (seen && lamp?.look === look && (time === "night") === lamp.glow > 0) ok(`at ${scale}x, ${when}: the lane's lamp post is drawn as a picture, ${look}${lamp.glow ? `, its glow on ${lamp.glow} cells` : ""} (${seen.drawn} lamp posts drawn: ${seen.lamps.map(l => `${l.id.replace("caerwyn:", "")} ${l.look}`).join(", ")})`);
+          else { fail(`at ${scale}x, ${when}: the lamp posts: ${JSON.stringify(seen)}`); continue; }
+          const where = await placement(page);
+          if (placed(where, scale)) ok(`at ${scale}x, ${when}: every pixel on the doors' canvas, the lamps' and their glow's with the doors', is in a cell the game said may be painted (${where.drawn} device pixels), the canvas exactly over xterm's (${where.size}, ${where.cell} a cell)`);
+          else fail(`at ${scale}x, ${when}: the lamps' placement: ${JSON.stringify(where)}`);
+          const picture = await lampPicture(page, LANE_LAMP);
+          if (picture && picture.ground === 2 && !picture.gaps) ok(`at ${scale}x, ${when}: the game's ¤ and post are under the picture (the two cells it took back to the ground are covered)`);
+          else fail(`at ${scale}x, ${when}: the lamp's cells: ${JSON.stringify(picture)}`);
+          await shot(page, `lamps-${time}-${scale}x`);
+          if (scale !== 1) continue;
+          if (time === "night") {
+            // Standing still: the lamp's flicker, and its light's on the ground under it, don't move its picture.
+            await sleep(1000);
+            const before = (await lampsSeen(page))?.received ?? 0;
+            await sleep(3000);
+            const after = (await lampsSeen(page))?.received ?? 0;
+            if (after === before) ok("standing still at night by a lit lamp, nothing new about the doors or the lamps is sent (3 s)");
+            else fail(`standing still at night, ${after - before} new frames of doors and lamps in 3 s`);
+            continue;
+          }
+          // The Light cantrip, from the action menu aimed at the lamp post (a right-click's Do something…).
+          const box = await cellBox(page);
+          await page.mouse.click(box.x + (lamp.x + 0.5) * box.w, box.y + (lamp.y + 1.5) * box.h, { button: "right" });
+          await waitFor(page, "A lamp post.*Do something…", "a right-click on the lamp post: its menu");
+          await clickOn(page, "Do something…");
+          await waitFor(page, "Do something: a lamp post.*Light.*shines like a torch", "Do something…: the action menu, aimed at the lamp post, Light among it");
+          await clickOn(page, "Light");
+          await waitFor(page, "A lamp post shines like a torch", "Light, on the lamp post: it shines like a torch");
+          // Lit, and drawn so once the spell's sparkles have gone from over it (the overlay stops changing).
+          let said = -1;
+          for (let i = 0; i < 40; i++) {
+            const now = (await lampsSeen(page))?.received ?? 0;
+            if (now === said) break;
+            said = now;
+            await sleep(1200);
+          }
+          const lit = await lampShown(page, LANE_LAMP, "lit");
+          const after = await lampPicture(page, LANE_LAMP);
+          await shot(page, "lamps-light");
+          if (lit?.lamps.find(l => l.id === LANE_LAMP)?.look === "lit" && after && after.ground === 2 && after.hash !== picture?.hash && !after.gaps) ok("by day, the lamp post Light lit is drawn lit, and still up its post: its picture changed with it (out to lit)");
+          else fail(`the lamp post after Light: ${JSON.stringify(lit)}, its picture ${after?.hash === picture?.hash ? "the same" : "changed"}`);
+        } finally {
+          await context.close();
+        }
+      }
+    } finally {
+      await browser.close();
+    }
+  }
+
+  // ?lamps=off: the doors drawn, the lamps left to the ASCII; ?doors=off: neither, and the game says nothing of either.
+  const plain = await chromium.launch();
+  try {
+    for (const off of ["lamps", "doors"] as const) {
+      const context = await plain.newContext({ viewport: VIEWPORT });
+      watch(context);
+      try {
+        const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}&${off}=off`);
+        await toTheLamp(page, games.night, `?${off}=off, at night`, off === "doors");
+        await sleep(1500);
+        if (off === "lamps") {
+          const seen = await lampsSeen(page), doorsNow = await doorsSeen(page);
+          const picture = await lampPicture(page, LANE_LAMP);
+          if (seen?.lamps.some(l => l.id === LANE_LAMP) && seen.drawn === 0 && (doorsNow?.drawn ?? 0) > 0 && picture && picture.gaps > 0) ok(`?lamps=off: the doors are drawn (${doorsNow!.drawn}), the lamp posts left as the ASCII draws them`);
+          else fail(`?lamps=off: lamps ${JSON.stringify(seen)}, doors drawn ${doorsNow?.drawn}, the lamp's cells ${JSON.stringify(picture)}`);
+        } else {
+          const none = await page.evaluate("km.doors === undefined && !document.querySelector('.km-doors') && window.doorsSaid === 0");
+          if (none) ok("?doors=off leaves the lamp posts to the ASCII too: no overlay, and the game in the worker says nothing of doors or lamps");
+          else fail(`?doors=off by the lamp: an overlay ${await page.evaluate("!!document.querySelector('.km-doors')")}, the game said ${await page.evaluate("window.doorsSaid")} times`);
+        }
+        await shot(page, `lamps-${off}-off`);
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await plain.close();
+  }
+}
+
 /** Resize follows the browser: an unpinned page fits the window, and the game in the worker redraws to it. */
 async function resize(browser: Browser, url: string): Promise<void> {
   const context = await browser.newContext({ viewport: { width: 1500, height: 900 } });
@@ -1262,6 +1385,7 @@ try {
   await play(browser, server.url);
   await zoo(browser, server.url);
   await doors(server.url);
+  await lamps(server.url);
   await resize(browser, server.url);
   await twoTabs(browser, server.url);
   await noStorage(browser, server.url);
