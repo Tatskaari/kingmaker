@@ -616,7 +616,7 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   const lines: Suggestion[] = [
     { kind: "say", text: "Sergeant, who found him, and when exactly did the porters raise the alarm?" },
     { kind: "say", text: "Nice boots. Yours?" },
-    { kind: "do", text: "(I look up at the body)" },
+    { kind: "do", text: "(I look up at the body, then along the hoist rope to the loft door)" },
     { kind: "try", text: "(I try to coax the boy down from his stones with a pie)" },
     { kind: "leave", text: "(I leave the yard to the pigeons)" },
   ];

@@ -484,7 +484,8 @@ export function SceneScreen({ game }: { game: Game }) {
     {over ? <Continue game={game} over={over} onGo={() => { clear(); game.continueScene(); }} /> : <box height={3} flexShrink={0} border borderColor={busy ? C.border : C.borderHot} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
-      <input ref={input} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!game.overlay && game.screen === "scene"}
+      {/* Near the edge before it scrolls, as the fight's box is (the editor's own margin is a fifth of it): a suggested line put in the box shows from its start. */}
+      <input ref={input} scrollMargin={0.05} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!game.overlay && game.screen === "scene"}
         placeholder={busy ? "The GM has the floor…" : width >= 100
           ? "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I cast Fireball)"
           : "Say it out loud; *asterisks* or (brackets) to do things"} />
