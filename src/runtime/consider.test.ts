@@ -197,7 +197,7 @@ test("a lie is what the player's words assert this turn that they know is false:
   assert.match(lie, /^Do the player's own words this turn assert something they know is false/);
   assert.match(lie, /Not a lie: a sincere promise or offer \(even a bold one, or one that will be hard to keep\), an honest appeal, haggling, a reassurance they mean/);
   assert.match(lie, /lies told in earlier turns don't make this one a lie/);
-  const told = readFileSync(join(import.meta.dirname, "../../prompts/consider.md"), "utf8");
+  const told = readFileSync(join(import.meta.dirname, "../../v2/ai/prompts/consider.md"), "utf8");
   assert.match(told, /a sincere promise or offer, an honest appeal, haggling or a bold reassurance they mean is Persuasion, however much they lied before/);
 });
 
