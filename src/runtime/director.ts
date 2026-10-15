@@ -395,7 +395,21 @@ async function pressureDetails(decider: Decider, scene: Scene, state: SessionSta
   return decider.decide({ ...decisionState(scene, state, playerTurn), person_being_pressed: target.name }, q, "director.pressure");
 }
 
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; rules?: RulesOptions }): Promise<PreDecision> {
+/** The decider's name for what a mechanic is, as the mechanic question would have answered it. */
+function rulingOf(m: Mechanic): string {
+  switch (m.kind) {
+    case "wrestle": return m.how === "grapple" ? "grapple" : "shove";
+    case "rest": return m.length === "short" ? "short_rest" : "long_rest";
+    default: return m.kind;
+  }
+}
+
+/**
+ * Before the reply: is the player attempting a transition, should a pacing cue fire, and what do the
+ * rules resolve? `forced`: what the rules resolve this turn, chosen already (the map's action menu),
+ * in place of asking.
+ */
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; rules?: RulesOptions; forced?: Mechanic }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -466,7 +480,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       criteria: { consequential: "Yes: in this world it would provoke a real reaction or carry a real risk.", harmless: "It's playful, but nobody here would mind or be put at risk.", none: "Nothing daft or reckless in it." },
     };
   }
-  if (options.rules) {
+  if (options.rules && !options.forced) {
     questions.mechanic = {
       instructions: `Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, ${READ_TURN}.)`,
       criteria: {
@@ -540,9 +554,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
   // What the rules resolve this turn, on a confident read: not when the scene can't offer it, or
   // when the player is out of character.
-  const asked = decision.answers.mechanic?.choice;
-  const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const ruling = options.rules && sure && !limit && !ooc ? asked : undefined;
+  const forced = options.rules && options.forced ? rulingOf(options.forced) : undefined;
+  const asked = forced ?? decision.answers.mechanic?.choice;
+  const sure = !!forced || (asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE);
+  const ruling = options.rules && sure && !limit && (!ooc || forced) ? asked : undefined;
   const act = ruling && RULED_ACTS.includes(ruling) ? ruling as RuledAct : undefined;
   // When the rules resolve the player's act, that act is the turn: a route's check waits for the
   // act's details, and is rolled only if the player is also doing what the check is for. Otherwise
@@ -557,8 +572,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // An act on the world the rules resolve is its own resolution (no Arcana check to cast a cantrip,
   // no Athletics check for a throw already rolled to hit), and a roll needs a confident read. (A
   // class feature isn't such an act: something risky alongside it can still call for a roll.)
-  const ruled = decision.answers.mechanic?.choice;
-  const actSettles = !!ruled && ruled !== "feature" && RULED_ACTS.includes(ruled) && (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const ruled = forced ?? decision.answers.mechanic?.choice;
+  const actSettles = !!ruled && ruled !== "feature" && RULED_ACTS.includes(ruled) && (!!forced || (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE);
   if (answer === "other_risky" && !move && !limitBlocks && !actSettles && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
@@ -608,7 +623,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // when it starts a fight for the map.
   let mechanic: Mechanic | undefined;
   if (options.rules && ruling && move?.exit?.kind !== "combat") {
-    if (ruling === "short_rest" || ruling === "long_rest") mechanic = { kind: "rest", length: ruling === "short_rest" ? "short" : "long" };
+    // Chosen already: no details to ask for (a route's check waits for a turn of its own).
+    if (options.forced) mechanic = options.forced;
+    else if (ruling === "short_rest" || ruling === "long_rest") mechanic = { kind: "rest", length: ruling === "short_rest" ? "short" : "long" };
     else if (act) {
       const details = await mechanicDetails(decider, scene, state, playerTurn, act, options.rules, held ? { also: alsoQuestion(held, act) } : {});
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };

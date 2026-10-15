@@ -7,7 +7,7 @@ import { characterEntry, linksIn, memoryLines, permitted, readDoc, saveMemory, t
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf, talkSceneId, TOLD } from "../../scenes/talk.ts";
 import { nameTokens, sceneEntries, scriptTranscript } from "./brief.ts";
-import { GUARD_STAGES } from "./director.ts";
+import { GUARD_STAGES, type Mechanic } from "./director.ts";
 import { playerTurn, type TurnHooks, type TurnResult } from "./engine.ts";
 import type { Character, Scene } from "./scene.ts";
 import { saveSession, snapshotSession, type Entry, type SessionState, type Stage, type TalkRecord } from "./session.ts";
@@ -339,7 +339,7 @@ function choices(lines: string[]): string[] {
  * A turn in a talk: the ordinary scene turn, and alongside its after-reply decision, the next
  * dialogue choices (one small call, started as soon as the reply is in).
  */
-export async function talkTurn(state: SessionState, input: string, hooks: TurnHooks = {}): Promise<TurnResult> {
+export async function talkTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<TurnResult> {
   const talk = state.talk;
   if (!talk) throw new Error("Not talking with anyone.");
   let next: { controller: AbortController; made: Promise<{ lines: string[]; costUsd: number } | undefined> } | undefined;
@@ -352,7 +352,7 @@ export async function talkTurn(state: SessionState, input: string, hooks: TurnHo
       const controller = new AbortController();
       next = { controller, made: suggest(state, controller.signal).catch(() => undefined) };
     },
-  });
+  }, options);
   // Out is out: the staged secret is settled, whichever judgement saw it first.
   if (talk.confide && toldIt(state, talk.with) && state.guard?.[talk.with]?.stage !== "settled") state.guard = { ...state.guard, [talk.with]: { stage: "settled", turn: state.turn } };
   if (turn.ended || state.ended) {
