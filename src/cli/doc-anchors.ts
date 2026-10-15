@@ -10,8 +10,9 @@
  * a line), the definition nearest where the line it pointed at has gone, when there are several. Any other
  * link to a line follows that line: from the commit that last wrote the link (git blame) to the file as it
  * is now, through the diff between them (a line that was changed goes to where its hunk is now), and a
- * "file:line" text moves with it. A link the tool can't follow (the file isn't tracked, or was renamed)
- * is left as it is, and listed.
+ * "file:line" text moves with it, across a rename too (git log --follow: the file as it was called then,
+ * to the file as it's called now). A link the tool can't follow (the file isn't tracked, or wasn't there
+ * when the link was written) is left as it is, and listed.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -20,6 +21,8 @@ import { dirname, join, relative, resolve } from "node:path";
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "../..");
 const LINK = /\[([^\]\n]+)\]\(([^)#\s]+)#L(\d+)\)/g;
 const git = (...args: string[]): string => execFileSync("git", ["-C", ROOT, ...args], { encoding: "utf8", maxBuffer: 64 << 20 });
+/** A git command that answers yes or no by its exit code, with nothing on the console. */
+const gitSays = (...args: string[]): boolean => { try { execFileSync("git", ["-C", ROOT, ...args], { stdio: "ignore" }); return true; } catch { return false; } };
 
 function main(): void {
   const check = process.argv.includes("--check");
@@ -63,25 +66,35 @@ function blame(doc: string): Array<string | undefined> {
   return out;
 }
 
-const diffs = new Map<string, Array<{ from: number; gone: number; to: number; added: number }> | undefined>();
+type Hunk = { from: number; gone: number; to: number; added: number };
+const hunksOf = (diff: string): Hunk[] => [...diff.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)]
+  .map(h => ({ from: Number(h[1]), gone: h[2] === undefined ? 1 : Number(h[2]), to: Number(h[3]), added: h[4] === undefined ? 1 : Number(h[4]) }));
+const diffs = new Map<string, Hunk[][] | undefined>();
 
 /**
- * Where line `at` of a file as it was at a commit is now, by the diff from then to the working tree. A
- * line not yet committed was written against the file as it is, so it stays.
+ * Where line `at` of a file as it was at a commit is now, by the diff from then to the working tree (by
+ * two, when the file has been renamed since: the old file to the new one as committed, then on to the
+ * working tree). A line not yet committed was written against the file as it is, so it stays.
  */
 function followLine(commit: string | undefined, path: string, at: number): number | undefined {
   if (!commit) return at;
   const key = `${commit}:${path}`;
   if (!diffs.has(key)) {
     try {
-      const hunks = [...git("diff", "-U0", "--no-color", "--no-renames", commit, "--", path).matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)]
-        .map(h => ({ from: Number(h[1]), gone: h[2] === undefined ? 1 : Number(h[2]), to: Number(h[3]), added: h[4] === undefined ? 1 : Number(h[4]) }));
-      git("cat-file", "-e", `${commit}:${path}`);
-      diffs.set(key, hunks);
+      const then = pathAt(commit, path);
+      const toWorkingTree = (from: string) => hunksOf(git("diff", "-U0", "--no-color", "--no-renames", from, "--", path));
+      diffs.set(key, then === undefined ? undefined
+        : then === path ? [toWorkingTree(commit)]
+        : [hunksOf(git("diff", "-U0", "--no-color", `${commit}:${then}`, `HEAD:${path}`)), toWorkingTree("HEAD")]);
     } catch { diffs.set(key, undefined); }
   }
-  const hunks = diffs.get(key);
-  if (!hunks) return undefined;
+  const steps = diffs.get(key);
+  if (!steps) return undefined;
+  return steps.reduce((line, hunks) => across(hunks, line), at);
+}
+
+/** A line through one diff's hunks. */
+function across(hunks: Hunk[], at: number): number {
   let shift = 0;
   for (const h of hunks) {
     // A pure insertion's "from" is the line before it; a change's is its first old line.
@@ -91,6 +104,28 @@ function followLine(commit: string | undefined, path: string, at: number): numbe
     shift += h.added - h.gone;
   }
   return at + shift;
+}
+
+const renames = new Map<string, Array<{ commit: string; from: string }>>();
+
+/** What a file was called at a commit, following its renames back; undefined when it wasn't there then. */
+function pathAt(commit: string, path: string): string | undefined {
+  if (gitSays("cat-file", "-e", `${commit}:${path}`)) return path;
+  if (!renames.has(path)) {
+    // Newest first: each rename's commit, and the name the file had before it.
+    const log = git("log", "--follow", "--name-status", "--format=%x01%H", "--", path);
+    renames.set(path, log.split("\x01").slice(1).flatMap(entry => {
+      const rename = /^R\d*\t([^\t\n]+)\t/m.exec(entry);
+      return rename ? [{ commit: entry.slice(0, entry.indexOf("\n")), from: rename[1]! }] : [];
+    }));
+  }
+  let name = path;
+  for (const r of renames.get(path)!) {
+    // A commit that has the rename had the file under its new name.
+    if (gitSays("merge-base", "--is-ancestor", r.commit, commit)) break;
+    name = r.from;
+  }
+  return name !== path && gitSays("cat-file", "-e", `${commit}:${name}`) ? name : undefined;
 }
 
 /** The name a link's text gives: `castSpell`, `castSpell(...)`, `Game.input` and `catalogue(state)` are all followed. */
