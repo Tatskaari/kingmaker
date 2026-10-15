@@ -133,6 +133,15 @@ describe("the plain commands, with no model", () => {
     assert.match(r.refusal ?? "", /The GM is offline.*attack sallow, cast fire bolt at the nearest crake, move to the brazier/);
     assert.equal(parseCommand("I gaze thoughtfully at the brazier", turnFor(f)), undefined);
   });
+
+  it("don't take a shout at someone else for the player's own move", async () => {
+    const f = await heron("fighter", BESIDE);
+    assert.deepEqual((await offline("back off", f)).steps, ["back_off"], "typed plainly, it's a command");
+    for (const shout of ["Back off!", "Wait!", "Get out!", "Flee, you fools!", "Done!"]) {
+      assert.equal(parseCommand(shout, turnFor(f)), undefined, `"${shout}" is words`);
+      assert.equal((await offline(shout, f)).offline, true);
+    }
+  });
 });
 
 /** The parser's own view of the turn (as readLine builds it). */

@@ -118,10 +118,15 @@ function aliasesOf(sceneId: string, units: Unit[]): Record<string, string[]> {
 // ---------------------------------------------------------------------------------------------
 // The plain commands.
 
-const END = /^(?:end(?: (?:my|the))? turn|end it|done|pass|i'?m done|that'?s (?:it|all)|nothing|wait)$/;
+const END = /^(?:end(?: (?:my|the))? turn|end it|done|pass|i'?m done|that'?s (?:it|all))$/;
 const SIMPLE = /^(dash|dodge|disengage)$/;
-const LEAVE = /^(?:leave|flee|escape|get out|run for it|leave the fight|go out(?: through)?(?: the (?:door|gate|way out))?)$/;
+const LEAVE = /^(?:leave|flee|escape|run for it|leave the fight|go out(?: through)?(?: the (?:door|gate|way out))?)$/;
 const BACK = /^(?:back off|back away|retreat|fall back|step back|get clear)$/;
+/**
+ * Commands that are as often shouted at someone else ("Back off!", "Flee, you fools!", "Done!"):
+ * shouted, they're the decider's to read (or, offline, the GM's absence), never the player's own move.
+ */
+const SHOUTABLE = [END, LEAVE, BACK];
 const STEP = /^step (north|south|east|west|northeast|northwest|southeast|southwest)$/;
 const MOVE = /^(?:move|go|walk|run|head|get|step|hurry|dash)(?: over)? (?:to|towards?|up to|next to|beside|by|over to|for)\s+(.+)$|^(?:close in on|close on|approach|charge(?: at)?|rush|make for)\s+(.+)$/;
 const USE = /^(?:knock over|kick over|tip over|topple|bring down|knock down|pull down|upend|overturn)\s+(.+)$|^(?:knock|kick|tip|bring|pull)\s+(.+?)\s+(?:over|down)$/;
@@ -142,6 +147,7 @@ export function parseCommand(text: string, turn: Turn, strict = true): Reading |
   if (bare === undefined) return undefined;
   const parts = bare.split(/\s*,?\s+(?:and then|and|then)\s+|\s*[,;]\s*/).filter(Boolean);
   if (!parts.length || parts.length > 3) return undefined;
+  if (/!\s*$/.test(text) && parts.some(p => SHOUTABLE.some(re => re.test(p)))) return undefined;
   const plan: Step[] = [];
   let last: Target | undefined;
   for (const part of parts) {
@@ -178,7 +184,11 @@ function command(part: string, turn: Turn, last: Target | undefined): Read | und
   m = STEP.exec(part);
   if (m) return turn.actions.some(a => a.id === `step_${m![1]}`) ? { steps: [{ id: `step_${m[1]}`, uses: "move" }] } : { refusal: `You can't step ${m[1]} from here this turn.` };
   m = MOVE.exec(part);
-  if (m) return moveSteps(m[1] ?? m[2]!, turn, last);
+  if (m) {
+    // "Dash to the door": the Dash action first (twice the movement), then the move.
+    const moved = moveSteps(m[1] ?? m[2]!, turn, last);
+    return /^dash\b/.test(part) && turn.o.dash && "steps" in moved ? { ...moved, steps: [{ id: "dash", uses: "action" }, ...moved.steps] } : moved;
+  }
   m = USE.exec(part);
   if (m) {
     const t = target(m[1] ?? m[2]!, turn, last, "prop");
