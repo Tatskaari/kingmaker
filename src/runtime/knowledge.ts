@@ -116,7 +116,7 @@ const deeds = (state: SessionState) => state.transcript.filter(e => e.kind === "
  * The player's turn a note is about: the one sharing the most words with it (two at least, or a
  * long one; one will do among their last few turns in this scene), the more recent the likelier.
  */
-function deedFor(state: SessionState, text: string): Entry | undefined {
+export function deedFor(state: SessionState, text: string): Entry | undefined {
   const words = contentWords(text);
   const all = deeds(state);
   const recent = new Set(all.filter(e => (e.scene ?? state.sceneId) === state.sceneId).slice(0, 4));
@@ -191,17 +191,19 @@ function loreFor(scene: Scene, text: string): string | undefined {
 }
 
 /**
- * Each mark's link to what the player knows, where it names one: their own past act (a `you`
- * note, or a `why` note about something they did), someone they know, or a place or custom of the
- * world anyone could read about. The phrase is looked at before the note.
+ * Each mark's link to what the player knows, where it names one and has none yet: their own past
+ * act (a `you` note, or a `why` note about something they did), someone they know, or a place or
+ * custom of the world anyone could read about. The phrase is looked at before the note; a lore doc
+ * only by the phrase (a note that mentions the city in passing isn't about the city).
  */
 export function linkMarks(markup: Markup, text: string, scene: Scene, state: SessionState): Markup {
   const who = people(scene, state);
   const marks = markup.marks.map((m): Mark => {
+    if (m.link) return m;
     const phrase = text.slice(m.start, m.end);
     const deed = m.kind === "you" || (m.kind === "why" && /\byou\b/i.test(m.note)) ? deedFor(state, `${phrase} ${m.note}`) : undefined;
     const person = [phrase, m.note].map(s => who.find(p => p.names.some(n => n.test(s)))).find(Boolean);
-    const lore = [phrase, m.note].map(s => loreFor(scene, s)).find(Boolean);
+    const lore = loreFor(scene, phrase);
     const link: MarkLink | undefined = deed ? { kind: "deed", scene: deed.scene ?? state.sceneId, turn: deed.turn }
       : person ? { kind: "person", id: person.id }
       : lore ? { kind: "lore", path: lore }
@@ -216,18 +218,25 @@ export function linkMarks(markup: Markup, text: string, scene: Scene, state: Ses
  * player calls them (the fast GM slips, and a popover is no place for it to show).
  */
 export function unheardNames(markup: Markup, scene: Scene, state: SessionState): Markup {
-  const known = knownCast(scene, state);
-  const strangers = scene.cast.filter(c => c.called && !known.has(c.id));
-  if (!strangers.length) return markup;
   const marks = markup.marks.map(m => {
-    let note = m.note;
-    for (const c of strangers) {
-      for (const n of [c.name, ...nameTokens(c)]) note = note.replace(new RegExp(`\\b${escape(n)}\\b`, "g"), c.called!);
-    }
-    note = note.replace(/(^|[.!?]\s+)(the|a|an)\b/g, (_, lead: string, art: string) => `${lead}${art.charAt(0).toUpperCase()}${art.slice(1)}`);
+    const note = asKnown(m.note, scene, state);
     return note === m.note ? m : { ...m, note };
   });
   return { ...markup, marks };
+}
+
+/** Words with every name the player hasn't heard put as what they'd call its owner ("Nan Quill" is "the landlady"). */
+export function asKnown(words: string, scene: Scene, state: SessionState): string {
+  const known = knownCast(scene, state);
+  const strangers = scene.cast.filter(c => c.called && !known.has(c.id));
+  if (!strangers.length) return words;
+  let out = words;
+  for (const c of strangers) {
+    // With any title before it ("Mrs Quill" is the landlady too).
+    for (const n of [c.name, ...nameTokens(c)]) out = out.replace(new RegExp(`\\b(?:(?:Mrs|Mr|Miss|Ms|Master|Mister|Missus|Madam|Sergeant|Corporal|Captain|Big|Old|Young|Little)\\.?\\s+)?${escape(n)}\\b`, "g"), c.called!);
+  }
+  if (out === words) return words;
+  return out.replace(/(^|[.!?]\s+|\n#*\s*)(the|a|an)\b/g, (_, lead: string, art: string) => `${lead}${art.charAt(0).toUpperCase()}${art.slice(1)}`);
 }
 
 // --- What a mark's popover shows of its link: only ever what the player knows.
@@ -235,13 +244,18 @@ export function unheardNames(markup: Markup, scene: Scene, state: SessionState):
 /** A knowledge entry as the popover shows it. */
 export interface Card { title: string; lines: string[] }
 
-/** The first sentence or two of a doc's summary (they're written as retrieval hints, and long). */
-function gist(doc: Doc): string {
-  const s = (doc.meta.summary ?? "").trim();
-  if (s.length <= 260) return s;
-  const cut = s.slice(0, 260);
-  const end = Math.max(cut.lastIndexOf(": "), cut.lastIndexOf("; "), cut.lastIndexOf(", "));
-  return `${cut.slice(0, end > 120 ? end : 257)}…`;
+/**
+ * What a doc says first, for a reader: the first paragraph of its body, its first sentence or two
+ * (the summary is a retrieval hint, written for the docs service, not for the player).
+ */
+export function lead(doc: Doc, max = 240): string {
+  const para = doc.body.split(/\n\s*\n/).map(p => p.trim()).find(p => p && !/^#/.test(p) && !/^\*\*|^[-*] /.test(p)) ?? doc.meta.summary ?? "";
+  const text = para.replace(/\s+/g, " ").replace(/\*\*/g, "").trim();
+  if (text.length <= max) return text;
+  const sentences = text.match(/[^.!?]+[.!?]+["”’)]*\s*/g) ?? [text];
+  let out = "";
+  for (const s of sentences) { if ((out + s).length > max) break; out += s; }
+  return out.trim() || `${text.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
 }
 
 const sceneTitle = (state: SessionState, id: string) => (id === state.sceneId ? "this scene" : safeScene(id)?.title ?? id);
@@ -263,12 +277,14 @@ export function knowledgeCard(state: SessionState, link: MarkLink): Card | undef
     if (!e) return undefined;
     return { title: "What you did", lines: [`In ${sceneTitle(state, link.scene)}, turn ${link.turn}:`, `“${e.text.replace(/^["“]|["”]$/g, "")}”`] };
   }
+  const scene = safeScene(state.sceneId);
   if (link.kind === "lore") {
     const doc = readDoc(state.id, link.path);
     if (!doc || doc.meta.visibility !== "public") return undefined;
-    return { title: titleOf(doc), lines: [gist(doc), "What anyone in Caerwyn could tell you."] };
+    // A name the player hasn't heard, in the place's lore, as what they'd call its owner.
+    const known = (words: string) => (scene ? asKnown(words, scene, state) : words);
+    return { title: known(titleOf(doc)), lines: [known(lead(doc)), "What anyone in Caerwyn could tell you."] };
   }
-  const scene = safeScene(state.sceneId);
   const c = scene?.cast.find(x => x.id === link.id);
   const known = scene && c ? knownCast(scene, state).has(c.id) : true;
   const entity = state.world?.entities[link.id];
@@ -280,7 +296,7 @@ export function knowledgeCard(state: SessionState, link: MarkLink): Card | undef
   return {
     title: name.charAt(0).toUpperCase() + name.slice(1),
     lines: [
-      ...(lore ? [gist(lore)] : []),
+      ...(lore ? [lead(lore)] : []),
       ...(met ? [`You met them in ${sceneTitle(state, met.scene ?? state.sceneId)}.`] : []),
       ...(words ? [`Last said to you (turn ${words.turn}): ${words.line}`] : []),
     ],

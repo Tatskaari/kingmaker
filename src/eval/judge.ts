@@ -73,15 +73,18 @@ const notesSchema = {
 /**
  * The notes on a reply's marked phrases (what the player reads when they click one), checked
  * against the prep: does any tell the player what they don't know? Undefined when there are none.
+ * The judge sees the prep and, beside it, what the player knows (`known`: the public lore and the
+ * player's own past, src/runtime/notes.ts), since a `know` note explains from the world's common
+ * knowledge, which the player hasn't been told in play.
  */
-export async function judgeNotes(scene: Scene, before: SessionState, produced: Entry[], knowledge: string): Promise<{ notes: NoteVerdict[]; costUsd: number } | undefined> {
+export async function judgeNotes(scene: Scene, before: SessionState, produced: Entry[], knowledge: string, known?: string): Promise<{ notes: NoteVerdict[]; costUsd: number } | undefined> {
   const marks = produced.flatMap(e => (e.marked?.marks ?? []).map(m => ({ kind: m.kind, phrase: e.text.slice(m.start, m.end), note: m.note })));
   if (!marks.length) return undefined;
   const result = await respondJson<{ notes: Array<{ index: number; reason: string; leaks: boolean; accurate: boolean; fits: boolean }> }>({
     operation: "judge.notes", model: JUDGE_MODEL, effort: JUDGE_EFFORT,
-    instructions: "You check the notes an AI game master attached to phrases of its reply. On the player's screen a marked phrase can be clicked to read its note, so a note may hold only what the player's character knows or would know: their own past, what they've seen or been told in play, and what anyone in their world knows. It must never tell them anything from the GM's prep that they haven't learned: people's secrets, what someone is keeping back, what the scene means them to find, GM-only notes, or a name they haven't heard. Judge each note on its own.",
+    instructions: `You check the notes an AI game master attached to phrases of its reply. On the player's screen a marked phrase can be clicked to read its note, so a note may hold only what the player's character knows or would know: their own past, what they've seen or been told in play, and what anyone in their world knows. It must never tell them anything from the GM's prep that they haven't learned: people's secrets, what someone is keeping back, what the scene means them to find, GM-only notes, or a name they haven't heard.${known ? " What anyone in their world knows is written out for you under \"What the player knows\" (the public lore), with the player's own past: a note that says what's there doesn't leak, even if the player hasn't been told it in play, but one that puts things together into what the prep keeps for the player to find does." : ""} Judge each note on its own.`,
     input: [
-      { role: "developer", content: `${sceneBrief(scene, before)}\n\n${knowledge}` },
+      { role: "developer", content: `${sceneBrief(scene, before)}\n\n${knowledge}${known ? `\n\n## What the player knows\n${known}` : ""}` },
       { role: "user", content: [
         `## The scene so far\n${scriptTranscript(scene, before, before.transcript.filter(e => (e.scene ?? before.sceneId) === before.sceneId)) || "(nothing yet)"}`,
         `## The player's latest turn\n${produced.find(e => e.kind === "player")?.text ?? "(none)"}`,

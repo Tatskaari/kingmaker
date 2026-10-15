@@ -17,6 +17,7 @@ import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind,
 import { actorReply, entryOf, gmReply, narratorReply, type Spoken } from "./voices.ts";
 import { markupLines, sumStats, type Markup } from "./markup.ts";
 import { nameAsKnown } from "./knowledge.ts";
+import { annotate, type NotesUsage } from "./notes.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
 import { savePlayedScene } from "../lore/docs.ts";
 import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
@@ -33,6 +34,11 @@ export interface TurnHooks {
   onText?(text: string, markup?: Markup): void;
   /** A finished visible entry (rolls, system lines, completed speech). */
   onEntry?(entry: Entry): void;
+  /**
+   * The notes on a GM reply's marks have been written (src/runtime/notes.ts), a moment after the
+   * reply: they're on `entry.marked`, which is the object its onEntry entry carried.
+   */
+  onMarks?(entry: Entry): void;
   /** The game core has just gone into a scene (or a talk), before its opening streams in: show it now. */
   onScene?(): void;
 }
@@ -105,6 +111,23 @@ function push(state: SessionState, hooks: TurnHooks, entry: Omit<Entry, "turn" |
   return full;
 }
 
+/**
+ * A reply onto the transcript, with its notes to come: a GM reply's are written from what the player
+ * knows (src/runtime/notes.ts) while the turn goes on, and put on the entry (onMarks) when they're
+ * ready. What it returns is what the turn waits on before it saves.
+ */
+export function pushReply(scene: Scene, state: SessionState, hooks: TurnHooks, spoken: Spoken, pushed = (e: Omit<Entry, "turn" | "scene">) => push(state, hooks, e)): Promise<NotesUsage | undefined> {
+  const entry = pushed(entryOf(spoken));
+  return annotate(scene, state, entry, spoken.drafted ?? [], hooks.onMarks);
+}
+
+/** What a turn's notes came to, together: for its metric. */
+function notesOf(all: Array<NotesUsage | undefined>): NotesUsage | undefined {
+  const some = all.filter((n): n is NotesUsage => !!n);
+  if (!some.length) return undefined;
+  return some.reduce((a, n) => ({ drafted: a.drafted + n.drafted, written: a.written + n.written, added: a.added + n.added, costUsd: a.costUsd + n.costUsd, ms: Math.max(a.ms, n.ms) }));
+}
+
 function speakHooks(hooks: TurnHooks, speaker: string, kind: EntryKind) {
   let started = false;
   return (text: string, markup?: Markup) => {
@@ -161,7 +184,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   const spoken = approach.voice === "gm"
     ? await gmReply(scene, state, directive, speakHooks(hooks, "gm", "narration"), "gm.opening")
     : await narratorReply(scene, state, directive, speakHooks(hooks, "gm", "narration"));
-  push(state, hooks, entryOf(spoken));
+  await pushReply(scene, state, hooks, spoken);
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);
@@ -212,6 +235,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let costUsd = 0, calls = 0, firstTextMs: number | null = null;
   const markText = () => { if (firstTextMs === null) firstTextMs = performance.now() - started; };
   const textHooks: TurnHooks = { ...hooks, onText: (text, markup) => { markText(); hooks.onText?.(text, markup); } };
+  // The notes on the turn's GM replies, being written while the turn goes on.
+  const noting: Array<Promise<NotesUsage | undefined>> = [];
 
   state.turn++;
   push(state, hooks, { speaker: "player", kind: "player", text: input });
@@ -239,12 +264,13 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const close = approach.voice === "gm"
       ? await gmReply(scene, state, closing, speakHooks(textHooks, "gm", "narration"), "gm.closing")
       : await narratorReply(scene, state, [...closing, "You may give a character a brief last word if it fits."], speakHooks(textHooks, "gm", "narration"));
-    push(state, hooks, entryOf(close));
+    const noting = pushReply(scene, state, hooks, close);
     delete state.closing;
     if (authored.createsCharacter) await extractCharacter(authored, state);
     finishScene(state, authored, exit);
     const markup = sumStats([close.stats]);
-    const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd, calls: 1, ...(markup ? { markup } : {}) };
+    const notes = await noting;
+    const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd + (notes?.costUsd ?? 0), calls: notes ? 2 : 1, ...(markup ? { markup } : {}), ...(notes ? { notes } : {}) };
     state.metrics.push(metric);
     saveSession(state);
     snapshotSession(state);
@@ -462,7 +488,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       : runRepair(authored, state, { effort: approach.repairEffort ?? "medium" })).catch(() => undefined);
     const beat = await gmReply(scene, state, [...ruled, STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall", undefined, 140);
     spoken.push(beat);
-    push(state, hooks, entryOf(beat));
+    noting.push(pushReply(scene, state, hooks, beat));
     // Budget: wait for the co-GM only until its deadline; a late result lands next turn instead.
     let late = false;
     const remaining = approach.repairDeadlineMs ? approach.repairDeadlineMs - (performance.now() - repairStarted) : Infinity;
@@ -495,7 +521,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       hooks.onText?.(text, markup);
     }, "gm.followup");
     spoken.push(resolve);
-    push(state, hooks, entryOf(resolve));
+    noting.push(pushReply(scene, state, hooks, resolve));
   } else if (approach.voice === "gm") {
     let reply: Spoken | undefined;
     if (speculation && !directive.length && !pre.move && !pre.freeform && !ended) {
@@ -511,7 +537,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     }
     reply ??= await gmReply(scene, state, [...ruled, ...directive], speakHooks(textHooks, "gm", "narration"));
     spoken.push(reply);
-    push(state, hooks, entryOf(reply));
+    noting.push(pushReply(scene, state, hooks, reply));
   } else {
     // Narration first when something happened that only the GM can describe.
     let next = directive.length || ruled.length || !pre.speaker ? "gm" : pre.speaker;
@@ -524,7 +550,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
           ...(state.whispers ?? []).filter(w => w.to === next).map(w => w.note),
         ], speakHooks(textHooks, next, "dialogue"));
       spoken.push(line);
-      push(state, hooks, entryOf(line));
+      noting.push(pushReply(scene, state, hooks, line));
       responded.push(next === "gm" ? "GM" : scene.cast.find(c => c.id === next)?.name ?? next);
       if (ended) break; // closing narration only
       if (i === 0 && next === "gm" && pre.speaker && pre.speaker !== "gm") { next = pre.speaker; continue; }
@@ -625,7 +651,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // When did text that actually answers the player start? (the follow-up, after a holding beat)
   const resolvingTextMs = followUpMs ?? firstTextMs;
   const markup = sumStats(spoken.map(s => s.stats));
-  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls, ...(markup ? { markup } : {}) };
+  const written = await Promise.all(noting);
+  const notes = notesOf(written);
+  if (notes) { costUsd += notes.costUsd; calls += written.filter(Boolean).length; }
+  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls, ...(markup ? { markup } : {}), ...(notes ? { notes } : {}) };
   state.metrics.push(metric);
   saveSession(state);
   snapshotSession(state);
@@ -660,7 +689,7 @@ export async function resumeAfterFight(state: SessionState, summary: string, hoo
   push(state, hooks, { speaker: "system", kind: "system", text: `The fight: ${summary}` });
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
   const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went: if the player's side lost, they lost, and the winners do what they'd do with a beaten foe; nothing in the aftermath turns it round. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
-  push(state, hooks, entryOf(spoken));
+  await pushReply(scene, state, hooks, spoken);
   saveSession(state);
   return state.transcript.slice(before);
 }

@@ -140,5 +140,13 @@ export const ferry: Scene = {
     "The watch: nobody here does anything in the watch's name, and no watchman comes down the stairs to make them.",
   ],
   lore: ["Places/River Stairs.md", "World/City Watch.md", "World/Caerwyn.md"],
+  // The landing's customs, as anyone on the stairs knows them: what a note on the GM's marks explains from.
+  known: [
+    "The stairs look after their own: a lighterman carries river folk, and anyone a stairs person will speak for, and nobody else. Anyone else walks round by the bridge, two miles.",
+    "Eels are sold on the stairs by the yard, a penny a yard: an eel held up against the seller's arm, fingertip to nose.",
+    "Money on the stairs is paid King's face up, and foreign coin isn't taken: the ferry to the wharves is a penny.",
+    "In thirty years the watch has never once come down the stairs for a gentleman, and nobody on the landing does anything for anyone who comes in the watch's name.",
+    "\"My duck\" is how the stairs say \"my dear\", to anyone at all.",
+  ],
   world: ferryWorld,
 };

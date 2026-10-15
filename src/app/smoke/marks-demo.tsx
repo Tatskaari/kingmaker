@@ -11,6 +11,8 @@ import { pregenSession } from "../../game/combat/index.ts";
 import { registerLookCanvas } from "../../game/look/opentui.ts";
 import type { Game as Core } from "../../game/play.ts";
 import { presentCast } from "../../runtime/brief.ts";
+import { linkMarks } from "../../runtime/knowledge.ts";
+import { parseMarkup } from "../../runtime/markup.ts";
 import { readReply } from "../../runtime/voices.ts";
 import { buildWorld, joinWorld } from "../../world/scene-world.ts";
 import type { SessionState } from "../../runtime/session.ts";
@@ -34,8 +36,11 @@ export async function markedYard(): Promise<{ session: SessionState; lines: Line
     yard.transcript.push({ turn, scene: scene.id, speaker: "player", kind: "player", text });
     lines.push({ kind: "player", speaker: "player", name: yard.player.name, text, scene: scene.id });
   };
+  // Each reply as the GM wrote it, and its notes as the notes' writer might have written them (here,
+  // the demo's own, in the markup: src/runtime/notes.ts writes the real ones, from what the player knows).
   const reply = (raw: string, turn: number) => {
-    const { text, marked } = readReply(scene, yard, raw);
+    const { text, marked: { speech } } = readReply(scene, yard, raw);
+    const marked = linkMarks({ speech, marks: parseMarkup(raw).marks }, text, scene, yard);
     yard.transcript.push({ turn, scene: scene.id, speaker: "gm", kind: "narration", text, marked });
     lines.push({ kind: "narration", speaker: "gm", text, scene: scene.id, marked });
   };

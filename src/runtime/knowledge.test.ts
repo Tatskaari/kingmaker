@@ -4,6 +4,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
+import { writeDoc } from "../lore/docs.ts";
 import { knowledgeBrief, knowledgeCard, linkMarks, nameAsKnown, playerKnowledge, unheardNames } from "./knowledge.ts";
 import { parseMarkup } from "./markup.ts";
 import type { SessionState } from "./session.ts";
@@ -86,4 +87,15 @@ test("a popover's card shows only what the player knows: never a GM-only doc, ne
   assert.ok(!cob?.lines.join(" ").includes("Cob"));
   const deed = knowledgeCard(state, { kind: "deed", scene: "hanged-clerk", turn: 1 });
   assert.deepEqual(deed, { title: "What you did", lines: ["In this scene, turn 1:", "“Who found him?”"] });
+});
+
+test("a lore card says what its doc says first, for a reader, and no name the player hasn't heard", () => {
+  const state = session("drowned-rat");
+  const watch = knowledgeCard(state, { kind: "lore", path: "World/City Watch.md" });
+  assert.match(watch?.lines[0] ?? "", /^The watch keeps the King's peace in Caerwyn's streets/);
+  assert.ok((watch?.lines[0]?.length ?? 0) <= 240, "a sentence or two, not the retrieval summary");
+  // A place whose lore names the landlady before the player has heard of her: she's the landlady.
+  writeDoc(state.id, { path: "Places/The Back Steps.md", meta: { visibility: "public", type: "place", summary: "x" }, body: "# The back steps\n\nWhere Nan Quill keeps her empties, and Mrs Quill's cat." });
+  const steps = knowledgeCard(state, { kind: "lore", path: "Places/The Back Steps.md" });
+  assert.equal(steps?.lines[0], "Where the landlady keeps her empties, and the landlady's cat.");
 });

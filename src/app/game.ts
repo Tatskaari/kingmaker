@@ -190,7 +190,7 @@ export type Overlay =
   /** The window onto the story's first morning (the zoo's hall): Caerwyn as a new game has it. */
   | { kind: "window" }
   /**
-   * A marked phrase opened (a click, or Enter on what Tab picked out): the GM's note on it, and what
+   * A marked phrase opened (a click, or Enter on what Tab picked out): the note on it, and what
    * the player knows of what it's about. By the line it's in (an index into `lines`) and its place in
    * that line's marks; where on screen it was clicked, when it was.
    */
@@ -958,6 +958,11 @@ export class Game {
         this.notice();
         this.emit();
       },
+      // The notes on a reply's marks, a moment after it: they're on its line already (the same
+      // markup), so it's drawn again with them, to point at and click.
+      onMarks: entry => {
+        if ((entry.scene ?? this.session?.sceneId) === this.shown) this.emit();
+      },
     };
   }
 
@@ -1406,7 +1411,7 @@ export class Game {
     if (this.overlay?.kind === "mark") this.overlay = undefined;
   }
 
-  /** Open a marked phrase: the GM's note on it, and what the player knows of what it's about (where it was clicked, if it was). */
+  /** Open a marked phrase: the note on it, and what the player knows of what it's about (where it was clicked, if it was). */
   openMark(line: number, mark: number, x?: number, y?: number): void {
     if (!this.lines[line]?.marked?.marks[mark] || this.screen !== "scene") return;
     this.sceneMenu = undefined;

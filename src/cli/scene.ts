@@ -54,9 +54,12 @@ function render(state: SessionState, e: Entry): string {
   }
 }
 
+/** A reply's notes, when they come (a moment after it): each marked phrase with its note. */
+const notesOf = (state: SessionState, e: Entry) => markupLines(e.text, { speech: [], marks: e.marked?.marks ?? [] }, id => nameAsKnown(sceneById(state.sceneId), state, id)).join("\n");
+
 /** Print finished entries; stream text on a real terminal. */
 function printer(state: SessionState): TurnHooks {
-  if (!process.stdout.isTTY) return { onEntry: e => { if (e.kind !== "player") console.log(`${render(state, e)}\n`); } };
+  if (!process.stdout.isTTY) return { onEntry: e => { if (e.kind !== "player") console.log(`${render(state, e)}\n`); }, onMarks: e => console.log(`${notesOf(state, e)}\n`) };
   let shown = 0;
   return {
     onSpeaker: (speaker, kind) => { shown = 0; if (kind === "dialogue") process.stdout.write(`${nameOf(state, speaker)}: `); },
@@ -67,6 +70,7 @@ function printer(state: SessionState): TurnHooks {
       else if (e.marked) console.log(`\n${render(state, e).split("\n").slice(1).join("\n")}\n`);
       else process.stdout.write("\n\n");
     },
+    onMarks: e => console.log(`${notesOf(state, e)}\n`),
   };
 }
 

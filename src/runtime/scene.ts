@@ -164,6 +164,12 @@ export interface Scene {
   anchors?: string[];
   /** Lore docs about this place and its world (paths under lore/): the GM's always-in entry docs. */
   lore?: string[];
+  /**
+   * What anyone here knows and a newcomer wouldn't, where the public lore doesn't say it: the
+   * place's customs, prices, rules and common talk. Never a secret: the notes on the GM's marks
+   * explain from it (src/runtime/notes.ts), as from the public lore.
+   */
+  known?: string[];
   /** Character creation: on exit, the player's character sheet is extracted from the conversation. */
   createsCharacter?: boolean;
   /** Time passes before this scene opens: the player gets a short rest (an hour) or a long rest (a night). */

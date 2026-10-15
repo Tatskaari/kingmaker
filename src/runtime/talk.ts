@@ -8,10 +8,10 @@ import { sceneById } from "../../scenes/index.ts";
 import { talkOf, talkSceneId, TOLD } from "../../scenes/talk.ts";
 import { nameTokens, sceneEntries, scriptTranscript } from "./brief.ts";
 import { GUARD_STAGES, type Mechanic } from "./director.ts";
-import { playerTurn, type TurnHooks, type TurnResult } from "./engine.ts";
+import { playerTurn, pushReply, type TurnHooks, type TurnResult } from "./engine.ts";
 import type { Character, Scene } from "./scene.ts";
 import { saveSession, snapshotSession, type Entry, type SessionState, type Stage, type TalkRecord } from "./session.ts";
-import { entryOf, gmReply } from "./voices.ts";
+import { gmReply } from "./voices.ts";
 import type { Markup } from "./markup.ts";
 
 /**
@@ -125,7 +125,7 @@ export async function openTalk(state: SessionState, hooks: TurnHooks = {}): Prom
   if (prep.status === "fulfilled") prepare(state, scene, prep.value.prep, prep.value.held);
   // Nothing is saved on a failed greeting: the game's saved state is still from before the talk.
   if (greeting.status === "rejected") throw greeting.reason;
-  push(state, hooks, entryOf(greeting.value));
+  await pushReply(scene, state, hooks, greeting.value, e => push(state, hooks, e));
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import type { RollResult } from "./dice.ts";
 import type { Markup, MarkupStats } from "./markup.ts";
+import type { NotesUsage } from "./notes.ts";
 import type { Beat, Skill, Transition } from "./scene.ts";
 import type { Operation } from "../world/dsl.ts";
 import { untangle, type Entity, type SceneWorld } from "../world/scene-world.ts";
@@ -70,8 +71,10 @@ export interface TurnMetric {
   postDecisionMs: number;
   costUsd: number;
   calls: number;
-  /** How the turn's GM replies kept to the markup (spoken lines tagged, notes taken and dropped). */
+  /** How the turn's GM replies kept to the markup (spoken lines tagged, marks made and dropped). */
   markup?: MarkupStats;
+  /** The notes written on the turn's replies (src/runtime/notes.ts): how many, what they cost, how long the slowest took. */
+  notes?: NotesUsage;
 }
 
 /** Changes made to the scene's prep during play (the co-GM's, a talk's), kept separate from authored data. */
