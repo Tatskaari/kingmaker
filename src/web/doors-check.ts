@@ -47,6 +47,10 @@ export const placement = (page: Page, inside?: { left: number; top: number; righ
     for (const [x, y] of door.cells) { listed.add(x + "," + y); if (within(x, y)) cellsInside++; }
     for (const [x, y] of door.wall || []) { listed.add(x + "," + y); if (within(x, y)) cellsInside++; }
   }
+  // The lamp posts share the canvas (src/web/page/lamps.ts): their cells, and their glow's.
+  for (const lamp of frame && frame.lamps ? frame.lamps : []) {
+    for (const [x, y] of [...lamp.cells, ...(lamp.glow || [])]) { listed.add(x + "," + y); if (within(x, y)) cellsInside++; }
+  }
   const pixels = d.canvas.getContext("2d").getImageData(0, 0, d.canvas.width, d.canvas.height).data;
   let drawn = 0, outside = 0, drawnInside = 0;
   for (let i = 0, n = d.canvas.width * d.canvas.height; i < n; i++) {

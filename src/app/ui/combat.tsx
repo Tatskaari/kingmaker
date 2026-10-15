@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { showLine } from "../../game/combat/index.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
 import { mapDoors, overlayWanted } from "../../game/look/overlay.ts";
+import { mapLamps } from "../../game/look/lamps.ts";
 import { actorsHere, direction, Picks, SCREEN_KEYS, steps } from "../../game/map/index.ts";
 import { exploreState } from "../../game/town.ts";
 import type { Tile2 } from "../../game/types.ts";
@@ -225,7 +226,7 @@ export function CombatScreen({ game }: { game: Game }) {
               const pick = new Picks({ doors });
               const lines = fightView(fight, game.session, { w, h }, { ...shown, t: now, pick, ...(hover ? { hover } : {}), ...(fx ? { effects: fx } : {}), ...(scenery ? { scenery } : {}) });
               picks.current = pick;
-              return doors ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
+              return doors ? { frame: lines, doors: mapDoors(pick, lines), lamps: mapLamps(pick, lines) } : lines;
             }}
             onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(undefined)} />
         </box>

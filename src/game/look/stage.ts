@@ -9,6 +9,8 @@ import { clamp01, hash, hash01, noise1, noise2, noise3, seedOf, smoothstep } fro
 import { SIZE_SCALE } from "./roles.ts";
 import { surfacesOf } from "./surfaces.ts";
 import { doorLook, type DoorLook } from "./door-art.ts";
+import type { LampShape } from "./lamp-art.ts";
+import { stageLampsDrawn } from "./lamps.ts";
 import {
   cloudCell, cloudDensity, flameCell, groundCell, rainAt, surfaceCell, wallCell,
   type CloudKind, type Ground, type SurfaceKind, type TCell, type TerrainContext, type WallStyle, type Weather,
@@ -133,6 +135,8 @@ export class StagePicks {
   doors?: StageDoorPick[];
   /** By cell: 1 where someone or something stands, or something's drawn over the floor and walls (when asked for). */
   covered?: Uint8Array;
+  /** The lamp posts drawn, for their pictures (src/game/look/lamps.ts), when the doors are asked for. */
+  lamps?: LampShape[];
   private cells: StageCells = { owner: new Int32Array(0), ids: [], drew: [], layers: new Map() };
   private floor: (x: number, y: number) => Omit<StagePick, "id" | "under"> = () => ({ at: { x: 0, y: 0 } });
 
@@ -654,6 +658,9 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     for (const tx of [...fx.texts].sort((a, b) => (a.style === "bark" ? 0 : 1) - (b.style === "bark" ? 0 : 1))) text(canvas, tx, L, taken, set);
     if (covered && before) changedSince(canvas, before, covered);
   }
+
+  // The lamp posts, for the browser's overlay (src/game/look/lamps.ts): before what stands on the floor counts as covering it.
+  if (covered && tracked && view.pick) view.pick.lamps = stageLampsDrawn({ w, h, canvas, field, covered, owner: tracked.owner, ids: tracked.ids, things: order, time: view.time });
 
   // Whoever and whatever stands on the floor (people, things: drawn in step 4) covers it.
   if (covered && tracked) {

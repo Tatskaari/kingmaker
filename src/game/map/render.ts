@@ -4,6 +4,7 @@ import { FLAME_RAMPS, hexOf, mix as mixRGB, ramp, rgbOf, scale as scaleRGB, type
 import { areaCell, type EffectFrame, type FloatText } from "../look/effects.ts";
 import { glyphSet, inSet, plainText, type GlyphSet } from "../look/glyphs.ts";
 import { shadeBeing, shadeBy } from "../look/light.ts";
+import type { LampPick } from "../look/lamps.ts";
 import { actorLook, dustAt, fireAt, groundAt, surfaceLayer, type ActorLook, type LookFrame, type SurfaceLayer } from "../look/map.ts";
 import { doorLook, type DoorLook } from "../look/door-art.ts";
 import { clamp01, hash01, noise2, seedOf } from "../look/noise.ts";
@@ -118,6 +119,8 @@ export class Picks {
   doors?: DoorPick[];
   /** By cell: 1 where something was drawn over the map after it was painted (when asked for). */
   over?: Uint8Array;
+  /** What it drew up posts, for the lamps' pictures (src/game/look/lamps.ts), when the doors are asked for. */
+  lamps?: LampPick[];
   private width = 1;
   private tiles: Int32Array = new Int32Array(0);
   private actors: Array<MapActor | undefined> = [];
@@ -270,6 +273,9 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   // Whose each cell is (the tile being painted, and who or what on it): for the mouse, and the pointer's highlight.
   const owner = new Int32Array(w * h).fill(-1);
   const drawn: Array<MapActor | undefined> | undefined = options.pick ? new Array(w * h) : undefined;
+  // For the browser's overlay (Picks), as with the doors below: what's drawn up a post (the lamp
+  // posts' pictures: src/game/look/lamps.ts), and the two cells it goes in as they were before it.
+  const postPicks: Array<{ a: MapActor; at: Tile2; sc: number; r: number; look: ActorLook; light: Light; raw: Array<Cell | undefined> }> | undefined = options.pick?.tracking && !text ? [] : undefined;
   // For the browser's overlay (Picks): the doors drawn in walls, and what's drawn over the map once
   // it's painted (`late`: everything put from then on), with the tinted and bracketed tiles.
   const over = options.pick?.tracking && !text ? new Uint8Array(w * h) : undefined;
@@ -581,6 +587,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     }
     // A rope up to whatever it hangs from.
     if (states.includes("hanging")) put(sc, r - 1, "│", "#c8a878");
+    if (postPicks && post && !a.blocks && look.alpha >= 1) postPicks.push({ a, at: { ...at }, sc, r, look, light: { ...light }, raw: [r, r + 1].map(y => (y >= 0 && y < h && sc >= 0 && sc < w ? { ...cells[y]![sc]! } : undefined)) });
     if (post) put(sc, r + 1, "│", scaleRGB(rgbOf(look.fg), 0.5), undefined, { floor: BLOCK_FLOOR });
     const person = a.kind === "person" || a.kind === "creature";
     // Big and in the way: it fills its square, so it looks as big as it is.
@@ -854,6 +861,11 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     })),
   }));
   options.pick?.fill(w, h, map, owner, drawn ?? [], doorsDrawn && over ? { doors: doorsDrawn, over } : undefined);
+  // What's up a post, with the ground it's drawn on lit as the light pass lit it there.
+  if (options.pick && postPicks) options.pick.lamps = postPicks.map(({ a, at, sc, r, look, light: l, raw }) => ({
+    actor: a, at, x: sc, y: r, role: look.look.role, sheds: !!look.light, time: lf.time, light: l, floor: BLOCK_FLOOR,
+    ground: [raw[0], raw[1]].map(c => (c ? hexOf(c.bg === NONE ? INK : c.glow ? c.bg : shadeBy(c.bg, c.light.r, c.light.g, c.light.b, c.floor * 0.7)) : undefined)) as LampPick["ground"],
+  }));
   return cells.map(row => toSpans(row, !text));
 }
 

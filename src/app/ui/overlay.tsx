@@ -8,6 +8,7 @@ import { ActionMenu, fightGroups, menuKey, menuLayout } from "./actions.tsx";
 import { Place } from "./place.tsx";
 import { townView } from "../../game/views.ts";
 import { mapDoors, overlayWanted, stageDoors } from "../../game/look/overlay.ts";
+import { mapLamps, stageLamps } from "../../game/look/lamps.ts";
 import { StagePicks } from "../../game/look/stage.ts";
 import { Picks } from "../../game/map/index.ts";
 import { EXHIBITS } from "../../game/zoo/explorer.ts";
@@ -188,7 +189,7 @@ export function Overlay({ game }: { game: Game }) {
           // In a browser, the doors are drawn as pictures over it.
           const pick = overlayWanted() ? new StagePicks({ doors: true }) : undefined;
           const frame = stagePicture(core.state, { w: cw, h: ch }, now, game.mapFx(), pick);
-          return frame && pick ? { frame, doors: stageDoors(pick, frame) } : frame ?? [];
+          return frame && pick ? { frame, doors: stageDoors(pick, frame), lamps: stageLamps(pick) } : frame ?? [];
         }} />
         : null, [["Esc", "close", close], ["v", "close", close]]);
     }
@@ -214,7 +215,7 @@ export function Overlay({ game }: { game: Game }) {
         painter={(cw, ch, now) => {
           const pick = overlayWanted() ? new Picks({ doors: true }) : undefined;
           const lines = townView(morning, undefined, { w: cw, h: ch }, { t: now, ...(pick ? { pick } : {}) });
-          return pick ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
+          return pick ? { frame: lines, doors: mapDoors(pick, lines), lamps: mapLamps(pick, lines) } : lines;
         }} />, [["Esc", "close", close]]);
     }
     case "log":

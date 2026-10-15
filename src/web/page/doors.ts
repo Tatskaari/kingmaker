@@ -1,4 +1,5 @@
 import { AX, AY, OVERLAY_OSC, paintDoor, toHex, type DoorShape, type OverlayFrame, type WallCell } from "../../game/look/door-art.ts";
+import { drawLamps } from "./lamps.ts";
 
 /**
  * The doors as pictures over the game's ASCII, in the page (src/web/README.md, "Doors"): a canvas
@@ -18,6 +19,8 @@ import { AX, AY, OVERLAY_OSC, paintDoor, toHex, type DoorShape, type OverlayFram
  *   - It's drawn at xterm's own device pixels (its cell size, the device pixel ratio), an art pixel a
  *     cell's 7th across and 15th down, nearest-neighbour, so it's crisp at any font size and zoom.
  *   - ?doors=off leaves the ASCII alone. A selection (Shift+drag) puts the doors away while it's there.
+ *   - The lamp posts the game says are in view come in the same sequence, and are drawn on the same
+ *     canvas after the doors, by the same rules (src/web/page/lamps.ts).
  */
 
 /** The parts of xterm.js this needs (its public API, and the render service's dimensions). */
@@ -47,6 +50,8 @@ export interface DoorOverlay {
   /** How many frames of doors have been taken, and drawn. */
   readonly received: number;
   readonly draws: number;
+  /** How many of the frame's lamp posts are drawn (src/web/page/lamps.ts). */
+  readonly lampsDrawn: number;
   readonly canvas: HTMLCanvasElement;
   /** Device pixels a cell, as last drawn. */
   readonly cell: { width: number; height: number; dpr: number } | undefined;
@@ -67,6 +72,7 @@ export function doorOverlay(term: Term): DoorOverlay | undefined {
 
   let frame: OverlayFrame | undefined, drawnFrame: OverlayFrame | undefined;
   let drawn = 0, received = 0, draws = 0;
+  let lampsDrawn = 0;
   let dims: Dimensions | undefined;
   let scheduled = 0;
 
@@ -144,9 +150,12 @@ export function doorOverlay(term: Term): DoorOverlay | undefined {
     drawn = 0;
     draws++;
     drawnFrame = undefined;
+    lampsDrawn = 0;
     if (!frame || frame.cols !== term.cols || frame.rows !== term.rows || term.hasSelection()) return;
     drawnFrame = frame;
     for (const door of frame.doors) if (drawDoor(door, dims)) drawn++;
+    // The lamp posts, after the doors, on the same cells (src/web/page/lamps.ts).
+    lampsDrawn = drawLamps(ctx!, frame, dims);
   }
 
   /** A door: the wall it took given back (glyphs and all, as xterm draws them), then its picture's pixels. */
@@ -221,6 +230,7 @@ export function doorOverlay(term: Term): DoorOverlay | undefined {
     get drawn() { return drawn; },
     get received() { return received; },
     get draws() { return draws; },
+    get lampsDrawn() { return lampsDrawn; },
     canvas,
     get cell() { return dims ? { width: dims.cellW, height: dims.cellH, dpr: dims.dpr } : undefined; },
   };
