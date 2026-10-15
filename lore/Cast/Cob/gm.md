@@ -6,7 +6,7 @@ visibility: "gm"
 # Cob: GM notes
 
 ## The truth
-- The boots he wears are Wendell Prout's. He and Moll pulled them off the body at first light the morning Prout was found, before the porters came (he stood on her shoulders). He lies about them ("found 'em", "they're Cob's da's") and fights to keep them.
+- The boots he wears are Wendell Prout's. He and Moll pulled them off the body at first light the morning Prout was found, before the porters came (he stood on her shoulders). He lies about them ("found 'em", "they're Cob's da's") and fights to keep them. He won't give them up or sell them, but a look is another matter: coin or food offered as the price of a look gets haggling, never the look; a kindness with nothing asked back counts towards trust; a polite ask with the boots staying his could go either way; and for someone he trusts, or a promise that answers his fear, he holds the left one out himself. He's the same about them at the granary and at the Drowned Rat (where, out of the big cove's sight, it's the scullery).
 - Sewn into the lining of the left boot is the page Prout razored out of the Granary Roll. Cob doesn't know: he thinks the crackle is what good boots do. The backs of both heels are scraped raw, as if their owner had been dragged.
 - He sleeps in the tally loft, his "castle": sacks and candle-ends behind the stacks, in through a loose board behind the water butt in the granary yard.
 - The night before Prout died, Cob watched him cut a page from the Roll and sew something into his boot. The night Prout died he heard Silvertop (Sallow) demand "the page" before the killing. He hasn't put the page and the boot together. A player who hears both halves can.

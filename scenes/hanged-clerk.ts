@@ -1,4 +1,4 @@
-import type { Scene } from "../src/runtime/scene.ts";
+import type { Scene, Transition } from "../src/runtime/scene.ts";
 import { hangedClerkWorld } from "./worlds/hanged-clerk.ts";
 
 /**
@@ -19,10 +19,17 @@ import { hangedClerkWorld } from "./worlds/hanged-clerk.ts";
  * Endings: the case made (naming Sallow), murder by persons unknown, a child wrongly taken in (only
  * after Kell has pushed back), filed as a suicide, or walking away. Hooks for later scenes: the
  * wheat-ear stamp on the purveyance silver, and Prout's "Who pays the hedge-folk?".
+ *
+ * The page in the boot has ways in of its own, and Cob is the same boy about his boots here as in the
+ * Drowned Rat, where the page goes on if it's missed here: they're his and he'll never give them up;
+ * coin or food offered as the price of a look is a bribe, and gets haggling; a kindness with nothing
+ * asked back counts towards trust; asked politely, the boots staying his, it could go either way (a
+ * roll); and for someone he trusts, or a promise that answers his fear, he holds the boot out himself.
  */
 
 const NOT_SUICIDE = "Prout didn't hang himself: what has been found shows he was killed and then hoisted up to look like a suicide.";
 const PAGE = "Sewn into the lining of Prout's left boot was a page razored from the Royal Granary Roll: a dozen grain wagons for the King's Road this past month marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled note beside each of what the same wagon weighed at the river warehouses two days later, and at the foot: 'Not goblins. Who pays the hedge-folk?'";
+const KIND = "Cob has had a kindness from the player with nothing asked back (something to eat, or a dinner stood him freely): it counts with him.";
 const COB_TAKEN = "Cob was taken in for Prout's murder.";
 const MOLL_TAKEN = "Moll was taken in for Prout's murder.";
 
@@ -37,6 +44,40 @@ export const pageItem = {
   name: "Page from the Royal Granary Roll",
   content: "A dozen grain wagons for the King's Road this past month, each marked 'lost to goblins' and countersigned 'J. Sallow, for the Royal Purveyor'. Beside each, in Prout's small pencil, what the same wagon weighed at the river warehouses two days later. At the foot, underlined: 'Not goblins. Who pays the hedge-folk?'",
 };
+
+// The boot's ways in, each a route of its own so the decider can tell them apart; they go once the
+// page is out (the essential). What never works (a bribe) has one too, so it isn't read as a try.
+const bribeCob = (beat: string): Transition => ({
+  id: "bribe-cob", essential: "page",
+  when: "The player offers coin, food or a trade as the price of a look in Cob's boot, and nothing more (no promise that answers what he's afraid of): Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop): what's really wrong comes out instead, his way. They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)",
+  to: beat,
+});
+
+const kindToCob = (beat: string): Transition => ({
+  id: "kind-to-cob", essential: "page",
+  when: "The player does Cob a kindness with nothing asked back: something to eat, or a dinner stood him freely, with no look at his boots (or anything else) as the price. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, the boots staying his, gets a yes.",
+  to: beat, establishes: [KIND],
+});
+
+const coaxCob: Transition = {
+  id: "coax-cob", on: "attempt", essential: "page",
+  when: "The player asks Cob to let them look in his left boot (or feel what crackles in it), politely and with the boots staying his, or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Paying or trading for a look isn't this: that's haggling. (After a kindness with nothing asked back, for someone he trusts, or with a promise that answers what he's afraid of, it needs no dice.)",
+  check: { reason: "to get Cob to let you look in his boot",
+    skill: "persuasion", dc: 12,
+    success: "Cob scowls at them for a long moment, then sits on the edge of the water butt, unlaces the string and holds the left boot out at arm's length: 'Look, then. And Cob's having it straight back.' In the lining is something folded and stiff, held in with small neat stitches, and out comes a page, folded small and gone soft at the corners. Cob can't read it; anyone who can sees a dozen grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled weights beside them.",
+    failure: "Cob won't, and it costs: he clamps a hand over the boot and backs off towards the water butt and his gap, and Moll drops off the wall between them, one more grown-up after Cob's boots. The boot isn't lost: a kindness with nothing asked back, a real promise, or someone saying aloud whose boots they are can still open it.",
+    onSuccess: "motive", establishes: { success: [PAGE] },
+  },
+};
+
+const trustCob: Transition = {
+  id: "trust-cob", essential: "page",
+  when: "The player asks Cob for a look in his left boot after giving him real reason to trust them: a kindness with nothing asked back (something to eat, a dinner stood him freely), or a promise that truly answers what he's afraid of (the boots his to keep, the men from the loft kept off him, no Mending House). He unlaces the left boot, holds it out at arm's length and lets them pick the lining open: Prout's page is out.",
+  to: "motive", establishes: [PAGE],
+};
+
+/** The page's ways in, on a beat where Cob is about (and the bribe that isn't one). */
+const bootRoutes = (beat: string): Transition[] => [bribeCob(beat), kindToCob(beat), coaxCob, trustCob];
 
 export const hangedClerk: Scene = {
   id: "hanged-clerk",
@@ -89,7 +130,7 @@ export const hangedClerk: Scene = {
       ],
       secrets: [
         "Shows: the boots are three sizes too big and he won't take them off, and the left one crackles when he stamps; he stops throwing stones when anyone says 'the loft', and goes white at the hoist creaking. Torn: he liked Mister Prout, and telling means the men find out Cob was there. Opens: believing someone will keep him safe from the men (a real promise, somewhere they can't reach him), or a kindness he didn't expect from a grown-up; a real fright works too, and costs. First: 'Cob sleeps where Cob likes.'",
-        "The boots are Prout's. He and Moll pulled them off the body at first light, before the porters came (he stood on her shoulders). He lies first ('found 'em', 'they're Cob's da's') and fights to keep them; he'll let someone look at them if he gets to keep them, or trade them for something good.",
+        "The boots are Prout's. He and Moll pulled them off the body at first light, before the porters came (he stood on her shoulders). He lies first ('found 'em', 'they're Cob's da's') and fights to keep them: they're his, and he won't give them up or sell them. A look is another matter. Coin or food offered as the price of a look gets haggling and boasts, never the look (grown-ups who pay to look at his boots want them off him); a kindness with nothing asked back counts with him; asked politely, the boots staying his, he might let someone look (it could go either way); and for someone he trusts, or a promise that answers his fear, he holds the left one out himself.",
         "He was in the loft last night: he sleeps up there, in his 'castle', a nest of sacks and candle-ends behind the stacks, reached through a loose board behind the water butt (child-sized; a grown-up could squeeze through with effort). That's all he'll own to at first, and he goes white saying it.",
         "What he heard, in a frightened rush: a little after the midnight bells a lantern and voices woke him, Mister Prout arguing with two men; then a thump, a choking noise, and the hoist creaking though there were no sacks on it. He hid in his sacks till dawn and has told no one but Moll.",
         "Who, only to someone he trusts: Silvertop, the posh cove with the silver-topped cane, the flower smell and a ring with a bit of wheat on it, who comes with the Purveyor's wagons and opens the big doors with his own key; and a big man with a bandaged hand, who said 'Yes, Master'. Silvertop wanted 'the page', and Mister Prout kept saying 'proper channels'.",
@@ -97,7 +138,7 @@ export const hangedClerk: Scene = {
         "Since then the loft is wrong, and he knows it by heart: a smashed lantern and spilled ink by the tally desk, heel scuffs in the grain dust from the desk to the loft door, the loft door barred, the hoist rope tied off on its cleat with a docker's knot. The big book is still chained to the desk with its page cut out. Cob can't read it, but to anyone who can, the pages either side list grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'.",
         "He doesn't know it, but the stiff bit in the lining of the left boot, which crackles when he stamps, is a folded page; and the backs of both heels are scraped raw, as if their owner had been dragged.",
       ],
-      attitude: "Hostile, rude and showing off for Moll. Bought attention isn't trust: food or coin gets boasts and bargaining; respect, kindness or a laugh at his jokes gets real talk; only believing the player will keep him safe from the men (or a real fright) gets what he saw. If grabbed, he bolts for his hole. Torn: all mouth, and eleven; the louder he is, the more frightened. It shows when someone's kind to him: he gets ruder before he gets quieter. It helps a patient investigator (he can't keep a secret from someone he trusts) and bites a pushy one (he bolts, and Moll goes with him). Ties here: Moll, the boss (he'd go for anyone who was nasty to her, whatever their size); Kell, the bluebottle with the notebook, who has caught him twice and let him go twice (he doesn't know why, and doesn't trust it).",
+      attitude: "Hostile, rude and showing off for Moll. Bought attention isn't trust: food or coin offered as a price gets boasts and bargaining; a kindness with nothing asked back, respect or a laugh at his jokes gets real talk and counts towards trust; only believing the player will keep him safe from the men (or a real fright) gets what he saw. If grabbed, he bolts for his hole. Torn: all mouth, and eleven; the louder he is, the more frightened. It shows when someone's kind to him: he gets ruder before he gets quieter. It helps a patient investigator (he can't keep a secret from someone he trusts) and bites a pushy one (he bolts, and Moll goes with him). Ties here: Moll, the boss (he'd go for anyone who was nasty to her, whatever their size); Kell, the bluebottle with the notebook, who has caught him twice and let him go twice (he doesn't know why, and doesn't trust it).",
     },
     {
       id: "moll",
@@ -202,6 +243,7 @@ export const hangedClerk: Scene = {
             onSuccess: "doubt",
           },
         },
+        ...bootRoutes("yard"),
         { id: "concede", on: "attempt", when: "The player tells Kell they accept the Captain's verdict of suicide and to let the dead-cart have him (not just wondering aloud whether it was suicide).", to: "closed-suicide" },
         { id: "walk-away", on: "attempt", when: "The player gives up and leaves the granary yard, or heads off elsewhere, before anything has troubled the suicide story, leaving Prout and Kell behind.", to: "walked-away" },
         { id: "cart-comes", on: "cue", when: "The player has been in the yard a long while (at least eight exchanges at this point) without breaking the suicide story, and is going round in circles, idling or waiting for something to happen: noon comes, and so does the dead-cart.", to: "dead-cart" },
@@ -249,6 +291,7 @@ export const hangedClerk: Scene = {
             onSuccess: "doubt",
           },
         },
+        ...bootRoutes("doubt"),
         { id: "accuse-kid", on: "attempt", when: "The player accuses Cob or Moll of killing Prout (says plainly that they did it, not just asks) or tells Kell to arrest one of them for it.", to: "accused" },
         { id: "wrap-up", on: "attempt", when: "The player is done here without naming anyone for it: wrapping up, leaving the yard, or asking Kell to write Prout up as murdered by persons unknown or to take what they've found to the King as it stands.", to: "open-case" },
         { id: "cart-comes", on: "cue", when: "The scene has been at this point a good while (at least six exchanges) and the player isn't closing in on who or why, or is idling or waiting: noon comes, and so does the dead-cart.", to: "dead-cart" },

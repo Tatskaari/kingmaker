@@ -5,8 +5,9 @@ import { sceneById } from "../../scenes/index.ts";
 import { ASSETS } from "../world/assets.ts";
 import { recordingWorld, type Operation } from "../world/dsl.ts";
 import { applyOps, areaOf, buildWorld, type WorldOp } from "../world/scene-world.ts";
-import { effectiveScene, presentCast } from "./brief.ts";
+import { effectiveScene, openRoutes, presentCast } from "./brief.ts";
 import { decideBefore } from "./director.ts";
+import { bringOver, owedAtEnd } from "./owed.ts";
 import type { Scene, Transition } from "./scene.ts";
 import type { SessionState } from "./session.ts";
 
@@ -218,4 +219,86 @@ test("the Rat: his mum kept safe tonight is a plan with a way in, rolled where i
 
 test("the Rat: Hobb's token is only brass, and he needs no token to get in", () => {
   assert.match(rat.cast.find(c => c.id === "hobb")!.secrets!.join(" "), /the gang know his face at the grille, so he has no need of it tonight/);
+});
+
+// --- Cob and his boot ------------------------------------------------------------------------
+
+const clerk = sceneById("hanged-clerk");
+
+/** The Rat with the page owed: missed at the granary, it's in the boot on Cob's feet, with the Rat's ways in. */
+function ratWithPage(beat = "the-rat"): { scene: Scene; state: SessionState } {
+  const state = at("hanged-clerk", "doubt", { landed: [], hinted: [] });
+  state.world = buildWorld(clerk.id, clerk.world!, presentCast(clerk, state).map(c => ({ id: c.id, name: c.name })), state.player);
+  const owed = owedAtEnd(clerk, state);
+  delete state.world;
+  Object.assign(state, { sceneId: rat.id, beat, turnsInBeat: 1, path: [], established: [], patches: [], landed: [], hinted: [] });
+  bringOver(state, rat, owed, undefined);
+  return { scene: effectiveScene(rat, state.patches), state };
+}
+
+test("Cob: at the granary the boot has ways in of its own, a polite ask is a roll, and they go once the page is out", () => {
+  for (const beat of ["yard", "doubt"]) {
+    const bribe = route(clerk, beat, "bribe-cob");
+    assert.equal(bribe.check, undefined, "a bribe isn't a try: no dice, and no boot");
+    assert.equal(bribe.to, beat);
+    assert.match(bribe.when, /price of a look[\s\S]*the boot stays on[\s\S]*Food with nothing asked back is a kindness, not this/);
+    const kind = route(clerk, beat, "kind-to-cob");
+    assert.equal(kind.check, undefined);
+    assert.match(kind.when, /nothing asked back[\s\S]*it counts with him: after it, a polite ask for a look in his boot, the boots staying his, gets a yes/);
+    assert.equal(kind.establishes?.length, 1);
+    const coax = route(clerk, beat, "coax-cob");
+    assert.equal(coax.check?.skill, "persuasion");
+    assert.equal(coax.check?.dc, 12);
+    assert.match(coax.when, /politely and with the boots staying his/);
+    assert.equal(coax.check?.onSuccess, "motive");
+    assert.equal(coax.check?.onFailure, undefined, "a no keeps the boot reachable");
+    const trust = route(clerk, beat, "trust-cob");
+    assert.equal(trust.check, undefined);
+    assert.equal(trust.to, "motive");
+    for (const t of [coax.check!.establishes!.success!, trust.establishes!]) assert.deepEqual(t, route(clerk, beat, "page-found").establishes, "the page is out, as the endings read it");
+  }
+  // Found, they go.
+  const state = at("hanged-clerk", "doubt", { landed: ["page"] });
+  const open = openRoutes(clerk.beats.find(b => b.id === "doubt")!.transitions, state).map(t => t.id);
+  assert.ok(!["bribe-cob", "kind-to-cob", "coax-cob", "trust-cob"].some(id => open.includes(id)));
+});
+
+test("Cob: the report's polite ask at the granary is rolled, not refused, and a bribe still isn't a try", async () => {
+  // T18: "I don't want your boots. I just want to see what's making that noise. I assume you got them from the body. Could be evidence."
+  const asked = await decideBefore(scripted({ attempt: ["coax-cob", 0.7], roll_call: ["route", 0.8, { new: 0.1 }] }), clerk, at("hanged-clerk", "doubt"), "I don't want your boots. I just want to see what's making that noise. Could be evidence.", considered);
+  assert.equal(asked.move?.transition.id, "coax-cob");
+  assert.equal(asked.move?.roll?.skill, "persuasion");
+  assert.equal(asked.move?.roll?.dc, 12);
+  const bribed = await decideBefore(scripted({ attempt: ["plain:bribe-cob", 0.8] }), clerk, at("hanged-clerk", "doubt"), "A shilling if you let me look in your boot.", { speaker: false });
+  assert.equal(bribed.plainTransition?.id, "bribe-cob");
+  assert.equal(bribed.move, undefined);
+});
+
+test("Cob: at the Rat a free meal is a kindness, not a bribe, and the polite ask is for the scullery", async () => {
+  const { scene, state } = ratWithPage();
+  const kind = route(scene, "the-rat", "kind-to-cob");
+  assert.match(kind.when, /stands him his dinner or an extra bowl with no strings[\s\S]*out of the big cove's sight, gets a yes/);
+  assert.match(route(scene, "the-rat", "bribe-cob").when, /price of a look[\s\S]*A meal stood him with nothing asked back is a kindness, not this/);
+  const coax = route(scene, "the-rat", "coax-cob");
+  assert.match(coax.when, /^Out of the big cove's sight \(in the scullery[\s\S]*politely and with the boots staying his/);
+  assert.match(coax.when, /Out in the room, under the big cove's eye, he won't, and says so his way: not out here/);
+  assert.match(route(scene, "the-rat", "trust-cob").when, /a kindness with nothing asked back/);
+  // T43, then T44: two pennies of eel for a look is a bribe; a penny for the boy's meal, no strings, is a kindness.
+  const t43 = await decideBefore(scripted({ attempt: ["plain:bribe-cob", 0.85] }), scene, state, "Two pennies for some extra eel if you'll let me look at what's crackling in your boot, Cob.", { speaker: false });
+  assert.equal(t43.plainTransition?.id, "bribe-cob");
+  const t44 = await decideBefore(scripted({ attempt: ["plain:kind-to-cob", 0.8] }), scene, state, "Sure, here's a penny for the boy's meal.", { speaker: false });
+  assert.equal(t44.plainTransition?.id, "kind-to-cob");
+});
+
+test("Cob: the same boy about his boots at the granary and at the Rat, in his cards and his lore", () => {
+  const cards = [clerk, rat].map(s => s.cast.find(c => c.id === "cob")!);
+  for (const card of cards) {
+    const all = [...(card.secrets ?? []), card.attitude].join(" ");
+    assert.doesNotMatch(all, /trade them for something good/, "a look isn't for sale");
+    assert.match(all, /price of a look (gets|buys) (haggling and boasts|boasts and haggling), never the (look|boot)/);
+    assert.match(all, /a kindness with nothing asked back[^.;]*counts/i);
+    assert.match(card.attitude, /food or coin offered as a price gets boasts and bargaining; a kindness with nothing asked back/);
+  }
+  assert.match(cards[0]!.secrets!.join(" "), /asked politely, the boots staying his, he might let someone look \(it could go either way\)/);
+  assert.match(cards[1]!.secrets!.join(" "), /Asked politely out of the big cove's sight \(the scullery\), the boots staying his, he might \(it could go either way\)/);
 });

@@ -106,7 +106,7 @@ npm run scene -- list
 npm run scene -- start drowned-rat --session s1   # then say, status (the path taken), transcript, map
 npm run qa -- new --session q1 --as "Wren Ashdown: a quick-witted ranger"   # the arc in the playable game; qa end --exit <id> takes an ending
 npm run eval -- --case <id>                       # an eval case by id (src/eval/cases/, by scene)
-npm test                                          # the zoo's test validates the zoo's scenes; the director's test plays hanged-clerk's yard
+npm test                                          # the zoo's test validates the zoo's scenes; the director's test plays hanged-clerk's yard; arc-prep's holds the arc's prep to what a player's report found (src/runtime/arc-prep.test.ts)
 node --no-warnings --input-type=module -e 'const { SCENES, ZOO_SCENES } = await import("./scenes/index.ts"); const { validateScene } = await import("./src/runtime/scene.ts"); for (const s of [...SCENES, ...ZOO_SCENES]) { const p = validateScene(s); if (p.length) console.log(s.id, p); }'   # every scene's ids and targets: silent when all is well
 ```
 

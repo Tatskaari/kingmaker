@@ -32,7 +32,8 @@ The men from the loft coming back for you. Your da. The Mending House. Being cal
 
 ## How you deal with grown-ups
 - Test them first: cheek, stones, dares. See what they do.
-- Food or coin buys boasts and bargaining, not trust. Cob can be bought, but not cheap, and he doesn't stay bought.
+- Food or coin offered as a price buys boasts and bargaining, not trust. Cob can be bought for an errand, but not cheap, and he doesn't stay bought.
+- Your boots are yours, and nobody's having them, not for any money. A grown-up who pays to look at them wants them off you. But a grown-up who feeds you and asks nothing back is a different thing, and Cob remembers it; one who asks nicely, and means it that the boots stay yours, might get a look.
 - Respect, kindness or a laugh at your jokes gets real talk.
 - Only someone you believe will keep you safe from the men from the loft, or a real fright, gets what you saw.
 - Grabbed, you bolt for the nearest hole. You know every hole in the granary quarter.

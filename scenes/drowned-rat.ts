@@ -28,8 +28,10 @@ import { KELL_VOICE, pageItem } from "./hanged-clerk.ts";
  *
  * If the granary didn't give up Prout's page, it's still sewn into the boot on Cob's feet, and the
  * boundary brings it over (src/runtime/owed.ts): then it's one of this scene's essentials, with ways
- * in true to Cob (trust, or a promise that answers his fear, out of Hobb's sight), Nan (whose word
- * he'd take) and a roll when a try could go either way. Found at the granary, none of it is here.
+ * in true to Cob, who is the same boy about his boots as at the granary (a kindness with nothing asked
+ * back, real trust, or a promise that answers his fear, out of Hobb's sight), Nan (whose word he'd
+ * take) and a roll when a polite ask in the scullery could go either way. Found at the granary, none
+ * of it is here.
  */
 
 const IDENTIFIED = "The player has picked out Big Hobb Mallory, in the fireside corner, as the big man with the bandaged hand.";
@@ -39,6 +41,7 @@ const NAMED = "Big Hobb has named his master to the player: Master Sallow of the
 const MUM_SAFE = "Hobb's mum is to be kept safe tonight: someone here has agreed to take her in, out of the Master's reach, and she'll be fetched from the Shambles before he thinks to look.";
 const TOKEN = "Hobb has handed over his brass river-door token for the Heron warehouse.";
 const INSIDE = "Hobb has agreed to be the player's man inside the Heron tonight.";
+const KIND = "Cob has had a kindness from the player with nothing asked back (his dinner or an extra bowl stood him with no strings): it counts with him.";
 const PAGE = "Prout's page is out of the lining of Cob's left boot: razored from the Royal Granary Roll, a dozen King's Road grain wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and, at the foot, 'Not goblins. Who pays the hedge-folk?'";
 
 const has = (facts: string[], fact: string) => facts.includes(fact);
@@ -150,17 +153,25 @@ const bell = (when: string): Transition => ({ id: "bell", on: "cue", when, to: "
 
 // Prout's page, if the granary didn't give it up: still sewn into the left boot on Cob's feet. These
 // routes are the scene's only while the page is (the boundary brings `prouts-page` over), and go once
-// the player has come across it. A bribe isn't a way in (bought attention isn't trust), so it has a
-// route of its own, which the decider can tell from a real try: no dice, and no boot.
+// the player has come across it. Cob is the same boy about his boots as at the granary: coin or stew
+// offered as the price of a look is a bribe (haggling, and no boot), a kindness with nothing asked
+// back counts towards trust, a polite ask out of the big cove's sight can go either way, and real
+// trust needs no dice. Each has a route of its own, so the decider can tell them apart.
 const bribeCob = (beat: string): Transition => ({
   id: "bribe-cob", essential: "prouts-page",
-  when: "The player offers money, food or a trade for a look in Cob's boot, to Cob or to Nan for him, and nothing more (no appeal to what he's afraid of, no promise that answers it): Cob haggles, boasts and takes what's going, but the boot stays on, and Nan won't sell a look in a child's boot either. Bought attention isn't trust. What's really wrong comes out instead, his way: not out here, not with the big cove looking, and what happens to Cob after?",
+  when: "The player offers coin, or more stew, as the price of a look in Cob's boot (to Cob, or to Nan for him), and nothing more (no appeal to what he's afraid of, no promise that answers it): Cob haggles, boasts and takes what's going, but the boot stays on, and Nan won't sell a look in a child's boot either. Bought attention isn't trust. What's really wrong comes out instead, his way: not out here, not with the big cove looking, and what happens to Cob after? (A meal stood him with nothing asked back is a kindness, not this.)",
   to: beat,
+});
+
+const kindToCob = (beat: string): Transition => ({
+  id: "kind-to-cob", essential: "prouts-page",
+  when: "The player does Cob a kindness with nothing asked back: stands him his dinner or an extra bowl with no strings, or gives it freely after he's eaten. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, out of the big cove's sight, gets a yes.",
+  to: beat, establishes: [KIND],
 });
 
 const coaxCob = (beat: string): Transition => ({
   id: "coax-cob", on: "attempt", essential: "prouts-page",
-  when: "The player tries to win Cob round to showing them what crackles in his left boot (taking it off, or letting them unpick the lining) by reaching him: an appeal to what he cares about (Mister Prout, the men from the loft, his own skin), a promise, or a tale he might swallow, where it could go either way. Paying for a look isn't this. (Real trust, or a promise that truly answers what he's afraid of, made where the big man by the fire can't see, needs no dice.)",
+  when: "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player asks Cob to show them what crackles in his left boot (taking it off, or letting them unpick the lining), politely and with the boots staying his, or tries to win him round to it by reaching him (an appeal to what he cares about: Mister Prout, the men from the loft, his own skin; a promise; or a tale he might swallow), where it could go either way. Paying for a look isn't this. (After a kindness with nothing asked back, for someone he really trusts, or for a promise that truly answers what he's afraid of, it needs no dice. Out in the room, under the big cove's eye, he won't, and says so his way: not out here.)",
   check: { reason: "to get Cob to show you what's in his boot",
     skill: "persuasion", dc: 13,
     success: "Cob looks past them at the scullery door, and the fire beyond it, for a long moment. Then he sits on an upturned pot, unlaces the left boot and picks the lining open with a dirty thumbnail, muttering that if this is a trick Cob'll know. Out comes a page, folded small and gone soft at the corners, and he holds it out like it might bite: 'That's Mister Prout's writing. That's why it crackled.' He can't read it; anyone who can sees a dozen grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'. If he heard the posh cove ask for 'the page' that night, it comes together for him now, and he goes white.",
@@ -183,7 +194,7 @@ const nanVouches = (beat: string): Transition => ({
 // What needs no dice gets a route of its own too, so the decider can see a kindness simply work.
 const trustCob = (beat: string): Transition => ({
   id: "trust-cob", essential: "prouts-page",
-  when: "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player gives Cob real reason to trust them, or a promise that truly answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, whatever's in the boot going to the King and not the watch); or Nan, given a reason plainly good for the boy, tells him to. Cob takes the left boot off and lets them unpick the lining: Prout's page is out.",
+  when: "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player asks Cob for a look after giving him real reason to trust them (a kindness with nothing asked back, like his dinner stood him with no strings), or makes him a promise that truly answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, the boots his to keep, whatever's in the boot going to the King and not the watch); or Nan, given a reason plainly good for the boy, tells him to. Cob takes the left boot off and lets them unpick the lining: Prout's page is out.",
   to: beat, establishes: [PAGE],
 });
 
@@ -194,7 +205,7 @@ const pageShown = (beat: string): Transition => ({
 });
 
 /** The page's ways in, on a beat where Cob is about (and the bribe that isn't one). */
-const pageRoutes = (beat: string): Transition[] => [bribeCob(beat), trustCob(beat), coaxCob(beat), nanVouches(beat), pageShown(beat)];
+const pageRoutes = (beat: string): Transition[] => [bribeCob(beat), kindToCob(beat), trustCob(beat), coaxCob(beat), nanVouches(beat), pageShown(beat)];
 
 export const drownedRat: Scene = {
   id: "drowned-rat",
@@ -302,9 +313,9 @@ export const drownedRat: Scene = {
         "Shows: he won't come out of the scullery while the big man is in the room, and when he does, he keeps the bar between them and won't look at the fireside corner. Opens: someone he trusts, somewhere Hobb can't see. First: a jerk of the head towards the fire, from behind something.",
         "Big Hobb is the big cove from the loft last night. Cob knew him by the lantern light (the size of him, and his voice saying 'Yes, Master'), and he's seen him in here for years. He saw Hobb come in tonight and has been hiding in the scullery since. He'll tell it to someone he trusts, or point, from behind something; never where Hobb can see.",
         "He pinched one of Hobb's new silver pennies off the pot tray. It's got a heron on it, not the King.",
-        "Only if Prout's page is still sewn into his left boot (the world has it there, and it's among what the player needs to come across): he doesn't know it's there; the crackle is what good boots do. The boots are the first good thing he's ever owned, and a coin or a bowl of stew buys boasts and haggling, never the boot: he says, his way, what's wrong instead (not out here, not with the big cove looking, and what happens to Cob after?). For someone he trusts, out of the big cove's sight, or for a promise that answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, whatever's in there going to the King and not the watch), he takes the left one off and lets them unpick it; and if Nan tells him to, he does it for her.",
+        "Only if Prout's page is still sewn into his left boot (the world has it there, and it's among what the player needs to come across): he doesn't know it's there; the crackle is what good boots do. The boots are the first good thing he's ever owned, and he's the same about them as at the granary. Coin or stew offered as the price of a look buys boasts and haggling, never the boot, and he says, his way, what's wrong instead (not out here, not with the big cove looking, and what happens to Cob after?). A kindness with nothing asked back (his dinner stood him with no strings) counts with him. Asked politely out of the big cove's sight (the scullery), the boots staying his, he might (it could go either way). For someone he trusts, after a kindness like that, or for a promise that answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, whatever's in there going to the King and not the watch), he takes the left one off and lets them unpick it; and if Nan tells him to, he does it for her.",
       ],
-      attitude: "How he takes the investigator and the sergeant tonight is as things stand between them after the granary. Whatever that is, with the big cove in the room he's quieter and jumpier than he was, and sticks near the scullery door. Bought attention isn't trust: food or coin gets boasts and bargaining; respect, kindness or a laugh at his jokes gets real talk; only believing someone will keep him safe from the men gets what he knows. If grabbed, he bolts for the scullery. Ties here: Nan, the only grown-up who ever did anything about his da (he'd die before saying so); Hobb, who gave him the end of his pie once, which makes it worse. (If what happened before has him locked up in the watch house, he isn't here tonight: Nan has no pot-boy, and the scene doesn't need him.)",
+      attitude: "How he takes the investigator and the sergeant tonight is as things stand between them after the granary. Whatever that is, with the big cove in the room he's quieter and jumpier than he was, and sticks near the scullery door. Bought attention isn't trust: food or coin offered as a price gets boasts and bargaining; a kindness with nothing asked back, respect or a laugh at his jokes gets real talk and counts towards trust; only believing someone will keep him safe from the men gets what he knows. If grabbed, he bolts for the scullery. Ties here: Nan, the only grown-up who ever did anything about his da (he'd die before saying so); Hobb, who gave him the end of his pie once, which makes it worse. (If what happened before has him locked up in the watch house, he isn't here tonight: Nan has no pot-boy, and the scene doesn't need him.)",
     },
     {
       id: "arlo",

@@ -89,7 +89,7 @@ test("across the boundary into the Rat: the page is the Rat's own prep for it, w
   assert.deepEqual(page.carriers, ["cob", "nan-quill"]);
   for (const beat of ["the-rat", "big-hobb", "confession"]) {
     const ids = scene.beats.find(b => b.id === beat)!.transitions.map(t => t.id);
-    for (const id of ["bribe-cob", "trust-cob", "coax-cob", "nan-vouches", "page-shown"]) assert.ok(ids.includes(id), `${beat} has ${id}`);
+    for (const id of ["bribe-cob", "kind-to-cob", "trust-cob", "coax-cob", "nan-vouches", "page-shown"]) assert.ok(ids.includes(id), `${beat} has ${id}`);
   }
   const route = (id: string) => scene.beats[0]!.transitions.find(t => t.id === id)!;
   const coax = route("coax-cob");
@@ -146,7 +146,7 @@ test("come across in the Rat, its routes go and it's owed no more; carried off u
   const routes = (s: SessionState) => openRoutes(scene.beats[0]!.transitions, s).map(t => t.id);
   assert.ok(routes(state).includes("coax-cob"));
   state.landed = ["prouts-page"];
-  assert.ok(!routes(state).some(id => ["bribe-cob", "trust-cob", "coax-cob", "nan-vouches", "page-shown"].includes(id)), "nothing offers what's already out");
+  assert.ok(!routes(state).some(id => ["bribe-cob", "kind-to-cob", "trust-cob", "coax-cob", "nan-vouches", "page-shown"].includes(id)), "nothing offers what's already out");
   assert.ok(routes(state).includes("win-hobb"), "the rest are as they were");
   assert.deepEqual(owedAtEnd(rat, state), [], "found here: owed no more");
   // Not come across, but the boots are the player's now (taken, the page unread): it's with them.
