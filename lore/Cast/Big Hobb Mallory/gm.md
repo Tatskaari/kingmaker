@@ -11,6 +11,7 @@ Purpose (behind the screen): the Drowned Rat's witness and the Heron's way in. E
 - He's Sallow's muscle. About a month ago, when the Heron began re-sacking the King's grain by night, Sallow picked him out on the wharf as the biggest man there. Since then he has worked the Heron's hoist on loading nights and done the Master's heavy work, for double pay in heron pennies.
 - The night Prout died, a little after the midnight bells, Sallow took him to the granary tally loft "to have a word with a clerk". Prout wouldn't give up the page he'd cut from the Roll. Sallow struck him with the head of his cane and strangled him with a cord while Hobb held his arms, then had Hobb haul him up on the sack hoist "so it looks like he did it himself". The rope took the skin off Hobb's right palm in a stripe straight across. Hobb tied it off with a docker's knot, because that's the knot his hands know.
 - At first light they went back to look, and Sallow paid Moll a silver crown to say she'd seen the clerk jump. Hobb called him "Master Sallow" in front of her.
+- At the noon bell he walked at the Master's elbow beside the Purveyor's flour wagons going through the granary quarter, nursing his hand, until the Master sent him off to drink until the night's work. He went straight down the river stairs to the Rat.
 - He knows the Heron's night routine from the hoist, and carries its brass river-door token on a greasy string round his neck.
 - He has been losing his heron silver at Dilly's table on purpose. He can't stand to have it on him, and can't bring himself to send it home to his mum. That's how Dilly and Nan came to have so much of it.
 
@@ -26,6 +27,7 @@ Purpose (behind the screen): the Drowned Rat's witness and the Heron's way in. E
 - That Cob was asleep in the loft and heard it all. He believes nobody else was there. If he learns a child was, he's frightened for the boy, not of him: he'd never hurt a child, and he knows what the Master does about loose ends.
 - Where the page went. Sallow searched the clerk's satchel, coat and desk and never found it.
 - That Arlo saw his palm at the pump on the river stairs, or that Nan has put his hand and the hanged clerk together.
+- That a watch sergeant eating a pie with the granary porters saw him at the Master's elbow at noon, and followed him down the river stairs to the Rat.
 - That a man who swears for the Crown against his master can sometimes escape the rope.
 - What Sallow thinks of him: furniture, reliable while frightened, and a loose end the moment he isn't.
 - That Scrope was Prout's oldest friend.
