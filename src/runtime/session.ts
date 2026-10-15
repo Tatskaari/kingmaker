@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RollResult } from "./dice.ts";
-import type { Beat, Skill, Transition } from "./scene.ts";
+import type { Beat, Essential, Skill, Transition } from "./scene.ts";
 import type { Operation } from "../world/dsl.ts";
 import { untangle, type Entity, type SceneWorld } from "../world/scene-world.ts";
 
@@ -82,7 +82,7 @@ export interface TurnMetric {
   calls: number;
 }
 
-/** Changes made to the scene's prep during play (the co-GM's, a talk's), kept separate from authored data. */
+/** Changes made to the scene's prep during play (the co-GM's, a talk's, the boundary's), kept separate from authored data. */
 export interface ScenePatch {
   turn: number;
   /** Improvised beat bridging back to the authored ones. */
@@ -91,7 +91,37 @@ export interface ScenePatch {
   transition?: { beat: string; transition: Transition };
   /** What someone is keeping back now, in place of their card's secrets (a talk's one thing to open up about). */
   cast?: { id: string; secrets: string[] };
+  /**
+   * An essential the boundary brought over from an earlier scene, where the player missed it (its
+   * `missed` says which): this scene's own prep for it, or the boundary's placing of it here.
+   */
+  essential?: Essential;
   why: string;
+}
+
+/**
+ * What the story still owes the player: an essential of a scene already over that the rest of the
+ * story needs (`later`), which they didn't come across there. It goes from boundary to boundary
+ * until they do (src/runtime/owed.ts).
+ */
+export interface Owed {
+  /** The scene it was placed in, and its id there ("hanged-clerk", "page"). */
+  from: string;
+  id: string;
+  /** The essential as that scene wrote it. */
+  essential: Essential;
+  /** The player has had a sign of it already (a reply pointed towards it): nobody points at it again. */
+  hinted?: boolean;
+  /**
+   * The things it's in, as the last world they were in left them, when someone has them: each
+   * with what's inside it, the outermost held by its holder (`parent`, a cast id). They go with
+   * their holder into each next scene's world (the page is still in the boot, on Cob's feet).
+   */
+  things?: Entity[];
+  /** Who has its things now (cast ids, or "player"). */
+  holders?: string[];
+  /** Where it is now, in a few words, for the boundary ("a folded page sewn into the left boot's lining, in Prout's good black boots, with Cob"). */
+  where?: string;
 }
 
 /** How far someone has opened up about what they're keeping back (staged secrets): it never goes back. */
@@ -221,6 +251,8 @@ export interface SessionState {
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */
   carried?: Entity[];
+  /** What the story still owes the player from scenes already over (kept across scenes, and a talk's). */
+  owed?: Owed[];
   /** A word with a companion between scenes, in progress (the scene the story is heading for waits). */
   talk?: TalkState;
   /** Each companion's talks with the player so far, by cast id. */

@@ -1,7 +1,7 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { ItemSpec, SceneOutcome, WorldApi } from "../src/world/dsl.ts";
 import { drownedRatWorld } from "./worlds/drowned-rat.ts";
-import { KELL_VOICE } from "./hanged-clerk.ts";
+import { KELL_VOICE, pageItem } from "./hanged-clerk.ts";
 
 /**
  * Scene two of the Purveyor's Man arc (docs/design/caerwyn-arc.md): hanged-clerk → drowned-rat →
@@ -19,6 +19,11 @@ import { KELL_VOICE } from "./hanged-clerk.ts";
  * Kell and Cob are written neutral to how the granary went: what they remember of the player comes
  * from the hand-off and their memories, not from these cards. Every ending chains into the Heron, so
  * each outcome says where Hobb is, what the player holds and whether Sallow has been warned.
+ *
+ * If the granary didn't give up Prout's page, it's still sewn into the boot on Cob's feet, and the
+ * boundary brings it over (src/runtime/owed.ts): then it's one of this scene's essentials, with ways
+ * in true to Cob (trust, or a promise that answers his fear, out of Hobb's sight), Nan (whose word
+ * he'd take) and a roll when a try could go either way. Found at the granary, none of it is here.
  */
 
 const IDENTIFIED = "The player has picked out Big Hobb Mallory, in the fireside corner, as the big man with the bandaged hand.";
@@ -26,6 +31,7 @@ const HERON = "The player knows that Hobb does night work at the Heron warehouse
 const TALKED = "Big Hobb has broken and is telling the player what he knows: the loft, his master and the Heron.";
 const TOKEN = "Hobb has handed over his brass river-door token for the Heron warehouse.";
 const INSIDE = "Hobb has agreed to be the player's man inside the Heron tonight.";
+const PAGE = "Prout's page is out of the lining of Cob's left boot: razored from the Royal Granary Roll, a dozen King's Road grain wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and, at the foot, 'Not goblins. Who pays the hedge-folk?'";
 
 const has = (facts: string[], fact: string) => facts.includes(fact);
 const knowsHeron = (outcome: SceneOutcome) => has(outcome.established, HERON) || has(outcome.established, TALKED);
@@ -44,6 +50,13 @@ function heronLead(world: WorldApi): void {
 /** Hobb's token, if it changed hands before the scene ended. */
 function keepToken(world: WorldApi, outcome: SceneOutcome): void {
   if (has(outcome.established, TOKEN)) world.player.addItem(world.newItem(tokenItem));
+}
+
+/** Prout's page, if it came out of Cob's boot tonight. */
+function keepPage(world: WorldApi, outcome: SceneOutcome): void {
+  if (!has(outcome.established, PAGE)) return;
+  world.player.addItem({ ...world.newReadable(pageItem), asset: "parchment-note" });
+  world.journal("Prout's page was in Cob's boot all along: every 'lost' wagon countersigned 'J. Sallow, for the Royal Purveyor'.");
 }
 
 // Ways in to Hobb, open from the moment the player is at his table.
@@ -93,6 +106,54 @@ const armWrestle = (beat: string): Transition => ({
 });
 
 const bell = (when: string): Transition => ({ id: "bell", on: "cue", when, to: "on-his-feet" });
+
+// Prout's page, if the granary didn't give it up: still sewn into the left boot on Cob's feet. These
+// routes are the scene's only while the page is (the boundary brings `prouts-page` over), and go once
+// the player has come across it. A bribe isn't a way in (bought attention isn't trust), so it has a
+// route of its own, which the decider can tell from a real try: no dice, and no boot.
+const bribeCob = (beat: string): Transition => ({
+  id: "bribe-cob", essential: "prouts-page",
+  when: "The player offers money, food or a trade for a look in Cob's boot, to Cob or to Nan for him, and nothing more (no appeal to what he's afraid of, no promise that answers it): Cob haggles, boasts and takes what's going, but the boot stays on, and Nan won't sell a look in a child's boot either. Bought attention isn't trust. What's really wrong comes out instead, his way: not out here, not with the big cove looking, and what happens to Cob after?",
+  to: beat,
+});
+
+const coaxCob = (beat: string): Transition => ({
+  id: "coax-cob", on: "attempt", essential: "prouts-page",
+  when: "The player tries to win Cob round to showing them what crackles in his left boot (taking it off, or letting them unpick the lining) by reaching him: an appeal to what he cares about (Mister Prout, the men from the loft, his own skin), a promise, or a tale he might swallow, where it could go either way. Paying for a look isn't this. (Real trust, or a promise that truly answers what he's afraid of, made where the big man by the fire can't see, needs no dice.)",
+  check: { reason: "to get Cob to show you what's in his boot",
+    skill: "persuasion", dc: 13,
+    success: "Cob looks past them at the scullery door, and the fire beyond it, for a long moment. Then he sits on an upturned pot, unlaces the left boot and picks the lining open with a dirty thumbnail, muttering that if this is a trick Cob'll know. Out comes a page, folded small and gone soft at the corners, and he holds it out like it might bite: 'That's Mister Prout's writing. That's why it crackled.' He can't read it; anyone who can sees a dozen grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'. If he heard the posh cove ask for 'the page' that night, it comes together for him now, and he goes white.",
+    failure: "Cob won't, and it costs, whichever fits where and how they tried: in the scullery, he's out through the slop hatch Nan told him never to use and down onto the wet steps under it, and her face says whose fault that is; or he yells for Mrs Q, and Nan comes round the bar to ask what the player wants with her pot-boy's boots; or, out in the room, his yelp turns heads, and in the fireside corner Hobb looks up and sees who's bothering the boy. The boot isn't lost: Cob comes back for his stew, warier, and real trust or Nan's word can still open it.",
+    onSuccess: beat,
+  },
+});
+
+const nanVouches = (beat: string): Transition => ({
+  id: "nan-vouches", on: "attempt", essential: "prouts-page",
+  when: "The player asks Nan to tell Cob to show them what's in his boot (or to vouch for them to the boy), giving her a reason, where it could go either way. Paying her for it isn't this. (A reason plainly good for the boy, his name kept out of it and the big man's sort kept off him, needs no dice.)",
+  check: { reason: "to get Nan to tell Cob to show you his boot",
+    skill: "persuasion", dc: 12,
+    success: "Nan looks at the player for a long moment, then wipes her hands and calls through to the scullery: 'Cob. Here, my duck. Show them your boot.' And because it's Nan, he does, sulking: the left one off, the lining picked open, a folded page held out at arm's length. 'That's Mister Prout's.'",
+    failure: "Nan says the boy's boots are the boy's business, and that's a rule of the house now if it wasn't before. She keeps Cob by her behind the bar the rest of the night, and an eye on the player. The boy himself might still be won, if he's given real reason.",
+    onSuccess: beat,
+  },
+});
+
+// What needs no dice gets a route of its own too, so the decider can see a kindness simply work.
+const trustCob = (beat: string): Transition => ({
+  id: "trust-cob", essential: "prouts-page",
+  when: "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player gives Cob real reason to trust them, or a promise that truly answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, whatever's in the boot going to the King and not the watch); or Nan, given a reason plainly good for the boy, tells him to. Cob takes the left boot off and lets them unpick the lining: Prout's page is out.",
+  to: beat, establishes: [PAGE],
+});
+
+const pageShown = (beat: string): Transition => ({
+  id: "page-shown", essential: "prouts-page", given: true,
+  when: "Prout's page has come out of the lining of Cob's left boot and the player has it in hand or has read it: Cob unpicked it for them or let them (trusting them, for a promise that answered his fear, or on Nan's word), or it came out some other way.",
+  to: beat, establishes: [PAGE],
+});
+
+/** The page's ways in, on a beat where Cob is about (and the bribe that isn't one). */
+const pageRoutes = (beat: string): Transition[] => [bribeCob(beat), trustCob(beat), coaxCob(beat), nanVouches(beat), pageShown(beat)];
 
 export const drownedRat: Scene = {
   id: "drowned-rat",
@@ -150,6 +211,7 @@ export const drownedRat: Scene = {
         "Hobb sends his wages to his mum in the Shambles every week, without fail. That one's free; everybody knows it.",
         "Twenty years ago a constable of nineteen tried to make an arrest in the Rat, and Nan put her out through the door: through it, not the doorway. The constable was Agnes Kell. Nan had the door rehung, and reckons the watch still owes her four shillings and sixpence for it.",
         "Cob is her pot-boy on busy nights, for a penny and a bowl of eel stew. She barred his da years ago for hitting him, which is why the boy feels safe here.",
+        "Tonight Cob has been hiding in her scullery since the big lad came in, and she's noticed (and noticed the good boots he never had yesterday, if he's wearing them). Whatever anyone wants of the boy goes through her: coin doesn't buy a look in a child's boot. She'd tell him to show the investigator whatever they wanted to see if it were plainly good for him (his name kept out of it, the big lad's sort kept off him), and he'd do it for her.",
       ],
       secrets: [
         "Shows: her eyes go to Hobb's corner every time the door opens, and she won't take a pint measure down for anything about the gentleman Hobb works for. Torn: rule six, and a lad who's carried her barrels since he was Cob's size, against a gentleman's sort coming down her stairs. Opens: respect for the house, a fair price, and, though she'd deny it, something that's plainly good for Hobb or for Cob. First: 'That's a quart, my duck. I don't sell quarts.'",
@@ -198,6 +260,7 @@ export const drownedRat: Scene = {
         "Shows: he won't come out of the scullery while the big man is in the room, and when he does, he keeps the bar between them and won't look at the fireside corner. Opens: someone he trusts, somewhere Hobb can't see. First: a jerk of the head towards the fire, from behind something.",
         "Big Hobb is the big cove from the loft last night. Cob knew him by the lantern light (the size of him, and his voice saying 'Yes, Master'), and he's seen him in here for years. He saw Hobb come in tonight and has been hiding in the scullery since. He'll tell it to someone he trusts, or point, from behind something; never where Hobb can see.",
         "He pinched one of Hobb's new silver pennies off the pot tray. It's got a heron on it, not the King.",
+        "Only if Prout's page is still sewn into his left boot (the world has it there, and it's among what the player needs to come across): he doesn't know it's there; the crackle is what good boots do. The boots are the first good thing he's ever owned, and a coin or a bowl of stew buys boasts and haggling, never the boot: he says, his way, what's wrong instead (not out here, not with the big cove looking, and what happens to Cob after?). For someone he trusts, out of the big cove's sight, or for a promise that answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, whatever's in there going to the King and not the watch), he takes the left one off and lets them unpick it; and if Nan tells him to, he does it for her.",
       ],
       attitude: "How he takes the investigator and the sergeant tonight is as things stand between them after the granary. Whatever that is, with the big cove in the room he's quieter and jumpier than he was, and sticks near the scullery door. Bought attention isn't trust: food or coin gets boasts and bargaining; respect, kindness or a laugh at his jokes gets real talk; only believing someone will keep him safe from the men gets what he knows. If grabbed, he bolts for the scullery. Ties here: Nan, the only grown-up who ever did anything about his da (he'd die before saying so); Hobb, who gave him the end of his pie once, which makes it worse. (If what happened before has him locked up in the watch house, he isn't here tonight: Nan has no pot-boy, and the scene doesn't need him.)",
     },
@@ -264,7 +327,7 @@ export const drownedRat: Scene = {
           to: "big-hobb", establishes: [IDENTIFIED],
         },
         { id: "heron-learned", when: "The player has learned that Hobb does night work at the Heron warehouse downriver (from Nan's gossip, Dilly, the regulars, or the heron on the new pennies).", to: "the-rat", establishes: [HERON] },
-        winHobb, scareHobb, trickHobb, armWrestle("the-rat"),
+        winHobb, scareHobb, trickHobb, armWrestle("the-rat"), ...pageRoutes("the-rat"),
         bell("The player has been in the Rat a long while (at least eight exchanges at this point) without getting anywhere with Hobb, or is idling or going round in circles: the eleventh bell rings across the water, and Hobb gets up to go to work."),
       ],
     },
@@ -288,7 +351,7 @@ export const drownedRat: Scene = {
           to: "confession", establishes: [TALKED],
         },
         { id: "heron-learned", when: "The player has learned that Hobb does night work at the Heron warehouse downriver (from Hobb, Nan's gossip, Dilly, the regulars, or the heron on the new pennies).", to: "big-hobb", establishes: [HERON] },
-        winHobb, scareHobb, trickHobb, armWrestle("big-hobb"),
+        winHobb, scareHobb, trickHobb, armWrestle("big-hobb"), ...pageRoutes("big-hobb"),
         bell("The player has been at Hobb a good while (at least six exchanges at this point) without him breaking, or is going round in circles: the eleventh bell rings across the water, and Hobb gets up to go to work."),
       ],
     },
@@ -356,6 +419,7 @@ export const drownedRat: Scene = {
         },
         { id: "let-him-go", on: "attempt", when: "The player is done at the Rat: they leave with what Hobb told them, letting him go to his night's work (or taking him along), without having him arrested.", to: "hobb-talks" },
         { id: "hobb-runs", when: "Hobb's nerve has gone and he's bolting for the door (at the word 'arrest', or at the thought of his master).", to: "on-his-feet" },
+        ...pageRoutes("confession"),
         { id: "bell-talked", on: "cue", when: "The player has had Hobb's story a while (at least five exchanges at this point) without deciding what becomes of him: the eleventh bell, and Hobb has to go to work.", to: "hobb-talks" },
       ],
     },
@@ -387,6 +451,7 @@ export const drownedRat: Scene = {
         heronLead(world);
         world.quest("purveyors-man").advance("hobb_talked", "Big Hobb Mallory says Master Sallow killed Prout in the tally loft and had Hobb hoist him; the stolen grain goes through the Heron warehouse.");
         world.journal("Big Hobb talked. The grain goes through the Heron warehouse, and tonight a barge is loading there.");
+        keepPage(world, outcome);
       },
     },
     {
@@ -404,6 +469,7 @@ export const drownedRat: Scene = {
         if (knowsHeron(outcome)) heronLead(world);
         world.quest("purveyors-man").advance("hobb_arrested", "Big Hobb Mallory, the big man with the bandaged hand, is in the watch-house cells.");
         world.journal("Kell took Big Hobb in. He's in the watch-house cells tonight.");
+        keepPage(world, outcome);
       },
     },
     {
@@ -420,6 +486,7 @@ export const drownedRat: Scene = {
         world.setFlag("sallow_warned", true);
         if (knowsHeron(outcome)) heronLead(world);
         world.journal("Big Hobb ran from the Drowned Rat, and he'll have gone straight to his master.");
+        keepPage(world, outcome);
       },
     },
     {
@@ -435,6 +502,7 @@ export const drownedRat: Scene = {
         if (has(outcome.established, IDENTIFIED) || has(outcome.established, TALKED)) world.setFlag("hobb_identified", true);
         if (knowsHeron(outcome)) heronLead(world);
         world.journal("Thrown out of the Drowned Rat by Nan Quill and her cudgel, Manners.");
+        keepPage(world, outcome);
       },
     },
     {
@@ -447,6 +515,7 @@ export const drownedRat: Scene = {
         if (has(outcome.established, IDENTIFIED)) world.setFlag("hobb_identified", true);
         if (knowsHeron(outcome)) heronLead(world);
         world.journal("Big Hobb went off to his night's work at the bell without telling us what he knows.");
+        keepPage(world, outcome);
       },
     },
   ],
@@ -471,6 +540,18 @@ export const drownedRat: Scene = {
       placedWith: ["Hobb, once he talks, and the token on the string round his neck"],
       carriers: ["hobb"],
       unlocks: "getting into the Heron tonight, and catching its master at it",
+    },
+    // Only if the player missed it at the granary: the boundary brings it over, with its routes.
+    {
+      id: "prouts-page", missed: "hanged-clerk:page",
+      what: "Prout's page, still sewn into the lining of the left boot on Cob's feet: razored from the Royal Granary Roll, a dozen King's Road grain wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and, at the foot, 'Not goblins. Who pays the hedge-folk?'",
+      placedWith: [
+        "the left boot on Cob's feet, which crackles when he stamps (he thinks that's what good boots do)",
+        "Cob, in the scullery out of the big cove's sight, for someone he trusts or a promise that answers what he's afraid of",
+        "Nan, whose word Cob would take, for a reason plainly good for the boy",
+      ],
+      carriers: ["cob", "nan-quill"],
+      unlocks: "Sallow's countersignature in writing, beside Prout's weights: the motive, and proof the King can hold",
     },
   ],
   limits: [

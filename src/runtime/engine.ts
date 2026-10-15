@@ -12,8 +12,9 @@ import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
+import { bringOver, carryLines, OWED_INSTRUCTION, owedAtEnd, owedKey, owedPrep, owedSchema, owedText, placeOwedThings, type OwedVerdict } from "./owed.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
-import { newSessionId, saveSession, snapshotSession, type Backstory, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
+import { newSessionId, saveSession, snapshotSession, type Backstory, type Entry, type EntryKind, type Owed, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
 import { errandsOf, savePlayedScene, writePlayerBackstory } from "../lore/docs.ts";
@@ -129,6 +130,8 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     state.world = buildWorld(scene.id, scene.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name })), state.player);
     joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), 0);
     for (const e of state.carried ?? []) state.world.entities[e.id] = { ...e, parent: e.parent && state.carried!.some(c => c.id === e.parent) ? e.parent : "player" };
+    // What the story still owes the player is where it was left, with whoever has it (the page in Cob's boot).
+    placeOwedThings(state);
     // A purse at the start of the story (and from then on, whatever they carry).
     if (!state.history.length && !Object.values(state.world.entities).some(e => e.parent === "player" && /pennies|shillings|crowns/.test(e.name))) {
       for (const coin of startingPurse()) inventory(state.world, 0).add("player", coin);
@@ -543,8 +546,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
   // Whoever came on this turn (a cue's entrance, someone called in) is in the world before the stage
   // manager reads it: otherwise it makes them again from the reply ("a young man in livery") beside
-  // the cast's own, who joins the world at the end of the turn.
-  if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn);
+  // the cast's own, who joins the world at the end of the turn. (What they have of what's owed comes with them.)
+  if (state.world) { joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn); placeOwedThings(state); }
   // The stage manager keeps the world in step with what the reply established, alongside the decision.
   const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn, {
     rules: state.transcript.filter(e => e.turn === state.turn && e.kind === "roll" && (e.scene ?? state.sceneId) === state.sceneId).map(e => e.text),
@@ -617,7 +620,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     }
   }
   // Whoever is on stage now (an entrance, someone called in) is in the world too.
-  if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn);
+  if (state.world) { joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn); placeOwedThings(state); }
   if (!state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);
@@ -689,7 +692,9 @@ export async function chainScene(state: SessionState, combatResult = "the party 
     id = candidate.assumes?.length ? candidate.overtaken : undefined;
   }
   if (!candidates.length) return undefined;
-  const { handoff, sceneId, adjustments, skipped, opening, lead, fronts } = await crossBoundary(scene, state, exit, combatResult, candidates);
+  // What the story still owes the player (missed here or before), from the world as this scene leaves it.
+  const owed = owedAtEnd(scene, state);
+  const { handoff, sceneId, adjustments, skipped, opening, lead, fronts, owed: verdict } = await crossBoundary(scene, state, exit, combatResult, candidates, undefined, owed);
   const memory = approachById(state.approach).memory;
   if (memory === "docs") broadcastEnding(scene, state, exit);
   if (memory === "lite") await rememberScene(scene, state, `${exit.title}: ${exit.outcome}`).catch(() => undefined);
@@ -703,6 +708,8 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   delete state.world;
   freshScene(state, next);
   Object.assign(state, { adjustments, opening, lead });
+  // What's still owed goes on, and what can come up in the next scene is one of its essentials.
+  bringOver(state, next, owed, verdict);
   saveSession(state);
   return state;
 }
@@ -750,9 +757,10 @@ export function closeHubScene(state: SessionState): void {
  * The scene boundary: the hand-off (the state of things as established in play), and, in parallel,
  * which upcoming scene still holds (a scene whose premise play has already settled or bypassed is
  * skipped) and where that scene's prep is out of date. Prep is written before play; this is where
- * it catches up.
+ * it catches up. What the story still owes the player (`owed`) is judged in the same call: found
+ * after all, or whether it can come up in that scene, and where (src/runtime/owed.ts).
  */
-async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[], frontsDoc?: string): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[] }> {
+async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[], frontsDoc?: string, owed: Owed[] = []): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[]; owed?: OwedVerdict[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
   const ended = `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
   const story = [
@@ -765,7 +773,9 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     c.assumes?.length ? `It takes for granted:\n${c.assumes.map(a => `- ${a}`).join("\n")}` : "It takes nothing for granted: it always holds.",
     `Its opening (its time and place): ${c.opening}`,
     ...(c.background?.length ? [`Its background: ${c.background.join(" ")}`] : []),
-    `Its people: ${c.cast.map(p => `${p.name} (${p.look.slice(0, 220)}${p.look.length > 220 ? "..." : ""})`).join("; ")}`,
+    // (With something owed, their ids: the verdict names who there could bring it out.)
+    `Its people: ${c.cast.map(p => `${p.name}${owed.length ? ` [${p.id}]` : ""} (${p.look.slice(0, 220)}${p.look.length > 220 ? "..." : ""})`).join("; ")}`,
+    ...(owed.length && owedPrep(c, owed) ? [owedPrep(c, owed)!] : []),
   ].join("\n");
   // The time between: what the people the story carries on with (the last scene's, who are in the
   // scenes to come) do on their own, from their lore, which is as true as play; and the names the
@@ -783,7 +793,7 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things in the story at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Leave out anything said out of character (questions or agreements about the game itself). Be concrete and brief: a short paragraph, then up to eight bullet points.",
     input: [{ role: "user", content: story }],
   }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title} (${scene.id}: ${exit.id}).\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
-  const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string; lead: string }>({
+  const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string; lead: string; owed?: Array<Omit<OwedVerdict, "here"> & { here: boolean }> }>({
     operation: "boundary", effort: "low",
     instructions: [
       "The upcoming scenes of a roleplaying game were written before play. Check them against what has actually happened in the story, and bring the player on to the next one.",
@@ -792,13 +802,15 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
       "2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Write each as a short statement of what is true instead, so its GM can adapt (\"Hobb is in the watch-house cells, not on the hoist.\"). Leave out everything that still fits. An empty list is fine.",
       "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on) and drop or change whatever the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). It's told to the player, so anyone whose name they haven't heard goes by what they'd call them. If nothing needs changing, return the author's opening as it is.",
       "4. lead: one or two sentences of second-person fiction that the player reads as the time passes. Having read it, they know where the story goes next (that first scene that holds: its place), why they're going and what they hope to find out there, in their own terms (what they've seen and been told, never what the scene is about), and how the time between passed for them. Its reasons are what they learned in play and what someone tells them of what they did in the time between (in that person's own reasoning, as their lore has it), joined up the way the player would join them; never the coming scenes' prep or the GM's truth, not even as a hope. Anyone whose name they haven't heard goes by what they'd call them, and anyone they've never met or heard of comes in as they were seen (\"a woman in a grey hood\"). No game talk.",
+      ...(owed.length ? [OWED_INSTRUCTION] : []),
     ].join("\n"),
-    input: [{ role: "user", content: [story, ...between, `## Upcoming scenes, in order (the GM's prep, written before play: the player knows none of it)\n${candidates.map(prep).join("\n\n")}`].join("\n\n") }],
-    json: { name: "boundary", schema: { type: "object", additionalProperties: false, required: ["scenes", "adjustments", "opening", "lead"], properties: {
+    input: [{ role: "user", content: [story, ...between, ...(owed.length ? [owedText(owed)] : []), `## Upcoming scenes, in order (the GM's prep, written before play: the player knows none of it)\n${candidates.map(prep).join("\n\n")}`].join("\n\n") }],
+    json: { name: "boundary", schema: { type: "object", additionalProperties: false, required: ["scenes", "adjustments", "opening", "lead", ...(owed.length ? ["owed"] : [])], properties: {
       scenes: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "holds", "why"], properties: { id: { type: "string" }, holds: { type: "boolean" }, why: { type: "string" } } } },
       adjustments: { type: "array", items: { type: "string" } },
       opening: { type: "string" },
       lead: { type: "string" },
+      ...(owed.length ? { owed: owedSchema([...new Set(candidates.flatMap(c => c.cast.map(p => p.id)))]) } : {}),
     } } },
   }).catch(() => undefined);
   // What's in motion in the world (the GM's fronts), as it stands in this session, moves on here too.
@@ -817,22 +829,29 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const lead = firstHolding?.id === chosen.id && result?.lead?.trim() ? result.lead.trim() : undefined;
   const shows = chosen.id === candidates[0]!.id ? motion?.shows ?? [] : [];
   const adjustments = [...(result?.adjustments ?? []).slice(0, 10), ...shows.slice(0, 2)].map(a => a.trim()).filter(Boolean);
-  return { handoff: text, sceneId: chosen.id, adjustments, skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved };
+  // What's owed: found after all (that's about the last scene), and whether and where it comes up
+  // next (only when the verdict was about the scene the story goes to).
+  const judged = result?.owed?.filter(v => owed.some(o => owedKey(o) === v.id))
+    .map((v): OwedVerdict => firstHolding?.id === chosen.id ? v : { id: v.id, found: v.found, placedWith: [], carriers: [], why: v.why });
+  return { handoff: text, sceneId: chosen.id, adjustments, skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved, ...(judged ? { owed: judged } : {}) };
 }
 
 /**
  * The scene boundary, crossed without moving on (the zoo's boundary desk): the hand-off of the scene
  * the session last played, a next scene's prep checked against what happened (what's out of date,
- * its opening rewritten, how the player hears of it), and the fronts moved on in the session's copy
- * of their doc, all exactly as chainScene does them; but the session stays where it is.
+ * its opening rewritten, how the player hears of it, and what the story still owes the player), and
+ * the fronts moved on in the session's copy of their doc, all exactly as chainScene does them; but
+ * the session stays where it is.
  */
-export async function boundaryPreview(state: SessionState, nextId: string, frontsDoc?: string): Promise<{ handoff: string; adjustments: string[]; opening?: string; lead?: string; fronts: string[] }> {
+export async function boundaryPreview(state: SessionState, nextId: string, frontsDoc?: string): Promise<{ handoff: string; adjustments: string[]; opening?: string; lead?: string; fronts: string[]; owed: string[] }> {
   const scene = sceneById(state.sceneId);
   const exitId = state.ended?.exitId ?? state.history.findLast(h => h.sceneId === scene.id)?.exitId;
   const exit = scene.exits.find(e => e.id === exitId);
   if (!exit) throw new Error(`${scene.title} hasn't ended: there's nothing to hand on yet.`);
-  const crossed = await crossBoundary(scene, state, exit, "the party won", [sceneById(nextId)], frontsDoc);
-  return { handoff: crossed.handoff, adjustments: crossed.adjustments, ...(crossed.opening ? { opening: crossed.opening } : {}), ...(crossed.lead ? { lead: crossed.lead } : {}), fronts: crossed.fronts };
+  const next = sceneById(nextId);
+  const owed = owedAtEnd(scene, state);
+  const crossed = await crossBoundary(scene, state, exit, "the party won", [next], frontsDoc, owed);
+  return { handoff: crossed.handoff, adjustments: crossed.adjustments, ...(crossed.opening ? { opening: crossed.opening } : {}), ...(crossed.lead ? { lead: crossed.lead } : {}), fronts: crossed.fronts, owed: carryLines(owed, next, crossed.owed) };
 }
 
 /**

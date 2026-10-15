@@ -125,8 +125,9 @@ interface DecisionRun { case: string; decider: string; sample: number; ok: boole
 async function runDecision(c: DecisionCase, decider: string, sample: number): Promise<DecisionRun> {
   try {
     const state = buildFixture(c.scene, c.setup, { id: `${c.id}--${decider}--${sample}`, approach: "gm", seed: 1 });
-    // A snapshot's co-GM routes are part of the scene it was taken in, as they are in play.
-    const scene = state.patches.length ? effectiveScene(sceneById(c.scene), state.patches) : sceneById(c.scene);
+    // The scene as play has it: a snapshot's co-GM routes, and what the boundary brought over, are
+    // part of the scene it was taken in (and prep for something not missed isn't).
+    const scene = effectiveScene(sceneById(c.scene), state.patches);
     state.transcript.push({ turn: state.turn + 1, scene: scene.id, speaker: "player", kind: "player", text: c.input });
     const d = deciderFor(decider);
     const started = performance.now();

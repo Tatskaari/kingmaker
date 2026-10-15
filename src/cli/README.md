@@ -149,5 +149,5 @@ Before it's written, the key in use (and the dev key, if there is one on the mac
 - **The QA console always plays `v2`.** `Game.create` (src/game/play.ts) fixes the approach. The harness takes `--approach`.
 - **Background jobs race the next command.** The QA console doesn't wait for the last turn's jobs. The harness waits for the co-GM only if `KM_REPAIR_WAIT_MS` says so. Jobs write their own files, which the next turn picks up when it finds them.
 - **Hidden commands.** `remember`, `repair` (the background jobs) and `memories` aren't in the harness's usage text.
-- **Unused imports kept alive.** scene.ts ends with `.finally(() => { void sessionSpend; void readFileSync; void applyRepair; })` (scene.ts:267). Nothing else in the file uses `sessionSpend` or `applyRepair`.
+- **Unused imports kept alive.** scene.ts ends with `.finally(() => { void sessionSpend; void readFileSync; void applyRepair; })` (scene.ts:269). Nothing else in the file uses `sessionSpend` or `applyRepair`.
 - **No fights in the harness.** A combat exit is skipped as won. Fights are only in the playable game (the app, the QA console, the zoo's tour).

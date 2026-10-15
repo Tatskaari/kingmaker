@@ -32,7 +32,7 @@ This module owns the shape and the rules on it. Where the game keeps a world, or
 
 | where | what | written by |
 |---|---|---|
-| `SessionState.world` (state.json) | the current scene's world | built when a scene with a `world` spec opens ([src/runtime/engine.ts:128](../runtime/engine.ts#L128)), dropped at the scene boundary |
+| `SessionState.world` (state.json) | the current scene's world | built when a scene with a `world` spec opens ([src/runtime/engine.ts:129](../runtime/engine.ts#L129)), dropped at the scene boundary |
 | `SessionState.carried` | what the player carried out of the last world, into the next | `chainScene` and `closeHubScene` in src/runtime/engine.ts |
 | `ExploreState.overlay.scenes` (game.json) | what a played scene left in its place, as map actors | the map's `leaveScene` and `captureScene` ([src/game/map](../game/map/README.md)) |
 | `ExploreState.overlay.town` | what the rules did to the town outside scenes | [`keepTown`](../game/town-world.ts#L256); the town's world itself is rebuilt from the map for every act |
@@ -128,7 +128,7 @@ The zoo's Works wing ([src/game/zoo/README.md](../game/zoo/README.md#the-works-z
   - people don't burn outside fights: `ignite` does nothing to a person, and a burning surface burns only things ([systems.ts:196](systems.ts#L196));
   - something the story creates can't catch fire: `create` gives it no `flammable` tag ([scene-world.ts:526](scene-world.ts#L526));
   - the look director waits for a "fire spread to" log line ([src/game/look/director.ts:139](../game/look/director.ts#L139)) that nothing writes (the world logs "X catches fire").
-- **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:263](../runtime/engine.ts#L263)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
+- **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:266](../runtime/engine.ts#L266)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
 - **Spell areas ignore walls.** `caughtIn` is geometry in feet (its comment says the map will add walls). Fights lay areas on tiles and walls stop them ([src/game/combat/grid.ts `areaTiles`](../game/combat/grid.ts#L157)), so one Fireball can catch different people in a scene and in a fight.
 - **The DSL is a stub.** An exit script's `setFlag`, `quest`, `moveTo` or `addItem` is recorded and changes nothing in play. The story's flags come only from a fight's result.
 - **Half the inventory has no caller.** The strict, versioned `read`/`transfer`/`commit` are exercised only by their tests; the game uses `add` (the starting purse) and `settle`.
