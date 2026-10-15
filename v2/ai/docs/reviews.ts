@@ -1,16 +1,15 @@
 import { JevDecider, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
 import { runTools, InvalidToolArguments, type ToolDef } from "../llm/tools.ts";
-import { playerWho, presentCast, prompt, scriptTranscript, sceneEntries } from "../runtime/brief.ts";
-import type { Exit, Scene } from "../runtime/scene.ts";
-import type { SessionState } from "../runtime/session.ts";
+import { prompt } from "../prompts/index.ts";
 import { characterEntry, createDoc, editDoc, memoryIndexPath, memoryLines, playerDocPath, readDoc, saveMemory, searchDocs, type DocMeta } from "./docs.ts";
+import { script, type Ending, type WorkingSet } from "./types.ts";
 
 /**
  * V1's background memory, rebuilt for scenes. After each reply Jev classifies the moment against
  * V1's attention categories. Nothing flagged: nothing runs (the common case, one Jev call).
  * Each flagged category fires its own focused review: a Luna tool loop with only its tools, run
  * in order. Personal memories (commitments, relationships, exchanges) and world facts (improvised
- * details, world changes) are separate agents.
+ * details, world changes) are separate agents. Each is handed the scene's working set (types.ts).
  */
 
 const GUIDANCE = "Analyze the latest exchange in this live roleplaying scene (the player's turn and the game master's reply, which voices every character) for things the player might expect the world to react to. You are the GM's attention filter: help a living, responsive world remember what was said, follow through on agreements, and reconcile collaborative improvisation. Think like a good game master: help the player tell a fun, surprising story, honour binding roll outcomes, preserve continuity, and make meaningful interactions matter. Prefer flagging a plausible need for follow-up over silently losing it. Flagging asks the GM to review; it does not establish a claim as true, move anyone, transfer an item or complete an objective. Classify each category independently. Do not flag old developments merely because they appear in history, or routine greetings with no new detail, commitment or consequence. Do not invent missing details.";
@@ -28,24 +27,24 @@ export const CATEGORIES: Record<string, string> = {
 };
 
 /** What the prep already establishes (so narrating it isn't mistaken for improvisation). */
-function prepSummary(scene: Scene, state: SessionState): string {
-  const cast = presentCast(scene, state).map(c => `- ${c.name}: ${c.look} Knows: ${c.knows.join(" ")}`).join("\n");
-  return `The setting (prep): ${scene.setting}\nThe people (prep):\n${cast}${scene.limits?.length ? `\nWhat this place can't offer (prep): ${scene.limits.join(" ")}` : ""}`;
+function prepSummary(view: WorkingSet): string {
+  const cast = view.present.map(c => `- ${c.name}: ${c.look} Knows: ${c.knows.join(" ")}`).join("\n");
+  return `The setting (prep): ${view.scene.setting}\nThe people (prep):\n${cast}${view.scene.limits?.length ? `\nWhat this place can't offer (prep): ${view.scene.limits.join(" ")}` : ""}`;
 }
 
-const exchange = (scene: Scene, state: SessionState, turn: number) => scriptTranscript(scene, state, sceneEntries(state).filter(e => e.turn === turn));
-const before = (scene: Scene, state: SessionState, turn: number, n = 10) => scriptTranscript(scene, state, sceneEntries(state).filter(e => e.turn < turn).slice(-n));
+const exchange = (view: WorkingSet, turn: number) => script(view.transcript.filter(e => e.turn === turn));
+const before = (view: WorkingSet, turn: number, n = 10) => script(view.transcript.filter(e => e.turn < turn).slice(-n));
 
-export async function attend(scene: Scene, state: SessionState, turn: number, decider: Decider = new JevDecider()): Promise<string[]> {
-  const latest = exchange(scene, state, turn);
+export async function attend(view: WorkingSet, turn: number, decider: Decider = new JevDecider()): Promise<string[]> {
+  const latest = exchange(view, turn);
   if (!latest.trim()) return [];
   const questions: Record<string, ChoiceQuestion> = Object.fromEntries(Object.entries(CATEGORIES).map(([id, criterion]) => [id, {
     instructions: `${GUIDANCE}\nEvaluate ONLY ${id}: ${criterion}`,
     criteria: { flagged: `There is evidence of ${id} under the category rules; flag it for GM follow-up.`, not_flagged: `The ${id} category rules do not apply, or an explicit exclusion applies; do not flag this category.` },
   }]));
-  const earlier = before(scene, state, turn, 8);
+  const earlier = before(view, turn, 8);
   const decision = await decider.decide([
-    "# SYSTEM", `Scene: ${scene.title}. ${scene.premise}`, prepSummary(scene, state), `The player character: ${playerWho(state)}.`,
+    "# SYSTEM", `Scene: ${view.scene.title}. ${view.scene.premise}`, prepSummary(view), `The player character: ${view.player.who}.`,
     "Details the prep already establishes are not improvised, even when the GM narrates them for the first time.",
     "# USER", ...(earlier ? [`Earlier in the scene:\n${earlier}`] : []), `The latest exchange:\n${latest}`,
   ].join("\n\n"), questions, "memory.attend");
@@ -109,8 +108,8 @@ const TOOLS_FOR: Record<ReviewKind, string[]> = {
 
 export interface ReviewRecord { kind: ReviewKind; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
 
-async function review(kind: ReviewKind, scene: Scene, state: SessionState, turn: number, flags: string[], effort: "low" | "medium" | "high"): Promise<ReviewRecord> {
-  const present = presentCast(scene, state);
+async function review(kind: ReviewKind, view: WorkingSet, turn: number, flags: string[], effort: "low" | "medium" | "high"): Promise<ReviewRecord> {
+  const present = view.present;
   const changes: string[] = [];
   const handle = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
     const s = (k: string) => { const v = args[k]; if (typeof v !== "string" || !v.trim()) throw new InvalidToolArguments(`${name} needs ${k}`); return v; };
@@ -118,21 +117,21 @@ async function review(kind: ReviewKind, scene: Scene, state: SessionState, turn:
       case "save_memory": {
         const c = present.find(x => x.id === s("characterId"));
         if (!c) throw new InvalidToolArguments(`Only people present can remember this: ${present.map(x => x.id).join(", ")}`);
-        const path = saveMemory(state.id, { id: c.id, name: c.name }, { title: s("title"), context: s("context"), content: s("content") }, { scene: scene.id, turn });
+        const path = saveMemory(view.game, { id: c.id, name: c.name }, { title: s("title"), context: s("context"), content: s("content") }, { scene: view.scene.id, turn });
         changes.push(`memory ${c.id}: ${s("title")}`);
         return { ok: true, path };
       }
-      case "list_memories": return { ok: true, index: memoryLines(state.id, s("characterId")), path: memoryIndexPath(s("characterId")) };
-      case "read_doc": { const d = readDoc(state.id, s("path")); return d ? { ok: true, path: d.path, meta: d.meta, body: d.body } : { ok: false, error: "not found" }; }
-      case "search_lore": return { ok: true, results: searchDocs(state.id, s("query")) };
+      case "list_memories": return { ok: true, index: memoryLines(view.game, s("characterId")), path: memoryIndexPath(s("characterId")) };
+      case "read_doc": { const d = readDoc(view.game, s("path")); return d ? { ok: true, path: d.path, meta: d.meta, body: d.body } : { ok: false, error: "not found" }; }
+      case "search_lore": return { ok: true, results: searchDocs(view.game, s("query")) };
       case "edit_doc": {
-        try { editDoc(state.id, s("path"), s("old_text"), String(args.new_text ?? "")); } catch (error) { return { ok: false, error: (error as Error).message }; }
+        try { editDoc(view.game, s("path"), s("old_text"), String(args.new_text ?? "")); } catch (error) { return { ok: false, error: (error as Error).message }; }
         changes.push(`edit ${s("path")}`);
         return { ok: true };
       }
       case "create_doc": {
-        const meta: DocMeta = { summary: s("summary"), visibility: s("visibility") as DocMeta["visibility"], ...(Array.isArray(args.readers) ? { readers: args.readers as string[] } : {}), scene: scene.id, turn };
-        try { createDoc(state.id, s("path"), meta, s("body")); } catch (error) { return { ok: false, error: (error as Error).message }; }
+        const meta: DocMeta = { summary: s("summary"), visibility: s("visibility") as DocMeta["visibility"], ...(Array.isArray(args.readers) ? { readers: args.readers as string[] } : {}), scene: view.scene.id, turn };
+        try { createDoc(view.game, s("path"), meta, s("body")); } catch (error) { return { ok: false, error: (error as Error).message }; }
         changes.push(`create ${s("path")}`);
         return { ok: true };
       }
@@ -141,9 +140,9 @@ async function review(kind: ReviewKind, scene: Scene, state: SessionState, turn:
   };
   const people = present.map(c => {
     const entry = characterEntry(c.id);
-    return `- ${c.id}: ${c.name}${entry ? ` (lore: ${entry})` : ""}. Memory index: ${memoryLines(state.id, c.id).length ? `\n${memoryLines(state.id, c.id).map(l => `    ${l}`).join("\n")}` : "(empty)"}`;
+    return `- ${c.id}: ${c.name}${entry ? ` (lore: ${entry})` : ""}. Memory index: ${memoryLines(view.game, c.id).length ? `\n${memoryLines(view.game, c.id).map(l => `    ${l}`).join("\n")}` : "(empty)"}`;
   }).join("\n");
-  const rolls = sceneEntries(state).filter(e => e.turn === turn && e.kind === "roll").map(e => e.text);
+  const rolls = view.transcript.flatMap(e => e.turn === turn && e.roll !== undefined ? [e.roll] : []);
   const started = performance.now();
   try {
     const result = await runTools({
@@ -151,13 +150,13 @@ async function review(kind: ReviewKind, scene: Scene, state: SessionState, turn:
       instructions: [prompt("review/system"), ...PROMPTS[kind](flags).map(p => prompt(p)), kind === "memories" ? "Write at most one memory per person for this moment, and none where their memories already cover it: steps along the way and routine talk don't need remembering. Someone recalling or answering a question about the past isn't a new memory: record what they newly learned or how their view changed, never their own recollection." : ""].filter(Boolean).join("\n\n"),
       input: [{ role: "user", content: [
         `## Your task: the ${kind === "memories" ? "personal memories" : "world facts (lore)"} review (flags raised on this moment: ${flags.filter(f => FIRES[kind].includes(f)).join(", ")})`,
-        `## Scene: ${scene.title}\n${scene.premise}${scene.lore?.length ? `\nLore for this place: ${scene.lore.join(", ")}` : ""}`,
-        ...(kind === "lore" ? [`## What the scene's prep already establishes (narrating it is not improvising it)\n${prepSummary(scene, state)}`] : []),
-        `## The player character\n${playerWho(state)}${kind === "lore" ? ` (their doc: ${playerDocPath(state.player.name)})` : ""}`,
+        `## Scene: ${view.scene.title}\n${view.scene.premise}${view.scene.lore?.length ? `\nLore for this place: ${view.scene.lore.join(", ")}` : ""}`,
+        ...(kind === "lore" ? [`## What the scene's prep already establishes (narrating it is not improvising it)\n${prepSummary(view)}`] : []),
+        `## The player character\n${view.player.who}${kind === "lore" ? ` (their doc: ${playerDocPath(view.player.name)})` : ""}`,
         `## People present (ids), with their lore entry and memory index\n${people}`,
         ...(rolls.length ? [`## Binding rulings this moment\n${rolls.map(r => `- ${r}`).join("\n")}`] : []),
-        `## Earlier in the scene\n${before(scene, state, turn) || "(nothing yet)"}`,
-        `## The moment to review\n${exchange(scene, state, turn)}`,
+        `## Earlier in the scene\n${before(view, turn) || "(nothing yet)"}`,
+        `## The moment to review\n${exchange(view, turn)}`,
       ].join("\n\n") }],
       tools: TOOLS_FOR[kind].map(n => TOOL[n]!),
     }, handle);
@@ -168,10 +167,10 @@ async function review(kind: ReviewKind, scene: Scene, state: SessionState, turn:
 }
 
 /** One turn, V1-style: attention, then the fired reviews in order (each sees the last one's edits). */
-export async function reviewTurn(scene: Scene, state: SessionState, turn: number, options: { decider?: Decider; effort?: "low" | "medium" | "high" } = {}): Promise<{ flags: string[]; reviews: ReviewRecord[] }> {
-  const flags = await attend(scene, state, turn, options.decider);
+export async function reviewTurn(view: WorkingSet, turn: number, options: { decider?: Decider; effort?: "low" | "medium" | "high" } = {}): Promise<{ flags: string[]; reviews: ReviewRecord[] }> {
+  const flags = await attend(view, turn, options.decider);
   const reviews: ReviewRecord[] = [];
-  for (const kind of plan(flags)) reviews.push(await review(kind, scene, state, turn, flags, options.effort ?? "medium"));
+  for (const kind of plan(flags)) reviews.push(await review(kind, view, turn, flags, options.effort ?? "medium"));
   return { flags, reviews };
 }
 
@@ -179,10 +178,10 @@ export async function reviewTurn(scene: Scene, state: SessionState, turn: number
  * V1's milestone broadcast: when a scene ends, everyone present gets one fixed memory of how it
  * ended (the authored outcome), so the ending itself is never left to chance.
  */
-export function broadcastEnding(scene: Scene, state: SessionState, exit: Exit): string[] {
-  return presentCast(scene, state).map(c => saveMemory(state.id, { id: c.id, name: c.name }, {
-    title: `${scene.title}: how it ended`,
+export function broadcastEnding(view: WorkingSet, exit: Ending): string[] {
+  return view.present.map(c => saveMemory(view.game, { id: c.id, name: c.name }, {
+    title: `${view.scene.title}: how it ended`,
     context: `I was there when it ended (${exit.title}).`,
     content: exit.outcome,
-  }, { scene: scene.id, turn: state.turn }));
+  }, { scene: view.scene.id, turn: view.turn }));
 }

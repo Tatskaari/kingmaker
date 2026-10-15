@@ -1,6 +1,6 @@
 import { modelOffline, respondJson, type Ask } from "../llm/openrouter.ts";
-import type { Backstory } from "../runtime/session.ts";
 import { seedDoc, seedPaths, titleOf, type Doc } from "./docs.ts";
+import type { Backstory } from "./types.ts";
 
 /**
  * The player's backstory at character creation: drafting one from the concept and the build,

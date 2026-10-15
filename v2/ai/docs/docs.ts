@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, normalize } from "node:path";
-import { sessionDir } from "../runtime/session.ts";
+import { docsConfig, REPO_LORE } from "./config.ts";
 
 /**
  * The docs service (V1's, rebuilt): linked Markdown lore with frontmatter.
  * - Authored lore lives in lore/ (Cast/<Name>/{private,public,gm,knowledge/*}.md, World/, Places/).
  * - Each session gets a copy-on-write overlay (runs/sessions/<id>/docs/): play edits the session's
- *   lore, never the authored seed.
+ *   lore, never the authored seed. Both places are config.ts's to say.
  * - A character's memories live next to their lore entry: Cast/<Name>/memories/index.md plus one
  *   note per memory (V1's save_memory). Characters without lore get characters/<id>/memories/.
  * - Access fails closed: a character's scope sees public docs and private docs listing them as a
@@ -30,9 +30,10 @@ export interface DocMeta {
 export interface Doc { path: string; meta: DocMeta; body: string }
 export interface DocLink { path: string; from: string; title: string; summary: string; label: string }
 
-const REPO = join(import.meta.dirname, "..", "..");
-export const LORE_ROOT = join(REPO, "lore");
-const overlay = (sessionId: string) => join(sessionDir(sessionId), "docs");
+/** The repo's lore/: where the authored lore is read from, unless configureDocs (config.ts) says otherwise. */
+export const LORE_ROOT = REPO_LORE;
+const loreRoot = () => docsConfig().loreRoot;
+const overlay = (sessionId: string) => docsConfig().overlay(sessionId);
 
 function inside(root: string, path: string): string {
   const full = normalize(join(root, path));
@@ -61,7 +62,7 @@ export function parseDoc(path: string, text: string): Doc {
 }
 
 export function readDoc(sessionId: string, path: string): Doc | undefined {
-  for (const root of [overlay(sessionId), LORE_ROOT]) {
+  for (const root of [overlay(sessionId), loreRoot()]) {
     const f = inside(root, path);
     if (existsSync(f)) return parseDoc(path, readFileSync(f, "utf8"));
   }
@@ -70,7 +71,7 @@ export function readDoc(sessionId: string, path: string): Doc | undefined {
 
 /** A doc as authored, before any session's play has touched it. */
 export function seedDoc(path: string): Doc | undefined {
-  const f = inside(LORE_ROOT, path);
+  const f = inside(loreRoot(), path);
   return existsSync(f) ? parseDoc(path, readFileSync(f, "utf8")) : undefined;
 }
 
@@ -87,11 +88,11 @@ function walk(root: string, dir = ""): string[] {
 }
 
 export function listDocs(sessionId: string, options: { sessionOnly?: boolean } = {}): string[] {
-  return [...new Set([...walk(overlay(sessionId)), ...(options.sessionOnly ? [] : walk(LORE_ROOT))])].sort();
+  return [...new Set([...walk(overlay(sessionId)), ...(options.sessionOnly ? [] : walk(loreRoot()))])].sort();
 }
 
 /** The authored lore's docs, by path, before any session has a copy of them (character creation reads the world from these). */
-export const seedPaths = (): string[] => walk(LORE_ROOT).sort();
+export const seedPaths = (): string[] => walk(loreRoot()).sort();
 
 export const titleOf = (doc: Doc) => doc.meta.title ?? /^#\s+(.+)$/m.exec(doc.body)?.[1]?.trim() ?? basename(doc.path, ".md");
 
@@ -125,13 +126,16 @@ export function linksIn(sessionId: string, doc: Doc): DocLink[] {
 }
 
 let registry: Map<string, string> | undefined;
+let registryRoot: string | undefined;
 /** Scene cast id -> the character's lore entry (private.md with `character: <id>`). */
 export function characterEntry(id: string): string | undefined {
-  if (!registry) {
+  const root = loreRoot();
+  if (!registry || registryRoot !== root) {
     registry = new Map();
-    for (const path of walk(LORE_ROOT)) {
+    registryRoot = root;
+    for (const path of walk(root)) {
       if (!path.endsWith("private.md")) continue;
-      const doc = parseDoc(path, readFileSync(join(LORE_ROOT, path), "utf8"));
+      const doc = parseDoc(path, readFileSync(join(root, path), "utf8"));
       if (doc.meta.character) registry.set(doc.meta.character, path);
     }
   }
@@ -168,7 +172,7 @@ export function playerDoc(sessionId: string, player: { name: string; concept: st
 }
 
 /**
- * The player character's doc with their backstory in it (character creation's, src/lore/backstory.ts):
+ * The player character's doc with their backstory in it (character creation's, backstory.ts):
  * the whole of it in their words, and what it says of them, in the session's own overlay (never the
  * authored lore). It's the GM's (visibility gm): the GM's notes have it every turn, and nobody in the
  * story reads it. What they've told or shown people stays last, for the reviews to add to.
