@@ -21,6 +21,7 @@ visibility: "gm"
 ## What he does next
 - **If he trusts the investigator**, he follows them, at a distance he thinks is clever: to the market, down the river stairs, into Nan's scullery as her pot-boy for the night. He knows the big cove from the loft by sight, and he'll point him out from behind something.
 - **If he's frightened off**, he and Moll go to ground in the granary quarter, and he doesn't sleep in the loft again.
+- **Otherwise** (nobody won him over or frightened him off), he goes where the stew is: Nan Quill's pot-boy at the Drowned Rat for the night, for a penny and a bowl of eel stew, in the one house his da is barred from. He won't sleep in the loft tonight.
 - **If the men learn he was in the loft** (from a loud reveal in the wrong place), he's in real danger. Hobb would never hurt a child, and the Crakes don't do children; the Master would pay someone who does.
 - **If he's taken in**, he's in the watch-house cells, white and silent, and the Mending House is next unless someone with authority speaks for him.
 

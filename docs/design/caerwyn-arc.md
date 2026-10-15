@@ -81,7 +81,7 @@ Cards for recurring characters are written neutral to earlier outcomes: their vo
 
 1. **`hanged-clerk`** (existing). It ends with the case made, or open, or worse. The player leaves knowing some of these: a big man with a bandaged hand, Silvertop or Sallow, the wheat-ear crown, the page and its river-warehouse weights.
 2. **The hub.** Asking around at the watch house, the kitchens or the Corn Exchange (situation play), or straight to the river stairs. Leads to the Drowned Rat:
-   - Kell knows dock bruisers drink at the Rat.
+   - Kell, on her own errand at the noon break, sees the big man with the bandaged hand at a gentleman's elbow by the Purveyor's wagons, and follows him down the river stairs to the Rat. She also knows dock bruisers drink there.
    - Cob has seen the big cove "down the Rat".
    - Pruett hears the porters' gossip.
    - Fennick's wagon lists point to the river.

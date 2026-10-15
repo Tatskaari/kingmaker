@@ -138,6 +138,17 @@ export function characterEntry(id: string): string | undefined {
   return registry.get(id);
 }
 
+/**
+ * What someone does on their own if nobody stops them (their errands, scene by scene): the "What
+ * they do next" section of their gm.md, as this game's copy has it. None for people without lore.
+ */
+export function errandsOf(sessionId: string, id: string): string | undefined {
+  const entry = characterEntry(id);
+  const truth = entry ? readDoc(sessionId, join(dirname(entry), "gm.md")) : undefined;
+  const section = truth?.body.split(/^(?=## )/m).find(s => /^## What \w+ (?:does|do) next\b/.test(s));
+  return section?.replace(/^## .*\n?/, "").trim() || undefined;
+}
+
 export const memoryIndexPath = (id: string) => {
   const entry = characterEntry(id);
   return entry ? join(dirname(entry), "memories", "index.md") : `characters/${id}/memories/index.md`;

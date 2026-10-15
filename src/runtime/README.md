@@ -23,7 +23,7 @@ A session plays one authored scene at a time ([scenes/](../../scenes/README.md))
 | [engine.ts](engine.ts) | The turn pipeline: `createSession`, `openScene`, `playerTurn`, `resumeAfterFight`, `forceEnding` and `chainScene`. The boundary (`crossBoundary`, `moveOn`, `boundaryPreview`), the zoo's hub scenes (`openHubScene`, `closeHubScene`), and reactions to violence (`violence`, `witnessesOf`, `react`). |
 | [director.ts](director.ts) | What the decider is asked before the reply (`decideBefore`) and after it (`decideAfter`). The follow-up calls (a spell's or blow's details, a jump, a freeform roll, pressure), `decideReactions`, `decideNextSpeaker` for actors, and the directives that tell the GM what was decided. |
 | [voices.ts](voices.ts) | The GM (`gmReply`), the narrator and the actors (`narratorReply`, `actorReply`), and the guard against repeated sentences. |
-| [brief.ts](brief.ts) | What the GM is shown: the stable prep (`sceneBrief`) and the per-turn note (`nowNote`). Also the scene as play has it (`effectiveScene`: the authored scene, the co-GM's patches and "an ending of their own"), who is present, whose names the player hasn't heard, and the prompt loader (`prompt`). |
+| [brief.ts](brief.ts) | What the GM is shown: the stable prep (`sceneBrief`) and the per-turn note (`nowNote`). Also the scene as play has it (`effectiveScene`: the authored scene, the co-GM's patches and "an ending of their own"), who is present, whose names the player hasn't heard (`unnamed` in a scene, `strangers` across a boundary), and the prompt loader (`prompt`). |
 | [scene.ts](scene.ts) | The Scene format's types, and `validateScene`. The scenes themselves are in [scenes/](../../scenes/README.md). |
 | [session.ts](session.ts) | `SessionState` and its files: `saveSession`, `snapshotSession`, `loadSession`. |
 | [approaches.ts](approaches.ts) | The 27 approaches (`v2` is the game's), and `sceneApproach`, which applies a scene's own overrides. |
@@ -189,10 +189,10 @@ A scene can set any of these for itself (`Scene.approach`, through `sceneApproac
 `gmReply` ([voices.ts:62](voices.ts#L62)) sends, in this order:
 
 1. **Instructions:** [prompts/gm.md](../../prompts/gm.md), with the tone.
-2. **The prep** (`sceneBrief`, [brief.ts:177](brief.ts#L177)): the place, the premise, background, the last hand-off with its last moments word for word, where the prep is out of date (the boundary's adjustments, which outrank it), every cast card with its secrets, the ways it can end, the essentials, the limits, the player character and the table rules.
+2. **The prep** (`sceneBrief`, [brief.ts:193](brief.ts#L193)): the place, the premise, background, the last hand-off with its last moments word for word, where the prep is out of date (the boundary's adjustments, which outrank it), every cast card with its secrets, the ways it can end, the essentials, the limits, the player character and the table rules.
 3. **Each person's lore** (`memoryBrief(…, "stable")`), when the approach has memory.
 4. **The scene so far,** as a conversation: the player's lines as user turns, the GM's as assistant turns, dice and system lines as developer notes.
-5. **What changes every turn, last:** what people remember (`memoryBrief(…, "live")`) and `nowNote` ([brief.ts:248](brief.ts#L248)). That's the beat and its direction, cast notes, pressure, the routes from here, staged secrets, the co-GM's notes and whispers, details established in play, the player's injuries, names not yet heard, the world right now, and the directives under "For this reply".
+5. **What changes every turn, last:** what people remember (`memoryBrief(…, "live")`) and `nowNote` ([brief.ts:264](brief.ts#L264)). That's the beat and its direction, cast notes, pressure, the routes from here, staged secrets, the co-GM's notes and whispers, details established in play, the player's injuries, names not yet heard, the world right now, and the directives under "For this reply".
 
 The order serves the provider's prompt cache: what's stable comes first, so a newly opened note doesn't spoil the prefix ([voices.ts:74](voices.ts#L74)).
 
@@ -208,10 +208,10 @@ The order serves the provider's prompt cache: what's stable comes first, so a ne
 `chainScene` ([engine.ts:677](engine.ts#L677)) lists the scenes the story could go to: the exit's `next`, then, while a candidate `assumes` something, its `overtaken` scene (six at most; the game skips interludes). `crossBoundary` ([engine.ts:755](engine.ts#L755)) then makes three calls at once:
 
 - **the hand-off** (`handoff`): how things stand as play left them, for the next scene's GM;
-- **the verdict** (`boundary`): which candidates still hold; where the first that holds is out of date (`adjustments`); its opening rewritten to start where the story is; and the `lead`, how the player hears where to go;
-- **the world's turn** (`fronts`, `moveOn` at [engine.ts:831](engine.ts#L831)): which steps of the fronts doc play or time have made true, which are now meaningless, any new bills, and what of it shows in the next scene. `moveFronts` writes them into this game's copy ([src/lore/fronts.ts](../lore/fronts.ts)).
+- **the verdict** (`boundary`): which candidates still hold; where the first that holds is out of date (`adjustments`); its opening rewritten to start where the story is; and the `lead`, how the player hears where to go and why. Besides the story and the coming scenes' prep (labelled the GM's, which the player knows none of), it's given what the people the story goes on with do in the time between (the last scene's people who are in the scenes to come: their lore's "What they do next", `errandsOf` in [src/lore](../lore/README.md)), and whose names the player hasn't heard (`strangers`, [brief.ts](brief.ts)). What it writes rests only on play and those errands: the lead says why in the player's own terms, from what they saw or were told (Kell saw the big man with the bandaged hand at a gentleman's elbow and followed him to the Rat), never from the prep, and calls anyone unnamed what the player would;
+- **the world's turn** (`fronts`, `moveOn` at [engine.ts:843](engine.ts#L843)): which steps of the fronts doc play or time have made true, which are now meaningless, any new bills, and what of it shows in the next scene. `moveFronts` writes them into this game's copy ([src/lore/fronts.ts](../lore/fronts.ts)).
 
-Each falls back if its call fails: a plain hand-off line, no scene skipped, the author's opening. Then memory has its turn (`broadcastEnding` for `docs`, `rememberScene` for `lite`, `savePlayedScene` for either). The scene goes in `history`, what the player carries is kept for the next world, and `freshScene` starts the next scene's own state. `boundaryPreview` ([engine.ts:817](engine.ts#L817)) makes the same crossing without moving on, for the zoo's boundary desk.
+Each falls back if its call fails: a plain hand-off line, no scene skipped, the author's opening. Then memory has its turn (`broadcastEnding` for `docs`, `rememberScene` for `lite`, `savePlayedScene` for either). The scene goes in `history`, what the player carries is kept for the next world, and `freshScene` starts the next scene's own state. `boundaryPreview` ([engine.ts:829](engine.ts#L829)) makes the same crossing without moving on, for the zoo's boundary desk.
 
 ### Companion talks
 
@@ -224,7 +224,7 @@ That one thing goes on their card as a staged secret, with a `given` outcome rou
 
 ### Reactions to violence
 
-The rules may resolve an act that hurt or caught people, or set something burning or broke it where people are (`violence`, [engine.ts:898](engine.ts#L898)). Then up to ten witnesses, the hurt first, each get a reaction from one decider call ([director.ts:772](director.ts#L772)): fight, flee, raise the alarm, cower, intervene, take the player's side, or carry on. The fleeing leave the scene and its world, and the cowering cower. If anyone fights, `state.brawl` records who, the first of them swings at the player at the start of the next turn (`state.threat`), and an authored ending due on the same turn waits.
+The rules may resolve an act that hurt or caught people, or set something burning or broke it where people are (`violence`, [engine.ts:910](engine.ts#L910)). Then up to ten witnesses, the hurt first, each get a reaction from one decider call ([director.ts:772](director.ts#L772)): fight, flee, raise the alarm, cower, intervene, take the player's side, or carry on. The fleeing leave the scene and its world, and the cowering cower. If anyone fights, `state.brawl` records who, the first of them swings at the player at the start of the next turn (`state.threat`), and an authored ending due on the same turn waits.
 
 ## Where to look first
 
@@ -239,7 +239,7 @@ The rules may resolve an act that hurt or caught people, or set something burnin
 ## How to test it
 
 ```sh
-node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider, and talks: offline
+node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider, talks, and what the boundary is given: offline
 npm test                                          # every unit test (npm run check adds the typecheck and the screens check)
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the arc through the game core, offline
 npm run scene -- start drowned-rat --session t1   # live; then say, status and transcript
@@ -255,7 +255,8 @@ Offline, the flow smoke's openings fail (as expected), `/end` takes each scene's
 
 ## Known gaps and sharp edges
 
-- **No test drives `playerTurn`, `openScene` or `chainScene`.** The unit tests cover `decideBefore` and talks. Offline, the flow smoke ends every scene with `forceEnding`, so turns only run live: the evals, the smoke tests' `--live`, the zoo tour's `--live`.
+- **No test drives `playerTurn`, `openScene` or `chainScene`.** The unit tests cover `decideBefore`, talks, and what the boundary's verdict is given (errands and strangers, [boundary.test.ts](boundary.test.ts)), not what it writes. Offline, the flow smoke ends every scene with `forceEnding`, so turns only run live: the evals, the smoke tests' `--live`, the zoo tour's `--live`.
+- **The lead can still let the prep slip.** The verdict judges the coming scenes from their prep, so the prep is in front of it (labelled the GM's) when it writes the lead. In 45 replays of the arc's first two boundaries, four leads hoped to learn something only the prep or the fronts say ("where the King's grain is going", two men waiting at the pump). None named anyone unheard or made up a source. At medium effort none slipped, but the call took 44 s rather than 12; a lead written by a call of its own, without the prep, lost the player's reason for going about one time in five.
 - **A scene's `approach` doesn't reach everything.** `playerTurn`, `afterTurn` and talks read it through `sceneApproach`. `openScene` ([engine.ts:120](engine.ts#L120)), the voices ([voices.ts:10](voices.ts#L10), [:67](voices.ts#L67)) and the memory job ([jobs.ts:35](jobs.ts#L35)) read the session's approach.
 - **A brawl isn't fought on the map.** Nothing outside the engine reads `state.brawl`, though its comment ([session.ts:207](session.ts#L207)) says the game plays it out there. In the game too, the first fighter swings at the start of the next turn, and only a scene's own combat exit takes a fight to the map. Once a brawl has started, later violence in that scene draws no reactions ([engine.ts:360](engine.ts#L360)).
 - **The quick co-GM runs on every `v2` turn** ([engine.ts:299](engine.ts#L299)) but is used only off the graph. Its cost is in the ledger, but in the turn's metric only when it was used; the background jobs' costs never are.

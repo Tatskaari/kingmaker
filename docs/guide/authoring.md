@@ -58,6 +58,8 @@ Write the other side too, differently. Kell's and Cob's views of each other are 
 
 **Helpers and partners** (Kell): expertise is a method and an appetite, never the answer. There's an in-fiction reason they can't solve it, and they act on their own errands, not on the player's behalf.
 
+**Errands between scenes** go in `gm.md`'s "What they do next", by the hour: what they do, what they see, and their reasoning in a sentence they'd say. The boundary reads the section for each of the last scene's people who are in the scenes to come, and tells the player the way on from play and from those errands only. So when play may not have given the player a reason to go to the next scene, a companion's errand should: Kell sees the big man with the bandaged hand at a gentleman's elbow by the Purveyor's wagons, and follows him to the Rat.
+
 **Villains** (Sallow): give them the kit (goal, plan, resources, limits, one tell), what they do next if nobody stops them, and a shadow that reaches the player before they do.
 
 **Checklist** (the full version, with tests, is in research/characters.md §3):
