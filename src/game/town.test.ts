@@ -92,6 +92,14 @@ test("the explorer's state is plain JSON in the game, and observe shows the map,
   assert.match(town.observe(game, session), /Recently:|granary lane/);
 });
 
+test("a game saved without the explorer's state (by another build of the game, say) gets the town afresh, rather than failing as it's drawn", () => {
+  const { game, session } = newGame();
+  delete (game as Partial<GameState>).explore;
+  assert.equal(typeof exploreState(game).map, "string");
+  assert.ok(townOf(game).ex, "the fresh town is the game's now");
+  assert.match(town.observe(game, session), /Caerwyn: the granary lane, morning/);
+});
+
 test("talking to Kell by her id walks over and opens the hanged clerk; examining townsfolk says something", () => {
   const { game, session } = newGame();
   const porter = targets(game, session).find(t => t.id.startsWith("talk_porter"));

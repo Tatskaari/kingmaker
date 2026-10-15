@@ -62,7 +62,7 @@ export function walkId(dx: number, dy: number): string {
 
 /** The town state in a game (made fresh for a game that hasn't one, or one saved by the text stand-in). */
 export function townOf(game: GameState): TownState {
-  const t = game.explore as unknown as Partial<TownState>;
+  const t = (game.explore ?? {}) as unknown as Partial<TownState>;
   if (!t.ex || typeof t.ex.map !== "string") {
     const fresh: TownState = { ex: newExploration(structuredClone(game.story)), log: [] };
     game.explore = fresh as unknown as Record<string, unknown>;
