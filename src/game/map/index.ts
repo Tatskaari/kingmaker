@@ -38,12 +38,12 @@
 export { MAPS, getMap, decorOf } from "./maps/index.ts";
 export { PLACES, scenePlace, regionForScene, sceneStart, storyFromSession, timeFor, leadScene, type ScenePlace } from "./places.ts";
 export {
-  newExploration, setStory, actorsHere, actorsAt, move, steer, travel, pathTo, walkPlan, look, lookAt, tileName, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, exploreFrame, exploreCamera, KEYS, SCREEN_KEYS,
+  newExploration, setStory, actorsHere, actorsAt, move, steer, travel, pathTo, walkPlan, look, lookAt, tileName, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, exploreFrame, exploreCamera, doorState, KEYS, SCREEN_KEYS,
   type ExploreState, type Follower, type MoveResult, type Nearby,
 } from "./explore.ts";
 export { bumpLine, placeLine, quip, type Bump, type QuipMemory } from "./quips.ts";
 export { presence, liveScenes, isLive, leadMarker, regionOpen } from "./presence.ts";
-export { actorsFromWorld, captureScene, overlayActors, overlayRegionStates, overlaySurfaces, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions } from "./reconcile.ts";
+export { actorsFromWorld, captureScene, overlayActors, overlayRegionStates, overlaySurfaces, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, townRegion, townSurfaces, withTownChanges, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions, type ThingChange, type TownChanges } from "./reconcile.ts";
 export { areaHazards, battlefield, spotsNear, reachable, type Battlefield } from "./setup.ts";
 export { render, project, screenOf, tileAtScreen, Picks, type RenderOptions, type Viewport } from "./render.ts";
 export { toAnsi, toPlain } from "./ansi.ts";

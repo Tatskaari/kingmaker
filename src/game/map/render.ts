@@ -501,7 +501,9 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const states = a.states ?? [];
     if (a.kind === "player") {
       const r = sr - standing - raiseFor(a.name, states);
-      put(sc, r, "@", a.color ?? "#d0d0d0", "#3a3418", { bold: true, glow: true });
+      // Out of sight (hidden), you're greyer, and you don't shine.
+      if (states.includes("hidden")) put(sc, r, "@", "#8c96a6", "#1e2026", { bold: true });
+      else put(sc, r, "@", a.color ?? "#d0d0d0", "#3a3418", { bold: true, glow: true });
       me = { x: sc, y: r, depth, at, actor: a };
       return;
     }

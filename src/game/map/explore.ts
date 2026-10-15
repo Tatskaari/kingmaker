@@ -5,7 +5,7 @@ import { getMap } from "./maps/index.ts";
 import { PLACES, regionForScene, sceneStart } from "./places.ts";
 import { isLive, leadMarker, presence, regionOpen, sceneTrigger } from "./presence.ts";
 import { bumpLine, placeLine, type QuipMemory } from "./quips.ts";
-import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, overlaySurfaces, type MapOverlay } from "./reconcile.ts";
+import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, overlaySurfaces, townSurfaces, withTownChanges, type MapOverlay } from "./reconcile.ts";
 import { render, screenOf, type RenderOptions, type Viewport } from "./render.ts";
 import { areaHazards } from "./setup.ts";
 import { direction, inBounds, inRect, isRoofed, isStructure, regionAt, steps, tileAt, type MapTile, type PlaceRegion } from "./tiles.ts";
@@ -31,6 +31,8 @@ export interface ExploreState extends QuipMemory {
   /** The scene being played: its world, when passed in, drives its place's actors. */
   scene?: string;
   steps: number;
+  /** Out of sight (a Stealth check made on the map): until they do something that shows them. */
+  hidden?: boolean;
 }
 
 export interface MoveResult {
@@ -104,7 +106,8 @@ function besideSpot(state: ExploreState, mapId: string, at: Tile2): Tile2 {
  */
 export function actorsHere(state: ExploreState, world?: SceneWorld, mapId = state.map): MapActor[] {
   const map = getMap(mapId);
-  let actors = [...presence(state.story, mapId), ...overlayActors(state.overlay, mapId, state.story.time)];
+  // The town as the story has it, what scenes left in their places, and what the rules did to the town's own things since.
+  let actors = withTownChanges(state.overlay, mapId, state.story.time, [...presence(state.story, mapId), ...overlayActors(state.overlay, mapId, state.story.time)]);
   const live = state.scene && world ? regionForScene(state.scene) : undefined;
   if (live && live.map.id === mapId && world) {
     // The scene's own world replaces the preview of its place, and has the player in it.
@@ -119,7 +122,7 @@ export function actorsHere(state: ExploreState, world?: SceneWorld, mapId = stat
     actors.push({ id: f.id, name: f.name, kind: "person", glyph: f.glyph, color: f.color, map: mapId, at: f.at, ref: f.id, blocks: true,
       interaction: { kind: "examine", text: kellLine(state.story), label: `Talk to ${f.name}` } });
   }
-  if (mapId === state.map) actors.push({ id: "player", name: "you", kind: "player", glyph: "@", color: "#ffffff", map: mapId, at: { ...state.at }, blocks: true });
+  if (mapId === state.map) actors.push({ id: "player", name: "you", kind: "player", glyph: "@", color: "#ffffff", map: mapId, at: { ...state.at }, blocks: true, ...(state.hidden ? { states: ["hidden"] } : {}) });
   return actors;
 }
 
@@ -142,14 +145,27 @@ function walkable(map: TileMap, p: Tile2): boolean {
   return !t.blocks && (!isStructure(t) || t.terrain === "door");
 }
 
-/** A door's state from the actors on it (a scene opened it, or barred it): open, shut, or the tile's own. */
-function doorState(actors: MapActor[], at: Tile2): "open" | "locked" | undefined {
-  const door = actors.find(a => a.at.x === at.x && a.at.y === at.y && a.kind === "object" && (a.states ?? []).some(s => ["open", "closed", "locked", "barred", "bolted"].includes(s)));
+/**
+ * A door's state from the actors on it (a scene opened it, or barred it; the rules broke it): open,
+ * shut, or the tile's own. A door in pieces is a hole in the wall, however it was left.
+ */
+export function doorState(actors: MapActor[], at: Tile2): "open" | "locked" | undefined {
+  const door = actors.find(a => a.at.x === at.x && a.at.y === at.y && a.kind === "object" && (a.states ?? []).some(s => ["open", "closed", "locked", "barred", "bolted", "destroyed", "broken"].includes(s)));
   if (!door) return undefined;
   const s = door.states ?? [];
-  if (s.includes("destroyed") || s.includes("open")) return "open";
+  if (s.includes("destroyed") || s.includes("broken") || s.includes("open")) return "open";
   if (s.includes("locked") || s.includes("barred") || s.includes("bolted")) return "locked";
   return undefined;
+}
+
+/**
+ * A place locked up after its scene whose way in has been broken open (the yard's gate in pieces,
+ * padlock and all): it's open again. The way in is where its lead stood on this map.
+ */
+function brokenInto(map: TileMap, actors: MapActor[], region: PlaceRegion): boolean {
+  const way = region.sceneId ? PLACES[region.sceneId]?.lead : undefined;
+  if (!way || way.map !== map.id) return false;
+  return actors.some(a => a.map === map.id && a.kind === "object" && a.at.x === way.at.x && a.at.y === way.at.y && (a.states ?? []).some(s => s === "destroyed" || s === "broken"));
 }
 
 /**
@@ -187,7 +203,7 @@ export function move(state: ExploreState, dx: number, dy: number, world?: SceneW
     return result({ message: bumpLine(state, t.terrain === "tree" ? { kind: "tree" } : { kind: "wall", terrain: t.terrain, style: (t as MapTile).style }) });
   }
   if (!regionOpen(state.story, region)) return result({ message: bumpLine(state, { kind: "shut", line: region!.shut! }) });
-  const locked = lockedFrom(state.story, map, here, to);
+  const locked = lockedFrom(state.story, map, here, to, actors);
   if (locked) return result({ message: bumpLine(state, { kind: "shut", line: locked }) });
   const inTheWay = actors.find(a => a.at.x === to.x && a.at.y === to.y && a.kind !== "player" && a.blocks && !(a.states ?? []).includes("overhead") && !(a.states ?? []).includes("hanging"));
   const follower = inTheWay && state.followers.find(f => f.id === inTheWay.id);
@@ -236,10 +252,10 @@ function triggerAt(state: ExploreState, map: TileMap, to: Tile2, from: Tile2 | u
   return undefined;
 }
 
-/** A place locked up after its scene: no way in from outside it (you can always get out). */
-function lockedFrom(story: StoryState, map: TileMap, from: Tile2, to: Tile2): string | undefined {
+/** A place locked up after its scene: no way in from outside it (you can always get out), unless its way in has been broken open. */
+function lockedFrom(story: StoryState, map: TileMap, from: Tile2, to: Tile2, actors?: MapActor[]): string | undefined {
   for (const r of map.regions as PlaceRegion[]) {
-    if (r.lockedAfter && r.sceneId && story.played.includes(r.sceneId) && inRect(r.rect, to) && !inRect(r.rect, from)) return r.lockedAfter;
+    if (r.lockedAfter && r.sceneId && story.played.includes(r.sceneId) && inRect(r.rect, to) && !inRect(r.rect, from) && !(actors && brokenInto(map, actors, r))) return r.lockedAfter;
   }
   return undefined;
 }
@@ -321,8 +337,10 @@ function search(state: ExploreState, target: Tile2, world?: SceneWorld) {
   const exits = new Set(map.exits.map(e => `${e.at.x},${e.at.y}`));
   const ok = (p: Tile2) => {
     const k = `${p.x},${p.y}`;
-    if (!walkable(map, p) || occupied.has(k) || (exits.has(k) && !(p.x === target.x && p.y === target.y))) return false;
     const t = tileAt(map, p);
+    // A locked door that's been opened (or broken down) is a way through like any other.
+    const opened = t.terrain === "door" && inBounds(map, p) && doorState(actors, p) === "open";
+    if ((!walkable(map, p) && !opened) || occupied.has(k) || (exits.has(k) && !(p.x === target.x && p.y === target.y))) return false;
     if (t.terrain === "door" && (doorState(actors, p) === "locked" || (t.blocks && doorState(actors, p) !== "open"))) return false;
     return regionOpen(state.story, regionAt(map, p)) && regionOpen(state.story, gatingRegion(map, p));
   };
@@ -340,7 +358,7 @@ function search(state: ExploreState, target: Tile2, world?: SceneWorld) {
     for (const d of [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]] as const) {
       const n = { x: p.x + d[0], y: p.y + d[1] };
       const k = `${n.x},${n.y}`;
-      if (came.has(k) || !inBounds(map, n) || !ok(n) || lockedFrom(state.story, map, p, n)) continue;
+      if (came.has(k) || !inBounds(map, n) || !ok(n) || lockedFrom(state.story, map, p, n, actors)) continue;
       if (d[0] && d[1] && !walkable(map, { x: p.x + d[0], y: p.y }) && !walkable(map, { x: p.x, y: p.y + d[1] })) continue;
       came.set(k, `${p.x},${p.y}`);
       depth.set(k, (depth.get(`${p.x},${p.y}`) ?? 0) + 1);
@@ -601,7 +619,7 @@ export function exploreFrame(state: ExploreState, viewport: Viewport, options: R
   const camera = exploreCamera(state, viewport, world, actors);
   const place = state.scene ? regionForScene(state.scene) : undefined;
   const live = place && world && place.map.id === state.map ? { region: place.region, world } : undefined;
-  const worlds = [...overlaySurfaces(state.overlay, map, state.story.time), ...(live ? [live] : [])];
+  const worlds = [...overlaySurfaces(state.overlay, map, state.story.time), ...townSurfaces(state.overlay, map, state.story.time), ...(live ? [live] : [])];
   const hazards = live ? areaHazards(live.region, live.world, map) : undefined;
   // In a scene, every room with someone in it opens up, not just the player's.
   const reveal = state.scene ? actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at) : [];
