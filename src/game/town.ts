@@ -1,4 +1,5 @@
-import { sceneById } from "../../scenes/index.ts";
+import { SCENES, sceneById } from "../../scenes/index.ts";
+import { asHeard, strangers } from "../runtime/brief.ts";
 import { talkable } from "../../scenes/talk.ts";
 import type { SessionState } from "../runtime/session.ts";
 import {
@@ -146,13 +147,19 @@ export function targets(game: GameState, session?: SessionState): Target[] {
     .sort((a, b) => steps(a.at, from) - steps(b.at, from) || a.id.localeCompare(b.id));
   // A stack spread over three tiles, or a crowd of four, is one thing to look at: the nearest of it.
   const seen = new Set<string>();
+  // People go by what the player would call them until they've heard their names, as in the scenes.
+  const unheard = unheardNames(game, session);
   for (const a of actors) {
     if (a.ref) { if (seen.has(a.ref)) continue; seen.add(a.ref); }
     const i = a.interaction!;
     const verb = i.kind === "scene" ? i.verb : i.kind === "travel" ? "travel" : /^talk/i.test(i.label) ? "talk" : "examine";
     const name = slug(a.ref && !a.ref.includes(":") && isPerson(a) ? a.ref : a.name) || "someone";
     const d = steps(a.at, from);
-    out.push({ id: unique(`${verb}_${name}`), label: i.label, kind: verb === "talk" ? "talk" : verb === "examine" ? "examine" : verb === "travel" ? "travel" : "enter", at: a.at, distance: d, direction: direction(from, a.at), actor: a, interaction: i });
+    // Only what there's a way to (the dead-cart in the gate puts the yard's things out of reach).
+    if (d > 1 && !pathTo(ex, a.at, world)) continue;
+    const shown = isPerson(a) && unheard.length ? { ...a, name: asHeard(a.name, unheard) } : a;
+    const label = isPerson(a) && unheard.length ? asHeard(i.label, unheard) : i.label;
+    out.push({ id: unique(`${verb}_${name}`), label, kind: verb === "talk" ? "talk" : verb === "examine" ? "examine" : verb === "travel" ? "travel" : "enter", at: a.at, distance: d, direction: direction(from, a.at), actor: shown, interaction: i });
   }
   // Ways out to other maps (a door, the stairs, along the wharf): one per way, its nearest tile.
   const exits = new Map<string, TileMap["exits"][number]>();
@@ -179,6 +186,13 @@ export function targets(game: GameState, session?: SessionState): Target[] {
     out.push({ id: unique(`go_to_${slug(r.name)}`), label: `Walk to ${r.name}`, kind: "move", at, distance: steps(at, from), direction: direction(from, at), onto: true, area: r.rect });
   }
   return out.sort((a, b) => a.distance - b.distance);
+}
+
+/** The story's people whose names the player hasn't heard, and what they'd call them: what they've been told (the scenes played, the one they're bound for) and heard in play. */
+export function unheardNames(game: GameState, session?: SessionState): Array<{ name: string; called: string }> {
+  if (!session?.transcript) return [];
+  const told = [...(session.history ?? []).map(h => h.sceneId), game.story.lead ?? ""].map(id => SCENES.find(sc => sc.id === id)?.hook ?? "");
+  return strangers(SCENES, session, told);
 }
 
 /** The standable tile of a rectangle nearest a tile (by steps). */
@@ -485,7 +499,7 @@ export const town = {
     return [
       `${w.map}: ${w.place}, ${w.time.replace("-", " ")}. You are the @; on this map north is up-left and east is up-right.`,
       townText(game, session, { w: 80, h: 24 }),
-      look(ex),
+      asHeard(look(ex), unheardNames(game, session)),
       ...(near.length ? [`Further off: ${near.slice(0, 10).map(t => `${t.actor!.name} (${where(t.distance, t.direction)})`).join(", ")}.`] : []),
       ...(lead ? [`The story is heading for ${sceneById(game.story.lead!).title}: ${leadWords(lead, ex.at)}.`] : []),
       ...(town.log.length ? [`Recently: ${town.log.slice(-3).join(" ")}`] : []),
