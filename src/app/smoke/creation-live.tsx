@@ -4,7 +4,8 @@
  * check, into the game), one with a backstory written by the player (it fits, so it goes through),
  * one drafted by the GM and taken (what in it doesn't fit, if anything, is caught and fixed), one
  * that contradicts canon and has its fixes accepted (then looked at again); then the clerk's yard
- * for each, where the GM is asked to use the backstory, and once where Kell couldn't know it. What
+ * for each, where the GM is asked to use the backstory, and where Kell couldn't know it (a leading
+ * "You'll remember me": nobody in the story had met them before it began). What
  * was offered, written, flagged and said is printed, and saved with the screens (the cards, the
  * draft, the lore check) and creation's model calls in creation-live/<stamp>/ under the runs directory.
  *
@@ -91,6 +92,8 @@ const CASES: Case[] = [
     concept: "a soft-spoken river-pilot's daughter who reads tides and people alike, and carries a boathook she isn't afraid to use",
     backstory: { kind: "written", text: "I grew up on the Saltmere reach, in my father's pilot-boat, learning which eddies drown men. When the spring flood took him and the boat, I came up the river to Caerwyn with nothing but his boathook and a debt to Widow Harrow, who paid for the burial.\n\nI took this case because the King's man said the pay was coin, not promises, and because I know what a body looks like when the river didn't put it there." },
     turns: [
+      // A leading line: nobody in the story had met her before today, so Kell doesn't remember her (the GM yes-anded it into an old acquaintance, and once gave her Prout's visit to the watch house).
+      { say: "Sergeant. You'll remember me, I expect.", what: "has Kell answer a claim of old acquaintance truthfully: she's never met her", unsaid: /\bI remember (you|your|the)\b|you came to (the|my) (watch|desk)|we've met|we met (before|last)|last time you|good to see you again|been a while/i },
       { say: `Sergeant, you should know who the King has lent you. ${TELL}`, what: "tells who Mara is from her backstory", uses: { words: () => ["Saltmere", "pilot", "father", "flood", "Harrow", "burial", "boathook", "eddies", "coin"], need: 2 } },
       { say: "(I crouch by the hoist and read Prout the way I was taught on the reach.)", what: "may read the body with her river-pilot's eye (a roll decides how well)", soft: true, uses: { words: () => ["water", "river", "drown", "pilot", "father", "eddies", "tide", "flood", "boathook", "Saltmere"], need: 1 } },
     ],

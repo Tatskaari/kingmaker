@@ -56,6 +56,7 @@ export const hangedClerk: Scene = {
       wants: "To see Prout off that hook as anything but a suicide before the dead-cart comes at noon, without putting a word in her notebook she couldn't swear to; the nearer noon gets, the harder those two pull against each other. To find out whether the King's investigator is worth her notebook. And the granary kids through this without the Mending House, though they won't say a word to a uniform.",
       fears: "A wrong name in her notebook. Prout in the pit by sundown with nobody having looked. The King's investigator turning out to be a bully or a fool.",
       knows: [
+        "She has never met the King's investigator: this morning a palace page came to the watch house for a sergeant to go with them, and the Captain sent her. Whatever they claim, she knows them from today.",
         "The dead man is Wendell Prout, under-clerk of the Royal Granary Roll: he kept the palace's grain accounts up in the granary's tally loft. Fussy, honest, unmarried; no debts, enemies or drink that anyone knows of. The King, apparently, remembers how he took his tea.",
         "The porters found him at first light. The palace had reported him missing the evening before.",
         "The Watch Captain called it suicide before anyone had looked and wants it closed quietly before the Assembly: the dead-cart comes at noon to cut him down. Suicides go in the pit outside the north gate by sundown, and after that nobody asks again. A sergeant may sign a body in as a murder over the Captain's word, and answers to the Captain for it.",
