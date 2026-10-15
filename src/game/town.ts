@@ -2,7 +2,7 @@ import { sceneById } from "../../scenes/index.ts";
 import { talkable } from "../../scenes/talk.ts";
 import type { SessionState } from "../runtime/session.ts";
 import {
-  actorsAt, actorsHere, direction, enterScene, getMap, inRect, interact, isDoorway, isLive, leadMarker, leaveScene, look, lookAt, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
+  actorsAt, actorsHere, direction, enterScene, exitLabel, getMap, inRect, interact, isDoorway, isLive, leadMarker, leaveScene, look, lookAt, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
   setStory, steps, tileAt, tileName, isStructure, travel, walkPlan, whereabouts, type ExploreState, type PlaceRegion,
 } from "./map/index.ts";
 import { catalogue } from "../rules/actions.ts";
@@ -116,7 +116,8 @@ export interface Target {
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/'s\b/g, "s").replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-const where = (d: number, dir: string) => (d === 0 ? "here" : d === 1 ? `just ${dir}` : `${d} steps ${dir}`);
+/** How far, in words: "here", "just north", "3 steps north-east". */
+export const where = (d: number, dir: string) => (d === 0 ? "here" : d === 1 ? `just ${dir}` : `${d} steps ${dir}`);
 const isPerson = (a: MapActor) => a.kind === "person" || a.kind === "creature";
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -158,7 +159,7 @@ export function targets(game: GameState, session?: SessionState): Target[] {
   for (const e of [...map.exits].sort((a, b) => steps(a.at, from) - steps(b.at, from))) if (steps(e.at, from) <= SIGHT && !exits.has(e.label)) exits.set(e.label, e);
   for (const e of exits.values()) {
     const d = steps(e.at, from);
-    out.push({ id: unique(`travel_${slug(e.label)}`), label: `${e.label} (${getMap(e.to.map).name})`, kind: "travel", at: e.at, distance: d, direction: direction(from, e.at), interaction: { kind: "travel", to: e.to, label: e.label }, onto: true });
+    out.push({ id: unique(`travel_${slug(e.label)}`), label: exitLabel(e), kind: "travel", at: e.at, distance: d, direction: direction(from, e.at), interaction: { kind: "travel", to: e.to, label: e.label }, onto: true });
   }
   // The lead's place, when it's walked into (the granary yard, the Heron at the wharf's end).
   for (const r of map.regions as PlaceRegion[]) {
@@ -191,8 +192,11 @@ function nearestIn(rect: { x: number; y: number; w: number; h: number }, from: T
   return best;
 }
 
+/** Where g walks to: a tile, what it's called, whether to walk onto it, the way out first (`via`), the place it's in. */
+export interface LeadTarget { at: Tile2; label: string; onto: boolean; via?: string; area?: { x: number; y: number; w: number; h: number } }
+
 /** Where the lead is from here: its marker on this map, or the way out towards it (`via`). */
-export function leadTarget(game: GameState): { at: Tile2; label: string; onto: boolean; via?: string; area?: { x: number; y: number; w: number; h: number } } | undefined {
+export function leadTarget(game: GameState): LeadTarget | undefined {
   const ex = exploreState(game);
   const lead = game.story.lead;
   if (!lead || game.story.played.includes(lead) || ex.scene) return undefined;
@@ -342,7 +346,7 @@ export function actionsAt(game: GameState, session: SessionState | undefined, at
   const exit = map.exits.find(e => e.at.x === at.x && e.at.y === at.y);
   const t = tileAt(map, at);
   if (exit) {
-    const label = `${exit.label} (${getMap(exit.to.map).name})`;
+    const label = exitLabel(exit);
     add({ id: sighted.find(s => s.kind === "travel" && !s.actor && s.label === label)?.id ?? `travel@${tile}`, label, kind: "travel" });
   } else if (t.terrain === "door") {
     // A door broken down is a doorway (the rules' work on the town's world).
@@ -464,7 +468,9 @@ function showsYou(game: GameState, id: string, was: { map: string; at: Tile2 }, 
   return id === "interact" && actorsHere(ex).some(a => a.at.x === ex.at.x + ex.facing.x && a.at.y === ex.at.y + ex.facing.y && isPerson(a));
 }
 
-export const town: Explorer = {
+// An object that satisfies Explorer rather than one typed as it, so that another explorer built on
+// this one (the zoo's, src/game/zoo) can call its methods as written.
+export const town = {
   start(game) {
     game.explore = { ex: newExploration(structuredClone(game.story)), log: [] } satisfies TownState as unknown as Record<string, unknown>;
   },
@@ -588,6 +594,7 @@ export const town: Explorer = {
   /**
    * A fight that broke out on the map is over: the player stands where it left them, and whoever
    * went down or ran stays that way until the story's clock moves on (the rules keep their hurts).
+   * How it went, and who lies where they fell.
    */
   afterFight(game, session, result) {
     const ex = exploreState(game);
@@ -609,7 +616,7 @@ export const town: Explorer = {
     void session;
     const said = fell.length ? `${capital(fell.join(" and "))} ${fell.length === 1 ? "lies" : "lie"} where they fell. Caerwyn steps round.` : undefined;
     if (said) note(game, said);
-    return said;
+    return [`The fight: ${result.summary}`, said].filter(Boolean).join("\n\n");
   },
 
   enterScene(game, session) {
@@ -624,10 +631,10 @@ export const town: Explorer = {
     leaveScene(ex, session.world);
   },
 
-  afterScene(game) {
+  afterScene(game, _session) {
     // The map follows the story on (the time of day, the lead, Kell at the player's side); what
     // happened before the scene is old news.
     exploreState(game);
     townOf(game).log = [];
   },
-};
+} satisfies Explorer;

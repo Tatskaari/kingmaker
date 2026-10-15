@@ -118,12 +118,13 @@ export function initialState(kit: Kit, setup: CombatSetup, session: SessionState
   const shown = [...rolls].sort((a, b) => order.indexOf(byEngine(a.combatantId).id) - order.indexOf(byEngine(b.combatantId).id));
   log.push({ round: 1, kind: "dice", text: `Initiative: ${shown.map(r => { const u = byEngine(r.combatantId); return `${u.id === pc ? "you" : u.called} ${r.d20} ${r.modifier >= 0 ? "+" : "-"}${Math.abs(r.modifier)} = ${r.total}`; }).join("; ")}` });
   if (units["sallow"]) log.push({ round: 1, kind: "narration", text: flavour("draw:sallow", hash(setup.seed))!, who: "sallow" });
-  if (setup.dust?.length) log.push({ round: 1, kind: "narration", text: "The grain dust hangs in the lantern light between the stacks like a golden fog, and everyone in the Heron is suddenly very aware of the lanterns." });
+  if (setup.dust?.length) log.push({ round: 1, kind: "narration", text: `The grain dust hangs in the lantern light between the stacks like a golden fog, and everyone in ${setup.place ?? "the Heron"} is suddenly very aware of the lanterns.` });
   const map = setup.map;
   const exits = map.exits.filter(e => !solid(map, e.at)).map(e => ({ at: e.at, label: e.label }));
   const G: CombatG = {
     campaign: "", rev: 0, rng: kit.rng.state, encounterId, map, units, order, active: enc.activeIndex, round: enc.round || 1,
     dust: (setup.dust ?? []).map(key), fire: [], fuel: (setup.fuel ?? fuelFrom(setup)).map(key), props, log, exits, pc, flags: {}, seq: log.length,
+    ...(setup.place ? { place: setup.place } : {}),
   };
   return { G, table };
 }

@@ -928,9 +928,9 @@ function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: st
         canvas.flags[i] = UNLIT;
       });
     });
-    // The tail, pointing down at whoever's talking.
+    // The tail, pointing down at whoever's talking: not into another bark, and none comes over it.
     const ty = top + lines.length;
-    if (canvas.inside(c.x, ty) && ty < c.y) { const i = ty * canvas.w + c.x; canvas.glyph[i] = inSet("▾", set); canvas.fg[i] = mix(canvas.bg[i]!, tx.fg, tx.alpha); canvas.flags[i] = UNLIT; }
+    if (canvas.inside(c.x, ty) && ty < c.y && !taken[ty * canvas.w + c.x]) { const i = ty * canvas.w + c.x; canvas.glyph[i] = inSet("▾", set); canvas.fg[i] = mix(canvas.bg[i]!, tx.fg, tx.alpha); canvas.flags[i] = UNLIT; taken[i] = 1; }
     return;
   }
   const chars = [...body];

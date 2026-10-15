@@ -538,10 +538,26 @@ def offline():
     expect(app, r"Hanged Clerk: The case is made", "the epilogue lists the chapters")
     click(app, "back to the title", "a click on the way back to the title")
     expect(app, r"Hanged Clerk of Caerwyn", "back to the title")
+    zoo(app)
     keys(app, "q")
     app.pump(1)
     app.close()
     print(f"PASS (screens in {OUT})")
+
+
+def zoo(app):
+    """The zoo, from the title: a visit on the map of its own (the next exhibit, the view from above), then back to the title, where it's carried on and not offered as a game to Continue."""
+    keys(app, "z")
+    expect(app, r"Next: Welcome to the Zoo", "the title's zoo opens a visit on the map, with the next exhibit to see", timeout=60)
+    expect(app, r"Welcome to the Zoo: everything the game does", "the zoo's welcome in What happens")
+    keys(app, "v")
+    expect(app, r"The Front Hall, from above", "v looks down on the wing from above")
+    keys(app, "esc")
+    keys(app, "esc")
+    expect(app, r"Save and return to the title", "the menu")
+    keys(app, "down", "enter")
+    expect(app, r"carry on your visit", "back on the title, the zoo carries the visit on")
+    gone(app, r"Continue.*Wren Ashdown", "the zoo visit isn't offered as a game to Continue")
 
 
 def live():

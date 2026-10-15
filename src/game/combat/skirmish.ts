@@ -1,4 +1,5 @@
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.js";
+import { inFights, RAYS } from "../../rules/spells.ts";
 import type { CombatResult, Tile2 } from "../types.ts";
 import { flavour, has as hasFlavour, hash, listing } from "./flavour.ts";
 import { areaTiles, clearShot, explore, FEET, feetBetween, findPath, fromFeet, fromKey, key, line, neighbours, rangeFeet, same, solid, steps, toFeet, type PathRules } from "./grid.ts";
@@ -24,7 +25,6 @@ const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const possessive = (name: string) => (name === "you" ? "your" : name.endsWith("s") ? `${name}'` : `${name}'s`);
 const reason = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error:\s*/, "");
 /** The spell effects a fight on the map can play out (summons, zones and teleports aren't here yet). */
-const SUPPORTED = new Set(["attack", "save", "auto-hit", "heal", "hp-pool-knockout", "buff"]);
 /** Buffs cast on a foe: the caster marks them. */
 const FOE_MARKS = new Set(["hunters-mark", "hex"]);
 /** The sheet's attack bonus with a weapon (the engine calls the instance weaponInstanceId; the typings say instanceId). */
@@ -128,7 +128,8 @@ export class Skirmish {
     for (const line of diceLines(this.t, events, this.namer(), label)) this.log("dice", line);
   }
   say(kind: string, who?: Unit, salt: string | number = ""): void {
-    const line = flavour(kind, hash(this.G.round, this.G.log.length, kind, who?.id ?? "", salt), who ? this.you(who) : undefined, this.G.map.id);
+    // Its lines are the fight's place's: the map's own where it has them (Caerwyn's street), and named for where it is (the Arena).
+    const line = flavour(kind, hash(this.G.round, this.G.log.length, kind, who?.id ?? "", salt), who ? this.you(who) : undefined, { map: this.G.map.id, ...(this.G.place ? { place: this.G.place } : {}) });
     if (line) this.log("narration", line, who?.id);
   }
   event(type: string, rest: Record<string, unknown>): Dnd.EngineEvent { return this.t.event(type, rest); }
@@ -192,7 +193,7 @@ export class Skirmish {
     // Everyone but the player is out cold, not dying: no death saves for them.
     if (!this.isYou(u) && !dead) this.t.apply([this.event("Stabilized", { targetId: u.engineId })]);
     if (dead) this.log("narration", `${cap(u.called)} is dead.`, u.id);
-    else this.say(this.isYou(u) ? "down:player" : u.castId && hasFlavour(`down:${u.castId}`) ? `down:${u.castId}` : "down:any", u);
+    else this.say(this.isYou(u) ? (this.G.dust.length ? "down:player" : "down:player:clean") : u.castId && hasFlavour(`down:${u.castId}`) ? `down:${u.castId}` : "down:any", u);
     if (this.isYou(u)) {
       this.log("system", "You're down. At the start of each of your turns you make a death save: three successes and you're stable, a natural 20 and you're back up. (In this story you can't die in the fight, but it can come close.)", u.id);
       if (c.deathSaves.failures >= 3) this.pcDeathState(c);
@@ -409,9 +410,9 @@ export class Skirmish {
       for (const sp of group.spells) {
         if (group.level > 0 && !sp.prepared && !sp.alwaysPrepared) continue;
         const spell = this.t.kit.engine.content.spells.get(sp.spellId);
-        if (!spell || /reaction|minute|hour/i.test(spell.castingTime)) continue;
+        // An action or bonus action the map plays out (the spell's card on the sheet says the same).
+        if (!spell || !inFights(spell)) continue;
         const effects = spell.mechanicalEffects ?? [];
-        if (!effects.length || !effects.every(m => SUPPORTED.has(String(m.kind)))) continue;
         const slot = spell.level === 0 ? 0 : [1, 2, 3, 4, 5, 6, 7, 8, 9].find(l => l >= spell.level && free(l) > 0) ?? -1;
         if (slot < 0) continue;
         const heal = effects.some(m => m.kind === "heal");
@@ -473,7 +474,10 @@ export class Skirmish {
     }
     let events: Dnd.EngineEvent[] = [];
     if (targets.length) {
-      try { events = this.t.plan("castSpell", { characterId: u.engineId, spellId, slotLevel: slot, targetIds: targets.map(v => v.engineId) }); } catch (e) { return `${spell.name} can't be cast like that: ${reason(e)}`; }
+      // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, at whoever's aimed at.
+      const rays = RAYS[spellId]?.(slot, this.t.sheet(u.engineId).totalLevel);
+      const aimed = rays ? Array.from({ length: rays }, (_, i) => targets[i % targets.length]!.engineId) : targets.map(v => v.engineId);
+      try { events = this.t.plan("castSpell", { characterId: u.engineId, spellId, slotLevel: slot, targetIds: aimed }); } catch (e) { return `${spell.name} can't be cast like that: ${reason(e)}`; }
     } else {
       // At the dust, a lantern or bare boards: it goes off, but the engine wants a creature, so spend it here.
       this.t.apply([
@@ -718,7 +722,9 @@ export class Skirmish {
   private end(outcome: NonNullable<CombatResult["outcome"]>): void {
     this.G.outcome = outcome;
     // Beaten by Hep's gang before the Master came, there are no good shoes to see.
-    this.say(outcome === "defeat" && !this.units.some(u => u.role === "villain") ? "defeat:gang" : outcome);
+    // Beaten: by the master (his shoes), by a gang of porters (their boots), or by whoever else.
+    const gang = this.units.some(u => u.side === "enemy" && (u.castId === "hep" || /porter/i.test(u.id)));
+    this.say(outcome === "defeat" && !this.units.some(u => u.role === "villain") ? (gang ? "defeat:gang" : "defeat:any") : outcome);
     // Won: the sergeant (on her feet, or come round with a lump like a hen's egg) puts the irons on the beaten.
     const sergeant = this.units.find(u => u.side === "ally" && u.castId === "kell" && u.state !== "fled");
     if (sergeant && (outcome === "victory" || outcome === "surrender")) {

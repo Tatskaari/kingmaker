@@ -3,11 +3,17 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, type ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, Clickable, Keys, SCROLLBAR, useGame, wrap, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, FPS, Keys, SCROLLBAR, useGame, wrap, type KeyHint } from "./common.tsx";
 import { ActionMenu, fightGroups, menuKey, menuLayout } from "./actions.tsx";
 import { Place } from "./place.tsx";
+import { townView } from "../../game/views.ts";
+import { EXHIBITS } from "../../game/zoo/explorer.ts";
+import { firstMorning } from "../../game/zoo/window.ts";
+import { stagePicture } from "../../game/zoo/pictures.ts";
+import { wingOf } from "../../game/zoo/wings/index.ts";
+import { exploreState } from "../../game/town.ts";
 import { sheetHeight } from "./sheet-layout.ts";
-import { SheetView } from "./sheet.tsx";
+import { SheetView, type SheetHandle } from "./sheet.tsx";
 
 const HELP: Record<string, string[]> = {
   explore: [
@@ -33,6 +39,15 @@ const HELP: Record<string, string[]> = {
     "PgUp/PgDn (or the mouse wheel) scroll the conversation. When a scene ends, it waits for you: an Enter of its own, or a click, goes on. Whatever you were typing as it ended goes unsaid.",
     "For testing: /exits lists the scene's endings, /end <id> takes one now.",
   ],
+  zoo: [
+    "Every feature of the game, laid out to see and try. Read a sign (right-click it, or face it and press e): it opens in full, with what you can set off there.",
+    "Set an exhibit off from its sign's card (1-9), or right-click its lever, bell, chalk circle or person. You're walked over first; you stand on a chalk circle to cast from it.",
+    "m lists what you can do, by kind, as on the story's map: your spells, features and actions, done by the rules to the wing's own things and people (a Fireball at the scarecrow burns it, and its people take it as the town's would). Right-click anything, then Do something…, for the same aimed at it.",
+    "g walks you to the next exhibit you haven't seen (the gold marker). The hall's doors go to the wings; each wing's door goes back.",
+    "v looks down on the wing from above: people walking, fires, the weather. r reads What happens in full.",
+    "The Theatre's booths are scenes with the GM: step in. The Arena's bells start fights. Ask Kell, in her corner, and she walks with you.",
+    "c your sheet (the hall's wardrobe changes who you are), j the notebook, Esc the menu. Nothing here reaches the story; the title's zoo carries on your visit.",
+  ],
   combat: [
     "By mouse: click a blue tile to move there; click someone on the other side to aim at them, and click them again to attack. The options on the right, and the keys at the bottom, are buttons.",
     "Arrows move 5 ft a square (diagonals too: they move with the screen). Blue tiles are where you can still get to this turn.",
@@ -45,22 +60,39 @@ const HELP: Record<string, string[]> = {
 };
 
 const MENU = ["Back to the game", "Save and return to the title", "Save and quit"];
-/** Keys that scroll the help and the notebook: a line (±1), a page (±2), all the way (±3). */
+/** Keys that scroll the help, the notebook, a sign's card and What happens: a line (±1), a page (±2), all the way (±3). */
 const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, pagedown: 2, home: -3, end: 3 };
+/** The overlays those keys scroll (the wheel scrolls them too). */
+const SCROLLED = new Set(["help", "journal", "sign", "log"]);
 const CLOSE = ["escape", "return", "space", "c", "s", "q"];
 
 export function Overlay({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
   const o = game.overlay;
-  /** The help's or the notebook's scrollbox, for the keys that scroll it. */
+  const sheet = useRef<SheetHandle>(null);
+  /** The scrollbox of the help, the notebook, a sign's card or What happens, for the keys that scroll it. */
   const scroll = useRef<ScrollBoxRenderable>(null);
   useKeyboard(key => {
     const o = game.overlay;
     if (!o || key.defaultPrevented) return;
-    // The sheet takes its own keys (pages, scrolling); these close it.
+    if (SCROLLED.has(o.kind) && SCROLL_KEYS[key.name] !== undefined) {
+      key.preventDefault();
+      const page = Math.max(3, Math.min(height - 2, 40) - 6);
+      const by = SCROLL_KEYS[key.name]!;
+      scroll.current?.scrollBy(Math.abs(by) === 2 ? Math.sign(by) * page : Math.abs(by) === 3 ? Math.sign(by) * 100000 : by);
+      return;
+    }
+    // A sign's card: its number sets that one off (the card closes, and you're walked over).
+    if (o.kind === "sign" && /^[1-9]$/.test(key.sequence ?? "")) {
+      key.preventDefault();
+      const pick = game.zooTriggers(o.exhibit)[Number(key.sequence) - 1];
+      if (pick) void game.useFromCard(pick.id);
+      return;
+    }
+    // The sheet takes its own keys (pages, scrolling, a spell picked or open); these close it.
     if (o.kind === "sheet") {
-      if (CLOSE.includes(key.name)) { key.preventDefault(); game.closeOverlay(); }
+      if (CLOSE.includes(key.name) && !sheet.current?.wants(key)) { key.preventDefault(); game.closeOverlay(); }
       return;
     }
     key.preventDefault();
@@ -89,28 +121,23 @@ export function Overlay({ game }: { game: Game }) {
       else if (r.index !== undefined) { o.index = r.index; game.emit(); }
       return;
     }
-    if ((o.kind === "help" || o.kind === "journal") && SCROLL_KEYS[key.name] !== undefined) {
-      const page = Math.max(3, Math.min(height - 2, 40) - 6);
-      const by = SCROLL_KEYS[key.name]!;
-      scroll.current?.scrollBy(Math.abs(by) === 2 ? Math.sign(by) * page : Math.abs(by) === 3 ? Math.sign(by) * 100000 : by);
-      return;
-    }
-    // Any of these keys closes the help, the notebook and the scene map.
-    if (CLOSE.includes(key.name) || key.name === "j" || key.sequence === "?") game.closeOverlay();
+    // Any of these keys closes the help, the notebook, the scene map, the view from above, a sign's card and What happens.
+    if (CLOSE.includes(key.name) || key.name === "j" || key.name === "v" || key.name === "r" || key.sequence === "?") game.closeOverlay();
   });
   if (!o) return null;
   const w = Math.min(width - 4, 104);
   const h = Math.min(height - 2, 40);
   const close = () => game.closeOverlay();
   // A click anywhere outside it closes it (the menu too: back to the game).
-  const box = (title: string, children: ReactNode, keys: KeyHint[]) => <>
+  // `rows`: as tall as its content needs (a sign's card), up to the usual.
+  const box = (title: string, children: ReactNode, keys: KeyHint[], rows?: number) => { const bh = rows ? Math.min(h, Math.max(8, rows)) : h; return <>
     <box position="absolute" left={0} top={0} width={width} height={height} zIndex={99} onMouseDown={(e: MouseEvent) => { if (e.button === 0) close(); }} />
-    <box position="absolute" left={Math.floor((width - w) / 2)} top={Math.max(0, Math.floor((height - h) / 2))} width={w} height={h} zIndex={100}
+    <box position="absolute" left={Math.floor((width - w) / 2)} top={Math.max(0, Math.floor((height - bh) / 2))} width={w} height={bh} zIndex={100}
       border borderStyle="double" borderColor={C.borderHot} title={` ${title} `} backgroundColor={C.panel} flexDirection="column" paddingX={1}>
       <box flexGrow={1} minHeight={0} flexDirection="column" overflow="hidden">{children}</box>
       <Keys items={keys} />
     </box>
-  </>;
+  </>; };
   switch (o.kind) {
     case "sheet": {
       // As much of the screen as it can use (all of a small one), and no taller than the sheet.
@@ -124,7 +151,7 @@ export function Overlay({ game }: { game: Game }) {
           border borderStyle="double" borderColor={C.borderHot} title=" Character sheet " backgroundColor={C.panel} flexDirection="column" paddingX={1}>
           {o.error || !game.session
             ? <box flexDirection="column" flexGrow={1}><text fg={C.danger} wrapMode="word" flexGrow={1}>{o.error ?? "No character yet."}</text><Keys items={[["Esc", "close"]]} /></box>
-            : <SheetView data={o.sheet} who={game.session.player} width={sw - 4} height={sh - 2} active onClose={close} keys={[["Esc", "close", close]]} />}
+            : <SheetView ref={sheet} data={o.sheet} who={game.session.player} width={sw - 4} height={sh - 2} active onClose={close} keys={[["Esc", "close", close]]} />}
         </box>
       </>;
     }
@@ -134,6 +161,41 @@ export function Overlay({ game }: { game: Game }) {
         ? <Place game={game} width={w - 4} height={h - 4} view="map" />
         : <text fg={C.dim}>This scene has no map of its own yet: it's all in the telling.</text>, [["Esc", "close", close]]);
     }
+    case "stage": {
+      // A zoo wing from above, alive: people mid-walk, its fires, its weather, what its exhibits set off.
+      const core = game.core;
+      const wing = core ? wingOf(exploreState(core.state).map) : undefined;
+      return box(wing ? `${wing.name.charAt(0).toUpperCase()}${wing.name.slice(1)}, from above` : "From above", core
+        ? <lookCanvas width={w - 4} height={h - 4} fps={FPS} live painter={(cw, ch, now) => stagePicture(core.state, { w: cw, h: ch }, now, game.mapFx()) ?? []} />
+        : null, [["Esc", "close", close], ["v", "close", close]]);
+    }
+    case "sign": {
+      // A sign read, in full, and what can be set off by it from here (click one, or its number).
+      const exhibit = EXHIBITS.find(e => e.id === o.exhibit);
+      const offers = game.zooTriggers(o.exhibit);
+      return box(exhibit?.title ?? "A sign", <scrollbox ref={scroll} flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+        <text fg={C.text} wrapMode="word" flexShrink={0}>{exhibit?.text ?? ""}</text>
+        {offers.length ? <text fg={C.title} attributes={BOLD} marginTop={1} flexShrink={0}>Set it off</text> : null}
+        {offers.map((a, i) => <Clickable key={a.id} flexShrink={0} onClick={() => void game.useFromCard(a.id)}><text wrapMode="word">
+          <span fg={C.lead}>{`${i < 9 ? i + 1 : " "} `}</span><span fg={C.text}>{a.label}</span>
+        </text></Clickable>)}
+        {exhibit?.needsModel ? <text fg={C.faint} marginTop={1} wrapMode="word" flexShrink={0}>{"(This one needs the GM, a model, to be seen properly: offline it does what it can, and says so.)"}</text> : null}
+      </scrollbox>, [...(offers.length ? [["1-9", "set it off"] as KeyHint] : []), ["↑↓", "scroll"], ["Esc", "close", close]],
+      // Its words, the list and the note, wrapped as they'll be drawn, with the borders and the keys.
+      wrap(exhibit?.text ?? "", w - 5).length + (offers.length ? 2 + offers.reduce((n, a) => n + wrap(`1 ${a.label}`, w - 5).length, 0) : 0) + (exhibit?.needsModel ? 3 : 0) + 3);
+    }
+    case "window": {
+      // Caerwyn as a new game of the story has it, alive: the lane by the granary gate, the lead on the yard.
+      const morning = firstMorning();
+      return box("Through the window: the story's first morning", <lookCanvas width={w - 4} height={h - 4} fps={FPS} live
+        painter={(cw, ch, now) => townView(morning, undefined, { w: cw, h: ch }, { t: now })} />, [["Esc", "close", close]]);
+    }
+    case "log":
+      // What happens, in full: the last things said on the map, the newest at the bottom.
+      return box("What happens", <scrollbox ref={scroll} flexGrow={1} scrollX={false} stickyScroll stickyStart="bottom" paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+        {game.messages.length ? game.messages.map((m, i, all) => <text key={i} fg={i === all.length - 1 ? C.text : C.dim} wrapMode="word" marginBottom={1} flexShrink={0}>{m}</text>)
+          : <text fg={C.dim}>Nothing yet.</text>}
+      </scrollbox>, [["↑↓", "scroll"], ["Esc", "close", close]]);
     case "journal": {
       const history = game.session?.history ?? [];
       const stood = (sceneId: string) => history.find(h => h.sceneId === sceneId)?.summary.split("\n").slice(1).join("\n").trim();
@@ -146,7 +208,7 @@ export function Overlay({ game }: { game: Game }) {
       </scrollbox>, [["Esc", "close", close], ["↑↓", "scroll"]]);
     }
     case "help": {
-      const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
+      const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : game.isZoo ? "zoo" : "explore";
       // A short screen scrolls it (the wheel, ↑↓, PgUp/PgDn), as the notebook does. Wrapped here, at
       // spaces only, under its bullet (OpenTUI's own wrapping breaks before a comma after a bracket).
       const wrapped = HELP[mode]!.map(l => wrap(l, w - 8).map((t, i) => `${i ? "  " : "· "}${t}`));

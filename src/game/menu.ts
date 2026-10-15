@@ -26,12 +26,12 @@ import type { CombatSetup, CombatantSetup, MapActor, StoryState, Tile2, TileMap 
  *   rest_short, rest_short_recover, rest_long               an hour (and Arcane Recovery), a night: once each before the clock moves on
  *   use_<item>                                              something carried that's used up (a potion)
  *
- * It's all resolved by the rules on the town's world (src/game/town-world.ts): a Fireball at a door
- * breaks it and opens the way, and it stays broken. Violence draws the people about (some run, some
- * cower, the guards come on), and if anyone fights, the fight is on the map. Anything done to someone
- * whose scene is waiting opens that scene, the act its first turn (the scene's rules resolve it,
- * slot and all); what would work on Kell's mind, or hurt her, opens a talk with her the same way.
- * Charming a passer-by isn't a thing the map can play.
+ * It's all resolved by the rules on the town's world (src/game/town-world.ts; in a zoo wing, the
+ * wing's own): a Fireball at a door breaks it and opens the way, and it stays broken. Violence
+ * draws the people about (some run, some cower, the guards come on), and if anyone fights, the
+ * fight is on the map. Anything done to someone whose scene is waiting opens that scene, the act
+ * its first turn (the scene's rules resolve it, slot and all); what would work on Kell's mind, or
+ * hurt her, opens a talk with her the same way. Charming a passer-by isn't a thing the map can play.
  */
 
 await dnd();
@@ -682,11 +682,13 @@ export function townReactions(tw: TownWorld, ex: ExploreState, act: { victims: E
   const near = Object.values(tw.world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.some(s => ["gone", "down", "unconscious", "dead"].includes(s)) && e.at && steps(tileOfFeet(e.at), ex.at) <= 12);
   const hurtPerson = act.victims.some(v => v.kind === "person");
   const roll = (id: string) => [...`${id}:${act.seed}`].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 100;
+  // Who's the story's own (Kell walking with you): nobody in a zoo wing's world is (its waxworks are waxworks).
+  const cast = (e: Entity | undefined) => (tw.roam ? undefined : e?.cast);
   for (const e of near) {
     const victim = act.victims.includes(e);
     const guard = e.stats?.statblock === "guard";
     let r: TownReaction;
-    if (e.cast) r = "intervene";
+    if (cast(e)) r = "intervene";
     else if (guard) r = hurtPerson && !act.hidden ? "fight" : "intervene";
     else if (e.kind === "creature") r = /goose/i.test(e.name) ? "unmoved" : "flee";
     else if (victim) r = roll(e.id) < 70 ? "flee" : "raise_alarm";
@@ -697,18 +699,18 @@ export function townReactions(tw: TownWorld, ex: ExploreState, act: { victims: E
     else if (r === "fight") fighters.push(e);
   }
   // A few words for each, the ones who matter first; two of a kind doing the same thing are said once.
-  const order = (id: string) => (reactions[id] === "fight" ? 0 : tw.world.entities[id]?.cast ? 1 : act.victims.some(v => v.id === id) ? 2 : 3);
+  const order = (id: string) => (reactions[id] === "fight" ? 0 : cast(tw.world.entities[id]) ? 1 : act.victims.some(v => v.id === id) ? 2 : 3);
   const said = Object.keys(reactions).sort((a, b) => order(a) - order(b));
   const groups: Array<{ name: string; r: TownReaction; ids: string[] }> = [];
   for (const id of said) {
     const e = tw.world.entities[id]!, r = reactions[id]!;
-    const same = groups.find(g => g.name === e.name && g.r === r && !e.cast);
+    const same = groups.find(g => g.name === e.name && g.r === r && !cast(e));
     if (same) same.ids.push(id); else groups.push({ name: e.name, r, ids: [id] });
   }
   for (const g of groups.slice(0, 5)) {
     const e = tw.world.entities[g.ids[0]!]!;
     // From hiding, nobody knows it was you: Kell wants to know who, and the guards look about them (below).
-    if (e.cast === "kell") { lines.push(act.hidden ? `Kell: "Who did that?" She looks about her, and writes it down.` : `Kell: "Investigator! ${hurtPerson ? "That is assault, and I am the watch." : "That was somebody's."}" She writes it down.`); continue; }
+    if (cast(e) === "kell") { lines.push(act.hidden ? `Kell: "Who did that?" She looks about her, and writes it down.` : `Kell: "Investigator! ${hurtPerson ? "That is assault, and I am the watch." : "That was somebody's."}" She writes it down.`); continue; }
     if (/goose/i.test(e.name) && g.r === "unmoved") { lines.push("The goose looks at you as if you owe it money. You may, now."); continue; }
     if (act.hidden && g.r === "intervene") continue;
     // Pigeons run; a pair of guards are both of them.
@@ -743,7 +745,8 @@ function townFight(c: Ctx, tw: TownWorld, fighters: Entity[]): CombatSetup {
     const glyph = twins ? (n === 0 ? letter.toUpperCase() : n === 1 ? letter.toLowerCase() : String(n + 1)) : undefined;
     combatants.push({ id: clean(f.name), castId: f.id, name, side: "enemy", role: statblock === "guard" ? "bruiser" : "brawler", statblock, ...(statblock === "guard" ? { weapon: "spear" } : {}), ...(glyph ? { glyph } : {}), at: tileOfFeet(f.at!) });
   }
-  return { map: tw.map, combatants, seed: (c.session.seed + 7 * (c.session.rollCount + 1)) >>> 0 };
+  // Its lines say where it is ("Palace Street is on fire"), not the Heron.
+  return { map: tw.map, combatants, seed: (c.session.seed + 7 * (c.session.rollCount + 1)) >>> 0, place: whereabouts(c.ex).place };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -816,8 +819,11 @@ async function restNow(c: Ctx, kind: "short" | "long", recover: boolean): Promis
   for (const e of Object.values(tw.world.entities)) if (e.states.includes("burning")) { e.states = [...e.states.filter(s => s !== "burning"), ...(e.kind === "surface" ? [] : ["destroyed", "burnt"])]; burnt++; }
   if (burnt) keepTown(ex, tw);
   const where = whereabouts(ex);
+  // A zoo's wing isn't Caerwyn: its exhibits wait for you.
+  const zoo = !!tw.roam;
   const how = kind === "short"
-    ? `You find a step out of the way in ${where.place} and sit an hour while Caerwyn goes past without you.`
+    ? `You find a step out of the way in ${where.place} and sit an hour while ${zoo ? "the zoo" : "Caerwyn"} goes past without you.`
+    : zoo ? "You find a bench to sleep the clock round on. The exhibits wait: they have nowhere else to be."
     : `You find somewhere to sleep the clock round (the story waits for you; Caerwyn doesn't, but it doesn't mind).`;
   return { text: [...out.lines, ...(more?.lines ?? []), how, ...(burnt ? ["The fires have burned themselves out."] : [])].join("\n"), lines: out.lines };
 }
@@ -833,7 +839,7 @@ const SIGHT = 8;
 async function hideNow(c: Ctx, tw: TownWorld): Promise<Done> {
   const { session, ex } = c;
   const town = Object.values(tw.world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.some(s => ["gone", "down", "unconscious"].includes(s)) && e.at && steps(tileOfFeet(e.at), ex.at) <= SIGHT)
-    .map(e => ({ name: e.name, passive: e.stats?.statblock === "guard" ? 12 : e.cast ? 13 : 10 }));
+    .map(e => ({ name: e.name, passive: e.stats?.statblock === "guard" ? 12 : e.cast && !tw.roam ? 13 : 10 }));
   // The story's people are sharp: Kell is the watch, and Cob and Moll live by noticing.
   const theirs = [...tw.waiting.values()].filter(w => w.person && steps(w.at, ex.at) <= SIGHT).map(w => ({ name: w.name, passive: 13 }));
   const watchers = [...town, ...theirs];
@@ -845,7 +851,7 @@ async function hideNow(c: Ctx, tw: TownWorld): Promise<Done> {
   if (!roll.success && sharpest) c.keep.spotted = { time: ex.story.time, at: { ...ex.at }, by: sharpest.name };
   const line = describeRoll(roll, sharpest ? `to slip out of sight of ${the(sharpest.name)}` : "to slip out of sight");
   const said = roll.success
-    ? (watchers.length ? "You're out of sight. Nobody about is looking your way, which in Caerwyn on Assembly eve is an achievement." : "Out of sight, with nobody about to be out of sight of. It's good practice.")
+    ? (watchers.length ? `You're out of sight. Nobody about is looking your way, which ${tw.roam ? "in a zoo whose exhibits look back" : "in Caerwyn on Assembly eve"} is an achievement.` : "Out of sight, with nobody about to be out of sight of. It's good practice.")
     : sharpest ? `${capital(the(sharpest.name))} is looking right at you, with interest.` : "There's nowhere much to hide here: anyone who came along would see you.";
   return { text: `${line}\n${said}`, lines: [line] };
 }

@@ -1,5 +1,6 @@
 import type { Span } from "../../game/types.ts";
 import type { SheetData } from "../../rules/dnd.ts";
+import type { SpellDetails, SrdBlock } from "../../rules/spells.ts";
 import { C } from "../theme.ts";
 import { PORTRAIT_W, portraitCaption, portraitLines } from "./portraits.ts";
 
@@ -8,11 +9,12 @@ import { PORTRAIT_W, portraitCaption, portraitLines } from "./portraits.ts";
  * points, armour, the six abilities in boxes), then saves and skills, attacks, features and their
  * uses, spells and their slots, and what they carry. sheetPages lays it out for a size as styled
  * rows, a page at a time when the whole sheet doesn't fit (pure: the tests and pictures use it as
- * is); SheetView (sheet.tsx) shows them.
+ * is); SheetView (sheet.tsx) shows them. A spell on the sheet is marked as one (its runs carry its
+ * id) so it can be picked, and spellPage lays out what it is when it is.
  */
 
-/** A run of text in one style: a StyledLine span that can also be italic. */
-export type Run = Span & { italic?: boolean };
+/** A run of text in one style: a StyledLine span that can also be italic, and part of a spell's name on the sheet (its id). */
+export type Run = Span & { italic?: boolean; spell?: string };
 export type Row = Run[];
 export interface SheetPage { title: string; rows: Row[]; scrolls?: boolean }
 /** Who they are, for a session without a rules sheet. */
@@ -288,11 +290,12 @@ function spellsSection(d: SheetData, w: number): Row[] {
     const slot = sc.slots.find(s => s.level === level);
     const label: Row = [run(ordinal(level).padEnd(level ? 4 : 9), C.dim), ...(slot ? pips(slot.max - slot.used, slot.max) : [])];
     const spells = sc.spells.find(g => g.level === level)?.spells ?? [];
+    // A spell's name and its marks are one thing to click (or pick with ↑↓), when there's more to show about it.
     const atoms = spells.map(sp => [
       run(sp.name, !sp.ready ? C.faint : sp.always ? C.lead : C.text),
       ...(sp.concentration ? [run(" (C)", C.faint)] : []),
       ...(sp.ritual ? [run(" (R)", C.faint)] : []),
-    ]);
+    ].map(r => (sp.details ? { ...r, spell: sp.id } : r)));
     const body = atoms.length ? flow(atoms, Math.max(10, w - gutter), dot) : [[run("for casting lower spells higher", C.faint, { italic: true })]];
     if (widthOf(label) > gutter - 1) rows.push(label, ...body.map(r => [run(" ".repeat(gutter)), ...r]));
     else rows.push(...body.map((r, i) => [...fit(i ? [] : label, gutter), ...r]));
@@ -448,6 +451,166 @@ export function sheetHeight(d: SheetData | undefined, who: Who, w: number, h: nu
   const pages = sheetPages(d, who, w, h - 1, options);
   const tallest = Math.max(...pages.map(p => p.rows.length));
   return Math.min(h, tallest + (pages.length > 1 || options.bar ? 1 : 0) + 1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// A spell, picked.
+
+/** The spells on a page in reading order, by id: what ↑↓ step through. */
+export function spellsOn(rows: Row[]): string[] {
+  const out: string[] = [];
+  for (const row of rows) for (const r of row) if (r.spell && !out.includes(r.spell)) out.push(r.spell);
+  return out;
+}
+
+/** The row a spell is on (-1 if it isn't on the page). */
+export const rowOf = (rows: Row[], spell: string) => rows.findIndex(row => row.some(r => r.spell === spell));
+
+/** A spell's details on the sheet, by id. */
+export const spellOn = (d: SheetData | undefined, id: string): SpellDetails | undefined => d?.spellcasting?.spells.flatMap(g => g.spells).find(s => s.id === id)?.details;
+
+/** The SRD's emphasis (**bold**, _italic_, or both) as runs in a colour. */
+function marked(text: string, fg: string): Run[] {
+  const out: Run[] = [];
+  let bold = false, italic = false, buf = "";
+  const flush = () => {
+    if (buf) out.push(run(buf, fg, { ...(bold ? { bold: true } : {}), ...(italic ? { italic: true } : {}) }));
+    buf = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    if (text.startsWith("**", i)) { flush(); bold = !bold; i++; continue; }
+    // An underscore opens at the start of a word and closes at its end.
+    if (text[i] === "_" && !/\w/.test((italic ? text[i + 1] : text[i - 1]) ?? "")) { flush(); italic = !italic; continue; }
+    buf += text[i];
+  }
+  flush();
+  return out;
+}
+
+/** Runs as words to flow: each word's runs stay together (a word can change style partway: "_Shield_."). */
+function words(runs: Run[]): Row[] {
+  const out: Row[] = [[]];
+  for (const r of runs) {
+    for (const part of r.text.split(/(\s+)/)) {
+      if (!part) continue;
+      if (/^\s+$/.test(part)) { if (out.at(-1)!.length) out.push([]); continue; }
+      out.at(-1)!.push({ ...r, text: part });
+    }
+  }
+  return out.filter(w => w.length);
+}
+
+/** A paragraph of the SRD's, wrapped; its lead-in ("_Cantrip Upgrade._", "**Audible Alarm.**") stands out. */
+function paragraph(text: string, w: number, indent = 0): Row[] {
+  const runs = marked(text, C.text);
+  const first = runs[0];
+  if (first && (first.bold || first.italic) && /^(\*\*|_)/.test(text) && /[.:]$/.test(first.text.trim())) runs[0] = { ...first, fg: C.title, bold: true };
+  return flow(words(runs), w, [run(" ")], indent);
+}
+
+/** A table: in columns when they fit; two columns with a short first one, the second wrapped beside it; otherwise a row at a time. */
+function table(t: { table: string[][]; head?: boolean; caption?: string }, w: number): Row[] {
+  const rows: Row[] = t.caption ? [[run(t.caption, C.title, { bold: true })]] : [];
+  const n = Math.max(...t.table.map(r => r.length));
+  const plainText = (c: string) => c.replace(/\*\*|_/g, "");
+  const widths = Array.from({ length: n }, (_, i) => Math.max(0, ...t.table.map(r => cells(plainText(r[i] ?? "")))));
+  const gap = 2;
+  const colour = (head: boolean) => (head ? C.dim : C.text);
+  if (widths.reduce((a, b) => a + b, 0) + gap * (n - 1) <= w) {
+    for (const [y, r] of t.table.entries()) {
+      const head = !!t.head && y === 0;
+      rows.push(Array.from({ length: n }, (_, i) => [...marked(r[i] ?? "", colour(head)), run(" ".repeat(widths[i]! - cells(plainText(r[i] ?? "")) + (i < n - 1 ? gap : 0)))]).flat());
+    }
+    return rows;
+  }
+  if (n === 2 && widths[0]! <= Math.floor(w / 3)) {
+    const left = widths[0]! + gap;
+    for (const [y, r] of t.table.entries()) {
+      const head = !!t.head && y === 0;
+      const body = flow(words(marked(r[1] ?? "", colour(head))), w - left);
+      body.forEach((line, i) => rows.push([run(i ? " ".repeat(left) : plainText(r[0] ?? "").padEnd(left), head ? C.dim : C.lead), ...line]));
+    }
+    return rows;
+  }
+  // A row at a time, its cells apart: "Very familiar · 01–05 · 06–13 · 14–24 · 25–00".
+  for (const [y, r] of t.table.entries()) {
+    const cellsOf = r.filter(c => c).map((c, i) => words(marked(c, i === 0 || (t.head && y === 0) ? C.dim : C.text)));
+    rows.push(...flow(cellsOf.flatMap((ws, i) => (i ? [[run("·", C.faint)], ...ws] : ws)), w, [run(" ")], 2));
+  }
+  return rows;
+}
+
+/**
+ * The SRD's description, a block at a time, with a line between paragraphs; a list's items, and a
+ * stat block's lines (the creature a spell summons, from its heading on), close together.
+ */
+function description(blocks: SrdBlock[], w: number): Row[] {
+  const rows: Row[] = [];
+  let stats = false;
+  for (const [i, b] of blocks.entries()) {
+    const prev = blocks[i - 1];
+    const heading = typeof b === "object" && "heading" in b;
+    const listed = typeof b === "object" && "item" in b && !!prev && typeof prev === "object" && "item" in prev;
+    if (i && (heading || (!listed && !stats))) rows.push([]);
+    stats ||= heading;
+    if (typeof b === "string") rows.push(...paragraph(b, w));
+    else if ("item" in b) rows.push(...paragraph(b.item, w - 2).map((r, k) => [run(k ? "  " : "• ", C.lead), ...r]));
+    else if ("heading" in b) rows.push([run(b.heading, C.title, { bold: true })]);
+    else rows.push(...table(b, w));
+  }
+  return rows;
+}
+
+/** A label and its value, wrapped under itself: "Components V, S, M (a ball of bat guano and sulfur)". */
+function field(label: string, value: Run[], w: number): Row[] {
+  return flow([[run(`${label} `, C.dim), ...(words(value)[0] ?? [])], ...words(value).slice(1)], w, [run(" ")], 2);
+}
+
+/**
+ * A spell, picked on the sheet, for a box w wide: its name and the SRD's line for it (level, school,
+ * classes); its casting time (a ritual's way too, and the SRD's where it's another), range, duration
+ * (concentration marked) and components with the material; what it does in this game, at the
+ * caster's numbers (the attack or save, the damage and what the engine adds to it, the area, how it
+ * grows), and whether a fight on the map offers it; then the SRD's description in its own words,
+ * and its attribution statement.
+ */
+export function spellPage(d: SpellDetails, w: number): Row[] {
+  const dot = [run(" · ", C.faint)];
+  // The name, then the SRD's line for it (a long list of classes wraps under it).
+  const rows: Row[] = flow([[run(d.name, C.title, { bold: true }), run(" ")], ...words([run(d.levelLine, C.dim)])], w, [run(" ")], 2);
+  const c = d.components;
+  const parts = [...(c.verbal ? ["V"] : []), ...(c.somatic ? ["S"] : []), ...(c.material ? [`M (${c.material})`] : [])];
+  const conc = d.concentration && /^concentration/i.test(d.duration);
+  const card: Array<[string, Run[]]> = [
+    ["Casting time", [run(d.castingTime, C.text), ...(d.srdCastingTime ? [run(` (the SRD's: ${d.srdCastingTime})`, C.dim)] : []), ...(d.ritual ? [run(", or as a ritual (10 minutes longer, no slot)", C.lead)] : [])]],
+    ["Range", [run(d.range, C.text)]],
+    ["Duration", conc ? [run("Concentration", C.warn), run(d.duration.slice("Concentration".length), C.text)] : [run(d.duration, C.text)]],
+    ["Components", [run(parts.join(", ") || "none", C.text)]],
+  ];
+  // Side by side while they fit on a line, each on its own when it's long.
+  let line: Row[] = [];
+  const done = () => { if (line.length) rows.push(...flow(line, w, dot)); line = []; };
+  for (const [label, value] of card) {
+    const chip = [run(`${label} `, C.dim), ...value];
+    if (widthOf(chip) <= w && !(label === "Components" && c.material)) line.push(chip);
+    else { done(); rows.push(...field(label, value, w)); }
+  }
+  done();
+
+  rows.push(rule("In this game", w));
+  const terms = [...d.does, ...(d.area ? [`Area: ${d.area}`] : []), ...d.scaling];
+  for (const t of terms) rows.push(...flow(words([run(t, C.text)]), w, [run(" ")], 2));
+  if (!d.does.length) rows.push(...prose(`No rolls: it does what it says${d.text ? " below" : ""}, as the GM plays it.`, w, C.dim, { italic: true }));
+  if (!d.inFights) rows.push(...prose("Not in a fight on the map: cast it in a scene.", w, C.dim, { italic: true }));
+
+  if (d.text?.length) {
+    const tag = [run(" CC BY 4.0", C.faint)];
+    const head = [run("From the SRD 5.2.1", C.title, { bold: true })];
+    const rest = w - widthOf(head) - widthOf(tag) - 1;
+    rows.push([], rest > 0 ? [...head, run(` ${"─".repeat(rest)}`, C.border), ...tag] : rule("From the SRD 5.2.1", w), ...description(d.text, w));
+    if (d.credit) rows.push([], ...prose(d.credit, w, C.faint));
+  }
+  return rows.map(r => (widthOf(r) > w ? fit(r, w) : r));
 }
 
 /** A session without a rules sheet (from before the engine, or one it couldn't make): a name, a concept, and an apology. */

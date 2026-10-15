@@ -5,7 +5,6 @@ import { glyphSet } from "../../game/look/glyphs.ts";
 import { actorLook } from "../../game/look/map.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
 import { direction, look, nearby, Picks, steps, whereabouts } from "../../game/map/index.ts";
-import { actionsAt, interactLabel, leadTarget } from "../../game/town.ts";
 import type { Tile2 } from "../../game/types.ts";
 import { townView } from "../../game/views.ts";
 import { sceneById } from "../../../scenes/index.ts";
@@ -48,8 +47,10 @@ export function ExploreScreen({ game }: { game: Game }) {
     if (key.name === "e" || key.name === "return" || key.name === "space") game.interact();
     else if (key.name === "m") game.openActions();
     else if (key.name === "g") void game.toLead();
+    else if (key.name === "v" && game.isZoo) { game.overlay = { kind: "stage" }; game.emit(); }
     else if (key.name === "c") void game.showSheet();
     else if (key.name === "j") { game.overlay = { kind: "journal" }; game.emit(); }
+    else if (key.name === "r") { game.overlay = { kind: "log" }; game.emit(); }
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
     else if (key.name === "escape" || key.name === "q") { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
   });
@@ -60,7 +61,7 @@ export function ExploreScreen({ game }: { game: Game }) {
   useEffect(() => setHover(h => (h?.from === "list" ? undefined : h)), [ex?.map, ex?.at.x, ex?.at.y]);
   // What the pointer is over, and what a click there would do (asked again only when it moves to another tile, or the player does).
   const pointed = hover && core && ex ? `${hover.at.x},${hover.at.y}@${ex.map}:${ex.at.x},${ex.at.y}:${game.story.time}` : "";
-  const info = useMemo(() => (hover && core ? actionsAt(core.state, session, hover.at) : undefined), [pointed]);
+  const info = useMemo(() => (hover && core ? game.actionsAt(hover.at) : undefined), [pointed]);
   if (!core || !session || !ex) return null;
   const sideW = Math.min(48, Math.max(34, Math.floor(width * 0.32)));
   const msgH = 6;
@@ -69,13 +70,23 @@ export function ExploreScreen({ game }: { game: Game }) {
   const where = whereabouts(ex);
   // What the place is like (look()'s first line, without the "You're in ..." part the title already says).
   const about = (look(ex).split("\n")[0] ?? "").replace(/^You're [^.]*\.\s*/, "");
-  const lead = leadTarget(core.state);
-  const leadScene = game.story.lead ? sceneById(game.story.lead) : undefined;
-  const front = interactLabel(core.state, session);
+  const lead = game.leadTarget();
+  // The story's lead is a scene; the zoo's is the next exhibit not yet seen.
+  const zoo = game.isZoo;
+  const leadScene = zoo ? (lead ? { title: lead.label } : undefined) : game.story.lead ? sceneById(game.story.lead) : undefined;
+  const front = game.interactLabel();
+  const zooLook = game.mapFx();
   const inner = sideW - 4;
   const status = session.rules?.status ?? "";
   const you = truncate(session.player.name, Math.max(8, inner - 12));
-  const messages = game.messages.slice(-4).flatMap(m => wrap(m, width - 6));
+  // What happens: the newest line bright, the ones before it dim. A newest line too long for the
+  // box shows its start (a sign's title, a spell's first roll) and says how to read the rest.
+  const rows = msgH - 2;
+  const newest = game.messages.length ? wrap(game.messages.at(-1)!, width - 6) : [];
+  const cut = newest.length > rows;
+  const messages: Array<{ text: string; now: boolean }> = cut
+    ? [...newest.slice(0, rows - 1).map(text => ({ text, now: true })), { text: "… (more: r, or a click here, reads it all)", now: false }]
+    : [...game.messages.slice(-4, -1).flatMap(m => wrap(m, width - 6)).map(text => ({ text, now: false })), ...newest.map(text => ({ text, now: true }))].slice(-rows);
   // The way to the lead: the words Kell drew it in between scenes (leadWay), so the two agree.
   const way = lead ? wrap(leadWay(ex.at, lead), inner) : [];
   const when = wrap(TIME_WORDS[game.story.time], inner);
@@ -85,7 +96,8 @@ export function ExploreScreen({ game }: { game: Game }) {
   // The sidebar, a row at a time in the rows it has (a squeezed box draws its lines over each other):
   // first what's needed (where, when, you, the lead and the way, who's about, what e does), then
   // what fills the room (who you are, what the place is like, more of who's about).
-  const everyone = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel");
+  // In the zoo, the signs too: they're what there is to see.
+  const everyone = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel" || (zoo && /:sign:/.test(n.actor?.id ?? "")));
   let spare = mapH - 2 - (1 + when.length + 2 + (leadScene ? 2 + way.length : 0) + 2 + (fronts.length ? 1 + fronts.length : 0) + (walkingLines.length ? 1 + walkingLines.length : 0));
   const take = (want: number) => { const n = Math.max(0, Math.min(want, spare)); spare -= n; return n; };
   const nearFirst = take(Math.max(1, Math.min(3, everyone.length)));
@@ -107,8 +119,10 @@ export function ExploreScreen({ game }: { game: Game }) {
   const gap = narrow ? " · " : "  ·  ";
   const hints: KeyHint[] = [
     ...(narrow ? [] : [["click", "walk"] as KeyHint]), ["right-click", "act"], ["m", "actions", button(() => game.openActions())],
-    ["g", narrow ? "lead" : "the lead", button(() => void game.toLead())], ["c", "sheet", button(() => void game.showSheet())],
+    ["g", zoo ? "next exhibit" : narrow ? "lead" : "the lead", button(() => void game.toLead())],
+    ...(zoo ? [["v", "from above", button(() => { game.overlay = { kind: "stage" }; game.emit(); })] satisfies KeyHint] : []), ["c", "sheet", button(() => void game.showSheet())],
     ["j", narrow ? "notes" : "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
+    ["r", "what happened", button(() => { game.overlay = { kind: "log" }; game.emit(); })],
   ];
   const menuGroups = game.doMenu ? groupsOf(game.doMenu) : undefined;
 
@@ -148,10 +162,13 @@ export function ExploreScreen({ game }: { game: Game }) {
         <lookCanvas ref={canvas} width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay}
           painter={(w, h, now) => {
             const pick = new Picks();
-            // What the player does on the map plays out in the town's world: a bolt, a burst, the splinters.
-            const look = game.townFx();
+            // What happens on the map plays out in its world: a zoo wing's own (what its exhibits set off),
+            // else the town's (what the player does there: a bolt, a burst, the splinters).
+            const look = zooLook ?? game.townFx();
             const lines = townView(core.state, session, { w, h }, {
               t: now, pick, ...(lit ? { hover: lit } : {}), ...(look ? { effects: look.fx, town: look.world } : {}),
+              // The zoo's next exhibit is marked as the story's lead is.
+              ...(zoo && lead ? { lead: { at: lead.at, label: lead.label } } : {}),
               ...(marks ? { marks } : {}), ...(aim ? { cursor: aim.at } : {}),
             });
             picks.current = pick;
@@ -159,7 +176,7 @@ export function ExploreScreen({ game }: { game: Game }) {
           }}
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>
-      <box width={sideW} height={mapH} border borderColor={C.border} title=" The investigation " flexDirection="column" paddingX={1} overflow="hidden">
+      <box width={sideW} height={mapH} border borderColor={C.border} title={zoo ? " The zoo " : " The investigation "} flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
         <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
         {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}
@@ -167,7 +184,7 @@ export function ExploreScreen({ game }: { game: Game }) {
         {slotsLine ? <text fg={C.dim} height={1} flexShrink={0}>{slotsLine}</text> : null}
         {build.length ? <text fg={C.faint} height={build.length} flexShrink={0}>{build.join("\n")}</text> : null}
         {leadScene ? <box flexDirection="column" marginTop={1} flexShrink={0}>
-          <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{"The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
+          <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{zoo ? "Next: " : "The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
           {way.length ? <text fg={C.dim} height={way.length} flexShrink={0}>{way.join("\n")}</text> : null}
         </box> : null}
         <text fg={C.title} marginTop={1} height={1} flexShrink={0}>Nearby</text>
@@ -192,15 +209,16 @@ export function ExploreScreen({ game }: { game: Game }) {
               <span fg={C.faint}>{` ${n.distance <= 1 ? "here" : `${ARROW[n.direction] ?? ""} ${n.distance}`}`}</span>
             </text>
           </box>;
-        }) : nearFirst ? <text fg={C.faint} attributes={ITALIC} height={1} flexShrink={0}>{truncate("Nobody. Caerwyn is busy elsewhere.", inner)}</text> : null}
+        }) : nearFirst ? <text fg={C.faint} attributes={ITALIC} height={1} flexShrink={0}>{truncate(zoo ? "Nobody. The exhibits are mostly things." : "Nobody. Caerwyn is busy elsewhere.", inner)}</text> : null}
         {fronts.length ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           {fronts.map((l, i) => <text key={i} height={1} flexShrink={0}><span fg={C.title} attributes={BOLD}>{i ? "  " : "e "}</span><span fg={front?.scene ? C.lead : C.text}>{l}</span></text>)}
         </box> : null}
         {walkingLines.length ? <text fg={C.lead} marginTop={1} height={walkingLines.length} flexShrink={0}>{walkingLines.join("\n")}</text> : null}
       </box>
     </box>
-    <box height={msgH} border borderColor={C.border} title=" What happens " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden">
-      {messages.slice(-(msgH - 2)).map((m, i, all) => <text key={i} fg={i === all.length - 1 ? C.text : C.dim}>{m}</text>)}
+    <box height={msgH} border borderColor={C.border} title=" What happens " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden"
+      onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT && !game.overlay && !game.menu && !game.doMenu && !game.aiming) { game.overlay = { kind: "log" }; game.emit(); } }}>
+      {messages.map((m, i) => <text key={i} fg={m.now ? C.text : C.dim}>{m.text}</text>)}
     </box>
     <box height={1} paddingX={1}>
       {aim ? <AimLine aiming={aim} width={width - 2} />
@@ -260,7 +278,8 @@ function AimLine({ aiming, width }: { aiming: Aiming; width: number }) {
   const ok = !!check?.ok;
   const item = aiming.item;
   const you = !!check?.caught?.includes("you");
-  const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? "…" : ""}` : "";
+  // Four by name and how many more (an ellipsis here would meet the line's own when it's cut short: "……").
+  const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? ` and ${check.caught.length - 4} more` : ""}` : "";
   const slot = item.spell && item.spell.slot > item.spell.level && !item.spell.ritual ? ` (${ORDINAL[item.spell.slot]}-level slot)` : "";
   const what = `${item.name}${slot}${ok && check?.target ? ` → ${check.target}` : ""}${check?.feet ? ` · ${check.feet} ft` : ""}`;
   // Asked once already: what it costs first, so a narrow screen still says it.

@@ -120,6 +120,8 @@ export const kingmakerFontHere = () => existsSync(join(homedir(), ".local", "sha
 let chosen: GlyphSet | undefined;
 /** The glyph set this process draws with (KM_GLYPHS, or the environment's best guess), decided once. */
 export const glyphSet = (): GlyphSet => (chosen ??= detectGlyphSet().set);
+/** Draw with another set from now on, everywhere in this process (the zoo's lever); undefined goes back to KM_GLYPHS's. */
+export function setGlyphSet(set: GlyphSet | undefined): void { chosen = set; }
 
 /**
  * Which glyph set to use. There is no terminal query that says whether a font has a glyph, so this

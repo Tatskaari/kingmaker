@@ -1,6 +1,6 @@
 import { talkable } from "../../scenes/talk.ts";
 import { areaAt, objectStats, type Entity, type Material, type SceneWorld, type Size } from "../world/scene-world.ts";
-import { actorsHere, feetToTile, getMap, isLive, PLACES, regionForScene, tileAt, tileName, townRegion, type ExploreState, type MapOverlay } from "./map/index.ts";
+import { actorsHere, feetToTile, getMap, isLive, PLACES, regionForScene, roamRegion, tileAt, tileName, townRegion, type ExploreState, type MapOverlay } from "./map/index.ts";
 import type { MapActor, Region, StoryState, Tile2, TileMap } from "./types.ts";
 
 /**
@@ -20,6 +20,11 @@ import type { MapActor, Region, StoryState, Tile2, TileMap } from "./types.ts";
  * of the town its world has too, like the old elm over the yard wall) are the scene's to show, and
  * come back as `waiting`: anything done to them opens their scene, so the GM plays it from the facts.
  * Ways out to other maps stay the story's (the Drowned Rat's door opens at dusk however it's knocked).
+ *
+ * A map with a world live on it (a zoo's wing: ExploreState.roam) has that world for the rules
+ * instead: its own people and things, changed in place, and what the rules make or do away with
+ * kept in it (keepTown), as the zoo's own exhibits keep theirs. Its people are its own, not the
+ * story's: nobody there is waiting for a scene, or walks with you to be talked round.
  */
 
 /** Someone or something of a place whose scene is still to come: the scene's, not the town's. */
@@ -49,6 +54,8 @@ export interface TownWorld {
   waiting: Map<string, Waiting>;
   /** How everything was when it was built (states and hit points), to tell what the rules changed. */
   before: Map<string, string>;
+  /** The world live on the map that this one is (a zoo wing's): what the rules do is kept there. */
+  roam?: SceneWorld;
 }
 
 export const FEET = 5;
@@ -122,6 +129,10 @@ function sceneThings(map: TileMap, story: StoryState): Map<string, { sceneId: st
 /** Build the town's world for the map the player is on. */
 export function townWorld(ex: ExploreState): TownWorld {
   const map = getMap(ex.map);
+  const roaming = ex.roam?.[map.id];
+  const lined = roaming ? roamRegion(map, roaming) : undefined;
+  // A world live on the map, lined up with it from its corner as the town's is (a zoo's wing).
+  if (roaming && lined && (lined.worldOrigin?.x ?? lined.rect.x) === 0 && (lined.worldOrigin?.y ?? lined.rect.y) === 0) return wingWorld(ex, map, roaming);
   const region = townRegion(map);
   const root = `${map.id}:town:place`;
   const entities: Record<string, Entity> = {
@@ -196,6 +207,22 @@ export function townWorld(ex: ExploreState): TownWorld {
   return { world, map, region, actors, mapActors, waiting, before };
 }
 
+/**
+ * The rules' world on a map with a world live on it (a zoo's wing): that world's own people and
+ * things (the same entities, so what the rules do to them is done to the wing's), with the player
+ * where the map has them. The list of them is a copy, so what's in reach is looked up afresh each
+ * time; keepTown puts what the rules added or took away back in the wing's.
+ */
+function wingWorld(ex: ExploreState, map: TileMap, wing: SceneWorld): TownWorld {
+  const entities: Record<string, Entity> = { ...wing.entities };
+  const world: SceneWorld = { ...wing, entities };
+  const me: Entity = { id: "player", name: "you", kind: "person", parent: wing.root, tags: [], states: ex.hidden ? ["hidden"] : [], notes: [], player: true, at: feetOf(ex.at) };
+  me.parent = areaAt(world, me.at!).id;
+  entities.player = me;
+  const before = new Map(Object.values(entities).filter(e => e.kind !== "place" && e.kind !== "area").map(e => [e.id, sig(e)]));
+  return { world, map, region: townRegion(map), actors: new Map(), mapActors: actorsHere(ex), waiting: new Map(), before, roam: wing };
+}
+
 /** Who and what stands on each tile (built once a world: a menu asks of every tile in reach). */
 const byTile = new WeakMap<SceneWorld, Map<string, Entity[]>>();
 function onTile(tw: TownWorld, at: Tile2): Entity[] {
@@ -227,6 +254,7 @@ export function entityAt(tw: TownWorld, at: Tile2, options: { people?: boolean; 
 
 /** Keep what the rules did to the town's world: on the map from now on, and in the saved game. What changed, in a few words. */
 export function keepTown(ex: ExploreState, tw: TownWorld): string[] {
+  if (tw.roam) return keepWing(ex, tw, tw.roam);
   const overlay: MapOverlay = ex.overlay;
   const town = ((overlay.town ??= {})[tw.map.id] ??= { things: {} });
   const time = ex.story.time;
@@ -266,7 +294,25 @@ export function keepTown(ex: ExploreState, tw: TownWorld): string[] {
   return said;
 }
 
-/** Someone who walks with the player and has a life of their own to talk from (Kell): what's done to them is a talk's to play. */
-export const companion = (tw: TownWorld, id: string) => tw.world.entities[id]?.cast && talkable(id) ? tw.world.entities[id] : undefined;
+/**
+ * A wing's world keeps what the rules did in it (it saves with the game, as the wing's exhibits keep
+ * theirs): its own things and people were changed in place, and what the rules made (a burning
+ * patch, smoke) or did away with joins it or leaves it. The player is the map's.
+ */
+function keepWing(ex: ExploreState, tw: TownWorld, wing: SceneWorld): string[] {
+  if (tw.world.entities.player?.states.includes("hidden")) ex.hidden = true;
+  else delete ex.hidden;
+  for (const [id, e] of Object.entries(tw.world.entities)) if (!e.player && wing.entities[id] !== e) wing.entities[id] = e;
+  for (const id of Object.keys(wing.entities)) if (id !== "player" && !tw.world.entities[id]) delete wing.entities[id];
+  return Object.values(tw.world.entities)
+    .filter(e => !e.player && e.kind !== "place" && e.kind !== "area" && e.kind !== "surface" && tw.before.get(e.id) !== undefined && tw.before.get(e.id) !== sig(e))
+    .map(e => `${e.name}: ${e.states.filter(s => !["closed", "open", "locked", "hanging"].includes(s)).join(", ") || "as it was"}`);
+}
+
+/**
+ * Someone who walks with the player and has a life of their own to talk from (Kell): what's done to
+ * them is a talk's to play. In a wing's world nobody is (the waxwork of Kell is a waxwork).
+ */
+export const companion = (tw: TownWorld, id: string) => !tw.roam && tw.world.entities[id]?.cast && talkable(id) ? tw.world.entities[id] : undefined;
 
 export type { StoryState };

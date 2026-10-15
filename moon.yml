@@ -1,0 +1,32 @@
+# The PoC's checks and its build, as CI runs them (.github/workflows/check.yml: `moon ci
+# workspace:check workspace:build`). Locally: `npm run check`, `npm run build:web`.
+toolchains:
+  default: node
+fileGroups:
+  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'prompts/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+tasks:
+  typecheck:
+    command: npx --no-install tsc --noEmit -p .
+    inputs: ['@group(sources)']
+  test:
+    command: node --no-warnings --test 'src/**/*.test.ts'
+    inputs: ['@group(sources)']
+  # The map, the fight, the sheet, the title and the End drawn by the real screens, offline (src/app/README.md).
+  screens:
+    command: node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx
+    inputs: ['@group(sources)']
+    env:
+      KM_RUNS_DIR: runs/check
+      OPENROUTER_API_KEY: offline
+  # What CI asks for: affected (and so run) whenever a source file is, like the tasks it stands for.
+  check:
+    deps: [typecheck, test, screens]
+    inputs: ['@group(sources)']
+  # The PR preview: the whole game as a static site, played in the browser (src/web/static/build.ts), for GitHub Pages.
+  buildWeb:
+    command: node --no-warnings src/web/static/build.ts
+    inputs: ['@group(sources)']
+    outputs: ['dist/web']
+  build:
+    deps: [buildWeb]
+    inputs: ['@group(sources)']

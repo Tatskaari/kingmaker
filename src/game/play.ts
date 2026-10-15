@@ -2,14 +2,16 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
 import { FAREWELL } from "../../scenes/talk.ts";
-import { chainScene, createSession, forceEnding, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
+import { chainScene, closeHubScene, createSession, forceEnding, openHubScene, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { afterTurn } from "../runtime/background.ts";
 import { endTalk, leaveTalk, openTalk, startTalk, talkTurn } from "../runtime/talk.ts";
 import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
 import type { Mechanic } from "../runtime/director.ts";
-import type { CombatResult, CombatSetup, StoryState } from "./types.ts";
+import type { Scene } from "../runtime/scene.ts";
+import type { CombatResult, CombatSetup, StoryState, Tile2 } from "./types.ts";
 import type { Build } from "../rules/dnd.ts";
+import type { LeadTarget, TileActions } from "./town.ts";
 
 /**
  * The playable game, without a UI: exploring the town between scenes, playing a scene, fighting,
@@ -45,34 +47,44 @@ export interface GameState {
   explore: Record<string, unknown>;
   /** The fight in progress, as its module saves it. */
   combat?: unknown;
-  /** The fight broke out on the map (no scene asked for it): when it's over, it's back to the map. */
+  /**
+   * The fight in progress started on the map, with no scene's ending to ask for it (the people about
+   * came at the player, or a hub's ring bell was rung): when it's over, it's back to the map.
+   */
   fightOnMap?: boolean;
   /** What just happened, for the next observation. */
   recent: string[];
+  /** A hub's game rather than the story's ("zoo": src/game/zoo): kept apart from the story's saves. */
+  hub?: string;
+  /** A hub's own hour, kept while one of its scenes plays at the scene's: it comes back when the scene's over. */
+  hubTime?: StoryState["time"];
 }
 
-/** What an explore action came to. */
+/** What an explore action came to: what the player sees, and what it opens. */
 export interface ExploreDone {
   text: string;
   /** It opens the story's lead scene. */
   scene?: boolean;
+  /** A hub's scene opens: this one (any of its scenes, not only a lead), played afresh. */
+  open?: string;
   /** It stops the player for a word with someone walking with them (who, and where and when, as the map has it). */
   talk?: { with: string; where: string };
   /** The player's first turn in the scene or talk it opens: what they do, and what the rules resolve (the action menu's act). */
   act?: { text: string; mechanic: Mechanic };
-  /** A fight breaks out on the map (the people about came at the player). */
-  fight?: CombatSetup;
+  /**
+   * A fight breaks out on the map: set out as it stands (the people about came at the player: the
+   * fights factory's startWith), or `true` for the explorer's own fights to say which (a hub's ring).
+   */
+  fight?: CombatSetup | true;
 }
 
 export interface Explorer {
-  /** Where a new game starts. */
-  start(game: GameState): void;
+  /** Where a new game starts (with the game's new session: a hub fits the player out from it). */
+  start(game: GameState, session?: SessionState): void;
   observe(game: GameState, session: SessionState): string;
   actions(game: GameState, session: SessionState): Action[];
-  /** Do it (the rules' acts, the action menu's, take a moment: a promise). */
+  /** Do it (see ExploreDone). The rules' acts (the action menu's) and a hub's actions take a moment: a promise. */
   act(game: GameState, session: SessionState, id: string): ExploreDone | Promise<ExploreDone>;
-  /** A fight that broke out on the map is over: how it left the town's people (and a word on it, if any). */
-  afterFight?(game: GameState, session: SessionState, result: CombatResult): string | undefined;
   /** A scene is opening (walked into, or a summons that came to the player): go into its place. */
   enterScene?(game: GameState, session: SessionState): void;
   /**
@@ -82,6 +94,25 @@ export interface Explorer {
   leaveScene?(game: GameState, session: SessionState): void;
   /** The story has moved on (the next lead, the time of day, or the end): bring the explorer up to date. */
   afterScene?(game: GameState, session: SessionState): void;
+  /**
+   * A hub (the zoo, src/game/zoo) rather than the story's town: it opens any of its scenes (`open`),
+   * each scene ends back on its map with nothing chained on, and fights can start from the map.
+   */
+  hub?: boolean;
+  /**
+   * A fight from the map is over (`fightOnMap`): put the player back on the map, keep what it did to
+   * the people there, and say how it went (the result's summary is the player's own: "you"). When it
+   * says nothing, the core says "The fight: …".
+   */
+  afterFight?(game: GameState, session: SessionState, result: CombatResult): string | undefined;
+  // For a screen that draws the map (the app), where the explorer has its own answers (the zoo's
+  // levers, its next exhibit); the town's are src/game/town.ts's actionsAt, interactLabel, leadTarget.
+  /** What a tile offers (the right-click menu, the pointer's hint). */
+  actionsAt?(game: GameState, session: SessionState | undefined, at: Tile2): TileActions;
+  /** What interact (e) would do now, in words. */
+  interactLabel?(game: GameState, session?: SessionState): { label: string; scene: boolean } | undefined;
+  /** Where g walks to, and what it's called: the story's lead, or a hub's own. */
+  lead?(game: GameState): LeadTarget | undefined;
 }
 
 export interface Fight {
@@ -99,7 +130,8 @@ export interface FightFactory {
   startWith?(setup: CombatSetup, session: SessionState): Promise<Fight>;
 }
 
-const FIRST_SCENE = "hanged-clerk";
+/** Where the story starts (a new game opens on its lead). */
+export const FIRST_SCENE = "hanged-clerk";
 const gameFile = (id: string) => join(sessionDir(id), "game.json");
 
 export class Game {
@@ -117,26 +149,34 @@ export class Game {
     this.fight = fight;
   }
 
-  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; build?: Partial<Build>; explorer: Explorer; fights: FightFactory }): Promise<Game> {
+  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; build?: Partial<Build>; explorer: Explorer; fights: FightFactory; hub?: string }): Promise<Game> {
     const firstScene = options.firstScene ?? FIRST_SCENE;
     const session = await createSession({ sceneId: firstScene, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}), ...(options.build ? { build: options.build } : {}) });
     const first = sceneById(firstScene);
-    const state: GameState = { version: 1, id: session.id, mode: "explore", story: { time: first.time ?? "morning", played: [], lead: firstScene, flags: {} }, explore: {}, recent: [] };
+    const state: GameState = { version: 1, id: session.id, mode: "explore", story: { time: first.time ?? "morning", played: [], lead: firstScene, flags: {} }, explore: {}, recent: [], ...(options.hub ? { hub: options.hub } : {}) };
     const game = new Game(state, session, options.explorer, options.fights);
-    options.explorer.start(state);
-    state.recent.push(`${first.hook}`);
+    // A hub's explorer sets out its own start (its story, its first words): it has no lead to give the hook of.
+    if (!options.explorer.hub) state.recent.push(`${first.hook}`);
+    options.explorer.start(state, session);
     game.save();
     return game;
   }
 
   static exists(id: string): boolean { return existsSync(gameFile(id)); }
 
+  /** Whose game a save is: the story's (undefined), or a hub's ("zoo"), to load it with the right explorer. */
+  static hubOf(id: string): string | undefined {
+    try { return (JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState).hub; } catch { return undefined; }
+  }
+
   /** The fight in progress, for a UI that draws it (the QA console reads it through observe()). */
   get currentFight(): Fight | undefined { return this.fight; }
 
   static load(id: string, explorer: Explorer, fights: FightFactory): Game {
     const session = loadSession(id);
-    const state = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState;
+    const state = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState & { fromMap?: boolean };
+    // The zoo's own builds called a fight from the map fromMap: one saved mid-fight still ends back on the map.
+    if (state.fromMap) { state.fightOnMap = true; delete state.fromMap; }
     const fight = state.mode === "combat" && state.combat !== undefined ? fights.load(state.combat, session) : undefined;
     return new Game(state, session, explorer, fights, fight);
   }
@@ -163,7 +203,7 @@ export class Game {
       case "combat": {
         const over = this.fight?.result();
         return { mode: "combat", text: `${recent}${this.fight?.observe() ?? ""}${over ? `\n\nHow it went: ${over.summary}` : ""}`,
-          actions: over ? [{ id: "continue", label: "See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [] };
+          actions: over ? [{ id: "continue", label: this.state.fightOnMap ? "Back to the map" : "See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [] };
       }
       case "end":
         return { mode: "end", text: `${recent}The End.`, actions: [] };
@@ -174,13 +214,15 @@ export class Game {
   async act(id: string, hooks: TurnHooks = {}): Promise<string> {
     this.state.recent = [];
     if (this.state.mode === "explore") {
-      // Walking and talking are done at once (a scene that opens shows straight away); the rules' acts take a moment.
+      // Walking and talking are done at once (a scene that opens shows straight away); the rules' acts
+      // (the action menu's) and a hub's actions take a moment, and a scene they open is said as it
+      // opens (TurnHooks.onScene), for the app to show it as it streams.
       const acted = this.explorer.act(this.state, this.session, id);
       const done = acted instanceof Promise ? await acted : acted;
       let text = done.text;
-      if (done.fight && this.fights.startWith) text = `${text}\n\n${await this.beginFight(done.fight)}`;
-      else if (done.scene || done.talk) {
-        text = `${text}\n\n${done.scene ? await this.beginScene(hooks) : await this.beginTalk(done.talk!, hooks)}`;
+      if (done.fight && (done.fight === true || this.fights.startWith)) text = `${text}\n\n${await this.beginFight(done.fight)}`;
+      else if (done.open || done.scene || done.talk) {
+        text = `${text}\n\n${done.talk ? await this.beginTalk(done.talk, hooks) : await this.beginScene(hooks, done.open)}`;
         // The act that opened it is the player's first turn there: the scene's rules resolve it.
         if (done.act && (this.state.mode as Mode) === "scene") text = `${text}\n\n${await this.say(done.act.text, hooks, { mechanic: done.act.mechanic })}`;
       }
@@ -287,9 +329,13 @@ export class Game {
     return text;
   }
 
-  private async beginScene(hooks: TurnHooks): Promise<string> {
+  /** The lead scene opens (or, for a hub, `open`: the session plays that one afresh). */
+  private async beginScene(hooks: TurnHooks, open?: string): Promise<string> {
+    if (open) openHubScene(this.session, open);
     const scene = sceneById(this.session.sceneId);
     this.state.mode = "scene";
+    // A hub's clock is its own (the zoo's clock): the scene plays at its hour, and the hub's comes back after.
+    if (this.explorer.hub) this.state.hubTime ??= this.state.story.time;
     this.state.story.time = scene.time ?? this.state.story.time;
     this.explorer.enterScene?.(this.state, this.session);
     hooks.onScene?.();
@@ -311,19 +357,42 @@ export class Game {
     if (!this.state.story.played.includes(scene.id)) this.state.story.played.push(scene.id);
     // The explorer keeps what the scene did to its place before chainScene drops the world.
     this.explorer.leaveScene?.(this.state, this.session);
+    if (this.explorer.hub) return this.backToHub(scene);
     return this.onward("", hooks);
   }
 
-  /** A fight breaks out on the map (the town's people came at the player): no scene of the story asked for it. */
-  private async beginFight(setup: CombatSetup): Promise<string> {
-    try {
-      this.fight = await this.fights.startWith!(setup, this.session);
-    } catch (error) {
-      // No fight to be had: the town carries on (it's still the map).
-      return `(The fight couldn't be set out: ${error instanceof Error ? error.message : String(error)}.)`;
-    }
+  /**
+   * A hub's scene is over: back on its map, as it was before the scene but for what the scene did to
+   * its place. Nothing chains on and the story is untouched; the scene can be played again.
+   */
+  private backToHub(scene: Scene): string {
+    // Its ending goes on the session's record (the notebook reads it), with nothing handed on.
+    const exitId = this.session.ended?.exitId;
+    if (exitId) this.session.history.push({ sceneId: scene.id, exitId, summary: "" });
+    closeHubScene(this.session);
+    this.state.mode = "explore";
+    if (this.state.hubTime) { this.state.story.time = this.state.hubTime; delete this.state.hubTime; }
+    this.explorer.afterScene?.(this.state, this.session);
+    return `(${scene.title} is over: back on the map.)`;
+  }
+
+  /**
+   * A fight on the map that no scene's ending asked for: set out as it stands (the town's people came
+   * at the player), or by the explorer's own fights (`true`: a hub's ring, which its factory reads off
+   * the game). Either way it ends back on the map.
+   */
+  private async beginFight(setup: CombatSetup | true): Promise<string> {
+    // Set first: a factory asks whether a fight is from the map.
     this.state.mode = "combat";
     this.state.fightOnMap = true;
+    try {
+      this.fight = setup === true ? await this.fights.start(this.state, this.session) : await this.fights.startWith!(setup, this.session);
+    } catch (error) {
+      // No fight to be had: it's still the map.
+      this.state.mode = "explore";
+      delete this.state.fightOnMap;
+      return `(The fight couldn't be set out: ${error instanceof Error ? error.message : String(error)}.)`;
+    }
     return "Roll for initiative!";
   }
 
@@ -331,18 +400,20 @@ export class Game {
   private async afterFight(result: CombatResult, hooks: TurnHooks = {}): Promise<string> {
     delete this.state.combat;
     this.fight = undefined;
-    // A fight on the map goes back to the map: the town keeps who went down, and the player comes round if they did.
+    // A fight from the map goes back to the map: the explorer puts the player back, keeps what the
+    // fight did to the people there (who went down lies where they fell), and says how it went; the
+    // player comes round if they were knocked out.
     if (this.state.fightOnMap) {
       delete this.state.fightOnMap;
       this.state.mode = "explore";
       const woke = await comeTo(this.session).catch(() => undefined);
-      const kept = this.explorer.afterFight?.(this.state, this.session, result);
       // The story's hand-off says "the player"; the news on the map says "you".
-      const told = result.summary.replace(/\bThe player was\b/g, "You were").replace(/\bThe player\b/g, "You").replace(/\bthe player\b/g, "you");
-      return [`The fight: ${told}`, woke, kept].filter(Boolean).join("\n\n");
+      const told = { ...result, summary: result.summary.replace(/\bThe player was\b/g, "You were").replace(/\bThe player\b/g, "You").replace(/\bthe player\b/g, "you") };
+      return [this.explorer.afterFight?.(this.state, this.session, told) ?? `The fight: ${told.summary}`, woke].filter(Boolean).join("\n\n");
     }
     this.state.mode = "scene";
-    for (const [k, v] of Object.entries(result.flags ?? {})) this.state.story.flags[k] = v;
+    // A fight's flags are the story's (who's arrested, the Heron burned); a hub has no story to tell them to.
+    if (!this.explorer.hub) for (const [k, v] of Object.entries(result.flags ?? {})) this.state.story.flags[k] = v;
     // Knocked out in the fight, the player comes round as the scene picks up (the aftermath tells it
     // that way), rather than acting on 0 hit points until the next scene brings them round.
     const woke = await comeTo(this.session).catch(() => undefined);

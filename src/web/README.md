@@ -95,13 +95,15 @@ So the server and WebSocket add about a millisecond, and xterm parses and draws 
 `npm run build:web` makes `dist/web`: the whole game as a static site, played entirely in the browser. The PR preview workflow publishes it to GitHub Pages under `/kingmaker/pr-preview/pr-<N>/`. Every URL in it is relative, so it works from any path.
 
 ```sh
-npm run build:web                            # dist/web: about 4.5 MB (1.2 MB gzipped), built in under a second
+npm run build:web                            # dist/web: 22 files, about 5.4 MB (1.4 MB gzipped), built in under a second
 node --no-warnings src/web/static/serve.ts   # http://127.0.0.1:7312/kingmaker/pr-preview/pr-650/ (any static file server will do)
-npm run web:static-check                     # build, serve under the preview's path, play it in Chromium (about 3 minutes)
+npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo too (about 3 minutes)
 npm run web:static-check -- --live           # also the key from ~/secrets typed into the key form, and a real GM reply
 ```
 
 `serve.ts` takes `--port`, `--base` (the path to serve under) and `--dir`. The page takes `?offline`, `?size=130x42`, `?font=17` as the server's does, and `?glyphs=ascii` to draw letters rather than Kingmaker Glyphs.
+
+CI builds it too: `moon.yml`'s `build` is this build, and its `check` is the typecheck, the tests and the screens check (`npm run check`; `.github/workflows/check.yml` runs both).
 
 ### How it works
 
@@ -109,9 +111,9 @@ npm run web:static-check -- --live           # also the key from ~/secrets typed
 - **Loading:** "Loading Kingmaker…" is on the page until the game draws its title (after 20 s it suggests a reload). The page fetches everything the game loads before its first screen at once, as it opens: the worker, its chunks and `content.json`, listed in `<meta name="km-preload">`. The worker then finds them in the browser's cache, rather than asking for each only once the one before it has loaded and run.
 - **The build's stamp:** GitHub Pages lets a browser keep any file for ten minutes. So every file whose name doesn't carry a hash of its contents is asked for with the build's stamp (`?v=`, from `<html data-build>`): `worker.js`, `content.json`, the page's scripts and styles, xterm.js. A reload just after a new build is published can't mix the new page with an old worker, or an old worker with chunks that are gone. A part of the game that won't load anyway (a tab opened before the new build, asking for a chunk deleted with the old one) has the page say so and offer a reload. The game is saved as it goes.
 - **The game** runs in a Web Worker (`worker.js`, `src/web/static/worker.ts`). It's the real `src/app`, bundled with esbuild, started as `src/app/main.tsx` starts it, on a renderer whose terminal is the page's (`game.tsx`). The page's xterm.js gets its bytes as the worker's messages, and the worker gets the keys, the mouse and resizes back.
-- **OpenTUI** is native code, so the bundle has `src/web/tui` in its place: OpenTUI's renderables (box, text, scrollbox, input, ASCII font), the React reconciler, Yoga layout (yoga-layout's WebAssembly build), and OpenTUI's native painting and diffing, all redone in JavaScript. `@opentui/core` and `@opentui/react` are aliased to it in this bundle only. The terminal game and the server still use OpenTUI. `npm run web:tui-check` renders 42 screens (11 small ones, 31 of the game's) both ways and compares them cell for cell: characters, colours and attributes.
+- **OpenTUI** is native code, so the bundle has `src/web/tui` in its place: OpenTUI's renderables (box, text, scrollbox, input, ASCII font), the React reconciler, Yoga layout (yoga-layout's WebAssembly build), and OpenTUI's native painting and diffing, all redone in JavaScript. `@opentui/core` and `@opentui/react` are aliased to it in this bundle only. The terminal game and the server still use OpenTUI. `npm run web:tui-check` renders 50 screens (11 small ones, 39 of the game's, the zoo's among them) both ways and compares them cell for cell: characters, colours and attributes.
 - **Node**, as far as the game uses it, comes from `src/web/static/node`:
-  - `fs` is a file system in memory. The game's content (`lore/` and `prompts/` Markdown, the rules' starter pack) is mounted read-only from `content.json`, which the build makes from an allowlist. Nothing else from the repo goes in.
+  - `fs` is a file system in memory. The game's content (`lore/` and `prompts/` Markdown, the rules' starter pack, the SRD's spell descriptions in `vendor/srd-spells` for the sheet's spell pages) is mounted read-only from `content.json`, which the build makes from an allowlist. Nothing else from the repo goes in. The scenes (the story's and the zoo's) and the zoo's wings are modules, bundled with the game.
   - `runs/` is writable, and every change to it is written through to IndexedDB within a second, one record a file. It's read back before the game starts. Each place the game is published has a database of its own, named after its path (`kingmaker-v2 /kingmaker/pr-preview/pr-650/`), so a preview's games are its own. Another preview's build might not read them, or might rewrite them as it reads them. (V1 keeps its games in `kingmaker` on the same origin; V2 keeps out of it.)
   - The rest are small: `path`, `os`, `url`, `crypto` (synchronous SHA-1 and SHA-256), `module` (`createRequire` for boardgame.io's CommonJS client), `process` (the environment), `child_process` (which throws).
   - Where these do less than Node, the build checks the game doesn't ask for more (`src/web/static/shims.ts`): it fails if a module it bundles calls `createHash` with a hash `crypto` hasn't got. esbuild already fails it on a missing module or export. Either way the preview isn't published broken.
@@ -158,4 +160,3 @@ As V1 kept it:
 - A key OpenRouter accepts can still run out of credit. That shows up only when the GM fails to answer.
 - Fonts are the viewer's own. Adwaita Mono is only on GNOME systems, so elsewhere a few map symbols (▬ ▫ ▾ ‿) come from fallback fonts. Serving Adwaita Mono (it's SIL OFL) would fix that.
 - No touch keyboard, so it needs a real keyboard. Chromium and Firefox have been tried (the static build in both), Safari not yet.
-- An Enter that reaches the game in the same read as the letters before it sends the line without them. This happens with a paste, or with keystrokes bunched up by a slow link. The scene's input submits what it last drew. It's the game's, and it happens under a plain pty too; the fix belongs in `src/app/ui/scene.tsx`.

@@ -7,6 +7,7 @@ import type { SessionState } from "../runtime/session.ts";
 import { startingPurse } from "../world/inventory.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
+import { RAYS, spellDetails, type Caster, type Extras, type Names, type SpellDetails } from "./spells.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -428,7 +429,7 @@ function status(ctx: Ctx, id: string): string {
   const sheet = sheetOf(ctx, id);
   const slots = slotsLine(sheet, c);
   const conditions = c.appliedConditions.map(a => a.conditionId).filter(id => !id.endsWith("-active"));
-  return [`HP ${c.hp.current}/${sheet.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""}`, slots ? `spell slots ${slots}` : "", ...conditions].filter(Boolean).join(", ");
+  return [`HP ${Math.max(0, c.hp.current)}/${sheet.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""}`, slots ? `spell slots ${slots}` : "", ...conditions].filter(Boolean).join(", ");
 }
 
 export async function sheetText(state: SessionState): Promise<string> {
@@ -510,7 +511,8 @@ export interface SheetData {
     slots: Array<{ level: number; max: number; used: number }>;
     /** A warlock's: all of one level, back on a short rest. */
     pact?: { level: number; max: number; used: number };
-    spells: Array<{ level: number; spells: Array<{ id: string; name: string; ready: boolean; always: boolean; concentration: boolean; ritual: boolean }> }>;
+    /** Each with its details, for when it's picked on the sheet: the card, the game's terms at their numbers, the SRD's words (src/rules/spells.ts). */
+    spells: Array<{ level: number; spells: Array<{ id: string; name: string; ready: boolean; always: boolean; concentration: boolean; ritual: boolean; details?: SpellDetails }> }>;
   };
   /** Class and subclass features to their level, with what was chosen for them and their uses. */
   features: Array<{ name: string; from: string; level: number; choice?: string; uses?: Uses }>;
@@ -669,6 +671,8 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
     }));
 
   const sc = s.spellcasting?.classes[0];
+  // Their numbers for a spell's details, and what the engine adds to their spells.
+  const caster: Caster | undefined = sc && { level: s.totalLevel, saveDC: sc.saveDC, attackBonus: sc.attackBonus, extras: spellExtras(ctx.E, content, ctx.campaign.state, c) };
   const pact = (s.spellSlots as { pactSlots?: { level: number; count: number } }).pactSlots;
   const saves = s.savingThrows as Record<Dnd.Ability, { total: number; breakdown?: Array<{ source: string }> }>;
   const conditions = [
@@ -696,7 +700,10 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
       ...(pact?.count ? { pact: { level: pact.level, max: pact.count, used: Number(c["pactSlotsUsed"] ?? 0) } } : {}),
       spells: s.spellcasting!.spellsByLevel.filter(g => g.spells.length).map(g => ({ level: g.level, spells: g.spells.map(sp => {
         const def = content.spells.get(sp.spellId);
-        return { id: sp.spellId, name: sp.name, ready: g.level === 0 || sp.prepared || sp.alwaysPrepared, always: sp.alwaysPrepared && g.level > 0, concentration: !!def?.concentration, ritual: !!def?.ritual };
+        return {
+          id: sp.spellId, name: sp.name, ready: g.level === 0 || sp.prepared || sp.alwaysPrepared, always: sp.alwaysPrepared && g.level > 0, concentration: !!def?.concentration, ritual: !!def?.ritual,
+          ...(def ? { details: spellDetails(def, caster, namesIn(content)) } : {}),
+        };
       }) })),
     } } : {}),
     features, feats, traits, conditions,
@@ -783,6 +790,9 @@ function ensureNpc(ctx: Ctx, state: SessionState, who: Character): string {
   return npc.id;
 }
 
+/** The SRD's conditions, which someone is (prone, grappled), as against what a feature gives them (Bardic Inspiration). */
+const SRD_CONDITIONS = new Set(["blinded", "charmed", "deafened", "frightened", "grappled", "incapacitated", "invisible", "paralyzed", "petrified", "poisoned", "prone", "restrained", "stunned", "unconscious", "dodged", "dodging", "raging", "concentrating"]);
+
 /** How someone looks after a hit, in words: the GM narrates it, the player never sees NPC hit points. */
 function hurt(c: Dnd.EngineCharacter): string {
   if (c.hp.current <= 0) return "down";
@@ -802,6 +812,21 @@ function nameOf(ctx: Ctx, state: SessionState, id: string): string {
   return (castId && state.rules!.aliases?.[castId]) || (ctx.campaign.state.characters[id]?.name ?? "someone");
 }
 
+/** A damage roll in the engine's DamageRolled: its expression is the base dice ("2d6"), its rolls every die rolled. */
+export interface DamageRoll { expression: string; rolls: number[]; modifier: number; type: string }
+
+/**
+ * "Damage: 4d6 (3+1+1+6) fire": the dice as many as were rolled, which is more than the expression
+ * says on a critical hit (doubled) and for a cantrip that's grown with the caster's level.
+ */
+export function damageLine(rolls: DamageRoll[]): string {
+  const dice = (r: DamageRoll) => {
+    const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(r.expression.replace(/\s/g, ""));
+    return m && r.rolls.length > Number(m[1]) ? `${r.rolls.length}d${m[2]}${m[3] ?? ""}` : r.expression;
+  };
+  return `Damage: ${rolls.map(r => `${dice(r)}${r.modifier ? signed(r.modifier) : ""} (${r.rolls.join("+")}${r.modifier ? signed(r.modifier) : ""}) ${r.type}`).join(" + ")}`;
+}
+
 /** Dice lines and a plain account of a planner's events. */
 function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weaponName: (id: string) => string): { lines: string[]; account: string[] } {
   const lines: string[] = [];
@@ -819,16 +844,16 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         break;
       }
       case "DamageRolled": {
-        const rolls = (e["rolls"] as Array<{ expression: string; rolls: number[]; modifier: number; type: string }>);
-        lines.push(`Damage: ${rolls.map(r => `${r.expression}${r.modifier ? signed(r.modifier) : ""} (${r.rolls.join("+")}${r.modifier ? signed(r.modifier) : ""}) ${r.type}`).join(" + ")}`);
+        lines.push(damageLine(e["rolls"] as DamageRoll[]));
         break;
       }
       case "DamageApplied": {
         const amount = (e["components"] as Array<{ amount: number; type: string }>).map(c => `${c.amount} ${c.type}`).join(" and ");
         const target = chars()[String(e["targetId"])];
         const isPc = String(e["targetId"]) === state.rules!.pc;
-        lines.push(`${isPc ? "You take" : `${target ? who("targetId") : "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${target.hp.current}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
-        account.push(`${isPc ? "the player" : target ? who("targetId") : "the target"} took ${amount} damage${target ? `, now ${isPc ? `${target.hp.current}/${target.hp.max} HP` : hurt(target)}` : ""}`);
+        // The engine lets hit points run below zero; the story reads 0.
+        lines.push(`${isPc ? "You take" : `${target ? who("targetId") : "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${Math.max(0, target.hp.current)}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
+        account.push(`${isPc ? "the player" : target ? who("targetId") : "the target"} took ${amount} damage${target ? `, now ${isPc ? `${Math.max(0, target.hp.current)}/${target.hp.max} HP` : hurt(target)}` : ""}`);
         break;
       }
       case "SaveRolled": {
@@ -842,8 +867,16 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
       case "ConditionApplied": {
         const condition = ctx.engine.content.conditions.get(String(e["conditionId"]))?.name ?? String(e["conditionId"]);
         if (/active$/i.test(condition)) break;
-        lines.push(`${who("targetId") === "you" ? "You are" : `${who("targetId")} is`} ${condition.toLowerCase()}`);
-        account.push(`${who("targetId") === "you" ? "the player" : who("targetId")} is now ${condition.toLowerCase()}`);
+        const you = who("targetId") === "you";
+        // The SRD's conditions are states (prone, grappled), and so are the likes of Blessed and Hasted;
+        // the rest are what a feature or a spell gives (Bardic Inspiration, Innate Sorcery, Hunter's Mark).
+        if (SRD_CONDITIONS.has(String(e["conditionId"])) || /^\w+(ed|ing)\b|^heroic$/i.test(condition)) {
+          lines.push(`${you ? "You are" : `${who("targetId")} is`} ${condition.toLowerCase()}`);
+          account.push(`${you ? "the player" : who("targetId")} is now ${condition.toLowerCase()}`);
+        } else {
+          lines.push(`${you ? "You have" : `${who("targetId")} has`} ${condition}`);
+          account.push(`${you ? "the player" : who("targetId")} now has ${condition}`);
+        }
         break;
       }
       case "Healed": {
@@ -899,6 +932,80 @@ function readySpells(sheet: Dnd.CharacterSheet): SpellChoice[] {
 export async function spellInfo(spellId: string): Promise<Dnd.SpellDef | undefined> {
   const { engine } = await engineFor(0);
   return engine.content.spells.get(spellId);
+}
+
+/** What the mechanics name by id, by the engine's names for them. */
+const namesIn = (content: Dnd.Content): Names => ({ condition: id => content.conditions.get(id)?.name, item: id => content.items.get(id)?.name });
+
+type Effect = Record<string, unknown>;
+
+/**
+ * The character's effects by where they come from, named, as the engine gathers them for its effect
+ * stack: their class and subclass features to their level, the options chosen for them, their feats
+ * (the background's too), their species' traits and what's on them now. A feat any of these grants
+ * comes under its own name.
+ */
+function effectSources(content: Dnd.Content, campaign: Dnd.CampaignState, c: Dnd.EngineCharacter): Array<{ name: string; effect: Effect }> {
+  const out: Array<{ name: string; effect: Effect }> = [];
+  const add = (name: string, effects: unknown) => {
+    for (const e of (effects as Effect[] | undefined) ?? []) {
+      const feat = e["kind"] === "GrantFeat" ? content.feats.get(String(e["featId"])) : undefined;
+      if (feat) add(feat.name, feat["effects"]);
+      else out.push({ name, effect: e });
+    }
+  };
+  for (const k of c.classes) {
+    const tables = [content.classes.get(k.classId)?.["levelTable"], k.subclassId ? content.subclasses.get(k.subclassId)?.["levelGrants"] : undefined] as Array<Grants | undefined>;
+    for (const table of tables) {
+      for (const [level, row] of Object.entries(table ?? {})) if (Number(level) <= k.level) for (const f of Array.isArray(row) ? row : row.features ?? []) add(f.name, f.effects);
+    }
+  }
+  for (const p of Object.values(campaign.pendingChoices)) {
+    if (p.forCharacterId !== c.id || !p.resolution) continue;
+    const picked = (p.resolution as { selectedOptionIds?: string[] }).selectedOptionIds ?? [];
+    for (const o of p.options.filter(o => picked.includes(o.id))) add(o.label, o["effects"]);
+  }
+  const origin = content.backgrounds.get(c.backgroundId)?.["originFeatId"];
+  for (const id of new Set([...c.featsTaken, ...(origin ? [String(origin)] : [])])) { const feat = content.feats.get(id); if (feat) add(feat.name, feat["effects"]); }
+  const species = content.species.get(c.speciesId);
+  if (species) add(species.name, species["traits"]);
+  for (const a of c.appliedConditions) { const cond = content.conditions.get(a.conditionId); if (cond) add(cond.name, cond["effects"]); }
+  return out;
+}
+
+/**
+ * What the engine adds to the character's spells when they're cast (Extras in src/rules/spells.ts),
+ * from its own effect stack for them, as its cast-spell planner asks it: the damage modifiers for a
+ * spell (by its id, school, level and damage type), the Wisdom modifier it adds to every heal with
+ * dice, the healing boost of a heal from a slot, and Potent Cantrip. Each is named for the feature,
+ * feat, choice or condition it comes from.
+ */
+function spellExtras(E: typeof Dnd, content: Dnd.Content, campaign: Dnd.CampaignState, c: Dnd.EngineCharacter): Extras {
+  const stack = E.buildEffectStack({ character: c, content, itemInstances: campaign.itemInstances, pendingChoices: campaign.pendingChoices });
+  const sources = effectSources(content, campaign, c);
+  const nameOf = (test: (e: Effect) => boolean) => sources.find(s => test(s.effect))?.name;
+  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const boost = stack.healingBoostFor(1), perLevel = stack.healingBoostFor(2) - boost;
+  return {
+    damage(spell, type, primary) {
+      const facts = new Map<string, unknown>([["event.damageType", type], ...(primary ? [["event.spellSchool", spell.school], ["event.spellId", spell.id], ["event.spellLevel", spell.level]] as const : [])]);
+      return stack.modifierBreakdown("damage", facts).filter(m => m.value).map(m => {
+        const from = nameOf(e => e["kind"] === "AddModifier" && e["target"] === "damage" && same(e["condition"], m.predicate)) ?? (m.source === "condition" ? "what's on you" : "your features");
+        // "Agonizing Blast (Eldritch Blast)" on Eldritch Blast's own card is Agonizing Blast.
+        return { amount: m.value, from: from.endsWith(` (${spell.name})`) ? from.slice(0, -(spell.name.length + 3)) : from };
+      });
+    },
+    heal: { amount: Math.floor((c.abilityScores.WIS - 10) / 2), from: "your Wisdom modifier" },
+    ...(boost ? { healBoost: { flat: boost - perLevel, perLevel, from: nameOf(e => e["kind"] === "BoostHealing") ?? "your features" } } : {}),
+    ...(stack.hasPotentCantrip() ? { potentCantrip: nameOf(e => e["kind"] === "GrantPotentCantrip") ?? "Potent Cantrip" } : {}),
+  };
+}
+
+/** A spell's details as the sheet shows them when it's picked (src/rules/spells.ts), for a caster at their numbers. */
+export async function spellCard(spellId: string, caster?: Caster): Promise<SpellDetails | undefined> {
+  const { engine } = await engineFor(0);
+  const spell = engine.content.spells.get(spellId);
+  return spell && spellDetails(spell, caster, namesIn(engine.content));
 }
 
 /**
@@ -989,8 +1096,11 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   // A zone (Zone of Truth, Silence...) sits somewhere: where it's aimed, or where the caster stands (in 5-foot squares).
   const aimAt = world ? positionOf(world, targetIds.find(t => world.entities[t]) ?? "player") : undefined;
   const targetPosition = aimAt ? { x: Math.round(aimAt.x / 5), y: Math.round(aimAt.y / 5) } : { x: 0, y: 0 };
+  // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, shared out among whoever's aimed at.
+  const rays = RAYS[spell.id]?.(slotLevel, sheetOf(ctx, pcId).totalLevel);
+  const aimed = rays && people.length ? Array.from({ length: rays }, (_, i) => people[i % people.length]!.engine) : people.map(p => p.engine);
   try {
-    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}), ...(choice ? { casterChoice: choice } : {}) }).events));
+    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: aimed, ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}), ...(choice ? { casterChoice: choice } : {}) }).events));
   } catch (error) {
     // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
     if (!things.length) {
@@ -1086,15 +1196,10 @@ function rollDice(expr: string, random: () => number): { total: number; text: st
   return { total: Math.max(0, rolls.reduce((a, b) => a + b, 0) + mod), text: `${expr} (${rolls.join("+")}${mod ? signed(mod) : ""})` };
 }
 
-/** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
-/** Spells that are several attacks at once: how many, by the slot and the caster's level. */
-const RAYS: Record<string, (slot: number, level: number) => number> = {
-  "scorching-ray": slot => 3 + Math.max(0, slot - 2),
-  "eldritch-blast": (_, level) => (level >= 17 ? 4 : level >= 11 ? 3 : level >= 5 ? 2 : 1),
-};
 /** Spells whose damage adds the caster's spellcasting modifier. */
 const ADDS_MODIFIER = new Set(["spiritual-weapon"]);
 
+/** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
 function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: Dnd.SpellDef, slotLevel: number, things: Entity[], chosen?: string): { lines: string[]; account: string[] } {
   const lines: string[] = [];
   const account: string[] = [];
@@ -1396,6 +1501,9 @@ export async function rest(state: SessionState, kind: "short" | "long"): Promise
   } else {
     ctx.apply(ctx.engine.plan.longRest(ctx.campaign.state, { participantIds: [pcId] }).events);
   }
+  // After a rest you're up and about: nobody rests an hour, or sleeps the night, and stays where they fell.
+  const me = ctx.campaign.state.characters[pcId]!;
+  for (const a of me.appliedConditions.filter(a => a.conditionId === "prone" || (a.conditionId === "unconscious" && me.hp.current > 0))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: a.conditionId })]);
   // The rest takes time: spells with a listed duration run out (Aid doesn't outlast a night).
   ctx.apply([event(ctx.E, "InGameTimeAdvanced", { minutes: kind === "short" ? 60 : 480, reason: `${kind} rest` })]);
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
@@ -1433,15 +1541,20 @@ export async function levelUp(state: SessionState): Promise<string[]> {
   }
 }
 
-/** A dropped player comes to with 1 HP at the next scene. */
+/**
+ * A dropped player comes to with 1 HP at the next scene (or the smelling salts): out cold, and
+ * lying where they fell, are both over. Someone merely knocked over is back on their feet by then,
+ * without a word about it.
+ */
 export async function comeTo(state: SessionState): Promise<string | undefined> {
   if (!state.rules) return undefined;
   const ctx = await open(state);
   const me = ctx.campaign.state.characters[state.rules.pc]!;
-  if (me.hp.current > 0) { close(state, ctx); return undefined; }
-  ctx.apply([event(ctx.E, "Healed", { targetId: me.id, amount: 1, source: "came-to" })]);
-  for (const a of ctx.campaign.state.characters[me.id]!.appliedConditions.filter(a => a.conditionId === "unconscious")) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: me.id, conditionId: a.conditionId })]);
-  const line = `You come to: ${status(ctx, me.id)}`;
+  const down = me.hp.current <= 0;
+  // (The engine lets hit points run below zero, and healing starts from 0: this is 1 HP.)
+  if (down) ctx.apply([event(ctx.E, "Healed", { targetId: me.id, amount: 1, source: "came-to" })]);
+  for (const a of ctx.campaign.state.characters[me.id]!.appliedConditions.filter(a => a.conditionId === "prone" || (down && a.conditionId === "unconscious"))) ctx.apply([event(ctx.E, "ConditionRemoved", { targetId: me.id, conditionId: a.conditionId })]);
+  const line = down ? `You come to: ${status(ctx, me.id)}` : undefined;
   close(state, ctx);
   return line;
 }

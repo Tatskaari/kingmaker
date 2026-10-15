@@ -130,3 +130,15 @@ export function newItemInstanceId(): string;
 export function serializeCampaign(campaign: Campaign): string;
 export function loadCampaign(serialized: string, engine: Engine): Campaign;
 export function buildCharacterSheet(input: { character: EngineCharacter; itemInstances: Record<string, ItemInstance>; content: Content; characters: Record<string, EngineCharacter>; pendingChoices?: Record<string, PendingChoice> }): CharacterSheet;
+
+/** What a character's features, feats, gear and conditions add up to, as the engine reads them mid-roll (its EffectAccumulator). */
+export interface EffectStack {
+  /** A target's modifiers ("damage", "attack", ...) that apply given these facts ("event.spellId" and so on), each with its value. */
+  modifierBreakdown(target: string, facts?: ReadonlyMap<string, unknown>): ReadonlyArray<{ source: string; value: number; predicate?: unknown }>;
+  modifierSum(target: string, facts?: ReadonlyMap<string, unknown>): number;
+  /** What a heal from a slot of this level gains (Disciple of Life: 2 + the level); 0 for a cantrip. */
+  healingBoostFor(slotLevel: number): number;
+  /** Potent Cantrip: a damaging cantrip still does half on a miss or a successful save. */
+  hasPotentCantrip(): boolean;
+}
+export function buildEffectStack(input: { character: EngineCharacter; content: Content; itemInstances: Record<string, ItemInstance>; pendingChoices?: Record<string, PendingChoice>; characters?: Record<string, EngineCharacter> }): EffectStack;

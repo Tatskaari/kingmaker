@@ -26,6 +26,8 @@ export const C = {
   enemy: "#ff7b6b",
   neutral: "#c9c2b0",
   highlightBg: "#3b3550",
+  /** Something picked with the keys (a spell on the sheet): apart from highlightBg, under the pointer. */
+  pickBg: "#5a4600",
   targetBg: "#6b1f1f",
 } as const;
 

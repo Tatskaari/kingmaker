@@ -61,6 +61,15 @@ export function inventory(world: SceneWorld, turn: number): InventoryService {
   const view = (e: Entity): ItemView => ({ id: e.id, name: e.name, quantity: e.quantity ?? 1, states: e.states, concealed: e.states.includes("hidden") || e.tags.includes("hidden"), ...(e.gear ? { gear: e.gear } : {}) });
   const version = (ownerId: string) => createHash("sha256").update(JSON.stringify(itemsOf(ownerId).map(view).sort((a, b) => a.id.localeCompare(b.id)))).digest("hex").slice(0, 16);
   const log = (text: string) => world.log.push({ turn, text, by: "rules" });
+  /** A stack (it has a count) moving whole to an owner who already has a stack of the same: it joins that one. */
+  const joinStack = (item: Entity, toId: string): string | undefined => {
+    if (item.quantity === undefined) return undefined;
+    const like = Object.values(world.entities).find(i => i.id !== item.id && i.parent === toId && live(i) && i.name === item.name && i.quantity !== undefined);
+    if (!like) return undefined;
+    like.quantity = (like.quantity ?? 1) + item.quantity;
+    delete world.entities[item.id];
+    return like.id;
+  };
   const freshId = (base: string) => { let id = base; for (let n = 2; world.entities[id]; n++) id = `${base}-${n}`; return id; };
   // An item put down in a room sits near whoever put it there.
   const place = (item: Entity, to: Entity, from?: Entity) => {
@@ -111,6 +120,8 @@ export function inventory(world: SceneWorld, turn: number): InventoryService {
       const have = item.quantity ?? 1;
       const move = options.quantity === undefined ? have : Math.floor(options.quantity);
       if (move < 1 || move > have) throw new InventoryError(`${from.name} has ${have} of ${item.name}, not ${move}`);
+      const joined = move === have ? joinStack(item, toId) : undefined;
+      if (joined) { log(`${from.name} gives ${countOf(item.name, move)} to ${to.name}`); return joined; }
       let moved = item;
       if (move < have) {
         // Part of a stack: the rest stays, the part moves (joining a like stack if there is one).
@@ -136,6 +147,9 @@ export function inventory(world: SceneWorld, turn: number): InventoryService {
       const from = ownerOf(world, item.id);
       const have = item.quantity ?? 1;
       const move = Math.min(have, options.quantity === undefined ? have : Math.max(1, Math.floor(options.quantity)));
+      // A whole stack joins a like one there: a shilling picked up goes in with the shillings.
+      const joined = move === have ? joinStack(item, to.id) : undefined;
+      if (joined) { log(`${from && from.id !== to.id ? `${from.name} → ` : ""}${to.name}: ${countOf(item.name, move)}`); return joined; }
       let moved = item;
       if (move < have) {
         item.quantity = have - move;
@@ -176,6 +190,18 @@ export function ownerOf(world: SceneWorld, itemId: string): Entity | undefined {
   const parent = world.entities[itemId]?.parent;
   for (let e = parent ? world.entities[parent] : undefined, n = 0; e && n < 20; e = e.parent ? world.entities[e.parent] : undefined, n++) if (isOwner(e)) return e;
   return areaOf(world, itemId);
+}
+
+/**
+ * So many of a stack, in words: "pennies" and 1 is "a penny", 3 is "3 pennies"; no count is the
+ * stack itself. A name that isn't a plural is "one of" it.
+ */
+export function countOf(name: string, n?: number): string {
+  if (!n) return name;
+  const bare = name.replace(/^(the|some) /i, "");
+  if (n > 1) return `${n} ${bare}`;
+  const one = /pennies$/i.test(bare) ? bare.replace(/pennies$/i, "penny") : /[^aeiou]ies$/i.test(bare) ? bare.replace(/ies$/i, "y") : /[^s]s$/i.test(bare) ? bare.slice(0, -1) : undefined;
+  return one ? `${/^[aeiou]/i.test(one) ? "an" : "a"} ${one}` : `one of ${name}`;
 }
 
 /** A starting purse in Caerwyn's coin: crowns, shillings and pennies (twelve pennies to the shilling, five shillings to the crown). */
