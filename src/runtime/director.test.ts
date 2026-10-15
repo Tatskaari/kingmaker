@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, sameAgainDirective, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -235,11 +235,16 @@ function scared(): SessionState {
 const AGAIN = "*plants herself in the gateway* I said nobody leaves! Come back here, or the watch drags you back by your ear and the boy goes to the Mending House!";
 
 test("the same push again: a route's roll that failed isn't rolled again for it, as the GM's ruling wouldn't be", async () => {
-  const decider = scripted({ attempt: ["scare-kids", 0.96], same_again: ["same", 0.85, { new: 0.15 }] });
+  const decider = scripted({ attempt: ["scare-kids", 0.96], same_again: ["again_0", 0.85, { new: 0.15 }] });
   const pre = await decideBefore(decider, scene, scared(), AGAIN, { speaker: false, considered: true });
   assert.equal(pre.move, undefined, "no second roll");
   assert.equal(pre.sameAgain?.id, "scare-kids");
-  assert.match(decider.asked[0]!.same_again!.instructions, /turn 2: The player tries to frighten the kids into talking.*Intimidation check to scare the children into talking: 5 \+ 4 = 9 vs DC 12: failure/s);
+  assert.match(decider.asked[0]!.same_again!.criteria.again_0!, /turn 2: The player tries to frighten the kids into talking.*Intimidation check to scare the children into talking: 5 \+ 4 = 9 vs DC 12: failure/s);
+  // The answer it gets is the one it got: the route's own failure, and nothing more.
+  const failure = scene.beats.find(b => b.id === "yard")!.transitions.find(t => t.id === "scare-kids")!.check!.failure;
+  assert.equal(pre.sameAnswer, failure);
+  assert.ok(sameAgainDirective(pre.sameAgain!, pre.sameAnswer).includes(`it gets the same answer it got before: ${failure}`));
+  assert.match(sameAgainDirective(pre.sameAgain!, pre.sameAnswer), /nothing more comes of it than that answer: nothing changes hands, nobody gives way or decides anything new/);
   // Something new on the table: the route rolls as ever.
   const fresh = await decideBefore(scripted({ attempt: ["scare-kids", 0.96], same_again: ["new", 0.8] }), scene, scared(), "*dangles Cob's da's belt* Remember this, lad?", { speaker: false, considered: true });
   assert.equal(fresh.move?.roll?.skill, "intimidation");
@@ -248,6 +253,27 @@ test("the same push again: a route's roll that failed isn't rolled again for it,
   const first = scripted({ attempt: ["scare-kids", 0.96] });
   await decideBefore(first, scene, yard(), AGAIN, { speaker: false, considered: true });
   assert.equal(first.asked[0]!.same_again, undefined);
+});
+
+test("the same push again is a push that failed on the same route, or a ruling's same objective: a first try on another route rolls", async () => {
+  // The goals run's g7 T37: the first press on the King, matched to the catch-out that had failed (as
+  // "the same push", .70), got no roll, and the King let Sallow go.
+  const WIN = "Cob, here's my promise: your name stays out of it, whatever you tell me.";
+  const other = await decideBefore(scripted({ attempt: ["win-cob", 0.9], roll_call: ["route", 0.8], same_again: ["again_0", 0.7, { new: 0.3 }] }), scene, scared(), WIN, { speaker: false, considered: true });
+  assert.equal(other.sameAgain, undefined, "the failed try was the threat, not this");
+  assert.equal(other.move?.transition.id, "win-cob");
+  assert.equal(other.move?.roll?.skill, "persuasion");
+  // Two failures on the same route share the read between them.
+  const twice = scared();
+  twice.path.push({ ...twice.path[0]!, turn: 3 });
+  const split = await decideBefore(scripted({ attempt: ["scare-kids", 0.96], same_again: ["again_1", 0.4, { again_0: 0.35, new: 0.25 }] }), scene, twice, AGAIN, { speaker: false, considered: true });
+  assert.equal(split.sameAgain?.id, "scare-kids");
+  // A ruling that failed on the same ask: the route isn't rolled for it either, and the answer is the ruling's.
+  const ruled = yard();
+  ruled.rulings = [{ turn: 2, act: "talk Cob into trusting them with what he heard", target: "cob", skill: "persuasion", kind: "roll", dc: 15, why: "dangerous, plausible, hostile", went: "failure", changed: "Cob spits and turns his back; he won't hear another word about it this morning.", costUsd: 0, latencyMs: 0 }];
+  const again = await decideBefore(scripted({ attempt: ["win-cob", 0.9], roll_call: ["route", 0.8], same_again: ["again_0", 0.8, { new: 0.2 }] }), scene, ruled, WIN, { speaker: false, considered: true });
+  assert.equal(again.sameAgain?.id, "win-cob");
+  assert.equal(again.sameAnswer, "Cob spits and turns his back; he won't hear another word about it this morning.");
 });
 
 test("considered rolls: the method is asked in every beat, so the GM's review hears a lie read as one wherever it's told", async () => {

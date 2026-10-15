@@ -278,27 +278,52 @@ function rollCallQuestion(checks: Transition[]): ChoiceQuestion {
  * push again gets the same answer, however it's rolled.
  */
 export function failedTries(scene: Scene, state: SessionState, options: { rulings?: boolean } = {}): string[] {
+  return failedPushes(scene, state, options).map(p => p.line);
+}
+
+/** A try that failed in this scene: a route's roll (`route`) or one of the GM's rulings, in a line, and the answer it got. */
+interface FailedPush { route?: string; line: string; answer: string }
+
+function failedPushes(scene: Scene, state: SessionState, options: { rulings?: boolean } = {}): FailedPush[] {
   // The route as it was where it was rolled (beats can share an id: the yard's threat and the doubt beat's).
   const route = (from: string, id: string) => [...(scene.beats.find(b => b.id === from)?.transitions ?? []), ...(scene.anytime ?? [])].find(t => t.id === id && t.check);
   const rolled = state.path.flatMap(p => {
     const t = p.roll && !p.roll.success ? route(p.from, p.via) : undefined;
-    return t ? [`turn ${p.turn}: ${t.when.replace(/\.$/, "")} (${describeRoll(p.roll!, t.check!.reason)}): ${t.check!.failure}`] : [];
+    return t ? [{ route: t.id, line: `turn ${p.turn}: ${t.when.replace(/\.$/, "")} (${describeRoll(p.roll!, t.check!.reason)}): ${t.check!.failure}`, answer: t.check!.failure }] : [];
   });
   const ruled = options.rulings === false ? [] : (state.rulings ?? []).filter(r => r.went === "failure")
-    .map(r => `turn ${r.turn}: ${r.act.replace(/\.$/, "")} (${r.roll ? describeRoll(r.roll) : "no roll: it couldn't work like that"}): ${r.changed}`);
+    .map(r => ({ line: `turn ${r.turn}: ${r.act.replace(/\.$/, "")} (${r.roll ? describeRoll(r.roll) : "no roll: it couldn't work like that"}): ${r.changed}`, answer: r.changed }));
   return [...rolled, ...ruled];
 }
 
 /**
  * The same push again (a try that failed, tried again with nothing new on the table), asked in the
  * turn's own decision when something has failed in this scene: a route's roll isn't rolled again
- * for it, as the GM's ruling wouldn't be.
+ * for it, as the GM's ruling wouldn't be. Which try it repeats, so that only the same route (or a
+ * ruling's same objective) counts: the goals run's first press on the King was read as "the same
+ * push" as the catch-out that had failed twice, and got no roll.
  */
-function sameAgainQuestion(tried: string[]): ChoiceQuestion {
+function sameAgainQuestion(tried: FailedPush[]): ChoiceQuestion {
   return {
-    instructions: `Earlier in this scene the player tried these, and they failed:\n${tried.map(t => `- ${t}`).join("\n")}\nIs the player's latest turn the same push as one of those again: the same ask of the same person by the same means, reworded or louder, with nothing new on the table? A new lever (an offer, a threat or a promise not made before, evidence, something learned since), a different ask or person, or a real change in the situation since makes it a new try.`,
-    criteria: { same: "The same push again, with nothing new.", new: "A new try, or not one of these at all." },
+    instructions: "Earlier in this scene the player tried these, and they failed. Is the player's latest turn the same push as one of them again: the same ask of the same person by the same means, reworded or louder, with nothing new on the table? Which one? A new lever (an offer, a threat or a promise not made before, evidence, something learned since), a different ask or person, or a real change in the situation since makes it a new try, and so does pushing for something else, even of the same person.",
+    criteria: {
+      ...Object.fromEntries(tried.map((t, i) => [`again_${i}`, `The same push as this one again, with nothing new: ${t.line}`])),
+      new: "A new try, or not one of these at all.",
+    },
   };
+}
+
+/**
+ * How surely the turn is the same push again as a try that failed on this route, or as a ruling that
+ * failed (the decider has matched the turn to both, so they share the objective); with the answer it
+ * got then, the most likely one's.
+ */
+function pushedAgain(tried: FailedPush[], answer: ChoiceAnswer | undefined, route: Transition): { p: number; answer?: string } {
+  if (!answer) return { p: 0 };
+  const same = tried.map((t, i) => ({ t, p: answer.probabilities?.[`again_${i}`] ?? (answer.choice === `again_${i}` ? 1 : 0) }))
+    .filter(({ t }) => t.route === undefined || t.route === route.id);
+  const best = [...same].sort((a, b) => b.p - a.p)[0];
+  return { p: same.reduce((sum, { p }) => sum + p, 0), ...(best && best.p > 0 ? { answer: best.t.answer } : {}) };
 }
 
 /** A route's check, rolled for the move (its method swapped for the player's, among social means). */
@@ -375,6 +400,8 @@ export interface PreDecision {
   considered?: { probability: number; routes: Array<{ id: string; p: number }>; means?: Skill; earned?: number };
   /** The route the player chose, not rolled again: the same push that already failed in this scene, with nothing new. */
   sameAgain?: Transition;
+  /** What that push got when it failed (the route's authored failure, or the ruling's): the answer it gets again. */
+  sameAnswer?: string;
   /** An ending is held for the player's answer (`brink`), and they're answering it: asking, objecting, challenging, offering or acting. */
   answering?: boolean;
 }
@@ -683,7 +710,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
   if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
   // The same push that already failed here, again: asked only once something has failed.
-  const tried = attempts.some(t => t.check) ? failedTries(scene, state) : [];
+  const tried = attempts.some(t => t.check) ? failedPushes(scene, state) : [];
   if (tried.length) questions.same_again = sameAgainQuestion(tried);
   if (options.offGraph) {
     const routes = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].map(t => t.when);
@@ -845,8 +872,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   let considered = wanted && !actSettles ? wanted : undefined;
   // The same push that already failed here isn't rolled again on a route's dice (the GM's ruling
   // says no to it without them too): it gets the same answer.
-  const again = decision.answers.same_again;
-  const sameAgain = attempt?.check && !considered && again?.choice === "same" && (again.probabilities?.same ?? 1) >= SCENE_ENDING_CONFIDENCE ? attempt : undefined;
+  // (Only a push that already failed on this route, or a ruling's same objective: a first press on
+  // the King isn't the catch-out that failed before it.)
+  const again = attempt?.check ? pushedAgain(tried, decision.answers.same_again, attempt) : { p: 0 };
+  const sameAgain = attempt?.check && !considered && again.p >= SCENE_ENDING_CONFIDENCE ? attempt : undefined;
   const chosen = considered || sameAgain ? undefined : attempt ?? plainEnding ?? cue;
   // (a plain action alongside a cue: the cue's beat change carries the reply)
   const method = attempt ? sureMeans : undefined;
@@ -931,14 +960,20 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(plainTransition && plainSettles ? { byPrep: true } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
     ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
-    ...(considered ? { considered } : {}), ...(sameAgain ? { sameAgain } : {}),
+    ...(considered ? { considered } : {}), ...(sameAgain ? { sameAgain, ...(again.answer ? { sameAnswer: again.answer } : {}) } : {}),
     ...(decision.answers.brink?.choice === "answers" ? { answering: true } : {}),
   };
 }
 
-/** No dice for the same push again: it gets the same answer, and being pushed again shows. */
-export function sameAgainDirective(t: Transition): string {
-  return `No dice: the player is pushing for the same thing that already failed (${t.when.replace(/\.$/, "")}), with nothing new on the table, and it gets the same answer. Whoever they're pushing reacts to being pushed again, in their own way and words (patience wearing thin, a sharper no, a door closing); nothing changes hands, nobody gives way, and nothing already said is taken back.`;
+/**
+ * No dice for the same push again: it gets the answer it got then (the route's authored failure, or
+ * the ruling's), and being pushed again shows, but nothing more comes of it. (Told only "the same
+ * answer", the GM had the King release Sallow outright on a press the author answers with "nothing is
+ * settled yet, but the morning is going".)
+ */
+export function sameAgainDirective(t: Transition, answer?: string): string {
+  const then = answer ? ` it got before: ${answer.trim().replace(/([^.!?'"’”])$/, "$1.")}` : "";
+  return `No dice: the player is pushing for the same thing that already failed (${t.when.replace(/\.$/, "")}), with nothing new on the table, and it gets the same answer${then || "."} Play that answer again, in this moment's own words: whoever they're pushing reacts to being pushed again (patience wearing thin, a sharper no), but nothing more comes of it than that answer: nothing changes hands, nobody gives way or decides anything new, and nothing already said is taken back.`;
 }
 
 /** Say yes: no roll needed, so what the player is doing simply works. */

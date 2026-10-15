@@ -83,6 +83,22 @@ test("an unsure read of a no-dice route still lets the GM rule on what was asked
   }
 });
 
+test("the same push again gets the answer it got before, and nothing more: no push to break the loop on top", async () => {
+  // The goals run's g7 T37: told only "the same answer" beside "break the loop", the GM had the King let Sallow go.
+  const fake = fakeOpenRouter({ choices: { attempt: "scare-kids", same_again: "again_0" }, replies: ["Moll just laughs from the wall."] });
+  try {
+    const state = yard("gates-same-again", 4);
+    state.path.push({ turn: 12, from: "yard", to: "yard", via: "scare-kids", source: "pre", roll: { skill: "intimidation", dc: 12, die: 5, modifier: 4, total: 9, success: false, critical: null } });
+    state.sceneStatus = "stuck";
+    await playerTurn(state, "*plants herself in the gateway* I said nobody leaves! Come back here, or the watch drags you back by your ear!");
+    assert.equal(state.path.at(-1)?.via, "same-again:scare-kids", "no second roll");
+    assert.match(told(fake), /it gets the same answer it got before: Cob bolts behind the water butt/);
+    assert.doesNotMatch(told(fake), /going in circles/);
+  } finally {
+    fake.restore();
+  }
+});
+
 // The wizard's T11: a Mage Hand sent to pinch the page from the boot of a boy who was watching got no
 // roll (the spell was the whole act), and the GM narrated a failure. The barbarian's war-roar with
 // the Rage went unruled the same way (the class feature answered the turn).

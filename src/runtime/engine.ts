@@ -565,7 +565,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   } else if (pre.sameAgain) {
     // The same push that already failed here, again: no dice, and the same answer.
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `same-again:${pre.sameAgain.id}`, source: "pre" });
-    directive = [sameAgainDirective(pre.sameAgain)];
+    directive = [sameAgainDirective(pre.sameAgain, pre.sameAnswer)];
   }
   // The rules resolve a spell, a blow or a rest; the GM narrates what they decided.
   if (pre.mechanic && state.rules) {
@@ -672,7 +672,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   else if (pre.plainTransition && !pre.limit && !pre.move && !considered) directive.push(plainDirective(pre.plainTransition));
   // (Out of character, the answer says plainly what the game can't do, and the scene isn't pushed on.)
   if (pre.limit && !pre.ooc) directive.push(limitDirective(pre.limit));
-  if (wasStuck && !pre.move && !considered && !pre.ooc) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
+  // (Not on the same push again: its answer is the one it got before, and nothing more comes of it.)
+  if (wasStuck && !pre.move && !considered && !pre.ooc && !pre.sameAgain) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
   // An ending held for the player's answer: a move answers it (a ruling's success, or its own ending);
   // a ruling that failed without one is like any try that might change things.
   if (pending && !pre.move && !(considered && (considered.record.went === "success" || considered.move.exit))) {
