@@ -439,6 +439,25 @@ function alsoQuestion(t: Transition, act: RuledAct): ChoiceQuestion {
 }
 
 /**
+ * Considered rolls, on a turn the rules resolve the player's act and a roll is wanted: is the act only
+ * the means to something risky the rules don't settle? A Mage Hand pinching the page from a boy who's
+ * watching (the spell is cast; whether he notices isn't the spell's), a lunge to catch the body the
+ * axe brings down, a threat made with a fist in someone's collar. Then the GM rules on that, knowing
+ * how the act went. A blow, a shot, a grab, or a spell doing what it does, stays the rules' alone.
+ * Asked in the act's details call, so other turns pay nothing for it.
+ */
+function meansQuestion(act: RuledAct): ChoiceQuestion {
+  const name = ACT_NAMES[act];
+  return {
+    instructions: `The game's rules settle ${name} in the player's latest turn: whether it works and what it does. Is ${name} only the means to something else risky the player is attempting in the same turn, which the rules' act doesn't settle by itself and which could go either way? For example: the spell does the lifting, but taking something from someone who's watching turns on not being noticed; the blow cuts the rope, but catching what falls is a feat of its own; a threat or a lie rides on the grab.`,
+    criteria: {
+      yes: `Yes: besides ${name}, the turn has a risky attempt of its own, which turns on someone noticing, resisting or being won over, or on a feat the rules' act doesn't decide.`,
+      no: `No: ${name} is the whole of it (a blow, a shot, a grab, or the spell doing what it does), and the rest is talk or simply follows from it.`,
+    },
+  };
+}
+
+/**
  * Which spell, at whom; or which blow, at whom: a second small call, only on those turns. Any
  * `extra` questions about the same turn ride along in it.
  */
@@ -813,7 +832,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
   // (A beat with no route with a roll has a lower bar: there the flag can only say "new" or "none".)
   const bar = attempts.some(t => t.check) ? CONSIDER_CONFIDENCE : CONSIDER_CONFIDENCE_OPEN;
-  const considered = options.considered && yes("route") + yes("new") >= bar && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !actSettles && !ooc && !forced
+  const wanted = options.considered && yes("route") + yes("new") >= bar && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !ooc && !forced
     ? {
       probability: yes("route") + yes("new"),
       routes: attempts.filter(t => t.check).map(t => ({ id: t.id, p: decision.answers.attempt?.probabilities?.[t.id] ?? 0 })).filter(r => r.p >= 0.05).sort((a, b) => b.p - a.p),
@@ -821,6 +840,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       ...(earnedRead >= 0.3 ? { earned: earnedRead } : {}),
     }
     : undefined;
+  // The rules' act settles it, unless it's only the means to something risky they don't (asked with
+  // the act's details, below: then the GM rules on that, knowing how the act went).
+  let considered = wanted && !actSettles ? wanted : undefined;
   // The same push that already failed here isn't rolled again on a route's dice (the GM's ruling
   // says no to it without them too): it gets the same answer.
   const again = decision.answers.same_again;
@@ -879,7 +901,6 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     .slice(0, 1)
     .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const plainTransition = plain && !plainEnding && !considered ? plainOutcome : undefined;
   // The rules: a spell or a blow gets its details in a second small call; a rest needs none. Not
   // when it starts a fight for the map.
   let mechanic: Mechanic | undefined;
@@ -888,7 +909,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     if (options.forced) mechanic = options.forced;
     else if (ruling === "short_rest" || ruling === "long_rest") mechanic = { kind: "rest", length: ruling === "short_rest" ? "short" : "long" };
     else if (act) {
-      const details = await mechanicDetails(decider, scene, state, playerTurn, act, options.rules, held ? { also: alsoQuestion(held, act) } : {});
+      // A roll wanted that only the rules' act stood in the way of (no route's roll waiting on it): is the act only the means?
+      const asksMeans = !!wanted && !considered && !held && !move && !sameAgain;
+      const extra: Record<string, ChoiceQuestion> = { ...(held ? { also: alsoQuestion(held, act) } : {}), ...(asksMeans ? { means_only: meansQuestion(act) } : {}) };
+      const details = await mechanicDetails(decider, scene, state, playerTurn, act, options.rules, extra);
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
       mechanic = details.mechanic;
       const also = details.decision.answers.also;
@@ -897,8 +921,11 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         // A check that tips the scene into a fight hands it to the map, blow and all.
         if (move.exit?.kind === "combat") mechanic = undefined;
       }
+      const only = details.decision.answers.means_only;
+      if (asksMeans && mechanic && only?.choice === "yes" && (only.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE) considered = wanted;
     }
   }
+  const plainTransition = plain && !plainEnding && !considered ? plainOutcome : undefined;
   return {
     ...(mechanic ? { mechanic } : {}),
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,

@@ -351,10 +351,12 @@ function reachEnding(state: SessionState, exit: Exit, via: string, waits: string
  * move, a route the author gave no dice read with confidence, the rules, a limit, the same push
  * again, out of character) or is winding the scene down. (The thief's crown for Cob's paper read as
  * the bribe route at .81 and off the graph at .84, and the review's ruling played instead of the
- * haggling the author wrote.)
+ * haggling the author wrote.) The rules answer it only when nothing's left to rule on: a spell or a
+ * blow that's only the means to something risky (a Mage Hand at the page in a watching boy's boot), or
+ * a class feature with a risky act beside it (a war-roar with the rage), still gets the act's ruling.
  */
 function wantsReview(state: SessionState, pre: PreDecision): boolean {
-  const answered = !!(pre.move || pre.mechanic || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain || pre.byPrep);
+  const answered = !!(pre.move || (pre.mechanic && !pre.considered) || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain || pre.byPrep);
   return !state.closing && !answered && !!(pre.considered || pre.offGraph);
 }
 
@@ -520,10 +522,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   // Considered rolls: the GM's review starts at once, alongside the memory notes being opened (it
-  // doesn't read them), with its watchdog: past its deadline the turn rolls without it.
-  const reviewing = considers && wantsReview(state, pre)
-    ? reviewWithin(scene, state, input, pre.considered, { ...(state.pendingExit ? { pending: state.pendingExit } : {}), unheard: unheardInStory(scene, state), onStep: s => hooks.onStep?.(s) })
-    : undefined;
+  // doesn't read them), with its watchdog: past its deadline the turn rolls without it. A ruling on
+  // what the rules' act was only the means to waits for the rules, so it rules knowing how that went.
+  const review = considers && wantsReview(state, pre);
+  const onBrink = state.pendingExit;
+  const startReview = () => reviewWithin(scene, state, input, pre.considered, { ...(onBrink ? { pending: onBrink } : {}), unheard: unheardInStory(scene, state), onStep: s => hooks.onStep?.(s) });
+  let reviewing = review && !pre.mechanic ? startReview() : undefined;
   let ended: Exit | undefined;
   let directive: string[] = [];
   const disclosed = disclosing ? await disclosing : undefined;
@@ -595,6 +599,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       }
     }
   }
+  // The rules have settled the means (their lines are in the scene now): the ruling on the act starts,
+  // unless the act set off a fight, which is the turn's answer.
+  if (review && !reviewing && state.brawl?.turn !== state.turn) reviewing = startReview();
   // Considered rolls: an act a roll should settle that no route does (or a plan off the graph). The
   // GM rules on it before replying: a roll or not, the DC, and what each outcome changes. The rules
   // roll it, the outcome's changes apply like any route's, and the reply plays what was decided.

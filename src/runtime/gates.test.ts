@@ -82,3 +82,72 @@ test("an unsure read of a no-dice route still lets the GM rule on what was asked
     }
   }
 });
+
+// The wizard's T11: a Mage Hand sent to pinch the page from the boot of a boy who was watching got no
+// roll (the spell was the whole act), and the GM narrated a failure. The barbarian's war-roar with
+// the Rage went unruled the same way (the class feature answered the turn).
+const { pregenSession, PREGENS } = await import("../game/combat/pregen.ts");
+const PINCH = "*While Cob glares at my coins, I call up a Mage Hand behind him and have it pinch the edge of that paper out of his boot.*";
+const LIFT = {
+  ...RULING, act: "pinch the page from Cob's boot with the Mage Hand", target: "world", skill: "sleight_of_hand", difficulty: "moderate", reason: "to slip the page out of Cob's boot unseen",
+  success: outcome({ happens: "The hand draws the page out of the boot's lining; Cob never feels it go.", gets: "all", reveals: ["page"] }),
+  failure: outcome({ happens: "Cob feels the tug, slaps at his boot and yells; Moll has him behind the water butt before the hand can try again.", gets: "none", establishes: ["Cob knows someone tried to take what's in his boot."] }),
+};
+
+async function wizardInTheYard(id: string): Promise<SessionState> {
+  const state = await pregenSession({ pregen: "wizard", build: { ...PREGENS.wizard!.build, cantrips: ["mage-hand", "fire-bolt", "light"] }, sceneId: "hanged-clerk", seed: plainSeed() });
+  return { ...state, id, beat: "yard", turnsInBeat: 3, turn: 10 };
+}
+
+test("a spell that's only the means to a risky act still gets the act's ruling, which knows how the spell went", async () => {
+  const fake = fakeOpenRouter({ choices: { roll_call: "new", mechanic: "cast", spell: "mage-hand", means_only: "yes" }, byName: { ruling: LIFT }, replies: ["The hand drifts towards Cob's boot."] });
+  try {
+    const state = await wizardInTheYard("gates-mage-hand");
+    await playerTurn(state, PINCH);
+    assert.equal(fake.sent.filter(b => b.questions?.means_only).length, 1, "asked once, with the spell's details");
+    assert.equal(fake.sent.find(b => b.questions?.roll_call)?.questions?.means_only, undefined, "not in the turn's main decision");
+    const review = fake.sent.find(b => b.text?.format?.name === "ruling");
+    assert.ok(review, "the act goes to the GM's ruling");
+    assert.match(review.input!.at(-1)!.content, /Cast Mage Hand/, "after the rules, so it rules knowing the spell was cast");
+    assert.deepEqual(state.rulings?.map(r => r.act), [LIFT.act]);
+    assert.ok(state.path.some(p => p.via === "rules:cast:mage-hand"), "the rules resolved the cast");
+    assert.match(told(fake), /Decided, and it stands/);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a spell doing what it does, or a blow, stays the rules' alone: no ruling on top", async () => {
+  const fake = fakeOpenRouter({ choices: { roll_call: "new", mechanic: "cast", spell: "mage-hand", means_only: "no" }, byName: { ruling: LIFT }, replies: ["The hand lifts the satchel's flap."] });
+  try {
+    const state = await wizardInTheYard("gates-mage-hand-plain");
+    await playerTurn(state, "*I send a Mage Hand to lift the flap of the satchel on the cobbles.*");
+    assert.equal(reviewed(fake), false);
+    assert.equal(state.rulings, undefined);
+    assert.ok(state.path.some(p => p.via === "rules:cast:mage-hand"));
+  } finally {
+    fake.restore();
+  }
+  // No roll wanted: the means question isn't asked at all.
+  const quiet = fakeOpenRouter({ choices: { mechanic: "cast", spell: "mage-hand" }, replies: ["The hand lifts the satchel's flap."] });
+  try {
+    await playerTurn(await wizardInTheYard("gates-mage-hand-quiet"), "*I send a Mage Hand to lift the flap of the satchel on the cobbles.*");
+    assert.ok(!quiet.sent.some(b => b.questions?.means_only));
+  } finally {
+    quiet.restore();
+  }
+});
+
+test("a class feature with a risky act beside it gets the act's ruling, after the feature's used", async () => {
+  const ROAR = { ...RULING, act: "roar the kids down off the wall", target: "moll", skill: "intimidation", reason: "to make the kids come down off the wall" };
+  const fake = fakeOpenRouter({ choices: { roll_call: "new", mechanic: "feature", feature: "second-wind" }, byName: { ruling: ROAR }, replies: ["Moll freezes on the wall."] });
+  try {
+    const fighter = await pregenSession({ pregen: "fighter", sceneId: "hanged-clerk", seed: plainSeed() });
+    const state: SessionState = { ...fighter, id: "gates-feature", beat: "yard", turnsInBeat: 3, turn: 10, rules: { ...fighter.rules!, features: [{ id: "second-wind", name: "Second Wind", target: "self" }] } };
+    await playerTurn(state, "*I catch my breath, then bellow at the kids to get down off that wall, now.*");
+    assert.ok(state.path.some(p => p.via === "rules:feature:second-wind"), "the feature is used");
+    assert.deepEqual(state.rulings?.map(r => r.act), [ROAR.act], "and the roar is ruled on");
+  } finally {
+    fake.restore();
+  }
+});
