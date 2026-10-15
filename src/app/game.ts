@@ -3,7 +3,7 @@ import { Game as Core, type Action, type Explorer, type GameState } from "../gam
 import { TacticalFight, type CombatController, type TacticalFights } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
-import { setGlyphSet } from "../game/look/glyphs.ts";
+import { glyphSet, setGlyphSet } from "../game/look/glyphs.ts";
 import { mapFights } from "../game/fights.ts";
 import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
 import type { AimAt, AimView, MenuItem, MenuView } from "../game/menu.ts";
@@ -17,6 +17,8 @@ import { newZoo } from "../game/zoo/game.ts";
 import { lookFor, playNews, type Look } from "../game/zoo/look.ts";
 import { zooOf } from "../game/zoo/model.ts";
 import { modelOffline, setCallLog } from "../llm/openrouter.ts";
+import { fileReport, type Where } from "../report/dump.ts";
+import { noteError, noteGame, recentScreens } from "../report/recent.ts";
 import { sheetData, spellInfo, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries, unnamed } from "../runtime/brief.ts";
 import { thingActions, type SceneContext, type SceneTarget, type SpellFacts, type ThingActions } from "../game/scene-menu.ts";
@@ -26,7 +28,7 @@ import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf } from "../../scenes/talk.ts";
 import { repairCampaign } from "./rules-repair.ts";
-import { deleteSave, loadExtras, resumable, saveExtras, zooVisits, type JournalEntry, type Resumable } from "./save.ts";
+import { deleteSave, latestGame, loadExtras, resumable, saveExtras, zooVisits, type JournalEntry, type Resumable } from "./save.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, leadWay, LEVEL, notebookLines, TIME_WORDS, type Epilogue } from "./story.ts";
 
 /** The story's map and fights (Caerwyn), or a hub's (the zoo: src/game/zoo), by what a game is. */
@@ -88,6 +90,7 @@ export const COMMANDS: Array<{ name: string; what: string; testing?: boolean }> 
   { name: "map", what: "the scene's place on the map" },
   { name: "journal", what: "the investigator's notebook" },
   { name: "help", what: "how to play" },
+  { name: "report", what: "[what went wrong]: report a problem, saved for Claude" },
   { name: "save", what: "save the game" },
   { name: "quit", what: "save, and back to the title" },
   { name: "exits", what: "the scene's endings (for testing)", testing: true },
@@ -182,7 +185,12 @@ export type Overlay =
   /** What happens, in full: the last few things said on the map (r, or a click on the box). */
   | { kind: "log" }
   /** The window onto the story's first morning (the zoo's hall): Caerwyn as a new game has it. */
-  | { kind: "window" };
+  | { kind: "window" }
+  /**
+   * Reporting a problem: what went wrong (a line or two), then where the report went. `screen` is
+   * what was on screen as it was asked for, and `from` what was open over it (the sheet, the help).
+   */
+  | { kind: "report"; screen?: string; from?: string; sending?: boolean; said?: string; failed?: boolean; problem?: string };
 
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
@@ -257,6 +265,10 @@ export class Game {
    * line, not the scene: it takes an Enter of its own (or a click) to go on. See wayOnKey (ui/common.tsx).
    */
   typing = false;
+  /** What's on screen now, as text (main.tsx and the static build set it: src/app/report.ts), for a report. */
+  screenText?: () => string | undefined;
+  /** The terminal's size, in cells, for a report. */
+  terminalSize?: () => { cols: number; rows: number };
 
   /** Each walk's number: a new walk takes over from the one before. */
   private walkNo = 0;
@@ -346,13 +358,13 @@ export class Game {
 
   /** Off the title screen's list for good (the folder goes to runs/deleted/). */
   deleteSave(r: Resumable): void {
-    try { deleteSave(r.id); } catch (error) { this.error = `Couldn't delete that game: ${(error as Error).message}`; }
+    try { deleteSave(r.id); } catch (error) { this.error = `Couldn't delete that game: ${this.failed("delete a game", error)}`; }
     this.loadSaves();
   }
 
   /** Every zoo visit goes the same way (runs/deleted/): the title's zoo starts a new one. */
   deleteZooVisits(): void {
-    try { for (const v of zooVisits(1000)) deleteSave(v.id); } catch (error) { this.error = `Couldn't put the zoo back: ${(error as Error).message}`; }
+    try { for (const v of zooVisits(1000)) deleteSave(v.id); } catch (error) { this.error = `Couldn't put the zoo back: ${this.failed("put the zoo back", error)}`; }
     this.loadSaves();
   }
 
@@ -370,14 +382,14 @@ export class Game {
       const who = `${(name.trim() || DEFAULT_NAME).replace(/:/g, " ")}: ${concept.trim() || DEFAULT_CONCEPT}`;
       const core = await Core.create({ player: who, level: LEVEL, explorer: town, fights: this.storyFights });
       this.core = core;
-      setCallLog(join(sessionDir(core.state.id), "calls.jsonl"));
+      playing(core.state.id);
       this.sheet = await sheetData(core.session);
       this.journal = [];
       this.messages = [`${TIME_WORDS[core.state.story.time]}. ${sceneById(core.session.sceneId).hook}`];
       this.screen = "created";
       this.saveExtras();
     } catch (error) {
-      this.error = `Character creation failed: ${message(error)}`;
+      this.error = `Character creation failed: ${this.failed("character creation", error)}`;
       this.screen = "create";
     }
     this.emit();
@@ -393,14 +405,14 @@ export class Game {
       if (core.state.mode === "scene" || core.state.mode === "combat") sceneById(core.session.sceneId);
       if (core.state.mode !== "end") exploreState(core.state);
     } catch (error) {
-      this.error = `That game couldn't be loaded: ${message(error)}`;
+      this.error = `That game couldn't be loaded: ${this.failed("load a game", error)}`;
       this.loadSaves();
       return;
     }
     this.error = undefined;
     if (repairCampaign(core.session)) core.save();
     this.core = core;
-    setCallLog(join(sessionDir(r.id), "calls.jsonl"));
+    playing(r.id);
     const extras = loadExtras(r.id);
     this.messages = extras?.messages ?? [];
     this.journal = extras?.journal ?? [];
@@ -442,7 +454,7 @@ export class Game {
     try {
       const core = await newZoo({ fights: this.zooFights });
       this.core = core;
-      setCallLog(join(sessionDir(core.state.id), "calls.jsonl"));
+      playing(core.state.id);
       this.journal = [];
       this.messages = [WELCOME];
       this.overlay = undefined;
@@ -452,7 +464,7 @@ export class Game {
       this.screen = "explore";
       this.saveExtras();
     } catch (error) {
-      this.error = `The zoo couldn't open: ${message(error)}`;
+      this.error = `The zoo couldn't open: ${this.failed("open the zoo", error)}`;
     }
     this.emit();
   }
@@ -813,9 +825,10 @@ export class Game {
       // The player's own status line is the sidebar's to say.
       if (said) this.say(text.split("\n").filter(l => !l.startsWith(`${core.session.player.name}: HP `)).join("\n"));
     } catch (error) {
+      const said = this.failed(opening ? "open a scene" : `the map: ${id}`, error);
       // A talk's greeting that never came isn't saved (the game is still on the map): walking on goes back to it.
-      if (opening) this.lines.push({ kind: "error", speaker: "system", text: core.session.talk ? `The GM couldn't open the talk: ${message(error)}. (Walk on to go back to the map.)` : `The GM couldn't open the scene: ${message(error)}. (/end <exit> skips ahead for testing.)` });
-      else this.say(message(error));
+      if (opening) this.lines.push({ kind: "error", speaker: "system", text: core.session.talk ? `The GM couldn't open the talk: ${said}. (Walk on to go back to the map.)` : `The GM couldn't open the scene: ${said}. (/end <exit> skips ahead for testing.)` });
+      else this.say(said);
     }
     this.busy = undefined;
     this.live = undefined;
@@ -977,15 +990,18 @@ export class Game {
   }
 
   /**
-   * A command that only opens something to look at (/sheet, /map, /journal, /help): it works any
+   * A command that only opens something (/sheet, /map, /journal, /help, /report): it works any
    * time, with the GM mid-sentence or the scene over. True when the text was one.
    */
   peek(raw: string): boolean {
     const text = raw.trim();
     if (!/^[/#]/.test(text) || !this.core) return false;
-    const name = commandNamed(text.slice(1).split(/\s+/)[0] ?? "");
+    const [typed = "", ...rest] = text.slice(1).split(/\s+/);
+    const name = commandNamed(typed);
     if (name === "sheet") void this.showSheet();
     else if (name === "map" || name === "journal" || name === "help") { this.overlay = name === "map" ? { kind: "scene-map" } : { kind: name }; this.emit(); }
+    // What went wrong can come with it (/report Kell asked twice): then it goes at once.
+    else if (name === "report") { this.openReport(); if (rest.length) void this.sendReport(rest.join(" ")); }
     else return false;
     return true;
   }
@@ -1009,6 +1025,7 @@ export class Game {
       // A spell attack can leave the rules campaign unloadable (see rules-repair.ts).
       if (repairCampaign(core.session)) core.save();
     } catch (error) {
+      const said = this.failed(`a turn in ${core.session.sceneId}: "${text}"`, error);
       // A turn that fails part-way leaves things half-changed: go back to the last save.
       this.core = Core.load(core.state.id, this.explorer, this.fights);
       // The scene's look saw the half-changed world: it starts again from the saved one, so going back isn't news.
@@ -1016,12 +1033,12 @@ export class Game {
       this.rolled = [];
       if (this.core.state.mode === "scene") {
         this.showSceneSoFar();
-        this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${message(error)}). Your last turn didn't happen; try it again.` });
+        this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${said}). Your last turn didn't happen; try it again.` });
       } else {
         // The last save is from before it: a talk whose greeting never came, or a scene whose opening didn't
         // (neither is saved until it's begun). Back on the map where that left the player.
-        this.toMap(core.session.talk ? `The GM lost the thread (${message(error)}), and the talk with it.`
-          : `The GM lost the thread (${message(error)}). The scene never got going (its opening didn't come): you're back where you were before it, and going in again tries it afresh.`);
+        this.toMap(core.session.talk ? `The GM lost the thread (${said}), and the talk with it.`
+          : `The GM lost the thread (${said}). The scene never got going (its opening didn't come): you're back where you were before it, and going in again tries it afresh.`);
       }
     } finally {
       stop();
@@ -1048,7 +1065,7 @@ export class Game {
     try {
       text = await core.act(action.id, this.hooks());
     } catch (error) {
-      this.status = message(error);
+      this.status = this.failed(`a talk: ${action.id}`, error);
       this.emit();
       return;
     }
@@ -1115,7 +1132,7 @@ export class Game {
       if (this.notice()) this.emit();
       await running;
     } catch (error) {
-      const line: Line = { kind: "error", speaker: "system", text: `The story couldn't move on cleanly: ${message(error)}` };
+      const line: Line = { kind: "error", speaker: "system", text: `The story couldn't move on cleanly: ${this.failed("move the story on", error)}` };
       this.lines.push(line);
       // It went wrong in the next scene (a summons): say so there too.
       if (this.over && this.session?.sceneId !== this.shown) this.over.carry = [...(this.over.carry ?? []), line];
@@ -1218,7 +1235,8 @@ export class Game {
     const core = this.core;
     try {
       this.choices = core?.state.mode === "scene" && !this.over ? core.observe().actions : [];
-    } catch {
+    } catch (error) {
+      noteError("the scene's choices", error);
       this.choices = [];
     }
   }
@@ -1417,7 +1435,7 @@ export class Game {
       const refusal = /^\((.+)\)$/.exec(said.trim());
       if (refusal) this.status = refusal[1];
     } catch (error) {
-      this.status = `That didn't work: ${message(error)}`;
+      this.status = `That didn't work: ${this.failed(`a fight: ${id}`, error)}`;
     }
     this.animateFight();
     this.busy = undefined;
@@ -1450,7 +1468,7 @@ export class Game {
       const refusal = /^\(([^\n]+)\)$/.exec(said.trim());
       if (refusal) this.fightReply = refusal[1];
     } catch (error) {
-      this.fightReply = `That didn't work: ${message(error)}`;
+      this.fightReply = `That didn't work: ${this.failed(`a fight: "${text}"`, error)}`;
     }
     this.fightLive = undefined;
     this.animateFight();
@@ -1495,7 +1513,7 @@ export class Game {
         const text = await core.act("continue", this.hooks());
         this.say(text.replace(/^The fight: /, "").replace(/\s*\n+\s*/g, " "));
       } catch (error) {
-        this.say(`The fight's end didn't settle cleanly: ${message(error)}`);
+        this.say(`The fight's end didn't settle cleanly: ${this.failed("a fight's end, back to the map", error)}`);
       }
       this.busy = undefined;
       this.fightLook = undefined;
@@ -1518,7 +1536,7 @@ export class Game {
       this.observeScene();
     } catch (error) {
       this.showSceneSoFar();
-      this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't tell the aftermath: ${message(error)}. (Say what you do next; /end <exit> skips ahead for testing.)` });
+      this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't tell the aftermath: ${this.failed("a fight's aftermath", error)}. (Say what you do next; /end <exit> skips ahead for testing.)` });
     }
     this.busy = undefined;
     this.live = undefined;
@@ -1642,6 +1660,76 @@ export class Game {
   }
 
   // -------------------------------------------------------------------------------------------
+  // Reporting a problem (src/report): b on the map and in a fight, /report in a scene, the Esc
+  // menu's Report a problem…, the title's (about the latest game)
+
+  /**
+   * Ask what went wrong, over whatever's on screen, which is kept as it was: the frame drawn before
+   * the question came up (from the Esc menu, the one before the menu opened; or, when the renderer
+   * can't be read just then, the last one noted).
+   */
+  openReport(): void {
+    this.walking = false;
+    const from = this.overlay?.kind;
+    const screen = (from === "menu" ? undefined : this.screenText?.()) ?? recentScreens().at(-1)?.text;
+    this.overlay = { kind: "report", ...(screen ? { screen } : {}), ...(from && from !== "menu" && from !== "report" ? { from } : {}) };
+    this.emit();
+  }
+
+  /**
+   * The player's words, and the report goes: the game saved first (as /save does, unless a turn is
+   * under way, when what's in memory goes in beside the last save), then everything Claude needs to
+   * look into it (src/report/dump.ts). Then it says where the report went, to tell Claude.
+   */
+  async sendReport(words: string): Promise<void> {
+    const report = this.overlay;
+    if (report?.kind !== "report" || report.sending || report.said) return;
+    if (!words.trim()) { report.problem = "Say what went wrong first: a line or two, then Enter."; this.emit(); return; }
+    report.sending = true;
+    delete report.problem;
+    this.emit();
+    const core = this.core;
+    const midTurn = !!core && !!this.busy;
+    try {
+      // A save that fails is one more thing for the report to say, not a reason to go without it.
+      if (core && !midTurn) { try { core.save(); } catch (error) { noteError("save before a report", error); } }
+      this.saveExtras();
+      const session = core?.state.id ?? latestGame()?.id;
+      const terminal = this.terminalSize?.();
+      const filed = await fileReport({
+        words, where: this.whereNow(report.from), ...(session ? { session } : {}), ...(report.screen ? { screen: report.screen } : {}),
+        ...(midTurn && core ? { live: { game: core.state, session: core.session } } : {}), ...(terminal ? { terminal } : {}), glyphs: glyphSet(),
+      });
+      if (this.overlay === report) this.overlay = { kind: "report", said: filed.said };
+      // On the map, What happens keeps it too.
+      if (this.screen === "explore") this.say(filed.said);
+    } catch (error) {
+      if (this.overlay === report) this.overlay = { kind: "report", failed: true, said: `The report couldn't be saved: ${this.failed("report", error)}` };
+    }
+    this.emit();
+  }
+
+  /** Where the app is, for a report: its screen, what was open over it, the turn under way, the fight. */
+  private whereNow(from?: string): Where {
+    const view = this.fight?.view();
+    return {
+      screen: this.screen,
+      ...(from ? { overlay: from } : {}),
+      ...(this.busy ? { busy: this.busy } : {}),
+      ...(this.status ? { status: this.status } : {}),
+      ...(this.over ? { over: this.over.ending ?? "the scene is over" } : {}),
+      ...(view ? { fight: { round: view.round, ...(view.turn ? { turn: view.turn.name } : {}) } } : {}),
+      ...(this.core ? {} : { latest: true }),
+    };
+  }
+
+  /** An error caught and shown: noted for a report (with its stack), and its message for the screen. */
+  private failed(where: string, error: unknown): string {
+    noteError(where, error);
+    return message(error);
+  }
+
+  // -------------------------------------------------------------------------------------------
   // The End, overlays, saving
 
   private toEnd(): void {
@@ -1657,7 +1745,7 @@ export class Game {
     // In a fight, the player as the fight has left them so far (its campaign is written back when it ends).
     const campaign = this.fight?.state().campaign;
     try { this.overlay = { kind: "sheet", sheet: await sheetData(this.session, campaign ? { campaign } : {}) }; }
-    catch (error) { this.overlay = { kind: "sheet", error: `The sheet couldn't be read: ${message(error)}` }; }
+    catch (error) { this.overlay = { kind: "sheet", error: `The sheet couldn't be read: ${this.failed("the sheet", error)}` }; }
     this.emit();
   }
 
@@ -1668,12 +1756,13 @@ export class Game {
 
   saveExtras(): void {
     if (!this.core) return;
-    try { saveExtras({ sessionId: this.core.state.id, messages: this.messages.slice(-12), journal: this.journal }); } catch { /* best effort */ }
+    try { saveExtras({ sessionId: this.core.state.id, messages: this.messages.slice(-12), journal: this.journal }); } catch (error) { noteError("save the notebook", error); }
   }
 
   toTitle(): void {
     // The zoo's glyph lever was the zoo's: the story draws with KM_GLYPHS's set again.
     if (this.core?.state.hub) setGlyphSet(undefined);
+    noteGame(undefined);
     this.screen = "title";
     this.overlay = undefined;
     this.card = undefined;
@@ -1710,7 +1799,7 @@ export class Game {
 
   private saveAll(): void {
     if (!this.core || this.screen === "title") return;
-    try { this.core.save(); } catch { /* the runtime saved the session after the last turn */ }
+    try { this.core.save(); } catch (error) { noteError("save on the way out", error); /* the runtime saved the session after the last turn */ }
     this.saveExtras();
   }
 }
@@ -1751,6 +1840,12 @@ export function talkBetween(friend: { id: string; name: string }, what: { notebo
   if (!kell) out.push(says(`“${what.next.title} next.”${way ? ` ${friend.name} shows you the way: ${way}.` : ""}`));
   else out.push(says(`“${what.next.title}, then.” ${way ? `She draws you the way in her notebook’s margin: ${way}.` : "She writes it down."} “${KELL_ON[what.next.id] ?? "After you, investigator. I’ll be writing."}”`));
   return out;
+}
+
+/** A game is on: its model calls go in its folder's log, and what goes wrong is noted as its (for a report). */
+function playing(id: string): void {
+  setCallLog(join(sessionDir(id), "calls.jsonl"));
+  noteGame(id);
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

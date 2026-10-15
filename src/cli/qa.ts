@@ -38,6 +38,7 @@ const USAGE = `Kingmaker playable game: headless QA
   qa map --session <id> [--w 100] [--h 30]      the map where you are (in a scene: its place, and its world from above)
   qa transcript --session <id>                  the story so far
   qa dump --session <id> --output <dir> --description "<what went wrong>"   for bug reports only
+  (or npm run report -- make --session <id> "<what went wrong>": a report as the game files one, for npm run report -- inspect)
 
 Begin with observe; observe again after anything changes.`;
 

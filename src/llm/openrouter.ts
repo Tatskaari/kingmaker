@@ -66,8 +66,13 @@ export function setCallLog(path: string | undefined): void {
 }
 
 const ledger = process.env.KM_COST_LEDGER ?? "runs/cost-ledger.jsonl";
+/** The cost ledger: every call's cost, across games and evals (a report keeps its game's lines). */
+export const costLedger = () => ledger;
 let spent = 0;
 export const sessionSpend = () => spent;
+
+/** The game a call log is a session's (runs/sessions/<id>/calls.jsonl): its ledger lines name it. */
+const sessionOfLog = (path: string | undefined) => (path ? /(?:^|[\\/])sessions[\\/]([^\\/]+)[\\/]calls\.jsonl$/.exec(path)?.[1] : undefined);
 
 export function logCall(entry: Record<string, unknown>): void {
   const line = JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n";
@@ -76,9 +81,10 @@ export function logCall(entry: Record<string, unknown>): void {
 
 export function recordCost(provider: string, operation: string, model: string, costUsd: number, latencyMs: number): void {
   spent += costUsd;
+  const session = sessionOfLog(logFile);
   try {
     mkdirSync(dirname(ledger), { recursive: true });
-    appendFileSync(ledger, JSON.stringify({ at: new Date().toISOString(), provider, operation, model, costUsd, latencyMs }) + "\n");
+    appendFileSync(ledger, JSON.stringify({ at: new Date().toISOString(), provider, operation, model, costUsd, latencyMs, ...(session ? { session } : {}) }) + "\n");
   } catch { /* the ledger is best effort */ }
 }
 

@@ -400,6 +400,7 @@ export function SceneScreen({ game }: { game: Game }) {
     ...(over ? [["Enter", "go on", () => { clear(); game.continueScene(); }] as KeyHint] : choices.length && !busy ? [[`1–${choices.length}`, "choose one"] as KeyHint] : []),
     ...(["sheet", "map", "journal", "help"] as const).map((name): KeyHint => [`/${name}`, "", () => { game.peek(`/${name}`); }]),
     ["Esc", "menu"], ...(world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
+    ["/report", "a problem", () => { game.peek("/report"); }],
   ];
   // What the pointer's on, and the bottom line about it in place of the keys (as the map's), while no menu's open.
   const menu = game.overlay ? undefined : game.sceneMenu;

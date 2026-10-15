@@ -1,6 +1,8 @@
 # Kingmaker V2 PoC: GM-run scenes
 
-A proof of concept for the V2 idea in [Kingmaker V2 prototype.md](Kingmaker%20V2%20prototype.md). The world is split into **scenes** adjudicated by an AI game master. You talk and act in plain English, the people in the scene react, and the scene ends through one of its **exits**, which run a world-update script. Between scenes, a map would be the hub. Here the scenes simply chain.
+A proof of concept for the V2 idea in [Kingmaker V2 prototype.md](Kingmaker%20V2%20prototype.md). The world is split into **scenes** adjudicated by an AI game master. You talk and act in plain English, the people in the scene react, and the scene ends through one of its **exits**, which run a world-update script. In the playable game you walk the town on a map between scenes, and fights are played out on it ([src/app](src/app/README.md)); the scene harness below plays the scenes alone, one after another.
+
+To review the code, start at [ARCHITECTURE.md](ARCHITECTURE.md): the overall diagram, a doc for each component, where state lives, and how to check a change.
 
 What we learned is in [docs/FINDINGS.md](docs/FINDINGS.md), with write-ups in [docs/experiments/](docs/experiments/). The running lab notebook is [docs/LOG.md](docs/LOG.md), and the blind QA write-ups are in [docs/qa/](docs/qa/).
 
@@ -9,8 +11,10 @@ What we learned is in [docs/FINDINGS.md](docs/FINDINGS.md), with write-ups in [d
 Needs Node 26 and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`).
 
 ```sh
-npm install                       # only needed for typecheck and the world scribe's script checks
-npm run scene -- list             # scenes and approaches
+npm install                       # the game's packages (OpenTUI, boardgame.io), and tsc for the typecheck and the scribe's script checks; the scene harness needs none
+npm run game                      # the playable game in a terminal: the town, its scenes and the fight at the Heron (z on the title opens the zoo)
+npm run qa -- new --session try --as "Wren: a hedge wizard"   # the same game headless, by action id (src/cli/README.md)
+npm run scene -- list             # the scene harness: scenes and approaches
 npm run scene -- play stranger-crossroads            # interactive: character creation, then the road
 npm run scene -- start crossroads-ambush --session demo          # defaults to the recommended v2
 npm run scene -- say demo '(I raise my hands) Easy, friend. What happened to your ox?'
@@ -20,6 +24,8 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 ```
 
 ## How a turn works
+
+The short version. The whole turn, with the rules, memory and the co-GM, is in [ARCHITECTURE.md](ARCHITECTURE.md#one-turn) and [src/runtime/README.md](src/runtime/README.md#one-player-turn).
 
 1. **Decide before replying.** One call to Luna's decision mode (`openai/gpt-6-luna-decisions`, about 0.2–0.35 s). It asks, in parallel:
    - Is the player attempting a scene route? Routes can carry a roll.
@@ -42,7 +48,7 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 
 | approach | what it tests |
 |---|---|
-| **`v2`** (default) | **Recommended.** GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), quick co-GM on off-graph turns (3 s), background co-GM. |
+| **`v2`** (default) | **Recommended**, and what the game plays. GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), V1's docs-service memory, a roll for a risky attempt no route covers, quick co-GM on off-graph turns (3 s), background co-GM. |
 | `v2-straight` | The same, played straight (the `v2` of the deviation experiment). |
 | `v2-pressure` | `v2` plus pressure rolls: pressing someone for what they're hiding is ruled yes, no, or a roll at DC 12/15/18 ([research](docs/research/dc-guidance.md)). |
 | `v2-comic`, `v2-comic-bill` | Absurdity experiment conditions: the comic style without and with the consequence flag. |
@@ -68,7 +74,10 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 | `warren-hostage` | A hostage negotiation with a would-be usurper. |
 | `blocked-entrance` | V1's cart standoff: three people, three agendas. |
 | `green-standoff` | Multi-faction standoff (after BG3's grove). |
-| `hanged-clerk` | An investigation with hostile witnesses and a partner. |
+| `hanged-clerk` | An investigation with hostile witnesses and a partner. The first scene of the Caerwyn arc, which the playable game plays. |
+| `drowned-rat` → `heron-warehouse` → `kings-morning` | The rest of the arc: a dockside dive, the warehouse on the wharves at night (one of its endings is a fight), and the report to the King. In the scene harness, `caerwyn-afternoon` and `wharf-night` stand in for the map between them. |
+
+Every scene, with where each leads, is in [scenes/README.md](scenes/README.md).
 
 ## Checks
 
@@ -79,20 +88,31 @@ npm run build:web         # the PR preview: the whole game as a static site in d
 npm run web:static-check  # that build, served under the preview's path and played in Chromium
 ```
 
-The playable game's smoke tests are in [src/app/README.md](src/app/README.md), the browser's checks in [src/web/README.md](src/web/README.md).
+The playable game's smoke tests are in [src/app/README.md](src/app/README.md), the browser's checks in [src/web/README.md](src/web/README.md). Every check, how long it takes and whether CI runs it, is in [ARCHITECTURE.md](ARCHITECTURE.md#checks).
+
+## Reporting a problem
+
+In the game, b (on the map and in fights), `/report` (in a scene) or the Esc menu's Report a problem… asks what went wrong, then saves everything needed to look into it as one file: "Saved runs/reports/<file>: tell Claude 'report <file>'" (the static build downloads it). The key is never in it.
+
+```sh
+npm run report -- inspect <file>     # what they said, the build, where they were, the screen, the last turns, errors and calls
+npm run report -- restore <file>     # its game as a new session, for the QA console or Continue
+```
+
+How to read one is in [src/cli/README.md](src/cli/README.md); what the game does is in [src/app/README.md](src/app/README.md).
 
 ## Evals
 
 ```sh
 npm run eval -- --suite decision --decider luna-decisions,jev,luna-none   # decider accuracy and latency
-npm run eval -- --suite reply --approach gm,actors --samples 3            # single-turn improvisation, judged by Sol
+npm run eval -- --suite reply --approach gm,actors --samples 3            # single-turn improvisation, judged by Luna at high reasoning
 npm run eval -- --suite trajectory --approach gm,actors                   # simulated players play whole scenes
 npm run eval -- --suite opening                                           # does the next scene pick up correctly?
 npm run eval -- --suite world --from runs/sessions --mode reconcile       # Phase 2 scribe, judged
 npm run compare -- runs/evals/<a> runs/evals/<b>                          # per-approach aggregates
 ```
 
-Cases are in `src/eval/cases/`. QA failures become cases using per-turn snapshots, which are tracked in `evals/fixtures/`.
+Cases are in `src/eval/cases/`. QA failures become cases using per-turn snapshots, which are tracked in `evals/fixtures/`. The suites, the stage manager's eval and what CI runs of them (nothing) are in [evals/README.md](evals/README.md).
 
 ## World updates (Phase 2)
 

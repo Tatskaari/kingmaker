@@ -3,6 +3,7 @@ import { createRoot } from "@opentui/react";
 import { registerLookCanvas } from "../game/look/opentui.ts";
 import { App } from "./app.tsx";
 import { Game, message } from "./game.ts";
+import { attachReporting, unhandled } from "./report.ts";
 
 /**
  * Kingmaker V2, the playable game: make a character, walk Caerwyn, talk your way through the
@@ -23,6 +24,8 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
 registerLookCanvas();
 const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
 const game = new Game();
+// A report of a problem (b, /report, the Esc menu) has what was on screen, and what went wrong on the way.
+attachReporting(game, renderer);
 const root = createRoot(renderer);
 
 let closing = false;
@@ -34,9 +37,9 @@ function shutdown(code = 0): void {
   process.exit(code);
 }
 
-// A failure anywhere in the game shows up in it rather than tearing the terminal down.
-process.on("unhandledRejection", error => { game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit(); });
-process.on("uncaughtException", error => { game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit(); });
+// A failure anywhere in the game shows up in it rather than tearing the terminal down (and goes in a report).
+process.on("unhandledRejection", error => { unhandled(error); game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit(); });
+process.on("uncaughtException", error => { unhandled(error); game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit(); });
 process.on("SIGTERM", () => { game.quit(); shutdown(0); });
 process.on("SIGHUP", () => { game.quit(); shutdown(0); });
 

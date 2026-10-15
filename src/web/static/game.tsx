@@ -1,6 +1,8 @@
 import { App } from "../../app/app.tsx";
 import { Game, message } from "../../app/game.ts";
+import { attachReporting, unhandled } from "../../app/report.ts";
 import { registerLookCanvas } from "../../game/look/opentui.ts";
+import { setReportSink, stampOf } from "../../report/dump.ts";
 import { setBackgroundRunner } from "../../runtime/background.ts";
 import { rememberJob, repairJob } from "../../runtime/jobs.ts";
 import { createRoot } from "../tui/react.ts";
@@ -35,12 +37,22 @@ export async function startGame(options: {
   cols: number; rows: number; write: (data: string) => void; onQuit: () => void; onJob: (job: Promise<void>) => void;
   /** A failure that's a part of the game not loading (a lazily loaded chunk gone since a new build was published), and what to do then. */
   unloaded: (error: unknown) => boolean; onUnloaded: (error: unknown) => void;
+  /** A report of a problem, made: the page downloads it. */
+  onReport: (file: string, bytes: Uint8Array) => void;
 }): Promise<Started> {
   setBackgroundRunner(runInProcess(options.onJob));
   // The world's views paint themselves, live (<lookCanvas>).
   registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false, width: options.cols, height: options.rows, terminal: { write: options.write } });
   const game = new Game();
+  // A report of a problem (b, /report, the Esc menu) has what was on screen, and goes to the page to
+  // download: what's kept here is in this browser, where nobody investigating can read it.
+  attachReporting(game, renderer);
+  setReportSink(async report => {
+    const file = `kingmaker-report-${stampOf(report.at)}.json.gz`;
+    options.onReport(file, report.bytes);
+    return { file, said: `Downloaded ${file} (your browser's downloads): tell Claude 'report ${file}'` };
+  });
   const root = createRoot(renderer);
   let closing = false;
   const shutdown = () => {
@@ -53,6 +65,7 @@ export async function startGame(options: {
   // A failure anywhere in the game shows up in it rather than tearing the terminal down (but a part of it that won't load is the page's to say).
   const fail = (error: unknown) => {
     if (options.unloaded(error)) return options.onUnloaded(error);
+    unhandled(error);
     game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit();
   };
   self.addEventListener("unhandledrejection", event => { event.preventDefault(); fail(event.reason); });

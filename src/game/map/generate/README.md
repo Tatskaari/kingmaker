@@ -1,5 +1,9 @@
 # src/game/map/generate: places from a description
 
+Part of the [architecture overview](../../../../ARCHITECTURE.md), and of [the map module](../README.md).
+
+## What it is
+
 Can the game's fast model make a place like the hand-made Rat or Heron mid-story ("a chandler's shop on the wharves")? **Yes, at runtime, on today's mainline** (the look layer drawing the map), if the model never draws the map. It writes a terse semantic plan, which streams in. A deterministic compiler lays the building out as soon as the rooms have arrived, and furnishes it when the things do. The game's own renderer then checks it, and problems go back to the model for repair.
 
 **The numbers.** The four places measured as the spike measured them took a median of 5.8 to 7.5 s, depending on the run (the spike took 18.9 s), at $0.0004 to $0.0005 a place, including the look layer's model calls. The building is laid out at a median of 2.1 to 2.6 s. Over the seven runs of those places while this version was finished:
@@ -8,74 +12,58 @@ Can the game's fast model make a place like the hand-made Rat or Heron mid-story
 - The five unseen places passed 30 of 30 over three runs, 27 on the first try.
 - Every failure was a gap in the compiler, not a model mistake. Each was fixed, and the fix was checked against every plan the model had written: 155 of the 156 first plans logged in these runs pass with the code as committed.
 
-"Passed" means the map is sound and does what the plan says. It doesn't mean it's as good as a hand-made place: see [What doesn't work](#what-doesnt-work-yet).
+"Passed" means the map is sound and does what the plan says. It doesn't mean it's as good as a hand-made place: see [Known gaps](#known-gaps-and-sharp-edges).
 
-## What changed since the spike
+## What it owns
 
-The spike passed 20 of 20 on its own base. A review found six things to change before it was usable, and on the mainline its camera check failed every place. In the order the review gave them:
+Nothing persistent. A generation returns a `CompiledPlace` (compile.ts:32): the plan as the model wrote it and as turned to face the camera, the map and its decor (`MapDef`), the scene's region, a `WorldSpec` lined up with the map, the cast, letters and colours for people outside the cast table, and what compiling found and fixed (`problems`, `notes`). `dressingOf` (dressing.ts) makes its dressing for the view from above. `installPlace` writes it into the map module's tables (`MAPS`, `PLACES`, the cast table) until `uninstallPlace` takes it out. The plan's types (`PlacePlan`, `RoomPlan`, `ThingPlan` and the rest) are in plan.ts, and `Problem` is in normalize.ts.
 
-1. **The camera check is a render diff** (`camera.ts`). An actor counts as seen if taking it away changes the picture: the view is drawn with and without it, as `src/game/map/xray.ts` `findHidden` does. The spike compared the drawn glyph with the actor's own glyph, which stopped working once the look layer drew different glyphs.
-   - Actors are taken away in batches whose drawings can't touch, so a view costs one render per batch, not one per actor.
-   - Something drawn exactly like the ground under it (a "~" in the shallows) is asked about again with other ground under it.
-   - The furnisher still predicts where the renderer paints, so that it can avoid collisions: an actor's own cell, a hanging thing's rope, the top of a stack, the flame over a fire. It follows render.ts's rule for how high a thing is drawn (the map's raise where it has one, else the look's lift). The mainline changed that rule while this work was in progress, and the furnisher was updated to match.
-2. **The scene's cast.** The planner is told the scene's cast (`castMember` turns each cast card into an id, a name and a line on who they are), and the plan's people take those ids.
-   - People the plan writes differently are matched by name: "Dilly Sparrow" with id dilly-sparrow becomes dilly, and "Hep Grist" becomes hep.
-   - Anyone the plan leaves out is placed by relation, near what their line mentions or else by the door you come in by, not dropped by buildWorld's spread.
-   - People outside the game's cast table get their own letters and colours, distinct within the place (`people.ts`). `installPlace` registers them in the one cast table (`CAST`), so the map, the look layer and the app all draw them the same way, and `uninstallPlace` takes them out again.
-   - In the final runs the model used every cast id by itself in 34 of 40 Rat and Heron plans. Sallow, who arrives later, was left out three times and placed by the compiler. One degenerate plan had no rooms and no people.
-3. **Things get the look layer's glyphs**, so the look layer's rules had to read the names generated places produce. Small rule fixes in `src/game/look`:
-   - an oven, a stove or a kiln is a warm dome (∩), not a blaze, and its peel is a paddle;
-   - a lime pit is a pit, not a lime tree;
-   - a sign showing a lamp is a sign, and oil tins aren't oil;
-   - a plunge pool is a pool, and a compound is its last part (a rope-counter is a counter);
-   - hay bales are grain, and kneelers, mats, sinks and worktables have rules;
-   - a name ends at across, along, beyond, past, through, among or around (the city's bells across the water are bells, not water);
-   - a person with a name of their own is their initial, not their surname (Dilly Sparrow isn't a bird, Mara Wick isn't a candle), unless the name has an article (a Sea Captain is a guard).
+| file | what it does |
+|---|---|
+| `plan.ts` | The semantic plan: types, the verbose schema and prompt, the cast (`castMember`, `castBrief`), and `modelPlanner` (compact and streamed by default, reasoning none). |
+| `compact.ts` | The terse plan: its schema and prompt, reading it (fields by what they look like), writing it (for repairs), and `partialPlan` (what has arrived of a streaming plan). |
+| `normalize.ts` | Cleans a model's plan: ids (the cast's first), references, one main room, doors, near misses, the cast it left out. It also defines `Problem`. |
+| `orient.ts` | Turns the plan to face the camera, puts the water in front, and says problems back in the plan's compass. |
+| `layout.ts` | The footprint, the rooms by side and corner, walls, partitions, doors, windows, the outside strips, the ways round, boats, and the seed's variety. |
+| `furnish.ts` | Things and people placed by relation, with collision, access, pocket, door-apron, screen-cell and visibility rules, and lanterns for dark rooms. |
+| `compile.ts` | Plan in, `TileMap` + `WorldSpec` + regions + people's looks out; `compileShell` for a plan's structure alone. |
+| `camera.ts` | The render-diff camera (`sceneCamera`), and where render.ts draws an actor (`liftOf`, `rowsOf`). |
+| `validate.ts` | The checks. |
+| `generate.ts` | The pipeline: a streamed plan, the building, the looks, compile, check, repair (twice at most), keep the best. |
+| `looks.ts` | The look layer's model call for the names it doesn't know, counted in the generation. |
+| `people.ts` | Letters and colours for people outside the cast table, and putting them into it. |
+| `install.ts` | Puts a generated place into play, and takes it out again. |
+| `dressing.ts` | The look layer's dressing for a generated place, and a top-down stage picture. |
+| `pictures.ts` | Scene and outside views through render.ts, and PNGs via `tools/preview.py`. |
+| `sketch.ts` | A plain top-down grid, for tests and logs. |
+| `bench.ts` | The measurement: runs, rounds, time to the building, looks, cost, pictures, contact sheets, summaries. |
+| `fixtures.ts`, `model-plans.json`, `model-compact-plans.json` | Hand-written plans (a tavern, a warehouse with a barge, a muddle), nine first-round plans from the spike in the old format, and nine raw first-round compact plans from this version's final runs. |
+| `generate.test.ts` | The tests. |
 
-   Names the rules still don't know cost a look-layer model call. A generation now asks for them itself and counts the call in its own time and cost (`looks.ts`, using `inventNow` in `invent.ts`, which returns what the call cost). The call starts as soon as the plan's things have streamed in, so it mostly overlaps the model writing the people. The final run made 6 such calls for 20 places, costing $0.0007 in all.
-4. **Composition** (`layout.ts`, `orient.ts`):
-   - The outside runs along the building's frontage and a square past each corner. A street is three squares deep at most and a river three (more where things stand in them), and a whole side six (plus a boat's berth).
-   - A burrow is timber-walled inside its bank, as the Rat is, with panelled partitions (timber in a burrow).
-   - The footprint grows before carving, so the main room has five clear squares each way. Room sizes are checked after carving, and the building grows again if the rooms took that space.
-   - A seed varies what the plan leaves open, so two runs of one plan differ: which end of its side a room takes, where along its wall a door goes (not always the middle), and sometimes a back corner left out, so the building is an L.
-   - Water goes round to a side the camera sees, as the hand-made Heron has it. When the wharf is in front and the river behind, the river and its plank walk and boats move to the other front side.
-   - One-storey walls are two rows high, so they don't swallow a small room in the scene view. The neighbours behind a building, and a burrow's bank, are two squares deep, so they read as houses or a hillside.
-   - An outside area cut off from the way in (the quay above a burrow, the landing below it) gets a way round the building, cut through the bank as steps.
-   - A boat with anything aboard gets a deck two squares wide.
-5. **Light.**
-   - A fire lights its room's timber walls, not turf. A test walks every light's line as render.ts does and checks that nothing lit inside reaches turf (bank or grass) outside.
-   - Windows don't look into a bank or a neighbour's wall.
-   - A big room (30 squares or more) where the scene is gets lanterns hung where it's darkest, clear of the walls, until a light reaches 80% of it, three at most. That covers a room lit by one fire and a room lit by nothing. Each light counts by its own reach: an oven glows, it doesn't light a kitchen.
-6. **Latency.**
-   - Reasoning `none` is the default.
-   - The plan is terse (`compact.ts`): each entry is a list of fields inside strict JSON. That's 47% of the old plan's length on the stored plans, and a median of 524 to 703 output tokens a call against 1592 to 2215. Fields a model leaves out, or splits, are read by what they look like.
-   - It streams: the building is laid out when the things begin (`onShell`), and the look layer is asked about the things when the people begin.
-   - Measured on the same day and with the same compiler, the old plan took a median 21.5 s with reasoning low and 19.1 s with none. The terse, streamed plan took 5.8 s in that session.
+The look layer's part of this work is in `src/game/look`:
 
-## Run it
+- `roles.ts`: the oven, the pit, and words added to existing rules;
+- `names.ts`: piles, trailing clauses, and the pool;
+- `appearance.ts`: proper names;
+- `invent.ts`: `inventNow`, which invents looks at once and says what they cost.
 
-```sh
-# Measure: each place 5 times, every round's plan and problems kept, pictures by day and night beside
-# the hand-made Rat and Heron, contact sheets per place. About $0.01.
-node --no-warnings src/game/map/generate/bench.ts --runs 5 --out runs/generate
-node --no-warnings src/game/map/generate/bench.ts --only cooper,harbour,pawnshop,herbalist,kitchen --runs 2 --out runs/generate-unseen
-node --no-warnings src/game/map/generate/bench.ts --format verbose --effort low --no-pictures --out runs/generate-verbose-low   # the old plan
-node --no-warnings src/game/map/generate/bench.ts --text "a tannery by the river" --runs 1 --out runs/generate-try
+## How it fits
 
-# Recompile the saved plans and draw them again, after a change to the compiler. No model calls.
-node --no-warnings src/game/map/generate/bench.ts --redraw --out runs/generate
-
-# Tests: hand-written plans, real plans from the model (both formats), streaming, the cast, composition, light, the repair loop, install.
-node --test --no-warnings src/game/map/generate/*.test.ts
+```mermaid
+flowchart LR
+  bench["bench.ts, the tests"] --> generate["generate.ts: generatePlace"]
+  chandlery["src/game/zoo/wings/chandlery.ts"] -->|"a plan written by hand"| compile
+  generate --> planner["plan.ts: modelPlanner<br/>(Luna, reasoning none, streamed)"]
+  generate --> compile["compile.ts: compilePlan, compileShell"]
+  generate --> looks["looks.ts"] --> invent["src/game/look/invent.ts: inventNow"]
+  generate --> validate["validate.ts, camera.ts"] --> render["src/game/map/render.ts"]
+  compile --> place["CompiledPlace"]
+  place --> install["install.ts: installPlace"] --> tables["MAPS, PLACES, CAST"]
 ```
 
-```ts
-const { ok, place, problems, shellMs, looks } = await generatePlace("a chandler's shop on the wharves, cluttered with rope and lamp oil", {
-  id: "chandler", sceneId: "chandler", cast: scene.cast.map(castMember),
-  onShell: (shell, ms) => { /* the building, laid out from its rooms, while the things are still being written */ },
-});
-installPlace(place!, { present: ["kell"], time: "evening" });  // now getMap, regionForScene, sceneStart and renderExplore all know it, and its people their letters
-```
+- **Who calls it.** Nothing in the story does yet. The zoo's chandlery wing (`zoo-chandlery`) is compiled from a plan written by hand with `compilePlan`, with no model, and installed as a wing. bench.ts and generate.test.ts call `generatePlace`, the first with the model and the second with plans already written.
+- **What it calls.** The model through `respondJson` (src/llm/openrouter.ts), for the plan; the look layer, for the looks of the things it names (`inventNow`, `baseLook`); and the map module's own renderer and reconcile, for the checks (`render`, `actorsFromWorld`), so a check sees what the game would draw.
+- **The seams.** `generatePlace` takes a `planner`, so the tests and the bench can hand it plans without the model, and `onShell` and `onRound` to watch it work.
 
 ## How it works
 
@@ -138,6 +126,102 @@ installPlace(place!, { present: ["kell"], time: "evening" });  // now getMap, re
 | plan, fit | the cleaner had to guess something it can't stand by, or there was no room for something |
 
 Errors go back to the model at most twice, and the best round is kept. Compiling and checking take a median 30 ms a round (84 ms at most). That's up from the spike's 13 ms, because the render diff draws each view once per batch.
+
+## Where to look first
+
+- **A change to the compiler** (layout.ts, furnish.ts, normalize.ts, orient.ts): recompile the saved plans with `bench.ts --redraw` and look at the pictures; the tests run the model's real first-round plans (model-plans.json, model-compact-plans.json).
+- **A change to how things are drawn on the map:** the furnisher predicts where render.ts paints (camera.ts `liftOf`, `rowsOf`). The checks ask the renderer itself, so a drift shows as places that fail their checks.
+- **A change to the plan's shape:** the schema is strict (every property required, nothing extra, as the API demands), and `readPlace` reads fields by what they look like, so a plan the model writes another way still has to read back to the same map.
+- **A change to the look layer's names and roles:** a generated place's things are named by the model, so the rules in src/game/look/roles.ts and names.ts decide what they look like (the list under "What changed since the spike").
+
+## How to test it
+
+```sh
+# Measure: each place 5 times, every round's plan and problems kept, pictures by day and night beside
+# the hand-made Rat and Heron, contact sheets per place. About $0.01.
+node --no-warnings src/game/map/generate/bench.ts --runs 5 --out runs/generate
+node --no-warnings src/game/map/generate/bench.ts --only cooper,harbour,pawnshop,herbalist,kitchen --runs 2 --out runs/generate-unseen
+node --no-warnings src/game/map/generate/bench.ts --format verbose --effort low --no-pictures --out runs/generate-verbose-low   # the old plan
+node --no-warnings src/game/map/generate/bench.ts --text "a tannery by the river" --runs 1 --out runs/generate-try
+
+# Recompile the saved plans and draw them again, after a change to the compiler. No model calls.
+node --no-warnings src/game/map/generate/bench.ts --redraw --out runs/generate
+
+# Tests: hand-written plans, real plans from the model (both formats), streaming, the cast, composition, light, the repair loop, install.
+node --test --no-warnings src/game/map/generate/*.test.ts
+```
+
+```ts
+const { ok, place, problems, shellMs, looks } = await generatePlace("a chandler's shop on the wharves, cluttered with rope and lamp oil", {
+  id: "chandler", sceneId: "chandler", cast: scene.cast.map(castMember),
+  onShell: (shell, ms) => { /* the building, laid out from its rooms, while the things are still being written */ },
+});
+installPlace(place!, { present: ["kell"], time: "evening" });  // now getMap, regionForScene, sceneStart and renderExplore all know it, and its people their letters
+```
+
+The 19 tests need no model, and `npm test` runs them with everything else (CI runs `npm test`). The bench's runs call the model and cost money; `--redraw` doesn't. The zoo's chandlery is a compiled place you can walk (through the Town Annexe's east door), and the zoo's tour goes round it.
+
+## Known gaps and sharp edges
+
+- **Passing isn't the same as good.**
+  - The checks compare the map with the plan and with the game's rules. They don't compare the plan with the text, and nothing judges how a place looks except someone looking at it.
+  - Yards, camps and squares with no building still can't be expressed: a plan is always a building with outside strips round it.
+  - There are no upper floors (a stair up is a thing), and there's one building per place.
+- **About one generation in twenty still needs a repair, or fails.** Every run so far found a new rare gap, such as a narrow barge or a field the model wrote in its own way. Each was fixed, but the next run may find another.
+  - With the code as committed, 155 of the 156 first plans in this version's runs pass. The one that doesn't is a Rat with Dilly's barge moored by the stairs, where the layout puts the shelf in front of the bar rather than behind it. That's what a repair round is for.
+  - A failure after two repairs takes up to 25 s.
+- **The building laid out early isn't always the one furnished.** It's sized for about a dozen things on the floor, and plans with more (a Heron has around 20) grow when their things arrive: 5 of 19 in the last run. That's still faster than waiting for the whole plan, but a game that drew the early building would see it grow.
+- **Places are bigger than the hand-made ones.** The main room's five squares each way and the sizing for a dozen things make a generated Rat or chapel larger than its hand-made equal. Chapels in particular all come out alike: one or two rooms in a square, with their variety only in the doors. The seed's L-shapes need a building 11 squares across, and side rooms only vary where the plan has them.
+- **Night is better, not solved.**
+  - Lanterns go only into big rooms where the scene is, never into a storeroom nobody's in.
+  - Lit windows spill light onto the ground outside them, as render.ts means them to. Windows never look into a bank, though.
+  - A rising ember from a fire can light a single cell of turf. That's the renderer's embers (render.ts), not the place.
+- **People outside the cast table are put into it** while their place is installed (`registerPeople`). That's global state. Two installed places that both have someone with the same id share the later one's look until it's uninstalled.
+- **The look layer's model answers aren't reviewed**, as before: a bad look stays cached until the cache is edited.
+- **Install still only half connects a place.** `installPlace` makes the game able to play a scene in the place, but a way in from the town (a lead marker, a door on Caerwyn's map) is the caller's job, and this work deliberately didn't wire places into the town.
+- **The furnisher copies render.ts's rule for how high things are drawn.** It changed once while this work was in progress, and the furnisher was updated. The checks ask the renderer itself, so they keep being right if it changes again, but until the copy is updated the furnisher would place things the checks then reject.
+
+## What changed since the spike
+
+The spike passed 20 of 20 on its own base. A review found six things to change before it was usable, and on the mainline its camera check failed every place. In the order the review gave them:
+
+1. **The camera check is a render diff** (`camera.ts`). An actor counts as seen if taking it away changes the picture: the view is drawn with and without it, as `src/game/map/xray.ts` `findHidden` does. The spike compared the drawn glyph with the actor's own glyph, which stopped working once the look layer drew different glyphs.
+   - Actors are taken away in batches whose drawings can't touch, so a view costs one render per batch, not one per actor.
+   - Something drawn exactly like the ground under it (a "~" in the shallows) is asked about again with other ground under it.
+   - The furnisher still predicts where the renderer paints, so that it can avoid collisions: an actor's own cell, a hanging thing's rope, the top of a stack, the flame over a fire. It follows render.ts's rule for how high a thing is drawn (the map's raise where it has one, else the look's lift). The mainline changed that rule while this work was in progress, and the furnisher was updated to match.
+2. **The scene's cast.** The planner is told the scene's cast (`castMember` turns each cast card into an id, a name and a line on who they are), and the plan's people take those ids.
+   - People the plan writes differently are matched by name: "Dilly Sparrow" with id dilly-sparrow becomes dilly, and "Hep Grist" becomes hep.
+   - Anyone the plan leaves out is placed by relation, near what their line mentions or else by the door you come in by, not dropped by buildWorld's spread.
+   - People outside the game's cast table get their own letters and colours, distinct within the place (`people.ts`). `installPlace` registers them in the one cast table (`CAST`), so the map, the look layer and the app all draw them the same way, and `uninstallPlace` takes them out again.
+   - In the final runs the model used every cast id by itself in 34 of 40 Rat and Heron plans. Sallow, who arrives later, was left out three times and placed by the compiler. One degenerate plan had no rooms and no people.
+3. **Things get the look layer's glyphs**, so the look layer's rules had to read the names generated places produce. Small rule fixes in `src/game/look`:
+   - an oven, a stove or a kiln is a warm dome (∩), not a blaze, and its peel is a paddle;
+   - a lime pit is a pit, not a lime tree;
+   - a sign showing a lamp is a sign, and oil tins aren't oil;
+   - a plunge pool is a pool, and a compound is its last part (a rope-counter is a counter);
+   - hay bales are grain, and kneelers, mats, sinks and worktables have rules;
+   - a name ends at across, along, beyond, past, through, among or around (the city's bells across the water are bells, not water);
+   - a person with a name of their own is their initial, not their surname (Dilly Sparrow isn't a bird, Mara Wick isn't a candle), unless the name has an article (a Sea Captain is a guard).
+
+   Names the rules still don't know cost a look-layer model call. A generation now asks for them itself and counts the call in its own time and cost (`looks.ts`, using `inventNow` in `invent.ts`, which returns what the call cost). The call starts as soon as the plan's things have streamed in, so it mostly overlaps the model writing the people. The final run made 6 such calls for 20 places, costing $0.0007 in all.
+4. **Composition** (`layout.ts`, `orient.ts`):
+   - The outside runs along the building's frontage and a square past each corner. A street is three squares deep at most and a river three (more where things stand in them), and a whole side six (plus a boat's berth).
+   - A burrow is timber-walled inside its bank, as the Rat is, with panelled partitions (timber in a burrow).
+   - The footprint grows before carving, so the main room has five clear squares each way. Room sizes are checked after carving, and the building grows again if the rooms took that space.
+   - A seed varies what the plan leaves open, so two runs of one plan differ: which end of its side a room takes, where along its wall a door goes (not always the middle), and sometimes a back corner left out, so the building is an L.
+   - Water goes round to a side the camera sees, as the hand-made Heron has it. When the wharf is in front and the river behind, the river and its plank walk and boats move to the other front side.
+   - One-storey walls are two rows high, so they don't swallow a small room in the scene view. The neighbours behind a building, and a burrow's bank, are two squares deep, so they read as houses or a hillside.
+   - An outside area cut off from the way in (the quay above a burrow, the landing below it) gets a way round the building, cut through the bank as steps.
+   - A boat with anything aboard gets a deck two squares wide.
+5. **Light.**
+   - A fire lights its room's timber walls, not turf. A test walks every light's line as render.ts does and checks that nothing lit inside reaches turf (bank or grass) outside.
+   - Windows don't look into a bank or a neighbour's wall.
+   - A big room (30 squares or more) where the scene is gets lanterns hung where it's darkest, clear of the walls, until a light reaches 80% of it, three at most. That covers a room lit by one fire and a room lit by nothing. Each light counts by its own reach: an oven glows, it doesn't light a kitchen.
+6. **Latency.**
+   - Reasoning `none` is the default.
+   - The plan is terse (`compact.ts`): each entry is a list of fields inside strict JSON. That's 47% of the old plan's length on the stored plans, and a median of 524 to 703 output tokens a call against 1592 to 2215. Fields a model leaves out, or splits, are read by what they look like.
+   - It streams: the building is laid out when the things begin (`onShell`), and the look layer is asked about the things when the people begin.
+   - Measured on the same day and with the same compiler, the old plan took a median 21.5 s with reasoning low and 19.1 s with none. The terse, streamed plan took 5.8 s in that session.
 
 ## Measurements
 
@@ -227,54 +311,3 @@ I looked at all of these at full size by night and by day, and fixed what looked
 - lanterns hung against walls, and kitchens left dark;
 - a shop sized for twice its things;
 - a burrow whose bank was a one-square kerb.
-
-## What doesn't work (yet)
-
-- **Passing isn't the same as good.**
-  - The checks compare the map with the plan and with the game's rules. They don't compare the plan with the text, and nothing judges how a place looks except someone looking at it.
-  - Yards, camps and squares with no building still can't be expressed: a plan is always a building with outside strips round it.
-  - There are no upper floors (a stair up is a thing), and there's one building per place.
-- **About one generation in twenty still needs a repair, or fails.** Every run so far found a new rare gap, such as a narrow barge or a field the model wrote in its own way. Each was fixed, but the next run may find another.
-  - With the code as committed, 155 of the 156 first plans in this version's runs pass. The one that doesn't is a Rat with Dilly's barge moored by the stairs, where the layout puts the shelf in front of the bar rather than behind it. That's what a repair round is for.
-  - A failure after two repairs takes up to 25 s.
-- **The building laid out early isn't always the one furnished.** It's sized for about a dozen things on the floor, and plans with more (a Heron has around 20) grow when their things arrive: 5 of 19 in the last run. That's still faster than waiting for the whole plan, but a game that drew the early building would see it grow.
-- **Places are bigger than the hand-made ones.** The main room's five squares each way and the sizing for a dozen things make a generated Rat or chapel larger than its hand-made equal. Chapels in particular all come out alike: one or two rooms in a square, with their variety only in the doors. The seed's L-shapes need a building 11 squares across, and side rooms only vary where the plan has them.
-- **Night is better, not solved.**
-  - Lanterns go only into big rooms where the scene is, never into a storeroom nobody's in.
-  - Lit windows spill light onto the ground outside them, as render.ts means them to. Windows never look into a bank, though.
-  - A rising ember from a fire can light a single cell of turf. That's the renderer's embers (render.ts), not the place.
-- **People outside the cast table are put into it** while their place is installed (`registerPeople`). That's global state. Two installed places that both have someone with the same id share the later one's look until it's uninstalled.
-- **The look layer's model answers aren't reviewed**, as before: a bad look stays cached until the cache is edited.
-- **Install still only half connects a place.** `installPlace` makes the game able to play a scene in the place, but a way in from the town (a lead marker, a door on Caerwyn's map) is the caller's job, and this work deliberately didn't wire places into the town.
-- **The furnisher copies render.ts's rule for how high things are drawn.** It changed once while this work was in progress, and the furnisher was updated. The checks ask the renderer itself, so they keep being right if it changes again, but until the copy is updated the furnisher would place things the checks then reject.
-
-## The files
-
-| file | what it does |
-|---|---|
-| `plan.ts` | The semantic plan: types, the verbose schema and prompt, the cast (`castMember`, `castBrief`), and `modelPlanner` (compact and streamed by default, reasoning none). |
-| `compact.ts` | The terse plan: its schema and prompt, reading it (fields by what they look like), writing it (for repairs), and `partialPlan` (what has arrived of a streaming plan). |
-| `normalize.ts` | Cleans a model's plan: ids (the cast's first), references, one main room, doors, near misses, the cast it left out. It also defines `Problem`. |
-| `orient.ts` | Turns the plan to face the camera, puts the water in front, and says problems back in the plan's compass. |
-| `layout.ts` | The footprint, the rooms by side and corner, walls, partitions, doors, windows, the outside strips, the ways round, boats, and the seed's variety. |
-| `furnish.ts` | Things and people placed by relation, with collision, access, pocket, door-apron, screen-cell and visibility rules, and lanterns for dark rooms. |
-| `compile.ts` | Plan in, `TileMap` + `WorldSpec` + regions + people's looks out; `compileShell` for a plan's structure alone. |
-| `camera.ts` | The render-diff camera (`sceneCamera`), and where render.ts draws an actor (`liftOf`, `rowsOf`). |
-| `validate.ts` | The checks. |
-| `generate.ts` | The pipeline: a streamed plan, the building, the looks, compile, check, repair (twice at most), keep the best. |
-| `looks.ts` | The look layer's model call for the names it doesn't know, counted in the generation. |
-| `people.ts` | Letters and colours for people outside the cast table, and putting them into it. |
-| `install.ts` | Puts a generated place into play, and takes it out again. |
-| `dressing.ts` | The look layer's dressing for a generated place, and a top-down stage picture. |
-| `pictures.ts` | Scene and outside views through render.ts, and PNGs via `tools/preview.py`. |
-| `sketch.ts` | A plain top-down grid, for tests and logs. |
-| `bench.ts` | The measurement: runs, rounds, time to the building, looks, cost, pictures, contact sheets, summaries. |
-| `fixtures.ts`, `model-plans.json`, `model-compact-plans.json` | Hand-written plans (a tavern, a warehouse with a barge, a muddle), nine first-round plans from the spike in the old format, and nine raw first-round compact plans from this version's final runs. |
-| `generate.test.ts` | The tests. |
-
-The look layer's part of this work is in `src/game/look`:
-
-- `roles.ts`: the oven, the pit, and words added to existing rules;
-- `names.ts`: piles, trailing clauses, and the pool;
-- `appearance.ts`: proper names;
-- `invent.ts`: `inventNow`, which invents looks at once and says what they cost.

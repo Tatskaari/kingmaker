@@ -7,10 +7,13 @@ import { dbName, Store } from "./persist.ts";
  * game draws; everything else happens here, so the map's animation and the game's work never
  * stall each other on the page:
  *
- *   page -> worker   { type: "start", cols, rows, key?, offline?, glyphs?, jobDelayMs? }  then input bytes, resizes, key changes
+ *   page -> worker   { type: "start", cols, rows, window?, key?, offline?, glyphs?, jobDelayMs? }  then input bytes, resizes, key changes
  *   worker -> page   { type: "started", offline, channel }, { type: "output", data }, { type: "storage", ok, message? },
  *                    { type: "busy", channel }, { type: "key-refused" }, { type: "exit", jobs }, { type: "idle" },
- *                    { type: "error", message, reload? }
+ *                    { type: "report", name, data }, { type: "error", message, reload? }
+ *
+ * A report of a problem (src/report) is made here and handed to the page as gzipped bytes, which it
+ * downloads: what's kept in the browser is out of reach of anyone investigating it.
  *
  * The background jobs between turns (the GM's notes on a turn) run here too. When the game
  * closes, "exit" says how many are still running; the worker finishes them (and saves what they
@@ -200,16 +203,26 @@ async function keep(): Promise<void> {
   store.autosave();
 }
 
-async function start(options: { cols: number; rows: number; key?: string; offline?: boolean; glyphs?: string; jobDelayMs?: number; debug?: boolean }): Promise<import("./game.tsx").Started> {
+/** The browser's window, as the page says it ("1280x800@2": CSS pixels and the device pixel ratio), for a report; anything else isn't kept. */
+const windowOf = (said: unknown) => (typeof said === "string" && /^\d{1,5}x\d{1,5}@\d{1,2}(\.\d{1,4})?$/.test(said) ? said : undefined);
+
+async function start(options: { cols: number; rows: number; window?: string; key?: string; offline?: boolean; glyphs?: string; jobDelayMs?: number; debug?: boolean }): Promise<import("./game.tsx").Started> {
   offline = !!options.offline || !options.key;
   key = offline ? "" : options.key!.trim();
   // Only what's known goes into the game's environment from the page (it comes from the URL).
   const jobDelay = Math.min(60000, Math.max(0, Math.floor(Number(options.jobDelayMs) || 0)));
+  // The build's stamp (this worker is asked for with it: ?v=), for a report to say which build it was.
+  const stamp = new URLSearchParams(scope.location.search).get("v") ?? "";
+  const size = windowOf(options.window);
   Object.assign(process.env, {
     OPENROUTER_API_KEY: offline ? "offline" : key,
     KM_GLYPHS: GLYPH_SETS.includes(String(options.glyphs)) ? options.glyphs : "kingmaker",
     // The game is on a web page: Esc there dismisses things, and there's nothing to quit to.
     KM_IN_BROWSER: "1",
+    KM_HOST: "static",
+    KM_BROWSER_UA: navigator.userAgent,
+    ...(/^[0-9a-f]{6,64}$/.test(stamp) ? { KM_BUILD_STAMP: stamp } : {}),
+    ...(size ? { KM_WINDOW: size } : {}),
     ...(jobDelay ? { KM_JOB_DELAY_MS: String(jobDelay) } : {}),
     ...(options.debug ? { KM_DEBUG: "1" } : {}),
   });
@@ -232,6 +245,11 @@ async function start(options: { cols: number; rows: number; key?: string; offlin
     // A part of the game that loads as it's needed didn't (the preview was updated since): the page offers a reload. The game's saved as it goes.
     onUnloaded: error => { void (store?.flush() ?? Promise.resolve()).then(() => fail(error)); },
     unloaded,
+    // A report of a problem: its bytes (the key already taken out of it) to the page, which downloads it.
+    onReport: (name, bytes) => {
+      const data = bytes.slice().buffer;
+      scope.postMessage({ type: "report", name, data }, [data]);
+    },
   });
   scope.postMessage({ type: "started", offline, channel: NAME });
   return running;
@@ -261,9 +279,12 @@ scope.addEventListener("message", event => {
       void started?.then(({ renderer }) => renderer.processInput(data));
       return;
     }
-    case "resize":
+    case "resize": {
+      const size = windowOf(message["window"]);
+      if (size) process.env.KM_WINDOW = size;
       void started?.then(({ renderer }) => renderer.resize(Number(message["cols"]), Number(message["rows"])));
       return;
+    }
     case "key":
       // A new key from the page: the next model call uses it.
       if (typeof message["key"] === "string" && message["key"]) {

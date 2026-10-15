@@ -21,8 +21,12 @@
  *   KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx [--show]
  */
 import { MouseButton } from "@opentui/core";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
+import { reportsDir } from "../../report/dump.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import { pregenSession, PREGENS, TacticalFight } from "../../game/combat/index.ts";
 import { mapFights } from "../../game/fights.ts";
@@ -37,6 +41,7 @@ import { forceEnding } from "../../runtime/engine.ts";
 import { inventory, startingPurse } from "../../world/inventory.ts";
 import { buildWorld, joinWorld } from "../../world/scene-world.ts";
 import { entriesOf, Game, type Line } from "../game.ts";
+import { attachReporting } from "../report.ts";
 import type { Resumable } from "../save.ts";
 import { leadWay, TIME_WORDS } from "../story.ts";
 import { wrap } from "../ui/common.tsx";
@@ -567,6 +572,78 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     yard.world!.entities.kell!.states = yard.world!.entities.kell!.states.filter(s => s !== "bloodied");
     await setup.dispose();
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Reporting a problem at 80x24 (src/report): /report in a scene asks what went wrong over the scene,
+// keeping its screen as it was; Enter saves it and says where, to tell Claude; the Esc menu's
+// Report a problem… keeps the screen from before the menu came up; b on the map.
+
+{
+  const until = async (ok: () => boolean) => { for (let i = 0; i < 150 && !ok(); i++) await new Promise(r => setTimeout(r, 20)); };
+  const scene = sceneById("hanged-clerk");
+  const yard = await pregenSession({ pregen: "rogue", name: "Tamsin Vell", level: 3, seed: 5, sceneId: "hanged-clerk" });
+  Object.assign(yard, { beat: scene.start });
+  const game = new Game();
+  game.core = { session: yard, state: { version: 1, id: "report-check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }), save: () => {} } as unknown as Core;
+  game.screen = "scene";
+  game.lines = [{ kind: "header", speaker: "system", name: scene.title, text: scene.hook }, { kind: "narration", speaker: "gm", text: "Wendell Prout turns slowly on the sack hoist above the shut loft door." }];
+  const setup = await testRender(<><SceneScreen game={game} /><Overlay game={game} /></>, { width: 80, height: 24 });
+  attachReporting(game, setup.renderer);
+  const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
+  const report = () => (game.overlay?.kind === "report" ? game.overlay : undefined);
+  await setup.renderOnce();
+  await act(async () => { await setup.mockInput.typeText("/report"); });
+  act(() => setup.mockInput.pressEnter());
+  await setup.renderOnce();
+  let frame = setup.captureCharFrame();
+  if (show) console.log(`report 80x24\n${frame}`);
+  checks.push(["80x24, /report in a scene asks what went wrong, over the scene", /Report a problem/.test(frame) && /What went wrong\?/.test(frame) && /Enter send/.test(frame) && /Esc never mind/.test(frame)]);
+  const kept = report()?.screen ?? "";
+  checks.push(["80x24, the report keeps the scene's screen as it was", /What do you say\?/.test(kept) && /Prout turns slowly/.test(kept) && !/What went wrong/.test(kept)]);
+  await act(async () => { await setup.mockInput.typeText("Kell said it twice"); });
+  await act(async () => { setup.mockInput.pressEnter(); await until(() => !!report()?.said); });
+  await setup.renderOnce();
+  frame = setup.captureCharFrame();
+  if (show) console.log(`report saved 80x24\n${frame}`);
+  const said = report()?.said ?? "";
+  const file = /tell Claude 'report (.+?)'/.exec(said)?.[1];
+  const path = file ? join(reportsDir(), file) : "";
+  // The box's words, row by row, between its sides: all of what it said, wrapped.
+  const boxed = frame.split("\n").filter(r => r.includes("║")).map(r => r.slice(r.indexOf("║") + 1, r.lastIndexOf("║")).trim()).filter(Boolean).join(" ");
+  checks.push([`80x24, Enter saves it and says where, to tell Claude (${said})`, !!file && /Report saved/.test(frame) && boxed.includes(said) && existsSync(path)]);
+  const dump = file && existsSync(path) ? JSON.parse(gunzipSync(readFileSync(path)).toString("utf8")) as { words: string; screens: { now?: string }; settings: { terminal?: { cols: number } } } : undefined;
+  checks.push(["80x24, the report has the words, the screen as it was and the terminal's size", dump?.words === "Kell said it twice" && /What do you say\?/.test(dump.screens.now ?? "") && dump.settings.terminal?.cols === 80]);
+  act(() => setup.mockInput.pressEnter());
+  await setup.renderOnce();
+  checks.push(["80x24, Enter then puts it away", !game.overlay]);
+  // The Esc menu: Report a problem… is its last line (↑ from the first comes round to it).
+  await esc();
+  frame = setup.captureCharFrame();
+  checks.push(["80x24, the Esc menu offers Report a problem…", game.overlay?.kind === "menu" && /Report a problem…/.test(frame)]);
+  act(() => setup.mockInput.pressArrow("up"));
+  act(() => setup.mockInput.pressEnter());
+  await setup.renderOnce();
+  frame = setup.captureCharFrame();
+  const fromMenu = report()?.screen ?? "";
+  checks.push(["80x24, choosing it asks what went wrong, and keeps the screen from before the menu", /What went wrong\?/.test(frame) && /What do you say\?/.test(fromMenu) && !/Save and quit/.test(fromMenu)]);
+  await esc();
+  checks.push(["80x24, Esc never minds", !game.overlay]);
+  await setup.dispose();
+}
+{
+  const game = new Game();
+  game.core = core;
+  game.screen = "explore";
+  const setup = await testRender(<><ExploreScreen game={game} /><Overlay game={game} /></>, { width: 80, height: 24 });
+  attachReporting(game, setup.renderer);
+  await setup.renderOnce();
+  act(() => setup.mockInput.pressKey("b"));
+  await setup.renderOnce();
+  const frame = setup.captureCharFrame();
+  const kept = game.overlay?.kind === "report" ? game.overlay.screen ?? "" : "";
+  checks.push(["80x24, b on the map asks what went wrong, keeping the map as it was", /What went wrong\?/.test(frame) && /The investigation/.test(kept) && !/What went wrong/.test(kept)]);
+  await setup.dispose();
 }
 
 // ---------------------------------------------------------------------------------------------

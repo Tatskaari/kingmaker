@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -50,6 +51,12 @@ const NODE_SHIMS: Record<string, string> = {
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
+// The commit it's built from (and whether there was more than the commit), written into the game for
+// a report of a problem to say (src/report/dump.ts): there's no git in a browser to ask.
+const git = (...args: string[]) => { try { return execFileSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return undefined; } };
+const commit = git("rev-parse", "HEAD") ?? "";
+const dirty = git("status", "--porcelain", "--untracked-files=no") ? "1" : "";
+
 // ---------------------------------------------------------------------------------------------
 // The game, in a worker
 
@@ -81,7 +88,7 @@ const result = await build({
   jsxImportSource: "@opentui/react",
   alias,
   inject: [join(STATIC, "node", "process.ts")],
-  define: { "process.env.NODE_ENV": '"production"' },
+  define: { "process.env.NODE_ENV": '"production"', "process.env.KM_BUILD_COMMIT": JSON.stringify(commit), "process.env.KM_BUILD_DIRTY": JSON.stringify(dirty) },
   plugins: [
     importMeta({ root: ROOT, virtualRoot: "/kingmaker" }),
     virtualModules({ "virtual:opentui-fonts": () => `export default ${JSON.stringify(openTuiFonts(ROOT))};` }),

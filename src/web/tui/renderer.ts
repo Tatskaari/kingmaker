@@ -519,6 +519,8 @@ export class CliRenderer extends EventEmitter implements RenderContext {
   }
   /** The buffer as drawn last frame. */
   get frameBuffer(): OptimizedBuffer { return this.current; }
+  /** The same, by OpenTUI's name for it (a report reads the screen from it: src/app/report.ts). */
+  get currentRenderBuffer(): OptimizedBuffer { return this.current; }
 
   destroy(): void {
     if (this._isDestroyed) return;
