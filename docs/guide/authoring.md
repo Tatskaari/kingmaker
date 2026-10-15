@@ -21,6 +21,8 @@ A scene is GM prep for one place and one situation: a dramatic question, the peo
   - **outcome:** something has happened.
 
   Mark scene-ending attempts as such in their `when`. Roll only where an attempt could really go either way.
+  - A way in that needs no dice gets a route of its own (an attempt with no check), not a parenthesis in a roll's `when`: Hobb's token at the Heron's grille was "no dice" inside the bluff's route, and the decider rolled the bluff for the story told with it.
+  - A cue says what it means. "Or is lying low and waiting" fired the Master's arrival on a player carrying sacks while he waited for a word with Hobb; "or has said they're waiting for the Master himself" doesn't.
 - **Success and failure lines.**
   - A success line holds **one piece**, not the whole secret, and there is one success line per holder. If the secret carries an essential, its load-bearing words go in that piece.
   - A failure costs or complicates and keeps the story going. It never takes back what's established.

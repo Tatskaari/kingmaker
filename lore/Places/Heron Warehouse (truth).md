@@ -11,7 +11,8 @@ This is where the King's grain goes. Wagons the Granary Roll calls "lost to gobl
 
 **The night's routine**
 - On loading nights nobody comes in at the land door but the Master, at the midnight bell, with his lantern-boy and the Crake brothers. Saul holds the wicket for him and keeps Duchess off his ankles.
-- The gang come and go by the river door, showing a brass heron token at its grille for whoever is nearest to draw the bolt. Hobb's token is on the string round his neck.
+- The gang come and go by the river door, showing a brass heron token at its grille for whoever is nearest to draw the bolt. Hobb's token is on the string round his neck. A token is all it takes: whoever shows one is let in and handed a sack, since Hep is always short of hands.
+- The hoist is worked from the floor, on a winch just inside the river door, its beam out over the barge: Hobb, on the hoist, is in among the gang, in view of the counting-box.
 - Hep Grist shouts the count, Scrope enters every sack, and the Master checks it, initials the night's page and takes his share in heron pennies.
 - The barge sails on the ebb, and at the end of the night the empty wheat-ear sacks go into the river, weighted with stones.
 
