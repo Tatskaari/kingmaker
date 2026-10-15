@@ -3,7 +3,8 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState, type ReactNode } from "react";
 import { showLine } from "../../game/combat/index.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
-import { direction, Picks, SCREEN_KEYS, steps } from "../../game/map/index.ts";
+import { actorsHere, direction, Picks, SCREEN_KEYS, steps } from "../../game/map/index.ts";
+import { exploreState } from "../../game/town.ts";
 import type { Tile2 } from "../../game/types.ts";
 import { fightLooks, fightView } from "../../game/views.ts";
 import type { Game } from "../game.ts";
@@ -42,7 +43,7 @@ export function fightCommand(game: Game, command: Command): void {
   const view = fight.view();
   if (view.over || !view.turn?.isPlayer || game.busy) return;
   switch (command) {
-    case "options": game.overlay = { kind: "actions", index: 0 }; game.emit(); break;
+    case "options": game.overlay = { kind: "actions", index: 0, top: 0 }; game.emit(); break;
     case "attack": act(`attack_${t}`, t ? `${target!.name} is out of reach (z closes in), or your attack's spent.` : "Nobody to attack."); break;
     case "close": act(`close_${t}`, "You're as close as you'll get this turn."); break;
     case "cast": {
@@ -122,6 +123,8 @@ export function CombatScreen({ game }: { game: Game }) {
     centre: me.state === "fighting" ? me.at : view.turn ? G.units[view.turn.id]?.at ?? me.at : me.at, marks, ...(target ? { cursor: target.at } : {}), time: game.story.time,
   };
   const fx = game.fightFx();
+  // A fight that broke out on the map: the town stands round it (its stalls, Kell, the people who stood back).
+  const scenery = game.core.state.fightOnMap ? actorsHere(exploreState(game.core.state)) : undefined;
   const log = view.log.map(showLine).flatMap(l => wrap(l, mapW - 4)).slice(-(logH - 2));
   const inner = sideW - 4;
   // Everyone's letter, as the battlefield has them.
@@ -212,7 +215,7 @@ export function CombatScreen({ game }: { game: Game }) {
           <lookCanvas ref={canvas} width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay}
             painter={(w, h, now) => {
               const pick = new Picks();
-              const lines = fightView(fight, game.session, { w, h }, { ...shown, t: now, pick, ...(hover ? { hover } : {}), ...(fx ? { effects: fx } : {}) });
+              const lines = fightView(fight, game.session, { w, h }, { ...shown, t: now, pick, ...(hover ? { hover } : {}), ...(fx ? { effects: fx } : {}), ...(scenery ? { scenery } : {}) });
               picks.current = pick;
               return lines;
             }}

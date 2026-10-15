@@ -8,6 +8,7 @@
  *
  *   KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx [--show]
  */
+import { MouseButton } from "@opentui/core";
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { sceneById } from "../../../scenes/index.ts";
@@ -17,12 +18,12 @@ import { registerLookCanvas } from "../../game/look/opentui.ts";
 import { leadTarget, town } from "../../game/town.ts";
 import { Game as Core, type GameState } from "../../game/play.ts";
 import { exploreState } from "../../game/town.ts";
-import { nearby, Picks, screenOf } from "../../game/map/index.ts";
-import { fightView } from "../../game/views.ts";
+import { actorsHere, nearby, Picks, screenOf } from "../../game/map/index.ts";
+import { fightView, townView } from "../../game/views.ts";
 import { presentCast } from "../../runtime/brief.ts";
 import { forceEnding } from "../../runtime/engine.ts";
 import { buildWorld, joinWorld } from "../../world/scene-world.ts";
-import { Game } from "../game.ts";
+import { entriesOf, Game } from "../game.ts";
 import type { Resumable } from "../save.ts";
 import { leadWay, TIME_WORDS } from "../story.ts";
 import { wrap } from "../ui/common.tsx";
@@ -95,13 +96,96 @@ for (const walking of [false, true]) {
   const setup = await testRender(<ExploreScreen game={game} />, { width: 80, height: 24 });
   await setup.renderOnce();
   const frame = setup.captureCharFrame();
-  for (const [hint, what, done] of [["g the lead", "g walks to the lead", () => did.includes("lead")], ["c sheet", "c opens the sheet", () => did.includes("sheet")], ["j notebook", "j opens the notebook", () => game.overlay?.kind === "journal"], ["Esc menu", "Esc opens the menu", () => game.overlay?.kind === "menu"]] as const) {
+  // Narrow, the keys say less ("g lead", "j notes") so the action menu's button fits with them.
+  for (const [hint, what, done] of [["g lead", "g walks to the lead", () => did.includes("lead")], ["c sheet", "c opens the sheet", () => did.includes("sheet")], ["j notes", "j opens the notebook", () => game.overlay?.kind === "journal"], ["Esc menu", "Esc opens the menu", () => game.overlay?.kind === "menu"], ["m actions", "m opens the action menu", () => !!game.doMenu]] as const) {
     game.overlay = undefined;
+    await act(async () => { game.emit(); });
     const p = at(frame, hint);
     if (p) await act(async () => { await setup.mockMouse.click(p.x, p.y); });
     checks.push([`80x24, the map's keys at the bottom are buttons: ${what}`, !!p && done()]);
   }
   await setup.dispose();
+}
+
+// ---------------------------------------------------------------------------------------------
+// The action menu (m) by mouse, aiming on the map, and a click that casts.
+
+{
+  // A wizard of five (Fireball), in the granary lane by the porters' lodgings, whose door is at (52, 5).
+  const wizard = await Core.create({ player: "Vesper: a wizard who has read about fire", level: 5, build: PREGENS.wizard!.build, explorer: town, fights: mapFights(), seed: 11 });
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    exploreState(wizard.state).at = { x: 47, y: 9 };
+    const game = new Game();
+    game.core = wizard;
+    game.screen = "explore";
+    const setup = await testRender(<ExploreScreen game={game} />, { width: w, height: h });
+    await setup.renderOnce();
+    let frame = setup.captureCharFrame();
+    const button = at(frame, "m actions");
+    if (button) await act(async () => { await setup.mockMouse.click(button.x, button.y); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (show) console.log(`menu ${w}x${h}\n${frame}`);
+    checks.push([`menu ${w}x${h}: a click on "m actions" opens it`, !!game.doMenu]);
+    const entries = game.doMenu ? entriesOf(game.doMenu.view) : [];
+    // Its kinds and its lines, whole: the headings, the first lines, a dimmed one with why.
+    const wanted = ["What will you do?", "Cantrips", "Fire Bolt", "2d10 fire, 120 ft", "1st level", "4/4 slots", "Shield", "a reaction: only in a fight"];
+    const missing = wanted.filter(t => !flat(frame).includes(t));
+    checks.push([`menu ${w}x${h}: its kinds and lines drawn whole${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
+    // The pointer picks a line out; a click on a dimmed one only picks it (and says why); on one that's aimed, aiming starts.
+    const shield = at(frame, "Shield");
+    if (shield) await act(async () => { await setup.mockMouse.moveTo(shield.x, shield.y); });
+    checks.push([`menu ${w}x${h}: the pointer picks a line out`, !!shield && entries[game.doMenu?.index ?? -1]?.key === "spell:shield"]);
+    if (shield) await act(async () => { await setup.mockMouse.click(shield.x, shield.y); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`menu ${w}x${h}: a click on what can't be done says why, and does nothing`, !!game.doMenu && !game.aiming && entries[game.doMenu.index]?.key === "spell:shield" && /not now/i.test(flat(frame))]);
+    // Scroll to Fireball (the wheel at 80x24, where the list scrolls) and click it: aiming.
+    for (let i = 0; i < 30 && !at(setup.captureCharFrame(), "Fireball"); i++) {
+      await act(async () => { await setup.mockMouse.scroll(Math.floor(w / 2), Math.floor(h / 2), "down"); });
+      await setup.renderOnce();
+    }
+    const fireball = at(setup.captureCharFrame(), "Fireball");
+    if (fireball) await act(async () => { await setup.mockMouse.click(fireball.x, fireball.y); });
+    await setup.renderOnce();
+    checks.push([`menu ${w}x${h}: a click on Fireball starts aiming it on the map`, !game.doMenu && game.aiming?.item.key === "spell:fireball"]);
+    // Aiming: the pointer over the door aims there; the bottom line says what it'd catch; a click casts.
+    const sideW = Math.min(48, Math.max(34, Math.floor(w * 0.32)));
+    const view = { w: w - sideW - 2, h: h - 6 - 1 - 2 };
+    const picks = new Picks();
+    townView(wizard.state, wizard.session, view, { pick: picks });
+    const door = { x: 52, y: 5 };
+    let cell: { x: number; y: number } | undefined;
+    for (let y = 0; y < view.h && !cell; y++) for (let x = 0; x < view.w && !cell; x++) { const p = picks.at(x, y); if (p?.at.x === door.x && p.at.y === door.y) cell = { x: x + 1, y: y + 1 }; }
+    if (cell) await act(async () => { await setup.mockMouse.moveTo(cell!.x, cell!.y); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (show) console.log(`aiming ${w}x${h}\n${frame}`);
+    const aimed = game.aiming?.check;
+    checks.push([`aiming ${w}x${h}: the pointer over the door aims there (${aimed?.label ?? aimed?.why ?? "nothing"})`, !!cell && aimed?.ok === true && aimed.id === "cast_fireball@52,5" && (aimed.area?.length ?? 0) > 9]);
+    checks.push([`aiming ${w}x${h}: the bottom line says what it's aimed at, and what it catches`, flat(frame).includes("Fireball → the door") && (w < 100 || flat(frame).includes("catches the door of the porters' lodgings"))]);
+    const done: string[] = [];
+    game.act = async (id: string) => { done.push(id); };
+    if (cell) await act(async () => { await setup.mockMouse.click(cell!.x, cell!.y); });
+    checks.push([`aiming ${w}x${h}: a click casts it there (${done.join() || "nothing"})`, done.join() === "cast_fireball@52,5" && !game.aiming]);
+    // A right-click on the door: Do something…, the menu aimed at it already (what can't be done to a door says so).
+    if (cell) await act(async () => { await setup.mockMouse.click(cell!.x, cell!.y, MouseButton.RIGHT); });
+    await setup.renderOnce();
+    const something = at(setup.captureCharFrame(), "Do something…");
+    if (something) await act(async () => { await setup.mockMouse.click(something.x, something.y); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    const aimedAtDoor = game.doMenu ? entriesOf(game.doMenu.view) : [];
+    checks.push([`menu ${w}x${h}: a right-click's "Do something…" opens it aimed at the door`, game.doMenu?.view.at?.x === door.x && /Do something: the door/.test(flat(frame))
+      && aimedAtDoor.find(e => e.key === "spell:fireball")?.id === "cast_fireball@52,5" && /not on/.test(aimedAtDoor.find(e => e.key === "shove")?.why ?? "")]);
+    void actorsHere;
+    await setup.dispose();
+  }
+  // For real, on the town: the door comes down and stays down.
+  exploreState(wizard.state).at = { x: 47, y: 9 };
+  await wizard.act("cast_fireball@52,5");
+  const kept = exploreState(wizard.state).overlay.town?.["caerwyn"]?.things["caerwyn:door@52,5"];
+  checks.push([`Fireball at the porters' door breaks it (${kept?.states.join(", ")})`, !!kept?.states.includes("destroyed")]);
 }
 
 // ---------------------------------------------------------------------------------------------

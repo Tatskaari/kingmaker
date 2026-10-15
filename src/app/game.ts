@@ -5,7 +5,9 @@ import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
 import { mapFights } from "../game/fights.ts";
 import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
-import { actionsAt, exploreState, leadTarget, town, walkId, type TileActions } from "../game/town.ts";
+import type { AimAt, AimView, MenuItem, MenuView } from "../game/menu.ts";
+import { actionMenu, actionsAt, aimAt as aimAtTile, aimFor, exploreState, leadTarget, town, walkId, type TileActions } from "../game/town.ts";
+import { townWorld } from "../game/town-world.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
 import { setCallLog } from "../llm/openrouter.ts";
@@ -106,6 +108,33 @@ export interface TileMenu extends TileActions {
   index: number;
 }
 
+/** The action menu (m on the map, a right-click's "Do something…"): what's on offer, and which entry is picked out. */
+export interface DoMenu {
+  view: MenuView;
+  /** The picked-out entry: an index into entriesOf(view). */
+  index: number;
+  /** Where its list starts on screen (it scrolls only to keep the picked-out entry on show). */
+  top: number;
+  /** Where on screen it was asked for (a right-click), when it was. */
+  x?: number;
+  y?: number;
+}
+
+/** Every entry of a menu, in the order its sections list them. */
+export const entriesOf = (view: MenuView): MenuItem[] => view.sections.flatMap(s => s.entries);
+
+/** Aiming one of the menu's entries on the map: the pointer or the cursor keys pick a tile, a click or Enter does it. */
+export interface Aiming {
+  item: MenuItem;
+  view: AimView;
+  /** The tile aimed at. */
+  at: Tile2;
+  /** What it would do there (or why not). */
+  check?: AimAt;
+  /** Which of the targets in reach Tab is on. */
+  index: number;
+}
+
 export type Overlay =
   | { kind: "sheet"; sheet?: SheetData; error?: string }
   | { kind: "help" }
@@ -113,7 +142,7 @@ export type Overlay =
   | { kind: "scene-map" }
   | { kind: "menu"; index: number }
   | { kind: "spells"; spells: Array<{ id: string; name: string; level: number }>; index: number }
-  | { kind: "actions"; index: number };
+  | { kind: "actions"; index: number; top: number };
 
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
@@ -151,6 +180,10 @@ export class Game {
   walking = false;
   /** The map's right-click menu, while it's open. */
   menu?: TileMenu;
+  /** The action menu, while it's open (m on the map). */
+  doMenu?: DoMenu;
+  /** Aiming something from the action menu on the map. */
+  aiming?: Aiming;
   /** The scene on screen is over: its last reply stays up until the player goes on. */
   over?: Over;
   /**
@@ -180,6 +213,8 @@ export class Game {
   private rolled: string[] = [];
   /** The fight's effects, and how much of its log they've shown (see fightFx). */
   private fightLook?: { fight: CombatController; fx: Effects; seen: number; dust: Tile2[] };
+  /** The town's look between scenes: the effects of what the player does on the map, in the town's world (see townFx). */
+  private townLook?: { map: string; fx: Effects; director: Director; world: SceneWorld };
 
   constructor() {
     // The other side's turns: redraw after each, and give the player a beat to see it land.
@@ -282,6 +317,7 @@ export class Game {
     this.journal = extras?.journal ?? [];
     this.overlay = undefined;
     this.targetIndex = 0; this.targetId = undefined;
+    this.doMenu = undefined; this.aiming = undefined; this.townLook = undefined;
     switch (core.state.mode) {
       case "combat":
         this.screen = "combat";
@@ -374,7 +410,12 @@ export class Game {
     const core = this.core;
     if (!core || this.busy || core.state.mode !== "explore") return;
     this.walking = false;
-    this.menu = { ...actionsAt(core.state, core.session, at), x, y, index: 0 };
+    this.doMenu = undefined;
+    this.aiming = undefined;
+    const tile = actionsAt(core.state, core.session, at);
+    // Anything the action menu can do to what's there (a spell at them, a shove), aimed at it already.
+    const more: Action[] = core.session.rules ? [{ id: `do@${at.x},${at.y}`, label: "Do something…", kind: "use" }] : [];
+    this.menu = { ...tile, actions: [...tile.actions, ...more], x, y, index: 0 };
     this.emit();
   }
 
@@ -390,7 +431,129 @@ export class Game {
     this.menu = undefined;
     const choice = menu?.actions[index];
     if (!menu || !choice) { this.emit(); return; }
+    if (choice.id.startsWith("do@")) { this.openActions(menu.at, menu.x, menu.y); return; }
     await this.doAt(menu.at, choice);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The action menu (m): spells, class features, a leap, hiding, a rest; aimed on the map.
+
+  /** Open the action menu: what the player can do here, by kind; `at`: aimed at that tile already (a right-click's "Do something…"). */
+  openActions(at?: Tile2, x?: number, y?: number): void {
+    const core = this.core;
+    if (!core || this.busy || core.state.mode !== "explore" || this.screen !== "explore") return;
+    this.walking = false;
+    this.menu = undefined;
+    this.aiming = undefined;
+    const view = actionMenu(core.state, core.session, at);
+    if (!view) { this.say("There's no rules character here to do anything with."); this.emit(); return; }
+    const entries = entriesOf(view);
+    // The first thing that can be done, picked out.
+    this.doMenu = { view, index: Math.max(0, entries.findIndex(e => !e.why)), top: 0, ...(x !== undefined && y !== undefined ? { x, y } : {}) };
+    this.emit();
+  }
+
+  closeActions(): void {
+    if (!this.doMenu) return;
+    this.doMenu = undefined;
+    this.emit();
+  }
+
+  /**
+   * One of the menu's entries: done at once (nothing to aim, or aimed already), or aimed on the map
+   * first; one that can't be done now is only picked out (the menu says why).
+   */
+  chooseAction(index: number): void {
+    const menu = this.doMenu;
+    const item = menu ? entriesOf(menu.view)[index] : undefined;
+    if (!menu || !item) return;
+    if (item.why) { menu.index = index; this.emit(); return; }
+    this.doMenu = undefined;
+    if (item.id) void this.act(item.id);
+    else if (item.aiming) this.startAiming(item);
+    else this.emit();
+  }
+
+  /** Aim an entry on the map: at the nearest thing in reach to begin with (or yourself, or where you stand). */
+  startAiming(item: MenuItem): void {
+    const core = this.core;
+    if (!core) return;
+    const view = aimFor(core.state, core.session, item.key);
+    if (!view) { this.emit(); return; }
+    const ex = exploreState(core.state);
+    const at = view.targets[0]?.at ?? { ...ex.at };
+    this.aiming = { item, view, at, index: 0 };
+    this.aiming.check = aimAtTile(core.state, core.session, item.key, at);
+    this.emit();
+  }
+
+  /** Aim at a tile (the pointer over the map, or the cursor keys). */
+  aimTo(at: Tile2): void {
+    const core = this.core, aiming = this.aiming;
+    if (!core || !aiming || (aiming.at.x === at.x && aiming.at.y === at.y)) return;
+    aiming.at = { ...at };
+    aiming.check = aimAtTile(core.state, core.session, aiming.item.key, at);
+    this.emit();
+  }
+
+  /** The next (or the last) of what's in reach (Tab, Shift+Tab); yourself among them, when it can be. */
+  aimNext(back = false): void {
+    const aiming = this.aiming, core = this.core;
+    if (!aiming || !core) return;
+    const ex = exploreState(core.state);
+    const tiles = [...aiming.view.targets.map(t => t.at), ...(aiming.view.self ? [{ ...ex.at }] : [])];
+    if (!tiles.length) return;
+    const now = tiles.findIndex(t => t.x === aiming.at.x && t.y === aiming.at.y);
+    const next = now < 0 ? 0 : (now + (back ? tiles.length - 1 : 1)) % tiles.length;
+    aiming.index = next;
+    this.aimTo(tiles[next]!);
+  }
+
+  /** Move the aim a tile (the arrow keys: with the screen, as walking does). */
+  aimStep(key: string): void {
+    const d = SCREEN_KEYS[key];
+    if (!d || !this.aiming) return;
+    this.aimTo({ x: this.aiming.at.x + d[0], y: this.aiming.at.y + d[1] });
+  }
+
+  /** Aim at yourself, when it can be. */
+  aimSelf(): void {
+    const core = this.core;
+    if (!core || !this.aiming?.view.self) return;
+    this.aimTo(exploreState(core.state).at);
+  }
+
+  /** Do it, where it's aimed: if it can be done there. */
+  fire(): void {
+    const check = this.aiming?.check;
+    if (!check?.ok || !check.id) { this.emit(); return; }
+    this.aiming = undefined;
+    void this.act(check.id);
+  }
+
+  cancelAim(): void {
+    if (!this.aiming) return;
+    this.aiming = undefined;
+    this.emit();
+  }
+
+  /**
+   * One of the menu's acts, through the core (the action id the QA console would use): what it did
+   * shows on the map as it lands (the look layer's effects: the fireball, the splinters, the numbers)
+   * and in the news. It may open someone's scene, or a talk, or start a fight on the map.
+   */
+  async act(id: string): Promise<void> {
+    const core = this.core;
+    if (!core || this.busy || core.state.mode !== "explore") return;
+    // The town as it is now: what the act changes is what's shown.
+    this.townFx(true);
+    this.busy = "…";
+    this.emit();
+    const done = await this.explore(id);
+    const mode = core.state.mode as Core["state"]["mode"];
+    if (mode === "explore") this.animateTown(done.text);
+    else if (mode === "combat") { this.targetIndex = 0; this.targetId = undefined; this.screen = "combat"; this.animateFight(); }
+    this.emit();
   }
 
   /**
@@ -462,13 +625,14 @@ export class Game {
     const run = core.act(id, this.hooks());
     // The core switches to the scene before the opening streams in: show it as it comes.
     const opening = core.state.mode === "scene";
-    if (opening) { this.walking = false; this.menu = undefined; this.sceneView("The GM sets the scene…"); }
+    if (opening) { this.walking = false; this.menu = undefined; this.doMenu = undefined; this.aiming = undefined; this.sceneView("The GM sets the scene…"); }
     if (!options.quiet || opening) this.emit();
     let text = "", said = false;
     try {
       text = await run;
       said = !opening && !!text && (!options.quiet || /^You come into|:/.test(text));
-      if (said) this.say(text);
+      // The player's own status line is the sidebar's to say.
+      if (said) this.say(text.split("\n").filter(l => !l.startsWith(`${core.session.player.name}: HP `)).join("\n"));
     } catch (error) {
       // A talk's greeting that never came isn't saved (the game is still on the map): walking on goes back to it.
       if (opening) this.lines.push({ kind: "error", speaker: "system", text: core.session.talk ? `The GM couldn't open the talk: ${message(error)}. (Walk on to go back to the map.)` : `The GM couldn't open the scene: ${message(error)}. (/end <exit> skips ahead for testing.)` });
@@ -935,6 +1099,23 @@ export class Game {
     const result = core?.currentFight?.result();
     if (!core || !result || this.busy) return;
     const session = core.session;
+    // A fight that broke out on the map goes back to the map: how it went is the news.
+    if (core.state.fightOnMap) {
+      this.busy = "The dust settles…";
+      this.emit();
+      try {
+        const text = await core.act("continue", this.hooks());
+        this.say(text.replace(/^The fight: /, ""));
+      } catch (error) {
+        this.say(`The fight's end didn't settle cleanly: ${message(error)}`);
+      }
+      this.busy = undefined;
+      this.screen = "explore";
+      this.townLook = undefined;
+      this.saveExtras();
+      this.emit();
+      return;
+    }
     const said = { victory: "We won the fight.", surrender: "We won: they gave up.", defeat: "We lost the fight, and I woke up on the floor.", fled: "We got out of there." }[result.outcome];
     const fell = result.casualties.filter(c => c.state !== "standing" && c.id !== "kell").map(c => `${c.name} ${c.state === "down" ? "went down" : c.state}`);
     this.note({ sceneId: session.sceneId, title: sceneById(session.sceneId).title, ending: "A fight", lines: [`${said}${fell.length ? ` ${capital(fell.join("; "))}.` : ""}`] });
@@ -1015,6 +1196,44 @@ export class Game {
     if (look && world) look.director.observe(world, performance.now());
   }
 
+  /**
+   * The town's look between scenes: one Effects and one Director for the map the player is on, and
+   * the town's world they play in (src/game/town-world.ts). `fresh`: take the world as it is now (just
+   * before an act, so only what the act does is news). Undefined in a scene.
+   */
+  townFx(fresh = false): { fx: Effects; director: Director; world: SceneWorld } | undefined {
+    const core = this.core;
+    if (!core || core.state.mode !== "explore") return this.townLook;
+    const ex = exploreState(core.state);
+    if (ex.scene) return undefined;
+    if (!this.townLook || this.townLook.map !== ex.map) {
+      const fx = new Effects();
+      const director = new Director(fx);
+      const world = townWorld(ex).world;
+      director.prime(world);
+      this.townLook = { map: ex.map, fx, director, world };
+    } else if (fresh) {
+      this.townLook.world = townWorld(ex).world;
+      this.townLook.director.prime(this.townLook.world);
+    }
+    return this.townLook;
+  }
+
+  /** What an act on the map did, in the town's world: the spell from the player to its aim, the numbers, what broke or caught fire, who ran. */
+  private animateTown(text: string): void {
+    const core = this.core, look = this.townLook;
+    if (!core || !look) return;
+    const ex = exploreState(core.state);
+    if (look.map !== ex.map) return;
+    const world = townWorld(ex).world;
+    const lines = text.split("\n").filter(Boolean);
+    const now = performance.now();
+    look.director.spellsFrom(world, lines, now);
+    look.director.rulesLines(world, lines, now);
+    look.director.observe(world, now);
+    look.world = world;
+  }
+
   /** The fight's effects (bolts, sparks, damage numbers, the dust going up): one set for each fight. */
   fightFx(): Effects | undefined {
     const fight = this.fight;
@@ -1028,7 +1247,7 @@ export class Game {
     const fx = this.fightFx(), look = this.fightLook, fight = this.fight;
     if (!fx || !look || !fight) return;
     const G = fight.state();
-    fightEffects(fx, fight, G.log.slice(look.seen), performance.now(), look.dust);
+    fightEffects(fx, fight, G.log.slice(look.seen), performance.now(), look.dust, !!this.core?.state.fightOnMap);
     look.seen = G.log.length;
     look.dust = G.dust.map(tileOf);
   }
@@ -1071,6 +1290,8 @@ export class Game {
     this.lines = [];
     this.walking = false;
     this.menu = undefined;
+    this.doMenu = undefined;
+    this.aiming = undefined;
     this.over = undefined;
     this.choices = [];
     this.typing = false;
@@ -1078,6 +1299,7 @@ export class Game {
     // Another game's scene is news to nobody.
     this.look = undefined;
     this.fightLook = undefined;
+    this.townLook = undefined;
     this.loadSaves();
   }
 
