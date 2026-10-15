@@ -7,7 +7,7 @@ import { ELEMENTS, spellElement } from "./look/director.ts";
 import { CAST_LOOKS } from "./look/people.ts";
 import type { Effects } from "./look/effects.ts";
 import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
-import { renderStage } from "./look/stage.ts";
+import { renderStage, type StagePicks } from "./look/stage.ts";
 import { battlefield, regionForScene, render, tileToFeet, toPlain, type Picks, type RenderOptions, type Viewport } from "./map/index.ts";
 import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
@@ -63,12 +63,17 @@ export interface StageOptions {
   effects?: Effects;
   /** Where people are drawn mid-walk (the director's tweens), in the world's feet. */
   positions?: (id: string) => Point | undefined;
+  /** Filled in with what's drawn where, for the mouse: pick.at(x, y) is who or what is in a cell, and the floor there. */
+  pick?: StagePicks;
+  /** What the pointer is on, lit up: someone or something by world id, or a cell of floor. */
+  hover?: string | { x: number; y: number };
 }
 
 /**
  * A scene's place from above, Caves of Qud style: its world on the look layer's stage, dressed
  * with what the place is built of (src/game/look/dressings.ts), its people walking where the
  * director has them, its effects, barks and damage numbers. A Canvas, for a live view to paint.
+ * With `pick`, what's drawn where, for the mouse; `hover` lights up what the pointer is on.
  */
 export function stageView(session: SessionState | undefined, size: Viewport, options: StageOptions): Canvas | undefined {
   const world = session?.world;
@@ -76,6 +81,7 @@ export function stageView(session: SessionState | undefined, size: Viewport, opt
   return renderStage(world, dressingFor(world.scene), {
     w: size.w, h: size.h, t: options.t, time: options.time, glyphs: options.glyphs ?? glyphSet(),
     ...(options.effects ? { effects: options.effects } : {}), ...(options.positions ? { positions: options.positions } : {}),
+    ...(options.pick ? { pick: options.pick } : {}), ...(options.hover !== undefined ? { hover: options.hover } : {}),
   });
 }
 
