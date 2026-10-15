@@ -1,6 +1,6 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { SceneOutcome, WorldApi } from "../src/world/dsl.ts";
-import { KELL_VOICE } from "./hanged-clerk.ts";
+import { KELL_PROMISES, KELL_VOICE } from "./hanged-clerk.ts";
 import { heronWorld } from "./worlds/heron-warehouse.ts";
 
 /**
@@ -84,7 +84,7 @@ export const heronWarehouse: Scene = {
       secrets: [
         "Prout's visit three days ago, and her sending him to the palace. If it has come out, it's told, and she doesn't tell it again. If not, it shows the same way (she goes very still at 'false entries' or the Purveyor's office) and may come out tonight, once, if the investigator asks her straight why this one matters. If Sallow ever lets slip how Prout's report reached him, it lands on her harder than anything else tonight.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. It's their case and their night: she backs their play. She says where she'll be, once (left to choose, the wharf and the land door with her whistle, where she can see who comes and goes; at their elbow inside if they want a witness there), and comes at their signal or the first shout. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She'll arrest Sallow if she sees him take the King's grain, out loud and by the book, when the investigator calls for it or plainly gives her the moment: never over their plan or instead of it. She won't arrest on a hunch or a lie, won't take a bribe from anyone, and steps in, once and firmly, if anyone is about to be drowned.",
+      attitude: `Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. It's their case and their night: she backs their play. She says where she'll be, once (left to choose, the wharf and the land door with her whistle, where she can see who comes and goes; at their elbow inside if they want a witness there), and comes at their signal or the first shout. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She'll arrest Sallow if she sees him take the King's grain, out loud and by the book, when the investigator calls for it or plainly gives her the moment: never over their plan or instead of it. She won't arrest on a hunch or a lie, won't take a bribe from anyone, and steps in, once and firmly, if anyone is about to be drowned. ${KELL_PROMISES}`,
     },
     {
       id: "saul",

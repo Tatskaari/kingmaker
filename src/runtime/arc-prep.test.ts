@@ -243,6 +243,17 @@ test("the King's Morning: Sallow in the room is the face-to-face beat, whoever s
   assert.equal(after.move?.to, "face-to-face");
 });
 
+test("Kell: a name promised kept out of it stays out of her notebook and what she swears to, in every card she has and her lore", () => {
+  // The goals tester's g14 T2 ("your name stays out of it. Not the watch, not anybody's book", then "Witness: Cob. Noted.") and g10 T24 (her sworn account named Cob, after "I won't put the boy's name in it").
+  const promise = /A name someone was promised would be kept out of it[^.]*stays out of her notebook and out of anything she says or swears to[^.]*: she knows who it was, and writes and says 'a witness' instead/;
+  for (const id of ["hanged-clerk", "drowned-rat", "heron-warehouse", "kings-morning", "caerwyn-afternoon", "wharf-night"]) {
+    assert.match(sceneById(id).cast.find(c => c.id === "kell")!.attitude, promise, `${id}: Kell holds the promise`);
+  }
+  assert.match(king.cast.find(c => c.id === "kell")!.knows.join(" "), /but for a name someone was promised would be kept out of it: that witness is 'a witness' in her notebook, and in what she swears to/);
+  const lore = readFileSync(new URL("../../lore/Cast/Sergeant Agnes Kell/private.md", import.meta.url), "utf8");
+  assert.match(lore, /A name someone was promised would be kept out of it[^.]*stays out of your notebook and out of anything you say or swear to/);
+});
+
 // --- The Drowned Rat: Hobb -------------------------------------------------------------------
 
 const rat = sceneById("drowned-rat");

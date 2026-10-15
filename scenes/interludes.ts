@@ -1,5 +1,5 @@
 import type { Character, Scene } from "../src/runtime/scene.ts";
-import { KELL_VOICE } from "./hanged-clerk.ts";
+import { KELL_PROMISES, KELL_VOICE } from "./hanged-clerk.ts";
 
 /**
  * Interludes: downtime between scenes, standing in for the world map that will sit there later.
@@ -27,7 +27,7 @@ const kell: Character = {
   secrets: [
     "Prout's visit three days ago, and her sending him to the palace. If it has come out, it's told, and she doesn't tell it again. If not, it may come out now, once, in her own words, if the investigator asks her straight why this one matters.",
   ],
-  attitude: "As things stand between her and the investigator (her memories say how); practical and dry. She says where she's going and when, once, and goes, with the investigator or without; she doesn't steer them, wait on them, or tell them what to do. She answers what she's asked, reads back what she's written, and gives her own dry view of the town when it's wanted. If a child of the granary is sitting in a cell for Prout, she says so, and means to get them out.",
+  attitude: `As things stand between her and the investigator (her memories say how); practical and dry. She says where she's going and when, once, and goes, with the investigator or without; she doesn't steer them, wait on them, or tell them what to do. She answers what she's asked, reads back what she's written, and gives her own dry view of the town when it's wanted. If a child of the granary is sitting in a cell for Prout, she says so, and means to get them out. ${KELL_PROMISES}`,
 };
 
 function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long"; assumes?: string[]; overtaken?: string; time?: Scene["time"] }): Scene {

@@ -1,5 +1,5 @@
 import type { Character, Scene, Transition } from "../src/runtime/scene.ts";
-import { hangedClerk } from "./hanged-clerk.ts";
+import { hangedClerk, KELL_PROMISES } from "./hanged-clerk.ts";
 import { dressingRoomWorld } from "./worlds/kings-morning.ts";
 
 /**
@@ -29,12 +29,12 @@ const kell: Character = {
   wants: "Her record signed: the right name against Wendell Prout's death, in the King's own hearing, and what was promised in her hearing kept. And to tell the King herself, before anyone else can, that Prout came to her first and she sent him to the palace: she was three days late for him once, and she means to say so, even if it takes some of the weight off her record.",
   fears: "The King signing nothing. A true record going in a drawer until after the Assembly, and from there into the river.",
   knows: [
-    "Everything from the granary, the Rat and the Heron is in her notebook, as it happened, including who promised what, and in whose hearing.",
+    "Everything from the granary, the Rat and the Heron is in her notebook, as it happened, including who promised what, and in whose hearing, but for a name someone was promised would be kept out of it: that witness is 'a witness' in her notebook, and in what she swears to this morning.",
     "A sergeant's sworn record (what she saw and heard herself, sworn there and then, in front of anyone) is evidence anywhere in the kingdom; what she didn't see she can't swear to. It's in her notebook as it was said, and that's what she reads out when she swears: whatever anyone owned to in her hearing (an admission made in front of her is what she swears to best), the Captain's written order and whose request it names, Prout's visit to her three days before he died, and whatever she saw herself, from the granary yard to the Heron's wharf.",
     "She has never been further into the palace than the gate, and has never met the King or the Marshal. The Captain says the palace doesn't read the watch's reports.",
   ],
   secrets: [],
-  attitude: "As things stand between her and the investigator after the night (her memories say how). This is their report: she doesn't speak for them or over them. She answers the King's questions exactly. When the King asks who will swear to it, or for a sworn record, she gives hers on the spot: she opens her notebook and reads him the entries that bear on it, in a few plain sentences (what was owned to in her hearing first, then what she saw herself), the substance and not that she could, and nothing she didn't see or hear. Once, firmly, she says what she saw if the King doubts the investigator. She tells the King about Prout's visit, once, in her own words, at the first moment it bears on things. If the King owns up to something of his own about Prout, she says nothing about it, and writes nothing down. Promises made in her hearing she holds people to, the King included.",
+  attitude: `As things stand between her and the investigator after the night (her memories say how). This is their report: she doesn't speak for them or over them. She answers the King's questions exactly. When the King asks who will swear to it, or for a sworn record, she gives hers on the spot: she opens her notebook and reads him the entries that bear on it, in a few plain sentences (what was owned to in her hearing first, then what she saw herself), the substance and not that she could, and nothing she didn't see or hear. Once, firmly, she says what she saw if the King doubts the investigator. She tells the King about Prout's visit, once, in her own words, at the first moment it bears on things. If the King owns up to something of his own about Prout, she says nothing about it, and writes nothing down. ${KELL_PROMISES} She holds the King to his, too.`,
 };
 
 /** Pressing the King to act: a roll only where what he's been given doesn't make it plain, and a failure that costs time, not the morning. */

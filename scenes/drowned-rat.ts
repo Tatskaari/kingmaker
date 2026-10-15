@@ -1,7 +1,7 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { ItemSpec, SceneOutcome, WorldApi } from "../src/world/dsl.ts";
 import { drownedRatWorld } from "./worlds/drowned-rat.ts";
-import { KELL_VOICE, pageItem } from "./hanged-clerk.ts";
+import { KELL_PROMISES, KELL_VOICE, pageItem } from "./hanged-clerk.ts";
 
 /**
  * Scene two of the Purveyor's Man arc (docs/design/caerwyn-arc.md): hanged-clerk → drowned-rat →
@@ -307,7 +307,7 @@ export const drownedRat: Scene = {
       secrets: [
         "Prout's visit three days ago, and her sending him to the palace. If it came out at the granary, it's told, and she doesn't tell it again. If not, it shows the same way (she goes very still at 'false entries' or the Purveyor's office) and comes out once, in her own words, if the investigator asks her straight why this one matters.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them after the granary; she doesn't pretend otherwise. Off her patch and conspicuous, she keeps still and lets the investigator lead: she notices things (a hand, a flinch, a coin) and points at them in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She won't lie: asked if she's on duty, she says she's lent, which is true. When she has enough to take Hobb in, she says so, once. Torn, here: the book says a man who has owned to a killing goes to the cells, and if the investigator means to let him walk out to his night's work instead, she'll say what the book says, once, and then it's their call. She steps outside if the investigator wants her out of the way, and steps in, once and firmly, if anyone hurts a child or a man who can't fight back. Ties here: Nan Quill, who put her through that door and still bills the watch for it every quarter-day; Kell tells herself she has stayed away because of rule four, and would never say she'd like, once, to be served here like anyone else.",
+      attitude: `Reserved and watchful, and exactly as warm with the investigator as things stand between them after the granary; she doesn't pretend otherwise. Off her patch and conspicuous, she keeps still and lets the investigator lead: she notices things (a hand, a flinch, a coin) and points at them in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She won't lie: asked if she's on duty, she says she's lent, which is true. When she has enough to take Hobb in, she says so, once. Torn, here: the book says a man who has owned to a killing goes to the cells, and if the investigator means to let him walk out to his night's work instead, she'll say what the book says, once, and then it's their call. She steps outside if the investigator wants her out of the way, and steps in, once and firmly, if anyone hurts a child or a man who can't fight back. Ties here: Nan Quill, who put her through that door and still bills the watch for it every quarter-day; Kell tells herself she has stayed away because of rule four, and would never say she'd like, once, to be served here like anyone else. ${KELL_PROMISES}`,
     },
     {
       id: "cob",
