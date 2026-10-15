@@ -5,7 +5,8 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
+import { considerAct, settleRuling, type ConsiderStep, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
@@ -31,6 +32,12 @@ export interface TurnHooks {
   onEntry?(entry: Entry): void;
   /** The game core has just gone into a scene (or a talk), before its opening streams in: show it now. */
   onScene?(): void;
+  /**
+   * A considered turn (approach `considered`): a step of the GM's ruling starts (the review, each
+   * part of its answer as it streams, the roll). Such a turn takes a while: a UI can move its
+   * status line on at each, to show the GM getting somewhere.
+   */
+  onStep?(step: ConsiderStep): void;
 }
 
 export interface TurnResult {
@@ -187,8 +194,27 @@ async function settlePresence(scene: Scene, state: SessionState, decider: Return
   state.absent = recurring.filter(c => decision.answers[c.id]?.choice === "not_here" && (decision.answers[c.id]?.probabilities?.not_here ?? 1) >= 0.8).map(c => c.id);
 }
 
+/**
+ * Where a move before the reply leaves the scene (a route's, or a considered ruling's): an ending the
+ * dice decided plays its moment now and closes on the next reply; one the player chose closes now;
+ * one they didn't is held for their answer. The GM's lines, with the closing line fitted to it.
+ */
+function moveTaken(state: SessionState, move: Move, lines: string[], pending: SessionState["pendingExit"]): { lines: string[]; ended?: Exit; closing?: SessionState["closing"]; pendingExit?: SessionState["pendingExit"] } {
+  if (move.exit && move.chosen && move.roll && move.exit.kind !== "combat") {
+    return {
+      lines: [...lines.filter(d => !d.startsWith("This reply closes the scene")), `The dice have decided it: this is heading to ${move.exit.title} (${move.exit.outcome}). Play the decisive moment and people's immediate reactions, including anyone who saw it; the scene closes on your next reply, so don't wrap everything up yet.`],
+      closing: { exitId: move.exit.id, turn: state.turn },
+    };
+  }
+  if (move.exit && (move.chosen || pending?.exitId === move.exit.id)) return { lines, ended: move.exit };
+  if (move.exit) return { lines, pendingExit: { exitId: move.exit.id, turn: state.turn, via: move.transition.id, extended: false } };
+  return { lines };
+}
+
 function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" | "post"): void {
-  if (move.transition.establishes) for (const fact of move.transition.establishes) if (!state.established.includes(fact)) state.established.push(fact);
+  // The route's own facts, then those of how its check went (a considered ruling's outcome).
+  const byOutcome = move.roll && move.transition.check?.establishes ? (move.roll.success ? move.transition.check.establishes.success : move.transition.check.establishes.failure) ?? [] : [];
+  for (const fact of [...(move.transition.establishes ?? []), ...byOutcome]) if (!state.established.includes(fact)) state.established.push(fact);
   if (move.to !== state.beat) {
     state.path.push({ turn: state.turn, from: state.beat, to: move.to, via: move.transition.id, source, ...(move.roll ? { roll: move.roll } : {}) });
     if (!move.exit) { state.beat = move.to; state.turnsInBeat = 0; }
@@ -304,8 +330,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     : undefined;
   const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
   const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], features: state.rules.features ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}) });
-  if (pre.offGraph) state.offGraphTurn = state.turn;
+  // (Considered rolls ask whether a roll is wanted in this same call: no extra latency on ordinary turns.)
+  const considers = approach.considered === true && approach.voice === "gm";
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off" || considers, relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, considered: considers, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}) });
   // A failed roll stands: don't have something else hand over what the dice just withheld.
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
   const preDecisionMs = performance.now() - started;
@@ -331,16 +358,15 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const pending = state.pendingExit;
   if (pending) delete state.pendingExit;
   if (pre.move) {
-    directive = moveDirective(scene, state, pre.move);
+    // (Told before it's applied: the directive says where the scene has moved from.)
+    const lines = moveDirective(scene, state, pre.move);
     if (pre.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.move.roll, pre.move.transition.check?.reason) });
     applyMove(state, scene, pre.move, "pre");
-    if (pre.move.exit && pre.move.chosen && pre.move.roll && pre.move.exit.kind !== "combat") {
-      // The dice decided it: play the decisive moment and the reactions now, close on the next reply.
-      directive = directive.filter(d => !d.startsWith("This reply closes the scene"));
-      directive.push(`The dice have decided it: this is heading to ${pre.move.exit.title} (${pre.move.exit.outcome}). Play the decisive moment and people's immediate reactions, including anyone who saw it; the scene closes on your next reply, so don't wrap everything up yet.`);
-      state.closing = { exitId: pre.move.exit.id, turn: state.turn };
-    } else if (pre.move.exit && (pre.move.chosen || pending?.exitId === pre.move.exit.id)) ended = pre.move.exit;
-    else if (pre.move.exit) state.pendingExit = { exitId: pre.move.exit.id, turn: state.turn, via: pre.move.transition.id, extended: false };
+    const taken = moveTaken(state, pre.move, lines, pending);
+    directive = taken.lines;
+    if (taken.ended) ended = taken.ended;
+    if (taken.closing) state.closing = taken.closing;
+    if (taken.pendingExit) state.pendingExit = taken.pendingExit;
   } else if (pre.freeform) {
     push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.freeform.roll) });
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
@@ -378,12 +404,56 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       }
     }
   }
-  if (state.endingLead && !pre.move && !state.closing) {
+  // Considered rolls: an act a roll should settle that no route does (or a plan off the graph). The
+  // GM rules on it before replying: a roll or not, the DC, and what each outcome changes. The rules
+  // roll it, the outcome's changes apply like any route's, and the reply plays what was decided.
+  let considered: Settled | undefined;
+  let considerMs: number | undefined;
+  if (considers && !state.closing && !ended && !pre.move && !pre.mechanic && !pre.freeform && !pre.pressure && !pre.limit && !pre.ooc && (pre.considered || pre.offGraph)) {
+    const reviewStarted = performance.now();
+    const step = (s: ConsiderStep) => hooks.onStep?.(s);
+    try {
+      const ruling = await considerAct(scene, state, input, pre.considered, step);
+      costUsd += ruling.costUsd; calls++;
+      considered = await settleRuling(scene, state, ruling, step);
+      state.rulings = [...(state.rulings ?? []), considered.record];
+      if (considered.dice) push(state, hooks, { speaker: "dice", kind: "roll", text: considered.dice });
+      const from = state.beat;
+      applyMove(state, scene, considered.move, "pre");
+      // (A ruling with no roll that keeps the scene here is on the path too, as a freeform roll is.)
+      if (!considered.move.roll && considered.move.to === from) state.path.push({ turn: state.turn, from, to: from, via: considered.move.transition.id, source: "pre" });
+      const taken = moveTaken(state, considered.move, considered.directive, pending);
+      directive.push(...taken.lines);
+      if (taken.ended) ended = taken.ended;
+      if (taken.closing) state.closing = taken.closing;
+      if (taken.pendingExit) state.pendingExit = taken.pendingExit;
+      // A failure stands: nothing else hands over what the dice just withheld.
+      if (considered.record.went === "failure") delete pre.relocate;
+      // The ways of trying it shut are gone from here on, for the decider and the GM.
+      scene = effectiveScene(authored, state.patches);
+    } catch {
+      // No ruling (the review failed): the dice still decide a roll that was wanted, as a plain check.
+      if (pre.considered) {
+        const extra = await freeformCheck(decider, scene, state, input).catch(() => undefined);
+        if (extra) {
+          costUsd += extra.decision.costUsd; calls++;
+          push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(extra.check.roll) });
+          state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: extra.check.roll });
+          directive.push(freeformDirective(extra.check));
+        }
+      }
+    }
+    considerMs = performance.now() - reviewStarted;
+  }
+  // The background co-GM is for the scene's direction: a plan off the graph the GM has ruled on doesn't need it now.
+  if (pre.offGraph && !considered) state.offGraphTurn = state.turn;
+  if (state.endingLead && !pre.move && !considered && !state.closing) {
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
     if (exit) directive.push(`The scene may be reaching its end (${exit.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
   }
-  if (pre.daft && !pre.ooc) directive.push(CONSEQUENCE_DIRECTIVE);
-  if (pre.earned && !pre.ooc && !pre.move?.roll) directive.push(EARNED_DIRECTIVE);
+  // A ruling decided this turn's consequences, and its payoff: no bill or payoff on top of it.
+  if (pre.daft && !pre.ooc && !considered) directive.push(CONSEQUENCE_DIRECTIVE);
+  if (pre.earned && !pre.ooc && !pre.move?.roll && !considered) directive.push(EARNED_DIRECTIVE);
   if (pre.pressure && !pre.ooc && !pre.move) {
     // The dice line names them as the player knows them (the woman with the silver dice, until she's Sal).
     if (pre.pressure.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.pressure.roll, pressureReason(scene, pre.pressure, state.rules?.aliases ?? unnamed(scene, state))) });
@@ -395,12 +465,14 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     state.decidedRelocations = [...(state.decidedRelocations ?? []), ...pre.relocate.map(r => ({ ...r, turn: state.turn }))];
   }
   if (pre.ooc) directive.push(OOC_DIRECTIVE);
-  else if (pre.plainTransition && !pre.limit && !pre.move) directive.push(plainDirective(pre.plainTransition));
+  else if (pre.plainTransition && !pre.limit && !pre.move && !considered) directive.push(plainDirective(pre.plainTransition));
   if (pre.limit) directive.push(limitDirective(pre.limit));
-  if (wasStuck && !pre.move) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
-  if (pending && !pre.move) {
+  if (wasStuck && !pre.move && !considered) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
+  // An ending held for the player's answer: a move answers it (a ruling's success, or its own ending);
+  // a ruling that failed without one is like any try that might change things.
+  if (pending && !pre.move && !(considered && (considered.record.went === "success" || considered.move.exit))) {
     const exit = scene.exits.find(e => e.id === pending.exitId)!;
-    if ((pre.plain || pre.freeform) && !pending.extended) {
+    if ((pre.plain || pre.freeform || considered) && !pending.extended) {
       // The player is doing something that might change things: hold the ending one more turn.
       state.pendingExit = { ...pending, extended: true };
       directive.push(`The scene is on the brink of: ${exit.title} (${exit.outcome}). The player's response may change that; play it honestly.`);
@@ -627,7 +699,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (ended) finishScene(state, authored, ended);
   // When did text that actually answers the player start? (the follow-up, after a holding beat)
   const resolvingTextMs = followUpMs ?? firstTextMs;
-  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls };
+  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls, ...(considerMs !== undefined ? { considerMs } : {}) };
   state.metrics.push(metric);
   saveSession(state);
   snapshotSession(state);
@@ -723,7 +795,7 @@ function freshScene(state: SessionState, next: Scene): void {
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
-    fought: [],
+    fought: [], rulings: [],
   });
   delete state.ended;
   delete state.threat;

@@ -114,9 +114,9 @@ export function talkScene(sceneId: string, authored?: (id: string) => Character 
       "Things changing hands (a gift, a loan, money, gear): a word in passing isn't the place for it; offered, it's answered in character and stays with whoever had it.",
     ],
     companion: talk.companion,
-    // A talk has nothing to keep on track (no co-GM) and no dice for ordinary talk; what the
-    // companion keeps back comes out a step at a time (staged secrets).
-    approach: { repair: "off", freeformChecks: false, staging: true },
+    // A talk has nothing to keep on track (no co-GM) and no dice for ordinary talk (nor rulings: it
+    // moves nothing on); what the companion keeps back comes out a step at a time (staged secrets).
+    approach: { repair: "off", freeformChecks: false, considered: false, staging: true },
   };
   built.set(sceneId, scene);
   return scene;

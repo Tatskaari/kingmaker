@@ -61,6 +61,8 @@ export interface Check {
   onSuccess: string;
   /** Beat or exit id reached on failure; stays in the current beat when omitted. */
   onFailure?: string;
+  /** Scene facts that become true on each outcome (a transition's own `establishes` are true either way). */
+  establishes?: { success?: string[]; failure?: string[] };
 }
 
 export interface Transition {

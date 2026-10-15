@@ -134,3 +134,56 @@ test("a pressure roll's dice line names its target as the player knows them, unt
   assert.doesNotMatch(pressureReason(scene, check, { sal: "the woman with the silver dice" }), /Sal/);
   assert.match(pressureReason(scene, check), /Silver Sal Mordaunt/);
 });
+
+// Considered rolls' flag: asked in the decision the turn makes anyway.
+const LINING = "*crouches by Cob* Take the left boot off yourself and feel along the lining with your own fingers. Your boot, your hands. Will you do that for him?";
+const considered = { speaker: false, considered: true, offGraph: true };
+
+test("considered rolls: the flag rides in the turn's one decision, and nothing is rolled for it there", async () => {
+  const decider = scripted({ roll_call: ["new", 0.75, { route: 0.2, none: 0.05 }], attempt: ["win-cob", 0.43, { none: 0.45 }] });
+  const pre = await decideBefore(decider, scene, yard(), LINING, considered);
+  assert.equal(decider.asked.length, 1, "no call of its own");
+  assert.ok(pre.considered, "flagged for the GM's review");
+  assert.equal(pre.move, undefined, "no route's roll");
+  assert.equal(pre.considered.probability, 0.95, "a route's yes and none's count together");
+  assert.deepEqual(pre.considered.routes.map(r => r.id), ["win-cob"], "the review is told what the decider leant towards");
+  // The question names each route's roll by what it's for, so a different payoff reads as another act.
+  const call = decider.asked[0]!.roll_call!;
+  assert.deepEqual(Object.keys(call.criteria), ["route", "new", "none"]);
+  assert.match(call.criteria.route!, /\[win-cob\] Persuasion to get Cob to trust you with what he heard/);
+  assert.match(call.criteria.route!, /\[examine-body\] Medicine to tell how Prout really died/);
+});
+
+test("considered rolls: a route's roll the decider chose goes ahead when it's what the route is for, and waits when it's another act", async () => {
+  const same = await decideBefore(scripted({ roll_call: ["route", 0.8, { new: 0.15 }], attempt: ["win-cob", 0.7] }), scene, yard(), LINING, considered);
+  assert.equal(same.considered, undefined);
+  assert.equal(same.move?.transition.id, "win-cob");
+  assert.equal(same.move?.roll?.skill, "persuasion");
+  // The decider matched the route, but called the act another's: the GM rules on it instead of the route's payoff.
+  const other = await decideBefore(scripted({ roll_call: ["new", 0.7, { route: 0.25 }], attempt: ["win-cob", 0.7] }), scene, yard(), LINING, considered);
+  assert.equal(other.move, undefined);
+  assert.ok(other.considered);
+});
+
+test("considered rolls: no flag for ordinary talk, an unsure read, a payoff already earned, the rules' own act, the impossible, or out of character", async () => {
+  const flag = async (picks: Parameters<typeof scripted>[0], options: Partial<Parameters<typeof decideBefore>[4]> = {}) =>
+    (await decideBefore(scripted(picks), scene, yard(), LINING, { ...considered, ...options })).considered;
+  assert.equal(await flag({}), undefined, "no roll called for");
+  assert.equal(await flag({ roll_call: ["new", 0.62, { none: 0.38 }] }), undefined, "a small ask reads under the bar");
+  assert.equal(await flag({ roll_call: ["new", 0.8], earned: ["earned", 0.7] }), undefined, "they've met the terms: it lands");
+  assert.equal(await flag({ roll_call: ["new", 0.9], mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1] }, { rules }), undefined, "the rules settle a blow");
+  assert.equal(await flag({ roll_call: ["new", 0.9], limit: ["limit_3", 0.8] }), undefined, "the scene can't offer it");
+  assert.equal(await flag({ roll_call: ["new", 0.9], ooc: ["out_of_character", 0.9] }), undefined);
+  assert.ok(await flag({ roll_call: ["new", 0.8], earned: ["earned", 0.5, { not_yet: 0.5 }] }), "half earned still goes to the GM (who's told so)");
+});
+
+test("considered rolls: off, nothing is asked; on, a forgery isn't the real thing the scene can't offer", async () => {
+  const off = scripted({});
+  await decideBefore(off, scene, yard(), LINING, { speaker: false, freeform: true });
+  assert.equal(off.asked[0]!.roll_call, undefined);
+  assert.doesNotMatch(off.asked[0]!.limit!.instructions, /forgery/);
+  const on = scripted({});
+  await decideBefore(on, scene, yard(), LINING, considered);
+  assert.match(on.asked[0]!.limit!.instructions, /a fake, a forgery, a bluff or a lie about one of these is something the player is attempting/);
+  assert.equal(on.asked[0]!.attempt!.criteria.other_risky, undefined, "the flag stands in for the freeform roll's option");
+});
