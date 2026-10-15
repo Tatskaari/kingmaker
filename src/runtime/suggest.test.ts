@@ -12,6 +12,7 @@ const { fakeOpenRouter } = await import("../llm/fake-openrouter.ts");
 const { effectiveScene } = await import("./brief.ts");
 const { buildWorld } = await import("../world/scene-world.ts");
 const { currentSuggestions, judge, limitHead, parseSuggestions, propose, screen, startSuggesting, stopSuggesting, suggested, suggesting, suggestionBrief, vet, vetting } = await import("./suggest.ts");
+const { startTalk, talkTurn } = await import("./talk.ts");
 type SessionState = import("./session.ts").SessionState;
 type Vetting = import("./suggest.ts").Vetting;
 type Decider = import("../llm/decide.ts").Decider;
@@ -411,6 +412,27 @@ test("who's here is who the world has here, and nobody who isn't is done to or s
     "I'm off duty. Nim's the one asking, and she pays for her own trouble.": "not their voice: Nim, by name",
   });
   assert.deepEqual(kept.map(l => l.text), ["Who's Master Sallow to you, Hobb?", "(I tell Kell what the girl said about Sallow.)", "I'm Nim Bramblefoot, and I'm buying."]);
+});
+
+test("a talk's lines are the player's: their own past is theirs to tell, not the companion's to be asked about (wizard#34)", async () => {
+  const fake = fakeOpenRouter({ replies: ["Kell taps her pencil. “Long enough.”"], suggestions: "What did the Provost's prize decision cost you?\nLong day, Sergeant?" });
+  try {
+    const state = {
+      id: "suggest-talk", sceneId: "drowned-rat", approach: "v2", seed: 7, rollCount: 0, turn: 12, beat: "the-rat", turnsInBeat: 0,
+      player: { name: "Caelith Ondraviel", concept: "an elf wizard and college pedant", modifiers: {}, backstory: { summary: "Sent away from his college after publicly challenging its Provost's prize decision.", text: "I challenged the Provost.", personality: [], ideals: [], bonds: [], flaws: [] } },
+      path: [], established: [], canon: [], notes: null, notesTurn: null, patches: [], repairs: [], metrics: [], lead: "Kell is going down the river stairs to the Drowned Rat.",
+      transcript: [{ turn: 12, scene: "hanged-clerk", speaker: "system", kind: "system", text: "Scene ends: The case is made" }],
+      history: [{ sceneId: "hanged-clerk", exitId: "case-made", summary: "Prout was murdered; Kell signed him in as such." }],
+    } as unknown as SessionState;
+    startTalk(state, "kell", "the granary lane in Caerwyn, evening");
+    await talkTurn(state, "Long day?");
+    const asked = fake.sent.find(r => r.instructions?.startsWith("You suggest what the player might say next in a conversation"));
+    assert.ok(asked, "the talk asked for its lines");
+    assert.match(asked!.instructions!, /The player character's past is their own: a line may tell Sergeant Agnes Kell of it, never ask Sergeant Agnes Kell about it as if it were Sergeant Agnes Kell's\./);
+    assert.match(asked!.input![0]!.content, /^## The player character \(who says these lines: their past is theirs, not Sergeant Agnes Kell's\)\nCaelith Ondraviel: an elf wizard and college pedant\. Sent away from his college/);
+  } finally {
+    fake.restore();
+  }
 });
 
 test("the judge is told what's held and what's true now: a question is fit, an answer goes even with \"fine\" on top, and so does a line behind the story (wizard#13, thief#10)", async () => {
