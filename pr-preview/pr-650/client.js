@@ -1,7 +1,7 @@
-import { Terminal } from "./vendor/xterm.mjs?v=8f1d895ac8b4";
-import { FitAddon } from "./vendor/addon-fit.mjs?v=8f1d895ac8b4";
-import { WebglAddon } from "./vendor/addon-webgl.mjs?v=8f1d895ac8b4";
-import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=8f1d895ac8b4";
+import { Terminal } from "./vendor/xterm.mjs?v=62bd8fb47c00";
+import { FitAddon } from "./vendor/addon-fit.mjs?v=62bd8fb47c00";
+import { WebglAddon } from "./vendor/addon-webgl.mjs?v=62bd8fb47c00";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=62bd8fb47c00";
 
 // The page's half of Kingmaker in the browser (src/web/README.md): xterm.js draws the game, and
 // keystrokes and output go over a transport. Served by src/web/server.ts, the game runs in a pty
@@ -174,7 +174,7 @@ new ResizeObserver(() => {
   cancelAnimationFrame(resizing);
   resizing = requestAnimationFrame(resize);
 }).observe($("terminal"));
-term.onResize(({ cols, rows }) => control({ type: "resize", cols, rows }));
+term.onResize(({ cols, rows }) => control({ type: "resize", cols, rows, window: windowSize() }));
 term.onData(data => sendBytes(encoder.encode(data)));
 term.onBinary(data => sendBytes(Uint8Array.from(data, ch => ch.charCodeAt(0) & 255)));
 term.onTitleChange(title => {
@@ -362,7 +362,12 @@ function socketTransport(handlers) {
 }
 
 function start(extra) {
-  control({ type: "start", cols: term.cols, rows: term.rows, ...extra });
+  control({ type: "start", cols: term.cols, rows: term.rows, window: windowSize(), ...extra });
+}
+
+/** The browser's window, for a report of a problem (src/report): its size in CSS pixels and its pixel ratio ("1280x800@2"). */
+function windowSize() {
+  return `${Math.round(innerWidth)}x${Math.round(innerHeight)}@${Math.round(devicePixelRatio * 100) / 100}`;
 }
 
 function askForKey(error, options = {}) {
