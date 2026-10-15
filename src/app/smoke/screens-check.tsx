@@ -14,7 +14,10 @@
  * see (never the GM's descriptions), a deed goes as the turn, an attack takes two choices, a
  * right-click on the open menu opens what's under it and chooses nothing, a click starts the line
  * with their name, and Tab and Enter do it by key while the box keeps its keys (Enter on what the
- * mouse only rests on opens nothing); the help scrolls by key; the title's New game and Continue,
+ * mouse only rests on opens nothing); a scene's suggested lines at 80x24 and 130x42 (rows kept for
+ * them while they're coming, so the conversation doesn't move when they come; numbered over the box,
+ * a line each; a number or a click puts one in the box, typing puts them away, Enter sends; the Esc
+ * menu turns them off); the help scrolls by key; the title's New game and Continue,
  * and the End's way back, by a click; the zoo's side panel, a sign's card, its help scrolled, and a
  * long line in What happens kept by its start.
  *
@@ -37,6 +40,8 @@ import { exploreState } from "../../game/town.ts";
 import { actorsHere, nearby, Picks, screenOf } from "../../game/map/index.ts";
 import { fightView, townView } from "../../game/views.ts";
 import { presentCast } from "../../runtime/brief.ts";
+import type { Suggestion } from "../../runtime/session.ts";
+import { currentSuggestions } from "../../runtime/suggest.ts";
 import { forceEnding } from "../../runtime/engine.ts";
 import { inventory, startingPurse } from "../../world/inventory.ts";
 import { buildWorld, joinWorld } from "../../world/scene-world.ts";
@@ -590,6 +595,126 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     const kellRow = (setup.captureCharFrame().split("\n").find(r => r.includes("K Sergeant Agnes")) ?? "").slice(w - side).replace(/│/g, "").trim();
     checks.push([`scene ${w}x${h}: a bloodied Kell's line in the list: her name whole, how she is if there's room (${kellRow})`, kellRow.startsWith("K Sergeant Agnes Kell") && !kellRow.endsWith("…") && (w < 100 || kellRow.includes("(bloodied)"))]);
     yard.world!.entities.kell!.states = yard.world!.entities.kell!.states.filter(s => s !== "bloodied");
+    await setup.dispose();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// A scene's suggested lines at 80x24 and 130x42 (src/runtime/suggest.ts): rows kept for them while a
+// turn is under way, so the conversation doesn't move when they come; numbered over the box, a line
+// each that fits (a second line to say gives way on a short screen); a number puts one in the box
+// (the GM may still be making a note), and the box's line then hides them; emptied, they're back; a
+// click puts another in; Enter sends it; the Esc menu turns them off (no rows kept for them then).
+
+{
+  const scene = sceneById("hanged-clerk");
+  const yard = await pregenSession({ pregen: "wizard", name: "Pell Marrow", level: 3, seed: 5, sceneId: "hanged-clerk" });
+  Object.assign(yard, { beat: scene.start });
+  const people = presentCast(scene, yard);
+  yard.world = buildWorld(scene.id, scene.world!, people.map(c => ({ id: c.id, name: c.name })), yard.player);
+  joinWorld(yard.world, people.map(c => ({ id: c.id, name: c.name })), 0);
+  const lines: Suggestion[] = [
+    { kind: "say", text: "Sergeant, who found him, and when exactly did the porters raise the alarm?" },
+    { kind: "say", text: "Nice boots. Yours?" },
+    { kind: "do", text: "(I look up at the body, then along the hoist rope to the loft door)" },
+    { kind: "try", text: "(I try to coax the boy down from his stones with a pie)" },
+    { kind: "leave", text: "(I leave the yard to the pigeons)" },
+  ];
+  const opening: Line[] = [
+    { kind: "header", speaker: "system", name: scene.title, text: scene.hook },
+    { kind: "narration", speaker: "gm", text: "The yard behind the King's Granary smells of wet grain and pigeons. Wendell Prout turns slowly on the sack hoist above the shut loft door, and a scrawny boy in enormous boots is lobbing gutter stones at him." },
+    { kind: "player", speaker: "player", name: "Pell Marrow", text: "(I look around the yard)" },
+  ];
+  const boxed = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) + 1]!.replace(/│/g, "").trim(); };
+  /** The rows over the box: from under the spinner's line to the box's top. */
+  const over = (frame: string) => { const rows = frame.split("\n"); const box = rows.findIndex(r => r.includes("What do you say?")); const top = rows.findIndex(r => /^└/.test(r)); return rows.slice(top + 2, box); };
+  const talk = (frame: string, upTo: number) => { const rows = frame.split("\n"); return rows.slice(0, rows.findIndex(r => /^└/.test(r))).map(r => [...r].slice(0, upTo).join("")); };
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const side = w >= 100 ? Math.min(62, Math.floor(w * 0.42)) : 26 + Math.floor((w - 80) / 4);
+    const state = { version: 1, id: "suggest-check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [], settings: {} } as GameState;
+    let on = true;
+    const core = {
+      session: yard, state,
+      get suggestionsOn() { return on; },
+      setSuggestions: (next: boolean) => { on = next; state.settings = { suggestions: next }; },
+      observe: () => ({ mode: "scene", text: "", actions: on ? currentSuggestions(yard).map((s, i) => ({ id: `say_${i + 1}`, label: s.text, kind: "say" })) : [] }),
+      save: () => {},
+    } as unknown as Core;
+    const game = new Game();
+    game.core = core;
+    game.screen = "scene";
+    game.lines = [...opening];
+    const sent: string[] = [];
+    game.input = async (text: string) => { sent.push(text); };
+    // Offline here: the GM is to be had, as far as the screen's concerned, and the lines are on their way until they come.
+    let coming = true;
+    game.suggestionsExpected = () => on && !game.over;
+    game.suggestionsComing = () => coming;
+    delete yard.suggestions;
+    game.busy = "The GM makes a note…";
+    const setup = await testRender(<><SceneScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+    const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
+    await setup.renderOnce();
+    let frame = setup.captureCharFrame();
+    if (show) console.log(`suggestions coming ${w}x${h}\n${frame}`);
+    const before = talk(frame, w - side - 3);
+    const rows = h < 26 ? 4 : 5;
+    checks.push([`suggestions ${w}x${h}: while they're coming, ${rows} rows are kept for them over the box`, over(frame).length === rows && over(frame).every(r => !r.trim())]);
+    // They come: the conversation stays where it was, and they're numbered over the box, a line each.
+    yard.suggestions = { scene: scene.id, turn: yard.turn, lines };
+    coming = false;
+    await act(async () => { game.suggestionsCame(); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (show) console.log(`suggestions ${w}x${h}\n${frame}`);
+    checks.push([`suggestions ${w}x${h}: when they come, the conversation doesn't move`, talk(frame, w - side - 3).every((r, i) => r === before[i])]);
+    const shown = over(frame).map(r => r.trim());
+    const wanted = h < 26 ? [lines[0]!, lines[2]!, lines[3]!, lines[4]!] : lines;
+    checks.push([`suggestions ${w}x${h}: numbered over the box, a line each that fits${h < 26 ? " (the second to say gives way)" : ""}: ${shown.join(" | ")}`,
+      shown.length === wanted.length && wanted.every((l, i) => shown[i]!.startsWith(`${i + 1} ${l.text.slice(0, 12)}`) && (l.text.length + 4 < w || shown[i]!.endsWith("…")))]);
+    checks.push([`suggestions ${w}x${h}: the keys say a number puts one in the box`, new RegExp(`1–${wanted.length} into the box`).test(frame.split("\n").filter(r => r.trim()).at(-1) ?? "")]);
+    // A number: the line goes in the box (the GM's still making a note), and the box's line hides them.
+    act(() => setup.mockInput.pressKey("2"));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`suggestions ${w}x${h}: 2 puts its line in the box, with the GM still making a note, and they're put away`, boxed(frame) === wanted[1]!.text && !over(frame).some(r => /^\s*1 /.test(r)) && !sent.length]);
+    // Emptied, they're back; a click puts another in.
+    for (let i = 0; i < wanted[1]!.text.length; i++) act(() => setup.mockInput.pressBackspace());
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`suggestions ${w}x${h}: the box emptied, they're back`, !boxed(frame).includes("(I") && over(frame).filter(r => r.trim()).length === wanted.length]);
+    const third = at(frame, wanted[2]!.text.slice(0, 10));
+    if (third) await act(async () => { await setup.mockMouse.click(third.x, third.y); });
+    await setup.renderOnce();
+    checks.push([`suggestions ${w}x${h}: a click puts its line in the box`, !!third && boxed(setup.captureCharFrame()) === wanted[2]!.text]);
+    // Enter sends it, as typed.
+    game.busy = undefined;
+    act(() => setup.mockInput.pressEnter());
+    await setup.renderOnce();
+    checks.push([`suggestions ${w}x${h}: Enter sends it`, sent.at(-1) === wanted[2]!.text]);
+    // Typing hides them.
+    await act(async () => { await setup.mockInput.typeText("Mor"); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`suggestions ${w}x${h}: typing puts them away`, boxed(frame) === "Mor" && !over(frame).some(r => /^\s*1 /.test(r))]);
+    for (let i = 0; i < 3; i++) act(() => setup.mockInput.pressBackspace());
+    // The Esc menu: Suggested lines: on; Enter turns them off, and the menu says so; no rows kept for them.
+    await esc();
+    for (let i = 0; i < 3; i++) act(() => setup.mockInput.pressArrow("down"));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`suggestions ${w}x${h}: the Esc menu has them on`, game.overlay?.kind === "menu" && /▶ Suggested lines: on/.test(frame)]);
+    act(() => setup.mockInput.pressEnter());
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`suggestions ${w}x${h}: Enter turns them off, and the menu stays up to say so`, !on && game.overlay?.kind === "menu" && /▶ Suggested lines: off/.test(frame)]);
+    await esc();
+    game.busy = "The GM is speaking…";
+    game.emit();
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`suggestions ${w}x${h}: off, none listed and no rows kept for them`, !game.overlay && !over(frame).length]);
+    game.busy = undefined;
     await setup.dispose();
   }
 }

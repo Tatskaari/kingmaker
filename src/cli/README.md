@@ -58,7 +58,7 @@ flowchart LR
 
 `scene play` does the same in a readline loop, with `/sheet`, `/map` and `/quit` (the old `#sheet` and `#map` too). `scene start` prints the opening and stops, so a QA player can go on with `scene say`.
 
-**A QA command** (qa.ts:62): load the game (with the zoo's explorer if `game.json` says `hub: "zoo"`), do one thing, let the core save, and print the observation: the mode, what the player sees, the hint and the actions with their ids. After `act` or `say` in a scene it doesn't print the scene again, only what can be done next.
+**A QA command** (qa.ts:62): load the game (with the zoo's explorer if `game.json` says `hub: "zoo"`), do one thing, let the core save, and print the observation: the mode, what the player sees, the hint and the actions with their ids. After `act` or `say` in a scene it doesn't print the scene again, only what can be done next. The scene's suggested lines come a moment after the reply, so `act` and `say` wait for them (`Game.suggested`) and list them as `say_1`…: `qa act --id say_2` says that line. `qa suggestions --session <id> [on|off]` is the game's setting, as the app's Esc menu and `/suggestions` have it.
 
 Beside them, `doc-anchors.ts` (`npm run docs:anchors`) keeps the docs' line links pointing at what they meant: a link named for a symbol goes to its definition, and any other follows its line from the commit that wrote it, through the diff. `--check` only lists what's moved, and fails if anything has. Run it after a merge.
 
@@ -88,6 +88,7 @@ npm run qa -- new --session g1 --as "Tamsin Vell: a disgraced palace auditor"   
 npm run qa -- builds --session g2 --as "Brother Odo: a large, gentle hedge-priest"   # character creation's three builds, as cards
 npm run qa -- new --session g2 --as "Brother Odo: a large, gentle hedge-priest" --build 1 --backstory-file /abs/odo.md --accept-fixes   # one of them, with a backstory checked against the lore
 npm run qa -- end --session g1                                      # in a scene, lists its exits; --exit <id> takes one
+npm run qa -- suggestions --session g1 off                        # the suggested lines off (on asks for this moment's at once)
 npm run qa -- dump --session g1 --output /abs/path --description "what went wrong"
 ```
 

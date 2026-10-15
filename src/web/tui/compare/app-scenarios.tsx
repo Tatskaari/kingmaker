@@ -19,6 +19,7 @@ import { actionsAt, leadTarget, town } from "../../../game/town.ts";
 import { sheetData } from "../../../rules/dnd.ts";
 import { presentCast } from "../../../runtime/brief.ts";
 import { forceEnding } from "../../../runtime/engine.ts";
+import type { Suggestion } from "../../../runtime/session.ts";
 import { buildWorld, joinWorld } from "../../../world/scene-world.ts";
 import { placePlayer, WELCOME } from "../../../game/zoo/explorer.ts";
 import { newZoo } from "../../../game/zoo/game.ts";
@@ -71,6 +72,25 @@ const talk = talkBetween({ id: "kell", name: "Sergeant Kell" }, {
 function sceneGame(mode: "scene" | "explore"): Game {
   const game = new Game();
   game.core = { session, state: { version: 1, id: "check", mode, story: { time: mode === "scene" ? "morning" : "evening", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode, text: "", actions: [] }) } as unknown as Game["core"];
+  return game;
+}
+
+/** A scene's suggested lines (src/runtime/suggest.ts), one of each kind and a second to say. */
+const SUGGESTED: Suggestion[] = [
+  { kind: "say", text: "Sergeant, who found him, and when?" },
+  { kind: "say", text: "Nice boots. Yours?" },
+  { kind: "do", text: "(I look up at the body)" },
+  { kind: "try", text: "(I try to coax the boy down from his stones with a pie)" },
+  { kind: "leave", text: "(I leave the yard to the pigeons)" },
+];
+
+/** The scene, with its suggested lines for this moment in the session (a copy of it, so the other scenes' have none). */
+function suggestedGame(): Game {
+  const own = { ...session, suggestions: { scene: granary.id, turn: session.turn, lines: SUGGESTED } };
+  const game = new Game();
+  game.core = { session: own, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }), suggestionsOn: true } as unknown as Game["core"];
+  game.screen = "scene";
+  game.lines = lines;
   return game;
 }
 
@@ -226,6 +246,19 @@ export const appScenarios: Scenario[] = [
   ...sizes("scene", [[130, 42], [80, 24], [100, 40]], () => {
     const game = sceneGame("scene");
     game.screen = "scene"; game.lines = lines; game.choices = choices;
+    return { node: <SceneScreen game={game} /> };
+  }),
+  // A scene's suggested lines: numbered over the box, a risky try in the dice's yellow; and the rows kept for them while they come.
+  ...sizes("scene suggestions", [[130, 42], [80, 24]], () => {
+    const game = suggestedGame();
+    game.choices = SUGGESTED.map((s, i): Action => ({ id: `say_${i + 1}`, label: s.text, kind: "say" }));
+    return { node: <SceneScreen game={game} /> };
+  }),
+  ...sizes("scene suggestions coming", [[80, 24]], () => {
+    const game = suggestedGame();
+    game.busy = "The GM makes a note…";
+    game.suggestionsExpected = () => true;
+    game.suggestionsComing = () => true;
     return { node: <SceneScreen game={game} /> };
   }),
   ...sizes("scene growing", [[100, 40]], () => {

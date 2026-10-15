@@ -38,7 +38,7 @@ const HELP: Record<string, string[]> = {
     "The place on the right is the scene's: point at someone or something in it (or in the list under it) and the bottom line says what they are. A click talks to someone (their name starts your line) or glances at something; a right-click says what you can do with it: look, look closely, talk, take it, give them something, open or use it, go over, cast one of your spells at it, attack. A glance costs nothing and shows what anyone could see from where you stand; looking closely, and the rest, is your turn, sent as if you'd typed it. What you carry is under your own @ (Your things).",
     "By key: Tab (or ↑↓, with nothing typed) goes through what's in the place, Enter (with nothing typed) opens the menu of what Tab picked out, Esc lets go. In a menu, a click, ↑↓ and Enter, or its number; → and ← in and out of what to give, which spell or what with; anything you type puts it away and goes in the box. A right-click on a menu is a right-click on what's under it.",
     "The GM narrates and plays everyone else. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
-    "When there are things you might say (in a word with Kell: her suggestions, a goodbye, walking on), they're listed over the box: click one, or press its number.",
+    "After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off (or the Esc menu) turns them off.",
     "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this · /report what went wrong, saved for Claude (those five any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
     "PgUp/PgDn (or the mouse wheel) scroll the conversation. When a scene ends, it waits for you: an Enter of its own, or a click, goes on. Whatever you were typing as it ended goes unsaid.",
     "For testing: /exits lists the scene's endings, /end <id> takes one now.",
@@ -67,8 +67,12 @@ const HELP: Record<string, string[]> = {
   ],
 };
 
-/** The Esc menu: back to the game, the title, quitting, and reporting a problem (last, so the keys to the rest are as they were). */
-const MENU = ["Back to the game", "Save and return to the title", "Save and quit", "Report a problem…"];
+/**
+ * The Esc menu: back to the game, the title, quitting, the suggested lines on or off (Enter turns
+ * them over, and the menu stays up to show it), and reporting a problem (last, so the keys to the
+ * rest are as they were).
+ */
+const menuOf = (game: Game) => ["Back to the game", "Save and return to the title", "Save and quit", `Suggested lines: ${game.core?.suggestionsOn === false ? "off" : "on"}`, "Report a problem…"];
 /** Keys that scroll the help, the notebook, a sign's card and What happens: a line (±1), a page (±2), all the way (±3). */
 const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, pagedown: 2, home: -3, end: 3 };
 /** The overlays those keys scroll (the wheel scrolls them too). */
@@ -114,8 +118,9 @@ export function Overlay({ game }: { game: Game }) {
     }
     key.preventDefault();
     if (o.kind === "menu") {
-      if (key.name === "up") o.index = (o.index + MENU.length - 1) % MENU.length;
-      else if (key.name === "down") o.index = (o.index + 1) % MENU.length;
+      const n = menuOf(game).length;
+      if (key.name === "up") o.index = (o.index + n - 1) % n;
+      else if (key.name === "down") o.index = (o.index + 1) % n;
       else if (key.name === "escape") { game.closeOverlay(); return; }
       else if (key.name === "return") { pickMenu(game, o.index); return; }
       game.emit();
@@ -257,7 +262,7 @@ export function Overlay({ game }: { game: Game }) {
       </box>, [["Enter", "send", send], ["Esc", "never mind", close]], rows, true);
     }
     case "menu":
-      return box("Menu", <box flexDirection="column" paddingY={1}>{MENU.map((m, i) => <Clickable key={i} height={1} onClick={() => pickMenu(game, i)}><text>
+      return box("Menu", <box flexDirection="column" paddingY={1}>{menuOf(game).map((m, i) => <Clickable key={i} height={1} onClick={() => pickMenu(game, i)}><text>
         <span fg={i === o.index ? C.lead : C.dim}>{i === o.index ? "▶ " : "  "}</span><span fg={i === o.index ? C.title : C.text} {...(i === o.index ? { attributes: BOLD } : {})}>{m}</span>
       </text></Clickable>)}</box>, [["↑↓", "choose"], ["Enter", "select"], ["Esc", "back", close]]);
     case "spells":
@@ -280,10 +285,12 @@ function fightMenu(game: Game): ReturnType<typeof fightGroups> {
   return fightGroups(game.fightActions, fight?.options().spells ?? [], fight?.view().player.slots ?? "");
 }
 
-/** The menu's choices, by key or click: back to the game, save to the title, save and quit, or report a problem. */
+/** The menu's choices, by key or click: back to the game, save to the title, save and quit, the suggested lines on or off, or report a problem. */
 function pickMenu(game: Game, index: number): void {
+  // The suggested lines turn over, and the menu stays up, saying which they are now.
+  if (index === 3) { if (game.overlay?.kind === "menu") game.overlay.index = 3; game.setSuggestions(); return; }
   // The report takes the menu's place: the screen it keeps is the one from before the menu came up.
-  if (index === 3) { game.openReport(); return; }
+  if (index === 4) { game.openReport(); return; }
   game.closeOverlay();
   if (index === 1) game.quitToTitle();
   else if (index === 2) game.quit();

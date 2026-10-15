@@ -5,8 +5,10 @@
  * - The Decisions API (the decider, disclosure): every question gets its quietest choice (none,
  *   not_yet, on_track, in_character...), or its first; or the choice `choices` names for it.
  * - The Responses API: JSON made to fit the schema asked for (the stage manager's operations, the
- *   quick co-GM), or one of `byName`'s by the schema's name; otherwise the GM's next line from
- *   `replies`, streamed as OpenRouter streams it.
+ *   quick co-GM), or one of `byName`'s by the schema's name; the lines a scene or a talk suggests
+ *   (asked for in instructions that begin "You suggest what the player might": prompts/suggest.md,
+ *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given; otherwise the GM's
+ *   next line from `replies`, streamed as OpenRouter streams it.
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident.
  */
@@ -20,10 +22,11 @@ export interface FakeOpenRouter {
   restore(): void;
 }
 
-export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string> } = {}): FakeOpenRouter {
+export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; suggestions?: string | string[] } = {}): FakeOpenRouter {
   const real = globalThis.fetch;
   const replies = options.replies ?? ["The GM nods. “Go on.”"];
-  let next = 0;
+  const suggestions = [options.suggestions ?? ""].flat();
+  let next = 0, suggested = 0;
   const asked: string[] = [];
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -32,7 +35,9 @@ export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<st
     if (url === "https://openrouter.ai/api/alpha/decisions") return json({ answers: answer(body.questions ?? {}, options.choices), usage: { cost: 0.0001 } });
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     const format = body.text?.format;
-    const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema)) : replies[next++ % replies.length]!;
+    const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
+      : body.instructions?.startsWith("You suggest what the player might") ? suggestions[suggested++ % suggestions.length]!
+      : replies[next++ % replies.length]!;
     return body.stream ? sse(text) : json(completed(text));
   };
   return { asked, restore: () => { globalThis.fetch = real; } };
@@ -41,6 +46,7 @@ export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<st
 interface Request {
   questions?: Record<string, { criteria: Record<string, string> }>;
   text?: { format?: { type: string; name: string; schema: Schema } };
+  instructions?: string;
   stream?: boolean;
 }
 interface Schema { type?: string | string[]; enum?: unknown[]; const?: unknown; properties?: Record<string, Schema>; required?: string[]; anyOf?: Schema[] }

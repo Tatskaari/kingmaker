@@ -6,6 +6,7 @@ import type { StagePicks } from "../../game/look/stage.ts";
 import type { Action } from "../../game/play.ts";
 import { pointedAt, pointOrder, sameTarget, thingActions, type SceneAction, type SceneTarget } from "../../game/scene-menu.ts";
 import { presentCast } from "../../runtime/brief.ts";
+import type { Suggestion } from "../../runtime/session.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import { COMMANDS, commandNamed, type Game, type Line, type Over, type SceneMenu } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
@@ -136,7 +137,7 @@ function Entry({ line, live, gap }: { line: Line; live?: boolean; gap: number })
   }
 }
 
-/** Something to pick above the box: one of the core's choices (a line to say, or walking on), or a command being typed. */
+/** Something to pick above the box: one of the core's choices (a line to say or do, or walking on), or a command being typed. */
 interface Pick { key: string; label: string; color: string; run: () => void }
 
 /** A choice that ends a talk (its goodbye, walking on): always listed, however short the screen. */
@@ -152,8 +153,25 @@ export function fitChoices(all: Action[], room: number): Action[] {
   return all.filter(a => keep.has(a)).slice(0, 9);
 }
 
-function Picks({ picks, width }: { picks: Pick[]; width: number }) {
-  return <box flexDirection="column" paddingX={1} flexShrink={0}>
+/**
+ * A scene's suggested lines that fit in `rows` (src/runtime/suggest.ts: to say, to do, a risky try,
+ * a way out, in that order): a second line to say gives way first, so every kind keeps its line.
+ */
+export function fitSuggestions(all: Action[], kinds: Array<Suggestion["kind"]>, rows: number): Action[] {
+  const keep = all.map((a, i) => ({ a, kind: kinds[i] ?? "say" }));
+  while (keep.length > rows) {
+    const second = keep.findIndex((k, i) => k.kind === "say" && keep.slice(0, i).some(e => e.kind === "say"));
+    keep.splice(second >= 0 ? second : keep.length - 1, 1);
+  }
+  return keep.map(k => k.a);
+}
+
+/** The suggested lines' colours, by kind: a risky try in the dice's yellow, a way out quieter than the rest. */
+const KIND_COLOR: Record<Suggestion["kind"], string> = { say: C.player, do: C.player, try: C.dice, leave: C.dim };
+
+/** The choices, a line each, in `rows` rows: what isn't there yet (a scene's suggested lines on their way) is kept as room for them. */
+function Picks({ picks, rows, width }: { picks: Pick[]; rows: number; width: number }) {
+  return <box flexDirection="column" paddingX={1} flexShrink={0} height={rows}>
     {picks.map((p, i) => <Clickable key={i} height={1} flexShrink={0} onClick={p.run}>
       <text flexShrink={0}>
         <span fg={C.title}>{`${p.key} `}</span>
@@ -223,6 +241,8 @@ export function SceneScreen({ game }: { game: Game }) {
   const hit = useRef<((x: number, y: number) => SceneTarget | undefined) | undefined>(undefined);
   /** The name the box was last started with (talking to someone), so talking to someone else starts it with theirs instead. */
   const started = useRef<string | undefined>(undefined);
+  /** How many rows a talk's choices last took, kept for them while the GM has the floor. */
+  const talkRows = useRef(0);
   // An overlay coming up (a click on /sheet) puts the menu away.
   useEffect(() => { if (game.overlay && game.sceneMenu) game.closeSceneMenu(); });
   const session = game.session;
@@ -243,16 +263,35 @@ export function SceneScreen({ game }: { game: Game }) {
     clear();
     void game.input(value);
   };
-  // What to pick above the box: a command being typed, or the core's choices (a talk's lines, its goodbye, walking on).
+  // What to pick above the box: a command being typed, or the core's choices. A scene's are its
+  // suggested lines (a number or a click puts one in the box, to send or change); a talk's are its
+  // lines, its goodbye and walking on (said at once). Anything else typed puts them away until the
+  // box is empty again.
   const typing = /^[/#]/.test(draft) ? draft.slice(1).split(/\s+/)[0]!.toLowerCase() : undefined;
   const commands = typing === undefined || draft.includes(" ") ? [] : COMMANDS.filter(c => c.name.startsWith(typing) || commandNamed(typing) === c.name);
   // As many as leave the conversation room to be read (a short terminal shows fewer).
   const room = Math.min(9, Math.max(3, height - 18));
-  const choices = fitChoices(game.choices, room);
-  const say = (i: number) => { const choice = choices[i]; if (choice) { clear(); game.choose(choice); } };
+  const suggested = !session?.talk;
+  /** A scene's suggested lines have rows of their own, kept for them while they're on their way, so the conversation doesn't move when they come. */
+  const rows = height < 26 ? 4 : 5;
+  const kinds = suggested ? game.suggestionKinds() : [];
+  const choices = suggested ? fitSuggestions(game.choices, kinds, rows) : fitChoices(game.choices, room);
+  /** Put a suggested line in the box (in place of nothing: they're shown only while it's empty). */
+  const fill = (line: string) => { started.current = undefined; if (input.current) { input.current.value = line; input.current.focus(); } setDraft(line); };
+  const say = (i: number) => {
+    const choice = choices[i];
+    if (!choice) return;
+    if (suggested) fill(choice.label);
+    else if (!game.busy) { clear(); game.choose(choice); }
+  };
   const toPick: Pick[] = typing !== undefined ? commands.slice(0, room).map(c => ({ key: `/${c.name}`, label: c.what, color: c.testing ? C.faint : C.dim, run: () => send(`/${c.name}`) }))
-    : over || game.busy ? []
-    : choices.map((a, i) => ({ key: String(i + 1), label: a.label, color: a.kind === "say" ? C.player : C.dim, run: () => say(i) }));
+    : over || draft || (game.busy && !suggested) ? []
+    : choices.map((a, i) => ({ key: String(i + 1), label: a.label, color: suggested ? KIND_COLOR[kinds[i] ?? "say"] : a.kind === "say" ? C.player : C.dim, run: () => say(i) }));
+  // The rows they take: a scene's suggested lines keep theirs while they're coming; a talk's keep what they had while the GM has the floor.
+  if (!suggested && !game.busy && !draft) talkRows.current = toPick.length;
+  const kept = typing !== undefined || over || draft ? toPick.length
+    : suggested ? (toPick.length || (game.suggestionsExpected() && (!!game.busy || game.suggestionsComing())) ? rows : 0)
+    : game.busy ? talkRows.current : toPick.length;
 
   // The place needs room to be drawn: beside the transcript, a narrow panel on a narrow terminal (80 columns).
   const side = width >= 100 ? Math.min(62, Math.floor(width * 0.42)) : width >= 80 ? 26 + Math.floor((width - 80) / 4) : 0;
@@ -353,8 +392,8 @@ export function SceneScreen({ game }: { game: Game }) {
       // Enter with nothing in the box, on what Tab picked out: its menu. (Not what the mouse merely rests on.)
       key.preventDefault();
       openFor(pointer.target);
-    } else if (!typed() && !game.busy && /^[1-9]$/.test(key.sequence ?? "") && choices[Number(key.sequence) - 1]) {
-      // A number picks one of the choices, while nothing's been typed.
+    } else if (!typed() && /^[1-9]$/.test(key.sequence ?? "") && toPick[Number(key.sequence) - 1] && typing === undefined) {
+      // A number picks one of the choices, while nothing's been typed (a suggested line goes in the box, even with the GM still making a note).
       key.preventDefault();
       say(Number(key.sequence) - 1);
     }
@@ -395,9 +434,10 @@ export function SceneScreen({ game }: { game: Game }) {
     { text: "  *looks over my shoulder*", color: C.player },
     { text: "  (I cast Fireball)", color: C.player },
   ];
-  const placeH = Math.max(narrow ? 6 : 8, height - (narrow ? 11 : 13) - wrap(status, inner).length - talk.length - toPick.length);
+  const placeH = Math.max(narrow ? 6 : 8, height - (narrow ? 11 : 13) - wrap(status, inner).length - talk.length - kept);
+  const picking = typing === undefined && toPick.length;
   const keys: KeyHint[] = [
-    ...(over ? [["Enter", "go on", () => { clear(); game.continueScene(); }] as KeyHint] : choices.length && !busy ? [[`1–${choices.length}`, "choose one"] as KeyHint] : []),
+    ...(over ? [["Enter", "go on", () => { clear(); game.continueScene(); }] as KeyHint] : picking ? [[`1–${toPick.length}`, suggested ? "into the box" : "choose one"] as KeyHint] : []),
     ...(["sheet", "map", "journal", "help"] as const).map((name): KeyHint => [`/${name}`, "", () => { game.peek(`/${name}`); }]),
     ["Esc", "menu"], ...(world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
     ["/report", "a problem", () => { game.peek("/report"); }],
@@ -440,11 +480,12 @@ export function SceneScreen({ game }: { game: Game }) {
     <box height={1} paddingX={1} flexShrink={0}>
       {busy ? <Spinner label={busy} /> : <text fg={game.status ? C.warn : C.faint}>{game.status ?? " "}</text>}
     </box>
-    {toPick.length ? <Picks picks={toPick} width={width - 2} /> : null}
+    {kept ? <Picks picks={toPick} rows={kept} width={width - 2} /> : null}
     {over ? <Continue game={game} over={over} onGo={() => { clear(); game.continueScene(); }} /> : <box height={3} flexShrink={0} border borderColor={busy ? C.border : C.borderHot} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
-      <input ref={input} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!game.overlay && game.screen === "scene"}
+      {/* Near the edge before it scrolls, as the fight's box is (the editor's own margin is a fifth of it): a suggested line put in the box shows from its start. */}
+      <input ref={input} scrollMargin={0.05} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!game.overlay && game.screen === "scene"}
         placeholder={busy ? "The GM has the floor…" : width >= 100
           ? "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I cast Fireball)"
           : "Say it out loud; *asterisks* or (brackets) to do things"} />

@@ -14,6 +14,7 @@ Each file is the standing brief for one role: how the GM runs the table ([gm.md]
 |---|---|---|
 | [gm.md](gm.md) | `gmReply`, [src/runtime/voices.ts](../src/runtime/voices.ts) | Every GM reply, opening, closing and talk in a `voice: "gm"` approach (`v2`). `{{tone}}` becomes tone-comic.md for an approach with `tone: "comic"`, and nothing otherwise. |
 | [tone-comic.md](tone-comic.md) | gm.md's `{{tone}}` | `v2` and the comic approaches |
+| [suggest.md](suggest.md) | `propose`, [src/runtime/suggest.ts](../src/runtime/suggest.ts) | After a GM reply in a scene of the story, with the game's suggested lines on: three to five lines the player might say or do next. Its brief (what the player knows, the prep behind the screen, what's not to come again) is built in code. No backticks: in Luna's instructions they cost 6 to 7 s before the first word. |
 | [narrator.md](narrator.md) | `narratorReply`, voices.ts | The `actors` approaches: the narration between the characters |
 | [actor.md](actor.md) | `actorReply`, voices.ts | The `actors` approaches: one call per speaking character, with their card as `{{name}}`, `{{short}}`, `{{look}}`, `{{voice}}`, `{{wants}}`, `{{fears}}`, `{{attitude}}`, `{{knows}}` and `{{secrets}}` |
 | [repair.md](repair.md) | `runRepair`, [src/runtime/repair.ts](../src/runtime/repair.ts) | The full co-GM: in the background after a turn, or inside the turn for `blocking` and `stall` |
@@ -34,7 +35,7 @@ Much of what the models are told isn't here. Written in the code instead:
 - **the GM's brief and per-turn note:** `sceneBrief` and `nowNote` (src/runtime/brief.ts), and the directives that say what was decided (src/runtime/director.ts);
 - **the decider's questions:** the director, disclosure and the attention filter (src/runtime/director.ts, src/lore);
 - **the boundary:** the hand-off, the verdict and the fronts (`crossBoundary` and `moveOn` in src/runtime/engine.ts);
-- **the quick co-GM** (src/runtime/repair.ts), **the stage manager** (src/world/stage.ts), and **a talk's plan and lines** (src/runtime/talk.ts);
+- **the quick co-GM** (src/runtime/repair.ts), **the stage manager** (src/world/stage.ts), **a talk's plan and lines** (src/runtime/talk.ts), and **the suggested lines' brief and judge** (src/runtime/suggest.ts);
 - **the character sheet** (src/runtime/engine.ts, src/rules/dnd.ts), **the world judge** (src/eval/judge.ts), **the look inventions** (src/game/look/invent.ts) and **places from a plan** (src/game/map/generate).
 
 ## How it works

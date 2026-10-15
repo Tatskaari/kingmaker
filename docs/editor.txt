@@ -1,0 +1,18 @@
+I want to make it possible for non-techies to author scenarios with an AI assisted workflow. 
+
+Map Editor: 
+
+- Build a map editor: block out rooms
+- Procedurally fill areas: hybrid 3gl but LLM can help with the flavour text "this room is a laboratory" and the LLM gets a DSL to help it populate that. Get info from lore for statues, books etc. 
+- Add characters from the lore. 
+
+
+Scene and lore editor: 
+- Extension for Obsidian that makes editing your lore possible
+- Uses the research we did to provide AI assisted editing. I sketch things out, and the AI fills in the gaps. 
+- Let's me edit scenes as data with a graph based editor
+- Scenes are saved as json, but the text data in each node is a markdown file
+- Let me have a "what happens when we transition" thing that uses sol to generate the code that transitions between edges in the scene. 
+
+
+Ultimately I want to quickly block out a set of scenes and maps and join them together.

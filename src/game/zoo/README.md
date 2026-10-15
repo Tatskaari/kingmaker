@@ -14,7 +14,7 @@ node --no-warnings src/game/zoo/tour.ts         # the headless tour: every exhib
 
 A visit is a game of its own (`game.hub = "zoo"`), kept apart from the story: it's never offered as a game to Continue (the title's zoo carries on the latest visit instead), it has no lead and plays nothing on, and nothing done in it reaches Caerwyn's saves, arc or state. The visitor comes in as Wren Ashdown, a level-five wizard (the Burning Gallery's fire is in the wizard's robes); the hall's wardrobe makes them anyone else.
 
-It's ten maps, the Front Hall and nine wings (eight through the hall's doors, and the chandlery through the annexe's), with 143 exhibits and 186 triggers between them. Every exhibit is also a check: the headless tour sets every one of them off and compares what the view played with what it should.
+It's ten maps, the Front Hall and nine wings (eight through the hall's doors, and the chandlery through the annexe's), with 145 exhibits and 186 triggers between them. Every exhibit is also a check: the headless tour sets every one of them off and compares what the view played with what it should.
 
 ## What it owns
 
@@ -161,7 +161,7 @@ node --no-warnings src/game/zoo/tour.ts [--live] [--only fire,arena] [--no-png] 
 
 ```sh
 node --no-warnings --test src/game/zoo/*.test.ts src/app/zoo.test.ts   # 28 tests, about 8 s; one of them tours Kell's Corner and the chandlery
-node --no-warnings src/game/zoo/tour.ts --no-png                        # every exhibit, offline: 143 exhibits, 337 steps, about 16 s here
+node --no-warnings src/game/zoo/tour.ts --no-png                        # every exhibit, offline: 145 exhibits, 341 steps, about 20 s here
 node --no-warnings src/game/zoo/tour.ts --only fire,arena               # some wings, with pictures (Python with Pillow)
 node --no-warnings src/game/zoo/tour.ts --live                          # the scenes' lines said to the real GM first
 OPENROUTER_API_KEY=offline npm run qa -- new --session z1 --zoo         # by action id
@@ -177,7 +177,7 @@ Every feature in the inventory has an exhibit. The three that came after it was 
 
 - **Tools outside the game.** The look gallery, headless frames, the QA console, the scene harness, evals, smoke tests, the browser, settings, and the unused stand-ins: each runs outside the game (a command line, a browser), so the zoo can only say how. The tour and `qa new --zoo` are the zoo's own uses of two of them.
 - **The town by the hour** is Caerwyn's own people, who only walk the story's map; the annexe shows the same mechanism in miniature.
-- **The model.** Offline, the GM's own work shows only as the scene opening on its place and taking its endings by `/end`: the Theatre's booths, rehearsals, a word with Kell, Kell's desk, the tailor, the boundary desk (the plain hand-off), and the inventor's bench's invented looks. `--live` plays them.
+- **The model.** Offline, the GM's own work shows only as the scene opening on its place and taking its endings by `/end`: the Theatre's booths, rehearsals, a word with Kell, Kell's desk, the tailor, the boundary desk (the plain hand-off), and the inventor's bench's invented looks. The suggested lines (the prompter's box) come only with the model, after a booth's replies. `--live` plays them.
 
 ### Sharp edges
 
@@ -227,7 +227,7 @@ Short scenes with the real GM, in booths round a courtyard: step through a booth
 - **The repertory board**: any scene of the story's or the scene harness's, rehearsed out of order on its own place (the arc's on the story's maps), and nothing reaching the story.
 - **The boundary desk**: the last scene you played, handed across a scene boundary as the story hands one on (the hand-off, the next scene's prep checked against it and its opening rewritten, how you'd hear of it, what the story still needs you to come across and whether the next scene can bring it out, and the fronts moved on), without going anywhere. A booth goes to the next booth, with the zoo's own fronts (Madam Crust's pies, the noon bell, the auditor's round: src/game/zoo/fronts.ts, in the visit's own copy of the docs, never the authored lore); a rehearsed scene of the story to its own next scene, with the story's fronts, in the visit's copy.
 - **The house-style lever**: the booths play another way for the visit: v2 (the game's own), v2 played straight, actors, v2 with pressure rolls.
-- Signs for the GM's turn, memory, the co-GM, and places as their scenes left them (with a lever to put the booths back). After a rehearsal, its card says what became of the place afterwards (Prout taken off the hoist).
+- Signs for the GM's turn, the suggested lines (the prompter's box: what you might say or do next, over the box after every reply), memory, the co-GM, and places as their scenes left them (with a lever to put the booths back). After a rehearsal, its card says what became of the place afterwards (Prout taken off the hoist).
 
 Offline the GM can't speak: each scene still opens on its place, and `/exits` then `/end <id>` takes any of its endings (its exit script writes the notebook).
 

@@ -5,6 +5,7 @@ import { FAREWELL } from "../../scenes/talk.ts";
 import { chainScene, closeHubScene, createSession, forceEnding, openHubScene, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { afterTurn } from "../runtime/background.ts";
 import { endTalk, leaveTalk, openTalk, startTalk, talkTurn } from "../runtime/talk.ts";
+import { currentSuggestions, startSuggesting, stopSuggesting, suggested, suggesting } from "../runtime/suggest.ts";
 import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Backstory, type Entry, type SessionState } from "../runtime/session.ts";
 import type { Mechanic } from "../runtime/director.ts";
@@ -58,6 +59,8 @@ export interface GameState {
   hub?: string;
   /** A hub's own hour, kept while one of its scenes plays at the scene's: it comes back when the scene's over. */
   hubTime?: StoryState["time"];
+  /** The player's settings, kept with the game. `suggestions`: offer lines to say or do in scenes and talks (on unless turned off). */
+  settings?: { suggestions?: boolean };
 }
 
 /** What an explore action came to: what the player sees, and what it opens. */
@@ -216,9 +219,11 @@ export class Game {
       case "scene": {
         const scene = sceneById(this.session.sceneId);
         const talk = this.session.talk;
+        const actions = this.choices();
         return {
-          mode: "scene", text: `${recent}[${scene.title}, ${this.state.story.time.replace("-", " ")}]\n\n${sceneView(this.session)}`, actions: this.choices(),
-          hint: talk ? `You're talking with ${scene.cast.find(c => c.id === talk.with)?.name ?? talk.with}: say anything, or choose a line.` : "You're in a scene: say what your character says or does.",
+          mode: "scene", text: `${recent}[${scene.title}, ${this.state.story.time.replace("-", " ")}]\n\n${sceneView(this.session)}`, actions,
+          hint: talk ? `You're talking with ${scene.cast.find(c => c.id === talk.with)?.name ?? talk.with}: say anything, or choose a line.`
+            : `You're in a scene: say what your character says or does${actions.length ? ", or choose a suggested line" : ""}.`,
         };
       }
       case "combat": {
@@ -252,7 +257,7 @@ export class Game {
       return text;
     }
     if (this.state.mode === "scene") {
-      // A dialogue choice is the same as saying its line; walking on ends the talk without a word.
+      // A suggested line (a scene's, or a talk's dialogue choice) is the same as saying it; walking on ends the talk without a word.
       const choice = this.choices().find(a => a.id === id);
       if (choice?.kind === "say") return this.say(choice.label, hooks);
       if (choice) {
@@ -260,8 +265,8 @@ export class Game {
         this.save();
         return text;
       }
-      const talk = this.session.talk;
-      throw new Error(talk ? `You're in a talk: say something, or choose one of ${this.choices().map(a => a.id).join(", ")}.` : "You're in a scene: say something instead.");
+      const offered = this.choices().map(a => a.id);
+      throw new Error(`You're in ${this.session.talk ? "a talk" : "a scene"}: say something${offered.length ? `, or choose one of ${offered.join(", ")}` : " instead"}.`);
     }
     if (this.state.mode === "combat" && this.fight) {
       // The fight is over and the player has seen how: the scene picks up from it.
@@ -290,7 +295,8 @@ export class Game {
     if (this.state.mode !== "scene") throw new Error("You're not in a scene: pick an action instead.");
     this.state.recent = [];
     const talk = this.session.talk;
-    const turn = talk ? await talkTurn(this.session, text, hooks, options) : await playerTurn(this.session, text, hooks, options);
+    const suggest = this.suggestionsOn;
+    const turn = talk ? await talkTurn(this.session, text, hooks, { ...options, suggest }) : await playerTurn(this.session, text, hooks, { ...options, suggest });
     // The co-GM and the memory reviews run in the background, as in the scene CLI.
     afterTurn(this.session);
     const shown = render(this.session, turn.entries.filter(e => e.kind !== "player"));
@@ -336,17 +342,50 @@ export class Game {
   }
 
   /**
-   * In a talk, its dialogue choices: the suggested lines (choosing one is the same as saying it),
-   * a goodbye, and walking on. Nothing otherwise.
+   * The lines a scene suggests the player might say or do next (src/runtime/suggest.ts), once they've
+   * come: choosing one is the same as saying it. In a talk, its dialogue choices: the suggested lines,
+   * a goodbye, and walking on. The setting turns the suggested lines off, never the ways out.
    */
   private choices(): Action[] {
     const talk = this.session.talk;
-    if (!talk || this.session.ended) return [];
+    if (this.session.ended) return [];
+    const say = (line: string, i: number): Action => ({ id: `say_${i + 1}`, label: line, kind: "say" });
+    if (!talk) return this.suggestionsOn ? currentSuggestions(this.session).map((s, i) => say(s.text, i)) : [];
     return [
-      ...talk.suggestions.map((line, i): Action => ({ id: `say_${i + 1}`, label: line, kind: "say" })),
+      ...(this.suggestionsOn ? talk.suggestions.map(say) : []),
       { id: "say_goodbye", label: FAREWELL, kind: "say" },
       { id: "walk_on", label: "Walk on without a word (back to the map)", kind: "move" },
     ];
+  }
+
+  /** The game's setting: suggest lines to say or do in scenes and talks (on unless the player turned them off). */
+  get suggestionsOn(): boolean { return this.state.settings?.suggestions !== false; }
+
+  /**
+   * Turn the suggested lines on or off (the game's setting, saved with it at the next save). Off, any
+   * on their way are dropped; on, in a scene with none for this moment, they're asked for now (`hooks`
+   * say when they've come).
+   */
+  setSuggestions(on: boolean, hooks: TurnHooks = {}): void {
+    this.state.settings = { ...this.state.settings, suggestions: on };
+    if (!on) stopSuggesting(this.session);
+    else this.suggestNow(hooks);
+  }
+
+  /**
+   * In a scene of the story (not a talk, which has its own), with the lines on and none for this
+   * moment or on their way (a game just loaded, the setting just turned on): ask for them now.
+   */
+  suggestNow(hooks: TurnHooks = {}): void {
+    if (this.state.mode !== "scene" || this.session.talk || this.session.ended || !this.suggestionsOn) return;
+    if (currentSuggestions(this.session).length || suggesting(this.session)) return;
+    startSuggesting(this.session, hooks);
+  }
+
+  /** The lines on their way, waited for and saved with the game (the QA console lists them once they've come). */
+  async suggested(): Promise<void> {
+    await suggested(this.session);
+    if (this.state.mode === "scene" && currentSuggestions(this.session).length) this.save();
   }
 
   /** A word with someone walking with the player: the story's scene waits until it's over. */
@@ -376,7 +415,7 @@ export class Game {
     this.state.story.time = scene.time ?? this.state.story.time;
     this.explorer.enterScene?.(this.state, this.session);
     hooks.onScene?.();
-    const entries = await openScene(this.session, hooks);
+    const entries = await openScene(this.session, hooks, { suggest: this.suggestionsOn });
     return `— ${scene.title} —\n\n${render(this.session, entries)}`;
   }
 
@@ -461,7 +500,7 @@ export class Game {
       hooks.onEntry?.(entry);
       came.push(entry);
     }
-    const entries = await resumeAfterFight(this.session, result.summary, hooks);
+    const entries = await resumeAfterFight(this.session, result.summary, hooks, { suggest: this.suggestionsOn });
     return render(this.session, [...came, ...entries]);
   }
 

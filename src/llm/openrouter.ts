@@ -23,6 +23,12 @@ export interface RespondRequest {
   signal?: AbortSignal;
   /** Internal: set on the single retry after a multi-phase reply. */
   noPhaseRetry?: boolean;
+  /**
+   * What's there will do: a reply that runs out of tokens is taken as far as it got, and one in two
+   * phases is taken by its final answer, rather than asked for again (a list read a line at a time,
+   * whose good lines come first: the suggested lines).
+   */
+  asFarAsItGot?: boolean;
 }
 
 export interface RespondResult {
@@ -33,6 +39,8 @@ export interface RespondResult {
   inputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
+  /** Out of tokens, and taken as far as it got (asFarAsItGot): its last line may be cut off. */
+  cutShort?: boolean;
 }
 
 export const LUNA = "openai/gpt-6-luna";
@@ -210,20 +218,23 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     }
     throw new Error(`OpenRouter ${request.operation}: stream ended without a final response`);
   }
-  if (final.status !== "completed") {
+  // Out of tokens, a reply taken as far as it got (asFarAsItGot) is the text streamed so far.
+  const cutShort = final.status === "incomplete" && final.incomplete_details?.reason === "max_output_tokens" && request.asFarAsItGot === true && !!streamed.trim();
+  if (final.status !== "completed" && !cutShort) {
     logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `status ${final.status}`, details: final.incomplete_details, partial: streamed.slice(0, 4000), usage: final.usage });
     if (!request.noPhaseRetry) return respond({ ...request, noPhaseRetry: true });
     throw new Error(`OpenRouter ${request.operation}: response ${final.status} (${final.incomplete_details?.reason ?? "unknown"})`);
   }
   const phases = (final.output ?? []).filter(item => item.type === "message").map(item => item.phase ?? "none");
   // Luna without reasoning occasionally splits a reply into a "commentary" message plus a
-  // final_answer that critiques it. Neither is reliable, so try once more.
-  if (phases.length > 1 && !request.noPhaseRetry) {
+  // final_answer that critiques it. Neither is reliable, so try once more (unless what's there will
+  // do: then it's the final answer).
+  if (phases.length > 1 && !request.noPhaseRetry && !request.asFarAsItGot) {
     logCall({ provider: "openrouter", operation: request.operation, model, warning: "multi-phase output, retrying", phases, output: final.output });
     recordCost("openrouter", request.operation, model, final.usage?.cost ?? 0, latencyMs);
     return respond({ ...request, noPhaseRetry: true });
   }
-  const text = finalText(final) || streamed;
+  const text = cutShort ? streamed : finalText(final) || streamed;
   const usage = final.usage ?? {};
   const result: RespondResult = {
     text,
@@ -233,11 +244,13 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     inputTokens: usage.input_tokens ?? 0,
     outputTokens: usage.output_tokens ?? 0,
     reasoningTokens: usage.output_tokens_details?.reasoning_tokens ?? 0,
+    ...(cutShort ? { cutShort } : {}),
   };
   recordCost("openrouter", request.operation, model, result.costUsd, latencyMs);
   logCall({ provider: "openrouter", operation: request.operation, model, effort: body.reasoning.effort, request: { instructions: request.instructions, input: request.input, json: request.json?.name },
     text, latencyMs: Math.round(latencyMs), firstTextMs: firstTextMs && Math.round(firstTextMs), costUsd: result.costUsd,
-    tokens: { in: result.inputTokens, out: result.outputTokens, reasoning: result.reasoningTokens } });
+    tokens: { in: result.inputTokens, out: result.outputTokens, reasoning: result.reasoningTokens },
+    ...(cutShort ? { note: "out of tokens: taken as far as it got" } : phases.length > 1 ? { note: "in two phases: taken by its final answer" } : {}) });
   return result;
 }
 

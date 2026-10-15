@@ -148,7 +148,7 @@ The server keeps its running games in memory (a `GameTerminal` each, at most `--
 npm run build:web                            # dist/web: 22 files, about 5.4 MB (1.4 MB gzipped), built in under a second
 node --no-warnings src/web/static/serve.ts   # http://127.0.0.1:7312/kingmaker/pr-preview/pr-650/ (any static file server will do)
 npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo and a report's download too (about 80 s)
-npm run web:static-check -- --live           # also the key from ~/secrets typed into the key form, and a real GM reply
+npm run web:static-check -- --live           # also the key from ~/secrets typed into the key form, the suggested lines after the opening, and a real GM reply
 ```
 
 `serve.ts` takes `--port`, `--base` (the path to serve under) and `--dir`. The page takes `?offline`, `?size=130x42`, `?font=17` as the server's does, and `?glyphs=ascii` to draw letters rather than Kingmaker Glyphs.

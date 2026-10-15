@@ -167,6 +167,13 @@ export interface TalkRecord {
   stages?: Record<string, Stage>;
 }
 
+/**
+ * A line the player might say or do next in a scene (src/runtime/suggest.ts), as they'd type it:
+ * something to say, a deed in brackets, a risky try in brackets that would call for a roll, or a way
+ * to leave.
+ */
+export interface Suggestion { kind: "say" | "do" | "try" | "leave"; text: string }
+
 /** A talk in progress: the scene the story is heading for is put aside until it's over. */
 export interface TalkState {
   /** The companion's cast id. */
@@ -283,6 +290,12 @@ export interface SessionState {
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */
   carried?: Entity[];
+  /**
+   * What the player might say or do next, made after a GM reply (src/runtime/suggest.ts): for that
+   * scene and turn only, so a line said since, or a scene moved on from, leaves them behind. `ms`:
+   * from the reply to their coming; `costUsd`: the call's.
+   */
+  suggestions?: { scene: string; turn: number; lines: Suggestion[]; ms?: number; costUsd?: number };
   /** What the story still owes the player from scenes already over (kept across scenes, and a talk's). */
   owed?: Owed[];
   /** A word with a companion between scenes, in progress (the scene the story is heading for waits). */

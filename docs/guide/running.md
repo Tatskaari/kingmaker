@@ -17,6 +17,7 @@ player turn
   ├─ reply (Luna, reasoning none, streamed, once the decision is in)
   ├─ decide after (same call shape): what happened? which ending is the story at? on track or
   │         stuck? what the player has come across? how far secret-holders have opened up?
+  ├─ suggested lines (Luna, then the decider judging them; ~2.8 s after the reply, never waited for)
   └─ background, never waited for:
         co-GM review (notes, whispers, new routes) · attention filter → memory and lore agents
 ```
@@ -127,6 +128,15 @@ Talking to someone who walks with the player on the map (Kell, after the granary
   - *Told is told.* What they've told goes in the talk record and their memories, so no later talk or scene of the story has them tell it again. The talk's GM is told by name what's been told.
 - **Dialogue choices.** Each reply brings two to four suggested lines (one small call, in plain text, alongside the after-reply decision): `say_1`… actions in the game core's scene mode, plus a goodbye and walking on. Choosing one is the same as saying it.
 - **Run like any scene, less some parts.** The memory reviews run as usual. A talk has no co-GM (nothing to keep on track) and no dice for ordinary talk. Its turns cost and take about as long as a scene's.
+
+## Suggested lines
+
+What a player might say or do next, offered after every GM reply as a cRPG offers its dialogue choices ([src/runtime/suggest.ts](../../src/runtime/suggest.ts), [prompts/suggest.md](../../prompts/suggest.md)). Free typing stays first: a suggested line goes in the box, to send as it is or change, and typing anything puts the lines away. The game's setting turns them off.
+
+- **A mix.** Something to say, a deed in brackets, a risky try and, once the scene is near an ending, a way out. A risky try is worded the way the decider reads an attempt ("(I try to talk the boy round with a pie)": what, how, what for), so choosing it gets the scene's roll, or a freeform one, as typing it would.
+- **The question, never the answer.** The call is given what the player knows (who they are, what they came in knowing, the scene as they've seen it), and behind the screen, where the threads are: what each person here is after, the ways on and their rolls, what the scene still needs the player to come across, how it can end, what it can't offer. Its lines point at those threads, in words the player could use: never a name not heard, a clue not found, or what someone hides. The GM is still given every fact; the suggester sees what's hidden only as where the threads lie.
+- **Judged before they're offered.** A screen by the words, then the decider given every fact: a line that gives away or takes for granted what's hidden, reaches past the scene's limits, or decides for someone else is dropped, and a "risky try" that wouldn't take a roll becomes a deed. Then nothing just said, nothing offered last time.
+- **Never in the way.** They start once the reply is in, and nothing waits for them. On live turns they came a median 2.8 s after the reply, usually before the stage manager had finished (median 3.9 s), at about $0.0009 a reply, the call and its judge.
 
 ## The rules (D&D 5.5e)
 

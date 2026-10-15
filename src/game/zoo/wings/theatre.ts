@@ -38,7 +38,7 @@ const GRID = `
 %...1..........2..........3..........4...........#
 %.................................==============.#
 %.................................=yyyyyddyyyyy=.#
-%.....g...........................=yyyyyddyyyyy=.#
+%.....g...s.......................=yyyyyddyyyyy=.#
 %...................q...........5.=yyyyyddyyyyy=.#
 %.................................Gyyyyyddyyyyy=.#
 %.................................=yyyyyddyyyyy=.#
@@ -58,7 +58,7 @@ X.................................WttttttttttW...#
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
 `;
 
-const MARKS = "@a123456Rrghmkpq";
+const MARKS = "@a123456Rrghmkpqs";
 const at = marks(GRID, MARKS);
 const ID = "zoo-theatre";
 
@@ -192,6 +192,9 @@ const exhibits: Exhibit[] = [
     "The zoo's scenes are exhibits, not a story: each ends back on the map with nothing handed on. In the story, a scene's end is where the model writes the hand-off (how things stand), checks the coming scenes against what happened (a scene play has settled is skipped), rewrites the next opening, moves the world's fronts on (the Purveyor's man, dear bread), and carries on what the story still needs you to come across (a clue you missed, like the page in Cob's boot, goes into the next scene that can bring it out). The boundary desk does all of that, on paper, for the last booth you played: its hand-off, the next booth's prep checked and its opening rewritten, and the zoo's own fronts moved on (Madam Crust's pies, the noon bell, the auditor's round). A rehearsed scene of the story goes to its own next scene, with the story's fronts, in this visit's copy: rehearse the Hanged Clerk without finding the page, and the desk says where it goes. It needs the model: offline you get the plain hand-off.",
     [{ id: "boundary-desk", label: "Take your last scene across the boundary (the boundary desk)", at: { x: 10, y: 22 }, station: { name: "the boundary desk", glyph: "▬", color: "#a07a52" },
       run: z => crossAtDesk(z) }], { needsModel: true }),
+  sign("prompter", "s", "The prompter's box", ["Suggested lines"],
+    "A moment after every reply in a booth, the prompter offers a few lines you might say or do next, over the box, numbered: something to say, something to do, a risky try in the dice's yellow (choose it and the scene rolls for it, as it would if you'd typed it), and, once a scene's near its end, a way out. A number or a click puts one in the box, to send as it is or change; typing anything puts them away. They're made from what you know, and the GM's own judge reads them against what you don't: no name you haven't heard, no clue you haven't found. The prompter is never in a hurry, and nothing waits for him. /suggestions off, or the Esc menu, sends him home. He needs the model.",
+    [], { needsModel: true }),
   sign("memory", "m", "What people remember", ["Memory (the docs service)"],
     "The lore docs and each person's memory index are in the GM's prep; each turn the notes that bear on the moment are opened; after each turn a background review writes first-person memories. In the zoo: meet Madam Crust at the pie stall, then meet her again in the ledger office, where she walks in remembering. It needs the model (and a minute between: the reviews run in the background)."),
   sign("cogm", "k", "The co-GM, and considered rolls", ["The co-GM", "Considered rolls", "Stuck and drifting scenes"],
