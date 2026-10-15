@@ -748,7 +748,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   }
   // Whoever is on stage now (an entrance, someone called in) is in the world too.
   if (state.world) { joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn); placeOwedThings(state); }
-  if (!state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
+  // The scene's clock (the exchanges at this point, which cues count): a word out of character isn't one.
+  if (!pre.ooc && !state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);
   if (ended) { finishScene(state, authored, ended); stopSuggesting(state); }

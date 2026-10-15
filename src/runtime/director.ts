@@ -1,4 +1,4 @@
-import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
+import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, openRoutes, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, titleCase, type RollResult } from "./dice.ts";
 import { HAZARD_KINDS, rollFor, type SpellChoice, type WeaponChoice } from "../rules/dnd.ts";
@@ -73,6 +73,63 @@ const CONSIDER_CONFIDENCE = 0.7;
  * set where the controls (plain questions, making the case) still stay under it.
  */
 export const CONSIDER_CONFIDENCE_OPEN = 0.5;
+
+/**
+ * A pacing cue moves the scene on without the player's say, so it fires only on a clear read, as a
+ * route with a roll does. It had no bar: the Heron's Master came in at 0.57 against 0.43, one
+ * exchange after the player got inside. In the decision suite the cues that should fire read 0.87
+ * and 0.98 (and goblins losing patience at a roared threat 0.65, where the threat outranks it).
+ */
+export const CUE_CONFIDENCE = 0.6;
+
+/**
+ * A cue that counts exchanges ("at least five exchanges at this point") is checked against the
+ * engine's own count, the exchanges at this point (`turnsInBeat`, which an out-of-character turn
+ * doesn't add to). Before its count, only the rest of its condition can fire it ("or is lying low
+ * and waiting"), and only when that clearly holds.
+ */
+export const CUE_EARLY_CONFIDENCE = 0.8;
+
+const NUMBERS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const HOW_MANY = `\\d+|an?|a couple of|${NUMBERS.join("|")}`;
+/** How cues count exchanges: "at least five exchanges", "two exchanges have gone by", "has waited an exchange". */
+const COUNTED = [
+  new RegExp(`\\bat least (${HOW_MANY}) exchanges?\\b`, "i"),
+  new RegExp(`\\b(${HOW_MANY}) exchanges? (?:has|have) (?:gone by|passed)\\b`, "i"),
+  new RegExp(`\\bwaited (${HOW_MANY}) exchanges?\\b`, "i"),
+];
+
+/** The exchanges a cue's condition counts ("at least five exchanges"), if it counts them ("several" doesn't). */
+export function cueCount(t: Transition): number | undefined {
+  const n = COUNTED.map(re => re.exec(t.when)?.[1]?.toLowerCase()).find(Boolean);
+  if (!n) return undefined;
+  if (/^\d+$/.test(n)) return Number(n);
+  return n === "a" || n === "an" ? 1 : n === "a couple of" ? 2 : NUMBERS.indexOf(n) + 1;
+}
+
+/**
+ * The pacing cues, each that counts exchanges with the engine's count beside it: whether that much
+ * holds is the game's to say, and the decider judges the rest.
+ */
+function cueQuestion(cues: Transition[], exchanges: number): ChoiceQuestion {
+  const q = question("cue", cues);
+  const counted = (t: Transition) => {
+    const n = cueCount(t);
+    if (n === undefined) return t.when;
+    const so = exchanges >= n ? "so that much holds" : "so that part doesn't hold yet: choose this only if the rest of it clearly holds on its own";
+    return `${t.when} [The game's count: ${exchanges} exchange${exchanges === 1 ? "" : "s"} at this point so far, against the ${n} this asks for, ${so}.]`;
+  };
+  return { ...q, criteria: { ...Object.fromEntries(cues.map(t => [t.id, counted(t)])), not_yet: q.criteria.not_yet! } };
+}
+
+/** The cue the decider chose, if its read clears the bar: a clear read, and a clearer one before its count. */
+function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
+  const cue = cues.find(t => t.id === read?.choice);
+  if (!cue) return undefined;
+  const count = cueCount(cue);
+  const bar = count !== undefined && exchanges < count ? CUE_EARLY_CONFIDENCE : CUE_CONFIDENCE;
+  return (read!.probabilities?.[cue.id] ?? 1) >= bar ? cue : undefined;
+}
 
 /**
  * A check is rolled for the act it tests, so the attempt is judged against that act: getting to
@@ -512,7 +569,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
     };
   }
-  if (cues.length) questions.cue = question("cue", cues);
+  if (cues.length) questions.cue = cueQuestion(cues, state.turnsInBeat);
   // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
   if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
   // The same push that already failed here, again: asked only once something has failed.
@@ -624,15 +681,16 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
   // A pacing cue never interrupts a payoff the player has just earned: the world can wait a reply.
+  // Nor does one fire on a word out of character: that isn't time passing in the scene.
   const earnedNow = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const cue = attempt || earnedNow ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
+  const ooc = decision.answers.ooc?.choice === "out_of_character";
+  const cue = attempt || earnedNow || ooc ? undefined : firedCue(cues, decision.answers.cue, state.turnsInBeat);
   // Something the player simply does that settles the scene (setting off, handing it over) is
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
   const means = decision.answers.attempt_means?.choice;
   const sureMeans = means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
-  const ooc = decision.answers.ooc?.choice === "out_of_character";
   // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
   const limitChoice = decision.answers.limit?.choice;
   const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
