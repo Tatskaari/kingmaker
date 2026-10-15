@@ -266,7 +266,7 @@ function heldEnding(state: SessionState, pending: NonNullable<SessionState["pend
     state.pendingExit = { ...pending, extended: true };
     return { line: `The scene is on the brink of: ${exit.title} (${exit.outcome}). It hasn't closed: the player is answering it, and their response may change that. Answer what they ask, let whoever they challenge or call on answer, and let what they do change things if it would; play it honestly.` };
   }
-  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
+  return { ended: exit, line: `This reply closes the scene: ${exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} Don't narrate beyond the ending into what comes next.${exit.kind === "combat" ? FIGHT_CLOSE : ""}` };
 }
 
 /** A word out of character while an ending is held or winding down: answered, and nothing moves on. */
@@ -277,9 +277,15 @@ function oocHold(exit: Exit, how: "held" | "closing"): string {
   return `Nothing in the story moves on while you answer: ${where}. Then give the turn back.`;
 }
 
+/**
+ * A closing tells what's left, once: Kell's arrest of Hobb, narrated as it happened, came again
+ * word for word in the close, from the exit's "Kell's proper words".
+ */
+const ONCE = "What the scene has already shown has happened: don't show it again or say any line of it twice; if this ending's moment has already played, close from where it stands.";
+
 /** The wind-down reply: the player's last turn answered (a challenge to someone in the room lands), then the close. */
 function closingDirective(exit: Exit): string {
-  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
+  return `The scene is ending: ${exit.outcome} ${LAST_WORD} Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} ${ONCE} Add nothing beyond what their turn brings on, don't narrate beyond the ending into what comes next, and don't contradict anything already narrated.`;
 }
 
 /**

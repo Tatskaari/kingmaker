@@ -20,7 +20,7 @@ process.env.OPENROUTER_API_KEY = "offline";
 const { sceneById } = await import("../../scenes/index.ts");
 const { buildWorld, joinWorld } = await import("../world/scene-world.ts");
 const { effectiveScene, genderOf, nowNote, outOfSight, presentCast, prompt, sceneBrief } = await import("./brief.ts");
-const { chainScene, forceEnding } = await import("./engine.ts");
+const { chainScene, forceEnding, playerTurn } = await import("./engine.ts");
 const { fakeOpenRouter } = await import("../llm/fake-openrouter.ts");
 
 /** A scene a few exchanges in, with its world as it opens. */
@@ -113,6 +113,32 @@ test("the player character as they are: a woman isn't sir, their past is what it
   const gm = prompt("gm");
   assert.match(gm, /They do what the player says, the way the player says it, and no more: they don't hurry, slip or fall, step outside, or take anyone anywhere unless the player says so/);
   assert.match(gm, /Nor do they say the player's words back to them/);
+});
+
+test("things happen once: a beat's agenda comes with its status the second time, and old facts give way to the world", () => {
+  const scene = sceneById("hanged-clerk");
+  const state = { ...at("hanged-clerk", "motive"), established: ["Moll has dropped from the wall and put herself between Caelith and Cob, holding Cob by the shoulder."] };
+  const agenda = (turnsInBeat: number) => nowNote(scene, { ...state, turnsInBeat }, []);
+  assert.match(agenda(0), /What people are after in this part of the scene \(they pursue it naturally[^\n]*\n- Sergeant Agnes Kell: Read the page and go still/);
+  assert.match(agenda(1), /The last reply began it: whatever of it they've already said or done there is said and done, so they don't say or do it again[^\n]*\n- Sergeant Agnes Kell: Read the page and go still/);
+  assert.doesNotMatch(agenda(2), /- Sergeant Agnes Kell: Read the page/);
+  assert.match(agenda(2), /People have already made their wants known here/);
+  assert.match(agenda(3), /## Details established in play \(keep them true\)\nWhat has happened and been found, in the order it happened\. Where people are and what they're doing now is the world's, below: a detail here about where someone was or what they were doing was true then/);
+});
+
+test("a closing doesn't show again what the scene has shown (Kell's arrest of Hobb came twice, word for word)", async () => {
+  const fake = fakeOpenRouter({ replies: ["You leave them to it, and the wharf takes you."] });
+  try {
+    const state = { ...at("drowned-rat"), id: "narration-closing", closing: { exitId: "taken-in", turn: 4 } };
+    delete state.world;
+    await playerTurn(state, "*I give Hobb a small nod and leave them to it.*");
+    const told = fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!.input!.at(-1)!.content;
+    assert.match(told, /The scene is ending: Sergeant Kell has arrested Big Hobb/);
+    assert.match(told, /What the scene has already shown has happened: don't show it again or say any line of it twice; if this ending's moment has already played, close from where it stands\./);
+    assert.equal(state.ended?.exitId, "taken-in");
+  } finally {
+    fake.restore();
+  }
 });
 
 test("the boundary keeps the author's word on who isn't there yet when it rewrites the next opening (the Heron opened on the Master, who comes at midnight)", async () => {
