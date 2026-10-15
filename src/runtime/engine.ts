@@ -330,6 +330,7 @@ function closingDirective(exit: Exit): string {
  * doing with nothing left hanging (`whyItWaits`); a fight ends the scene at once.
  */
 function moveOnAfterReply(scene: Scene, state: SessionState, post: PostDecision, hooks: TurnHooks, onStage: Set<string>): Exit | undefined {
+  const from = state.beat;
   if (post.move) {
     if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll, post.move.transition.check?.reason) });
     applyMove(state, scene, post.move, "post");
@@ -338,7 +339,10 @@ function moveOnAfterReply(scene: Scene, state: SessionState, post: PostDecision,
   // (An ending the dice decided before the reply stands, unless a fight has broken out.)
   if (post.move?.exit) return state.closing && post.move.exit.kind !== "combat" ? undefined : reachEnding(state, post.move.exit, post.move.transition.id, waits);
   if (!post.ending) { delete state.endingLead; return undefined; }
-  if (post.move || state.closing || state.pendingExit) return undefined;
+  // An outcome that moved the scene on makes the read of where it stood stale; one that kept it where
+  // it was (a fact established) doesn't. (The Heron's book in hand, read again each turn, threw away
+  // "Out with the true book" at 0.42, 0.59 and 0.51 as the player walked off the wharf with it.)
+  if ((post.move && post.move.to !== from) || state.closing || state.pendingExit) return undefined;
   const exit = endingReached(scene, state, post.ending);
   if (!exit) return undefined;
   state.path.push({ turn: state.turn, from: state.beat, to: exit.id, via: "ending-reached", source: "post" });
@@ -390,10 +394,15 @@ function reachEnding(state: SessionState, exit: Exit, via: string, waits: string
 /**
  * Does the turn go to the GM's review (considered rolls)? A roll is wanted that nothing the author
  * wrote settles, or it's a plan off the graph; and nothing else this turn has answered it (a route's
- * move, the rules, a limit, the same push again, out of character) or is winding the scene down.
+ * move, a route the author gave no dice read with confidence, the rules, a limit, the same push
+ * again, out of character) or is winding the scene down. (The thief's crown for Cob's paper read as
+ * the bribe route at .81 and off the graph at .84, and the review's ruling played instead of the
+ * haggling the author wrote.) The rules answer it only when nothing's left to rule on: a spell or a
+ * blow that's only the means to something risky (a Mage Hand at the page in a watching boy's boot), or
+ * a class feature with a risky act beside it (a war-roar with the rage), still gets the act's ruling.
  */
 function wantsReview(state: SessionState, pre: PreDecision): boolean {
-  const answered = !!(pre.move || pre.mechanic || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain);
+  const answered = !!(pre.move || (pre.mechanic && !pre.considered) || pre.freeform || pre.pressure || pre.limit || pre.ooc || pre.sameAgain || pre.byPrep);
   return !state.closing && !answered && !!(pre.considered || pre.offGraph);
 }
 
@@ -560,10 +569,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   // Considered rolls: the GM's review starts at once, alongside the memory notes being opened (it
-  // doesn't read them), with its watchdog: past its deadline the turn rolls without it.
-  const reviewing = considers && wantsReview(state, pre)
-    ? reviewWithin(scene, state, input, pre.considered, { ...(state.pendingExit ? { pending: state.pendingExit } : {}), unheard: unheardInStory(scene, state), onStep: s => hooks.onStep?.(s) })
-    : undefined;
+  // doesn't read them), with its watchdog: past its deadline the turn rolls without it. A ruling on
+  // what the rules' act was only the means to waits for the rules, so it rules knowing how that went.
+  const review = considers && wantsReview(state, pre);
+  const onBrink = state.pendingExit;
+  const startReview = () => reviewWithin(scene, state, input, pre.considered, { ...(onBrink ? { pending: onBrink } : {}), unheard: unheardInStory(scene, state), onStep: s => hooks.onStep?.(s) });
+  let reviewing = review && !pre.mechanic ? startReview() : undefined;
   let ended: Exit | undefined;
   let directive: string[] = [];
   const disclosed = disclosing ? await disclosing : undefined;
@@ -601,7 +612,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   } else if (pre.sameAgain) {
     // The same push that already failed here, again: no dice, and the same answer.
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `same-again:${pre.sameAgain.id}`, source: "pre" });
-    directive = [sameAgainDirective(pre.sameAgain)];
+    directive = [sameAgainDirective(pre.sameAgain, pre.sameAnswer)];
   }
   // The rules resolve a spell, a blow or a rest; the GM narrates what they decided.
   if (pre.mechanic && state.rules) {
@@ -635,6 +646,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       }
     }
   }
+  // The rules have settled the means (their lines are in the scene now): the ruling on the act starts,
+  // unless the act set off a fight, which is the turn's answer.
+  if (review && !reviewing && state.brawl?.turn !== state.turn) reviewing = startReview();
   // Considered rolls: an act a roll should settle that no route does (or a plan off the graph). The
   // GM rules on it before replying: a roll or not, the DC, and what each outcome changes. The rules
   // roll it, the outcome's changes apply like any route's, and the reply plays what was decided.
@@ -705,7 +719,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   else if (pre.plainTransition && !pre.limit && !pre.move && !considered) directive.push(plainDirective(pre.plainTransition));
   // (Out of character, the answer says plainly what the game can't do, and the scene isn't pushed on.)
   if (pre.limit && !pre.ooc) directive.push(limitDirective(pre.limit));
-  if (wasStuck && !pre.move && !considered && !pre.ooc) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
+  // (Not on the same push again: its answer is the one it got before, and nothing more comes of it.)
+  if (wasStuck && !pre.move && !considered && !pre.ooc && !pre.sameAgain) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
   // An ending held for the player's answer: a move answers it (a ruling's success, or its own ending);
   // a ruling that failed without one is like any try that might change things.
   if (pending && !pre.move && !(considered && (considered.record.went === "success" || considered.move.exit))) {

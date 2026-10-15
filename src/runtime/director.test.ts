@@ -4,7 +4,7 @@ import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { JevDecider } from "../llm/decide.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { effectiveScene } from "./brief.ts";
-import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, type RulesOptions } from "./director.ts";
+import { CONSIDER_CONFIDENCE_OPEN, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decideAfter, decideBefore, pressureReason, sameAgainDirective, type RulesOptions } from "./director.ts";
 import { checkedWhen } from "./repair.ts";
 import type { SessionState } from "./session.ts";
 
@@ -159,10 +159,27 @@ test("considered rolls: a route's roll the decider chose goes ahead when it's wh
   assert.equal(same.considered, undefined);
   assert.equal(same.move?.transition.id, "win-cob");
   assert.equal(same.move?.roll?.skill, "persuasion");
-  // The decider matched the route, but called the act another's: the GM rules on it instead of the route's payoff.
-  const other = await decideBefore(scripted({ roll_call: ["new", 0.7, { route: 0.25 }], attempt: ["win-cob", 0.7] }), scene, yard(), LINING, considered);
+  // The decider matched the route, unsurely, and called the act another's: the GM rules on it instead of the route's payoff.
+  const other = await decideBefore(scripted({ roll_call: ["new", 0.7, { route: 0.25 }], attempt: ["win-cob", 0.65] }), scene, yard(), LINING, considered);
   assert.equal(other.move, undefined);
   assert.ok(other.considered);
+});
+
+test("considered rolls: a route's roll the decider chose surely is rolled as the author wrote it, whatever the roll call's split, unless the roll is plainly for something else", async () => {
+  // The goals run's g10 T10: Hobb's mum asked of Nan read as the mum-safe route at .81, the roll call
+  // "new" .53 against "route" .27; ruled on instead, the success lost the route's payoff (Hobb opens up).
+  const read = (attempt: number, call: [string, number, Record<string, number>]) => decideBefore(scripted({ roll_call: call, attempt: ["win-cob", attempt] }), scene, yard(), LINING, considered);
+  const sure = await read(0.81, ["new", 0.53, { route: 0.27, none: 0.2 }]);
+  assert.equal(sure.considered, undefined);
+  assert.equal(sure.move?.transition.id, "win-cob", "the author's roll, with its outcomes");
+  assert.equal(sure.move?.roll?.skill, "persuasion");
+  // The robustness run's second shilling for Cob's trust, at .63 against "new" .65: another act, for the GM.
+  const unsure = await read(0.63, ["new", 0.65, { route: 0.11, none: 0.24 }]);
+  assert.equal(unsure.move, undefined);
+  assert.ok(unsure.considered);
+  const plainly = await read(0.81, ["new", 0.85, { route: 0.1 }]);
+  assert.equal(plainly.move, undefined, "the roll call plainly says something else risky is going on");
+  assert.ok(plainly.considered);
 });
 
 test("considered rolls: a route the author gave no dice settles the turn as written; an unsure read of it doesn't", async () => {
@@ -218,11 +235,16 @@ function scared(): SessionState {
 const AGAIN = "*plants herself in the gateway* I said nobody leaves! Come back here, or the watch drags you back by your ear and the boy goes to the Mending House!";
 
 test("the same push again: a route's roll that failed isn't rolled again for it, as the GM's ruling wouldn't be", async () => {
-  const decider = scripted({ attempt: ["scare-kids", 0.96], same_again: ["same", 0.85, { new: 0.15 }] });
+  const decider = scripted({ attempt: ["scare-kids", 0.96], same_again: ["again_0", 0.85, { new: 0.15 }] });
   const pre = await decideBefore(decider, scene, scared(), AGAIN, { speaker: false, considered: true });
   assert.equal(pre.move, undefined, "no second roll");
   assert.equal(pre.sameAgain?.id, "scare-kids");
-  assert.match(decider.asked[0]!.same_again!.instructions, /turn 2: The player tries to frighten the kids into talking.*Intimidation check to scare the children into talking: 5 \+ 4 = 9 vs DC 12: failure/s);
+  assert.match(decider.asked[0]!.same_again!.criteria.again_0!, /turn 2: The player tries to frighten the kids into talking.*Intimidation check to scare the children into talking: 5 \+ 4 = 9 vs DC 12: failure/s);
+  // The answer it gets is the one it got: the route's own failure, and nothing more.
+  const failure = scene.beats.find(b => b.id === "yard")!.transitions.find(t => t.id === "scare-kids")!.check!.failure;
+  assert.equal(pre.sameAnswer, failure);
+  assert.ok(sameAgainDirective(pre.sameAgain!, pre.sameAnswer).includes(`it gets the same answer it got before: ${failure}`));
+  assert.match(sameAgainDirective(pre.sameAgain!, pre.sameAnswer), /nothing more comes of it than that answer: nothing changes hands, nobody gives way or decides anything new/);
   // Something new on the table: the route rolls as ever.
   const fresh = await decideBefore(scripted({ attempt: ["scare-kids", 0.96], same_again: ["new", 0.8] }), scene, scared(), "*dangles Cob's da's belt* Remember this, lad?", { speaker: false, considered: true });
   assert.equal(fresh.move?.roll?.skill, "intimidation");
@@ -231,6 +253,27 @@ test("the same push again: a route's roll that failed isn't rolled again for it,
   const first = scripted({ attempt: ["scare-kids", 0.96] });
   await decideBefore(first, scene, yard(), AGAIN, { speaker: false, considered: true });
   assert.equal(first.asked[0]!.same_again, undefined);
+});
+
+test("the same push again is a push that failed on the same route, or a ruling's same objective: a first try on another route rolls", async () => {
+  // The goals run's g7 T37: the first press on the King, matched to the catch-out that had failed (as
+  // "the same push", .70), got no roll, and the King let Sallow go.
+  const WIN = "Cob, here's my promise: your name stays out of it, whatever you tell me.";
+  const other = await decideBefore(scripted({ attempt: ["win-cob", 0.9], roll_call: ["route", 0.8], same_again: ["again_0", 0.7, { new: 0.3 }] }), scene, scared(), WIN, { speaker: false, considered: true });
+  assert.equal(other.sameAgain, undefined, "the failed try was the threat, not this");
+  assert.equal(other.move?.transition.id, "win-cob");
+  assert.equal(other.move?.roll?.skill, "persuasion");
+  // Two failures on the same route share the read between them.
+  const twice = scared();
+  twice.path.push({ ...twice.path[0]!, turn: 3 });
+  const split = await decideBefore(scripted({ attempt: ["scare-kids", 0.96], same_again: ["again_1", 0.4, { again_0: 0.35, new: 0.25 }] }), scene, twice, AGAIN, { speaker: false, considered: true });
+  assert.equal(split.sameAgain?.id, "scare-kids");
+  // A ruling that failed on the same ask: the route isn't rolled for it either, and the answer is the ruling's.
+  const ruled = yard();
+  ruled.rulings = [{ turn: 2, act: "talk Cob into trusting them with what he heard", target: "cob", skill: "persuasion", kind: "roll", dc: 15, why: "dangerous, plausible, hostile", went: "failure", changed: "Cob spits and turns his back; he won't hear another word about it this morning.", costUsd: 0, latencyMs: 0 }];
+  const again = await decideBefore(scripted({ attempt: ["win-cob", 0.9], roll_call: ["route", 0.8], same_again: ["again_0", 0.8, { new: 0.2 }] }), scene, ruled, WIN, { speaker: false, considered: true });
+  assert.equal(again.sameAgain?.id, "win-cob");
+  assert.equal(again.sameAnswer, "Cob spits and turns his back; he won't hear another word about it this morning.");
 });
 
 test("considered rolls: the method is asked in every beat, so the GM's review hears a lie read as one wherever it's told", async () => {
@@ -297,6 +340,47 @@ test("before its count, a cue needs the rest of its condition to hold clearly; t
 
 test("no cue fires on a word out of character: that isn't time passing in the scene", async () => {
   assert.equal(await cueRead(0.95, { ...yard(), turnsInBeat: 9 }, { ooc: ["out_of_character", 0.95] }), undefined);
+});
+
+// The player's own exit against a cue that ends the scene.
+const at = (sceneId: string, beat: string, turnsInBeat: number): SessionState => ({ ...yard(), sceneId, beat, turnsInBeat });
+
+test("a cue's ending that the player is plainly leaving by closes as theirs, in this reply; not when they're staying", async () => {
+  // The goals run's g7 T15: "(I leave the Rat for the Heron, token in my pocket.)" read as walking out
+  // (0.57) and letting Hobb go (0.16), and the eleventh bell (0.70) took the scene to What Big Hobb
+  // knows, but held it for the answer they'd just given: they had to leave a second time.
+  const rat = effectiveScene(sceneById("drowned-rat"), []);
+  const confession = at("drowned-rat", "confession", 5);
+  const leave = await decideBefore(scripted({ attempt: ["walk-out", 0.57, { "let-him-go": 0.16, brawl: 0.01, none: 0.26 }], cue: ["bell-talked", 0.7, { not_yet: 0.3 }] }), rat, confession, "(I leave the Rat for the Heron, token in my pocket.)", { speaker: false });
+  assert.equal(leave.move?.transition.id, "bell-talked");
+  assert.equal(leave.move?.exit?.id, "hobb-talks");
+  assert.equal(leave.move?.chosen, true, "their own choice: it closes now");
+  // Talking on, the bell's ending waits for their answer, as any ending they didn't choose.
+  const stay = await decideBefore(scripted({ cue: ["bell-talked", 0.7, { not_yet: 0.3 }] }), rat, confession, "Did he pay you on the night, Hobb?", { speaker: false });
+  assert.equal(stay.move?.exit?.id, "hobb-talks");
+  assert.equal(stay.move?.chosen, false);
+  // Leaving by a way out that isn't the bell's (walking out on him), the bell waits a reply: what they did is read after it.
+  const other = await decideBefore(scripted({ attempt: ["walk-out", 0.57, { "let-him-go": 0.04, brawl: 0.02, none: 0.37 }], cue: ["bell-talked", 0.7, { not_yet: 0.3 }] }), rat, confession, "(I've had enough of this. I go.)", { speaker: false });
+  assert.equal(other.move, undefined);
+});
+
+test("a cue doesn't end the scene over the player's own ending, or over one held for their answer; a fight doesn't wait", async () => {
+  // The goals run's g7 T31: walking off the wharf with the true book read 0.56 for Out with the true
+  // book, under the bar, and the cast-off cue (0.60) closed the scene as The barge sails.
+  const heron = effectiveScene(sceneById("heron-warehouse"), []);
+  const midnight = at("heron-warehouse", "midnight", 7);
+  const WALK = "(I tuck the ledger under my arm and turn up the wharf, away from the Heron.) Sergeant, will you walk me to the palace?";
+  const going = await decideBefore(scripted({ attempt: ["away-with-book", 0.56, { attack: 0.01, "give-up": 0.01, none: 0.42 }], cue: ["cast-off", 0.6, { not_yet: 0.4 }] }), heron, midnight, WALK, { speaker: false });
+  assert.equal(going.move, undefined, "the barge waits a reply");
+  const dithering = await decideBefore(scripted({ cue: ["cast-off", 0.6, { not_yet: 0.4 }] }), heron, midnight, "(I hang back behind the sacks and watch.)", { speaker: false });
+  assert.equal(dithering.move?.transition.id, "cast-off", "with the player going nowhere, the barge sails");
+  const proof = heron.exits.find(e => e.id === "proof-taken")!;
+  const held = await decideBefore(scripted({ cue: ["cast-off", 0.9, { not_yet: 0.1 }], brink: ["answers", 0.9] }), heron, midnight, "Kell, did you see him take it?", { speaker: false, brink: proof });
+  assert.equal(held.move, undefined, "the ending held for their answer isn't replaced");
+  // The crossroads' goblins don't wait for a party walking off without Tam.
+  const road = effectiveScene(sceneById("crossroads-ambush"), []);
+  const strike = await decideBefore(scripted({ attempt: ["walk-away", 0.5, { none: 0.5 }], cue: ["goblins-lose-patience", 0.9, { not_yet: 0.1 }] }), road, at("crossroads-ambush", "ambush", 3), "Come on, we're leaving.", { speaker: false });
+  assert.equal(strike.move?.transition.id, "goblins-lose-patience");
 });
 
 // The consequences flag: what the player does that the world would answer, not what they ask for.

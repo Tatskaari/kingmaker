@@ -29,7 +29,8 @@ export interface FakeOpenRouter {
   restore(): void;
 }
 
-export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; suggestions?: string | string[]; stall?: string[]; capped?: Record<string, number>; phased?: string[] } = {}): FakeOpenRouter {
+/** `odds`: how sure the decider is of a question's choice (0.97 otherwise), the rest shared among the others. */
+export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; odds?: Record<string, number>; suggestions?: string | string[]; stall?: string[]; capped?: Record<string, number>; phased?: string[] } = {}): FakeOpenRouter {
   const real = globalThis.fetch;
   const replies = options.replies ?? ["The GM nods. “Go on.”"];
   const suggestions = [options.suggestions ?? ""].flat();
@@ -41,7 +42,7 @@ export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<st
     const body = (init?.body ? JSON.parse(String(init.body)) : {}) as Request;
     asked.push(new URL(url).pathname);
     sent.push(body);
-    if (url === "https://openrouter.ai/api/alpha/decisions") return json({ answers: answer(body.questions ?? {}, options.choices), usage: { cost: 0.0001 } });
+    if (url === "https://openrouter.ai/api/alpha/decisions") return json({ answers: answer(body.questions ?? {}, options.choices, options.odds), usage: { cost: 0.0001 } });
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     const format = body.text?.format;
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
@@ -81,11 +82,12 @@ function capped(cost: number): Response {
 }
 interface Schema { type?: string | string[]; enum?: unknown[]; const?: unknown; properties?: Record<string, Schema>; required?: string[]; anyOf?: Schema[] }
 
-function answer(questions: NonNullable<Request["questions"]>, choices: Record<string, string> = {}): Record<string, { choice: string; probabilities: Record<string, number>; confidence: number }> {
+function answer(questions: NonNullable<Request["questions"]>, choices: Record<string, string> = {}, odds: Record<string, number> = {}): Record<string, { choice: string; probabilities: Record<string, number>; confidence: number }> {
   return Object.fromEntries(Object.entries(questions).map(([id, q]) => {
     const keys = Object.keys(q.criteria);
     const choice = choices[id] && keys.includes(choices[id]) ? choices[id] : QUIET.find(k => keys.includes(k)) ?? keys[0]!;
-    const probabilities = Object.fromEntries(keys.map(k => [k, k === choice ? 0.97 : 0.03 / Math.max(1, keys.length - 1)]));
+    const sure = odds[id] ?? 0.97;
+    const probabilities = Object.fromEntries(keys.map(k => [k, k === choice ? sure : (1 - sure) / Math.max(1, keys.length - 1)]));
     return [id, { choice, probabilities, confidence: 0.95 }];
   }));
 }
