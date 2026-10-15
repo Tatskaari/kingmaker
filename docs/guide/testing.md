@@ -20,6 +20,15 @@
 - **Fix the cause, generally.** Prefer a runtime change or a principle over prompt wording that matches the case. Write the fix so it would help a scene nobody has written yet.
 - **Hold some out.** Develop on some moments and check on held-out scenes and personas (absurd QA round 2 was held out from round 1).
 
+## Investigating a player's report (for Claude)
+
+When the user says "report <file>", they've hit a problem in the game and reported it (b, `/report`, or the Esc menu's Report a problem…). The file has what they said, where they were, the screen as it was, and the game's saves, snapshots, model calls and notes (src/cli/README.md). In the static build it's downloaded instead, to ~/Downloads, where the tool also looks.
+
+1. **Read it:** `npm run report -- inspect <file>`. Start from their words and the screen as it was, then the turn it happened in: the player's line, the decider's answers, the rules, the GM's reply, the stage manager's operations and what came of them.
+2. **Find where it started,** as above: `--call <n>` for exactly what a model was told and said, `--diff <turn>` for what the world did, `--snapshot <turn>` for the scene as it stood, `--errors` for the stacks.
+3. **Reproduce it:** `npm run report -- restore <file>` makes its game a new session, as it was reported. Play on with `npm run qa -- observe --session <id>`, `qa say`, `qa act`.
+4. **Fix the cause,** generally, and keep the moment as a case (below: `--snapshot <turn> --raw` is a fixture). Say what you found in the report and what you changed, and which turn and call showed it.
+
 ## Turning a failure into a case
 
 1. Find the turn before the failure: the session's `snapshots/<scene>-turn-NNN.json`.

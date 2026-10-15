@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { homedir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { allowed, CONTENT } from "./content.ts";
 import { dbName } from "./persist.ts";
@@ -18,13 +19,16 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  *                                                       character and its sheet beside the terminal
  *                                                       app's (runs/app-smoke); the map by keys and by
  *                                                       mouse; copying; a scene offline; latency and
- *                                                       bandwidth; saves kept in IndexedDB through
- *                                                       reloads; x x deleting a game; the zoo (a sign,
+ *                                                       bandwidth; a problem reported (/report) and
+ *                                                       its report downloaded and read back; saves
+ *                                                       kept in IndexedDB through reloads; x x
+ *                                                       deleting a game; the zoo (a sign,
  *                                                       an exhibit, a spell's SRD page, the action
  *                                                       menu, from above); resizing; one
  *                                                       tab at a time; a browser that won't keep
  *                                                       anything; the key form (OpenRouter faked: no
- *                                                       key goes anywhere)
+ *                                                       key goes anywhere, a report from the title
+ *                                                       included)
  *   node --no-warnings src/web/static/check.ts --live   also the key from ~/secrets typed into the key
  *                                                       form, a real GM reply, and the GM's notes on it
  *                                                       (held back, so Ctrl+C catches them running)
@@ -263,6 +267,43 @@ async function clickOn(page: Page, what: string, button: "left" | "right" = "lef
   const at = await find(page, what);
   if (!at) throw new Error(`"${what}" isn't on the screen to click`);
   await mouseAt(page, at.col + Math.floor(what.length / 2), at.row, button);
+}
+
+/**
+ * Report a problem (b, or /report in a scene): what went wrong, typed and sent; the report the
+ * browser downloads (kingmaker-report-<time>.json.gz), saved beside the screens and read back; and
+ * the game and the bar under it saying so. Enter puts it away.
+ */
+async function reportProblem(page: Page, how: string, words: string, what: string): Promise<{ file: string; dump: Record<string, unknown>; json: string } | undefined> {
+  if (how === "/report") {
+    await page.keyboard.type("/report", { delay: 15 });
+    await press(page, "Enter");
+  } else await press(page, how);
+  await waitFor(page, "What went wrong\\?", `${how} asks what went wrong (${what})`);
+  await page.keyboard.type(words, { delay: 10 });
+  const downloading = page.waitForEvent("download", { timeout: 20000 });
+  await press(page, "Enter");
+  const download = await downloading.catch(() => undefined);
+  if (!download) { fail(`no download came (${what})`); return undefined; }
+  const name = download.suggestedFilename();
+  const file = join(OUT, name);
+  await download.saveAs(file);
+  if (/^kingmaker-report-\d{8}-\d{6}\.json\.gz$/.test(name)) ok(`the browser downloads the report as ${name} (${what})`);
+  else fail(`the report's file name: ${name}`);
+  await waitFor(page, "Report saved.*Downloaded kingmaker-report-", `the game says it was downloaded, and what to tell Claude (${what})`);
+  await shot(page, `report-${what.replace(/\W+/g, "-")}`);
+  const bar = await page.innerText("#key-bar [data-report]").catch(() => "");
+  if (bar === `Report downloaded: ${name}`) ok(`the bar under the game says so too ("${bar}")`);
+  else fail(`the bar under the game says "${bar}"`);
+  const bytes = readFileSync(file);
+  const json = gunzipSync(bytes).toString("utf8");
+  const dump = JSON.parse(json) as Record<string, unknown>;
+  if (dump["kind"] === "kingmaker-report" && dump["words"] === words) ok(`it's a report, gzipped JSON, with the player's words (${(bytes.length / 1024).toFixed(0)} KB)`);
+  else fail(`the downloaded file isn't the report: ${json.slice(0, 120)}`);
+  await press(page, "Enter");
+  await sleep(300);
+  if (/Report saved/.test(await text(page))) fail(`Enter didn't put the report away (${what})`);
+  return { file, dump, json };
 }
 
 function changed(a: string, b: string): number {
@@ -596,6 +637,17 @@ async function play(browser: Browser, url: string): Promise<void> {
     await sleep(500);
     await shot(page, "granary-scene");
 
+    // A problem reported mid-scene (/report): the browser downloads it, and the page says so.
+    const reported = await reportProblem(page, "/report", "The GM never opened the scene", "mid-scene");
+    if (reported) {
+      const stamp = await page.evaluate("document.documentElement.dataset.build");
+      const d = reported.dump as { build: { host: string; stamp?: string; commit?: string }; settings: { userAgent?: string; window?: string; terminal?: { cols: number; rows: number } }; where: { screen: string }; game?: { id: string; files: { state?: unknown } }; screens: { now?: string } };
+      const right = d.build.host === "static" && d.build.stamp === stamp && /^[0-9a-f]{40}$/.test(d.build.commit ?? "") && /Chrome/.test(d.settings.userAgent ?? "")
+        && /^\d+x\d+@[\d.]+$/.test(d.settings.window ?? "") && d.settings.terminal?.cols === COLS && d.where.screen === "scene" && !!d.game?.files.state && /The Hanged Clerk ·/.test(d.screens.now ?? "");
+      if (right) ok(`the report says the static build (stamp ${stamp}, commit ${d.build.commit?.slice(0, 7)}), the browser and its window (${d.settings.window}), the scene's screen as it was, and the game's files (${d.game?.id})`);
+      else fail(`the report's build, settings, where or game: ${JSON.stringify({ build: d.build, window: d.settings.window, terminal: d.settings.terminal, where: d.where, game: d.game?.id })}`);
+    }
+
     // Ctrl+C saves and quits; the page says so, and the game is in IndexedDB.
     await press(page, "Control+c");
     try {
@@ -884,6 +936,16 @@ async function keyForm(browser: Browser, url: string): Promise<void> {
     const bar = await page.innerText("#key-bar");
     if (/kept in this browser.*Change key.*Forget it/s.test(bar)) ok(`the bar under the game says so, and offers to change or forget it ("${bar.replace(/\s+/g, " ").trim()}")`);
     else fail(`the key's bar: "${bar}"`);
+
+    // A report from the title, with the key in use: it's about the latest game (none here), and the key isn't in it.
+    const titled = await reportProblem(page, "b", "The title's tagline keeps changing", "from the title, with a key in use");
+    if (titled) {
+      if (!titled.json.includes(FAKE_KEY) && !readFileSync(titled.file).includes(FAKE_KEY)) ok("the key in use is nowhere in the report");
+      else fail("the key in use is in the report");
+      const d = titled.dump as { where: { screen: string; latest?: boolean }; settings: { offline: boolean }; game?: unknown };
+      if (d.where.screen === "title" && d.where.latest && !d.game && d.settings.offline === false) ok("the report from the title is about the latest game (there's none in this browser yet), with the GM online");
+      else fail(`the report from the title: where ${JSON.stringify(d.where)}, offline ${d.settings.offline}, a game ${!!d.game}`);
+    }
 
     // Change key over the game: the game behind the form takes nothing, and the form can be left as it was (Cancel, or Esc).
     await page.click("#key-bar [data-change]");

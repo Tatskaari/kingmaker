@@ -1,9 +1,9 @@
-import type { MouseEvent, ScrollBoxRenderable } from "@opentui/core";
+import type { InputRenderable, MouseEvent, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, type ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, Clickable, FPS, Keys, SCROLLBAR, useGame, wrap, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, FPS, isEnter, Keys, SCROLLBAR, Spinner, useGame, wrap, type KeyHint } from "./common.tsx";
 import { ActionMenu, fightGroups, menuKey, menuLayout } from "./actions.tsx";
 import { Place } from "./place.tsx";
 import { townView } from "../../game/views.ts";
@@ -14,6 +14,9 @@ import { wingOf } from "../../game/zoo/wings/index.ts";
 import { exploreState } from "../../game/town.ts";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView, type SheetHandle } from "./sheet.tsx";
+
+/** How to report a problem, on the map, in the zoo and in a fight (a scene's help says /report). */
+const REPORT_HELP = "Something wrong? b (or Report a problem… in the Esc menu): say what went wrong in a line or two, and the game saves everything needed to look into it, for Claude.";
 
 const HELP: Record<string, string[]> = {
   explore: [
@@ -27,6 +30,7 @@ const HELP: Record<string, string[]> = {
     "Aiming: point and click; or Tab through what's in reach, the arrows to move the aim, t for yourself, Enter. The faint ring is how far it reaches; an area shows what it covers and who it catches, and if that's you it says so in red and asks for the Enter or the click again. Esc, or a right-click, thinks better of it.",
     "It's the rules': a Fireball breaks a door down, and it stays down. Hurt someone and the town reacts: people run, the guards come on, and it's a fight on the map. What you do to someone or something whose scene is waiting (Kell, the yard gate) opens it, your act first; to Kell, a talk. Hidden, you stay so until you move or speak to anyone.",
     "c shows your character sheet, j your notebook. Esc opens the menu (save and quit). The keys at the bottom are buttons too. The game saves as you go.",
+    REPORT_HELP,
   ],
   scene: [
     "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then?",
@@ -35,7 +39,7 @@ const HELP: Record<string, string[]> = {
     "By key: Tab (or ↑↓, with nothing typed) goes through what's in the place, Enter (with nothing typed) opens the menu of what Tab picked out, Esc lets go. In a menu, a click, ↑↓ and Enter, or its number; → and ← in and out of what to give, which spell or what with; anything you type puts it away and goes in the box. A right-click on a menu is a right-click on what's under it.",
     "The GM narrates and plays everyone else. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
     "When there are things you might say (in a word with Kell: her suggestions, a goodbye, walking on), they're listed over the box: click one, or press its number.",
-    "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this (those four any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
+    "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this · /report what went wrong, saved for Claude (those five any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
     "PgUp/PgDn (or the mouse wheel) scroll the conversation. When a scene ends, it waits for you: an Enter of its own, or a click, goes on. Whatever you were typing as it ended goes unsaid.",
     "For testing: /exits lists the scene's endings, /end <id> takes one now.",
   ],
@@ -47,6 +51,7 @@ const HELP: Record<string, string[]> = {
     "v looks down on the wing from above: people walking, fires, the weather. r reads What happens in full.",
     "The Theatre's booths are scenes with the GM: step in. The Arena's bells start fights. Ask Kell, in her corner, and she walks with you.",
     "c your sheet (the hall's wardrobe changes who you are), j the notebook, Esc the menu. Nothing here reaches the story; the title's zoo carries on your visit.",
+    REPORT_HELP,
   ],
   combat: [
     "By mouse: click a blue tile to move there; click someone on the other side to aim at them, and click them again to attack. The options on the right, and the keys at the bottom, are buttons.",
@@ -56,10 +61,12 @@ const HELP: Record<string, string[]> = {
     "Mind the grain dust (the brown tiles): fire in it goes up all at once, and takes everyone in it with it.",
     "m lists every option you have, by kind (attacks, cantrips, spells by level with your slots, things to knock over, moving, the rest), as the map's m does; e (or Space) ends your turn, f lets the dice decide it. s shows your sheet.",
     "When it's over, Enter (or a click) takes the story on: how it ended goes into what happens next.",
+    REPORT_HELP,
   ],
 };
 
-const MENU = ["Back to the game", "Save and return to the title", "Save and quit"];
+/** The Esc menu: back to the game, the title, quitting, and reporting a problem (last, so the keys to the rest are as they were). */
+const MENU = ["Back to the game", "Save and return to the title", "Save and quit", "Report a problem…"];
 /** Keys that scroll the help, the notebook, a sign's card and What happens: a line (±1), a page (±2), all the way (±3). */
 const SCROLL_KEYS: Record<string, number> = { up: -1, down: 1, pageup: -2, pagedown: 2, home: -3, end: 3 };
 /** The overlays those keys scroll (the wheel scrolls them too). */
@@ -73,9 +80,17 @@ export function Overlay({ game }: { game: Game }) {
   const sheet = useRef<SheetHandle>(null);
   /** The scrollbox of the help, the notebook, a sign's card or What happens, for the keys that scroll it. */
   const scroll = useRef<ScrollBoxRenderable>(null);
+  /** The box a report's words are typed in. */
+  const words = useRef<InputRenderable>(null);
   useKeyboard(key => {
     const o = game.overlay;
     if (!o || key.defaultPrevented) return;
+    // Reporting a problem: the box has the keys (Enter sends what's in it). Esc never minds (not in
+    // the moment it's being saved: where it went is still to say); once it's gone, Enter puts this away too.
+    if (o.kind === "report") {
+      if ((key.name === "escape" && !o.sending) || (o.said && isEnter(key))) { key.preventDefault(); game.closeOverlay(); }
+      return;
+    }
     if (SCROLLED.has(o.kind) && SCROLL_KEYS[key.name] !== undefined) {
       key.preventDefault();
       const page = Math.max(3, Math.min(height - 2, 40) - 6);
@@ -128,10 +143,10 @@ export function Overlay({ game }: { game: Game }) {
   const w = Math.min(width - 4, 104);
   const h = Math.min(height - 2, 40);
   const close = () => game.closeOverlay();
-  // A click anywhere outside it closes it (the menu too: back to the game).
-  // `rows`: as tall as its content needs (a sign's card), up to the usual.
-  const box = (title: string, children: ReactNode, keys: KeyHint[], rows?: number) => { const bh = rows ? Math.min(h, Math.max(8, rows)) : h; return <>
-    <box position="absolute" left={0} top={0} width={width} height={height} zIndex={99} onMouseDown={(e: MouseEvent) => { if (e.button === 0) close(); }} />
+  // A click anywhere outside it closes it (the menu too: back to the game), unless it's `sticky` (a
+  // report being typed). `rows`: as tall as its content needs (a sign's card), up to the usual.
+  const box = (title: string, children: ReactNode, keys: KeyHint[], rows?: number, sticky = false) => { const bh = rows ? Math.min(h, Math.max(8, rows)) : h; return <>
+    <box position="absolute" left={0} top={0} width={width} height={height} zIndex={99} onMouseDown={(e: MouseEvent) => { if (e.button === 0 && !sticky) close(); }} />
     <box position="absolute" left={Math.floor((width - w) / 2)} top={Math.max(0, Math.floor((height - bh) / 2))} width={w} height={bh} zIndex={100}
       border borderStyle="double" borderColor={C.borderHot} title={` ${title} `} backgroundColor={C.panel} flexDirection="column" paddingX={1}>
       <box flexGrow={1} minHeight={0} flexDirection="column" overflow="hidden">{children}</box>
@@ -217,6 +232,28 @@ export function Overlay({ game }: { game: Game }) {
         {wrapped.map((l, i) => <text key={i} fg={C.text} marginBottom={1} flexShrink={0}>{l.join("\n")}</text>)}
       </scrollbox>, [["Esc", "close", close], ...(long ? [["↑↓ PgUp/PgDn", "scroll"] as KeyHint] : [])]);
     }
+    case "report": {
+      // What went wrong (Enter sends it), then where the report went, to tell Claude.
+      const inner = w - 4;
+      if (o.sending) return box("Report a problem", <Spinner label="Saving the report…" />, [], 5, true);
+      if (o.said) {
+        return box(o.failed ? "The report couldn't be saved" : "Report saved", <text fg={o.failed ? C.danger : C.text} wrapMode="word">{o.said}</text>,
+          [["Enter", "back to the game", close]], wrap(o.said, inner).length + 3);
+      }
+      const ask = "What went wrong? A line or two: what you did, what happened, what you expected.";
+      const note = "The report keeps this game, what's on screen and the GM's calls (never your key), for Claude to look into.";
+      const send = () => void game.sendReport(words.current?.value ?? "");
+      const rows = wrap(ask, inner).length + 3 + (o.problem ? wrap(o.problem, inner).length : 0) + wrap(note, inner).length + 3;
+      return box("Report a problem", <box flexDirection="column">
+        <text fg={C.title} wrapMode="word" flexShrink={0}>{ask}</text>
+        <box height={3} border borderColor={C.borderHot} paddingX={1} flexShrink={0}>
+          <input ref={words} focused placeholder="Kell asked me the same thing three times…"
+            onSubmit={(value: unknown) => void game.sendReport(typeof value === "string" ? value : words.current?.value ?? "")} />
+        </box>
+        {o.problem ? <text fg={C.warn} wrapMode="word" flexShrink={0}>{o.problem}</text> : null}
+        <text fg={C.dim} wrapMode="word" flexShrink={0}>{note}</text>
+      </box>, [["Enter", "send", send], ["Esc", "never mind", close]], rows, true);
+    }
     case "menu":
       return box("Menu", <box flexDirection="column" paddingY={1}>{MENU.map((m, i) => <Clickable key={i} height={1} onClick={() => pickMenu(game, i)}><text>
         <span fg={i === o.index ? C.lead : C.dim}>{i === o.index ? "▶ " : "  "}</span><span fg={i === o.index ? C.title : C.text} {...(i === o.index ? { attributes: BOLD } : {})}>{m}</span>
@@ -241,8 +278,10 @@ function fightMenu(game: Game): ReturnType<typeof fightGroups> {
   return fightGroups(game.fightActions, fight?.options().spells ?? [], fight?.view().player.slots ?? "");
 }
 
-/** The menu's choices, by key or click: back to the game, save to the title, or save and quit. */
+/** The menu's choices, by key or click: back to the game, save to the title, save and quit, or report a problem. */
 function pickMenu(game: Game, index: number): void {
+  // The report takes the menu's place: the screen it keeps is the one from before the menu came up.
+  if (index === 3) { game.openReport(); return; }
   game.closeOverlay();
   if (index === 1) game.quitToTitle();
   else if (index === 2) game.quit();

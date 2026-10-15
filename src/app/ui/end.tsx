@@ -12,6 +12,7 @@ export function EndScreen({ game }: { game: Game }) {
   useKeyboard(key => {
     if (game.overlay || game.screen !== "end" || key.defaultPrevented) return;
     if (key.name === "return" || key.name === "escape") { key.preventDefault(); back(); }
+    else if (key.name === "b") game.openReport();
     else if (key.name === "q") game.quit();
   });
   const end = game.ending;
@@ -42,6 +43,6 @@ export function EndScreen({ game }: { game: Game }) {
       {tab.map((l, i) => <text key={`t${i}`} fg={C.faint} attributes={ITALIC} flexShrink={0}>{l}</text>)}
     </box>
     {/* Buttons too: a click goes back to the title, or quits. */}
-    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", zoo ? "back to the zoo" : "back to the title", back], ["q", "quit", () => game.quit()]]} /></box>
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", zoo ? "back to the zoo" : "back to the title", back], ["q", "quit", () => game.quit()], ["b", "report a problem", () => game.openReport()]]} /></box>
   </box>;
 }

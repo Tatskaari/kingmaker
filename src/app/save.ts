@@ -49,7 +49,12 @@ export function zooVisits(limit = 5): Resumable[] {
   return saves(game => game.hub === "zoo").slice(0, limit);
 }
 
-function saves(keep: (game: GameState) => boolean): Resumable[] {
+/** The game played last, whatever it was (the story's or a zoo visit, finished or not): what a report from the title is about. */
+export function latestGame(): Resumable | undefined {
+  return saves(() => true, { ended: true })[0];
+}
+
+function saves(keep: (game: GameState) => boolean, options: { ended?: boolean } = {}): Resumable[] {
   const root = join(runsDir(), "sessions");
   if (!existsSync(root)) return [];
   const found: Resumable[] = [];
@@ -57,7 +62,7 @@ function saves(keep: (game: GameState) => boolean): Resumable[] {
     if (!existsSync(gameFile(id))) continue;
     try {
       const game = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState;
-      if (game.mode === "end" || !keep(game)) continue;
+      if ((game.mode === "end" && !options.ended) || !keep(game)) continue;
       found.push({ id, game, session: loadSession(id), mtime: statSync(gameFile(id)).mtimeMs });
     } catch { /* a broken save is skipped */ }
   }

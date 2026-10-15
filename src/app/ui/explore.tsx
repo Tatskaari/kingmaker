@@ -51,6 +51,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     else if (key.name === "c") void game.showSheet();
     else if (key.name === "j") { game.overlay = { kind: "journal" }; game.emit(); }
     else if (key.name === "r") { game.overlay = { kind: "log" }; game.emit(); }
+    else if (key.name === "b") game.openReport();
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
     else if (key.name === "escape" || key.name === "q") { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
   });
@@ -123,6 +124,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     ...(zoo ? [["v", "from above", button(() => { game.overlay = { kind: "stage" }; game.emit(); })] satisfies KeyHint] : []), ["c", "sheet", button(() => void game.showSheet())],
     ["j", narrow ? "notes" : "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
     ["r", "what happened", button(() => { game.overlay = { kind: "log" }; game.emit(); })],
+    ["b", "report a problem", button(() => game.openReport())],
   ];
   const menuGroups = game.doMenu ? groupsOf(game.doMenu) : undefined;
 

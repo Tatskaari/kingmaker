@@ -194,7 +194,7 @@ python3 src/app/smoke/smoke.py                # the real TUI under a pty, the wh
 python3 src/app/smoke/smoke.py --live         # real GM turns, quit and resume, /map, a real scene boundary, Kell after it, and a talk with her
 python3 src/app/smoke/smoke.py --live-fight   # a live-built wizard through to the Heron, casting from the spell picker
 KM_RUNS_DIR=runs/check node --experimental-ffi --no-warnings --import tsx src/app/smoke/scene-check.tsx   # the scene screens at 80 to 160 columns: every character drawn; the keys and clicks on them
-KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, the action menu and aiming by the mouse (Fireball at a door), a spell on the sheet clicked, a scene's place at 80x24 and 130x42, the title, the End, the zoo (its side panel, a sign's card, the help scrolled, a long line kept by its start): side panels whole, the mouse
+KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, the action menu and aiming by the mouse (Fireball at a door), a spell on the sheet clicked, a scene's place at 80x24 and 130x42, reporting a problem at 80x24 (/report, the Esc menu's line, b on the map), the title, the End, the zoo (its side panel, a sign's card, the help scrolled, a long line kept by its start): side panels whole, the mouse
 KM_RUNS_DIR=runs/live-check node --experimental-ffi --no-warnings --import tsx src/app/smoke/scene-menu-live.tsx   # the scene's menu with the real GM: a penny given and a Fire Bolt cast from it, as turns
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the core with the map and fights, no UI
 KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts                            # casting in a fight, headless
@@ -212,7 +212,8 @@ The offline run uses an invalid API key, so the GM can't speak, and it ends scen
 - a talk with Kell between scenes (right-clicked in the Nearby list), its choices listed, walking on by a click, and straight back to the map;
 - save, quit and Continue (on the map, by a click, and mid-fight);
 - a whole tactical fight on the Heron's floor (a click on a blue tile, on someone to aim at, on the end-turn button, and on the way on), the aftermath, the summons, and The End (and back to the title by a click);
-- the zoo from the title (z): its map with the next exhibit, the view from above (v), and back to the title, where the visit is carried on and not offered as a game to Continue.
+- the zoo from the title (z): its map with the next exhibit, the view from above (v), and back to the title, where the visit is carried on and not offered as a game to Continue;
+- a problem reported mid-scene (`/report`), mid-fight, in the zoo and from the title (b): each report read back from runs/reports, with the words, the screen as it was, the terminal's size, and the fight's round, the visit's state, or the latest game.
 
 The live run plays a real talk with Kell too: one of her suggested lines clicked, then the goodbye, and back to the map with no card between.
 
@@ -253,20 +254,39 @@ In a fight, m lists every option the same way, by kind: attacks, cantrips and sp
 
 | where | keys |
 |---|---|
-| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/); z the zoo (x on it, twice, puts the visit away: the next one starts afresh) |
+| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/); z the zoo (x on it, twice, puts the visit away: the next one starts afresh); b (or Report a problem…) reports a problem with the latest game |
 | character | Tab between name and concept; Enter; on the sheet, r makes them again (or click the buttons) |
 | the sheet | ←→, Tab or 1–9 turn its pages (or click a tab); ↑↓, PgUp/PgDn or the wheel scroll a long page (on a page with spells, ↑↓ pick one instead, and Esc lets it go); a click on a spell, or Enter on the one picked, shows what it is, and ← Back, Esc, Enter or Backspace put the sheet back as it was; Esc, or a click outside it, puts it away |
-| explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; m the action menu (↑↓ and Enter, 1–9, ←→ a kind, Esc); g walk to the lead (any key stops); c sheet; j notebook; r What happens in full (or a click on it: a line too long for the box shows its start there); ? help; Esc menu. In the zoo, v from above, and a sign read opens in full (↑↓ scroll, 1–9 sets off what's listed, Esc closes) |
+| explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; m the action menu (↑↓ and Enter, 1–9, ←→ a kind, Esc); g walk to the lead (any key stops); c sheet; j notebook; r What happens in full (or a click on it: a line too long for the box shows its start there); b report a problem; ? help; Esc menu. In the zoo, v from above, and a sign read opens in full (↑↓ scroll, 1–9 sets off what's listed, Esc closes) |
 | aiming | the pointer aims, a click does it; Tab (Shift+Tab) through what's in reach; arrows move the aim; t yourself; Enter does it; m back to the menu; Esc or a right-click cancels |
-| scene | type and press Enter: plain words are said, `*asterisks*` or `(brackets)` are done; 1–9 (or a click) chooses one of the core's choices, when there are any (a talk's lines, its goodbye, walking on); `/sheet` `/map` `/journal` `/help` (any time, even with the GM mid-sentence) `/save` `/quit` (typed, or clicked at the bottom; the old `#sheet` still works); PgUp/PgDn or the wheel scroll; a scene that's over waits for an Enter of its own or a click; Tab (or ↑↓ with nothing typed) goes through what's in the place, Enter (with nothing typed) opens the menu of what Tab picked out (↑↓ and Enter or its number, → and ← in and out of what to give, which spell or what with, Esc never mind, anything typed goes in the box), Esc lets go of it; Esc menu |
+| scene | type and press Enter: plain words are said, `*asterisks*` or `(brackets)` are done; 1–9 (or a click) chooses one of the core's choices, when there are any (a talk's lines, its goodbye, walking on); `/sheet` `/map` `/journal` `/help` `/report` (any time, even with the GM mid-sentence) `/save` `/quit` (typed, or clicked at the bottom; the old `#sheet` still works); PgUp/PgDn or the wheel scroll; a scene that's over waits for an Enter of its own or a click; Tab (or ↑↓ with nothing typed) goes through what's in the place, Enter (with nothing typed) opens the menu of what Tab picked out (↑↓ and Enter or its number, → and ← in and out of what to give, which spell or what with, Esc never mind, anything typed goes in the box), Esc lets go of it; Esc menu |
 | between scenes | Enter (or a click) hurries Kell along, then goes on to the map; Esc menu |
-| combat | arrows move 5 ft; Tab or 1–9 pick a target; a attack; z close in; c cast (Enter at the target, t on yourself); u knock over a lantern or brazier; d dash; g dodge; x disengage; f let the dice decide; m every option, by kind (the action menu's keys); e end turn; s sheet; when it's over, Enter (or a click) |
-| the end | Enter (or a click) back to the title (in the zoo, back to the zoo); q quit |
-| anywhere | Ctrl+C saves and quits |
+| combat | arrows move 5 ft; Tab or 1–9 pick a target; a attack; z close in; c cast (Enter at the target, t on yourself); u knock over a lantern or brazier; d dash; g dodge; x disengage; f let the dice decide; m every option, by kind (the action menu's keys); e end turn; s sheet; b report a problem (whoever's turn it is); when it's over, Enter (or a click) |
+| the end | Enter (or a click) back to the title (in the zoo, back to the zoo); b report a problem; q quit |
+| reporting | what went wrong, typed (Enter sends it, Esc never minds); then Enter (or a click) back to the game |
+| anywhere | Ctrl+C saves and quits; Esc's menu has Report a problem… (last: ↑ from the top) |
 
 A way on (a scene that's over, the moment between scenes) takes an Enter of its own, or a click. Typed characters never go on, and the Enter that ends a line typed at it only ends that line ("that went unsaid"; `wayOnKey` in `ui/common.tsx`, `typing` in `game.ts`): a line being typed as a scene ends doesn't carry the player past its last word, through Kell and onto the map, where the rest of it would walk.
 
 For testing, in a scene, `/exits` lists the endings and `/end <id>` takes one now.
+
+### Reporting a problem
+
+Something wrong? Report it from wherever it happened, and Claude can look into it from the report alone:
+
+- **How:** b on the map, in the zoo and in a fight (whoever's turn it is); `/report` in a scene (any time, the GM mid-sentence too); Report a problem… in the Esc menu (its last line), anywhere; and on the title (b, or its own line), about the latest game played.
+- **What went wrong?** A line or two: what you did, what happened, what you expected. Enter sends it; Esc never minds. In a scene it can come with the command, and goes at once: `/report Kell asked me the same thing three times`.
+- **Where it goes:** `runs/reports/<time>-<game>.json.gz`, beside the sessions (`KM_RUNS_DIR` moves both), and the game says so in a way that's easy to pass on: "Saved runs/reports/20261015-150233-hanged-clerk-….json.gz: tell Claude 'report 20261015-150233-hanged-clerk-….json.gz'". On the map, What happens keeps it too. The server's games (npm run web) save it on the server; the static build downloads it (src/web/README.md).
+- **What's in it** (one file, gzipped JSON; src/report/dump.ts):
+  - your words and the time;
+  - the build (its git commit, and whether there were changes beyond it; or the static build's stamp) and the settings: the approach, the glyph set, the terminal's size, the browser's window and user agent, the game's `KM_*` settings;
+  - where you were (the screen, what was open over it, a turn under way, the fight's round) and the screen as it was, as text, with the last few screens before it;
+  - the game's files: `game.json`, `state.json` and `app.json` (and, if a turn was under way, the game as it was in memory), the last 10 snapshots, `calls.jsonl` (every model call with its prompts and replies: all of them, or the last 300), the GM's notes (`memory-reviews.jsonl`, the co-GM's `repair-*.json`), the docs it wrote, and its lines of the cost ledger;
+  - the errors caught or logged since the game started, with their stacks;
+  - in the zoo, the visit's own state.
+- **Never the key.** The key in use (and the dev key, if this machine has one) and anything shaped like an OpenRouter key (`sk-or-…`) are taken out of everything in it before it's written, and a screen with a key on it isn't kept at all (src/report/redact.ts).
+
+The game saves first, as `/save` does (unless a turn is under way). The report keeps the screen from before its question came up (from the Esc menu, the screen from before the menu): `src/app/report.ts` notes the screens as the game changes and reads the renderer's last frame, and catches what's logged or thrown. Reading one is the report tool's (src/cli/README.md).
 
 ### The zoo
 

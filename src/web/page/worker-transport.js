@@ -2,7 +2,9 @@
 // in a Web Worker on this page (worker.js), and this speaks to the page in the server's messages
 // (hello, started, exit, error, stats) so the rest of the page is the same. It also says what only
 // the static build has to say, on the bar under the terminal: whether this browser is keeping the
-// game, and the key. And it keeps to one tab at a time (src/web/static/worker.ts): a tab whose
+// game, the key, and a report of a problem just downloaded (the worker makes it, the page saves it
+// as a file, since what the browser keeps is out of reach of whoever investigates it). And it
+// keeps to one tab at a time (src/web/static/worker.ts): a tab whose
 // worker finds the game open in another offers to take it over, and the other tab, told so on a
 // BroadcastChannel, saves its game and lets it go.
 //
@@ -81,6 +83,8 @@ export function workerTransport(handlers, options) {
   let kept = keptHere();
   // How the saves are kept, as the worker last said (nothing to say when they're kept).
   let storage = { ok: true };
+  // The last report of a problem downloaded (its file's name), for the bar to say.
+  let reported = "";
   const flushes = [];
   const statsWaiters = [];
   // A closed game's worker finishing its background jobs: resolves once it's gone.
@@ -94,7 +98,7 @@ export function workerTransport(handlers, options) {
     send(message) {
       switch (message.type) {
         case "start": void start(message); return;
-        case "resize": worker?.postMessage({ type: "resize", cols: message.cols, rows: message.rows }); return;
+        case "resize": worker?.postMessage({ type: "resize", cols: message.cols, rows: message.rows, window: message.window }); return;
         case "stats":
           // The game's own numbers (frames, the time they took, saves) with what's crossed between page and worker.
           if (!worker) return handlers.message({ type: "stats", toPage, fromPage, wireOut: toPage, wireIn: fromPage });
@@ -174,6 +178,11 @@ export function workerTransport(handlers, options) {
       } else if (m.type === "storage") {
         storage = m;
         showBar();
+      } else if (m.type === "report") {
+        // A report of a problem (the key already out of it): downloaded, and the bar says so.
+        download(m.name, m.data);
+        reported = m.name;
+        showBar();
       } else if (m.type === "busy") {
         handlers.message({ type: "busy", takeOver: () => takeOver(m.channel ?? "") });
       } else if (m.type === "key-refused") {
@@ -200,7 +209,7 @@ export function workerTransport(handlers, options) {
     // The worker's own script wouldn't load or run (a missing file after the preview was updated, or a browser that can't run it).
     worker.onerror = () => handlers.message({ type: "error", reload: true, message: "The game couldn't start in this browser: its files didn't load, or this browser can't run it. Reloading the page may help." });
     worker.postMessage({
-      type: "start", cols: message.cols, rows: message.rows, ...(key ? { key } : { offline: true }),
+      type: "start", cols: message.cols, rows: message.rows, ...(message.window ? { window: message.window } : {}), ...(key ? { key } : { offline: true }),
       ...(options.glyphs ? { glyphs: options.glyphs } : {}), ...(options.jobDelayMs ? { jobDelayMs: options.jobDelayMs } : {}),
     });
     key = "";
@@ -234,6 +243,24 @@ export function workerTransport(handlers, options) {
     said.hidden = storage.ok;
     said.textContent = storage.ok ? "" : storage.message ?? "This browser isn't keeping the game.";
     said.title = said.textContent;
+    // A report of a problem, downloaded: where it went, and what to tell Claude.
+    const report = bar.querySelector("[data-report]");
+    report.hidden = !reported;
+    report.textContent = reported ? `Report downloaded: ${reported}` : "";
+    report.title = reported ? `It's in your browser's downloads: tell Claude 'report ${reported}'` : "";
+  }
+
+  /** A report's bytes, downloaded as a file (a link to them, clicked). */
+  function download(name, data) {
+    const url = URL.createObjectURL(new Blob([data], { type: "application/gzip" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.hidden = true;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   if (bar) {

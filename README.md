@@ -90,6 +90,17 @@ npm run web:static-check  # that build, served under the preview's path and play
 
 The playable game's smoke tests are in [src/app/README.md](src/app/README.md), the browser's checks in [src/web/README.md](src/web/README.md). Every check, how long it takes and whether CI runs it, is in [ARCHITECTURE.md](ARCHITECTURE.md#checks).
 
+## Reporting a problem
+
+In the game, b (on the map and in fights), `/report` (in a scene) or the Esc menu's Report a problem… asks what went wrong, then saves everything needed to look into it as one file: "Saved runs/reports/<file>: tell Claude 'report <file>'" (the static build downloads it). The key is never in it.
+
+```sh
+npm run report -- inspect <file>     # what they said, the build, where they were, the screen, the last turns, errors and calls
+npm run report -- restore <file>     # its game as a new session, for the QA console or Continue
+```
+
+How to read one is in [src/cli/README.md](src/cli/README.md); what the game does is in [src/app/README.md](src/app/README.md).
+
 ## Evals
 
 ```sh
