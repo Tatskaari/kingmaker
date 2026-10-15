@@ -1,8 +1,53 @@
 /**
- * node:crypto for the browser build: random UUIDs and bytes from the Web Crypto API, and a
- * synchronous SHA-256 (createHash("sha256"); Web Crypto's digest is asynchronous), which the
- * inventory uses for versions.
+ * node:crypto for the browser build: random UUIDs and bytes from the Web Crypto API, and
+ * synchronous hashes (Web Crypto's digest is asynchronous): createHash("sha256"), which the
+ * inventory uses for versions, and createHash("sha1"). Only those: the build fails if the game
+ * asks for another (shims.ts), as the browser would only find out in play.
  */
+
+/** The hashes createHash has here. */
+export const HASHES = ["sha1", "sha256"] as const;
+
+/** The message padded as SHA-1 and SHA-256 both pad it: a 1 bit, zeros, its length in bits (big-endian), to a multiple of 64 bytes. */
+function pad(data: Uint8Array): DataView {
+  const bitLength = data.length * 8;
+  const padded = new Uint8Array(Math.ceil((data.length + 9) / 64) * 64);
+  padded.set(data);
+  padded[data.length] = 0x80;
+  const view = new DataView(padded.buffer);
+  view.setUint32(padded.length - 8, Math.floor(bitLength / 0x100000000));
+  view.setUint32(padded.length - 4, bitLength >>> 0);
+  return view;
+}
+
+function words(h: Uint32Array): Uint8Array {
+  const out = new Uint8Array(h.length * 4);
+  const view = new DataView(out.buffer);
+  for (let i = 0; i < h.length; i++) view.setUint32(i * 4, h[i]!);
+  return out;
+}
+
+function sha1(data: Uint8Array): Uint8Array {
+  const h = new Uint32Array([0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0]);
+  const view = pad(data);
+  const w = new Uint32Array(80);
+  for (let offset = 0; offset < view.byteLength; offset += 64) {
+    for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4);
+    for (let i = 16; i < 80; i++) {
+      const x = w[i - 3]! ^ w[i - 8]! ^ w[i - 14]! ^ w[i - 16]!;
+      w[i] = (x << 1) | (x >>> 31);
+    }
+    let a = h[0]!, b = h[1]!, c = h[2]!, d = h[3]!, e = h[4]!;
+    for (let i = 0; i < 80; i++) {
+      const f = i < 20 ? (b & c) | (~b & d) : i < 40 ? b ^ c ^ d : i < 60 ? (b & c) | (b & d) | (c & d) : b ^ c ^ d;
+      const k = i < 20 ? 0x5a827999 : i < 40 ? 0x6ed9eba1 : i < 60 ? 0x8f1bbcdc : 0xca62c1d6;
+      const t = (((a << 5) | (a >>> 27)) + f + e + k + w[i]!) >>> 0;
+      e = d; d = c; c = ((b << 30) | (b >>> 2)) >>> 0; b = a; a = t;
+    }
+    h[0] = (h[0]! + a) >>> 0; h[1] = (h[1]! + b) >>> 0; h[2] = (h[2]! + c) >>> 0; h[3] = (h[3]! + d) >>> 0; h[4] = (h[4]! + e) >>> 0;
+  }
+  return words(h);
+}
 
 const K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -15,15 +60,9 @@ const K = new Uint32Array([
 
 function sha256(data: Uint8Array): Uint8Array {
   const h = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
-  const bitLength = data.length * 8;
-  const padded = new Uint8Array(Math.ceil((data.length + 9) / 64) * 64);
-  padded.set(data);
-  padded[data.length] = 0x80;
-  const view = new DataView(padded.buffer);
-  view.setUint32(padded.length - 8, Math.floor(bitLength / 0x100000000));
-  view.setUint32(padded.length - 4, bitLength >>> 0);
+  const view = pad(data);
   const w = new Uint32Array(64);
-  for (let offset = 0; offset < padded.length; offset += 64) {
+  for (let offset = 0; offset < view.byteLength; offset += 64) {
     for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4);
     for (let i = 16; i < 64; i++) {
       const a = w[i - 15]!, b = w[i - 2]!;
@@ -44,20 +83,22 @@ function sha256(data: Uint8Array): Uint8Array {
     h[0] = (h[0]! + a) >>> 0; h[1] = (h[1]! + b) >>> 0; h[2] = (h[2]! + c) >>> 0; h[3] = (h[3]! + d) >>> 0;
     h[4] = (h[4]! + e) >>> 0; h[5] = (h[5]! + f) >>> 0; h[6] = (h[6]! + g) >>> 0; h[7] = (h[7]! + hh) >>> 0;
   }
-  const out = new Uint8Array(32);
-  const outView = new DataView(out.buffer);
-  for (let i = 0; i < 8; i++) outView.setUint32(i * 4, h[i]!);
-  return out;
+  return words(h);
 }
 
 const encoder = new TextEncoder();
 const hex = (bytes: Uint8Array) => Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
 const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 
+const DIGESTS: Record<(typeof HASHES)[number], (data: Uint8Array) => Uint8Array> = { sha1, sha256 };
+
 class Hash {
   private chunks: Uint8Array[] = [];
+  private readonly hash: (data: Uint8Array) => Uint8Array;
   constructor(algorithm: string) {
-    if (algorithm.toLowerCase() !== "sha256") throw new Error(`Hash ${algorithm} isn't available in the browser build (only sha256)`);
+    const hash = DIGESTS[algorithm.toLowerCase() as keyof typeof DIGESTS];
+    if (!hash) throw new Error(`Hash ${algorithm} isn't available in the browser build (only ${HASHES.join(" and ")})`);
+    this.hash = hash;
   }
   update(data: string | Uint8Array): this {
     this.chunks.push(typeof data === "string" ? encoder.encode(data) : data);
@@ -68,7 +109,7 @@ class Hash {
     const all = new Uint8Array(length);
     let at = 0;
     for (const c of this.chunks) { all.set(c, at); at += c.length; }
-    const digest = sha256(all);
+    const digest = this.hash(all);
     return encoding === "hex" ? hex(digest) : encoding === "base64" ? base64(digest) : digest;
   }
 }

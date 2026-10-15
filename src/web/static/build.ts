@@ -1,12 +1,13 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
 import { fontFaceCss, fontList, webFonts } from "../fonts.ts";
 import { importMeta, openTuiFonts, virtualModules } from "./plugins.ts";
+import { shimProblems } from "./shims.ts";
 
 /**
  * The static build (npm run build:web): the whole game as a static site in dist/web, for GitHub
@@ -21,7 +22,8 @@ import { importMeta, openTuiFonts, virtualModules } from "./plugins.ts";
  * The game's modules are bundled as they are; what they need of Node comes from
  * src/web/static/node (a file system in memory, persisted to IndexedDB), and OpenTUI from
  * src/web/tui. Nothing outside the allowlist goes in, and the build fails if anything in dist/web
- * looks like an OpenRouter key.
+ * looks like an OpenRouter key, or if the game asks of Node what the browser's stand-ins can't do
+ * (shims.ts), as a preview that breaks only in play would otherwise still publish.
  */
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -86,6 +88,16 @@ const result = await build({
   logLevel: "warning",
 });
 writeFileSync(join(ROOT, "dist", "web-meta.json"), JSON.stringify(result.metafile));
+
+// What the game asks of Node that the browser's stand-ins can't do (shims.ts), in the modules that ask node:crypto for anything.
+const cryptoShim = join(STATIC, "node", "crypto.ts");
+const problems = shimProblems(Object.entries(result.metafile.inputs)
+  .filter(([, input]) => input.imports.some(i => resolve(ROOT, i.path) === cryptoShim))
+  .map(([path]) => ({ path, source: readFileSync(resolve(ROOT, path), "utf8") })));
+if (problems.length) {
+  rmSync(OUT, { recursive: true, force: true });
+  throw new Error(`the browser build can't do what the game asks of Node here:\n  ${problems.join("\n  ")}`);
+}
 
 // ---------------------------------------------------------------------------------------------
 // The page, in static mode
