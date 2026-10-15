@@ -12,9 +12,10 @@ import { quoteSpeaker, SPEECH, tagSpeaker, type Speaker } from "./speakers.ts";
  * prejudice or custom of the world, or a law), `know` (what the player's character would know and
  * a newcomer wouldn't) and `you` (one of the player's own past acts).
  *
- * The model drifts, so what it drifts to is taken too: Markdown's order ([phrase](why: …)), a space
- * between the phrase and its note, a note with no kind (a reason), and a note written on a line of
- * its own after the reply, its phrase copied from the reply (which lights up the phrase where it
+ * The model drifts, so what it drifts to is taken too: Markdown's order ([phrase](why: …)), both in
+ * square brackets ([phrase][why: …]), a space between the phrase and its note, a note with no kind
+ * (a reason), and a note written on a line of its own after the reply, or just after the sentence
+ * that said its phrase, its phrase copied from the reply (which lights up the phrase where it
  * already stands).
  *
  * Parsed as the reply streams (`final: false`), what's shown only ever grows: a bracket that might
@@ -268,14 +269,23 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
   const final = options.final ?? true;
   const r = new Reply();
 
-  /** Past markup that vanished: a space after it goes too, when there's one before it (no double spaces). */
-  const gap = (k: number): number => (raw[k] === " " && (!r.text || /\s$/.test(r.text)) ? k + 1 : k);
+  /** Past markup that vanished: a space after it goes too, when there's one before it (no double spaces); at a line's end, the space before it. */
+  const gap = (k: number): number => {
+    if (raw[k] === "\n") r.text = r.text.replace(/[ \t]+$/, "");
+    return raw[k] === " " && (!r.text || /\s$/.test(r.text)) ? k + 1 : k;
+  };
   /** The end of the line from `from` (hidden up to there), or held while it hasn't come. */
   const lineEnd = (from: number): number => {
     const end = raw.indexOf("\n", from);
     if (end >= 0) return end;
     return final ? raw.length : HOLD;
   };
+  /**
+   * A phrase that was just said, written again as a label for its note ("…in the tally loft.” [The
+   * tally loft][know: …]"): its words already stand in the reply, it comes after a finished sentence,
+   * and the words after it don't carry that sentence on. Its note goes where the words stand.
+   */
+  const saidBefore = (phrase: string, after: string): boolean => phraseIn(r.text, phrase.trim()) >= 0 && /[.!?…]["”’)]*\s*$/.test(r.text) && !/^\s*[a-z,;:]/.test(after);
   /** Is the note that closes at `close` on a line of its own (its phrase begins one at `open`)? */
   const alone = (open: number, close: number): boolean | "hold" => {
     const before = raw.slice(0, open).replace(/[ \t]+$/, "");
@@ -285,12 +295,27 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
     return /^[ \t]*(\n|$)/.test(after);
   };
 
-  /** At a "(": a note in the sketch's order, (phrase)[kind: note], or just brackets. */
+  /** A note in round brackets, (why: …), or in both, [(why: …)], with nothing after it: on the line or the sentence just said, never shown. */
+  const noteAfter = (label: RegExpExecArray, note: string): void => {
+    const last = r.lastSaid();
+    const n = note.trim().replace(/\s+/g, " ");
+    if (last && n) r.add({ ...last, kind: KIND_OF[label[1]!.toLowerCase()]!, note: n });
+    // A note with nothing before it to hang on: never shown.
+    else r.stats.dropped++;
+  };
+
+  /** At a "(": a note in the sketch's order, (phrase)[kind: note], a note in round brackets, or just brackets. */
   const round = (i: number): number => {
     const plain = () => { r.char("("); return i + 1; };
-    const c = closeOf(raw, i + 1, "(", ")", PHRASE_MAX, final);
+    // Its kind first, (why: …): a note, in the wrong brackets.
+    const note = LABEL.exec(raw.slice(i + 1, i + 17));
+    const c = closeOf(raw, i + 1, "(", ")", note ? NOTE_MAX : PHRASE_MAX, final);
     if (c === "pending") return HOLD;
-    if (c === "none") return plain();
+    if (c === "none") {
+      if (note) { r.stats.malformed++; return lineEnd(i); }
+      return plain();
+    }
+    if (note) { noteAfter(note, raw.slice(i + 1 + note[0].length, c.at)); return gap(c.at + 1); }
     const phrase = raw.slice(i + 1, c.at);
     let k = c.at + 1;
     if (raw[k] === " " && (raw[k + 1] === "[" || (k + 1 >= raw.length && !final))) k++;
@@ -312,7 +337,7 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
     if (lone === "hold") return HOLD;
     if (!final && !raw.slice(n.at + 1).trim()) return HOLD;
     if (!label) r.stats.unlabelled++;
-    const astray = lone ? "own line" : labelAfter(r.text, phrase);
+    const astray = lone ? "own line" : labelAfter(r.text, phrase) || saidBefore(phrase, raw.slice(n.at + 1));
     const shown = r.mark(phrase, label ? KIND_OF[label[1]!.toLowerCase()]! : "why", label ? inner.slice(label[0].length) : inner, astray);
     if (!astray && stopless(phrase, raw.slice(n.at + 1))) r.char(".");
     return shown ? n.at + 1 : gap(n.at + 1);
@@ -322,7 +347,9 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
   const square = (i: number): number => {
     const c = closeOf(raw, i + 1, "[", "]", NOTE_MAX, final);
     if (c === "pending") return HOLD;
-    const label = LABEL.exec(raw.slice(i + 1, i + 17));
+    // A note in both kinds of bracket, [(why: …)], is read as [why: …].
+    const lead = raw[i + 1] === "(" && LABEL.test(raw.slice(i + 2, i + 18)) ? 1 : 0;
+    const label = LABEL.exec(raw.slice(i + 1 + lead, i + 17 + lead));
     if (c === "none") {
       if (label) { r.stats.malformed++; return lineEnd(i); }
       r.char("[");
@@ -330,29 +357,28 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
     }
     const inner = raw.slice(i + 1, c.at);
     if (label) {
+      const said = inner.slice(lead + label[0].length);
+      const note = lead ? said.replace(/\)\s*$/, "") : said;
       // The note first and its phrase after, [why: …](she won't serve you): the phrase takes it.
       const p = raw[c.at + 1] === "(" ? c.at + 1 : raw[c.at + 1] === " " && raw[c.at + 2] === "(" ? c.at + 2 : -1;
       if (!final && (c.at + 1 >= raw.length || (raw[c.at + 1] === " " && c.at + 2 >= raw.length))) return HOLD;
       if (p >= 0) {
         const n = closeOf(raw, p + 1, "(", ")", PHRASE_MAX, final);
         if (n === "pending") return HOLD;
-        if (n !== "none") return r.mark(raw.slice(p + 1, n.at), KIND_OF[label[1]!.toLowerCase()]!, inner.slice(label[0].length), labelAfter(r.text, raw.slice(p + 1, n.at))) ? n.at + 1 : gap(n.at + 1);
+        if (n !== "none") return r.mark(raw.slice(p + 1, n.at), KIND_OF[label[1]!.toLowerCase()]!, note, labelAfter(r.text, raw.slice(p + 1, n.at))) ? n.at + 1 : gap(n.at + 1);
       }
       // A note straight after a line or a sentence, with no words of its own in brackets
       // ([Dab] “Not you, now.”[why: …]): it's on the line, or the sentence, just said.
-      const last = r.lastSaid();
-      const n = inner.slice(label[0].length).trim().replace(/\s+/g, " ");
-      if (last && n) r.add({ ...last, kind: KIND_OF[label[1]!.toLowerCase()]!, note: n });
-      // A note with nothing before it to hang on: never shown.
-      else r.stats.dropped++;
+      noteAfter(label, note);
       return gap(c.at + 1);
     }
     const k = c.at + 1;
     if (k >= raw.length && !final) return HOLD;
-    // Markdown's order: [phrase](kind: note).
+    // Markdown's order: [phrase](kind: note); not a tag before a marked line, [Kell] (“Not you.”)[why: …].
     const p = raw[k] === "(" ? k : raw[k] === " " && raw[k + 1] === "(" ? k + 1 : -1;
     if (raw[k] === " " && k + 1 >= raw.length && !final) return HOLD;
-    if (p >= 0) {
+    if (p >= 0 && p + 1 >= raw.length && !final) return HOLD;
+    if (p >= 0 && !isOpening(raw[p + 1])) {
       const n = closeOf(raw, p + 1, "(", ")", NOTE_MAX, final);
       if (n === "pending") return HOLD;
       const lab = LABEL.exec(raw.slice(p + 1, p + 17));
@@ -362,34 +388,64 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
         if (lone === "hold") return HOLD;
         if (!final && !raw.slice(n.at + 1).trim()) return HOLD;
         if (!lab) r.stats.unlabelled++;
-        const astray = lone ? "own line" : labelAfter(r.text, inner);
+        const astray = lone ? "own line" : labelAfter(r.text, inner) || saidBefore(inner, raw.slice(n.at + 1));
         const shown = r.mark(inner, lab ? KIND_OF[lab[1]!.toLowerCase()]! : "why", raw.slice(p + 1 + (lab ? lab[0].length : 0), n.at), astray);
         if (!astray && stopless(inner, raw.slice(n.at + 1))) r.char(".");
         return shown ? n.at + 1 : gap(n.at + 1);
       }
     }
-    // A speaker's tag: just before a spoken line (after a space or a colon).
+    // Both in square brackets, [phrase][kind: note] (the note's kind tells it from a tag): the
+    // phrase's words where they're written, or a label on words just said.
+    const s = raw[k] === "[" ? k : raw[k] === " " && raw[k + 1] === "[" ? k + 1 : -1;
+    if (s >= 0 && inner.length <= PHRASE_MAX) {
+      const n = closeOf(raw, s + 1, "[", "]", NOTE_MAX, final);
+      if (n === "pending") return HOLD;
+      const lab = LABEL.exec(raw.slice(s + 1, s + 17));
+      if (lab && n === "none") { r.emit(inner); r.stats.malformed++; return lineEnd(s); }
+      if (lab && n !== "none") {
+        const lone = alone(i, n.at);
+        if (lone === "hold") return HOLD;
+        const after = raw.slice(n.at + 1);
+        if (!final && !after.trim()) return HOLD;
+        const astray = lone ? "own line" : labelAfter(r.text, inner) || saidBefore(inner, after);
+        const shown = r.mark(inner, KIND_OF[lab[1]!.toLowerCase()]!, raw.slice(s + 1 + lab[0].length, n.at), astray);
+        if (!astray && stopless(inner, after)) r.char(".");
+        return shown ? n.at + 1 : gap(n.at + 1);
+      }
+    }
+    // A speaker's tag: just before a spoken line (after a space or a colon), or before a marked one.
     let q = k;
     while (q < raw.length && (raw[q] === " " || raw[q] === "\t" || raw[q] === ":")) q++;
     if (q >= raw.length && !final) return HOLD;
-    if (isOpening(raw[q]) && tagLike(inner)) { r.tag = inner.trim(); return q; }
+    if (raw[q] === "(" && q + 1 >= raw.length && !final) return HOLD;
+    if ((isOpening(raw[q]) || (raw[q] === "(" && isOpening(raw[q + 1]))) && tagLike(inner)) { r.tag = inner.trim(); return q; }
     // Just inside a line that has only just opened (“[Kell] Not for you”): the tag for it.
     if (r.open && !r.open.tag && r.open.start === r.text.length - 1 && tagLike(inner)) {
       r.open.tag = inner.trim();
       r.stats.tagged++;
       return raw[k] === " " ? k + 1 : k;
     }
-    // Anything else: a tag with no line after it disappears; a phrase whose note never came is shown as written.
+    // At the end of a line of text, just after a spoken line that had none (“Not for you.” [Kell]): the tag for it.
+    const line = r.speech.at(-1);
+    if (line && !line.tag && !r.open && line.end === r.text.trimEnd().length && (q >= raw.length || raw[q] === "\n") && tagLike(inner)) {
+      line.tag = inner.trim();
+      r.stats.tagged++;
+      return gap(k);
+    }
+    // Anything else: a tag with no line after it disappears; other words in square brackets are
+    // read without them, markup and all ([(Able, perhaps.)[why: …]]).
     r.stats.malformed++;
-    if (!nameLike(inner)) { r.emit(inner); return k; }
+    if (!nameLike(inner)) { unbracket.add(c.at); return i + 1; }
     return gap(k);
   };
 
+  /** The closing brackets of words read without their brackets. */
+  const unbracket = new Set<number>();
   let i = 0;
   let pending = false;
   while (i < raw.length) {
     const ch = raw[i]!;
-    const next = ch === "(" ? round(i) : ch === "[" ? square(i) : (r.char(ch), i + 1);
+    const next = unbracket.has(i) ? i + 1 : ch === "(" ? round(i) : ch === "[" ? square(i) : (r.char(ch), i + 1);
     if (next === HOLD) { pending = true; break; }
     i = next;
   }

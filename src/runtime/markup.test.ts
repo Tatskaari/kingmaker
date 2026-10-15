@@ -137,6 +137,50 @@ test("a note on a line of its own lights up its phrase where it already stands",
   assert.deepEqual(phrases(n), ["know:The tide's turning"]);
 });
 
+test("both in square brackets, [phrase][kind: note]: words where they're written, or a label on words just said", () => {
+  // As the model wrote them in whole scenes: the words had vanished, as a stray tag.
+  const a = parseMarkup("At your demand, he lifts the chained [Warden’s Book][know: The toll house’s record of its rules.] from the counter.");
+  assert.equal(a.text, "At your demand, he lifts the chained Warden’s Book from the counter.");
+  assert.deepEqual(phrases(a), ["know:Warden’s Book"]);
+  // Just after the words it's about: not shown again, the note on them where they stand.
+  const b = withSpeakers(parseMarkup("[Tam Hollis] “As for Garrow, he’s a toll-house warden. [Garrow][know: A warden collects the King’s road tolls.] Sour as a plum left in the rain.”"), PEOPLE);
+  assert.equal(b.text, "“As for Garrow, he’s a toll-house warden. Sour as a plum left in the rain.”");
+  assert.deepEqual(phrases(b), ["know:Garrow"]);
+  const c = parseMarkup("[Kell] “He kept the accounts in the tally loft.” [The tally loft][know: Where the palace’s grain accounts are kept.] “The Captain called it suicide.”");
+  assert.equal(c.text, "“He kept the accounts in the tally loft.” “The Captain called it suicide.”");
+  assert.deepEqual(phrases(c), ["know:the tally loft"]);
+  // The same label in the other orders.
+  assert.deepEqual(phrases(parseMarkup("“Up in the tally loft.” (The tally loft)[know: Where the accounts are kept.] Kell sniffs.")), ["know:the tally loft"]);
+  assert.deepEqual(phrases(parseMarkup("“Up in the tally loft.” [The tally loft](know: Where the accounts are kept.) Kell sniffs.")), ["know:the tally loft"]);
+  // Words said before, but carrying a new sentence on: shown where they're written.
+  const d = parseMarkup("Kell says the Assembly is close. [The Assembly][know: Every hundred years the kingdoms meet.] waits for no one.");
+  assert.equal(d.text, "Kell says the Assembly is close. The Assembly waits for no one.");
+  assert.deepEqual(phrases(d), ["know:The Assembly"]);
+  // A tag before a line is still a tag.
+  assert.deepEqual(parseMarkup("[Kell] [Dab] “No.”").speech.map(x => x.tag), ["Dab"]);
+});
+
+test("a tag before a marked line, and notes in the wrong brackets, as the model wrote them in the ferry booth", () => {
+  // The line had been lost, taken as a note on the tag in Markdown's order.
+  const a = withSpeakers(parseMarkup("Dab looks up. [the ferryman] (“Not for the watch.”)[why: The stairs do nothing for the watch.] He spits."), PEOPLE);
+  assert.equal(a.text, "Dab looks up. “Not for the watch.” He spits.");
+  assert.deepEqual(phrases(a), ["why:“Not for the watch.”"]);
+  assert.deepEqual(a.speech.map(s => s.speaker), ["dab"]);
+  // A note in round brackets after a line, and in both kinds: on the line, never shown.
+  const b = parseMarkup("[the pie-seller] “A yard, then, my duck.”(why: You apologised and paid her price.)\n\n[the pie-seller] “Peg’s my name.”[(know: Eels on the stairs are a penny a yard.)] She sniffs. He frowns (why: rude) at you.");
+  assert.equal(b.text, "“A yard, then, my duck.”\n\n“Peg’s my name.” She sniffs. He frowns at you.");
+  assert.deepEqual(phrases(b), ["why:“A yard, then, my duck.”", "know:“Peg’s my name.”"]);
+  assert.equal(b.marks[1]!.note, "Eels on the stairs are a penny a yard.");
+  // A tag after its line, at the end of the line of text: the line's.
+  const t = withSpeakers(parseMarkup("Dab sighs. “She won’t speak for you.” [the ferryman]\n\nThe drover keeps walking. “Not my business.” [Kell] She turns."), PEOPLE);
+  assert.equal(t.text, "Dab sighs. “She won’t speak for you.”\n\nThe drover keeps walking. “Not my business.” She turns.");
+  assert.deepEqual(t.speech.map(s => s.tag), ["the ferryman", undefined]);
+  // A marked phrase in square brackets: read without them.
+  const c = parseMarkup("[Garrow] “The levy.” He sighs. [(Able, perhaps; willing is not a quality I can enter.)[why: The notice makes the levy voluntary.]] “So. One penny.”");
+  assert.equal(c.text, "“The levy.” He sighs. Able, perhaps; willing is not a quality I can enter. “So. One penny.”");
+  assert.deepEqual(phrases(c), ["why:Able, perhaps; willing is not a quality I can enter."]);
+});
+
 test("words with no markup keep every character: their quotes are found, their brackets left alone", () => {
   const text = "(You cast Fireball.) Nan sighs [sic]. “Out,” she says.\n\n“Now.”";
   const speech = speechIn(text);
@@ -155,6 +199,8 @@ const SAMPLES = [
   "A shrug (a small one) [and a sigh]. [why: dropped] “Fine,” she says, “fine.” [Kell] “Is it?”",
   "The dog sighs [know: A dog of the stairs sighs for pie.](enormously).\n\n(enormously)[know: duplicate]",
   "“Unclosed quote, and (an unclosed note)[why: never closes\nNext line [Kell] “Hi.”",
+  "He lifts the chained [Warden’s Book][know: The toll house’s record.] from the counter. [Garrow] “Mind the spine. The Book stays here.” [The Book] [know: It never leaves the counter.] He sniffs. [Nan][why: unclosed",
+  "Dab looks up. [the ferryman] (“Not for the watch.”)[why: The stairs do nothing for the watch.] He spits. [the pie-seller] “A yard, then.”(why: You paid her price.)\n\n“Peg’s my name.”[(know: A penny a yard.)] He sighs. [(Able, perhaps.)[why: The notice says so.]] “So.” (why: never closes",
 ];
 
 test("as it streams, what's shown only grows, never shows markup, and agrees with the whole reply", () => {
@@ -165,7 +211,7 @@ test("as it streams, what's shown only grows, never shows markup, and agrees wit
       const part = parseMarkup(raw.slice(0, cut), { final: false });
       assert.ok(part.text.trimEnd().startsWith(shown.trimEnd()), `shown text went back at ${cut}: ${JSON.stringify(shown)} -> ${JSON.stringify(part.text)}`);
       assert.ok(whole.text.startsWith(part.text.trimEnd()), `at ${cut} the stream showed ${JSON.stringify(part.text)}, not the start of ${JSON.stringify(whole.text)}`);
-      assert.doesNotMatch(part.text, /\[(why|know|you|Kell|Dab|the pie-seller)\b|\]\(|\)\[/i, `markup shown at ${cut}`);
+      assert.doesNotMatch(part.text, /\[(why|know|you|Kell|Dab|Garrow|Nan|the pie-seller|the ferryman)\b|\((why|know|you)\s*:|\]\(|\)\[|\]\s?\[|\[\(/i, `markup shown at ${cut}`);
       for (const m of part.marks) assert.ok(whole.marks.some(w => w.start === m.start && w.end === m.end && w.kind === m.kind && w.note === m.note), `a mark the whole reply hasn't at ${cut}`);
       shown = part.text;
     }
