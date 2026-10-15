@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { hangedClerkWorld } from "../../scenes/worlds/hanged-clerk.ts";
-import { rulesNow, type Build } from "../rules/dnd.ts";
+import { dnd, rulesNow, type Build } from "../rules/dnd.ts";
 import { hazard } from "../rules/dnd.ts";
 import { buildWorld, joinWorld } from "../world/scene-world.ts";
 import { PREGENS } from "./combat/pregen.ts";
@@ -258,6 +258,28 @@ test("what's done to someone whose scene is waiting opens it, the act its first 
   assert.ok(!(bolt instanceof Promise));
   assert.equal(bolt.talk?.with, "kell");
   assert.deepEqual(bolt.act?.mechanic, { kind: "cast", spell: "magic-missile", targets: ["kell"] });
+});
+
+test("a potion to hand: dimmed while you're whole; hurt, using it heals you, and it's gone", async () => {
+  const g = await play(PREGENS.fighter!.build);
+  // A Potion of Healing in their pack, by the engine's own event (as loot would come).
+  const { E, pack } = await dnd();
+  const engine = E.createEngine({ contentPacks: [pack], rng: E.seededRNG(1) });
+  const id = E.newItemInstanceId();
+  const got = { id: E.newEventId(), at: new Date().toISOString(), type: "ItemAcquired", instance: { id, definitionId: "healing-potion", quantity: 1, attuned: false, identifiedByCharacterIds: [] }, characterId: g.session.rules!.pc };
+  g.session.rules!.campaign = E.serializeCampaign(E.commit(E.loadCampaign(g.session.rules!.campaign, engine), [got]));
+  const potion = item(g, `item:${id}`);
+  assert.equal(potion.group, "items");
+  assert.equal(potion.name, "Potion of Healing");
+  assert.match(potion.summary, /^heals 2d4\+2 hit points when consumed$/);
+  assert.equal(potion.why, "you're not hurt");
+  for (let i = 0; i < 12 && rulesNow(g.session)!.character.hp.current >= rulesNow(g.session)!.character.hp.max; i++) await hazard(g.session, "fall_or_blow", "serious");
+  const before = rulesNow(g.session)!.character.hp.current;
+  assert.equal(item(g, `item:${id}`).id, `use_${id}`);
+  const text = await g.act(`use_${id}`);
+  assert.match(text, /^Potion of Healing: used/m);
+  assert.ok(rulesNow(g.session)!.character.hp.current > before, "healed");
+  assert.ok(!entries(g).some(e => e.key === `item:${id}`), "used up");
 });
 
 test("hide: a Stealth check against the sharpest eyes about; out of sight until you do something", async () => {
