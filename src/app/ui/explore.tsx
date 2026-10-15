@@ -278,7 +278,8 @@ function AimLine({ aiming, width }: { aiming: Aiming; width: number }) {
   const ok = !!check?.ok;
   const item = aiming.item;
   const you = !!check?.caught?.includes("you");
-  const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? "…" : ""}` : "";
+  // Four by name and how many more (an ellipsis here would meet the line's own when it's cut short: "……").
+  const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? ` and ${check.caught.length - 4} more` : ""}` : "";
   const slot = item.spell && item.spell.slot > item.spell.level && !item.spell.ritual ? ` (${ORDINAL[item.spell.slot]}-level slot)` : "";
   const what = `${item.name}${slot}${ok && check?.target ? ` → ${check.target}` : ""}${check?.feet ? ` · ${check.feet} ft` : ""}`;
   // Asked once already: what it costs first, so a narrow screen still says it.

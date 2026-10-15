@@ -161,7 +161,7 @@ test("an arena fight starts from the map, carries on after a save, and ends back
   for (let i = 0; i < 80 && !again.currentFight?.result(); i++) await again.act("auto");
   assert.ok(again.currentFight?.result(), "the fight ends");
   const said = await again.act("continue");
-  assert.match(said, /The fight in the porters' floor/);
+  assert.match(said, /The fight on the porters' floor: /);
   assert.equal(again.state.mode, "explore");
   assert.equal(again.state.fightOnMap, undefined);
   assert.equal(exploreState(again.state).map, "zoo-arena");
@@ -171,6 +171,27 @@ test("an arena fight starts from the map, carries on after a save, and ends back
   const marked = [...arena.enemies.map(e => e.id), "player"].filter(id => world.entities[id]?.states.some(s => ["down", "surrendered", "dead", "gone", "hurt", "badly hurt"].includes(s)));
   assert.ok(marked.length > 0, "the fight's end is written into the ring");
   assert.equal(again.session.world, undefined);
+});
+
+test("a ring's fight saved by the zoo's own builds (fromMap, as they called it) still ends back on the map", async () => {
+  const { readFileSync, writeFileSync } = await import("node:fs");
+  const { sessionDir } = await import("../../runtime/session.ts");
+  const game = await newZoo({ seed: 15 });
+  const arena = ARENAS["porters"]!;
+  placePlayer(game.state, arena.wing, arena.outside);
+  await game.act("use_bell-porters");
+  game.save();
+  const file = join(sessionDir(game.state.id), "game.json");
+  const { fightOnMap, ...rest } = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+  assert.equal(fightOnMap, true);
+  writeFileSync(file, JSON.stringify({ ...rest, fromMap: true }));
+  const again = loadZoo(game.state.id);
+  assert.equal(again.state.fightOnMap, true);
+  for (let i = 0; i < 80 && !again.currentFight?.result(); i++) await again.act("auto");
+  assert.deepEqual(again.observe().actions.map(a => a.label), ["Back to the map"]);
+  assert.match(await again.act("continue"), /The fight on the porters' floor: /);
+  assert.equal(again.state.mode, "explore");
+  assert.equal(exploreState(again.state).map, "zoo-arena");
 });
 
 test("a zoo scene's fight is fought on its booth's floor, and its aftermath ends back on the map", async () => {

@@ -204,8 +204,9 @@ onArenaOver((game: GameState, session: SessionState, result: CombatResult): stri
   delete ex.scene;
   for (const f of ex.followers) { f.map = ex.map; f.at = { ...ex.at }; }
   exploreState(game);
-  const fell = result.casualties.filter(c => c.state !== "standing").map(c => `${c.name} ${c.state === "down" ? "is down" : c.state}`);
-  return [`The fight in the ${ring.name}: ${result.summary}`, fell.length ? `${fell.join("; ")}.` : "", fled ? "You're out through the gate." : "The ring stays as the fight left it until its bell is rung again."].filter(Boolean).join(" ");
+  // The summary says who went down, gave up or ran: the ring's world has them so.
+  const on = /\bpit$/.test(ring.name) ? "in" : "on";
+  return [`The fight ${on} the ${ring.name}: ${result.summary}`, fled ? "You're out through the gate." : "The ring stays as the fight left it until its bell is rung again."].join(" ");
 });
 
 /**

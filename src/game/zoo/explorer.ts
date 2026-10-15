@@ -6,7 +6,7 @@ import {
 } from "../map/index.ts";
 import type { Action, ExploreDone as Done, Explorer, GameState } from "../play.ts";
 import { isMenuAct } from "../menu.ts";
-import { actionsAt as townActionsAt, exploreState, interactLabel as townInteractLabel, targets, town, townOf, type LeadTarget, type TileActions } from "../town.ts";
+import { actionsAt as townActionsAt, exploreState, interactLabel as townInteractLabel, targets, town, townOf, where, type LeadTarget, type TileActions } from "../town.ts";
 import type { CombatResult, MapActor, Tile2 } from "../types.ts";
 import { point, zooOf, type Cue, type Exhibit, type Outcome, type Show, type Trigger, type Wing } from "./model.ts";
 import { HALL, ROOMS, WINGS, wingOf, type Room } from "./wings/index.ts";
@@ -340,7 +340,7 @@ function actions(game: GameState, session: SessionState): Action[] {
   if (lead) out.push({ id: "go_to_lead", label: `Walk to the next exhibit: ${lead.label}${lead.via ? ` (${lead.via.charAt(0).toLowerCase()}${lead.via.slice(1)} first)` : ""}`, kind: "move" });
   for (const o of offered(game, session)) {
     const reach = o.distance <= (o.trigger.step || o.trigger.stand ? 0 : 1);
-    out.push({ id: `use_${o.trigger.id}`, label: reach ? o.trigger.label : `${o.trigger.label} (${o.distance} steps ${o.direction}: you walk over first)`, kind: "use" });
+    out.push({ id: `use_${o.trigger.id}`, label: reach ? o.trigger.label : `${o.trigger.label} (${where(o.distance, o.direction)}: you walk over first)`, kind: "use" });
   }
   const wing = wingOf(ex.map);
   // The wing itself isn't somewhere to walk to: you're in it.

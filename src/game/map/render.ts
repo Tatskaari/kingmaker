@@ -759,9 +759,12 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
           ink(x, y, ch, mixRGB(bg, j === 0 ? tx.fg : parchment, tx.alpha), bg);
         });
       });
-      // The tail, pointing down at whoever's talking.
+      // The tail, pointing down at whoever's talking: not into another bark, and none comes over it.
       const ty = top + lines.length;
-      if (ty < cy + 1 && cx >= 0 && cx < w && ty >= 0 && ty < h) ink(cx, ty, "▾", mixRGB(cells[ty]![cx]!.bg === NONE ? INK : cells[ty]![cx]!.bg, tx.fg, tx.alpha));
+      if (ty < cy + 1 && cx >= 0 && cx < w && ty >= 0 && ty < h && !taken[ty * w + cx]) {
+        ink(cx, ty, "▾", mixRGB(cells[ty]![cx]!.bg === NONE ? INK : cells[ty]![cx]!.bg, tx.fg, tx.alpha));
+        taken[ty * w + cx] = 1;
+      }
       return;
     }
     const chars = [...body];

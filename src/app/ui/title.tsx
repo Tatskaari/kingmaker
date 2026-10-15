@@ -104,13 +104,14 @@ export function TitleScreen({ game }: { game: Game }) {
     <text fg={C.text} attributes={BOLD} marginTop={1}>The Hanged Clerk of Caerwyn</text>
     <text fg={C.dim} attributes={ITALIC}>{tagline}</text>
     <box flexDirection="column" marginTop={2} width={w} border borderColor={C.border} paddingX={2} paddingY={1}>
-      {/* Each a button: the pointer picks it out, a click does it. */}
+      {/* Each a button: the pointer picks it out as it moves, a click does it. Not as it rests: OpenTUI says
+          "over" to whatever comes up under a pointer left where it was, and Enter would do that, not Continue. */}
       {items.map((item, i) => {
         const on = i === at;
         const going = !!item.save && item.save.id === doomed;
         const label = going ? (item.zoo ? "Start the zoo afresh?" : "Delete this game?") : item.label;
         const detail = going ? (item.zoo ? "this visit goes, for good: x again, and z starts a new one" : `${item.save!.session.player.name}'s, for good: x again deletes it`) : item.detail;
-        return <Clickable key={i} height={1} flexShrink={0} onClick={() => pick(i)} onHover={() => select(i)}>
+        return <Clickable key={i} height={1} flexShrink={0} onClick={() => pick(i)} onMouseMove={() => { if (i !== at) select(i); }}>
           <text>
             <span fg={going ? C.danger : on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>
             <span fg={going ? C.danger : on ? C.title : C.text} {...(on ? { attributes: BOLD } : {})}>{label}</span>

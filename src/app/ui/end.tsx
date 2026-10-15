@@ -20,7 +20,9 @@ export function EndScreen({ game }: { game: Game }) {
   const chapters = end?.chapters ?? [];
   const notes = (sceneId: string) => (game.journal.find(j => j.sceneId === sceneId)?.lines ?? []).flatMap(l => wrap(l, w - 4));
   const tab = wrap(`The GM's bar tab this sitting: $${(end?.spentUsd ?? 0).toFixed(2)}. The King has graciously declined to pay it.`, w);
-  const below = 1 + chapters.reduce((n, c) => n + 1 + notes(c.sceneId).length, 0) + tab.length;
+  // Nothing played yet (the zoo's curtain cord before any booth): say so, under the heading.
+  const none = chapters.length ? [] : wrap(game.isZoo ? "Nothing yet: the Theatre's booths are the chapters." : "Nothing yet.", w);
+  const below = 1 + none.length + chapters.reduce((n, c) => n + 1 + notes(c.sceneId).length, 0) + tab.length;
   const narration = Math.max(5, height - (big ? 8 : 2) - below - 5);
   return <box width={width} height={height} flexDirection="column" alignItems="center" backgroundColor={C.bg} paddingTop={1}>
     {big ? <ascii-font text="THE END" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>T H E   E N D</text>}
@@ -32,6 +34,7 @@ export function EndScreen({ game }: { game: Game }) {
     </box>
     <box width={w} height={below} flexDirection="column" marginTop={1} flexShrink={0}>
       <text fg={C.title} flexShrink={0}>How it went</text>
+      {none.map((l, i) => <text key={`none${i}`} fg={C.dim} flexShrink={0}>{l}</text>)}
       {chapters.flatMap((c, i) => [
         <text key={`c${i}`} flexShrink={0}><span fg={C.dim}>{`${i + 1}. ${c.title}: `}</span><span fg={C.text}>{c.ending}</span></text>,
         ...notes(c.sceneId).map((l, j) => <text key={`n${i}-${j}`} fg={C.faint} flexShrink={0}>{`   ${l}`}</text>),

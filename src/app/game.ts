@@ -1009,8 +1009,10 @@ export class Game {
         this.showSceneSoFar();
         this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${message(error)}). Your last turn didn't happen; try it again.` });
       } else {
-        // The last save is from before the scene (a talk whose greeting never came): back where it was.
-        this.toMap(`The GM lost the thread (${message(error)}), and the talk with it.`);
+        // The last save is from before it: a talk whose greeting never came, or a scene whose opening didn't
+        // (neither is saved until it's begun). Back on the map where that left the player.
+        this.toMap(core.session.talk ? `The GM lost the thread (${message(error)}), and the talk with it.`
+          : `The GM lost the thread (${message(error)}). The scene never got going (its opening didn't come): you're back where you were before it, and going in again tries it afresh.`);
       }
     } finally {
       stop();

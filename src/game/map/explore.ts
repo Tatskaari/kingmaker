@@ -276,7 +276,7 @@ export function travel(state: ExploreState, to: { map: string; at: Tile2 }, labe
     f.map = to.map;
     f.at = besideSpot(state, to.map, to.at);
   }
-  const r: MoveResult = { moved: true, map: state.map, at: { ...state.at }, travelled: { from, to: to.map, label }, message: `${label}: ${map.name}.` };
+  const r: MoveResult = { moved: true, map: state.map, at: { ...state.at }, travelled: { from, to: to.map, label }, message: `${exitLabel({ label, to }) === label ? label : `${label}: ${map.name}`}.` };
   const trigger = triggerAt(state, map, to.at, undefined);
   if (trigger) r.trigger = trigger;
   return r;
@@ -496,6 +496,15 @@ export function tileName(state: ExploreState, at: Tile2, world?: SceneWorld): st
 const isOutdoors = (r: PlaceRegion) => /\b(lane|street|square|alley|wharf|wharves|stairs|river|landing|walk)\b/i.test(r.name);
 
 /**
+ * A way out, and where it goes when its label doesn't say: "Out by the gate (Palace Street)", but
+ * "Into the Burning Gallery", not "Into the Burning Gallery (The Burning Gallery)".
+ */
+export function exitLabel(exit: { label: string; to: { map: string } }): string {
+  const name = getMap(exit.to.map).name;
+  return exit.label.toLowerCase().includes(name.toLowerCase().replace(/^the /, "")) ? exit.label : `${exit.label} (${name})`;
+}
+
+/**
  * Looking at a tile from where you stand (the click menu's Look): what someone or something there
  * looks like, a way out and where it goes, a building or place by its description, or else the
  * house's line for what it's made of (a wall, the river, the cobbles).
@@ -512,7 +521,7 @@ export function lookAt(state: ExploreState, at: Tile2, world?: SceneWorld): stri
   if (who[0]) return `${capital(who[0].name)}${state_(who[0])}, ${who[0].kind === "person" || who[0].kind === "creature" ? "minding their own business, which is more than you're doing" : "doing nothing in particular, and doing it well"}.`;
   const exit = map.exits.find(e => e.at.x === at.x && e.at.y === at.y);
   const region = regionAt(map, at);
-  if (exit) return `${exit.label}: ${getMap(exit.to.map).name}.${region?.description && region.rect.w * region.rect.h <= 4 ? ` ${region.description}` : ""}`;
+  if (exit) return `${exitLabel(exit) === exit.label ? exit.label : `${exit.label}: ${getMap(exit.to.map).name}`}.${region?.description && region.rect.w * region.rect.h <= 4 ? ` ${region.description}` : ""}`;
   const t = tileAt(map, at) as MapTile;
   const built = isStructure(t) || isRoofed(t);
   // A building, or a place you're not in, by its own description; the place you're in, by its ground.

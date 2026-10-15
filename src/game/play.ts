@@ -174,7 +174,9 @@ export class Game {
 
   static load(id: string, explorer: Explorer, fights: FightFactory): Game {
     const session = loadSession(id);
-    const state = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState;
+    const state = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState & { fromMap?: boolean };
+    // The zoo's own builds called a fight from the map fromMap: one saved mid-fight still ends back on the map.
+    if (state.fromMap) { state.fightOnMap = true; delete state.fromMap; }
     const fight = state.mode === "combat" && state.combat !== undefined ? fights.load(state.combat, session) : undefined;
     return new Game(state, session, explorer, fights, fight);
   }
