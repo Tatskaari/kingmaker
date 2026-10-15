@@ -200,7 +200,7 @@ def mouse(app):
 
 
 def scene_place(app):
-    """The scene's place by mouse (SGR 1006): point at Kell in the list under it, right-click her for her menu, Look (a quiet note, not a turn), Esc; a click starts the line with her name; Tab picks her out by key."""
+    """The scene's place by mouse (SGR 1006): point at Kell in the list under it (the bottom line says who), right-click her for her menu, Look (a glance: a quiet note, not a turn), Esc; a click starts the line with her name; Tab picks her out by key."""
     at = app.find("K Sergeant Agnes Kell")
     if not at:
         path = dump(app, "no-kell-in-the-list")
@@ -213,7 +213,7 @@ def scene_place(app):
     app.click(x, y, button=2)
     expect(app, r"1 Talk to them.*2 Look at them.*Esc never mind", "a right-click on her opens her menu")
     keys(app, "2")
-    expect(app, r"◉ +Sergeant Agnes Kell\. Just inside the gate, notebook out\.", "Look: a quiet note of what the world knows of her")
+    expect(app, r"◉ +Sergeant Agnes Kell\. Just inside the gate, notebook out\. Beside", "Look: a quiet note of what a glance shows of her")
     app.click(x, y, button=2)
     expect(app, r"Esc never mind", "her menu again")
     keys(app, "esc")

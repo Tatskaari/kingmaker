@@ -24,6 +24,8 @@ export interface PlacePointing {
   canvas: RefObject<LookCanvasRenderable | null>;
   /** The pointer is on something, or (undefined) off what it was on, there. */
   point: (target: SceneTarget | undefined, from: "place" | "list") => void;
+  /** Filled in as the place is drawn: who or what is at a cell of the screen, in the place or on a line of its list (for a right-click that landed on the menu over them). */
+  hit?: { current: ((x: number, y: number) => SceneTarget | undefined) | undefined };
   /** A click on something, and where on screen. */
   click: (target: SceneTarget, button: "left" | "right", x: number, y: number) => void;
   /** A click on nothing (past the place's edge). */
@@ -68,6 +70,19 @@ export function Place({ game, width, height, legend = true, view = "stage", poin
     const cell = { x: e.x - c.x, y: e.y - c.y };
     return targetOf(p.at(cell.x, cell.y), cell);
   };
+  if (pointing?.hit && view === "stage") pointing.hit.current = (x, y) => {
+    const c = pointing.canvas.current;
+    if (!c) return undefined;
+    const cell = { x: x - c.x, y: y - c.y };
+    if (cell.x < 0 || cell.x >= width) return undefined;
+    if (cell.y >= 0 && cell.y < c.height) {
+      const p = pointing.picks.current;
+      return p && p.scene === world?.scene ? targetOf(p.at(cell.x, cell.y), cell) : undefined;
+    }
+    // The list is the lines right under the place.
+    const row = listed[cell.y - c.height];
+    return row ? { id: row.id } : undefined;
+  };
   const mouse = pointing && view === "stage" ? {
     onMouseMove: (e: MouseEvent) => pointing.point(pickAt(e), "place"),
     onMouseOut: () => pointing.point(undefined, "place"),
@@ -91,12 +106,15 @@ export function Place({ game, width, height, legend = true, view = "stage", poin
     {listed.map(e => {
       const seen = lookOf(e, { glyphs });
       const states = e.states.filter(s => s !== "gone" && s !== "lit");
-      const name = world ? nameOf(world, e, ctx) : e.name;
+      // The name first; how they are in what room's left, or not at all (never a lone ellipsis).
+      const name = truncate(world ? nameOf(world, e, ctx) : e.name, width - 2);
+      const room = width - 2 - name.length;
+      const how = states.length ? ` (${states.join(", ")})` : "";
       const on = !!lit && sameTarget(lit, { id: e.id });
       const row = <text flexShrink={0}>
         <span fg={seen.fg} attributes={BOLD}>{`${seen.glyph} `}</span>
-        <span fg={e.kind === "surface" ? C.dim : C.text}>{truncate(name, width - 4)}</span>
-        {states.length ? <span fg={C.dim}>{truncate(` (${states.join(", ")})`, Math.max(0, width - name.length - 4))}</span> : null}
+        <span fg={e.kind === "surface" ? C.dim : C.text}>{name}</span>
+        {how && (how.length <= room || room >= 8) ? <span fg={C.dim}>{truncate(how, room)}</span> : null}
       </text>;
       // Pointing at a line is pointing at them; a click talks to them (or looks), a right-click says what you can do.
       return pointing ? <box key={e.id} height={1} flexShrink={0} {...(on ? { backgroundColor: C.highlightBg } : {})}

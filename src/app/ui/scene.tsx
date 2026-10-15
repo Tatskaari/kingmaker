@@ -197,13 +197,16 @@ interface Pointer { target: SceneTarget; from: "place" | "list" | "keys" }
 /**
  * A scene: the conversation on the left, with the box to type in; on the right, the place, drawn
  * from above, and who's in it (a narrow panel at 80 columns). Point at someone or something in
- * the place (or in the list under it, or Tab to them) and the line under the conversation says
- * what they are; a click talks to someone or looks at something; a right-click (or Enter on what
- * Tab picked out) opens a menu of what can be done with it, in the map's style, inside the panel.
- * Looking is instant (a quiet note in the conversation); talking starts the line in the box with
- * their name; the rest are deeds, sent as the player's turn as if typed. The box keeps every key
- * that's meant for it: what it doesn't use (Tab), or doesn't need with nothing in it (↑↓, Enter),
- * goes to the place; anything typed with the menu open closes it and goes in the box.
+ * the place (or in the list under it, or Tab to them) and the bottom line says what they are, as
+ * the map's does (the line under the conversation keeps the GM's spinner and the game's word); a
+ * click talks to someone or glances at something; a right-click (or Enter on what Tab picked out)
+ * opens a menu of what can be done with it, in the map's style, inside the panel. A right-click on
+ * the open menu is one on what's under it, never a choice: only a left click, a number or Enter
+ * chooses. A glance is instant (a quiet note in the conversation); talking starts the line in the
+ * box with their name; the rest are deeds, sent as the player's turn as if typed. The box keeps
+ * every key that's meant for it: what it doesn't use (Tab), or doesn't need with nothing in it
+ * (↑↓, and Enter on what Tab picked out), goes to the place; anything typed with the menu open
+ * closes it and goes in the box.
  */
 export function SceneScreen({ game }: { game: Game }) {
   useGame(game);
@@ -216,6 +219,8 @@ export function SceneScreen({ game }: { game: Game }) {
   const [pointer, setPointer] = useState<Pointer | undefined>(undefined);
   const canvas = useRef<LookCanvasRenderable>(null);
   const picks = useRef<StagePicks | undefined>(undefined);
+  /** Who or what is drawn at a cell of the screen, in the place or its list (the place says, as it's drawn). */
+  const hit = useRef<((x: number, y: number) => SceneTarget | undefined) | undefined>(undefined);
   /** The name the box was last started with (talking to someone), so talking to someone else starts it with theirs instead. */
   const started = useRef<string | undefined>(undefined);
   // An overlay coming up (a click on /sheet) puts the menu away.
@@ -304,7 +309,7 @@ export function SceneScreen({ game }: { game: Game }) {
   });
   const pointing: PlacePointing = {
     lit: game.sceneMenu?.target ?? pointer?.target,
-    picks, canvas, point,
+    picks, canvas, point, hit,
     click: (target, button, x, y) => {
       if (game.overlay) return;
       if (button === "right") { openFor(target, { x, y }); return; }
@@ -344,8 +349,8 @@ export function SceneScreen({ game }: { game: Game }) {
       key.preventDefault();
       if (what === "go") { clear(); game.continueScene(); }
       else if (what === "line") { clear(); game.status = "The scene was over, so that went unsaid. Enter goes on."; game.emit(); }
-    } else if (isEnter(key) && !typed() && pointer && world) {
-      // Enter with nothing in the box: what's pointed at's menu.
+    } else if (isEnter(key) && !typed() && pointer?.from === "keys" && world) {
+      // Enter with nothing in the box, on what Tab picked out: its menu. (Not what the mouse merely rests on.)
       key.preventDefault();
       openFor(pointer.target);
     } else if (!typed() && !game.busy && /^[1-9]$/.test(key.sequence ?? "") && choices[Number(key.sequence) - 1]) {
@@ -396,11 +401,14 @@ export function SceneScreen({ game }: { game: Game }) {
     ...(["sheet", "map", "journal", "help"] as const).map((name): KeyHint => [`/${name}`, "", () => { game.peek(`/${name}`); }]),
     ["Esc", "menu"], ...(world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
   ];
-  // What's lit up, and the line about it under the conversation: the menu's, or what the pointer's on.
+  // What the pointer's on, and the bottom line about it in place of the keys (as the map's), while no menu's open.
   const menu = game.overlay ? undefined : game.sceneMenu;
-  const about = world && side ? (menu?.target ?? pointer?.target) : undefined;
+  const about = world && side && !menu && !game.overlay ? pointer?.target : undefined;
   const pointed = about && world ? pointedAt(world, about, ctx) : undefined;
-  const first = about && world && !menu ? thingActions(world, about, ctx).actions[0] : undefined;
+  const first = about && world ? thingActions(world, about, ctx).actions[0] : undefined;
+  // What Tab picked out: Enter opens its menu while the box is empty and the scene's on (once it's over, Enter goes on).
+  const hint = !first ? undefined : pointer?.from === "keys" ? (over || draft ? { long: "Esc lets go", short: "Esc: let go" } : { long: "Enter for what you can do  ·  Esc lets go", short: "Enter: more · Esc: let go" })
+    : first.id === "talk" ? { long: "click to talk  ·  right-click for more", short: "click: talk · right: more" } : { long: "click to look  ·  right-click for more", short: "click: look · right: more" };
   // The menu stays in the panel (and the three columns of the conversation's edge: its border and scrollbar, never its words), above the box.
   const bounds = { x: width - side - 3, y: 0, w: side + 3, h: height - 4 };
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg} onMouseDown={() => game.closeSceneMenu()}>
@@ -429,9 +437,7 @@ export function SceneScreen({ game }: { game: Game }) {
       </box> : null}
     </box>
     <box height={1} paddingX={1} flexShrink={0}>
-      {pointed ? <PointerLine title={pointed.title} detail={pointed.detail} width={width - 2}
-        hint={menu || !first ? undefined : first.id === "talk" ? { long: "click to talk  ·  right-click for more", short: "click: talk · right: more" } : { long: "click to look  ·  right-click for more", short: "click: look · right: more" }} />
-        : busy ? <Spinner label={busy} /> : <text fg={game.status ? C.warn : C.faint}>{game.status ?? " "}</text>}
+      {busy ? <Spinner label={busy} /> : <text fg={game.status ? C.warn : C.faint}>{game.status ?? " "}</text>}
     </box>
     {toPick.length ? <Picks picks={toPick} width={width - 2} /> : null}
     {over ? <Continue game={game} over={over} onGo={() => { clear(); game.continueScene(); }} /> : <box height={3} flexShrink={0} border borderColor={busy ? C.border : C.borderHot} title=" What do you say? " titleAlignment="left" paddingX={1}>
@@ -443,17 +449,21 @@ export function SceneScreen({ game }: { game: Game }) {
           : "Say it out loud; *asterisks* or (brackets) to do things"} />
     </box>}
     <box height={1} paddingX={1} flexShrink={0}>
-      <Keys items={fit(keys, width - 2, width < 100 ? 3 : 5)} gap={width < 100 ? " · " : "  ·  "} />
+      {pointed ? <PointerLine title={pointed.title} detail={pointed.detail} width={width - 2} hint={hint} />
+        : <Keys items={fit(keys, width - 2, width < 100 ? 3 : 5)} gap={width < 100 ? " · " : "  ·  "} />}
     </box>
+    {/* A right-click on the menu is one on what's under it (it may cover what was aimed at): never a choice. */}
     {menu ? <MenuBox title={menu.title} items={menu.actions.map(a => a.label)} index={menu.index} x={menu.x} y={menu.y} bounds={bounds}
-      onChoose={choose} onHover={i => { menu.index = i; game.emit(); }} /> : null}
+      onChoose={choose} onHover={i => { menu.index = i; game.emit(); }}
+      onRight={(x, y) => { const under = hit.current?.(x, y); if (under) openFor(under, { x, y }); else game.closeSceneMenu(); }} /> : null}
   </box>;
 }
 
 /**
- * The line under the conversation while the pointer's on something in the place: what it is, what
- * it's doing or how it is, and what a click does, as much as fits: the name always, then what it's
- * doing, then the hint (its short form on a narrow screen, none when there's no room).
+ * The bottom line while the pointer's on something in the place (the keys' line, as on the map):
+ * what it is, what it's doing or how it is, and what a click does (or, for what Tab picked out,
+ * Enter), as much as fits: the name always, then what it's doing, then the hint (its short form on
+ * a narrow screen, none when there's no room).
  */
 function PointerLine({ title, detail, hint, width }: { title: string; detail: string; hint: { long: string; short: string } | undefined; width: number }) {
   const sep = width < 100 ? " · " : "  ·  ";

@@ -97,7 +97,8 @@ export function fit(items: KeyHint[], width: number, gap = 5): KeyHint[] {
   const out: KeyHint[] = [];
   let used = 0;
   for (const item of items) {
-    const w = item[0].length + 1 + item[1].length + (out.length ? gap : 0);
+    // A key alone ("/sheet") is drawn without a space after it.
+    const w = item[0].length + (item[1] ? 1 + item[1].length : 0) + (out.length ? gap : 0);
     if (used + w > width) break;
     out.push(item);
     used += w;
@@ -122,7 +123,7 @@ export function Keys({ items, gap = "  ·  " }: { items: KeyHint[]; gap?: string
   // One flat run of spans: nested spans don't measure reliably.
   const spans = items.flatMap(([key, what], i) => [
     <span key={`k${i}`} fg={C.title}>{key}</span>,
-    <span key={`w${i}`} fg={C.dim}>{` ${what}${sep(i)}`}</span>,
+    <span key={`w${i}`} fg={C.dim}>{`${what ? ` ${what}` : ""}${sep(i)}`}</span>,
   ]);
   return <text flexShrink={0} height={1}>{spans}</text>;
 }

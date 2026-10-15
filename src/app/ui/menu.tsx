@@ -10,11 +10,15 @@ export interface Bounds { x: number; y: number; w: number; h: number }
  * choices numbered (a click, ↑↓ and Enter, or the number), "Esc never mind" under them. It opens
  * below and to the right of the pointer, leaving what was clicked in sight, flipped where there's
  * no room, and kept within `bounds` (the panel it belongs to), so it never covers what the player
- * is reading. Choices that don't fit scroll with the highlight.
+ * is reading. Choices that don't fit scroll with the highlight. Only a left click chooses: in a
+ * small panel the menu covers what else might be right-clicked, so a right-click on it goes to
+ * `onRight` (where it was), not to the choice that happens to be there.
  */
-export function MenuBox({ title, items, index, x, y, bounds, onChoose, onHover }: {
+export function MenuBox({ title, items, index, x, y, bounds, onChoose, onHover, onRight }: {
   title: string; items: string[]; index: number; x: number; y: number; bounds: Bounds;
   onChoose: (i: number) => void; onHover: (i: number) => void;
+  /** A right-click anywhere on the menu, where on screen (by default it just stays open). */
+  onRight?: (x: number, y: number) => void;
 }) {
   const w = Math.max(12, Math.min(bounds.w, Math.max(capital(title).length + 6, ...items.map(l => l.length + 8), 24)));
   const rows = Math.max(1, Math.min(items.length, bounds.h - 3));
@@ -24,12 +28,12 @@ export function MenuBox({ title, items, index, x, y, bounds, onChoose, onHover }
   const first = clamp(index - Math.floor(rows / 2), 0, items.length - rows);
   return <box position="absolute" left={left} top={top} width={w} height={h} zIndex={50} border borderStyle="rounded" borderColor={C.borderHot}
     backgroundColor={C.panel} title={` ${truncate(capital(title), w - 6)} `} titleAlignment="left" flexDirection="column" paddingX={1}
-    onMouseDown={(e: MouseEvent) => e.stopPropagation()}>
+    onMouseDown={(e: MouseEvent) => { e.stopPropagation(); if (e.button === MouseButton.RIGHT) onRight?.(e.x, e.y); }}>
     {items.slice(first, first + rows).map((label, j) => {
       const i = first + j;
       const on = i === index;
       return <box key={i} height={1} flexShrink={0} {...(on ? { backgroundColor: C.highlightBg } : {})}
-        onMouseDown={(e: MouseEvent) => { e.stopPropagation(); if (e.button === MouseButton.LEFT || e.button === MouseButton.RIGHT) onChoose(i); }}
+        onMouseDown={(e: MouseEvent) => { e.stopPropagation(); if (e.button === MouseButton.LEFT) onChoose(i); else if (e.button === MouseButton.RIGHT) onRight?.(e.x, e.y); }}
         onMouseOver={() => { if (index !== i) onHover(i); }}>
         <text>
           <span fg={on ? C.lead : C.faint}>{`${i < 9 ? i + 1 : " "} `}</span>

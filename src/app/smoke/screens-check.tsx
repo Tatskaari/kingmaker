@@ -5,10 +5,13 @@
  * the map's keys at the bottom as buttons; a click on a blue tile moves there, a click on someone on
  * the other side aims at them and a click on your target attacks, and the fight's options are
  * buttons; in a scene at 80x24 and 130x42, pointing at someone in the place (and in the list under
- * it) says who, a right-click opens their menu without covering the conversation, a glance notes
- * what anyone could see (never the GM's descriptions), a deed goes as the turn, an attack takes two
- * choices, a click starts the line with their name, and Tab and Enter do it by key while the box
- * keeps its keys; the title's New game and Continue, and the End's way back, by a click.
+ * it) says who on the bottom line (the GM's spinner and the game's word stay up), a right-click
+ * opens their menu without covering the conversation, a glance notes what anyone could see (never
+ * the GM's descriptions), a deed goes as the turn, an attack takes two choices, a right-click on
+ * the open menu opens what's under it and chooses nothing, a click starts the line with their
+ * name, and Tab and Enter do it by key while the box keeps its keys (Enter on what the mouse only
+ * rests on opens nothing); the help scrolls by key; the title's New game and Continue, and the
+ * End's way back, by a click.
  *
  *   KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx [--show]
  */
@@ -34,6 +37,7 @@ import { wrap } from "../ui/common.tsx";
 import { CombatScreen } from "../ui/combat.tsx";
 import { EndScreen } from "../ui/end.tsx";
 import { ExploreScreen } from "../ui/explore.tsx";
+import { Overlay } from "../ui/overlay.tsx";
 import { SceneScreen } from "../ui/scene.tsx";
 import { TitleScreen } from "../ui/title.tsx";
 
@@ -200,8 +204,9 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     { kind: "narration", speaker: "gm", text: "The yard behind the King's Granary smells of wet grain and pigeons. Wendell Prout turns slowly on the sack hoist above the shut loft door, and a scrawny boy in enormous boots is lobbing gutter stones at him." },
     { kind: "dialogue", speaker: "kell", name: "Sergeant Agnes Kell", text: "“Sergeant Kell, of the watch. The Captain says suicide.” She does not say what she says. “Investigator.”" },
   ];
-  /** The line under the conversation, and what's in the box. */
-  const under = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) - 1]!.trim(); };
+  /** The bottom line (what's pointed at, in place of the keys, as on the map), the line under the conversation (the GM's spinner, the game's word), and what's in the box. */
+  const under = (frame: string) => frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
+  const status = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) - 1]!.trim(); };
   const boxed = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) + 1]!.replace(/│/g, "").trim(); };
   /** The conversation's words, row by row: its rows, left of its scrollbar's column (and the padding and border right of that). */
   const words = (frame: string, upTo: number) => { const rows = frame.split("\n"); return rows.slice(0, rows.findIndex(r => r.includes("What do you say?")) - 1).map(r => [...r].slice(0, upTo).join("")); };
@@ -214,7 +219,7 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     const sent: string[] = [];
     game.input = async (text: string) => { sent.push(text); };
     await game.loadSpellFacts();
-    const setup = await testRender(<SceneScreen game={game} />, { width: w, height: h });
+    const setup = await testRender(<><SceneScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
     // A lone Esc reaches the screen once the terminal's reader is sure it isn't the start of a longer key.
     const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
     await setup.renderOnce();
@@ -243,6 +248,22 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     await act(async () => { await setup.mockMouse.moveTo(w - side + 6, girl); });
     await setup.renderOnce();
     checks.push([`scene ${w}x${h}: pointing at a line of the list says who it is`, /^The girl in the shawl +· +sitting on top of the yar/.test(under(setup.captureCharFrame()))]);
+    // The GM's spinner and the game's word stay up while the pointer rests on someone.
+    game.busy = "The GM is thinking";
+    game.emit();
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`scene ${w}x${h}: with the GM speaking, the spinner stays up under the conversation while the pointer's on someone`, /The GM is thinking/.test(status(frame)) && /^The girl in the shawl/.test(under(frame))]);
+    game.busy = undefined;
+    game.status = "Saved. The clerk will keep.";
+    game.emit();
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: and so does the game's word`, status(setup.captureCharFrame()) === "Saved. The clerk will keep."]);
+    game.status = undefined;
+    // Enter with the box empty and the mouse merely resting on someone: nothing (it's for what Tab picked out).
+    act(() => setup.mockInput.pressEnter());
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: Enter with the mouse only resting on someone opens nothing`, !game.sceneMenu && !sent.length]);
     if (!cob || !kell) { await setup.dispose(); continue; }
     // A right-click on Cob: his menu, inside the panel, never over the conversation's words.
     const before = words(setup.captureCharFrame(), w - side - 3);
@@ -267,6 +288,15 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     checks.push([`scene ${w}x${h}: a glance at Prout keeps the GM's description back (${prout})`, /^Wendell Prout's body: hanging from the hoist rope\./.test(prout) && !/cord mark|swelling|palms/.test(prout)]);
     const roll = look("granary-roll");
     checks.push([`scene ${w}x${h}: and at the Roll (${roll})`, /^The Royal Granary Roll/.test(roll) && !/Sallow|goblins/.test(roll)]);
+    // A right-click on the open menu chooses nothing: it's a right-click on what's under it.
+    await act(async () => { await setup.mockMouse.click(kell.x, kell.y, 2); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    const item = at(frame, "1 Talk to them");
+    if (item) await act(async () => { await setup.mockMouse.click(item.x, item.y, 2); });
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: a right-click on the open menu chooses nothing: it opens the menu of what's under it (${game.sceneMenu?.title})`, !!item && !sent.length && !!game.sceneMenu && game.sceneMenu.title !== "Sergeant Agnes Kell" && !/^(Kell, |Sergeant Kell, )/.test(boxed(setup.captureCharFrame()))]);
+    await esc();
     // An attack is two choices: with what.
     await act(async () => { await setup.mockMouse.click(cob.x, cob.y, 2); });
     const attack = game.sceneMenu?.actions.findIndex(a => a.id === "attack") ?? -1;
@@ -321,6 +351,26 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     const things = game.sceneMenu?.actions.find(a => a.id === "things");
     checks.push([`scene ${w}x${h}: your things are under your own menu (${things?.choices?.map(c => c.label).join(", ")})`, !!things?.choices?.some(c => /pennies/.test(c.label) && c.choices?.some(d => d.id === "put-down"))]);
     game.closeSceneMenu();
+    // The help, by key: it scrolls on a short screen, and wraps at spaces (never a comma on its own at the start of a line).
+    game.overlay = { kind: "help" };
+    game.emit();
+    await setup.renderOnce();
+    const helpTop = setup.captureCharFrame();
+    // PgDn, as a terminal sends it.
+    for (let i = 0; i < 3; i++) act(() => setup.mockInput.pressKey("\u001b[6~"));
+    act(() => setup.mockInput.pressArrow("down"));
+    await setup.renderOnce();
+    const helpMore = setup.captureCharFrame();
+    const helpRows = (f: string) => f.split("\n").filter(r => r.includes("║")).map(r => r.slice(r.indexOf("║") + 1, r.lastIndexOf("║")));
+    checks.push([`scene ${w}x${h}: the help ${h < 30 ? "scrolls by key" : "fits"}, its lines wrapped at spaces`, (h < 30 ? helpTop !== helpMore && /For testing/.test(helpMore) : /For testing/.test(helpTop)) && !helpRows(helpMore).some(r => /^\s*[,;.)]/.test(r))]);
+    game.closeOverlay();
+    // How someone is, in the list, in what room the name leaves (never a lone ellipsis).
+    yard.world!.entities.kell!.states.push("bloodied");
+    game.emit();
+    await setup.renderOnce();
+    const kellRow = (setup.captureCharFrame().split("\n").find(r => r.includes("K Sergeant Agnes")) ?? "").slice(w - side).replace(/│/g, "").trim();
+    checks.push([`scene ${w}x${h}: a bloodied Kell's line in the list: her name whole, how she is if there's room (${kellRow})`, kellRow.startsWith("K Sergeant Agnes Kell") && !kellRow.endsWith("…") && (w < 100 || kellRow.includes("(bloodied)"))]);
+    yard.world!.entities.kell!.states = yard.world!.entities.kell!.states.filter(s => s !== "bloodied");
     await setup.dispose();
   }
 }

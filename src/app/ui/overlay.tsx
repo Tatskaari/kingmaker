@@ -1,9 +1,9 @@
-import type { MouseEvent } from "@opentui/core";
+import type { MouseEvent, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, Clickable, Keys, SCROLLBAR, useGame, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, Keys, SCROLLBAR, useGame, wrap, type KeyHint } from "./common.tsx";
 import { Place } from "./place.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
 import { SheetView } from "./sheet.tsx";
@@ -21,8 +21,8 @@ const HELP: Record<string, string[]> = {
   scene: [
     "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then?",
     "*Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
-    "The place on the right is the scene's: point at someone or something in it (or in the list under it) and the line under the conversation says what they are. A click talks to someone (their name starts your line) or looks at something; a right-click says what you can do with it: look, talk, take it, give them something, open or use it, go over, attack, cast one of your spells at it. Looking costs nothing; the rest is your turn, sent as if you'd typed it.",
-    "By key: Tab (or ↑↓, with nothing typed) goes through what's in the place, Enter (with nothing typed) opens its menu, Esc lets go. In a menu, ↑↓ and Enter or its number; → and ← in and out of what to give or which spell; anything you type puts it away and goes in the box.",
+    "The place on the right is the scene's: point at someone or something in it (or in the list under it) and the bottom line says what they are. A click talks to someone (their name starts your line) or glances at something; a right-click says what you can do with it: look, look closely, talk, take it, give them something, open or use it, go over, cast one of your spells at it, attack. A glance costs nothing and shows what anyone could see from where you stand; looking closely, and the rest, is your turn, sent as if you'd typed it. What you carry is under your own @ (Your things).",
+    "By key: Tab (or ↑↓, with nothing typed) goes through what's in the place, Enter (with nothing typed) opens the menu of what Tab picked out, Esc lets go. In a menu, a click, ↑↓ and Enter, or its number; → and ← in and out of what to give, which spell or what with; anything you type puts it away and goes in the box. A right-click on a menu is a right-click on what's under it.",
     "The GM narrates and plays everyone else. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
     "When there are things you might say (in a word with Kell: her suggestions, a goodbye, walking on), they're listed over the box: click one, or press its number.",
     "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this (those four any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
@@ -42,11 +42,15 @@ const HELP: Record<string, string[]> = {
 
 const MENU = ["Back to the game", "Save and return to the title", "Save and quit"];
 const CLOSE = ["escape", "return", "space", "c", "s", "q"];
+/** What scrolls the help and the notebook, on a screen too short for them (as the wheel does). */
+const SCROLL = ["up", "down", "pageup", "pagedown", "home", "end"];
 
 export function Overlay({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
   const o = game.overlay;
+  /** The help's or the notebook's scrollbox, for the keys that scroll it. */
+  const scroll = useRef<ScrollBoxRenderable>(null);
   useKeyboard(key => {
     const o = game.overlay;
     if (!o || key.defaultPrevented) return;
@@ -81,7 +85,8 @@ export function Overlay({ game }: { game: Game }) {
       game.emit();
       return;
     }
-    // Help, journal, scene map: any of these keys closes them.
+    // The help and the notebook scroll by key too; any of these keys closes them, and the scene map.
+    if ((o.kind === "help" || o.kind === "journal") && SCROLL.includes(key.name)) { scroll.current?.handleKeyPress(key); return; }
     if (CLOSE.includes(key.name) || key.name === "j" || key.sequence === "?") game.closeOverlay();
   });
   if (!o) return null;
@@ -123,7 +128,7 @@ export function Overlay({ game }: { game: Game }) {
     case "journal": {
       const history = game.session?.history ?? [];
       const stood = (sceneId: string) => history.find(h => h.sceneId === sceneId)?.summary.split("\n").slice(1).join("\n").trim();
-      return box("The investigator's notebook", <scrollbox flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+      return box("The investigator's notebook", <scrollbox ref={scroll} flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
         {game.journal.length ? game.journal.map((j, i) => <box key={i} flexDirection="column" marginBottom={1} flexShrink={0}>
           <text fg={C.title} attributes={BOLD}>{`${j.title}: ${j.ending}`}</text>
           {j.lines.map((l, k) => <text key={k} fg={C.text} wrapMode="word">{`· ${l}`}</text>)}
@@ -133,10 +138,13 @@ export function Overlay({ game }: { game: Game }) {
     }
     case "help": {
       const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
-      // A short screen scrolls it (the wheel), as the notebook does.
-      return box("How to play", <scrollbox flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
-        {HELP[mode]!.map((l, i) => <text key={i} fg={C.text} wrapMode="word" marginBottom={1} flexShrink={0}>{`· ${l}`}</text>)}
-      </scrollbox>, [["Esc", "close", close]]);
+      // A short screen scrolls it (the wheel, ↑↓, PgUp/PgDn), as the notebook does. Wrapped here, at
+      // spaces only, under its bullet (OpenTUI's own wrapping breaks before a comma after a bracket).
+      const wrapped = HELP[mode]!.map(l => wrap(l, w - 8).map((t, i) => `${i ? "  " : "· "}${t}`));
+      const long = wrapped.reduce((n, l) => n + l.length + 1, 0) > h - 3;
+      return box("How to play", <scrollbox ref={scroll} flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+        {wrapped.map((l, i) => <text key={i} fg={C.text} marginBottom={1} flexShrink={0}>{l.join("\n")}</text>)}
+      </scrollbox>, [["Esc", "close", close], ...(long ? [["↑↓ PgUp/PgDn", "scroll"] as KeyHint] : [])]);
     }
     case "menu":
       return box("Menu", <box flexDirection="column" paddingY={1}>{MENU.map((m, i) => <Clickable key={i} height={1} onClick={() => pickMenu(game, i)}><text>
