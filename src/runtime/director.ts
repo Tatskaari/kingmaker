@@ -189,7 +189,7 @@ export async function outOfCharacter(decider: Decider, scene: Scene, state: Sess
 }
 
 /** The cue the decider chose, if its read clears the bar: a clear read, and a clearer one before its count. */
-function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
+export function firedCue(cues: Transition[], read: ChoiceAnswer | undefined, exchanges: number): Transition | undefined {
   const cue = cues.find(t => t.id === read?.choice);
   if (!cue) return undefined;
   const count = cueCount(cue);
@@ -855,10 +855,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const plainTransition = plain && !plainEnding && !considered ? plainOutcome : undefined;
-  // The rules: a spell or a blow gets its details in a second small call; a rest needs none. Not
-  // when it starts a fight for the map.
+  // The rules: a spell or a blow gets its details in a second small call; a rest needs none. One
+  // that starts a fight for the map is still rolled here: the fight starts with the blow that started it.
   let mechanic: Mechanic | undefined;
-  if (options.rules && ruling && move?.exit?.kind !== "combat") {
+  if (options.rules && ruling) {
     // Chosen already: no details to ask for (a route's check waits for a turn of its own).
     if (options.forced) mechanic = options.forced;
     else if (ruling === "short_rest" || ruling === "long_rest") mechanic = { kind: "rest", length: ruling === "short_rest" ? "short" : "long" };
@@ -869,8 +869,6 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       const also = details.decision.answers.also;
       if (held && also?.choice === "yes" && (also.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE) {
         move = await resolve(scene, state, held, "attempt", method);
-        // A check that tips the scene into a fight hands it to the map, blow and all.
-        if (move.exit?.kind === "combat") mechanic = undefined;
       }
     }
   }

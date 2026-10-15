@@ -70,6 +70,7 @@ flowchart TD
   back --> after["play.ts: the scene's aftermath,<br/>or back on the map"]
 ```
 
+- **How it starts.** The player's act that started the fight (a blow, a spell) was rolled in the scene before it (src/runtime/README.md), so whoever it hurt comes into the fight hurt; initiative then decides who goes first.
 - **Who's in it.** `heronEncounter` reads the scene's cast cards, the session (is it the midnight beat, is Kell absent) and the exit script's `startCombat` operation: Sallow with the talking and the silent Crake and the lantern-boy, or Hep and her porters; Kell on the player's side unless she's absent. Any other scene gets `arenaEncounter`: a plain 20 by 9 room, its leader and their people from `startCombat`, mapped to SRD statblocks (`ASSET_STATBLOCK`).
 - **The same people.** Someone the scene's rules already made in the engine (a blow in the scene) is the same engine character in the fight. Someone the fight builds afresh, with a statblock of its own (Sallow's `sword-cane-duellist`, the Crakes' `river-bruiser`), carries their hurt over.
 - **Writing back,** once, the first time `result()` is called: the encounter closed; the player's hit points (never below 0, and stable if down), slots and conditions in `session.rules.campaign`; the people the fight made kept in `rules.npcs`; in the scene's world, how everyone is (hurt, down, gone, arrested), and on a map lined up with it, where everyone ended up, the lanterns fallen or broken, the areas on fire, the dust gone up, and what stood within a tile of the fire alight.

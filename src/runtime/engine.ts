@@ -4,8 +4,8 @@ import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
-import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
+import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, openRoutes, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, firedCue, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
 import { landRuling, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
@@ -541,6 +541,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     // (Told before it's applied: the directive says where the scene has moved from.)
     const lines = moveDirective(scene, state, pre.move);
     if (pre.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.move.roll, pre.move.transition.check?.reason) });
+    // A cue that fired alongside a route into a fight lands first: the fight is built from its facts.
+    const alongside = cueBesideFight(scene, state, pre);
+    if (alongside) applyMove(state, scene, alongside, "pre");
     applyMove(state, scene, pre.move, "pre");
     const taken = moveTaken(state, pre.move, lines, pending);
     directive = taken.lines;
@@ -570,6 +573,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);
+    if (pre.move?.exit?.kind === "combat" && outcome.directive) directive.push(OPENING_BLOW);
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : m.kind === "jump" ? `:${m.how}` : m.kind === "feature" ? `:${m.feature}` : `:${m.length}`}`, source: "pre" });
     // Violence draws a reaction from everyone present: some fight, some flee, some run for help.
     // An authored fight answers it on its own; an authored ending waits if a fight breaks out first.
@@ -889,6 +893,24 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   saveSession(state);
   snapshotSession(state);
   return { entries: state.transcript.slice(before), ...(ended ? { ended } : {}), metric };
+}
+
+/** The player's act that starts a fight is rolled before it, as the blow that starts it: the GM tells it as the rules have it. */
+const OPENING_BLOW = "The player's act above is the one exception to that: it's the blow that starts the fight, and the rules have already resolved it. Narrate it exactly as they say (a miss misses, a hit hurts as much as they say), then close on the fight breaking out. Nothing else lands before the fight: the rest is fought blow by blow on the map.";
+
+/**
+ * A fight breaking out on the turn a cue also fired (the Master comes in at the land door as the
+ * porters close on the stair) is fought with whoever the cue brought on: the cue that fired
+ * alongside the turn's route into the fight (read before either is applied), as a move of its own
+ * to its beat, with its facts. The exit's script picks who fights from those facts.
+ */
+function cueBesideFight(scene: Scene, state: SessionState, pre: PreDecision): Move | undefined {
+  if (pre.move?.exit?.kind !== "combat" || !pre.decision) return undefined;
+  const beat = currentBeat(scene, state);
+  const cues = openRoutes([...beat.transitions, ...(scene.anytime ?? [])], state).filter(t => t.on === "cue" && !t.check && t.id !== pre.move!.transition.id);
+  const cue = firedCue(cues, pre.decision.answers.cue, state.turnsInBeat);
+  const to = cue?.to ?? state.beat;
+  return cue && !scene.exits.some(e => e.id === to) ? { transition: cue, phase: "cue", to, chosen: false } : undefined;
 }
 
 function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
