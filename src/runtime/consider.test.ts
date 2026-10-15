@@ -99,7 +99,7 @@ test("a ruling settled: a roll it wins takes the scene where success leads, with
   assert.equal(settled.move.chosen, true);
   assert.deepEqual(settled.move.transition.check?.establishes?.success, [PAGE]);
   assert.match(settled.dice!, /^Persuasion check to get Cob to open the boot's lining: \d+ \+ 30 = \d+ vs DC 12: success$/);
-  assert.match(settled.directive[0]!, /Decided: Cob drags the left boot off.*This comes out now: Prout found grain written off.*Only what's decided here/);
+  assert.match(settled.directive[0]!, /Decided, and it stands \(people react to it, but nothing in this reply undoes, reverses or spoils it\): Cob drags the left boot off.*This comes out now: Prout found grain written off.*Only what's decided here/);
   assert.match(settled.directive[1]!, /The scene has moved on to "What Prout found"/);
   assert.deepEqual([settled.record.kind, settled.record.went, settled.record.dc], ["roll", "success", 12]);
   assert.equal(state.patches.length, 0, "nothing closed on a success");
@@ -112,7 +112,7 @@ test("a ruling settled: a roll it loses costs what failure costs, and a way of t
   assert.equal(settled.move.to, "yard", "the scene stays where it is");
   assert.equal(settled.move.chosen, false);
   assert.deepEqual(settled.move.transition.check?.establishes?.failure, ["Cob has bolted into the granary through the gap behind the water butt."]);
-  assert.match(settled.directive[0]!, /Decided: Cob jeers and bolts/);
+  assert.match(settled.directive[0]!, /Decided, and it stands [^:]*: Cob jeers and bolts/);
   assert.match(settled.directive.at(-1)!, /this way of trying is shut, for the rest of the scene: The player pushes past Cob's hostility/);
   assert.deepEqual(state.patches.map(p => p.close), [{ beat: "yard", id: "win-cob" }]);
   const after = effectiveScene(authored, state.patches);
@@ -153,7 +153,7 @@ test("a considered turn, played: one decision, the GM's ruling a step at a time,
     const calls = readFileSync(join(sessionDir(state.id), "calls.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l) as { operation: string; request?: { input?: Array<{ content: string }> } });
     assert.deepEqual(calls.filter(c => c.operation.startsWith("director.")).map(c => c.operation), ["director.before", "director.after"], "no decider call of its own");
     const told = calls.find(c => c.operation === "gm.reply")!.request!.input!.at(-1)!.content;
-    assert.match(told, /## For this reply\n[\s\S]*The player's attempt called for a Persuasion check to get Cob to open the boot's lining\. Persuasion check: \d+ \+ 30 = \d+ vs DC 12: success\. Decided: Cob drags the left boot off/);
+    assert.match(told, /## For this reply\n[\s\S]*The player's attempt called for a Persuasion check to get Cob to open the boot's lining\. Persuasion check: \d+ \+ 30 = \d+ vs DC 12: success\. Decided, and it stands [^:]*: Cob drags the left boot off/);
     assert.match(told, /The scene has moved on to "What Prout found"/);
     assert.doesNotMatch(told, /What the player just did is the kind of thing people in this world would really answer/, "the ruling carries the consequences: no bill on top");
   } finally {

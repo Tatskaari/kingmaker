@@ -274,6 +274,9 @@ function changed(scene: Scene, o: RulingOutcome): string {
 /** A ruling decides one thing: the rest of what people know or hide waits for the player to get to it. */
 const ONLY_THIS = "Only what's decided here: whatever else people know or hide stays theirs until the player gets to it.";
 
+/** The outcome stands as decided: people react to it, but nothing in the reply turns it round (no one spots what went unnoticed). */
+const DECIDED = "Decided, and it stands (people react to it, but nothing in this reply undoes, reverses or spoils it)";
+
 /** What comes out in an outcome, for the GM: the thing itself, in so many words; and nothing else does. */
 function revealed(scene: Scene, o: RulingOutcome): string {
   const what = o.reveals.map(id => scene.essentials?.find(e => e.id === id)?.what).filter(Boolean);
@@ -284,7 +287,7 @@ function revealed(scene: Scene, o: RulingOutcome): string {
 export function rulingRoute(scene: Scene, state: SessionState, ruling: Ruling, v: Verdict): Transition {
   const id = `considered-${state.turn}`;
   const when = `The player's attempt: ${ruling.act.replace(/\.$/, "")}.`;
-  const text = (o: RulingOutcome) => `Decided: ${o.happens}${revealed(scene, o)}`;
+  const text = (o: RulingOutcome) => `${DECIDED}: ${o.happens}${revealed(scene, o)}`;
   if (v.kind === "roll") {
     return {
       id, on: "attempt", when,
@@ -329,9 +332,9 @@ export async function settleRuling(scene: Scene, state: SessionState, ruling: Ru
     lines.push(...moveDirective(scene, state, move));
     if (method) lines[0] = `${lines[0]}${method}`;
   } else if (v.kind === "yes") {
-    lines.push(`No dice needed (${v.why}): what the player is attempting works. What happens (decided: play it so, in the people's own way and voice): ${o.happens}${revealed(scene, o)}${method}`, ...moveDirective(scene, state, move));
+    lines.push(`No dice needed (${v.why}): what the player is attempting works, in the people's own way and voice. ${DECIDED}: ${o.happens}${revealed(scene, o)}${method}`, ...moveDirective(scene, state, move));
   } else {
-    lines.push(`No dice: this can't work like this (${v.why}). What happens (decided: play it so): ${o.happens}${revealed(scene, o)} Their reaction shows their own concerns (what they want, what they fear), in their own words; nobody tells the player what would work. Nothing already said is taken back.`, ...moveDirective(scene, state, move));
+    lines.push(`No dice: this can't work like this (${v.why}). ${DECIDED}: ${o.happens}${revealed(scene, o)} Their reaction shows their own concerns (what they want, what they fear), in their own words; nobody tells the player what would work. Nothing already said is taken back.`, ...moveDirective(scene, state, move));
   }
   if (o.closes.length) lines.push(`From here on this way of trying is shut, for the rest of the scene: ${o.closes.map(id => routesNow(scene, state).checks.find(t => t.id === id)?.when.replace(/\.$/, "") ?? id).join("; ")}.`);
   const record: RulingRecord = {
