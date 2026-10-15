@@ -1,18 +1,16 @@
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { setCallLog, sessionSpend } from "../llm/openrouter.ts";
 import { APPROACHES, approachById } from "../runtime/approaches.ts";
 import { chainScene, createSession, openScene, playerTurn, transcriptMarkdown, type TurnHooks } from "../runtime/engine.ts";
-import { applyRepair, runRepair, shouldRepair, writeRepair } from "../runtime/repair.ts";
+import { applyRepair, shouldRepair } from "../runtime/repair.ts";
+import { rememberJob, rememberLock, repairJob, repairLock } from "../runtime/jobs.ts";
 import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { describeOperations, scribe } from "../world/scribe.ts";
 import { listDocs, readDoc } from "../lore/docs.ts";
-import { rememberTurn } from "../lore/remember.ts";
-import { reviewTurn } from "../lore/reviews.ts";
-import { effectiveScene } from "../runtime/brief.ts";
 import { sheetText } from "../rules/dnd.ts";
 import { asciiMap } from "../world/scene-world.ts";
 
@@ -68,17 +66,13 @@ function printer(state: SessionState): TurnHooks {
   };
 }
 
-const lockFile = (id: string) => join(sessionDir(id), "repair.lock");
-
 function spawnRepair(state: SessionState): void {
   const approach = approachById(state.approach);
   if (!["background", "stall", "quick-block"].includes(approach.repair) || state.ended || !shouldRepair(state)) return;
-  writeFileSync(lockFile(state.id), String(state.turn));
+  writeFileSync(repairLock(state.id), String(state.turn));
   const child = spawn(process.execPath, [import.meta.filename, "repair", state.id, "--turn", String(state.turn)], { detached: true, stdio: "ignore", env: process.env });
   child.unref();
 }
-
-const rememberLock = (id: string, turn: number) => join(sessionDir(id), `remember-${turn}.lock`);
 
 /** Docs-service memory: the attention filter and memory review run in the background after each turn. */
 function spawnRemember(state: SessionState): void {
@@ -91,7 +85,7 @@ function spawnRemember(state: SessionState): void {
 async function waitForRepair(id: string): Promise<void> {
   // The co-GM is background work: by default never hold the player's turn for it.
   const limit = Date.now() + Number(process.env.KM_REPAIR_WAIT_MS ?? 0);
-  while (existsSync(lockFile(id)) && Date.now() < limit) await new Promise(r => setTimeout(r, 250));
+  while (existsSync(repairLock(id)) && Date.now() < limit) await new Promise(r => setTimeout(r, 250));
 }
 
 async function afterTurn(state: SessionState, hooks: TurnHooks): Promise<void> {
@@ -183,21 +177,7 @@ async function main(): Promise<void> {
   if (command === "remember") {
     const id = args.shift()!;
     const turn = Number(flag(args, "turn"));
-    try {
-      // Review the turn as it stood (its snapshot): by now the session may have moved on to the next scene.
-      const sceneId = flag(args, "scene");
-      const snapshot = join(sessionDir(id), "snapshots", `${sceneId}-turn-${String(turn).padStart(3, "0")}.json`);
-      const state = sceneId && existsSync(snapshot) ? JSON.parse(readFileSync(snapshot, "utf8")) as SessionState : loadSession(id);
-      setCallLog(join(sessionDir(id), "calls.jsonl"));
-      const scene = effectiveScene(sceneById(state.sceneId), state.patches);
-      if (approachById(state.approach).memory === "lite") await rememberTurn(scene, state, turn);
-      else {
-        const result = await reviewTurn(scene, state, turn);
-        appendFileSync(join(sessionDir(id), "memory-reviews.jsonl"), JSON.stringify({ turn, at: new Date().toISOString(), ...result }) + "\n");
-      }
-    } finally {
-      rmSync(rememberLock(id, turn), { force: true });
-    }
+    await rememberJob(id, turn, flag(args, "scene"));
     return;
   }
 
@@ -214,16 +194,7 @@ async function main(): Promise<void> {
   if (command === "repair") {
     const id = args.shift()!;
     const turn = Number(flag(args, "turn"));
-    setCallLog(join(sessionDir(id), "calls.jsonl"));
-    try {
-      const state = loadSession(id);
-      const scene = sceneById(state.sceneId);
-      const result = await runRepair(scene, state, { effort: approachById(state.approach).repairEffort ?? "medium" });
-      result.turn = Number.isFinite(turn) ? turn : state.turn;
-      writeRepair(state, result);
-    } finally {
-      rmSync(lockFile(id), { force: true });
-    }
+    await repairJob(id, turn);
     return;
   }
 

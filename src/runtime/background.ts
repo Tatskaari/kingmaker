@@ -11,10 +11,14 @@ import { sessionDir, type SessionState } from "./session.ts";
  * Background work between turns, exactly as the scene CLI does it (src/cli/scene.ts): the co-GM
  * reviews the scene and the docs-service memory reviews the turn, each in a detached process that
  * reads the saved session and writes its own files, which the next turn picks up. Never waited on.
- * Shared by the scene CLI, the playable game (src/game/play.ts) and the app.
+ * Shared by the scene CLI, the playable game (src/game/play.ts) and the app. Where there are no
+ * processes to start (the browser), setBackgroundRunner runs the same jobs (jobs.ts) another way.
  */
 
 const CLI = fileURLToPath(new URL("../cli/scene.ts", import.meta.url));
+
+/** Starts a job, given the scene CLI's arguments for it ("remember <id> --turn N --scene S", "repair <id> --turn N"). */
+export type BackgroundRunner = (args: string[]) => void;
 
 function detached(args: string[]): void {
   try {
@@ -23,15 +27,22 @@ function detached(args: string[]): void {
   } catch { /* background work is best effort */ }
 }
 
+let runner: BackgroundRunner = detached;
+
+/** Run background jobs another way than detached processes (the browser runs them in-process). */
+export function setBackgroundRunner(next: BackgroundRunner): void {
+  runner = next;
+}
+
 export function afterTurn(state: SessionState): void {
   // As the scene runs it: a talk with a companion has no co-GM.
   const approach = sceneApproach(state, sceneById(state.sceneId));
   if (approach.memory) {
     writeFileSync(join(sessionDir(state.id), `remember-${state.turn}.lock`), String(state.turn));
-    detached(["remember", state.id, "--turn", String(state.turn), "--scene", state.sceneId]);
+    runner(["remember", state.id, "--turn", String(state.turn), "--scene", state.sceneId]);
   }
   if (!state.ended && ["background", "stall", "quick-block"].includes(approach.repair) && shouldRepair(state)) {
     writeFileSync(join(sessionDir(state.id), "repair.lock"), String(state.turn));
-    detached(["repair", state.id, "--turn", String(state.turn)]);
+    runner(["repair", state.id, "--turn", String(state.turn)]);
   }
 }
