@@ -12,6 +12,7 @@
     "web": "node --no-warnings src/web/server.ts",
     "web:check": "node --no-warnings src/web/check.ts",
     "build:web": "node --no-warnings src/web/static/build.ts",
+    "web:static-check": "node --no-warnings src/web/static/check.ts",
     "web:tui-check": "node --no-warnings src/web/tui/compare/run.ts",
     "play": "node --no-warnings src/cli/scene.ts play hanged-clerk",
     "scene": "node --no-warnings src/cli/scene.ts",
