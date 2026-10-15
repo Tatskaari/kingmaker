@@ -153,6 +153,13 @@ test("the review is given what was tried, each try in the player's own words, to
   assert.match(input, /## Routes you wrote that were rolled in this scene and failed\n- turn 3: The player presses on the holes in Moll's .* The player: "You saw him jump, Moll\? Tell it again\."/);
 });
 
+test("the review knows the beat and the cast: what people are doing at this point, so what the beat gives freely is free (barbarian#39, robust#82)", () => {
+  const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  const input = reviewInput(drownedRat, rat(), "Now: this Master. Name, and where he keeps himself.", undefined);
+  assert.match(input, /## Where the scene is: \[confession\] I only held the rope\nHobb is talking, or starting to\.[^\n]*comes out as the player asks for it/);
+  assert.match(input, /What the people here are doing at this point \(what this says they give freely, or when asked, is free\):\n- Big Hobb Mallory: Tell the loft first, then answer what you're asked, one thing at a time\. When it's out, ask what's to become of you\. The token's only brass: give it up if asked\.\n- Sergeant Agnes Kell: Write it down\./);
+});
+
 test("a ruling is held to the scene: an outcome counts as the route it amounts to, closes only ways of trying, and always changes something", () => {
   const state = yard(0);
   const ruling = toRuling(scene, state, {
