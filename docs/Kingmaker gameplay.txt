@@ -1,0 +1,16 @@
+Kingmaker gameplay
+
+The game world works well if:
+
+- Actions embrace an emergent game-play philosophy. Avoid scripted snowflake mechanics. Instead of having a strict "jump over" action, we have a jump action you can use all the time. In and out of combat. 
+- If I do something illegal like fireball in a crowded tavern, the game reacts. Probably by starting combat. This probably is a hybrid of AI and hard coded things. BG3 does a good job of this. Some characters flee some fight. 
+- World objects can interact with each-other. Setting a mettle object on fire just burns out. Setting a barrel on fire will eventually destroy the barrel. 
+
+I really liked how BG3 handles this. Spells have effects. If I throw a oil potion on the ground, then cast fireball on it, there's now a puddle of flaming oil. We don't have to flesh this system out completely but having some more emergent interactions could help the AI too with applying world updates. It can have things in its DSL to inflame things that call the same real-world services we use in the map view. 
+
+The scene reconciliation works well if (narrated actions take effect in the real world): 
+- When I kill a player brutally in the narrative inside a scene, this is represented in the world e.g. there's blood splits
+- When I throw a bucket of water over a burning object, the object is scorched, wet and sitting in a pool of water. 
+- The characters stay within the bounds of the scene and don't narrate things un-representable in the world. 
+
+This would ideally be easy for the AI to do because we have a set of mechanics: fireball makes flame, water puts it out. Flamable objects burn. This just needs to PoC this idea with a subset of materials, spells and interactions I think. 

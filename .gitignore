@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 dist/
 .moon/cache/
 .env
@@ -15,3 +15,6 @@ lore/.trash/
 # Local IDE settings and nested agent checkouts.
 /.idea/
 /.claude/worktrees/
+
+# V2 PoC run output (sessions, model call logs, eval results).
+/runs/

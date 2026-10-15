@@ -1,0 +1,582 @@
+{
+ "id": "qa2-skeptic-actors",
+ "sceneId": "hanged-clerk",
+ "approach": "actors",
+ "seed": 78327267,
+ "rollCount": 3,
+ "player": {
+  "name": "Orla Venn",
+  "concept": "a dour human ex-soldier turned city watch auxiliary, practical and suspicious",
+  "modifiers": {
+   "persuasion": 1,
+   "deception": 0,
+   "intimidation": 3,
+   "insight": 4,
+   "performance": -1,
+   "perception": 4,
+   "investigation": 3,
+   "sleight_of_hand": 0,
+   "stealth": 2,
+   "athletics": 4,
+   "acrobatics": 1,
+   "animal_handling": 1,
+   "arcana": 0,
+   "history": 2,
+   "nature": 1,
+   "religion": 0,
+   "medicine": 2,
+   "survival": 3
+  }
+ },
+ "turn": 19,
+ "beat": "doubt",
+ "turnsInBeat": 11,
+ "path": [
+  {
+   "turn": 8,
+   "from": "yard",
+   "to": "doubt",
+   "via": "examine-body",
+   "source": "pre",
+   "roll": {
+    "skill": "medicine",
+    "dc": 12,
+    "die": 17,
+    "modifier": 2,
+    "total": 19,
+    "success": true,
+    "critical": null
+   }
+  },
+  {
+   "turn": 12,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "scare-kids",
+   "source": "pre",
+   "roll": {
+    "skill": "intimidation",
+    "dc": 12,
+    "die": 19,
+    "modifier": 3,
+    "total": 22,
+    "success": true,
+    "critical": null
+   }
+  },
+  {
+   "turn": 16,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "win-cob",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 12,
+    "die": 11,
+    "modifier": 1,
+    "total": 12,
+    "success": true,
+    "critical": null
+   }
+  }
+ ],
+ "established": [],
+ "canon": [],
+ "notes": null,
+ "notesTurn": null,
+ "patches": [],
+ "repairs": [],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Mid-morning drizzle beads on the granary stones. Above the shut loft door, a grey-coated clerk turns slowly from the sack hoist; a pigeon watches from the beam. A scrawny boy in enormous black boots hurls gutter stones at the body and supplies a running commentary. On the yard wall, a sharp-faced girl swears at him—and everyone else—in Common and dock cant.\n\nA woman in a rain cape steps away from the gate, notebook in hand. “Sergeant Kell, investigator. Captain’s ruled it suicide. I haven’t.” Her eyes settle on you. “Where would you like to start?”"
+  },
+  {
+   "turn": 1,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I stay by the gate, arms folded, and watch the children. Say nothing."
+  },
+  {
+   "turn": 1,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Cob’s next stone skips off the cobbles and strikes the dangling clerk’s stockinged foot. It turns him a little on the rope.\n\n“Oi,” Kell says, without raising her voice. Her pencil taps once against the notebook. “Leave off.”\n\nThe boy glances at you, then at the girl on the wall. She watches you back, fist closed around something small. Kell waits by the gate, giving you room to choose."
+  },
+  {
+   "turn": 2,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I look from the stockinged foot to the boy's boots. \"Those his?\""
+  },
+  {
+   "turn": 2,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob plants both huge boots wide and curls his fists around his stones.* “They’re Cob’s. Found ’em. You planning to nick a dead man’s boots off a boy, bluebottle?”"
+  },
+  {
+   "turn": 3,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"You said dead man's. Found them where?\""
+  },
+  {
+   "turn": 3,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob’s grin goes sharp. He scuffs one oversized toe over the stones.* “Found ’em where boots get found, didn’t I? Cob’s got eyes. You got any questions that aren’t stupid, soldier?”"
+  },
+  {
+   "turn": 4,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I crouch to his level. \"Lift your foot. I want the sole, not the boot.\""
+  },
+  {
+   "turn": 4,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob jerks his foot back, both fists coming up around the stones.* “Sod off! You ain’t looking at Cob’s boots. First you ask nice—or you can try taking ’em and see how far you get.”"
+  },
+  {
+   "turn": 5,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Flat. \"Please.\""
+  },
+  {
+   "turn": 5,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob hesitates, thrown by that; his fists loosen a fraction.* “Hnh. You can look at the sole. Don’t touch the boot, and Cob keeps it.” *He lifts one foot just enough to show the worn bottom, ready to yank it back.*"
+  },
+  {
+   "turn": 6,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I study the sole without touching it."
+  },
+  {
+   "turn": 6,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob holds the boot up, watching your hands more than your face.* “There. Sole. Nothing clever on it, soldier. Cob keeps the boot, like you said.”"
+  },
+  {
+   "turn": 7,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I lean closer to the tread, looking for flour, chaff, mud, anything that says where these boots last walked."
+  },
+  {
+   "turn": 7,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob’s boot wobbles in the air; he cranes to see what you’re seeing, then yanks it back and stomps it down.* “It’s a boot sole, not a bleedin’ map! Cob found ’em. They’re his. And quit staring like that, bum-faced palace pigeon.” *He flicks a stone at the cobbles near your knee.*"
+  },
+  {
+   "turn": 8,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I leave the boy and walk under the body. Neck, hands, stockings. I look."
+  },
+  {
+   "turn": 8,
+   "scene": "hanged-clerk",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Medicine check: 17 + 2 = 19 vs DC 12: success"
+  },
+  {
+   "turn": 8,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Under the noose’s slanting burn, you find a second mark: thin, level, and tight around the base of Prout’s neck. A swelling hides beneath the hair at the back of his skull. His palms are clean—no rope burn.\n\nKell’s pencil stills over her notebook. She looks where you looked, then writes. “Struck. Strangled. Hung afterward.” Her gaze lifts to you. “Who, and why?”\n\nOn the wall, Moll’s heels stop drumming. Cob lowers his stones. For once, neither child has a ready answer."
+  },
+  {
+   "turn": 9,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Cord from behind, then the hoist. Saw it done to deserters at Harrow Ford. Two men, or one man and that pulley.\" I nod at the sack hoist. \"Who found him?\""
+  },
+  {
+   "turn": 9,
+   "scene": "hanged-clerk",
+   "speaker": "kell",
+   "kind": "dialogue",
+   "text": "*Sergeant Kell writes carefully, then looks up at the body.* “The porters found him at first light. Yard doors padlocked; the loft door barred from inside. The palace reported Prout missing last night.”\n\n*She taps the pencil once against her notebook.* “Two hands, or a pulley. Noted. What evidence puts the cord in anyone’s hands?”"
+  },
+  {
+   "turn": 10,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I jerk my chin at the children. \"Yard was padlocked. So how are those two in it?\""
+  },
+  {
+   "turn": 10,
+   "scene": "hanged-clerk",
+   "speaker": "kell",
+   "kind": "dialogue",
+   "text": "*Kell’s eyes move to the padlocked doors, then to the children. She writes a line in her notebook.*\n\n“Because a padlock keeps a door shut. It doesn’t tell me who was already inside—or who came over the wall.” *She looks to Moll’s closed fist, then Cob’s boots.* “How did you get in, children?”"
+  },
+  {
+   "turn": 11,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I wait. Watch Moll's fist."
+  },
+  {
+   "turn": 11,
+   "scene": "hanged-clerk",
+   "speaker": "moll",
+   "kind": "dialogue",
+   "text": "*Moll curls her fist tighter and kicks her heels against the wall.* “Got in same way you did, then—through the gate. What, you think I swallowed the key, Sergeant?” *Her eyes flick to Cob.* “Come on, Cob. We’re off.”"
+  },
+  {
+   "turn": 12,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I step into the gateway and fill it. \"Open the hand first.\""
+  },
+  {
+   "turn": 12,
+   "scene": "hanged-clerk",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Intimidation check: 19 + 3 = 22 vs DC 12: success"
+  },
+  {
+   "turn": 12,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Moll’s fist opens. A silver crown clatters across the cobbles, wheat-ear stamped bright on one face. She spits a string of furious curses after it.\n\nCob’s stones slip from his hands. He breaks into sobs and, between them, tells you: last night, in the loft, Prout argued with Silvertop and a big man whose hand was bandaged. Then came a thump, a choking noise—and the hoist creaked.\n\nKell writes it down without looking at you."
+  },
+  {
+   "turn": 12,
+   "scene": "hanged-clerk",
+   "speaker": "moll",
+   "kind": "dialogue",
+   "text": "*Moll’s eyes go to the crown on the stones, then to Cob. She drops from the wall and grabs his sleeve.* “Shut it, Cob. You said enough.” *She glares up at you, jaw trembling with fury.* “He didn’t do it. Let him go—take me instead, if you’re so bloody keen on someone to drag off.”"
+  },
+  {
+   "turn": 13,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I pick up the crown and turn it over. \"Nobody's dragging anyone. Who paid you this? To keep quiet, or to tell me that story?\""
+  },
+  {
+   "turn": 13,
+   "scene": "hanged-clerk",
+   "speaker": "moll",
+   "kind": "dialogue",
+   "text": "*Moll’s grip tightens on Cob’s sleeve; her eyes stay fixed on the wheat-ear.* “A gentleman in a good coat. Silver-topped cane, wheat-ear ring. He said tell folk Prout jumped. His big mate had a bandaged hand.”\n\n*She swallows, then lifts her chin at you.* “Now keep Cob out of the Mending House. He didn’t kill anyone.”"
+  },
+  {
+   "turn": 14,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I hold the coin up for Kell. \"Wheat-ear. Whose mark?\""
+  },
+  {
+   "turn": 14,
+   "scene": "hanged-clerk",
+   "speaker": "kell",
+   "kind": "dialogue",
+   "text": "*Sergeant Kell studies the stamp, then writes it down.*\n\n“Royal Purveyor’s office. Purse money, marked so the palace kitchens can’t pinch it.” *Her eyes shift to Moll.* “Not proof of murder. But it’s a nameable trail. Who gave it to you, exactly?”"
+  },
+  {
+   "turn": 15,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Skip the children. Palace has priests. Get one down here to ask Prout himself. Dead men don't lie.\""
+  },
+  {
+   "turn": 15,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Kell’s pencil pauses. She glances once at Prout’s still face. “No priest here can call him back, investigator. The Nine Furrows deal in weather, wards, and grain. The dead stay dead.”\n\nA gust stirs the noose; Prout turns above you, saying nothing. But the body has already told you something—and the wheat-ear coin points toward the Purveyor’s office. Cob shifts beside the water butt. His left boot gives a faint crackle, like paper."
+  },
+  {
+   "turn": 15,
+   "scene": "hanged-clerk",
+   "speaker": "kell",
+   "kind": "dialogue",
+   "text": "*Sergeant Kell’s eyes settle on Cob’s left boot. She writes “paper?” in the margin, then looks to him, not reaching.*\n\n“Cob. Something’s in that boot. I won’t take it from you. What is it?”"
+  },
+  {
+   "turn": 16,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Deal, Cob. The paper for the boots. You keep them. Nobody says Mending House.\""
+  },
+  {
+   "turn": 16,
+   "scene": "hanged-clerk",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check: 11 + 1 = 12 vs DC 12: success"
+  },
+  {
+   "turn": 16,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Cob looks at your face, then down at the boots. “All right,” he mutters. “Silvertop. Comes with the Purveyor’s wagons. Has his own key to the big doors. And a big bloke with a bandaged hand.”\n\nHe lets you inspect the left boot. The lining gives a dry crackle; a seam has been opened and clumsily stitched again. “Mister Prout’s,” Cob admits, chin tucked. “Saw him sewing something in there two nights ago.”\n\nKell’s pencil moves across the page. “Noted.” The boot stays with Cob; the secret in its lining doesn’t have to."
+  },
+  {
+   "turn": 16,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob keeps the boot hugged to his chest, eyes darting to the gate and the water butt.* “That’s all Cob’s giving. You said the boots stay mine—and nobody carts him off to the Mending House.”"
+  },
+  {
+   "turn": 17,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"The paper was the deal.\" I hold out my knife, hilt first. \"You cut the seam. Then the boot's yours.\""
+  },
+  {
+   "turn": 17,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob stares at the knife, then at you. He snatches it by the hilt and backs a step toward the water butt.*\n\n“Cob cuts it. You keep your hands off—and the boots stay mine, even after you see what’s inside.” *He crouches over the boot, shielding the seam with his body.*"
+  },
+  {
+   "turn": 18,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I watch his hands. And the water butt behind him."
+  },
+  {
+   "turn": 18,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Cob works the knife into the boot seam, careful to keep the blade pointed away from his fingers. Moll watches the gate, one hand still gripping his sleeve.\n\nThe stitching parts. A tightly folded scrap slides into Cob’s palm, its edges worn soft. The palace bells mark the half hour before noon. Sergeant Kell’s pencil hovers over her notebook as Cob looks to you, then opens the paper."
+  },
+  {
+   "turn": 19,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Read it out. Or show me.\""
+  },
+  {
+   "turn": 19,
+   "scene": "hanged-clerk",
+   "speaker": "cob",
+   "kind": "dialogue",
+   "text": "*Cob unfolds the scrap with careful, shaking fingers, then holds it out just far enough for you to see.* “Cob can’t read the fancy squiggles. You look. But it goes back in the boot after.”"
+  }
+ ],
+ "metrics": [
+  {
+   "turn": 1,
+   "preDecisionMs": 332.096088,
+   "firstTextMs": 1359.7199229999999,
+   "replyMs": 2745.103439,
+   "postDecisionMs": 355.5221999999999,
+   "costUsd": 0.0006055699999999999,
+   "calls": 4
+  },
+  {
+   "turn": 2,
+   "preDecisionMs": 373.600532,
+   "firstTextMs": 1334.15559,
+   "replyMs": 1986.284509,
+   "postDecisionMs": 146.81527899999992,
+   "costUsd": 0.000724775,
+   "calls": 4
+  },
+  {
+   "turn": 3,
+   "preDecisionMs": 396.503466,
+   "firstTextMs": 1217.572639,
+   "replyMs": 1747.3230709999998,
+   "postDecisionMs": 398.8780059999999,
+   "costUsd": 0.0005046650000000001,
+   "calls": 4
+  },
+  {
+   "turn": 4,
+   "preDecisionMs": 352.505873,
+   "firstTextMs": 1178.022977,
+   "replyMs": 1979.1799760000001,
+   "postDecisionMs": 146.14342399999987,
+   "costUsd": 0.000533865,
+   "calls": 4
+  },
+  {
+   "turn": 5,
+   "preDecisionMs": 217.750744,
+   "firstTextMs": 1065.767605,
+   "replyMs": 1863.9178700000002,
+   "postDecisionMs": 284.95039700000007,
+   "costUsd": 0.000557615,
+   "calls": 4
+  },
+  {
+   "turn": 6,
+   "preDecisionMs": 1237.140325,
+   "firstTextMs": 2242.433502,
+   "replyMs": 1880.352164,
+   "postDecisionMs": 301.534725,
+   "costUsd": 0.00055544,
+   "calls": 4
+  },
+  {
+   "turn": 7,
+   "preDecisionMs": 250.732515,
+   "firstTextMs": 1055.483483,
+   "replyMs": 2183.4175370000003,
+   "postDecisionMs": 291.4493980000002,
+   "costUsd": 0.00058429,
+   "calls": 4
+  },
+  {
+   "turn": 8,
+   "preDecisionMs": 441.34038300000003,
+   "firstTextMs": 1319.412233,
+   "replyMs": 2752.277419,
+   "postDecisionMs": 228.32413099999985,
+   "costUsd": 0.000760345,
+   "calls": 4
+  },
+  {
+   "turn": 9,
+   "preDecisionMs": 258.169405,
+   "firstTextMs": 1452.609044,
+   "replyMs": 2357.69164,
+   "postDecisionMs": 293.31175200000007,
+   "costUsd": 0.0008587,
+   "calls": 4
+  },
+  {
+   "turn": 10,
+   "preDecisionMs": 342.85533799999996,
+   "firstTextMs": 1686.080465,
+   "replyMs": 2628.953965,
+   "postDecisionMs": 293.47494000000006,
+   "costUsd": 0.0006352700000000001,
+   "calls": 4
+  },
+  {
+   "turn": 11,
+   "preDecisionMs": 231.47793,
+   "firstTextMs": 1491.598368,
+   "replyMs": 2311.548499,
+   "postDecisionMs": 286.9860580000004,
+   "costUsd": 0.0008370999999999999,
+   "calls": 4
+  },
+  {
+   "turn": 12,
+   "preDecisionMs": 401.490705,
+   "firstTextMs": 1679.002872,
+   "replyMs": 5124.258306000001,
+   "postDecisionMs": 300.1765320000004,
+   "costUsd": 0.00104737,
+   "calls": 5
+  },
+  {
+   "turn": 13,
+   "preDecisionMs": 514.459855,
+   "firstTextMs": 2444.4213379999997,
+   "replyMs": 3416.65661,
+   "postDecisionMs": 384.6947890000001,
+   "costUsd": 0.000711825,
+   "calls": 4
+  },
+  {
+   "turn": 14,
+   "preDecisionMs": 268.51061400000003,
+   "firstTextMs": 1005.8355510000001,
+   "replyMs": 1843.9824510000003,
+   "postDecisionMs": 301.037918,
+   "costUsd": 0.0007038200000000001,
+   "calls": 4
+  },
+  {
+   "turn": 15,
+   "preDecisionMs": 306.61501899999996,
+   "firstTextMs": 1320.9487319999998,
+   "replyMs": 5499.6020340000005,
+   "postDecisionMs": 658.1018389999999,
+   "costUsd": 0.0011509649999999999,
+   "calls": 5
+  },
+  {
+   "turn": 16,
+   "preDecisionMs": 356.142434,
+   "firstTextMs": 1149.1088510000002,
+   "replyMs": 4216.606873000001,
+   "postDecisionMs": 304.5800199999994,
+   "costUsd": 0.001473195,
+   "calls": 5
+  },
+  {
+   "turn": 17,
+   "preDecisionMs": 274.18338600000004,
+   "firstTextMs": 1405.551407,
+   "replyMs": 2298.269418,
+   "postDecisionMs": 1094.0241110000002,
+   "costUsd": 0.0007868,
+   "calls": 4
+  },
+  {
+   "turn": 18,
+   "preDecisionMs": 353.95588899999996,
+   "firstTextMs": 1230.348442,
+   "replyMs": 2327.828202,
+   "postDecisionMs": 920.3358130000001,
+   "costUsd": 0.00090972,
+   "calls": 4
+  },
+  {
+   "turn": 19,
+   "preDecisionMs": 347.23660199999995,
+   "firstTextMs": 1580.192613,
+   "replyMs": 2453.892767,
+   "postDecisionMs": 288.07049400000005,
+   "costUsd": 0.0007844999999999999,
+   "calls": 4
+  }
+ ],
+ "history": [],
+ "sceneStatus": "on_track"
+}

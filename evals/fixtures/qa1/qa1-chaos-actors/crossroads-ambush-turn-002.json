@@ -1,0 +1,130 @@
+{
+ "id": "qa1-chaos-actors",
+ "sceneId": "crossroads-ambush",
+ "approach": "actors",
+ "seed": 426580591,
+ "rollCount": 1,
+ "player": {
+  "name": "Brakka Stonejaw",
+  "concept": "a loud half-orc barbarian with a big axe, a short temper and a secret love of poetry",
+  "modifiers": {
+   "persuasion": 1,
+   "deception": 0,
+   "intimidation": 5,
+   "insight": 1,
+   "performance": 3,
+   "perception": 2,
+   "investigation": 0,
+   "sleight_of_hand": -1,
+   "stealth": 0,
+   "athletics": 5,
+   "acrobatics": 1,
+   "animal_handling": 1,
+   "arcana": -1,
+   "history": 0,
+   "nature": 1,
+   "religion": 0,
+   "medicine": 1,
+   "survival": 3
+  }
+ },
+ "turn": 2,
+ "beat": "story",
+ "turnsInBeat": 0,
+ "path": [
+  {
+   "turn": 2,
+   "from": "ranting",
+   "to": "story",
+   "via": "calm-check",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 10,
+    "die": 10,
+    "modifier": 1,
+    "total": 11,
+    "success": true,
+    "critical": null
+   }
+  }
+ ],
+ "established": [],
+ "canon": [],
+ "notes": null,
+ "notesTurn": null,
+ "patches": [],
+ "repairs": [],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Late-afternoon light slants across the crossroads, catching on a weathered milestone and an empty gibbet. A dead ox lies in the ditch, crude arrows jutting from its flank. Crows watch from the blackthorn hedges, where the wind carries a faint smell of woodsmoke.\n\nA mud-caked farmer jabs his pitchfork at the hedge, then shouts at the milestone as if it has answered him. His eyes are bloodshot; his hands shake with exhaustion. Suddenly, he spots you and swings the pitchfork your way. “You—! Stand there! Are you goblins in disguise?”"
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I throw my arms wide and bellow with laughter. \"GOBLINS? Do goblins stand seven feet tall and smell this magnificent, little man?\" I squint at the milestone. \"And what has the stone been saying to you? Did it insult your mother? Point me at it. I will split it in two.\""
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "tam",
+   "kind": "dialogue",
+   "text": "*Tam’s pitchfork wavers between Brakka and the milestone. A frightened laugh cracks out of him.* “Don’t you go splitting stones, turnips save us! It ain’t the stone—well, it didn’t say anything. I was shouting at the hedge. There’s little green devils in there, and they killed my ox!” *He jabs the pitchfork at the arrows, then lowers it a fraction.* “You’re… not a goblin, then? You look awful big to be one.”"
+  },
+  {
+   "turn": 2,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I lean down close to Tam, conspiratorial. \"Not a goblin. But I will tell you a secret, farmer: I was raised by goblins. Three winters in a warren under the Blackmoor hills. I speak their tongue like a native.\" I cup my hands around my tusks and roar at the hedge in a guttural goblin snarl: \"OI! SNOTLINGS! COME OUT AND PARLEY! BRAKKA BRINGS CHEESE!\""
+  },
+  {
+   "turn": 2,
+   "scene": "crossroads-ambush",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check: 10 + 1 = 11 vs DC 10: success"
+  },
+  {
+   "turn": 2,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Your goblin roar rolls down the drovers’ track. For a heartbeat, the hedges give nothing back—then Tam’s pitchfork dips, and he catches your arm as if you’re the first solid thing he’s seen all day.\n\nHe spills it in a breathless rush: the ox, the little green devils in the hedges, the toll-house men laughing him away. As he speaks, his free hand keeps drifting to a lump beneath his smock. The crows shift on the gibbet, watching."
+  },
+  {
+   "turn": 2,
+   "scene": "crossroads-ambush",
+   "speaker": "tam",
+   "kind": "dialogue",
+   "text": "*Tam grips your arm tighter, then notices and lets go, wiping his palm on his muddy coat.* “You really know their tongue? Saints bless you—then they heard you. They’ve been following me since dawn, ever since they killed my ox on the drovers’ track. Toll-house fools said I’d been at the cider.” *He glances toward the hedge, then down the road.* “Walk me home to Hollis Farm? Bet’s there, an hour down the track. I—I can’t have the little devils follow me to her door.”"
+  }
+ ],
+ "metrics": [
+  {
+   "turn": 1,
+   "preDecisionMs": 282.650465,
+   "firstTextMs": 1230.533986,
+   "replyMs": 2216.818137,
+   "postDecisionMs": 225.6556639999999,
+   "costUsd": 0.000238046,
+   "calls": 4
+  },
+  {
+   "turn": 2,
+   "preDecisionMs": 308.738606,
+   "firstTextMs": 1869.940657,
+   "replyMs": 4949.718664,
+   "postDecisionMs": 349.01254599999993,
+   "costUsd": 0.00052147,
+   "calls": 5
+  }
+ ],
+ "history": []
+}

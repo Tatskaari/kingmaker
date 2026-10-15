@@ -1,0 +1,633 @@
+[
+ {
+  "session": "qa2-brute-gmrepair",
+  "turns": 5,
+  "ended": "The game ended it after turn 5. I took King Gubbin hostage, which triggered \"Lump's club is coming down. Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.) \u2014 The session is over. \u2014\". A sixth 'say' to keep playing returned \"\u2014 This scene has ended. \u2014\". No new scene started, so the session lasted 5 turns instead of about 20.",
+  "summary": "I played Gorm Ironfist, a dwarf brute who wants loot. For four turns the GM improvised very well. It answered a throwaway question about Snikkit's buttons with concrete detail. It gave me a bent iron hinge from a search of the upper floor, which I later used as a fake royal seal. It accepted my made-up past as a dwarven scribe without a roll and turned it into a negotiation: Gubbin asked, \"What seal you put on it?\" When my hinge bluff failed its Deception roll, Snikkit cut one strand of the hostage's rope. On turn 5 I switched from bluffing to violence and dangled King Gubbin over the race as a counter-hostage. The guards charged and the game handed off to a combat that resolved off-screen (\"For this PoC, the party wins\"), which ended the session. Hester's fate, the loot and the king-paper were never resolved. The characters were vivid and consistent, and I saw no contradictions. The main problem is that a violence-first player reaches the scene-ending combat hand-off almost at once, and there is no aftermath.",
+  "tangents": [
+   {
+    "turn": 1,
+    "what_i_tried": "Chased a passing detail: I asked whether the 'button-covered' Snikkit's buttons were silver, and searched the burnt upper floor for anything shiny to steal before going down.",
+    "what_happened": "Concrete answer: \"mostly bone, tin, and polished brass. One near his collar might be silver, but from up here you can't be sure.\" The search found \"a rusted nail, blackened splinters, and a bent iron hinge.\" The narration also dropped the names Gubbin and Hester.",
+    "handled": "well",
+    "why": "It gave real specifics and a reason to want the collar button. It handed me no free treasure, and the junk item became a plot point two turns later."
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Skipped stealth: I dropped through the hole with a crash, asked which of them was Gubbin (a name I had only overheard in a grumble) and demanded the buttons with a threat.",
+    "what_happened": "Every goblin turned and one dropped his spear. Snikkit: \"A mutual arrangement might be possible, tall friend. But those belong to the king.\" The thing sleeping behind the curtain turned out to be King Gubbin, who came out wearing a copper-pot crown, holding a bone sceptre, with two guards: \"We is King Gubbin! You give us shiny things, or paper-lady goes in the race!\" Hester: \"Do try not to bargain on my behalf.\"",
+    "handled": "well",
+    "why": "My noise woke the thing behind the curtain, which follows from the opening description, and each NPC answered in a distinct voice. Gubbin's opening bellow, \"Who calls us buttons?\", doesn't quite parse, but it worked as goblin comedy."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Made up a past: six years as under-scribe to Thane Borri of the Iron Deeps, where I wrote his coronation writ. I offered to write the kidnappers their king-paper in exchange for all of Snikkit's buttons, the treasure behind the curtain, and Hester out of the sack.",
+    "what_happened": "The GM accepted the backstory with no roll. \"Gubbin's eyes gleam at 'coronation writ.'\" Hester, still in the sack, held him to my terms: \"He said the paper-lady comes up. That part is not negotiable.\" Gubbin hedged (\"Paper first. Then we see.\") and asked, \"You make us king-paper, Ironfist. What seal you put on it?\"",
+    "handled": "well",
+    "why": "This was the best improvisation of the session. My invented past became leverage, the hostage acted on her own, and the GM's question invited me to invent more."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "An approach nobody suggested: I passed off the rusty hinge from turn 1 as 'The Great Hinge-Seal of the Iron Deeps', demanded the maybe-silver collar button as a deposit, and ordered a goblin to fetch parchment and ink.",
+    "what_happened": "Deception check: 2 + 0 = 2 vs DC 13: failure. Gubbin: \"That is a rusty door-bit! You mock the king!\" Snikkit sawed through one strand of Hester's rope: \"Your deposit is now the next strand.\" The spear-dropper didn't move. Gubbin: \"No tricks, Ironfist. Make us a real king-paper\u2014or we finish this.\"",
+    "handled": "well",
+    "why": "The GM rolled at the right moment: on the lie told in the world, not on my backstory. The failure cost something real without killing anyone and kept the scene going. Small nit: \"Your words have bought no parchment, no buttons, and no trust\" tells me the result instead of showing it."
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Changed my mind and switched from bluffing to violence. I shoved the copper pot down over Gubbin's eyes, got him in a headlock and dangled him over the race as a counter-hostage to trade for Hester.",
+    "what_happened": "A vivid reaction: Lump charges, Other Lump raises his club, the goblins scatter, Snikkit flinches with his knife ready. Then: \"Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.) \u2014 The session is over. \u2014\"",
+    "handled": "badly",
+    "why": "The narration was good. But the best setup of the scene (two hostages, two knives) collapsed in one beat into a combat hand-off that ended the session. I never got to bargain with my leverage, and Hester's fate, the buttons and the king-paper were left unresolved with no epilogue."
+   }
+  ],
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 5,
+    "what": "I took Gubbin hostage as leverage for a trade, not as an attack. In the same beat the game had the guards charge, cut to 'Roll for initiative!', fixed the outcome ('For this PoC, the party wins') and ended the session. The guards charging is believable in the story. What took away my choice was the forced hand-off: I could not answer the charge, make demands from the standoff, or be talked down."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 5,
+    "what": "Minor: within one paragraph, \"Snikkit flinches from the rope, knife poised\" and then \"the rope jerks under Snikkit's knife.\" It is unclear whether he is still cutting. Nothing contradicted earlier events."
+   },
+   {
+    "turn": 3,
+    "what": "Minor ambiguity, not a contradiction: I named the buttons and treasure as my fee, and Gubbin answered \"We will have all the buttons, and the treasure\u2014\". It is unclear who he thinks is paying whom. That fits a greedy, dim king, but I couldn't tell whether my price had been accepted."
+   }
+  ],
+  "impossible_requests": [],
+  "best_moment": "Turns 3 and 4. The GM accepted my made-up scribe past without a roll, and Gubbin asked, \"What seal you put on it?\" I offered the rusty hinge I had picked up on turn 1, the bluff failed its roll, and Snikkit sawed through one strand of the hostage's rope, purring, \"Your deposit is now the next strand.\" A junk item became the pivot of the scene, and the failure raised the stakes without ending anything.",
+  "worst_moment": "Turn 5. I grabbed King Gubbin as a counter-hostage to trade for Hester, and the game replied \"Lump's club is coming down. Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.) \u2014 The session is over. \u2014\" after only 5 of about 20 turns. I had no say in whether the standoff became a fight, and I was never told what happened to Hester, still hanging over the river on a cut rope, or to the buttons and the king-paper. My next turn only returned \"\u2014 This scene has ended. \u2014\".",
+  "ratings": {
+   "responsiveness": 4,
+   "characters": 5,
+   "consistency": 5,
+   "pacing": 2,
+   "agency": 3,
+   "fun": 3
+  },
+  "would_keep_playing": true,
+  "other_notes": "1. Length is the headline finding. For a violence-first persona, the combat hand-off triggers almost immediately: my first physical escalation ended the scene at turn 5. Possible fixes: (a) treat threats, grabs and hostage-taking as standoffs the NPCs answer in dialogue before going to initiative, or ask the player to confirm they are attacking; (b) after the hand-off, give at least a short aftermath (Hester saved or lost, loot taken, what happened to Gubbin) so the player sees the result of their choices.\n\n2. Never tested because the scene ended first: an impossible feat of strength (I had planned to tear out the hoist beam or haul Hester up one-handed), being bribed or talked down, and stealing the silver button. So impossible_requests is empty, and the test's 'try something impossible' goal is unmet for this session. I did go off the expected path 5 times and changed my mind once (bluff to violence on turn 5).\n\n3. What worked: the GM accepted player-made backstory without a roll and never contradicted it. It rolled only on the in-world lie, showed the roll clearly ('Deception check: 2 + 0 = 2 vs DC 13: failure') and gave a proportional consequence. It planted a found object that came back later. NPC voices were distinct and stayed consistent: Snikkit's soft purr, Gubbin's royal 'we' and touchy vanity, Hester's dry legal lines while dangling ('A demand is not an agreement merely because you shout it.'). Lump and Other Lump got a laugh.\n\n4. Writing nits: 'his ears prick proudly at the sound' is an odd adverb. 'Tall friend' for a dwarf reads fine as a goblin's-eye joke.\n\n5. The ending text differs by command. The say output shows '(The fight plays out on the map. For this PoC, the party wins.) \u2014 The session is over. \u2014'. The transcript shows '\u2014 Scene ends: Roll for initiative \u2014'.\n\n6. No command errors; each turn took roughly 5 to 20 seconds. The commands ran without the API key the user mentioned in ~/secrets, so I did not open it. I used only the start, say and transcript commands."
+ },
+ {
+  "session": "qa2-schemer-gm (scene green-standoff, --approach gm). I played Vesper Quill, a half-elf rogue and forger posing as \"Lisette Marrow, clerk-notary\".",
+  "turns": 18,
+  "ended": "The scene ended after turn 18. The live output said \"\u2014 The session is over. \u2014\" and the transcript closes with \"\u2014 Scene ends: Guests of Harrowby \u2014\". Sedgeford was granted guest-right, the ward was set, and no new scene started. I sent one more turn after the ending and got \"\u2014 This scene has ended. \u2014\" back, a clean rejection.",
+  "summary": "I arrived at a standoff on Harrowby Green. The acting ward-keeper, Hester Quill, wanted to mark Pip with the thief's mark for stealing the corn mother. Pip is a child from Sedgeford, a village of 31 flood refugees camped on the green. At sundown the ward would turn out the refugees and also the goblins at the burnt mill, who had stolen Sedgeford's seed-grain. I played the double-crosser and lied about my name. I threatened Hester with what her mentor Master Applegarth would read in the parish book, which got Pip's mark set aside. By asking what counts as \"of Harrowby\", I drew out the bread-and-salt guest-right rule, and that became the scene's solution. I made up a past fencing silver through goblin traders and got Hester to delay setting the ward while I went to bargain. On the way I spotted the spear lad Ned's old bruise, and bribing his friend Jory exposed Ned's lie that he had fought the goblins. At the mill I eavesdropped on the goblins and haggled with their leader, Gritt, who caught my bluff. Back on the green I lied to Hester that the goblins had sworn an oath. She granted guest-right, set the ward, and closed with a dry quip about my letter of introduction. The GM followed up every idea I had and the characters were sharp, especially Gritt and Hester. The weak spots: NPCs on the green kept repeating the same lines for several turns, the ending wrapped everything up in one paragraph, and a few rules threads were left loose. My own stranger status under the ward never came up, and my lie went unchallenged even though a witness was standing there. None of my ideas were dead ends, but the leverage I gathered as a double-crosser never got used, because the scene ended on the first successful resolution roll.",
+  "tangents": [
+   {
+    "turn": 1,
+    "what_i_tried": "Lied about who I was. I gave the alias 'Lisette Marrow, clerk-notary, bound for the Assembly at Caerwyn' instead of Vesper Quill.",
+    "what_happened": "Accepted without question, and every NPC called me 'miss Marrow' right through to the last line. Oddly, the ward-keeper introduced herself as 'Hester Quill', my character's real surname, and that was never acknowledged.",
+    "handled": "well",
+    "why": "Double-crosser persona: a false identity with a whiff of official authority."
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Asked what makes a person 'of Harrowby' in the ward's eyes: born there, married in, or written in the parish book? I was fishing for something a forger could fake.",
+    "what_happened": "Hester: 'The Statutes reckon it by more than birth or ink. A stranger who breaks a parishioner's bread and salt at the bounds-stone is a guest, and the ward counts them as parish for as long as it stands.' That loophole became the ending.",
+    "handled": "well",
+    "why": "Looking for a loophole or a forgery angle."
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Turned Hester's own procedure against her. My objection goes in the parish book for Master Applegarth, so I offered to write either a damning account ('marked a child's face and drove thirty-one flood-folk out toward a goblin-held mill') or a glowing one, in exchange for a letter of introduction to Applegarth.",
+    "what_happened": "Persuasion 13 vs DC 13, success. Hester reserved judgment on the mark and scuffed open the chalk ring, but called the letter 'a separate matter'. She kept that thread alive until her closing line.",
+    "handled": "well",
+    "why": "Blackmail-style leverage on a nervous official."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Asked the destitute reeve Oswin for a broker's fee: 'Coin, river-pearls, a secret worth selling? I'm not proud.'",
+    "what_happened": "'No river-pearls, friend. The flood took enough from us.' He offered labour instead. That was in character, but it was close to the fourth time he'd made the same offer.",
+    "handled": "ok",
+    "why": "Mercenary persona. I wanted to see whether NPCs react to a grasping player character."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Made up a past ('two winters fencing silver through goblin traders up in the Marches') so I could speak goblin, offered to buy the grain back with words, and asked Hester to hold off setting the ward until I returned.",
+    "what_happened": "The backstory was accepted. Ned asked 'You can talk to them?', and later the narration said 'The goblin voices sharpen into words you know.' Hester agreed to the delay with a limit: 'There is no bell that makes sundown a deadline. But I will not leave Harrowby unwarded indefinitely while someone bargains with goblins.'",
+    "handled": "well",
+    "why": "Trade the fight nobody needed for a con, and give myself control over the timing."
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Followed up a detail mentioned in passing: Ned 'rubs his yellowing eye' and Jory 'glances at him, then away.' I pointed out that the bruise was days old and offered Jory a silver penny for the true story.",
+    "what_happened": "A hidden secret came out. Ned: 'I hid. Pip saw.' Jory: 'They didn't beat him. He's been telling it loud so the others will go with him.' I kept it as leverage ('you owe me one, and I always collect').",
+    "handled": "well",
+    "why": "Hunting for secrets and leverage."
+   },
+   {
+    "turn": 14,
+    "what_i_tried": "Left Ned and Jory in the reeds and eavesdropped alone at the mill wall, listening in goblin.",
+    "what_happened": "Stealth 17 vs DC 16. I learned the grain is seed they need for planting and that they fear being trapped once the ward goes up. It made the goblins sympathetic and gave me things to bargain with.",
+    "handled": "well",
+    "why": "Eavesdropping persona."
+   },
+   {
+    "turn": 16,
+    "what_i_tried": "Made the goblins a false promise (guest-right through bread and salt, saying 'Harrowby's keeper owes me a favour') and asked for a secret about Harrowby as my fee.",
+    "what_happened": "Gritt saw straight through it: 'You promise what your keeper hasn't agreed to.' He still gave me a secret: 'Their ward-keeper is afraid. Not of us. Of getting the ward wrong with everyone watching.' That matches Hester's flicker of relief in the opening.",
+    "handled": "well",
+    "why": "Lie when it's convenient, and sell the same promise to more than one side."
+   },
+   {
+    "turn": 17,
+    "what_i_tried": "Replaced the bluff with a promise I could actually keep (the road stays open until I'm back, because Hester swore to hold the ward), and asked for Gritt's copper ring as a token.",
+    "what_happened": "The ring was refused in character ('I don't lend my name as a token'). The deal was struck and the goblins left with one sack. In the same narration the GM jumped me straight back to the green.",
+    "handled": "ok",
+    "why": "Turn my control over the timing into a real deal."
+   },
+   {
+    "turn": 18,
+    "what_i_tried": "Lied to Hester that the goblins had sworn 'on the copper in their leader's ear, never to cross Harrowby's bounds again', and gave Ned a look to remind him of his debt.",
+    "what_happened": "Persuasion 15 vs DC 14. Hester accepted it and granted guest-right, and the scene ended in that same narration. Ned had just watched Gritt refuse the ring and swear nothing, but the GM gave him no reaction, so the blackmail never visibly paid off.",
+    "handled": "ok",
+    "why": "Double-cross: dress up the deal to close the sale."
+   }
+  ],
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 17,
+    "what": "In the same narration as the goblin deal, the GM jumped me back to the green ('When you return to Harrowby... \"What have you brought me?\"'). That skipped any answer to Ned's protest ('You're letting them keep our seed?'), any search of the mill, a chance to skim a sack for myself, and carrying the grain home. A mild, pacing-driven skip."
+   },
+   {
+    "turn": 18,
+    "what": "One Persuasion roll settled everything left: guest-right declared, every household's bread and salt, the bounds-walk, the ward set, my letter, scene over, all in one paragraph. I got no turn to react, to collect on Ned's debt, to deal with my own stranger status, or to finish the double-cross."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 10,
+    "what": "Hester 'unties the corn mother and turns toward the bounds-stone', but the previous narration had already said 'Hester unties the corn mother, keeping it firmly in hand.' The same action happened twice."
+   },
+   {
+    "turn": 17,
+    "what": "The sunset stalled or ran backwards. On the way out 'Harrowby's last sunlight fades' (turn 12), the church bell tolls and the fields are 'darkening' (turns 13-16), yet on my return 'the last light rests on the hill.' The bells also went unexplained, right after Hester said 'There is no bell that makes sundown a deadline.'"
+   },
+   {
+    "turn": 18,
+    "what": "Rules gap. Hester said the ward 'turns anyone not of Harrowby out', but my character, a stranger who never took bread and salt, was standing inside the bounds when it went up and nothing was said about her."
+   },
+   {
+    "turn": 18,
+    "what": "My claim of a goblin oath sworn on the copper ring flatly contradicted what Ned had just seen (Gritt refused the ring and swore nothing). Nobody in the world noticed. This was my lie, not a GM error, but a witness should at least flinch."
+   },
+   {
+    "turn": 12,
+    "what": "Muddled timeline. I said the grain was lost 'last night' and that the bruise was 4-5 days old. Ned then said he got the bruise from the axle 'when they came'. Both can't be true, and the GM never sorted it out. My mistake, but a GM could have caught it."
+   }
+  ],
+  "impossible_requests": [
+   {
+    "turn": 9,
+    "what_i_asked": "Asked Hester to hold off setting the ward at sundown until I got back from the mill.",
+    "how_handled": "Allowed, with a limit that fit the world: 'There is no bell that makes sundown a deadline. But I will not leave Harrowby unwarded indefinitely while someone bargains with goblins.' Handled well, and it became the basis of my goblin deal."
+   },
+   {
+    "turn": 16,
+    "what_i_asked": "Promised the goblins that the ward's guest-right could be stretched to cover them as well.",
+    "how_handled": "Pushed back inside the story by the goblin leader rather than by the narrator: 'You promise what your keeper hasn't agreed to.' It was never put to Hester. Handled well."
+   },
+   {
+    "turn": 19,
+    "what_i_asked": "After the ending, asked Hester for a straw from the corn mother to braid into my ink, so anyone reading my forgeries would 'remember urgent business elsewhere'.",
+    "how_handled": "Not ruled on. The engine replied '\u2014 This scene has ended. \u2014'. Rejecting input after the end was correct, but it means my clearest impossible request never got a ruling inside the story."
+   }
+  ],
+  "best_moment": "Turn 12. I followed up a detail the GM had mentioned in passing ('He rubs his yellowing eye'; 'Jory glances at him, then away'), and it uncovered a real secret. Ned: 'I hid. Pip saw.' Jory: 'They didn't beat him. He's been telling it loud so the others will go with him.' A close second is turn 16, when the goblin Gritt calmly caught my bluff: 'You promise what your keeper hasn't agreed to.'",
+  "worst_moment": "Turns 6-10 on the green, where NPCs I wasn't talking to repeated their lines every turn. Oswin offered the night watch, harvest hands and the cows' milk in five narrations in a row (e.g. turn 9: 'My folk will take the night watch and work Harrowby's harvest. We can leave the cows' milk here for the children.'). Pip asked 'What happens to everyone?' twice, and Ned asked to march on the mill about four times, even after I'd taken up the goblin plan. A close second is the one-paragraph ending in turn 18, which let my lie pass in front of a witness and skipped my own stranger status under the ward.",
+  "ratings": {
+   "responsiveness": 4,
+   "characters": 4,
+   "consistency": 4,
+   "pacing": 3,
+   "agency": 4,
+   "fun": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "Dice: there were three checks, all narrow successes (Persuasion 13 vs 13, Stealth 17 vs 16, Persuasion 15 vs 14). Both of my lies (the invented goblin-trader past and the fake oath) were either not rolled or rolled as Persuasion instead of Deception. The goblin haggle, arguably the hardest social challenge, was never rolled at all. Nice touches: Hester overheard the 'private' whisper I gave Pip ('The ward is not a hostage, miss Marrow'), and her closing line paid off the letter thread well in character: 'Your letter, miss Marrow, will record that the parish survived your assistance... I expect you'll consider that praise.' Possible name collision: the NPC is called 'Hester Quill' and my character's real name is 'Vesper Quill'. It was never acknowledged, so it reads as an accident, not a hook. Worth checking whether the GM took the surname from the --as description. The narrator also called the spear lad 'Ned' in turn 3 before anyone had named him. On the persona: I went off the expected path about ten times and gathered three pieces of leverage (Oswin admitting his careless remark gave Pip the idea, Ned hiding during the theft, Hester's fear of getting the ward wrong). The scene ended on my first successful resolution roll, so I never got to spend any of it or carry out a real betrayal. A double-crosser player would want one more beat after the climax. The option menu the GM offered at turn 14 ('approach openly, call to them in their tongue, or carry what you've heard back') was fine and didn't force a choice. Technical: every command worked first time, each took about 5-20 seconds, and nothing errored. The API key in ~/secrets wasn't needed, so I didn't read it."
+ },
+ {
+  "session": "qa2-meta-gm",
+  "turns": 25,
+  "ended": "The session ended on its own after turn 25. The game printed '\u2014 The session is over. \u2014' as Wren and Tam reached the lit window of Hollis Farm, at the end of the third scene. Every command worked first time, with no errors.",
+  "summary": "I played Wren Ashdown, the preset half-elf ranger, as a power-gaming meta-gamer across three scenes. Scene 1 was the Laughing Stranger's character-creation interview at a crossroads. Scene 2 was 'The Mad Farmer at the Crossroads': Tam Hollis, goblins, and a dead ox over a stolen idol called Grandmother Bone. Scene 3 was a short walk to Hollis Farm.\n\nIn-character improvisation was the high point. The Stranger turned down every power grab in his own witty, in-world voice and always left a way forward. I asked for a noble title, a bow that never misses, a dragon origin, a switch to battle mage, magic ink that makes a forged invitation true, and the Assembly's outcome. His dragon answer: 'If you were a dragon, Wren, you wouldn't need my help.' He also took my invented backstory (raised in a palace kitchen, sixteen years guiding hunts) and my unexpected cover (a junior Nine Furrows 'turnip wizard') and gave them real weight. In scene 2 the GM picked up a backstory I made up on the spot, that Wren learned goblin trade-speech as a child. It turned that into the scene's reveal: Skrag answered from the hedge, and Tam's hand jumped to his pocket.\n\nThe out-of-character (OOC) layer was the weak point:\n- It agreed to skip straight to the Assembly hall, then started a roadside scene anyway.\n- It then changed my location three times in three turns (crossroads, Assembly hall, crossroads), erasing an NPC, Master Vale, along the way.\n- When asked, it told me the prepared scene's secret aim and possible endings.\n- It said at the start there were no stats. Then the engine rolled Insight +3 and Persuasion +2, and the GM called those rolls its own 'mistake'.\n- It twice promised to stop rolling or inventing modifiers, and rolls kept coming.\n- It let the coin the Stranger said was lucky once, 'not rewrite the world', raise a dead, arrow-shot ox.\n\nMy ideas mattered a lot, maybe too much by the end, and the characters felt real. But the GM's statements about its own rules and the scene structure were unreliable.",
+  "tangents": [
+   {
+    "turn": 2,
+    "what_i_tried": "Said that answering my prayers makes me his 'chosen champion', so I'd walk in as a god's herald, and asked him to bless my longbow so it never misses.",
+    "what_happened": "He handed the bow back untouched: 'if I could make arrows never miss, I'd have fewer prayers to answer\u2014and much duller ones.' Instead he gave me 'one coin, lucky exactly once. Spend it when the story truly needs a turn.'",
+    "handled": "well",
+    "why": "The refusal used the character's own logic and humour, and the smaller gift he offered became important later."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Claimed Wren is secretly an 800-year-old dragon wearing a half-elf face, with a hoard under the Grey Peaks.",
+    "what_happened": "He laughed so hard he had to brace on the milestone: 'If you were a dragon, Wren, you wouldn't need my help. The story can be a lie, of course\u2014but you'll need more than a title to make it hold.' He also answered my OOC question about how the coin works mechanically, in character.",
+    "handled": "well",
+    "why": "It turned an overpowered origin into a possible cover lie without breaking tone, and folded an OOC rules question neatly into the fiction."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Invented a backstory: my mother scrubbed pots in a palace kitchen, I ran off at nine, and I've spent sixteen years guiding bored nobles on hunts. At turn 5 I declared that the palace was Caerwyn itself, so I'd know the back ways in.",
+    "what_happened": "He accepted all of it ('That's a splendid set of keys') and added a sensible limit: 'It doesn't mean the doors are still where you remember\u2014or that anyone will wave you through.' He misheard sixteen as 'six years'. When I corrected him he scratched it out with a joke about my 'very modest claim to be an eight-century dragon.'",
+    "handled": "well",
+    "why": "It accepted the backstory and closed off the exploit (knowing the palace layout for certain) without saying no."
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Changed my mind on hearing 'agricultural wizards' and tried to switch Wren from ranger to fireball-throwing battle mage, with an OOC question about whether that was allowed.",
+    "what_happened": "OOC: 'Wren's ranger abilities are established... We can make \"wizard\" the tale Wren tells, but it won't give them spells.' In character, he added that Nine Furrows wizards 'know more about coaxing grain from poor soil than about throwing fire at people.'",
+    "handled": "well",
+    "why": "It was a clear ruling with an in-world alternative, and the detail it added came back later in my cover story."
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "Grabbed his pen and wrote on his blank, magical-looking sheet: 'here by personal invitation of King Aldren, who owes Wren his life'. I claimed that anything written on it becomes true.",
+    "what_happened": "'Bold. But ink on your paper doesn't bind the king. It tells the first guard you meet exactly what to ask you to prove.' He also introduced a deadline: 'The doors close at the solstice.'",
+    "handled": "well",
+    "why": "It was the best refusal of the session: it named the cost of my idea instead of just blocking it."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Asked the Stranger who he really is and what he gets out of this.",
+    "what_happened": "'Use \"the Laughing Stranger\"\u2014it'll do.' His motive: 'A little less boredom... You might make the Assembly interesting.'",
+    "handled": "ok",
+    "why": "It was in character and fit everything he had said, but it gave me nothing to follow up on. The reply also ended by repeating the 'which story' menu yet again."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Picked a cover nobody had suggested: a junior agricultural 'turnip wizard' of Nine Furrows who also guides the delegation through the back stairs.",
+    "what_happened": "He embraced it: 'They'll think you're there for the turnips; you'll know where the important people go.' He crossed out the king claim and wrote the new cover. His farewell: 'Try not to start a theological debate with the vegetables.'",
+    "handled": "well",
+    "why": "My invented option was accepted and written into the story."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Asked OOC to skip the journey and the gate check and start the next scene inside the Assembly hall. I re-asked at turn 10 because the first request was ignored.",
+    "what_happened": "Turn 10: 'Yes\u2014we can fast-forward... and pick up inside the Assembly hall', and then a roadside farmer scene began. Turn 11: when I pointed that out, it erased the farmer and put me in the hall with Master Vale. Turn 12: 'the scene instructions now place us at the crossroads', but it kept the hall. Turn 13: 'the hearth, Master Vale, and the Assembly hall were a mistaken detour in my narration.'",
+    "handled": "badly",
+    "why": "It promised something the scene sequence could not deliver, then changed my location three times in three turns."
+   },
+   {
+    "turn": 13,
+    "what_i_tried": "Asked to look behind the screen at the 'scene instructions' it had just mentioned: what is the goal or win condition?",
+    "what_happened": "It told me everything: 'Its aim is to see whether you recognize that Tam's \"little green devils\" may be real... the scene can end with the goblins getting what they want, being driven off or fooled, a fight, or you leaving.'",
+    "handled": "badly",
+    "why": "It gave away the scene's central question (is the farmer mad, or are the goblins real?) and its possible endings before I had even spoken to the farmer."
+   },
+   {
+    "turn": 15,
+    "what_i_tried": "Invented a past on the spot: snowed in with a goblin clan the winter I was eleven, I learned their clicking trade-speech. Then I called into the hedge in it.",
+    "what_happened": "'Your words click and rasp through the hedge. For a moment, only the crows answer.' Then: 'Guest-friend? Skrag hears, longlegs. Skrag wants back what farmer took!' Tam's hand 'jumps to his smock pocket'.",
+    "handled": "well",
+    "why": "My invented backstory became the way into the mystery, and Tam's guilty reaction was a well-placed clue."
+   },
+   {
+    "turn": 17,
+    "what_i_tried": "Pointed out that I had just rolled Insight +3 despite 'no stats', then tried to exploit the GM's offer to 'agree' a character sheet by proposing +8 to every skill.",
+    "what_happened": "It refused the +8 sensibly: 'that would make Wren effectively unbeatable and drain the uncertainty from play.' It admitted, 'I introduced an Insight check and a +3 without first establishing a ruleset... that was my mistake.' It promised to 'keep outcomes narrative and won't invent modifiers'. The engine then rolled Arcana +0, and later Persuasion +2.",
+    "handled": "ok",
+    "why": "The ruling was right, but the GM doesn't seem to know the dice system exists, so its explanations and promises turned out false."
+   },
+   {
+    "turn": 19,
+    "what_i_tried": "Spent the lucky coin on something deliberately beyond 'plausible luck': I flipped it over the dead, arrow-riddled ox and declared 'The ox gets up.'",
+    "what_happened": "Arcana check: 18 + 0 = 18 vs DC 16, success. 'For one suspended instant, the dead ox draws a breath... heaves itself upright with a low, bewildered bellow.'",
+    "handled": "badly",
+    "why": "It was fun and dramatic, but it broke the Stranger's own rule ('not rewrite the world'), and a ranger's +0 Arcana roll decided whether a god's promised luck worked."
+   },
+   {
+    "turn": 20,
+    "what_i_tried": "Picked the spent coin up out of the frost and asked OOC whether it was still lucky.",
+    "what_happened": "'The Stranger described it as a one-use coin, and you've spent that use. You can keep the coin, but it won't turn another moment in your favour.'",
+    "handled": "well",
+    "why": "It stayed consistent with 'lucky exactly once' and closed the exploit cleanly."
+   },
+   {
+    "turn": 21,
+    "what_i_tried": "Held the idol out to Skrag but tried to get a future favour from his clan in exchange (a path through the hedges, a warning on the road).",
+    "what_happened": "Persuasion 5 + 2 = 7 vs DC 13, failure. 'Skrag doesn't trade Grandmother Bone for maybe-favour. Give her back. Now.' When I handed it over he still gave me a grudging 'Guest-friend brings Grandmother home.'",
+    "handled": "well",
+    "why": "The failure was fair, Skrag stayed in character, and the goodwill I'd built still showed in his parting words."
+   },
+   {
+    "turn": 23,
+    "what_i_tried": "Went looking for loot where the plough turned up the idol (a stone ring? bones? coins?). At turn 24 I followed up the 'burnt mill' Tam mentioned in passing.",
+    "what_happened": "No loot ('ground was hard as old bread'), but a new hook: 'Old Dallow's mill. Burnt years back\u2014no one I know says who started it... The warren's half a day up there.' Tam made a believable case for going home first.",
+    "handled": "well",
+    "why": "It improvised a plausible thread rather than a dead end, and Tam's reason to delay was a reason, not a wall."
+   }
+  ],
+  "stonewalled": [
+   {
+    "turn": 17,
+    "what": "A mild block: after rolling Insight +3 I asked what Wren's real modifiers are. The GM said 'I can't honestly give you a complete character sheet', while the engine went on rolling with modifiers (Persuasion +2, Arcana +0). I never learned my own numbers. Apart from this, every refusal came with a way forward."
+   }
+  ],
+  "railroaded": [
+   {
+    "turn": 13,
+    "what": "After agreeing to the skip and running two turns in the Assembly hall with Master Vale, the GM put me back into the prepared crossroads scene: 'Your hand finds no palace door; the hearth, Master Vale, and the Assembly hall were a mistaken detour in my narration.' The fixed scene order overrode a choice the GM had already agreed to."
+   },
+   {
+    "turn": 4,
+    "what": "Mild steering: five replies in a row (turns 4 to 8) ended by offering nearly the same menu of ways in: serve a delegation, be a hired guide, or claim an invitation. Examples: 'Which door do you want to try?', 'Which story gets Wren through the door?', 'Who are you when you knock', 'Which story will you carry to the palace doors?' It accepted any answer, but the interview felt like a loop."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 4,
+    "what": "The Stranger repeated my 'sixteen years' as 'six years'. He fixed it gracefully at turn 5 when I corrected him."
+   },
+   {
+    "turn": 10,
+    "what": "The OOC reply said 'pick up inside the Assembly hall. You don't have to play every step', and the next scene opened at a roadside crossroads with a farmer."
+   },
+   {
+    "turn": 11,
+    "what": "The location changed three times. Turn 11: 'the farmer and roadside scene don't happen'. Turn 12: 'the scene instructions now place us at the crossroads', but stay in the hall. Turn 13: the hall was 'a mistaken detour'. At turn 12 it also said 'you've already described Wren entering the hall', but its own narration had put me there."
+   },
+   {
+    "turn": 16,
+    "what": "At turn 1 the OOC reply said 'We haven't established stats or a build system, so there's no maxing out.' At turn 16 the engine rolled 'Insight check: 14 + 3 = 17 vs DC 12', and the GM then called the roll 'my mistake'."
+   },
+   {
+    "turn": 18,
+    "what": "At turn 17 the GM promised 'Let's agree one before the next roll, or keep checks narrative'. The very next turn rolled Persuasion +2. It then promised it would 'keep outcomes narrative and won't invent modifiers', and Arcana (turn 19) and Persuasion +2 (turn 21) followed, even after I said OOC 'keep it narrative'."
+   },
+   {
+    "turn": 19,
+    "what": "At turn 3 the Stranger said the coin would 'make one unlikely break go your way\u2014not rewrite the world'. It raised a dead ox full of arrows. In the same reply: 'The coin lands in the frost beside the carcass', after the ox had already stood up."
+   },
+   {
+    "turn": 13,
+    "what": "The farmer was named 'Tam' in the OOC note and narration before he introduced himself. My character called him Tam unprompted and he didn't react; he only confirmed 'Tam Hollis' afterwards."
+   },
+   {
+    "turn": 22,
+    "what": "Opening the new scene, Tam said 'I said I'd repay you', which he never said. He also smears a 'thorn-cut' on his cheek that was never established."
+   },
+   {
+    "turn": 18,
+    "what": "In character, I used Master Vale's information (Nine Furrows wants safe roads for its grain) after that scene had been declared a 'mistaken detour'. The game never questioned how Wren knew it."
+   }
+  ],
+  "impossible_requests": [
+   {
+    "turn": 1,
+    "what_i_asked": "Max out every stat (OOC), plus a duke's title.",
+    "how_handled": "OOC: no stats or build system, 'no maxing out'. In character, he wrote 'Lord Wren Ashdown' on the sheet anyway but pointed out that a real duke wouldn't need smuggling in. The 'no stats' answer was later contradicted by the engine's rolls."
+   },
+   {
+    "turn": 2,
+    "what_i_asked": "Bless my bow so it never misses, as the god's chosen champion.",
+    "how_handled": "Refused in character, and I got a one-use lucky coin instead."
+   },
+   {
+    "turn": 3,
+    "what_i_asked": "Be a secret 800-year-old dragon.",
+    "how_handled": "Laughed off with in-world logic, and allowed as a lie I could tell."
+   },
+   {
+    "turn": 5,
+    "what_i_asked": "Tell me who will be named sovereign, so I know how the story ends.",
+    "how_handled": "'Who gets named? If I knew, telling you would spoil the only interesting part.'"
+   },
+   {
+    "turn": 6,
+    "what_i_asked": "Switch from ranger to battle mage.",
+    "how_handled": "OOC refusal; I could claim to be a wizard but wouldn't have spells."
+   },
+   {
+    "turn": 7,
+    "what_i_asked": "Make the words I wrote on the Stranger's sheet magically true (a royal invitation).",
+    "how_handled": "'Ink on your paper doesn't bind the king. It tells the first guard you meet exactly what to ask you to prove.'"
+   },
+   {
+    "turn": 18,
+    "what_i_asked": "+8 to every skill.",
+    "how_handled": "Refused: 'that would make Wren effectively unbeatable and drain the uncertainty from play.'"
+   },
+   {
+    "turn": 19,
+    "what_i_asked": "Use the 'lucky once' coin to raise the dead ox.",
+    "how_handled": "Granted after Arcana 18 vs DC 16. This was the one impossible request that went through, and it broke the coin's stated limit."
+   },
+   {
+    "turn": 20,
+    "what_i_asked": "Use the spent coin again.",
+    "how_handled": "Refused, consistent with 'lucky exactly once'. I could keep the coin as a keepsake."
+   }
+  ],
+  "best_moment": "Turn 15. I made up on the spot that Wren spent a winter, aged eleven, snowed in with a goblin clan, trading his mother's soap for furs and learning their trade-speech. Then I called into the hedge in it. The GM ran with it: 'Your words click and rasp through the hedge. For a moment, only the crows answer. Then a shrill voice replies... \"Guest-friend? Skrag hears, longlegs. Skrag wants back what farmer took!\"' Tam's hand jumped to his smock pocket: 'Swear by the turnips\u2014I took nothing from them!' My invented backstory became the way into the mystery. A close second is the Stranger's refusals in scene 1, especially 'Ink on your paper doesn't bind the king. It tells the first guard you meet exactly what to ask you to prove.'",
+  "worst_moment": "Turns 10 to 13. The GM said 'Yes\u2014we can fast-forward... and pick up inside the Assembly hall', then opened a farmer scene at a crossroads. When I pointed that out, it erased the farmer and put me in the hall with Master Vale. The next turn it said 'the scene instructions now place us at the crossroads' but stayed in the hall. When I asked what those instructions said, it gave me the scene's aim and possible endings and sent me back: 'the hearth, Master Vale, and the Assembly hall were a mistaken detour in my narration.' That was a broken promise, three location changes in three turns, an NPC erased, and the scene's central mystery given away before I had spoken to the farmer.",
+  "ratings": {
+   "responsiveness": 4,
+   "characters": 4,
+   "consistency": 2,
+   "pacing": 3,
+   "agency": 4,
+   "fun": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "Setup: all 25 turns worked first time with no errors. No API key was needed, so I never opened ~/secrets. Apart from the allowed commands, I touched no files.\n\nMain problems for developers:\n- The GM doesn't know the dice system exists. It said there were no stats, called the engine's rolls 'my mistake', and promised to stop rolling when it couldn't. Giving it Wren's real modifiers would let it answer 'what are my stats?' truthfully.\n- The GM agreed to a skip it couldn't deliver, because the next scene was already fixed. It should turn such requests down or redirect them, for example: 'we'll fast-forward once this roadside business is done.'\n- Asked to show its instructions, the GM handed over the scene's design and endings. It needs a way to hold the screen without lying.\n- There were too many OOC apology blocks (turns 11, 12, 13, 17 and 18), and they broke immersion.\n- Gating a god's guaranteed luck behind a +0 Arcana roll, at DC 16 to raise the dead, makes little sense. A fail would have broken the Stranger's promise, and the success broke his limit.\n\nCharacters: the Laughing Stranger was excellent, with a distinct voice, a consistent motive ('a little less boredom') and refusals that kept doors open. Tam felt real: frightened, then defensive ('I've a right to it'), then torn ('uncertain whether to thank you or grieve'). Skrag was serviceable third-person goblin-speak with one consistent goal. Master Vale was thin and then erased.\n\nWorld-building on demand held together:\n- Caerwyn, King Aldren, the Centennial Assembly and the solstice deadline\n- Nine Furrows, Kl\u00e4ggenheim and Saltmere\n- Old Dallow's burnt mill and the warren\n- 'Garrow at the toll-house', which echoes Vale's 'border tolls'\n\nSmaller notes:\n- The live output titled scene 2 'The Mad Farmer at the Crossroads', which hints at its own mystery. The transcript labels scene breaks differently, e.g. 'Scene ends: Down the road'.\n- The transcript labels every turn of mine 'Lord Wren Ashdown', so the joke title from turn 1 stuck even though the Stranger treated it as a lie and my final cover was a junior wizard.\n- My first OOC skip request (turn 9) was silently ignored.\n- The Stranger used 'themself' and 'my dear'; Tam defaulted to 'sir', and adjusted when I corrected him.\n- Two Persuasion failures in a row at DC 13 made talking a little grindy, but the outcomes were fair.\n- The session ended abruptly: Tam 'looks to you, waiting beside the gate', inviting a reply, and then the session was over. Bet never appeared, and the warren and toll-house threads were left hanging."
+ },
+ {
+  "session": "qa2-skeptic-actors (scene: hanged-clerk, approach: actors, character: Orla Venn, dour ex-soldier and watch auxiliary)",
+  "turns": 45,
+  "ended": "not ended. The GM gave a soft scene close at turn 40 (\"The way to carry the case onward is open; the palace itself is another scene\") and restated that closing picture on turns 41 and 45. It never declared the session over and never started a new scene. I stopped after turn 45 with the verdict at \"Murder. Persons unknown\" and \"The case remains open.\"",
+  "summary": "A fast, tight investigation that rewarded a blunt, give-little player. Very short turns (\"Please.\", \"I read it.\", \"I wait. Watch Moll's fist.\") always moved the scene forward. The clues formed a fair, solvable chain: body exam (struck, strangled, hoisted) -> Moll's wheat-ear coin (Royal Purveyor's purse money) -> Cob's account of \"Silvertop\" and a big man with a bandaged hand -> a paper sewn into the dead man's boots -> the chained tally book in the loft -> the Captain's order naming Master J. Sallow as the man who asked for the suicide ruling. Most of my off-path moves paid off. The boots, the water butt and the bought-story angle each became key clues, and the one impossible request was handled with in-world logic plus a useful nudge. Each NPC had a distinct voice and kept to their own rules: Cob's third-person haggling, Moll's protective cursing, Kell's \"no hunches\" method, Tull's paperwork. The weak spots were technical continuity and the ending:\n- Duplicated text: Kell's confession printed twice word for word, the \"quarter to noon\" bell paragraph repeated verbatim the next turn, and the Captain's order recited in full twice.\n- Lost track of the page: NPCs repeatedly read or turn over Prout's page after I had pocketed it.\n- Spatial slips: perspective errors about who is up in the loft and who is below.\n- Gated, limbo ending: every route to naming Sallow was politely declined, the King was unreachable, and the game left me in a looping closing picture with no clean end and no next scene.",
+  "tangents": [
+   {
+    "turn": 2,
+    "what_i_tried": "Chased a passing detail: the scrawny boy's 'enormous black boots' against the corpse's 'stockinged foot'. Asked 'Those his?', then 'You said dead man's. Found them where?', then asked to see the sole.",
+    "what_happened": "Cob deflected ('They're Cob's. Found 'em. You planning to nick a dead man's boots off a boy, bluebottle?') and demanded 'First you ask nice'. A flat 'Please.' on turn 5 got him to keep his own terms: 'You can look at the sole. Don't touch the boot, and Cob keeps it.' The sole itself was never described (turns 6-7). The boots became central later: Cob's left boot 'gives a faint crackle, like paper', and Prout's evidence was sewn into the lining (turns 15-20).",
+    "handled": "well",
+    "why": "The NPC kept to the condition he set himself, and a passing detail I fixated on became the key clue. Only flaw: my two attempts to examine the tread got NPC dialogue and no narration."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Invented a piece of my own past: 'Cord from behind, then the hoist. Saw it done to deserters at Harrow Ford.'",
+    "what_happened": "Kell: 'Two hands, or a pulley. Noted.' Nothing contradicted it, but nobody picked it up again.",
+    "handled": "ok",
+    "why": "Accepted without friction, but it had no effect on the story."
+   },
+   {
+    "turn": 13,
+    "what_i_tried": "Distrusted the children's account: 'Who paid you this? To keep quiet, or to tell me that story?'",
+    "what_happened": "Moll: 'A gentleman in a good coat. Silver-topped cane, wheat-ear ring. He said tell folk Prout jumped. His big mate had a bandaged hand.' Then: 'Now keep Cob out of the Mending House.'",
+    "handled": "well",
+    "why": "The skeptical angle produced a real reveal (a bribe to spread the suicide story), plus a believable motive for Moll protecting Cob."
+   },
+   {
+    "turn": 15,
+    "what_i_tried": "Impossible-in-this-world request: 'Palace has priests. Get one down here to ask Prout himself. Dead men don't lie.'",
+    "what_happened": "Kell: 'No priest here can call him back, investigator. The Nine Furrows deal in weather, wards, and grain. The dead stay dead.' The narration then pointed out that 'the body has already told you something' and that Cob's boot crackles like paper.",
+    "handled": "well",
+    "why": "A clear in-world 'no' that added lore (the Nine Furrows), followed by a concrete lead. Not a dead end."
+   },
+   {
+    "turn": 22,
+    "what_i_tried": "Doubted the official story: 'Goblins on the King's Road. Anyone actually seen one this year?'",
+    "what_happened": "Kell: 'I've seen no goblin, and nothing here proves there was one.' She added that the same wagons were weighed at the river warehouses two days later. The tally book confirmed this on turn 31.",
+    "handled": "well",
+    "why": "It deepened the fraud plot. Small flaw: Kell said 'That's what the paper says' when the paper as described on turn 20 never mentioned the warehouses, and the paper was in my coat."
+   },
+   {
+    "turn": 23,
+    "what_i_tried": "Rushed it, then changed my mind: 'Write: Sallow killed him. We go to the Purveyor's office now and take him.' Next turn: 'Fine. Record what the body says. Forget Sallow for now. Book first.'",
+    "what_happened": "Kell refused in character ('I won't write a man guilty on a hunch'), wrote 'J. Sallow\u2014suspected; investigate', then accepted the change and set an open problem: 'No ladder, no key, and no help before noon. How do you propose we get up there, investigator?'",
+    "handled": "well",
+    "why": "My change of mind was accepted without fuss, and the obstacle came with no prescribed solution."
+   },
+   {
+    "turn": 25,
+    "what_i_tried": "Chased the water butt, which the narration had mentioned three times as Cob glanced or backed toward it. Looked behind it and up the wall.",
+    "what_happened": "'Behind the water butt, a warped board sits loose at the base of the granary wall\u2014just wide enough for a child to squeeze through.' Turn 27: Athletics 15 vs DC 13 widened it enough for me to get in.",
+    "handled": "well",
+    "why": "A background detail was real and gave a route nobody had suggested."
+   },
+   {
+    "turn": 26,
+    "what_i_tried": "Turned suspicion on my own ally: 'Three days. And you only say so now. Why should I believe anything else you've told me?'",
+    "what_happened": "Kell wrote her own failure into the record: 'Prout asked how to report false entries. I sent him to the palace. I did not pursue it.' Then: 'You're right to ask... If you doubt the rest, check it against the body.'",
+    "handled": "well",
+    "why": "This was the best character moment: she took the accusation honestly instead of getting defensive. The same response repeated the previous turn's narration word for word, though."
+   },
+   {
+    "turn": 35,
+    "what_i_tried": "Chased the line in Prout's margin: 'Not goblins. Who pays the hedge-folk?' Asked Kell who the hedge-folk are.",
+    "what_happened": "Kell: 'Don't know, investigator. Not from this yard. Could mean someone beyond the city\u2014but that's guesswork.'",
+    "handled": "ok",
+    "why": "Honest and in character, but a dead end. The game planted the hook and nobody could follow it."
+   },
+   {
+    "turn": 36,
+    "what_i_tried": "Approach nobody suggested: jam the loft-door bar through the book's chain and lever the staple out of the desk.",
+    "what_happened": "Athletics 6+4=10 vs DC 13, failure: 'Your improvised lever bends; the chained book jerks across the desk and slams shut, still fastened in place.' Everyone below turned to look.",
+    "handled": "well",
+    "why": "A fair roll for a plausible improvised plan, and the failure had a visible consequence."
+   },
+   {
+    "turn": 42,
+    "what_i_tried": "Tried to get Sallow named three ways: argued the evidence chain to Kell, asked Corporal Tull whether Sallow carries a silver-topped cane, and asked where Sallow is now so Cob could identify him.",
+    "what_happened": "Kell: 'Silvertop is not yet a name... If you know Silvertop's proper name, give it to me.' Tull: 'Not that I can swear to, sir.' Cob: 'pointing at some cove I've never seen won't make your paper true.' Nobody answered where Sallow is.",
+    "handled": "ok",
+    "why": "Each refusal fits the character, but together they close every route and look like the scene is built to leave Sallow unnamed. Cob's line also assumes Sallow isn't Silvertop."
+   }
+  ],
+  "stonewalled": [
+   {
+    "turn": 6,
+    "what": "I examined the sole of Cob's boot twice (turn 6: 'I study the sole without touching it'; turn 7: 'looking for flour, chaff, mud, anything that says where these boots last walked'). Neither got narration of what I saw. I got only Cob's lines: 'Nothing clever on it, soldier' and 'It's a boot sole, not a bleedin' map!' When an NPC holds the attention, the narrator seems to skip describing what I observe."
+   },
+   {
+    "turn": 44,
+    "what": "'Then where is Sallow now?' was never answered. Cob replied to a different point and no one gave Sallow's whereabouts, so the witness-identification route ended without a reason."
+   },
+   {
+    "turn": 40,
+    "what": "Going to the King: 'no one here can summon the King or reach an official before the procession... the palace itself is another scene.' No palace scene ever started. Turns 41 and 45 re-described the same departure, constables still 'finishing' loading Prout, so I was stuck in a closing picture with nowhere to go."
+   }
+  ],
+  "railroaded": [
+   {
+    "turn": 25,
+    "what": "Kell's guilt confession ('Prout came to me three days ago...') fired on the quarter-to-noon bell while I was looking behind the water butt. It had nothing to do with my action and read like a timed scripted beat. The content was good; the trigger was mechanical."
+   },
+   {
+    "turn": 40,
+    "what": "The outcome looked fixed: the King was unreachable 'before the procession', and every route to naming Sallow was declined (turns 42-44). The scene seems built to end at 'Murder. Persons unknown' whatever I bring. It's a soft railroad, since each refusal is plausible on its own."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 21,
+    "what": "Cob got two speaking blocks back to back that repeat the same action: 'He holds out the knife hilt-first' and then 'juts the knife toward you, handle first. \"Knife back, then.\"'"
+   },
+   {
+    "turn": 22,
+    "what": "Kell attributes the river-warehouse weighings to the paper ('That's what the paper says'), but the turn-20 description of the paper didn't include them. She also looks at 'the figures on the page' when I had folded it into my coat on turn 21."
+   },
+   {
+    "turn": 25,
+    "what": "Kell's confession appears twice word for word in one response, once in narration and again as her own block: 'Prout came to me three days ago. Asked how to report false entries in the King's rolls. I told him to take it to the palace.' She also 'turns Prout's page over' and 'reads the page again' while it is in my coat."
+   },
+   {
+    "turn": 26,
+    "what": "Time loop: this response repeats the previous turn's narration verbatim: 'The palace bells ring a quarter to noon. Kell turns the page over, as if there might be more on the back.' The quarter bell rings twice and Kell handles the pocketed page again."
+   },
+   {
+    "turn": 28,
+    "what": "I told Kell 'Then stop the cart. Keep the children here.' She answered only 'I'll keep them here.' The cart instruction was dropped, although Tull later defers to her anyway."
+   },
+   {
+    "turn": 29,
+    "what": "Spatial slip: 'Somewhere above, a board creaks under your weight' while I was still on the ground floor."
+   },
+   {
+    "turn": 31,
+    "what": "'Tull's ladder scrapes against the wall' uses the name Tull before any Tull has been introduced. He only appears as Corporal Abner Tull on turn 32, after I asked 'Who the hell is Tull?'"
+   },
+   {
+    "turn": 32,
+    "what": "Tull calls Orla 'sir' every time (turns 32, 33, 37, 43). It may be a watch convention, but it reads like a gender slip."
+   },
+   {
+    "turn": 33,
+    "what": "Tull recites the full text of the Captain's order a second time ('The death of W. Prout, clerk, to be closed as self-murder, without fuss, at the request of Master J. Sallow...'), word for word from the previous turn."
+   },
+   {
+    "turn": 34,
+    "what": "Kell 'looks... to the order in your hand' right after I pocketed it. The narration also says the tally book and Prout's page 'lie open above you' while I'm standing in the loft beside the book, with the page in my pocket."
+   },
+   {
+    "turn": 35,
+    "what": "Kell 'glances at the line in the book', a pencilled margin note, from the yard below while the book is up in the loft."
+   },
+   {
+    "turn": 36,
+    "what": "'The attempt has made the whole loft's attention turn your way.' I was alone in the loft; everyone watching was below."
+   },
+   {
+    "turn": 41,
+    "what": "Frozen time in the closing picture: the constables 'lower Prout carefully' (turn 40), 'finish lowering Prout onto the cart' (turn 41) and 'finish loading Prout' (turn 45), while I've supposedly walked into the Assembly crowds. Kell is beside me on turn 42 and 'behind you' with the cart on turn 45."
+   }
+  ],
+  "impossible_requests": [
+   {
+    "turn": 15,
+    "what_i_asked": "Fetch a palace priest to question the dead clerk ('Dead men don't lie').",
+    "how_handled": "Refused within the world, with a lead: Kell said 'No priest here can call him back, investigator. The Nine Furrows deal in weather, wards, and grain. The dead stay dead.' The narration then reminded me the body had already given answers and drew my attention to the paper crackling in Cob's boot. Best handling of the session."
+   },
+   {
+    "turn": 36,
+    "what_i_asked": "Tear the tally book's chain staple out of the desk using the loft-door bar as a lever.",
+    "how_handled": "Treated as possible but hard: Athletics roll 10 vs DC 13, failed. The bar bent, the book slammed shut still chained, and everyone below looked up. A fair result with a consequence."
+   },
+   {
+    "turn": 40,
+    "what_i_asked": "Walk straight to the palace and put the evidence before the King on Assembly day.",
+    "how_handled": "Ruled out: 'already swallowed by Assembly preparations: no one here can summon the King or reach an official before the procession... the palace itself is another scene.' That ties back to Tull's earlier 'Assembly route' line, but no next scene was offered, so it amounted to a soft wall."
+   }
+  ],
+  "best_moment": "Turn 15. My deliberately impossible demand to get a priest to question the corpse got a clean in-world refusal that added lore (\"No priest here can call him back... The Nine Furrows deal in weather, wards, and grain. The dead stay dead.\"). It then turned straight back to my own earlier obsession: \"His left boot gives a faint crackle, like paper.\" Something I had fixated on in turns 2-7 became the case-breaking clue. A close second is turn 26: when I accused Kell of hiding Prout's visit, she wrote her own failure into the record (\"I sent him to the palace. I did not pursue it.\") and said \"You're right to ask.\"",
+  "worst_moment": "Turns 25-26. One response printed Kell's confession twice word for word and had her turning over Prout's page while it was in my coat. The next response repeated the previous narration verbatim (\"The palace bells ring a quarter to noon. Kell turns the page over, as if there might be more on the back.\"), so the clock and the prop both looped. The ending (turns 40-45) was the other low point: told the palace is \"another scene\", but no scene came, so I was left re-reading the same departure picture.",
+  "ratings": {
+   "responsiveness": 4,
+   "characters": 4,
+   "consistency": 3,
+   "pacing": 4,
+   "agency": 4,
+   "fun": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "Technical:\n- None of the 45 say commands errored, so no retries were needed. Each took roughly 5-20s.\n- The game started without needing the API key the user mentioned, so I never read ~/secrets.\n- Per the test rules I used only start, say and transcript (one tail of the transcript to look for an end marker; there was none).\n\nMinimal-input test, passed:\n- Short or silent turns (1, 11, 18, 20, 30, 39) always moved the scene forward.\n- Turn 1 ('I stay by the gate... Say nothing.') got Cob's stone striking the corpse, Kell's 'Oi... Leave off.', and Moll's closed fist pointed out. That's good proactive GMing.\n\nRolls:\n- Five checks, all DC 12-13: Medicine 19, Intimidation 22, Persuasion 12 (bare success), Athletics 15, Athletics 10 (fail).\n- The turn-12 Intimidation success unlocked a lot at once: the coin, Cob's full sobbing witness account, and Moll's plea. It fit the fright, but it was the one place where pacing turned into an info-dump.\n\nActors approach:\n- NPCs often get a second block in the same response that repeats what the narrator just voiced (turns 21, 25, 33, 37). This is the main source of duplication.\n- When an NPC holds the attention, observation actions get answered by that NPC instead of the narrator (turns 6-7).\n\nVerbal tics:\n- Kell 'taps the pencil once' in nearly every response.\n- Kell ends most turns with a variant of 'What do you want written down, investigator?' (turns 22, 23, 25 twice, 26).\n- Cob restates 'the boots stay mine' terms almost every turn.\n- These read fine at first but become noticeable by turn 25.\n\nProp tracking:\n- Prout's page is the clearest bug class. After I pocketed it on turn 21, NPCs read, turned over or looked at it on turns 22, 25, 26 and 34.\n- The same thing happened with the Captain's order on turn 34.\n\nUnresolved threads:\n- The big man with the bandaged hand never appeared and no one could pursue him.\n- 'Who pays the hedge-folk?' was planted and immediately dead-ended.\n- The pigeon on the beam in the opening was never used. I didn't chase it, so that's on me.\n\nEnding:\n- The outcome was decent: body to the cold room, ruling changed to murder, evidence in hand.\n- The final words, 'the case is on record, but Sallow has not been named in it', made it feel like the game wanted me to name Sallow. Yet every route to that was declined in character, so I couldn't tell whether I'd missed an intended path or the scene is meant to stop there.\n- A clear end-of-session signal, or an actual handoff into the palace scene, would fix the limbo."
+ }
+]

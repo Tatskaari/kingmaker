@@ -1,0 +1,108 @@
+{
+ "id": "absurd-hero",
+ "sceneId": "crossroads-ambush",
+ "approach": "v2",
+ "seed": 824919808,
+ "rollCount": 1,
+ "player": {
+  "name": "Wren Ashdown",
+  "concept": "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs",
+  "modifiers": {
+   "persuasion": 2,
+   "deception": 3,
+   "intimidation": 0,
+   "insight": 3,
+   "performance": 1,
+   "perception": 5,
+   "investigation": 2,
+   "sleight_of_hand": 2,
+   "stealth": 5,
+   "athletics": 2,
+   "acrobatics": 3,
+   "animal_handling": 4,
+   "arcana": 0,
+   "history": 1,
+   "nature": 4,
+   "religion": 0,
+   "medicine": 2,
+   "survival": 5
+  }
+ },
+ "turn": 1,
+ "beat": "story",
+ "turnsInBeat": 0,
+ "path": [
+  {
+   "turn": 1,
+   "from": "ranting",
+   "to": "story",
+   "via": "calm-check",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 10,
+    "die": 17,
+    "modifier": 2,
+    "total": 19,
+    "success": true,
+    "critical": null
+   }
+  }
+ ],
+ "established": [],
+ "canon": [],
+ "notes": null,
+ "notesTurn": null,
+ "patches": [],
+ "repairs": [],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The King’s Road meets a narrower track between tall blackthorn hedges. A weathered milestone stands by the junction; beside it, a mud-caked farmer jabs his pitchfork at the hedge and shouts, “You keep your green little hands off my turnips, you hear? Saints preserve us!” His eyes are red-rimmed, his clothes filthy, and he looks as though he hasn’t slept in days. A dead ox lies in the ditch nearby, crude arrows sticking from its flank. Crows watch from the milestone.\n\nThe farmer turns, spots you, and levels the pitchfork in your direction. “Goblins! No—longlegs in goblin skins! Don’t come closer!”"
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I raise both empty hands, then sweep into a low, elaborate bow that goes on slightly too long. \"Peace, good farmer! I am Wren Ashdown, half-elf, ranger of the King's Road, raised by geese in the marshes beyond Fennick and the only person ever to win an argument with a toll bridge. These are not goblin skins. This is simply my face.\" I nod gravely at the dead ox. \"Tell me who did this to your noble beast, and it shall be avenged. Let it be written: on this day, at this milestone, the Legend of Wren began.\""
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check to calm Tam and earn his trust: 17 + 2 = 19 vs DC 10: success"
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Tam’s pitchfork dips. Your absurdly solemn bow seems to give him permission to believe you’re not laughing at him. He lets out a startled, frightened chuckle, then clutches your sleeve.\n\n“Wren, is it? Good. Good. You’ve got the look of someone who knows a goblin from a goose.” He glances at your face, reconsidering. “Mostly.”\n\nHe talks fast: his ox was killed on the drovers’ track last night, and the little green devils have been dogging him through the hedges since dawn. The toll-house men said he’d been at the cider. “But I’ve seen ’em, I have. They’re still about.” His free hand keeps brushing a lump beneath his smock. “I just need to get home. Bet’s waiting.”"
+  }
+ ],
+ "metrics": [
+  {
+   "turn": 1,
+   "repairMs": 0,
+   "preDecisionMs": 361.076757,
+   "firstTextMs": 1410.6653689999998,
+   "followUpMs": null,
+   "resolvingTextMs": 1410.6653689999998,
+   "replyMs": 3447.218776,
+   "postDecisionMs": 530.3774039999998,
+   "costUsd": 0.00055888,
+   "calls": 3
+  }
+ ],
+ "history": [],
+ "speculation": {
+  "used": 0,
+  "discarded": 1
+ },
+ "sceneStatus": "on_track"
+}

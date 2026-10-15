@@ -1,8 +1,0 @@
----
-summary: "Abel's public maritime expertise as expedition master and navigator, covering routes, crews, costs and expedition safety."
-visibility: private
-readers: ["label:court-informed"]
----
-# Abel Keel — public profile
-
-You know Abel as Saltmere's expedition master, navigator and practical organiser. His work involves routes, crews, costs and the safety of expeditions. He brings practical maritime knowledge to the delegation.

@@ -1,0 +1,352 @@
+{
+ "id": "absurd-hero",
+ "sceneId": "crossroads-ambush",
+ "approach": "v2",
+ "seed": 824919808,
+ "rollCount": 1,
+ "player": {
+  "name": "Wren Ashdown",
+  "concept": "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs",
+  "modifiers": {
+   "persuasion": 2,
+   "deception": 3,
+   "intimidation": 0,
+   "insight": 3,
+   "performance": 1,
+   "perception": 5,
+   "investigation": 2,
+   "sleight_of_hand": 2,
+   "stealth": 5,
+   "athletics": 2,
+   "acrobatics": 3,
+   "animal_handling": 4,
+   "arcana": 0,
+   "history": 1,
+   "nature": 4,
+   "religion": 0,
+   "medicine": 2,
+   "survival": 5
+  }
+ },
+ "turn": 6,
+ "beat": "ambush",
+ "turnsInBeat": 4,
+ "path": [
+  {
+   "turn": 1,
+   "from": "ranting",
+   "to": "story",
+   "via": "calm-check",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 10,
+    "die": 17,
+    "modifier": 2,
+    "total": 19,
+    "success": true,
+    "critical": null
+   }
+  },
+  {
+   "turn": 2,
+   "from": "story",
+   "to": "ambush",
+   "via": "goblins-strike",
+   "source": "pre"
+  }
+ ],
+ "established": [],
+ "canon": [
+  "Wren convened a Court of the Crossroads, with the crows as its jury.",
+  "Wren introduced a Sacred Turnip as an oath prop.",
+  "A goblin witness admitted Skrag said the goblins shot the ox while it was alive because it was looking at him funny.",
+  "Skrag offered to send two goblins to help Tam plough in exchange for Grandmother Bone, while denying he could replace the ox."
+ ],
+ "notes": "Let Tam decide whether two goblin diggers make the offer fair; don’t make him defer again. If Wren seeks reassurance, have Skrag give a specific, credible commitment to send the two diggers after receiving Grandmother Bone.",
+ "notesTurn": 5,
+ "patches": [
+  {
+   "turn": 3,
+   "transition": {
+    "beat": "*",
+    "transition": {
+     "id": "quick-3",
+     "when": "If Wren’s performance lands, Skrag plays along with the staring contest, keeping his archers at bay while Tam answers. Tam admits he found a little bone grandmother with garnet eyes in his field and has been carrying it to sell; the demand now has a clear target, and Wren can negotiate, return it, or keep trying to fool or frighten Skrag.",
+     "on": "attempt",
+     "check": {
+      "skill": "performance",
+      "dc": 13,
+      "reason": "to make Skrag take the ridiculous duel seriously enough to hold his goblins back while you question Tam",
+      "success": "Let Tam’s confidence in Wren prompt him to answer the whispered question, but make the duel a real gamble: on a success, Skrag grudgingly holds the standoff while Tam reveals the idol; on a failure, Skrag’s patience breaks and the goblins attack. Keep Wren’s goose-law and challenge as the reason Skrag engages.",
+      "failure": "Skrag’s goblins lose patience at the drawn-out challenge and loose arrows; the standoff becomes a fight, though Skrag may still accept a bargain once the danger is clear.",
+      "onSuccess": "idol-revealed"
+     }
+    }
+   },
+   "why": "Let Tam’s confidence in Wren prompt him to answer the whispered question, but make the duel a real gamble: on a success, Skrag grudgingly holds the standoff while Tam reveals the idol; on a failure, Skrag’s patience breaks and the goblins attack. Keep Wren’s goose-law and challenge as the reason Skrag engages."
+  },
+  {
+   "turn": 4,
+   "transition": {
+    "beat": "*",
+    "transition": {
+     "id": "quick-4",
+     "when": "If Skrag accepts Wren's proposed terms, Tam hands Grandmother Bone over and Skrag agrees to repay him for the ox in whatever concrete form he can manage—labor or a promise of future payment, not nonexistent goblin valuables.",
+     "on": "attempt",
+     "check": {
+      "skill": "persuasion",
+      "dc": 13,
+      "reason": "to convince Skrag to accept the exchange and make good for the ox",
+      "success": "Skrag wants the idol back and would rather bargain than die, but he has no valuables to pay with. Give Wren's theatrical proposal a real chance: on success, settle on labor or a credible promise rather than coin or turnips; on failure, Skrag refuses compensation and the standoff escalates toward his attack.",
+      "failure": "Skrag rejects the crow-court's verdict and the goblins lose patience: they attack, forcing Wren to face the bows while Tam scrambles for cover.",
+      "onSuccess": "bargain"
+     }
+    }
+   },
+   "why": "Skrag wants the idol back and would rather bargain than die, but he has no valuables to pay with. Give Wren's theatrical proposal a real chance: on success, settle on labor or a credible promise rather than coin or turnips; on failure, Skrag refuses compensation and the standoff escalates toward his attack."
+  }
+ ],
+ "repairs": [
+  {
+   "sceneId": "crossroads-ambush",
+   "turn": 3,
+   "assessment": "quick: open_route",
+   "status": "drifting",
+   "notes": "Let Tam’s confidence in Wren prompt him to answer the whispered question, but make the duel a real gamble: on a success, Skrag grudgingly holds the standoff while Tam reveals the idol; on a failure, Skrag’s patience breaks and the goblins attack. Keep Wren’s goose-law and challenge as the reason Skrag engages.",
+   "relocations": [],
+   "costUsd": 0.000449925,
+   "latencyMs": 4058.4446600000006,
+   "patches": 1,
+   "canon": 0,
+   "whispers": 0
+  },
+  {
+   "turn": 4,
+   "assessment": "quick: open_route",
+   "status": "drifting",
+   "notes": "Skrag wants the idol back and would rather bargain than die, but he has no valuables to pay with. Give Wren's theatrical proposal a real chance: on success, settle on labor or a credible promise rather than coin or turnips; on failure, Skrag refuses compensation and the standoff escalates toward his attack.",
+   "relocations": [],
+   "costUsd": 0.0004473,
+   "latencyMs": 2938.335842,
+   "patches": 1,
+   "canon": 0,
+   "whispers": 0
+  },
+  {
+   "sceneId": "crossroads-ambush",
+   "turn": 5,
+   "assessment": "Wren’s theatrical courtroom play is landing: it exposed Skrag’s lie and turned the standoff into a concrete offer. The scene is on track for a peaceful resolution if Tam accepts the labor in exchange for the idol.",
+   "status": "on_track",
+   "notes": "Let Tam decide whether two goblin diggers make the offer fair; don’t make him defer again. If Wren seeks reassurance, have Skrag give a specific, credible commitment to send the two diggers after receiving Grandmother Bone.",
+   "relocations": [],
+   "costUsd": 0.00070275,
+   "latencyMs": 11253.61178,
+   "patches": 0,
+   "canon": 4,
+   "whispers": 2
+  }
+ ],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The King’s Road meets a narrower track between tall blackthorn hedges. A weathered milestone stands by the junction; beside it, a mud-caked farmer jabs his pitchfork at the hedge and shouts, “You keep your green little hands off my turnips, you hear? Saints preserve us!” His eyes are red-rimmed, his clothes filthy, and he looks as though he hasn’t slept in days. A dead ox lies in the ditch nearby, crude arrows sticking from its flank. Crows watch from the milestone.\n\nThe farmer turns, spots you, and levels the pitchfork in your direction. “Goblins! No—longlegs in goblin skins! Don’t come closer!”"
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I raise both empty hands, then sweep into a low, elaborate bow that goes on slightly too long. \"Peace, good farmer! I am Wren Ashdown, half-elf, ranger of the King's Road, raised by geese in the marshes beyond Fennick and the only person ever to win an argument with a toll bridge. These are not goblin skins. This is simply my face.\" I nod gravely at the dead ox. \"Tell me who did this to your noble beast, and it shall be avenged. Let it be written: on this day, at this milestone, the Legend of Wren began.\""
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check to calm Tam and earn his trust: 17 + 2 = 19 vs DC 10: success"
+  },
+  {
+   "turn": 1,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Tam’s pitchfork dips. Your absurdly solemn bow seems to give him permission to believe you’re not laughing at him. He lets out a startled, frightened chuckle, then clutches your sleeve.\n\n“Wren, is it? Good. Good. You’ve got the look of someone who knows a goblin from a goose.” He glances at your face, reconsidering. “Mostly.”\n\nHe talks fast: his ox was killed on the drovers’ track last night, and the little green devils have been dogging him through the hedges since dawn. The toll-house men said he’d been at the cider. “But I’ve seen ’em, I have. They’re still about.” His free hand keeps brushing a lump beneath his smock. “I just need to get home. Bet’s waiting.”"
+  },
+  {
+   "turn": 2,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I stride to the ditch, kneel beside the dead ox and lay a hand on its flank. \"What was his name, Tam?\" Whatever he answers, I address the ox with great solemnity: \"Noble beast. You pulled your last plough. You never asked for glory, yet glory found you, in the form of several rubbish arrows. I swear upon my mother - well, the goose who raised me - that your killers will answer for this.\" I work one of the crude arrows loose and study the fletching and the head. Then, over my shoulder: \"Home, you say? Then consider yourself escorted, Tam. It is what legends do.\""
+  },
+  {
+   "turn": 2,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The arrow’s crude iron head is nicked and dark with old blood. As you study it, the blackthorn hedge rustles—not with wind.\n\nFive goblins rise among the branches, short bows trained on you. Their leader wears a wolf-skin hood and grips a curved knife; a bone rattle clicks in his other hand. Tam ducks behind you, pitchfork clattering against the milestone.\n\nThe leader points his knife at Tam. “Skrag wants Grandmother Bone back, dirt-scratcher! Give it over, longlegs!” His yellow eyes flick from your bow to your empty hands. “Nobody needs more arrows today.”"
+  },
+  {
+   "turn": 3,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I rise slowly, leaving my bow on my back, and plant one boot upon the dead ox in my most heroic pose, cloak flapping (I flap it myself, there being no wind). \"Skrag of the Wolf Hood! I am Wren Ashdown, Out-Arguer of Bridges, Goose-Raised! Under the ancient Law of the Crossroads, I challenge you to the Duel of the Unblinking Eye - as fought by my goose-mother against the Heron of Mortlake for three days and two nights. Blink first and your archers lower their bows and we talk this out like civilised people. Win, and I shall listen to your grievance with my whole face.\" Out of the corner of my mouth, to Tam: \"What is Grandmother Bone, and why have you got it down your shirt?\""
+  },
+  {
+   "turn": 3,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Skrag’s rattle stills. He squints at you, then at the flapping cloak. One of the archers glances sideways at another, trying very hard not to blink.\n\n“Duel of the Unblinking—” Skrag starts, and loses his place. “Skrag does not duel geese. Skrag wants Grandmother Bone!”\n\nBehind you, Tam whispers, “It’s mine! I dug it up fair and square.” His hand clamps over the lump in his smock. “A little bone granny, wrapped in rotten leather. I was going to sell it in Caerwyn. I didn’t know they wanted it.”\n\nSkrag’s knife points at Tam. “Give it back, dirt-scratcher. Last asking.”"
+  },
+  {
+   "turn": 4,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I keep my boot on the ox and hold my hand out behind me to Tam without looking. \"Tam. A grandmother is a grandmother, even when she is mostly leather. Hand her here. Gently.\" Then I turn to the crows on the milestone and raise my voice to a courtroom boom: \"Hear ye! The Court of the Crossroads is now in session, the Honourable Crows presiding! The facts: this farmer dug up their granny. These goblins shot his ox. Justice demands Grandmother goes home - and that the goblins owe Tam one ox, or the value thereof, in turnips, coin or labour. Jury, how say you? All in favour, caw!\" I look expectantly at the crows, then back at Skrag. \"The court will also hear from the defence.\""
+  },
+  {
+   "turn": 4,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The crows answer with a ragged chorus of caws. One flaps down to the milestone, black eyes fixed on Skrag.\n\nSkrag blinks first. “Crows not court!” he snaps, but his archers’ bows lower a finger’s breadth. He points at Tam. “Bone goes home. Ox was… dead already when Skrag found it.” One goblin behind him mutters something; Skrag hisses him quiet, then grudgingly adds, “Skrag can send two diggers to help plough. After Bone comes back.”\n\nTam’s hand closes around the lump under his smock. “I dug it up. It’s mine.” The bone beneath the leather catches a faint garnet glint. He looks to you, torn. “You reckon their offer’s fair?”"
+  },
+  {
+   "turn": 5,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Fair, Tam, if it is true. The court has its doubts.\" I hold up the crude arrow I pulled from the ox like Exhibit A. \"Your arrow, Skrag, in his ox. Yet you say the ox was dead already. The court calls a witness!\" I point at the goblin who muttered. \"You there, the mutterer. Step forward.\" I pull a turnip from the farmer's spilled sack, polish it on my sleeve and hold it out. \"Place your hand upon the Sacred Turnip and swear to tell the truth, the whole truth and nothing but the truth, so help you Grandmother. Then tell the court what you just said.\""
+  },
+  {
+   "turn": 5,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The goblin you point at stiffens, eyes darting from the turnip to Skrag. Skrag’s rattle clicks once. “No witnesses! No sacred vegetable!”\n\nThe muttering goblin swallows. “Skrag said ox was alive when we shot it.” A beat. “He said it was looking at him funny.”\n\nSkrag whirls on him. “You talk too much!” One archer’s bow dips; another keeps it trained on you. Skrag’s knife stays raised, but his eyes flick to Tam’s smock. “Bone first. Then Skrag sends two diggers. The ox is dead. We do not have an ox to give.” Tam’s fingers tighten over the hidden idol. “That’s the first honest thing I’ve heard all day.”"
+  },
+  {
+   "turn": 6,
+   "scene": "crossroads-ambush",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I bang the turnip on the milestone like a gavel. \"Order! The court has heard enough. Verdict: Grandmother Bone goes home today. Skrag, for the crime of shooting an ox because it looked at you funny, you are sentenced to two diggers for the spring ploughing, AND a formal apology to the ox. Out loud. With feeling.\" I turn to Tam and lower my voice, kind and serious. \"Tam. Selling a goblin's granny will not bring your ox back, and they will follow you all the way to Bet's door for her. Give her to me and I will make the handover myself. You have my word, which is worth exactly one bridge.\""
+  },
+  {
+   "turn": 6,
+   "scene": "crossroads-ambush",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Skrag’s jaw works. He glances at the crows, then at the witness still clutching the Sacred Turnip.\n\n“Fine! Skrag says it before the court: two diggers to Hollis Farm, tomorrow at first light. They work till the spring field is ploughed. Skrag’s word.” His knife lowers, though the archers keep their bows ready.\n\nTam studies him, wary. “Tomorrow at first light, and till the field’s done?” Skrag gives a sharp nod. Tam’s grip on his smock loosens. He draws out the little bone grandmother, her garnet eyes catching the light, and holds her toward you—but pauses. “You make the handover, Wren. I’ll hold him to it.”"
+  }
+ ],
+ "metrics": [
+  {
+   "turn": 1,
+   "repairMs": 0,
+   "preDecisionMs": 361.076757,
+   "firstTextMs": 1410.6653689999998,
+   "followUpMs": null,
+   "resolvingTextMs": 1410.6653689999998,
+   "replyMs": 3447.218776,
+   "postDecisionMs": 530.3774039999998,
+   "costUsd": 0.00055888,
+   "calls": 3
+  },
+  {
+   "turn": 2,
+   "repairMs": 0,
+   "preDecisionMs": 417.273586,
+   "firstTextMs": 1091.93666,
+   "followUpMs": null,
+   "resolvingTextMs": 1091.93666,
+   "replyMs": 2311.410142,
+   "postDecisionMs": 291.8483390000001,
+   "costUsd": 0.0009598499999999999,
+   "calls": 3
+  },
+  {
+   "turn": 3,
+   "repairMs": 3000.4982569999997,
+   "preDecisionMs": 439.48017799999997,
+   "firstTextMs": 3022.439699,
+   "followUpMs": null,
+   "resolvingTextMs": 3022.439699,
+   "replyMs": 2583.1658500000003,
+   "postDecisionMs": 382.5093179999999,
+   "costUsd": 0.00077111,
+   "calls": 3
+  },
+  {
+   "turn": 4,
+   "repairMs": 2938.592096,
+   "preDecisionMs": 382.742929,
+   "firstTextMs": 4059.423188,
+   "followUpMs": null,
+   "resolvingTextMs": 4059.423188,
+   "replyMs": 5968.88817,
+   "postDecisionMs": 513.1120000000001,
+   "costUsd": 0.00158987,
+   "calls": 5
+  },
+  {
+   "turn": 5,
+   "repairMs": 2999.691112,
+   "preDecisionMs": 576.0385779999999,
+   "firstTextMs": 3021.0065830000003,
+   "followUpMs": null,
+   "resolvingTextMs": 3021.0065830000003,
+   "replyMs": 2854.329339,
+   "postDecisionMs": 325.0789999999997,
+   "costUsd": 0.0013346,
+   "calls": 3
+  },
+  {
+   "turn": 6,
+   "repairMs": 0,
+   "preDecisionMs": 387.604903,
+   "firstTextMs": 904.1362349999999,
+   "followUpMs": null,
+   "resolvingTextMs": 904.1362349999999,
+   "replyMs": 2920.416482,
+   "postDecisionMs": 442.62848399999984,
+   "costUsd": 0.00096115,
+   "calls": 3
+  }
+ ],
+ "history": [],
+ "speculation": {
+  "used": 3,
+  "discarded": 2
+ },
+ "sceneStatus": "on_track",
+ "offGraphTurn": 5,
+ "lateRepairs": 2,
+ "landed": [
+  "idol",
+  "goblin-want"
+ ],
+ "whispers": [
+  {
+   "to": "tam",
+   "note": "Decide whether the promised help is enough; if not, say what assurance you need before handing over the idol.",
+   "turn": 5
+  },
+  {
+   "to": "skrag",
+   "note": "Make the labor offer concrete and reaffirm it in front of your witness; you want the idol back without a fight.",
+   "turn": 5
+  }
+ ],
+ "lastRepairTurn": 5,
+ "pressureOffered": [
+  "ambush"
+ ]
+}
