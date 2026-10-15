@@ -278,9 +278,10 @@ test("a ruling settled: a roll it wins takes the scene where success leads, with
   assert.equal(state.patches.length, 0, "nothing closed on a success");
 });
 
-test("a ruling settled: a roll it loses costs what failure costs, a way of trying it shut stays shut, and what success would have brought out is kept back", async () => {
+test("a ruling settled: a roll it loses costs what failure costs, a way of trying it shut (one really tried) stays shut, and what success would have brought out is kept back", async () => {
   const state = yard(-30);
-  const settled = await settleRuling(scene, state, toRuling(scene, state, LINING, META));
+  // The decider read the attempt as winning Cob round, in part: that way has been tried.
+  const settled = await settleRuling(scene, state, toRuling(scene, state, LINING, META, { read: { probability: 0.8, routes: [{ id: "win-cob", p: 0.4 }] } }));
   assert.equal(settled.move.roll?.success, false);
   assert.equal(settled.move.to, "yard", "the scene stays where it is");
   assert.equal(settled.move.chosen, false);
@@ -295,6 +296,24 @@ test("a ruling settled: a roll it loses costs what failure costs, a way of tryin
   // Whatever the reply let slip, what the dice kept back hasn't been come across; anything else read as come across has.
   assert.deepEqual(landRuling(state, settled, ["page", "silvertop"]), ["silvertop"]);
   assert.deepEqual(state.landed, ["silvertop"]);
+});
+
+test("ways of trying close only when they've really been tried: a lie about a blade, read as scaring the kids, doesn't shut winning Cob round (thief#3)", async () => {
+  const state = yard(-30);
+  // The thief's T5, as the decider read it (scare-kids .34, win-cob .02) and as the review wrote its failure.
+  const read = { probability: 0.67, routes: [{ id: "scare-kids", p: 0.34 }, { id: "win-cob", p: 0.02 }], means: "deception" as const };
+  const lie = toRuling(scene, state, {
+    act: "Reassure Cob with a false excuse", target: "cob", lie: true, skill: "deception", stakes: "guarded", approach: "plausible", disposition: "wary", same_again: false, difficulty: "moderate", reason: "to make Cob believe you were checking for a knife",
+    success: outcome({ happens: "Cob loosens his grip on the boot and admits he saw Prout sewing something into one of them two nights ago.", gets: "some", establishes: ["Cob says he saw Prout sew something into one boot."] }),
+    failure: outcome({ happens: "Cob jerks away toward the water butt, shouting that you're a liar who tried to steal his boots.", gets: "none", establishes: ["Kell records that Nim tried to take something from Cob's boot."], closes: ["win-cob", "scare-kids"] }),
+  }, META, { read });
+  assert.deepEqual(lie.failure.closes, ["scare-kids"], "only the way it was read as");
+  const settled = await settleRuling(scene, state, lie);
+  assert.equal(settled.move.roll?.success, false);
+  assert.deepEqual(state.patches.map(p => p.close?.id), ["scare-kids"]);
+  const after = effectiveScene(authored, state.patches);
+  assert.ok(after.beats.find(b => b.id === "yard")!.transitions.some(t => t.id === "win-cob"), "winning Cob round is still a way to try");
+  assert.ok(after.beats.find(b => b.id === "yard")!.transitions.some(t => t.id === "trust-cob"), "and so is his trust, which no ruling can shut");
 });
 
 test("a ruling with no roll: yes takes success's way, no stays where it is and costs nothing; a roll lost towards an ending the player didn't choose holds it for their answer", async () => {

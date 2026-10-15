@@ -98,6 +98,9 @@ const RESIST: Record<string, number> = { trivial: 0, guarded: 1, dangerous: 2, r
 const LEVER: Record<string, number> = { weak: -1, plausible: 0, strong: 1, excellent: 2 };
 const WARMTH: Record<string, number> = { hostile: -1, wary: 0, friendly: 1 };
 
+/** How far the decider must have leant towards a way of trying for this attempt to count as trying it (so a failure can shut it). */
+const TRIED = 0.25;
+
 /** The review writes 250 to 330 tokens: a runaway (one wrote junk to 6,000 and took 43 s) is cut off near 1,000. */
 const MAX_OUTPUT_TOKENS = 1000;
 
@@ -198,13 +201,15 @@ function outcomeSchema(went: "success" | "failure", places: string[], outcomes: 
     properties: {
       happens: { type: "string", description: went === "success"
         ? "What happens if it works, decided, for the GM to narrate: they get what they were after, as they asked for it (never a refusal, never caught or found out), and the method shows. What comes out, in its own terms, as it comes out. One to three concrete sentences naming who does what. (If nothing could get them that here, write instead the honest no they'd get, in the person's own words and showing what would reach them, with gets none: then there's no roll, and that no costs them nothing.)"
-        : "What happens if it's rolled and fails, decided, for the GM to narrate: it doesn't work, and it costs the player something they can feel or makes someone act (they bolt, call for help, warn someone, name a price, turn on the player; a way shut for good; time or something lost). A refusal, or a refusal written down, isn't enough. One to three concrete sentences naming who does what." },
+        : "What happens if it's rolled and fails, decided, for the GM to narrate: it doesn't work, and it costs the player something they can feel or makes someone act (they bolt, call for help, warn someone, name a price, turn on the player; a way shut for good; time or something lost). A refusal, or a refusal written down, isn't enough; but it never puts what the scene needs out of reach for good (no 'won't let you near the boots again'): the other ways to it stay open. One to three concrete sentences naming who does what." },
       gets: { type: "string", enum: [...GETS], description: "How much of what the player was after this outcome gives them: all, some, or none." },
       to: { type: "string", enum: ["stay", ...places], description: "A beat or ending the scene moves to, only when what happens is what it's about; stay otherwise." },
       counts_as: { type: "string", enum: ["none", ...outcomes], description: "If what happens is what one of the scene's routes that simply happen describes (something found, said or settled), that route: its facts come with it and it leads where it leads." },
       establishes: { type: "array", items: { type: "string" }, description: "Facts now true because of this outcome (not ones true either way), as short statements: who gave what up or now holds it, who has gone where or won't talk, what was promised, agreed, paid or lost." },
       reveals: { type: "array", items: { type: "string", enum: ids(essentials) }, description: "Things the player needs to come across that come out in this outcome, as it says (none, often)." },
-      closes: { type: "array", items: { type: "string", enum: ids(checks) }, description: "Ways of trying (routes with a roll) that this outcome rules out for the rest of the scene: the person has bolted, the bridge is burnt. None, usually." },
+      closes: { type: "array", items: { type: "string", enum: ids(checks) }, description: went === "success"
+        ? "None: a success shuts no way of trying."
+        : "Ways of trying (routes with a roll) this failure rules out for the rest of the scene: only one the player has really tried (this attempt was that way), or one the fiction now rules out for good (the person has left the scene, the thing is destroyed). Never because someone is cross or refuses: a better approach can still open it. None, usually." },
     },
   };
 }
@@ -411,6 +416,11 @@ export function toRuling(scene: Scene, state: SessionState, json: RulingJson, me
     return changes(outcome) ? { ...outcome, happens } : { ...outcome, happens, establishes: [`When the player tried this (${act.replace(/\.$/, "")}), ${how}: ${happens}`] };
   };
   const success = fix(json.success, "success"), failure = fix(json.failure, "failure");
+  // A failed roll shuts only a way of trying the player has really tried: one the decider read this
+  // attempt as (the thief's lie about a blade shut win-cob, read at .02). Never an authored way without
+  // dice (they aren't ways of trying), never on a success, and a no without dice shuts nothing.
+  const tried = new Set((context.read?.routes ?? []).filter(r => r.p >= TRIED).map(r => r.id));
+  failure.closes = failure.closes.filter(id => tried.has(id));
   // A success that gets them nothing is a refusal: no roll could get them that here, and the refusal is
   // the answer. So is one that shuts a way of trying (a lift written as being caught, its wrist seized).
   // One that comes to the same as its failure, and gets them what they were after, needs no dice either: it's a yes.
