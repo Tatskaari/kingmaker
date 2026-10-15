@@ -107,14 +107,15 @@ export function workedOn(scene: Scene, ruling: Pick<Ruling, "target" | "skill">)
 }
 
 /**
- * The verdict from the review's judgements. Working on someone, it's the guidance's grid
- * (docs/research/dc-guidance.md §3.2: what giving in costs them, less the player's leverage and their
- * warmth, 3 points a step from DC 12), leaning towards the dice: the decider has already judged the
- * act uncertain, so it's "yes" without a roll only when they'd do it anyway or it's overwhelming
- * (and never for a lie, which can always be seen through), "no" only for a lever that can't move them
- * or the same push again, and a long shot rolls at 18 rather than failing on the GM's say-so. A feat
- * is DC 10, 13 or 16, or plainly done, or plainly can't be. A success that gives nothing its failure
- * doesn't (a refusal) leaves nothing to roll for: it's a no.
+ * The verdict from the review's judgements. The same push that already failed here gets the same
+ * answer, whatever else was judged. Working on someone, it's the guidance's grid as designed
+ * (docs/research/dc-guidance.md §3.2 and §3.4: what giving in costs them, less the player's leverage
+ * and their warmth, 3 points a step from DC 12): yes without a roll when they'd do it anyway, it
+ * costs them nothing, or the gap is 0 or less (never for a lie, which can always be seen through: it
+ * rolls at 10); a roll at DC 12, 15 or 18 for a gap of 1 to 3; and no at 4 or more, or for a lever
+ * that can't move them, the reply showing what would reach them. Fewer, meaningful rolls, as the
+ * table's rules have it. A feat is DC 10, 13 or 16, or plainly done, or plainly can't be. A success
+ * that gives nothing its failure doesn't (a refusal) leaves nothing to roll for: it's a no.
  */
 export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | "judged"> & { hollow?: string }): Verdict {
   const j = ruling.judged;
@@ -128,8 +129,9 @@ export function verdict(scene: Scene, ruling: Pick<Ruling, "target" | "skill" | 
     if (j.stakes === "trivial" && !lie) return { kind: "yes", why: `it costs them nothing (${said})` };
     if (j.approach === "no_chance") return { kind: "no", why: `it pulls a lever that can't move them (${said})` };
     const gap = (RESIST[j.stakes] ?? 1) - (LEVER[j.approach] ?? 0) - (WARMTH[j.disposition] ?? 0);
-    if (gap <= -1 && !lie) return { kind: "yes", why: `overwhelming (${said})` };
-    return { kind: "roll", dc: Math.min(18, Math.max(10, 9 + 3 * gap)), why: said };
+    if (gap <= 0 && !lie) return { kind: "yes", why: `that's enough to move them (${said})` };
+    if (gap >= 4) return { kind: "no", why: `not like this: it's too far from what would move them (${said})` };
+    return { kind: "roll", dc: Math.max(10, 9 + 3 * gap), why: said };
   }
   if (j.difficulty === "trivial") return { kind: "yes", why: "nothing stands in the way" };
   if (j.difficulty === "impossible") return { kind: "no", why: "it can't be done like this" };

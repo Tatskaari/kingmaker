@@ -50,14 +50,26 @@ function yard(persuasion: number, id = `consider-${Math.random().toString(36).sl
 
 const judged = (j: Partial<Judged>): Judged => ({ stakes: "guarded", approach: "plausible", disposition: "wary", sameAgain: false, difficulty: "moderate", ...j });
 
-test("the verdict: the guidance's grid for someone worked on, leaning to the dice; a feat's difficulty otherwise", () => {
+/** The guidance's whole grid (docs/research/dc-guidance.md §3.2): rows approach and disposition, columns guarded, dangerous, ruinous. */
+const GRID: Array<[Judged["approach"], Judged["disposition"], string, string, string]> = [
+  ["weak", "hostile", "18", "no", "no"], ["weak", "wary", "15", "18", "no"], ["weak", "friendly", "12", "15", "18"],
+  ["plausible", "hostile", "15", "18", "no"], ["plausible", "wary", "12", "15", "18"], ["plausible", "friendly", "yes", "12", "15"],
+  ["strong", "hostile", "12", "15", "18"], ["strong", "wary", "yes", "12", "15"], ["strong", "friendly", "yes", "yes", "12"],
+  ["excellent", "hostile", "yes", "12", "15"], ["excellent", "wary", "yes", "yes", "12"], ["excellent", "friendly", "yes", "yes", "yes"],
+];
+
+test("the verdict: the guidance's grid for someone worked on, as designed (yes at a gap of 0, no at 4); a feat's difficulty otherwise", () => {
   const on = (j: Partial<Judged>, skill: "persuasion" | "deception" | "intimidation" = "persuasion") => verdict(scene, { target: "cob", skill, judged: judged(j) });
-  assert.deepEqual([on({}).kind, on({}).dc], ["roll", 12], "guarded, plausible, wary: the middle of the grid");
-  assert.equal(on({ stakes: "dangerous" }).dc, 15);
-  assert.equal(on({ stakes: "ruinous", approach: "weak", disposition: "hostile" }).dc, 18, "a long shot rolls at 18, not a no on the GM's say-so");
-  assert.equal(on({ approach: "strong" }).dc, 10, "leverage that nearly settles it still rolls, low");
-  assert.equal(on({ approach: "excellent", disposition: "friendly" }).kind, "yes", "overwhelming: no dice");
-  assert.equal(on({ approach: "excellent", disposition: "friendly" }, "deception").dc, 10, "but a lie can always be seen through");
+  const cell = (v: ReturnType<typeof on>) => (v.kind === "roll" ? String(v.dc) : v.kind);
+  for (const [approach, disposition, ...byStakes] of GRID) {
+    assert.deepEqual((["guarded", "dangerous", "ruinous"] as const).map(stakes => cell(on({ stakes, approach, disposition }))), byStakes, `${approach}, ${disposition}`);
+  }
+  // The barbarian's game: an excellent approach at a gap of 0 needs no roll (it failed on a 4 at DC 10),
+  // and a weak one on a hostile holder of something dangerous is a no, not a third DC 18 in five turns.
+  assert.equal(on({ stakes: "dangerous", approach: "excellent", disposition: "wary" }).kind, "yes", "barbarian#48's T42");
+  assert.deepEqual(on({ stakes: "dangerous", approach: "weak", disposition: "hostile" }), { kind: "no", why: "not like this: it's too far from what would move them (dangerous, weak, hostile)" }, "barbarian#48's T11");
+  assert.equal(on({ approach: "excellent", disposition: "friendly" }, "deception").dc, 10, "a lie that would be enough can always be seen through: it rolls, low");
+  assert.equal(on({ stakes: "ruinous", approach: "weak", disposition: "hostile" }, "deception").kind, "no", "and one too far is a no like any other");
   assert.equal(on({ approach: "free", disposition: "hostile" }).kind, "yes", "they'd do it anyway");
   assert.equal(on({ stakes: "trivial" }).kind, "yes");
   assert.equal(on({ approach: "no_chance" }).kind, "no", "a lever that can't move them");
