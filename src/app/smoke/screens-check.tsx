@@ -1,10 +1,14 @@
 /**
- * The map, the fight, the title and the End, drawn by the real screens and played with the mouse,
- * no model calls (a ready-made character offline): the map's and the fight's side panels at 80x24
- * and up, every line drawn whole (a squeezed panel draws its lines over each other); the map's keys
- * at the bottom as buttons; a click on a blue tile moves there, a click on someone on the other side
- * aims at them and a click on your target attacks, and the fight's options are buttons; the title's
- * New game and Continue, and the End's way back, by a click.
+ * The map, the fight, a scene's place, the title and the End, drawn by the real screens and played
+ * with the mouse, no model calls (a ready-made character offline): the map's and the fight's side
+ * panels at 80x24 and up, every line drawn whole (a squeezed panel draws its lines over each other);
+ * the map's keys at the bottom as buttons; a click on a blue tile moves there, a click on someone on
+ * the other side aims at them and a click on your target attacks, and the fight's options are
+ * buttons; in a scene at 80x24 and 130x42, pointing at someone in the place (and in the list under
+ * it) says who, a right-click opens their menu without covering the conversation, Look notes what's
+ * known, a deed goes as the turn, a click starts the line with their name, and Tab and Enter do it
+ * by key while the box keeps its keys; the title's New game and Continue, and the End's way back,
+ * by a click.
  *
  *   KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx [--show]
  */
@@ -21,14 +25,16 @@ import { nearby, Picks, screenOf } from "../../game/map/index.ts";
 import { fightView } from "../../game/views.ts";
 import { presentCast } from "../../runtime/brief.ts";
 import { forceEnding } from "../../runtime/engine.ts";
+import { inventory, startingPurse } from "../../world/inventory.ts";
 import { buildWorld, joinWorld } from "../../world/scene-world.ts";
-import { Game } from "../game.ts";
+import { Game, type Line } from "../game.ts";
 import type { Resumable } from "../save.ts";
 import { leadWay, TIME_WORDS } from "../story.ts";
 import { wrap } from "../ui/common.tsx";
 import { CombatScreen } from "../ui/combat.tsx";
 import { EndScreen } from "../ui/end.tsx";
 import { ExploreScreen } from "../ui/explore.tsx";
+import { SceneScreen } from "../ui/scene.tsx";
 import { TitleScreen } from "../ui/title.tsx";
 
 process.env.KM_GLYPHS ??= "ascii";
@@ -176,6 +182,126 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   if (options) await act(async () => { await setup.mockMouse.click(options.x, options.y); });
   checks.push([`fight ${w}x${h}: a click on "m every option" lists them`, game.overlay?.kind === "actions"]);
   await setup.dispose();
+}
+
+// ---------------------------------------------------------------------------------------------
+// A scene: its place by mouse and by key (pointing, a click, the right-click menu), at 80x24 and 130x42.
+
+{
+  const scene = sceneById("hanged-clerk");
+  const yard = await pregenSession({ pregen: "wizard", name: "Pell Marrow", level: 3, seed: 3, sceneId: "hanged-clerk" });
+  Object.assign(yard, { beat: scene.start });
+  const people = presentCast(scene, yard);
+  yard.world = buildWorld(scene.id, scene.world!, people.map(c => ({ id: c.id, name: c.name })), yard.player);
+  joinWorld(yard.world, people.map(c => ({ id: c.id, name: c.name })), 0);
+  for (const coin of startingPurse()) inventory(yard.world, 0).add("player", coin);
+  const opening: Line[] = [
+    { kind: "header", speaker: "system", name: scene.title, text: scene.hook },
+    { kind: "narration", speaker: "gm", text: "The yard behind the King's Granary smells of wet grain and pigeons. Wendell Prout turns slowly on the sack hoist above the shut loft door, and a scrawny boy in enormous boots is lobbing gutter stones at him." },
+    { kind: "dialogue", speaker: "kell", name: "Sergeant Agnes Kell", text: "“Sergeant Kell, of the watch. The Captain says suicide.” She does not say what she says. “Investigator.”" },
+  ];
+  /** The line under the conversation, and what's in the box. */
+  const under = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) - 1]!.trim(); };
+  const boxed = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) + 1]!.replace(/│/g, "").trim(); };
+  /** The conversation's words, row by row: its rows, left of its scrollbar's column (and the padding and border right of that). */
+  const words = (frame: string, upTo: number) => { const rows = frame.split("\n"); return rows.slice(0, rows.findIndex(r => r.includes("What do you say?")) - 1).map(r => [...r].slice(0, upTo).join("")); };
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const side = w >= 100 ? Math.min(62, Math.floor(w * 0.42)) : 26 + Math.floor((w - 80) / 4);
+    const game = new Game();
+    game.core = { session: yard, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }) } as unknown as Core;
+    game.screen = "scene";
+    game.lines = [...opening];
+    const sent: string[] = [];
+    game.input = async (text: string) => { sent.push(text); };
+    await game.loadSpellFacts();
+    const setup = await testRender(<SceneScreen game={game} />, { width: w, height: h });
+    // A lone Esc reaches the screen once the terminal's reader is sure it isn't the start of a longer key.
+    const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
+    await setup.renderOnce();
+    await setup.renderOnce();
+    let frame = setup.captureCharFrame();
+    if (show) console.log(`scene ${w}x${h}\n${frame}`);
+    const rows = frame.split("\n");
+    const top = rows.findIndex(r => r.includes("The yard behind the K"));
+    const list = rows.findIndex((r, i) => i > top && r.includes("@ you"));
+    checks.push([`scene ${w}x${h}: the place is drawn beside the conversation, and who's in it under it`, top > 0 && list > top + 4 && /K Sergeant Agnes K/.test(frame) && /c the boy in the to/.test(frame)]);
+    /** Point at each cell of the place until the line under the conversation names someone. */
+    const find = async (name: string) => {
+      for (let y = top + 1; y < list; y++) for (let x = w - side + 2; x < w - 2; x++) {
+        await act(async () => { await setup.mockMouse.moveTo(x, y); });
+        await setup.renderOnce();
+        if (under(setup.captureCharFrame()).startsWith(name)) return { x, y };
+      }
+      return undefined;
+    };
+    const cob = await find("The boy in the too-big boots");
+    checks.push([`scene ${w}x${h}: pointing at Cob in the place says who he is (as he's known: no name yet) and what he's doing`, !!cob && /^The boy in the too-big boots +· +under the body, lo/.test(under(setup.captureCharFrame()))]);
+    const kell = await find("Sergeant Agnes Kell");
+    checks.push([`scene ${w}x${h}: pointing at Kell, and what a click does`, !!kell && /click(:| to) talk/.test(under(setup.captureCharFrame()))]);
+    // The list under the place points too.
+    const girl = rows.findIndex(r => r.includes("m the girl in the"));
+    await act(async () => { await setup.mockMouse.moveTo(w - side + 6, girl); });
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: pointing at a line of the list says who it is`, /^The girl in the shawl +· +sitting on top of the yar/.test(under(setup.captureCharFrame()))]);
+    if (!cob || !kell) { await setup.dispose(); continue; }
+    // A right-click on Cob: his menu, inside the panel, never over the conversation's words.
+    const before = words(setup.captureCharFrame(), w - side - 3);
+    await act(async () => { await setup.mockMouse.click(cob.x, cob.y, 2); });
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    if (show) console.log(`scene ${w}x${h}, Cob's menu\n${frame}`);
+    checks.push([`scene ${w}x${h}: a right-click on Cob opens his menu: talk, look, give, go over, attack, cast`, /1 Talk to them/.test(frame) && /2 Look at them/.test(frame) && /3 Give them something…/.test(frame) && /5 Attack them/.test(frame) && /6 Cast a spell at them…/.test(frame) && /Esc never mind/.test(frame)]);
+    checks.push([`scene ${w}x${h}: the menu hides none of the conversation`, words(frame, w - side - 3).every((r, i) => r === before[i])]);
+    await esc();
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: Esc closes the menu`, !game.sceneMenu && !/Esc never mind/.test(setup.captureCharFrame())]);
+    // Looking: at once, a quiet note in the conversation, and not a turn.
+    await act(async () => { await setup.mockMouse.click(cob.x, cob.y, 2); });
+    act(() => setup.mockInput.pressKey("2"));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    checks.push([`scene ${w}x${h}: Look notes what the world knows of him, and sends nothing`, /◉ +The boy in the too-big boots\. Under the/.test(frame) && !sent.length]);
+    // A deed from a further menu: what to give him, sent as the turn.
+    await act(async () => { await setup.mockMouse.click(cob.x, cob.y, 2); });
+    act(() => setup.mockInput.pressKey("3"));
+    await setup.renderOnce();
+    frame = setup.captureCharFrame();
+    const pennies = game.sceneMenu?.actions.findIndex(a => a.id.startsWith("give:pennies")) ?? -1;
+    checks.push([`scene ${w}x${h}: giving him something lists what you carry, under its own title`, /╭─ Give the boy in the/.test(frame) && /12 pennies/.test(frame) && pennies >= 0]);
+    act(() => setup.mockInput.pressKey(String(pennies + 1)));
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: choosing the pennies sends the deed as the turn (${sent.at(-1)})`, sent.at(-1) === "(I give the boy in the too-big boots one of my pennies)" && !game.sceneMenu]);
+    // A click talks: his name (what he's called) starts the line, before anything typed; Kell's in its place.
+    await act(async () => { await setup.mockMouse.click(cob.x, cob.y); });
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: a click on Cob starts the line "Boy, "`, boxed(setup.captureCharFrame()) === "Boy,"]);
+    await act(async () => { await setup.mockInput.typeText("who cut him down?"); });
+    await act(async () => { await setup.mockMouse.click(kell.x, kell.y); });
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: then a click on Kell: "Sergeant Kell, who cut him down?" (nothing typed lost)`, boxed(setup.captureCharFrame()) === "Sergeant Kell, who cut him down?"]);
+    // The box keeps its keys: Enter sends what's in it, not a menu.
+    act(() => setup.mockInput.pressEnter());
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: Enter sends the line in the box`, sent.at(-1) === "Sergeant Kell, who cut him down?" && !game.sceneMenu]);
+    // By key: Tab to the nearest, Enter for the menu, a letter puts it away and goes in the box.
+    await act(async () => { await setup.mockMouse.moveTo(1, 1); });
+    act(() => setup.mockInput.pressTab());
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: Tab picks out the nearest person`, under(setup.captureCharFrame()).startsWith("Sergeant Agnes Kell")]);
+    act(() => setup.mockInput.pressArrow("down"));
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: ↓ (nothing typed) the next`, under(setup.captureCharFrame()).startsWith("The girl in the shawl")]);
+    act(() => setup.mockInput.pressEnter());
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: Enter (nothing typed) opens her menu`, game.sceneMenu?.title === "The girl in the shawl" && /Esc never mind/.test(setup.captureCharFrame())]);
+    await act(async () => { await setup.mockInput.typeText("M"); });
+    await setup.renderOnce();
+    checks.push([`scene ${w}x${h}: a letter with the menu open closes it and goes in the box`, !game.sceneMenu && boxed(setup.captureCharFrame()) === "M"]);
+    await esc();
+    await esc();
+    checks.push([`scene ${w}x${h}: Esc lets go of what Tab picked out, then it's the game's menu`, game.overlay?.kind === "menu"]);
+    await setup.dispose();
+  }
 }
 
 // ---------------------------------------------------------------------------------------------

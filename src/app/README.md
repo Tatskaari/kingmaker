@@ -14,7 +14,7 @@ It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-o
 
 ## Playing
 
-The game is mostly played with the mouse. On the map, click somewhere to walk there, a step at a time, round whatever's in the way (through it, if it's a door; as near as you can get, if you can't); any key or click stops you. Right-click someone or something for what you can do with them: talk, look, go through, step in, walk over. The sidebar's Nearby list works the same way, and the tile under the pointer lights up while the bottom line says what's there. In a fight, click a blue tile to move there, click someone on the other side to aim at them, and click the one you're aiming at to attack. Everywhere, the key hints at the bottom (and a fight's options) are buttons, and the title's and the End's choices take a click. Every key still works.
+The game is mostly played with the mouse. On the map, click somewhere to walk there, a step at a time, round whatever's in the way (through it, if it's a door; as near as you can get, if you can't); any key or click stops you. Right-click someone or something for what you can do with them: talk, look, go through, step in, walk over. The sidebar's Nearby list works the same way, and the tile under the pointer lights up while the bottom line says what's there. In a scene, the place on the right works the same way: point at someone or something in it (or in the list under it) and it lights up while the line under the conversation says what it is; click someone to talk to them, or something to look at it; right-click for what you can do with it. In a fight, click a blue tile to move there, click someone on the other side to aim at them, and click the one you're aiming at to attack. Everywhere, the key hints at the bottom (and a fight's options) are buttons, and the title's and the End's choices take a click. Every key still works.
 
 | where | keys |
 |---|---|
@@ -22,7 +22,7 @@ The game is mostly played with the mouse. On the map, click somewhere to walk th
 | character | Tab between name and concept; Enter; on the sheet, r makes them again (or click the buttons) |
 | the sheet | ←→, Tab or 1–9 turn its pages (or click a tab); ↑↓, PgUp/PgDn or the wheel scroll a long page; Esc, or a click outside it, puts it away |
 | explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; g walk to the lead (any key stops); c sheet; j notebook; ? help; Esc menu |
-| scene | type and press Enter: plain words are said, `*asterisks*` or `(brackets)` are done; 1–9 (or a click) chooses one of the core's choices, when there are any (a talk's lines, its goodbye, walking on); `/sheet` `/map` `/journal` `/help` (any time, even with the GM mid-sentence) `/save` `/quit` (typed, or clicked at the bottom; the old `#sheet` still works); PgUp/PgDn or the wheel scroll; a scene that's over waits for an Enter of its own or a click; Esc menu |
+| scene | type and press Enter: plain words are said, `*asterisks*` or `(brackets)` are done; 1–9 (or a click) chooses one of the core's choices, when there are any (a talk's lines, its goodbye, walking on); `/sheet` `/map` `/journal` `/help` (any time, even with the GM mid-sentence) `/save` `/quit` (typed, or clicked at the bottom; the old `#sheet` still works); PgUp/PgDn or the wheel scroll; a scene that's over waits for an Enter of its own or a click; Tab (or ↑↓ with nothing typed) goes through what's in the place, Enter (with nothing typed) opens its menu (↑↓ and Enter or its number, → and ← in and out of what to give or which spell, Esc never mind, anything typed goes in the box), Esc lets go of it; Esc menu |
 | between scenes | Enter (or a click) hurries Kell along, then goes on to the map; Esc menu |
 | combat | arrows move 5 ft; Tab or 1–9 pick a target; a attack; z close in; c cast (Enter at the target, t on yourself); u knock over a lantern or brazier; d dash; g dodge; x disengage; f let the dice decide; m every option; e end turn; s sheet; when it's over, Enter (or a click) |
 | the end | Enter (or a click) back to the title; q quit |
@@ -40,6 +40,24 @@ For testing, in a scene, `/exits` lists the endings and `/end <id>` takes one no
 - The core can offer choices in scene mode: a talk's lines to say and its goodbye (kind `say`: the label is the line), and walking on. They're listed over the box, to click or pick with 1–9; a short screen lists fewer lines, never fewer ways out. A line goes through as if typed; walking on is straight back to the map.
 - The box submits what it holds as Enter comes, not the draft of the render before: letters and their Enter in one read (a paste, a fast typist, the browser's terminal) arrive whole.
 - The conversation's scrollbar is laid over a column kept for it (`SCROLLBAR` in `ui/common.tsx`). A scrollbar that takes its own room narrows the text when it first appears, and OpenTUI doesn't re-wrap text already laid out: each line lost its last character under it.
+- A click on the conversation leaves the box with the keys (its scrollbox isn't focusable): OpenTUI gives a left click's focus to what's under it, and the next words typed went nowhere.
+
+### The scene's place
+
+On the right is the scene's place, drawn from above (`stageView`), and under it who's there and what's spilled (a narrow panel at 80 columns, where the place is small and the box's own hint stands in for "How to talk"). It's played like the map:
+
+- **Pointing.** Point at someone or something in the place, or at a line of the list, and it lights up (every cell drawn for it, as the map lights a tile) while the line under the conversation says what it is: the name (or what they're called, until the player has heard it: "the boy in the too-big boots"), what they're doing or how it is (the world's notes and states: burning, open, asleep), who has it or what it's in, on or hanging from, and what a click does. The floor says what it is ("The yard · cobbles, and a puddle"); a wall the dressing draws is the world's wall ("the yard wall"), the river the river. The stage records what it drew where, as the map does (`StagePicks` in `src/game/look/stage.ts`: whose each cell is, what's under them there, and the floor), so pointing agrees with drawing.
+- **A click** does the most natural thing: talk to someone (their name starts your line in the box, "Cob, ", before whatever you'd typed; another's name takes its place), look at something.
+- **A right-click** (or Enter, with nothing typed, on what Tab picked out) opens a menu of what you can do with it, in the map menu's style and inside the panel: it never covers the conversation's words. What it offers is `src/game/scene-menu.ts` (`thingActions`), and only what fits:
+  - someone: talk to them, look, give them something you carry (which), go over (if they're not beside you), attack them, cast one of your spells at them (which: only the ones the rules have ready, and only those that reach someone else, so no Shield);
+  - you: look at yourself (what you carry, how you are), cast on yourself (nothing that harms or goes out from you);
+  - a thing: look, take it (if it's small and loose: not fixed, chained, burning, hanging, a body or furniture; from whoever or whatever has it), what it's for (open or try a door, close it, look inside a container, light or put out a lamp, put out what's burning, go through a passage, get down what hangs, cut a rope with something on it, read a book or a sign, examine evidence or a body closely), give it to someone or put it down if it's yours, go over to it, attack it (if it can break), cast at it what works on things;
+  - a spill (oil, a puddle, smoke): look, put it out if it's burning, go over, cast at it;
+  - the floor: look, and go over there if it's another part of the place (or by something, in yours).
+  - Whatever else is drawn in the same cell comes last, with its own menu: the hoist rope and the beam, under Prout.
+- **Looking** is instant and isn't a turn: what the world knows of it (its description, states and notes, who has it), a quiet note in the conversation (◉), which the GM never hears.
+- **Deeds** go as your turn, as if you'd typed them, in brackets: "(I pick up Prout's satchel)", "(I give the boy in the too-big boots one of my pennies)", "(I try to open the loft door)", "(I cast Fire Bolt at the hoist rope)", "(I cast Cure Wounds on Sergeant Agnes Kell)". The director, the rules and the GM take them as they take typed ones. While the GM has the floor, only looking and starting a line are offered; once the scene is over, only looking.
+- **The box keeps its keys.** Tab, which it has no use for, goes through what's in the place (the people first, nearest first, then things, then what the place is built of); ↑↓ and Enter do only while nothing's typed; Esc lets go of what Tab picked out before it opens the game's menu. With the menu open, anything typed (a letter, a space, Backspace) puts it away and goes in the box.
 
 ## How it fits together
 
@@ -64,6 +82,7 @@ Exploration and fights plug into the core, and the app uses the real modules:
 - overlays: the sheet, help, the scene's place on the map (/map), the spell picker, a fight's every option;
 - the character sheet: the rules engine's sheet as data (`sheetData` in src/rules/dnd.ts), laid out for the screen by `ui/sheet-layout.ts` (a page at a time on a small screen, all of it in columns on a big one), with a portrait for each class (`ui/portraits.ts`), shown by `ui/sheet.tsx` after character creation and over the game (c, s, /sheet). In a fight it reads the fight's own campaign, so it's as the fight has left you;
 - walking a step at a time, to the lead or wherever you clicked, and the map's right-click menu (what's at a tile: the town explorer's `actionsAt`, picked from what the renderer drew where);
+- the scene's right-click menu (what's in its place: `thingActions` in `src/game/scene-menu.ts`, picked from what the stage drew where), its quiet notes of what was looked at, and the deeds it sends as the player's turn (`sceneMenu`, `lookNote`, `deed` in `game.ts`; the menu box is `ui/menu.tsx`);
 - the fight's target, picked by a click the same way (the battlefield's `Picks`), and a beat between the other side's turns;
 - side panels laid out a row at a time in the rows they have (the map's and the fight's): what's needed first, then what fills the room. A squeezed box draws its lines over each other.
 
@@ -78,7 +97,8 @@ python3 src/app/smoke/smoke.py                # the real TUI under a pty, the wh
 python3 src/app/smoke/smoke.py --live         # real GM turns, quit and resume, /map, a real scene boundary, Kell after it, and a talk with her
 python3 src/app/smoke/smoke.py --live-fight   # a live-built wizard through to the Heron, casting from the spell picker
 KM_RUNS_DIR=runs/check node --experimental-ffi --no-warnings --import tsx src/app/smoke/scene-check.tsx   # the scene screens at 80 to 160 columns: every character drawn; the keys and clicks on them
-KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, the title, the End: side panels whole, the mouse
+KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx   # the map and the fight at 80x24 and up, a scene's place at 80x24 and 130x42, the title, the End: side panels whole, the mouse
+KM_RUNS_DIR=runs/live-check node --experimental-ffi --no-warnings --import tsx src/app/smoke/scene-menu-live.tsx   # the scene's menu with the real GM: a penny given and a Fire Bolt cast from it, as turns
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the core with the map and fights, no UI
 KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts                            # casting in a fight, headless
 ```
@@ -88,6 +108,7 @@ The offline run uses an invalid API key, so the GM can't speak, and it ends scen
 - character creation (New game by a click), walking, overlays, and g walking to the later leads (across town, through the Rat's door, along the wharves);
 - the mouse, as xterm reports it (SGR 1006): pointing at Kell, a click that walks, a right-click menu closed with Esc, and Kell's scene opened from hers; the map's keys at the bottom clicked;
 - every scene, its place drawn beside the transcript, the slash commands (and one old `#`, written with its Enter in one go), clicks on the way on, a command and outside an overlay;
+- the clerk's yard by mouse: Kell pointed at in the list under the place, right-clicked (her menu), looked at (the quiet note), Esc, a click that starts the line with her name, and Tab picking her out;
 - each scene staying up once it's over, typing on as it ends going nowhere (and walking nobody), Kell telling the news between scenes (typing at her going nowhere either) with the way the map's lead gives, and the notebook;
 - a talk with Kell between scenes (right-clicked in the Nearby list), its choices listed, walking on by a click, and straight back to the map;
 - save, quit and Continue (on the map, by a click, and mid-fight);

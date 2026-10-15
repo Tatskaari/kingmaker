@@ -9,8 +9,9 @@ import { actionsAt, exploreState, leadTarget, town, walkId, type TileActions } f
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
 import { setCallLog } from "../llm/openrouter.ts";
-import { sheetData, type SheetData } from "../rules/dnd.ts";
-import { sceneEntries } from "../runtime/brief.ts";
+import { sheetData, spellInfo, type SheetData } from "../rules/dnd.ts";
+import { sceneEntries, unnamed } from "../runtime/brief.ts";
+import { thingActions, type SceneContext, type SceneTarget, type SpellFacts, type ThingActions } from "../game/scene-menu.ts";
 import type { TurnHooks } from "../runtime/engine.ts";
 import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
 import type { SceneWorld } from "../world/scene-world.ts";
@@ -32,8 +33,12 @@ import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, leadWay, LEVEL, notebookLines,
 export type Screen = "title" | "create" | "creating" | "created" | "explore" | "scene" | "between" | "combat" | "end";
 
 export interface Line {
-  /** "info": the rules' word on what changed without a roll (what you carry, what's burning); "roll" keeps the dice. */
-  kind: EntryKind | "header" | "error" | "info";
+  /**
+   * "info": the rules' word on what changed without a roll (what you carry, what's burning); "roll"
+   * keeps the dice. "look": what the player looked at in the place (the menu's Look), a quiet note
+   * of the screen's own: it isn't a turn, and the GM never hears it.
+   */
+  kind: EntryKind | "header" | "error" | "info" | "look";
   /** Speaker id (a cast id, "gm", "player", "dice", "system"). */
   speaker: string;
   /** Display name for dialogue and the player. */
@@ -106,6 +111,22 @@ export interface TileMenu extends TileActions {
   index: number;
 }
 
+/**
+ * The scene's menu for what's in its place (a right-click on the place, or on a line of the list
+ * under it, or Enter on what Tab picked out): what it is, what can be done with it (the map menu's
+ * kind of actions, worded for the scene: src/game/scene-menu.ts), where it opened.
+ */
+export interface SceneMenu extends ThingActions {
+  target: SceneTarget;
+  /** Where on screen it was asked for. */
+  x: number;
+  y: number;
+  /** The highlighted choice. */
+  index: number;
+  /** The menu this one was chosen from (what to give, which spell, something else that's there). */
+  parent?: SceneMenu;
+}
+
 export type Overlay =
   | { kind: "sheet"; sheet?: SheetData; error?: string }
   | { kind: "help" }
@@ -151,6 +172,8 @@ export class Game {
   walking = false;
   /** The map's right-click menu, while it's open. */
   menu?: TileMenu;
+  /** The scene's right-click menu (on its place, or the list under it), while it's open. */
+  sceneMenu?: SceneMenu;
   /** The scene on screen is over: its last reply stays up until the player goes on. */
   over?: Over;
   /**
@@ -180,6 +203,9 @@ export class Game {
   private rolled: string[] = [];
   /** The fight's effects, and how much of its log they've shown (see fightFx). */
   private fightLook?: { fight: CombatController; fx: Effects; seen: number; dust: Tile2[] };
+  /** What the rules say of the player's spells' reach (range, effects, area), by id, for the scene's menu to offer what fits. */
+  private spellFacts = new Map<string, SpellFacts>();
+  private spellsLoading?: Promise<void>;
 
   constructor() {
     // The other side's turns: redraw after each, and give the player a beat to see it land.
@@ -511,6 +537,8 @@ export class Game {
     this.busy = busy;
     this.over = undefined;
     this.choices = [];
+    this.sceneMenu = undefined;
+    void this.loadSpellFacts();
   }
 
   private showSceneSoFar(): void {
@@ -519,7 +547,9 @@ export class Game {
     // A summons's opening may still be streaming in: it carries on, now on screen.
     if (this.live?.scene !== this.shown) this.live = undefined;
     this.over = undefined;
+    this.sceneMenu = undefined;
     this.refreshChoices();
+    void this.loadSpellFacts();
   }
 
   private hooks(): TurnHooks {
@@ -663,6 +693,7 @@ export class Game {
   /** Off the scene screen and onto the map, with a word in "What happens" (a talk that's over, or never was). */
   private toMap(said: string): void {
     this.over = undefined;
+    this.sceneMenu = undefined;
     this.card = undefined;
     this.busy = undefined;
     this.live = undefined;
@@ -788,6 +819,7 @@ export class Game {
     }
     if (!over.ready) { over.queued = true; this.emit(); return; }
     this.over = undefined;
+    this.sceneMenu = undefined;
     // The story couldn't move on (the hand-off failed): Continue tries it again.
     if (core.state.mode === "scene" && core.session.sceneId === this.shown && core.session.ended) { void this.moveOn(() => core.carryOn(this.hooks())); return; }
     switch (core.state.mode) {
@@ -866,6 +898,84 @@ export class Game {
     this.typing = false;
     this.screen = card.next === "combat" ? "combat" : card.next === "end" ? "end" : card.next === "scene" ? "scene" : "explore";
     this.emit();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The scene's place: pointing, looking, and the right-click menu (src/game/scene-menu.ts)
+
+  /**
+   * What the scene's menu needs to word things as the player knows them: what to call the cast
+   * whose names they haven't heard, the names people go by, their spells (with what the rules say
+   * of each one's reach, once read), and whether the GM has the floor or the scene is over.
+   */
+  sceneContext(): SceneContext {
+    const session = this.session, shown = this.shownScene;
+    const scene = shown ? sceneById(shown) : undefined;
+    const ready = session?.rules?.spells ?? [];
+    if (ready.some(s => !this.spellFacts.has(s.id))) void this.loadSpellFacts();
+    return {
+      ...(scene && session ? { unnamed: unnamed(scene, session) } : {}),
+      ...(scene ? { aka: Object.fromEntries(scene.cast.filter(c => c.aka?.length).map(c => [c.id, c.aka!])) } : {}),
+      spells: ready.map(s => this.spellFacts.get(s.id) ?? s),
+      ...(this.busy ? { busy: true } : {}), ...(this.over ? { over: true } : {}),
+    };
+  }
+
+  /** Read what the rules say of the player's spells (range, effects, area): the menu offers each where it fits. */
+  loadSpellFacts(): Promise<void> {
+    const ready = this.session?.rules?.spells ?? [];
+    const missing = ready.filter(s => !this.spellFacts.has(s.id));
+    if (!missing.length) return Promise.resolve();
+    this.spellsLoading ??= (async () => {
+      for (const s of missing) {
+        const def = await spellInfo(s.id).catch(() => undefined);
+        const targeting = def ? (def as unknown as { targeting?: { shape?: string } }).targeting : undefined;
+        this.spellFacts.set(s.id, def ? { ...s, range: def.range, effects: (def.mechanicalEffects ?? []).map(m => String(m.kind)), ...(targeting?.shape ? { area: true } : {}) } : s);
+      }
+    })().finally(() => { this.spellsLoading = undefined; });
+    return this.spellsLoading;
+  }
+
+  /** Right-click on the scene's place, or a line of the list under it (or Enter on what Tab picked out): what can be done with it. */
+  openSceneMenu(target: SceneTarget, x: number, y: number): void {
+    const world = this.shownWorld;
+    if (!world || this.screen !== "scene") return;
+    const menu = thingActions(world, target, this.sceneContext());
+    if (!menu.actions.length) { this.closeSceneMenu(); return; }
+    this.sceneMenu = { ...menu, target, x, y, index: 0 };
+    this.emit();
+  }
+
+  closeSceneMenu(): void {
+    if (!this.sceneMenu) return;
+    this.sceneMenu = undefined;
+    this.emit();
+  }
+
+  /**
+   * Looking at something in the place (the menu's Look, worded by lookText from what the world
+   * knows): at once, as a quiet note in the transcript. It isn't a turn. The same look twice running
+   * is noted once.
+   */
+  lookNote(text: string): void {
+    if (!text) return;
+    const last = this.lines.at(-1);
+    if (last?.kind !== "look" || last.text !== text) this.lines.push({ kind: "look", speaker: "player", text, ...(this.shownScene ? { scene: this.shownScene } : {}) });
+    this.emit();
+  }
+
+  /**
+   * A deed from the scene's menu ("(I pick up Prout's satchel)"): the player's turn, as if typed,
+   * for the director, the rules and the GM to take as they take typed deeds. Not while the GM has
+   * the floor (it waits for nobody), nor once the scene's over.
+   */
+  async deed(line: string): Promise<void> {
+    if (this.busy || this.over) {
+      this.status = this.over ? "The scene is over: there's only looking now." : "The GM has the floor: that will have to wait until they've finished.";
+      this.emit();
+      return;
+    }
+    await this.input(line);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -1071,6 +1181,7 @@ export class Game {
     this.lines = [];
     this.walking = false;
     this.menu = undefined;
+    this.sceneMenu = undefined;
     this.over = undefined;
     this.choices = [];
     this.typing = false;

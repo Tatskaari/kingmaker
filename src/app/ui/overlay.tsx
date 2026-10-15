@@ -21,6 +21,8 @@ const HELP: Record<string, string[]> = {
   scene: [
     "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then?",
     "*Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
+    "The place on the right is the scene's: point at someone or something in it (or in the list under it) and the line under the conversation says what they are. A click talks to someone (their name starts your line) or looks at something; a right-click says what you can do with it: look, talk, take it, give them something, open or use it, go over, attack, cast one of your spells at it. Looking costs nothing; the rest is your turn, sent as if you'd typed it.",
+    "By key: Tab (or ↑↓, with nothing typed) goes through what's in the place, Enter (with nothing typed) opens its menu, Esc lets go. In a menu, ↑↓ and Enter or its number; → and ← in and out of what to give or which spell; anything you type puts it away and goes in the box.",
     "The GM narrates and plays everyone else. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
     "When there are things you might say (in a word with Kell: her suggestions, a goodbye, walking on), they're listed over the box: click one, or press its number.",
     "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this (those four any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
@@ -131,7 +133,10 @@ export function Overlay({ game }: { game: Game }) {
     }
     case "help": {
       const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
-      return box("How to play", <box flexDirection="column">{HELP[mode]!.map((l, i) => <text key={i} fg={C.text} wrapMode="word" marginBottom={1}>{`· ${l}`}</text>)}</box>, [["Esc", "close", close]]);
+      // A short screen scrolls it (the wheel), as the notebook does.
+      return box("How to play", <scrollbox flexGrow={1} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
+        {HELP[mode]!.map((l, i) => <text key={i} fg={C.text} wrapMode="word" marginBottom={1} flexShrink={0}>{`· ${l}`}</text>)}
+      </scrollbox>, [["Esc", "close", close]]);
     }
     case "menu":
       return box("Menu", <box flexDirection="column" paddingY={1}>{MENU.map((m, i) => <Clickable key={i} height={1} onClick={() => pickMenu(game, i)}><text>
