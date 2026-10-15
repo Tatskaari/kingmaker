@@ -185,6 +185,20 @@ export const appScenarios: Scenario[] = [
     },
     steps: [{ type: "Give it up, Crake! Nobody's paying you for this." }],
   })),
+  // The box given the keys by Enter after it's drawn (its focus switched on, then off by Esc): the letters go in it, not to the fight's keys.
+  ...([[80, 24]] as const).map(([width, height]): Scenario => ({
+    name: `combat typing by key ${width}x${height}`, width, height,
+    node: () => {
+      const game = new Game();
+      game.core = fightCore;
+      game.screen = "combat";
+      // Nothing's sent from here (the fake core has no say): only the keys and the box are compared.
+      game.combatAct = async () => {};
+      game.combatSay = async () => {};
+      return <CombatScreen game={game} />;
+    },
+    steps: [{ keys: ["RETURN"] }, { type: "attack the crake and cast a spell" }, { keys: ["ESCAPE"], wait: 100 }],
+  })),
   // The GM's answer streaming into the fight's log.
   ...sizes("combat answer", [[130, 42]], () => {
     const game = new Game();
