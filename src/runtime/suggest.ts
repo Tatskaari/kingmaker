@@ -2,11 +2,12 @@ import { deciderFor, type ChoiceQuestion, type Decider } from "../llm/decide.ts"
 import { modelOffline, respond, type RespondRequest } from "../llm/openrouter.ts";
 import { sceneById, SCENES, ZOO_SCENES } from "../../scenes/index.ts";
 import { sceneApproach } from "./approaches.ts";
-import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, knownCast, nameTokens, presentCast, prompt, sceneEntries, scriptTranscript, spentHere, unnamed } from "./brief.ts";
+import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, nameTokens, presentCast, prompt, sceneEntries, scriptTranscript, spentHere, unnamed } from "./brief.ts";
 import { titleCase } from "./dice.ts";
 import type { TurnHooks } from "./engine.ts";
-import type { Character, Exit, Scene, Transition } from "./scene.ts";
+import type { Character, Scene, Transition } from "./scene.ts";
 import type { SessionState, Suggestion } from "./session.ts";
+import type { Entity } from "../world/scene-world.ts";
 
 /**
  * What the player might say or do next in a scene, as a cRPG offers its dialogue choices: after a GM
@@ -23,24 +24,27 @@ import type { SessionState, Suggestion } from "./session.ts";
  * waited for. They're the session's when they come (`suggestions`, for that scene and turn only, so a
  * line said meanwhile leaves them behind), and the hooks say so (onSuggestions).
  *
- * What they're grounded in: the character (concept, build, backstory), the last few exchanges, and
- * the scene's open threads as the GM's prep has them (who's here and what they're after, the ways on
- * from here and their rolls, what the scene still needs the player to come across, its endings and
- * limits), with everyone the player hasn't heard named called what the player would call them. What
- * people hide stays behind the screen: a line can only ask after it.
+ * What they're grounded in: what the player knows and nothing else. Their character (concept, build,
+ * spells, what they carry, backstory), what they came in knowing, and the scene as they've seen it:
+ * who's here now by the names they know, what's come out, the last few exchanges as they read them.
+ * Never the GM's prep: given it "behind the screen" to choose threads by, the call put its answers in
+ * the player's mouth (Hobb's mother, the Heron's river door, the dog's name, before the story had
+ * them), so a line asks the question and never gives the answer.
  *
  * Vetted before they're offered: first by what can be read off the words (`screen`: the player's own
- * words and deeds only, none of the GM's markup, no name they haven't heard, no word of what's still
- * hidden, nothing the scene's limits name, nothing just said or offered last time), then by the GM's
- * own judge, the session's decider, given every fact (`judge`: does a line give away or take for
- * granted what's hidden, reach for what the scene can't offer, or decide for someone else; would a
- * risky try really take a roll), then a mix of kinds (`mix`). The call and the judge take about two
- * and a half seconds between them, and the stage manager about four and a half: the lines are there
- * before the turn is.
+ * words and deeds only, none of the GM's markup, nothing they haven't met, a name, a place or a
+ * thing, nobody who isn't here, nothing the scene's limits name, nothing just said or offered last
+ * time), then by the GM's own judge, the session's decider, given every fact with its status (`judge`:
+ * does a line give away or take for granted what's held, fall behind the story, reach for what the
+ * scene can't offer, or decide for someone else; would a risky try really take a roll), then a mix of
+ * kinds (`mix`). The call and the judge take about two and a half seconds between them, and the stage
+ * manager about four and a half: the lines are there before the turn is.
  *
  * The call is given the replies as the player reads them (each entry's `text`), never the GM's
  * markup (src/runtime/markup.ts: who says each line, the notes on its marks), which only the GM's
- * own history puts back; and a line that comes back with any (`screen`) isn't offered.
+ * own history puts back; and a line that comes back with any (`screen`) isn't offered. At no
+ * reasoning effort its text comes back with noise now and then (another script, two lines run
+ * together, its own planning), which `parseSuggestions` cleans away or leaves out.
  */
 
 /** The kinds, in the order they're listed. */
@@ -110,7 +114,7 @@ export async function propose(state: SessionState, options: { signal?: AbortSign
   });
   const v = vetting(scene, state);
   // Cut short, its last line may be half a line: it goes.
-  const screened = screen(parseSuggestions(result.cutShort ? result.text.slice(0, result.text.lastIndexOf("\n") + 1) : result.text), v);
+  const screened = screen(parseSuggestions(result.text, { cutShort: !!result.cutShort }), v);
   const judged = await judge(scene, state, screened.kept, options.decider ?? deciderFor(sceneApproach(state, scene).decider)).catch(() => undefined);
   const mixed = mix(judged?.lines ?? screened.kept, v.leave);
   return {
@@ -119,47 +123,86 @@ export async function propose(state: SessionState, options: { signal?: AbortSign
   };
 }
 
-/** The judge's verdicts on a line: fit to offer, or why not. */
+/** The judge's verdicts on a line: fit to offer (two ways), or why not. */
 const VERDICTS: Record<string, string> = {
-  fine: "Fit to offer: it rests only on what the player has seen, heard or been told (or a fair guess from it), it's their own words or deeds, and the scene can offer it.",
-  gives_away: "It gives away, or takes for granted, something only hidden_from_the_player says: a fact, a clue or a detail they haven't come across, or a name they haven't heard. (Asking about or looking at what they've seen is fine.)",
+  fine: "Fit to offer: everything it names or takes for granted is in what_the_player_knows (or a fair guess from it), it fits what_is_true_now, it's the player's own words or deeds, and the scene can offer it.",
+  asks_after: "Fit to offer: it asks about, presses on or looks into something the player hasn't been told (what someone's hiding, a name nobody has said, what happens next), without saying what it is. The question, not the answer.",
+  gives_away: "It names or takes for granted something the player hasn't come across: anything in held_from_the_player that what_the_player_knows doesn't show them (a person, a name, a place, a thing, a detail of someone's looks the scene hasn't described, someone's family, fears or plans, where something is, what's going to happen). An answer they haven't been given, not a question.",
+  out_of_date: "It's behind the story (what_is_true_now): it asks for something already done or settled, or something the player already has, or it reaches for someone who isn't here now.",
   ruled_out: "It reaches for something the scene can't offer (what_the_scene_cannot_offer).",
-  not_theirs: "It says what someone else says, does or feels, or how it turns out.",
+  not_theirs: "It says what someone else says, does or feels (a line for someone else to say, or one that speaks of the player by name), or how it turns out.",
 };
-const WHY: Record<string, string> = { gives_away: "the judge: gives away what's hidden", ruled_out: "the judge: the scene can't offer it", not_theirs: "the judge: not the player's own" };
+const WHY: Record<string, string> = { gives_away: "the judge: gives away what's held", out_of_date: "the judge: out of date", ruled_out: "the judge: the scene can't offer it", not_theirs: "the judge: not the player's own" };
 
 /**
- * The GM's own judge on the lines, in one call to the session's decider, with every fact: what the
- * player knows, what's hidden from them, what the scene can't offer. A line that gives away or takes
- * for granted what's hidden, reaches for what the scene can't offer, or decides for someone else is
- * dropped; a risky try that wouldn't take a roll is a deed. Words alone can't tell a line that asks
- * after a hidden thing from one that gives it away; the judge can.
+ * A line goes when the judge is clear it's unfit (0.6 for its verdict), and when it may well give
+ * away what's held (0.45, whatever's on top). Given the GM's prep as known and only "fine" to put a
+ * question in, the old judge passed every leak the testers found, with "fine" on top and gives_away
+ * at 0.08 to 0.44. Told what's held, and with a question its own verdict (asks_after), it put the
+ * six leaks among 37 lines at seven of the testers' moments (live) at 0.48 to 0.81, and the fit
+ * lines at 0 to 0.37.
  */
-async function judge(scene: Scene, state: SessionState, lines: Suggestion[], decider: Decider): Promise<{ lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; costUsd: number; latencyMs: number }> {
+const CLEAR = 0.6;
+const GIVES_AWAY = 0.45;
+/** The verdicts that let a line be offered. */
+const FIT = new Set(["fine", "asks_after"]);
+
+/**
+ * The GM's own judge on the lines, in one call to the session's decider, with every fact and its
+ * status: what the player knows (exactly what the lines' call was given), what's held from them (the
+ * people here as the GM pictures them, what they're after and fear, what they hide, the names the
+ * player hasn't heard, what the scene still needs them to come across, what nobody can see), what's
+ * true now (who's here and who isn't, what the player carries), and what the scene can't offer. A
+ * line that gives away or takes for granted what's held, is behind the story, reaches for what the
+ * scene can't offer, or decides for someone else is dropped; a risky try that wouldn't take a roll is
+ * a deed. Words alone can't tell a line that asks after a held thing from one that gives it away, or
+ * see that a deed's already done; the judge can.
+ */
+export async function judge(scene: Scene, state: SessionState, lines: Suggestion[], decider: Decider): Promise<{ lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; costUsd: number; latencyMs: number }> {
   if (!lines.length) return { lines, dropped: [], costUsd: 0, latencyMs: 0 };
   const known = (text: string) => asTheyKnowIt(text, scene, state);
   const called = unnamed(scene, state);
-  const present = presentCast(scene, state);
+  const here = hereNow(scene, state);
+  const nameOf = (c: Character) => called[c.id] ?? c.name;
+  const v = vetting(scene, state);
+  const strangers = storyCast(storyScenes(scene, state)).filter(c => c.called && nameTokens(c).every(t => v.names.includes(t)));
+  const otherNames = v.names.filter(n => !strangers.some(c => nameTokens(c).includes(n)));
+  const gone = scene.cast.filter(c => state.world?.entities[c.id]?.states.includes("gone"));
+  const met = new Set(metHere(scene, state).map(c => c.id));
+  const unseen = here.filter(c => !met.has(c.id));
+  const found = foundOut(scene, state, v);
   // What changes least first (the prep), what changes every turn last (the scene so far).
   const facts = {
-    hidden_from_the_player: [
-      ...present.flatMap(c => [`${called[c.id] ?? c.name} is after: ${known(c.wants)}`, ...(c.secrets ?? []).map(s => `${called[c.id] ?? c.name} hides: ${known(s)}`)]),
+    held_from_the_player: [
+      ...here.flatMap(c => [
+        `How the GM pictures ${nameOf(c)} (the player knows only what the scene so far has described): ${known(c.look)}`,
+        `${nameOf(c)} is after: ${known(c.wants)}`, ...(c.fears ? [`${nameOf(c)} fears: ${known(c.fears)}`] : []),
+        ...(c.secrets ?? []).map(s => `${nameOf(c)} hides: ${known(s)}`),
+      ]),
+      ...(strangers.length ? [`People whose names the player hasn't heard: ${strangers.map(c => `${c.name}${c.called ? ` (to the player, "${c.called}")` : ""}`).join("; ")}.`] : []),
+      ...(otherNames.length ? [`Other names the player hasn't heard (parts of someone's name, the world's names for things and creatures): ${otherNames.join(", ")}.`] : []),
       ...(scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).map(e => `Not yet come across: ${known(e.what)} (with: ${e.placedWith.map(known).join("; ")})`),
-      ...Object.values(state.world?.entities ?? {}).filter(e => e.tags.includes("hidden") || e.states.includes("hidden")).map(e => `Hidden: ${e.name}`),
+      ...Object.values(state.world?.entities ?? {}).filter(e => !e.player && e.kind !== "person" && e.kind !== "creature" && !visible(state, e)).map(e => `Out of sight: ${e.name}`),
+    ].join("\n"),
+    what_is_true_now: [
+      `Here now, and met: ${here.filter(c => met.has(c.id)).map(c => `${nameOf(c)}${shape(state, c.id) ? ` (${shape(state, c.id)})` : ""}`).join("; ") || "nobody but the player"}.`,
+      ...(unseen.length ? [`Here, but the player hasn't seen them yet (held): ${unseen.map(nameOf).join("; ")}.`] : []),
+      ...(gone.length ? [`Gone from here: ${gone.map(nameOf).join("; ")}.`] : []),
+      `The player carries: ${carriedNames(state).join(", ") || "nothing of note"}.`,
     ].join("\n"),
     what_the_scene_cannot_offer: (scene.limits ?? []).map(l => `- ${known(limitHead(l))}`).join("\n") || "(nothing in particular)",
     rolls_the_scene_calls_for: rolled(scene, state).map(t => `- ${known(t.when)} (${titleCase(t.check!.skill)})`).join("\n") || "(none of its own: any risky attempt)",
     what_the_player_knows: [
+      `Who they are: ${who(state)}`,
       `They came in knowing: ${state.lead ?? scene.hook}`,
       ...(state.history.length ? [`The story so far, scene by scene: ${state.history.map(h => h.summary).join("\n\n")}`] : []),
-      `Who's here, as they see them: ${present.map(c => `${called[c.id] ?? c.name}: ${known(c.look)}`).join(" ")}`,
-      ...(foundOut(scene, state).length ? [`What they've found out here: ${foundOut(scene, state).map(known).join(" ")}`] : []),
-      `The scene so far:\n${scriptTranscript(scene, state, sceneEntries(state).filter(e => e.kind !== "system").slice(-24))}`,
+      ...(found.length ? [`What's come out here: ${found.join(" ")}`] : []),
+      `The scene so far, as they read it:\n${scriptTranscript(scene, state, sceneEntries(state).filter(e => e.kind !== "system").slice(-24))}`,
     ].join("\n\n"),
   };
   const questions: Record<string, ChoiceQuestion> = {};
   lines.forEach((l, i) => {
-    questions[`line_${i + 1}`] = { instructions: `A line offered to the player as something they might say or do next: "${l.text}". Judge it against what_the_player_knows, hidden_from_the_player and what_the_scene_cannot_offer.`, criteria: VERDICTS };
+    questions[`line_${i + 1}`] = { instructions: `A line offered to the player as something they might say or do next: "${l.text}". The player knows only what_the_player_knows; held_from_the_player is what they don't know unless the scene so far has shown it. Judge the line against those, what_is_true_now and what_the_scene_cannot_offer.`, criteria: VERDICTS };
     if (l.kind === "try") questions[`roll_${i + 1}`] = {
       instructions: `Would the game call for a roll if the player did this: "${l.text}"? (The scene's own rolls are in rolls_the_scene_calls_for; anything else risky is rolled too.)`,
       criteria: { risky: "Yes: a risky attempt whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation.", safe: "No: ordinary talk or questions, looking around, or something where failing would only mean trying again." },
@@ -170,10 +213,11 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
   const dropped: Array<{ text: string; why: string }> = [];
   lines.forEach((l, i) => {
     const verdict = decision.answers[`line_${i + 1}`];
-    // A clear verdict only: on the live turns, its leaks were judged 0.6 and over, and a bird asked what it saw half "can't offer".
-    if (verdict && verdict.choice !== "fine" && (verdict.probabilities?.[verdict.choice] ?? 1) >= 0.6) { dropped.push({ text: l.text, why: WHY[verdict.choice] ?? verdict.choice }); return; }
+    const p = verdict?.probabilities ?? {};
+    const unfit = verdict && !FIT.has(verdict.choice) && (p[verdict.choice] ?? 1) >= CLEAR ? verdict.choice : (p.gives_away ?? 0) >= GIVES_AWAY ? "gives_away" : undefined;
+    if (unfit) { dropped.push({ text: l.text, why: WHY[unfit] ?? unfit }); return; }
     const roll = decision.answers[`roll_${i + 1}`];
-    kept.push(roll?.choice === "safe" && (roll.probabilities?.safe ?? 1) >= 0.6 ? { ...l, kind: "do" } : l);
+    kept.push(roll?.choice === "safe" && (roll.probabilities?.safe ?? 1) >= CLEAR ? { ...l, kind: "do" } : l);
   });
   return { lines: kept, dropped, costUsd: decision.costUsd, latencyMs: decision.latencyMs };
 }
@@ -200,12 +244,13 @@ function who(state: SessionState): string {
   ].join(" ");
 }
 
-/** What the player carries in the scene's world. */
+/** What the player carries in the scene's world, as theirs ("dagger", not "Nim's dagger": a line of theirs says "my dagger"). */
 function carriedNames(state: SessionState): string[] {
   const world = state.world;
   if (!world) return [];
+  const own = new RegExp(`^(?:${nameTokens({ name: state.player.name }).map(escape).join("|") || "\\0"})['’]s\\s+`);
   return Object.values(world.entities).filter(e => e.parent === "player" && !e.states.includes("gone")).slice(0, 8)
-    .map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name}`);
+    .map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name.replace(own, "")}`);
 }
 
 const TITLE_WORDS = "Mister|Master|Mistress|Sergeant|Corporal|Captain|Sir|Lady|Lord|Dame|Big|Old|Young|Little|Mr|Mrs|Miss";
@@ -223,14 +268,11 @@ export function asTheyKnowIt(text: string, scene: Scene, state: SessionState): s
   return out;
 }
 
-const phaseOf = (t: Transition) => t.on ?? (t.check ? "attempt" : "outcome");
-
 /** The ways on from here that take a roll (the current beat's and the scene's own), not yet won. */
 function rolled(scene: Scene, state: SessionState): Transition[] {
   const spent = spentHere(state);
   return [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].filter(t => t.check && !spent.has(t.id));
 }
-const firstSentence = (text: string) => /^.*?[.!?](?=\s|$)/.exec(text.trim())?.[0] ?? text.trim();
 
 /** A limit by what it rules out: its words before the reason (most are written "What's ruled out: why"). */
 export function limitHead(limit: string): string {
@@ -247,64 +289,120 @@ export function leaveFits(state: SessionState): boolean {
   return !!(state.closing || state.pendingExit || state.endingLead) || turns >= 4;
 }
 
+/** Someone the world has seen leave, or go down, or die. */
+const OUT = ["gone", "down", "dead"];
+
 /**
- * The scene, the character and the moment, for the call: what the player knows (who they are, what
- * they came in knowing), behind the screen, where the threads are (what people are after, the ways on
- * and their rolls, what the scene still needs the player to come across, its endings and limits), then
- * what the player knows of the scene (who's here as they look, the scene so far), and what's not to be
- * offered again. In that order, what changes least first, so the provider's cache keeps the most of it.
+ * Who's here now: the scene's people on stage, and anyone the world has put here since (the corporal
+ * and his dead-cart, come at the bell whether or not the scene reached its beat), less anyone the
+ * world has gone (they've left).
+ */
+function hereNow(scene: Scene, state: SessionState): Character[] {
+  const world = state.world;
+  const present = new Set(presentCast(scene, state).map(c => c.id));
+  return scene.cast.filter(c => (present.has(c.id) || !!world?.entities[c.id]) && !world?.entities[c.id]?.states.includes("gone"));
+}
+
+/**
+ * The people here the player has met in this scene: who has spoken, or whom the scene so far has
+ * shown them, by name or by the words of what they'd call them ("the watchman"). Not everyone on
+ * stage: at the Heron's door the clerk in the counting-box and the forewoman are inside, and a list of
+ * who's here that had them put the counting-box in the lines before the story did. (Not the lead into
+ * the scene either: "Hobb's words stay with you" doesn't put Hobb on the wharf.)
+ */
+function metHere(scene: Scene, state: SessionState): Character[] {
+  const entries = sceneEntries(state).filter(e => e.kind !== "system");
+  const text = entries.map(e => e.text).join("\n");
+  const shown = new Set(words(text).map(stem));
+  const spoke = new Set(entries.flatMap(e => [e.speaker, ...(e.marked?.speech.map(s => s.speaker) ?? [])]));
+  // By name, by their rank ("the sergeant"), or by the words of what they'd call them.
+  const rank = (c: Character) => ROLE.exec(c.name)?.[1]?.toLowerCase();
+  return hereNow(scene, state).filter(c => spoke.has(c.id) || nameTokens(c).some(t => new RegExp(`\\b${escape(t)}\\b`).test(text))
+    || (rank(c) && shown.has(stem(rank(c)!))) || words(c.called ?? "").map(stem).some(w => w.length >= 4 && !STOP.has(w) && shown.has(w)));
+}
+
+/** A rank at the head of someone's name, which the narration may call them by ("the sergeant", "the Marshal"). */
+const ROLE = /^(Sergeant|Corporal|Captain|Marshal|King|Queen|Lady|Lord|Constable)\b/;
+
+/** Someone by as much of their name as the player has heard, with its title ("Sergeant Kell", not "Sergeant Agnes Kell"), else by what they'd call them. */
+function knownAs(c: Character, v: Vetting): string {
+  const parts = c.name.split(/\s+/).filter(w => !v.names.includes(w.replace(/[^\w']/g, "")));
+  return parts.some(w => !new RegExp(`^(?:${TITLE_WORDS})$`, "i").test(w)) ? parts.join(" ") : c.called ?? c.name;
+}
+
+/** What someone here is in, as the world has it: down, or dead. */
+const shape = (state: SessionState, id: string) => OUT.filter(s => s !== "gone" && state.world?.entities[id]?.states.includes(s)).join(", ");
+
+/**
+ * The scene, the character and the moment, for the call, from what the player knows and nothing else
+ * (thief#4, wizard#13, barbarian#37: given the GM's prep "behind the screen" to choose threads by, the
+ * call put its answers in the player's mouth, Hobb's mother, the Heron's river door, the dog's name,
+ * seven times before the story did, and its judge passed them all): who they are (their sheet, what
+ * they carry, their backstory), what they came in knowing (the lead, and the story so far), what this
+ * scene can't offer (in words the player has met), and the scene as they've seen it: who's here now,
+ * by the names they know, what's come out (in words they've met), and the last ten entries, as they
+ * read them; then the way out, if the scene is ending in front of them, and what's not to be offered
+ * again. What changes least first, so the provider's cache keeps the most of it.
  */
 export function suggestionBrief(scene: Scene, state: SessionState): string {
-  const known = (text: string) => asTheyKnowIt(text, scene, state);
+  const v = vetting(scene, state);
   const called = unnamed(scene, state);
-  const present = presentCast(scene, state);
-  const nameOf = (c: Character) => called[c.id] ?? c.name;
-  const exitOf = (t: Transition) => scene.exits.find(e => e.id === (t.check ? t.check.onSuccess : t.to));
-  const beat = currentBeat(scene, state);
-  const spent = spentHere(state);
-  // The ways on the player attempts (a roll's, a simple act's, an ending's), not what the world does
-  // or what only someone else can give. A roll by its skill alone: its reason can take for granted
-  // what the player hasn't found ("to get him to trust you with what he heard").
-  const routes = [...beat.transitions, ...(scene.anytime ?? [])]
-    .filter(t => phaseOf(t) === "attempt" && !t.given && !spent.has(t.id) && t.to !== IMPROVISED_EXIT_ID && !state.fought?.includes(exitOf(t)?.id ?? ""))
-    .map(t => `- ${known(t.when)}${t.check ? ` (a roll: ${titleCase(t.check.skill)})` : ""}${exitOf(t) ? ` (it ends the scene: ${exitOf(t)!.title})` : ""}`);
-  const needs = (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id))
-    .map(e => `- ${known(e.what)} Where: ${e.placedWith.map(known).join("; ")}.${state.hinted?.includes(e.id) ? " (The player has had a sign of it.)" : ""}`);
+  const here = metHere(scene, state);
   const exits = scene.exits.filter(e => e.id !== IMPROVISED_EXIT_ID && !state.fought?.includes(e.id));
   const ending = (id: string | undefined) => exits.find(e => e.id === id);
   const at = ending(state.closing?.exitId) ?? ending(state.pendingExit?.exitId);
-  const leaning = ending(state.endingLead?.exitId);
   const entries = sceneEntries(state).filter(e => e.kind !== "system");
   const said = entries.filter(e => e.kind === "player").at(-1)?.text;
   const offered = lastOffered(state);
-  const found = foundOut(scene, state);
+  const found = foundOut(scene, state, v);
+  const limits = (scene.limits ?? []).map(l => asTheyKnowIt(limitHead(l), scene, state)).filter(l => !unmetIn(l, v));
+  const ends = at && !unmetIn(at.title, v) ? at.title : undefined;
   return [
-    "# What the player knows: who they are, and what they came in knowing",
-    `## Who they are\n${who(state)}`,
-    `## What they came in knowing\n${state.lead ?? scene.hook}${state.history.length ? `\n\nThe story so far, scene by scene:\n${state.history.map(h => h.summary).join("\n\n")}` : ""}`,
-    "# Behind the screen (the GM's prep: the player knows none of it)",
-    `## What the scene is about\n${known(scene.premise)}`,
-    ...(present.length ? [`## What they're after\n${present.map(c => `- ${nameOf(c)}: ${known(c.wants)} With the player: ${known(firstSentence(c.attitude))}`).join("\n")}`] : []),
-    ...(routes.length ? [`## Ways on from here\n${routes.join("\n")}`] : []),
-    ...(needs.length ? [`## What the scene still needs the player to come across, and where\n${needs.join("\n")}`] : []),
-    `## How it can end\n${exits.map((e: Exit) => `- ${e.title}${e.kind === "leave" ? " (walking away)" : ""}`).join("\n")}${at ? `\nIt's ending now: ${at.title}. The player has a last word.` : leaning ? `\nThe story is heading for: ${leaning.title}.` : ""}\n${leaveFits(state) ? "A leave line can fit now, if the moment's right." : "No leave line yet: the scene is still young."}`,
-    ...(scene.limits?.length ? [`## What this scene can't offer (never suggest reaching for these)\n${scene.limits.map(l => `- ${known(limitHead(l))}`).join("\n")}`] : []),
-    "# What the player knows of the scene",
-    `## Who's here, as the player sees them\n${present.map(c => `- ${nameOf(c)}${called[c.id] ? " (the player hasn't heard their name: call them that)" : ""}${c.group ? ` (${known(c.group)})` : ""}: ${known(c.look)}`).join("\n") || "(nobody but the player)"}`,
-    ...(found.length ? [`## What they've found out here (settled: no line asks after it again, though one may act on it)\n${found.map(f => `- ${known(f)}`).join("\n")}`] : []),
+    `# Who they are\n${who(state)}`,
+    `# What they came in knowing\n${state.lead ?? scene.hook}${state.history.length ? `\n\nThe story so far, scene by scene:\n${state.history.map(h => h.summary).join("\n\n")}` : ""}`,
+    ...(limits.length ? [`# What this scene can't offer (never suggest reaching for these)\n${limits.map(l => `- ${l}`).join("\n")}`] : []),
+    "# The scene as they've seen it (this is all they know of it)",
+    `## Who's here now\n${here.map(c => `- ${called[c.id] ?? knownAs(c, v)}${called[c.id] ? " (the player hasn't heard their name: call them that)" : ""}${c.group ? ` (${asTheyKnowIt(c.group, scene, state)})` : ""}${shape(state, c.id) ? ` (${shape(state, c.id)})` : ""}`).join("\n") || "(nobody but the player)"}`,
+    ...(found.length ? [`## What's come out here (settled: no line asks after it again, though one may act on it; the latest last, and a later one may have changed an earlier one)\n${found.map(f => `- ${f}`).join("\n")}`] : []),
     `## The scene so far (the latest last)\n${scriptTranscript(scene, state, entries.slice(-10)) || "(It's just begun.)"}`,
+    `# A way out\n${ends ? `It's ending now: ${ends}. The player has a last word.` : leaveFits(state) ? "A leave line can fit now, if the moment's right." : "No leave line yet: the scene is still young."}`,
     `# Not again\n${said ? `The player just said: ${said}\n` : ""}${offered.length ? `Offered last time (none of these again, not even in other words: the player has seen them):\n${offered.map(l => `- ${l}`).join("\n")}` : "Nothing offered yet."}`,
   ].join("\n\n");
 }
 
 /**
- * What the player has found out in this scene, as the talks have what a companion has told: the facts
- * play has established and what the scene needed them to come across that they have. Settled: a line
- * acts on it, never asks after it again.
+ * What's come out in this scene, as the player has it: what the scene needed them to come across
+ * that they have, and the facts play has established, a sentence at a time and only in words they've
+ * met, with anyone whose name they haven't heard called what they'd call them. Both are the GM's
+ * words, and can run ahead of the story: "The rest (his master's name, the Heron) comes as he's
+ * asked"; and the thief's Rat had Hobb's way in come across (the river door, its grille, the midnight
+ * bell) when she'd only stolen his token, ten turns before he told her what it opened. Settled: a
+ * line acts on it, never asks after it again.
  */
-function foundOut(scene: Scene, state: SessionState): string[] {
-  return [...new Set([...state.established, ...(scene.essentials ?? []).filter(e => state.landed?.includes(e.id)).map(e => e.what)])];
+function foundOut(scene: Scene, state: SessionState, v: Vetting): string[] {
+  // Someone they know by part of their name by that part ("Big Hobb Mallory" is Big Hobb).
+  const partly = storyCast(storyScenes(scene, state)).map(c => [c.name, knownAs(c, v)] as const).filter(([name, known]) => name !== known && name.includes(known.split(" ").at(-1)!));
+  const named = (text: string) => partly.reduce((t, [name, known]) => t.replaceAll(name, known), text);
+  // A sentence at a time ("J. Sallow" isn't the end of one).
+  const met = (text: string, keep: (s: string) => boolean = () => true) => asTheyKnowIt(named(text), scene, state).split(/(?<=(?<!\b\p{Lu})[.!?]["”’)]*)\s+(?=["“'‘(]?\p{Lu})/u)
+    .map(s => s.trim()).filter(s => s && !unmetIn(s, v) && keep(s)).join(" ");
+  // What the player carries is as the world has it now, in who they are: a fact about one of those
+  // things can be behind it ("Nim's dagger lies on the cobbles near Kell", ten turns after she'd taken
+  // it back, and the lines had her ask Kell for it).
+  // (Not their coins: "the Crown" isn't a crown in their purse.)
+  const own = new RegExp(`^(?:${nameTokens({ name: state.player.name }).map(escape).join("|") || "\\0"})['’]s\\s+`);
+  const theirs = new Set(Object.values(state.world?.entities ?? {}).filter(e => e.parent === "player" && !e.states.includes("gone") && !e.tags.includes("coin"))
+    .map(e => headNoun(e.name.replace(own, ""))).filter(h => !MONEY.test(h)).map(stem));
+  const current = (s: string) => !words(s).some(w => theirs.has(stem(w)));
+  const landed = (scene.essentials ?? []).filter(e => state.landed?.includes(e.id)).map(e => met(e.what));
+  return [...new Set([...landed, ...state.established.map(f => met(f, current))].filter(Boolean))];
 }
+
+/** Money, by the word for it. */
+const MONEY = /^(?:crowns?|shillings?|penn(?:y|ies)|pence|silver|gold|coppers?|coins?|marks?)$/;
+
+/** A thing by the word that names it: "a silver crown stamped with a wheat-ear" is a crown, "2 silver crowns" crowns. */
+const headNoun = (name: string) => name.toLowerCase().replace(/^(?:\d+|the|a|an|some)\s+/, "").split(/\s+(?:stamped|with|of|from|for|in|on|marked|full|that)\s+/)[0]!.split(/\s+/).at(-1)!;
 
 /** The lines offered last time, in this scene. */
 function lastOffered(state: SessionState): string[] {
@@ -321,13 +419,26 @@ function lastOffered(state: SessionState): string[] {
  * brackets, a deed with no kind, and a risky try written down as a deed. A line that's neither tagged
  * nor a deed is passed over before the list ("Here are some lines:") and ends it after: what follows
  * is the model thinking aloud ("Need ensure say lines...").
+ *
+ * At no reasoning effort the model's text comes back with noise in about one call in eight (21 of
+ * 165 in the goals check), and the lines are cleaned of it before anything else reads them:
+ * - two lines run together ("…the yard.)say: Sergeant, …", "…and leave.) pangsay: …") are two lines;
+ * - runs of other scripts and symbols ("♀♀♀♀", "娱乐登录", "】【。】【") go;
+ * - a deed is its bracketed part, and what's stuck on after it goes ("…the proof) (The barge sails)",
+ *   "…today.)(final) Williams"); one left open is closed;
+ * - the model's own planning ("The user requires 4-6 lines only…", "TBC") isn't a line;
+ * - and what's left of one that couldn't be cleaned (a fragment, a stray word) isn't either.
+ * `cutShort`: the reply ran out of tokens, so its last line may be half a line, and goes.
  */
-export function parseSuggestions(text: string): Suggestion[] {
+export function parseSuggestions(text: string, options: { cutShort?: boolean } = {}): Suggestion[] {
   const out: Suggestion[] = [];
-  for (const raw of text.split("\n")) {
-    let line = raw.trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").trim();
-    if (!line) continue;
-    const tagged = /^[*_]*(say|do|try|leave)[*_]*\s*[:：–-]\s*/i.exec(line);
+  const lines = text.normalize("NFC").split("\n").flatMap(l => l.split(RUN_ON));
+  if (options.cutShort) lines.pop();
+  for (const raw of lines) {
+    let line = raw.replace(NOISE, " ").replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").trim();
+    // Nothing to read (a bullet or a number left over from a line run on): not a line, nor the end of the list.
+    if (!/\p{L}/u.test(line)) continue;
+    const tagged = TAG.exec(line);
     let kind = (tagged?.[1]?.toLowerCase() ?? "") as Suggestion["kind"] | "";
     if (tagged) line = line.slice(tagged[0].length).trim();
     line = line.replace(/^[*_]{2}|[*_]{2}$/g, "").trim();
@@ -339,18 +450,74 @@ export function parseSuggestions(text: string): Suggestion[] {
     if (!kind) kind = "do";
     if (kind === "say") {
       if (deed) kind = "do";
-      else line = line.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
+      else line = speechOf(line);
     }
     if (kind !== "say") {
       // A deed written without its brackets ("I look up at him").
       if (!deed && /^I\b/.test(line)) line = `(${line.replace(/\.$/, "")})`;
-      if (line.startsWith("(") && !line.endsWith(")")) line = `${line.replace(/[.)]*$/, "")})`;
+      if (line.startsWith("(")) line = deedOf(line);
       if (kind === "do" && /^\(I (?:try|attempt)\b/i.test(line)) kind = "try";
     }
-    line = line.replace(/\s+/g, " ");
-    if (line) out.push({ kind, text: line });
+    line = line.replace(/\s+/g, " ").trim();
+    // The model's planning, in a line's clothes ("(Actually line format correction omitted? Need only four-six lines"): the list is over.
+    if (PLANNING.test(line)) { if (out.length) break; continue; }
+    if (line && !fragment(line)) out.push({ kind, text: line });
   }
   return out;
+}
+
+/** A kind's tag at the start of a line, however it's dressed ("say:", "**do:**", "Try –"). */
+const TAG = /^[*_]*(say|do|try|leave)[*_]*\s*[:：–-]\s*/i;
+
+/**
+ * Where the model ran two lines together: a kind's tag in the middle of one, glued to what came
+ * before ("…the yard.)say:", "…leave.) pangsay:"), with a line's start after it (a bracket, a quote,
+ * "I", a capital), so "what to do: run" stays as it is.
+ */
+const RUN_ON = /(?<=\S)\s*(?=(?:say|do|try|leave)\s*[:：]\s*(?:[("“'‘[*]|I\b|\p{Lu}))/u;
+
+/**
+ * Anything a line in English has no use for: other scripts (娱乐登录, રાજકોટ, пәй), symbols (♀, ★,
+ * 】【), private-use and stray code points. Latin letters (accented ones too: séance), digits, spaces
+ * and the punctuation the lines use stay.
+ */
+const NOISE = /[^\p{Script=Latin}0-9\s.,;:!?'"‘’“”()[\]\-–—…/&*_]+/gu;
+
+/** The model talking about the task instead of doing it ("The user requires 4-6 lines only", "Need exact format", "TBC"). */
+const PLANNING = /\b(?:the user|user (?:wants|requires|asked)|instructions? (?:say|followed)|kind prefix|malformed|artifact|lines? only|four[- ]six|4-6|exact format|need (?:ensure|exact|only|to (?:ensure|provide|output))|must (?:only|provide|output)|TBC)\b/i;
+
+/**
+ * A deed is its bracketed part: what's stuck on after the bracket that closes it is noise or a line
+ * run on ("…the yard.) pang", "…proof) (The barge sails)"). One left open is closed.
+ */
+function deedOf(line: string): string {
+  let depth = 0;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "(") depth++;
+    else if (line[i] === ")" && --depth === 0) return line.slice(0, i + 1);
+  }
+  return `${line.replace(/[\s.)]*$/, "")})`;
+}
+
+/**
+ * Speech as the player would type it: no quotes round it, and no bracket left over from a deed run
+ * into it ("…the noose?)"); a word or two stuck on after its last full stop is noise ("…on the hook?
+ * eject").
+ */
+function speechOf(line: string): string {
+  let s = line.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
+  const extra = (s.match(/\)/g) ?? []).length - (s.match(/\(/g) ?? []).length;
+  if (extra > 0) s = s.replace(/\)+\s*$/, close => close.slice(0, Math.max(0, close.length - extra))).trim();
+  // Noise after the last full stop: a word or two in lower case, or anything stuck to it ("hook?eject").
+  const tail = /[.!?…]["”’]?(\s*)([^.!?…]{1,24})$/u.exec(s);
+  if (tail && (!tail[1] || /^\p{Ll}/u.test(tail[2]!)) && tail[2]!.trim().split(/\s+/).length <= 2) s = s.slice(0, tail.index + 1 + (/^["”’]/.test(s.slice(tail.index + 1)) ? 1 : 0));
+  return s.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
+}
+
+/** What's left of a line that couldn't be cleaned: nothing to say, a deed of a word ("(I)"), or the model's markers stuck to its words ("JSImportassistant", "to=final"). */
+function fragment(line: string): boolean {
+  const words = line.replace(/^\(|\)$/g, "").trim().split(/\s+/).filter(w => /\p{L}/u.test(w)).length;
+  return words < (line.startsWith("(") ? 2 : 1) || /\p{L}assistant|assistant\p{L}|\bto=\w/iu.test(line);
 }
 
 /** What a set of lines is vetted against: see vetting(). */
@@ -359,68 +526,203 @@ export interface Vetting {
   said: string[];
   /** The lines offered last time. */
   offered: string[];
-  /** Names the player hasn't heard (people here, or still to come). */
+  /**
+   * Names the player hasn't heard, as they're written ("Hobb", "Duchess"): the story's people (here,
+   * met before or still to come) and whatever the world here calls by a name.
+   */
   names: string[];
-  /** Word stems of what's still hidden (secrets, what the scene still needs the player to find), the player hasn't met. */
+  /** Word stems of what's still hidden (secrets, what the scene still needs the player to find, what nobody can see), the player hasn't met. */
   hidden: string[];
-  /** Word stems of the names and places in the prep the player hasn't met (Sallow, the Mending House). */
+  /** The names and places in the prep the player hasn't met, as they're written: "the Heron" isn't the heron on a token. */
   proper: string[];
   /** Word stems of the things the scene's limits name as ruled out, the player hasn't met (a séance, a coroner, tomorrow). */
   limits: string[];
   /** A way out fits now (leaveFits). */
   leave: boolean;
+  /** Word stems of the signs of what someone here hides in how the GM pictures them, that the scene hasn't shown (the string round Hobb's neck, Moll's fist). */
+  looks?: string[];
+  /** Places and things of the story's other scenes the player hasn't heard of, in a few words each ("river door", "plank walk"). */
+  places?: string[];
+  /** The player character's own names: their lines speak of them as "I". */
+  self?: string[];
+  /** Names of people the player knows of who aren't in the scene now, and haven't been (not come yet, or elsewhere in the story): nobody does anything to them here. */
+  away?: string[];
 }
 
-/** The vetting for the session's moment: what's been said and offered, and what the player has and hasn't met. */
+/**
+ * The vetting for the session's moment: what's been said and offered, and what the player has and
+ * hasn't met. Met is what they've been told or shown (heardText), and the place as the screen shows
+ * it; never the GM's descriptions of people (Hobb's string, Kell's borrowed coat), nor its record of
+ * what play established, which can run ahead of the story.
+ */
 export function vetting(scene: Scene, state: SessionState): Vetting {
-  const seen = new Set(words(visibleText(scene, state)).map(stem));
-  const fresh = (list: string[]) => [...new Set(list.map(stem).filter(w => w.length >= 4 && !STOP.has(w) && !seen.has(w)))];
-  const ordinary = everyday(scene.id);
-  const known = knownCast(scene, state);
+  const heard = heardText(scene, state);
+  const here = hereNow(scene, state);
+  // What they see of the people they've met here is what they call them ("the big man with the bandaged hand"), and what the scene has shown.
+  const seen = new Set(words(`${heard}\n${visibleThings(state).join("\n")}\n${metHere(scene, state).map(c => c.called ?? "").join("\n")}`).map(stem));
+  const named = new Set(capitalised(heard));
+  const fresh = (list: string[]) => [...new Set(list.map(stem).filter(w => w.length >= 3 && !STOP.has(w) && !seen.has(w)))];
+  const story = storyScenes(scene, state);
+  const ordinary = everyday(story);
   const present = new Set(presentCast(scene, state).map(c => c.id));
+  const said = heard.toLowerCase();
+  const world = state.world;
   const secrets = [
     ...scene.cast.filter(c => present.has(c.id)).flatMap(c => c.secrets ?? []),
     ...(scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).map(e => e.what),
-    ...Object.values(state.world?.entities ?? {}).filter(e => e.tags.includes("hidden") || e.states.includes("hidden")).map(e => `${e.name}. ${e.description ?? ""}`),
+    ...Object.values(world?.entities ?? {}).filter(e => !e.player && !visible(state, e)).map(e => `${e.name}. ${e.description ?? ""}`),
   ].join("\n");
   // What a limit rules out, by the things it names in brackets ("a séance, a priest who can call up
   // Prout's ghost"): its other words ("talk to the dead") are too common to rule a line out by.
   const ruledOut = (scene.limits ?? []).flatMap(l => [...limitHead(l).matchAll(/\(([^)]*)\)/g)].map(m => m[1]!)).join("\n");
+  const people = storyCast(story);
+  const unheard = people.filter(c => c.called && !nameTokens(c).some(t => named.has(t)));
+  // The parts of a name nobody has said, of someone they do know by another ("Mallory", for Hobb; "Agnes", for Kell).
+  const partly = people.filter(c => !unheard.includes(c)).flatMap(c => nameTokens(c).filter(t => !named.has(t)));
+  const self = nameTokens({ name: state.player.name });
+  // The world's own names for things and creatures (Duchess, Manners): names, heard or not.
+  const worldNames = Object.values(world?.entities ?? {}).filter(e => !e.player && !e.cast && !scene.cast.some(c => c.id === e.id))
+    .flatMap(e => capitalised(e.name.replace(/^(?:the|a|an)\s+/i, "")).filter(w => /^\p{Lu}\p{Ll}{2,}$/u.test(w) && !STOP.has(stem(w)) && !named.has(w)));
+  const onStage = new Set(here.map(c => c.id));
+  // Who's away: people of the story the player has heard of who aren't on stage and haven't been (they
+  // come later, or belong to another scene). Someone who has just left can still be gone after.
+  const left = new Set(scene.cast.filter(c => world?.entities[c.id]?.states.includes("gone")).map(c => c.id));
+  const away = people.filter(c => !onStage.has(c.id) && !left.has(c.id) && !unheard.includes(c)).flatMap(nameTokens).filter(t => !self.includes(t));
+  // The places and things of the story's other scenes, by the few words that name them ("the river door
+  // off the plank walk" is the river door), that nobody has spoken of yet; not what this place has too
+  // (the granary yard has a hoist rope as well as the Heron).
+  const own =`${scene.setting}\n${Object.values(world?.entities ?? {}).map(e => `${e.name} ${e.description ?? ""}`).join("\n")}`.toLowerCase();
+  const places = story.filter(s => s.id !== scene.id && s.world).flatMap(s => [...s.world!.areas, ...s.world!.things].map(t => placeName(t.name)))
+    .filter((p): p is string => !!p && !said.includes(p) && !own.includes(p));
   return {
     said: sceneEntries(state).filter(e => e.kind === "player").slice(-3).map(e => e.text),
     offered: lastOffered(state),
-    names: scene.cast.filter(c => !known.has(c.id)).flatMap(nameTokens),
+    names: [...new Set([...unheard.flatMap(nameTokens), ...partly, ...worldNames])].filter(t => !self.includes(t)),
     // Only the words particular to what's hidden here (a crackle, scuffs, lavender), not the ones any scene uses (trust, read).
     hidden: fresh(words(secrets)).filter(w => !ordinary.has(w)),
-    proper: fresh(properNouns(prepText(scene))),
+    // The story's, not just this scene's: at the granary, "the Heron" is a name too.
+    proper: [...new Set(story.flatMap(namesInPrep).filter(w => !named.has(w) && !self.includes(w)))],
     limits: fresh(words(ruledOut).filter(w => !/ing$/i.test(w))),
     leave: leaveFits(state),
+    // The signs of what someone hides in how the GM pictures them (the string round Hobb's neck, that
+    // his token hangs on), which the scene hasn't shown yet: the words their look and their secrets share.
+    looks: [...new Set(here.flatMap(c => { const hides = new Set(words((c.secrets ?? []).join("\n")).map(stem)); return fresh(words(c.look)).filter(w => hides.has(w) && !plainStems().has(w)); }))],
+    places: [...new Set(places)],
+    self,
+    away: [...new Set(away)],
   };
 }
 
-/** The names in some text: its capitalised words that don't start a sentence, a line or a quote. */
+/** A place or thing by the few words that name it: "the river door off the plank walk" is "river door"; a name of one plain word ("the floor") isn't one to go by. */
+function placeName(name: string): string | undefined {
+  const head = name.replace(/\s*\([^)]*\)/g, "").toLowerCase().replace(/^(?:the|a|an|some)\s+/, "")
+    .split(/\s+(?:of|off|outside|by|in|on|with|at|behind|beside|under|over|from|for|near|into|onto|above|below|and|full|where|that)\s+/)[0]!.trim();
+  return head.split(/[\s-]+/).length >= 2 && head.length >= 6 ? head : undefined;
+}
+
+/** What a text names that the player hasn't met, if anything: a name they haven't heard, a name or place only the prep has, a word only what's hidden has. */
+function unmetIn(text: string, v: Vetting): string | undefined {
+  const caps = capitalised(text);
+  const name = v.names.find(n => caps.includes(n));
+  if (name) return `a name not heard: ${name}`;
+  const proper = caps.find(w => v.proper.includes(w));
+  if (proper) return `a name or place not met: ${proper}`;
+  const stems = words(text).map(stem);
+  const hidden = stems.find(w => v.hidden.includes(w));
+  if (hidden) return `hidden: ${hidden}`;
+  const look = stems.find(w => v.looks?.includes(w));
+  if (look) return `not shown: ${look}`;
+  const lower = text.toLowerCase();
+  const place = v.places?.find(p => lower.includes(p));
+  return place ? `a place not met: ${place}` : undefined;
+}
+
+/** The capitalised words of some text, as names are compared: without "'s" ("Sallow's" is Sallow). */
+const capitalised = (text: string) => words(text).filter(w => /^\p{Lu}/u.test(w)).map(nameKey);
+const nameKey = (w: string) => w.replace(/['’]s?$/, "");
+
+let plain: Set<string> | undefined;
+let plainStemmed: Set<string> | undefined;
+/**
+ * Words that are only capitalised for where they stand ("Yes", "Common", "Noted", "Master"): titles,
+ * and any word the GM's standing instructions use in lower case.
+ */
+function plainWords(): Set<string> {
+  plain ??= new Set([...TITLE_WORDS.toLowerCase().split("|"), ...(`${prompt("gm")}\n${prompt("tone-comic")}`.match(/\b\p{Ll}[\p{L}'’-]*/gu) ?? [])]);
+  return plain;
+}
+/** The same, as stems: words too plain to call a description's own ("hand", "corner", "watching"). */
+const plainStems = (): Set<string> => (plainStemmed ??= new Set([...plainWords()].map(stem)));
+
+const prepNames = new Map<string, string[]>();
+/** A scene's names and places, as its prep writes them, less the words only capitalised for where they stand. */
+function namesInPrep(scene: Scene): string[] {
+  let names = prepNames.get(scene.id);
+  if (!names) prepNames.set(scene.id, names = [...new Set(properNouns(prepText(scene)).map(nameKey).filter(w => w.length >= 3 && !plainWords().has(w.toLowerCase()) && !STOP.has(stem(w))))]);
+  return names;
+}
+
+/** The names in some text: its capitalised words that don't start a sentence, a line or a quote ("'Noted.'"). */
 function properNouns(text: string): string[] {
-  return text.split(/[.!?:;]\s+|\n+|["“”‘’()[\]]/).flatMap(sentence => words(sentence).slice(1).filter(w => /^\p{Lu}/u.test(w)));
+  return text.split(/[.!?:;—]\s+|\n+|["“”‘’()[\]]|(?<=\s)'|'(?=[\s.,;:!?])/).flatMap(sentence => words(sentence).slice(1).filter(w => /^\p{Lu}/u.test(w)));
 }
 
 /**
- * Everything the player has met: the scene's hook and the story told so far, who they are, who's here
- * as they look, the place as the screen shows it (what's in it by name, but nothing hidden and nothing
- * in someone else's hands), what they carry, and what they've found out.
+ * Everything the player has been told or shown, as they read it: the hooks of the scenes played and
+ * this one, the lead into it, the notebook's lines of each scene played, every line of play (theirs,
+ * and the dice's), who they are and what they carry. Not the GM's hand-offs, its descriptions of
+ * people, its record of what play established, or its words for what the player has come across
+ * (foundOut): those are the GM's, and can say more than the player was told.
  */
-function visibleText(scene: Scene, state: SessionState): string {
+function heardText(scene: Scene, state: SessionState): string {
   const p = state.player;
-  const world = state.world;
-  const shown = world ? Object.values(world.entities).filter(e => !e.player && !e.tags.includes("hidden") && !e.states.includes("hidden") && !e.states.includes("gone")
-    && !(e.parent && ["person", "creature"].includes(world.entities[e.parent]?.kind ?? "") && !world.entities[e.parent]?.player)).map(e => e.name) : [];
   return [
-    scene.hook, state.lead ?? "", ...state.history.map(h => h.summary),
+    scene.hook, state.lead ?? "",
+    ...state.history.flatMap(h => [safeScene(h.sceneId)?.hook ?? "", ...(h.journal ?? [])]),
     ...state.transcript.filter(e => e.kind !== "system").map(e => e.text),
-    p.name, p.concept, p.build ?? "", p.backstory?.text ?? "",
-    ...presentCast(scene, state).map(c => `${c.look} ${c.called ?? ""}`),
-    ...[...knownCast(scene, state)].map(id => scene.cast.find(c => c.id === id)?.name ?? ""),
-    ...shown, ...carriedNames(state), ...foundOut(scene, state),
+    p.name, p.concept, p.build ?? "", p.backstory?.summary ?? "", p.backstory?.text ?? "",
+    ...carriedNames(state),
   ].join("\n");
+}
+
+/** A thing the screen shows: not hidden, not gone, and not in anyone else's hands. People and creatures aren't things. */
+function visible(state: SessionState, e: Entity): boolean {
+  const holder = e.parent ? state.world?.entities[e.parent] : undefined;
+  return !e.tags.includes("hidden") && !e.states.includes("hidden") && !e.states.includes("gone") && !(holder && ["person", "creature"].includes(holder.kind) && !holder.player);
+}
+
+/**
+ * The place as the screen shows it, pointed at (src/game/scene-menu.ts): its areas and things by
+ * name, how they are (the loft door barred) and what the story has said of them; how the people are
+ * (who go by the names the player knows). Never the world's descriptions: they're written for the GM.
+ */
+function visibleThings(state: SessionState): string[] {
+  return Object.values(state.world?.entities ?? {}).filter(e => !e.player && visible(state, e))
+    .flatMap(e => [...(e.kind === "person" || e.kind === "creature" ? [] : [e.name]), ...e.states, ...e.notes.map(n => n.text)]);
+}
+
+const safeScene = (id: string): Scene | undefined => { try { return sceneById(id); } catch { return undefined; } };
+
+/** The story's scenes, as far as this one's concerned: those played, this one, and those it can lead to. */
+function storyScenes(scene: Scene, state: SessionState): Scene[] {
+  const out = new Map<string, Scene>([[scene.id, scene]]);
+  for (const h of state.history) { const s = safeScene(h.sceneId); if (s && !s.companion) out.set(s.id, s); }
+  const queue = [scene];
+  while (queue.length) {
+    for (const e of queue.shift()!.exits) {
+      if (!e.next || out.has(e.next)) continue;
+      const next = safeScene(e.next);
+      if (next) { out.set(next.id, next); queue.push(next); }
+    }
+  }
+  return [...out.values()];
+}
+
+/** The story's people, each once (as this scene cards them, else the first scene that does). */
+function storyCast(scenes: Scene[]): Character[] {
+  const first = new Map<string, Character>();
+  for (const c of scenes.flatMap(s => s.cast)) if (!first.has(c.id)) first.set(c.id, c);
+  return [...first.values()];
 }
 
 /** All the scene's prep: the cards, the beats and their routes, the endings, what it needs, its limits. */
@@ -443,16 +745,19 @@ let corpus: Map<string, Set<string>> | undefined;
 const ordinaries = new Map<string, Set<string>>();
 
 /**
- * The words any scene might use, as far as this one's concerned: every other scene's prep and the
- * GM's standing instructions. What's hidden here, in words of its own, is what they don't have.
+ * The words any scene might use, as far as this story's concerned: the prep of every scene outside it
+ * and the GM's standing instructions. What's hidden here, in words of its own, is what they don't
+ * have. The story's own scenes don't count: they share its secrets (the Heron's prep has Hobb's token,
+ * the river door and the midnight bell, so with them in, none of those was hidden at the Rat).
  */
-function everyday(sceneId: string): Set<string> {
-  const cached = ordinaries.get(sceneId);
+function everyday(story: Scene[]): Set<string> {
+  const key = story.map(s => s.id).sort().join(" ");
+  const cached = ordinaries.get(key);
   if (cached) return cached;
   corpus ??= new Map([...SCENES, ...ZOO_SCENES].map(s => [s.id, stemsOf(prepText(s))]));
   const out = stemsOf(`${prompt("gm")}\n${prompt("tone-comic")}`);
-  for (const [id, stems] of corpus) if (id !== sceneId) for (const w of stems) out.add(w);
-  ordinaries.set(sceneId, out);
+  for (const [id, stems] of corpus) if (!story.some(s => s.id === id)) for (const w of stems) out.add(w);
+  ordinaries.set(key, out);
   return out;
 }
 
@@ -487,6 +792,10 @@ const STOP = new Set([
   "when", "where", "whether", "which", "while", "whole", "whom", "whose", "will", "wish", "with", "within", "without", "word", "words", "work", "would",
   "wouldn", "year", "years", "your", "yours", "yourself", "player", "players", "person", "business", "official", "owner", "liked", "effort",
   "believable", "picture",
+  // Words any line of this story might use, that a secret happens to have too (on the testers' turns:
+  // the noose and the gallows threatened, a round bought, a body looked at, a gang, a ledger's entries).
+  "man", "men", "woman", "women", "size", "body", "bear", "bears", "buy", "buys", "pint", "gang", "entry", "entries", "noose", "gallows",
+  "sleeve", "sleeves", "head", "table", "tray", "big", "round",
 ].map(stem));
 
 /** Lines as comparable words: lower case, no punctuation, the little words gone. */
@@ -513,12 +822,14 @@ type Dropped = Array<{ text: string; why: string }>;
 
 /**
  * The lines worth offering, by what can be read off their words, and why the rest were dropped: the
- * player's own words and deeds (a deed is "(I ...)", and speech isn't anyone else's), none of the GM's
- * markup (src/runtime/markup.ts: a speaker's tag, a note, anything else in square brackets, which the
- * call is never shown but might write all the same), short enough to read at a glance, no name the
- * player hasn't heard, no word of what's hidden or of a place or name they haven't met, nothing the
- * limits name, nothing they've just said or were offered last time, nothing twice, and a way out only
- * when one fits.
+ * player's own words and deeds (a deed is "(I ...)", speech isn't anyone else's, and neither speaks of
+ * the player by name: "Nim's the one asking" is Kell's), none of the GM's markup (src/runtime/markup.ts:
+ * a speaker's tag, a note, anything else in square brackets, which the call is never shown but might
+ * write all the same), short enough to read at a glance, nothing the player hasn't met (a name they
+ * haven't heard, the story's people or the world's own names; a name or place only the prep has; a
+ * word only what's hidden has), nothing the limits name, nobody who isn't here done to or spoken to
+ * as if they were, nothing they've just said or were offered last time, nothing twice, and a way out
+ * only when one fits.
  */
 export function screen(candidates: Suggestion[], v: Vetting): { kept: Suggestion[]; dropped: Dropped } {
   const dropped: Dropped = [];
@@ -527,15 +838,15 @@ export function screen(candidates: Suggestion[], v: Vetting): { kept: Suggestion
   for (const s of candidates) {
     const why = s.kind === "say" ? (/^[\p{Lu}][\p{L}'’ .-]{0,30}:\s/u.test(s.text) ? "someone else's words" : undefined)
       : !/^\(I\b/.test(s.text) ? "not the player's own deed" : undefined;
-    const name = v.names.find(n => new RegExp(`\\b${escape(n)}\\b`, "i").test(s.text));
-    const proper = words(s.text).filter(w => /^\p{Lu}/u.test(w)).map(stem).find(w => v.proper.includes(w));
+    const spoken = spokenOf(s.text, v.self);
+    const away = notHere(s, v.away);
     const reason = why
       ?? (/[[\]]/.test(s.text) ? "the GM's markup" : undefined)
       ?? (s.text.length > 150 ? "too long" : undefined)
-      ?? (name ? `a name not heard: ${name}` : undefined)
-      ?? (proper ? `a name or place not met: ${proper}` : undefined)
-      ?? (has(v.hidden, s.text) ? `hidden: ${has(v.hidden, s.text)}` : undefined)
+      ?? (spoken ? `not their voice: ${spoken}, by name` : undefined)
+      ?? unmetIn(s.text, v)
       ?? (has(v.limits, s.text) ? `the scene can't offer it: ${has(v.limits, s.text)}` : undefined)
+      ?? (away ? `not here: ${away}` : undefined)
       ?? (v.said.some(t => same(t, s.text)) ? "just said" : undefined)
       ?? (v.offered.some(t => same(t, s.text)) ? "offered last time" : undefined)
       ?? (kept.some(k => same(k.text, s.text)) ? "said twice" : undefined)
@@ -544,6 +855,32 @@ export function screen(candidates: Suggestion[], v: Vetting): { kept: Suggestion
     else kept.push(s);
   }
   return { kept, dropped };
+}
+
+/** The player spoken of by name, in a line that's theirs ("Nim's the one asking"), unless it's them saying who they are ("I'm Nim"). */
+function spokenOf(text: string, self: string[] = []): string | undefined {
+  for (const t of self) {
+    const at = new RegExp(`\\b${escape(t)}\\b`).exec(text);
+    if (at && !/\b(?:I['’]m|I am|name['’]s|name is|call me|it['’]s|this is)\s+(?:\p{Lu}[\p{L}'’-]*\s+)?$/iu.test(text.slice(0, at.index))) return t;
+  }
+  return undefined;
+}
+
+/** What comes between a deed's verb and whoever it's done to ("go after", "shout at"). */
+const TO = "(?: (?:the|a|at|to|on|with|for|up|down|over|after|past|by|towards?|into))?";
+
+/**
+ * Someone who isn't here (not come yet, or elsewhere in the story), done to or spoken to as if they
+ * were: a deed's first object ("(I try to frighten Sallow…)", before he's come), or speech to them
+ * ("Sallow, you'll hang", "You'll hang, Sallow."). Speaking of them, or of what's theirs, is fine.
+ */
+function notHere(s: Suggestion, away: string[] = []): string | undefined {
+  const title = `(?:(?:${TITLE_WORDS}) )?`;
+  return away.find(n => {
+    const name = `${title}${escape(n)}\\b(?!['’])`;
+    return new RegExp(`^\\(I (?:try to |attempt to )?\\S+${TO} ${name}`).test(s.text)
+      || (s.kind === "say" && new RegExp(`^${name}[,!?]|,\\s*${name}[.!?]*$`).test(s.text));
+  });
 }
 
 /**
