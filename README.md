@@ -70,6 +70,16 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 | `green-standoff` | Multi-faction standoff (after BG3's grove). |
 | `hanged-clerk` | An investigation with hostile witnesses and a partner. |
 
+## Checks
+
+```sh
+npm run check        # what CI runs (moon.yml): the typecheck, the tests and the screens check, about 20 s
+npm test             # the tests alone
+npm run build:web    # the PR preview: a page of the game's own screens in dist/web (src/web/README.md)
+```
+
+The playable game's smoke tests are in [src/app/README.md](src/app/README.md).
+
 ## Evals
 
 ```sh
