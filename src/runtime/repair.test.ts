@@ -112,9 +112,13 @@ test("in v2-quick, a quick co-GM past its deadline writes its own file, beside t
   const quick = { move: "open_route", essential: "none", carrier: "none", target: "doubt", when: "The player promises Cob a hot dinner every day this week if he'll show what's in his boot.", roll_skill: "persuasion", roll_dc: 13, roll_reason: "to talk Cob into it", failure: "Cob won't, and says so.", note: "Give the promise a real chance." };
   const fake = fakeOpenRouter({ choices: { off_graph: "off_graph" }, byName: { quick_fix: quick }, replies: ["Cob eyes you."] });
   const inner = globalThis.fetch;
+  // The quick co-GM answers only once the turn is over, so it's past its deadline however long the
+  // turn's other calls take (a 150 ms delay raced the deadline, and lost under a loaded machine).
+  let answer!: () => void;
+  const turnOver = new Promise<void>(r => { answer = r; });
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(String(init.body)) as { text?: { format?: { name?: string } } } : {};
-    if (body.text?.format?.name === "quick_fix") await new Promise(r => setTimeout(r, 150));
+    if (body.text?.format?.name === "quick_fix") await turnOver;
     return inner(input, init);
   };
   try {
@@ -126,7 +130,8 @@ test("in v2-quick, a quick co-GM past its deadline writes its own file, beside t
     };
     await playerTurn(state, "Cob, a hot dinner every day this week if you'll show me what's in that boot.");
     assert.equal(state.lateRepairs, 1, "past its deadline");
-    for (let i = 0; i < 40 && !existsSync(repairFile(state.id, 5, true)); i++) await new Promise(r => setTimeout(r, 25));
+    answer();
+    for (let i = 0; i < 80 && !existsSync(repairFile(state.id, 5, true)); i++) await new Promise(r => setTimeout(r, 25));
     assert.ok(existsSync(repairFile(state.id, 5, true)), "repair-005-quick.json");
     writeRepair(state, review({ turn: 5, notes: "The boot is a door, not a wall." }));
     applyPendingRepairs(authored, state);
