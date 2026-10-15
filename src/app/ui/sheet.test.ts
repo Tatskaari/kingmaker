@@ -86,6 +86,9 @@ test("a wizard's sheet: the spellbook by level, slots spent and back after a lon
   await carryGear(state, staff.id, false);
   const after = (await sheetData(state))!;
   assert.ok(!after.equipment.some(e => e.name === "Quarterstaff") && !after.attacks.some(a => a.name === "Quarterstaff"));
+  // Given back, it's in hand again (the barbarian's greataxe was carried after it came back, but never wielded).
+  assert.equal(await carryGear(state, staff.id, true), "You have your quarterstaff again");
+  assert.equal((await sheetData(state))!.equipment.find(e => e.name === "Quarterstaff")?.slot, "in hand");
 });
 
 test("a cleric's sheet: domain spells always prepared, Channel Divinity, a dwarf's darkvision; the purse and pockets from the story's world", async () => {

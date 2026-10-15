@@ -82,7 +82,7 @@ The turn itself is the runtime's ([src/runtime/README.md](../runtime/README.md#o
 
 | op | does |
 |---|---|
-| `move`, `place` | to an area, or near, behind, beside, under, on or in something; `away`/`toward` by `feet`. Saying where someone already is isn't a move. |
+| `move`, `place` | to an area, or near, behind, beside, under, on or in something; `away`/`toward` by `feet`. On or in someone is carried (an axe slung on his back); under someone is on the floor where they stand. Saying where someone already is isn't a move, nor is saying where someone has a thing of theirs ("his greataxe on his back" leaves it carried). |
 | `give`, `drop` | through the inventory's `settle`: found wherever it is, part of a stack by `quantity` |
 | `create` | someone or something new the story brought in, near something or in someone's hands |
 | `state`, `note`, `forget` | states added and removed (`burning` goes through `ignite`); notes written and cleared |

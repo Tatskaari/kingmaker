@@ -552,9 +552,12 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           if (!dest) continue;
           // Nothing goes in, on or by itself, or by what it's holding.
           if (isWithin(world, dest.id, e.id)) { problems.push(`${op.op}: ${e.name} can't go ${where.how || "near"} ${dest.id === e.id ? "itself" : `${dest.name}, which it holds`}`); continue; }
+          const how = where.how || "near";
+          // Saying where someone has a thing of theirs isn't a move: "his greataxe on his back", "the
+          // purse by her" leave it carried, not dropped at their feet. (Thrown "away" from them, it goes.)
+          if (how !== "away" && how !== "toward" && isBeing(dest) && isWithin(world, e.id, dest.id)) continue;
           // Where they started, and where they were hiding, no longer holds once they move.
           e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
-          const how = where.how || "near";
           // A distance: "thirty feet back down the lane", which decides who a Fireball at the elm catches.
           if (how === "away" || how === "toward") {
             e.at = how === "away" ? awayFrom(world, e, dest, op.feet || 30) : toward(world, e, dest, op.feet || 10);
@@ -567,10 +570,11 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           if (!heldBy(world, e) && ((dest.kind === "area" || dest.kind === "place") ? areaOf(world, e.id)?.id === dest.id : how === "near" && (feetBetween(world, e.id, dest.id) ?? Infinity) <= 5)) continue;
           if (dest.kind === "area" || dest.kind === "place") { e.parent = dest.id; e.at = spread(world, dest, e.id); log(`${e.name} moves to ${dest.name}`); }
           else if (how === "in" || how === "on" || how === "under") {
-            if (how === "in") {
-              if (dest.tags.includes("container") || dest.kind === "person" || dest.kind === "creature") inventory(world, turn).settle(e.id, dest.id);
-              else { e.parent = dest.id; delete e.at; }
-            }
+            // In a container is inside it; in or on someone is carried (a ring on her finger, an axe
+            // slung on his back); under someone, or on a thing, is on the floor there.
+            const carried = isBeing(dest) && !isBeing(e) && how !== "under";
+            if (carried || (how === "in" && (dest.tags.includes("container") || isBeing(dest)))) inventory(world, turn).settle(e.id, dest.id);
+            else if (how === "in") { e.parent = dest.id; delete e.at; }
             else { e.at = { ...(positionOf(world, dest.id)!) }; e.parent = areaOf(world, dest.id)?.id ?? world.root; }
             log(`${e.name} is ${how} ${dest.name}`);
             if (how === "under") note(e, `under ${dest.name}`, turn, by);

@@ -1389,8 +1389,10 @@ export async function carryGear(state: SessionState, instanceId: string, carried
   const me = ctx.campaign.state.characters[pcId]!;
   const name = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instanceId]?.definitionId ?? "")?.name ?? "that";
   let slot: string | undefined;
-  if (carried) gone.delete(instanceId);
-  else {
+  if (carried) {
+    gone.delete(instanceId);
+    rewear(ctx, me, pcId, state.rules.gear?.find(g => g.id === instanceId)?.kind, instanceId);
+  } else {
     gone.add(instanceId);
     slot = (Object.entries(me.equipped).find(([s, v]) => s !== "attuned" && v === instanceId)?.[0]);
     if (slot) ctx.apply([event(ctx.E, "ItemUnequipped", { characterId: pcId, slot })]);
@@ -1402,6 +1404,14 @@ export async function carryGear(state: SessionState, instanceId: string, carried
   // Armour coming off changes your AC; say so.
   const acNote = slot === "armor" || slot === "shield" ? ` (AC now ${ac})` : "";
   return carried ? `You have your ${name.toLowerCase()} again` : `You no longer have your ${name.toLowerCase()}${acNote}`;
+}
+
+/** Gear back in the player's hands is wielded or worn again, where nothing else has taken its place (a weapon in hand, armour on). */
+function rewear(ctx: Ctx, me: Dnd.EngineCharacter, pcId: string, kind: string | undefined, instanceId: string): void {
+  const slot = kind === "weapon" ? "mainHand" : kind === "armor" ? "armor" : kind === "shield" ? "shield" : undefined;
+  if (!slot || me.equipped[slot]) return;
+  try { ctx.apply(ctx.engine.plan.equip(ctx.campaign.state, { characterId: pcId, instanceId, slot }).events); }
+  catch { /* The engine says no (a shield with a two-handed weapon): carried, not worn. */ }
 }
 
 function weaponsOf(ctx: Ctx, id: string): WeaponChoice[] {

@@ -23,7 +23,7 @@ The session's `rules` ([`RulesState`, src/runtime/session.ts:47](../runtime/sess
 
 - **`campaign`:** the engine's serialised campaign, its event log and state. It's the truth about the player's hit points, slots, conditions, class resources and gear, and about every story character the rules have touched.
 - **Who's who:** `pc` (the player's engine id), `npcs` (cast id to engine id and weapon), `aliases` (what the player calls people whose names they haven't heard: the dice lines use it).
-- **Caches** so a turn's decision needn't load the engine: `spells`, `weapons`, `features`, `gear`, `status`; and `timed` (a spell with a duration is running), `prefer` (the build's preferences for later choices), `gone` (gear the story has parted them from).
+- **Caches** so a turn's decision needn't load the engine: `spells`, `weapons`, `features`, `gear`, `status`; and `timed` (a spell with a duration is running), `prefer` (the build's preferences for later choices), `gone` (gear the story has parted them from: off the sheet until they have it back, and then in hand or worn again where nothing has taken its place).
 
 It also writes `state.player.modifiers` and `state.player.build`, bumps `state.rollCount` (the dice stream), and writes into `state.world`: things' hit points and states, people's `hurt`, `badly hurt` and `down`, `grappled` and `prone`, and surfaces (a fire's element, blood, a Grease spell).
 
