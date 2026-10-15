@@ -165,6 +165,15 @@ test("considered rolls: a route's roll the decider chose goes ahead when it's wh
   assert.ok(other.considered);
 });
 
+test("considered rolls: a route the author gave no dice settles the turn as written; an unsure read of it doesn't", async () => {
+  // The Ambrose report, T43: eel for a look read as the bribe route (.63), and still went to a ruling.
+  const EEL = "Two pennies for some extra eel if you'll let me look at what's crackling in your boot, Cob.";
+  const sure = await decideBefore(scripted({ roll_call: ["new", 0.8, { route: 0.1 }], attempt: ["plain:bribe-cob", 0.63] }), scene, yard(), EEL, considered);
+  assert.equal(sure.considered, undefined, "the bribe gets the author's answer: haggling, no dice");
+  const unsure = await decideBefore(scripted({ roll_call: ["new", 0.8, { route: 0.1 }], attempt: ["plain:bribe-cob", 0.3] }), scene, yard(), EEL, considered);
+  assert.ok(unsure.considered, "a weak read of a no-dice route doesn't stop the GM ruling on what was asked");
+});
+
 test("considered rolls: no flag for ordinary talk, an unsure read, a payoff already earned, the rules' own act, the impossible, or out of character", async () => {
   const flag = async (picks: Parameters<typeof scripted>[0], options: Partial<Parameters<typeof decideBefore>[4]> = {}) =>
     (await decideBefore(scripted(picks), scene, yard(), LINING, { ...considered, ...options })).considered;

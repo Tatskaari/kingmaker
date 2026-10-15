@@ -753,6 +753,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
+  // A route the author gave no dice, read with an attempt's confidence, is the prep's own answer to
+  // the turn (a bribe gets haggling, trust needs no roll): no ruling of the GM's overrides it.
+  const plainSettles = !!plainOutcome && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= (endsScene(scene, plainOutcome) ? SCENE_ENDING_CONFIDENCE : 0.45);
   const means = decision.answers.attempt_means?.choice;
   const sureMeans = means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
   // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
@@ -781,7 +784,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // (A player who has just met someone's terms has earned the payoff: that lands, as ever, without dice.)
   const call = decision.answers.roll_call;
   const yes = (option: string) => call ? call.probabilities?.[option] ?? (call.choice === option ? 1 : 0) : 0;
-  const settledByPrep = attempt ? !attempt.check || yes("route") >= yes("new") : !!plainEnding;
+  const settledByPrep = attempt ? !attempt.check || yes("route") >= yes("new") : !!plainEnding || plainSettles;
   const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
   // (A beat with no route with a roll has a lower bar: there the flag can only say "new" or "none".)
   const bar = attempts.some(t => t.check) ? CONSIDER_CONFIDENCE : CONSIDER_CONFIDENCE_OPEN;
