@@ -115,6 +115,12 @@ test("the player character as they are: a woman isn't sir, their past is what it
   assert.match(gm, /Nor do they say the player's words back to them/);
 });
 
+test("the rules in the prose are told in the story's words and counted as the rules counted (Detect Magic pasted, four darts from a 1st-level Magic Missile)", () => {
+  const gm = prompt("gm");
+  assert.match(gm, /Tell it in the story's words, never the rulebook's \(no ranges, actions or "you may use your action"\), and count only what the rules counted: as many darts as struck, a spell's time as long as the rules gave it\./);
+  assert.match(gm, /A dead body is a thing, not a creature, for what a spell can move\./);
+});
+
 test("things happen once: a beat's agenda comes with its status the second time, and old facts give way to the world", () => {
   const scene = sceneById("hanged-clerk");
   const state = { ...at("hanged-clerk", "motive"), established: ["Moll has dropped from the wall and put herself between Caelith and Cob, holding Cob by the shoulder."] };
