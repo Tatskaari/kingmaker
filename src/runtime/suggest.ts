@@ -40,7 +40,9 @@ import type { SessionState, Suggestion } from "./session.ts";
  *
  * The call is given the replies as the player reads them (each entry's `text`), never the GM's
  * markup (src/runtime/markup.ts: who says each line, the notes on its marks), which only the GM's
- * own history puts back; and a line that comes back with any (`screen`) isn't offered.
+ * own history puts back; and a line that comes back with any (`screen`) isn't offered. At no
+ * reasoning effort its text comes back with noise now and then (another script, two lines run
+ * together, its own planning), which `parseSuggestions` cleans away or leaves out.
  */
 
 /** The kinds, in the order they're listed. */
@@ -110,7 +112,7 @@ export async function propose(state: SessionState, options: { signal?: AbortSign
   });
   const v = vetting(scene, state);
   // Cut short, its last line may be half a line: it goes.
-  const screened = screen(parseSuggestions(result.cutShort ? result.text.slice(0, result.text.lastIndexOf("\n") + 1) : result.text), v);
+  const screened = screen(parseSuggestions(result.text, { cutShort: !!result.cutShort }), v);
   const judged = await judge(scene, state, screened.kept, options.decider ?? deciderFor(sceneApproach(state, scene).decider)).catch(() => undefined);
   const mixed = mix(judged?.lines ?? screened.kept, v.leave);
   return {
@@ -321,13 +323,26 @@ function lastOffered(state: SessionState): string[] {
  * brackets, a deed with no kind, and a risky try written down as a deed. A line that's neither tagged
  * nor a deed is passed over before the list ("Here are some lines:") and ends it after: what follows
  * is the model thinking aloud ("Need ensure say lines...").
+ *
+ * At no reasoning effort the model's text comes back with noise in about one call in eight (21 of
+ * 165 in the goals check), and the lines are cleaned of it before anything else reads them:
+ * - two lines run together ("…the yard.)say: Sergeant, …", "…and leave.) pangsay: …") are two lines;
+ * - runs of other scripts and symbols ("♀♀♀♀", "娱乐登录", "】【。】【") go;
+ * - a deed is its bracketed part, and what's stuck on after it goes ("…the proof) (The barge sails)",
+ *   "…today.)(final) Williams"); one left open is closed;
+ * - the model's own planning ("The user requires 4-6 lines only…", "TBC") isn't a line;
+ * - and what's left of one that couldn't be cleaned (a fragment, a stray word) isn't either.
+ * `cutShort`: the reply ran out of tokens, so its last line may be half a line, and goes.
  */
-export function parseSuggestions(text: string): Suggestion[] {
+export function parseSuggestions(text: string, options: { cutShort?: boolean } = {}): Suggestion[] {
   const out: Suggestion[] = [];
-  for (const raw of text.split("\n")) {
-    let line = raw.trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").trim();
-    if (!line) continue;
-    const tagged = /^[*_]*(say|do|try|leave)[*_]*\s*[:：–-]\s*/i.exec(line);
+  const lines = text.normalize("NFC").split("\n").flatMap(l => l.split(RUN_ON));
+  if (options.cutShort) lines.pop();
+  for (const raw of lines) {
+    let line = raw.replace(NOISE, " ").replace(/\s+/g, " ").trim().replace(/^(?:[-*•]|\d+[.)])\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").trim();
+    // Nothing to read (a bullet or a number left over from a line run on): not a line, nor the end of the list.
+    if (!/\p{L}/u.test(line)) continue;
+    const tagged = TAG.exec(line);
     let kind = (tagged?.[1]?.toLowerCase() ?? "") as Suggestion["kind"] | "";
     if (tagged) line = line.slice(tagged[0].length).trim();
     line = line.replace(/^[*_]{2}|[*_]{2}$/g, "").trim();
@@ -339,18 +354,74 @@ export function parseSuggestions(text: string): Suggestion[] {
     if (!kind) kind = "do";
     if (kind === "say") {
       if (deed) kind = "do";
-      else line = line.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
+      else line = speechOf(line);
     }
     if (kind !== "say") {
       // A deed written without its brackets ("I look up at him").
       if (!deed && /^I\b/.test(line)) line = `(${line.replace(/\.$/, "")})`;
-      if (line.startsWith("(") && !line.endsWith(")")) line = `${line.replace(/[.)]*$/, "")})`;
+      if (line.startsWith("(")) line = deedOf(line);
       if (kind === "do" && /^\(I (?:try|attempt)\b/i.test(line)) kind = "try";
     }
-    line = line.replace(/\s+/g, " ");
-    if (line) out.push({ kind, text: line });
+    line = line.replace(/\s+/g, " ").trim();
+    // The model's planning, in a line's clothes ("(Actually line format correction omitted? Need only four-six lines"): the list is over.
+    if (PLANNING.test(line)) { if (out.length) break; continue; }
+    if (line && !fragment(line)) out.push({ kind, text: line });
   }
   return out;
+}
+
+/** A kind's tag at the start of a line, however it's dressed ("say:", "**do:**", "Try –"). */
+const TAG = /^[*_]*(say|do|try|leave)[*_]*\s*[:：–-]\s*/i;
+
+/**
+ * Where the model ran two lines together: a kind's tag in the middle of one, glued to what came
+ * before ("…the yard.)say:", "…leave.) pangsay:"), with a line's start after it (a bracket, a quote,
+ * "I", a capital), so "what to do: run" stays as it is.
+ */
+const RUN_ON = /(?<=\S)\s*(?=(?:say|do|try|leave)\s*[:：]\s*(?:[("“'‘[*]|I\b|\p{Lu}))/u;
+
+/**
+ * Anything a line in English has no use for: other scripts (娱乐登录, રાજકોટ, пәй), symbols (♀, ★,
+ * 】【), private-use and stray code points. Latin letters (accented ones too: séance), digits, spaces
+ * and the punctuation the lines use stay.
+ */
+const NOISE = /[^\p{Script=Latin}0-9\s.,;:!?'"‘’“”()[\]\-–—…/&*_]+/gu;
+
+/** The model talking about the task instead of doing it ("The user requires 4-6 lines only", "Need exact format", "TBC"). */
+const PLANNING = /\b(?:the user|user (?:wants|requires|asked)|instructions? (?:say|followed)|kind prefix|malformed|artifact|lines? only|four[- ]six|4-6|exact format|need (?:ensure|exact|only|to (?:ensure|provide|output))|must (?:only|provide|output)|TBC)\b/i;
+
+/**
+ * A deed is its bracketed part: what's stuck on after the bracket that closes it is noise or a line
+ * run on ("…the yard.) pang", "…proof) (The barge sails)"). One left open is closed.
+ */
+function deedOf(line: string): string {
+  let depth = 0;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "(") depth++;
+    else if (line[i] === ")" && --depth === 0) return line.slice(0, i + 1);
+  }
+  return `${line.replace(/[\s.)]*$/, "")})`;
+}
+
+/**
+ * Speech as the player would type it: no quotes round it, and no bracket left over from a deed run
+ * into it ("…the noose?)"); a word or two stuck on after its last full stop is noise ("…on the hook?
+ * eject").
+ */
+function speechOf(line: string): string {
+  let s = line.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
+  const extra = (s.match(/\)/g) ?? []).length - (s.match(/\(/g) ?? []).length;
+  if (extra > 0) s = s.replace(/\)+\s*$/, close => close.slice(0, Math.max(0, close.length - extra))).trim();
+  // Noise after the last full stop: a word or two in lower case, or anything stuck to it ("hook?eject").
+  const tail = /[.!?…]["”’]?(\s*)([^.!?…]{1,24})$/u.exec(s);
+  if (tail && (!tail[1] || /^\p{Ll}/u.test(tail[2]!)) && tail[2]!.trim().split(/\s+/).length <= 2) s = s.slice(0, tail.index + 1 + (/^["”’]/.test(s.slice(tail.index + 1)) ? 1 : 0));
+  return s.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
+}
+
+/** What's left of a line that couldn't be cleaned: nothing to say, a deed of a word ("(I)"), or noise stuck together ("JSImportassistant"). */
+function fragment(line: string): boolean {
+  const words = line.replace(/^\(|\)$/g, "").trim().split(/\s+/).filter(w => /\p{L}/u.test(w)).length;
+  return words < (line.startsWith("(") ? 2 : 1) || /assistant|to=\w|\bfinal\b\W*$/i.test(line);
 }
 
 /** What a set of lines is vetted against: see vetting(). */

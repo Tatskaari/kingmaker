@@ -264,3 +264,32 @@ test("a reply cut short loses its last line, which may be half a line", async ()
   });
   assert.deepEqual(made.lines.map(l => l.text), ["Sergeant, who found him?", "(I look up at the body)", "(I try to coax the boy down with a pie)"]);
 });
+
+test("the model's noise is cleaned from the lines, as the testers' own replies had it: two lines run together, other scripts, stray tokens, its own planning (goals#60, thief#10, barbarian#51, robust#88)", () => {
+  const read = (text: string, cutShort = true) => parseSuggestions(text, { cutShort }).map(l => `${l.kind}: ${l.text}`);
+  // The thief's T11 and T12: "…then leave.)♀♀♀♀)" and "…and leave.) pangsay: Sergeant, …" on screen.
+  assert.deepEqual(read("try: (I try to read the girl's guardedness, using Insight to find what she's protecting.)\nleave: (I ask Kell to record the murder by persons unknown, then leave.)♀♀♀♀\n、】【finalCHANTABILITY\nsay: Sergeant, put the witness's account in your book, not my pocket.\nsay: I won't make you regret it. What did the"),
+    ["try: (I try to read the girl's guardedness, using Insight to find what she's protecting.)", "leave: (I ask Kell to record the murder by persons unknown, then leave.)"]);
+  assert.deepEqual(read("try: (I try to frighten Cob into talking, risking Kell’s record and Moll’s trust.)\nleave: (I ask Kell to file Prout’s murder by persons unknown and leave.) pangsay: Sergeant, what would you need before you wrote Sallow’s name?\nsay: Moll, what makes you think that gentleman will come back?\ndo: (I ask Kell to"),
+    ["try: (I try to frighten Cob into talking, risking Kell’s record and Moll’s trust.)", "leave: (I ask Kell to file Prout’s murder by persons unknown and leave.)", "say: Sergeant, what would you need before you wrote Sallow’s name?", "say: Moll, what makes you think that gentleman will come back?"]);
+  // The barbarian's T11: a line run into the next at "say:", the list said twice.
+  assert.deepEqual(read("leave: (I leave the yard with the page; Kell can make her own record.)say: False entries prove theft. They don’t prove who killed Prout.\nsay: You sent him to the palace. Help me put it right here"),
+    ["leave: (I leave the yard with the page; Kell can make her own record.)", "say: False entries prove theft. They don’t prove who killed Prout."]);
+  // Stuck on after a deed: an ending's title, the model's markers, other scripts; then its planning, which ends the list.
+  assert.deepEqual(read("leave: (I leave the wharf before the Master arrives, without the proof) (The barge sails) \nsay: Then let us keep the count honest, Mister Scrope.\nsay: What do the entries say"),
+    ["leave: (I leave the wharf before the Master arrives, without the proof)", "say: Then let us keep the count honest, Mister Scrope."]);
+  assert.deepEqual(read("try: (I press Kell to swear publicly to what she witnessed, so the King can act today.)(final) Williams\nCleaner, but avoid repeated? No prior offers. \"Where is grain now?\" pulls folio evidence."),
+    ["try: (I press Kell to swear publicly to what she witnessed, so the King can act today.)"]);
+  assert.deepEqual(read("leave: (I leave the evidence with the King and step aside as the procession forms.) TBC\npart 1 of 2\nThe user wants 4–6 concise lines, one per line, each with kind and colon, and nothing else."),
+    ["leave: (I leave the evidence with the King and step aside as the procession forms.)"]);
+  assert.deepEqual(read("leave: (I release Hobb and let him disappear into the dark.)oai સપfinal өҫ\nsay: Kell, write down what he’s already told you."),
+    ["leave: (I release Hobb and let him disappear into the dark.)"]);
+  assert.deepEqual(read("do: (I keep my hands visible and give the girl room to speak.)\ntry: (I try to read the girl’s certainty from her face, risking her shut mouth if I’m wrong.)娱乐登录\ntry: (I try to win Cob over with a quiet bargain for a look inside one boot.) \nly\n-cmpr\nThe user requires 4-6 lines only, each starting kind colon; above malformed artifact. Need six proper options."),
+    ["do: (I keep my hands visible and give the girl room to speak.)", "try: (I try to read the girl’s certainty from her face, risking her shut mouth if I’m wrong.)", "try: (I try to win Cob over with a quiet bargain for a look inside one boot.)"]);
+  assert.deepEqual(read("leave: (I leave the yard and trust Kell to stand by her record.) 二四六\n \u{5ffff}\n \nThere is an issue: user asked nothing else four to six lines.", false), ["leave: (I leave the yard and trust Kell to stand by her record.)"]);
+  assert.deepEqual(read("leave: (I ask Kell to record murder by persons unknown and close the inquiry.)RGCTX\nไม่ต้องฝาก}\n</assistantileswisay: Your boots stay yours, Cob. I gave my word.", false), ["leave: (I ask Kell to record murder by persons unknown and close the inquiry.)"]);
+  // Speech keeps what's said, and loses a bracket or a word of noise stuck on after it.
+  assert.deepEqual(read("say: Is the body still on the hook? eject\nsay: Who found him?)\nsay: Lovely morning, Sergeant. Isn't it?", false), ["say: Is the body still on the hook?", "say: Who found him?", "say: Lovely morning, Sergeant. Isn't it?"]);
+  // Nothing on screen is noise.
+  for (const l of parseSuggestions("say: Sergeant, a word.\ndo: (I look up at the hoist.) ♀♀\ntry: (I try to climb the water butt.) ★ System 1: I'm concerned")) assert.match(l.text, /^[\p{Script=Latin}0-9\s.,;:!?'"‘’“”()\-–—…]+$/u);
+});
