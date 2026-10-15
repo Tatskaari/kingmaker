@@ -106,3 +106,59 @@ test("the Heron: the Master comes for a player waiting for him, not for one work
   assert.match(route(heron, "midnight", "cast-off").when, /waiting for a moment they've named[^.]*isn't dithering/);
   assert.match(heron.beats.find(b => b.id === "midnight")!.pressure!, /initials tonight's page/, "the signing comes, for a player waiting to catch him at it");
 });
+
+// --- The King's Morning ----------------------------------------------------------------------
+
+const king = sceneById("kings-morning");
+
+test("the King's Morning: a failed press costs minutes and ground, and only the King going down to the procession puts it off", () => {
+  const press = route(king, "reckoning", "press-the-king");
+  assert.equal(press.check?.onFailure, undefined, "a failure keeps the scene where it is");
+  assert.doesNotMatch(press.check!.failure, /holding the door|looked into most thoroughly, after the Assembly/, "the failure isn't the put-off ending's condition");
+  assert.match(press.check!.failure, /On whose word[\s\S]*minutes[\s\S]*Nothing is settled yet/);
+  assert.match(press.when, /sent in to explain himself isn't this/);
+  assert.match(press.when, /sergeant's sworn record that points at Sallow, Sallow giving himself away in his own hearing[^)]*no dice are needed/);
+  const putOff = route(king, "reckoning", "put-off");
+  assert.match(putOff.when, /gone down to the procession[\s\S]*let it rest/);
+  assert.match(putOff.when, /reaching for 'after the Assembly'[^)]*isn't this/);
+  assert.match(king.exits.find(e => e.id === "after-the-assembly")!.outcome, /^The King has gone down to the procession with it put off/);
+});
+
+test("the King's Morning: the player can have Sallow sent in to explain himself, with no dice, and he's there to face", async () => {
+  for (const beat of ["report", "reckoning"]) {
+    const send = route(king, beat, "send-for-sallow");
+    assert.equal(send.check, undefined);
+    assert.equal(send.to, "face-to-face");
+  }
+  // Not on stage until he's sent for: then he comes in.
+  const sallow = king.cast.find(c => c.id === "sallow")!;
+  assert.equal(sallow.enters, "face-to-face");
+  const state = at("kings-morning", "reckoning", { path: [{ turn: 2, from: "report", to: "reckoning", via: "told", source: "post" }] });
+  assert.ok(!presentCast(king, state).some(c => c.id === "sallow"), "in the gallery until sent for");
+  // T93: "Sallow is clearly running a crime syndicate... Make him explain where this grain came from."
+  const pre = await decideBefore(scripted({ attempt: ["send-for-sallow", 0.75, { "press-the-king": 0.2 }], roll_call: ["none", 0.6] }), king, state, "Make him explain where this grain came from.", considered);
+  assert.equal(pre.move?.transition.id, "send-for-sallow");
+  assert.equal(pre.move?.roll, undefined, "no Persuasion roll against DC 15 for asking to see him");
+  state.path.push({ turn: 3, from: "reckoning", to: "face-to-face", via: "send-for-sallow", source: "pre" });
+  state.beat = "face-to-face";
+  assert.ok(presentCast(king, state).some(c => c.id === "sallow"));
+  // In front of the King: his weak spot is a slip with no dice; picking at his account is the bookkeeper's roll.
+  const face = king.beats.find(b => b.id === "face-to-face")!;
+  assert.match(face.direction, /lost to goblins, was it\? Careless of somebody/);
+  const slip = route(king, "face-to-face", "sallow-slips");
+  assert.equal(slip.to, "reckoning");
+  assert.equal(slip.establishes?.length, 1);
+  const catchOut = route(king, "face-to-face", "catch-sallow-out");
+  assert.equal(catchOut.check?.skill, "investigation");
+  assert.deepEqual(catchOut.check?.establishes?.success, slip.establishes);
+  assert.equal(catchOut.check?.onFailure, undefined, "a failure costs minutes, and the hole is still there");
+});
+
+test("the King's Morning: Kell swears to what she saw and heard when the King asks who will", () => {
+  const kell = king.cast.find(c => c.id === "kell")!;
+  assert.match(kell.attitude, /When the King asks who will swear to it, or for a sworn record, she gives hers on the spot/);
+  assert.match(kell.knows.join(" "), /whatever anyone owned to in her hearing/);
+  assert.match(king.beats.find(b => b.id === "report")!.cast!.kell!, /when the King asks who will swear, you will/);
+  assert.match(king.beats.find(b => b.id === "reckoning")!.cast!.kell!, /If the King asks who will swear/);
+  assert.match(king.cast.find(c => c.id === "king")!.attitude, /a sergeant's sworn record/);
+});

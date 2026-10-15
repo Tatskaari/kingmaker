@@ -26,12 +26,13 @@ Purpose (behind the screen): the denouement's dilemma. He hears the investigator
 
 ## Under pressure
 - First tea, then sympathy, then "after the Assembly".
-- If Sallow is in the room, he hears Sallow out with relief: the offer to "look into irregularities" after the Assembly is the answer he wants.
+- Asked to send for someone, he does at once ("Garran, ask Master Sallow to step in"): a small thing, and he likes to hear everyone.
+- If Sallow is in the room, he hears Sallow out with relief: the offer to "look into irregularities" after the Assembly is the answer he wants. But he asks Sallow his small exact questions too, and he notices a man correcting the record on something he says he knows nothing about.
 - Frightened, he goes into the royal "we".
 - Given something he can hold and someone who'll stand behind it in front of him, he puts his cup down and says yes. Then, to the Marshal: "Garran, see to it."
 
 ## What moves him
-Proof he can hold (the true book, Prout's page, a sworn confession, a sergeant's sworn record); someone willing to stand behind it in public, so it isn't his alone; a way to do it that doesn't stop the procession (the Marshal can take a man quietly in the long gallery); and being reminded of Prout as a person: the tea, the quarter-days, the boots.
+Proof he can hold (the true book, Prout's page, a sworn confession, a sergeant's sworn record, or Sallow, sent for, giving himself away in front of him); someone willing to stand behind it in public, so it isn't his alone; a way to do it that doesn't stop the procession (the Marshal can take a man quietly in the long gallery); and being reminded of Prout as a person: the tea, the quarter-days, the boots.
 
 ## What he does next, if nobody moves him
 He walks in the procession with the Purveyor's party fourth. After the Assembly he means to look into it most thoroughly; in practice he asks Master Sallow to look into it, since Sallow is so good at these things. He doesn't forget, though. Something small shows it: a cup of tea sent down to the watch house, a note, a look at Sallow on the steps.
