@@ -192,6 +192,9 @@ export type Overlay =
    */
   | { kind: "report"; screen?: string; from?: string; sending?: boolean; said?: string; failed?: boolean; problem?: string };
 
+/** A fight's answer that holds a line for a second word (TacticalFight.say): the box keeps the line, for Enter to say it again. */
+const SAY_AGAIN = /Say it again to do it anyway/;
+
 const GM_BUSY = [
   "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
   "The GM looks up the rules, then decides against them…", "The GM pretends this was the plan all along…", "The GM consults a table that may not exist…",
@@ -234,6 +237,10 @@ export class Game {
   fightLive?: { who: string; text: string };
   /** The fight's answer to a typed line that came to nothing (why not: nothing was spent), under the log until the next. */
   fightReply?: string;
+  /** A line sent before the box could take it (the others' turns, the GM still speaking): why it's waiting, under the log while it waits. */
+  fightWait?: string;
+  /** Cuts the GM's line on a typed turn short (Esc, or a fight key, while it streams): the rules' lines stand. */
+  private fightSkip?: AbortController;
   overlay?: Overlay;
   /** The sheet the rules engine just made (the created screen). */
   sheet?: SheetData;
@@ -1396,7 +1403,7 @@ export class Game {
   /** A fight comes on screen (or goes): no target held, the keys the fight's own, nothing typed answered. */
   private freshFight(): void {
     this.targetIndex = 0; this.targetId = undefined;
-    this.fightBox = false; this.fightLive = undefined; this.fightReply = undefined;
+    this.fightBox = false; this.fightLive = undefined; this.fightReply = undefined; this.fightWait = undefined;
   }
 
   /** Who the player can aim at: everyone on the other side still in it, nearest first. */
@@ -1428,6 +1435,7 @@ export class Game {
     this.busy = "…";
     this.status = undefined;
     this.fightReply = undefined;
+    this.fightWait = undefined;
     this.emit();
     try {
       const said = await core.act(id, this.hooks());
@@ -1445,19 +1453,26 @@ export class Game {
   /**
    * A line typed in the fight's box, as in a scene's: the core reads it onto the turn (plain
    * commands with no model, the decider for the rest) and does it as a click would. What the rules
-   * did shows at once, then the GM's line streams into the log, then the others' turns, paced. A
-   * line that comes to nothing says why under the log, and nothing's spent.
+   * did shows at once, then the GM's line streams into the log (Esc or a fight key waves it on),
+   * then the others' turns, paced. A line that comes to nothing says why under the log, and
+   * nothing's spent. True when the line is worth saying again as it was (the rules want a second
+   * word first: a Fireball that catches a friend), for the box to keep it.
    */
-  async combatSay(text: string): Promise<void> {
+  async combatSay(text: string): Promise<boolean> {
     const core = this.core;
-    if (!core || this.busy || core.state.mode !== "combat" || !text.trim()) return;
+    if (!core || this.busy || core.state.mode !== "combat" || !text.trim()) return false;
     this.busy = "…";
     this.status = undefined;
     this.fightReply = undefined;
+    this.fightWait = undefined;
+    const skip = new AbortController();
+    this.fightSkip = skip;
     this.emit();
     const name = (who: string) => this.fight?.state().units[who]?.called ?? who;
+    let again = false;
     try {
       const said = await core.say(text, {
+        skip: skip.signal,
         onReading: () => { this.busy = modelOffline() ? "…" : "The GM considers it…"; this.emit(); },
         // The rules first: what they did is on the board and in the log before the GM says a word.
         onRules: () => { this.animateFight(); this.busy = "…"; this.emit(); },
@@ -1467,13 +1482,21 @@ export class Game {
       // A line that came to nothing comes back in brackets: why, under the log.
       const refusal = /^\(([^\n]+)\)$/.exec(said.trim());
       if (refusal) this.fightReply = refusal[1];
+      again = !!refusal && SAY_AGAIN.test(refusal[1]!);
     } catch (error) {
       this.fightReply = `That didn't work: ${this.failed(`a fight: "${text}"`, error)}`;
     }
+    this.fightSkip = undefined;
     this.fightLive = undefined;
     this.animateFight();
     this.busy = undefined;
     this.emit();
+    return again;
+  }
+
+  /** Waves the GM's line on a typed turn on, where it's got to (the rules' lines stand). */
+  skipFightLine(): void {
+    this.fightSkip?.abort();
   }
 
   /**

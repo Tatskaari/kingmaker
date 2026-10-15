@@ -1,7 +1,7 @@
 import { MouseButton, type InputRenderable, type MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState, type ReactNode } from "react";
-import { showLine, type LogLine } from "../../game/combat/index.ts";
+import { headOf, showLine, type LogLine } from "../../game/combat/index.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
 import { actorsHere, direction, Picks, SCREEN_KEYS, steps } from "../../game/map/index.ts";
 import { exploreState } from "../../game/town.ts";
@@ -121,17 +121,34 @@ export function CombatScreen({ game }: { game: Game }) {
   const boxOn = game.fightBox && !!view && !view.over;
   const typed = () => input.current?.value ?? draft;
   const clear = () => { setDraft(""); if (input.current) input.current.value = ""; };
-  const focusBox = (on: boolean) => { if (game.fightBox === on || (on && view?.over)) return; game.fightBox = on; if (on) game.fightReply = undefined; game.emit(); };
-  /** Send what's in the box: on the player's turn, once the others have gone (until then it waits in the box, and says why). */
+  /**
+   * The box takes the keys (or gives them back) at once, not at the next frame: an Enter and the
+   * letters after it in the same read type into the box rather than act.
+   */
+  const focusBox = (on: boolean) => {
+    if (game.fightBox === on || (on && fight?.over())) return;
+    game.fightBox = on;
+    if (on) { game.fightReply = undefined; input.current?.focus(); } else input.current?.blur();
+    game.emit();
+  };
+  /** Send what's in the box: on the player's turn, once the others have gone and the GM's done (until then it waits in the box, and says why). */
   const send = (value: string) => {
     if (!value.trim()) return;
-    if (!view?.turn?.isPlayer || game.busy) { game.fightReply = view?.over ? "The fight's over." : "Not yet: it isn't your turn. It'll keep."; game.emit(); return; }
+    if (fight?.over()) { game.fightReply = "The fight's over."; game.emit(); return; }
+    if (!fight?.playerTurn() || game.busy) { game.fightWait = fight?.playerTurn() ? "The GM's still speaking: Enter sends it once they've done." : "Not yet: it isn't your turn. Enter sends it when it is."; game.emit(); return; }
     clear();
-    void game.combatSay(value);
+    // A line the rules want said again (a Fireball that catches a friend) stays in the box, for Enter to say it.
+    void game.combatSay(value).then(again => { if (again && !typed()) { setDraft(value); if (input.current) input.current.value = value; } });
   };
   useKeyboard(key => {
     if (game.overlay || game.screen !== "combat" || !fight || !view || key.defaultPrevented) return;
-    if (boxOn) {
+    // The GM's line streaming in: Esc waves it on (and only that); any of the fight's keys does too.
+    if (game.fightLive && (key.name === "escape" || !game.fightBox)) {
+      game.skipFightLine();
+      if (key.name === "escape") { key.preventDefault(); return; }
+    }
+    // The box's keys as they are now, not as the last frame drew them.
+    if (game.fightBox && !fight.over()) {
       // Typing: Esc gives the keys back to the fight (what's typed stays); Tab still picks a target; the rest are the box's (its Enter sends).
       if (key.name === "escape") { key.preventDefault(); focusBox(false); }
       else if (key.name === "tab") { key.preventDefault(); game.targetIndex = (Math.min(game.targetIndex, targets.length - 1) + (key.shift ? targets.length - 1 : 1)) % Math.max(1, targets.length); game.targetId = undefined; game.emit(); }
@@ -176,7 +193,9 @@ export function CombatScreen({ game }: { game: Game }) {
   const looks = fightLooks(G.units);
   // The log, with the GM's line as it streams in and the answer to a line that came to nothing under it.
   const live = game.fightLive ? [{ text: `${game.fightLive.text || "…"}▍`, color: game.fightLive.who === "gm" ? C.gm : looks[game.fightLive.who]?.color ?? C.name }] : [];
-  const reply = game.fightReply ? [{ text: `(${game.fightReply})`, color: C.warn }] : [];
+  // Why a line is waiting, while it waits (once it's the player's turn and the GM's done, it's gone: Enter sends it).
+  const waiting = game.fightWait && (game.busy || !view.turn?.isPlayer) ? game.fightWait : undefined;
+  const reply = [game.fightReply, waiting].filter(Boolean).map(text => ({ text: `(${text})`, color: C.warn }));
   const log = logRows(view.log, mapW - 4, logH - 2, Object.fromEntries(Object.entries(looks).map(([id, l]) => [id, l.color])), [...live, ...reply]);
   const attack = target ? actions.find(a => a.id === `attack_${target.id}`) : undefined;
   const turnName = view.turn ? (view.turn.isPlayer ? "Your turn" : `${view.turn.name}'s turn`) : "";
@@ -263,7 +282,8 @@ export function CombatScreen({ game }: { game: Game }) {
   const gap = width < 100 ? " · " : "  ·  ";
   // What the box says while it's empty: how to get to it, or what goes in it (as much as fits).
   const boxW = mapW - 4;
-  const them = target?.name.split(" ").at(-1) ?? "them";
+  // The word they go by ("a porter with a sack-needle": the porter).
+  const them = target ? headOf(target.name) : "them";
   const hint = view.over ? "The fight's over: Enter goes on."
     : boxOn ? [`Words are said; *asterisks* or (brackets), or a command (attack ${them}, end turn), are done`, `Words are said; *deeds* or attack ${them} are done`, "Words, *deeds*, or: attack them", "Words, or *deeds*"].find(t => t.length <= boxW) ?? ""
     : ["Enter (or a click) to type what you say or do, as in a scene", "Enter or a click to type what you do", "Enter: type"].find(t => t.length <= boxW) ?? "";
@@ -289,7 +309,8 @@ export function CombatScreen({ game }: { game: Game }) {
         <box height={boxH} flexShrink={0} border borderColor={boxOn ? C.borderHot : C.border} title={boxOn ? " What do you do? " : " Type "} titleAlignment="left" paddingX={1}
           onMouseDown={(e: MouseEvent) => { if (e.button !== MouseButton.LEFT) return; e.stopPropagation(); focusBox(true); }}>
           {/* What's sent is what the input holds as Enter comes: letters in the same read as it are in the input, not yet the draft. */}
-          <input ref={input} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())}
+          {/* Near the edge before it scrolls, so a line uses the box's width (the editor's own margin is a fifth of it). */}
+          <input ref={input} width={boxW} scrollMargin={0.05} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())}
             focused={boxOn && !game.overlay && game.screen === "combat"} placeholder={hint} />
         </box>
       </box>

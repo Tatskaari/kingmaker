@@ -24,6 +24,8 @@ export interface InputRenderableOptions extends RenderableOptions<InputRenderabl
   minLength?: number;
   cursorColor?: ColorInput;
   showCursor?: boolean;
+  /** How near the edge the cursor gets before the text scrolls, as a share of the width (the editor's: 0.2; a cell at the least). */
+  scrollMargin?: number;
 }
 
 export const InputRenderableEvents = { INPUT: "input", CHANGE: "change", ENTER: "enter" } as const;
@@ -77,6 +79,7 @@ export class InputRenderable extends Renderable {
   private _minLength: number;
   private _cursorColor: RGBA;
   private _showCursor: boolean;
+  private _scrollMargin: number;
   private lastCommitted = "";
   private history: Array<{ value: string; cursor: number }> = [];
   private future: Array<{ value: string; cursor: number }> = [];
@@ -93,6 +96,7 @@ export class InputRenderable extends Renderable {
     this._focusedBackgroundColor = RGBA.clone(parseColor(options.focusedBackgroundColor || options.backgroundColor || "transparent"));
     this._cursorColor = RGBA.clone(parseColor(options.cursorColor ?? RGBA.fromValues(1, 1, 1, 1)));
     this._showCursor = options.showCursor ?? true;
+    this._scrollMargin = options.scrollMargin ?? 0.2;
     const initial = (options.value ?? "").replace(/[\n\r]/g, "").substring(0, this._maxLength);
     this.glyphs = clusters(initial).map(c => c.text);
     this.cursor = this.glyphs.length;
@@ -134,6 +138,7 @@ export class InputRenderable extends Renderable {
   set maxLength(value: number) { this._maxLength = value; if (this.plainText.length > value) this.value = this.plainText.substring(0, value); }
   get minLength(): number { return this._minLength; }
   set minLength(value: number) { this._minLength = value; }
+  set scrollMargin(value: number | undefined) { this._scrollMargin = value ?? 0.2; this.ensureCursorVisible(); this.requestRender(); }
   // Single line: these are fixed.
   override set height(_value: number | "auto" | `${number}%`) {}
   override get height(): number { return super.height; }
@@ -292,11 +297,11 @@ export class InputRenderable extends Renderable {
 
   private cursorColumn(): number { return stringWidth(this.glyphs.slice(0, this.cursor).join("")); }
 
-  /** ensureCursorVisible, sideways (no wrapping), with the editor's scroll margin of 0.2. */
+  /** ensureCursorVisible, sideways (no wrapping), with the editor's scroll margin (0.2 unless set). */
   private ensureCursorVisible(): void {
     const width = Math.trunc(this.width);
     if (width <= 0) return;
-    const margin = Math.min(Math.max(1, Math.floor(width * 0.2)), width > 1 ? Math.floor((width - 1) / 2) : 0);
+    const margin = Math.min(Math.max(1, Math.floor(width * this._scrollMargin)), width > 1 ? Math.floor((width - 1) / 2) : 0);
     const col = this.cursorColumn();
     if (col < this.scrollX + margin) this.scrollX = col >= margin ? col - margin : 0;
     else if (col >= this.scrollX + width - margin) this.scrollX = col + margin - width + 1;

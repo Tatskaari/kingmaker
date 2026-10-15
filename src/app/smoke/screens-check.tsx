@@ -359,10 +359,10 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
   checks.push([`fight ${w}x${h}: Enter gives the box the keys, and the hints say how to send and to get back`, game.fightBox && /What do you do\?/.test(boxTitle(frame)) && /^Enter send +· +Esc the keys/.test(bottom(frame))]);
-  // The letters type: no attack (a), cast (c), options (m), sheet (s) or end of turn (e).
+  // The letters type: no attack (a), cast (c), options (m), sheet (s), end of turn (e) or report (b, an overlay).
   await act(async () => { await setup.mockInput.typeText("cast fireball at sallow"); });
   frame = await draw();
-  checks.push([`fight ${w}x${h}: the letters go in the box, not to the fight's keys (${boxed(frame)})`, boxed(frame) === "cast fireball at sallow" && !acted.length && !game.overlay]);
+  checks.push([`fight ${w}x${h}: the letters go in the box (b, a, c, s and e among them), not to the fight's keys (${boxed(frame)})`, boxed(frame) === "cast fireball at sallow" && !acted.length && !game.overlay]);
   await act(async () => { setup.mockInput.pressEnter(); await new Promise(r => setTimeout(r, 150)); });
   frame = await draw();
   const before = typing.controller.state().log.length;
@@ -384,6 +384,26 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   const clickedIn = game.fightBox;
   await act(async () => { await setup.mockMouse.click(Math.floor(mapW / 2), Math.floor(mapH / 2)); });
   checks.push([`fight ${w}x${h}: a click on the box gives it the keys, a click on the battlefield gives them back`, clickedIn && !game.fightBox]);
+  // Enter and the letters after it in one read (a fast typist, a slow frame): they type, they don't act (d would dash, e end the turn).
+  acted.length = 0;
+  const status = game.status;
+  await act(async () => { await setup.mockInput.pressKeys(["RETURN", "d", "o", "d", "g", "e"]); });
+  frame = await draw();
+  checks.push([`fight ${w}x${h}: Enter and "dodge" in one read type into the box (${boxed(frame)}; ${acted.join() || "nothing acted"})`, game.fightBox && boxed(frame) === "dodge" && !acted.length && game.status === status]);
+  // The line uses the box's width: as much as fits, from its start.
+  const long = "I shout at the crake, the boy and Sallow, and then I hit the crake with a stool".slice(0, mapW - 4 - 6);
+  await act(async () => { setup.mockInput.pressBackspace(); setup.mockInput.pressBackspace(); setup.mockInput.pressBackspace(); setup.mockInput.pressBackspace(); setup.mockInput.pressBackspace(); await setup.mockInput.typeText(long); });
+  frame = await draw();
+  checks.push([`fight ${w}x${h}: a line ${long.length} long shows whole in the box (${boxed(frame).length} shown)`, boxed(frame) === long]);
+  // Sent while the GM's still speaking: it waits in the box and says why, until it can go.
+  game.busy = "The GM is speaking…";
+  await act(async () => { setup.mockInput.pressEnter(); await new Promise(r => setTimeout(r, 50)); });
+  frame = await draw();
+  const waited = logText(frame).includes("(The GM's still speaking: Enter sends it once they've done.)") && boxed(frame) === long;
+  game.busy = undefined;
+  game.emit();
+  frame = await draw();
+  checks.push([`fight ${w}x${h}: sent while the GM's speaking, a line waits in the box and says why, until it can go`, waited && !logText(frame).includes("still speaking") && boxed(frame) === long]);
   await setup.dispose();
 }
 
