@@ -11,10 +11,13 @@
     "game": "node --experimental-ffi --no-warnings --import tsx src/app/main.tsx",
     "web": "node --no-warnings src/web/server.ts",
     "web:check": "node --no-warnings src/web/check.ts",
+    "build:web": "node --experimental-ffi --no-warnings --import tsx src/web/preview.tsx",
     "play": "node --no-warnings src/cli/scene.ts play hanged-clerk",
     "scene": "node --no-warnings src/cli/scene.ts",
     "eval": "node --no-warnings src/eval/run.ts",
     "typecheck": "tsc --noEmit -p .",
+    "test": "node --no-warnings --test 'src/**/*.test.ts'",
+    "check": "proto run moon -- run workspace:check",
     "compare": "node --no-warnings src/eval/compare.ts",
     "qa": "node --no-warnings src/cli/qa.ts",
     "glyphs": "python3 tools/glyphs/build.py --install",
@@ -46,5 +49,6 @@
   },
   "allowScripts": {
     "node-pty@1.1.0": true
-  }
+  },
+  "packageManager": "npm@11.16.0"
 }

@@ -1,11 +1,11 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Game } from "../game.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, LEVEL } from "../story.ts";
 import { C } from "../theme.ts";
 import { BOLD, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
 import { sheetHeight } from "./sheet-layout.ts";
-import { SheetView } from "./sheet.tsx";
+import { SheetView, type SheetHandle } from "./sheet.tsx";
 
 const ROLLING = [
   "Consulting the Standard Array…",
@@ -76,8 +76,10 @@ export function CreatedScreen({ game }: { game: Game }) {
   const { width, height } = useTerminalDimensions();
   // Not who you meant (or the build fell back to the defaults): make them again.
   const remake = () => { if (game.creating) void game.create(game.creating.name, game.creating.concept); };
+  const sheet = useRef<SheetHandle>(null);
   useKeyboard(key => {
-    if (game.overlay || key.defaultPrevented || game.screen !== "created") return;
+    // A spell picked on the sheet takes Enter, and one open takes every key.
+    if (game.overlay || key.defaultPrevented || game.screen !== "created" || sheet.current?.wants(key)) return;
     if (key.name === "return" || key.name === "space") { key.preventDefault(); game.begin(); }
     else if (key.name === "r") { key.preventDefault(); remake(); }
   });
@@ -96,7 +98,7 @@ export function CreatedScreen({ game }: { game: Game }) {
     </box>
     <box width={w} height={sheetH} border borderColor={C.border} title=" Character sheet " titleAlignment="left" paddingX={1} flexDirection="column" flexShrink={0}>
       {/* A new character (made again) starts on the first page. */}
-      <SheetView key={game.core?.state.id} data={game.sheet} who={who} width={w - 4} height={sheetH - 2}
+      <SheetView ref={sheet} key={game.core?.state.id} data={game.sheet} who={who} width={w - 4} height={sheetH - 2}
         active={!game.overlay && game.screen === "created"} keys={[["Enter", "Set off", () => game.begin()], ["r", "Make them again", remake]]} />
     </box>
   </box>;

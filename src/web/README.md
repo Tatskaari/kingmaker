@@ -88,6 +88,18 @@ So the server and WebSocket add about a millisecond, and xterm parses and draws 
 - **The map idle:** 0.1 KB/s.
 - **Walking 4 steps a second:** 198 KB/s from the game, 22 KB/s on the wire.
 
+## The PR preview
+
+GitHub Pages can only serve files, and this needs a server with a pty (and the game needs a GM), so a pull request's preview (`.github/workflows/preview.yml`, which runs `npm run build:web`) is a page of the game's screens instead: `src/web/preview.tsx` writes `dist/web/index.html`.
+
+```sh
+npm run build:web                 # dist/web/index.html, in a couple of seconds
+```
+
+- **The screens:** the title, a character just made, the map, a spell on the sheet, a scene and a fight. They're the real App's, at 130x42, drawn by OpenTUI headless the way `src/app/smoke/screens-check.tsx` draws them: offline, with no model calls, for ready-made characters. The scene's conversation is the scene check's, made up for it.
+- **The page:** each screen is kept as its cells and their colours, and `preview-paint.js` (inlined) paints them on a canvas a cell at a time. A character from a fallback font stays in its own cell, and the box and block characters are drawn as lines and rectangles, so they join up whatever the font. Each has its text beside it, under "As text".
+- **CI:** `moon.yml`'s `build` is the same build, and its `check` is the typecheck, the tests and the screens check (`npm run check`; `.github/workflows/check.yml` runs both).
+
 ## What it doesn't do yet
 
 - No accounts and no TLS, so it's for localhost or behind a proxy that has both.
