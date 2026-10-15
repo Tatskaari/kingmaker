@@ -785,7 +785,8 @@ export function worldView(world: SceneWorld, options: { full?: boolean } = {}): 
   if (me && from) {
     const by = Object.values(world.entities).filter(e => e.id !== "player" && e.at && present(e) && e.kind !== "area" && distance(e.at, from) <= 6).map(e => e.name).slice(0, 3);
     const states = me.states.filter(s => s !== "gone");
-    if (by.length || states.length || me.notes.length) lines.push(`The player${by.length ? ` is by ${by.join(", ")}` : ""}${states.length ? ` (${states.join(", ")})` : ""}${me.notes.length ? `: ${me.notes.slice(-2).map(n => n.text).join("; ").replace(/\.$/, "")}` : ""}.`);
+    // Their own states before who they're by: "by … Master Josiah Sallow (down)" read as Sallow down, and a lost fight's aftermath had him so.
+    if (by.length || states.length || me.notes.length) lines.push(`The player${states.length ? ` (${states.join(", ")})` : ""}${by.length ? ` is by ${by.join(", ")}` : ""}${me.notes.length ? `: ${me.notes.slice(-2).map(n => n.text).join("; ").replace(/\.$/, "")}` : ""}.`);
   }
   for (const area of areas) {
     const inside = contents(area);

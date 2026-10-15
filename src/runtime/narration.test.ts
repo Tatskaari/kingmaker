@@ -20,7 +20,7 @@ process.env.OPENROUTER_API_KEY = "offline";
 const { sceneById } = await import("../../scenes/index.ts");
 const { buildWorld, joinWorld } = await import("../world/scene-world.ts");
 const { effectiveScene, genderOf, nowNote, outOfSight, presentCast, prompt, sceneBrief } = await import("./brief.ts");
-const { chainScene, forceEnding, playerTurn } = await import("./engine.ts");
+const { chainScene, forceEnding, playerTurn, resumeAfterFight } = await import("./engine.ts");
 const { fakeOpenRouter } = await import("../llm/fake-openrouter.ts");
 
 /** A scene a few exchanges in, with its world as it opens. */
@@ -136,6 +136,27 @@ test("a closing doesn't show again what the scene has shown (Kell's arrest of Ho
     assert.match(told, /The scene is ending: Sergeant Kell has arrested Big Hobb/);
     assert.match(told, /What the scene has already shown has happened: don't show it again or say any line of it twice; if this ending's moment has already played, close from where it stands\./);
     assert.equal(state.ended?.exitId, "taken-in");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("the aftermath stands: the fight's result is the summary's, the world says who's down, and what it narrates is staged", async () => {
+  // The player's own states come before who they're by: "by … Master Josiah Sallow (down)" read as Sallow down.
+  const state = { ...at("hanged-clerk"), id: "narration-aftermath" };
+  state.world!.entities.player!.states.push("down");
+  const view = nowNote(sceneById("hanged-clerk"), state, []);
+  assert.match(view, /\nThe player \(down\) is by [^\n]*\./);
+  assert.doesNotMatch(view, /The player is by [^\n]*\(down\)/);
+  state.ended = { exitId: "case-made", turn: 4, operations: [], warnings: [] };
+  const fake = fakeOpenRouter({ replies: ["You come round on the cobbles. Kell stands over you; Cob has the page."] });
+  try {
+    await resumeAfterFight(state, "Kell was still on her feet at the end. The player was knocked out.");
+    const told = fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!.input!.findLast(m => m.role === "developer")!.content;
+    assert.match(told, /The fight's result stands as it went, whatever the details established before it or the world's last word say: who is standing and who is down is as this says\./);
+    assert.match(told, /what the player carried that they'd want is theirs to take, and they take it/);
+    assert.ok(fake.sent.some(b => b.text?.format?.name === "world_ops"), "the stage manager read the aftermath");
+    assert.ok(!state.world!.entities.player!.states.includes("gone"));
   } finally {
     fake.restore();
   }

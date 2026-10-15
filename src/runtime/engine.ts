@@ -217,15 +217,19 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}, opti
 
 /**
  * Who from earlier scenes is actually here? A recurring character's card can't know whether the
- * last scene ended with them taken in or fled; the hand-off does. Only confident "not here" counts.
+ * last scene ended with them taken in or fled; the hand-off does, and so does the boundary's word on
+ * what's true now (its adjustments: "Cob will not be at the Rat tonight", and he was, at .83, read
+ * from the hand-off alone). Only confident "not here" counts.
  */
 async function settlePresence(scene: Scene, state: SessionState, decider: ReturnType<typeof deciderFor>): Promise<void> {
   const handoff = state.history.at(-1)?.summary;
   if (!handoff) return;
-  const recurring = scene.cast.filter(c => handoff.includes(c.name.split(" ").at(-1)!) || handoff.includes(c.name.split(" ")[0]!));
+  const now = state.adjustments ?? [];
+  const told = [handoff, ...now].join("\n");
+  const recurring = scene.cast.filter(c => told.includes(c.name.split(" ").at(-1)!) || told.includes(c.name.split(" ")[0]!));
   if (!recurring.length) return;
-  const decision = await decider.decide({ previous_scene: handoff, new_scene: `${scene.title}: ${scene.setting}` }, Object.fromEntries(recurring.map(c => [c.id, {
-    instructions: `A new scene is starting right after the previous one ended as described. Going by what happened (not by what this scene's prep assumes), can ${c.name} be here at the start of the new scene, or does what happened rule it out (taken into custody, fled, left far behind, dead)?`,
+  const decision = await decider.decide({ previous_scene: handoff, ...(now.length ? { true_now: now } : {}), new_scene: `${scene.title}: ${scene.setting}` }, Object.fromEntries(recurring.map(c => [c.id, {
+    instructions: `A new scene is starting right after the previous one ended as described${now.length ? " (true_now is what's true by the time it starts, and it has the last word on who is where)" : ""}. Going by what happened (not by what this scene's prep assumes), can ${c.name} be here at the start of the new scene, or does what happened rule it out (taken into custody, fled, left far behind, dead, staying away)?`,
     criteria: { here: `${c.name} can be here (or nothing rules it out).`, not_here: `What happened rules out ${c.name} being here.` },
   }])), "director.presence");
   state.absent = recurring.filter(c => decision.answers[c.id]?.choice === "not_here" && (decision.answers[c.id]?.probabilities?.not_here ?? 1) >= 0.8).map(c => c.id);
@@ -925,13 +929,38 @@ export async function resumeAfterFight(state: SessionState, summary: string, hoo
   const before = state.transcript.length;
   push(state, hooks, { speaker: "system", kind: "system", text: `The fight: ${summary}` });
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
-  const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went: if the player's side lost, they lost, and the winners do what they'd do with a beaten foe; nothing in the aftermath turns it round. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
+  const spoken = await gmReply(scene, state, [aftermathDirective(summary)], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
   // The reply's notes and the lines to suggest are made side by side: neither waits for the other.
   const noting = pushReply(scene, state, hooks, spoken);
   if (options.suggest) startSuggesting(state, hooks);
+  // What the aftermath did (the winners took the book) is in the world from now on, as a turn's reply is.
+  const staging = stageAftermath(scene, state, spoken.text);
   await noting;
+  await staging;
   saveSession(state);
   return state.transcript.slice(before);
+}
+
+/**
+ * The aftermath's direction. The fight's result is the summary's, not the world's or the details
+ * established before it: after a lost fight the GM had Sallow "down beside you" and the wizard
+ * waking with the ledger under his arm, though the summary had Sallow on his feet.
+ */
+function aftermathDirective(summary: string): string {
+  return `The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went, whatever the details established before it or the world's last word say: who is standing and who is down is as this says. If the player's side lost, they lost, and the winners do what they'd do with a beaten foe (what the player carried that they'd want is theirs to take, and they take it); nothing in the aftermath turns it round. Only people the world has here are here. Then hand the moment back to the player: the scene isn't over until the story says so.`;
+}
+
+/** The world takes in what the aftermath narrated (best effort, as a turn's stage manager is). */
+async function stageAftermath(scene: Scene, state: SessionState, text: string): Promise<void> {
+  if (!state.world) return;
+  const staged = await stageManage(state.world, state.player, "(The fight is over.)", text, state.turn, {
+    cast: presentCast(scene, state).map(c => ({ id: c.id, name: c.name, look: c.look })),
+    settled: settledFacts(state),
+  }).catch(() => undefined);
+  for (const problem of staged?.problems ?? []) state.world.log.push({ turn: state.turn, text: `(not done) ${problem}`, by: "stage" });
+  // (Only the player walking out takes them out of the place, as on a turn.)
+  const me = state.world.entities.player;
+  if (me?.states.includes("gone")) me.states = me.states.filter(s => s !== "gone");
 }
 
 /** Test harness: end the scene through a given exit now (as if play had reached it). */
