@@ -155,6 +155,11 @@ test("the review is given what was tried, each try in the player's own words, to
 
 test("the review knows the beat and the cast: what people are doing at this point, so what the beat gives freely is free (barbarian#39, robust#82)", () => {
   const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  // What they give when asked is a yes whatever the stakes (a confessing Hobb, asked straight for the Master's name).
+  assert.deepEqual(verdict(drownedRat, { target: "hobb", skill: "persuasion", judged: judged({ stakes: "ruinous", approach: "strong", freely: true }) }), { kind: "yes", why: "it comes freely when asked (ruinous, strong, wary)" });
+  assert.equal(verdict(drownedRat, { target: "hobb", skill: "persuasion", judged: judged({ stakes: "ruinous", approach: "strong" }) }).dc, 15, "what he's still holding out on is rolled");
+  assert.equal(toRuling(drownedRat, rat(), { ...LINING, target: "hobb", freely: true }, META).judged.freely, true);
+  assert.ok((rulingSchema(drownedRat, rat()).required as string[]).includes("freely"), "asked every time (strict schemas want every field)");
   const input = reviewInput(drownedRat, rat(), "Now: this Master. Name, and where he keeps himself.", undefined);
   assert.match(input, /## Where the scene is: \[confession\] I only held the rope\nHobb is talking, or starting to\.[^\n]*comes out as the player asks for it/);
   assert.match(input, /What the people here are doing at this point \(what this says they give freely, or when asked, is free\):\n- Big Hobb Mallory: Tell the loft first, then answer what you're asked, one thing at a time\. When it's out, ask what's to become of you\. The token's only brass: give it up if asked\.\n- Sergeant Agnes Kell: Write it down\./);
