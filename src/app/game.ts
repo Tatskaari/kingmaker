@@ -16,12 +16,14 @@ import { zooFights } from "../game/zoo/fights.ts";
 import { newZoo } from "../game/zoo/game.ts";
 import { lookFor, playNews, type Look } from "../game/zoo/look.ts";
 import { zooOf } from "../game/zoo/model.ts";
-import { setCallLog } from "../llm/openrouter.ts";
-import { sheetData, spellInfo, type SheetData } from "../rules/dnd.ts";
+import { gmOffline, setCallLog, type Ask } from "../llm/openrouter.ts";
+import { applyFix, checkLore, draftBackstory, finishBackstory, workIn, type LoreIssue } from "../lore/backstory.ts";
+import { ownBuild, picksOf, srdLists, threeBuilds, type BuildOption, type Offer, type OwnPicks, type SrdLists } from "../rules/builds.ts";
+import { sheetData, spellInfo, type Build, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries, unnamed } from "../runtime/brief.ts";
 import { thingActions, type SceneContext, type SceneTarget, type SpellFacts, type ThingActions } from "../game/scene-menu.ts";
 import type { TurnHooks } from "../runtime/engine.ts";
-import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
+import { sessionDir, type Backstory, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
 import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf } from "../../scenes/talk.ts";
@@ -41,7 +43,44 @@ const explorerFor = (game: Pick<GameState, "hub"> | undefined): Explorer => (gam
  * It holds no React; screens subscribe and redraw when it changes.
  */
 
-export type Screen = "title" | "create" | "creating" | "created" | "explore" | "scene" | "between" | "combat" | "end";
+/**
+ * The screens. Making a character goes create (a name and a concept), creating (the builds being
+ * made), choose (three builds, as cards), custom (one of the player's own making), backstory (theirs
+ * to write, draft or work in, then the lore check), creating again (into the story), created (the sheet).
+ */
+export type Screen = "title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "explore" | "scene" | "between" | "combat" | "end";
+
+/**
+ * Character creation, from the concept to the sheet: the three builds offered, the one chosen (or
+ * made), and the backstory, its draft or its notes worked in, and what the lore check found.
+ */
+export interface Creation {
+  name: string;
+  concept: string;
+  /** The three builds offered for the concept, and why they're the class defaults when they are. */
+  offer?: Offer;
+  /** The build picked out on the choose screen: 0-2 the cards, 3 "Make my own". */
+  index: number;
+  /** The player's own build, being made: their picks, what they pick from, which list has the keys, and what it comes to. */
+  own?: { picks: OwnPicks; lists: SrdLists; column: number; option?: BuildOption; making?: boolean };
+  /** The build chosen: what the character is made from. */
+  chosen?: BuildOption;
+  /** The backstory as the box last had it (the box's own while it's on screen). */
+  story: string;
+  /** Bumped when the box's text is replaced from outside (a draft taken, a fix accepted): the box starts again with it. */
+  version: number;
+  /** A draft, or the player's notes worked in, shown and waiting: it's never in the box until they take it. */
+  proposal?: { kind: "draft" | "work"; text: string };
+  /** What the lore check found, one at a time: what doesn't fit, and a fix that keeps its spirit. */
+  issues?: LoreIssue[];
+  issue: number;
+  /** The issue they chose to rewrite themselves: it stays over the box while they do. */
+  rewriting?: LoreIssue;
+  /** What the model's part is doing (the spinner's word). */
+  busy?: string;
+  /** A word for the player: the GM offline, couldn't be reached, nothing to work in. */
+  note?: string;
+}
 
 export interface Line {
   /**
@@ -221,6 +260,12 @@ export class Game {
   /** The sheet the rules engine just made (the created screen). */
   sheet?: SheetData;
   creating?: { name: string; concept: string };
+  /** Character creation in progress: the builds offered, the one chosen, the backstory. */
+  creation?: Creation;
+  /** The model, for character creation's asking (three builds, a draft, the lore check): a stand-in for it in the checks. */
+  ask?: Ask;
+  /** No model to ask in character creation: the GM is offline (and nothing stands in for it). */
+  get aiOffline(): boolean { return !this.ask && gmOffline(); }
   ending?: Epilogue;
   error?: string;
   /** Set when the app should exit (main.tsx tears the renderer down). */
@@ -347,19 +392,279 @@ export class Game {
     this.loadSaves();
   }
 
+  /** New game: a name and a concept to start with (afresh from the title; as they were, coming back from the builds). */
   newCharacter(): void {
+    this.creation = undefined;
+    this.error = undefined;
     this.screen = "create";
     this.emit();
   }
 
-  async create(name: string, concept: string): Promise<void> {
+  /**
+   * The name and concept are in: three builds that fit, as cards (one model call, each made legal by
+   * the engine; offline, the class defaults that best match the concept's words). The same name and
+   * concept again (back from the cards, nothing changed) offer the same three.
+   */
+  async offerBuilds(name: string, concept: string): Promise<void> {
+    name = (name.trim() || DEFAULT_NAME).replace(/:/g, " ");
+    concept = concept.trim() || DEFAULT_CONCEPT;
+    const was = this.creation;
+    const same = !!was?.offer && was.name === name && was.concept === concept;
+    // A new concept is a new offer (and a new build to make of one's own); the backstory written so far stays.
+    const c: Creation = same && was ? was : { name, concept, index: 0, story: was?.story ?? "", version: (was?.version ?? 0) + 1, issue: 0 };
+    this.creation = c;
+    this.creating = { name, concept };
+    this.error = undefined;
+    if (!same) {
+      this.screen = "creating";
+      c.busy = "builds";
+      this.emit();
+      try { c.offer = await threeBuilds(name, concept, LEVEL, this.ask ? { ask: this.ask } : {}); }
+      catch (error) { this.error = `Character creation failed: ${message(error)}`; this.screen = "create"; delete c.busy; this.emit(); return; }
+      delete c.busy;
+    }
+    if (this.creation !== c) return;
+    this.screen = "choose";
+    this.emit();
+  }
+
+  /** Back to the name and concept (from the cards): as they were typed. */
+  backToConcept(): void {
+    this.screen = "create";
+    this.emit();
+  }
+
+  /** Pick out a card (the keys, or the pointer moving over it): 0-2 the builds, 3 "Make my own". */
+  pickCard(index: number): void {
+    const c = this.creation;
+    if (!c || c.index === index) return;
+    c.index = Math.max(0, Math.min(3, index));
+    this.emit();
+  }
+
+  /** One of the three builds: on to the backstory. */
+  chooseBuild(index: number): void {
+    const c = this.creation, option = c?.offer?.options[index];
+    if (!c || !option) return;
+    c.index = index;
+    c.chosen = option;
+    this.toBackstory();
+  }
+
+  /** Back to the three builds (from making one's own, or from the backstory). */
+  backToBuilds(): void {
+    const c = this.creation;
+    if (!c?.offer) { this.backToConcept(); return; }
+    delete c.proposal; delete c.issues; delete c.note;
+    this.screen = "choose";
+    this.emit();
+  }
+
+  /** "Make my own": the SRD's lists to pick from, starting from the build picked out (or the first). */
+  async makeOwn(): Promise<void> {
+    const c = this.creation;
+    const card = c?.offer?.options[c.index < 3 ? c.index : 0] ?? c?.offer?.options[0];
+    if (!c || !card) return;
+    c.index = 3;
+    const from = c.own?.picks ?? picksOf(card.build);
+    const lists = c.own?.lists ?? await srdLists(LEVEL);
+    c.own = { ...c.own, picks: from, lists, column: c.own?.column ?? 0 };
+    this.screen = "custom";
+    this.emit();
+    await this.pickOwn(from);
+  }
+
+  /** A pick of the player's own (species, class, subclass, background): the card it comes to, through the engine (the latest pick wins). */
+  async pickOwn(picks: OwnPicks): Promise<void> {
+    const c = this.creation, own = c?.own;
+    if (!c || !own) return;
+    // A class with a subclass of its own: the one it had, if it's the class's, else its first (where the level has one).
+    const subs = own.lists.subclasses[picks.classId] ?? [];
+    const subclassId = LEVEL >= (own.lists.subclassLevel[picks.classId] ?? 3) ? (subs.some(s => s.id === picks.subclassId) ? picks.subclassId : subs[0]?.id) : undefined;
+    own.picks = { speciesId: picks.speciesId, classId: picks.classId, backgroundId: picks.backgroundId, ...(subclassId ? { subclassId } : {}) };
+    own.making = true;
+    this.emit();
+    const asked = own.picks;
+    try {
+      const option = await ownBuild(asked, LEVEL, c.name);
+      if (own.picks === asked) own.option = option;
+    } catch (error) {
+      if (own.picks === asked) { delete own.option; c.note = `The rules engine couldn't make that one: ${message(error)}`; }
+    }
+    if (own.picks === asked) own.making = false;
+    this.emit();
+  }
+
+  /** Which of the four lists has the keys (making one's own): species, class, subclass, background. */
+  ownColumn(column: number): void {
+    const own = this.creation?.own;
+    if (!own) return;
+    own.column = (column + 4) % 4;
+    this.emit();
+  }
+
+  /** Take the build of the player's own making: on to the backstory. */
+  takeOwn(): void {
+    const c = this.creation, option = c?.own?.option;
+    if (!c || !option || c.own?.making) return;
+    c.chosen = option;
+    this.toBackstory();
+  }
+
+  private toBackstory(): void {
+    const c = this.creation!;
+    delete c.proposal; delete c.issues; delete c.note; delete c.rewriting;
+    this.screen = "backstory";
+    this.emit();
+  }
+
+  /** Who the backstory is for, as the model's told. */
+  private who(): { name: string; concept: string; build?: string } {
+    const c = this.creation!;
+    return { name: c.name, concept: c.concept, ...(c.chosen ? { build: c.chosen.line } : {}) };
+  }
+
+  /** The box's text, as it changes (the box is the backstory screen's own). */
+  storyTyped(text: string): void {
+    if (this.creation) this.creation.story = text;
+  }
+
+  /** "Draft one": a backstory from the concept and the build, shown to take or leave. Offline, it says the GM is. */
+  async draftStory(): Promise<void> {
+    const c = this.creation;
+    if (!c || c.busy) return;
+    if (this.aiOffline) { c.note = "The GM is offline, so there's nobody to draft one: write it yourself, or skip it."; this.emit(); return; }
+    c.busy = "draft";
+    delete c.note;
+    this.emit();
+    const asked = await draftBackstory(this.who(), this.ask ? { ask: this.ask } : {});
+    delete c.busy;
+    if (asked.ok) c.proposal = { kind: "draft", text: asked.value };
+    else c.note = asked.why;
+    this.emit();
+  }
+
+  /** "Work it in": what's in the box as a story in the player's voice, keeping everything they wrote; shown to take or leave. */
+  async workInStory(text = this.creation?.story ?? ""): Promise<void> {
+    const c = this.creation;
+    if (!c || c.busy) return;
+    c.story = text;
+    if (this.aiOffline) { c.note = "The GM is offline, so there's nobody to work it in: it stays as you wrote it."; this.emit(); return; }
+    if (!text.trim()) { c.note = "There's nothing in the box to work in yet: write a few notes first, or Draft one."; this.emit(); return; }
+    c.busy = "work";
+    delete c.note;
+    this.emit();
+    const asked = await workIn(text, this.who(), this.ask ? { ask: this.ask } : {});
+    delete c.busy;
+    if (asked.ok) c.proposal = { kind: "work", text: asked.value };
+    else c.note = asked.why;
+    this.emit();
+  }
+
+  /** The draft (or the notes worked in) taken: it's what the box has now. */
+  takeProposal(): void {
+    const c = this.creation;
+    if (!c?.proposal) return;
+    c.story = c.proposal.text;
+    c.version++;
+    delete c.proposal;
+    c.note = "It's yours now: change anything you like.";
+    this.emit();
+  }
+
+  /** The draft left: the box as it was. */
+  leaveProposal(): void {
+    const c = this.creation;
+    if (!c?.proposal) return;
+    delete c.proposal;
+    this.emit();
+  }
+
+  /**
+   * Done with the backstory: it's checked against the world's lore. What contradicts canon comes up
+   * a fix at a time, to accept or rewrite; if it fits (or there's no GM to check it), into the game.
+   * Nothing written is the same as skipping.
+   */
+  async finishStory(text = this.creation?.story ?? ""): Promise<void> {
+    const c = this.creation;
+    if (!c || c.busy) return;
+    c.story = text;
+    delete c.rewriting;
+    if (!text.trim()) { await this.makeCharacter(); return; }
+    c.busy = "check";
+    delete c.note;
+    this.emit();
+    const checked = await checkLore(text, this.who(), this.ask ? { ask: this.ask } : {});
+    delete c.busy;
+    if (checked.ok && checked.value.length) {
+      c.issues = checked.value;
+      c.issue = 0;
+      this.emit();
+      return;
+    }
+    if (!checked.ok) c.note = checked.why;
+    await this.makeCharacter();
+  }
+
+  /** The issue on show, fixed as the check suggests (the player saw the words it changes): the next one, or into the game. */
+  async acceptFix(): Promise<void> {
+    const c = this.creation, issue = c?.issues?.[c.issue];
+    if (!c || !issue) return;
+    const fixed = applyFix(c.story, issue);
+    if (fixed === undefined) { this.rewriteIssue(); return; }
+    c.story = fixed;
+    c.version++;
+    if (c.issue + 1 < (c.issues?.length ?? 0)) { c.issue++; this.emit(); return; }
+    delete c.issues;
+    await this.makeCharacter();
+  }
+
+  /** The issue on show, to rewrite themselves: back to the box with it shown over it (Done checks it again). */
+  rewriteIssue(): void {
+    const c = this.creation, issue = c?.issues?.[c.issue];
+    if (!c || !issue) return;
+    c.rewriting = issue;
+    delete c.issues;
+    this.emit();
+  }
+
+  /** No backstory: straight into the game. */
+  async skipStory(): Promise<void> {
+    const c = this.creation;
+    if (!c || c.busy) return;
+    c.story = "";
+    c.version++;
+    await this.makeCharacter();
+  }
+
+  /**
+   * Into the game: what the backstory says of them (from the model; offline, from their own words),
+   * then the game made with the chosen build and the backstory, and the sheet the engine made.
+   */
+  private async makeCharacter(): Promise<void> {
+    const c = this.creation;
+    if (!c) return;
+    c.busy = "making";
+    this.screen = "creating";
+    this.emit();
+    const text = c.story.trim();
+    const backstory = text ? await finishBackstory(text, this.who(), this.ask ? { ask: this.ask } : {}) : undefined;
+    delete c.busy;
+    await this.create(c.name, c.concept, c.chosen?.build, backstory);
+  }
+
+  /**
+   * Make the game: the player, their build (chosen, or for the model to choose from the concept when
+   * none is given) and their backstory, then the sheet the rules engine made.
+   */
+  async create(name: string, concept: string, build?: Build, backstory?: Backstory): Promise<void> {
     this.creating = { name, concept };
     this.screen = "creating";
     this.error = undefined;
     this.emit();
     try {
       const who = `${(name.trim() || DEFAULT_NAME).replace(/:/g, " ")}: ${concept.trim() || DEFAULT_CONCEPT}`;
-      const core = await Core.create({ player: who, level: LEVEL, explorer: town, fights: this.storyFights });
+      const core = await Core.create({ player: who, level: LEVEL, explorer: town, fights: this.storyFights, ...(build ? { build } : {}), ...(backstory ? { backstory } : {}) });
       this.core = core;
       setCallLog(join(sessionDir(core.state.id), "calls.jsonl"));
       this.sheet = await sheetData(core.session);
@@ -369,7 +674,7 @@ export class Game {
       this.saveExtras();
     } catch (error) {
       this.error = `Character creation failed: ${message(error)}`;
-      this.screen = "create";
+      this.screen = this.creation?.chosen ? "backstory" : "create";
     }
     this.emit();
   }

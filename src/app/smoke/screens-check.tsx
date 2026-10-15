@@ -604,6 +604,218 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Making a character, at 80x24 and 130x42: three builds as cards, chosen by a click and by the keys;
+// one of their own, picked by a click and the keys; a backstory written in the box (lines, the box
+// scrolling, a click putting the cursor in the text), a draft and notes worked in (shown, never in
+// the box until taken), the lore check's fix accepted and another rewritten, and the GM's buttons
+// offline. The model is a stand-in (game.ask), and offline the builds are the class defaults.
+
+{
+  const { threeBuilds } = await import("../../rules/builds.ts");
+  const { BackstoryScreen, ChooseScreen, CustomScreen } = await import("../ui/create.tsx");
+  const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
+  const offer = await threeBuilds("Tamsin Vell", CONCEPT, 3);
+  const DRAFT = "I was born above a chandler's shop on Tallow Lane, where the candles were cheap and the arguments cheaper.\n\nI kept a factor's books for nine years, until the night I found an error that wasn't one.";
+  const WORKED = "I grew up in the Nine Furrows, where Mum drowned in the flood of '89. I still owe Fat Jory three crowns.";
+  const STORY = "I'm the King's nephew, though nobody at court will say so. I owe Fat Jory three crowns.";
+  /** A stand-in for the model: what each of character creation's calls answers, and what it was asked. */
+  const standIn = (asked: string[]): NonNullable<Game["ask"]> => (async <T,>(request: { operation: string }) => {
+    asked.push(request.operation);
+    const answers: Record<string, unknown> = {
+      "backstory.draft": { story: DRAFT },
+      "backstory.work": { story: WORKED },
+      "backstory.check": { issues: [{ quote: "I'm the King's nephew", problem: "King Aldren's family is known to all Caerwyn, and there's no nephew in it.", fix: "I'm a cousin of a minor courtier, twice removed" }] },
+      "backstory.traits": { summary: "Tamsin Vell, a minor courtier's cousin who owes Fat Jory three crowns.", personality: ["Sharp-tongued"], ideals: ["The books should balance"], bonds: ["Fat Jory, owed three crowns"], flaws: ["Can't leave a sum alone"] },
+    };
+    if (!(request.operation in answers)) throw new Error(`no stand-in for ${request.operation}`);
+    return answers[request.operation] as T;
+  }) as NonNullable<Game["ask"]>;
+  const fresh = (screen: "choose" | "custom" | "backstory", story = ""): Game => {
+    const game = new Game();
+    game.screen = screen;
+    game.creation = { name: "Tamsin Vell", concept: CONCEPT, offer, index: 0, story, version: 0, issue: 0, chosen: offer.options[0]! };
+    return game;
+  };
+  const settle = async (setup: Awaited<ReturnType<typeof testRender>>, ms = 30) => { await act(async () => { await new Promise(r => setTimeout(r, ms)); }); await setup.renderOnce(); };
+  /** A click on a button by its words, as the screen has it now (false, and the screen said, when it isn't there). */
+  const press = async (setup: Awaited<ReturnType<typeof testRender>>, words: string): Promise<boolean> => {
+    await setup.renderOnce();
+    const frame = setup.captureCharFrame();
+    const p = at(frame, words);
+    if (!p) { console.log(`(no "${words}" to click on:)\n${frame}`); return false; }
+    await act(async () => { await setup.mockMouse.click(p.x, p.y); });
+    return true;
+  };
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    // Three cards: each whole, the pointer picks one out as it moves, a click chooses one.
+    {
+      const game = fresh("choose");
+      const setup = await testRender(<ChooseScreen game={game} />, { width: w, height: h });
+      await setup.renderOnce();
+      let frame = setup.captureCharFrame();
+      if (show) console.log(`choose ${w}x${h}\n${frame}`);
+      const titles = offer.options.map(o => `${o.card.species} ${o.card.className} 3`);
+      const missing = [...titles, ...offer.options.map(o => `HP ${o.card.hp}`), "Make my own", "Back"].filter(t => !frame.includes(t));
+      checks.push([`making a character ${w}x${h}: three cards, each whole (who, HP and AC), and Make my own and Back${missing.length ? ` (not: ${missing.join(" | ")})` : ""}`, !missing.length]);
+      const third = at(frame, titles[2]!)!;
+      await act(async () => { await setup.mockMouse.moveTo(third.x, third.y + 4); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: the pointer moving over the third card picks it out`, game.creation!.index === 2]);
+      const second = at(frame, titles[1]!)!;
+      await act(async () => { await setup.mockMouse.click(second.x, second.y + 3); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: a click on the second card chooses it, and on to the backstory`, game.creation!.chosen === offer.options[1] && game.screen === "backstory"]);
+      await setup.dispose();
+    }
+    // By the keys: → and Enter take the next; 1-3 take one; m makes their own; Esc goes back.
+    {
+      const game = fresh("choose");
+      const setup = await testRender(<ChooseScreen game={game} />, { width: w, height: h });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressArrow("right"); });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressArrow("right"); });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressEnter(); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: → → Enter takes the third card`, game.creation!.chosen === offer.options[2] && game.screen === "backstory"]);
+      game.screen = "choose";
+      act(() => { game.emit(); });
+      await setup.renderOnce();
+      act(() => { setup.mockInput.pressKey("1"); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: 1 takes the first`, game.creation!.chosen === offer.options[0]]);
+      game.screen = "choose";
+      act(() => { game.emit(); });
+      await setup.renderOnce();
+      await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+      await setup.renderOnce();
+      checks.push([`making a character ${w}x${h}: Esc goes back to the name and concept`, (game.screen as string) === "create"]);
+      await setup.dispose();
+    }
+    // Their own: a click on a species picks it, the keys a class, and Take this one takes it.
+    {
+      const game = fresh("choose");
+      await game.makeOwn();
+      const setup = await testRender(<CustomScreen game={game} />, { width: w, height: h });
+      await settle(setup, 50);
+      let frame = setup.captureCharFrame();
+      if (show) console.log(`custom ${w}x${h}\n${frame}`);
+      const orc = at(frame, "Orc")!;
+      await act(async () => { await setup.mockMouse.click(orc.x, orc.y); });
+      await settle(setup, 300);
+      act(() => { setup.mockInput.pressArrow("right"); });
+      await setup.renderOnce();
+      const before = game.creation!.own!.picks.classId;
+      act(() => { setup.mockInput.pressArrow("down"); });
+      await settle(setup, 300);
+      frame = setup.captureCharFrame();
+      const own = game.creation!.own!;
+      checks.push([`making their own ${w}x${h}: a click picks a species, → the classes, ↓ the next class, and what it comes to is shown`, own.picks.speciesId === "orc" && own.picks.classId !== before && own.column === 1 && !!own.option && frame.includes(`Orc ${own.option.card.className} 3`)]);
+      const take = at(frame, "Take this one")!;
+      await act(async () => { await setup.mockMouse.click(take.x, take.y); });
+      await setup.renderOnce();
+      checks.push([`making their own ${w}x${h}: Take this one takes it, on to the backstory`, game.creation!.chosen?.from === "own" && game.creation!.chosen.build.speciesId === "orc" && game.screen === "backstory"]);
+      await setup.dispose();
+    }
+    // Writing it: typed into the box, a new paragraph, the box scrolling as it fills, a click that puts the cursor in the text.
+    {
+      const game = fresh("backstory");
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      await act(async () => { await setup.mockInput.typeText("I kept a grain factor's books for nine years."); setup.mockInput.pressEnter(); setup.mockInput.pressEnter(); await setup.mockInput.typeText("I owe Fat Jory three crowns."); });
+      await setup.renderOnce();
+      checks.push([`the backstory ${w}x${h}: what's typed is in the box, paragraphs and all`, game.creation!.story === "I kept a grain factor's books for nine years.\n\nI owe Fat Jory three crowns."]);
+      let frame = setup.captureCharFrame();
+      const kept = at(frame, "kept")!;
+      await act(async () => { await setup.mockMouse.click(kept.x - 2, kept.y); });
+      await act(async () => { await setup.mockInput.typeText("honestly "); });
+      await setup.renderOnce();
+      checks.push([`the backstory ${w}x${h}: a click puts the cursor in the text, and what's typed goes there`, game.creation!.story.startsWith("I honestly kept a grain factor's books")]);
+      // Filled past the box: it scrolls to keep the cursor in sight.
+      await act(async () => { for (let i = 0; i < h; i++) { setup.mockInput.pressKey("END"); setup.mockInput.pressEnter(); await setup.mockInput.typeText(`Line ${i}.`); } });
+      await setup.renderOnce();
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: filled past the box, it scrolls (the last line in view, the first gone)`, frame.includes(`Line ${h - 1}.`) && !frame.includes("I honestly kept")]);
+      await setup.dispose();
+    }
+    // Offline: the GM's buttons say so, and pressing one says the GM is.
+    {
+      const game = fresh("backstory");
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      const frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: offline, Draft one and Work it in say the GM is offline`, frame.includes("Draft one (GM offline)") && frame.includes("Work it in (GM offline)") && frame.includes("Skip") && frame.includes("Done")]);
+      const draft = at(frame, "Draft one (GM offline)")!;
+      await act(async () => { await setup.mockMouse.click(draft.x, draft.y); });
+      await setup.renderOnce();
+      checks.push([`the backstory ${w}x${h}: offline, Draft one says there's nobody to draft one`, /offline/.test(game.creation!.note ?? "") && !game.creation!.proposal && setup.captureCharFrame().includes("The GM is offline")]);
+      await setup.dispose();
+    }
+    // Draft one: shown, not in the box, until it's taken; Keep mine leaves the box as it was.
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", "My own first line.");
+      game.ask = standIn(asked);
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      let frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: with the GM about, its buttons are plain`, frame.includes("Draft one") && !frame.includes("GM offline")]);
+      await press(setup, "Draft one");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Draft one shows the draft first, and the box still has their own`, asked.includes("backstory.draft") && frame.includes("A draft: not in your box until you take it") && frame.includes("chandler's shop") && game.creation!.story === "My own first line."]);
+      await press(setup, "Keep mine");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Keep mine leaves the box as it was`, game.creation!.story === "My own first line." && frame.includes("My own first line.") && !frame.includes("chandler's shop")]);
+      await press(setup, "Draft one");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      await press(setup, "Use this");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Use this puts the draft in the box`, game.creation!.story === DRAFT && frame.includes("chandler's shop") && frame.includes("Your backstory")]);
+      // Work it in: their notes, worked in, shown first too.
+      await press(setup, "Work it in");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the backstory ${w}x${h}: Work it in shows their notes worked in, before they're anyone's`, asked.includes("backstory.work") && frame.includes("Your notes, worked in") && frame.includes("Fat Jory") && game.creation!.story === DRAFT]);
+      await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+      await settle(setup);
+      checks.push([`the backstory ${w}x${h}: Esc keeps theirs`, game.creation!.story === DRAFT && !game.creation!.proposal]);
+      await setup.dispose();
+    }
+    // The lore check: what doesn't fit, with a fix that keeps its spirit, to rewrite (back to the box) or accept (into the game).
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", STORY);
+      game.ask = standIn(asked);
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      let frame = setup.captureCharFrame();
+      await press(setup, "Done");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      if (show) console.log(`lore ${w}x${h}\n${frame}`);
+      checks.push([`the lore check ${w}x${h}: what doesn't fit, what the world says, and a fix that keeps its spirit`, asked.includes("backstory.check") && frame.includes("The lore check: 1 of 1") && flat(frame).includes("Your story says: \"I'm the King's nephew\"") && flat(frame).includes("A fix that keeps its spirit") && game.creation!.story === STORY]);
+      await press(setup, "Rewrite it myself");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      checks.push([`the lore check ${w}x${h}: Rewrite it myself is back in the box, the problem over it, nothing changed`, frame.includes("Rewrite this so it fits") && game.creation!.story === STORY && !game.creation!.issues]);
+      await press(setup, "Done");
+      await settle(setup);
+      frame = setup.captureCharFrame();
+      await press(setup, "Accept the fix");
+      for (let i = 0; i < 100 && game.screen !== "created"; i++) await settle(setup, 50);
+      checks.push([`the lore check ${w}x${h}: Accept the fix changes just those words, and it's into the game with the backstory on the sheet`, game.creation!.story === "I'm a cousin of a minor courtier, twice removed, though nobody at court will say so. I owe Fat Jory three crowns."
+        && game.screen === "created" && game.sheet?.story?.backstory === game.creation!.story && game.session?.player.backstory?.summary === "Tamsin Vell, a minor courtier's cousin who owes Fat Jory three crowns."]);
+      await setup.dispose();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // The zoo: its map's side panel at 80x24 and up, a sign read in full (its card), the help scrolled
 // to its end at 80x24, and a long line in What happens kept by its start.
 

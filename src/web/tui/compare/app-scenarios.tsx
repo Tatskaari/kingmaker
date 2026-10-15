@@ -4,7 +4,8 @@ import { Game, talkBetween, type Line } from "../../../app/game.ts";
 import type { Resumable } from "../../../app/save.ts";
 import { BetweenScreen } from "../../../app/ui/between.tsx";
 import { CombatScreen } from "../../../app/ui/combat.tsx";
-import { CreatedScreen, CreateScreen } from "../../../app/ui/create.tsx";
+import { BackstoryScreen, ChooseScreen, CreatedScreen, CreateScreen, CustomScreen } from "../../../app/ui/create.tsx";
+import { ownBuild, srdLists, threeBuilds } from "../../../rules/builds.ts";
 import { EndScreen } from "../../../app/ui/end.tsx";
 import { ExploreScreen } from "../../../app/ui/explore.tsx";
 import { Overlay } from "../../../app/ui/overlay.tsx";
@@ -96,6 +97,24 @@ const fightCore = { state: fightState, session: heronSession, currentFight: figh
 
 const sheet = await sheetData(core.session);
 
+// Character creation, as screens-check sets it up: three builds offered offline (the class defaults
+// the concept's words suggest), the first chosen, a backstory with a draft waiting and a lore issue.
+const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
+const offer = await threeBuilds("Tamsin Vell", CONCEPT, 3, {});
+const STORY = "I kept the accounts of a Saltmere grain factor for nine years, until the night I found the error that wasn't one.\n\nI owe Fat Jory three crowns, and my sister Ada a letter.";
+const DRAFT = "I was born above a chandler's shop on Tallow Lane, where the candles were cheap and the arguments cheaper.\n\nMy mother taught me to count; my father taught me to lie about it. I kept a factor's books for nine years, until the night I found an error that wasn't one, and said so, loudly, in front of the wrong man.";
+function creationGame(screen: "choose" | "custom" | "backstory"): Game {
+  const game = new Game();
+  game.screen = screen;
+  game.creation = { name: "Tamsin Vell", concept: CONCEPT, offer, index: 1, story: STORY, version: 1, issue: 0, chosen: offer.options[0]! };
+  return game;
+}
+const storied = await pregenSession({ pregen: "rogue", name: "Tamsin Vell", level: 3, seed: 3, sceneId: "hanged-clerk" });
+storied.player.backstory = { text: STORY, summary: "Tamsin Vell kept a grain factor's books until she found an error that wasn't one; she owes Fat Jory three crowns.", personality: ["Sharp-tongued", "Counts everything twice"], ideals: ["The books should balance"], bonds: ["Her sister Ada, owed a letter"], flaws: ["Owes Fat Jory three crowns"] };
+const storySheet = await sheetData(storied);
+const ownLists = await srdLists(3);
+const ownOption = await ownBuild({ speciesId: "orc", classId: "wizard", subclassId: "evoker", backgroundId: "soldier" }, 3, "Tamsin Vell");
+
 // The zoo (src/game/zoo), as screens-check sets it up: its hall on the map, by the wardrobe.
 const zooCore = await newZoo({ seed: 4 });
 placePlayer(zooCore.state, "zoo-hall", { x: 4, y: 8 });
@@ -136,6 +155,35 @@ export const appScenarios: Scenario[] = [
     game.screen = "created";
     game.sheet = sheet;
     return { node: <CreatedScreen game={game} /> };
+  }),
+  ...sizes("choose", [[130, 42], [80, 24]], () => ({ node: <ChooseScreen game={creationGame("choose")} /> })),
+  ...sizes("custom", [[130, 42], [80, 24]], () => {
+    const game = creationGame("custom");
+    game.creation!.own = { picks: { speciesId: "orc", classId: "wizard", subclassId: "evoker", backgroundId: "soldier" }, lists: ownLists, column: 1, option: ownOption };
+    return { node: <CustomScreen game={game} /> };
+  }),
+  ...sizes("backstory", [[130, 42], [80, 24]], () => ({ node: <BackstoryScreen game={creationGame("backstory")} /> })),
+  // Written in: typed at the end of what's there, a new paragraph, and a click back into the first line to add a word.
+  ...[[130, 42], [80, 24]].map(([width, height]): Scenario => ({
+    name: `backstory typed ${width}x${height}`, width: width!, height: height!,
+    node: () => <BackstoryScreen game={creationGame("backstory")} />,
+    // The click is on the first line's "kept" (the box's first row of text: row 8 of 130x42, row 3 of 80x24).
+    steps: [{ wait: 20 }, { type: " The river took my father the same spring." }, { keys: ["RETURN", "RETURN"] }, { type: "Why this case? The King asked, and I owe him for the job." }, { click: width === 130 ? [14, 8] : [5, 3] }, { type: "honest " }],
+  })),
+  ...sizes("backstory draft", [[130, 42], [80, 24]], () => {
+    const game = creationGame("backstory");
+    game.creation!.proposal = { kind: "draft", text: DRAFT };
+    return { node: <BackstoryScreen game={game} /> };
+  }),
+  ...sizes("backstory lore issue", [[130, 42], [80, 24]], () => {
+    const game = creationGame("backstory");
+    game.creation!.issues = [{ quote: "a Saltmere grain factor", problem: "Saltmere's factors keep their own books in Saltmere, under seal.", fix: "a Caerwyn corn-chandler" }];
+    return { node: <BackstoryScreen game={game} /> };
+  }),
+  ...sizes("story sheet", [[130, 42], [80, 24]], () => {
+    const game = exploreGame();
+    game.overlay = { kind: "sheet", sheet: storySheet };
+    return { node: <><ExploreScreen game={game} /><Overlay game={game} /></> };
   }),
   ...sizes("explore", [[130, 42], [80, 24], [160, 45]], () => ({ node: <ExploreScreen game={exploreGame()} /> })),
   ...sizes("explore walking", [[100, 30]], () => { const game = exploreGame(); game.walking = true; return { node: <ExploreScreen game={game} /> }; }),
