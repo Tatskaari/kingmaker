@@ -5,7 +5,7 @@ import { describeRoll, rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { startingPurse } from "../world/inventory.ts";
-import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
+import { caughtIn, damageThing, heldBy, positionOf, within, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
 import { RAYS, spellDetails, type Caster, type Extras, type Names, type SpellDetails } from "./spells.ts";
 
@@ -593,6 +593,10 @@ export async function sheetText(state: SessionState): Promise<string> {
   const conditions = c.appliedConditions.map(a => content.conditions.get(a.conditionId)?.name ?? a.conditionId).filter(n => !/active$/i.test(n));
   lines.push(`Conditions: ${conditions.join(", ") || "none"}${c.heroicInspiration ? " · Heroic Inspiration" : ""}`);
   lines.push(`Equipment: ${s.inventory.items.filter(i => !state.rules!.gone?.includes(i.instanceId)).map(i => `${i.name}${i.equippedSlot ? ` (${i.equippedSlot === "mainHand" ? "in hand" : "worn"})` : ""}`).filter(n => !/^Unarmed/.test(n)).join(", ") || "nothing"}`);
+  // The purse and pockets are the story's world's, as on the sheet's screen.
+  const { purse, carrying } = pocketsOf(state);
+  lines.push(`Purse: ${purse.map(p => countOfCoins(p.name, p.quantity)).join(", ") || "empty"}`);
+  if (carrying.length) lines.push(`Carrying: ${carrying.map(c => `${c.quantity > 1 ? `${c.quantity} ` : ""}${c.name}${c.in ? ` (in ${c.in})` : ""}`).join(", ")}`);
   lines.push(`Languages: ${s.knownLanguages.map(l => l[0]!.toUpperCase() + l.slice(1)).join(", ")}`);
   const story = storyOf(state).story;
   if (story) {
@@ -603,6 +607,29 @@ export async function sheetText(state: SessionState): Promise<string> {
 }
 
 const titleSkill = (id: string) => id.replace(/-/g, " ").replace(/\b\w/g, ch => ch.toUpperCase()).replace(/ Of /g, " of ");
+
+/** "2 silver crowns", "a shilling": a coin stack in words. */
+const countOfCoins = (name: string, n: number) => (n === 1 ? `1 ${name.replace(/^(the|some) /i, "")}` : `${n} ${name.replace(/^(the|some) /i, "")}`);
+
+/** What they carry in the story's world (or carried out of the last one), apart from their gear: coins go in the purse. */
+function pocketsOf(state: SessionState): { purse: Array<{ name: string; quantity: number }>; carrying: Array<{ name: string; quantity: number; in?: string }> } {
+  const entities = state.world?.entities ?? Object.fromEntries((state.carried ?? []).map(e => [e.id, e]));
+  const onPlayer = (e: Entity) => {
+    for (let p = e.parent, n = 0; p && n < 20; p = entities[p]?.parent ?? null, n++) {
+      if (p === "player") return true;
+      // In someone else's hands, or put down somewhere: not theirs to carry.
+      const up = entities[p];
+      if (!up || up.kind === "person" || up.kind === "area" || up.kind === "place") return false;
+    }
+    return false;
+  };
+  const things = Object.values(entities).filter(e => e.id !== "player" && !e.gear && !e.states.includes("gone") && onPlayer(e));
+  const purse = things.filter(e => COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1 }));
+  const carrying = things.filter(e => !COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1, ...(e.parent && e.parent !== "player" ? { in: entities[e.parent]?.name ?? e.parent } : {}) }));
+  // Before the story begins, the purse it starts them with.
+  if (!state.world && !state.carried && !state.history?.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
+  return { purse, carrying };
+}
 
 /** Uses of a feature (the engine's class resources): Second Wind 2/2, back on a short rest. */
 export interface Uses {
@@ -777,22 +804,7 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
   }
   const toolName = (t: string) => content.items.get(t)?.name ?? TOOL_KIND[t] ?? capitalWords(t);
 
-  // What they carry in the story's world (or carried out of the last one), apart from their gear: coins go in the purse.
-  const entities = state.world?.entities ?? Object.fromEntries((state.carried ?? []).map(e => [e.id, e]));
-  const onPlayer = (e: Entity) => {
-    for (let p = e.parent, n = 0; p && n < 20; p = entities[p]?.parent ?? null, n++) {
-      if (p === "player") return true;
-      // In someone else's hands, or put down somewhere: not theirs to carry.
-      const up = entities[p];
-      if (!up || up.kind === "person" || up.kind === "area" || up.kind === "place") return false;
-    }
-    return false;
-  };
-  const things = Object.values(entities).filter(e => e.id !== "player" && !e.gear && !e.states.includes("gone") && onPlayer(e));
-  const purse = things.filter(e => COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1 }));
-  const carrying = things.filter(e => !COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1, ...(e.parent && e.parent !== "player" ? { in: entities[e.parent]?.name ?? e.parent } : {}) }));
-  // Before the story begins, the purse it starts them with.
-  if (!state.world && !state.carried && !state.history.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
+  const { purse, carrying } = pocketsOf(state);
 
   const held = new Set([c.equipped.mainHand, c.equipped.offHand].filter(Boolean));
   const added = damageAdded(ctx, c, s);
@@ -1300,6 +1312,9 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     account.push(...physics.map(p => p.toLowerCase()));
   }
   if (world) syncBeings(ctx, state, world, people);
+  // What a sensing spell senses is the world's: on the map there's no GM to say it.
+  const sensed = world ? sensing(world, spell.id) : undefined;
+  if (sensed) { lines.push(sensed); account.push(sensed.toLowerCase()); }
   if (events.some(e => /^(ConcentrationStarted|SpellEffectStarted|ConditionApplied)$/.test(e.type))) state.rules!.timed = true;
   const statusText = status(ctx, pcId);
   close(state, ctx);
@@ -1311,6 +1326,13 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     directive: `Rules: the player cast ${head}${area ? `, which caught ${named.join(", ") || "nobody and nothing"}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It has no roll: it simply takes effect as the spell describes."} Narrate exactly this, in the fiction: what working the spell looks and sounds like here, its effect as the rules describe it (${facts}), and how the people present react to someone casting a spell at all. The world already shows what it burned or broke. Don't add effects the spell doesn't have.`,
     status: statusText,
   };
+}
+
+/** What Detect Magic finds within its 30 feet: what the world tags magic (nothing in Caerwyn is, yet). */
+function sensing(world: SceneWorld, spellId: string): string | undefined {
+  if (spellId !== "detect-magic") return undefined;
+  const found = within(world, "player", 30, e => e.tags.includes("magic") || e.tags.includes("magical")).map(e => e.name);
+  return found.length ? `You sense magic within 30 feet: ${found.join(", ")}` : "You sense no magic within 30 feet";
 }
 
 const isThingEntity = (e: Entity) => e.kind === "object" || e.kind === "item" || e.kind === "feature";
@@ -1698,7 +1720,10 @@ export async function passTime(state: SessionState, minutes: number): Promise<st
   const before = effects();
   const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
   const ended = ctx.apply(Array.isArray(planned) ? planned : planned.events);
-  const names = ended.map(e => before[String(e["effectInstanceId"])]?.spellId).filter((id): id is string => !!id).map(id => ctx.engine.content.spells.get(id)?.name ?? id);
+  const endedIds = ended.map(e => before[String(e["effectInstanceId"])]?.spellId).filter((id): id is string => !!id);
+  const names = endedIds.map(id => ctx.engine.content.spells.get(id)?.name ?? id);
+  // What the spells conjured goes with them (the lights wink out, the hand is gone).
+  if (state.world) dispelConjured(state.world, endedIds, state.turn);
   // A Rage lasts ten minutes.
   const rage = state.rules.rage !== undefined ? state.rules.rage - minutes : undefined;
   const calmed = rage !== undefined && rage <= 0 && endRage(ctx, state);
@@ -1706,6 +1731,32 @@ export async function passTime(state: SessionState, minutes: number): Promise<st
   state.rules!.timed = Object.values(effects()).some(e => e.durationMinutes !== undefined) || state.rules.rage !== undefined;
   close(state, ctx);
   return [...(names.length ? [`${[...new Set(names)].join(", ")} ${names.length === 1 ? "has" : "have"} run out`] : []), ...(calmed ? ["Your rage burns out"] : [])];
+}
+
+/**
+ * What a spell conjures into the world, by what the story calls it (the stage manager writes it in,
+ * from the GM's reply): tagged as the spell's, it goes when the spell does, and with the scene.
+ */
+const CONJURED: Record<string, RegExp> = {
+  "dancing-lights": /\b(lights?|globes?|orbs?|wisps?|pigeons?|lanterns?)\b/i, "mage-hand": /\bhands?\b/i,
+  "unseen-servant": /\bservant\b/i, "floating-disk": /\bdis[ck]\b/i, "spiritual-weapon": /\bweapon\b/i,
+};
+
+/** Tag what this turn's spell conjured (created this turn, called what it conjures). */
+export function markConjured(world: SceneWorld, spellId: string, turn: number): void {
+  const called = CONJURED[spellId];
+  if (!called) return;
+  for (const e of Object.values(world.entities)) if (e.created === turn && e.kind !== "person" && called.test(e.name) && !e.tags.includes(`conjured:${spellId}`)) e.tags.push("conjured", `conjured:${spellId}`);
+}
+
+/** What these spells conjured (or every spell's, when none are named: the scene is over) is gone. */
+export function dispelConjured(world: SceneWorld, spellIds: string[] | undefined, turn: number): void {
+  for (const e of Object.values(world.entities)) {
+    if (!e.tags.includes("conjured") || e.states.includes("gone")) continue;
+    if (spellIds && !spellIds.some(id => e.tags.includes(`conjured:${id}`))) continue;
+    e.states = [...e.states, "gone"];
+    world.log.push({ turn, text: `${e.name} ${/s$/.test(e.name) ? "fade" : "fades"} away`, by: "rules" });
+  }
 }
 
 /** How long a Rage lasts, in minutes of story time (2024 rules: up to ten minutes). */

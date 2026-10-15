@@ -214,3 +214,37 @@ test("a spell from the slot the player's words ask for, an aim nobody could make
   await comeTo(state);
   assert.doesNotMatch(state.rules!.status!, /raging/);
 });
+
+test("Detect Magic says what it senses: on the map there's no GM to (wizard#34)", async () => {
+  const { buildWorld } = await import("../world/scene-world.ts");
+  const { hangedClerkWorld } = await import("../../scenes/worlds/hanged-clerk.ts");
+  const build = { ...PREGENS.wizard!.build, spells: ["detect-magic", ...PREGENS.wizard!.build.spells] } as Build;
+  const state = await pregenSession({ build, seed: 4, sceneId: "hanged-clerk" });
+  state.world = buildWorld("hanged-clerk", hangedClerkWorld, [], { name: state.player.name });
+  assert.ok((await castSpell(state, [], "detect-magic", [], { ritual: true })).lines.includes("You sense no magic within 30 feet"));
+  state.world.entities.satchel!.tags.push("magic");
+  assert.ok((await castSpell(state, [], "detect-magic", [], { ritual: true })).lines.includes("You sense magic within 30 feet: Prout's satchel"));
+});
+
+test("what a spell conjured goes when the spell does, and with the scene: the lights and the hand don't stay on the map (wizard#34)", async () => {
+  const { buildWorld, applyOps } = await import("../world/scene-world.ts");
+  const { hangedClerkWorld } = await import("../../scenes/worlds/hanged-clerk.ts");
+  const { markConjured, dispelConjured } = await import("./dnd.ts");
+  const world = buildWorld("hanged-clerk", hangedClerkWorld, [], { name: "Pell" });
+  const blank = { what: "", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  // As the stage manager wrote the wizard's turns: the lights, then the hand, each the turn it was cast.
+  applyOps(world, [{ ...blank, op: "create", name: "four pigeon-shaped lights", kind: "object", to: "yard" }], 5, "stage");
+  applyOps(world, [{ ...blank, op: "create", name: "a spectral hand", kind: "object", to: "yard" }, { ...blank, op: "create", name: "a basket of eels", kind: "object", to: "yard" }], 6, "stage");
+  markConjured(world, "dancing-lights", 5);
+  markConjured(world, "mage-hand", 6);
+  const lights = Object.values(world.entities).find(e => e.name === "four pigeon-shaped lights")!;
+  const hand = Object.values(world.entities).find(e => e.name === "a spectral hand")!;
+  const eels = Object.values(world.entities).find(e => e.name === "a basket of eels")!;
+  assert.ok(lights.tags.includes("conjured:dancing-lights") && hand.tags.includes("conjured:mage-hand") && !eels.tags.includes("conjured"));
+  // Dancing Lights runs out: the lights go, the hand stays.
+  dispelConjured(world, ["dancing-lights"], 7);
+  assert.deepEqual([lights.states.includes("gone"), hand.states.includes("gone")], [true, false]);
+  // The scene ends: whatever a spell conjured goes; the eels stay.
+  dispelConjured(world, undefined, 8);
+  assert.deepEqual([hand.states.includes("gone"), eels.states.includes("gone")], [true, false]);
+});

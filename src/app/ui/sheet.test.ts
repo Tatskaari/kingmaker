@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 process.env.KM_LOOK_MODEL = "off";
-const { carryGear, castSpell, createCharacter, sheetData, spellCard, useFeature } = await import("../../rules/dnd.ts");
+const { carryGear, castSpell, createCharacter, sheetData, sheetText, spellCard, useFeature } = await import("../../rules/dnd.ts");
 const { PREGENS } = await import("../../game/combat/pregen.ts");
 const { sheetHeight, sheetPages, spellOn, spellPage, spellsOn } = await import("./sheet-layout.ts");
 const { C } = await import("../theme.ts");
@@ -364,3 +364,15 @@ test("SheetView: a spell clicked, or picked with ↓ and Enter, shows what it is
   await unregister();
 });
 
+
+test("the sheet as text (the QA console's) has the purse and pockets beside the equipment (thief#12)", async () => {
+  const state = await made("fighter");
+  assert.match(await sheetText(state), /^Purse: 2 silver crowns, 6 shillings, 12 pennies$/m);
+  state.carried = [
+    { id: "pennies", name: "pennies", kind: "item", parent: "player", tags: [], states: [], notes: [], quantity: 3 },
+    { id: "letter", name: "a letter from the King", kind: "item", parent: "player", tags: [], states: [], notes: [] },
+  ];
+  const text = await sheetText(state);
+  assert.match(text, /^Purse: 3 pennies$/m);
+  assert.match(text, /^Carrying: a letter from the King$/m);
+});

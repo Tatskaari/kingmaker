@@ -84,7 +84,7 @@ The turn itself is the runtime's ([src/runtime/README.md](../runtime/README.md#o
 |---|---|
 | `move`, `place` | to an area, or near, behind, beside, under, on or in something; `away`/`toward` by `feet`. On or in someone is carried (an axe slung on his back); under someone is on the floor where they stand. Saying where someone already is isn't a move, nor is saying where someone has a thing of theirs ("his greataxe on his back" leaves it carried). |
 | `give`, `drop` | through the inventory's `settle`: found wherever it is, part of a stack by `quantity` |
-| `create` | someone or something new the story brought in, near something or in someone's hands |
+| `create` | someone or something new the story brought in, near something or in someone's hands (an item made beside someone, or a thing of theirs by name: "Kell's notebook"); one with no name isn't made |
 | `state`, `note`, `forget` | states added and removed (`burning` goes through `ignite`); notes written and cleared |
 | `remove`, `destroy`, `break` | leaves the scene; wrecked (what it held falls out, what hung from it falls); broken (a container spills) |
 | `ignite`, `douse`, `spill`, `chill`, `bleed` | the physics verbs |

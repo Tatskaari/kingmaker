@@ -88,3 +88,15 @@ test("saying where a held thing is doesn't move it: his greataxe on his back is 
   applyOps(world, [op({ op: "place", what: "crust", to: "player", how: "on" })], 6, "stage");
   assert.notEqual(world.entities.crust!.parent, "player");
 });
+
+test("something of someone's by name is made in their hands, and a thing with no name isn't made (barbarian#54)", () => {
+  const world = stall();
+  applyOps(world, [op({ op: "create", name: "Madam Crust's ledger", kind: "object", to: "crust", how: "near" })], 1, "stage");
+  assert.equal(Object.values(world.entities).find(e => e.name === "Madam Crust's ledger")!.parent, "crust", "hers, in her hands, not on the floor by her");
+  applyOps(world, [op({ op: "create", name: "Crust's handcart", kind: "object", to: "crust", how: "near" })], 1, "stage");
+  assert.notEqual(Object.values(world.entities).find(e => e.name === "Crust's handcart")!.parent, "crust", "too big to be in anyone's hands");
+  const before = Object.keys(world.entities).length;
+  const r = applyOps(world, [op({ op: "create", name: "", kind: "item", to: "crust" })], 2, "stage");
+  assert.equal(Object.keys(world.entities).length, before);
+  assert.match(r.problems[0]!, /needs a name/);
+});

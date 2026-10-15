@@ -11,7 +11,7 @@ import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, carryGear, castSpell, comeTo, createCharacter, dispelConjured, hazard, jump, levelUp, markConjured, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { comeRound, holdAfterReply, landThreat } from "./threats.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { startSuggesting, stopSuggesting } from "./suggest.ts";
@@ -852,6 +852,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (staged) { costUsd += staged.costUsd; calls++; }
   // What the stage manager asked for and the world refused stays on record (a hand-over that failed).
   for (const problem of staged?.problems ?? []) state.world?.log.push({ turn: state.turn, text: `(not done) ${problem}`, by: "stage" });
+  // What the turn's spell conjured into the world is the spell's: it goes when the spell does.
+  if (state.world && pre.mechanic?.kind === "cast") markConjured(state.world, pre.mechanic.spell, state.turn);
   // The player has walked out of this place altogether: the scene ends here, and the boundary decides
   // what comes next (rather than the scene's own endings chasing them across town).
   // Only the player walking out takes them out of the place (the decider's read): a stage-manager op
@@ -915,6 +917,8 @@ function cueBesideFight(scene: Scene, state: SessionState, pre: PreDecision): Mo
 
 function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
   const { world, operations, warnings } = recordingWorld({ assets: ASSETS, characters: scene.cast.map(c => c.id), anchors: scene.anchors ?? [] });
+  // A spell's lights and hands don't outlast the scene (nor stay on the map after it).
+  if (state.world) dispelConjured(state.world, undefined, state.turn);
   try {
     exit.script?.(world, { sceneId: scene.id, exitId: exit.id, established: [...state.established, ...state.canon] });
   } catch (error) {

@@ -493,6 +493,12 @@ export interface WorldOp {
 
 const slug = (name: string) => name.toLowerCase().replace(/^(a|an|the) /, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 
+/** A thing named as someone's ("Kell's notebook", "Sergeant Kell's oilcloth notebook"): theirs. */
+function theirsByName(name: string, who: Entity): boolean {
+  const names = who.name.split(/\s+/).map(w => w.replace(/[^A-Za-z]/g, "")).filter(w => w.length >= 3 && /^[A-Z]/.test(w));
+  return names.some(n => new RegExp(`\\b${n}['’]s\\b`).test(name)) && !/(desk|table|chair|bench|bed|cart|wagon|barrow|door|stall|barrel|crate|chest|house|shop|boat|barge)s?\b/i.test(name);
+}
+
 /** Apply operations; returns what changed, in plain words, and what couldn't be done. */
 export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: WorldEvent["by"] = "stage"): { changes: string[]; problems: string[] } {
   const changes: string[] = [];
@@ -515,6 +521,8 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
         continue;
       }
       if (op.op === "create") {
+        // Something with no name is nothing the map or the GM can show (it was drawn as a blank).
+        if (!op.name?.trim()) { problems.push("create: it needs a name"); continue; }
         const near = op.to ? one(op.to, "create near") : undefined;
         const base = slug(op.name) || "thing";
         let id = base;
@@ -526,7 +534,8 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
         const e: Entity = { id, name: op.name, kind, parent: world.root, tags: [], states: [...(op.add ?? [])], notes: op.text ? [{ text: op.text, turn, by }] : [], created: turn,
           ...(isThing({ kind } as Entity) ? { ac: stats.ac, hp: { current: stats.hp, max: stats.hp }, size, material } : {}) };
         world.entities[id] = e;
-        if (near && (op.how === "in" || (near.kind !== "area" && near.kind !== "place" && kind === "item" && isBeing(near)))) { e.parent = near.id; }
+        // In someone's hands: an item made beside them, or anything of theirs by name ("Kell's notebook", not left on the landing).
+        if (near && (op.how === "in" || (near.kind !== "area" && near.kind !== "place" && isBeing(near) && (kind === "item" || theirsByName(op.name, near))))) { e.parent = near.id; }
         else if (near?.kind === "area") { e.parent = near.id; e.at = spread(world, near, id); }
         else if (near) { e.at = spotNear(world, near.id, 5); e.parent = areaAt(world, e.at).id; }
         else { e.at = spread(world, world.entities[world.root]!, id); e.parent = areaAt(world, e.at).id; }
