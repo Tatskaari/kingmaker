@@ -261,6 +261,10 @@ class Tour {
         const said = await this.core.say(line).catch(e => `(${message(e)})`);
         step.said += `\n> ${line}\n${said.slice(0, 600)}`;
       }
+      // The GM's marks in the scene so far, whole: what the screen would underline, and its notes.
+      const marks = this.session.transcript.filter(e => e.scene === sceneId && e.marked?.marks.length)
+        .flatMap(e => e.marked!.marks.map(m => `${m.kind} on “${e.text.slice(m.start, m.end)}”: ${m.note}`));
+      if (marks.length) step.said += `\nmarks: ${marks.join(" | ")}`;
     }
     const exit = plan.exit ?? scene.exits.find(e => e.kind !== "combat")?.id ?? scene.exits[0]!.id;
     if (this.mode() === "scene" && this.session.sceneId === sceneId && !this.session.ended) step.said += `\n/end ${exit}: ${await this.end(exit)}`;

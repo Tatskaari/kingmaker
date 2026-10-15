@@ -2,6 +2,7 @@ import { positionOf, select, type Entity, type Point, type SceneWorld } from "..
 import type { Effects, Vec } from "./effects.ts";
 import { lookOf } from "./appearance.ts";
 import { smoothstep } from "./noise.ts";
+import { distinct, namesFor, quoteSpeaker, type Speaker } from "../../runtime/speakers.ts";
 
 /**
  * The director turns what changed in the world into motion on screen, so the story shows up in the
@@ -239,14 +240,7 @@ export class Director {
    * shawl"), whole or by its last word when that's distinctive.
    */
   barksFrom(world: SceneWorld, reply: string, t: number, called: Record<string, string> = {}, maxChars = 60): Array<{ id: string; text: string }> {
-    const people = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.includes("gone"));
-    const namesOf = (p: Entity) => {
-      const name = p.name.toLowerCase();
-      const alias = called[p.cast ?? p.id]?.toLowerCase().replace(/^(the|a|an)\s+/, "");
-      const head = alias?.split(/\s+(with|in|by|from|at|on)\s+/)[0]!.split(/\s+/).at(-1);
-      return [name, ...name.split(/\s+/).filter(w => w.length > 3 && !/^(the|sergeant|corporal|master|mister|big)$/.test(w)),
-        ...(alias ? [alias] : []), ...(head && head.length >= 6 && !GENERIC.test(head) ? [head] : [])];
-    };
+    const people = barkers(world, called);
     const out: Array<{ id: string; text: string }> = [];
     const quote = /[“"]([^”"]{2,200})[”"]/g;
     let m: RegExpExecArray | null;
@@ -254,48 +248,38 @@ export class Director {
       // A line broken off for the speech tag ("That was a full keg," Kell says) loses its comma.
       const text = m[1]!.trim().replace(/[,;:]+$/, "");
       if (text.length > maxChars) continue;
-      // The sentence leading into the quote: the one it's in, or the one before when it opens one.
-      const sentences = reply.slice(Math.max(0, m.index - 200), m.index).toLowerCase().split(/(?<=[.!?…:])\s+|\n+/);
-      const lead = (sentences.at(-1)?.trim() ? sentences.at(-1) : sentences.at(-2)) ?? "";
-      const after = reply.slice(m.index + m[0].length, m.index + m[0].length + 40).toLowerCase();
       // The player's own words ("…,” you add) aren't anyone's bark.
-      if (YOU_SAY.test(after)) continue;
-      let best: { id: string; at: number } | undefined;
-      for (const p of people) {
-        for (const n of namesOf(p)) {
-          // Named in the speech tag ("“Oi!” Nan says", "says the landlady") is the speaker, whoever else is about
-          // ("she says, without looking at Hobb" isn't Hobb).
-          if (taggedBy(after, n)) { best = { id: p.id, at: -1 }; break; }
-          // Otherwise the first one named in the lead-in who isn't only mentioned ("One looks from Kell to you." isn't Kell talking).
-          for (let i = lead.indexOf(n); i >= 0; i = lead.indexOf(n, i + 1)) {
-            if (MENTIONED.test(lead.slice(0, i))) continue;
-            if (!best || (best.at >= 0 && i < best.at)) best = { id: p.id, at: i };
-            break;
-          }
-        }
-        if (best?.at === -1) break;
-      }
-      if (best && !out.some(o => o.id === best!.id)) out.push({ id: best.id, text });
+      const id = quoteSpeaker(reply, m.index, m.index + m[0].length, people);
+      if (id && id !== "you" && !out.some(o => o.id === id)) out.push({ id, text });
+    }
+    out.forEach((b, i) => this.effects.bark(b.id, b.text, {}, t + i * 700));
+    return out;
+  }
+
+  /**
+   * Barks from a reply whose speakers are known (the GM tagged them, or the transcript worked them
+   * out: src/runtime/markup.ts): each short line over whoever said it, the first line of each.
+   */
+  barksFromSpeech(world: SceneWorld, lines: Array<{ speaker?: string | undefined; text: string }>, t: number, maxChars = 60): Array<{ id: string; text: string }> {
+    const out: Array<{ id: string; text: string }> = [];
+    for (const line of lines) {
+      const id = line.speaker;
+      const e = id ? world.entities[id] : undefined;
+      if (!id || !e || e.player || e.states.includes("gone") || out.some(o => o.id === id)) continue;
+      const text = line.text.replace(/^[“"]|[”"]$/g, "").trim().replace(/[,;:]+$/, "");
+      if (text.length < 2 || text.length > maxChars) continue;
+      out.push({ id, text });
     }
     out.forEach((b, i) => this.effects.bark(b.id, b.text, {}, t + i * 700));
     return out;
   }
 }
 
-/** Words that say someone's talking. */
-const SPEECH = "said|says|shouts|calls|mutters|snaps|adds|asks|cries|yells|whispers|growls|replies|tells|answers|murmurs|hisses|grunts|barks|warns";
-/** A speech tag that's the player's: "…,” you say. */
-const YOU_SAY = /^[^a-z]*you\s+(say|said|add|added|ask|asked|reply|replied|tell|told|answer|answered|call|called|shout|shouted|mutter|muttered|whisper|whispered|snap|snapped)\b/;
-
-/** Does the speech tag straight after a quote name this speaker? "…,” Nan says", "…,” Big Hobb growls", "…,” says the landlady". */
-function taggedBy(after: string, name: string): boolean {
-  const n = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^[^a-z]*(?:[a-z']+\\s+){0,2}?${n}\\s+(?:${SPEECH})\\b|^[^a-z]*(?:${SPEECH})\\s+(?:the\\s+)?${n}\\b`).test(after);
+/** Who might bark: the people about in the world, by their names and what the story calls them. */
+export function barkers(world: SceneWorld, called: Record<string, string> = {}): Speaker[] {
+  return distinct(Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.includes("gone"))
+    .map(p => ({ id: p.id, names: namesFor(p.name, called[p.cast ?? p.id]) })));
 }
-/** Words too common to tell people apart by. */
-const GENERIC = /^(person|people|fellow|figure|someone|stranger|woman|children)$/;
-/** A name after one of these is someone being looked at or talked about, not the speaker. */
-const MENTIONED = /\b(at|to|from|with|toward|towards|past|beside|behind|for|of|about|over|by|than|like|and)\s+$/;
 
 /** A spell's colour by what it does (Cogmind and Brogue: colour carries the kind). */
 export const ELEMENTS: Record<string, string> = {

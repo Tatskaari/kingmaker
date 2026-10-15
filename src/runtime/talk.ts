@@ -11,7 +11,8 @@ import { GUARD_STAGES, type Mechanic } from "./director.ts";
 import { playerTurn, type TurnHooks, type TurnResult } from "./engine.ts";
 import type { Character, Scene } from "./scene.ts";
 import { saveSession, snapshotSession, type Entry, type SessionState, type Stage, type TalkRecord } from "./session.ts";
-import { gmReply } from "./voices.ts";
+import { entryOf, gmReply } from "./voices.ts";
+import type { Markup } from "./markup.ts";
 
 /**
  * A word with a companion between scenes, as a cRPG has it at camp: the player stops beside
@@ -97,9 +98,9 @@ function facts(state: SessionState, name: string, record: TalkRecord, where: str
 
 const speak = (hooks: TurnHooks) => {
   let started = false;
-  return (text: string) => {
+  return (text: string, markup?: Markup) => {
     if (!started) { started = true; hooks.onSpeaker?.("gm", "narration"); }
-    hooks.onText?.(text);
+    hooks.onText?.(text, markup);
   };
 };
 
@@ -124,7 +125,7 @@ export async function openTalk(state: SessionState, hooks: TurnHooks = {}): Prom
   if (prep.status === "fulfilled") prepare(state, scene, prep.value.prep, prep.value.held);
   // Nothing is saved on a failed greeting: the game's saved state is still from before the talk.
   if (greeting.status === "rejected") throw greeting.reason;
-  push(state, hooks, { speaker: "gm", kind: "narration", text: greeting.value.text });
+  push(state, hooks, entryOf(greeting.value));
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);

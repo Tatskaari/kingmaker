@@ -11,6 +11,8 @@ import { loadSession, saveSession, sessionDir, type Entry, type SessionState } f
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { describeOperations, scribe } from "../world/scribe.ts";
 import { listDocs, readDoc } from "../lore/docs.ts";
+import { nameAsKnown } from "../runtime/knowledge.ts";
+import { markupLines } from "../runtime/markup.ts";
 import { sheetText } from "../rules/dnd.ts";
 import { asciiMap } from "../world/scene-world.ts";
 
@@ -47,7 +49,8 @@ function render(state: SessionState, e: Entry): string {
     case "roll": return `🎲 ${e.text}`;
     case "system": return `— ${e.text} —`;
     case "dialogue": return `${nameOf(state, e.speaker)}: ${e.text}`;
-    default: return e.text;
+    // A GM reply's markup under it: who says what, and each marked phrase's note.
+    default: return e.marked ? [e.text, ...markupLines(e.text, e.marked, id => nameAsKnown(sceneById(state.sceneId), state, id))].join("\n") : e.text;
   }
 }
 
@@ -61,6 +64,7 @@ function printer(state: SessionState): TurnHooks {
     onEntry: e => {
       if (e.kind === "player") return;
       if (e.kind === "roll" || e.kind === "system") console.log(`${render(state, e)}\n`);
+      else if (e.marked) console.log(`\n${render(state, e).split("\n").slice(1).join("\n")}\n`);
       else process.stdout.write("\n\n");
     },
   };

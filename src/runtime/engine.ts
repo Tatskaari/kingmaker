@@ -14,7 +14,9 @@ import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell,
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
-import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
+import { actorReply, entryOf, gmReply, narratorReply, type Spoken } from "./voices.ts";
+import { markupLines, sumStats, type Markup } from "./markup.ts";
+import { nameAsKnown } from "./knowledge.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
 import { savePlayedScene } from "../lore/docs.ts";
 import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
@@ -24,8 +26,11 @@ import { broadcastEnding } from "../lore/reviews.ts";
 export interface TurnHooks {
   /** A new speaker starts; text follows via onText. */
   onSpeaker?(speaker: string, kind: EntryKind): void;
-  /** Accumulated text of the current speaker. */
-  onText?(text: string): void;
+  /**
+   * Accumulated text of the current speaker, as the player reads it (the GM's markup taken out),
+   * and the markup so far: who says each line, and the notes on phrases (src/runtime/markup.ts).
+   */
+  onText?(text: string, markup?: Markup): void;
   /** A finished visible entry (rolls, system lines, completed speech). */
   onEntry?(entry: Entry): void;
   /** The game core has just gone into a scene (or a talk), before its opening streams in: show it now. */
@@ -102,9 +107,9 @@ function push(state: SessionState, hooks: TurnHooks, entry: Omit<Entry, "turn" |
 
 function speakHooks(hooks: TurnHooks, speaker: string, kind: EntryKind) {
   let started = false;
-  return (text: string) => {
+  return (text: string, markup?: Markup) => {
     if (!started) { started = true; hooks.onSpeaker?.(speaker, kind); }
-    hooks.onText?.(text);
+    hooks.onText?.(text, markup);
   };
 }
 
@@ -156,7 +161,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   const spoken = approach.voice === "gm"
     ? await gmReply(scene, state, directive, speakHooks(hooks, "gm", "narration"), "gm.opening")
     : await narratorReply(scene, state, directive, speakHooks(hooks, "gm", "narration"));
-  push(state, hooks, { speaker: "gm", kind: "narration", text: spoken.text });
+  push(state, hooks, entryOf(spoken));
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);
@@ -206,7 +211,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const started = performance.now();
   let costUsd = 0, calls = 0, firstTextMs: number | null = null;
   const markText = () => { if (firstTextMs === null) firstTextMs = performance.now() - started; };
-  const textHooks: TurnHooks = { ...hooks, onText: text => { markText(); hooks.onText?.(text); } };
+  const textHooks: TurnHooks = { ...hooks, onText: (text, markup) => { markText(); hooks.onText?.(text, markup); } };
 
   state.turn++;
   push(state, hooks, { speaker: "player", kind: "player", text: input });
@@ -234,11 +239,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const close = approach.voice === "gm"
       ? await gmReply(scene, state, closing, speakHooks(textHooks, "gm", "narration"), "gm.closing")
       : await narratorReply(scene, state, [...closing, "You may give a character a brief last word if it fits."], speakHooks(textHooks, "gm", "narration"));
-    push(state, hooks, { speaker: "gm", kind: "narration", text: close.text });
+    push(state, hooks, entryOf(close));
     delete state.closing;
     if (authored.createsCharacter) await extractCharacter(authored, state);
     finishScene(state, authored, exit);
-    const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd, calls: 1 };
+    const markup = sumStats([close.stats]);
+    const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd, calls: 1, ...(markup ? { markup } : {}) };
     state.metrics.push(metric);
     saveSession(state);
     snapshotSession(state);
@@ -279,11 +285,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     }
   }
   // Speculative reply: start the GM before the decision returns; hold its text until we know it's valid.
-  let speculation: { promise: Promise<Spoken | undefined>; controller: AbortController; buffer: string; release?: (text: string) => void } | undefined;
+  let speculation: { promise: Promise<Spoken | undefined>; controller: AbortController; buffer: string; markup?: Markup; release?: (text: string, markup?: Markup) => void } | undefined;
   if (approach.speculative && approach.voice === "gm" && !state.endingLead && !state.sceneStatus?.startsWith("stuck")) {
     const controller = new AbortController();
     const spec = { controller, buffer: "", promise: Promise.resolve(undefined as Spoken | undefined) } as NonNullable<typeof speculation>;
-    const onText = (text: string) => { spec.buffer = text; spec.release?.(text); };
+    const onText = (text: string, markup?: Markup) => { spec.buffer = text; if (markup) spec.markup = markup; spec.release?.(text, markup); };
     spec.promise = gmReply(scene, state, ruled, onText, "gm.speculative", controller.signal).catch(() => undefined);
     speculation = spec;
   }
@@ -456,7 +462,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       : runRepair(authored, state, { effort: approach.repairEffort ?? "medium" })).catch(() => undefined);
     const beat = await gmReply(scene, state, [...ruled, STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall", undefined, 140);
     spoken.push(beat);
-    push(state, hooks, { speaker: "gm", kind: "narration", text: beat.text });
+    push(state, hooks, entryOf(beat));
     // Budget: wait for the co-GM only until its deadline; a late result lands next turn instead.
     let late = false;
     const remaining = approach.repairDeadlineMs ? approach.repairDeadlineMs - (performance.now() - repairStarted) : Infinity;
@@ -484,18 +490,18 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       if (again.move.exit && again.move.chosen) ended = again.move.exit;
       else if (again.move.exit) state.pendingExit = { exitId: again.move.exit.id, turn: state.turn, via: again.move.transition.id, extended: false };
     } else if (again.plainTransition) follow.push(plainDirective(again.plainTransition));
-    const resolve = await gmReply(scene, state, follow, text => {
+    const resolve = await gmReply(scene, state, follow, (text, markup) => {
       if (followUpMs === null) followUpMs = performance.now() - started;
-      hooks.onText?.(text);
+      hooks.onText?.(text, markup);
     }, "gm.followup");
     spoken.push(resolve);
-    push(state, hooks, { speaker: "gm", kind: "narration", text: resolve.text });
+    push(state, hooks, entryOf(resolve));
   } else if (approach.voice === "gm") {
     let reply: Spoken | undefined;
     if (speculation && !directive.length && !pre.move && !pre.freeform && !ended) {
       // The decision changed nothing: keep the speculative reply, releasing any text held so far.
       const show = speakHooks(textHooks, "gm", "narration");
-      if (speculation.buffer) show(speculation.buffer);
+      if (speculation.buffer) show(speculation.buffer, speculation.markup);
       speculation.release = show;
       reply = await speculation.promise;
       state.speculation = { used: (state.speculation?.used ?? 0) + (reply ? 1 : 0), discarded: state.speculation?.discarded ?? 0 };
@@ -505,7 +511,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     }
     reply ??= await gmReply(scene, state, [...ruled, ...directive], speakHooks(textHooks, "gm", "narration"));
     spoken.push(reply);
-    push(state, hooks, { speaker: "gm", kind: "narration", text: reply.text });
+    push(state, hooks, entryOf(reply));
   } else {
     // Narration first when something happened that only the GM can describe.
     let next = directive.length || ruled.length || !pre.speaker ? "gm" : pre.speaker;
@@ -518,7 +524,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
           ...(state.whispers ?? []).filter(w => w.to === next).map(w => w.note),
         ], speakHooks(textHooks, next, "dialogue"));
       spoken.push(line);
-      push(state, hooks, { speaker: line.speaker, kind: line.kind, text: line.text });
+      push(state, hooks, entryOf(line));
       responded.push(next === "gm" ? "GM" : scene.cast.find(c => c.id === next)?.name ?? next);
       if (ended) break; // closing narration only
       if (i === 0 && next === "gm" && pre.speaker && pre.speaker !== "gm") { next = pre.speaker; continue; }
@@ -618,7 +624,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (ended) finishScene(state, authored, ended);
   // When did text that actually answers the player start? (the follow-up, after a holding beat)
   const resolvingTextMs = followUpMs ?? firstTextMs;
-  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls };
+  const markup = sumStats(spoken.map(s => s.stats));
+  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, resolvingTextMs, replyMs, postDecisionMs, costUsd, calls, ...(markup ? { markup } : {}) };
   state.metrics.push(metric);
   saveSession(state);
   snapshotSession(state);
@@ -653,7 +660,7 @@ export async function resumeAfterFight(state: SessionState, summary: string, hoo
   push(state, hooks, { speaker: "system", kind: "system", text: `The fight: ${summary}` });
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
   const spoken = await gmReply(scene, state, [`The fight is over, and this is how it went: ${summary}. Narrate the immediate aftermath in a short paragraph: who is down, who is held, who has run, what is burning or broken, and how people are taking it. Don't replay the fight blow by blow. The fight's result stands as it went: if the player's side lost, they lost, and the winners do what they'd do with a beaten foe; nothing in the aftermath turns it round. Then hand the moment back to the player: the scene isn't over until the story says so.`], speakHooks(hooks, "gm", "narration"), "gm.aftermath");
-  push(state, hooks, { speaker: "gm", kind: "narration", text: spoken.text });
+  push(state, hooks, entryOf(spoken));
   saveSession(state);
   return state.transcript.slice(before);
 }
@@ -690,7 +697,8 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   if (memory) savePlayedScene(state.id, scene, exit.title, handoff);
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
     .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
-  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}), ...(fronts.length ? { fronts } : {}) });
+  const journal = journalOf(state);
+  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}), ...(fronts.length ? { fronts } : {}), ...(journal.length ? { journal } : {}) });
   const next = sceneById(sceneId);
   // What the player carries goes with them into the next scene's world.
   if (state.world) state.carried = carriedBy(state.world.entities, "player");
@@ -699,6 +707,11 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   Object.assign(state, { adjustments, opening, lead });
   saveSession(state);
   return state;
+}
+
+/** The notebook's lines the ending of the scene just played wrote (its exit script's journal). */
+export function journalOf(state: SessionState): string[] {
+  return (state.ended?.operations ?? []).filter(o => o.op === "journal").map(o => String(o.args["entry"] ?? "")).filter(Boolean);
 }
 
 /**
@@ -846,7 +859,9 @@ async function moveOn(story: string, next: Scene, fronts: string): Promise<(Fron
 export function transcriptMarkdown(state: SessionState, options: { allScenes?: boolean } = {}): string {
   const scene = sceneById(state.sceneId);
   const entries = options.allScenes ? state.transcript : sceneEntries(state);
-  return entries.map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${(e.scene ? sceneById(e.scene) : scene).cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.text).join("\n\n");
+  // A GM reply's markup goes under it: who says what, and each marked phrase's note.
+  const marked = (e: Entry) => { const at = e.scene ? sceneById(e.scene) : scene; return [e.text, ...markupLines(e.text, e.marked!, id => nameAsKnown(at, state, id))].join("\n"); };
+  return entries.map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${(e.scene ? sceneById(e.scene) : scene).cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.marked ? marked(e) : e.text).join("\n\n");
 }
 
 /**
