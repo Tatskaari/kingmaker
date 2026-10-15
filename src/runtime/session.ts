@@ -297,6 +297,11 @@ export interface SessionState {
   /** A blow or a danger the last reply left hanging over the player (rules sessions). */
   threat?: Threat;
   /**
+   * The turn a hold caught the player (a grab they failed to resist, or gave in to): it stands with
+   * no more saving throws until they break free or the story lets them go (src/runtime/threats.ts).
+   */
+  held?: number;
+  /**
    * A fight the player's violence started in the scene (decided reactions: some fight, some flee):
    * who goes for the player and who's with them. The game plays it out on the map; elsewhere the
    * first of them swings at the player next turn.

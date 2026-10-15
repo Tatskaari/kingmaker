@@ -11,7 +11,8 @@ import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
+import { comeRound, holdAfterReply, landThreat } from "./threats.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { startSuggesting, stopSuggesting } from "./suggest.ts";
 import { bringOver, carryLines, OWED_INSTRUCTION, owedAtEnd, owedKey, owedPrep, owedSchema, owedText, placeOwedThings, type OwedVerdict } from "./owed.ts";
@@ -477,18 +478,13 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       if (blast) { for (const text of blast.lines) push(state, hooks, { speaker: "dice", kind: "roll", text }); ruled.push(blast.directive); }
     }
   }
-  if (state.threat && state.rules) {
-    const threat = state.threat;
-    delete state.threat;
-    const bystanding = threat.kind === "attack" ? state.world?.entities[threat.by] : undefined;
-    const attacker = threat.kind === "attack" ? presentCast(scene, state).find(c => c.id === threat.by) ?? (bystanding && !bystanding.states.includes("gone") ? bystander(bystanding) : undefined) : undefined;
-    const outcome = threat.kind === "attack"
-      ? attacker ? await attackOnPlayer(state, attacker).catch(() => undefined) : undefined
-      : await hazard(state, threat.hazard, threat.severity).catch(() => undefined);
-    if (outcome) {
-      for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
-      ruled.push(outcome.directive);
-    }
+  // Knocked down last reply: they come round first. Then what was hanging over them lands (src/runtime/threats.ts).
+  const cameRound = await comeRound(state);
+  const landed = state.threat && state.rules ? await landThreat(scene, state, input) : undefined;
+  for (const outcome of [cameRound, landed]) {
+    if (!outcome) continue;
+    for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
+    ruled.push(outcome.directive);
   }
   // Speculative reply: start the GM before the decision returns; hold its text until we know it's valid.
   let speculation: { promise: Promise<Spoken | undefined>; controller: AbortController; buffer: string; markup?: Markup; release?: (text: string, markup?: Markup) => void } | undefined;
@@ -560,8 +556,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `same-again:${pre.sameAgain.id}`, source: "pre" });
     directive = [sameAgainDirective(pre.sameAgain)];
   }
-  // The rules resolve a spell, a blow or a rest; the GM narrates what they decided.
-  if (pre.mechanic && state.rules) {
+  // The rules resolve a spell, a blow or a rest; the GM narrates what they decided. (Not when the
+  // blow before their turn put them down, nor a Shield already raised against it.)
+  const forestalled = pre.mechanic && (landed?.down || (landed?.shielded && pre.mechanic.kind === "cast" && pre.mechanic.spell === "shield"));
+  if (forestalled && landed?.down) push(state, hooks, { speaker: "dice", kind: "roll", text: "(Knocked down before you could act: it doesn't happen)" });
+  if (pre.mechanic && state.rules && !forestalled) {
     const m = pre.mechanic;
     const present = presentCast(scene, state);
     // Moved first, in the same turn: the spell or blow comes from where they ended up.
@@ -828,6 +827,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     // A word out of character moves nothing on in the story: only how the scene is going is kept.
     if (!pre.ooc) {
       if (post.threat && !state.closing) state.threat = { ...post.threat, turn: state.turn };
+      holdAfterReply(state, post.decision?.answers.threat?.choice);
       if (post.left && !state.closing && !post.move?.exit) leftPlace = true;
       judgedLanded = post.landed ?? [];
       if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
@@ -913,7 +913,7 @@ function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
  */
 export async function resumeAfterFight(state: SessionState, summary: string, hooks: TurnHooks = {}, options: { suggest?: boolean } = {}): Promise<Entry[]> {
   const exitId = state.ended?.exitId;
-  delete state.ended; delete state.closing; delete state.pendingExit; delete state.endingLead; delete state.brawl; delete state.threat;
+  delete state.ended; delete state.closing; delete state.pendingExit; delete state.endingLead; delete state.brawl; delete state.threat; delete state.held;
   if (exitId) state.fought = [...(state.fought ?? []), exitId];
   state.established.push(`The fight is over: ${summary}`);
   const before = state.transcript.length;
@@ -993,7 +993,7 @@ function freshScene(state: SessionState, next: Scene): void {
     fought: [], rulings: [], oocTurns: [],
   });
   delete state.ended;
-  delete state.threat;
+  delete state.threat; delete state.held;
   delete state.brawl;
   delete state.closing; delete state.pendingExit; delete state.endingLead;
   delete state.suggestions;

@@ -874,6 +874,12 @@ export interface Outcome {
   directive: string;
   /** The player's status after it, when it changed. */
   status?: string;
+  /** A danger's saving throw: whether the player saved. */
+  saved?: boolean;
+  /** It put the player down (0 hit points): what they meant to do this turn doesn't happen. */
+  down?: boolean;
+  /** The player's Shield went up against it (a reaction: their turn doesn't cast it again). */
+  shielded?: boolean;
 }
 
 function ensureNpc(ctx: Ctx, state: SessionState, who: Character): string {
@@ -1506,23 +1512,62 @@ export async function wrestle(state: SessionState, cast: Character[], targetId: 
   };
 }
 
-/** Someone the last reply left swinging at the player gets their attack (start of the player's next turn). */
-export async function attackOnPlayer(state: SessionState, attacker: Character): Promise<Outcome> {
+/**
+ * Someone the last reply left swinging at the player gets their attack (start of the player's next
+ * turn). `shield`: the player answers it with the Shield spell, which goes up before the blow lands
+ * (a reaction comes before what it answers): +5 AC against it, for a 1st-level slot.
+ */
+export async function attackOnPlayer(state: SessionState, attacker: Character, options: { shield?: boolean } = {}): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const npc = ensureNpc(ctx, state, attacker);
   const weapon = state.rules!.npcs[attacker.id]!.weapon;
-  const events = ctx.apply(ctx.engine.plan.attack(ctx.campaign.state, { attackerId: npc, targetId: pcId, weaponInstanceId: weapon }).events);
+  const shield = options.shield ? raiseShield(ctx, pcId) : undefined;
+  const planned = ctx.engine.plan.attack(ctx.campaign.state, { attackerId: npc, targetId: pcId, weaponInstanceId: weapon }).events;
+  const events = ctx.apply(shield ? shielded(planned, pcId) : planned);
   const weaponName = (id: string) => ctx.engine.content.items.get(ctx.campaign.state.itemInstances[id]?.definitionId ?? id)?.name ?? "Attack";
   const { lines, account } = describe(ctx, state, events, weaponName);
   const down = knockedDown(ctx, state);
   const statusText = status(ctx, pcId);
   close(state, ctx);
+  const raised = shield ? ` The player's Shield went up first (${shield}): +5 AC against the blow, until their next turn.` : "";
   return {
-    lines: [...lines, ...(events.some(e => e.type === "DamageApplied") ? [`${state.player.name}: ${statusText}`] : [])],
-    directive: `Rules, before the player's turn: ${calledBy(state, attacker)}'s attack resolved. ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
+    lines: [...(shield ? [`Cast Shield (${shield}): +5 AC against the blow`] : []), ...lines, ...(events.some(e => e.type === "DamageApplied") || shield ? [`${state.player.name}: ${statusText}`] : [])],
+    directive: `Rules, before the player's turn: ${calledBy(state, attacker)}'s attack resolved.${raised} ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
     status: statusText,
+    ...(down ? { down: true } : {}),
+    ...(shield ? { shielded: true } : {}),
   };
+}
+
+/** The Shield spell as a reaction: spends the slot and says which, if the player has it ready, a slot for it, and their wits about them. */
+function raiseShield(ctx: Ctx, pcId: string): string | undefined {
+  const me = ctx.campaign.state.characters[pcId]!;
+  const sheet = sheetOf(ctx, pcId);
+  if (me.hp.current <= 0 || me.appliedConditions.some(a => a.conditionId === "unconscious") || !readySpells(sheet).some(sp => sp.id === "shield")) return undefined;
+  const slotLevel = slotFor(sheet, me, 1);
+  if (!slotLevel) return undefined;
+  ctx.apply([event(ctx.E, "SpellSlotConsumed", { characterId: pcId, slotLevel })]);
+  return `${ordinal(slotLevel)}-level slot`;
+}
+
+/** An attack on the player with Shield up: against AC 5 higher, so a hit that doesn't beat it misses, and its damage never comes. */
+function shielded(events: Dnd.EngineEvent[], pcId: string): Dnd.EngineEvent[] {
+  const blocked = new Set<string>();
+  const out = events.map(e => {
+    if (e.type !== "AttackRolled" || String(e["targetId"]) !== pcId) return e;
+    const ac = Number(e["targetAC"]) + 5;
+    const stillHits = e["critical"] === true || (e["hit"] === true && Number(e["total"]) >= ac);
+    if (e["hit"] === true && !stillHits) blocked.add(e.id);
+    return { ...e, targetAC: ac, hit: stillHits };
+  });
+  // What the blocked blow caused (its damage, and what the damage did) goes with it.
+  let spread = true;
+  while (spread) {
+    spread = false;
+    for (const e of out) if (!blocked.has(e.id) && blocked.has(String(e["causedByEventId"]))) { blocked.add(e.id); spread = true; }
+  }
+  return out.filter(e => e.type === "AttackRolled" || !blocked.has(e.id));
 }
 
 /** Outside a fight on the map, dropping to 0 HP knocks the player out; it doesn't kill them. */
@@ -1530,7 +1575,7 @@ function knockedDown(ctx: Ctx, state: SessionState): string {
   const me = ctx.campaign.state.characters[state.rules!.pc]!;
   if (me.hp.current > 0) return "";
   ctx.apply([event(ctx.E, "Stabilized", { targetId: me.id })]);
-  return " The player drops to 0 hit points: they're knocked senseless (unconscious, but stable). The story goes on around them for a moment: someone drags them clear, takes them, or leaves them; they come to soon after with 1 hit point.";
+  return " The player drops to 0 hit points: they're knocked senseless (unconscious, but stable), and whatever they meant to do this turn doesn't happen. The story goes on around them for a moment: someone drags them clear, takes them, or leaves them. Then they come to, with 1 hit point (the rules bring them round as their next turn begins): conscious, able to talk, act and cast again, but one more wound puts them down.";
 }
 
 const HAZARDS: Record<string, { ability: Dnd.Ability; damage?: string; text: string }> = {
@@ -1570,6 +1615,8 @@ export async function hazard(state: SessionState, kind: string, severity: "glanc
     lines,
     directive: `Rules, before the player's turn: the danger hanging over them (${h.text}) resolved with a saving throw: ${account.join("; ")}.${success ? " They avoid the worst of it." : " It catches them."}${down} Narrate that first, briefly, then what the player does.`,
     status: statusText,
+    saved: success,
+    ...(down ? { down: true } : {}),
   };
 }
 
