@@ -6,7 +6,7 @@ import { chainScene, closeHubScene, createSession, forceEnding, openHubScene, op
 import { afterTurn } from "../runtime/background.ts";
 import { endTalk, leaveTalk, openTalk, startTalk, talkTurn } from "../runtime/talk.ts";
 import { comeTo } from "../rules/dnd.ts";
-import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
+import { loadSession, saveSession, sessionDir, snapshotSession, type Backstory, type Entry, type SessionState } from "../runtime/session.ts";
 import type { Mechanic } from "../runtime/director.ts";
 import type { Scene } from "../runtime/scene.ts";
 import type { CombatResult, CombatSetup, StoryState, Tile2 } from "./types.ts";
@@ -149,9 +149,14 @@ export class Game {
     this.fight = fight;
   }
 
-  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; build?: Partial<Build>; explorer: Explorer; fights: FightFactory; hub?: string }): Promise<Game> {
+  /**
+   * A new game: the player ("Name: concept"), their build (character creation's choice, made legal:
+   * src/rules/builds.ts; or none, and the model chooses one for the concept), their backstory (src/lore/backstory.ts),
+   * and the explorer and fights it's played with.
+   */
+  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; build?: Partial<Build>; backstory?: Backstory; explorer: Explorer; fights: FightFactory; hub?: string }): Promise<Game> {
     const firstScene = options.firstScene ?? FIRST_SCENE;
-    const session = await createSession({ sceneId: firstScene, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}), ...(options.build ? { build: options.build } : {}) });
+    const session = await createSession({ sceneId: firstScene, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}), ...(options.build ? { build: options.build } : {}), ...(options.backstory ? { backstory: options.backstory } : {}) });
     const first = sceneById(firstScene);
     const state: GameState = { version: 1, id: session.id, mode: "explore", story: { time: first.time ?? "morning", played: [], lead: firstScene, flags: {} }, explore: {}, recent: [], ...(options.hub ? { hub: options.hub } : {}) };
     const game = new Game(state, session, options.explorer, options.fights);

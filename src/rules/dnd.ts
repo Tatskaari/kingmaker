@@ -29,6 +29,13 @@ export async function dnd(): Promise<{ E: typeof Dnd; pack: unknown }> {
   return loaded;
 }
 
+let reading: Dnd.Content | undefined;
+/** The SRD's content (classes, species, backgrounds, spells...), from an engine made once just to read it. */
+export async function srdContent(): Promise<Dnd.Content> {
+  if (!reading) { const { E, pack } = await dnd(); reading = E.createEngine({ contentPacks: [pack], rng: E.seededRNG(1) }).content; }
+  return reading;
+}
+
 interface Ctx { E: typeof Dnd; engine: Dnd.Engine; campaign: Dnd.Campaign; apply(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] }
 
 async function engineFor(seed: number) {
@@ -143,7 +150,7 @@ const ARMOR: Record<string, string[]> = {
   heavy: ["ring-mail", "chain-mail", "splint", "plate"],
 };
 /** Spellcasting at the levels we start at (2024 rules): cantrips, prepared spells, highest spell level by character level. */
-const CASTING: Record<string, { cantrips: number; prepared: (level: number) => number; maxSpell: (level: number) => number }> = {
+export const CASTING: Record<string, { cantrips: number; prepared: (level: number) => number; maxSpell: (level: number) => number }> = {
   bard: { cantrips: 2, prepared: l => l + 3, maxSpell: l => Math.min(9, Math.ceil(l / 2)) },
   cleric: { cantrips: 3, prepared: l => l + 3, maxSpell: l => Math.min(9, Math.ceil(l / 2)) },
   druid: { cantrips: 2, prepared: l => l + 3, maxSpell: l => Math.min(9, Math.ceil(l / 2)) },
@@ -175,36 +182,51 @@ export interface Build {
   skills: string[]; feat: string; cantrips: string[]; spells: string[]; weapons: string[]; armor: string; shield: boolean;
 }
 
-async function chooseBuild(concept: string, level: number, content: Dnd.Content): Promise<Build> {
+/**
+ * What a model choosing a build may choose from, for a level: the SRD's classes, subclasses, species,
+ * backgrounds, origin feats, skills, weapons, armour and spells (by id, a spell with its level and
+ * classes). One build (chooseBuild) or three (src/rules/builds.ts) are asked for with it.
+ */
+export function buildMenu(level: number, content: Dnd.Content): string {
   const list = (m: Map<string, Dnd.Named>) => [...m.values()].map(v => `${v.id} (${v.name})`).join(", ");
   const maxSpell = Math.min(9, Math.ceil(level / 2));
   const spells = [...content.spells.values()].filter(s => s.level <= maxSpell).sort((a, b) => a.level - b.level || a.id.localeCompare(b.id))
     .map(s => `${s.id} [${s.level ? `level ${s.level}` : "cantrip"}; ${s.classes.join(" ")}]`).join("\n");
   const feats = [...content.feats.values()].filter(f => f["category"] === "origin").map(f => f.id).join(", ");
+  return [
+    `Classes: ${list(content.classes)}`, `Subclasses: ${list(content.subclasses)}`, `Species: ${list(content.species)}`, `Backgrounds: ${list(content.backgrounds)}`,
+    `Origin feats: ${feats}`, `Skills: ${SKILLS.map(engineSkill).join(", ")}`, `Abilities: ${ABILITIES.join(", ")}`,
+    `Weapons: ${WEAPONS.join(", ")}`, `Armour: none, ${Object.values(ARMOR).flat().join(", ")}`, `Spells (id [level; classes]):\n${spells}`,
+  ].join("\n\n");
+}
+
+/** A build's fields as a JSON schema's properties (the model's answer, before settleBuild makes it legal). */
+export const BUILD_FIELDS = ["classId", "subclassId", "speciesId", "backgroundId", "abilities", "skills", "feat", "cantrips", "spells", "weapons", "armor", "shield"] as const;
+export const BUILD_SCHEMA: Record<string, unknown> = {
+  classId: { type: "string" }, subclassId: { type: "string" }, speciesId: { type: "string" }, backgroundId: { type: "string" },
+  abilities: { type: "array", items: { type: "string" }, description: "All six abilities, most important first" },
+  skills: { type: "array", items: { type: "string" }, description: "Skills they'd be trained in, most characteristic first (up to 6)" },
+  feat: { type: "string", description: "One origin feat" },
+  cantrips: { type: "array", items: { type: "string" } }, spells: { type: "array", items: { type: "string" } },
+  weapons: { type: "array", items: { type: "string" }, description: "One to three weapons, main weapon first" },
+  armor: { type: "string" }, shield: { type: "boolean" },
+};
+
+/** How a build is chosen for a concept: what fits who they are, not what's strongest, from the lists' ids. */
+export const BUILD_GUIDE = `Choose what fits who they are and how they'd go about things, not what's strongest: a palace inspector might be a rogue (Investigation, Insight), a hedge witch a druid, a brawling ex-soldier a fighter, a silver-tongued con artist a bard. Use only ids from the lists. Spells must be on the class's list (ids marked with the class): give cantrips and levelled spells that suit the concept, including some useful outside a fight. Weapons and armour are what they'd carry; armour "none" if they wouldn't wear any.`;
+
+async function chooseBuild(concept: string, level: number, content: Dnd.Content): Promise<Build> {
   const build = await respondJson<Build>({
     operation: "rules.build", effort: "low",
-    instructions: `You turn a tabletop character concept into a D&D (2024 rules, SRD 5.2.1) build for a level ${level} character. Choose what fits who they are and how they'd go about things, not what's strongest: a palace inspector might be a rogue (Investigation, Insight), a hedge witch a druid, a brawling ex-soldier a fighter, a silver-tongued con artist a bard. Use only ids from the lists. Spells must be on the class's list (ids marked with the class): give cantrips and levelled spells that suit the concept, including some useful outside a fight. Weapons and armour are what they'd carry; armour "none" if they wouldn't wear any.`,
-    input: [{ role: "user", content: [
-      `Character concept: ${concept}`,
-      `Classes: ${list(content.classes)}`, `Subclasses: ${list(content.subclasses)}`, `Species: ${list(content.species)}`, `Backgrounds: ${list(content.backgrounds)}`,
-      `Origin feats: ${feats}`, `Skills: ${SKILLS.map(engineSkill).join(", ")}`, `Abilities: ${ABILITIES.join(", ")}`,
-      `Weapons: ${WEAPONS.join(", ")}`, `Armour: none, ${Object.values(ARMOR).flat().join(", ")}`, `Spells (id [level; classes]):\n${spells}`,
-    ].join("\n\n") }],
-    json: { name: "build", schema: { type: "object", additionalProperties: false, required: ["classId", "subclassId", "speciesId", "backgroundId", "abilities", "skills", "feat", "cantrips", "spells", "weapons", "armor", "shield"], properties: {
-      classId: { type: "string" }, subclassId: { type: "string" }, speciesId: { type: "string" }, backgroundId: { type: "string" },
-      abilities: { type: "array", items: { type: "string" }, description: "All six abilities, most important first" },
-      skills: { type: "array", items: { type: "string" }, description: "Skills they'd be trained in, most characteristic first (up to 6)" },
-      feat: { type: "string", description: "One origin feat" },
-      cantrips: { type: "array", items: { type: "string" } }, spells: { type: "array", items: { type: "string" } },
-      weapons: { type: "array", items: { type: "string" }, description: "One to three weapons, main weapon first" },
-      armor: { type: "string" }, shield: { type: "boolean" },
-    } } },
+    instructions: `You turn a tabletop character concept into a D&D (2024 rules, SRD 5.2.1) build for a level ${level} character. ${BUILD_GUIDE}`,
+    input: [{ role: "user", content: [`Character concept: ${concept}`, buildMenu(level, content)].join("\n\n") }],
+    json: { name: "build", schema: { type: "object", additionalProperties: false, required: [...BUILD_FIELDS], properties: BUILD_SCHEMA } },
   });
   return build;
 }
 
 /** A legal build from whatever the model suggested: unknown ids fall back to the class's defaults. */
-function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Content): Build {
+export function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Content): Build {
   const classId = raw.classId && content.classes.has(raw.classId) ? raw.classId : "rogue";
   const cls = content.classes.get(classId)!;
   const kit = KITS[classId] ?? KITS.rogue!;
@@ -466,6 +488,11 @@ export async function sheetText(state: SessionState): Promise<string> {
   lines.push(`Conditions: ${conditions.join(", ") || "none"}${c.heroicInspiration ? " · Heroic Inspiration" : ""}`);
   lines.push(`Equipment: ${s.inventory.items.filter(i => !state.rules!.gone?.includes(i.instanceId)).map(i => `${i.name}${i.equippedSlot ? ` (${i.equippedSlot === "mainHand" ? "in hand" : "worn"})` : ""}`).filter(n => !/^Unarmed/.test(n)).join(", ") || "nothing"}`);
   lines.push(`Languages: ${s.knownLanguages.map(l => l[0]!.toUpperCase() + l.slice(1)).join(", ")}`);
+  const story = storyOf(state).story;
+  if (story) {
+    const traits = ([["Personality", story.personality], ["Ideals", story.ideals], ["Bonds", story.bonds], ["Flaws", story.flaws]] as const).filter(([, v]) => v.length);
+    lines.push(...traits.map(([k, v]) => `${k}: ${v.join("; ")}`), `Backstory:\n${story.backstory.split(/\n+/).map(p => `  ${p.trim()}`).filter(p => p.trim()).join("\n")}`);
+  }
   return lines.join("\n");
 }
 
@@ -526,6 +553,8 @@ export interface SheetData {
   purse: Array<{ name: string; quantity: number }>;
   languages: string[];
   proficiencies: { armor: string[]; weapons: string[]; tools: string[] };
+  /** Their backstory from character creation, and what it says of them (personality, ideals, bonds, flaws). */
+  story?: { backstory: string; personality: string[]; ideals: string[]; bonds: string[]; flaws: string[] };
 }
 
 type Feature = { id: string; name: string; effects?: Array<Record<string, unknown>> };
@@ -715,7 +744,14 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
       weapons: prof.weapons.map(w => capitalise(w.replace(/^martial-(\w+)$/, "martial ($1)"))),
       tools: [...new Set(prof.tools.map(toolName))],
     },
+    ...storyOf(state),
   };
+}
+
+/** The backstory part of the sheet, when there is one. */
+function storyOf(state: SessionState): Pick<SheetData, "story"> {
+  const b = state.player.backstory;
+  return b?.text.trim() ? { story: { backstory: b.text.trim(), personality: b.personality, ideals: b.ideals, bonds: b.bonds, flaws: b.flaws } } : {};
 }
 
 // ---------------------------------------------------------------------------------------------

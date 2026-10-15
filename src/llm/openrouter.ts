@@ -49,6 +49,16 @@ export function apiKey(): string {
   return key;
 }
 
+/**
+ * Is the GM offline: no key at all, or one that isn't an OpenRouter key's shape (OPENROUTER_API_KEY=offline,
+ * as the checks, the server's --offline and the static build's "look around offline" set it)? What
+ * would only ask the model (character creation's three builds, drafting a backstory) says so rather
+ * than waiting for a refusal.
+ */
+export function gmOffline(): boolean {
+  try { return !/^sk-or-/.test(apiKey()); } catch { return true; }
+}
+
 let logFile: string | undefined = process.env.KM_CALL_LOG;
 /** Point model-call logging at a JSONL file (per session or eval run). */
 export function setCallLog(path: string | undefined): void {
@@ -225,6 +235,12 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     tokens: { in: result.inputTokens, out: result.outputTokens, reasoning: result.reasoningTokens } });
   return result;
 }
+
+/**
+ * A structured model call, as respondJson makes one, or a stand-in for one: what character creation
+ * asks of the model goes through one of these, so the checks can answer for it.
+ */
+export type Ask = <T>(request: RespondRequest & { json: { name: string; schema: Record<string, unknown> } }) => Promise<T>;
 
 /** JSON-schema structured output; parses and returns the object. */
 export async function respondJson<T>(request: RespondRequest & { json: { name: string; schema: Record<string, unknown> } }): Promise<T & { _meta: RespondResult }> {

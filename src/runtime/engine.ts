@@ -13,10 +13,10 @@ import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
-import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
+import { newSessionId, saveSession, snapshotSession, type Backstory, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
-import { savePlayedScene } from "../lore/docs.ts";
+import { savePlayedScene, writePlayerBackstory } from "../lore/docs.ts";
 import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
 import { rememberScene } from "../lore/remember.ts";
 import { broadcastEnding } from "../lore/reviews.ts";
@@ -73,12 +73,17 @@ async function extractCharacter(scene: Scene, state: SessionState): Promise<void
   }
 }
 
-export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean; level?: number; build?: Partial<Build> }): Promise<SessionState> {
+/**
+ * A new session for a scene: the player (from "Name: concept"), their D&D character (from the build
+ * given, else one the model chooses for the concept) and, from character creation, their backstory:
+ * on the player, and written into the session's own lore as their doc, for the GM.
+ */
+export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean; level?: number; build?: Partial<Build>; backstory?: Backstory }): Promise<SessionState> {
   approachById(options.approach);
   const scene = sceneById(options.sceneId);
   const playerText = options.player ?? DEFAULT_PLAYER;
   const [name, ...rest] = playerText.split(":");
-  const player: PlayerCharacter = { name: name!.trim(), concept: rest.join(":").trim() || playerText, modifiers: {} };
+  const player: PlayerCharacter = { name: name!.trim(), concept: rest.join(":").trim() || playerText, modifiers: {}, ...(options.backstory?.text.trim() ? { backstory: options.backstory } : {}) };
   const state: SessionState = {
     id: options.id ?? newSessionId(scene.id), sceneId: scene.id, approach: options.approach,
     seed: options.seed ?? Math.floor(Math.random() * 1e9), rollCount: 0, player,
@@ -90,6 +95,7 @@ export async function createSession(options: { sceneId: string; approach: string
     try { await createCharacter(state, options.level ?? 3, options.build); } catch { delete state.rules; }
   }
   if (!state.rules) state.player.modifiers = await rollUpModifiers(playerText);
+  if (state.player.backstory) writePlayerBackstory(state.id, state.player);
   return state;
 }
 

@@ -1,6 +1,6 @@
 import { JevDecider, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
 import { LUNA, respondJson } from "../llm/openrouter.ts";
-import { presentCast, prompt, scriptTranscript, sceneEntries } from "../runtime/brief.ts";
+import { playerWho, presentCast, prompt, scriptTranscript, sceneEntries } from "../runtime/brief.ts";
 import type { Scene } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { memoryLines, saveFact, saveMemory, type MemoryInput } from "./docs.ts";
@@ -79,7 +79,7 @@ export async function rememberTurn(scene: Scene, state: SessionState, turn: numb
     instructions: prompt("memory-review"),
     input: [{ role: "user", content: [
       `## Scene: ${scene.title}\n${scene.premise}`,
-      `## The player character\n${state.player.name}: ${state.player.concept}`,
+      `## The player character\n${playerWho(state)}`,
       `## People present (ids), and what they already remember\n${people(scene, state)}`,
       `## The scene so far\n${scriptTranscript(scene, state, sceneEntries(state).filter(e => e.turn < turn).slice(-12))}`,
       `## The moment to review (flagged: ${flagged.join(", ")})\n${exchangeAt(scene, state, turn)}`,
@@ -96,7 +96,7 @@ export async function rememberScene(scene: Scene, state: SessionState, ending: s
     instructions: prompt("memory-scene"),
     input: [{ role: "user", content: [
       `## Scene: ${scene.title}\n${scene.premise}\nHow it ended: ${ending}`,
-      `## The player character\n${state.player.name}: ${state.player.concept}`,
+      `## The player character\n${playerWho(state)}`,
       `## People present (ids), and what they already remember\n${people(scene, state)}`,
       `## The scene as played\n${scriptTranscript(scene, state)}`,
     ].join("\n\n") }],
