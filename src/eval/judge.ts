@@ -55,6 +55,51 @@ export async function judgeTurn(scene: Scene, before: SessionState, produced: En
   };
 }
 
+/** A judged note on a marked phrase (src/runtime/markup.ts). */
+export interface NoteVerdict { kind: string; phrase: string; note: string; leaks: boolean; accurate: boolean; fits: boolean; reason: string }
+
+const notesSchema = {
+  type: "object", additionalProperties: false, required: ["notes"],
+  properties: {
+    notes: { type: "array", items: { type: "object", additionalProperties: false, required: ["index", "reason", "leaks", "accurate", "fits"], properties: {
+      index: { type: "integer" }, reason: { type: "string" },
+      leaks: { type: "boolean", description: "The note tells the player something they don't know and their character wouldn't: a secret, what someone is keeping back, what the scene means them to find, a GM-only fact, a name they haven't heard." },
+      accurate: { type: "boolean", description: "The note is true to the prep and to what happened in the scene." },
+      fits: { type: "boolean", description: "Its kind fits: why is a reason someone acts as they do; know is something the character would know and a newcomer wouldn't; you is one of the player's own past acts." },
+    } } },
+  },
+};
+
+/**
+ * The notes on a reply's marked phrases (what the player reads when they click one), checked
+ * against the prep: does any tell the player what they don't know? Undefined when there are none.
+ */
+export async function judgeNotes(scene: Scene, before: SessionState, produced: Entry[], knowledge: string): Promise<{ notes: NoteVerdict[]; costUsd: number } | undefined> {
+  const marks = produced.flatMap(e => (e.marked?.marks ?? []).map(m => ({ kind: m.kind, phrase: e.text.slice(m.start, m.end), note: m.note })));
+  if (!marks.length) return undefined;
+  const result = await respondJson<{ notes: Array<{ index: number; reason: string; leaks: boolean; accurate: boolean; fits: boolean }> }>({
+    operation: "judge.notes", model: JUDGE_MODEL, effort: JUDGE_EFFORT,
+    instructions: "You check the notes an AI game master attached to phrases of its reply. On the player's screen a marked phrase can be clicked to read its note, so a note may hold only what the player's character knows or would know: their own past, what they've seen or been told in play, and what anyone in their world knows. It must never tell them anything from the GM's prep that they haven't learned: people's secrets, what someone is keeping back, what the scene means them to find, GM-only notes, or a name they haven't heard. Judge each note on its own.",
+    input: [
+      { role: "developer", content: `${sceneBrief(scene, before)}\n\n${knowledge}` },
+      { role: "user", content: [
+        `## The scene so far\n${scriptTranscript(scene, before, before.transcript.filter(e => (e.scene ?? before.sceneId) === before.sceneId)) || "(nothing yet)"}`,
+        `## The player's latest turn\n${produced.find(e => e.kind === "player")?.text ?? "(none)"}`,
+        `## The reply\n${scriptTranscript(scene, before, produced.filter(e => e.kind !== "player"))}`,
+        `## Its notes\n${marks.map((m, i) => `${i}. ${m.kind}, on "${m.phrase}": ${m.note}`).join("\n")}`,
+      ].join("\n\n") },
+    ],
+    json: { name: "notes_verdict", schema: notesSchema },
+  });
+  return {
+    notes: marks.map((m, i) => {
+      const v = result.notes.find(n => n.index === i);
+      return { ...m, leaks: v?.leaks ?? false, accurate: v?.accurate ?? true, fits: v?.fits ?? true, reason: v?.reason ?? "" };
+    }),
+    costUsd: result._meta.costUsd,
+  };
+}
+
 const trajectorySchema = {
   type: "object", additionalProperties: false,
   required: ["summary", "tangents", ...DIMENSIONS.flatMap(d => [`${d}_reason`, d]), "progress_reason", "progress", "criterion_reason", "criterion_pass", "worst_moment"],

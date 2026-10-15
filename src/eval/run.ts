@@ -10,7 +10,9 @@ import { chainScene, openScene, playerTurn } from "../runtime/engine.ts";
 import { applyRepair, expireNotes, runRepair, shouldRepair } from "../runtime/repair.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { buildFixture } from "./fixtures.ts";
-import { DIMENSIONS, judgeTrajectory, judgeTurn, judgeWorldUpdate, type Dimension } from "./judge.ts";
+import { DIMENSIONS, judgeNotes, judgeTrajectory, judgeTurn, judgeWorldUpdate, type Dimension, type NoteVerdict } from "./judge.ts";
+import { knowledgeBrief } from "../runtime/knowledge.ts";
+import { MARK_KINDS, sumStats, type MarkupStats } from "../runtime/markup.ts";
 import { describeOperations, scribe } from "../world/scribe.ts";
 import { CASES } from "./cases/index.ts";
 import type { DecisionCase, EvalCase, OpeningCase, ReplyCase, TrajectoryCase } from "./types.ts";
@@ -79,6 +81,12 @@ interface ReplyRun {
   mechanical?: { pass: boolean; notes: string[] };
   scores?: Record<Dimension, number>; reasons?: Record<Dimension, string>; criterion?: { pass: boolean; reason: string };
   reply?: string; firstTextMs?: number | null; preDecisionMs?: number; costUsd?: number;
+  /** The turn's own cost (the game's calls, not the judge's). */
+  turnCostUsd?: number;
+  /** How the reply kept to the GM's markup: its stats, its spoken lines (tagged, and with a speaker found), and its notes as judged. */
+  markup?: MarkupStats;
+  lines?: { total: number; tagged: number; placed: number };
+  notes?: NoteVerdict[];
 }
 
 async function runReply(c: ReplyCase, approach: string, sample: number): Promise<ReplyRun> {
@@ -109,11 +117,20 @@ async function runReply(c: ReplyCase, approach: string, sample: number): Promise
       const ok = c.expect.exit === "none" ? exit === "none" : c.expect.exit.includes(exit);
       if (!ok) { pass = false; notes.push(`exit: ${exit}, expected ${Array.isArray(c.expect.exit) ? c.expect.exit.join("|") : c.expect.exit}`); }
     }
-    const verdict = await judgeTurn(effectiveScene(scene, before.patches), before, result.entries, c.criterion);
+    const [verdict, judged] = await Promise.all([
+      judgeTurn(effectiveScene(scene, before.patches), before, result.entries, c.criterion),
+      // The notes on its marked phrases: do any tell the player what they don't know?
+      judgeNotes(effectiveScene(scene, before.patches), before, result.entries, knowledgeBrief(before)).catch(() => undefined),
+    ]);
+    const spoken = result.entries.flatMap(e => e.marked?.speech ?? []);
     return {
       case: c.id, approach, sample, ok: true, mechanical: { pass, notes }, scores: verdict.scores, reasons: verdict.reasons, criterion: verdict.criterion,
       reply: scriptTranscript(scene, state, result.entries.filter(e => e.kind !== "player")),
-      firstTextMs: result.metric.firstTextMs, preDecisionMs: result.metric.preDecisionMs, costUsd: result.metric.costUsd + verdict.costUsd,
+      firstTextMs: result.metric.firstTextMs, preDecisionMs: result.metric.preDecisionMs, costUsd: result.metric.costUsd + verdict.costUsd + (judged?.costUsd ?? 0),
+      turnCostUsd: result.metric.costUsd,
+      ...(result.metric.markup ? { markup: result.metric.markup } : {}),
+      lines: { total: spoken.length, tagged: spoken.filter(s => s.tag).length, placed: spoken.filter(s => s.speaker).length },
+      ...(judged ? { notes: judged.notes } : {}),
     };
   } catch (error) {
     return { case: c.id, approach, sample, ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -308,6 +325,21 @@ if (replies.length) {
   for (const a of [...new Set(replies.map(r => r.approach))]) {
     const ok = replies.filter(r => r.approach === a && r.ok);
     lines.push(`| ${a} | ${fmt(100 * mean(ok.map(r => r.criterion?.pass ? 1 : 0)), 0)}% | ${fmt(100 * mean(ok.map(r => r.mechanical?.pass ? 1 : 0)), 0)}% | ${DIMENSIONS.map(d => fmt(mean(ok.map(r => r.scores![d])))).join(" | ")} |`);
+  }
+  // The GM's markup (src/runtime/markup.ts): how it kept to it, what its notes said, what it cost.
+  const marked = replies.filter(r => r.ok && r.markup);
+  if (marked.length) {
+    const s = sumStats(marked.map(r => r.markup))!;
+    const spoken = marked.reduce((a, r) => ({ total: a.total + (r.lines?.total ?? 0), tagged: a.tagged + (r.lines?.tagged ?? 0), placed: a.placed + (r.lines?.placed ?? 0) }), { total: 0, tagged: 0, placed: 0 });
+    const notes = marked.flatMap(r => r.notes ?? []);
+    const first = marked.map(r => r.firstTextMs).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
+    const pct = (n: number, of: number) => `${n}/${of} (${fmt(100 * n / Math.max(1, of), 0)}%)`;
+    lines.push("", "### Markup", "",
+      "| replies | spoken lines tagged | a speaker found | marks a reply | why / know / you | with no kind | dropped | malformed | notes that leak | notes accurate | kinds that fit | first text ms (mean / p50) | turn cost |",
+      "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+      `| ${marked.length} | ${pct(spoken.tagged, spoken.total)} | ${pct(spoken.placed, spoken.total)} | ${fmt(s.marks / marked.length)} | ${MARK_KINDS.map(k => s.kinds[k]).join(" / ")} | ${s.unlabelled} | ${s.dropped} | ${s.malformed} | ${notes.filter(n => n.leaks).length}/${notes.length} | ${notes.filter(n => n.accurate).length}/${notes.length} | ${notes.filter(n => n.fits).length}/${notes.length} | ${fmt(mean(first), 0)} / ${first.length ? Math.round(first[Math.floor(first.length / 2)]!) : "-"} | $${fmt(mean(marked.map(r => r.turnCostUsd ?? 0)), 4)} |`);
+    const wrong = notes.filter(n => n.leaks || !n.accurate);
+    if (wrong.length) lines.push("", "Notes judged to leak or be untrue:", "", ...wrong.map(n => `- ${n.kind} on "${n.phrase}": ${n.note} (${n.reason})`));
   }
   const failures = replies.filter(r => !r.ok || !r.criterion?.pass || !r.mechanical?.pass);
   if (failures.length) {
