@@ -336,6 +336,7 @@ test("the Rat: once he has owned to the loft, the rest comes as he's asked: the 
   // Being his man inside follows the same way, once his mum is safe: a roll only while his fear could still win.
   assert.match(route(rat, "confession", "inside-man").when, /^The player asks Hobb to be their man inside the Heron tonight[\s\S]*once his mum is to be kept safe tonight[\s\S]*No dice/);
   assert.match(route(rat, "confession", "turn-hobb").when, /while his fear of his master could still win: his mum isn't safe yet/);
+  assert.deepEqual(route(rat, "confession", "turn-hobb").check?.establishes?.success, route(rat, "confession", "inside-man").establishes, "won on the roll, he's their man inside as the ending's script reads it");
 });
 
 test("the Rat: his mum made safe opens him up, however it came about, so a ruling standing in for the roll keeps the payoff", () => {

@@ -497,7 +497,7 @@ export const drownedRat: Scene = {
         },
         {
           id: "inside-man",
-          when: "The player asks Hobb to be their man inside the Heron tonight (to open the river door to their knock, keep the gang off them, or point out the clerk's book) once his mum is to be kept safe tonight or they've made him a promise that truly answers his fear, or Hobb agrees to it of his own accord. No dice: he swallows, nods and says he'll do it, for as long as his nerve holds.",
+          when: "The player asks Hobb to be their man inside the Heron tonight (to open the river door to their knock, keep the gang off them, or point out the clerk's book) once his mum is to be kept safe tonight or they've made him a promise that truly answers his fear, or Hobb has agreed to it. No dice: he swallows, nods and says he'll do it, for as long as his nerve holds.",
           to: "confession", establishes: [INSIDE],
         },
         {
@@ -507,7 +507,7 @@ export const drownedRat: Scene = {
             skill: "persuasion", dc: 14,
             success: "Hobb swallows, nods and says he'll do it: he'll open the river door to their knock and keep the gang off them, for as long as his nerve holds.",
             failure: "He can't. He'll go to work, because not going would tell his master everything, but in there he'll keep his head down and pray; he won't lift a finger for them.",
-            onSuccess: "confession",
+            onSuccess: "confession", establishes: { success: [INSIDE] },
           },
         },
         { id: "let-him-go", on: "attempt", when: "The player is done at the Rat: they leave with what Hobb told them, letting him go to his night's work (or taking him along), without having him arrested.", to: "hobb-talks" },
