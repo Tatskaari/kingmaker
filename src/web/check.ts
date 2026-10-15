@@ -202,6 +202,27 @@ async function newGame(page: Page, live: boolean): Promise<void> {
   else fail("Tab didn't move to the concept field");
   await shot(page, "character-creation");
   await press(page, "Enter");
+  // Three builds as cards (offline, the class defaults): → and Enter take the second.
+  await waitFor(page, "Three ways to be Tamsin Vell.*HP \\d+.*Make my own", "three builds that fit, as cards", live ? 150000 : 90000);
+  await shot(page, "builds");
+  await press(page, "ArrowRight", "Enter");
+  // The backstory: typed in its box a paragraph at a time, a click back into it and a word typed there, then Done.
+  await waitFor(page, "Who were you, before the King sent for you\\?", "→ Enter takes the second: the backstory");
+  await page.keyboard.type("I kept a grain factor's books on the wharves for nine years, until the night the sums came out too right.", { delay: 5 });
+  await press(page, "Enter", "Enter");
+  await page.keyboard.type("I owe Fat Jory three crowns.", { delay: 5 });
+  await waitFor(page, "came out too right.*three crowns", "the backstory typed into the box, a paragraph at a time");
+  // The middle of "I ke" is the k: the cursor goes just before "kept".
+  await clickOn(page, "I ke");
+  await page.keyboard.type("honestly ", { delay: 10 });
+  await waitFor(page, "I honestly kept a grain factor", "a click put the cursor in the text, and what's typed went there");
+  await shot(page, "backstory");
+  await press(page, "Tab", "Enter");
+  if (live && await until(page, `window.km ? /The lore check: 1 of/.test(km.text()) : false`, 60000)) {
+    await shot(page, "lore-check");
+    await press(page, "Enter");
+    ok("the lore check offered a fix, and Enter took it");
+  }
   await waitFor(page, "Character sheet.*AC \\d+", "the rules engine made a sheet", live ? 150000 : 90000);
   await sleep(300);
   await shot(page, "sheet");
