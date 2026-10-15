@@ -22,8 +22,12 @@ import { Skirmish } from "./skirmish.ts";
 
 export interface CombatController {
   readonly client: CombatClient;
+  /** The story's session the fight is part of (its scene, its people, the player's sheet). */
+  readonly session: SessionState;
   /** The fight's state (boardgame.io's G). */
   state(): CombatG;
+  /** The board as the rules see it, to read (who can reach whom, what spells there are): act through act(). */
+  look(): Skirmish;
   view(): CombatView;
   /** What the player can do now. */
   options(): PlayerOptions;
@@ -45,22 +49,43 @@ export interface CombatController {
   suggest(style?: PlayerStyle): PlayerAction;
   /** The player's whole turn played by the AI (the demo; a "let the dice decide" button). */
   autoTurn(style?: PlayerStyle): LogLine[];
+  /**
+   * Table talk: words said in the fight, and the GM's line on what the rules did. It goes in the
+   * fight's log as it's shown (view().log), after what the rules have said so far, and never in
+   * the rules' own state: the dice don't hear it.
+   */
+  note(line: Omit<LogLine, "round">, at?: number): void;
   /** Everything needed to carry on later (JSON). */
   save(): SavedCombat;
 }
 
-export interface SavedCombat { version: 1; G: CombatG; seed: number; written: boolean }
+/** A line of table talk, and where it goes in the fight's log: after its first `at` lines. */
+export interface Note { at: number; line: LogLine }
+
+export interface SavedCombat { version: 1; G: CombatG; seed: number; written: boolean; notes?: Note[] }
 
 export async function startCombat(setup: CombatSetup, session: SessionState): Promise<CombatController> {
   const kit = kitFrom(await dnd(), setup.seed);
   const { G, table } = initialState(kit, setup, session);
   G.campaign = kit.E.serializeCampaign(table.campaign);
-  return new Controller(G, kit, session, setup.seed, false);
+  return new Controller(G, kit, session, setup.seed, false, []);
 }
 
 /** Carry on a saved fight (the engine must have been loaded once in this process: see engineReady). */
 export function resumeCombat(saved: SavedCombat, session: SessionState, loaded: Awaited<ReturnType<typeof dnd>>): CombatController {
-  return new Controller(saved.G, kitFrom(loaded, saved.seed), session, saved.seed, saved.written);
+  return new Controller(saved.G, kitFrom(loaded, saved.seed), session, saved.seed, saved.written, saved.notes ?? []);
+}
+
+/** The rules' log with the table talk where it was said. */
+export function withNotes(log: LogLine[], notes: Note[]): LogLine[] {
+  if (!notes.length) return log;
+  const out: LogLine[] = [];
+  let n = 0;
+  for (let i = 0; i <= log.length; i++) {
+    while (n < notes.length && notes[n]!.at <= i) out.push(notes[n++]!.line);
+    if (i < log.length) out.push(log[i]!);
+  }
+  return out;
 }
 
 /** Load the rules engine (once per process; resumeCombat needs it). */
@@ -76,22 +101,24 @@ function kitFrom(loaded: Awaited<ReturnType<typeof dnd>>, seed: number): Kit {
 class Controller implements CombatController {
   readonly client: CombatClient;
   private readonly rules: Rules;
-  private readonly session: SessionState;
+  readonly session: SessionState;
   private readonly seed: number;
   private written: boolean;
   private finalResult?: CombatResult;
+  private readonly notes: Note[];
 
-  constructor(initial: CombatG, kit: Kit, session: SessionState, seed: number, written: boolean) {
+  constructor(initial: CombatG, kit: Kit, session: SessionState, seed: number, written: boolean, notes: Note[]) {
     this.rules = new Rules(kit);
     this.session = session;
     this.seed = seed;
     this.written = written;
+    this.notes = notes;
     this.client = Client({ game: combatGame(initial, this.rules), numPlayers: initial.order.length, debug: false });
     this.client.start();
   }
 
   state(): CombatG { return this.client.getState()!.G; }
-  private look(): Skirmish { return new Skirmish(this.state(), this.rules); }
+  look(): Skirmish { return new Skirmish(this.state(), this.rules); }
   over(): boolean { return !!this.state().outcome || !!this.client.getState()?.ctx.gameover; }
 
   playerTurn(): boolean {
@@ -122,8 +149,11 @@ class Controller implements CombatController {
     switch (action.kind) {
       case "move": m["move"]!(action.to); break;
       case "attack": m["attack"]!(action.target, action.weapon); break;
-      case "cast": m["cast"]!(action.spell, action.target, action.at); break;
+      case "cast": m["cast"]!(action.spell, action.target, action.at, "slot" in action ? action.slot : undefined); break;
       case "use": m["use"]!(action.prop); break;
+      case "wrestle": m["wrestle"]!(action.target, action.how); break;
+      case "influence": m["influence"]!(action.target, action.skill, action.urge, action.mood); break;
+      case "check": m["check"]!(action.skill, action.dc); break;
       case "dash": case "dodge": case "disengage": case "leave": case "surrender": case "standDown": m[action.kind]!(); break;
       case "arrest": m["arrest"]!(action.target); break;
       case "nerve": m["nerve"]!(action.dc, action.why, action.test); break;
@@ -218,7 +248,7 @@ class Controller implements CombatController {
       order: G.order.map((id, i) => { const u = G.units[id]!; return { id, name: u.name, side: u.side, initiative: u.initiative, state: u.state, health: u.side === "enemy" || u.side === "neutral" ? health(u) : `${u.hp}/${u.maxHp}`, active: i === G.active }; }),
       units, actors,
       hazards: { dust: G.dust.map(k => ({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) })), fire: G.fire.map(k => ({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) })) },
-      props: Object.values(G.props), log: G.log,
+      props: Object.values(G.props), log: withNotes(G.log, this.notes),
       player: {
         hp: pc.hp, maxHp: pc.maxHp, ac: pc.ac, speed: pc.speed, movementLeft: s.isTurnOf(pc) ? s.movementLeft(pc) : pc.speed, actionUsed: s.isTurnOf(pc) ? !!use?.actionUsed : false,
         slots: me ? slotsText(s.t, pc.engineId) : "", conditions: pc.conditions.filter(c => !/active$/.test(c)), ...(pc.deathSaves && pc.state === "down" ? { deathSaves: pc.deathSaves } : {}),
@@ -265,7 +295,17 @@ class Controller implements CombatController {
     if (world) placeInWorld(G, world);
   }
 
-  save(): SavedCombat { return { version: 1, G: this.state(), seed: this.seed, written: this.written }; }
+  /** `at`: after that many of the rules' lines (by default, all of them so far). */
+  note(line: Omit<LogLine, "round">, at?: number): void {
+    const G = this.state();
+    const note = { at: Math.min(at ?? G.log.length, G.log.length), line: { round: G.round, ...line } };
+    // In the log's order: after every note already at that place.
+    const i = this.notes.findIndex(n => n.at > note.at);
+    if (i < 0) this.notes.push(note);
+    else this.notes.splice(i, 0, note);
+  }
+
+  save(): SavedCombat { return { version: 1, G: this.state(), seed: this.seed, written: this.written, ...(this.notes.length ? { notes: this.notes } : {}) }; }
 }
 
 const ordinal = (n: number) => ["cantrip", "1st", "2nd", "3rd"][n] ?? `${n}th`;

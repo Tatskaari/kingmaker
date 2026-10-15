@@ -38,6 +38,9 @@ export type PlayerStyle = "fighter" | "wizard";
 
 export function decide(s: Skirmish, u: Unit, memo: Memo, style?: PlayerStyle): Step {
   if (memo.steps++ > 12 || !s.able(u)) return { kind: "end" };
+  // Talked round (the player's words, and the dice): a turn let go by, or the way out.
+  if (s.holding(u)) return { kind: "end" };
+  if (s.G.flags[`urged:${u.id}`] === "go") return u.conditions.includes("grappled") || !clearRun(s, u) ? { kind: "surrender" } : run(s, u, memo);
   switch (u.role) {
     case "player": return style === "wizard" ? wizard(s, u, memo) : fighter(s, u, memo);
     case "ally": return ally(s, u, memo);

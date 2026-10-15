@@ -1,14 +1,20 @@
 import { sceneById } from "../../../scenes/index.ts";
+import type { Decider } from "../../llm/decide.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import { standinFights } from "../fight-standin.ts";
-import type { Action, Fight, FightFactory, GameState } from "../play.ts";
+import type { Action, Fight, FightFactory, GameState, SayHooks } from "../play.ts";
 import type { CombatantSetup, CombatSetup, MapActor, TileMap, Tile2 } from "../types.ts";
 import { engineReady, resumeCombat, startCombat, type CombatController, type SavedCombat } from "./controller.ts";
 import { explore, FEET, key, same, solid, steps } from "./grid.ts";
 import { heronMap } from "./heron-grid.ts";
 import { heronEncounter, type HeronOptions } from "./heron.ts";
-import type { LogLine, PlayerAction } from "./model.ts";
+import { show, type ActResult, type CheckSkill, type InfluenceSkill, type LogLine, type Mood, type PlayerAction, type Urge } from "./model.ts";
 import { gridText, KEY, legend } from "./render.ts";
+import { deciderOf, readLine, type Reading } from "./typed.ts";
+import { speak, type Voice } from "./voice.ts";
+
+/** What a typed line is read and answered with: the decider (null: no model, the plain commands only) and the voice (null: none). */
+export interface SayTools { decider?: Decider | null; voice?: Voice | null }
 
 /**
  * Tactical combat behind the play loop's Fight interface (src/game/play.ts): the text the QA API
@@ -127,7 +133,7 @@ export class TacticalFight implements Fight {
       : this.combat.playerTurn()
         ? `Round ${view.round}, your turn. HP ${p.hp}/${p.maxHp} · AC ${p.ac} · ${p.movementLeft} ft of movement left · ${p.actionUsed ? "action used" : "action ready"}${p.slots ? ` · slots ${p.slots}` : ""}`
         : `Round ${view.round}. HP ${p.hp}/${p.maxHp}${p.deathSaves ? ` · death saves ${p.deathSaves.successes} up, ${p.deathSaves.failures} down` : ""}`;
-    const recent = this.unseen.length ? this.unseen : G.log.slice(-6);
+    const recent = this.unseen.length ? this.unseen : view.log.slice(-6);
     this.unseen = [];
     return [
       recent.map(show).join("\n"),
@@ -162,9 +168,16 @@ export class TacticalFight implements Fight {
       } else for (const t of s.targets) out.push({ id: `cast_${s.id}_${t.id}`, label: `Cast ${s.name} on ${t.name}${s.slot ? ` (${ordinal(s.slot)} slot)` : ""}${fire}`, kind: "fight" });
     }
     for (const p of o.props) out.push({ id: `use_${p.id}`, label: `${p.how === "kick it over" ? "Kick over" : "Bring down"} the ${p.name}${G.dust.length ? " (into the dust!)" : ""}`, kind: "use" });
+    // A grab or a shove for whoever's beside you (they save against your Strength).
+    for (const w of o.wrestle) {
+      out.push({ id: `shove_${w.id}`, label: `Shove ${w.name} over (a save, or they're down)`, kind: "fight" });
+      out.push({ id: `push_${w.id}`, label: `Shove ${w.name} away (a save, or 5 ft back)`, kind: "fight" });
+      out.push({ id: `grapple_${w.id}`, label: `Grab hold of ${w.name} (a save, or they're held)`, kind: "fight" });
+    }
     if (o.movementLeft >= FEET) {
       for (const v of Object.values(G.units).filter(v => v.state === "fighting" && v.side === "enemy" && steps(v.at, pc.at) > 1)) out.push({ id: `close_${v.id}`, label: `Close in on ${v.name}`, kind: "move" });
       for (const p of Object.values(G.props).filter(p => p.state === "standing" && p.lit && !p.carriedBy && steps(p.at, pc.at) > 1)) out.push({ id: `close_${p.id}`, label: `Get next to the ${p.name}`, kind: "move" });
+      if (Object.values(G.units).some(v => v.state === "fighting" && v.side === "enemy" && steps(v.at, pc.at) <= 1)) out.push({ id: "back_off", label: "Back away (as far from them as this turn takes you)", kind: "move" });
       const exit = G.exits.filter(e => !same(e.at, pc.at)).sort((a, b) => steps(a.at, pc.at) - steps(b.at, pc.at))[0];
       if (exit) out.push({ id: "make_for_the_door", label: `Make for ${exit.label.charAt(0).toLowerCase()}${exit.label.slice(1)}`, kind: "move" });
       for (const [dir, d] of Object.entries(DIRS)) {
@@ -186,16 +199,31 @@ export class TacticalFight implements Fight {
     const lines: LogLine[] = [];
     if (id === "auto") lines.push(...this.combat.autoTurn());
     else {
-      const action = this.parse(id);
-      if (!action) return `(There's no action "${id}" just now.)`;
-      const done = this.combat.act(action);
+      const done = this.perform(id);
       lines.push(...done.lines);
       if (!done.ok) return `(${done.error ?? "That didn't work."})`;
-      // Nothing left worth doing this turn: the turn passes by itself.
-      const o = this.combat.options();
-      if (action.kind !== "end" && this.combat.playerTurn() && o.actionUsed && o.movementLeft < FEET) lines.push(...this.combat.act({ kind: "end" }).lines);
     }
-    // Everyone else's turns, one at a time, each given its moment when something is watching.
+    lines.push(...await this.afterwards(id === "end_turn" || id === "auto"));
+    return lines.map(show).join("\n");
+  }
+
+  /** One of the player's acts by its id, as the rules take it: only that, and nobody else moves. */
+  perform(id: string): ActResult {
+    if (this.combat.over()) return { ok: false, error: "The fight is over.", lines: [] };
+    const action = this.parse(id);
+    if (!action) return { ok: false, error: `There's no action "${id}" just now.`, lines: [] };
+    return this.combat.act(action);
+  }
+
+  /**
+   * After the player's act: with nothing left worth doing this turn, the turn passes by itself;
+   * then everyone else's turns, one at a time, each given its moment when something is watching.
+   * `ended`: the turn has passed already (an end, the dice deciding).
+   */
+  private async afterwards(ended = false): Promise<LogLine[]> {
+    const lines: LogLine[] = [];
+    const o = this.combat.options();
+    if (!ended && this.combat.playerTurn() && o.actionUsed && o.movementLeft < FEET) lines.push(...this.combat.act({ kind: "end" }).lines);
     for (let guard = 0; guard < 400 && !this.combat.over() && !this.combat.playerTurn(); guard++) {
       const turn = this.combat.advance(undefined, 1);
       lines.push(...turn);
@@ -204,7 +232,64 @@ export class TacticalFight implements Fight {
     }
     // Over: result() writes the story back (the play loop shows its summary as "The fight: ...").
     if (this.combat.over()) this.combat.result();
-    return lines.map(show).join("\n");
+    return lines;
+  }
+
+  /**
+   * A line typed in the fight (src/game/combat/typed.ts reads it: the plain commands, or the
+   * decider choosing among this turn's own actions), done as a click or a key does it, by id, the
+   * rules first. Then the GM's line on what the rules did, or an answer to what was said
+   * (voice.ts), streamed in; then the turn passes if there's nothing left worth doing, and the
+   * others go. What can't be done is refused with the rules' reason, and nothing is spent.
+   */
+  async say(line: string, hooks: SayHooks = {}, tools: SayTools = {}): Promise<string> {
+    if (this.combat.over()) return "The fight is over.";
+    if (!this.combat.playerTurn()) return "(It isn't your turn: wait for it.)";
+    hooks.onReading?.();
+    const reading = await readLine(line, this, tools.decider === undefined ? deciderOf(this.combat.session) : tools.decider);
+    if (reading.refusal) return `(${reading.refusal})`;
+    // The typed line goes in the log before what the rules make of it.
+    const at = this.combat.state().log.length;
+    const before = this.combat.view().log.length;
+    const done = this.performAll(reading.steps);
+    if (done.refused && !done.any) return `(${done.refused})`;
+    this.combat.note({ kind: "said", who: this.combat.state().pc, text: line.trim() }, at);
+    if (done.refused) this.combat.note({ kind: "system", text: `The rest didn't happen: ${done.refused}` });
+    if (reading.note) this.combat.note({ kind: "system", text: reading.note });
+    hooks.onRules?.();
+    await this.voice(reading, before, hooks, tools.voice === undefined ? speak : tools.voice);
+    const shown = this.combat.view().log.slice(before);
+    const after = await this.afterwards(reading.steps.includes("end_turn"));
+    return [...shown, ...after].map(show).join("\n");
+  }
+
+  /** The reading's acts in turn, until one is refused (what came before it stands, as the rules had it). */
+  private performAll(steps: string[]): { any: boolean; refused?: string } {
+    let any = false;
+    for (const id of steps) {
+      const done = this.perform(id);
+      if (!done.ok) return { any, refused: done.error ?? "That didn't work." };
+      any = true;
+    }
+    return { any };
+  }
+
+  /**
+   * The GM's line on it (a model call: the voice), streamed through the hooks and kept as table
+   * talk: an answer from whoever was spoken to, or the GM dressing what the rules did. Offline (or
+   * if the model fails) the rules' lines stand on their own.
+   */
+  private async voice(reading: Reading, from: number, hooks: SayHooks, voice: Voice | null): Promise<void> {
+    // Words, or something done (ending the turn is nothing to dress).
+    const done = reading.steps.filter(id => id !== "end_turn");
+    if (!voice || !(reading.speech || done.length) || reading.offline) return;
+    const rules = this.combat.view().log.slice(from);
+    try {
+      const spoken = await voice({ fight: this.combat, reading, rules, onSpeaker: who => hooks.onSpeaker?.(who, who === "gm" ? "narration" : "dialogue"), onText: text => hooks.onText?.(text) });
+      if (spoken?.text) this.combat.note({ kind: spoken.who === "gm" ? "narration" : "said", who: spoken.who, text: spoken.text });
+    } catch {
+      // The GM couldn't speak: what the rules did is all there is.
+    }
   }
 
   private parse(id: string): PlayerAction | undefined {
@@ -212,17 +297,29 @@ export class TacticalFight implements Fight {
     const pc = G.units[G.pc]!;
     if (id === "end_turn") return { kind: "end" };
     if (id === "dash" || id === "dodge" || id === "disengage" || id === "leave") return { kind: id };
-    let m = /^move_(\d+)_(\d+)$/.exec(id);
+    if (id === "back_off") return this.backOff();
+    // A spell from a higher slot than its lowest: the same cast, upcast.
+    let m = /^(cast_.+)_slot(\d)$/.exec(id);
+    if (m) { const cast = this.parse(m[1]!); return cast?.kind === "cast" ? { ...cast, slot: Number(m[2]) } : undefined; }
+    m = /^move_(\d+)_(\d+)$/.exec(id);
     if (m) return { kind: "move", to: { x: Number(m[1]), y: Number(m[2]) } };
     m = /^step_(\w+)$/.exec(id);
     if (m && DIRS[m[1]!]) { const d = DIRS[m[1]!]!; return { kind: "move", to: { x: pc.at.x + d.x, y: pc.at.y + d.y } }; }
     m = /^attack_(.+?)(?:_with_(.+))?$/.exec(id);
     if (m) {
+      if (m[2] === "improvised") return { kind: "attack", target: m[1]!, weapon: "improvised" };
       // Plain attack_<target> is the attack it was listed as: the first weapon that reaches them (a bow across the room).
       const attacks = this.combat.options().attacks.filter(a => a.target === m![1]);
       const weapon = m[2] ? pc.weapons.find(w => slug(attacks.find(a => a.weapon === w)?.weaponName ?? "") === m![2]) : attacks[0]?.weapon;
       return { kind: "attack", target: m[1]!, ...(weapon ? { weapon } : {}) };
     }
+    m = /^(shove|push|grapple)_(.+)$/.exec(id);
+    if (m) return { kind: "wrestle", target: m[2]!, how: m[1] === "shove" ? "prone" : m[1] === "push" ? "push" : "grapple" };
+    // Words with an action behind them: urge_<skill>_<what>[_<mood>]_<who> (a mood unsaid is hostile: they're fighting you).
+    m = /^urge_(intimidation|persuasion|deception|performance)_(yield|go|hold)_(?:(willing|wavering|hostile)_)?(.+)$/.exec(id);
+    if (m) return { kind: "influence", skill: m[1] as InfluenceSkill, urge: m[2] as Urge, mood: (m[3] ?? "hostile") as Mood, target: m[4]! };
+    m = /^check_([a-z]+)_(\d+)$/.exec(id);
+    if (m) return { kind: "check", skill: m[1] as CheckSkill, dc: Number(m[2]) };
     m = /^use_(.+)$/.exec(id);
     if (m) return { kind: "use", prop: m[1]! };
     m = /^cast_(.+?)_at_(\d+)_(\d+)$/.exec(id);
@@ -246,6 +343,18 @@ export class TacticalFight implements Fight {
     return undefined;
   }
 
+  /** As far from whoever's on the other side as this turn's movement takes you (out of the fire if it can). */
+  private backOff(): PlayerAction | undefined {
+    const o = this.combat.options();
+    const G = this.combat.state();
+    const foes = Object.values(G.units).filter(v => v.state === "fighting" && v.side === "enemy");
+    const threat = (t: Tile2) => Math.min(99, ...foes.map(f => steps(f.at, t)));
+    const hot = (t: Tile2) => G.fire.some(k => steps({ x: Number(k.split(",")[0]), y: Number(k.split(",")[1]) }, t) <= 1);
+    const me = G.units[G.pc]!.at;
+    const best = [...o.moves].sort((a, b) => Number(hot(a)) - Number(hot(b)) || threat(b) - threat(a) || steps(me, a) - steps(me, b))[0];
+    return best && threat(best) > threat(me) ? { kind: "move", to: best } : undefined;
+  }
+
   /** As close as this turn's movement gets you (next to it, or onto it for a door). */
   private closeTo(at: Tile2, onto = false): PlayerAction | undefined {
     const o = this.combat.options();
@@ -262,14 +371,7 @@ const DIRS: Record<string, Tile2> = { north: { x: 0, y: -1 }, south: { x: 0, y: 
 const slug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const ordinal = (n: number) => ["cantrip", "1st", "2nd", "3rd"][n] ?? `${n}th`;
 
-export function show(l: LogLine): string {
-  switch (l.kind) {
-    case "turn": return `— ${l.text} —`;
-    case "dice": return `🎲 ${l.text}`;
-    case "system": return `(${l.text})`;
-    default: return l.text;
-  }
-}
+export { show };
 
 // ---------------------------------------------------------------------------------------------
 // Any other scene's fight: a plain room, its leader and their people against the player and allies.

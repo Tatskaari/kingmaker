@@ -61,6 +61,8 @@ const pools: Record<string, string[]> = {
   "victory": ["And then it's quiet, except for the river and somebody's teeth chattering."],
   "victory:elsewhere": ["And then it's quiet, except for somebody's teeth chattering."],
   "surrender": ["It's over: {place}'s night business ends with its master's hands in the air."],
+  // Nobody in charge: the last of them gave up rather than went down.
+  "surrender:yielded": ["It's over: the last of them has their hands up, and {place} goes very quiet.", "It's over: the last of them puts their hands up, slowly, as if the idea had been theirs all along."],
   "defeat": ["The last thing you see is the floor of {place} coming up to meet you, and Master Sallow's very good shoes."],
   "defeat:gang": ["The last thing you see is the floor of {place} coming up to meet you, and a great many floury boots."],
   "defeat:any": ["The last thing you see is the floor of {place} coming up to meet you, which is no way to see anything."],
@@ -75,6 +77,7 @@ const pools: Record<string, string[]> = {
   "victory@caerwyn": ["And then it's over. Caerwyn, which has seen worse on a market day, goes back to its bunting.", "And then it's quiet, except for the pigeons, who have opinions."],
   "surrender:any@caerwyn": ["{Who} looks at the state of things, looks at the people watching, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands up, where the whole street can see them."],
   "surrender@caerwyn": ["It's over: the last of them has their hands up in the middle of the street."],
+  "surrender:yielded@caerwyn": ["It's over: the last of them has their hands up in the middle of the street."],
   "defeat@caerwyn": ["The last thing you see is the cobbles coming up to meet you, and a great many boots stepping round."],
   "defeat:gang@caerwyn": ["The last thing you see is the cobbles coming up to meet you, and a great many boots stepping round."],
   "defeat:any@caerwyn": ["The last thing you see is the cobbles coming up to meet you, and a great many boots stepping round."],

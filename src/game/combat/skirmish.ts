@@ -3,8 +3,17 @@ import { inFights, RAYS } from "../../rules/spells.ts";
 import type { CombatResult, Tile2 } from "../types.ts";
 import { flavour, has as hasFlavour, hash, listing } from "./flavour.ts";
 import { areaTiles, clearShot, explore, FEET, feetBetween, findPath, fromFeet, fromKey, key, line, neighbours, rangeFeet, same, solid, steps, toFeet, type PathRules } from "./grid.ts";
-import type { CombatG, PlayerOptions, Prop, Unit } from "./model.ts";
+import type { CheckSkill, CombatG, InfluenceSkill, Mood, PlayerOptions, Prop, Unit, Urge } from "./model.ts";
 import { diceLines, signed, type EngineCombatant, type Namer, type Rules, type Table } from "./rules.ts";
+
+/** How far a word carries in a fight: shouted across a warehouse floor, not across the river. */
+export const EARSHOT = 60;
+/** The Search action's skills (Wisdom); the rest of CheckSkill are the Study action's (Intelligence). */
+export const SEARCH_SKILLS: readonly CheckSkill[] = ["perception", "insight", "medicine", "survival"];
+const STUDY_SKILLS: readonly CheckSkill[] = ["investigation", "arcana", "history", "nature", "religion"];
+const SKILL_NAME = (skill: string) => skill.charAt(0).toUpperCase() + skill.slice(1);
+/** What each urge asks of them, in the dice line's words. */
+const URGED: Record<Urge, string> = { yield: "to give up", go: "to leave the fight", hold: "to hold back" };
 
 /**
  * The rules of a fight on the map, as operations on G: whose turn it is, moving a step at a time
@@ -83,12 +92,26 @@ export class Skirmish {
   reactionReady(u: Unit): boolean { return this.usage(u)?.reactionUsedThisRound === false; }
   actionLeft(u: Unit): boolean { const use = this.usage(u); return !!use && !use.actionUsed; }
 
-  /** Feet of movement left this turn (dashing doubles it; standing up from prone costs half). */
+  /**
+   * Feet of movement left this turn (dashing doubles it; getting up off the floor this turn cost
+   * half, and so does lying there; held in a grip, there's none).
+   */
   movementLeft(u: Unit): number {
     const use = this.usage(u);
-    if (!use || !this.isTurnOf(u) || !this.able(u)) return 0;
-    const standUp = u.conditions.includes("prone") ? Math.floor(u.speed / 2) : 0;
+    if (!use || !this.isTurnOf(u) || !this.able(u) || u.conditions.includes("grappled")) return 0;
+    const standUp = u.conditions.includes("prone") || this.G.flags[`stood:${u.id}`] === this.turnToken() ? Math.floor(u.speed / 2) : 0;
     return Math.max(0, u.speed * (use.dashed ? 2 : 1) - use.feetMovedThisTurn - standUp);
+  }
+
+  /** This turn, as "round:index" (whose turn it is, and when). */
+  turnToken(): string { return `${this.G.round}:${this.G.active}`; }
+
+  /** Does u understand words (a language in common with the player)? A wolf takes a threat's meaning, and nothing else. */
+  understands(u: Unit): boolean {
+    const id = this.t.char(u.engineId)?.statblockId;
+    const statblock = id ? this.t.kit.engine.content.monsters.get(id) : undefined;
+    const languages = (statblock?.["languages"] as string[] | undefined) ?? ["common"];
+    return languages.includes("common");
   }
 
   /** Walls and standing enemies block; friends and the fallen can be passed but not stopped on; fire is avoided. */
@@ -181,7 +204,26 @@ export class Skirmish {
       else if (u.state === "down" && c.hp.current > 0) this.rise(u);
       else if (this.isYou(u) && u.state === "down") this.pcDeathState(c);
     }
+    this.loosen();
     this.checkOutcome();
+  }
+
+  /**
+   * A grip lasts while whoever holds it can and is beside them: someone down, gone or stepped away
+   * lets go (the engine keeps the grappled condition; who holds it is the fight's to know).
+   */
+  private loosen(): void {
+    for (const u of this.units) {
+      const by = this.G.flags[`grappler:${u.id}`];
+      if (typeof by !== "string") continue;
+      const holder = this.unit(by);
+      if (holder && this.able(holder) && u.state === "fighting" && steps(holder.at, u.at) <= 1) continue;
+      delete this.G.flags[`grappler:${u.id}`];
+      if (!this.t.char(u.engineId)?.appliedConditions.some(a => a.conditionId === "grappled")) continue;
+      this.t.apply([this.event("ConditionRemoved", { targetId: u.engineId, conditionId: "grappled" })]);
+      if (u.state === "fighting") this.log("narration", `${cap(this.you(u).called)} ${this.isYou(u) ? "are" : "is"} free of the grip.`, u.id);
+      this.refresh();
+    }
   }
 
   private fall(u: Unit, c: Dnd.EngineCharacter): void {
@@ -189,6 +231,7 @@ export class Skirmish {
     // needs them), and nobody kills the lantern-boy: he's knocked flat.
     const dead = c.deathSaves.failures >= 3 && !this.isYou(u) && u.role !== "coward" && u.role !== "bystander";
     u.state = dead ? "dead" : "down";
+    if (u.side === "enemy") this.G.flags["last_out"] = "beaten";
     if (!c.appliedConditions.some(a => a.conditionId === "unconscious")) this.t.apply([this.event("ConditionApplied", { targetId: u.engineId, conditionId: "unconscious", appliedConditionId: (this.t.kit.E as unknown as { newAppliedConditionId(): string }).newAppliedConditionId() })]);
     // Everyone but the player is out cold, not dying: no death saves for them.
     if (!this.isYou(u) && !dead) this.t.apply([this.event("Stabilized", { targetId: u.engineId })]);
@@ -253,8 +296,34 @@ export class Skirmish {
     if (dodging.length) this.t.apply(dodging.map(() => this.event("ConditionRemoved", { targetId: u.engineId, conditionId: "dodged" })));
     if (this.onBoard(u) && this.hotAt(u.at)) this.scorch(u);
     this.settle();
+    this.standUp(u);
+    this.holdBack(u);
     if (this.isYou(u) && u.state === "down" && !this.G.flags["pc_dying"] && !u.deathSaves?.stable) this.log("system", "You're on the floor, fighting for breath.", u.id);
   }
+
+  /**
+   * Knocked flat (a shove, Grease), they get up as their turn starts, for half their movement (the
+   * engine leaves standing up to the board).
+   */
+  private standUp(u: Unit): void {
+    if (!this.able(u) || !this.t.char(u.engineId)?.appliedConditions.some(a => a.conditionId === "prone")) return;
+    this.t.apply([this.event("ConditionRemoved", { targetId: u.engineId, conditionId: "prone" })]);
+    this.G.flags[`stood:${u.id}`] = this.turnToken();
+    this.refresh();
+    if (this.isYou(u)) this.log("system", "You get up off the floor: that's half your movement.", u.id);
+    else this.log("narration", `${cap(u.called)} gets up off the floor.`, u.id);
+  }
+
+  /** Urged to hold back, and the dice (or their own good sense) agreed: this turn goes by. */
+  private holdBack(u: Unit): void {
+    if (this.G.flags[`urged:${u.id}`] !== "hold" || !this.able(u)) return;
+    delete this.G.flags[`urged:${u.id}`];
+    this.G.flags[`holding:${u.id}`] = this.turnToken();
+    this.log("narration", `${cap(u.called)} hangs back, in two minds about the whole thing.`, u.id);
+  }
+
+  /** Holding back this turn (holdBack): the AI lets it go by. */
+  holding(u: Unit): boolean { return this.G.flags[`holding:${u.id}`] === this.turnToken(); }
 
   private endOfRound(): void {
     this.spreadFire();
@@ -329,13 +398,24 @@ export class Skirmish {
     return { melee, packed, ...(far ? { advantage: "disadvantage" as const } : {}), ...(between.length ? { cover: "half" as const } : {}) };
   }
 
+  /**
+   * What u can pick up and swing that isn't a weapon (a bottle, a chair leg): the rules' unarmed
+   * strike (1d4 bludgeoning), called what it is.
+   */
+  improvised(u: Unit): string | undefined {
+    const me = this.t.char(u.engineId);
+    return me?.inventory.find(i => this.t.state.itemInstances[i]?.definitionId === "unarmed-strike");
+  }
+
   attack(u: Unit, targetId: string, weaponId?: string): string | undefined {
     if (!this.isTurnOf(u)) return "It isn't their turn.";
     if (!this.able(u)) return `${cap(this.you(u).called)} can't attack.`;
-    const weapon = weaponId && u.weapons.includes(weaponId) ? weaponId : u.weapons[0];
-    if (!weapon) return "Nothing to attack with.";
+    const improvised = weaponId === "improvised";
+    const weapon = improvised ? this.improvised(u) : weaponId && u.weapons.includes(weaponId) ? weaponId : u.weapons[0];
+    if (!weapon) return improvised ? "There's nothing to hand to swing." : "Nothing to attack with.";
+    const label = improvised ? "Improvised weapon" : undefined;
     const prop = this.G.props[targetId];
-    if (prop) return this.attackProp(u, prop, weapon);
+    if (prop) return this.attackProp(u, prop, weapon, label);
     const target = this.unit(targetId);
     if (!target || !this.onBoard(target) || target.state === "dead") return "There's nobody there to attack.";
     if (target.id === u.id) return "Attacking yourself is a matter for the Assizes.";
@@ -356,12 +436,12 @@ export class Skirmish {
       const parried = rolled.roll.hit && !!ev && !ev["critical"] && Number(ev["total"]) < Number(ev["targetAC"]) + target.parry.bonus;
       if (parried) {
         this.t.apply([this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: target.engineId, kind: "reaction" })]);
-        const [first, ...rest] = diceLines(this.t, rolled.events, this.namer());
+        const [first, ...rest] = diceLines(this.t, rolled.events, this.namer(), label);
         this.log("dice", `${(first ?? "").replace(/: hit$/, "")}: parried! (the ${(target.weaponName ?? "blade").toLowerCase()} makes it AC ${Number(ev["targetAC"]) + target.parry.bonus})`);
         for (const l of rest) this.log("dice", l);
         this.log("narration", `${cap(target.called)} turns the blow aside with a flick of the ${(target.weaponName ?? "blade").toLowerCase()}, and looks faintly bored about it.`, target.id);
       } else {
-        this.dice(rolled.events);
+        this.dice(rolled.events, label);
         const dmg = (this.t.kit.plan["attackDamage"] as unknown as (r: unknown) => { events: Dnd.EngineEvent[] })(rolled.roll);
         this.t.apply(dmg.events);
         this.dice(dmg.events);
@@ -369,14 +449,14 @@ export class Skirmish {
     } else {
       let events: Dnd.EngineEvent[];
       try { events = this.t.plan("attack", intent); } catch (e) { return reason(e); }
-      this.dice(events);
+      this.dice(events, label);
     }
     this.settle();
     return undefined;
   }
 
   /** A blow or a shot at a thing (a lantern): the weapon's attack against its armour class. */
-  private attackProp(u: Unit, prop: Prop, weapon: string): string | undefined {
+  private attackProp(u: Unit, prop: Prop, weapon: string, label?: string): string | undefined {
     if (prop.state !== "standing" || prop.carriedBy) return `The ${prop.name} isn't something you can hit now.`;
     const check = this.attackCheck(u, { at: prop.at, id: prop.id }, weapon);
     if (check.error) return check.error;
@@ -391,7 +471,7 @@ export class Skirmish {
     const d20 = this.t.roll("1d20").total;
     const total = d20 + bonus;
     const hit = d20 === 20 || (d20 !== 1 && total >= prop.ac);
-    this.log("dice", `${this.namer().weapon(weapon)}: ${this.isYou(u) ? "your" : `${u.called}'s`} attack on the ${prop.name}: ${d20} ${signed(bonus)} = ${total} vs AC ${prop.ac}: ${hit ? "hit" : "miss"}`);
+    this.log("dice", `${label ?? this.namer().weapon(weapon)}: ${this.isYou(u) ? "your" : `${u.called}'s`} attack on the ${prop.name}: ${d20} ${signed(bonus)} = ${total} vs AC ${prop.ac}: ${hit ? "hit" : "miss"}`);
     if (hit) this.breakProp(prop, u);
     this.settle();
     return undefined;
@@ -401,10 +481,15 @@ export class Skirmish {
   // Spells.
 
   /** The spells u can cast in this fight right now: ready, with a slot, and of a kind the map plays out. */
+  /** Slots of a level u has left. */
+  freeSlots(u: Unit, level: number): number {
+    const sheet = this.t.sheet(u.engineId);
+    return (sheet.spellSlots.slotsByLevel[level - 1] ?? 0) - (this.t.char(u.engineId)?.spellSlotsUsed[String(level)] ?? 0);
+  }
+
   spellChoices(u: Unit): SpellChoice[] {
     const sheet = this.t.sheet(u.engineId);
-    const me = this.t.char(u.engineId)!;
-    const free = (l: number) => (sheet.spellSlots.slotsByLevel[l - 1] ?? 0) - (me.spellSlotsUsed[String(l)] ?? 0);
+    const free = (l: number) => this.freeSlots(u, l);
     const out: SpellChoice[] = [];
     for (const group of sheet.spellcasting?.spellsByLevel ?? []) {
       for (const sp of group.spells) {
@@ -436,13 +521,20 @@ export class Skirmish {
     return areaTiles(this.G.map, shape.shape, shape.size, u.at, at, /^self/i.test(spell.range));
   }
 
-  cast(u: Unit, spellId: string, targetId?: string, at?: Tile2): string | undefined {
+  /** `upcast`: a slot higher than the lowest the spell takes, when one's asked for. */
+  cast(u: Unit, spellId: string, targetId?: string, at?: Tile2, upcast?: number): string | undefined {
     if (!this.isTurnOf(u)) return "It isn't their turn.";
     if (!this.able(u)) return `${cap(this.you(u).called)} can't cast anything just now.`;
     const choice = this.spellChoices(u).find(s => s.id === spellId);
     const known = this.t.kit.engine.content.spells.get(spellId);
     if (!choice) return known ? `${known.name} isn't a spell ${this.isYou(u) ? "you have" : "they have"} ready to cast here (or there's no slot left for it).` : "That isn't a spell.";
-    const { spell, slot } = choice;
+    const { spell } = choice;
+    let slot = choice.slot;
+    if (upcast !== undefined && spell.level > 0 && upcast !== slot) {
+      if (upcast < spell.level) return `${spell.name} takes a ${ordinal(spell.level)}-level slot at the least.`;
+      if (this.freeSlots(u, upcast) <= 0) return `${this.isYou(u) ? "You've" : "They've"} no ${ordinal(upcast)}-level slot left.`;
+      slot = upcast;
+    }
     const use = this.usage(u);
     if (choice.bonus ? use?.bonusActionUsed : use?.actionUsed) return `${this.isYou(u) ? "You've" : "They've"} already used ${choice.bonus ? "a bonus action" : "your action"} this turn.`;
     const targetUnit = targetId ? this.unit(targetId) : undefined;
@@ -511,6 +603,115 @@ export class Skirmish {
   }
 
   /**
+   * A grab or a shove (2024: the target makes a Strength or Dexterity save against u's Strength DC,
+   * through the engine's own Grapple and Shove, which take the action): held fast (grappled, so they
+   * can't move until they're let go), knocked over (prone, until they get up as their turn starts),
+   * or pushed 5 ft away.
+   */
+  wrestle(u: Unit, targetId: string, how: "grapple" | "prone" | "push"): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't.`;
+    const target = this.unit(targetId);
+    if (!target || target.state !== "fighting") return "There's nobody there to get hold of.";
+    if (target.id === u.id) return "You can't get a grip on yourself, whatever Kell says.";
+    if (steps(u.at, target.at) > 1) return `${cap(target.called)} is out of reach (${feetBetween(u.at, target.at)} ft): you need to be right beside them.`;
+    if (!this.actionLeft(u)) return `${this.isYou(u) ? "You've" : "They've"} already used ${this.isYou(u) ? "your" : "their"} action this turn.`;
+    const from = target.at;
+    let events: Dnd.EngineEvent[];
+    try {
+      events = how === "grapple"
+        ? this.t.plan("grapple", { type: "Grapple", attackerId: u.engineId, targetId: target.engineId })
+        : this.t.plan("shove", { type: "Shove", attackerId: u.engineId, targetId: target.engineId, mode: how });
+    } catch (e) { return reason(e); }
+    const verb = how === "grapple" ? "grab hold of" : how === "prone" ? "shove over" : "shove away";
+    this.log("dice", `${how === "grapple" ? "Grapple" : "Shove"}: ${this.isYou(u) ? "you try" : `${u.called} tries`} to ${verb} ${this.you(target).called}`, u.id);
+    this.dice(events);
+    if (how === "grapple" && events.some(e => e.type === "ConditionApplied")) this.G.flags[`grappler:${target.id}`] = u.id;
+    if (how === "push" && events.some(e => e.type === "CombatantMoved")) this.pushAway(target, u, from);
+    this.settle();
+    return undefined;
+  }
+
+  /**
+   * The push itself, on the board: a tile straight away from whoever shoved (the engine moves them
+   * by its own measure, which isn't the board's feet), if there's floor there and nobody on it.
+   */
+  private pushAway(target: Unit, by: Unit, from: Tile2): void {
+    const to = { x: from.x + Math.sign(from.x - by.at.x), y: from.y + Math.sign(from.y - by.at.y) };
+    const room = !solid(this.G.map, to) && !this.occupant(to, target.id);
+    const at = room ? to : from;
+    try { this.t.plan("placeCombatant", { encounterId: this.G.encounterId, combatantId: target.engineId, position: toFeet(at) }); } catch { /* it stays where the engine has it */ }
+    target.at = at;
+    this.log("dice", room ? `${cap(this.you(target).called)} ${this.isYou(target) ? "are" : "is"} pushed back 5 ft` : `${cap(this.you(target).called)} ${this.isYou(target) ? "have" : "has"} nowhere to go: there's no room behind`, target.id);
+    if (room && this.hotAt(at)) this.log("narration", `Straight into the heat of the fire, which is nobody's idea of a good place to stand.`, target.id);
+  }
+
+  /**
+   * Words with an action behind them (2024's Influence): urging someone on the other side to give
+   * it up, leave the fight or hold back. Willing, they do it; otherwise it's a Charisma check (by
+   * the skill the words are), at disadvantage while they're still hostile, against 15 or their
+   * Intelligence, whichever is higher. A failure can't be tried the same way on them again this
+   * fight. A beast takes the meaning of a threat and nothing else.
+   */
+  influence(u: Unit, targetId: string, skill: InfluenceSkill, urge: Urge, mood: Mood): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't.`;
+    const target = this.unit(targetId);
+    if (!target || target.state !== "fighting" || !this.hostile(u, target)) return "There's nobody on the other side there to talk round.";
+    if (feetBetween(u.at, target.at) > EARSHOT) return `${cap(target.called)} is too far off to hear it (${feetBetween(u.at, target.at)} ft).`;
+    if (skill !== "intimidation" && !this.understands(target)) return `${cap(target.called)} doesn't understand a word of it: only a threat gets through.`;
+    const tried = `urged:${target.id}:${skill}`;
+    if (this.G.flags[tried]) return `${cap(this.you(u).called)} tried that on ${target.called} already: the same ${skill} won't work twice in one fight.`;
+    if (!this.actionLeft(u)) return "Urging them takes your action, and you've used it this turn.";
+    this.t.apply([this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "action" })]);
+    const willing = mood === "willing" || this.rollInfluence(u, target, skill, urge, mood);
+    if (mood === "willing") this.log("system", `No roll needed: ${target.called} was ready ${URGED[urge]}.`, target.id);
+    if (!willing) this.G.flags[tried] = true;
+    else this.comply(target, urge);
+    this.settle();
+    return undefined;
+  }
+
+  /** The Influence check, through the engine; true if it worked. */
+  private rollInfluence(u: Unit, target: Unit, skill: InfluenceSkill, urge: Urge, mood: Mood): boolean {
+    const dc = Math.max(15, this.t.char(target.engineId)?.abilityScores.INT ?? 10);
+    const events = this.t.plan("abilityCheck", { type: "AbilityCheck", characterId: u.engineId, ability: "CHA", skill, dc, ...(mood === "hostile" ? { advantage: "disadvantage" } : {}) });
+    const roll = events.find(e => e.type === "AbilityCheckRolled");
+    const success = roll?.["success"] === true;
+    const d20 = ((roll?.["d20"] as number[] | undefined) ?? []).join("/");
+    const used = roll?.["used"] && roll["used"] !== "none" ? ` (${roll["used"]})` : "";
+    this.log("dice", `${SKILL_NAME(skill)} (Influence): ${this.isYou(u) ? "you urge" : `${u.called} urges`} ${target.called} ${URGED[urge]}: ${d20}${used} ${signed(Number(roll?.["bonus"] ?? 0))} = ${roll?.["total"]} vs DC ${dc}: ${success ? "success" : "failure"}`, u.id);
+    return success;
+  }
+
+  /** Talked round: hands up now, or the way out on their turn (giving up if they can't get there), or a turn let go by. */
+  private comply(target: Unit, urge: Urge): void {
+    if (urge === "yield") { this.surrender(target); return; }
+    this.G.flags[`urged:${target.id}`] = urge;
+    this.log("system", urge === "go" ? `${cap(target.called)} will leave the fight: on their turn it's the way out, or hands up if there's no getting there.` : `${cap(target.called)} will hold back on their next turn.`, target.id);
+  }
+
+  /**
+   * A look or a think (2024's Search and Study, each an action): a Wisdom or Intelligence check by
+   * the skill, through the engine. It changes nothing on the board: what it finds is the GM's to
+   * say, within what's there.
+   */
+  check(u: Unit, skill: CheckSkill, dc: number): string | undefined {
+    if (!this.isTurnOf(u)) return "It isn't their turn.";
+    if (!this.able(u)) return `${cap(this.you(u).called)} can't.`;
+    const search = SEARCH_SKILLS.includes(skill);
+    if (!search && !STUDY_SKILLS.includes(skill)) return `${SKILL_NAME(skill)} isn't something to roll here.`;
+    if (!this.actionLeft(u)) return `${this.isYou(u) ? "You've" : "They've"} already used ${this.isYou(u) ? "your" : "their"} action this turn.`;
+    this.t.apply([this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "action" })]);
+    const events = this.t.plan("abilityCheck", { type: "AbilityCheck", characterId: u.engineId, ability: search ? "WIS" : "INT", skill, dc });
+    const roll = events.find(e => e.type === "AbilityCheckRolled");
+    const d20 = ((roll?.["d20"] as number[] | undefined) ?? []).join("/");
+    this.log("dice", `${SKILL_NAME(skill)} check (${search ? "Search" : "Study"}): ${d20} ${signed(Number(roll?.["bonus"] ?? 0))} = ${roll?.["total"]} vs DC ${dc}: ${roll?.["success"] === true ? "success" : "failure"}`, u.id);
+    this.settle();
+    return undefined;
+  }
+
+  /**
    * Nerve: when the people paying for (or standing beside) them are gone, the engine's morale roll
    * (a d20 plus Wisdom against a DC) says whether they fight on like a cornered rat or give it up.
    */
@@ -543,6 +744,7 @@ export class Skirmish {
 
   private offMap(u: Unit, state: "fled" | "surrendered"): void {
     u.state = state;
+    if (u.side === "enemy") this.G.flags["last_out"] = state === "surrendered" ? "yielded" : "fled";
     try { this.t.plan("placeCombatant", { encounterId: this.G.encounterId, combatantId: u.engineId, position: { x: OFF_MAP.x - this.G.order.indexOf(u.id) * 10, y: OFF_MAP.y } }); } catch { /* already gone */ }
     if (state === "fled") for (const p of Object.values(this.G.props).filter(p => p.carriedBy === u.id)) delete this.G.props[p.id];
   }
@@ -713,8 +915,10 @@ export class Skirmish {
     if (pc.state === "fled") return this.end("fled");
     const enemies = this.units.filter(u => u.side === "enemy");
     if (!enemies.some(u => this.able(u) && u.role !== "coward")) {
+      // They gave up: the villain yielded, or (with nobody in charge) the last of them put their hands up.
       const villain = enemies.find(u => u.role === "villain");
-      return this.end(villain?.state === "surrendered" ? "surrender" : "victory");
+      const yielded = villain ? villain.state === "surrendered" : this.G.flags["last_out"] === "yielded";
+      return this.end(yielded ? "surrender" : "victory");
     }
     if (!this.units.some(u => (u.side === "player" || u.side === "ally") && this.able(u))) return this.end("defeat");
   }
@@ -724,7 +928,8 @@ export class Skirmish {
     // Beaten by Hep's gang before the Master came, there are no good shoes to see.
     // Beaten: by the master (his shoes), by a gang of porters (their boots), or by whoever else.
     const gang = this.units.some(u => u.side === "enemy" && (u.castId === "hep" || /porter/i.test(u.id)));
-    this.say(outcome === "defeat" && !this.units.some(u => u.role === "villain") ? (gang ? "defeat:gang" : "defeat:any") : outcome);
+    const villainless = !this.units.some(u => u.role === "villain");
+    this.say(outcome === "defeat" && villainless ? (gang ? "defeat:gang" : "defeat:any") : outcome === "surrender" && villainless ? "surrender:yielded" : outcome);
     // Won: the sergeant (on her feet, or come round with a lump like a hen's egg) puts the irons on the beaten.
     const sergeant = this.units.find(u => u.side === "ally" && u.castId === "kell" && u.state !== "fled");
     if (sergeant && (outcome === "victory" || outcome === "surrender")) {
@@ -747,7 +952,7 @@ export class Skirmish {
     const u = this.pc();
     const ready = this.isTurnOf(u) && this.able(u) && !this.G.outcome;
     const use = this.usage(u);
-    const empty: PlayerOptions = { ready: false, movementLeft: 0, actionUsed: true, moves: [], attacks: [], spells: [], props: [], dash: false, dodge: false, disengage: false };
+    const empty: PlayerOptions = { ready: false, movementLeft: 0, actionUsed: true, moves: [], attacks: [], spells: [], props: [], wrestle: [], hear: [], bonusActionUsed: true, dash: false, dodge: false, disengage: false };
     if (!ready || !use) return empty;
     const canAttack = !use.actionUsed || (use.attacksMadeThisTurn > 0 && use.attacksMadeThisTurn < this.attacksPerAction(u));
     const targets = this.units.filter(v => v.state === "fighting" && this.hostile(u, v) && v.role !== "coward");
@@ -774,9 +979,12 @@ export class Skirmish {
     }));
     const props = use.actionUsed ? [] : Object.values(this.G.props).filter(p => p.state === "standing" && !p.carriedBy && steps(u.at, p.at) <= 1)
       .map(p => ({ id: p.id, name: p.name, how: p.kind === "brazier" ? "kick it over" : "bring it down" }));
+    // A grab or a shove for whoever's beside you; a word with weight for whoever can hear it.
+    const wrestle = use.actionUsed ? [] : targets.filter(v => steps(u.at, v.at) <= 1).map(v => ({ id: v.id, name: v.name }));
+    const hear = use.actionUsed ? [] : targets.filter(v => this.able(v) && feetBetween(u.at, v.at) <= EARSHOT).map(v => ({ id: v.id, name: v.name, understands: this.understands(v) }));
     const exit = this.exitAt(u.at);
     return {
-      ready, movementLeft: this.movementLeft(u), actionUsed: use.actionUsed, moves: this.moveTargets(u), attacks, spells, props,
+      ready, movementLeft: this.movementLeft(u), actionUsed: use.actionUsed, moves: this.moveTargets(u), attacks, spells, props, wrestle, hear, bonusActionUsed: use.bonusActionUsed,
       dash: !use.actionUsed && !use.dashed, dodge: !use.actionUsed, disengage: !use.actionUsed && !use.disengaged,
       ...(exit ? { leave: exit.label } : {}),
     };
