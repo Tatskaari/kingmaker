@@ -169,11 +169,14 @@ sequenceDiagram
     RT->>Lore: disclose
     Lore->>LLM: Jev opens the notes that bear on it (memory.disclose.*)
   and
-    RT->>LLM: decideBefore: what is the player attempting? (director.before)
-  and
-    RT->>LLM: the quick co-GM (repair.quick)
+    RT->>LLM: decideBefore: what is the player attempting? does it want a roll no route settles? (director.before)
   end
   RT->>RW: roll a route's check, or resolve a spell, a blow, a jump
+  opt a considered turn: a roll no route settles, or a plan off the graph
+    RT->>LLM: the GM's review: a roll or not, the DC, what each outcome changes (consider)
+    RT-->>App: each step as it starts (onStep): the status line moves on
+    RT->>RW: roll it, and apply the outcome as a route's
+  end
   RT-->>App: dice lines (onEntry)
   RT->>LLM: gmReply: the prep, the scene so far, "For this reply" (gm.reply)
   LLM-->>App: the reply so far, as it streams (onText)
@@ -197,7 +200,8 @@ sequenceDiagram
 ```
 
 - **The rules go first** with what the last reply left hanging (a timed spell running out, fire spreading in the world, a blow or a danger that lands on the player), and the GM is told their outcome before anything else.
-- **One decider call before the reply** asks everything the turn needs: is the player attempting one of the scene's routes, something risky that no route covers, or something the rules resolve; should a pacing cue fire; is it off the graph. Disclosure and the quick co-GM run alongside it, and an off-graph turn waits for the co-GM until 3 s after it began. The rules then settle what's theirs, and each decision reaches the GM as a directive under "For this reply".
+- **One decider call before the reply** asks everything the turn needs: is the player attempting one of the scene's routes, or something the rules resolve; would a GM call for a roll, and is it what a route is for; should a pacing cue fire; is it off the graph. Disclosure runs alongside it. The rules then settle what's theirs, and each decision reaches the GM as a directive under "For this reply".
+- **A considered turn** is one where a roll is wanted and nothing the author wrote settles it (another person, another ask, a plan nobody wrote). The GM reviews it before replying, with the whole prep: whether to roll at all, the skill, the DC (from the guidance's stakes, leverage and disposition), and what success and failure each change in the scene. The ruling is a route of its own, rolled and applied like any route's, and the reply plays what was decided. Those turns take a few seconds longer (first text at about 5 to 7 s), and the app's status line says the GM is considering, a step at a time ([src/runtime/README.md](src/runtime/README.md#one-player-turn), [docs/guide/running.md](docs/guide/running.md)). `v2-quick` is the game as it was: an off-graph turn waited up to 3 s for the quick co-GM instead.
 - **The reply streams.** The runtime calls the app's `onText` hook with the text so far as it grows. In a real 13-turn game the GM's first words came a median 1.4 s after the player's line ([productionise.md](docs/design/productionise.md#prediction)).
 - **The turn saves once, at its end** ([src/runtime/engine.ts:623](src/runtime/engine.ts#L623)). A call that fails before then leaves the session changed in memory, so the app goes back to the last save ([src/app/game.ts:1002](src/app/game.ts#L1002)).
 - **Nothing waits for the background jobs.** The next turn merges the co-GM's notes if they've come and are for the same scene, and disclosure finds the new memories if the review has finished. In a terminal the jobs are separate processes that outlive the game.
@@ -289,7 +293,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (297) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 13 s | yes |
+| The unit tests alone (350) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 13 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |
@@ -356,7 +360,7 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 - **New session state** goes in `STORY_WIDE` or is reset by `freshScene`; otherwise it leaks into the next scene, or a talk undoes it. The eval fixtures are snapshots of an older `SessionState`, and nothing migrates them.
 - **No unit of work.** A turn or an act changes the live game as it goes and saves at the end, so a model call that fails part way leaves memory and disk apart ([src/game/README.md](src/game/README.md#known-gaps-and-sharp-edges)).
 - **The dice stream.** Every call that opens the rules engine moves the session's roll count, so adding or removing one changes every later roll in a seeded game.
-- **Latency.** The budget is about 5 s to the text that answers the player. A new model call in a turn should run alongside the decision or the after-reply decision, not in front of the reply.
+- **Latency.** The budget is about 5 s to the text that answers the player. A new model call in a turn should run alongside the decision or the after-reply decision, not in front of the reply. The GM's review on a considered turn is the one call that's in front of the reply on purpose, on those turns only, with the app saying so.
 - **The browser.** A file the game newly reads with `fs` has to be in the static build's allowlist, or the browser won't have it. A new Node API needs a stand-in: without one the build fails, and with one that can't do it the game fails in play.
 - **Process-wide state** is shared by every game in the process ([in memory](#in-memory)).
 - **The story is in the code.** `FIRST_SCENE`, Kell's lines, the Heron's fight and Sallow's statblock live in src/game, src/game/map and src/game/combat, so a change to the story can need a change there.

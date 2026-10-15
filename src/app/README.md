@@ -137,8 +137,8 @@ stateDiagram-v2
 **A turn in a scene:**
 
 1. The box submits a line to `Game.input` (game.ts:985). A `/command` goes first: `peek` opens the sheet, `/map`, the notebook or the help at any time, and `command` does the rest.
-2. The controller sets `busy` (one of the GM's excuses), and `watch()` checks every 250 ms whether the scene has ended mid-turn (`notice`).
-3. `core.say(text, this.hooks())` plays the turn. The hooks stream it: `onSpeaker` starts the live line, `onText` grows it (a redraw at most every 33 ms), and `onEntry` puts each finished line in the transcript and plays it in the scene's look (`animate`: the spells, the numbers, the barks).
+2. The controller sets `busy` (one of the GM's excuses: `GM_BUSY`'s 25 lines, dealt like cards by `BusyLines`, so the same one never shows twice running), and `watch()` checks every 250 ms whether the scene has ended mid-turn (`notice`).
+3. `core.say(text, this.hooks())` plays the turn. The hooks stream it: `onStep` moves the status line on during a considered turn (it opens on "The GM is considering the ramifications of your actions…", then the next excuse at each step of the GM's ruling: the review, its weighing, its success and failure, the roll), `onSpeaker` starts the live line, `onText` grows it (a redraw at most every 33 ms), and `onEntry` puts each finished line in the transcript and plays it in the scene's look (`animate`: the spells, the numbers, the barks). The browser builds run this same app, so they show the same lines.
 4. Afterwards `observeScene` animates what the stage manager changed (and `repairCampaign` runs: a leftover, see the gaps below).
 5. If the turn fails part-way, the controller reloads the last save (`Core.load`) and says the turn didn't happen.
 6. `settle` brings the notebook up to date. A scene that's over stays on screen (`over`) with what comes next made ready: Kell with the news, or the card. `continueScene` goes on when the player presses an Enter of their own or clicks.

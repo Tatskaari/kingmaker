@@ -21,12 +21,13 @@ A session plays one authored scene at a time ([scenes/](../../scenes/README.md))
 | File | What's in it |
 |---|---|
 | [engine.ts](engine.ts) | The turn pipeline: `createSession`, `openScene`, `playerTurn`, `resumeAfterFight`, `forceEnding` and `chainScene`. The boundary (`crossBoundary`, `moveOn`, `boundaryPreview`), the zoo's hub scenes (`openHubScene`, `closeHubScene`), and reactions to violence (`violence`, `witnessesOf`, `react`). |
-| [director.ts](director.ts) | What the decider is asked before the reply (`decideBefore`) and after it (`decideAfter`). The follow-up calls (a spell's or blow's details, a jump, a freeform roll, pressure), `decideReactions`, `decideNextSpeaker` for actors, and the directives that tell the GM what was decided. |
+| [director.ts](director.ts) | What the decider is asked before the reply (`decideBefore`, with the considered-rolls flag) and after it (`decideAfter`). The follow-up calls (a spell's or blow's details, a jump, a freeform roll, pressure), `decideReactions`, `decideNextSpeaker` for actors, and the directives that tell the GM what was decided. |
+| [consider.ts](consider.ts) | Considered rolls: the GM's review of a flagged act (`considerAct`, [prompts/consider.md](../../prompts/consider.md)), the verdict from its judgements (`verdict`: yes, no or a DC), and the ruling settled as a route of its own (`settleRuling`). |
 | [voices.ts](voices.ts) | The GM (`gmReply`), the narrator and the actors (`narratorReply`, `actorReply`), and the guard against repeated sentences. |
 | [brief.ts](brief.ts) | What the GM is shown: the stable prep (`sceneBrief`) and the per-turn note (`nowNote`). Also the scene as play has it (`effectiveScene`: the authored scene, the co-GM's patches and "an ending of their own"), who is present, whose names the player hasn't heard, and the prompt loader (`prompt`). |
 | [scene.ts](scene.ts) | The Scene format's types, and `validateScene`. The scenes themselves are in [scenes/](../../scenes/README.md). |
 | [session.ts](session.ts) | `SessionState` and its files: `saveSession`, `snapshotSession`, `loadSession`. |
-| [approaches.ts](approaches.ts) | The 27 approaches (`v2` is the game's), and `sceneApproach`, which applies a scene's own overrides. |
+| [approaches.ts](approaches.ts) | The 28 approaches (`v2` is the game's; `v2-quick` is `v2` before considered rolls), and `sceneApproach`, which applies a scene's own overrides. |
 | [repair.ts](repair.ts) | The co-GM: the full review (`runRepair`) and the quick one (`quickRepair`), and how their notes, whispers and patches apply. |
 | [background.ts](background.ts), [jobs.ts](jobs.ts) | The work after each turn (the memory review and the co-GM's review). `afterTurn` starts it, and jobs.ts is what it runs. |
 | [talk.ts](talk.ts) | Talks with a companion between scenes. |
@@ -35,7 +36,7 @@ A session plays one authored scene at a time ([scenes/](../../scenes/README.md))
 **State.** One `SessionState` per game ([session.ts:125](session.ts#L125)), a mutable JSON object:
 
 - **The story,** kept across scenes: the player, the turn count, the dice's seed and count, the transcript, per-turn metrics, the rules engine's campaign (`rules`), `history` (each finished scene's hand-off, its last moments, scenes skipped and fronts moved) and `talks`.
-- **The scene's own,** reset by `freshScene` ([engine.ts:709](engine.ts#L709)) when the next scene starts: the beat and the `path` of moves, facts established, the co-GM's notes, whispers and patches, who has entered or is absent, the scene's status, the memory notes opened, essentials landed or hinted, staged secrets (`guard`), exits already fought, and the place's `world`.
+- **The scene's own,** reset by `freshScene` ([engine.ts:709](engine.ts#L709)) when the next scene starts: the beat and the `path` of moves, facts established, the co-GM's notes, whispers and patches, the GM's `rulings` on considered turns, who has entered or is absent, the scene's status, the memory notes opened, essentials landed or hinted, staged secrets (`guard`), exits already fought, and the place's `world`.
 - **What's pending:** `pendingExit` (an ending held for the player's answer), `closing` (a wind-down turn), `endingLead`, `threat` (a blow or a danger that lands next turn), `brawl` and `ended`.
 - **From the boundary:** `adjustments`, `opening`, `lead`, and what the player `carried` out of the last scene's world.
 
@@ -112,7 +113,7 @@ sequenceDiagram
   participant Core as Game core
   participant Turn as playerTurn
   participant Dir as Director
-  participant Co as Quick co-GM
+  participant Rev as The GM's review
   participant Mem as Disclosure
   participant Rules as Rules and world
   participant GM as GM voice
@@ -122,8 +123,6 @@ sequenceDiagram
   Turn->>Turn: merge the co-GM's results, log the line
   Turn->>Rules: what the last reply left hanging (a blow, a spell's time, fire)
   par alongside the decision
-    Turn->>Co: quickRepair (repair.quick)
-  and
     Turn->>Mem: disclose (memory.disclose)
   and
     Turn->>Dir: decideBefore (director.before)
@@ -131,9 +130,10 @@ sequenceDiagram
   Dir->>Rules: roll a route's check
   Dir-->>Turn: the move, the rules' act, the flags
   Turn->>Rules: resolve the act, then reactions (director.reactions)
-  opt off the graph
-    Co-->>Turn: a new route, within 3 s
-    Turn->>Dir: decideBefore again
+  opt flagged: a roll no route settles, or a plan off the graph
+    Turn->>Rev: considerAct (consider): a roll or not, the DC, what each outcome changes
+    Rev-->>Core: onStep, as each part starts (the status line moves on)
+    Turn->>Rules: roll it, and apply the outcome like a route's
   end
   Turn->>GM: gmReply(directives)
   GM-->>Core: onText, as it streams (gm.reply)
@@ -149,12 +149,13 @@ sequenceDiagram
 ```
 
 1. **Before the decision** ([engine.ts:197](engine.ts#L197)). Co-GM results that have arrived since the last turn are merged (`applyPendingRepairs`), and the scene is the authored one plus their patches. A wind-down turn (`state.closing`) only closes the scene ([engine.ts:229](engine.ts#L229)). Otherwise the rules go first: a timed spell running out, fire spreading in the world, and a blow or danger the last reply left hanging (`state.threat`) all land before the player's act ([engine.ts:248](engine.ts#L248)).
-2. **The decision** ([director.ts:412](director.ts#L412)). One decider call asks every question the turn needs at once. Is the player attempting one of the scene's routes, doing something that simply happens, or trying something risky that no route covers? By what means? Should a pacing cue fire? Is this off the graph? Should a missed essential reach them through someone else? Are they pressing someone's secret, or have they earned the payoff? Is it daft enough to send a bill? Is it something the rules resolve? Is it out of character, or past the scene's limits? For actors, who speaks first? A second, smaller call follows only when needed: a spell's or blow's details (`director.mechanic`), a jump, a class feature, a freeform roll's skill and difficulty, or pressure.
+2. **The decision** ([director.ts:412](director.ts#L412)). One decider call asks every question the turn needs at once. Is the player attempting one of the scene's routes, or doing something that simply happens? By what means? Would a GM call for a roll, and is it what one of the routes with a roll is for (`roll_call`, the considered-rolls flag)? Should a pacing cue fire? Is this off the graph? Should a missed essential reach them through someone else? Are they pressing someone's secret, or have they earned the payoff? Is it daft enough to send a bill? Is it something the rules resolve? Is it out of character, or past the scene's limits? For actors, who speaks first? A second, smaller call follows only when needed: a spell's or blow's details (`director.mechanic`), a jump, a class feature, a freeform roll's skill and difficulty (in approaches with `freeformChecks`), or pressure.
 3. **What the dice and the rules decide.** A route's check is rolled (`rollFor`) and the move applied: a new beat, facts established, perhaps an ending. The rules resolve a spell, blow, grapple, jump, feature or rest, and violence draws a reaction from everyone present. Each decision becomes a directive, a short paragraph under "For this reply" in the GM's note.
-4. **Off the graph** ([engine.ts:420](engine.ts#L420)). In `v2`, a turn the decider judged off the graph waits for the quick co-GM until 3 s after the turn began. If it opened a route, the turn is decided again with it. A late answer is written as a repair file and lands next turn.
-5. **The reply.** One streamed GM call (`gm.reply`). For actors, up to four lines in all, the narrator's and the characters', with the decider choosing who speaks next (`director.next`).
-6. **After the reply, in parallel.** The stage manager writes what the reply established into the world (`world.stage`, [src/world/stage.ts](../world/stage.ts)). `decideAfter` ([director.ts:851](director.ts#L851)) reads what happened: an outcome route, which ending the story is at, the scene's status, essentials landed or hinted, how far secret-holders have opened up, a threat hanging over the player, and whether they've left the place.
-7. **Endings, gear and the save.** The table below says how a scene ends. Gear the story moved to or from the player changes their sheet; the turn's metric goes in `state.metrics`; the state and a snapshot are written. The caller then runs `afterTurn`.
+4. **Considered rolls** (`v2`, [consider.ts](consider.ts)). A roll is wanted ("route" and "new" together at 0.7) and nothing the author wrote settles it (no route's roll the decider chose and didn't call another's act, no route without dice, no ending the player simply reaches, no payoff already earned, nothing the rules resolve, no limit), or it's a plan off the graph. Then nothing is rolled in the decision, and the GM reviews it before replying: one Luna call with the whole prep, which judges who's being worked on and by what skill, the guidance's stakes, approach and disposition (or a feat's difficulty), and what success and failure each change (where the scene goes, the authored route it counts as, the facts, what comes out, the ways of trying it shuts). Code turns the judgements into yes, no or a DC ([docs/research/dc-guidance.md](../../docs/research/dc-guidance.md)'s grid, leaning to the dice). The ruling is a route of its own (`considered-N`), rolled and applied like any route: the dice line, the beat or ending, the facts, a directive that says what was decided and that it stands. No bill or earned payoff goes on top. `hooks.onStep` hears each part start, for the app's status line. If the review fails, a wanted roll is still made as a freeform check.
+5. **Off the graph, in `v2-quick`** ([engine.ts:420](engine.ts#L420)). A turn the decider judged off the graph waits for the quick co-GM until 3 s after the turn began. If it opened a route, the turn is decided again with it. A late answer is written as a repair file and lands next turn.
+6. **The reply.** One streamed GM call (`gm.reply`). For actors, up to four lines in all, the narrator's and the characters', with the decider choosing who speaks next (`director.next`).
+7. **After the reply, in parallel.** The stage manager writes what the reply established into the world (`world.stage`, [src/world/stage.ts](../world/stage.ts)). `decideAfter` ([director.ts:851](director.ts#L851)) reads what happened: an outcome route, which ending the story is at, the scene's status, essentials landed or hinted, how far secret-holders have opened up, a threat hanging over the player, and whether they've left the place.
+8. **Endings, gear and the save.** The table below says how a scene ends. Gear the story moved to or from the player changes their sheet; the turn's metric goes in `state.metrics`; the state and a snapshot are written. The caller then runs `afterTurn`.
 
 ### How a scene ends
 
@@ -175,14 +176,16 @@ Every scene has "an ending of their own" (`own-ending`, [brief.ts:25](brief.ts#L
 |---|---|---|
 | `voice` | `gm`: one GM voices everyone. `actors`: a narrator, and a call per character from their own card. | `gm` |
 | `decider` | Who answers the director's questions ([src/llm/decide.ts](../llm/decide.ts)) | `luna-decisions` |
-| `repair` | When the co-GM runs: `off`, `background`, `blocking` (before each reply), `stall` (a holding beat, then a follow-up), `quick-block` (wait for the quick co-GM on off-graph turns) | `quick-block`, 3 s |
+| `repair` | When the co-GM runs: `off`, `background`, `blocking` (before each reply), `stall` (a holding beat, then a follow-up), `quick-block` (wait for the quick co-GM on off-graph turns) | `background` (`v2-quick`: `quick-block`, 3 s) |
+| `considered` | Considered rolls: an act a roll should settle that no route does, or a plan off the graph, is ruled on by the GM before the reply (a roll or not, the DC, what each outcome changes); those turns take a few seconds longer | on |
 | `memory` | `docs`: the docs service each turn, and the background reviews. `lite`: one merged review. Unset: hand-offs only. | `docs` |
 | `tone` | `comic` adds [prompts/tone-comic.md](../../prompts/tone-comic.md) to the GM's prompt | `comic` |
-| `consequences`, `freeformChecks` | The "daft" question and its bill; a roll for a risky attempt that no route covers | on |
+| `consequences` | The "daft" question and its bill (not on a considered turn: the ruling carries its consequences) | on |
+| `freeformChecks` | A roll on the decider's skill and difficulty for a risky attempt that no route covers (what considered rolls replace) | off (`v2-quick`: on) |
 | `pressureRolls`, `staging` | Pressing someone for a secret is ruled yes, no, or a roll at DC 12, 15 or 18; staged secrets (surface, tell, stirred, torn, settled) | off |
 | `speculative`, `deciderRelocation`, `hideEssentials`, `effort`, `repairEffort` | Experiments: the reply started alongside the decision, the decider moving missed essentials, no essentials in the prep, reasoning for the voices and the co-GM | off |
 
-A scene can set any of these for itself (`Scene.approach`, through `sceneApproach`, [approaches.ts:104](approaches.ts#L104)). A talk turns the co-GM and freeform rolls off and staged secrets on.
+A scene can set any of these for itself (`Scene.approach`, through `sceneApproach`, [approaches.ts:104](approaches.ts#L104)). A talk turns the co-GM, freeform rolls and rulings off and staged secrets on. The other `v2-*` presets (`v2-staged`, `v2-pressure` and the rest) are the experiments as they were run, with the quick co-GM's wait and no rulings.
 
 ### What the GM sees
 
@@ -199,7 +202,7 @@ The order serves the provider's prompt cache: what's stable comes first, so a ne
 ### The co-GM and the background jobs
 
 - **The full co-GM** (`runRepair`, [repair.ts:125](repair.ts#L125)) uses [prompts/repair.md](../../prompts/repair.md) with Luna at medium reasoning. Its JSON schema's enums are built from the scene's own ids, so it can only point at beats, endings, people and essentials that exist. It returns notes for the GM (they last two turns), whispers to characters (one turn), canon to keep true, relocated essentials, "no, but" alternatives, a beat the story has already reached, a bridging beat and new routes. The patches go in `state.patches` and are seen through `effectiveScene`; the authored scene is never edited.
-- **The quick co-GM** (`quickRepair`, [repair.ts:260](repair.ts#L260)) is one small call with no reasoning. It makes the smallest move: open a route to an existing beat or ending (with a roll if the outcome is uncertain), bring a missed essential through someone present, or leave a note.
+- **The quick co-GM** (`quickRepair`, [repair.ts:260](repair.ts#L260)) is one small call with no reasoning, in `v2-quick` and the other quick-block presets. It makes the smallest move: open a route to an existing beat or ending (with a roll if the outcome is uncertain), bring a missed essential through someone present, or leave a note. In `v2`, the GM's review on a considered turn does that job inside the turn, and nothing runs it alongside every decision.
 - **After each turn,** `afterTurn` ([background.ts:37](background.ts#L37)) starts the memory review when the approach has memory. It starts the full co-GM for `background`, `stall` and `quick-block` approaches when `shouldRepair` ([repair.ts:246](repair.ts#L246)) says so: off the graph this turn, a status other than on track, or three turns since the last review. Each job is a detached `node src/cli/scene.ts remember|repair <id> --turn N`. In the browser, `setBackgroundRunner` runs the same functions (jobs.ts) in the worker.
 - **Nothing waits for them.** The co-GM's `repair-NNN.json` is merged at the start of the next turn if it's for the same scene. The memory review writes into this game's docs, where the next disclosure finds it if the review has finished.
 
@@ -228,18 +231,18 @@ The rules may resolve an act that hurt or caught people, or set something burnin
 
 ## Where to look first
 
-- **`playerTurn`** ([engine.ts:197](engine.ts#L197) to 626) is 430 lines with four reply strategies inline: `quick-block`, `stall`, a plain GM reply, and actors. A change to one path can change another, so check which approach flags gate it, and run `v2` as well as the approach the change is for.
+- **`playerTurn`** ([engine.ts:197](engine.ts#L197)) is about 470 lines with five reply strategies inline: a considered turn, `quick-block`, `stall`, a plain GM reply, and actors. A change to one path can change another, so check which approach flags gate it, and run `v2` as well as the approach the change is for. A move before the reply (a route's, or a ruling's) goes through `applyMove` and `moveTaken` either way.
 - **New session state.** A field added to `SessionState` needs a decision. If it's the story's, it goes in `STORY_WIDE` ([talk.ts:40](talk.ts#L40)), or a talk undoes it. If it's the scene's, `freshScene` ([engine.ts:709](engine.ts#L709)) resets it, or it leaks into the next scene; and `resumeAfterFight` clears it if a fight should.
-- **The decider's questions are the logic.** The wording in director.ts is what the model judges, and the thresholds decide what counts: 0.6 (`SCENE_ENDING_CONFIDENCE`, [director.ts:61](director.ts#L61)) for endings, rolls, limits, pressure and the rules' act, and 0.45 for an ordinary route ([director.ts:535](director.ts#L535)). A reworded question needs the decision suite.
+- **The decider's questions are the logic.** The wording in director.ts is what the model judges, and the thresholds decide what counts: 0.6 (`SCENE_ENDING_CONFIDENCE`, [director.ts:61](director.ts#L61)) for endings, rolls, limits, pressure and the rules' act, 0.7 (`CONSIDER_CONFIDENCE`) for the considered-rolls flag, and 0.45 for an ordinary route. A reworded question needs the decision suite. The review's verdict (yes, no or a DC) is code, from its judgements (`verdict` in consider.ts), so it can be tested offline.
 - **Directives are matched by their opening words.** The engine drops a directive by its prefix when a later decision overrides it ("This reply closes the scene", "Something the scene needs is within reach": [engine.ts:330](engine.ts#L330), [:365](engine.ts#L365), [:438](engine.ts#L438)). Rewording one breaks its filter without an error.
 - **The brief.** Anything added to `sceneBrief` or `nowNote` goes to the GM on every turn. Keep what's stable in the prep and what changes in the note.
-- **Latency.** The budget is about 5 s to the text that answers the player. A new model call in the turn should run alongside the decision or the after-reply decision, not in front of the reply.
+- **Latency.** The budget is about 5 s to the text that answers the player. A new model call in the turn should run alongside the decision or the after-reply decision, not in front of the reply. The one exception is a considered turn: the GM's review is in front of the reply on purpose (about 3.5 s, so first text at about 5 to 7 s), only on the turns the flag sends there, and the app says the GM is considering.
 - **What may fail.** Calls wrapped in `.catch(() => undefined)` are best effort: presence, disclosure, the co-GM, the stage manager, the boundary's three calls. The GM reply and the decisions aren't, and a failure there fails the turn.
 
 ## How to test it
 
 ```sh
-node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider, and talks: offline
+node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider, considered rolls (a turn through playerTurn with OpenRouter stood in for), and talks: offline
 npm test                                          # every unit test (npm run check adds the typecheck and the screens check)
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the arc through the game core, offline
 npm run scene -- start drowned-rat --session t1   # live; then say, status and transcript
@@ -251,14 +254,15 @@ npm run eval -- --suite opening                            # does the next scene
 node --no-warnings src/game/zoo/tour.ts --live              # the zoo's tour with the real GM: the Theatre has a scene per mechanism
 ```
 
-Offline, the flow smoke's openings fail (as expected), `/end` takes each scene's exit, and the boundary falls back to its plain hand-off. `npm run scene -- status <id>` shows the path (every move, its roll and its source), the co-GM's notes and patches, latency and cost. A live session's model calls, with their whole prompts, are in `runs/sessions/<id>/calls.jsonl`.
+Offline, the flow smoke's openings fail (as expected), `/end` takes each scene's exit, and the boundary falls back to its plain hand-off. `npm run scene -- status <id>` shows the path (every move, its roll and its source), the GM's rulings, the co-GM's notes and patches, latency and cost. A report (`npm run report -- inspect`) shows each considered turn's ruling and how long it took. A live session's model calls, with their whole prompts, are in `runs/sessions/<id>/calls.jsonl` (the review is `consider`).
 
 ## Known gaps and sharp edges
 
-- **No test drives `playerTurn`, `openScene` or `chainScene`.** The unit tests cover `decideBefore` and talks. Offline, the flow smoke ends every scene with `forceEnding`, so turns only run live: the evals, the smoke tests' `--live`, the zoo tour's `--live`.
+- **Few tests drive `playerTurn`, and none `openScene` or `chainScene`.** The unit tests cover `decideBefore`, talks, and a considered turn and an ordinary one through `playerTurn` with OpenRouter stood in for (consider.test.ts; the report tests play two more). Offline, the flow smoke ends every scene with `forceEnding`, so most turns only run live: the evals, the smoke tests' `--live`, the zoo tour's `--live`.
 - **A scene's `approach` doesn't reach everything.** `playerTurn`, `afterTurn` and talks read it through `sceneApproach`. `openScene` ([engine.ts:114](engine.ts#L114)), the voices ([voices.ts:10](voices.ts#L10), [:67](voices.ts#L67)) and the memory job ([jobs.ts:35](jobs.ts#L35)) read the session's approach.
 - **A brawl isn't fought on the map.** Nothing outside the engine reads `state.brawl`, though its comment ([session.ts:189](session.ts#L189)) says the game plays it out there. In the game too, the first fighter swings at the start of the next turn, and only a scene's own combat exit takes a fight to the map. Once a brawl has started, later violence in that scene draws no reactions ([engine.ts:354](engine.ts#L354)).
-- **The quick co-GM runs on every `v2` turn** ([engine.ts:293](engine.ts#L293)) but is used only off the graph. Its cost is in the ledger, but in the turn's metric only when it was used; the background jobs' costs never are.
+- **The quick co-GM runs on every `v2-quick` turn** ([engine.ts:293](engine.ts#L293)) but is used only off the graph. Its cost is in the ledger, but in the turn's metric only when it was used; the background jobs' costs never are. A late quick result and the background review of the same turn write the same `repair-NNN.json`, and the later one wins.
+- **Considered rolls are a spike.** The flag's bar (0.7) and wording were tuned on three QA runs of the hanged clerk and a few live turns, not the decision suite; the verdict leans to the dice on purpose (yes only when overwhelming, a long shot at 18). A ruling's outcomes are narrative plus facts, a beat or ending, and ways of trying shut: it can't hurt the player (no damage or conditions from the rules), and it opens no new routes (a model asked to wrote "what's still possible", which the after-reply decider then judged as having happened). The ruling's dice line is the review's own reason, so it can name someone the player hasn't heard of if the review ignores the names it's given.
 - **Background jobs race the next turn.** A co-GM review lands a turn or more late, and only if the scene hasn't changed. Memory reviews of consecutive turns can run at once, and the docs store writes whole files, so two of them adding to one memory index can lose a line. One `repair.lock` serves every repair job. The scene harness starts its jobs with its own copy of `afterTurn`'s gating ([src/cli/scene.ts:69](../cli/scene.ts#L69)).
 - **No unit of work.** A turn changes the session as it goes and saves once at the end. `chainScene` writes the docs (the fronts, the played scene, the ending's memories) before it saves the session, so a crash between the two leaves them out of step.
 - **A full snapshot every turn,** with the rules engine's event log inside `rules.campaign`, so the session folder grows with every turn.

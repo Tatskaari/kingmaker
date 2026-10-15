@@ -29,7 +29,7 @@ The short version. The whole turn, with the rules, memory and the co-GM, is in [
 
 1. **Decide before replying.** One call to Luna's decision mode (`openai/gpt-6-luna-decisions`, about 0.2–0.35 s). It asks, in parallel:
    - Is the player attempting a scene route? Routes can carry a roll.
-   - Is it a risky attempt that no route covers? Then it gets a freeform roll.
+   - Would a GM call for a roll here, and is it what one of the routes is for? A roll that no route settles (another person, another ask, a plan nobody wrote) makes it a **considered turn**: before replying, the GM rules on it with the whole prep (a roll or not, the DC, what success and failure each change), the rules roll it, and the reply plays what was decided. Those turns take a few seconds longer, and the status line says the GM is considering.
    - Is it something that simply happens, with no dice?
    - Should a pacing cue fire?
    - Is the player reaching for something the scene can't offer (its **limits**)?
@@ -48,9 +48,10 @@ The short version. The whole turn, with the rules, memory and the co-GM, is in [
 
 | approach | what it tests |
 |---|---|
-| **`v2`** (default) | **Recommended**, and what the game plays. GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), V1's docs-service memory, a roll for a risky attempt no route covers, quick co-GM on off-graph turns (3 s), background co-GM. |
-| `v2-straight` | The same, played straight (the `v2` of the deviation experiment). |
-| `v2-pressure` | `v2` plus pressure rolls: pressing someone for what they're hiding is ruled yes, no, or a roll at DC 12/15/18 ([research](docs/research/dc-guidance.md)). |
+| **`v2`** (default) | **Recommended**, and what the game plays. GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), V1's docs-service memory, considered rolls (the GM rules on an act a roll should settle that no route covers, or a plan off the graph, before replying), background co-GM. |
+| `v2-quick` | `v2` before considered rolls, to compare: a freeform roll for a risky attempt no route covers, and the quick co-GM on off-graph turns (3 s). |
+| `v2-straight` | The quick-co-GM `v2`, played straight (the `v2` of the deviation experiment). |
+| `v2-pressure` | The quick-co-GM `v2` plus pressure rolls: pressing someone for what they're hiding is ruled yes, no, or a roll at DC 12/15/18 ([research](docs/research/dc-guidance.md)). |
 | `v2-comic`, `v2-comic-bill` | Absurdity experiment conditions: the comic style without and with the consequence flag. |
 | `gm-quick-block`, `gm-stall-quick` | The two budgeted repair designs `v2` came from: a single wait vs a holding beat plus follow-up. |
 | `gm-rigid`, `gm-nudge`, `gm-fast`, `gm-repair-*` | Deviation experiment conditions: no essentials, decider relocation, speculative replies only, co-GM timings (low/stall/blocking). |

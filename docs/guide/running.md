@@ -7,11 +7,13 @@ This page is how the runtime plays a scene: the turn loop, the GM's principles, 
 ```
 player turn
   ├─ decide before (Luna decision mode, one call, parallel questions, ~0.3–1 s)
-  │     attempt? (an authored route, maybe with a roll) · cue? · limit? · out of character?
-  │     off the graph? · daft act with consequences? · earned the payoff? · pressing a secret?
-  │     something the rules resolve (a spell, a blow, a jump)?
+  │     attempt? (an authored route, maybe with a roll) · a roll wanted, and a route's? · cue?
+  │     limit? · out of character? · off the graph? · daft act with consequences?
+  │     earned the payoff? · pressing a secret? · something the rules resolve (a spell, a blow)?
   ├─ disclose (Jev, in parallel): open the memories and lore that bear on this moment
-  ├─ quick co-GM (in parallel; waited for only off the graph, up to 3 s from the turn's start)
+  ├─ considered turns only (a roll no route settles, or a plan off the graph): the GM's review,
+  │     ~3.5 s, before the reply: a roll or not, the DC, what success and failure change;
+  │     then the dice, and the outcome applied like a route's (the app says the GM is considering)
   ├─ reply (Luna, reasoning none, streamed, once the decision is in)
   ├─ decide after (same call shape): what happened? which ending is the story at? on track or
   │         stuck? what the player has come across? how far secret-holders have opened up?
@@ -19,7 +21,7 @@ player turn
         co-GM review (notes, whispers, new routes) · attention filter → memory and lore agents
 ```
 
-The 5-second budget applies to the reply that resolves the player's turn. Everything the player doesn't need for that reply runs in the background, and its results land in later turns.
+The 5-second budget applies to the reply that resolves the player's turn. Everything the player doesn't need for that reply runs in the background, and its results land in later turns. A considered turn spends a few seconds of it on purpose (first text at about 5 to 7 s): the user's steer was that a few longer thinking turns with real consequences beat a holding beat that buys time.
 
 ## The GM's principles
 
@@ -51,8 +53,13 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 
 ## Dice: rolls belong to edges, and say why
 
-- **Rolls happen on authored routes,** the edges of the scene graph, or on routes the quick co-GM opens for off-graph plans. Each carries a player-facing reason, which never names something the player hasn't found yet: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success`.
-- **Risky things no route covers get a check too** (`freeformChecks`, on in `v2`): kicking a door, bluffing a watchman, hiding behind crates. Without them, the D&D players in QA felt the GM was ruling by fiat.
+- **Rolls happen on authored routes,** the edges of the scene graph, or on the GM's own ruling for an act no route covers. Each carries a player-facing reason, which never names something the player hasn't found yet: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success`.
+- **Considered rolls** (`considered`, on in `v2`). The decider asks, in the call it makes anyway, whether a GM would call for a roll and whether one of the routes with a roll is for it (listed by what each roll is for, so another person or another payoff reads as another act). When a roll is wanted (0.7, the two "yes" options together) and nothing the author wrote settles it, the GM rules on it before replying, with the whole prep. Three QA runs of the hanged clerk showed why: the decider's read split between "none" and broadly worded routes, so 11 roll-worthy attempts got 1 roll; every lie was failed by fiat through the consequence flag; and a roll that did fire played the nearest route's payoff, not what was asked. The ruling:
+  - **Whether to roll** comes from the guidance's judgements ([research](../research/dc-guidance.md)): what giving in costs the person, the player's leverage on them, how they feel about the player now; or a feat's difficulty. Code makes the verdict, leaning to the dice because the decider has already judged it uncertain: yes without a roll only when they'd do it anyway or it's overwhelming, and never for a lie; no only for a lever that can't move them or the same push again; a long shot rolls at 18 rather than failing on the GM's say-so.
+  - **Both outcomes change the scene:** the scene moves on (to a beat or ending, or counting as an authored route, whose facts come with it), something comes out, someone acts on it (facts the story keeps), or a way of trying it shuts. Failure is never "nothing happens", and a success is a success, with no sting that takes back what was asked for.
+  - **What the scene needs never hangs on the dice.** Looking properly or working out what's in front of you finds it, and isn't flagged; a roll decides how a needed thing comes and what it costs, never whether (the Three Clue Rule). A live game had an Investigation roll withhold the hanged man's missing stool before this was said.
+  - **The reply plays what was decided,** told that it stands: people react to it, but nothing undoes it. No consequence bill or earned payoff goes on top.
+- **Risky things no route covers** got a freeform check in `v2-quick` (`freeformChecks`): kicking a door, bluffing a watchman, hiding behind crates. Without them, the D&D players in QA felt the GM was ruling by fiat. Considered rolls do that job in `v2`, with a DC and outcomes made for the moment.
 - **A rolled attempt needs confidence ≥ 0.6,** like an ending. A roll forces its outcome into the reply, so a weak read of an announcement shouldn't hand over a secret.
 - **The roll follows the player's method.** A threat aimed at a route written for persuasion rolls Intimidation, and the outcome lands the way a threat would.
 - **A roll is for the act it tests.** The decider sees what each route's roll is for ("The Medicine check is to tell how Prout really died: only when the player is doing that now, not something that comes first"). The co-GM writes a route with a roll as that act ("examines the body up close"), never as what has to happen first ("gets him down or close enough to examine him": a javelin thrown at the rope once rolled Medicine for it). A co-GM route whose `when` is about getting there is restated from its check's reason. Two routes for the same check (one refreshed as things changed) share the decider's read rather than splitting it below the bar.
@@ -64,7 +71,8 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 This is narrative repair; see [experiments/deviation-repair.md](../experiments/deviation-repair.md) and [research/gm-techniques.md](../research/gm-techniques.md).
 
 - **Essentials.** The prep says what the player must come across, where it was placed, who carries it, and that it can move. This is the biggest lever we found.
-- **The quick co-GM.** On a turn the decider judges off the graph, the runtime waits up to 3 s for it. It opens a route (with a roll and a reason when uncertain) or moves a missed essential, then the reply goes out as one coherent answer.
+- **The GM's ruling.** In `v2`, a turn the decider judges off the graph goes to the GM's review, as a roll nobody wrote does: a roll or not, and what each outcome changes, then one coherent reply.
+- **The quick co-GM** (`v2-quick`). On a turn the decider judges off the graph, the runtime waits up to 3 s for it. It opens a route (with a roll and a reason when uncertain) or moves a missed essential, then the reply goes out as one coherent answer. In the QA runs it took a median 4.4 s, so it usually missed its deadline, and its late route landed a turn after the attempt.
 - **The background co-GM** reviews between turns. It leaves notes and whispers, and adds routes and "no, but" alternatives. Whispers are what's on a person's mind, never terms or hints. Notes last two turns, and closings don't see them.
 - **The six techniques:**
   - *Move the clue:* through whoever the player is engaging with.
