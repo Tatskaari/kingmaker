@@ -301,7 +301,8 @@ function lastOffered(state: SessionState): string[] {
  * The call's lines, "kind: line" one a line, as the player would type them: speech plain, a deed in
  * brackets ("(I ...)"). Forgiving of bullets, numbers, bold, quotes, a deed in asterisks or square
  * brackets, a deed with no kind, and a risky try written down as a deed. A line that's neither tagged
- * nor a deed ends the list: what follows is the model thinking aloud ("Need ensure say lines...").
+ * nor a deed is passed over before the list ("Here are some lines:") and ends it after: what follows
+ * is the model thinking aloud ("Need ensure say lines...").
  */
 export function parseSuggestions(text: string): Suggestion[] {
   const out: Suggestion[] = [];
@@ -316,7 +317,7 @@ export function parseSuggestions(text: string): Suggestion[] {
     const marked = /^\*([^*]+)\*$/.exec(line) ?? /^\[([^\]]+)\]?$/.exec(line);
     if (marked) line = `(${marked[1]!.trim()})`;
     const deed = line.startsWith("(");
-    if (!kind && !deed) break;
+    if (!kind && !deed) { if (out.length) break; continue; }
     if (!kind) kind = "do";
     if (kind === "say") {
       if (deed) kind = "do";

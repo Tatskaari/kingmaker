@@ -35,8 +35,9 @@ function yard(id: string): SessionState {
 
 const vetted = (over: Partial<Vetting> = {}): Vetting => ({ said: [], offered: [], names: [], hidden: [], proper: [], limits: [], leave: false, ...over });
 
-test("the lines are read as typed: a kind and a colon, speech plain, a deed in round brackets, however the model dresses them; the list ends where the model starts thinking aloud", () => {
+test("the lines are read as typed: a kind and a colon, speech plain, a deed in round brackets, however the model dresses them; a preface is passed over, and the list ends where the model starts thinking aloud", () => {
   const lines = parseSuggestions([
+    "Here are a few lines Tamsin might try:",
     "- say: \"Sergeant, who found him?\"",
     "2. **do:** [I look up at the hoist]",
     "try: I try to talk the boy down off his high horse.",
