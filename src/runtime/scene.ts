@@ -94,6 +94,13 @@ export interface Transition {
    * it isn't offered again.
    */
   essential?: string;
+  /**
+   * The essential this route is a way towards without bringing it (an id among the scene's
+   * essentials): a bribe that gets haggling and leaves the page in the boot, a kindness that counts
+   * towards trust. Like `essential`, the route is there only while the scene has it and goes once
+   * the player has come across it; taking it brings nothing out.
+   */
+  towards?: string;
 }
 
 export interface Beat {
@@ -281,6 +288,7 @@ export function validateScene(scene: Scene): string[] {
   }
   for (const t of [...scene.beats.flatMap(b => b.transitions), ...(scene.anytime ?? [])]) {
     if (t.essential && !essentials.has(t.essential)) problems.push(`${t.id} brings unknown essential ${t.essential}`);
+    if (t.towards && !essentials.has(t.towards)) problems.push(`${t.id} is a way towards unknown essential ${t.towards}`);
   }
   return problems;
 }

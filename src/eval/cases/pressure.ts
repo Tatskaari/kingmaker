@@ -86,7 +86,7 @@ export const pressureCases: EvalCase[] = [
   { kind: "decision", id: "pr-not-banter", about: "Absurd banter with a character isn't pressing them for a secret.", scene: "warren-hostage", setup: WARREN, phase: "before", pressure: true,
     input: "\"Mister Snikkit, before we go any further, I must ask: is that knife insured? Because if it falls in the river, I can't be held responsible.\"",
     expect: ["none"], tags: ["pressure", "negative", "absurd"] },
-  { kind: "decision", id: "pr-absurd-boot", about: "An absurd but real bargain for the boots (Cob would let someone look if he keeps them) should roll or be free, not ignored.", scene: "hanged-clerk", setup: YARD, phase: "before", pressure: true,
+  { kind: "decision", id: "pr-absurd-boot", about: "An absurd but real bargain for the boots (Cob would let someone look if he keeps them) should roll or be free, not ignored. A crown for a look is the price of a look, which his card makes a bribe: haggling, with no dice.", scene: "hanged-clerk", setup: YARD, phase: "before", pressure: true,
     input: "I crouch to Cob's height, perfectly solemn. \"Your left boot has been trying to give evidence since I arrived. Nobody's taking it off you: you keep the boots. I only want a look inside. I'll pay the boot a crown for its testimony, through you, its legal guardian.\"",
-    expect: ["pressure:roll:cob", "pressure:yes:cob", "win-cob"], tags: ["pressure", "absurd"] },
+    expect: ["pressure:roll:cob", "pressure:yes:cob", "win-cob", "plain"], tags: ["pressure", "absurd"] },
 ];

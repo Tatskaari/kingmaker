@@ -1,6 +1,6 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { SceneOutcome, WorldApi } from "../src/world/dsl.ts";
-import { KELL_VOICE } from "./hanged-clerk.ts";
+import { KELL_PROMISES, KELL_VOICE } from "./hanged-clerk.ts";
 import { heronWorld } from "./worlds/heron-warehouse.ts";
 
 /**
@@ -21,6 +21,8 @@ import { heronWorld } from "./worlds/heron-warehouse.ts";
  */
 
 const MASTER_HERE = "Master Sallow has come to the Heron.";
+/** In as one of Hep's hands (the token at the grille, or turning up to work): a ruling standing in for the way in has the standing too. */
+const HAND = "The player is in at the Heron as one of Hep's hands, taken on at the river door with a sack in their arms: to the gang they're crew, and working the floor with their head down (carrying, slitting, sewing, fetching) needs no roll. Only going where a hand wouldn't (up the counting-box stair, a hand on the book, the Master's elbow) gets them looked at.";
 const BOOK = "The player has the true book in their hands.";
 const BOOK_SEEN = "The player has seen inside the true book: the 'lost' wagons by their Granary Roll numbers, with Sallow's initials on every page.";
 const BOOK_GONE = "The true book has been destroyed: burned, or gone into the river.";
@@ -82,7 +84,7 @@ export const heronWarehouse: Scene = {
       secrets: [
         "Prout's visit three days ago, and her sending him to the palace. If it has come out, it's told, and she doesn't tell it again. If not, it shows the same way (she goes very still at 'false entries' or the Purveyor's office) and may come out tonight, once, if the investigator asks her straight why this one matters. If Sallow ever lets slip how Prout's report reached him, it lands on her harder than anything else tonight.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. It's their case and their night: she backs their play. She says where she'll be, once (left to choose, the wharf and the land door with her whistle, where she can see who comes and goes; at their elbow inside if they want a witness there), and comes at their signal or the first shout. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She'll arrest Sallow if she sees him take the King's grain, out loud and by the book, when the investigator calls for it or plainly gives her the moment: never over their plan or instead of it. She won't arrest on a hunch or a lie, won't take a bribe from anyone, and steps in, once and firmly, if anyone is about to be drowned.",
+      attitude: `Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. It's their case and their night: she backs their play. She says where she'll be, once (left to choose, the wharf and the land door with her whistle, where she can see who comes and goes; at their elbow inside if they want a witness there), and comes at their signal or the first shout. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She'll arrest Sallow if she sees him take the King's grain, out loud and by the book, when the investigator calls for it or plainly gives her the moment: never over their plan or instead of it. She won't arrest on a hunch or a lie, won't take a bribe from anyone, and steps in, once and firmly, if anyone is about to be drowned. ${KELL_PROMISES}`,
     },
     {
       id: "saul",
@@ -224,7 +226,7 @@ export const heronWarehouse: Scene = {
         { id: "inside", when: "The player is inside the Heron, unnoticed or taken for someone who belongs there (in at the river door with Hobb's token or his help, past Saul, as a hand in Hep's gang, or any other way established in play).", to: "floor" },
         {
           id: "sneak-in", on: "attempt",
-          when: "The player tries to slip into the Heron unseen: past Saul's deaf side and the sleeping dog, or along the plank walk and in at the river door while the gang's backs are turned.",
+          when: "The player tries to slip into the Heron unseen: past Saul's deaf side and the sleeping dog, or along the plank walk and in at the river door while the gang's backs are turned. (Walking in with a sack on their shoulder, as one of the gang, isn't slipping in unseen: that's going in to work, with no dice.)",
           check: { reason: "to slip into the Heron unseen",
             skill: "stealth", dc: 13,
             success: "They're in, in the shadow of the wheat-ear stacks, with the whole floor in front of them and nobody the wiser.",
@@ -234,12 +236,17 @@ export const heronWarehouse: Scene = {
         },
         {
           id: "show-token", on: "attempt",
-          when: "The player shows a brass heron token (Hobb's, or one like it) at the river door's grille to be let in, with or without a story to go with it. No dice: the token is what the gang show, so whoever's nearest inside draws the bolt, looks them over ('You're not Hobb'), and pushes a sack into their arms, because Hep is short of hands. A story told with the token isn't a bluff to roll for.",
-          to: "floor",
+          when: "The player shows a brass heron token (Hobb's, or one like it) at the river door's grille to be let in, with or without a story to go with it. No dice: the token is what the gang show, so whoever's nearest inside draws the bolt, looks them over ('You're not Hobb'), and pushes a sack into their arms, because Hep is short of hands: they're in as one of her hands, and working the floor needs no roll. A story told with the token isn't a bluff to roll for.",
+          to: "floor", establishes: [HAND],
+        },
+        {
+          id: "taken-on", on: "attempt",
+          when: "The player goes in to work, token or none: shoulders a sack (one waiting on the plank walk, a split one off the hoist) and walks in at the river door with the gang as if they belong, or answers Hep's shout for hands at the river door, or asks there to be taken on for the night, or knocks at the grille for Hobb if he agreed at the Rat to let them in. No dice: Hep is short-handed on the Assembly eve (half the river's drunk) and anyone with a sack on their shoulder is crew until proven otherwise, so she puts them to work and asks who they are afterwards, if ever: they're in as one of her hands, and working the floor needs no roll. A story told with it isn't a bluff to roll for.",
+          to: "floor", establishes: [HAND],
         },
         {
           id: "talk-past", on: "attempt",
-          when: "With no heron token to show, the player tries to bluff their way in past Saul or whoever answers the river door with a story that isn't true: the Saltmere factor's man, someone sent by the Master, a hand that somebody sent for when nobody did. (Showing Hobb's token at the grille is a way in of its own, whatever story goes with it; answering Hep's own shout for hands, or turning up with a sack on their shoulder, isn't a bluff either. None of those needs dice.)",
+          when: "With no heron token to show, the player tries to bluff their way in past Saul or whoever answers the river door with a story that isn't true: the Saltmere factor's man, someone sent by the Master, a hand that somebody sent for when nobody did. (Showing Hobb's token at the grille, and going in to work with a sack on their shoulder or at Hep's shout for hands, are ways in of their own with no dice, whatever story goes with them: they aren't this.)",
           check: { reason: "to talk your way into the Heron",
             skill: "deception", dc: 13,
             success: "Whoever's at the door believes it and stands aside. They're in, and expected to behave like whoever they said they were.",
@@ -273,7 +280,7 @@ export const heronWarehouse: Scene = {
     {
       id: "floor",
       title: "The re-sacking floor",
-      direction: "The player is inside the Heron. The proof is in plain sight: the gang slitting the palace's wheat-ear sacks and pouring the King's grain into heron sacks, the chute down to the barge, the heap of empties waiting for the river, and Mister Scrope up in his counting-box entering every sack in the true book. This beat is for getting proof: seeing it, taking the book, or finding people who'd swear to it. Anyone who isn't gang and gets noticed is challenged, and Hep, Scrope and the gang react as they would. Hobb, if he's here, is on the hoist and can't look at anyone. The clock is the midnight bell: Hep wants the count done before the Master comes, and Scrope keeps looking at the land door.",
+      direction: "The player is inside the Heron. The proof is in plain sight: the gang slitting the palace's wheat-ear sacks and pouring the King's grain into heron sacks, the chute down to the barge, the heap of empties waiting for the river, and Mister Scrope up in his counting-box entering every sack in the true book. This beat is for getting proof: seeing it, taking the book, or finding people who'd swear to it. Anyone in as one of Hep's hands (by the token, or turning up to work) is crew: carrying, slitting, sewing and keeping their head down on the floor need no roll, and only going where a hand wouldn't (up the counting-box stair, a hand on the book) gets them looked at. Anyone who isn't gang and gets noticed is challenged, and Hep, Scrope and the gang react as they would. Hobb, if he's here, is on the hoist and can't look at anyone. The clock is the midnight bell: Hep wants the count done before the Master comes, and Scrope keeps looking at the land door.",
       cast: {
         hep: "You want forty more sacks down before the bell. Put idle hands to work, and challenge anyone who won't take a sack.",
         scrope: "Count, enter, blot, apologise. Keep your hand on the book.",
@@ -474,8 +481,8 @@ export const heronWarehouse: Scene = {
     {
       id: "fight", kind: "combat", title: "Roll for initiative",
       next: "kings-morning",
-      outcome: "A fight breaks out in the Heron between the player (and Kell, if she's with them) and Master Sallow with his sword-cane and the Crakes (or Hep's gang, if Sallow hasn't come yet), in the grain dust and the swinging lantern light.",
-      closing: "Close on the moment the blades come out: Sallow's cane sliding apart into a thin bright sword, the Crakes rolling their shoulders, the dust in the lantern light, the lanterns swinging dangerously close to it, and anyone with any sense stepping smartly out of the way. End with 'Roll for initiative!'",
+      outcome: "A fight breaks out in the Heron between the player (and Kell, if she's with them) and whoever is on the floor to fight them: Master Sallow with his sword-cane and the Crakes, if he has come; if he hasn't come yet, Hep and her gang, with their knives and sack-needles, and Sallow and the Crakes aren't in it. It's in the grain dust and the swinging lantern light.",
+      closing: "Close on the moment the fight breaks out, with whoever is on the floor to fight it. If Master Sallow has come (he's here, a minute behind his lavender), his cane slides apart into a thin bright sword and the Crakes roll their shoulders. If he hasn't come yet, he isn't in this and doesn't come in now: Hep's gang put down their sacks and come with their knives and sack-needles, Hep bellowing them on. Either way: the dust in the lantern light, the lanterns swinging dangerously close to it, and anyone with any sense stepping smartly out of the way. End with 'Roll for initiative!'",
       script: (world, outcome) => {
         world.startCombat({
           enemies: has(outcome.established, MASTER_HERE)
