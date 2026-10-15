@@ -409,7 +409,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       considered = await settleRuling(scene, state, ruling, step);
       state.rulings = [...(state.rulings ?? []), considered.record];
       if (considered.dice) push(state, hooks, { speaker: "dice", kind: "roll", text: considered.dice });
+      const from = state.beat;
       applyMove(state, scene, considered.move, "pre");
+      // (A ruling with no roll that keeps the scene here is on the path too, as a freeform roll is.)
+      if (!considered.move.roll && considered.move.to === from) state.path.push({ turn: state.turn, from, to: from, via: considered.move.transition.id, source: "pre" });
       const taken = moveTaken(state, considered.move, considered.directive, pending);
       directive.push(...taken.lines);
       if (taken.ended) ended = taken.ended;
