@@ -85,8 +85,8 @@ Every scene, with where each leads, is in [scenes/README.md](scenes/README.md).
 ```sh
 npm run check             # what CI runs (moon.yml): the typecheck, the tests and the screens check, about 20 s
 npm test                  # the tests alone
-npm run build:web         # the PR preview: the whole game as a static site in dist/web, played in the browser (src/web/README.md)
-npm run web:static-check  # that build, served under the preview's path and played in Chromium
+npm run build:web         # the PR preview's site in dist/web: the pitch, the roadmap, and the whole game at play/, played in the browser (src/web/README.md)
+npm run web:static-check  # that build, served under the preview's path, its pages clicked through and the game played in Chromium
 ```
 
 The playable game's smoke tests are in [src/app/README.md](src/app/README.md), the browser's checks in [src/web/README.md](src/web/README.md). Every check, how long it takes and whether CI runs it, is in [ARCHITECTURE.md](ARCHITECTURE.md#checks).

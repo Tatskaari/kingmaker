@@ -40,8 +40,12 @@ interface WorkerScope {
 }
 const scope = self as unknown as WorkerScope;
 
-/** Where this copy of the game is published (the directory worker.js is in): its saves and its lock are named after it. */
-const NAME = dbName(new URL(".", scope.location.href).pathname);
+/**
+ * Where this copy of the game is published: its saves and its lock are named after the site it's in
+ * (the directory above play/, where worker.js is). That's the name they had before the game moved to
+ * play/ under the site's front page, so games already played in a preview carry on.
+ */
+const NAME = dbName(new URL("../", scope.location.href).pathname);
 
 let key = "";
 let offline = false;

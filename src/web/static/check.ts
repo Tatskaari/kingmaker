@@ -19,7 +19,10 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  * previews, and played in Chromium with Playwright, the game in the page's Web Worker. Screens go
  * to runs/web-static/<run>/ as PNGs, each with the terminal's text beside it.
  *
- *   node --no-warnings src/web/static/check.ts          the build and what's in it; the title, a new
+ *   node --no-warnings src/web/static/check.ts          the build and what's in it; the site's front
+ *                                                       page (the pitch) and the roadmap, with their
+ *                                                       buttons through to each other and the game at
+ *                                                       play/; the title, a new
  *                                                       character and its sheet beside the terminal
  *                                                       app's (runs/app-smoke); the map by keys and by
  *                                                       mouse; copying; a scene offline; latency and
@@ -51,7 +54,9 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  */
 
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
-const DIST = join(ROOT, "dist", "web");
+const SITE = join(ROOT, "dist", "web");
+/** The game, in the site (build.ts). */
+const DIST = join(SITE, "play");
 const LIVE = process.argv.includes("--live");
 const BUILD = !process.argv.includes("--no-build");
 const DEBUG = !!process.env.KM_WEB_CHECK_DEBUG;
@@ -112,15 +117,33 @@ function filesIn(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true, recursive: true }).filter(e => e.isFile()).map(e => join(e.parentPath, e.name));
 }
 
-/** What the build put out: the page's files, the game's bundle, the allowlisted content, and nothing secret. */
+/** What the build put out: the site's two pages, the game's page, its bundle, the allowlisted content, and nothing secret. */
 function inspect(): void {
+  // The site: the pitch at the front, the roadmap, and the game; their buttons to each other relative, nothing left pointing at claude.ai.
+  const site = [...new Set(filesIn(SITE).map(f => relative(SITE, f).split("/")[0]!))].sort();
+  if (JSON.stringify(site) === JSON.stringify(["index.html", "play", "roadmap"])) ok("dist/web holds the site: the pitch (index.html), the roadmap (roadmap/) and the game (play/), and nothing else");
+  else fail(`dist/web's top level: ${site.join(", ")}`);
+  const pitch = readFileSync(join(SITE, "index.html"), "utf8");
+  const roadmap = readFileSync(join(SITE, "roadmap", "index.html"), "utf8");
+  const pages = [["the pitch", pitch], ["the roadmap", roadmap]] as const;
+  if (pages.every(([, html]) => html.startsWith('<!doctype html><html lang="en-GB"><head><meta charset=utf8><meta name=viewport'))) ok("the pitch and the roadmap are whole documents (a doctype, the language, the viewport)");
+  else fail("the pitch or the roadmap isn't a whole document");
+  if (pitch.includes('<a class="cta" href="play/">Play the tech demo') && pitch.includes('<a class="cta" href="roadmap/">See the roadmap')) ok("the pitch's buttons go to the game (play/) and the roadmap (roadmap/)");
+  else fail("the pitch's buttons don't go to play/ and roadmap/");
+  if ((roadmap.match(/href="\.\.\/"/g) ?? []).length >= 2) ok("the roadmap's links to the pitch go to the front page (../)");
+  else fail("the roadmap doesn't link to the front page");
+  const elsewhere = pages.filter(([, html]) => /claude\.ai\/artifact/.test(html)).map(([name]) => name);
+  if (!elsewhere.length) ok("neither page links to a claude.ai artifact");
+  else fail(`${elsewhere.join(" and ")} still link to a claude.ai artifact`);
+
   const files = filesIn(DIST);
   const top = [...new Set(files.map(f => relative(DIST, f).split("/")[0]!))].sort();
   const expected = ["chunks", "client.js", "content.json", "doors.js", "fonts", "fonts.css", "fonts.json", "index.html", "style.css", "vendor", "worker-transport.js", "worker.js"];
-  if (JSON.stringify(top) === JSON.stringify(expected)) ok(`dist/web holds the page, the game's bundle, the fonts and the content, and nothing else (${files.length} files)`);
-  else fail(`dist/web's top level: ${top.join(", ")}`);
-  const bytes = files.reduce((n, f) => n + statSync(f).size, 0);
-  note(`dist/web: ${files.length} files, ${(bytes / 1e6).toFixed(2)} MB`);
+  if (JSON.stringify(top) === JSON.stringify(expected)) ok(`dist/web/play holds the game's page, its bundle, the fonts and the content, and nothing else (${files.length} files)`);
+  else fail(`dist/web/play's top level: ${top.join(", ")}`);
+  const everything = filesIn(SITE);
+  const bytes = everything.reduce((n, f) => n + statSync(f).size, 0);
+  note(`dist/web: ${everything.length} files, ${(bytes / 1e6).toFixed(2)} MB`);
 
   // The content is what the allowlist lets in (content.ts: lore and prompts as Markdown, the rules' content pack, the SRD's spells).
   const content = JSON.parse(readFileSync(join(DIST, "content.json"), "utf8")) as { files: Record<string, string> };
@@ -136,19 +159,19 @@ function inspect(): void {
   // No secret: as grep -c -F -f ~/secrets/kingmaker-dev-openrouter.txt -r dist/web would look (each line of the file a fixed string).
   if (existsSync(KEY_FILE)) {
     const needles = readFileSync(KEY_FILE, "utf8").split("\n").map(line => line.replace(/\r$/, "")).filter(Boolean);
-    const leaks = files.filter(f => { const text = readFileSync(f, "latin1"); return needles.some(n => text.includes(n)); });
-    if (leaks.length) fail(`the dev key file's contents are in ${leaks.length} file(s) of dist/web: ${leaks.map(f => relative(DIST, f)).join(", ")}`);
-    else ok(`the dev key (~/secrets/kingmaker-dev-openrouter.txt) is in no file of dist/web (${files.length} files searched)`);
+    const leaks = everything.filter(f => { const text = readFileSync(f, "latin1"); return needles.some(n => text.includes(n)); });
+    if (leaks.length) fail(`the dev key file's contents are in ${leaks.length} file(s) of dist/web: ${leaks.map(f => relative(SITE, f)).join(", ")}`);
+    else ok(`the dev key (~/secrets/kingmaker-dev-openrouter.txt) is in no file of dist/web (${everything.length} files searched)`);
   } else note("(no ~/secrets/kingmaker-dev-openrouter.txt on this machine to look for in dist/web)");
-  const shaped = files.filter(f => /sk-or-v1-[0-9a-f]{32,}/.test(readFileSync(f, "latin1")));
-  if (shaped.length) fail(`something shaped like an OpenRouter key is in ${shaped.map(f => relative(DIST, f)).join(", ")}`);
+  const shaped = everything.filter(f => /sk-or-v1-[0-9a-f]{32,}/.test(readFileSync(f, "latin1")));
+  if (shaped.length) fail(`something shaped like an OpenRouter key is in ${shaped.map(f => relative(SITE, f)).join(", ")}`);
   else ok("nothing shaped like an OpenRouter key is in dist/web");
 
   // Only relative URLs, so the site works from the PR preview's path (or any other).
   const html = readFileSync(join(DIST, "index.html"), "utf8");
   const absolute = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]!).filter(u => u.startsWith("/") || /^https?:/.test(u) && !u.startsWith("https://openrouter.ai"));
-  if (!absolute.length) ok("index.html refers to its files by relative URLs");
-  else fail(`index.html has absolute URLs: ${absolute.join(", ")}`);
+  if (!absolute.length) ok("the game's index.html refers to its files by relative URLs");
+  else fail(`the game's index.html has absolute URLs: ${absolute.join(", ")}`);
 
   // The build's stamp on what isn't named by its hash, and the list of what to load at once (each there to load).
   const stamp = /<html[^>]* data-build="([0-9a-f]{12})"/.exec(html)?.[1];
@@ -1451,26 +1474,63 @@ async function live(browser: Browser, url: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The site: the pitch, its buttons through to the roadmap and the game, and back
+
+async function frontPage(browser: Browser, url: string): Promise<void> {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  try {
+    const page = await context.newPage();
+    page.on("pageerror", error => fail(`the pitch: page error: ${error.message}`));
+    await page.goto(url);
+    const title = await page.title();
+    const demo = page.locator('a.cta', { hasText: "Play the tech demo" });
+    if (title === "Kingmaker" && await demo.count() === 1) ok(`the front page is the pitch ("${title}"), with its demo button`);
+    else fail(`the front page: title "${title}", ${await demo.count()} demo button(s)`);
+    await page.screenshot({ path: join(OUT, "site-pitch.png") });
+    await page.locator('a.cta', { hasText: "See the roadmap" }).click();
+    await page.waitForURL(`${url}roadmap/`, { timeout: 10000 }).catch(() => undefined);
+    const map = await page.title();
+    if (page.url().startsWith(`${url}roadmap/`) && map === "Kingmaker Roadmap") ok(`"See the roadmap" opens the roadmap (${page.url().slice(url.length)}, "${map}")`);
+    else fail(`"See the roadmap" went to ${page.url()} ("${map}")`);
+    await page.screenshot({ path: join(OUT, "site-roadmap.png") });
+    // Its link back (the overview's "The pitch") is on the page that shows first.
+    await page.locator('a[href="../"]', { hasText: "The pitch" }).first().click();
+    await page.waitForURL(url, { timeout: 10000 }).catch(() => undefined);
+    if (page.url() === url && await page.title() === "Kingmaker") ok("the roadmap's \"The pitch\" goes back to the front page");
+    else fail(`the roadmap's "The pitch" went to ${page.url()}`);
+    await page.locator('a.cta', { hasText: "Play the tech demo" }).click();
+    await page.waitForURL(`${url}play/`, { timeout: 10000 }).catch(() => undefined);
+    if (page.url() === `${url}play/` && await until(page, "!!window.km", 15000)) ok("\"Play the tech demo\" opens the game at play/, and its terminal starts");
+    else fail(`"Play the tech demo" went to ${page.url()}, and the game didn't start there`);
+  } finally {
+    await context.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 
 const server = await (async () => {
   if (BUILD) build();
   if (!existsSync(join(DIST, "index.html"))) throw new Error("no dist/web: npm run build:web first");
   inspect();
-  return serveStatic(DIST, DEFAULT_BASE);
+  return serveStatic(SITE, DEFAULT_BASE);
 })();
-note(`dist/web served on ${server.url}`);
+/** The game, at play/ in the site. */
+const game = `${server.url}play/`;
+note(`dist/web served on ${server.url}, the game at ${game}`);
 const browser = await chromium.launch();
 try {
-  await besideTheTerminal(browser, server.url);
-  await play(browser, server.url);
-  await zoo(browser, server.url);
-  await doors(server.url);
-  await lamps(server.url);
-  await resize(browser, server.url);
-  await twoTabs(browser, server.url);
-  await noStorage(browser, server.url);
-  await keyForm(browser, server.url);
-  if (LIVE) await live(browser, server.url);
+  await frontPage(browser, server.url);
+  await besideTheTerminal(browser, game);
+  await play(browser, game);
+  await zoo(browser, game);
+  await doors(game);
+  await lamps(game);
+  await resize(browser, game);
+  await twoTabs(browser, game);
+  await noStorage(browser, game);
+  await keyForm(browser, game);
+  if (LIVE) await live(browser, game);
 } catch (error) {
   fail((error as Error).message);
 } finally {

@@ -14,14 +14,17 @@ import { importMeta, openTuiFonts, stubModules, virtualModules } from "./plugins
 import { shimProblems } from "./shims.ts";
 
 /**
- * The static build (npm run build:web): the whole game as a static site in dist/web, for GitHub
- * Pages' PR previews, with only relative URLs so it works from any path.
+ * The static build (npm run build:web): the site in dist/web, for GitHub Pages' PR previews, with
+ * only relative URLs so it works from any path. The pitch is its front page and the roadmap its
+ * design doc (src/web/site: the two claude.ai artifacts as published, their links pointed at each
+ * other and at the demo here), and the whole game, played in the browser, is at play/:
  *
- *   index.html, client.js, worker-transport.js, style.css   the page (src/web/page), in static mode
- *   vendor/                                                 xterm.js and its addons
- *   fonts.css, fonts.json, fonts/                           the glyph fonts (assets/fonts)
- *   worker.js, chunks/                                      the game, in a Web Worker
- *   content.json                                            the game's content, from an allowlist
+ *   index.html, roadmap/index.html                               the pitch and the roadmap
+ *   play/index.html, client.js, worker-transport.js, style.css   the game's page (src/web/page), in static mode
+ *   play/vendor/                                                 xterm.js and its addons
+ *   play/fonts.css, fonts.json, fonts/                           the glyph fonts (assets/fonts)
+ *   play/worker.js, chunks/                                      the game, in a Web Worker
+ *   play/content.json                                            the game's content, from an allowlist
  *
  * The game's modules are bundled as they are; what they need of Node comes from
  * src/web/static/node (a file system in memory, persisted to IndexedDB), and OpenTUI from
@@ -38,9 +41,12 @@ import { shimProblems } from "./shims.ts";
  */
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
-const OUT = join(ROOT, "dist", "web");
+const SITE_OUT = join(ROOT, "dist", "web");
+/** The game, in the site. */
+const OUT = join(SITE_OUT, "play");
 const STATIC = join(ROOT, "src", "web", "static");
 const PAGE = join(ROOT, "src", "web", "page");
+const SITE = join(ROOT, "src", "web", "site");
 const require = createRequire(import.meta.url);
 const started = performance.now();
 
@@ -49,7 +55,7 @@ const NODE_SHIMS: Record<string, string> = {
   module: "module.ts", child_process: "child_process.ts", util: "util.ts", process: "process.ts",
 };
 
-rmSync(OUT, { recursive: true, force: true });
+rmSync(SITE_OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
 // The commit it's built from (and whether there was more than the commit), written into the game for
@@ -107,7 +113,7 @@ const problems = shimProblems(Object.entries(result.metafile.inputs)
   .filter(([, input]) => input.imports.some(i => resolve(ROOT, i.path) === cryptoShim))
   .map(([path]) => ({ path, source: readFileSync(resolve(ROOT, path), "utf8") })));
 if (problems.length) {
-  rmSync(OUT, { recursive: true, force: true });
+  rmSync(SITE_OUT, { recursive: true, force: true });
   throw new Error(`the browser build can't do what the game asks of Node here:\n  ${problems.join("\n  ")}`);
 }
 
@@ -186,9 +192,37 @@ if (!html.includes('data-mode="static"') || (html.match(/\?v=/g) ?? []).length <
 writeFileSync(join(OUT, "index.html"), html);
 
 // ---------------------------------------------------------------------------------------------
+// The site around the game: the pitch and the roadmap, as their artifacts are published on claude.ai
+// (where they're edited), with their links to each other and the demo button pointed here
+
+/** The artifacts' links, as patterns. */
+const ARTIFACT = { pitch: String.raw`https://claude\.ai/artifact/1Ck3UDwhFdG7PwPB7DZWWe`, roadmap: String.raw`https://claude\.ai/artifact/SdWwGZBtvKZ3JuAt73Hxq6` };
+/** A page of the site, its links swapped for the site's own. Each swap has to happen: if one doesn't, the page changed under the build. */
+function sitePage(path: string, swaps: Array<[pattern: RegExp, to: string, what: string]>): void {
+  let page = readFileSync(join(SITE, path), "utf8").replace(/^<!doctype html><html>/i, '<!doctype html><html lang="en-GB">');
+  for (const [pattern, to, what] of swaps) {
+    const swapped = page.replace(pattern, to);
+    if (swapped === page) throw new Error(`src/web/site/${path} changed: the static build couldn't point ${what}`);
+    page = swapped;
+  }
+  const stray = /https:\/\/claude\.ai\/artifact\/[\w-]+/.exec(page);
+  if (stray) throw new Error(`src/web/site/${path} still links to a claude.ai artifact (${stray[0]})`);
+  mkdirSync(dirname(join(SITE_OUT, path)), { recursive: true });
+  writeFileSync(join(SITE_OUT, path), page);
+}
+sitePage("index.html", [
+  [/<a class="cta" href="[^"]*"(?: target="_blank" rel="noopener")?>Play the tech demo/, '<a class="cta" href="play/">Play the tech demo', "its demo button at play/"],
+  [new RegExp(`<a class="cta" href="${ARTIFACT.roadmap}"(?: target="_blank" rel="noopener")?>See the roadmap`), '<a class="cta" href="roadmap/">See the roadmap', "its roadmap button at roadmap/"],
+]);
+sitePage("roadmap/index.html", [
+  [new RegExp(`<p>The pitch: <a href="${ARTIFACT.pitch}">[^<]*</a></p>`), '<p>The pitch is the site\'s <a href="../">front page</a>.</p>', "its footer at the pitch"],
+  [new RegExp(`href="${ARTIFACT.pitch}"`, "g"), 'href="../"', "its links to the pitch at ../"],
+]);
+
+// ---------------------------------------------------------------------------------------------
 // Nothing secret goes out
 
-const outputs = filesIn(OUT);
+const outputs = filesIn(SITE_OUT);
 // The dev key (read here, never printed), when this machine has one; and anything shaped like an OpenRouter key.
 const keyFile = join(homedir(), "secrets", "kingmaker-dev-openrouter.txt");
 const devKey = existsSync(keyFile) ? readFileSync(keyFile, "utf8").trim() : "";
@@ -197,7 +231,7 @@ const leaks = outputs.filter(path => {
   return (devKey && text.includes(devKey)) || /sk-or-v1-[0-9a-f]{32,}/.test(text);
 });
 if (leaks.length) {
-  rmSync(OUT, { recursive: true, force: true });
+  rmSync(SITE_OUT, { recursive: true, force: true });
   throw new Error(`refusing to ship dist/web: ${leaks.length} file(s) hold something like an OpenRouter key (${leaks.map(p => relative(ROOT, p)).join(", ")})`);
 }
 

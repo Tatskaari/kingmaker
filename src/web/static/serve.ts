@@ -50,5 +50,5 @@ if (import.meta.main) {
   const root = values.dir ?? fileURLToPath(new URL("../../../dist/web", import.meta.url));
   if (!existsSync(join(root, "index.html"))) { console.error(`No build in ${root}: npm run build:web first.`); process.exit(1); }
   const { url } = await serveStatic(root, values.base ?? DEFAULT_BASE, Number(values.port ?? 7312));
-  console.log(`dist/web on ${url}`);
+  console.log(`dist/web on ${url} (the game at ${url}play/)`);
 }

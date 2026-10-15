@@ -22,7 +22,7 @@ tasks:
   check:
     deps: [typecheck, test, screens]
     inputs: ['@group(sources)']
-  # The PR preview: the whole game as a static site, played in the browser (src/web/static/build.ts), for GitHub Pages.
+  # The PR preview's site: the pitch, the roadmap, and the whole game at play/, played in the browser (src/web/static/build.ts), for GitHub Pages.
   buildWeb:
     command: node --no-warnings src/web/static/build.ts
     inputs: ['@group(sources)']

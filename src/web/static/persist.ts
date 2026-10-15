@@ -6,8 +6,8 @@ import { onChange, peek, PERSISTED, requeue, restore, takeChanges } from "./node
  * database's "files" store a moment after it changes, and read back into the browser's file system
  * before the game starts.
  *
- * Each place the game is published has a database of its own, named after its path (dbName): a PR
- * preview's games are its own, as another preview's build may not read them, or may rewrite them
+ * Each place the game is published has a database of its own, named after its site's path (dbName;
+ * the game is at play/ in it): a PR preview's games are its own, as another preview's build may not read them, or may rewrite them
  * as it reads them. (V1's database is "kingmaker", on the same origin as these previews; V2 keeps
  * out of it.)
  *
@@ -21,7 +21,7 @@ const DELAY_MS = 150;
 const MAX_DELAY_MS = 1000;
 const DELETED = `${PERSISTED}/deleted/`;
 
-/** The database for the game published at `base` (the path of its page, as "/kingmaker/pr-preview/pr-650/"). */
+/** The database for the game published in the site at `base` (its path, as "/kingmaker/pr-preview/pr-650/"; the game is at play/ under it). */
 export const dbName = (base: string) => `kingmaker-v2 ${base}`;
 
 interface FileRecord { path: string; data: string | Uint8Array; mtimeMs: number }

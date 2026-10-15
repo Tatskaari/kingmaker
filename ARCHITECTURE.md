@@ -331,7 +331,7 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 ### What CI gates
 
 - **[check.yml](.github/workflows/check.yml)** runs `moon ci workspace:check workspace:build` on every PR and every push to main: the typecheck, `npm test`, the screens check and the static build. Moon runs only the affected tasks, and every task's inputs are the whole of src/, scenes/, lore/, prompts/, assets/, evals/ and vendor/ with the package and tsconfig files ([moon.yml](moon.yml)). So a change to any of those runs everything, and a change only to docs/ or the root's Markdown runs nothing.
-- **[preview.yml](.github/workflows/preview.yml)** builds the static build at the PR's head and publishes it under `pr-preview/pr-<N>/` on the gh-pages branch, with a comment linking it. It doesn't run for PRs from forks.
+- **[preview.yml](.github/workflows/preview.yml)** builds the static build at the PR's head and publishes it under `pr-preview/pr-<N>/` on the gh-pages branch, with a comment linking it: the pitch at its root, the roadmap at `roadmap/` and the game at `play/`. It doesn't run for PRs from forks.
 - **[pages.yml](.github/workflows/pages.yml)** deploys main's build, with the previews copied in, to GitHub Pages. main is still V1 until PR #650 merges, so the site's root is V1's.
 - **[evals.yml](.github/workflows/evals.yml)** is V1's. It runs `moon run workspace:eval` and `scripts/publish-eval-history.ts` on a push to main, and V2 has neither, so it will fail once V2 is on main.
 - **Nothing is required.** main has no branch protection and the repo has no rulesets, so a red check informs a merge rather than blocking it.
