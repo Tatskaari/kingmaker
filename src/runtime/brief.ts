@@ -91,14 +91,30 @@ export function presentCast(scene: Scene, state: SessionState): Character[] {
 
 const TITLES = new Set(["the", "a", "an", "big", "old", "young", "little", "master", "mister", "mr", "mrs", "miss", "sergeant", "corporal", "captain", "marshal", "king", "queen", "sir", "lady", "lord", "dame"]);
 
+/** Everything the player has been told or shown: these hooks, and every line of play but the dice (their own turns too). */
+const heardIn = (state: SessionState, hooks: string[]) => [...hooks, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
+const namedIn = (c: Pick<Character, "name" | "aka">, heard: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard));
+
 /**
  * The cast the player has heard named: in anything said or shown so far (the hook, every reply,
  * their own turns), by any part of the name that isn't a title. People without a `called` aren't
  * tracked: they count as known.
  */
 export function knownCast(scene: Scene, state: SessionState): Set<string> {
-  const heard = [scene.hook, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
-  return new Set(scene.cast.filter(c => !c.called || nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard))).map(c => c.id));
+  const heard = heardIn(state, [scene.hook]);
+  return new Set(scene.cast.filter(c => !c.called || namedIn(c, heard)).map(c => c.id));
+}
+
+/**
+ * Across several scenes (a boundary's: the one just played and those the story may go to next),
+ * the people whose names the player hasn't heard, with what the player would call them: as the
+ * first of the scenes to card them has it. `hooks`: what the player was shown of the scenes played.
+ */
+export function strangers(scenes: Scene[], state: SessionState, hooks: string[]): Array<{ name: string; called: string }> {
+  const heard = heardIn(state, hooks);
+  const first = new Map<string, Character>();
+  for (const c of scenes.flatMap(s => s.cast)) if (!first.has(c.id)) first.set(c.id, c);
+  return [...first.values()].filter(c => c.called && !namedIn(c, heard)).map(c => ({ name: c.name, called: c.called! }));
 }
 
 /** The parts of someone's names that mean them in text ("Kell", "Agnes"; not "Sergeant"). */

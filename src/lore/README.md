@@ -21,7 +21,7 @@ The authored lore in [lore/](../../lore/README.md) is the seed: Markdown files w
 
 | File | What's in it |
 |---|---|
-| [docs.ts](docs.ts) | The store: `readDoc` (the overlay first, then lore/), `writeDoc` (the overlay only), `seedDoc` (as authored), `parseDoc` (the frontmatter), `permitted` (who may read), `linksIn` (a doc's links), `characterEntry` (a cast id's lore entry), memories (`saveMemory`, `memoryIndex`, `memoryLines`), the story index (`savePlayedScene`, `saveFact`), the player's doc, `searchDocs`, `editDoc`, `createDoc` |
+| [docs.ts](docs.ts) | The store: `readDoc` (the overlay first, then lore/), `writeDoc` (the overlay only), `seedDoc` (as authored), `parseDoc` (the frontmatter), `permitted` (who may read), `linksIn` (a doc's links), `characterEntry` (a cast id's lore entry), `errandsOf` (what someone does next if nobody stops them: their `gm.md`'s "What they do next"), memories (`saveMemory`, `memoryIndex`, `memoryLines`), the story index (`savePlayedScene`, `saveFact`), the player's doc, `searchDocs`, `editDoc`, `createDoc` |
 | [disclosure.ts](disclosure.ts) | `disclose` (each turn, per scope), `keepOpened`, `withhold`, and `memoryBrief` (what the GM is shown, in a stable part and a live part) |
 | [reviews.ts](reviews.ts) | `memory: "docs"`: the attention filter (`attend`, V1's seven categories), the two review agents and their tools (`reviewTurn`), and `broadcastEnding` |
 | [remember.ts](remember.ts) | `memory: "lite"`: one merged review of a flagged turn (`rememberTurn`), and one memory per person at a scene's end (`rememberScene`) |
@@ -60,7 +60,7 @@ flowchart TB
 
 | Caller | Uses |
 |---|---|
-| [src/runtime/engine.ts](../runtime/engine.ts) | `disclose` and `keepOpened` before each reply and before an opening; at a boundary `savePlayedScene`, `broadcastEnding` or `rememberScene`, `frontsText` and `moveFronts` |
+| [src/runtime/engine.ts](../runtime/engine.ts) | `disclose` and `keepOpened` before each reply and before an opening; at a boundary `errandsOf` (for the verdict: what the people the story goes on with do in the time between), `savePlayedScene`, `broadcastEnding` or `rememberScene`, `frontsText` and `moveFronts` |
 | [src/runtime/voices.ts](../runtime/voices.ts) | `memoryBrief`, in every GM reply when the approach has memory |
 | [src/runtime/jobs.ts](../runtime/jobs.ts) | `reviewTurn` or `rememberTurn`, after each turn, in the background |
 | [src/runtime/talk.ts](../runtime/talk.ts), [scenes/talk.ts](../../scenes/talk.ts) | A companion's lore entry, notes and memories (`characterEntry`, `seedDoc`, `readDoc`, `linksIn`, `permitted`, `memoryLines`, `saveMemory`), and `withhold` |
@@ -104,6 +104,8 @@ After each turn, a background job ([src/runtime/jobs.ts](../runtime/jobs.ts)) ru
 - **`rememberScene`** (`lite`);
 - **`savePlayedScene`** (either): the hand-off as `story/scenes/<scene>.md`, linked from the story index.
 
+Before any of that, the boundary's verdict reads the lore too. For each of the last scene's people who are in the scenes to come, `errandsOf` ([docs.ts](docs.ts)) gives the "What they do next" section of their `gm.md`, as this game's copy has it: Kell's afternoon, say, which is how the player hears where the story goes next. What they did between scenes is as true as play, unless play ruled it out.
+
 The fronts move in the same crossing. `moveFronts` ([fronts.ts:25](fronts.ts#L25)) ticks the steps that play or time has made true (`- [x]`, "Ticked after" the scene), strikes the ones play has made meaningless (with why), and adds up to two new bills under "Bills still to come due", leaving out any already on their way. It writes this game's copy of the doc, and `frontsText` reads that copy back at the next boundary.
 
 ### A companion's stories: told, now, held
@@ -140,4 +142,4 @@ The evals need the key. After a live game, `runs/sessions/<id>/docs/` holds ever
 - **The held story is cut, not annotated.** The GM knows its title and summary, and nothing else of it. A fast GM asked about something it can't see tends to invent it or deny it, and the reviews then record the invention.
 - **Always Jev.** Disclosure and the attention filter make their own `JevDecider`; the approach's decider never reaches them.
 - **Reviews run late.** A review reads its turn's snapshot but writes into the live overlay, perhaps after the next turn's disclosure has already read it.
-- **Only the fronts have unit tests.** Disclosure and the reviews are tested by the memory evals, live.
+- **Only the fronts and `errandsOf` have unit tests** (`errandsOf` in [src/runtime/boundary.test.ts](../runtime/boundary.test.ts)). Disclosure and the reviews are tested by the memory evals, live.
