@@ -13,7 +13,7 @@ import { C } from "../theme.ts";
 import { BOLD, Clickable, fit, FPS, isEnter, ITALIC, Keys, Spinner, useGame, wrap, type KeyHint } from "./common.tsx";
 
 /** What the fight's keys and buttons do (a key and its button do the same thing). */
-type Command = "attack" | "close" | "cast" | "use" | "dash" | "dodge" | "disengage" | "leave" | "auto" | "options" | "end" | "target" | "sheet" | "help" | "menu";
+type Command = "attack" | "close" | "cast" | "use" | "dash" | "dodge" | "disengage" | "leave" | "auto" | "options" | "end" | "target" | "sheet" | "help" | "menu" | "report";
 
 /**
  * Do one of the fight's commands: an action of the fight's own (by its action id, the ones the QA
@@ -38,6 +38,7 @@ export function fightCommand(game: Game, command: Command): void {
     case "sheet": void game.showSheet(); return;
     case "help": game.overlay = { kind: "help" }; game.emit(); return;
     case "menu": game.overlay = { kind: "menu", index: 0 }; game.emit(); return;
+    case "report": game.openReport(); return;
   }
   // The rest are the player's, on their turn.
   const view = fight.view();
@@ -64,7 +65,7 @@ export function fightCommand(game: Game, command: Command): void {
 
 /** The fight's keys: which command each one is. */
 const KEYS: Record<string, Command> = {
-  a: "attack", return: "attack", z: "close", c: "cast", u: "use", d: "dash", g: "dodge", x: "disengage", l: "leave", f: "auto", m: "options", e: "end", space: "end", tab: "target", s: "sheet", escape: "menu",
+  a: "attack", return: "attack", z: "close", c: "cast", u: "use", d: "dash", g: "dodge", x: "disengage", l: "leave", f: "auto", m: "options", e: "end", space: "end", tab: "target", s: "sheet", escape: "menu", b: "report",
 };
 
 /**
@@ -94,6 +95,8 @@ export function CombatScreen({ game }: { game: Game }) {
   useKeyboard(key => {
     if (game.overlay || game.screen !== "combat" || !fight || !view || key.defaultPrevented) return;
     key.preventDefault();
+    // Reporting a problem: whoever's turn it is, and once it's over.
+    if (key.name === "b") { fightCommand(game, "report"); return; }
     if (view.over) {
       // Over: an Enter goes on to what comes of it (or a click); nothing else does.
       if (isEnter(key)) void game.afterCombat();
@@ -206,6 +209,7 @@ export function CombatScreen({ game }: { game: Game }) {
   const keys: KeyHint[] = [
     ["click", "move or aim"], ["a", "attack", () => fightCommand(game, "attack")], ["Tab", "target", () => fightCommand(game, "target")], ["c", "cast", () => fightCommand(game, "cast")],
     ["m", "options", () => fightCommand(game, "options")], ["e", "end turn", () => fightCommand(game, "end")], ["s", "sheet", () => fightCommand(game, "sheet")], ["?", "help", () => fightCommand(game, "help")], ["Esc", "menu", () => fightCommand(game, "menu")],
+    ["b", "report a problem", () => fightCommand(game, "report")],
   ];
   const gap = width < 100 ? " · " : "  ·  ";
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>

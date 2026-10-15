@@ -6,8 +6,9 @@ talk to, a talk's choice, clicks on the way on, on commands and on the map's key
 a blue tile, someone to aim at and the end-turn button), and grep the screen. By default
 it plays the whole arc offline (an invalid API key, so the GM can't speak: scenes are ended with
 the /end testing command), including typing on as a scene ends (it goes nowhere), a save, quit and
-Continue, and a whole fight. With --live it plays real scene turns against the GM instead, a real
-scene boundary, and a real talk with Kell.
+Continue, a whole fight, and problems reported (mid-scene, mid-fight, in the zoo and from the title,
+each report read back). With --live it plays real scene turns against the GM instead, a real scene
+boundary, and a real talk with Kell.
 
   python3 src/app/smoke/smoke.py            # offline, the whole story (about two minutes)
   python3 src/app/smoke/smoke.py --live     # needs OPENROUTER_API_KEY: real GM turns, resume, a boundary, a talk
@@ -15,6 +16,7 @@ scene boundary, and a real talk with Kell.
 Screens are dumped to runs/app-smoke/<run>/ for reading afterwards.
 """
 import glob
+import gzip
 import json
 import os
 import re
@@ -92,6 +94,33 @@ def click(app, text, what):
         print(f"FAIL: {what} (nothing reading {text!r} to click; screen in {path})")
         app.close()
         sys.exit(1)
+
+
+def report(app, how, words, screen, what):
+    """Report a problem (b, or /report in a scene): what went wrong, saved under runs/reports with the screen as it was. The report, read back."""
+    reports = os.path.join(ROOT, ENV["KM_RUNS_DIR"], "reports")
+    before = set(glob.glob(os.path.join(reports, "*.json.gz")))
+    if how == "/report":
+        say(app, "/report")
+    else:
+        keys(app, how)
+    expect(app, r"What went wrong\?", f"{how} asks what went wrong ({what})")
+    app.type(words, 0.2)
+    keys(app, "enter")
+    expect(app, r"Report saved.*tell\b", f"the report is saved, and it says where, to tell Claude ({what})")
+    new = sorted(set(glob.glob(os.path.join(reports, "*.json.gz"))) - before)
+    dump = {}
+    if new:
+        with gzip.open(new[-1], "rt", encoding="utf-8") as f:
+            dump = json.load(f)
+    if dump.get("words") != words or not re.search(screen, dump.get("screens", {}).get("now", ""), re.S) or dump.get("settings", {}).get("terminal") != {"cols": 130, "rows": 42}:
+        print(f"FAIL: the report ({new[-1] if new else 'none'}) has the words, the screen as it was and the terminal's size ({what})")
+        app.close()
+        sys.exit(1)
+    print(f"ok: the report has the words, the screen as it was and the terminal's size ({what}: {os.path.basename(new[-1])})")
+    keys(app, "enter")
+    gone(app, r"Report saved", f"Enter puts the report away ({what})")
+    return dump
 
 
 def last_words(app):
@@ -495,6 +524,8 @@ def offline():
     expect(app, r"The investigator's notebook", "a click on /journal opens the notebook")
     app.click(1, 1)
     gone(app, r"The investigator's notebook", "a click outside the notebook closes it", timeout=5)
+    # A problem reported mid-scene: /report, then what went wrong.
+    report(app, "/report", "Hobb never came out from behind the bar", r"The Drowned Rat ·", "mid-scene")
     say(app, "/end hobb-talks")
     with_kell(app, r"The Heron Warehouse, then\..*then on to the Heron", "Kell names the lead: the Heron, the way the map gives it (the wharf interlude skipped)")
     expect(app, r"Night", "night on the map")
@@ -510,6 +541,12 @@ def offline():
     keys(app, "s")
     expect(app, r"Character sheet.*HP .*\d+/\d+", "the sheet in a fight")
     keys(app, "esc")
+    fought = report(app, "b", "The lantern-boy's lantern never fell", r"Initiative", "mid-fight")
+    if not (fought.get("where", {}).get("fight") or {}).get("round"):
+        print("FAIL: the report from the fight says its round")
+        app.close()
+        sys.exit(1)
+    print("ok: the report from the fight says its round")
     # Quit mid-fight and Continue: the fight carries on where it was.
     keys(app, "ctrl-c")
     app.pump(2)
@@ -550,6 +587,12 @@ def zoo(app):
     keys(app, "z")
     expect(app, r"Next: Welcome to the Zoo", "the title's zoo opens a visit on the map, with the next exhibit to see", timeout=60)
     expect(app, r"Welcome to the Zoo: everything the game does", "the zoo's welcome in What happens")
+    visit = report(app, "b", "The welcome sign was upside down", r"The zoo", "in the zoo")
+    if not (visit.get("zoo") or {}).get("wing"):
+        print("FAIL: the report from the zoo has the visit's own state")
+        app.close()
+        sys.exit(1)
+    print("ok: the report from the zoo has the visit's own state")
     keys(app, "v")
     expect(app, r"The Front Hall, from above", "v looks down on the wing from above")
     keys(app, "esc")
@@ -558,6 +601,13 @@ def zoo(app):
     keys(app, "down", "enter")
     expect(app, r"carry on your visit", "back on the title, the zoo carries the visit on")
     gone(app, r"Continue.*Wren Ashdown", "the zoo visit isn't offered as a game to Continue")
+    # From the title, a report is about the latest game: the visit.
+    latest = report(app, "b", "The title forgot my visit", r"Hanged Clerk of Caerwyn", "from the title")
+    if not latest.get("where", {}).get("latest") or (latest.get("game") or {}).get("id") != (visit.get("game") or {}).get("id"):
+        print("FAIL: the report from the title is about the latest game (the visit)")
+        app.close()
+        sys.exit(1)
+    print("ok: the report from the title is about the latest game (the visit)")
 
 
 def live():

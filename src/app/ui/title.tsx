@@ -57,6 +57,8 @@ export function TitleScreen({ game }: { game: Game }) {
     // The zoo: every feature laid out to see and try, kept apart from the story's games.
     // A visit can go the way of a game (x, twice): the next one starts fresh.
     { label: "The zoo", detail: game.zooVisit ? "carry on your visit: every feature, laid out to see and try (x starts afresh)" : "every feature of the game, laid out to see and try", ...(game.zooVisit ? { save: game.zooVisit } : {}), zoo: true, run: () => openZoo() },
+    // About the game played last (b too): what went wrong, saved with everything needed to look into it.
+    { label: "Report a problem…", detail: "with the latest game: say what went wrong, and it's saved for Claude", run: () => game.openReport() },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
   const at = Math.min(index, items.length - 1);
@@ -92,6 +94,7 @@ export function TitleScreen({ game }: { game: Game }) {
     else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
     else if (key.name === "z") openZoo();
+    else if (key.name === "b") game.openReport();
     else if (key.name === "q" || (key.name === "escape" && escQuits())) game.quit();
   });
   const keys: KeyHint[] = doomed
