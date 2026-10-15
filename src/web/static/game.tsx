@@ -31,7 +31,11 @@ function runInProcess(onJob: (job: Promise<void>) => void) {
   };
 }
 
-export async function startGame(options: { cols: number; rows: number; write: (data: string) => void; onQuit: () => void; onJob: (job: Promise<void>) => void }): Promise<Started> {
+export async function startGame(options: {
+  cols: number; rows: number; write: (data: string) => void; onQuit: () => void; onJob: (job: Promise<void>) => void;
+  /** A failure that's a part of the game not loading (a lazily loaded chunk gone since a new build was published), and what to do then. */
+  unloaded: (error: unknown) => boolean; onUnloaded: (error: unknown) => void;
+}): Promise<Started> {
   setBackgroundRunner(runInProcess(options.onJob));
   // The world's views paint themselves, live (<lookCanvas>).
   registerLookCanvas();
@@ -46,8 +50,11 @@ export async function startGame(options: { cols: number; rows: number; write: (d
     try { renderer.destroy(); } catch { /* already gone */ }
     options.onQuit();
   };
-  // A failure anywhere in the game shows up in it rather than tearing the terminal down.
-  const fail = (error: unknown) => { game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit(); };
+  // A failure anywhere in the game shows up in it rather than tearing the terminal down (but a part of it that won't load is the page's to say).
+  const fail = (error: unknown) => {
+    if (options.unloaded(error)) return options.onUnloaded(error);
+    game.status = `Something went wrong: ${message(error)}`; game.busy = undefined; game.emit();
+  };
   self.addEventListener("unhandledrejection", event => { event.preventDefault(); fail(event.reason); });
   self.addEventListener("error", event => { event.preventDefault(); fail(event.error ?? event.message); });
   root.render(<App game={game} onQuit={shutdown} />);

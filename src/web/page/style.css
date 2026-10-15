@@ -160,11 +160,47 @@ html[data-mode="static"] #frame {
 
 #key-bar {
   position: fixed;
+  left: 10px;
   right: 10px;
   bottom: 4px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 0 10px;
   font-size: 12px;
   line-height: 18px;
   color: var(--dim);
+  white-space: nowrap;
+}
+
+/* Whether this browser is keeping the game, on the left, until it is. */
+#key-bar [data-storage] {
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--danger);
+}
+
+#key-bar [data-storage][hidden] {
+  display: none;
+}
+
+/* Until the game draws its first screen (or the page asks for a key). */
+#loading {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  transform: translateY(-50%);
+  text-align: center;
+  color: var(--dim);
+  font-size: 14px;
+}
+
+#loading[hidden] {
+  display: none;
 }
 
 #key-bar[hidden] {
@@ -172,7 +208,6 @@ html[data-mode="static"] #frame {
 }
 
 #key-bar button {
-  margin-left: 10px;
   padding: 0;
   background: none;
   border: none;

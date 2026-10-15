@@ -10,6 +10,22 @@ import { Unicode11Addon } from "./vendor/addon-unicode11.mjs";
 // game runs in a Web Worker on this page and worker-transport.js speaks the same messages.
 
 const STATIC = document.documentElement.dataset.mode === "static";
+// The static build's stamp (build.ts): its files that aren't named by their hash are asked for with it.
+const VERSION = STATIC && document.documentElement.dataset.build ? `?v=${encodeURIComponent(document.documentElement.dataset.build)}` : "";
+
+// The static build loads the game's files (the worker, its chunks, the content) all at once, now, into
+// the browser's cache: otherwise each is asked for only once the one before it has loaded and run.
+if (STATIC) {
+  for (const path of (document.querySelector('meta[name="km-preload"]')?.content ?? "").split(/\s+/).filter(Boolean)) {
+    fetch(path, { priority: "low" }).then(response => response.arrayBuffer()).catch(() => {});
+  }
+}
+// "Loading Kingmaker…" is on the page until the game draws (or the page asks for a key); if that takes long, it says what to do.
+const slow = setTimeout(() => { document.getElementById("loading").textContent = "Still loading Kingmaker… If nothing comes up, reload the page."; }, 20000);
+function loaded() {
+  clearTimeout(slow);
+  document.getElementById("loading").hidden = true;
+}
 
 // The game's palette (src/app/theme.ts). The game paints in truecolor, so these show around its
 // edges and wherever something asks for a plain ANSI colour.
@@ -73,6 +89,18 @@ const term = new Terminal({
   // Right-click is the game's (its action menus), not a word selection.
   rightClickSelectsWord: false,
   windowOptions: { getWinSizePixels: true, getCellSizePixels: true, getWinSizeChars: true },
+});
+
+// Ctrl+C (or Cmd+C) over selected text copies it, as a browser's Ctrl+C does; with nothing selected it's
+// the game's, as in a terminal (save and quit). Shift+drag selects, as the game has the mouse.
+term.attachCustomKeyEventHandler(event => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey || !(event.code === "KeyC" || event.key.toLowerCase() === "c") || !term.hasSelection()) return true;
+  if (event.type === "keydown") {
+    navigator.clipboard?.writeText(term.getSelection()).catch(() => {});
+    // After the browser's own copy (xterm answers it from the selection too, where there's no clipboard API).
+    setTimeout(() => term.clearSelection());
+  }
+  return false;
 });
 
 // Unicode 11 widths: 🎲 and friends take two cells, as the game lays them out.
@@ -156,6 +184,29 @@ term.onTitleChange(title => {
 window.addEventListener("focus", () => {
   if ($("gate").hidden) term.focus();
 });
+
+let cancelKeyForm;
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !$("gate").hidden && cancelKeyForm) cancelKeyForm();
+});
+
+/**
+ * The key form, up or down. While it's up the game behind it takes nothing (a key pasted beside the
+ * form would go into the game). A notice it comes up over (the game has closed, say) is back when it goes.
+ */
+let noticeUnder = false;
+function keyForm(open) {
+  if (open && !$("notice").hidden) {
+    noticeUnder = true;
+    $("notice").hidden = true;
+  }
+  $("gate").hidden = !open;
+  $("frame").inert = open;
+  if (!open && noticeUnder) {
+    noticeUnder = false;
+    $("notice").hidden = false;
+  }
+}
 // Closing the tab saves and ends the game; ask first, since Ctrl+W is a word-delete in terminals.
 window.addEventListener("beforeunload", event => {
   if (playing) event.preventDefault();
@@ -163,7 +214,11 @@ window.addEventListener("beforeunload", event => {
 // In the static build the game is on this page: going away is Ctrl+C's way out (it saves).
 window.addEventListener("pagehide", () => transport?.leaving?.());
 document.addEventListener("visibilitychange", () => { if (document.hidden) transport?.flush?.(); });
-$("notice-button").addEventListener("click", async () => {
+// The notice's button: what it does is the notice's (play again, reload, take the game over from another tab).
+let noticeAction = playAgain;
+$("notice-button").addEventListener("click", () => noticeAction());
+
+async function playAgain() {
   // The static build: a closed game's last notes are finished (and saved) before the next game reads the saves.
   if (transport?.finishing?.()) {
     $("notice-text").textContent = "Finishing the GM's notes on your last turn first (they're kept with the game)…";
@@ -175,7 +230,7 @@ $("notice-button").addEventListener("click", async () => {
   term.reset();
   term.write("\x1b[?25l");
   connect();
-});
+}
 
 // For the browser checks (src/web/check.ts, src/web/static/check.ts) and anyone curious in the console.
 window.km = {
@@ -230,22 +285,33 @@ async function connect() {
           return;
         case "started":
           playing = true;
-          $("gate").hidden = true;
+          loaded();
+          keyForm(false);
           $("notice").hidden = true;
           transport?.started?.(message);
           term.focus();
+          return;
+        case "busy":
+          // The static build: the game is open in another tab of this browser, and only one can play it at a time.
+          showNotice("Kingmaker is open in another tab of this browser. Only one tab can play it at a time, or each would overwrite the other's saves.", "Play here instead", () => {
+            message.takeOver();
+            $("notice-text").textContent = "Waiting for the other tab to save the game and let it go…";
+            $("notice-button").disabled = true;
+          });
           return;
         case "exit":
           settled = true;
           playing = false;
           // The game hands back an empty screen with the cursor showing; there's nothing to type into.
           term.write("\x1b[?25l");
-          showNotice("The game has closed (it saves as it goes).", "Play again");
+          if (message.moved) showNotice("The game is being played in another tab now (it saved here first).", "Play here instead");
+          else showNotice("The game has closed (it saves as it goes).", "Play again");
           return;
         case "error":
           settled = true;
           playing = false;
-          showNotice(message.message, "Try again");
+          if (message.reload) showNotice(message.message, "Reload the page", () => location.reload());
+          else showNotice(message.message, "Try again");
           return;
         case "stats":
           statsWaiters.shift()?.(message);
@@ -260,9 +326,12 @@ async function connect() {
   };
   if (STATIC) {
     transport?.close?.();
-    const { workerTransport } = await import("./worker-transport.js");
+    const { workerTransport } = await import(`./worker-transport.js${VERSION}`);
     // ?glyphs=ascii draws letters, as the smoke test plays; ?jobdelay=<ms> holds back the background jobs (for the check).
-    transport = workerTransport(handlers, { offline: params.has("offline"), glyphs: params.get("glyphs") ?? undefined, jobDelayMs: Number(params.get("jobdelay")) || undefined, askForKey });
+    transport = workerTransport(handlers, {
+      offline: params.has("offline"), glyphs: params.get("glyphs") ?? undefined, jobDelayMs: Number(params.get("jobdelay")) || undefined, askForKey,
+      closeKeyForm: () => { keyForm(false); term.focus(); },
+    });
   } else {
     transport = socketTransport(handlers);
   }
@@ -299,10 +368,16 @@ function start(extra) {
 function askForKey(error, options = {}) {
   const input = $("key");
   const problem = $("key-error");
-  $("gate").hidden = false;
+  loaded();
+  keyForm(true);
   checking(false);
   problem.hidden = !error;
   problem.textContent = error ?? "";
+  // Over a game that's playing (the bar's Change key), the form can be left as it was: Cancel, or Esc.
+  $("offline").textContent = options.cancel ? "Cancel" : "Look around offline";
+  $("offline-note").hidden = !!options.cancel;
+  // (Esc anywhere on the page: the game behind the form can't have it.)
+  cancelKeyForm = options.cancel ? () => $("offline").click() : undefined;
   input.focus();
   $("key-form").onsubmit = event => {
     event.preventDefault();
@@ -311,7 +386,7 @@ function askForKey(error, options = {}) {
     input.value = "";
     if (!key) {
       problem.hidden = false;
-      problem.textContent = "Paste a key, or look around offline.";
+      problem.textContent = options.cancel ? "Paste a key, or Cancel." : "Paste a key, or look around offline.";
       input.focus();
       return;
     }
@@ -323,7 +398,7 @@ function askForKey(error, options = {}) {
   };
   $("offline").onclick = () => {
     input.value = "";
-    $("gate").hidden = true;
+    keyForm(false);
     if (options.onOffline) options.onOffline();
     else start({ offline: true });
     term.focus();
@@ -335,10 +410,13 @@ function checking(on) {
   $("key-checking").hidden = !on;
 }
 
-function showNotice(text, button) {
-  $("gate").hidden = true;
+function showNotice(text, button, action = playAgain) {
+  loaded();
+  keyForm(false);
   $("notice-text").textContent = text;
   $("notice-button").textContent = button;
+  $("notice-button").disabled = false;
+  noticeAction = action;
   $("notice").hidden = false;
   $("notice-button").focus();
 }
@@ -348,7 +426,7 @@ function control(message) {
 }
 
 function sendBytes(bytes) {
-  if (!playing || !transport?.sendBytes(bytes)) return;
+  if (!playing || !$("gate").hidden || !transport?.sendBytes(bytes)) return;
   stats.bytesOut += bytes.length;
 }
 
@@ -368,7 +446,7 @@ function resize() {
 // cells, so their glyphs are there from the first frame.
 async function loadFonts() {
   try {
-    const fonts = await (await fetch("fonts.json")).json();
+    const fonts = await (await fetch(`fonts.json${VERSION}`)).json();
     await Promise.all(fonts.map(font => document.fonts.load(`${font.style} ${font.weight} ${fontSize}px "${font.family}"`, font.sample).catch(() => [])));
     return [...new Set(fonts.map(font => font.family))];
   } catch {

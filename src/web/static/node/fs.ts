@@ -128,10 +128,10 @@ export function mountReadOnly(files: Record<string, string>): void {
   if (runs) runs.readonly = false;
 }
 
-/** Put back persisted files (the worker reads them from IndexedDB before the game starts). */
+/** Put back persisted files (the worker reads them from IndexedDB before the game starts); a record that isn't a file's is left out. */
 export function restore(files: Array<{ path: string; data: string | Uint8Array; mtimeMs: number }>): void {
   for (const f of files) {
-    if (!persisted(f.path)) continue;
+    if (typeof f?.path !== "string" || !persisted(f.path) || !(typeof f.data === "string" || f.data instanceof Uint8Array)) continue;
     ensureDirs(dirname(f.path), false, f.mtimeMs);
     entries.set(f.path, { kind: "file", data: f.data, mtimeMs: f.mtimeMs, readonly: false });
     addChild(f.path);

@@ -7,7 +7,8 @@ import { parseArgs } from "node:util";
 /**
  * A plain static file server for dist/web, the way GitHub Pages serves it: files only, under a
  * path (/kingmaker/pr-preview/pr-650/ by default, as the PR previews are), no headers of the game's
- * own. For trying the static build locally and for its check (check.ts).
+ * own, and Pages' caching (any file may be kept for ten minutes, then asked about with
+ * If-Modified-Since). For trying the static build locally and for its check (check.ts).
  *
  *   node --no-warnings src/web/static/serve.ts [--port 7312] [--base /kingmaker/pr-preview/pr-650/]
  */
@@ -30,7 +31,11 @@ export function serveStatic(root: string, base = DEFAULT_BASE, port = 0, host = 
     if (!file.startsWith(normalize(root) + sep) && file !== normalize(root)) { res.writeHead(403).end(); return; }
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, "index.html");
     if (!existsSync(file)) { res.writeHead(404).end("Not found\n"); return; }
-    res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream", "Content-Length": statSync(file).size });
+    const stat = statSync(file);
+    const modified = new Date(Math.floor(stat.mtimeMs / 1000) * 1000);
+    const since = Date.parse(req.headers["if-modified-since"] ?? "");
+    if (since >= modified.getTime()) { res.writeHead(304, { "Cache-Control": "max-age=600", "Last-Modified": modified.toUTCString() }).end(); return; }
+    res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream", "Content-Length": stat.size, "Cache-Control": "max-age=600", "Last-Modified": modified.toUTCString() });
     createReadStream(file).pipe(res);
   });
   return new Promise(resolve => server.listen(port, host, () => {

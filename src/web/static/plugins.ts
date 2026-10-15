@@ -87,3 +87,16 @@ export function replaceModules(replacements: Record<string, string>): Plugin {
     },
   };
 }
+
+/**
+ * Modules of a dependency the browser build never runs, replaced by something small: each path that
+ * matches (an absolute path, as esbuild resolved it) loads `contents` (CommonJS or ESM) instead.
+ */
+export function stubModules(stubs: Array<{ filter: RegExp; contents: string }>): Plugin {
+  return {
+    name: "stub-modules",
+    setup(build) {
+      for (const { filter, contents } of stubs) build.onLoad({ filter }, () => ({ contents, loader: "js" }));
+    },
+  };
+}

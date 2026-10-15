@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { dbName } from "./persist.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
 
 /**
@@ -15,10 +16,12 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  *   node --no-warnings src/web/static/check.ts          the build and what's in it; the title, a new
  *                                                       character and its sheet beside the terminal
  *                                                       app's (runs/app-smoke); the map by keys and by
- *                                                       mouse; a scene offline; latency and bandwidth;
- *                                                       saves kept in IndexedDB through reloads; x x
- *                                                       deleting a game; resizing; the key form
- *                                                       (OpenRouter faked: no key goes anywhere)
+ *                                                       mouse; copying; a scene offline; latency and
+ *                                                       bandwidth; saves kept in IndexedDB through
+ *                                                       reloads; x x deleting a game; resizing; one
+ *                                                       tab at a time; a browser that won't keep
+ *                                                       anything; the key form (OpenRouter faked: no
+ *                                                       key goes anywhere)
  *   node --no-warnings src/web/static/check.ts --live   also the key from ~/secrets typed into the key
  *                                                       form, a real GM reply, and the GM's notes on it
  *                                                       (held back, so Ctrl+C catches them running)
@@ -119,6 +122,17 @@ function inspect(): void {
   const absolute = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]!).filter(u => u.startsWith("/") || /^https?:/.test(u) && !u.startsWith("https://openrouter.ai"));
   if (!absolute.length) ok("index.html refers to its files by relative URLs");
   else fail(`index.html has absolute URLs: ${absolute.join(", ")}`);
+
+  // The build's stamp on what isn't named by its hash, and the list of what to load at once (each there to load).
+  const stamp = /<html[^>]* data-build="([0-9a-f]{12})"/.exec(html)?.[1];
+  const preload = (/<meta name="km-preload" content="([^"]*)">/.exec(html)?.[1] ?? "").split(/\s+/).filter(Boolean);
+  const missing = preload.filter(path => !existsSync(join(DIST, path.replace(/\?.*$/, ""))));
+  const stamped = ["client.js", "style.css", "fonts.css", "vendor/xterm.css"].every(file => html.includes(`"${file}?v=${stamp}"`));
+  if (stamp && stamped && preload.includes(`worker.js?v=${stamp}`) && preload.includes(`content.json?v=${stamp}`) && preload.length >= 5 && !missing.length) {
+    ok(`the build's stamp (${stamp}) is on the page's files, and it lists the ${preload.length} files the game loads at once, all there`);
+  } else fail(`the build's stamp: ${stamp}; the page's files stamped: ${stamped}; preloads ${preload.join(" ")}${missing.length ? `, missing ${missing.join(", ")}` : ""}`);
+  if (/from "\.\/vendor\/xterm\.mjs\?v=/.test(readFileSync(join(DIST, "client.js"), "utf8"))) ok("client.js asks for xterm.js with the stamp too");
+  else fail("client.js's imports aren't stamped");
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -255,9 +269,12 @@ function changed(a: string, b: string): number {
 
 interface Saved { path: string; data: string; mtimeMs: number }
 
+/** The saves' database: this preview's own (persist.ts). */
+const DB = dbName(DEFAULT_BASE);
+
 const SAVES = `(async () => {
   const db = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("kingmaker-v2", 1);
+    const request = indexedDB.open(${JSON.stringify(DB)}, 1);
     request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains("files")) request.result.createObjectStore("files", { keyPath: "path" }); };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -466,7 +483,7 @@ async function newGame(page: Page, live: boolean): Promise<void> {
 }
 
 async function play(browser: Browser, url: string): Promise<void> {
-  const context = await browser.newContext({ viewport: VIEWPORT });
+  const context = await browser.newContext({ viewport: VIEWPORT, permissions: ["clipboard-read", "clipboard-write"] });
   const seen = watch(context);
   try {
     const { page, ms } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
@@ -476,12 +493,40 @@ async function play(browser: Browser, url: string): Promise<void> {
     if (renderer === "webgl") ok("the WebGL renderer is drawing");
     else fail(`renderer is ${renderer}, not webgl`);
     if (!(await page.evaluate("km.static"))) fail("the page doesn't know it's the static build");
+    if (await page.isVisible("#loading")) fail("\"Loading Kingmaker…\" is still up over the title");
+    else ok("\"Loading Kingmaker…\" went once the title was drawn");
     await sleep(300);
     await shot(page, "title");
+    // On a page, Esc is for dismissing things: on the title it doesn't close the game (q does).
+    await press(page, "Escape");
+    await sleep(600);
+    if (!(await page.isVisible("#notice")) && /Hanged Clerk of Caerwyn/.test(await text(page))) ok("Esc on the title leaves the game be");
+    else fail("Esc on the title closed the game");
     await newGame(page, false);
     await waitFor(page, "Sergeant Kell", "Kell is about");
     await sleep(800);
     await shot(page, "map-morning");
+
+    // Ctrl+C over text selected with Shift+drag copies it, as a browser's Ctrl+C does (without a selection it's the game's).
+    const story = await find(page, "Morning, on the eve");
+    if (story) {
+      const cell = await cellBox(page);
+      const y = cell.y + (story.row + 0.5) * cell.h;
+      await page.keyboard.down("Shift");
+      await page.mouse.move(cell.x + (story.col + 0.5) * cell.w, y);
+      await page.mouse.down();
+      await page.mouse.move(cell.x + (story.col + 18.5) * cell.w, y, { steps: 5 });
+      await page.mouse.up();
+      await page.keyboard.up("Shift");
+      await sleep(200);
+      const selected = (await page.evaluate("km.term.getSelection()")) as string;
+      await press(page, "Control+c");
+      await sleep(500);
+      const copied = (await page.evaluate("navigator.clipboard.readText()").catch(() => "")) as string;
+      if (selected.startsWith("Morning") && copied === selected && !(await page.isVisible("#notice")) && (await page.evaluate("km.playing"))) ok(`Ctrl+C over selected text copies it ("${copied}") and the game plays on`);
+      else fail(`Ctrl+C over a selection ("${selected}"): copied "${copied}", the game ${await page.isVisible("#notice") ? "closed" : "is still up"}`);
+      if (await page.evaluate("km.term.getSelection()")) fail("the selection is still there after the copy");
+    } else fail("the story's first line isn't on the map's screen to select");
 
     // Walking: an arrow and a WASD step. The view follows the player, so a step scrolls the map.
     const before = await text(page);
@@ -600,6 +645,11 @@ async function play(browser: Browser, url: string): Promise<void> {
     await waitFor(page, "Hanged Clerk of Caerwyn", "after another reload");
     if (/Tamsin Vell/.test(await text(page))) fail("the deleted game came back after a reload");
     else ok("the deleted game stays deleted over a reload");
+    // In a browser nobody can go and look in runs/deleted/: the game deletes it for good as it starts.
+    let leftover = -1;
+    for (let i = 0; i < 20 && leftover !== 0; i++) { leftover = (await saves(page)).filter(f => f.path.includes("/runs/deleted/")).length; if (leftover) await sleep(200); }
+    if (!leftover) ok("and its files are gone from IndexedDB for good (runs/deleted/ is cleared as the game starts)");
+    else fail(`${leftover} files of deleted games are still in IndexedDB after the game started again`);
 
     const outside = seen.requests.filter(r => r.startsWith("http://127.0.0.1") && !new URL(r).pathname.startsWith(DEFAULT_BASE));
     if (!outside.length) ok(`every request stayed under ${DEFAULT_BASE} (${seen.requests.length} requests)`);
@@ -628,6 +678,74 @@ async function resize(browser: Browser, url: string): Promise<void> {
     if (size1[0] !== size2[0] && lines.length === size2[1] && widest <= size2[0]! && /Hanged Clerk/.test(lines.join("\n"))) ok(`resize follows the window: ${size1.join("x")} -> ${size2.join("x")}, and the game redrew at the new size (its text is ${widest} columns at most)`);
     else fail(`resize: ${size1.join("x")} -> ${size2.join("x")}, ${lines.length} lines of up to ${widest} columns`);
     await shot(page, "resized");
+  } finally {
+    await context.close();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// One tab at a time, and a browser that won't keep anything
+
+/** The same game opened in a second tab: it's told so, takes the game over, and plays on from the first tab's progress. */
+async function twoTabs(browser: Browser, url: string): Promise<void> {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  watch(context);
+  try {
+    const { page: a } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+    await waitFor(a, "Hanged Clerk of Caerwyn", "tab A: the title");
+    await newGame(a, false);
+    await press(a, "ArrowLeft", "ArrowLeft");
+    await sleep(1500);
+    await a.evaluate("km.flush()");
+    const [id, game] = [...(await games(a)).entries()][0] ?? [];
+    if (!id || !game?.at) throw new Error("tab A's game isn't in IndexedDB");
+    const { page: b } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+    try {
+      await b.waitForSelector("#notice:not([hidden])", { timeout: 10000 });
+    } catch {
+      throw new Error("tab B, opened while tab A plays, wasn't told the game is open in another tab");
+    }
+    const said = await b.textContent("#notice-text");
+    if (/open in another tab/.test(said ?? "") && !(await text(b)).trim()) ok(`tab B, opened while A plays, is told so and doesn't start a copy of its own ("${said}")`);
+    else fail(`tab B: "${said}", its screen: "${(await text(b)).trim().slice(0, 60)}"`);
+    await shot(b, "second-tab");
+    await b.click("#notice-button");
+    await waitFor(b, "Continue.*Tamsin Vell", "Play here instead: tab B has the game now, and Continue offers it", 20000);
+    const told = await a.textContent("#notice-text");
+    if (await a.isVisible("#notice") && /another tab/.test(told ?? "") && !(await a.evaluate("km.playing"))) ok(`tab A saved its game, let it go, and says so ("${told}")`);
+    else fail(`tab A after B took the game: "${told}", playing: ${await a.evaluate("km.playing")}`);
+    await press(b, "Enter");
+    await waitFor(b, "The lead:.*Hanged Clerk", "tab B continues tab A's game");
+    await sleep(1000);
+    await b.evaluate("km.flush()");
+    const there = (await games(b)).get(id)?.at;
+    if (there && there.x === game.at.x && there.y === game.at.y) ok(`and from where A left it (${there.x},${there.y}): nothing of A's was lost`);
+    else fail(`tab B's game is at ${there?.x},${there?.y}, A left it at ${game.at.x},${game.at.y}`);
+    // And back: A takes it again.
+    await a.click("#notice-button");
+    await a.waitForSelector("#notice:not([hidden])", { timeout: 10000 });
+    await a.click("#notice-button");
+    await waitFor(a, "Continue.*Tamsin Vell", "tab A takes it back the same way", 20000);
+  } finally {
+    await context.close();
+  }
+}
+
+/** A browser that won't let the page keep anything (IndexedDB refused, as with this site's data blocked): the game plays, and the bar says it won't be kept. */
+async function noStorage(browser: Browser, url: string): Promise<void> {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  watch(context);
+  await context.route("**/worker.js*", async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: `IDBFactory.prototype.open = function () { throw new DOMException("The user denied permission to access the database.", "SecurityError"); };\n${await response.text()}` });
+  });
+  try {
+    const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+    await waitFor(page, "Hanged Clerk of Caerwyn", "without IndexedDB: the title");
+    const said = await page.innerText("#key-bar [data-storage]").catch(() => "");
+    if (/won't keep/.test(said) && await page.isVisible("#key-bar [data-storage]")) ok(`without IndexedDB the game plays, and the bar under it says it won't be kept ("${said}")`);
+    else fail(`without IndexedDB the bar says "${said}"`);
+    await shot(page, "no-storage");
   } finally {
     await context.close();
   }
@@ -694,6 +812,17 @@ async function keyForm(browser: Browser, url: string): Promise<void> {
     const bar = await page.innerText("#key-bar");
     if (/kept in this browser.*Change key.*Forget it/s.test(bar)) ok(`the bar under the game says so, and offers to change or forget it ("${bar.replace(/\s+/g, " ").trim()}")`);
     else fail(`the key's bar: "${bar}"`);
+
+    // Change key over the game: the game behind the form takes nothing, and the form can be left as it was (Cancel, or Esc).
+    await page.click("#key-bar [data-change]");
+    await page.waitForSelector("#gate:not([hidden])", { timeout: 5000 });
+    const second = await page.textContent("#offline");
+    const inert = await page.evaluate(`document.getElementById("frame").inert`);
+    await press(page, "Escape");
+    await sleep(300);
+    if (second === "Cancel" && inert && !(await page.isVisible("#gate")) && (await page.evaluate(`localStorage.getItem(${JSON.stringify(KEY_STORAGE)})`)) === FAKE_KEY && (await page.evaluate("km.playing"))) {
+      ok("Change key over the game: the game behind it is inert, and Cancel (or Esc) leaves the key and the game as they were");
+    } else fail(`Change key: second button "${second}", game inert ${inert}, form still up ${await page.isVisible("#gate")}`);
 
     // Forget it: the game saves and goes, and the page asks again.
     await page.click("#key-bar [data-forget]");
@@ -805,6 +934,8 @@ try {
   await besideTheTerminal(browser, server.url);
   await play(browser, server.url);
   await resize(browser, server.url);
+  await twoTabs(browser, server.url);
+  await noStorage(browser, server.url);
   await keyForm(browser, server.url);
   if (LIVE) await live(browser, server.url);
 } catch (error) {

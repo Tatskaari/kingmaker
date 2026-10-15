@@ -88,7 +88,12 @@ test("saves come back from IndexedDB with their directories and times, under run
     { path: "/kingmaker/runs/sessions/d/game.json", data: '{"mode":"scene"}', mtimeMs: 1000 },
     { path: "/kingmaker/runs/sessions/d/look.bin", data: new Uint8Array([1, 2, 3]), mtimeMs: 2000 },
     { path: "/kingmaker/lore/places/caerwyn.md", data: "not from a save", mtimeMs: 3000 },
+    // Records that aren't a file's (written by something else on this origin, say) are left out.
+    { path: "/kingmaker/runs/sessions/d/numeric.json", data: 12345 as unknown as string, mtimeMs: 4000 },
+    { path: "/kingmaker/runs/sessions/d/null.json", data: null as unknown as string, mtimeMs: 4000 },
+    null as unknown as { path: string; data: string; mtimeMs: number },
   ]);
+  assert.ok(!existsSync("/kingmaker/runs/sessions/d/numeric.json") && !existsSync("/kingmaker/runs/sessions/d/null.json"));
   assert.equal(readFileSync("/kingmaker/runs/sessions/d/game.json", "utf8"), '{"mode":"scene"}');
   assert.equal(statSync("/kingmaker/runs/sessions/d/game.json")!.mtimeMs, 1000);
   assert.deepEqual([...readFileSync("/kingmaker/runs/sessions/d/look.bin")], [1, 2, 3]);

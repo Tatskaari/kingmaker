@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
@@ -6,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
 import { fontFaceCss, fontList, webFonts } from "../fonts.ts";
-import { importMeta, openTuiFonts, virtualModules } from "./plugins.ts";
+import { importMeta, openTuiFonts, stubModules, virtualModules } from "./plugins.ts";
 import { shimProblems } from "./shims.ts";
 
 /**
@@ -24,6 +25,13 @@ import { shimProblems } from "./shims.ts";
  * src/web/tui. Nothing outside the allowlist goes in, and the build fails if anything in dist/web
  * looks like an OpenRouter key, or if the game asks of Node what the browser's stand-ins can't do
  * (shims.ts), as a preview that breaks only in play would otherwise still publish.
+ *
+ * The files whose names don't carry a hash of their contents (worker.js, content.json, the page's)
+ * are asked for with the build's stamp (?v=, from <html data-build>), and index.html lists what the
+ * game loads before its first screen (<meta name="km-preload">) for the page to fetch at once.
+ * GitHub Pages lets a browser keep any file for ten minutes, so without the stamp a reload just
+ * after a new build is published could mix the new page with the old worker, or an old worker with
+ * chunks that are gone.
  */
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -83,6 +91,8 @@ const result = await build({
   plugins: [
     importMeta({ root: ROOT, virtualRoot: "/kingmaker" }),
     virtualModules({ "virtual:opentui-fonts": () => `export default ${JSON.stringify(openTuiFonts(ROOT))};` }),
+    // boardgame.io's debug panel (Svelte, about 90 KB): its client shows it only outside production builds.
+    stubModules([{ filter: /[\\/]boardgame\.io[\\/]dist[\\/]cjs[\\/]Debug-[0-9a-f]+\.js$/, contents: "module.exports = {};" }]),
   ],
   metafile: true,
   logLevel: "warning",
@@ -100,18 +110,9 @@ if (problems.length) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The page, in static mode
+// The page's files (index.html last, with the build's stamp)
 
-const csp = [
-  "default-src 'self'", "script-src 'self'", "worker-src 'self'", "connect-src 'self' https://openrouter.ai",
-  "style-src 'self' 'unsafe-inline'", "img-src 'self' data:", "font-src 'self'", "base-uri 'none'", "form-action 'none'", "object-src 'none'",
-].join("; ");
-const html = readFileSync(join(PAGE, "index.html"), "utf8")
-  .replace('<html lang="en">', '<html lang="en" data-mode="static">')
-  .replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${csp}">\n  <meta name="referrer" content="no-referrer">`);
-if (!html.includes('data-mode="static"')) throw new Error("index.html changed: the static build couldn't mark it");
-writeFileSync(join(OUT, "index.html"), html);
-for (const file of ["client.js", "worker-transport.js", "style.css"]) copyFileSync(join(PAGE, file), join(OUT, file));
+for (const file of ["worker-transport.js", "style.css"]) copyFileSync(join(PAGE, file), join(OUT, file));
 
 const xterm = dirname(dirname(require.resolve("@xterm/xterm")));
 const addon = (name: string) => dirname(dirname(require.resolve(`@xterm/addon-${name}`)));
@@ -150,17 +151,40 @@ for (const { dir, include } of CONTENT) collect(dir, include);
 writeFileSync(join(OUT, "content.json"), JSON.stringify({ files }));
 
 // ---------------------------------------------------------------------------------------------
+// The page, in static mode, with the build's stamp: a hash of everything else in it
+
+const client = readFileSync(join(PAGE, "client.js"), "utf8");
+const stamp = (() => {
+  const hash = createHash("sha256").update(client);
+  for (const file of filesIn(OUT).sort()) hash.update(`\0${relative(OUT, file)}\0`).update(readFileSync(file));
+  return hash.digest("hex").slice(0, 12);
+})();
+const v = `?v=${stamp}`;
+// client.js's own imports (xterm.js and its addons) carry the stamp too.
+const versionedClient = client.replace(/(from\s+"\.\/vendor\/[\w.-]+\.mjs)"/g, `$1${v}"`);
+if (versionedClient === client) throw new Error("client.js changed: the static build couldn't stamp its imports");
+writeFileSync(join(OUT, "client.js"), versionedClient);
+// What the game loads before its first screen, for the page to fetch all at once (client.js): the worker, its chunks, the content.
+const preload = [
+  `worker.js${v}`,
+  ...Object.keys(result.metafile.outputs).filter(path => path.endsWith(".js") && path.includes("/chunks/")).map(path => relative(OUT, resolve(ROOT, path))).sort(),
+  `content.json${v}`,
+];
+const csp = [
+  "default-src 'self'", "script-src 'self'", "worker-src 'self'", "connect-src 'self' https://openrouter.ai",
+  "style-src 'self' 'unsafe-inline'", "img-src 'self' data:", "font-src 'self'", "base-uri 'none'", "form-action 'none'", "object-src 'none'",
+].join("; ");
+const html = readFileSync(join(PAGE, "index.html"), "utf8")
+  .replace('<html lang="en">', `<html lang="en" data-mode="static" data-build="${stamp}">`)
+  .replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${csp}">\n  <meta name="referrer" content="no-referrer">\n  <meta name="km-preload" content="${preload.join(" ")}">`)
+  .replace(/((?:href|src)="(?:vendor\/xterm\.css|fonts\.css|style\.css|client\.js))"/g, `$1${v}"`);
+if (!html.includes('data-mode="static"') || (html.match(/\?v=/g) ?? []).length < 5) throw new Error("index.html changed: the static build couldn't mark it");
+writeFileSync(join(OUT, "index.html"), html);
+
+// ---------------------------------------------------------------------------------------------
 // Nothing secret goes out
 
-const outputs: string[] = [];
-const walk = (dir: string): void => {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) walk(path);
-    else outputs.push(path);
-  }
-};
-walk(OUT);
+const outputs = filesIn(OUT);
 // The dev key (read here, never printed), when this machine has one; and anything shaped like an OpenRouter key.
 const keyFile = join(homedir(), "secrets", "kingmaker-dev-openrouter.txt");
 const devKey = existsSync(keyFile) ? readFileSync(keyFile, "utf8").trim() : "";
@@ -174,6 +198,17 @@ if (leaks.length) {
 }
 
 const bytes = outputs.reduce((n, p) => n + statSync(p).size, 0);
+console.log(`the build's stamp: ${stamp}`);
 const gzipped = outputs.reduce((n, p) => n + gzipSync(readFileSync(p)).length, 0);
 const mb = (n: number) => `${(n / 1e6).toFixed(2)} MB`;
 console.log(`dist/web: ${outputs.length} files, ${mb(bytes)} (${mb(gzipped)} gzipped); ${Object.keys(files).length} content files; built in ${((performance.now() - started) / 1000).toFixed(1)} s`);
+
+function filesIn(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...filesIn(path));
+    else out.push(path);
+  }
+  return out;
+}

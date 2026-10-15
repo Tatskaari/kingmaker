@@ -15,6 +15,7 @@
   <div id="frame">
     <div id="terminal" aria-label="Kingmaker"></div>
   </div>
+  <p id="loading" role="status">Loading Kingmaker…</p>
 
   <div id="gate" class="card" hidden>
     <form id="key-form" autocomplete="off">
@@ -26,12 +27,12 @@
       <p id="key-error" class="error" hidden></p>
       <p id="key-checking" class="note" hidden>Checking the key with OpenRouter…</p>
       <p class="note server-only">It's used only for your game on this server, and isn't stored. It goes when the game ends, though the GM's notes on your last turn can take up to three minutes more. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">Get a key at openrouter.ai/keys</a></p>
-      <p class="note static-only">It's kept in this browser (also for the other Kingmaker previews on this site) and sent only to OpenRouter, from this page. Change or forget it under the game. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">Get a key at openrouter.ai/keys</a></p>
+      <p class="note static-only">It's kept in this browser (also for the other Kingmaker previews on this site, though each keeps its own games) and sent only to OpenRouter, from this page. Change or forget it under the game. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">Get a key at openrouter.ai/keys</a></p>
       <div class="actions">
         <button type="submit">Play</button>
         <button type="button" id="offline" class="quiet">Look around offline</button>
       </div>
-      <p class="note">Offline, the GM can't speak: you can make a character and walk the town, but the scenes won't play.</p>
+      <p class="note" id="offline-note">Offline, the GM can't speak: you can make a character and walk the town, but the scenes won't play.</p>
     </form>
   </div>
 
@@ -41,6 +42,7 @@
   </div>
 
   <div id="key-bar" class="static-only" hidden>
+    <span data-storage role="status" hidden></span>
     <span data-state></span>
     <button type="button" data-change>Change key</button>
     <button type="button" data-forget>Forget it</button>
