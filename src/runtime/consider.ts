@@ -332,7 +332,8 @@ export async function considerAct(scene: Scene, state: SessionState, playerTurn:
   };
   const json = await respondJson<RulingJson>({
     operation: "consider", model: LUNA, effort: considerEffort(),
-    instructions: prompt("consider"), input, json: { name: "ruling", schema: rulingSchema(scene, state) }, maxOutputTokens: MAX_OUTPUT_TOKENS, onText,
+    // A ruling in two phases is taken by its final answer when that reads: a retry rarely beats the deadline.
+    instructions: prompt("consider"), input, json: { name: "ruling", schema: rulingSchema(scene, state) }, maxOutputTokens: MAX_OUTPUT_TOKENS, onText, finalAnswer: true,
     ...(context.signal ? { signal: context.signal } : {}),
   });
   return toRuling(scene, state, json, json._meta, { read, ...(context.unheard ? { unheard: context.unheard } : {}) });
@@ -511,6 +512,22 @@ export function diceReason(scene: Scene, state: SessionState, reason: string, ru
   if (own && !unheardPlaces(scene, state, own).length) return asYou(asHeard(own, strangers), state.player.name);
   const person = scene.cast.find(c => c.id === ruling.target);
   return (person && PLAIN_GOAL[ruling.skill]?.(asHeard(person.name, strangers))) || "to pull it off";
+}
+
+/** Words in people's names that say nothing of who's meant ("Master Sallow", "Big Hobb", "Sergeant Kell"). */
+const TITLES = new Set(["big", "little", "old", "young", "master", "mister", "missus", "mistress", "sergeant", "corporal", "captain", "marshal", "king", "queen", "lord", "lady", "sir", "dame", "brother", "sister", "mother", "father", "the"]);
+
+/**
+ * The dice line's reason for the roll made without a ruling (the review failed, or ran past its
+ * deadline): the plain goal by the method, at whoever present the player's turn names, as the player
+ * would call them ("to win the big man with the bandaged hand over"), or "to pull it off".
+ */
+export function plainReason(scene: Scene, state: SessionState, skill: Skill, playerTurn: string, unheard: Array<{ name: string; called: string }> = []): string {
+  const said = playerTurn.toLowerCase();
+  const at = (c: { name: string }) => Math.min(...c.name.toLowerCase().split(/[^a-z']+/).filter(w => w.length >= 3 && !TITLES.has(w))
+    .map(w => said.search(new RegExp(`\\b${w}\\b`))).filter(i => i >= 0));
+  const named = presentCast(scene, state).map(c => ({ id: c.id, at: at(c) })).filter(c => Number.isFinite(c.at)).sort((a, b) => a.at - b.at)[0];
+  return diceReason(scene, state, "", { target: named?.id ?? "world", skill }, unheard);
 }
 
 /** The player character, in a line they read, is "you" ("so Maud can hear" is "so you can hear"). */

@@ -10,7 +10,7 @@ process.env.OPENROUTER_API_KEY = "offline";
 const { sceneById } = await import("../../scenes/index.ts");
 const { effectiveScene, presentCast } = await import("./brief.ts");
 const { rng } = await import("./dice.ts");
-const { diceReason, landRuling, reviewInput, rulingSchema, settleRuling, toRuling, verdict } = await import("./consider.ts");
+const { diceReason, landRuling, plainReason, reviewInput, rulingSchema, settleRuling, toRuling, verdict } = await import("./consider.ts");
 const { playerTurn } = await import("./engine.ts");
 const { owedAtEnd } = await import("./owed.ts");
 const { sessionDir } = await import("./session.ts");
@@ -465,13 +465,33 @@ test("a review past its deadline is cut off, and the turn rolls without it", asy
     assert.ok(performance.now() - started < 5000, "the turn didn't wait on the review");
     assert.match(turn.metric.considerError ?? "", /took longer than 200 ms/);
     assert.deepEqual([steps[0], steps.at(-1)], ["consider", "roll"]);
-    assert.match(turn.entries.find(e => e.kind === "roll")!.text, /^\w+ check: \d+ \+ \d+ = \d+ vs DC \d+: (success|failure)/, "the freeform roll");
+    assert.match(turn.entries.find(e => e.kind === "roll")!.text, /^\w+ check to win Cob over: \d+ \+ \d+ = \d+ vs DC \d+: (success|failure)/, "the freeform roll, with a reason (barbarian#49)");
     assert.deepEqual(state.path.map(p => p.via), ["freeform"]);
     assert.equal(state.rulings, undefined);
   } finally {
     delete process.env.KM_CONSIDER_DEADLINE_MS;
     fake.restore();
   }
+});
+
+test("a review that answers in two phases is taken by its final answer, not asked again past its deadline (barbarian#49)", async () => {
+  const fake = fakeOpenRouter({ choices: { roll_call: "new" }, byName: { ruling: LINING }, phased: ["ruling"], replies: ["Cob scowls, then hauls the boot off and picks at the lining."] });
+  try {
+    const state = yard(30, "consider-phased");
+    const turn = await playerTurn(state, "*crouches by Cob* Take the left boot off yourself and feel along the lining with your own fingers.");
+    assert.equal(fake.sent.filter(b => b.text?.format?.name === "ruling").length, 1, "one review, not a retry");
+    assert.equal(turn.metric.considerError, undefined);
+    assert.deepEqual(state.rulings?.map(r => [r.kind, r.went, r.dc]), [["roll", "success", 12]], "the final answer's ruling");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("the roll made without a ruling says what it's for: the plain goal at whoever the turn names, as the player would call them (barbarian#49)", () => {
+  const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  assert.equal(plainReason(drownedRat, rat(), "persuasion", "Hobb, finish it. The Master: who is he?"), "to win the big man with the bandaged hand over");
+  assert.equal(plainReason(drownedRat, rat(), "intimidation", "(I lean on the bar.) Missus Quill, I asked you a question."), "to frighten the landlady into it");
+  assert.equal(plainReason(drownedRat, rat(), "athletics", "I vault the bar and make for the scullery."), "to pull it off");
 });
 
 test("a review that runs to its token cap is billed all the same: what it cost counts in the turn", async () => {

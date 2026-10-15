@@ -12,6 +12,8 @@
  *
  * - `stall`: structured calls (by the schema's name) that never answer, until the caller gives up.
  * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
+ * - `phased`: structured calls answered in two phases, as Luna sometimes does: a "commentary" message
+ *   of junk, then the answer as a "final_answer".
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident.
  */
@@ -27,7 +29,7 @@ export interface FakeOpenRouter {
   restore(): void;
 }
 
-export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; suggestions?: string | string[]; stall?: string[]; capped?: Record<string, number> } = {}): FakeOpenRouter {
+export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; suggestions?: string | string[]; stall?: string[]; capped?: Record<string, number>; phased?: string[] } = {}): FakeOpenRouter {
   const real = globalThis.fetch;
   const replies = options.replies ?? ["The GM nods. “Go on.”"];
   const suggestions = [options.suggestions ?? ""].flat();
@@ -47,6 +49,7 @@ export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<st
     const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
       : body.instructions?.startsWith("You suggest what the player might") ? suggestions[suggested++ % suggestions.length]!
       : replies[next++ % replies.length]!;
+    if (format && options.phased?.includes(format.name)) return phased(`${text.slice(0, 40)}"} \n\n the response is not valid json`, text);
     return body.stream ? sse(text) : json(completed(text));
   };
   return { asked, sent, restore: () => { globalThis.fetch = real; } };
@@ -104,6 +107,16 @@ function fit(schema: Schema): unknown {
 }
 
 const completed = (text: string) => ({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text }] }], usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } });
+
+/** A reply in two phases: junk as commentary, then the answer as the final answer, both streamed. */
+function phased(junk: string, text: string): Response {
+  const response = { status: "completed", output: [
+    { type: "message", phase: "commentary", content: [{ type: "output_text", text: junk }] },
+    { type: "message", phase: "final_answer", content: [{ type: "output_text", text }] },
+  ], usage: { input_tokens: 120, output_tokens: 60, cost: 0.0003 } };
+  const events = [{ type: "response.output_text.delta", delta: junk }, { type: "response.output_text.delta", delta: text }, { type: "response.completed", response }];
+  return new Response(`${events.map(e => `data: ${JSON.stringify(e)}\n\n`).join("")}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } });
+}
 
 function sse(text: string): Response {
   const events = [{ type: "response.output_text.delta", delta: text }, { type: "response.completed", response: completed(text) }];
