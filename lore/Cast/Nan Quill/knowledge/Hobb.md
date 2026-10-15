@@ -1,5 +1,5 @@
 ---
-summary: "What you know of Big Hobb Mallory: the barrels he's carried for you since he was Cob's size, his mum and his wages, the champion's chair, his heron pennies and night work for a gentleman at the Heron, the night he went out before the midnight bells and came back with his hand in a rag, what you've put together, and what you'd sooner see done."
+summary: "What you know of Big Hobb Mallory: the barrels he's carried for you since he was Cob's size, his mum and his wages (and the bolt-holes on the stairs, if she ever needed hiding), the champion's chair, his heron pennies and night work for a gentleman at the Heron, the night he went out before the midnight bells and came back with his hand in a rag, what you've put together, and what you'd sooner see done."
 type: "knowledge"
 visibility: "private"
 readers: ["character:nan-quill"]

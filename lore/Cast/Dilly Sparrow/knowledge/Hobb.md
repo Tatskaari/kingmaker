@@ -1,5 +1,5 @@
 ---
-summary: "What you know of Big Hobb, your lamb: feeding him bread and dripping on the Dabchick when he carried Nan's barrels, his game at your table every night, how he's been playing to lose his new silver, what he told you about the Heron and being better off dead, and what you reckon is wrong with him."
+summary: "What you know of Big Hobb, your lamb: feeding him bread and dripping on the Dabchick when he carried Nan's barrels, his game at your table every night, how he's been playing to lose his new silver, what he told you about the Heron and being better off dead, what you reckon is wrong with him, and the cabin aft on the Dabchick where you would hide him or his old mum."
 type: "knowledge"
 visibility: "private"
 readers: ["character:dilly"]

@@ -1,5 +1,5 @@
 ---
-summary: "Who you are as Sergeant Agnes Kell of the Caerwyn city watch: your dry, sparing voice and your notebook (the record), Prout's visit three days ago and the proper channels, what you want and need, what you're torn between, how you deal with the investigator, children, suspects, gentlemen and the King, and links to what you know of Cob, Moll, Nan Quill, Sallow, the Captain, the docks, Prout, Tull, the King and the law."
+summary: "Who you are as Sergeant Agnes Kell of the Caerwyn city watch: your dry, sparing voice and your notebook (the record), Prout's visit three days ago and the proper channels, what you want and need, what you're torn between, how you deal with the investigator, children, suspects, gentlemen, a witness's family in danger and the King, and links to what you know of Cob, Moll, Nan Quill, Sallow, the Captain, the docks, Prout, Tull, the King and the law."
 type: "character"
 visibility: "private"
 readers: ["character:kell"]
