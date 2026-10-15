@@ -100,6 +100,37 @@ test("the Heron: showing Hobb's token at the grille is a way in of its own, with
   assert.equal(pre.considered, undefined, "the prep settles it: no ruling, no roll");
 });
 
+test("the Heron: without a token, going in to work is a way in of its own with no dice, and in as a hand, working the floor needs no roll", async () => {
+  const taken = route(heron, "wharf", "taken-on");
+  assert.equal(taken.check, undefined, "no dice");
+  assert.equal(taken.on, "attempt");
+  assert.equal(taken.to, "floor");
+  assert.match(taken.when, /shoulders a sack[\s\S]*answers Hep's shout for hands[\s\S]*asks there to be taken on[\s\S]*No dice: Hep is short-handed/);
+  assert.match(route(heron, "wharf", "talk-past").when, /going in to work with a sack on their shoulder or at Hep's shout for hands, are ways in of their own with no dice/);
+  // The token makes them a hand too, and the hand's standing is a fact, for a ruling that stands in for either route (robust-3: in "unnoticed", then a Stealth roll to carry a sack).
+  const token = route(heron, "wharf", "show-token");
+  assert.deepEqual(token.establishes, taken.establishes);
+  assert.match(taken.establishes![0]!, /one of Hep's hands[\s\S]*working the floor with their head down \(carrying, slitting, sewing, fetching\) needs no roll/);
+  assert.match(heron.beats.find(b => b.id === "floor")!.direction, /Anyone in as one of Hep's hands \(by the token, or turning up to work\) is crew: carrying, slitting, sewing and keeping their head down on the floor need no roll/);
+  // rb-3m2, scene turn 4: read sneak-in .49 and ruled; read as going in to work, it settles the turn with no roll.
+  const sack = "(I go along the plank walk, careful on the slime. There's a split sack by the door waiting to be carried in; I heave it onto my shoulder and walk in at the river door right behind the next porter, like I belong there.)";
+  const pre = await decideBefore(scripted({ attempt: ["taken-on", 0.6, { "sneak-in": 0.3 }], roll_call: ["route", 0.5, { new: 0.47 }] }), heron, at("heron-warehouse", "wharf"), sack, considered);
+  assert.equal(pre.move?.transition.id, "taken-on");
+  assert.equal(pre.move?.roll, undefined, "no Stealth roll");
+  assert.equal(pre.move?.to, "floor");
+  assert.equal(pre.considered, undefined);
+});
+
+test("the Heron: the fight's closing narrates whoever its script sets out, not Sallow and the Crakes whatever happened", () => {
+  const MASTER_HERE = route(heron, "wharf", "master-comes").establishes![0]!;
+  const fight = heron.exits.find(e => e.id === "fight")!;
+  assert.match(fight.closing, /If Master Sallow has come[^.]*\), his cane slides apart[\s\S]*If he hasn't come yet, he isn't in this and doesn't come in now: Hep's gang put down their sacks/);
+  assert.doesNotMatch(fight.closing, /^Close on the moment the blades come out: Sallow's cane/, "the barbarian's T41: 'Sallow enters with the Crake brothers… Roll for initiative!', and then four porters");
+  const leader = (established: string[]) => (ending(heron, "fight", established).find(o => o.op === "startCombat")?.args as { enemies: Array<{ leader: string }> }).enemies[0]!.leader;
+  assert.equal(leader([]), "hep", "before he comes, it's Hep's gang");
+  assert.equal(leader([MASTER_HERE]), "sallow");
+});
+
 test("the Heron: the Master comes for a player waiting for him, not for one working the floor while they wait for a word with Hobb", () => {
   const comes = route(heron, "floor", "master-comes");
   assert.doesNotMatch(comes.when, /lying low and waiting/);
