@@ -303,7 +303,7 @@ The rules may resolve an act that hurt or caught people, or set something burnin
 ## How to test it
 
 ```sh
-node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider (cues, the daft flag), considered rolls (a turn through playerTurn with OpenRouter stood in for), endings that wait and the clock (endings.test.ts), the co-GM's guards (repair.test.ts), the story's facts across scenes (story.test.ts), talks, what the boundary is given, what's owed across it, the suggested lines (a stand-in model and judge; never the GM's markup), the markup parser, what the player knows, and what the notes' writer is told and how its notes are placed: offline
+node --no-warnings --test src/runtime/*.test.ts   # decideBefore with a scripted decider (cues, the daft flag), considered rolls (the verdict on the guidance's whole grid, the same push, honest refusals, contests, ways of trying shut, what lands, a turn through playerTurn with OpenRouter stood in for, a review in two phases), endings that wait and the clock (endings.test.ts), the co-GM's guards (repair.test.ts), the story's facts across scenes (story.test.ts), talks, what the boundary is given, what's owed across it, the suggested lines (a stand-in model and judge; never the GM's markup), the markup parser, what the player knows, and what the notes' writer is told and how its notes are placed: offline
 npm test                                          # every unit test (npm run check adds the typecheck and the screens check)
 KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts   # the arc through the game core, offline
 npm run scene -- start drowned-rat --session t1   # live; then say, status and transcript
