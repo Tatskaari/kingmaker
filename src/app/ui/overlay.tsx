@@ -8,6 +8,9 @@ import { ActionMenu, fightGroups, menuKey, menuLayout } from "./actions.tsx";
 import { Place } from "./place.tsx";
 import { MarkPopover } from "./popover.tsx";
 import { townView } from "../../game/views.ts";
+import { mapDoors, overlayWanted, stageDoors } from "../../game/look/overlay.ts";
+import { StagePicks } from "../../game/look/stage.ts";
+import { Picks } from "../../game/map/index.ts";
 import { EXHIBITS } from "../../game/zoo/explorer.ts";
 import { firstMorning } from "../../game/zoo/window.ts";
 import { stagePicture } from "../../game/zoo/pictures.ts";
@@ -196,7 +199,12 @@ export function Overlay({ game }: { game: Game }) {
       const core = game.core;
       const wing = core ? wingOf(exploreState(core.state).map) : undefined;
       return box(wing ? `${wing.name.charAt(0).toUpperCase()}${wing.name.slice(1)}, from above` : "From above", core
-        ? <lookCanvas width={w - 4} height={h - 4} fps={FPS} live painter={(cw, ch, now) => stagePicture(core.state, { w: cw, h: ch }, now, game.mapFx()) ?? []} />
+        ? <lookCanvas width={w - 4} height={h - 4} fps={FPS} live painter={(cw, ch, now) => {
+          // In a browser, the doors are drawn as pictures over it.
+          const pick = overlayWanted() ? new StagePicks({ doors: true }) : undefined;
+          const frame = stagePicture(core.state, { w: cw, h: ch }, now, game.mapFx(), pick);
+          return frame && pick ? { frame, doors: stageDoors(pick, frame) } : frame ?? [];
+        }} />
         : null, [["Esc", "close", close], ["v", "close", close]]);
     }
     case "sign": {
@@ -218,7 +226,11 @@ export function Overlay({ game }: { game: Game }) {
       // Caerwyn as a new game of the story has it, alive: the lane by the granary gate, the lead on the yard.
       const morning = firstMorning();
       return box("Through the window: the story's first morning", <lookCanvas width={w - 4} height={h - 4} fps={FPS} live
-        painter={(cw, ch, now) => townView(morning, undefined, { w: cw, h: ch }, { t: now })} />, [["Esc", "close", close]]);
+        painter={(cw, ch, now) => {
+          const pick = overlayWanted() ? new Picks({ doors: true }) : undefined;
+          const lines = townView(morning, undefined, { w: cw, h: ch }, { t: now, ...(pick ? { pick } : {}) });
+          return pick ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
+        }} />, [["Esc", "close", close]]);
     }
     case "log":
       // What happens, in full: the last things said on the map, the newest at the bottom.

@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
+import { doorsModule } from "./bundle.ts";
 import { fontFaceCss, fontList, isFontFile, webFonts } from "./fonts.ts";
 import { GameTerminal } from "./terminal.ts";
 
@@ -121,8 +122,8 @@ async function keyRefused(key: string): Promise<boolean> {
   }
 }
 
-/** What the page says of the browser, for a report of a problem (src/report): its agent, and its window ("1280x800@2"). */
-interface PageSaid { userAgent?: string; window?: string }
+/** What the page says of the browser, for a report of a problem (src/report): its agent, and its window ("1280x800@2"); and whether it draws the doors (?doors=off doesn't). */
+interface PageSaid { userAgent?: string; window?: string; noDoors?: boolean }
 
 function gameEnv(source: KeySource, key: string | undefined, page: PageSaid): Record<string, string> {
   const env: Record<string, string> = {};
@@ -136,6 +137,8 @@ function gameEnv(source: KeySource, key: string | undefined, page: PageSaid): Re
   env.KM_HOST = "server";
   if (page.userAgent) env.KM_BROWSER_UA = page.userAgent.slice(0, 400);
   if (page.window) env.KM_WINDOW = page.window;
+  // A page that doesn't draw the doors as pictures (?doors=off) isn't sent where they are.
+  if (page.noDoors) env.KM_DOORS = "off";
   if (source === "offline") env.OPENROUTER_API_KEY = "offline";
   if (source === "page" && key) env.OPENROUTER_API_KEY = key;
   return env;
@@ -224,6 +227,10 @@ function serve(req: IncomingMessage, res: ServerResponse): void {
     if (file) {
       type = file[1];
       body = readFileSync(file[0]);
+    } else if (path === "/doors.js") {
+      // The doors' pictures (src/web/page/doors.ts), bundled as it's asked for, so an edit shows on a reload as the page's own files do.
+      type = "text/javascript; charset=utf-8";
+      body = doorsModule();
     } else if (path === "/fonts.css") {
       type = "text/css; charset=utf-8";
       body = fontFaceCss(webFonts(FONTS));
@@ -422,6 +429,7 @@ function play(ws: WebSocket, req: IncomingMessage): void {
         if (game || checking) return;
         size = dimensions(message.cols, message.rows) ?? size;
         if (typeof message.window === "string" && /^\d{1,5}x\d{1,5}@\d{1,2}(\.\d{1,4})?$/.test(message.window)) page.window = message.window;
+        page.noDoors = message.doors === false;
         if (OFFLINE || message.offline === true) return start("offline");
         if (!keyNeeded()) return start("server");
         const key = typeof message.key === "string" ? message.key.trim() : "";

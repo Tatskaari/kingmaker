@@ -39,7 +39,10 @@ It holds no game state. `Effects` and `Director` are objects the callers make an
 | `dressings.ts` | What the story's scene worlds are built of (floors, walls, glass, windows, water), by scene: `DRESSINGS`, `dressingFor`. |
 | `map.ts` | The face the isometric map renderer calls (below). |
 | `canvas.ts` | The frame (cells), with `toLines()` (StyledLine[]), `toAnsi()`, `toPlain()` and `toJSON()`. |
-| `opentui.ts` | `<lookCanvas>`: a live OpenTUI renderable that paints frames (a Canvas, or styled lines) straight into the buffer, at most `fps` new frames a second. |
+| `opentui.ts` | `<lookCanvas>`: a live OpenTUI renderable that paints frames (a Canvas, or styled lines) straight into the buffer, at most `fps` new frames a second. `attachOverlay`: in the browser builds, where the doors are, to the page, with each frame that changes them. |
+| `door-art.ts` | The doors as pictures over the ASCII in the browser (src/web/README.md): their looks (`doorLook`: shut, open, locked, barred, broken), the art (the ASCII-plus spike's, in art pixels a cell's 7th and 15th), and what the game tells the page. Pure: the page bundles it too. |
+| `overlay.ts` | Where the doors are in a frame of the map or the stage, from its picks: the cells each door's picture may paint (not over what's nearer, nor what's drawn over the map). |
+| `door-sheet.ts` | Every door look on both faces of a wall, on a little map of its own, for the tests and the pictures. |
 | `index.ts` | The module's exports, with a summary of each part. |
 | `vignettes.ts`, `gallery.tsx`, `dump.ts`, `smoke.py` | The gallery, its headless dump and its smoke test. |
 | `frames.ts` | Headless frames of the game's own views (src/game/views.ts) with the look. |

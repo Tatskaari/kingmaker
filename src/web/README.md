@@ -55,13 +55,13 @@ flowchart TB
 | the game runs | in your terminal | in a pty per tab, on the server | in a Web Worker in the tab |
 | OpenTUI | the real one (native, through `--experimental-ffi`) | the real one | src/web/tui, in JavaScript |
 | Node | Node | Node | the stand-ins in src/web/static/node |
-| what crosses | the terminal's bytes | the terminal's bytes, over a WebSocket | the terminal's bytes, over `postMessage` |
+| what crosses | the terminal's bytes | the terminal's bytes (where the doors are among them), over a WebSocket | the terminal's bytes (and the doors), over `postMessage` |
 | saves | `runs/sessions/` | the server's `runs/`, shared by every tab | IndexedDB, a database per place it's published |
 | background jobs | detached `scene.ts` processes | the same, found by a tag and waited for | in the worker (`setBackgroundRunner`) |
 | the key | `OPENROUTER_API_KEY` or `~/secrets/` | the server's, or typed into the page for that game only | typed into the page, kept in localStorage |
 | model calls from | the game's process | the game's process, on the server | the worker, straight to OpenRouter |
 
-In all three it's the same src/app, and what crosses to the page is a terminal's bytes, never the game's own data.
+In all three it's the same src/app, and what crosses to the page is a terminal's bytes, never the game's own data (in the browser, where the doors are drawn is among them: [below](#the-doors-drawn-as-pictures)).
 
 ## What it owns
 
@@ -73,7 +73,9 @@ The server keeps its running games in memory (a `GameTerminal` each, at most `--
 | `terminal.ts` | `GameTerminal`: one game under node-pty (`GAME_ARGS` is `npm run game`'s command, terminal.ts:15), stopped the way Ctrl+C stops it, its background jobs found by a tag in their environment. |
 | `fonts.ts` | `@font-face` rules (family, weight, style and `unicode-range` read from each font's own tables) for the fonts in `assets/fonts`: made on request by the server, at build time by the static build. |
 | `check.ts` | `npm run web:check`: the server build played in headless Chromium. |
-| `page/` | The page both builds serve: `index.html`, `client.js` (xterm.js, the key form, the bar under the terminal), `worker-transport.js` (the static build's transport), `style.css`. |
+| `page/` | The page both builds serve: `index.html`, `client.js` (xterm.js, the key form, the bar under the terminal), `worker-transport.js` (the static build's transport), `style.css`, and `doors.ts` (the doors drawn as pictures over the terminal: [below](#the-doors-drawn-as-pictures)). |
+| `bundle.ts` | `doors.ts` and the art it shares with the game, bundled into `doors.js` (esbuild): by the server as it's asked for, by the static build into `dist/web`. |
+| `doors-check.ts` | What both browser checks ask of the doors' pictures. |
 | `static/build.ts` | `npm run build:web`: the static build into `dist/web`. |
 | `static/worker.ts`, `static/game.tsx` | The game's Web Worker, and the App started in it as main.tsx starts it. |
 | `static/node/` | The Node modules the game uses, for the browser: `fs` (in memory), `path`, `os`, `url`, `crypto`, `module`, `process`, `util`, and `child_process` (which throws). |
@@ -81,6 +83,7 @@ The server keeps its running games in memory (a `GameTerminal` each, at most `--
 | `static/content.ts` | The allowlist of the files that go into `content.json`. |
 | `static/plugins.ts`, `static/shims.ts` | esbuild plugins (each module's own `import.meta`, OpenTUI's fonts, stubs), and the build's check of what the game asks of the stand-ins. |
 | `static/serve.ts`, `static/check.ts` | A static file server that serves as GitHub Pages does, and `npm run web:static-check`. |
+| `static/shoot.ts` | Pictures of the static build for looking at, not checking: the granary lane, the zoo's Front Hall and a sheet of every door, at 1x and 1.2x, the doors on and off. |
 | `tui/` | OpenTUI redone in JavaScript: the renderer (`renderer.ts`), the renderables (`box.ts`, `text.ts`, `scrollbox.ts`, `input.ts`, `ascii-font.ts`), the cell buffer, events and the React reconciler (`react.ts`), with `core.ts` standing in for `@opentui/core`. |
 | `tui/compare/` | `npm run web:tui-check`: the same screens drawn by OpenTUI and by tui/, compared cell for cell. |
 
@@ -140,18 +143,31 @@ The server keeps its running games in memory (a `GameTerminal` each, at most `--
 - A request or message the server can't make sense of ends only itself. A path like `//` gets a 400, and a message that isn't a JSON object closes that one connection. The server stays up for everyone else.
 - `--host 0.0.0.0` works, but there's no TLS and no login: anyone who can reach it can play, on the server's key if it has one. A typed key would also travel in the clear. Put an authenticating HTTPS proxy in front, with `--origin https://your.host`.
 
+### The doors, drawn as pictures
+
+In both builds the page draws one thing itself: each door in view, as a picture over the ASCII, with the ASCII-plus spike's door art (approved: "door look much more readable"). Everything else is the ASCII as the game draws it ("only do this if we have to for readability purposes because the ascii look has a real charm to it").
+
+- **The pictures** (src/game/look/door-art.ts): on the map, a flat silhouette set into its wall's face and sheared with it: shut, open (the leaf swung out over the tile in front), locked (one brass mark), barred (one bar) or broken (a notched stump, splinters); on a scene's place from above, drawn into the wall's line as a plan draws a door. Lit by the game's light, a dark edge only where it would vanish into what's behind it, and the wall the ASCII door was drawn on given back under it.
+- **Where** (src/game/look/overlay.ts): the map's renderer and the stage say where they drew each door, and which cells its picture may paint: not over what's nearer (the map is painted back to front, and its picks say which tile each cell shows), anyone in the doorway, or what's drawn over the map (floating text, effects, the pointer's highlight, x-ray). Once the frame is painted, anything else over the map (a menu, a card, the sheet) takes the cells it covers. When that changes, it goes to the page just before the frame, as an OSC (`ESC ] 7735 ; <JSON> BEL`) in the terminal's bytes: OpenTUI's own ordered output in the server's game, src/web/tui's in the worker. Only the browser builds do any of this (`KM_IN_BROWSER`); the terminal game draws its ASCII alone.
+- **On the page** (src/web/page/doors.ts): the doors are taken when xterm has parsed the end of the frame after them (its synchronized output's `CSI ? 2026 l`, after which it draws the frame at once), so a frame and its doors are drawn together, however the bytes were split on the way: walking, the map following you and its animation never show a door a frame out of place. They're drawn on a canvas laid exactly over xterm's, at its cell size and device pixels, an art pixel a cell's 7th across and 15th down, nearest-neighbour, so they follow the font size, the zoom, a resize and the device pixel ratio and stay crisp. A selection (Shift+drag) puts them away while it's there.
+- **`?doors=off`** leaves the ASCII alone, and the game isn't asked where the doors are (`KM_DOORS=off` in its environment does that for any game).
+- **The cost:** about half a kilobyte a door, sent only when the doors change: nothing while you stand still, about 12 KB/s walking the granary lane 4 steps a second (about 2 KB/s on the server's wire, compressed). In the worker it adds a few tenths of a millisecond to a frame (6.2 ms against 5.9 walking, in software Chromium).
+- **The checks:** `npm run web:static-check` checks the doors sit on the cells the game said at 1x and 2x, keep in step with the frames while walking (each time they're taken and each time xterm draws, their cells must show the frame they came with), hide under the action menu and come back, change when a door does (Fireball at the porters' door from the action menu, on a level-5 wizard's game the check puts in the browser's saves), and that `?doors=off` turns them off; `npm run web:check` the same of the server build, on the map and the scene's place, at 1x, 2x and 1.25x. `node --no-warnings src/web/static/shoot.ts` takes pictures of the granary lane, the zoo's Front Hall and every door look on both faces (`--only doors`), at 1x and 1.2x, the doors on and off (`--browser firefox` in Firefox).
+
+The town's gates in low walls (two posts and `╪`) stay ASCII: the spike drew those too, but what was approved was the doors.
+
 ### The static build (PR previews)
 
 `npm run build:web` makes `dist/web`: the whole game as a static site, played entirely in the browser. The PR preview workflow publishes it to GitHub Pages under `/kingmaker/pr-preview/pr-<N>/`. Every URL in it is relative, so it works from any path.
 
 ```sh
-npm run build:web                            # dist/web: 22 files, about 5.4 MB (1.4 MB gzipped), built in under a second
+npm run build:web                            # dist/web: 23 files, about 5.7 MB (1.6 MB gzipped), built in under a second
 node --no-warnings src/web/static/serve.ts   # http://127.0.0.1:7312/kingmaker/pr-preview/pr-650/ (any static file server will do)
-npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo and a report's download too (about 80 s)
+npm run web:static-check                     # build, serve under the preview's path, play it in Chromium, the zoo, the doors and a report's download too (about 100 s)
 npm run web:static-check -- --live           # also the key from ~/secrets typed into the key form, the suggested lines after the opening, and a real GM reply
 ```
 
-`serve.ts` takes `--port`, `--base` (the path to serve under) and `--dir`. The page takes `?offline`, `?size=130x42`, `?font=17` as the server's does, and `?glyphs=ascii` to draw letters rather than Kingmaker Glyphs.
+`serve.ts` takes `--port`, `--base` (the path to serve under) and `--dir`. The page takes `?offline`, `?size=130x42`, `?font=17` and `?doors=off` as the server's does, and `?glyphs=ascii` to draw letters rather than Kingmaker Glyphs.
 
 CI builds it too: `moon.yml`'s `build` is this build, and its `check` is the typecheck, the tests and the screens check (`npm run check`; `.github/workflows/check.yml` runs both).
 
@@ -217,13 +233,13 @@ As V1 kept it:
 
 ```sh
 node --no-warnings --test src/web/static/node/*.test.ts   # the fs and crypto stand-ins: 9 tests
-npm run web:tui-check                                     # 93 screens drawn both ways, compared cell for cell: about 20 s
+npm run web:tui-check                                     # 93 screens drawn both ways, compared cell for cell: about 8 s
 ```
 
 The server build's check:
 
 ```sh
-npm run web:check                 # offline, about 90 s: screens, keys, latency, bandwidth, a report saved on the server, tab close, the cap, HiDPI, Origin and Host, odd requests
+npm run web:check                 # offline, about 90 s: screens, keys, latency, bandwidth, the doors, a report saved on the server, tab close, the cap, HiDPI, Origin and Host, odd requests
 npm run web:check -- --live       # the server's own key: a real GM reply
 npm run web:check -- --key-form   # no key on the server: the page asks, turns back the wrong kinds, and the key from ~/secrets goes in through it; a real GM reply
 npm run web:check -- --gpu        # any of the above with Chromium drawing on the GPU (Vulkan) rather than in software
@@ -263,4 +279,5 @@ The static build's own checks (above) are `npm run web:static-check`, with `--li
 - No touch keyboard, so it needs a real keyboard. Chromium and Firefox have been tried (the static build in both), Safari not yet.
 - None of the checks in Chromium run in CI, nor the renderer comparison. CI runs the static build, with its checks for a leaked key and for what the stand-ins can't do.
 - tui/ is a second OpenTUI, kept in step with `@opentui/core` and `@opentui/react` (^0.6.5) by hand.
+- The doors' pictures give back the wall under the ASCII door as xterm's WebGL renderer draws block and box characters; with the DOM renderer (no WebGL) xterm takes those from the font, so the wall given back can differ from its neighbours by a pixel or two. The server's game writes where the doors are through OpenTUI's native session (`nativeSession.write`, which OpenTUI keeps private, for its ordered output): an OpenTUI upgrade could move it, and then the server's game sends no doors and the page shows the ASCII alone.
 - The static build ships everything to the browser: the scenes are bundled as code, with the GM's prep and every secret, and the lore is in `content.json`. That isn't a security concern: the content is public on GitHub and the game isn't competitive ([docs/design/productionise.md](../../docs/design/productionise.md)).

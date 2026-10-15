@@ -7,7 +7,7 @@ import { dbName, Store } from "./persist.ts";
  * game draws; everything else happens here, so the map's animation and the game's work never
  * stall each other on the page:
  *
- *   page -> worker   { type: "start", cols, rows, window?, key?, offline?, glyphs?, jobDelayMs? }  then input bytes, resizes, key changes
+ *   page -> worker   { type: "start", cols, rows, window?, key?, offline?, glyphs?, jobDelayMs?, doors? }  then input bytes, resizes, key changes
  *   worker -> page   { type: "started", offline, channel }, { type: "output", data }, { type: "storage", ok, message? },
  *                    { type: "busy", channel }, { type: "key-refused" }, { type: "exit", jobs }, { type: "idle" },
  *                    { type: "report", name, data }, { type: "error", message, reload? }
@@ -206,7 +206,7 @@ async function keep(): Promise<void> {
 /** The browser's window, as the page says it ("1280x800@2": CSS pixels and the device pixel ratio), for a report; anything else isn't kept. */
 const windowOf = (said: unknown) => (typeof said === "string" && /^\d{1,5}x\d{1,5}@\d{1,2}(\.\d{1,4})?$/.test(said) ? said : undefined);
 
-async function start(options: { cols: number; rows: number; window?: string; key?: string; offline?: boolean; glyphs?: string; jobDelayMs?: number; debug?: boolean }): Promise<import("./game.tsx").Started> {
+async function start(options: { cols: number; rows: number; window?: string; key?: string; offline?: boolean; glyphs?: string; jobDelayMs?: number; debug?: boolean; doors?: boolean }): Promise<import("./game.tsx").Started> {
   offline = !!options.offline || !options.key;
   key = offline ? "" : options.key!.trim();
   // Only what's known goes into the game's environment from the page (it comes from the URL).
@@ -225,6 +225,8 @@ async function start(options: { cols: number; rows: number; window?: string; key
     ...(size ? { KM_WINDOW: size } : {}),
     ...(jobDelay ? { KM_JOB_DELAY_MS: String(jobDelay) } : {}),
     ...(options.debug ? { KM_DEBUG: "1" } : {}),
+    // A page that doesn't draw the doors as pictures (?doors=off) isn't sent where they are.
+    ...(options.doors === false ? { KM_DOORS: "off" } : {}),
   });
   const files = content();
   files.catch(() => {});

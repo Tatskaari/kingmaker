@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { glyphSet } from "../../game/look/glyphs.ts";
 import { actorLook } from "../../game/look/map.ts";
 import type { LookCanvasRenderable } from "../../game/look/opentui.ts";
+import { mapDoors, overlayWanted } from "../../game/look/overlay.ts";
 import { direction, look, nearby, Picks, steps, whereabouts } from "../../game/map/index.ts";
 import type { Tile2 } from "../../game/types.ts";
 import { townView } from "../../game/views.ts";
@@ -163,7 +164,9 @@ export function ExploreScreen({ game }: { game: Game }) {
         {/* The town, alive: water runs, lamps flicker, the lead pulses (held still while an overlay is up). */}
         <lookCanvas ref={canvas} width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay}
           painter={(w, h, now) => {
-            const pick = new Picks();
+            // In a browser, the doors are drawn as pictures over the map: the picks keep where they are.
+            const doors = overlayWanted();
+            const pick = new Picks({ doors });
             // What happens on the map plays out in its world: a zoo wing's own (what its exhibits set off),
             // else the town's (what the player does there: a bolt, a burst, the splinters).
             const look = zooLook ?? game.townFx();
@@ -174,7 +177,7 @@ export function ExploreScreen({ game }: { game: Game }) {
               ...(marks ? { marks } : {}), ...(aim ? { cursor: aim.at } : {}),
             });
             picks.current = pick;
-            return lines;
+            return doors ? { frame: lines, doors: mapDoors(pick, lines) } : lines;
           }}
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>

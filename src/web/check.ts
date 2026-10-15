@@ -8,16 +8,19 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { chromium, type Browser, type Page } from "playwright";
 import { WebSocket } from "ws";
+import { doorsDrawn, doorSync, placed, placement, watchDoorSync } from "./doors-check.ts";
 
 /**
  * Headless check of Kingmaker in the browser: the real server and game, driven through Chromium
  * with Playwright, the keys pressed as a player would. Screens go to runs/web/<run>/ as PNGs, each
  * with the terminal's text beside it (to compare with src/app/smoke's screens).
  *
- *   node --no-warnings src/web/check.ts              offline: the screens, keys, latency, bandwidth, a
- *                                                    problem reported (saved on the server), closing
- *                                                    the tab, the cap, Origin and Host checks,
- *                                                    requests and messages that mustn't stop the server
+ *   node --no-warnings src/web/check.ts              offline: the screens, keys, latency, bandwidth, the
+ *                                                    doors' pictures (on their cells, in step with the
+ *                                                    frames, on the map and the scene's place, at 1x, 2x
+ *                                                    and 1.25x), a problem reported (saved on the
+ *                                                    server), closing the tab, the cap, Origin and Host
+ *                                                    checks, requests and messages that mustn't stop it
  *   node --no-warnings src/web/check.ts --live       the server's own key (~/secrets): a real GM reply
  *   node --no-warnings src/web/check.ts --key-form   no key on the server: the page asks for one, turns
  *                                                    back the wrong kinds, and the key from ~/secrets
@@ -390,13 +393,14 @@ async function traffic(page: Page): Promise<Traffic> {
 }
 
 async function rate(page: Page, what: string, during: () => Promise<void>): Promise<void> {
-  const before = await traffic(page);
+  const doorBytes = () => page.evaluate("window.doorSync ? doorSync.bytes : 0") as Promise<number>;
+  const before = await traffic(page), doorsBefore = await doorBytes();
   const started = Date.now();
   await during();
-  const after = await traffic(page);
+  const after = await traffic(page), doorsAfter = await doorBytes();
   const elapsed = (Date.now() - started) / 1000;
   const kb = (n: number) => `${(n / 1000 / elapsed).toFixed(1)} KB/s`;
-  note(`bandwidth, ${what} (${elapsed.toFixed(1)}s): ${kb(after.bytesIn - before.bytesIn)} from the game, ${kb(after.wireOut - before.wireOut)} on the wire (compressed), ${((after.messagesIn - before.messagesIn) / elapsed).toFixed(1)} messages/s`);
+  note(`bandwidth, ${what} (${elapsed.toFixed(1)}s): ${kb(after.bytesIn - before.bytesIn)} from the game (${kb(doorsAfter - doorsBefore)} of it where the doors are), ${kb(after.wireOut - before.wireOut)} on the wire (compressed), ${((after.messagesIn - before.messagesIn) / elapsed).toFixed(1)} messages/s`);
 }
 
 function sessions(runs: string): Array<{ id: string; mtime: number }> {
@@ -459,10 +463,17 @@ async function offline(): Promise<void> {
     if (renderer === "webgl") ok("the WebGL renderer is drawing (box and block characters drawn by xterm)");
     else fail(`renderer is ${renderer}, not webgl`);
     note(`WebGL is drawn by: ${await glRenderer(page)}`);
+    await watchDoorSync(page);
     await newGame(page, false);
     await waitFor(page, "Sergeant Kell", "Kell is about");
     await sleep(800);
     await shot(page, "map-morning");
+
+    // The doors, drawn as pictures over the ASCII where the game (on OpenTUI, in its pty) says they are.
+    const lane = await doorsDrawn(page, 3);
+    const where = await placement(page);
+    if (lane && lane.drawn >= 3 && placed(where, 1)) ok(`the doors on the lane are drawn as pictures (${lane.drawn}: ${lane.doors.map(d => `${d.id.replace("caerwyn:", "")} ${d.look}`).join(", ")}), every pixel in a cell the game said they may paint, on a canvas exactly over xterm's (${where.size})`);
+    else fail(`the doors on the lane: ${JSON.stringify(lane)}, placed ${JSON.stringify(where)}`);
 
     // Walking: an arrow and a WASD step. The view follows the player, so a step scrolls the map.
     const before = await text(page);
@@ -515,6 +526,9 @@ async function offline(): Promise<void> {
     note(`latency, opening and closing the sheet, keydown to xterm's draw: ${summary(sheets.map(s => s.drawn))}`);
     if (steps.length >= 12) ok("latency measured");
     else fail(`only ${steps.length} of 24 steps changed the screen`);
+    const sync = await doorSync(page);
+    if (sync.taken >= 12 && !sync.takenOff && !sync.drawnOff) ok(`walking, the doors keep in step with the frames: taken ${sync.taken} times and drawn with xterm ${sync.drawn} times, on the cells of the frame they came with every time (${sync.cells} cells compared)`);
+    else fail(`walking, the doors out of step: ${JSON.stringify(sync)}`);
 
     // Bandwidth on the map: still, then walking four steps a second.
     await sleep(1000);
@@ -532,6 +546,12 @@ async function offline(): Promise<void> {
     await waitFor(page, "couldn't open the scene", "offline: the GM can't speak (expected)", 40000);
     await sleep(500);
     await shot(page, "granary-scene");
+    // The scene's place from above (the stage): its gate and doors, drawn into their walls' lines.
+    const yard = await doorsDrawn(page, 2);
+    const onStage = yard?.doors.filter(d => d.view === "stage") ?? [];
+    const placedOnStage = await placement(page);
+    if (onStage.length >= 2 && placed(placedOnStage, 1)) ok(`on the scene's place, its doors are drawn as pictures too (${onStage.map(d => `${d.id} ${d.look}`).join(", ")})`);
+    else fail(`the doors on the scene's place: ${JSON.stringify(yard)}, placed ${JSON.stringify(placedOnStage)}`);
 
     // A problem reported mid-scene (/report): saved on the server, under its runs/reports, with what the page said of the browser.
     await page.keyboard.type("/report", { delay: 15 });
@@ -691,6 +711,11 @@ async function offline(): Promise<void> {
         })()`)) as { dpr: number; drawn: string; canvas: string };
         if (canvas.dpr === scale && canvas.drawn === canvas.canvas) ok(`at ${scale}x the WebGL canvas is the size xterm draws for (${canvas.canvas})`);
         else fail(`at ${scale}x: devicePixelRatio ${canvas.dpr}, xterm draws ${canvas.drawn}, the canvas is ${canvas.canvas}`);
+        // The doors' pictures over the scene's place, at the device's pixels.
+        const seen = await doorsDrawn(sharp, 2);
+        const where = await placement(sharp);
+        if (seen && seen.drawn >= 2 && placed(where, scale)) ok(`at ${scale}x the doors' pictures sit on their cells (${seen.drawn} drawn, ${where.drawn} device pixels, ${where.cell} a cell)`);
+        else fail(`at ${scale}x the doors: ${JSON.stringify(seen)}, placed ${JSON.stringify(where)}`);
         await shot(sharp, `hidpi-${scale}x`);
         await sharp.close();
         await sleep(800);

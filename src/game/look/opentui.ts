@@ -1,8 +1,10 @@
-import { RGBA, Renderable, TextAttributes, type OptimizedBuffer, type RenderableOptions, type RenderContext } from "@opentui/core";
+import { RGBA, Renderable, TextAttributes, type CliRenderer, type OptimizedBuffer, type RenderableOptions, type RenderContext } from "@opentui/core";
 import { extend } from "@opentui/react";
 import type { StyledLine } from "../types.ts";
 import { BOLD, Canvas } from "./canvas.ts";
 import { rgbOf } from "./color.ts";
+import type { DoorShape, OverlayFrame } from "./door-art.ts";
+import { moveDoor, overlaySequence, wantOverlay } from "./overlay.ts";
 
 /**
  * The look layer in OpenTUI: a live renderable that paints frames straight into the screen buffer.
@@ -19,9 +21,17 @@ import { rgbOf } from "./color.ts";
  * (the game moved on) is asked straight away. `live={false}` holds the picture still (whatever
  * else on screen keeps OpenTUI drawing). A cell that keeps its glyph and moves by a shade nobody
  * can see (lamplight's flicker) is drawn as it was, so the terminal isn't sent it every frame.
+ *
+ * In the browser builds, a painter can also say where the frame's doors are ({ frame, doors }:
+ * src/game/look/overlay.ts), for attachOverlay (below) to send the page, which draws them as pictures.
  */
 
-export type Painter = (w: number, h: number, now: number) => Canvas | StyledLine[];
+/** A frame, and (in the browser builds) its doors, in the frame's own cells. */
+export type Painted = Canvas | StyledLine[] | { frame: Canvas | StyledLine[]; doors?: DoorShape[] };
+export type Painter = (w: number, h: number, now: number) => Painted;
+
+/** The canvases on screen, for the overlay to ask where their doors are. */
+const canvases = new Set<LookCanvasRenderable>();
 
 export interface LookCanvasOptions extends RenderableOptions<LookCanvasRenderable> {
   painter?: Painter;
@@ -43,6 +53,8 @@ export class LookCanvasRenderable extends Renderable {
   /** A new painter: ask it straight away. */
   private fresh = false;
   private colors = new Map<number, RGBA>();
+  /** The last frame's doors, in the frame's own cells (the browser builds' overlay). */
+  private doors: DoorShape[] | undefined;
   /** Milliseconds the last frame took to paint (for a frame-rate readout). */
   lastPaintMs = 0;
 
@@ -50,6 +62,29 @@ export class LookCanvasRenderable extends Renderable {
     super(ctx, { ...options, live: options.live ?? true });
     this._painter = options.painter;
     this._fps = options.fps;
+    canvases.add(this);
+  }
+
+  protected override destroySelf(): void {
+    canvases.delete(this);
+    super.destroySelf();
+  }
+
+  /**
+   * The last frame's doors on the screen: moved from the frame's cells to the screen's, each keeping
+   * only the cells that show this canvas's own drawing in the frame about to go out (`shows`):
+   * whatever's drawn over the canvas (a menu, a card, the sheet) hides a door there.
+   */
+  doorsOnScreen(shows: (x: number, y: number, glyph: string, fg: number, bg: number) => boolean): DoorShape[] {
+    const last = this.last;
+    if (!this.doors?.length || !last || this.isDestroyed || !this.visible) return [];
+    const { cells } = last, ox = Math.trunc(this.x), oy = Math.trunc(this.y);
+    const keep = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= cells.w || y >= cells.h) return false;
+      const i = y * cells.w + x, glyph = cells.glyph[i]!;
+      return !!glyph && shows(ox + x, oy + y, glyph, cells.fg[i]!, cells.bg[i]!);
+    };
+    return this.doors.flatMap(d => moveDoor(d, ox, oy, keep) ?? []);
   }
 
   set painter(p: Painter | undefined) { this._painter = p; this.fresh = true; this.requestRender(); }
@@ -76,7 +111,10 @@ export class LookCanvasRenderable extends Renderable {
     // A new frame for a new painter or a new size, or (live) when it's due; held still, the last one stands.
     if (this.fresh || !last || last.w !== w || last.h !== h || (this.live && (!this._fps || now - last.at >= 1000 / this._fps - 2))) {
       this.fresh = false;
-      const cells = cellsOf(p(w, h, now), w, h);
+      const painted = p(w, h, now);
+      const frame = painted instanceof Canvas || Array.isArray(painted) ? painted : painted.frame;
+      this.doors = painted instanceof Canvas || Array.isArray(painted) ? undefined : painted.doors;
+      const cells = cellsOf(frame, w, h);
       // What hasn't visibly changed is drawn as it was.
       const was = last?.cells;
       if (was && was.w === cells.w && was.h === cells.h && was.canvas === cells.canvas) {
@@ -152,4 +190,82 @@ export function registerLookCanvas(): void {
   if (registered) return;
   extend({ lookCanvas: LookCanvasRenderable });
   registered = true;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The browser's overlay: the doors drawn as pictures over the ASCII (src/web/page/doors.ts)
+
+/** What the frame about to go out shows in a cell: its character's code point (-1: can't tell), and its colours (0xrrggbb). */
+type Shown = (x: number, y: number) => { ch: number; fg: number; bg: number } | undefined;
+
+/** A frame's cells, in a post-process step: OpenTUI's native buffer's planes, or src/web/tui's arrays. */
+function shownIn(buffer: OptimizedBuffer): Shown {
+  const width = buffer.width, height = buffer.height;
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height;
+  const tui = buffer as unknown as { chars?: string[]; fg?: unknown; bg?: unknown };
+  if (Array.isArray(tui.chars) && tui.fg instanceof Uint32Array && tui.bg instanceof Uint32Array) {
+    // src/web/tui: a string a cell, colours packed 0xRRGGBBAA.
+    const chars = tui.chars, fg = tui.fg, bg = tui.bg;
+    return (x, y) => { if (!inside(x, y)) return undefined; const i = y * width + x; return { ch: chars[i]?.codePointAt(0) ?? -1, fg: fg[i]! >>> 8, bg: bg[i]! >>> 8 }; };
+  }
+  // OpenTUI's own: a code point a cell (or the id of a longer grapheme), colours as four 16-bit channels, the value in the low byte.
+  const { char, fg, bg } = buffer.buffers;
+  const rgb = (p: Uint16Array, k: number) => ((p[k]! & 255) << 16) | ((p[k + 1]! & 255) << 8) | (p[k + 2]! & 255);
+  return (x, y) => {
+    if (!inside(x, y)) return undefined;
+    const i = y * width + x, c = char[i]!;
+    return { ch: c < 0x110000 ? c : -1, fg: rgb(fg, i * 4), bg: rgb(bg, i * 4) };
+  };
+}
+
+/** Whether a cell still shows what a canvas drew there (its glyph; its colours, where it gave them). */
+function same(s: ReturnType<Shown>, glyph: string, fg: number, bg: number): boolean {
+  if (!s) return false;
+  const cp = glyph.codePointAt(0) ?? -1;
+  return !(s.ch >= 0 && cp >= 0 && s.ch !== cp) && !(fg >= 0 && s.fg !== (fg & 0xffffff)) && !(bg >= 0 && s.bg !== (bg & 0xffffff));
+}
+
+/**
+ * Bytes to the terminal just before the frame about to go out, in order with it: through OpenTUI's
+ * native session (its ordered output, where frames go), or src/web/tui's terminal.
+ */
+function beforeFrame(renderer: CliRenderer, data: string): boolean {
+  const r = renderer as unknown as { writeRaw?: (data: string) => boolean; nativeSession?: { write?: (bytes: Uint8Array) => boolean } };
+  try {
+    if (typeof r.writeRaw === "function") return r.writeRaw(data);
+    if (typeof r.nativeSession?.write === "function") return r.nativeSession.write(new TextEncoder().encode(data));
+  } catch {
+    // The terminal's going (or full): the next frame tries again.
+  }
+  return false;
+}
+
+/**
+ * In the browser builds (KM_IN_BROWSER), tell the page where the doors are, so it can draw them as
+ * pictures over the ASCII: with each frame that changes them, an OSC sequence it listens for
+ * (overlaySequence), just before the frame's own bytes. The page holds it until xterm has parsed the
+ * frame after it (the end of its synchronized output, which xterm draws all at once), so the doors
+ * and the cells under them show together: a door is never a frame out of place.
+ * Each live view says where its doors are (overlayWanted: src/app/ui), and a door keeps only the
+ * cells that show its view's drawing in the frame going out, so whatever's drawn over the view (a
+ * menu, a card, the sheet) hides it there. The terminal game draws its ASCII alone: no sequence,
+ * nothing extra worked out.
+ */
+export function attachOverlay(renderer: CliRenderer): boolean {
+  if (!process.env.KM_IN_BROWSER || process.env.KM_DOORS === "off" || typeof renderer.addPostProcessFn !== "function") return false;
+  wantOverlay(true);
+  let sent = "";
+  renderer.addPostProcessFn(buffer => {
+    let shown: Shown;
+    try { shown = shownIn(buffer); } catch { return; }
+    const doors: DoorShape[] = [];
+    for (const canvas of canvases) {
+      if (canvas.isDestroyed) { canvases.delete(canvas); continue; }
+      doors.push(...canvas.doorsOnScreen((x, y, glyph, fg, bg) => same(shown(x, y), glyph, fg, bg)));
+    }
+    const frame: OverlayFrame = { cols: renderer.width, rows: renderer.height, doors };
+    const message = overlaySequence(frame);
+    if (message !== sent && beforeFrame(renderer, message)) sent = message;
+  });
+  return true;
 }
