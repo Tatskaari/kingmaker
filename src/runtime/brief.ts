@@ -49,7 +49,7 @@ export function withImprovisedEnding(scene: Scene): Scene {
  * The authored scene as play has it: what the co-GM has added during play, and what the boundary
  * brought over from earlier scenes. An essential the scene preps for if the player missed it
  * earlier (`missed`) is the scene's only once the boundary has brought it over, and a route that
- * brings an essential the scene hasn't got isn't there.
+ * brings an essential the scene hasn't got (or is a way towards one) isn't there.
  */
 export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   const scene = withImprovisedEnding(authored);
@@ -58,7 +58,7 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   // The scene's own essentials, and what the boundary brought (in place of the scene's prep for it).
   const essentials = [...(scene.essentials ?? []).filter(e => !e.missed && !brought.some(b => b.id === e.id)), ...brought];
   const has = new Set(essentials.map(e => e.id));
-  const live = (t: Transition) => !t.essential || has.has(t.essential);
+  const live = (t: Transition) => [t.essential, t.towards].every(e => !e || has.has(e));
   const beats = scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(live) }));
   for (const patch of patches) {
     if (patch.beat && !beats.some(b => b.id === patch.beat!.id)) beats.push({ ...patch.beat, transitions: [...patch.beat.transitions] });
@@ -313,13 +313,15 @@ function coGmRoutes(state: SessionState): Set<string> {
 const undoes = (state: SessionState, t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure].some(to => !!to && leftBehind(state, to));
 
 /**
- * The routes to offer now: not one already achieved here, nor one that brings what the player has
- * already come across, nor one of the co-GM's that would take the scene back past what's settled.
+ * The routes to offer now: not one already achieved here, nor one that brings (or is a way towards)
+ * what the player has already come across, nor one of the co-GM's that would take the scene back
+ * past what's settled.
  */
 export function openRoutes(transitions: Transition[], state: SessionState): Transition[] {
   const spent = spentHere(state);
   const coGm = coGmRoutes(state);
-  return transitions.filter(t => !spent.has(t.id) && !(t.essential && state.landed?.includes(t.essential)) && !(coGm.has(t.id) && undoes(state, t)));
+  const found = (e?: string) => !!e && !!state.landed?.includes(e);
+  return transitions.filter(t => !spent.has(t.id) && !found(t.essential) && !found(t.towards) && !(coGm.has(t.id) && undoes(state, t)));
 }
 
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */

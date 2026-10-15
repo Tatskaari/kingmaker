@@ -72,7 +72,7 @@ test("found at the granary, nothing is owed, and the Rat has none of its prep fo
   assert.deepEqual(owedAtEnd(clerk, granary(["page"])), []);
   const plain = effectiveScene(rat, []);
   assert.ok(!plain.essentials?.some(e => e.id === "prouts-page"), "the Rat's prep for a missed page isn't the Rat's");
-  assert.ok(plain.beats.every(b => b.transitions.every(t => !t.essential)), "and nor are its routes");
+  assert.ok(plain.beats.every(b => b.transitions.every(t => !t.essential && !t.towards)), "and nor are its routes (the ways in, and the ways towards it)");
   assert.doesNotMatch(sceneBrief(plain, into(granary(["page"]), rat)), /Prout's page, still sewn/);
 });
 

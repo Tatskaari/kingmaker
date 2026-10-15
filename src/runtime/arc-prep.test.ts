@@ -6,6 +6,7 @@ import { ASSETS } from "../world/assets.ts";
 import { recordingWorld, type Operation } from "../world/dsl.ts";
 import { applyOps, areaOf, buildWorld, type WorldOp } from "../world/scene-world.ts";
 import { effectiveScene, openRoutes, presentCast } from "./brief.ts";
+import { toRuling } from "./consider.ts";
 import { decideBefore } from "./director.ts";
 import { bringOver, owedAtEnd } from "./owed.ts";
 import type { Scene, Transition } from "./scene.ts";
@@ -258,10 +259,100 @@ test("Cob: at the granary the boot has ways in of its own, a polite ask is a rol
     assert.equal(trust.to, "motive");
     for (const t of [coax.check!.establishes!.success!, trust.establishes!]) assert.deepEqual(t, route(clerk, beat, "page-found").establishes, "the page is out, as the endings read it");
   }
-  // Found, they go.
+  // Found, they go: the ways in that bring it, and the bribe and the kindness that are ways towards it.
   const state = at("hanged-clerk", "doubt", { landed: ["page"] });
   const open = openRoutes(clerk.beats.find(b => b.id === "doubt")!.transitions, state).map(t => t.id);
   assert.ok(!["bribe-cob", "kind-to-cob", "coax-cob", "trust-cob"].some(id => open.includes(id)));
+});
+
+// The goals tester's g1 and g13, T2: a coin held up as the price of a look, in the words of a polite ask.
+const PENNY_FOR_A_LOOK = "Not buying the boots, Cob. Just a look in the left one. (I hold up a silver penny.) This is yours if I can see what's crackling in there.";
+
+test("Cob: a bribe and a kindness are ways towards the page, not ways it comes out: a ruling that counts as one leaves it in the boot", () => {
+  for (const beat of ["yard", "doubt"]) {
+    for (const id of ["bribe-cob", "kind-to-cob"]) {
+      const t = route(clerk, beat, id);
+      assert.equal(t.essential, undefined, `${id} brings nothing out`);
+      assert.equal(t.towards, "page", `${id} is there only while the page is to be found`);
+    }
+    for (const id of ["coax-cob", "trust-cob"]) assert.equal(route(clerk, beat, id).essential, "page", `${id} brings the page`);
+  }
+  // rb-1m2, T2: a shilling for a look, ruled DC 18, a natural 1; the failure counted as bribe-cob, and the page "came out" still sewn in the boot.
+  const state = at("hanged-clerk", "yard");
+  const outcome = (happens: string, gets: string) => ({ happens, gets, to: "stay", counts_as: "bribe-cob", establishes: [], reveals: [], closes: [] });
+  const ruling = toRuling(clerk, state, {
+    act: "Offer a shilling for a look in Cob's boot", target: "cob", lie: false, skill: "persuasion",
+    stakes: "guarded", approach: "weak", disposition: "hostile", same_again: false, difficulty: "moderate", reason: "to get Cob to let you look in his boot",
+    success: outcome("Cob bites the shilling, boasts, and keeps the boots on.", "some"),
+    failure: outcome("Cob snatches the shilling and backs off to the water butt, boot on.", "none"),
+  }, { costUsd: 0, latencyMs: 0 });
+  assert.deepEqual([ruling.success.reveals, ruling.failure.reveals], [[], []], "the page is still in the boot either way");
+  assert.equal(ruling.failure.countsAs, "bribe-cob");
+  // And at the Rat, with nothing owed, the Rat's bribe and kindness aren't there at all.
+  const plain = effectiveScene(rat, []);
+  assert.ok(plain.beats.every(b => !b.transitions.some(t => t.towards || ["bribe-cob", "kind-to-cob"].includes(t.id))));
+});
+
+test("Cob: a coin held up for a look is a bribe however politely it's asked; a polite ask is for before he's any reason to trust them", async () => {
+  for (const beat of ["yard", "doubt"]) {
+    const bribe = route(clerk, beat, "bribe-cob");
+    assert.match(bribe.when, /^The player offers Cob something as the price of a look[\s\S]*'this is yours if I can see what's in there'[\s\S]*however politely it's asked and whatever they say about the boots staying his/);
+    const coax = route(clerk, beat, "coax-cob");
+    assert.match(coax.when, /^Before Cob has any reason to trust them \(no kindness with nothing asked back done him yet, no promise that answers what he's afraid of, no yes from him already\) and with nothing offered for it/);
+    assert.match(coax.when, /Not with anything offered for the look \(a coin, food, a trade\): that's a bribe, and gets haggling/);
+  }
+  // Read as the bribe, it settles the turn as written: no ruling, no roll, and the boot stays on.
+  const pre = await decideBefore(scripted({ attempt: ["plain:bribe-cob", 0.7, { "coax-cob": 0.2 }], roll_call: ["route", 0.8, { new: 0.1 }] }), clerk, at("hanged-clerk", "yard"), PENNY_FOR_A_LOOK, considered);
+  assert.equal(pre.plainTransition?.id, "bribe-cob");
+  assert.equal(pre.move, undefined);
+  assert.equal(pre.considered, undefined);
+});
+
+test("Cob: after a kindness, the polite ask that failed before is trust, with no dice, and his yes isn't taken back", async () => {
+  // The goals tester's g3: a polite ask failed on a natural 1 (T2), a goodberry given freely (T4), then the ask again (T6), read as the failed coax-cob.
+  const kind = route(clerk, "yard", "kind-to-cob");
+  const state = at("hanged-clerk", "yard", {
+    turn: 6, turnsInBeat: 5, established: [...kind.establishes!],
+    path: [
+      { turn: 2, from: "yard", to: "yard", via: "coax-cob", source: "pre", roll: { skill: "persuasion", dc: 12, die: 1, modifier: 2, total: 3, success: false, critical: "failure" } },
+      { turn: 4, from: "yard", to: "yard", via: "kind-to-cob", source: "post" },
+    ],
+  });
+  const open = openRoutes(clerk.beats.find(b => b.id === "yard")!.transitions, state).map(t => t.id);
+  assert.ok(open.includes("trust-cob") && !open.includes("kind-to-cob"), "the kindness is spent; trust is there");
+  const trust = route(clerk, "yard", "trust-cob");
+  assert.match(trust.when, /they did him a kindness with nothing asked back earlier[\s\S]*or he has already told them they can look\. No dice, however it's put/);
+  const pre = await decideBefore(scripted({ attempt: ["plain:trust-cob", 0.6, { "coax-cob": 0.3 }], roll_call: ["route", 0.5, { none: 0.3 }], same_again: ["same", 0.8] }), clerk, state, "I'll keep my word, Cob. You said I could look, so just a look: you hold the boot, I only peep inside the top. No hands in it.", considered);
+  assert.equal(pre.plainTransition?.id, "trust-cob");
+  assert.equal(pre.sameAgain, undefined, "not the same push again: the kindness changed things");
+  assert.equal(pre.considered, undefined);
+  assert.match(clerk.cast.find(c => c.id === "cob")!.secrets!.join(" "), /A yes he's given is a yes: he doesn't take it back/);
+});
+
+test("Cob: a promise that answers his fear is a yes with no dice, and his granary fears are what it answers", async () => {
+  const cob = clerk.cast.find(c => c.id === "cob")!;
+  assert.match(cob.fears!, /his name gets about: in the watch's book \(the bluebottles write everything down\)/, "his name kept out answers this");
+  assert.match(cob.fears!, /taken up by the watch and sent to the Mending House/, "the King's hand and not the watch answers this");
+  for (const beat of ["yard", "doubt"] as const) {
+    const win = route(clerk, beat, "win-cob");
+    assert.doesNotMatch(win.when, /promise of safety/, "a promise isn't one of the rolled appeals");
+    assert.match(win.when, /A promise that truly answers what he's afraid of[^)]*needs no dice/);
+    const promise = route(clerk, beat, "promise-cob");
+    assert.equal(promise.check, undefined, "no dice");
+    assert.equal(promise.on, undefined, "it simply happens: the decider sees it beside the rolls");
+    assert.match(promise.when, /his name kept out of it \(nothing to the watch, nothing in anybody's book\), the men from the loft kept off him, no Mending House/);
+    assert.match(promise.when, /Asked for a look in his boot as well, he holds the left one out himself/);
+    assert.match(route(clerk, beat, "trust-cob").when, /or they make him a promise, now or before, that truly answers what he's afraid of \(his name kept out of it/);
+  }
+  assert.match(route(clerk, "yard", "promise-cob").when, /a lantern and voices[\s\S]*the hoist creaking with no sacks on it/, "in the yard, what he heard");
+  assert.deepEqual(route(clerk, "yard", "promise-cob").establishes, route(clerk, "yard", "not-suicide").establishes, "and the suicide story is broken");
+  assert.match(route(clerk, "doubt", "promise-cob").when, /Silvertop, the posh cove with the silver-topped cane/, "once it's murder, who");
+  // g9 T1: the promise alone, as the first move; read as the promise, it settles the turn with no roll.
+  const g9 = "(I crouch so I'm Cob's height, a good way off.) Cob, I'm not after your boots and I'm not the watch's. So here's a promise, and I keep mine: whatever you know, or have, about Mister Prout, your name stays out of it. If it matters, it goes to the King's own hand, never the watch.";
+  const pre = await decideBefore(scripted({ attempt: ["plain:promise-cob", 0.6, { "win-cob": 0.3 }], roll_call: ["route", 0.6, { new: 0.3 }] }), clerk, at("hanged-clerk", "yard"), g9, considered);
+  assert.equal(pre.plainTransition?.id, "promise-cob");
+  assert.equal(pre.move, undefined, "nothing rolled");
+  assert.equal(pre.considered, undefined, "and no ruling");
 });
 
 test("Cob: the report's polite ask at the granary is rolled, not refused, and a bribe still isn't a try", async () => {
