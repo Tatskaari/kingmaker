@@ -10,7 +10,7 @@ The scene world is the one record of where everything in a scene is and what sta
 
 | file | what's in it |
 |---|---|
-| [`scene-world.ts`](scene-world.ts) | The types (`SceneWorld`, `Entity`, `WorldOp`, and `WorldSpec`/`ThingSpec` for authoring worlds in `scenes/worlds/`). Building a world ([`buildWorld`](scene-world.ts#L116)), people coming on stage ([`joinWorld`](scene-world.ts#L841)). Space: positions, areas, [`within`](scene-world.ts#L301), spell areas ([`caughtIn`](scene-world.ts#L370), [`inArea`](scene-world.ts#L379)), [`jumpGap`](scene-world.ts#L270). Selectors ([`select`](scene-world.ts#L410)) and the operations ([`applyOps`](scene-world.ts#L497)). Damage to things ([`damageThing`](scene-world.ts#L689)) and story time ([`tick`](scene-world.ts#L715)). The GM's view ([`worldView`](scene-world.ts#L775)), the QA console's sketch ([`asciiMap`](scene-world.ts#L809)), and [`untangle`](scene-world.ts#L221) for old saves. |
+| [`scene-world.ts`](scene-world.ts) | The types (`SceneWorld`, `Entity`, `WorldOp`, and `WorldSpec`/`ThingSpec` for authoring worlds in `scenes/worlds/`). Building a world ([`buildWorld`](scene-world.ts#L116)), people coming on stage ([`joinWorld`](scene-world.ts#L854)). Space: positions, areas, [`within`](scene-world.ts#L301), spell areas ([`caughtIn`](scene-world.ts#L370), [`inArea`](scene-world.ts#L379)), [`jumpGap`](scene-world.ts#L270). Selectors ([`select`](scene-world.ts#L410)) and the operations ([`applyOps`](scene-world.ts#L503)). Damage to things ([`damageThing`](scene-world.ts#L702)) and story time ([`tick`](scene-world.ts#L728)). The GM's view ([`worldView`](scene-world.ts#L788)), the QA console's sketch ([`asciiMap`](scene-world.ts#L822)), and [`untangle`](scene-world.ts#L221) for old saves. |
 | [`systems.ts`](systems.ts) | The physics verbs: [`spill`](systems.ts#L54), [`ignite`](systems.ts#L81), [`douse`](systems.ts#L112), [`chill`](systems.ts#L143), [`bleed`](systems.ts#L157), [`breakOpen`](systems.ts#L166), [`elemental`](systems.ts#L178) and [`surfaceTick`](systems.ts#L188). Surfaces (a puddle, a slick, a cloud) are entities of kind `surface`. [`PHYSICS`](systems.ts#L229) is the same rules in a sentence, for the GM's brief. |
 | [`inventory.ts`](inventory.ts) | Who has what. An item's owner is its parent in the tree, so where a thing is and who has it can't disagree. [`inventory(world, turn)`](inventory.ts#L53) is V1's inventory service on that tree: a strict, versioned half (`read`, `add`, `remove`, `transfer`, `commit`) and the permissive [`settle`](inventory.ts#L139) the operations use. Also `ownerOf`, `countOf` and `startingPurse`. |
 | [`stage.ts`](stage.ts) | The stage manager: one model call after each reply ([`stageManage`](stage.ts#L78)), with the world language ([`WORLD_LANGUAGE`](stage.ts#L12)) and a strict schema whose selectors are the world's own ids ([`opSchema`](stage.ts#L46)). |
@@ -32,7 +32,7 @@ This module owns the shape and the rules on it. Where the game keeps a world, or
 
 | where | what | written by |
 |---|---|---|
-| `SessionState.world` (state.json) | the current scene's world | built when a scene with a `world` spec opens ([src/runtime/engine.ts:170](../runtime/engine.ts#L170)), dropped at the scene boundary |
+| `SessionState.world` (state.json) | the current scene's world | built when a scene with a `world` spec opens ([src/runtime/engine.ts:171](../runtime/engine.ts#L171)), dropped at the scene boundary |
 | `SessionState.carried` | what the player carried out of the last world, into the next | `chainScene` and `closeHubScene` in src/runtime/engine.ts |
 | `ExploreState.overlay.scenes` (game.json) | what a played scene left in its place, as map actors | the map's `leaveScene` and `captureScene` ([src/game/map](../game/map/README.md)) |
 | `ExploreState.overlay.town` | what the rules did to the town outside scenes | [`keepTown`](../game/town-world.ts#L256); the town's world itself is rebuilt from the map for every act |
@@ -78,7 +78,7 @@ The turn itself is the runtime's ([src/runtime/README.md](../runtime/README.md#o
 
 ### The operations
 
-[`applyOps(world, ops, turn, by)`](scene-world.ts#L497) is the world's one way in for the stage manager, scripts and the runtime. It returns what changed in plain words (`changes`) and what couldn't be done (`problems`), and never throws.
+[`applyOps(world, ops, turn, by)`](scene-world.ts#L503) is the world's one way in for the stage manager, scripts and the runtime. It returns what changed in plain words (`changes`) and what couldn't be done (`problems`), and never throws.
 
 | op | does |
 |---|---|
@@ -95,12 +95,12 @@ Selectors ([`select`](scene-world.ts#L410)) take an id, a name, or a model's way
 
 - **Fire.** Wood, cloth, paper, rope and leather burn; metal, stone and glass only scorch; wet things won't catch; a thing with oil on it burns, metal too, for two turns. Each `tick`, a burning thing takes 1d10 fire and sets alight what's flammable within 5 ft; fire in a `dusty` area explodes it (4d6 fire to every thing in it). A wreck burned to 0 HP burns a turn more, then smoulders.
 - **Surfaces.** Oil, spirits and grease burn for 4, 2 and 3 turns, burning what stands in them, then leave ash and smoke. Water puts fire out; water on burning oil spreads it. Cold freezes a puddle to ice. Water dries in 20 turns, smoke drifts off in 3, steam in 2.
-- **Damage to things** ([`damageThing`](scene-world.ts#L689)): nothing feels poison or psychic, and each material shrugs off its own list (stone takes no fire); damaged at half, destroyed at none, with what's left in words. A broken container spills what it held, alight if fire broke it.
+- **Damage to things** ([`damageThing`](scene-world.ts#L702)): nothing feels poison or psychic, and each material shrugs off its own list (stone takes no fire); damaged at half, destroyed at none, with what's left in words. A broken container spills what it held, alight if fire broke it.
 - **People** don't take damage from the world here: their hit points are the rules engine's (src/rules).
 
 ### The DSL
 
-An exit script is `(world: WorldApi, outcome) => void` in `scenes/*.ts`. It runs when the scene ends, against [`recordingWorld`](dsl.ts#L74) and the asset catalogue, and its operations are kept on `SessionState.ended.operations`. Only two kinds are read back: `journal` (the notebook: [src/app/story.ts:56](../app/story.ts#L56)) and `startCombat` (who a fight sets out: [src/game/combat/fights.ts:457](../game/combat/fights.ts#L457), [heron.ts:43](../game/combat/heron.ts#L43), [src/game/zoo/fights.ts:103](../game/zoo/fights.ts#L103)). The scribe writes a script of its own from the transcript, adding to the author's or reconciling with it: the scene CLI saves it beside the session (`world-<scene>.ts`), and the evals score it.
+An exit script is `(world: WorldApi, outcome) => void` in `scenes/*.ts`. It runs when the scene ends, against [`recordingWorld`](dsl.ts#L74) and the asset catalogue, and its operations are kept on `SessionState.ended.operations`. Only two kinds are read back: `journal` (the notebook: [src/app/story.ts:56](../app/story.ts#L56)) and `startCombat` (who a fight sets out: [src/game/combat/fights.ts:460](../game/combat/fights.ts#L460), [heron.ts:43](../game/combat/heron.ts#L43), [src/game/zoo/fights.ts:103](../game/zoo/fights.ts#L103)). The scribe writes a script of its own from the transcript, adding to the author's or reconciling with it: the scene CLI saves it beside the session (`world-<scene>.ts`), and the evals score it.
 
 ## Where to look first
 
@@ -126,9 +126,9 @@ The zoo's Works wing ([src/game/zoo/README.md](../game/zoo/README.md#the-works-z
 
 - **The same rules are coded again elsewhere.** Fire, damage to things and breaking are coded here for scenes, and separately for the town map, for fights and in the map's ageing of what's left: see [the table in src/game/README.md](../game/README.md#the-same-rule-coded-more-than-once). Bugs that come of it:
   - people don't burn outside fights: `ignite` does nothing to a person, and a burning surface burns only things ([systems.ts:196](systems.ts#L196));
-  - something the story creates can't catch fire: `create` gives it no `flammable` tag ([scene-world.ts:526](scene-world.ts#L526));
+  - something the story creates can't catch fire: `create` gives it no `flammable` tag ([scene-world.ts:534](scene-world.ts#L534));
   - the look director waits for a "fire spread to" log line ([src/game/look/director.ts:140](../game/look/director.ts#L140)) that nothing writes (the world logs "X catches fire").
-- **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:469](../runtime/engine.ts#L469)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
+- **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:470](../runtime/engine.ts#L470)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
 - **Spell areas ignore walls.** `caughtIn` is geometry in feet (its comment says the map will add walls). Fights lay areas on tiles and walls stop them ([src/game/combat/grid.ts `areaTiles`](../game/combat/grid.ts#L157)), so one Fireball can catch different people in a scene and in a fight.
 - **The DSL is a stub.** An exit script's `setFlag`, `quest`, `moveTo` or `addItem` is recorded and changes nothing in play. The story's flags come only from a fight's result.
 - **Half the inventory has no caller.** The strict, versioned `read`/`transfer`/`commit` are exercised only by their tests; the game uses `add` (the starting purse) and `settle`.
