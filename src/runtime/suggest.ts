@@ -1,5 +1,7 @@
+import { deciderFor, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
 import { modelOffline, respond, type RespondRequest } from "../llm/openrouter.ts";
 import { sceneById, SCENES, ZOO_SCENES } from "../../scenes/index.ts";
+import { sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, knownCast, nameTokens, presentCast, prompt, sceneEntries, scriptTranscript, spentHere, unnamed } from "./brief.ts";
 import { titleCase } from "./dice.ts";
 import type { TurnHooks } from "./engine.ts";
@@ -27,9 +29,13 @@ import type { PlayerCharacter, SessionState, Suggestion } from "./session.ts";
  * limits), with everyone the player hasn't heard named called what the player would call them. What
  * people hide stays behind the screen: a line can only ask after it.
  *
- * Vetted before they're offered (`vet`): the player's own words and deeds only, no name they haven't
- * heard, no word of what's still hidden, nothing the scene's limits rule out, nothing just said or
- * offered last time, and a mix of kinds.
+ * Vetted before they're offered: first by what can be read off the words (`screen`: the player's own
+ * words and deeds only, no name they haven't heard, no word of what's still hidden, nothing the
+ * scene's limits name, nothing just said or offered last time), then by the GM's own judge, the
+ * session's decider, given every fact (`judge`: does a line give away or take for granted what's
+ * hidden, reach for what the scene can't offer, or decide for someone else; would a risky try really
+ * take a roll), then a mix of kinds (`mix`). The call and the judge take about two and a half seconds
+ * between them, and the stage manager about four and a half: the lines are there before the turn is.
  */
 
 /** The kinds, in the order they're listed. */
@@ -77,24 +83,89 @@ export function startSuggesting(state: SessionState, hooks: Pick<TurnHooks, "onS
   inFlight.set(state, { controller, done });
 }
 
-/** What a call came to: the lines kept, those dropped and why, and the call's own text, cost and time. */
-export interface Proposed { lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; text: string; costUsd: number; latencyMs: number }
+/** What the lines came to: those kept, those dropped and why, and the calls' text, cost and time (the model's and the judge's). */
+export interface Proposed { lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; text: string; costUsd: number; latencyMs: number; judgeMs?: number }
 
 /** A model to ask: OpenRouter's, or a test's stand-in. */
 export type Ask = (request: RespondRequest) => Promise<{ text: string; costUsd: number; latencyMs: number }>;
 
-/** One call for the lines for this moment, vetted. */
-export async function propose(state: SessionState, options: { signal?: AbortSignal; ask?: Ask } = {}): Promise<Proposed> {
+/**
+ * The lines for this moment: one call for them, then vetted, first by what can be read off the
+ * words (screen), then by the GM's own judge, the session's decider (judge), then the mix.
+ */
+export async function propose(state: SessionState, options: { signal?: AbortSignal; ask?: Ask; decider?: Decider } = {}): Promise<Proposed> {
   const scene = effectiveScene(sceneById(state.sceneId), state.patches);
   // Plain lines, not JSON: structured output costs about a second more (the talk's lines found so).
   const result = await (options.ask ?? respond)({
-    operation: "scene.suggest", effort: "none", maxOutputTokens: 300,
+    operation: "scene.suggest", effort: "none", maxOutputTokens: 200, asFarAsItGot: true,
     instructions: prompt("suggest"),
     input: [{ role: "user", content: suggestionBrief(scene, state) }],
     ...(options.signal ? { signal: options.signal } : {}),
   });
-  const { lines, dropped } = vet(parseSuggestions(result.text), vetting(scene, state));
-  return { lines, dropped, text: result.text, costUsd: result.costUsd, latencyMs: result.latencyMs };
+  const v = vetting(scene, state);
+  const screened = screen(parseSuggestions(result.text), v);
+  const judged = await judge(scene, state, screened.kept, options.decider ?? deciderFor(sceneApproach(state, scene).decider)).catch(() => undefined);
+  const mixed = mix(judged?.lines ?? screened.kept, v.leave);
+  return {
+    lines: mixed.lines, dropped: [...screened.dropped, ...(judged?.dropped ?? []), ...mixed.dropped], text: result.text,
+    costUsd: result.costUsd + (judged?.costUsd ?? 0), latencyMs: result.latencyMs, ...(judged ? { judgeMs: Math.round(judged.latencyMs) } : {}),
+  };
+}
+
+/** The judge's verdicts on a line: fit to offer, or why not. */
+const VERDICTS: Record<string, string> = {
+  fine: "Fit to offer: it rests only on what the player has seen, heard or been told (or a fair guess from it), it's their own words or deeds, and the scene can offer it.",
+  gives_away: "It gives away, or takes for granted, something only hidden_from_the_player says: a fact, a clue or a detail they haven't come across, or a name they haven't heard. (Asking about or looking at what they've seen is fine.)",
+  ruled_out: "It reaches for something the scene can't offer (what_the_scene_cannot_offer).",
+  not_theirs: "It says what someone else says, does or feels, or how it turns out.",
+};
+const WHY: Record<string, string> = { gives_away: "the judge: gives away what's hidden", ruled_out: "the judge: the scene can't offer it", not_theirs: "the judge: not the player's own" };
+
+/**
+ * The GM's own judge on the lines, in one call to the session's decider, with every fact: what the
+ * player knows, what's hidden from them, what the scene can't offer. A line that gives away or takes
+ * for granted what's hidden, reaches for what the scene can't offer, or decides for someone else is
+ * dropped; a risky try that wouldn't take a roll is a deed. Words alone can't tell a line that asks
+ * after a hidden thing from one that gives it away; the judge can.
+ */
+async function judge(scene: Scene, state: SessionState, lines: Suggestion[], decider: Decider): Promise<{ lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; costUsd: number; latencyMs: number }> {
+  if (!lines.length) return { lines, dropped: [], costUsd: 0, latencyMs: 0 };
+  const known = (text: string) => asTheyKnowIt(text, scene, state);
+  const called = unnamed(scene, state);
+  const present = presentCast(scene, state);
+  // What changes least first (the prep), what changes every turn last (the scene so far).
+  const facts = {
+    hidden_from_the_player: [
+      ...present.flatMap(c => [`${called[c.id] ?? c.name} is after: ${known(c.wants)}`, ...(c.secrets ?? []).map(s => `${called[c.id] ?? c.name} hides: ${known(s)}`)]),
+      ...(scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).map(e => `Not yet come across: ${known(e.what)} (with: ${e.placedWith.map(known).join("; ")})`),
+      ...Object.values(state.world?.entities ?? {}).filter(e => e.tags.includes("hidden") || e.states.includes("hidden")).map(e => `Hidden: ${e.name}`),
+    ].join("\n"),
+    what_the_scene_cannot_offer: (scene.limits ?? []).map(l => `- ${known(limitHead(l))}`).join("\n") || "(nothing in particular)",
+    what_the_player_knows: [
+      `They came in knowing: ${state.lead ?? scene.hook}`,
+      ...(state.history.length ? [`The story so far: ${state.history.at(-1)!.summary}`] : []),
+      `Who's here, as they see them: ${present.map(c => `${called[c.id] ?? c.name}: ${known(c.look)}`).join(" ")}`,
+      `The scene so far:\n${scriptTranscript(scene, state, sceneEntries(state).filter(e => e.kind !== "system").slice(-24))}`,
+    ].join("\n\n"),
+  };
+  const questions: Record<string, ChoiceQuestion> = {};
+  lines.forEach((l, i) => {
+    questions[`line_${i + 1}`] = { instructions: `A line offered to the player as something they might say or do next: "${l.text}". Judge it against what_the_player_knows, hidden_from_the_player and what_the_scene_cannot_offer.`, criteria: VERDICTS };
+    if (l.kind === "try") questions[`roll_${i + 1}`] = {
+      instructions: `Would the game call for a roll if the player did this: "${l.text}"?`,
+      criteria: { risky: "Yes: a risky attempt whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation.", safe: "No: ordinary talk or questions, looking around, or something where failing would only mean trying again." },
+    };
+  });
+  const decision = await decider.decide(facts, questions, "scene.suggest.judge");
+  const kept: Suggestion[] = [];
+  const dropped: Array<{ text: string; why: string }> = [];
+  lines.forEach((l, i) => {
+    const verdict = decision.answers[`line_${i + 1}`];
+    if (verdict && verdict.choice !== "fine" && (verdict.probabilities?.[verdict.choice] ?? 1) >= 0.5) { dropped.push({ text: l.text, why: WHY[verdict.choice] ?? verdict.choice }); return; }
+    const roll = decision.answers[`roll_${i + 1}`];
+    kept.push(roll?.choice === "safe" && (roll.probabilities?.safe ?? 1) >= 0.6 ? { ...l, kind: "do" } : l);
+  });
+  return { lines: kept, dropped, costUsd: decision.costUsd, latencyMs: decision.latencyMs };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -160,10 +231,11 @@ export function leaveFits(state: SessionState): boolean {
 }
 
 /**
- * The scene, the character and the moment, for the call, in two parts: what the player knows (who they
- * are, what they came in knowing, who's here as they look, the scene so far), and behind the screen,
- * where the threads are (what people are after, the ways on and their rolls, what the scene still
- * needs the player to come across, its endings and limits). Then what's not to be offered again.
+ * The scene, the character and the moment, for the call: what the player knows (who they are, what
+ * they came in knowing), behind the screen, where the threads are (what people are after, the ways on
+ * and their rolls, what the scene still needs the player to come across, its endings and limits), then
+ * what the player knows of the scene (who's here as they look, the scene so far), and what's not to be
+ * offered again. In that order, what changes least first, so the provider's cache keeps the most of it.
  */
 export function suggestionBrief(scene: Scene, state: SessionState): string {
   const known = (text: string) => asTheyKnowIt(text, scene, state);
@@ -189,11 +261,9 @@ export function suggestionBrief(scene: Scene, state: SessionState): string {
   const said = entries.filter(e => e.kind === "player").at(-1)?.text;
   const offered = lastOffered(state);
   return [
-    "# What the player knows",
+    "# What the player knows: who they are, and what they came in knowing",
     `## Who they are\n${who(state)}`,
     `## What they came in knowing\n${state.lead ?? scene.hook}${state.history.length ? `\n\nThe story so far: ${state.history.at(-1)!.summary}` : ""}`,
-    `## Who's here, as the player sees them\n${present.map(c => `- ${nameOf(c)}${called[c.id] ? " (the player hasn't heard their name: call them that)" : ""}${c.group ? ` (${known(c.group)})` : ""}: ${known(c.look)}`).join("\n") || "(nobody but the player)"}`,
-    `## The scene so far (the latest last)\n${scriptTranscript(scene, state, entries.slice(-10)) || "(It's just begun.)"}`,
     "# Behind the screen (the GM's prep: the player knows none of it)",
     `## What the scene is about\n${known(scene.premise)}`,
     ...(present.length ? [`## What they're after\n${present.map(c => `- ${nameOf(c)}: ${known(c.wants)} With the player: ${known(firstSentence(c.attitude))}`).join("\n")}`] : []),
@@ -201,6 +271,9 @@ export function suggestionBrief(scene: Scene, state: SessionState): string {
     ...(needs.length ? [`## What the scene still needs the player to come across, and where\n${needs.join("\n")}`] : []),
     `## How it can end\n${exits.map((e: Exit) => `- ${e.title}${e.kind === "leave" ? " (walking away)" : ""}`).join("\n")}${at ? `\nIt's ending now: ${at.title}. The player has a last word.` : leaning ? `\nThe story is heading for: ${leaning.title}.` : ""}\n${leaveFits(state) ? "A leave line can fit now, if the moment's right." : "No leave line yet: the scene is still young."}`,
     ...(scene.limits?.length ? [`## What this scene can't offer (never suggest reaching for these)\n${scene.limits.map(l => `- ${known(limitHead(l))}`).join("\n")}`] : []),
+    "# What the player knows of the scene",
+    `## Who's here, as the player sees them\n${present.map(c => `- ${nameOf(c)}${called[c.id] ? " (the player hasn't heard their name: call them that)" : ""}${c.group ? ` (${known(c.group)})` : ""}: ${known(c.look)}`).join("\n") || "(nobody but the player)"}`,
+    `## The scene so far (the latest last)\n${scriptTranscript(scene, state, entries.slice(-10)) || "(It's just begun.)"}`,
     `# Not again\n${said ? `The player just said: ${said}\n` : ""}${offered.length ? `Offered last time:\n${offered.map(l => `- ${l}`).join("\n")}` : "Nothing offered yet."}`,
   ].join("\n\n");
 }
@@ -216,8 +289,9 @@ function lastOffered(state: SessionState): string[] {
 
 /**
  * The call's lines, "kind: line" one a line, as the player would type them: speech plain, a deed in
- * brackets ("(I ...)"). Forgiving of bullets, numbers, bold, quotes, a deed in asterisks, a line with
- * no kind (a bracket makes it a deed), and a risky try written down as a deed.
+ * brackets ("(I ...)"). Forgiving of bullets, numbers, bold, quotes, a deed in asterisks or square
+ * brackets, a deed with no kind, and a risky try written down as a deed. A line that's neither tagged
+ * nor a deed ends the list: what follows is the model thinking aloud ("Need ensure say lines...").
  */
 export function parseSuggestions(text: string): Suggestion[] {
   const out: Suggestion[] = [];
@@ -232,7 +306,8 @@ export function parseSuggestions(text: string): Suggestion[] {
     const marked = /^\*([^*]+)\*$/.exec(line) ?? /^\[([^\]]+)\]?$/.exec(line);
     if (marked) line = `(${marked[1]!.trim()})`;
     const deed = line.startsWith("(");
-    if (!kind) kind = deed ? "do" : "say";
+    if (!kind && !deed) break;
+    if (!kind) kind = "do";
     if (kind === "say") {
       if (deed) kind = "do";
       else line = line.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
@@ -366,6 +441,8 @@ export function stem(word: string): string {
 
 /** Common words, never taken for something hidden or ruled out (they'd be in any line). */
 const STOP = new Set([
+  "the", "and", "you", "him", "her", "his", "she", "who", "why", "how", "for", "was", "are", "not", "but", "has", "had", "did", "any", "all", "can", "its",
+  "our", "out", "now", "too", "get", "got", "let", "may", "one", "two", "off", "yet", "see", "saw", "say", "ask", "put", "own", "way", "use",
   "about", "above", "after", "again", "against", "also", "always", "among", "another", "anyone", "anything", "around", "asked", "away", "back", "because", "become",
   "been", "before", "behind", "being", "believe", "below", "best", "better", "between", "both", "bring", "brought", "call", "called", "came", "cannot", "carry",
   "close", "come", "could", "didn", "does", "doesn", "done", "down", "during", "each", "either", "else", "enough", "even", "ever", "every", "everyone",
@@ -379,31 +456,41 @@ const STOP = new Set([
   "their", "them", "then", "there", "these", "they", "thing", "things", "think", "this", "those", "though", "thought", "three", "through", "till", "time",
   "together", "told", "took", "tried", "true", "turn", "under", "until", "upon", "very", "want", "wanted", "wants", "watch", "well", "went", "were", "what",
   "when", "where", "whether", "which", "while", "whole", "whom", "whose", "will", "wish", "with", "within", "without", "word", "words", "work", "would",
-  "wouldn", "year", "years", "your", "yours", "yourself", "player", "players", "person", "business", "official",
+  "wouldn", "year", "years", "your", "yours", "yourself", "player", "players", "person", "business", "official", "owner", "liked", "effort",
+  "believable", "picture",
 ].map(stem));
 
 /** Lines as comparable words: lower case, no punctuation, the little words gone. */
 function gist(text: string): Set<string> {
-  return new Set(words(text).map(stem).filter(w => w.length >= 3 && !STOP.has(w)));
+  return new Set(words(text).map(stem).filter(w => w.length >= 3 && !LITTLE.has(w)));
 }
+
+/** The little words a line is made of whatever it says, left out when lines are compared. */
+const LITTLE = new Set([
+  "the", "and", "you", "him", "her", "his", "she", "who", "why", "how", "for", "was", "are", "not", "but", "has", "had", "did", "any", "all", "can", "its",
+  "our", "out", "now", "too", "may", "yet", "this", "that", "with", "from", "have", "were", "what", "when", "where", "which", "your", "their", "them", "they",
+  "then", "than", "there", "these", "those", "into", "onto", "just", "very", "will", "would", "could", "should", "been", "being", "does", "about", "some",
+].map(stem));
 
 /** The same line again, or near enough (most of its words). */
 function same(a: string, b: string): boolean {
   const x = gist(a), y = gist(b);
   if (!x.size || !y.size) return a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim() === b.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   const shared = [...x].filter(w => y.has(w)).length;
-  return shared / new Set([...x, ...y]).size >= 0.6 || (shared === Math.min(x.size, y.size) && shared >= 2);
+  return shared / new Set([...x, ...y]).size >= 0.6 || (shared === Math.min(x.size, y.size) && shared >= 3);
 }
 
+type Dropped = Array<{ text: string; why: string }>;
+
 /**
- * The lines worth offering, and why the rest were dropped: the player's own words and deeds (a deed
- * is "(I ...)", and speech isn't anyone else's), short enough to read at a glance, no name the player
- * hasn't heard, no word of what's hidden or of a place or name they haven't met, nothing the limits
- * rule out, nothing they've just said or were offered last time, and a way out only when one fits.
- * Then a mix: up to two to say, a deed, a risky try and a way out, three to five in all, in that order.
+ * The lines worth offering, by what can be read off their words, and why the rest were dropped: the
+ * player's own words and deeds (a deed is "(I ...)", and speech isn't anyone else's), short enough to
+ * read at a glance, no name the player hasn't heard, no word of what's hidden or of a place or name
+ * they haven't met, nothing the limits name, nothing they've just said or were offered last time,
+ * nothing twice, and a way out only when one fits.
  */
-export function vet(candidates: Suggestion[], v: Vetting): { lines: Suggestion[]; dropped: Array<{ text: string; why: string }> } {
-  const dropped: Array<{ text: string; why: string }> = [];
+export function screen(candidates: Suggestion[], v: Vetting): { kept: Suggestion[]; dropped: Dropped } {
+  const dropped: Dropped = [];
   const kept: Suggestion[] = [];
   const has = (stems: string[], text: string) => words(text).map(stem).find(w => stems.includes(w));
   for (const s of candidates) {
@@ -424,9 +511,24 @@ export function vet(candidates: Suggestion[], v: Vetting): { lines: Suggestion[]
     if (reason) dropped.push({ text: s.text, why: reason });
     else kept.push(s);
   }
+  return { kept, dropped };
+}
+
+/**
+ * A mix of what's left: up to two to say, a deed, a risky try and a way out (when one fits), filled
+ * to four from what's spare, five at most, in that order.
+ */
+export function mix(kept: Suggestion[], leave: boolean): { lines: Suggestion[]; dropped: Dropped } {
   const of = (kind: Suggestion["kind"]) => kept.filter(s => s.kind === kind);
-  const chosen = [...of("say").slice(0, 2), ...of("do").slice(0, 1), ...of("try").slice(0, 1), ...of("leave").slice(0, 1)];
+  const chosen = [...of("say").slice(0, 2), ...of("do").slice(0, 1), ...of("try").slice(0, 1), ...(leave ? of("leave").slice(0, 1) : [])];
   for (const spare of [...of("do").slice(1), ...of("say").slice(2), ...of("try").slice(1)]) if (chosen.length < 4) chosen.push(spare);
-  for (const s of kept) if (!chosen.includes(s)) dropped.push({ text: s.text, why: "enough of its kind" });
+  const dropped = kept.filter(s => !chosen.includes(s)).map(s => ({ text: s.text, why: s.kind === "leave" && !leave ? "no way out yet" : "enough of its kind" }));
   return { lines: chosen.sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind)).slice(0, 5), dropped };
+}
+
+/** Both, as the call's lines are vetted when there's no judge to ask. */
+export function vet(candidates: Suggestion[], v: Vetting): { lines: Suggestion[]; dropped: Dropped } {
+  const screened = screen(candidates, v);
+  const mixed = mix(screened.kept, v.leave);
+  return { lines: mixed.lines, dropped: [...screened.dropped, ...mixed.dropped] };
 }

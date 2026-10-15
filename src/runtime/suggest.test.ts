@@ -12,6 +12,7 @@ const { fakeOpenRouter } = await import("../llm/fake-openrouter.ts");
 const { currentSuggestions, limitHead, parseSuggestions, propose, startSuggesting, stopSuggesting, suggested, suggesting, vet } = await import("./suggest.ts");
 type SessionState = import("./session.ts").SessionState;
 type Vetting = import("./suggest.ts").Vetting;
+type Decider = import("../llm/decide.ts").Decider;
 
 /**
  * What a scene suggests the player might say or do next (src/runtime/suggest.ts), with a stand-in for
@@ -34,16 +35,18 @@ function yard(id: string): SessionState {
 
 const vetted = (over: Partial<Vetting> = {}): Vetting => ({ said: [], offered: [], names: [], hidden: [], proper: [], limits: [], leave: false, ...over });
 
-test("the lines are read as typed: a kind and a colon, speech plain, a deed in round brackets, however the model dresses them", () => {
+test("the lines are read as typed: a kind and a colon, speech plain, a deed in round brackets, however the model dresses them; the list ends where the model starts thinking aloud", () => {
   const lines = parseSuggestions([
     "- say: \"Sergeant, who found him?\"",
     "2. **do:** [I look up at the hoist]",
     "try: I try to talk the boy down off his high horse.",
     "do: (I try to read the girl's face)",
     "*leave*: *I head for the gate*",
-    "Leave it out, you two.",
-    "(I count the pigeons)",
     "",
+    "(I count the pigeons)",
+    " #+#+#+#+",
+    "Replace labels, no numbering. Need ensure say lines character voice.",
+    "say: Lines after that aren't the list's.",
   ].join("\n"));
   assert.deepEqual(lines, [
     { kind: "say", text: "Sergeant, who found him?" },
@@ -51,7 +54,6 @@ test("the lines are read as typed: a kind and a colon, speech plain, a deed in r
     { kind: "try", text: "(I try to talk the boy down off his high horse)" },
     { kind: "try", text: "(I try to read the girl's face)" },
     { kind: "leave", text: "(I head for the gate)" },
-    { kind: "say", text: "Leave it out, you two." },
     { kind: "do", text: "(I count the pigeons)" },
   ]);
 });
@@ -106,7 +108,20 @@ test("the call is given what the player knows, then the GM's prep behind the scr
   const state = yard("suggest-propose");
   state.suggestions = { scene: "hanged-clerk", turn: 0, lines: [{ kind: "say", text: "Lovely morning for it." }] };
   let asked: { instructions?: string; input: Array<{ content: string }> } | undefined;
+  // The judge (the session's decider, given every fact): a line that takes a hidden thing for granted
+  // in words of its own (the boots are the dead man's) goes; a "risky try" that's only talk is a deed.
+  let judged: { facts: Record<string, string>; questions: Record<string, { instructions: string; criteria: Record<string, string> }> } | undefined;
+  const decider: Decider = {
+    name: "stub",
+    decide: async (facts, questions) => {
+      judged = { facts: facts as Record<string, string>, questions };
+      const answer = (id: string, q: { instructions: string }) => id.startsWith("roll_") ? (/ask him nicely/.test(q.instructions) ? "safe" : "risky")
+        : /dead man's boots/.test(q.instructions) ? "gives_away" : "fine";
+      return { answers: Object.fromEntries(Object.entries(questions).map(([id, q]) => [id, { choice: answer(id, q), probabilities: { [answer(id, q)]: 0.9 } }])), latencyMs: 1, costUsd: 0.0002, decider: "stub" };
+    },
+  };
   const made = await propose(state, {
+    decider,
     ask: async request => {
       asked = request;
       return { costUsd: 0.0001, latencyMs: 1, text: [
@@ -114,24 +129,33 @@ test("the call is given what the player knows, then the GM's prep behind the scr
         "say: Moll, who paid you to say he jumped?",
         "say: Was it the man they call Silvertop?",
         "say: Lovely morning for it.",
+        "say: Nice of you to wear the dead man's boots, boy.",
         "do: (I look for a docker's knot on the hoist rope)",
         "do: (I send a runner for the watch surgeon)",
         "do: (I look over the boy's boots)",
         "try: (I try to hold a séance for Prout)",
+        "try: (I try to ask him nicely where he got them)",
         "try: (I try to talk the boy round with a hot pie)",
       ].join("\n") };
     },
   });
-  // Nothing secret: no name the player hasn't heard, no name or clue only the prep has; nothing the scene can't offer; nothing offered again.
-  assert.deepEqual(made.lines.map(l => l.text), ["Sergeant, who found him?", "(I look over the boy's boots)", "(I try to talk the boy round with a hot pie)"]);
+  // Nothing secret: no name the player hasn't heard, no name or clue only the prep has, nothing that gives away what's hidden; nothing the scene can't offer; nothing offered again.
+  assert.deepEqual(made.lines.map(l => `${l.kind}: ${l.text}`), ["say: Sergeant, who found him?", "do: (I look over the boy's boots)", "do: (I try to ask him nicely where he got them)", "try: (I try to talk the boy round with a hot pie)"]);
   assert.deepEqual(Object.fromEntries(made.dropped.map(d => [d.text, d.why])), {
     "Moll, who paid you to say he jumped?": "a name not heard: Moll",
     "Was it the man they call Silvertop?": "a name or place not met: silvertop",
     "Lovely morning for it.": "offered last time",
+    "Nice of you to wear the dead man's boots, boy.": "the judge: gives away what's hidden",
     "(I look for a docker's knot on the hoist rope)": "hidden: docker",
     "(I send a runner for the watch surgeon)": "the scene can't offer it: surgeon",
     "(I try to hold a séance for Prout)": "the scene can't offer it: séanc",
   });
+  assert.ok(Math.abs(made.costUsd - 0.0003) < 1e-12, "the call's and the judge's");
+  // The judge was given every fact: what the player knows, what's hidden from them, what the scene can't offer.
+  assert.match(judged!.facts.what_the_player_knows!, /A stone clangs off the hoist hook/);
+  assert.match(judged!.facts.hidden_from_the_player!, /The boots are Prout's/);
+  assert.match(judged!.facts.what_the_scene_cannot_offer!, /a séance/);
+  assert.deepEqual(Object.keys(judged!.questions), ["line_1", "line_2", "line_3", "line_4", "roll_4", "line_5", "roll_5"]);
   // What it was given: the standing instructions, the player's view first, the prep behind the screen, the limits, and what's not to come again.
   assert.match(asked!.instructions!, /^You suggest what the player might say or do next/);
   assert.doesNotMatch(asked!.instructions!, /`/, "no backticks: in Luna's instructions they cost seconds before the first word");
