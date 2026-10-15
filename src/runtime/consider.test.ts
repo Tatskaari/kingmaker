@@ -353,7 +353,7 @@ test("a ruling with no roll: yes takes success's way, no stays where it is and c
 });
 
 test("a considered turn, played: one decision, the GM's ruling a step at a time, the roll, the move, and a reply that plays what was decided", async () => {
-  const fake = fakeOpenRouter({ choices: { roll_call: "new" }, byName: { ruling: LINING }, replies: ["Cob scowls, then hauls the boot off and picks at the lining. A folded page comes out."] });
+  const fake = fakeOpenRouter({ choices: { roll_call: "new", landed_page: "landed" }, byName: { ruling: LINING }, replies: ["Cob scowls, then hauls the boot off and picks at the lining. A folded page comes out."] });
   try {
     const state = yard(30, "consider-played");
     setCallLog(join(sessionDir(state.id), "calls.jsonl"));
@@ -365,7 +365,7 @@ test("a considered turn, played: one decision, the GM's ruling a step at a time,
     assert.ok(state.established.includes(PAGE));
     assert.deepEqual(state.path.map(p => [p.from, p.to, p.via]), [["yard", "motive", `considered-${state.turn}`]]);
     assert.deepEqual(state.rulings?.map(r => [r.kind, r.went, r.dc]), [["roll", "success", 12]]);
-    assert.deepEqual(state.landed, ["page"], "what the ruling brought out has been come across");
+    assert.deepEqual(state.landed, ["page"], "what the reply showed (the after-read saw the page come out) has been come across");
     assert.ok(turn.metric.considerMs !== undefined && turn.metric.considerMs >= 0);
     assert.equal(fake.sent.find(b => b.text?.format?.name === "ruling")?.max_output_tokens, 1000, "the review's output is capped near 1,000 tokens");
     const calls = readFileSync(join(sessionDir(state.id), "calls.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l) as { operation: string; request?: { input?: Array<{ content: string }> } });
@@ -380,7 +380,30 @@ test("a considered turn, played: one decision, the GM's ruling a step at a time,
   }
 });
 
-test("a ruling that brings out what the story owes the player settles it: Prout's page, in the Drowned Rat", async () => {
+test("what lands is what the reply showed: not what a ruling's list said, nor the page from a failed bribe; and a ruling into a beat settles what the ways in settle (robust#81, robust#79, robust#85)", async () => {
+  // The gill of gossip that listed an essential its text never showed: the after-read didn't see it come out, so it hasn't.
+  const state = yard(30);
+  const gossip = await settleRuling(scene, state, toRuling(scene, state, { ...LINING, approach: "free", success: outcome({ happens: "Moll says the big lad's been drinking for two since last night.", gets: "all", reveals: ["silvertop"] }) }, META));
+  assert.deepEqual(gossip.found, ["silvertop"], "what the ruling said");
+  assert.deepEqual(landRuling(state, gossip, []), []);
+  assert.equal(state.landed, undefined);
+  assert.deepEqual(landRuling(state, gossip, ["silvertop"]), ["silvertop"], "what the reply showed");
+  // A bribe counted as the bribe route, which is tagged with the page because it's there only while the page is: it never brings it.
+  const bribe = toRuling(scene, yard(0), { ...LINING, success: outcome({ happens: "Cob pockets the penny and keeps the boot on.", gets: "some", counts_as: "bribe-cob" }), failure: outcome({ happens: "Cob snatches the penny and backs off.", gets: "none", counts_as: "bribe-cob" }) }, META);
+  assert.deepEqual([bribe.success.reveals, bribe.failure.reveals], [[], []]);
+  const trusted = toRuling(scene, yard(0), { ...LINING, success: outcome({ happens: "Cob holds the boot out and lets them unpick the lining.", gets: "all", counts_as: "trust-cob" }) }, META);
+  assert.deepEqual(trusted.success.reveals, ["page"], "the route that goes the player's way all the way does");
+  // Into the Rat's confession, counting as no route: what every way in settles comes with it (its exits check it).
+  const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  const talked = drownedRat.beats.find(b => b.id === "on-his-feet")!.transitions.find(t => t.id === "hobb-breaks")!.establishes!;
+  const stops = toRuling(drownedRat, rat("on-his-feet"), { ...LINING, act: "Persuade Hobb to stop and trust you", target: "hobb",
+    success: outcome({ happens: "Hobb halts a few strides short of the door and whispers, “I only held the rope.”", gets: "some", to: "confession", establishes: ["Hobb has begun to confess that he held the rope"] }),
+    failure: outcome({ happens: "Hobb lunges through the doorway and is gone up the stairs.", gets: "none", to: "hobb-fled" }) }, META);
+  assert.deepEqual(stops.success.establishes, [...talked, "Hobb has begun to confess that he held the rope"]);
+  assert.deepEqual(stops.failure.establishes, [], "nothing every way to Hobb running settles");
+});
+
+test("on a ruled turn, what the reply brings out of what the story owes the player settles it: Prout's page, in the Drowned Rat", async () => {
   const rat = sceneById("drowned-rat");
   const missed = authored.essentials!.find(e => e.id === "page")!;
   const prepped = rat.essentials!.find(e => e.id === "prouts-page")!;
@@ -397,12 +420,12 @@ test("a ruling that brings out what the story owes the player settles it: Prout'
     outcome({ happens: "Cob sits on an upturned pot, unlaces the left boot and picks the lining open: a folded page, held out like it might bite.", gets: "all", counts_as: "trust-cob" }),
     outcome({ happens: "Cob yells for Nan, who comes round the bar to ask what the player wants with her pot-boy's boots.", gets: "none", establishes: ["Nan is keeping an eye on the player and her pot-boy."] }),
   );
-  const fake = fakeOpenRouter({ choices: { roll_call: "new" }, byName: { ruling: { ...trust, approach: "free" } }, replies: ["Cob unlaces the boot. The page comes out, soft at the corners."] });
+  const fake = fakeOpenRouter({ choices: { roll_call: "new", "landed_prouts-page": "landed" }, byName: { ruling: { ...trust, approach: "free" } }, replies: ["Cob unlaces the boot. The page comes out, soft at the corners."] });
   try {
     assert.equal(owedAtEnd(rat, state).length, 1, "owed as the scene starts");
     await playerTurn(state, "*in the scullery, out of the big man's sight* Nobody hears your name from me, Cob. Not the watch, not him. Show me what crackles in that boot.");
     assert.deepEqual(state.rulings?.map(r => [r.kind, r.went]), [["yes", "success"]]);
-    assert.ok(state.landed?.includes("prouts-page"), "counted as Cob trusting them with it, the page has come out");
+    assert.ok(state.landed?.includes("prouts-page"), "Cob trusting them with it, and the reply showing it: the page has come out");
     assert.deepEqual(owedAtEnd(rat, state), [], "and the story owes the player nothing more");
   } finally {
     fake.restore();

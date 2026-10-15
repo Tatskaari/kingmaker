@@ -364,19 +364,40 @@ export async function reviewWithin(scene: Scene, state: SessionState, playerTurn
   }
 }
 
-function toOutcome(scene: Scene, state: SessionState, o: OutcomeJson): RulingOutcome {
+/**
+ * The facts every authored way into a beat or ending from here establishes: what a ruling that takes
+ * the scene there has settled too, so whatever checks them (an ending's script, the routes after)
+ * finds them (the Rat's "Big Hobb has broken and begun to tell", entering the confession). The ways
+ * that simply happen, if any lead there; else the rolls that do, by how this went.
+ */
+function entryFacts(scene: Scene, state: SessionState, to: string, went: "success" | "failure"): string[] {
+  const here = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])];
+  const plain = here.filter(t => !t.check && t.to === to).map(t => t.establishes ?? []);
+  const rolled = here.filter(t => t.check && (went === "success" ? t.check.onSuccess : t.check.onFailure) === to)
+    .map(t => (went === "success" ? t.check!.establishes?.success : t.check!.establishes?.failure) ?? []);
+  const ways = plain.length ? plain : rolled;
+  return ways.length ? ways[0]!.filter(fact => ways.every(w => w.includes(fact))) : [];
+}
+
+function toOutcome(scene: Scene, state: SessionState, o: OutcomeJson, went: "success" | "failure"): RulingOutcome {
   const { checks, outcomes } = routesNow(scene, state);
   const places = new Set([...scene.beats.map(b => b.id), ...scene.exits.map(e => e.id)]);
   const counts = outcomes.find(t => t.id === o.counts_as);
   const target = counts?.to ?? (o.to !== "stay" && places.has(o.to) ? o.to : undefined);
   const to = target && target !== state.beat ? target : undefined;
-  const facts = [...(counts?.establishes ?? []), ...o.establishes.map(f => f.trim()).filter(Boolean)];
+  // Taken somewhere without counting as a route, it settles what the ways in there settle.
+  const entering = to && !counts ? entryFacts(scene, state, to, went) : [];
+  const facts = [...(counts?.establishes ?? []), ...entering, ...o.establishes.map(f => f.trim()).filter(Boolean)];
   const open = (id: string) => (scene.essentials ?? []).some(e => e.id === id) && !state.landed?.includes(id);
-  // A route that brings an essential brings it out (the page, when the outcome is Cob trusting them with it).
-  const reveals = [...new Set([...o.reveals, ...(counts?.essential ? [counts.essential] : [])])].filter(id => id !== "none" && open(id));
+  const gets: Gets = GETS.includes(o.gets) ? o.gets as Gets : "some";
+  // A route tagged with an essential brings it out when it goes the player's way, all the way (Cob
+  // trusting them with the page); not on a failure or a refusal (a bribe that gets haggling is tagged
+  // too, so it's there only while the page is: it never brings the page).
+  const brings = went === "success" && gets === "all" && counts?.essential ? [counts.essential] : [];
+  const reveals = [...new Set([...o.reveals, ...brings])].filter(id => id !== "none" && open(id));
   return {
     happens: o.happens.trim(),
-    gets: GETS.includes(o.gets) ? o.gets as Gets : "some",
+    gets,
     ...(to ? { to } : {}),
     ...(counts ? { countsAs: counts.id } : {}),
     establishes: [...new Set(facts)],
@@ -416,7 +437,7 @@ export function toRuling(scene: Scene, state: SessionState, json: RulingJson, me
   const skill = skillFor(json, context.read);
   const act = json.act.trim() || "what the player attempted";
   const fix = (o: OutcomeJson, went: "success" | "failure"): RulingOutcome => {
-    const outcome = toOutcome(scene, state, o);
+    const outcome = toOutcome(scene, state, o, went);
     const happens = outcome.happens || (went === "success" ? "It works: they get what they were after." : "It doesn't work, and it costs them: the person they were working on digs in, and this way is shut for now.");
     // An outcome that changes nothing is no outcome: what happens stays on the record at least.
     const how = went === "failure" ? "it failed" : outcome.gets === "none" ? "it didn't work" : "it worked";
@@ -635,13 +656,14 @@ export function patchesFor(scene: Scene, state: SessionState, ruling: Ruling, o:
 }
 
 /**
- * What a settled ruling brought out lands, as the ruling says it was found, and settles what the
- * story owes the player (an owed essential come across here is owed no more: owed.ts). What its
- * other outcome would have brought out doesn't land this turn, whatever the reply let slip: the dice
- * kept it back. `judged`: what the after-reply decider read as come across.
+ * What lands on a ruled turn is what the reply showed, as the after-reply decider read it (`judged`),
+ * which settles what the story owes the player (an owed essential come across here is owed no more:
+ * owed.ts); not what the ruling's list said comes out (the gill of gossip that listed the Heron, its
+ * text only "drinking for two"). What the outcome not played would have brought out doesn't land this
+ * turn, whatever the reply let slip: the dice kept it back.
  */
-export function landRuling(state: SessionState, settled: Pick<Settled, "found" | "withheld">, judged: string[] = []): string[] {
-  const landed = [...judged.filter(id => !settled.withheld.includes(id)), ...settled.found];
+export function landRuling(state: SessionState, settled: Pick<Settled, "withheld">, judged: string[] = []): string[] {
+  const landed = judged.filter(id => !settled.withheld.includes(id));
   if (landed.length) state.landed = [...new Set([...(state.landed ?? []), ...landed])];
   return landed;
 }

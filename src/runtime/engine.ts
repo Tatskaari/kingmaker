@@ -839,9 +839,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       ended = moveOnAfterReply(scene, state, post, hooks, onStage) ?? ended;
     }
   }
-  // What a ruling brought out has been come across, as the ruling says (which settles anything the
-  // story owed the player there), and what its dice kept back hasn't, whatever the reply let slip;
-  // otherwise, what the after-reply decider read as come across.
+  // What the after-reply decider read as come across has been (which settles anything the story owed
+  // the player there), on a ruled turn too, except what a ruling's dice kept back, whatever the reply
+  // let slip.
   if (considered) landRuling(state, considered, judgedLanded);
   else if (judgedLanded.length) state.landed = [...new Set([...(state.landed ?? []), ...judgedLanded])];
   const staged = staging ? await staging : undefined;
