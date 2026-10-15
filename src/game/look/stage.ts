@@ -570,8 +570,8 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     const lit = typeof view.hover === "string" ? (tracked ? cellsFor(tracked, view.hover) : [])
       : canvas.inside(view.hover.x, view.hover.y) ? [view.hover.y * w + view.hover.x] : [];
     for (const i of lit) {
-      canvas.bg[i] = mix(canvas.bg[i]!, HOVER, 0.34);
-      canvas.fg[i] = mix(canvas.fg[i]!, rgbOf("#ffffff"), 0.2);
+      canvas.bg[i] = mix(canvas.bg[i]!, HOVER, 0.5);
+      canvas.fg[i] = mix(canvas.fg[i]!, rgbOf("#ffffff"), 0.25);
     }
   }
 
