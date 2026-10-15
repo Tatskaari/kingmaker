@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { worldView } from "../world/scene-world.ts";
 import { PHYSICS } from "../world/systems.ts";
 import { join } from "node:path";
@@ -8,10 +8,12 @@ import { titleCase } from "./dice.ts";
 
 const PROMPTS_DIR = join(import.meta.dirname, "..", "..", "prompts");
 const cache = new Map<string, string>();
+/** A prompt by name. KM_PROMPTS_DIR tries another folder first (a variant to compare in the evals). */
 export function prompt(name: string, vars: Record<string, string> = {}): string {
   let text = cache.get(name);
   if (text === undefined) {
-    text = readFileSync(join(PROMPTS_DIR, `${name}.md`), "utf8").trim();
+    const variant = process.env.KM_PROMPTS_DIR ? join(process.env.KM_PROMPTS_DIR, `${name}.md`) : undefined;
+    text = readFileSync(variant && existsSync(variant) ? variant : join(PROMPTS_DIR, `${name}.md`), "utf8").trim();
     cache.set(name, text);
   }
   return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "").replace(/\n{3,}/g, "\n\n");
@@ -281,7 +283,7 @@ function guardNote(scene: Scene, state: SessionState): string | undefined {
   return `## How far people have opened up\nPeople give up what they're hiding the way they would at a good table: something that doesn't fit shows first; picked at, their guard goes up and something personal shows; kept at, what they're torn between comes out in their own words; only then does the thing itself come out, told, bargained over or refused, depending on how the player has treated them. A reply takes someone one step at most, and only when the player has given them a reason; proof, or leverage that really reaches them, can take them straight to the end. Nothing that's out goes back in.\n${holders.map(c => `- ${c.name}: ${GUARD_NOTE[state.guard?.[c.id]?.stage ?? "surface"]}`).join("\n")}`;
 }
 
-export function nowNote(scene: Scene, state: SessionState, directive: string[], options: { castNotes?: boolean } = {}): string {
+export function nowNote(scene: Scene, state: SessionState, directive: string[], options: { castNotes?: boolean; remind?: string } = {}): string {
   const beat = currentBeat(scene, state);
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const castNotes = Object.entries(beat.cast ?? {}).filter(([id]) => present.has(id))
@@ -304,6 +306,8 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     ...(playerNow(state) ? [playerNow(state)!] : []),
     ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would.\n${strangers.join("\n")}`] : []),
     ...(state.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it.\n${PHYSICS}\n\n${worldView(state.world)}`] : []),
+    // A word on the reply's form comes before what it must do, which has the last word.
+    ...(options.remind ? [options.remind] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");

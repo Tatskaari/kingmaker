@@ -19,7 +19,7 @@ The game's D&D 5.5e (SRD 5.2.1), through the vendored [dnd-srd-engine](../../ven
 
 ### State
 
-The session's `rules` ([`RulesState`, src/runtime/session.ts:38](../runtime/session.ts#L38)):
+The session's `rules` ([`RulesState`, src/runtime/session.ts:47](../runtime/session.ts#L47)):
 
 - **`campaign`:** the engine's serialised campaign, its event log and state. It's the truth about the player's hit points, slots, conditions, class resources and gear, and about every story character the rules have touched.
 - **Who's who:** `pc` (the player's engine id), `npcs` (cast id to engine id and weapon), `aliases` (what the player calls people whose names they haven't heard: the dice lines use it).
@@ -31,7 +31,7 @@ It also writes `state.player.modifiers` and `state.player.build`, bumps `state.r
 
 | caller | what it uses |
 |---|---|
-| [src/runtime/engine.ts](../runtime/engine.ts#L391) | a turn's mechanic (`castSpell`, `attack`, `wrestle`, `useFeature`, `rest`, `jump`); a threat or a danger before the player acts (`attackOnPlayer`, `hazard`); `passTime`; `comeTo` and `levelUp` between scenes; `carryGear`; `createCharacter` |
+| [src/runtime/engine.ts](../runtime/engine.ts#L425) | a turn's mechanic (`castSpell`, `attack`, `wrestle`, `useFeature`, `rest`, `jump`); a threat or a danger before the player acts (`attackOnPlayer`, `hazard`); `passTime`; `comeTo` and `levelUp` between scenes; `carryGear`; `createCharacter` |
 | src/runtime/director.ts | `rollFor` for a route's check; `HAZARD_KINDS` |
 | [src/game/menu.ts](../game/menu.ts) | the action menu: `catalogue`, `rulesNow`, and the same calls a scene makes, on the town's world |
 | src/game/play.ts | `comeTo` after a fight |
@@ -86,7 +86,7 @@ A blow ([`attack`](dnd.ts#L1421)) goes the same way: the engine's attack at a pe
 
 - **The dice stream.** Every call that opens the engine moves `rollCount`, so adding or removing a call shifts every later roll in the session: seeded tests, replays and evals will roll differently. Things' dice come from another stream (`rng(state.seed + 9973 × rollCount)`).
 - **Directives are prompts.** "Narrate exactly this ... Don't add effects the spell doesn't have" goes to the GM as it is. A change to one is a prompt change.
-- **Dice lines are parsed downstream.** The look director reads them to play spells and float damage numbers (`spellsFrom`, `rulesLines` in [src/game/look/director.ts](../game/look/director.ts#L160)), the app tells rolls from news by them, and the zoo tour checks the effects and numbers that come of them. The fights' lines share `damageLine` and are parsed again by `fightEffects` in src/game/views.ts. A reworded line can stop an effect playing without any test here failing.
+- **Dice lines are parsed downstream.** The look director reads them to play spells and float damage numbers (`spellsFrom`, `rulesLines` in [src/game/look/director.ts](../game/look/director.ts#L161)), the app tells rolls from news by them, and the zoo tour checks the effects and numbers that come of them. The fights' lines share `damageLine` and are parsed again by `fightEffects` in src/game/views.ts. A reworded line can stop an effect playing without any test here failing.
 - **What the map offers.** `spellAim`, `spellEffect` and the sets beside them (`SOCIAL_SPELLS`, `AT_THINGS`, `AT_CREATURES`) decide what a spell is aimed at on the map and whether it counts as violence there.
 - **What a fight offers.** `inFights` is read by the fight (src/game/combat/skirmish.ts) and by the sheet's note about it: one function, two readers that must agree.
 - **The engine's half-truths** are worked round here and patched in the build: see [vendor/dnd-srd-engine/README.md](../../vendor/dnd-srd-engine/README.md). A fix here often has a twin in src/game/combat/rules.ts.

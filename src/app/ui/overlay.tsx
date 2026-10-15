@@ -6,6 +6,7 @@ import { C } from "../theme.ts";
 import { BOLD, Clickable, FPS, isEnter, Keys, SCROLLBAR, Spinner, useGame, wrap, type KeyHint } from "./common.tsx";
 import { ActionMenu, fightGroups, menuKey, menuLayout } from "./actions.tsx";
 import { Place } from "./place.tsx";
+import { MarkPopover } from "./popover.tsx";
 import { townView } from "../../game/views.ts";
 import { EXHIBITS } from "../../game/zoo/explorer.ts";
 import { firstMorning } from "../../game/zoo/window.ts";
@@ -33,14 +34,12 @@ const HELP: Record<string, string[]> = {
     REPORT_HELP,
   ],
   scene: [
-    "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then?",
-    "*Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
+    "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
     "The place on the right is the scene's: point at someone or something in it (or in the list under it) and the bottom line says what they are. A click talks to someone (their name starts your line) or glances at something; a right-click says what you can do with it: look, look closely, talk, take it, give them something, open or use it, go over, cast one of your spells at it, attack. A glance costs nothing and shows what anyone could see from where you stand; looking closely, and the rest, is your turn, sent as if you'd typed it. What you carry is under your own @ (Your things).",
-    "By key: Tab (or ↑↓, with nothing typed) goes through what's in the place, Enter (with nothing typed) opens the menu of what Tab picked out, Esc lets go. In a menu, a click, ↑↓ and Enter, or its number; → and ← in and out of what to give, which spell or what with; anything you type puts it away and goes in the box. A right-click on a menu is a right-click on what's under it.",
-    "The GM narrates and plays everyone else. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
+    "By key: Tab goes through the last reply's marks, then what's in the place (↑↓ too, with nothing typed); Enter (with nothing typed) opens what Tab picked out, Esc lets go. In a menu, a click, ↑↓ and Enter, or its number; → and ← in and out of what to give, which spell or what with; anything you type puts it away and goes in the box. A right-click on a menu is a right-click on what's under it.",
+    "The GM narrates and plays everyone else, each person's lines in their colour on the place (gold italics for anyone not in it). Underlined words are the GM's marks (on coral, why someone acts as they do; teal, something you'd know; lavender, something you did): click one, or Tab to it and press Enter, for a note from what you know. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
     "After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off (or the Esc menu) turns them off.",
-    "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this · /report what went wrong, saved for Claude (those five any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too.",
-    "PgUp/PgDn (or the mouse wheel) scroll the conversation. When a scene ends, it waits for you: an Enter of its own, or a click, goes on. Whatever you were typing as it ended goes unsaid.",
+    "/sheet your character sheet · /map the scene's place · /journal your notebook · /help this · /report what went wrong, saved for Claude (those five any time, even with the GM mid-sentence) · /save · /quit (saves, then the title). The old #sheet still works, for traditionalists. Click them at the bottom of the screen, too. PgUp/PgDn (or the mouse wheel) scroll the conversation. When a scene ends, it waits for you: an Enter of its own, or a click, goes on. Whatever you were typing as it ended goes unsaid.",
     "For testing: /exits lists the scene's endings, /end <id> takes one now.",
   ],
   zoo: [
@@ -102,6 +101,13 @@ export function Overlay({ game }: { game: Game }) {
       const page = Math.max(3, Math.min(height - 2, 40) - 6);
       const by = SCROLL_KEYS[key.name]!;
       scroll.current?.scrollBy(Math.abs(by) === 2 ? Math.sign(by) * page : Math.abs(by) === 3 ? Math.sign(by) * 100000 : by);
+      return;
+    }
+    // A marked phrase, open: Tab goes on to the reply's next mark; any other key puts it away.
+    if (o.kind === "mark") {
+      key.preventDefault();
+      if (key.name === "tab") game.stepMark(key.shift ? -1 : 1);
+      else game.closeOverlay();
       return;
     }
     // A sign's card: its number sets that one off (the card closes, and you're walked over).
@@ -177,6 +183,8 @@ export function Overlay({ game }: { game: Game }) {
         </box>
       </>;
     }
+    case "mark":
+      return <MarkPopover game={game} at={o} width={width} height={height} />;
     case "scene-map": {
       const world = game.shownWorld;
       return box(world ? world.entities[world.root]?.name ?? "The scene" : "The scene", world

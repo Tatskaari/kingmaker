@@ -1,11 +1,28 @@
 import { respond, type Message, type RespondResult } from "../llm/openrouter.ts";
 import { currentBeat, nowNote, prompt, sceneBrief, sceneEntries, scriptTranscript, speakerName, presentCast } from "./brief.ts";
 import type { Scene } from "./scene.ts";
-import type { SessionState } from "./session.ts";
+import type { Entry, SessionState } from "./session.ts";
 import { memoryBrief } from "../lore/disclosure.ts";
 import { approachById } from "./approaches.ts";
+import { knowledgeBrief, nameAsKnown, speakersOf } from "./knowledge.ts";
+import { markupOf, parseMarkup, speechIn, withSpeakers, type Markup, type MarkupStats } from "./markup.ts";
+import type { Drafted } from "./notes.ts";
 
-export interface Spoken { speaker: string; kind: "narration" | "dialogue"; text: string; result: RespondResult }
+export interface Spoken {
+  speaker: string; kind: "narration" | "dialogue";
+  /** What the player reads: the reply with its markup taken out. */
+  text: string;
+  result: RespondResult;
+  /**
+   * The reply's markup as the screen has it: who says each line, and the notes on its marks, which
+   * come later (src/runtime/notes.ts: written from what the player knows, never the GM's own).
+   */
+  marked?: Markup;
+  /** The marks the GM made as it wrote (where, and what kind), for the notes to be written on. */
+  drafted?: Drafted[];
+  /** How well the reply kept to the markup. */
+  stats?: MarkupStats;
+}
 
 const voiceEffort = (state: SessionState) => approachById(state.approach).effort ?? "none";
 
@@ -42,6 +59,24 @@ async function withoutRepeats(state: SessionState, draft: Spoken, regenerate: (n
   return { ...second, result: { ...second.result, costUsd: second.result.costUsd + draft.result.costUsd } };
 }
 
+/**
+ * What's said, as a transcript entry: the words the player reads, with the reply's markup beside
+ * them (who says each line; the notes go on it when they're written).
+ */
+export const entryOf = (s: Spoken): Omit<Entry, "turn" | "scene"> => ({ speaker: s.speaker, kind: s.kind, text: s.text, ...(s.marked && (s.marked.speech.length || s.marked.marks.length || s.drafted?.length) ? { marked: { speech: s.marked.speech, marks: [...s.marked.marks] } } : {}) });
+
+/**
+ * A reply as the GM wrote it, its markup put back: a model writes as its last few replies were
+ * written, so a reply from before the markup (an older save) gets its spoken lines tagged too, by
+ * whoever the prose says spoke them.
+ */
+function asWritten(scene: Scene, state: SessionState, e: Entry): string {
+  const name = (id: string) => nameAsKnown(scene, state, id);
+  if (e.marked) return markupOf({ text: e.text, ...e.marked }, name);
+  if (e.kind !== "narration" || !/[“"]/.test(e.text)) return e.text;
+  return markupOf(withSpeakers({ text: e.text, speech: speechIn(e.text), marks: [] }, speakersOf(scene, state)), name);
+}
+
 /** Multi-turn chat history for the single-GM voice: player turns as user, GM replies as assistant. */
 function gmHistory(scene: Scene, state: SessionState): Message[] {
   const messages: Message[] = [];
@@ -49,7 +84,7 @@ function gmHistory(scene: Scene, state: SessionState): Message[] {
     if (e.kind === "player") messages.push({ role: "user", content: e.text });
     else if (e.kind === "roll" || e.kind === "system") messages.push({ role: "developer", content: `[${e.text}]` });
     else {
-      const text = e.kind === "dialogue" ? `${speakerName(scene, state, e.speaker)}: ${e.text}` : e.text;
+      const text = e.kind === "dialogue" ? `${speakerName(scene, state, e.speaker)}: ${e.text}` : asWritten(scene, state, e);
       const last = messages.at(-1);
       if (last?.role === "assistant") last.content += `\n\n${text}`;
       else messages.push({ role: "assistant", content: text });
@@ -58,8 +93,39 @@ function gmHistory(scene: Scene, state: SessionState): Message[] {
   return messages;
 }
 
+/** The player's latest turn, whose words a reply may quote back. */
+const lastSaid = (state: SessionState) => state.transcript.findLast(e => e.kind === "player")?.text;
+
+/**
+ * A GM reply's markup read as it streams: `onText` hears the words shown so far (never the markup)
+ * and who says each line in them, only when they've grown. The marks wait for their notes.
+ */
+function streamed(scene: Scene, state: SessionState, onText: (text: string, markup?: Markup) => void): (raw: string) => void {
+  const people = speakersOf(scene, state);
+  const player = lastSaid(state);
+  let shown = "";
+  return raw => {
+    const parsed = parseMarkup(raw, { final: false });
+    if (parsed.text === shown) return;
+    shown = parsed.text;
+    const { text, speech } = withSpeakers(parsed, people, { player });
+    onText(text, { speech, marks: [] });
+  };
+}
+
+/**
+ * A GM reply's markup read once it's whole: the words, who says each line, and the marks the GM
+ * made (where and what kind: its own notes on them are dropped here, and the player's are written
+ * from what they know, src/runtime/notes.ts).
+ */
+export function readReply(scene: Scene, state: SessionState, raw: string): { text: string; marked: Markup; drafted: Drafted[]; stats: MarkupStats } {
+  const parsed = parseMarkup(prose(raw));
+  const { text, speech, marks } = withSpeakers(parsed, speakersOf(scene, state), { player: lastSaid(state) });
+  return { text, marked: { speech, marks: [] }, drafted: marks.map(m => ({ start: m.start, end: m.end, kind: m.kind })), stats: parsed.stats };
+}
+
 /** Approach "gm": one call, the GM narrates and voices everyone (Friends & Fables style). */
-export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void, operation = "gm.reply", signal?: AbortSignal, maxTokens?: number): Promise<Spoken> {
+export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string, markup?: Markup) => void, operation = "gm.reply", signal?: AbortSignal, maxTokens?: number): Promise<Spoken> {
   if (state.repeated) {
     directive = [...directive, `Your last reply repeated something already said, word for word ("${state.repeated}"). Don't repeat yourself: move the moment on with something new.`];
     delete state.repeated;
@@ -68,17 +134,20 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   const lore = docs ? memoryBrief(scene, state, "stable") : undefined;
   const memory = docs ? memoryBrief(scene, state, "live") : undefined;
   const input: Message[] = [
-    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, lastHandoffOnly: docs, docs }) },
+    // The prep, then what the player knows of it (what a mark's note may explain): both stable through a scene.
+    { role: "developer", content: `${sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, lastHandoffOnly: docs, docs })}\n\n${knowledgeBrief(state)}` },
     ...(lore ? [{ role: "developer" as const, content: lore }] : []),
     ...gmHistory(scene, state),
-    // Volatile memory goes after the conversation so the cached prefix survives a newly opened note.
-    { role: "developer", content: [memory, nowNote(scene, state, directive)].filter(Boolean).join("\n\n") },
+    // Volatile memory goes after the conversation so the cached prefix survives a newly opened note;
+    // the markup's reminder (prompts/gm-markup.md) goes in just before the reply's directives.
+    { role: "developer", content: [memory, nowNote(scene, state, directive, { remind: prompt("gm-markup") })].filter(Boolean).join("\n\n") },
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
   const tone = approachById(state.approach).tone;
-  const result = await respond({ operation, instructions: prompt("gm", { tone: tone ? prompt(`tone-${tone}`) : "" }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText } : {}), ...(signal ? { signal } : {}) });
-  const draft: Spoken = { speaker: "gm", kind: "narration", text: prose(result.text), result };
+  const result = await respond({ operation, instructions: prompt("gm", { tone: tone ? prompt(`tone-${tone}`) : "" }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText: streamed(scene, state, onText) } : {}), ...(signal ? { signal } : {}) });
+  const { text, marked, drafted, stats } = readReply(scene, state, result.text);
+  const draft: Spoken = { speaker: "gm", kind: "narration", text, result, marked, drafted, stats };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
   return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`), !!onText);
 }

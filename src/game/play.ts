@@ -2,13 +2,15 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
 import { FAREWELL } from "../../scenes/talk.ts";
-import { chainScene, closeHubScene, createSession, forceEnding, openHubScene, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
+import { chainScene, closeHubScene, createSession, forceEnding, journalOf, openHubScene, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { afterTurn } from "../runtime/background.ts";
 import { endTalk, leaveTalk, openTalk, startTalk, talkTurn } from "../runtime/talk.ts";
 import { currentSuggestions, startSuggesting, stopSuggesting, suggested, suggesting } from "../runtime/suggest.ts";
 import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Backstory, type Entry, type SessionState } from "../runtime/session.ts";
 import type { Mechanic } from "../runtime/director.ts";
+import { nameAsKnown } from "../runtime/knowledge.ts";
+import { markupLines } from "../runtime/markup.ts";
 import type { Scene } from "../runtime/scene.ts";
 import type { CombatResult, CombatSetup, StoryState, Tile2 } from "./types.ts";
 import type { Build } from "../rules/dnd.ts";
@@ -444,7 +446,8 @@ export class Game {
   private backToHub(scene: Scene): string {
     // Its ending goes on the session's record (the notebook reads it), with nothing handed on.
     const exitId = this.session.ended?.exitId;
-    if (exitId) this.session.history.push({ sceneId: scene.id, exitId, summary: "" });
+    const journal = journalOf(this.session);
+    if (exitId) this.session.history.push({ sceneId: scene.id, exitId, summary: "", ...(journal.length ? { journal } : {}) });
     closeHubScene(this.session);
     this.state.mode = "explore";
     if (this.state.hubTime) { this.state.story.time = this.state.hubTime; delete this.state.hubTime; }
@@ -537,8 +540,14 @@ function sceneView(session: SessionState): string {
   return render(session, entries.slice(-8));
 }
 
+/**
+ * Entries as text (the QA console's view of a scene, and what a turn says): a GM reply's markup
+ * under it, who says what and each marked phrase's note, as the screen would show them.
+ */
 export function render(session: SessionState, entries: Entry[]): string {
   const scene = sceneById(session.sceneId);
+  const name = (id: string) => nameAsKnown(scene, session, id);
   return entries.map(e => e.kind === "player" ? `> ${e.text}` : e.kind === "roll" ? `🎲 ${e.text}` : e.kind === "system" ? `— ${e.text} —`
-    : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text).join("\n\n");
+    : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}`
+    : e.marked ? [e.text, ...markupLines(e.text, e.marked, name)].join("\n") : e.text).join("\n\n");
 }

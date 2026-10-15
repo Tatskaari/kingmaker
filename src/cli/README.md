@@ -48,7 +48,7 @@ flowchart LR
 
 ## How it works
 
-**A harness turn** (`scene say`, scene.ts:161):
+**A harness turn** (`scene say`, scene.ts:169):
 
 1. Wait for the co-GM's last job, up to `KM_REPAIR_WAIT_MS` (0 by default: never hold the player for it).
 2. Load the session, and point the call log at it.
@@ -65,8 +65,8 @@ Beside them, `doc-anchors.ts` (`npm run docs:anchors`) keeps the docs' line link
 ## Where to look first
 
 - **A new command or flag:** the `USAGE` string and `main()` in each file. Both are flat `if` chains on the command name.
-- **A change to how the jobs start:** scene.ts:69–83 (`spawnRepair`, `spawnRemember`) and src/runtime/background.ts:37 (`afterTurn`) are two copies of the same rule, and must agree. background.ts asks `sceneApproach` (a talk has no co-GM); the harness asks `approachById`.
-- **A change to what QA players see:** `print` and `options` in qa.ts, and `Game.observe()` in src/game/play.ts, which writes the text and the actions.
+- **A change to how the jobs start:** scene.ts:77–87 (`spawnRepair`, `spawnRemember`) and src/runtime/background.ts:37 (`afterTurn`) are two copies of the same rule, and must agree. background.ts asks `sceneApproach` (a talk has no co-GM); the harness asks `approachById`.
+- **A change to what QA players see:** `print` and `options` in qa.ts, and `Game.observe()` in src/game/play.ts, which writes the text and the actions. A GM reply is followed by its markup in words (`render` in play.ts, `markupLines` in src/runtime/markup.ts): `⟨who says what: …⟩`, then a line for each marked phrase with its kind, its note and what it's linked to, so a QA player can check who spoke and that no note gives away what the player doesn't know. The scene harness and the transcripts (`qa transcript`, `scene transcript`) show it the same way; the harness prints a reply's notes when they're written, a moment after it (`onMarks`).
 
 ## How to test it
 
@@ -150,5 +150,5 @@ Before it's written, the key in use (and the dev key, if there is one on the mac
 - **The QA console always plays `v2`.** `Game.create` (src/game/play.ts) fixes the approach. The harness takes `--approach`.
 - **Background jobs race the next command.** The QA console doesn't wait for the last turn's jobs. The harness waits for the co-GM only if `KM_REPAIR_WAIT_MS` says so. Jobs write their own files, which the next turn picks up when it finds them.
 - **Hidden commands.** `remember`, `repair` (the background jobs) and `memories` aren't in the harness's usage text.
-- **Unused imports kept alive.** scene.ts ends with `.finally(() => { void sessionSpend; void readFileSync; void applyRepair; })` (scene.ts:269). Nothing else in the file uses `sessionSpend` or `applyRepair`.
+- **Unused imports kept alive.** scene.ts ends with `.finally(() => { void sessionSpend; void readFileSync; void applyRepair; })` (scene.ts:278). Nothing else in the file uses `sessionSpend` or `applyRepair`.
 - **No fights in the harness.** A combat exit is skipped as won. Fights are only in the playable game (the app, the QA console, the zoo's tour).

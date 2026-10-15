@@ -166,13 +166,19 @@ test("an ordinary turn under considered rolls asks no more and waits for nothing
   const fake = fakeOpenRouter({ replies: ["Kell nods. “At first light.”"] });
   try {
     const state = yard(0, "consider-ordinary");
+    setCallLog(join(sessionDir(state.id), "calls.jsonl"));
     const steps: string[] = [];
     const turn = await playerTurn(state, "Who found him, Sergeant?", { onStep: s => steps.push(s) });
     assert.deepEqual(steps, []);
     assert.equal(turn.metric.considerMs, undefined);
     assert.equal(state.rulings, undefined);
-    assert.equal(fake.asked.filter(p => p.endsWith("/responses")).length, 1, "the reply, and nothing before it");
+    // The reply, and nothing before it but the decider's (the decision, disclosure): what comes after
+    // it is the notes on its spoken line (src/runtime/notes.ts).
+    const calls = readFileSync(join(sessionDir(state.id), "calls.jsonl"), "utf8").trim().split("\n").map(l => (JSON.parse(l) as { operation: string }).operation);
+    assert.deepEqual(calls.filter(op => !/^(director|memory)\./.test(op)), ["gm.reply", "notes"], "the reply, and nothing before it");
+    assert.equal(fake.asked.filter(p => p.endsWith("/responses")).length, 2, "the reply and its notes");
   } finally {
     fake.restore();
+    setCallLog(undefined);
   }
 });

@@ -17,7 +17,10 @@
  * mouse only rests on opens nothing); a scene's suggested lines at 80x24 and 130x42 (rows kept for
  * them while they're coming, so the conversation doesn't move when they come; numbered over the box,
  * a line each; a number or a click puts one in the box, typing puts them away, Enter sends; the Esc
- * menu turns them off); the help scrolls by key; the title's New game and Continue,
+ * menu turns them off); the GM's markup at 80x24 and 130x42 (each speaker's colour, the marks on
+ * their tints, a mark's popover by a click or by Tab and Enter); the marks and the suggested lines
+ * together (Tab to a mark and a number to a line, neither taking the other's keys; a mark's popover
+ * inside the conversation's frame, clear of the lines); the help scrolls by key; the title's New game and Continue,
  * and the End's way back, by a click; the zoo's side panel, a sign's card, its help scrolled, and a
  * long line in What happens kept by its start.
  *
@@ -1347,6 +1350,203 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
     checks.push([`the zoo ${w}x${h}: the help scrolls to its last line`, flat(frame).includes("carries on your visit")]);
     await setup.dispose();
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The GM's markup in a scene (src/runtime/markup.ts), at 80x24 and 130x42: each speaker's lines in
+// the colour the place draws them in, paragraphs broken where the speaker changes, the marked
+// phrases underlined on their kind's tint in their speaker's own colour; a click on one opens its
+// popover (the note, and what the player knows of what it's about, when there's room) clear of the
+// words clicked and inside the conversation's frame, and Esc or a click outside closes it; Tab
+// picks out the last reply's marks first (drawn in reverse; the bottom line says what each is, even
+// with the pointer on another), Enter opens it, Tab in the popover goes on to the next, and Tab past
+// the last goes on into the place.
+
+{
+  const { markedYard } = await import("./marks-demo.tsx");
+  const { lookOf } = await import("../../game/look/appearance.ts");
+  const { C, MARK_TINT } = await import("../theme.ts");
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const { session, lines } = await markedYard();
+    const game = new Game();
+    game.core = { session, state: { version: 1, id: "check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [] }, observe: () => ({ mode: "scene", text: "", actions: [] }) } as unknown as Core;
+    game.screen = "scene";
+    game.lines = lines;
+    const setup = await testRender(<><SceneScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+    const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
+    const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+    await setup.renderOnce();
+    let frame = await draw();
+    if (show) console.log(`marks ${w}x${h}\n${frame}`);
+    /** The colour and attributes the first cell of some text is drawn with. */
+    const style = (text: string) => {
+      for (const line of setup.captureSpans().lines) {
+        let row = "";
+        for (const s of line.spans) { if ((row + s.text).includes(text) && s.text.includes(text.slice(0, 3))) return { fg: hex(s.fg), bg: hex(s.bg), underline: (s.attributes & 8) !== 0, bold: (s.attributes & 1) !== 0 }; row += s.text; }
+      }
+      return undefined;
+    };
+    const color = (id: string) => lookOf({ ...session.world!.entities[id]!, states: [] }, { glyphs: "ascii" }).fg.toLowerCase();
+    checks.push([`marks ${w}x${h}: the girl's line in her colour, as the place draws her (${style("“Leave him be.")?.fg})`, style("“Leave him be.")?.fg === color("moll")]);
+    checks.push([`marks ${w}x${h}: Kell's line in hers (${style("“You told the boy")?.fg})`, style("“You told the boy")?.fg === color("kell")]);
+    checks.push([`marks ${w}x${h}: the narration in the GM's own colour`, style("The boy looks at your hands")?.fg === C.gm]);
+    // (At 80x24 it's scrolled out of sight, above the last reply.)
+    const voice = setup.captureSpans().lines.flatMap(l => l.spans).find(sp => sp.text.includes("Leave the lad"));
+    if (h >= 30) checks.push([`marks ${w}x${h}: a voice nobody can place is gold, and italic, so it's nobody's own colour`, !!voice && hex(voice.fg) === C.speech && (voice.attributes & 4) !== 0]);
+    // A paragraph breaks where the speaker or the kind of text changes, at a sentence's edge.
+    const rows = frame.split("\n");
+    checks.push([`marks ${w}x${h}: "Kell's pencil stops." is a paragraph of its own, and her line starts the next`, rows.some((r, i) => /│ Kell's pencil stops\. +│/.test(r) && rows[i + 1]!.includes("│ “You told the boy"))]);
+    // The marks: underlined on their kind's tint, the words in their speaker's own colour.
+    const why = style("He don't talk"), you = style("you're asking him");
+    checks.push([`marks ${w}x${h}: a why underlined on its tint in the girl's colour (${why?.fg} on ${why?.bg}), and a you on its own in Kell's (${you?.fg} on ${you?.bg})`, why?.fg === color("moll") && why.bg === MARK_TINT.why && why.underline && you?.fg === color("kell") && you.bg === MARK_TINT.you && you.underline]);
+    // A click on a mark: its popover, with the note and (with room for it) the deed it's about,
+    // inside the conversation's frame and clear of the words clicked.
+    const p = at(frame, "asking him");
+    if (p) await act(async () => { await setup.mockMouse.click(p.x, p.y); });
+    frame = await draw();
+    if (show) console.log(`marks ${w}x${h}, a mark clicked\n${frame}`);
+    const roomy = h >= 30;
+    checks.push([`marks ${w}x${h}: a click on a mark opens it: the note${roomy ? ", and what the player did" : ""}`, game.overlay?.kind === "mark" && /You did this/.test(frame) && /You barked at him/.test(frame) && (!roomy || (/What you did/.test(frame) && /Boy! Stop that/.test(frame)))]);
+    const clicked = frame.split("\n")[p?.y ?? 0] ?? "";
+    checks.push([`marks ${w}x${h}: the popover leaves the words clicked, the scene's title and the frame's corners clear`, clicked.includes("asking him") && frame.split("\n")[0]!.includes(" The Hanged Clerk ") && frame.split("\n")[0]!.startsWith("┌") && /^└/.test(frame.split("\n")[h - 6] ?? "")]);
+    const outside = { x: w - 3, y: h - 2 };
+    await act(async () => { await setup.mockMouse.click(outside.x, outside.y); });
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: a click outside it closes it`, !game.overlay && !/You barked at him/.test(frame)]);
+    // By key: Tab picks out the last reply's mark, Enter opens it, Esc closes it, Tab past it goes into the place.
+    await act(async () => { await setup.mockMouse.moveTo(1, 1); });
+    act(() => setup.mockInput.pressTab());
+    frame = await draw();
+    const bottom = frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
+    checks.push([`marks ${w}x${h}: Tab picks out the last reply's mark, and the bottom line says what it is (${bottom})`, game.markFocus?.mark === 0 && /^You did this: you're asking him for help/.test(bottom)]);
+    checks.push([`marks ${w}x${h}: the mark Tab picked out is lit (in reverse, on its kind's colour)`, setup.captureSpans().lines.some(l => l.spans.some(s => s.text.includes("you're") && hex(s.bg) === C.you && hex(s.fg) === C.bg))]);
+    act(() => setup.mockInput.pressEnter());
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: Enter opens it`, game.overlay?.kind === "mark" && /You barked at him/.test(frame)]);
+    await esc();
+    checks.push([`marks ${w}x${h}: Esc closes it, and the mark stays picked out`, !game.overlay && game.markFocus?.mark === 0]);
+    act(() => setup.mockInput.pressTab());
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: Tab past the last mark goes on into the place`, !game.markFocus && /Sergeant Agnes Kell/.test(frame.split("\n").filter(r => r.trim()).at(-1)!)]);
+    // The pointer resting on one mark, Tab picks out another: the bottom line says what Tab picked out, and Enter opens that.
+    await esc();
+    const resting = at(await draw(), "talk to the watch");
+    if (resting) await act(async () => { await setup.mockMouse.moveTo(resting.x, resting.y); });
+    await draw();
+    act(() => setup.mockInput.pressTab());
+    frame = await draw();
+    const said = frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
+    checks.push([`marks ${w}x${h}: with the pointer on another mark, the bottom line says what Tab picked out (${said.slice(0, 50)})`, game.markFocus?.mark === 0 && /^You did this: you're asking him/.test(said)]);
+    act(() => setup.mockInput.pressEnter());
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: and Enter opens that one`, game.overlay?.kind === "mark" && /You barked at him/.test(frame)]);
+    await esc();
+    await act(async () => { await setup.mockMouse.moveTo(1, 1); });
+    // An earlier reply's mark, by the mouse: the stairs' grudge, in the girl's line.
+    const q = at(await draw(), "talk to the watch");
+    if (q) await act(async () => { await setup.mockMouse.click(q.x, q.y); });
+    frame = await draw();
+    checks.push([`marks ${w}x${h}: an earlier reply's mark opens too (Why)`, game.overlay?.kind === "mark" && /Why/.test(frame) && /good coat/.test(frame)]);
+    await esc();
+    await setup.dispose();
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The GM's marks and the suggested lines together, at 80x24 and 130x42: the marked yard with its
+// suggested lines over the box. Neither takes the other's keys: Tab picks out the last reply's mark
+// and a number still puts a line in the box; with a line in the box Enter sends it, and with the box
+// empty Enter opens the mark; a number with a mark open only puts it away. A mark's popover stays in
+// the conversation's frame, clear of the lines over the box, and a click on a line puts it in the box.
+
+{
+  const { markedYard } = await import("./marks-demo.tsx");
+  const offered: Suggestion[] = [
+    { kind: "say", text: "Who found him, then?" },
+    { kind: "do", text: "(I crouch down to the boy's height)" },
+    { kind: "try", text: "(I try to win the girl round with a ha'penny)" },
+  ];
+  const boxed = (frame: string) => { const rows = frame.split("\n"); return rows[rows.findIndex(r => r.includes("What do you say?")) + 1]!.replace(/│/g, "").trim(); };
+  /** The rows over the box: from under the spinner's line to the box's top. */
+  const over = (frame: string) => { const rows = frame.split("\n"); const box = rows.findIndex(r => r.includes("What do you say?")); const top = rows.findIndex(r => /^└/.test(r)); return rows.slice(top + 2, box).map(r => r.trim()); };
+  const listed = (frame: string) => offered.every((l, i) => over(frame)[i]?.startsWith(`${i + 1} ${l.text.slice(0, 12)}`));
+  /** The box is empty: it shows its hint. */
+  const empty = (frame: string) => /^Say it out loud/.test(boxed(frame));
+  const bottom = (frame: string) => frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
+  for (const [w, h] of [[80, 24], [130, 42]] as const) {
+    const { session, lines } = await markedYard();
+    session.suggestions = { scene: session.sceneId, turn: session.turn, lines: offered };
+    const state = { version: 1, id: "marks-suggest-check", mode: "scene", story: { time: "morning", played: [], flags: {} }, explore: {}, recent: [], settings: {} } as GameState;
+    const game = new Game();
+    game.core = {
+      session, state, suggestionsOn: true, save: () => {},
+      observe: () => ({ mode: "scene", text: "", actions: currentSuggestions(session).map((s, i) => ({ id: `say_${i + 1}`, label: s.text, kind: "say" })) }),
+    } as unknown as Core;
+    game.screen = "scene";
+    game.lines = [...lines];
+    const sent: string[] = [];
+    game.input = async (text: string) => { sent.push(text); };
+    const setup = await testRender(<><SceneScreen game={game} /><Overlay game={game} /></>, { width: w, height: h });
+    const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); await setup.renderOnce(); };
+    const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+    await act(async () => { game.suggestionsCame(); });
+    let frame = await draw();
+    if (show) console.log(`marks and suggestions ${w}x${h}\n${frame}`);
+    checks.push([`marks and lines ${w}x${h}: the marked reply drawn, its lines numbered over the box (${over(frame).filter(Boolean).join(" | ")})`, listed(frame) && /1–3 into the box/.test(bottom(frame)) && drawnStyle(setup, "you're asking him")?.underline === true]);
+    // Tab: the last reply's mark, not a line; the lines stay where they are.
+    await act(async () => { await setup.mockMouse.moveTo(1, 1); });
+    act(() => setup.mockInput.pressTab());
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: Tab picks out the last reply's mark, and the lines stay over the box (${bottom(frame).slice(0, 40)})`, game.markFocus?.mark === 0 && /^You did this: you're asking him/.test(bottom(frame)) && listed(frame)]);
+    // A number: its line in the box, the mark still picked out; Enter then sends the line, opening nothing.
+    act(() => setup.mockInput.pressKey("2"));
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: 2 puts its line in the box with a mark picked out, and opens nothing`, boxed(frame) === offered[1]!.text && game.markFocus?.mark === 0 && !game.overlay]);
+    act(() => setup.mockInput.pressEnter());
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: with the line in the box, Enter sends it rather than opening the mark`, sent.at(-1) === offered[1]!.text && !game.overlay && empty(frame) && listed(frame)]);
+    // The box empty, Enter opens the mark Tab picked out: inside the conversation's frame, the lines still over the box.
+    act(() => setup.mockInput.pressEnter());
+    frame = await draw();
+    // (The popover's keys are its last row inside its border: that border is inside the frame's.)
+    const rows = frame.split("\n");
+    const frameBottom = rows.findIndex(r => /^└/.test(r));
+    const keysRow = rows.findIndex(r => r.includes("Esc close"));
+    checks.push([`marks and lines ${w}x${h}: with the box empty, Enter opens the mark, inside the conversation's frame (its keys on row ${keysRow}, the frame's bottom on ${frameBottom}), the lines still over the box`, game.overlay?.kind === "mark" && /You barked at him/.test(frame) && listed(frame) && keysRow > 0 && keysRow + 1 < frameBottom]);
+    // A number with the mark open only puts it away; then it puts its line in the box.
+    act(() => setup.mockInput.pressKey("1"));
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: 1 with the mark open puts it away, and the box stays empty`, !game.overlay && empty(frame) && listed(frame)]);
+    act(() => setup.mockInput.pressKey("1"));
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: then 1 puts its line in the box`, boxed(frame) === offered[0]!.text]);
+    for (let i = 0; i < offered[0]!.text.length; i++) act(() => setup.mockInput.pressBackspace());
+    frame = await draw();
+    // By the mouse: a click on a line puts it in the box; a click on the mark opens it.
+    const third = at(frame, offered[2]!.text.slice(0, 10));
+    if (third) await act(async () => { await setup.mockMouse.click(third.x, third.y); });
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: a click on a line puts it in the box`, !!third && boxed(frame) === offered[2]!.text && !game.overlay]);
+    for (let i = 0; i < offered[2]!.text.length; i++) act(() => setup.mockInput.pressBackspace());
+    frame = await draw();
+    const mark = at(frame, "asking him");
+    if (mark) await act(async () => { await setup.mockMouse.click(mark.x, mark.y); });
+    frame = await draw();
+    checks.push([`marks and lines ${w}x${h}: a click on the mark opens it, and the lines are still over the box`, !!mark && game.overlay?.kind === "mark" && /You barked at him/.test(frame) && listed(frame)]);
+    await esc();
+    await setup.dispose();
+  }
+}
+
+/** The colour and attributes the first cell of some text is drawn with. */
+function drawnStyle(setup: Awaited<ReturnType<typeof testRender>>, text: string): { fg: string; bg: string; underline: boolean } | undefined {
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
+  for (const line of setup.captureSpans().lines) {
+    let row = "";
+    for (const s of line.spans) { if ((row + s.text).includes(text) && s.text.includes(text.slice(0, 3))) return { fg: hex(s.fg), bg: hex(s.bg), underline: (s.attributes & 8) !== 0 }; row += s.text; }
+  }
+  return undefined;
 }
 
 let failed = 0;
