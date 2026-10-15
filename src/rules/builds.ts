@@ -274,7 +274,8 @@ export async function threeBuilds(name: string, concept: string, level: number, 
   if (!ask) note = "The GM is offline: three from the class defaults that best match your words.";
   else {
     try { suggested = await askThree(name, concept, level, ask); }
-    catch (error) { note = `The GM couldn't be reached (${error instanceof Error ? error.message.slice(0, 80) : String(error)}): three from the class defaults that best match your words.`; }
+    // What it means first, then why (the error, which is the part a narrow screen can lose).
+    catch (error) { note = `The GM couldn't be reached, so here are three from the class defaults that best match your words (${error instanceof Error ? error.message.slice(0, 80) : String(error)}).`; }
   }
   const content = await srdContent();
   const picked: Array<{ raw: Partial<Build>; plays: string; from: BuildOption["from"] }> = [];
@@ -334,8 +335,20 @@ export async function srdLists(level: number): Promise<SrdLists> {
 
 export interface OwnPicks { speciesId: string; classId: string; subclassId?: string; backgroundId: string }
 
-/** The player's own build: their species, class, subclass and background, the rest the class's defaults, made legal by the engine. */
+/**
+ * The player's own build: their species, class, subclass and background, the rest the class's
+ * defaults, made legal by the engine. An id that isn't on the SRD's lists (or a subclass that isn't
+ * the class's) is refused, saying what is, rather than made into something else (a "necromancer"
+ * isn't quietly a rogue).
+ */
 export async function ownBuild(picks: OwnPicks, level: number, name = "You"): Promise<BuildOption> {
+  const content = await srdContent();
+  const refuse = (what: string, id: string, ids: Iterable<string>) => { throw new Error(`No ${what} "${id}" in the SRD: one of ${[...ids].sort().join(", ")}`); };
+  if (!content.species.has(picks.speciesId)) refuse("species", picks.speciesId, content.species.keys());
+  if (!content.classes.has(picks.classId)) refuse("class", picks.classId, content.classes.keys());
+  if (!content.backgrounds.has(picks.backgroundId)) refuse("background", picks.backgroundId, content.backgrounds.keys());
+  const subclasses = [...content.subclasses.values()].filter(s => String(s["parentClassId"] ?? "") === picks.classId).map(s => s.id);
+  if (picks.subclassId && !subclasses.includes(picks.subclassId)) refuse(`${picks.classId} subclass`, picks.subclassId, subclasses);
   const d = classDefault(picks.classId);
   const raw: Build = { ...d.build, speciesId: picks.speciesId, backgroundId: picks.backgroundId, ...(picks.subclassId ? { subclassId: picks.subclassId } : {}) };
   return { ...(await throughEngine(raw, level, name)), plays: d.plays, from: "own" };

@@ -175,6 +175,11 @@ test("making their own: any species, class and background from the SRD's lists c
   const young = await ownBuild({ speciesId: "human", classId: "fighter", subclassId: "champion", backgroundId: "soldier" }, 2, "Grimm");
   assert.equal(young.card.subclass, undefined, "no subclass before level 3");
   assert.equal(young.card.level, 2);
+  // What isn't on the lists is refused, saying what is: a necromancer isn't quietly a rogue.
+  await assert.rejects(ownBuild({ speciesId: "elf", classId: "necromancer", backgroundId: "soldier" }, 3), /No class "necromancer" in the SRD: one of barbarian, bard/);
+  await assert.rejects(ownBuild({ speciesId: "half-giant", classId: "wizard", backgroundId: "sage" }, 3), /No species "half-giant"/);
+  await assert.rejects(ownBuild({ speciesId: "elf", classId: "wizard", subclassId: "champion", backgroundId: "sage" }, 3), /No wizard subclass "champion" in the SRD: one of evoker/);
+  await assert.rejects(ownBuild({ speciesId: "elf", classId: "wizard", backgroundId: "pirate" }, 3), /No background "pirate"/);
 });
 
 test("settling a build twice changes nothing: the build the card was made from is the build the game makes", async () => {
@@ -202,4 +207,21 @@ test("a Fighting Style that fits: the model's own, where its class has it; other
   // The offline fighter (a longsword and a shield) fights with Defense.
   const offline = (await threeBuilds("Bram", "a broken-nosed ex-soldier of the watch", 3)).options.find(o => o.build.classId === "fighter")!;
   assert.equal(style(offline), "Fighting Style (Defense)");
+});
+
+test("a card says the damage the dice roll: Dueling's +2 with one melee weapon and nothing in the other hand, and only then", async () => {
+  const fencer = { classId: "fighter", speciesId: "human", backgroundId: "soldier", weapons: ["rapier", "longbow"], armor: "chain-mail", shield: false, abilities: ["DEX", "CON", "STR", "WIS", "CHA", "INT"] };
+  const duelling = await throughEngine({ ...fencer, style: "dueling" }, 3, "Lucan");
+  const defending = await throughEngine({ ...fencer, style: "defense" }, 3, "Lucan");
+  assert.equal(defending.card.attack!.damage, "1d8+3", "Dexterity's +3");
+  assert.equal(duelling.card.attack!.damage, "1d8+5", "and Dueling's +2");
+  assert.equal(duelling.card.attack!.bonus, defending.card.attack!.bonus, "to damage, not to hit");
+  // A shield in the other hand is no weapon: still Dueling.
+  assert.equal((await throughEngine({ classId: "paladin", speciesId: "human", backgroundId: "soldier", weapons: ["longsword"], armor: "chain-mail", shield: true, style: "dueling" }, 3)).card.attack!.damage, "1d8+5");
+  // The rolls agree: the engine's own damage for the same character.
+  const { createSession } = await import("../runtime/engine.ts");
+  const { sheetData, sheetText } = await import("./dnd.ts");
+  const session = await createSession({ sceneId: "hanged-clerk", approach: "v2", player: "Lucan: a duellist", level: 3, build: duelling.build, seed: 5 });
+  assert.equal((await sheetData(session))!.attacks.find(a => a.held)!.damage, "1d8+5");
+  assert.match(await sheetText(session), /Rapier \+5 \(1d8\+5 piercing\)/, "the QA console's sheet too");
 });

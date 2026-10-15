@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { setCallLog } from "../llm/openrouter.ts";
-import { applyFix, checkLore, finishBackstory } from "../lore/backstory.ts";
+import { applyFix, checkLore, finishBackstory, tooLong } from "../lore/backstory.ts";
 import { cardText, ownBuild, threeBuilds, throughEngine, type Offer } from "../rules/builds.ts";
 import type { Build } from "../rules/dnd.ts";
 import type { Backstory } from "../runtime/session.ts";
@@ -141,6 +141,9 @@ async function main(): Promise<void> {
     }
     // The backstory: checked against the lore (what doesn't fit is said, never changed without --accept-fixes), then what it says of them.
     let backstory: Backstory | undefined;
+    // As the game's box has it: no longer than the GM can be given every turn.
+    const long = story ? tooLong(story) : undefined;
+    if (long) throw new Error(`--backstory: ${long}`);
     if (story?.trim()) {
       const name = who.split(":")[0]!.trim(), concept = who.split(":").slice(1).join(":").trim();
       const line = build ? (await throughEngine(build, level, name)).line : undefined;

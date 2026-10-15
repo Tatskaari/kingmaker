@@ -461,6 +461,25 @@ function grantResources(ctx: Ctx, pcId: string): void {
   ctx.campaign = loadWellFormed(ctx.E, JSON.stringify(raw), ctx.engine);
 }
 
+/**
+ * What the dice add to a weapon attack's damage that the engine's sheet leaves out: its effect
+ * stack's damage modifiers, asked as its attack planner asks them (Dueling's +2 with a melee weapon
+ * and no weapon in the other hand, a magic bow's), so the sheet and a build's card say what lands.
+ */
+function damageAdded(ctx: Ctx, c: Dnd.EngineCharacter, s: Dnd.CharacterSheet): (a: { attackKind: string; weaponInstanceId?: string; instanceId?: string; properties?: string[]; damage: { type: string } }) => number {
+  const campaign = ctx.campaign.state, content = ctx.engine.content;
+  const stack = ctx.E.buildEffectStack({ character: c, content, itemInstances: campaign.itemInstances, pendingChoices: campaign.pendingChoices, characters: campaign.characters });
+  const offHand = c.equipped.offHand ? content.items.get(campaign.itemInstances[c.equipped.offHand]?.definitionId ?? "") as { itemKind?: string } | undefined : undefined;
+  return a => {
+    const instance = a.weaponInstanceId ?? a.instanceId;
+    const props = a.properties ?? [];
+    // The ability its damage is with, as the engine picks it: Dexterity for a bow, or for a finesse weapon when it's the better.
+    const ability = (a.attackKind === "ranged" && !props.includes("thrown")) || (props.includes("finesse") && s.abilityModifiers.DEX >= s.abilityModifiers.STR) ? "DEX" : "STR";
+    return stack.modifierSum("damage", new Map<string, unknown>([["event.attackKind", a.attackKind], ["bearer.offHandHasWeapon", offHand?.itemKind === "weapon"],
+      ["event.damageType", a.damage.type], ["event.weaponId", instance ? campaign.itemInstances[instance]?.definitionId ?? "" : ""], ["event.damageAbility", ability]]));
+  };
+}
+
 function sheetOf(ctx: Ctx, id: string): Dnd.CharacterSheet {
   const s = ctx.campaign.state;
   return ctx.E.buildCharacterSheet({ character: s.characters[id]!, itemInstances: s.itemInstances, content: ctx.engine.content, characters: s.characters, pendingChoices: s.pendingChoices });
@@ -510,6 +529,7 @@ export async function sheetText(state: SessionState): Promise<string> {
   const content = engine.content;
   // Gear the story has parted them from: off the sheet (a second one of the same kind would stay, but that's rare).
   const goneNames = new Set((state.rules.gone ?? []).map(g => content.items.get(ctx.campaign.state.itemInstances[g]?.definitionId ?? "")?.name).filter((n): n is string => !!n));
+  const added = damageAdded(ctx, c, s);
   const lines = [
     `${c.name}: ${buildLine(ctx, id)}`,
     `AC ${s.ac.total} · HP ${c.hp.current}/${s.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""} · Speed ${s.speeds["walk"] ?? 30} ft · Initiative ${signed(s.initiative.modifier)} · Proficiency ${signed(s.proficiencyBonus)} · Hit Dice ${c.classes.map(k => `${k.hitDiceRemaining}/${k.level} d${content.classes.get(k.classId)?.hitDie ?? "?"}`).join(", ")}`,
@@ -518,7 +538,7 @@ export async function sheetText(state: SessionState): Promise<string> {
     `Skills: ${s.skills.filter(k => k.proficiency !== "none").map(k => `${titleSkill(k.skill)} ${signed(k.modifier)}${k.proficiency === "expertise" ? " (expertise)" : ""}`).join(", ") || "none trained"}`,
     `Other skills: ${s.skills.filter(k => k.proficiency === "none").map(k => `${titleSkill(k.skill)} ${signed(k.modifier)}`).join(", ")}`,
     `Passive: ${Object.entries(s.passiveScores).map(([k, v]) => `${titleSkill(k)} ${v}`).join(", ")}`,
-    `Attacks: ${s.attacks.filter((a, i) => s.attacks.findIndex(b => b.name === a.name) === i).filter(a => !goneNames.has(a.name)).map(a => `${a.name} ${signed(a.attackBonus)} (${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""} ${a.damage.type})`).join("; ")}`,
+    `Attacks: ${s.attacks.filter((a, i) => s.attacks.findIndex(b => b.name === a.name) === i).filter(a => !goneNames.has(a.name)).map(a => { const m = a.damage.modifier + added(a); return `${a.name} ${signed(a.attackBonus)} (${a.damage.dice}${m ? signed(m) : ""} ${a.damage.type})`; }).join("; ")}`,
   ];
   if (s.spellcasting?.classes.length) {
     const sc = s.spellcasting.classes[0]!;
@@ -735,15 +755,20 @@ export async function sheetData(state: SessionState, options: { campaign?: strin
   if (!state.world && !state.carried && !state.history.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
 
   const held = new Set([c.equipped.mainHand, c.equipped.offHand].filter(Boolean));
+  const added = damageAdded(ctx, c, s);
+  const dice = (d: { dice: string; modifier: number }, plus: number) => `${d.dice}${d.modifier + plus ? signed(d.modifier + plus) : ""}`;
   const attacks = (s.attacks as Array<Dnd.CharacterSheet["attacks"][number] & { weaponInstanceId?: string; versatileDamage?: { dice: string; modifier: number }; range?: { normal: number; long: number }; properties?: string[]; mastery?: string }>)
     .filter((a, i, all) => all.findIndex(b => b.name === a.name) === i)
     .filter(a => (a.weaponInstanceId ? !gone.has(a.weaponInstanceId) : !goneNames.has(a.name)))
-    .map(a => ({
-      name: a.name, kind: a.attackKind, bonus: a.attackBonus, damage: `${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""}`, type: a.damage.type,
-      ...(a.versatileDamage ? { versatile: `${a.versatileDamage.dice}${a.versatileDamage.modifier ? signed(a.versatileDamage.modifier) : ""}` } : {}),
-      ...(a.range ? { range: a.range } : {}), properties: a.properties ?? [], ...(a.mastery ? { mastery: a.mastery } : {}),
-      held: !!a.weaponInstanceId && held.has(a.weaponInstanceId),
-    }));
+    .map(a => {
+      const plus = added(a);
+      return {
+        name: a.name, kind: a.attackKind, bonus: a.attackBonus, damage: dice(a.damage, plus), type: a.damage.type,
+        ...(a.versatileDamage ? { versatile: dice(a.versatileDamage, plus) } : {}),
+        ...(a.range ? { range: a.range } : {}), properties: a.properties ?? [], ...(a.mastery ? { mastery: a.mastery } : {}),
+        held: !!a.weaponInstanceId && held.has(a.weaponInstanceId),
+      };
+    });
 
   const sc = s.spellcasting?.classes[0];
   // Their numbers for a spell's details, and what the engine adds to their spells.

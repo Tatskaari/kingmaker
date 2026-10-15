@@ -46,4 +46,11 @@ test("qa new --build own: makes one of their own from the SRD's ids, and the bac
   assert.match(sheet, /^Grimm: orc wizard 3 \(Evoker\), soldier background/m);
   assert.match(sheet, /Flaws: I never could hold my drink\./);
   assert.throws(() => qa("new", "--session", "qa-bad", "--as", "Grimm: an orc", "--build", "4"), /--build is 1, 2 or 3/);
+  // An id that isn't the SRD's is refused, saying which are, rather than made into something else.
+  assert.throws(() => qa("new", "--session", "qa-bad", "--as", "Grimm: an elf", "--build", "own:elf,necromancer,,soldier"), /No class "necromancer" in the SRD: one of barbarian, bard/);
+  assert.ok(!existsSync(join(runs, "sessions", "qa-bad", "game.json")), "and no game made");
+  // A backstory longer than the GM can be given every turn is refused too.
+  const long = join(runs, "long.txt");
+  writeFileSync(long, "word ".repeat(2001));
+  assert.throws(() => qa("new", "--session", "qa-long", "--as", "Grimm: an orc", "--backstory-file", long), /--backstory: It's 2,001 words/);
 });
