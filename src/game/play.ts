@@ -7,7 +7,8 @@ import { afterTurn } from "../runtime/background.ts";
 import { endTalk, leaveTalk, openTalk, startTalk, talkTurn } from "../runtime/talk.ts";
 import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
-import type { CombatResult, StoryState } from "./types.ts";
+import type { Mechanic } from "../runtime/director.ts";
+import type { CombatResult, CombatSetup, StoryState } from "./types.ts";
 import type { Build } from "../rules/dnd.ts";
 
 /**
@@ -44,8 +45,23 @@ export interface GameState {
   explore: Record<string, unknown>;
   /** The fight in progress, as its module saves it. */
   combat?: unknown;
+  /** The fight broke out on the map (no scene asked for it): when it's over, it's back to the map. */
+  fightOnMap?: boolean;
   /** What just happened, for the next observation. */
   recent: string[];
+}
+
+/** What an explore action came to. */
+export interface ExploreDone {
+  text: string;
+  /** It opens the story's lead scene. */
+  scene?: boolean;
+  /** It stops the player for a word with someone walking with them (who, and where and when, as the map has it). */
+  talk?: { with: string; where: string };
+  /** The player's first turn in the scene or talk it opens: what they do, and what the rules resolve (the action menu's act). */
+  act?: { text: string; mechanic: Mechanic };
+  /** A fight breaks out on the map (the people about came at the player). */
+  fight?: CombatSetup;
 }
 
 export interface Explorer {
@@ -53,11 +69,10 @@ export interface Explorer {
   start(game: GameState): void;
   observe(game: GameState, session: SessionState): string;
   actions(game: GameState, session: SessionState): Action[];
-  /**
-   * Do it; `scene: true` when it opens the story's lead scene, `talk` when it stops the player for a
-   * word with someone walking with them (who, and where and when, as the map has it).
-   */
-  act(game: GameState, session: SessionState, id: string): { text: string; scene?: boolean; talk?: { with: string; where: string } };
+  /** Do it (the rules' acts, the action menu's, take a moment: a promise). */
+  act(game: GameState, session: SessionState, id: string): ExploreDone | Promise<ExploreDone>;
+  /** A fight that broke out on the map is over: how it left the town's people (and a word on it, if any). */
+  afterFight?(game: GameState, session: SessionState, result: CombatResult): string | undefined;
   /** A scene is opening (walked into, or a summons that came to the player): go into its place. */
   enterScene?(game: GameState, session: SessionState): void;
   /**
@@ -80,6 +95,8 @@ export interface Fight {
 export interface FightFactory {
   start(game: GameState, session: SessionState): Promise<Fight>;
   load(saved: unknown, session: SessionState): Fight;
+  /** A fight that broke out on the map, set out as it stands (who, where). */
+  startWith?(setup: CombatSetup, session: SessionState): Promise<Fight>;
 }
 
 const FIRST_SCENE = "hanged-clerk";
@@ -157,10 +174,16 @@ export class Game {
   async act(id: string, hooks: TurnHooks = {}): Promise<string> {
     this.state.recent = [];
     if (this.state.mode === "explore") {
-      const done = this.explorer.act(this.state, this.session, id);
-      const text = done.scene ? `${done.text}\n\n${await this.beginScene(hooks)}`
-        : done.talk ? `${done.text}\n\n${await this.beginTalk(done.talk, hooks)}`
-        : done.text;
+      // Walking and talking are done at once (a scene that opens shows straight away); the rules' acts take a moment.
+      const acted = this.explorer.act(this.state, this.session, id);
+      const done = acted instanceof Promise ? await acted : acted;
+      let text = done.text;
+      if (done.fight && this.fights.startWith) text = `${text}\n\n${await this.beginFight(done.fight)}`;
+      else if (done.scene || done.talk) {
+        text = `${text}\n\n${done.scene ? await this.beginScene(hooks) : await this.beginTalk(done.talk!, hooks)}`;
+        // The act that opened it is the player's first turn there: the scene's rules resolve it.
+        if (done.act && (this.state.mode as Mode) === "scene") text = `${text}\n\n${await this.say(done.act.text, hooks, { mechanic: done.act.mechanic })}`;
+      }
       this.save();
       return text;
     }
@@ -193,12 +216,15 @@ export class Game {
     throw new Error("The story is over.");
   }
 
-  /** Something the player says or does in a scene (or in a talk). */
-  async say(text: string, hooks: TurnHooks = {}): Promise<string> {
+  /**
+   * Something the player says or does in a scene (or in a talk). `mechanic`: what the rules resolve
+   * this turn, already chosen (the action menu's act), rather than read from the words.
+   */
+  async say(text: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic } = {}): Promise<string> {
     if (this.state.mode !== "scene") throw new Error("You're not in a scene: pick an action instead.");
     this.state.recent = [];
     const talk = this.session.talk;
-    const turn = talk ? await talkTurn(this.session, text, hooks) : await playerTurn(this.session, text, hooks);
+    const turn = talk ? await talkTurn(this.session, text, hooks, options) : await playerTurn(this.session, text, hooks, options);
     // The co-GM and the memory reviews run in the background, as in the scene CLI.
     afterTurn(this.session);
     const shown = render(this.session, turn.entries.filter(e => e.kind !== "player"));
@@ -286,10 +312,31 @@ export class Game {
     return this.onward("", hooks);
   }
 
+  /** A fight breaks out on the map (the town's people came at the player): no scene of the story asked for it. */
+  private async beginFight(setup: CombatSetup): Promise<string> {
+    try {
+      this.fight = await this.fights.startWith!(setup, this.session);
+    } catch (error) {
+      // No fight to be had: the town carries on (it's still the map).
+      return `(The fight couldn't be set out: ${error instanceof Error ? error.message : String(error)}.)`;
+    }
+    this.state.mode = "combat";
+    this.state.fightOnMap = true;
+    return "Roll for initiative!";
+  }
+
   /** The fight is over: back to the scene for its aftermath (take the ledger, question the villain), which ends as the story decides. */
   private async afterFight(result: CombatResult, hooks: TurnHooks = {}): Promise<string> {
     delete this.state.combat;
     this.fight = undefined;
+    // A fight on the map goes back to the map: the town keeps who went down, and the player comes round if they did.
+    if (this.state.fightOnMap) {
+      delete this.state.fightOnMap;
+      this.state.mode = "explore";
+      const woke = await comeTo(this.session).catch(() => undefined);
+      const kept = this.explorer.afterFight?.(this.state, this.session, result);
+      return [`The fight: ${result.summary}`, woke, kept].filter(Boolean).join("\n\n");
+    }
     this.state.mode = "scene";
     for (const [k, v] of Object.entries(result.flags ?? {})) this.state.story.flags[k] = v;
     // Knocked out in the fight, the player comes round as the scene picks up (the aftermath tells it
