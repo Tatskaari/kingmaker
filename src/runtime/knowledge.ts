@@ -6,7 +6,7 @@ import { knownCast, nameTokens, presentCast } from "./brief.ts";
 import type { Mark, MarkLink, Markup } from "./markup.ts";
 import type { Scene } from "./scene.ts";
 import type { Entry, SessionState } from "./session.ts";
-import { distinct, namesFor, type Speaker } from "./speakers.ts";
+import { distinct, speaker, type Speaker } from "./speakers.ts";
 
 /**
  * What the player knows: what a mark's note may explain (src/runtime/markup.ts), and what a mark's
@@ -86,10 +86,10 @@ export function knowledgeBrief(state: SessionState): string {
 export function speakersOf(scene: Scene, state: SessionState): Speaker[] {
   const here = presentCast(scene, state);
   const cast = [...here, ...scene.cast.filter(c => !here.includes(c))];
-  const out: Speaker[] = cast.map(c => ({ id: c.id, names: namesFor(c.name, c.called, c.aka) }));
+  const out: Speaker[] = cast.map(c => speaker(c.id, c.name, c.called, c.aka));
   for (const e of Object.values(state.world?.entities ?? {})) {
     if ((e.kind !== "person" && e.kind !== "creature") || e.player || e.states.includes("gone") || out.some(p => p.id === e.id || p.id === e.cast)) continue;
-    out.push({ id: e.id, names: namesFor(e.name) });
+    out.push(speaker(e.id, e.name));
   }
   return distinct(out);
 }

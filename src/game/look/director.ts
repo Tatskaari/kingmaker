@@ -2,7 +2,7 @@ import { positionOf, select, type Entity, type Point, type SceneWorld } from "..
 import type { Effects, Vec } from "./effects.ts";
 import { lookOf } from "./appearance.ts";
 import { smoothstep } from "./noise.ts";
-import { distinct, namesFor, quoteSpeaker, type Speaker } from "../../runtime/speakers.ts";
+import { distinct, quoteSpeaker, speaker, type Speaker } from "../../runtime/speakers.ts";
 
 /**
  * The director turns what changed in the world into motion on screen, so the story shows up in the
@@ -278,7 +278,7 @@ export class Director {
 /** Who might bark: the people about in the world, by their names and what the story calls them. */
 export function barkers(world: SceneWorld, called: Record<string, string> = {}): Speaker[] {
   return distinct(Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.includes("gone"))
-    .map(p => ({ id: p.id, names: namesFor(p.name, called[p.cast ?? p.id]) })));
+    .map(p => speaker(p.id, p.name, called[p.cast ?? p.id])));
 }
 
 /** A spell's colour by what it does (Cogmind and Brogue: colour carries the kind). */

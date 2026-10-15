@@ -1,4 +1,4 @@
-import { quoteSpeaker, SPEECH, tagSpeaker, type Speaker } from "./speakers.ts";
+import { firstNamed, quoteSpeaker, SPEECH, speechTagged, tagSpeaker, type Speaker } from "./speakers.ts";
 
 /**
  * The GM's markup: what a reply says beyond its words, for the screen (each person's lines in
@@ -43,7 +43,7 @@ export interface Mark {
   start: number;
   end: number;
   kind: MarkKind;
-  /** The GM's note, said to the player. */
+  /** The note, said to the player. What parseMarkup reads is the GM's own, which never reaches the screen: the one shown is written from what the player knows (src/runtime/notes.ts). */
   note: string;
   link?: MarkLink;
 }
@@ -94,8 +94,8 @@ export function sumStats(all: Array<MarkupStats | undefined>): MarkupStats | und
   return out;
 }
 
-/** The words a note can start with to say its kind (and what the model sometimes writes instead). */
-const LABEL = /^\s*(why|know|you|because|reason|known|remember)\s*:\s*/i;
+/** The words a note can start with to say its kind (and what the model sometimes writes instead), on the bracket's own line. */
+const LABEL = /^[ \t]*(why|know|you|because|reason|known|remember)\s*:\s*/i;
 const KIND_OF: Record<string, MarkKind> = { why: "why", because: "why", reason: "why", know: "know", known: "know", you: "you", remember: "you" };
 /** A marked phrase or a speaker's tag: a few words, on one line. */
 const PHRASE_MAX = 160;
@@ -265,9 +265,13 @@ function stopless(phrase: string, after: string): boolean {
  * back (`pending`) and a spoken line still open is reported as far as it's come. Speakers are the
  * tags as written: `withSpeakers` says who they are.
  */
-export function parseMarkup(raw: string, options: { final?: boolean } = {}): Marked & { pending: boolean; stats: MarkupStats } {
+export function parseMarkup(written: string, options: { final?: boolean } = {}): Marked & { pending: boolean; stats: MarkupStats } {
   const final = options.final ?? true;
   const r = new Reply();
+  // Markdown's bold (**CAERWYN — 7 MILES**) is read without its stars; as it streams, a star that
+  // may be the first of two waits for the next.
+  const bolded = written.replace(/\*\*|__/g, "");
+  const raw = !final && /(?<![*_])[*_]$/.test(bolded) && /[*_]$/.test(written) ? bolded.slice(0, -1) : bolded;
 
   /** Past markup that vanished: a space after it goes too, when there's one before it (no double spaces); at a line's end, the space before it. */
   const gap = (k: number): number => {
@@ -433,16 +437,18 @@ export function parseMarkup(raw: string, options: { final?: boolean } = {}): Mar
       return gap(k);
     }
     // Anything else: a tag with no line after it disappears; other words in square brackets are
-    // read without them, markup and all ([(Able, perhaps.)[why: …]]).
+    // read without them, markup and all ([(Able, perhaps.)[why: …]]); and a tag that's the subject
+    // of its sentence ("“…hid.” [Kell] taps her pencil", "[Kell]’s pencil stops") is its words.
     r.stats.malformed++;
     if (!nameLike(inner)) { unbracket.add(c.at); return i + 1; }
+    if (/^[a-z]|^['’]s\b/.test(raw.slice(q))) { r.emit(inner.trim()); return k; }
     return gap(k);
   };
 
   /** The closing brackets of words read without their brackets. */
   const unbracket = new Set<number>();
   let i = 0;
-  let pending = false;
+  let pending = raw.length < bolded.length;
   while (i < raw.length) {
     const ch = raw[i]!;
     const next = unbracket.has(i) ? i + 1 : ch === "(" ? round(i) : ch === "[" ? square(i) : (r.char(ch), i + 1);
@@ -484,38 +490,68 @@ export function speechIn(text: string): Speech[] {
 
 /**
  * Who says each line: the tag the GM wrote; else the one who said the line before, when only a
- * speech tag comes between ("…,” she says, “…”); else as a reader would tell from the prose (the
- * speech tag after it, or the sentence leading in).
+ * speech tag ("…,” she says, “…”) or a pause ("A beat.") comes between; else as a reader would tell
+ * from the prose (the speech tag after it, or the sentence leading in); else, after narration that
+ * goes on about someone only as "she" or "he", the one who said the last line. Words quoted in
+ * narration rather than said ("At “the Purveyor's office,” her pencil stills.") are nobody's line,
+ * or the player's own when they echo `player`, the player's latest turn.
  */
-export function withSpeakers(marked: Marked, people: Speaker[]): Marked {
+export function withSpeakers(marked: Marked, people: Speaker[], options: { player?: string | undefined } = {}): Marked {
   const speech: Speech[] = [];
+  let prev: Speech | undefined;
   for (const s of marked.speech) {
-    let id = s.tag ? tagSpeaker(s.tag, people) : undefined;
-    const prev = speech.at(-1);
+    if (!s.tag && mentioned(marked.text, s)) {
+      if (options.player && echoes(marked.text.slice(s.start, s.end), options.player)) speech.push({ ...s, speaker: "you" });
+      continue;
+    }
+    let id = s.tag ? tagSpeaker(s.tag, people) : speechTagged(marked.text, s.end, people);
     const between = prev ? marked.text.slice(prev.end, s.start) : "";
-    if (!id && !s.tag && prev?.speaker && continues(between, people)) id = prev.speaker;
+    const carried = !s.tag && prev?.speaker;
+    if (!id && carried && (continues(between, people) || pause(between, people))) id = prev!.speaker;
     id ??= s.tag ? undefined : quoteSpeaker(marked.text, s.start, s.end, people);
     // Untold, after a "she" or a "he" and nobody else named since the last line: the one who said it.
-    if (!id && !s.tag && prev?.speaker && prev.speaker !== "you" && pronounOnly(between, people)) id = prev.speaker;
-    speech.push(id ? { ...s, speaker: id } : { ...s });
+    if (!id && carried && prev!.speaker !== "you" && pronounOnly(between, people)) id = prev!.speaker;
+    const line = id ? { ...s, speaker: id } : { ...s };
+    speech.push(line);
+    prev = line;
   }
   return { ...marked, speech };
 }
 
+/** Someone named in some words, as more than a mention ("Kell turns", not "Her gaze settles on Kell"). */
+const named = (words: string, people: Speaker[]) => !!firstNamed(words.toLowerCase(), people);
+
 /** Narration that goes on about someone only as "she" or "he" (no one else named in it), a short paragraph at most. */
 function pronounOnly(between: string, people: Speaker[]): boolean {
   const b = between.toLowerCase();
-  return between.length <= 240 && /\b(she|he|her|his|him)\b/.test(b) && !/\byou\s+(say|said|ask|asked|answer|reply)/.test(b) && !people.some(p => p.names.some(n => b.includes(n)));
+  return between.length <= 240 && /\b(she|he|her|his|him)\b/.test(b) && !/\byou\s+(say|said|ask|asked|answer|reply)/.test(b) && !named(between, people);
 }
+
+/** Narration that's only a pause ("A beat.", "A long pause.", "Then:", "—"). */
+const PAUSE = /^(?:[—–\-…,;:]*|(?:(?:a|an|another|one)\s+)?(?:[a-z]+\s+)?(?:beat|pause|moment|breath|silence|heartbeat|sigh|shrug|nod|blink)s?\b[^.!?\n]{0,20}[.!?…:—–-]*|(?:then|and then|still|again|nothing|silence)[.!?…:—–,-]*)$/i;
+/** A pause between two lines in a paragraph: the same speaker goes on. */
+const pause = (between: string, people: Speaker[]) => !between.includes("\n") && PAUSE.test(between.trim()) && !named(between, people);
 
 /** A speech tag with no one named in it, that carries a speaker on to their next line: “…,” she says, not looking up, “…” */
 const ATTRIBUTION = new RegExp(`^[\\s,;:—–-]*(?:she|he|they|it)\\s+(?:${SPEECH})\\b[^.!?“”"\\n]{0,50}[.!?,;:—–-]?\\s*$`, "i");
 
 /** Narration between two lines that only carries one speaker on to the next. */
 function continues(between: string, people: Speaker[]): boolean {
-  const b = between.toLowerCase();
-  return ATTRIBUTION.test(between) && !people.some(p => p.names.some(n => b.includes(n)));
+  return ATTRIBUTION.test(between) && !named(between, people);
 }
+
+/** Words that, just before a quote, make it words mentioned in the sentence rather than a line said: "at “…”", "the word “…”". */
+const MENTION = /(?:^|[\s(])(?:at|of|on|in|for|from|to|with|like|as|than|the|word|words|called|named|about|into|onto|upon)\s+$/i;
+
+/** A short quote inside a sentence of narration, with no tag ("At “the Royal Purveyor's office,” her pencil stills."). */
+function mentioned(text: string, s: Speech): boolean {
+  const said = text.slice(s.start, s.end).replace(/^[“"]|[”"]$/g, "").trim();
+  return said.split(/\s+/).length <= 8 && MENTION.test(text.slice(Math.max(0, s.start - 30), s.start));
+}
+
+const plain = (s: string) => s.toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
+/** Quoted words that are the player's own, from their turn (two words at least). */
+const echoes = (quote: string, player: string) => { const q = plain(quote); return q.split(" ").length >= 2 && plain(player).includes(q); };
 
 /**
  * A reply's markup in words, for the QA console and the scene harness (their transcripts are

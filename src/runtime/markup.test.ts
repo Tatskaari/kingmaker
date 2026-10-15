@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked } from "./markup.ts";
-import { namesFor, type Speaker } from "./speakers.ts";
+import { speaker, type Speaker } from "./speakers.ts";
 
 const PEOPLE: Speaker[] = [
-  { id: "crust", names: namesFor("Madam Crust", "the pie-seller") },
-  { id: "kell", names: namesFor("Sergeant Agnes Kell") },
-  { id: "dab", names: namesFor("Dab Wick", "the ferryman") },
+  speaker("crust", "Madam Crust", "the pie-seller"),
+  speaker("kell", "Sergeant Agnes Kell"),
+  speaker("dab", "Dab Wick", "the ferryman"),
 ];
 
 /** The marked phrases of a parse, as they read. */
@@ -187,6 +187,17 @@ test("words with no markup keep every character: their quotes are found, their b
   assert.deepEqual(speech.map(s => text.slice(s.start, s.end)), ["“Out,”", "“Now.”"]);
 });
 
+test("a tag that's its sentence's subject is its words, and Markdown's bold is read without its stars", () => {
+  assert.equal(stripMarkup("“He keeps it hid.” [Kell] taps her pencil once."), "“He keeps it hid.” Kell taps her pencil once.");
+  assert.equal(stripMarkup("“Not here.” **[Kell]**’s pencil stops."), "“Not here.” Kell’s pencil stops.");
+  assert.equal(stripMarkup("The stone reads **CAERWYN — 7 MILES**. Kell sniffs."), "The stone reads CAERWYN — 7 MILES. Kell sniffs.");
+  // A stray tag before a sentence of its own still goes.
+  assert.equal(stripMarkup("Kell nods. [Kell] She turns."), "Kell nods. She turns.");
+  // A bracket at a line's end is a bracket once the line ends, and stays one as the next line comes (a kind's label is read on the bracket's own line only).
+  assert.equal(parseMarkup("She shrugs. [\n", { final: false }).text, "She shrugs. [\n");
+  assert.equal(parseMarkup("She shrugs. [\nyou: the door is shut.", { final: false }).text, "She shrugs. [\nyou: the door is shut.");
+});
+
 test("a line that never closes ends with its paragraph", () => {
   const m = parseMarkup("[Kell] “Wait for me here.\n\nThe rain comes on.");
   assert.deepEqual(lines(m), ["“Wait for me here."]);
@@ -237,8 +248,20 @@ test("who says each line: the tag, a speech tag carrying on, or the prose", () =
   // A new sentence that isn't a speech tag doesn't carry the speaker on.
   const n = withSpeakers(parseMarkup("[Kell] “Out!” The boy flinches. “Me?”"), PEOPLE);
   assert.deepEqual(n.speech.map(s => s.speaker), ["kell", undefined]);
+  // Someone only looked at between two lines isn't speaking: the one who was goes on.
+  const looked = withSpeakers(parseMarkup("Kell speaks evenly. “I'm lent, not on duty.” Her gaze stays on the pie-seller. “I'm asking for a word.”\n\n[Madam Crust] “Forty still to go.” Her gaze settles on Kell. “The watch has questions?”"), PEOPLE);
+  assert.deepEqual(looked.speech.map(s => s.speaker), ["kell", "kell", "crust", "crust"]);
+  // A pause between two lines of one speaker, and a name said in the line before, don't change who's speaking.
+  assert.deepEqual(withSpeakers(parseMarkup("[the ferryman] “No.” A beat. “Not for the watch.”"), PEOPLE).speech.map(s => s.speaker), ["dab", "dab"]);
+  assert.deepEqual(withSpeakers(parseMarkup("[Kell] “Madam Crust had to tell you.” Her voice stays low. “I don't want trouble for her.”"), PEOPLE).speech.map(s => s.speaker), ["kell", "kell"]);
+  // A tag that's only what someone is ("[Porter]", "[A porter]") isn't someone the player knows by it.
+  const porters = [...PEOPLE, speaker("hobb", "Big Hobb Mallory", "the big porter with the bandaged hand")];
+  assert.deepEqual(withSpeakers(parseMarkup("A porter turns toward the grille. [Porter] “Who's there?” [the big porter] “Me.”"), porters).speech.map(s => s.speaker), [undefined, "hobb"]);
+  // Words quoted in narration aren't a line said, or are the player's own when they echo their turn.
+  const quoted = withSpeakers(parseMarkup("At “the Purveyor's office,” her pencil stills. Kell mouths the word “trout”."), PEOPLE, { player: "Who at the Purveyor's office signs for it?" });
+  assert.deepEqual(quoted.speech.map(s => [quoted.text.slice(s.start, s.end), s.speaker]), [["“the Purveyor's office,”", "you"]]);
   // Someone the player knows only by sight, told by what they're called ("the boy in the too-big boots" is the scene's boy).
-  const yard = [...PEOPLE, { id: "cob", names: namesFor("Cob", "the boy in the too-big boots") }];
+  const yard = [...PEOPLE, speaker("cob", "Cob", "the boy in the too-big boots")];
   const o = withSpeakers(parseMarkup("A scrawny boy in enormous boots lobs a stone at the body. “Hold still!” [the boy] “Nearly got him.”"), yard);
   assert.deepEqual(o.speech.map(s => s.speaker), ["cob", "cob"]);
 });
