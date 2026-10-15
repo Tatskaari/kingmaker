@@ -56,6 +56,10 @@ const VIEWPORT = { width: COLS * 9 + 20, height: ROWS * 18 + 16 + 26 };
 const MAP_COLS = 89;
 const NAME = "Tamsin Vell";
 const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye and a borrowed rapier";
+/** The smoke test's backstory (src/app/smoke/smoke.py's BACKSTORY), so the screens can be the same. */
+const BACKSTORY = "I kept a grain factor's books on the wharves for nine years, until the night the sums came out too right. I owe Fat Jory three crowns.";
+/** The lore check's panel, as a regex in the page: a fix on show (the first look's, or the second's, after the fixes). */
+const LORE_PANEL = String.raw`/The lore check[^\n]*?: \d+ of \d+[\s\S]*?Your story says: [^\n│]*/`;
 mkdirSync(OUT, { recursive: true });
 
 let failures = 0;
@@ -361,8 +365,16 @@ async function games(page: Page): Promise<Map<string, { mode: string; at?: { map
 function smokeScreens(): string | undefined {
   const dir = join(ROOT, "runs", "app-smoke");
   if (!existsSync(dir)) return undefined;
-  const runs = readdirSync(dir).filter(run => existsSync(join(dir, run, "03-the-rules-engine-made-a-sheet.txt"))).sort();
+  // A run that made its character through the cards and a backstory (the screens before them are named the same).
+  const runs = readdirSync(dir).filter(run => smokeFile(join(dir, run), "the-rules-engine-made-a-sheet") && smokeFile(join(dir, run), "three-builds-that-fit-as-cards")).sort();
   return runs.length ? join(dir, runs.at(-1)!) : undefined;
+}
+
+/** A smoke test's screen by its name, whatever its number ("06-the-rules-engine-made-a-sheet.txt"). */
+function smokeFile(run: string, name: string): string | undefined {
+  if (!existsSync(run)) return undefined;
+  const file = readdirSync(run).find(f => f.endsWith(`-${name}.txt`) && /^\d+-/.test(f));
+  return file ? join(run, file) : undefined;
 }
 
 /** The title's taglines (src/app/ui/title.tsx): it picks one at random each time it starts, so that row may differ. */
@@ -377,7 +389,10 @@ async function same(page: Page, smoke: string | undefined, file: string, what: s
     note(`(no smoke-test screens here to compare ${what} with: python3 src/app/smoke/smoke.py writes them)`);
     return;
   }
-  const want = normalize(readFileSync(join(smoke, file), "utf8"));
+  const found = smokeFile(smoke, file);
+  if (!found) { fail(`the smoke test's screens have no ${file} to compare ${what} with`); return; }
+  file = relative(smoke, found);
+  const want = normalize(readFileSync(found, "utf8"));
   let got = "";
   for (let i = 0; i < 15; i++) {
     got = normalize(await text(page));
@@ -402,16 +417,25 @@ async function besideTheTerminal(browser: Browser, url: string): Promise<void> {
     const smoke = smokeScreens();
     const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}&glyphs=ascii`);
     await waitFor(page, "Hanged Clerk of Caerwyn", "the title screen (ASCII glyphs, as the smoke test plays)");
-    await same(page, smoke, "01-title-screen.txt", "the title screen");
+    await same(page, smoke, "title-screen", "the title screen");
     await clickOn(page, "New game");
     await waitFor(page, "Who are you\\?", "a click on New game: character creation");
-    await same(page, smoke, "02-character-creation.txt", "character creation");
+    await same(page, smoke, "character-creation", "character creation");
     await page.keyboard.type(NAME, { delay: 15 });
     await press(page, "Enter");
     await page.keyboard.type(CONCEPT, { delay: 5 });
     await press(page, "Enter");
+    // Three builds as cards, the first taken by a click, and a backstory in the box, as the smoke test makes its character.
+    await waitFor(page, "Three ways to be Tamsin Vell.*HP \\d+.*Make my own", "three builds that fit, as cards (the class defaults, offline)", 90000);
+    await same(page, smoke, "three-builds-that-fit-as-cards", "the three builds");
+    await clickOn(page, "Halfling Rogue 3");
+    await waitFor(page, "Who were you, before the King sent for you\\?", "a click on the first card: the backstory");
+    await same(page, smoke, "the-first-card-taken-on-to-the-backstory", "the backstory, before it's written");
+    await page.keyboard.type(BACKSTORY, { delay: 5 });
+    await waitFor(page, "came out too right", "the backstory typed into the box (the browser's textarea)");
+    await clickOn(page, " Done ");
     await waitFor(page, "Character sheet.*AC \\d+", "the rules engine (in the worker) made a sheet", 90000);
-    await same(page, smoke, "03-the-rules-engine-made-a-sheet.txt", "the character sheet");
+    await same(page, smoke, "the-rules-engine-made-a-sheet", "the character sheet");
     await shot(page, "sheet-ascii");
     await press(page, "Enter");
     await waitFor(page, "The lead:.*Hanged Clerk", "exploring Caerwyn, the lead is the hanged clerk");
@@ -512,6 +536,36 @@ async function rate(page: Page, what: string, during: () => Promise<void>): Prom
   note(`bandwidth, ${what} (${elapsed.toFixed(1)}s): ${((after.toPage - before.toPage) / 1000 / elapsed).toFixed(1)} KB/s from the game to the page, ${((after.messagesIn - before.messagesIn) / elapsed).toFixed(1)} messages/s; ${(frames / elapsed).toFixed(1)} frames/s in the worker, ${(frames ? (after.renderMs - before.renderMs) / frames : 0).toFixed(1)} ms a frame (the slowest yet ${after.slowestMs.toFixed(0)} ms)`);
 }
 
+/**
+ * From the concept to the sheet by the keys, the browser's multi-line box played: the cards (→ and
+ * Enter take the second), the backstory typed with a new paragraph, a click back into its first
+ * line and a word typed there, Tab to the buttons and Enter on Done; the lore check's fix taken if
+ * it finds one (live).
+ */
+async function makeCharacter(page: Page, live: boolean): Promise<void> {
+  await waitFor(page, "Three ways to be Tamsin Vell.*HP \\d+.*Make my own", "three builds that fit, as cards", live ? 150000 : 90000);
+  await press(page, "ArrowRight", "Enter");
+  await waitFor(page, "Who were you, before the King sent for you\\?", "→ Enter takes the second: the backstory");
+  await page.keyboard.type(BACKSTORY, { delay: 5 });
+  await press(page, "Enter", "Enter");
+  await page.keyboard.type("The King asked, and the pay is regular.", { delay: 5 });
+  await waitFor(page, "came out too right.*the pay is regular", "the backstory typed into the box, a paragraph at a time (the browser's textarea)");
+  // The middle of "I ke" is the k: the cursor goes just before "kept".
+  await clickOn(page, "I ke");
+  await page.keyboard.type("honestly ", { delay: 10 });
+  await waitFor(page, "I honestly kept a grain factor", "a click put the cursor in the text, and what's typed went there");
+  await press(page, "Tab", "Enter");
+  // The lore check's fixes, if it finds any (live): each taken with Enter, and its second look's too.
+  for (let look = 0; live && look < 6; look++) {
+    if (!await until(page, `window.km ? /Character sheet/.test(km.text()) || ${LORE_PANEL}.test(km.text()) : false`, 90000) || !await page.evaluate(`${LORE_PANEL}.test(km.text())`)) break;
+    const shown = String(await page.evaluate(`(${LORE_PANEL}.exec(km.text()) || [""])[0]`));
+    await shot(page, `lore-check-${look + 1}`);
+    await press(page, "Enter");
+    ok("the lore check offered a fix, and Enter took it");
+    await until(page, `window.km ? !km.text().includes(${JSON.stringify(shown)}) : false`, 10000);
+  }
+}
+
 async function newGame(page: Page, live: boolean): Promise<void> {
   await press(page, "n");
   await waitFor(page, "Who are you\\?", "n: character creation");
@@ -523,6 +577,7 @@ async function newGame(page: Page, live: boolean): Promise<void> {
   if ((await text(page)).includes("ledger-keeper")) ok("Tab reached the game: the concept went into its own field");
   else fail("Tab didn't move to the concept field");
   await press(page, "Enter");
+  await makeCharacter(page, live);
   await waitFor(page, "Character sheet.*AC \\d+", "the rules engine made a sheet", live ? 150000 : 90000);
   await sleep(300);
   await shot(page, "sheet");

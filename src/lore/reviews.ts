@@ -1,6 +1,6 @@
 import { JevDecider, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
 import { runTools, InvalidToolArguments, type ToolDef } from "../llm/tools.ts";
-import { presentCast, prompt, scriptTranscript, sceneEntries } from "../runtime/brief.ts";
+import { playerWho, presentCast, prompt, scriptTranscript, sceneEntries } from "../runtime/brief.ts";
 import type { Exit, Scene } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { characterEntry, createDoc, editDoc, memoryIndexPath, memoryLines, playerDocPath, readDoc, saveMemory, searchDocs, type DocMeta } from "./docs.ts";
@@ -44,7 +44,7 @@ export async function attend(scene: Scene, state: SessionState, turn: number, de
   }]));
   const earlier = before(scene, state, turn, 8);
   const decision = await decider.decide([
-    "# SYSTEM", `Scene: ${scene.title}. ${scene.premise}`, prepSummary(scene, state), `The player character: ${state.player.name}, ${state.player.concept}.`,
+    "# SYSTEM", `Scene: ${scene.title}. ${scene.premise}`, prepSummary(scene, state), `The player character: ${playerWho(state)}.`,
     "Details the prep already establishes are not improvised, even when the GM narrates them for the first time.",
     "# USER", ...(earlier ? [`Earlier in the scene:\n${earlier}`] : []), `The latest exchange:\n${latest}`,
   ].join("\n\n"), questions, "memory.attend");
@@ -150,7 +150,7 @@ async function review(kind: ReviewKind, scene: Scene, state: SessionState, turn:
         `## Your task: the ${kind === "memories" ? "personal memories" : "world facts (lore)"} review (flags raised on this moment: ${flags.filter(f => FIRES[kind].includes(f)).join(", ")})`,
         `## Scene: ${scene.title}\n${scene.premise}${scene.lore?.length ? `\nLore for this place: ${scene.lore.join(", ")}` : ""}`,
         ...(kind === "lore" ? [`## What the scene's prep already establishes (narrating it is not improvising it)\n${prepSummary(scene, state)}`] : []),
-        `## The player character\n${state.player.name}: ${state.player.concept}${kind === "lore" ? ` (their doc: ${playerDocPath(state.player.name)})` : ""}`,
+        `## The player character\n${playerWho(state)}${kind === "lore" ? ` (their doc: ${playerDocPath(state.player.name)})` : ""}`,
         `## People present (ids), with their lore entry and memory index\n${people}`,
         ...(rolls.length ? [`## Binding rulings this moment\n${rolls.map(r => `- ${r}`).join("\n")}`] : []),
         `## Earlier in the scene\n${before(scene, state, turn) || "(nothing yet)"}`,

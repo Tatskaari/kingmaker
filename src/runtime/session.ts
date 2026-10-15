@@ -14,6 +14,24 @@ export interface PlayerCharacter {
   modifiers: Partial<Record<Skill, number>>;
   /** Their D&D build in a line ("human rogue 3 (thief), criminal background"), when the rules engine made the sheet. */
   build?: string;
+  /** Their own backstory, from character creation (src/lore/backstory.ts): the sheet shows it, and the GM knows it. */
+  backstory?: Backstory;
+}
+
+/**
+ * The player's backstory, written (or drafted, or worked in from their notes) at character
+ * creation and checked against the world's lore: the whole of it, and what it says of them. It
+ * changes no mechanics (the background chosen with the build does that).
+ */
+export interface Backstory {
+  /** The whole of it, in the player's words (with any lore fix they accepted). */
+  text: string;
+  /** Who they are, in a sentence or two (in the third person): what every GM brief says of them. */
+  summary: string;
+  personality: string[];
+  ideals: string[];
+  bonds: string[];
+  flaws: string[];
 }
 
 /** D&D mechanics (src/rules/dnd.ts): the engine's campaign, and who in the story it has given stats. */

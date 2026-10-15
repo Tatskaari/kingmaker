@@ -1,6 +1,10 @@
-import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { setCallLog } from "../llm/openrouter.ts";
+import { applyFix, checkLore, finishBackstory, tooLong } from "../lore/backstory.ts";
+import { cardText, ownBuild, threeBuilds, throughEngine, type Offer } from "../rules/builds.ts";
+import type { Build } from "../rules/dnd.ts";
+import type { Backstory } from "../runtime/session.ts";
 import { Game, type Observation } from "../game/play.ts";
 import { town } from "../game/town.ts";
 import { mapFights } from "../game/fights.ts";
@@ -27,7 +31,12 @@ const fights = mapFights();
 
 const USAGE = `Kingmaker playable game: headless QA
 
-  qa new --session <id> --as "Name: concept" [--level 3] [--seed N]   start a game (builds your D&D character)
+  qa builds --session <id> --as "Name: concept" [--level 3]   three builds that fit, as the game offers them (qa new --build takes one)
+  qa new --session <id> --as "Name: concept" [--level 3] [--seed N]   start a game (the model picks your D&D build)
+      [--build 1|2|3]                           one of the three builds (qa builds' offer, or a new one)
+      [--build own:<species>,<class>,<subclass>,<background>]   one of your own making, from the SRD's ids
+      [--backstory "..." | --backstory-file <path>]   your backstory: checked against the lore (what doesn't fit is
+                                                      said, with a fix); --accept-fixes takes the fixes (and checks once more)
   qa new --session <id> --zoo [--seed N]       visit the zoo instead: every feature laid out to see and try
   qa observe --session <id>                     what you see, and the actions you can take
   qa act --session <id> --id <action id>        take an action from the latest observation (in a talk, say_1... says that line)
@@ -41,6 +50,31 @@ const USAGE = `Kingmaker playable game: headless QA
   (or npm run report -- make --session <id> "<what went wrong>": a report as the game files one, for npm run report -- inspect)
 
 Begin with observe; observe again after anything changes.`;
+
+const DEFAULT_WHO = "Wren Ashdown: a quick-witted investigator lent to the case by the King";
+const offerFile = (id: string) => join(sessionDir(id), "builds.json");
+
+/**
+ * The three builds for a concept, as qa builds offered them (kept with the session, so qa new
+ * --build takes one of the same three); a new offer when there's none for this concept and level.
+ */
+async function offerFor(id: string, who: string, level: number, options: { fresh?: boolean } = {}): Promise<Offer> {
+  const name = who.split(":")[0]!.trim(), concept = who.split(":").slice(1).join(":").trim() || who;
+  if (!options.fresh && existsSync(offerFile(id))) {
+    const kept = JSON.parse(readFileSync(offerFile(id), "utf8")) as { who: string; level: number; offer: Offer };
+    if (kept.who === who && kept.level === level) return kept.offer;
+  }
+  const offer = await threeBuilds(name, concept, level);
+  mkdirSync(sessionDir(id), { recursive: true });
+  writeFileSync(offerFile(id), JSON.stringify({ who, level, offer }, null, 1));
+  if (!options.fresh) console.log(`${offerText(offer)}\n`);
+  return offer;
+}
+
+/** The three builds as text: each card, and why they're the class defaults when they are. */
+function offerText(offer: Offer): string {
+  return [...(offer.note ? [offer.note, ""] : []), ...offer.options.map((o, i) => `${i + 1}. ${cardText(o).replace(/\n/g, "\n   ")}`)].join("\n");
+}
 
 function flag(args: string[], name: string): string | undefined {
   const i = args.indexOf(`--${name}`);
@@ -74,11 +108,67 @@ async function main(): Promise<void> {
     print(game.observe(), id);
     return;
   }
+  if (command === "builds") {
+    const who = flag(args, "as") ?? DEFAULT_WHO;
+    const level = Number(flag(args, "level") ?? 3);
+    const offer = await offerFor(id, who, level, { fresh: true });
+    console.log(offerText(offer));
+    console.log(`\n(qa new --session ${id} --as "${who}" --build 1, 2 or 3 takes one; --build own:<species>,<class>,<subclass>,<background> makes your own.)`);
+    return;
+  }
   if (command === "new") {
-    const who = flag(args, "as") ?? "Wren Ashdown: a quick-witted investigator lent to the case by the King";
+    const who = flag(args, "as") ?? DEFAULT_WHO;
     const level = Number(flag(args, "level") ?? 3);
     const seed = flag(args, "seed");
-    const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), explorer: town, fights });
+    const choice = flag(args, "build");
+    const file = flag(args, "backstory-file");
+    const story = file ? readFileSync(file, "utf8") : flag(args, "backstory");
+    const accept = args.includes("--accept-fixes");
+    // The build: one of the three, or one of their own; none, and the model picks one for the concept.
+    let build: Build | undefined;
+    if (choice) {
+      const own = /^own:([\w-]+),([\w-]+),([\w-]*),([\w-]+)$/.exec(choice);
+      if (own) {
+        const made = await ownBuild({ speciesId: own[1]!, classId: own[2]!, ...(own[3] ? { subclassId: own[3] } : {}), backgroundId: own[4]! }, level, who.split(":")[0]!.trim());
+        console.log(`Your own: ${made.line}\n${cardText(made)}\n`);
+        build = made.build;
+      } else {
+        const n = Number(choice);
+        if (![1, 2, 3].includes(n)) throw new Error(`--build is 1, 2 or 3, or own:<species>,<class>,<subclass>,<background> (not ${choice})`);
+        const offer = await offerFor(id, who, level);
+        const picked = offer.options[n - 1]!;
+        console.log(`Build ${n} of three: ${picked.line}\n${cardText(picked)}\n`);
+        build = picked.build;
+      }
+    }
+    // The backstory: checked against the lore (what doesn't fit is said, never changed without --accept-fixes), then what it says of them.
+    let backstory: Backstory | undefined;
+    // As the game's box has it: no longer than the GM can be given every turn.
+    const long = story ? tooLong(story) : undefined;
+    if (long) throw new Error(`--backstory: ${long}`);
+    if (story?.trim()) {
+      const name = who.split(":")[0]!.trim(), concept = who.split(":").slice(1).join(":").trim();
+      const line = build ? (await throughEngine(build, level, name)).line : undefined;
+      const w = { name, concept, ...(line ? { build: line } : {}) };
+      let text = story.trim();
+      // Fixes taken are checked once more, as the screens do (a fix can miss too).
+      for (let look = 0; look < 2; look++) {
+        const checked = await checkLore(text, w);
+        if (!checked.ok) console.log(`Backstory: ${checked.why}`);
+        else if (!checked.value.length) console.log(look ? "Backstory: with the fixes in, it fits." : "Backstory: it fits the world's lore.");
+        let fixes = 0;
+        for (const issue of checked.ok ? checked.value : []) {
+          console.log(`Backstory${look ? " (checked again)" : ""}: "${issue.quote ?? "(the GM couldn't point at the words)"}" doesn't fit: ${issue.problem}\n  A fix that keeps its spirit: "${issue.fix}"`);
+          const fixed = accept ? applyFix(text, issue) : undefined;
+          if (fixed !== undefined) { text = fixed; fixes++; console.log("  (fixed: --accept-fixes)"); }
+          else console.log(accept ? "  (its words aren't in the backstory: rewrite it yourself)" : "  (not changed: --accept-fixes takes the fixes)");
+        }
+        if (!fixes) break;
+      }
+      backstory = await finishBackstory(text, w);
+      console.log(`Who you are: ${backstory.summary}\n`);
+    }
+    const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), ...(build ? { build } : {}), ...(backstory ? { backstory } : {}), explorer: town, fights });
     console.log(`Game ${game.state.id}: you are ${game.session.player.name}${game.session.player.build ? `, ${game.session.player.build}` : ""}.\n`);
     print(game.observe(), id);
     return;

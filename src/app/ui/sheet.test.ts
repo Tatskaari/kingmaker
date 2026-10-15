@@ -165,6 +165,19 @@ test("the sheet wide: one page with everything when there's room, laid out in co
   assert.ok(sheetHeight(d, state.player, 196, 56, { bar: true }) < 56, "a box sized to the sheet, not the screen");
 });
 
+test("the Story page: a blank line between paragraphs, and a line break where the player made one (not a paragraph of its own)", async () => {
+  const d = (await sheetData(await made("fighter")))!;
+  const story = { backstory: "I mend nets on the wharves.\nI owe Fat Jory three crowns.\n\nMy sister Ada writes every month.", personality: ["Dogged"], ideals: [], bonds: ["Ada"], flaws: [] };
+  const pages = sheetPages({ ...d, story }, { name: "Wren Ashdown", concept: "a net-mender" }, 76, 21, { bar: true });
+  const page = pages.find(p => p.title.includes("Story"))!;
+  // The Backstory section's column (it may be laid out beside another).
+  const all = plain(page.rows).split("\n");
+  const head = all.findIndex(l => l.includes("Backstory"));
+  const col = all[head]!.indexOf("Backstory");
+  const lines = all.slice(head + 1, head + 5).map(l => l.slice(col).trimEnd());
+  assert.deepEqual(lines, ["I mend nets on the wharves.", "I owe Fat Jory three crowns.", "", "My sister Ada writes every month."]);
+});
+
 test("a bad day on the sheet: down with death saves, conditions, temporary hit points; a warlock's pact slots", async () => {
   const d = (await sheetData(await made("fighter")))!;
   const down = { ...d, hp: { current: 0, max: 28, temp: 0 }, deathSaves: { successes: 1, failures: 2, stable: false }, conditions: ["Unconscious", "Prone"] };

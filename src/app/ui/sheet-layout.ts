@@ -25,13 +25,13 @@ const MIN_COL = 34;
 const GAP = 3;
 
 const cells = (t: string) => [...t].length;
-const widthOf = (row: Row) => row.reduce((n, r) => n + cells(r.text), 0);
-const run = (text: string, fg?: string, style: Omit<Run, "text" | "fg"> = {}): Run => ({ text, ...(fg ? { fg } : {}), ...style });
+export const widthOf = (row: Row) => row.reduce((n, r) => n + cells(r.text), 0);
+export const run = (text: string, fg?: string, style: Omit<Run, "text" | "fg"> = {}): Run => ({ text, ...(fg ? { fg } : {}), ...style });
 const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 const ordinal = (n: number) => ["Cantrips", "1st", "2nd", "3rd"][n] ?? `${n}th`;
 
 /** A row cut (with an ellipsis) or padded to exactly w cells. */
-function fit(row: Row, w: number): Row {
+export function fit(row: Row, w: number): Row {
   const out: Row = [];
   let n = 0;
   for (const r of row) {
@@ -53,7 +53,7 @@ function beside(blocks: Array<{ rows: Row[]; w: number }>, gap = GAP): Row[] {
 }
 
 /** Atoms (runs that stay together) in rows at most w wide, with sep between them on a row; later rows indented. */
-function flow(atoms: Row[], w: number, sep: Row = [run(" ")], indent = 0): Row[] {
+export function flow(atoms: Row[], w: number, sep: Row = [run(" ")], indent = 0): Row[] {
   const rows: Row[] = [];
   const sw = widthOf(sep);
   let cur: Row = [], n = 0, empty = true;
@@ -76,7 +76,7 @@ function labelled(label: Row, items: Row[], w: number, sep: Row, indent = 2): Ro
 }
 
 /** Words in one style, wrapped; at most `max` rows, the last ending in an ellipsis if there was more. */
-function prose(text: string, w: number, fg: string, style: Omit<Run, "text" | "fg"> = {}, max = Infinity): Row[] {
+export function prose(text: string, w: number, fg: string, style: Omit<Run, "text" | "fg"> = {}, max = Infinity): Row[] {
   const rows = flow(text.split(/\s+/).filter(Boolean).map(word => [run(word, fg, style)]), w);
   if (rows.length <= max) return rows;
   // A word off the end (and the space before it) until the ellipsis fits.
@@ -348,6 +348,24 @@ function knowsSection(d: SheetData, w: number): Row[] {
   ];
 }
 
+/** What their backstory says of them: personality, ideals, bonds and flaws, each a label and its lines. */
+function whoSection(d: SheetData, w: number): Row[] {
+  const s = d.story!;
+  const rows: Row[] = [rule("Who they are", w)];
+  for (const [label, items] of [["Personality", s.personality], ["Ideals", s.ideals], ["Bonds", s.bonds], ["Flaws", s.flaws]] as const) {
+    if (!items.length) continue;
+    rows.push([run(label, C.lead, { bold: true })], ...items.flatMap(i => prose(i, w - 2, C.text).map(r => [run("  "), ...r])));
+  }
+  if (rows.length === 1) rows.push([run("Nothing drawn from it yet.", C.faint, { italic: true })]);
+  return rows;
+}
+
+/** Their backstory, in their own words: a blank line between paragraphs, and a line break where they made one. */
+function backstorySection(d: SheetData, w: number): Row[] {
+  const paragraphs = d.story!.backstory.split(/\n\s*\n/).map(p => p.split("\n").map(l => l.trim()).filter(Boolean)).filter(p => p.length);
+  return [rule("Backstory", w), ...paragraphs.flatMap((lines, i) => [...(i ? [[] as Row] : []), ...lines.flatMap(l => prose(l, w, C.text))])];
+}
+
 // ---------------------------------------------------------------------------------------------
 // Pages.
 
@@ -360,6 +378,8 @@ function groups(d: SheetData): Group[] {
     { title: "Combat", sections: [w => attacksSection(d, w), w => featuresSection(d, w), w => featsSection(d, w), w => traitsSection(d, w)] },
     ...(d.spellcasting ? [{ title: "Spells", sections: [(w: number) => spellsSection(d, w)] }] : []),
     { title: "Gear", sections: [w => equipmentSection(d, w), ...(d.carrying.length ? [(w: number) => carryingSection(d, w)] : []), w => purseSection(d, w), w => knowsSection(d, w)] },
+    // Their backstory (from character creation), when they wrote one.
+    ...(d.story ? [{ title: "Story", sections: [(w: number) => whoSection(d, w), (w: number) => backstorySection(d, w)] }] : []),
   ];
 }
 

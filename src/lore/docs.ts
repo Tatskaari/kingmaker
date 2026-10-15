@@ -90,6 +90,9 @@ export function listDocs(sessionId: string, options: { sessionOnly?: boolean } =
   return [...new Set([...walk(overlay(sessionId)), ...(options.sessionOnly ? [] : walk(LORE_ROOT))])].sort();
 }
 
+/** The authored lore's docs, by path, before any session has a copy of them (character creation reads the world from these). */
+export const seedPaths = (): string[] => walk(LORE_ROOT).sort();
+
 export const titleOf = (doc: Doc) => doc.meta.title ?? /^#\s+(.+)$/m.exec(doc.body)?.[1]?.trim() ?? basename(doc.path, ".md");
 
 export function permitted(doc: Doc, scope: string): boolean {
@@ -143,13 +146,38 @@ export const STORY_INDEX = "story/index.md";
 
 /** The player character's own doc: who they are and what they've told or shown people (the GM's record). */
 export const playerDocPath = (name: string) => `Player/${name.replace(/[^\w' -]/g, "").trim() || "Player"}.md`;
+const TOLD = "## What they've told or shown people about themselves";
 export function playerDoc(sessionId: string, player: { name: string; concept: string }): Doc {
   const path = playerDocPath(player.name);
   const existing = readDoc(sessionId, path);
   if (existing) return existing;
-  const doc: Doc = { path, meta: { summary: `The player character, ${player.name}: who they are, and what they've told or shown people about themselves (their past, family, origins, claims).`, type: "character", visibility: "gm" }, body: `# ${player.name}\n\n${player.concept}\n\n## What they've told or shown people about themselves` };
+  const doc: Doc = { path, meta: { summary: `The player character, ${player.name}: who they are, and what they've told or shown people about themselves (their past, family, origins, claims).`, type: "character", visibility: "gm" }, body: `# ${player.name}\n\n${player.concept}\n\n${TOLD}` };
   writeDoc(sessionId, doc);
   return doc;
+}
+
+/**
+ * The player character's doc with their backstory in it (character creation's, src/lore/backstory.ts):
+ * the whole of it in their words, and what it says of them, in the session's own overlay (never the
+ * authored lore). It's the GM's (visibility gm): the GM's notes have it every turn, and nobody in the
+ * story reads it. What they've told or shown people stays last, for the reviews to add to.
+ */
+export function writePlayerBackstory(sessionId: string, player: { name: string; concept: string; backstory?: { text: string; personality: string[]; ideals: string[]; bonds: string[]; flaws: string[] } }): Doc {
+  const doc = playerDoc(sessionId, player);
+  const b = player.backstory;
+  if (!b?.text.trim()) return doc;
+  const told = doc.body.indexOf(TOLD);
+  const after = told >= 0 ? doc.body.slice(told) : TOLD;
+  const traits = ([["Personality", b.personality], ["Ideals", b.ideals], ["Bonds", b.bonds], ["Flaws", b.flaws]] as const).filter(([, v]) => v.length).map(([k, v]) => `- ${k}: ${v.join("; ")}`);
+  const body = [
+    `# ${player.name}`, player.concept,
+    `## Their backstory, in their own words (written at character creation)\nIt's their past, so it's true for them; the people of the story know of it only what they'd plausibly know (someone from that past, something that was public), or what the player tells or shows them.\n\n${b.text.trim()}`,
+    ...(traits.length ? [`## What it says of them\n${traits.join("\n")}`] : []),
+    after,
+  ].join("\n\n");
+  const written: Doc = { ...doc, meta: { ...doc.meta, summary: `The player character, ${player.name}: who they are and their own backstory (where they're from, what they owe, who they've lost, why they took the case), and what they've told or shown people about themselves.` }, body };
+  writeDoc(sessionId, written);
+  return written;
 }
 
 /** A character's memory index, private to them (V1's seedMemories). */

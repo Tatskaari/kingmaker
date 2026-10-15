@@ -6,7 +6,7 @@ import { withhold } from "../lore/disclosure.ts";
 import { characterEntry, linksIn, memoryLines, permitted, readDoc, saveMemory, titleOf, type Doc } from "../lore/docs.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf, talkSceneId, TOLD } from "../../scenes/talk.ts";
-import { nameTokens, sceneEntries, scriptTranscript } from "./brief.ts";
+import { nameTokens, playerWho, sceneEntries, scriptTranscript } from "./brief.ts";
 import { GUARD_STAGES, type Mechanic } from "./director.ts";
 import { playerTurn, type TurnHooks, type TurnResult } from "./engine.ts";
 import type { Character, Scene } from "./scene.ts";
@@ -255,7 +255,7 @@ async function plan(state: SessionState, scene: Scene): Promise<{ prep: Plan; he
     `## The story so far (the hand-offs between scenes)\n${state.history.map(h => h.summary).join("\n\n") || "(it's just begun)"}`,
     `## What they said and did in the story's scenes (the replies that mention them, the latest last)\n${inTheStory(state, companionOf(scene)) || "(nothing yet)"}`,
     `## This talk\nThe ${ordinal(record.count)} time the player has stopped for a word with ${name} between scenes. Where and when: ${talk.where}.\nWhat they'd open up about next is in one of these notes: ${candidates.map(d => `${d.path} (${titleOf(d)})`).join("; ") || "(none left)"}.`,
-    `## The player character\n${state.player.name}: ${state.player.concept}`,
+    `## The player character\n${playerWho(state)}`,
   ].join("\n\n");
   const prep = await respondJson<Plan>({
     operation: "talk.plan", effort: "none", maxOutputTokens: 800,
@@ -381,7 +381,7 @@ async function suggest(state: SessionState, signal: AbortSignal): Promise<{ line
     operation: "talk.suggest", effort: "none", maxOutputTokens: 300, signal,
     instructions: `You suggest what the player might say next in a conversation with ${name} in a roleplaying game, like the dialogue choices a cRPG offers. Give 2 to 4 short lines in the player character's own voice (plain speech without quotes, under 15 words each), one per line and nothing else. Each raises something the player hasn't asked in this conversation, and no two are about the same thing: a follow-up to what ${name} just said, something about ${name}'s own life or past (not the story), the story so far, someone the player has met. Lines a player would really want to say, curious, warm, wry or pointed, as the player character would be. Never something ${name} has already told them, and no goodbyes (that choice is always there).`,
     input: [{ role: "user", content: [
-      `## The player character\n${state.player.name}: ${state.player.concept}`,
+      `## The player character\n${playerWho(state)}`,
       ...(story ? [`## The story so far (the latest hand-offs between scenes)\n${story}`] : []),
       ...(told.length ? [`## What ${name} has already told them of their own story (don't ask again)\n${told.map(t => `- ${t.topic}`).join("\n")}`] : []),
       ...(keeping ? [`## What ${name} might open up about in this talk (one line may lead towards it without naming it)\n${keeping.topic}`] : []),

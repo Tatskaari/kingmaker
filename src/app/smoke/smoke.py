@@ -143,6 +143,9 @@ def say(app, text):
     app.send(KEYS["enter"], 0.3)
 
 
+BACKSTORY = "I kept a grain factor's books on the wharves for nine years, until the night the sums came out too right. I owe Fat Jory three crowns."
+
+
 def new_game(app, name, concept, by_click=False):
     expect(app, r"Hanged Clerk of Caerwyn", "title screen")
     if by_click:
@@ -155,10 +158,47 @@ def new_game(app, name, concept, by_click=False):
     keys(app, "enter")
     app.type(concept)
     keys(app, "enter")
-    expect(app, r"Character sheet.*AC \d+", "the rules engine made a sheet", timeout=90)
+    # Three builds that fit, as cards (offline: the class defaults the concept's words suggest).
+    m = expect(app, r"Three ways to be .*?(\w+ \w+ 3) ", "three builds that fit, as cards", timeout=90)
+    expect(app, r"HP \d+.*AC \d+.*Make my own", "each card has its numbers, and there's making your own")
+    if by_click:
+        click(app, m.group(1), "a click on the first card")
+    else:
+        keys(app, "enter")
+    expect(app, r"Who were you, before the King sent for you\?", "the first card taken: on to the backstory")
+    # Their own backstory, typed into the box, then Done (a click, or Alt+Enter).
+    app.type(BACKSTORY, 0.5)
+    if by_click:
+        click(app, " Done ", "a click on Done")
+    else:
+        app.send("\x1b\r", 0.5)
+    # Offline the lore check says it isn't checked; with the GM it may offer fixes, one at a time, and look
+    # again once they're in: take each.
+    panel = r"The lore check[^\n│]*?: \d+ of \d+.*?Your story says: [^\n│]*"
+    for look in range(6):
+        m = app.wait_for(panel, 30 if LIVE else 3)
+        if not m:
+            break
+        dump(app, f"lore-check-{look + 1}")
+        shown = m.group(0)
+        click(app, "Accept the fix", "the lore check's fix accepted")
+        # The next fix, the check looking again, or the sheet: anything but this one.
+        end = time.time() + 10
+        while time.time() < end:
+            app.pump(0.2)
+            now = re.search(panel, app.text(), re.S | re.I)
+            if not now or now.group(0) != shown:
+                break
+    expect(app, r"Character sheet.*AC \d+", "the rules engine made a sheet", timeout=120)
+    if not LIVE:
+        # Offline nobody checked it: the sheet says so over it.
+        expect(app, r"went in as you wrote it, without the lore check: the GM is offline", "offline, the sheet says the backstory went in unchecked")
     expect(app, r"1 Character.*2 Combat.*HP .*\d+/\d+.*STR.*DEX.*CON.*Saving throws", "the sheet: in pages, the numbers and the six abilities")
     keys(app, "right")
     expect(app, r"2 Combat.*Attacks.*Purse", "→ turns the sheet's page")
+    # The backstory's page: what it says of them, and the whole of it.
+    click(app, "Story ", "a click on the sheet's Story tab")
+    expect(app, r"Who they are.*Bonds.*Backstory.*came out too right", "the sheet's Story page: who they are, and their backstory")
     keys(app, "enter")
     expect(app, r"The lead:.*Hanged Clerk", "exploring Caerwyn, the lead is the hanged clerk")
 
@@ -701,6 +741,11 @@ def live_fight():
     keys(app, "enter")
     app.type("a Nine Furrows hedge-wizard with a scorched hat, a head full of cantrips and no sense of self-preservation")
     keys(app, "enter")
+    # Three builds as cards: the first (the concept names a wizard, so the model leads with one); no backstory.
+    expect(app, r"Three ways to be Pell Marrow.*HP \d+", "three builds that fit, as cards", timeout=90)
+    keys(app, "enter")
+    expect(app, r"Who were you, before the King sent for you\?", "on to the backstory")
+    click(app, " Skip ", "a click on Skip")
     expect(app, r"Character sheet.*wizard|Character sheet.*sorcerer|Character sheet.*Spellcasting", "a spellcaster's sheet", timeout=90)
     keys(app, "enter")
     to_lead(app, r"The Hanged Clerk ·")

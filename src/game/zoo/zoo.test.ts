@@ -122,6 +122,29 @@ test("a wing's world is live on the map: its people are about, and a trigger set
   assert.match(await game.act("use_fireball-scarecrow"), /isn't a spell .* has ready/);
 });
 
+test("the tailor measures you for three cuts as character creation offers three builds, and you put one on; the wardrobe's robes stay on offer", async () => {
+  const game = await newZoo({ seed: 15 });
+  placePlayer(game.state, "zoo-hall", WINGS[0]!.entry);
+  assert.ok(!available(game.state, game.session, "tailor-cut-1"), "no cuts before he's measured you");
+  assert.ok(!available(game.state, game.session, "wear-wizard"), "the robes you came in");
+  const said = await game.act("use_tailor");
+  assert.match(said, /three cuts/);
+  assert.match(said, /offline: three from the class defaults/, "offline, the class defaults the sentence suggests");
+  const cuts = zooOf(game.state).tailor!.cuts;
+  assert.equal(cuts.length, 3);
+  assert.equal(new Set(cuts.map(c => c.build.classId)).size, 3, "three different classes");
+  assert.ok([1, 2, 3].every(n => available(game.state, game.session, `tailor-cut-${n}`)));
+  const fighter = cuts.findIndex(c => c.build.classId === "fighter");
+  assert.ok(fighter >= 0, "a lighthouse keeper could be a fighter, by the defaults");
+  const put = await game.act(`use_tailor-cut-${fighter + 1}`);
+  assert.ok(put.includes(cuts[fighter]!.line), `the cut as offered: ${put}`);
+  assert.equal(game.session.player.build, cuts[fighter]!.line);
+  assert.ok(available(game.state, game.session, "wear-fighter") && available(game.state, game.session, "wear-wizard"), "a cut of the same class isn't the fighter's mail");
+  // Saved and loaded, the cuts are still on offer.
+  game.save();
+  assert.equal(zooOf(loadZoo(game.state.id).state).tailor?.cuts.length, 3);
+});
+
 test("a scene of the zoo's opens when you walk into its room, and ends back on the map with the story untouched", async () => {
   const game = await newZoo({ seed: 14 });
   const room = ROOMS.find(r => r.sceneId === "zoo-pie-stall")!;

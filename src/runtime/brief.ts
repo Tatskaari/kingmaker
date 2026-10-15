@@ -138,8 +138,43 @@ function exitBlock(exit: Exit): string {
   return `- ${exit.title}: ${exit.outcome}`;
 }
 
+/**
+ * Who the player character is, in a line for a model's brief: their name and concept, and from their
+ * backstory (character creation's) who they are, in a sentence or two.
+ */
+export function playerWho(state: SessionState): string {
+  const p = state.player;
+  return `${p.name}: ${p.concept}${p.backstory?.summary ? `. ${p.backstory.summary}` : ""}`;
+}
+
+/**
+ * The player character's own backstory, for the GM: who they are in short (every brief), and where
+ * the whole of it is (`inNotes`: the GM's notes from the docs service have it, so it isn't repeated;
+ * otherwise it's here in full). Their past, known in the story only where someone would know it.
+ */
+function backstoryBrief(state: SessionState, inNotes: boolean): string {
+  const b = state.player.backstory;
+  if (!b?.text.trim()) return "";
+  // A trait in its own words may end in a full stop ("I owe Fat Jory three crowns."): the list has its own.
+  const bare = (t: string) => t.trim().replace(/[.;:,]+$/, "");
+  const traits = ([["personality", b.personality], ["ideals", b.ideals], ["bonds", b.bonds], ["flaws", b.flaws]] as const).filter(([, v]) => v.length).map(([k, v]) => `${k}: ${v.map(bare).join("; ")}`);
+  return [
+    `\nWho they are, from their own backstory: ${b.summary}${traits.length ? ` (${traits.join(". ")}.)` : ""}`,
+    inNotes ? "The whole of their backstory, in their own words, is in your notes (the player character's doc)." : `Their backstory, in their own words:\n${b.text.trim().split(/\n+/).map(l => `> ${l}`).join("\n")}`,
+    "It's their past, and true for them: let it colour the world when it would (a face from home, an old debt coming due, a name that means something to them), but people in the story know of it only what they'd plausibly know (someone from that past, something that was public) or what the player tells or shows them. Nobody brings it up out of nowhere. What it says of the story's own people and places is what they believe or heard: where your prep says otherwise, your prep is the truth.",
+    "When the player tells someone of their past without saying it word for word (\"I tell her where I'm from\"), they tell it as their backstory has it: show what they told, in its own details, and how the listener takes it.",
+  ].join("\n");
+}
+
+/**
+ * Who knew the player character before the story began: none of its people (whoever sent for them
+ * aside). Without it the GM yes-ands a leading line ("Sergeant, you'll remember me") into an old
+ * acquaintance, and puts the scene's own secrets in it (Prout's visit to the watch house, as theirs).
+ */
+const STRANGER = "Before the story began, none of its people had met them (whoever sent for them aside): they know them only from what's happened in play since, and of their past only what they'd plausibly know or have been told. If the player claims an old acquaintance with one of them (\"You'll remember me\"), it isn't so, and that person says so in their own way; people from the player's own past are another matter.";
+
 /** Stable prep for the GM: everything that doesn't change turn to turn (cache-friendly prefix). */
-export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; lastHandoffOnly?: boolean } = {}): string {
+export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; lastHandoffOnly?: boolean; docs?: boolean } = {}): string {
   options = { secrets: true, ...options };
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const cast = scene.cast.map(c => castBlock(scene, options.secrets ? c : { ...c, secrets: [] }, present.has(c.id))).join("\n\n");
@@ -155,7 +190,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
     ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
-    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
+    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it. ${STRANGER}${skillSummary(state)}${backstoryBrief(state, !!options.docs)}`,
     `## Table rules (for out-of-character questions)\n${state.rules
       ? "- The game runs D&D rules: it rolls the dice for checks, saving throws, spells, attacks and rests, and you're told each result (🎲). You never roll, ask for a roll or invent numbers.\n- The player can see their character sheet out of game (/sheet). Levels come at story milestones. A real fight moves to the battle map."
       : "- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- There's no experience or loot system yet."}\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,

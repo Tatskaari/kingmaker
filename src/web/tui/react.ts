@@ -8,6 +8,7 @@ import { InputRenderable, InputRenderableEvents } from "./input.ts";
 import { isRenderable, Renderable, type RenderContext } from "./renderable.ts";
 import { CliRenderEvents, type CliRenderer } from "./renderer.ts";
 import { ScrollBoxRenderable } from "./scrollbox.ts";
+import { TextareaRenderable } from "./textarea.ts";
 import { TextNodeRenderable, TextRenderable, type TextNodeOptions } from "./text.ts";
 
 /**
@@ -52,6 +53,7 @@ export const baseComponents: Record<string, Constructor> = {
   box: BoxRenderable,
   text: TextRenderable,
   input: InputRenderable,
+  textarea: TextareaRenderable,
   scrollbox: ScrollBoxRenderable,
   "ascii-font": ASCIIFontRenderable,
   span: SpanRenderable,
@@ -106,6 +108,7 @@ function setProperty(instance: Instance, key: string, value: unknown, old?: unkn
       break;
     case "onSubmit":
       if (instance instanceof InputRenderable) listen(instance, InputRenderableEvents.ENTER, value as Listener, old as Listener);
+      else if (instance instanceof TextareaRenderable) instance.onSubmit = value as Listener | undefined;
       break;
     case "focused":
       if (isRenderable(instance)) { if (value) instance.focus(); else instance.blur(); }
