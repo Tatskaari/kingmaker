@@ -234,7 +234,7 @@ After a GM reply (an opening, a turn's, a fight's aftermath), with `suggest` (th
 - **What the call is given** (`suggestionBrief`, with [prompts/suggest.md](../../prompts/suggest.md)):
   - what the player knows: who they are (concept, build, strengths, spells, what they carry, and character creation's backstory when there is one), what they came in knowing, and the story so far;
   - behind the screen, the GM's prep on the threads: what each person here is after, the ways on from here and their rolls (by skill), what the scene still needs the player to come across and where, how it can end, and what it can't offer;
-  - the scene as the player has seen it: who's here, as they look, and the last ten entries;
+  - the scene as the player has seen it: who's here, as they look, what they've found out (the facts play has established and the essentials they've come across: settled, as a companion's told stories are, to act on and not to ask after), and the last ten entries;
   - what's not to come again: the player's last line, and the lines offered last time.
 
   Anyone whose name the player hasn't heard goes by what they'd call them, in the prep too (`asTheyKnowIt`). What changes least comes first, for the provider's cache.

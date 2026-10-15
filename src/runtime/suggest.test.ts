@@ -209,6 +209,19 @@ test("the lines land for the scene and turn they were made for, and the hooks sa
   }
 });
 
+test("what the player has found out is settled, as a companion's told stories are: in the brief to act on, not to ask after, and no longer hidden", async () => {
+  const state = yard("suggest-found");
+  state.landed = ["page"];
+  state.established = ["Prout didn't hang himself: what has been found shows he was killed and then hoisted up to look like a suicide."];
+  let brief = "";
+  const made = await propose(state, {
+    decider: { name: "stub", decide: async (_facts, questions) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id.startsWith("roll_") ? "risky" : "fine", probabilities: {} }])), latencyMs: 1, costUsd: 0, decider: "stub" }) },
+    ask: async request => { brief = request.input[0]!.content; return { costUsd: 0, latencyMs: 1, text: "say: Sergeant, the wagons were countersigned. By whom, though?\ndo: (I read the page again)" }; },
+  });
+  assert.match(brief, /## What they've found out here \(settled: no line asks after it again, though one may act on it\)\n- Prout didn't hang himself[\s\S]*- Prout found grain written off as 'lost to goblins'/);
+  assert.deepEqual(made.lines.map(l => l.text), ["Sergeant, the wagons were countersigned. By whom, though?", "(I read the page again)"], "a word of what's been found isn't hidden any more (countersigned)");
+});
+
 test("a reply cut short loses its last line, which may be half a line", async () => {
   const decider: Decider = { name: "stub", decide: async (_facts, questions) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id.startsWith("roll_") ? "risky" : "fine", probabilities: {} }])), latencyMs: 1, costUsd: 0, decider: "stub" }) };
   const made = await propose(yard("suggest-cut"), {

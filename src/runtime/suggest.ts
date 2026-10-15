@@ -148,6 +148,7 @@ async function judge(scene: Scene, state: SessionState, lines: Suggestion[], dec
       `They came in knowing: ${state.lead ?? scene.hook}`,
       ...(state.history.length ? [`The story so far: ${state.history.at(-1)!.summary}`] : []),
       `Who's here, as they see them: ${present.map(c => `${called[c.id] ?? c.name}: ${known(c.look)}`).join(" ")}`,
+      ...(foundOut(scene, state).length ? [`What they've found out here: ${foundOut(scene, state).map(known).join(" ")}`] : []),
       `The scene so far:\n${scriptTranscript(scene, state, sceneEntries(state).filter(e => e.kind !== "system").slice(-24))}`,
     ].join("\n\n"),
   };
@@ -270,6 +271,7 @@ export function suggestionBrief(scene: Scene, state: SessionState): string {
   const entries = sceneEntries(state).filter(e => e.kind !== "system");
   const said = entries.filter(e => e.kind === "player").at(-1)?.text;
   const offered = lastOffered(state);
+  const found = foundOut(scene, state);
   return [
     "# What the player knows: who they are, and what they came in knowing",
     `## Who they are\n${who(state)}`,
@@ -283,9 +285,19 @@ export function suggestionBrief(scene: Scene, state: SessionState): string {
     ...(scene.limits?.length ? [`## What this scene can't offer (never suggest reaching for these)\n${scene.limits.map(l => `- ${known(limitHead(l))}`).join("\n")}`] : []),
     "# What the player knows of the scene",
     `## Who's here, as the player sees them\n${present.map(c => `- ${nameOf(c)}${called[c.id] ? " (the player hasn't heard their name: call them that)" : ""}${c.group ? ` (${known(c.group)})` : ""}: ${known(c.look)}`).join("\n") || "(nobody but the player)"}`,
+    ...(found.length ? [`## What they've found out here (settled: no line asks after it again, though one may act on it)\n${found.map(f => `- ${known(f)}`).join("\n")}`] : []),
     `## The scene so far (the latest last)\n${scriptTranscript(scene, state, entries.slice(-10)) || "(It's just begun.)"}`,
     `# Not again\n${said ? `The player just said: ${said}\n` : ""}${offered.length ? `Offered last time (none of these again, not even in other words: the player has seen them):\n${offered.map(l => `- ${l}`).join("\n")}` : "Nothing offered yet."}`,
   ].join("\n\n");
+}
+
+/**
+ * What the player has found out in this scene, as the talks have what a companion has told: the facts
+ * play has established and what the scene needed them to come across that they have. Settled: a line
+ * acts on it, never asks after it again.
+ */
+function foundOut(scene: Scene, state: SessionState): string[] {
+  return [...new Set([...state.established, ...(scene.essentials ?? []).filter(e => state.landed?.includes(e.id)).map(e => e.what)])];
 }
 
 /** The lines offered last time, in this scene. */
@@ -388,7 +400,7 @@ function properNouns(text: string): string[] {
 /**
  * Everything the player has met: the scene's hook and the story told so far, who they are, who's here
  * as they look, the place as the screen shows it (what's in it by name, but nothing hidden and nothing
- * in someone else's hands), and what they carry.
+ * in someone else's hands), what they carry, and what they've found out.
  */
 function visibleText(scene: Scene, state: SessionState): string {
   const p = state.player as PlayerCharacter & { backstory?: { text?: string } };
@@ -401,7 +413,7 @@ function visibleText(scene: Scene, state: SessionState): string {
     p.name, p.concept, p.build ?? "", p.backstory?.text ?? "",
     ...presentCast(scene, state).map(c => `${c.look} ${c.called ?? ""}`),
     ...[...knownCast(scene, state)].map(id => scene.cast.find(c => c.id === id)?.name ?? ""),
-    ...shown, ...carriedNames(state),
+    ...shown, ...carriedNames(state), ...foundOut(scene, state),
   ].join("\n");
 }
 
