@@ -161,7 +161,7 @@ node --no-warnings src/game/zoo/tour.ts [--live] [--only fire,arena] [--no-png] 
 
 ```sh
 node --no-warnings --test src/game/zoo/*.test.ts src/app/zoo.test.ts   # 28 tests, about 8 s; one of them tours Kell's Corner and the chandlery
-node --no-warnings src/game/zoo/tour.ts --no-png                        # every exhibit, offline: 145 exhibits, 340 steps, about 20 s here
+node --no-warnings src/game/zoo/tour.ts --no-png                        # every exhibit, offline: 145 exhibits, 341 steps, about 20 s here
 node --no-warnings src/game/zoo/tour.ts --only fire,arena               # some wings, with pictures (Python with Pillow)
 node --no-warnings src/game/zoo/tour.ts --live                          # the scenes' lines said to the real GM first
 OPENROUTER_API_KEY=offline npm run qa -- new --session z1 --zoo         # by action id
