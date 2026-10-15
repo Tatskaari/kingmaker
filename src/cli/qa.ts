@@ -36,7 +36,7 @@ const USAGE = `Kingmaker playable game: headless QA
       [--build 1|2|3]                           one of the three builds (qa builds' offer, or a new one)
       [--build own:<species>,<class>,<subclass>,<background>]   one of your own making, from the SRD's ids
       [--backstory "..." | --backstory-file <path>]   your backstory: checked against the lore (what doesn't fit is
-                                                      said, with a fix); --accept-fixes takes the fixes
+                                                      said, with a fix); --accept-fixes takes the fixes (and checks once more)
   qa new --session <id> --zoo [--seed N]       visit the zoo instead: every feature laid out to see and try
   qa observe --session <id>                     what you see, and the actions you can take
   qa act --session <id> --id <action id>        take an action from the latest observation (in a talk, say_1... says that line)
@@ -146,14 +146,19 @@ async function main(): Promise<void> {
       const line = build ? (await throughEngine(build, level, name)).line : undefined;
       const w = { name, concept, ...(line ? { build: line } : {}) };
       let text = story.trim();
-      const checked = await checkLore(text, w);
-      if (!checked.ok) console.log(`Backstory: ${checked.why}`);
-      else if (!checked.value.length) console.log("Backstory: it fits the world's lore.");
-      for (const issue of checked.ok ? checked.value : []) {
-        console.log(`Backstory: "${issue.quote ?? "(the GM couldn't point at the words)"}" doesn't fit: ${issue.problem}\n  A fix that keeps its spirit: "${issue.fix}"`);
-        const fixed = accept ? applyFix(text, issue) : undefined;
-        if (fixed !== undefined) { text = fixed; console.log("  (fixed: --accept-fixes)"); }
-        else console.log(accept ? "  (its words aren't in the backstory: rewrite it yourself)" : "  (not changed: --accept-fixes takes the fixes)");
+      // Fixes taken are checked once more, as the screens do (a fix can miss too).
+      for (let look = 0; look < 2; look++) {
+        const checked = await checkLore(text, w);
+        if (!checked.ok) console.log(`Backstory: ${checked.why}`);
+        else if (!checked.value.length) console.log(look ? "Backstory: with the fixes in, it fits." : "Backstory: it fits the world's lore.");
+        let fixes = 0;
+        for (const issue of checked.ok ? checked.value : []) {
+          console.log(`Backstory${look ? " (checked again)" : ""}: "${issue.quote ?? "(the GM couldn't point at the words)"}" doesn't fit: ${issue.problem}\n  A fix that keeps its spirit: "${issue.fix}"`);
+          const fixed = accept ? applyFix(text, issue) : undefined;
+          if (fixed !== undefined) { text = fixed; fixes++; console.log("  (fixed: --accept-fixes)"); }
+          else console.log(accept ? "  (its words aren't in the backstory: rewrite it yourself)" : "  (not changed: --accept-fixes takes the fixes)");
+        }
+        if (!fixes) break;
       }
       backstory = await finishBackstory(text, w);
       console.log(`Who you are: ${backstory.summary}\n`);

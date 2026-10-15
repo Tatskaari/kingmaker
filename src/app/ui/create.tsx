@@ -396,7 +396,7 @@ export function BackstoryScreen({ game }: { game: Game }) {
       <box width={w} height={storyH} flexShrink={0} border borderStyle="rounded" borderColor={C.border} title=" Your backstory " titleAlignment="left" paddingX={1} flexDirection="column">
         <Reader rows={rows} h={storyH - 2} top={shownTop} onScroll={by => setTop(Math.max(0, shownTop + by))} />
       </box>
-      <box width={w} height={panelH} flexShrink={0} border borderStyle="rounded" borderColor={C.borderHot} title={` The lore check: ${c.issue + 1} of ${c.issues!.length} `} titleAlignment="left" paddingX={1} flexDirection="column">
+      <box width={w} height={panelH} flexShrink={0} border borderStyle="rounded" borderColor={C.borderHot} title={` The lore check${c.again ? ", again, with the fixes in" : ""}: ${c.issue + 1} of ${c.issues!.length} `} titleAlignment="left" paddingX={1} flexDirection="column">
         <Rows rows={said.slice(0, panelH - 2)} />
       </box>
     </box>;
@@ -417,7 +417,7 @@ export function BackstoryScreen({ game }: { game: Game }) {
     <box width={w} height={1} flexShrink={0} alignItems="center"><text fg={C.faint}>{mode === "write" ? wrap(PROMPTS, w)[0] : ""}</text></box>
     {gap}
     <box width={w} height={1} flexShrink={0} flexDirection="row" justifyContent="center" gap={2}>
-      {mode === "busy" ? <Spinner label={c.busy === "draft" ? "The GM drafts one…" : c.busy === "work" ? "The GM works your notes in, keeping every word that matters…" : "The GM checks your story against the world…"} />
+      {mode === "busy" ? <Spinner label={c.busy === "draft" ? "The GM drafts one…" : c.busy === "work" ? "The GM works your notes in, keeping every word that matters…" : c.again ? "The GM checks it again, with the fixes in…" : "The GM checks your story against the world…"} />
         : mode === "write" ? actions.map((a, i) => <Button key={a.label} label={a.label} dim={a.dim} on={focus === "buttons" && i === button} onClick={() => { setButton(i); a.run(); }} />)
         : choices.map((a, i) => <Button key={a.label} label={a.label} on={i === choice} onClick={a.run} />)}
     </box>

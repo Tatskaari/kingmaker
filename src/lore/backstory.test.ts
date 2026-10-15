@@ -61,12 +61,27 @@ test("the lore check finds what contradicts canon, quotes it as written, and off
   assert.equal(lost!.quote, undefined, "words it can't find: rewrite, not accept");
   assert.equal(applyFix(story, nephew!), "I'm a cousin of a minor courtier, twice removed, though nobody at court will say so.\nI came to Caerwyn in the spring, owing Fat Jory three crowns.");
   assert.equal(applyFix(story, lost!), undefined, "nothing changed where the words aren't");
+  // A fix fitted to where it goes: no capital mid-sentence (a name keeps its own), one where a sentence starts, the full stop kept and not doubled.
+  const lucan = "I'm the King's nephew, and Sergeant Kell is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.";
+  const fix = (quote: string, with_: string, text = lucan) => applyFix(text, { quote, problem: "", fix: with_ });
+  assert.equal(fix("Sergeant Kell is my aunt: she taught me to fence.", "A retired watchman taught me to fence near the watch house"),
+    "I'm the King's nephew, and a retired watchman taught me to fence near the watch house. I owe Master Fenwick forty crowns.");
+  assert.equal(fix("Sergeant Kell is my aunt", "Master Fenwick's cousin is my aunt"), "I'm the King's nephew, and Master Fenwick's cousin is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.");
+  assert.equal(fix("I owe Master Fenwick forty crowns.", "my tailor is owed forty crowns."), "I'm the King's nephew, and Sergeant Kell is my aunt: she taught me to fence. My tailor is owed forty crowns.");
+  assert.equal(fix("I'm the King's nephew", "I hoped the King would notice me."), "I hoped the King would notice me, and Sergeant Kell is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.");
+  // A fix that runs on past its quote, or back before it, doesn't say those words twice.
+  const duel = "I left the palace after a duel over a card game and have lived on credit and charm since. I owe my tailor forty crowns.";
+  assert.equal(fix("I left the palace after a duel over a card game", "I left a grand house after a duel over a card game, and have lived on credit and charm since.", duel),
+    "I left a grand house after a duel over a card game and have lived on credit and charm since. I owe my tailor forty crowns.");
+  assert.equal(fix("Sergeant Kell is my aunt", "and a retired watchman is my aunt"), "I'm the King's nephew, and a retired watchman is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.");
+  assert.equal(fix("Master Fenwick forty crowns.", "Master Fenwick, my tailor, forty crowns."), "I'm the King's nephew, and Sergeant Kell is my aunt: she taught me to fence. I owe Master Fenwick, my tailor, forty crowns.", "words of its own that happen to match aren't cut");
   // The model was told the lore through the docs service, the King's truth among it, and the backstory word for word.
   assert.equal(asked.length, 1);
   assert.match(asked[0]!.input, /### Cast\/King Aldren\/gm\.md \(the GM's truth: never tell the player what's in it\)/);
   assert.match(asked[0]!.input, /## Their backstory, word for word\nI'm the King's nephew/);
   assert.match(asked[0]!.instructions, /never what the truth is/, "a problem never gives away a GM's secret");
   assert.match(asked[0]!.instructions, /keep its spirit/);
+  assert.match(asked[0]!.instructions, /never keeps what didn't fit by another road/, "a fix fits the world too (the game checks it once more besides)");
 });
 
 test("a backstory that fits comes back with nothing to fix; offline it isn't checked, and says so", async () => {
@@ -94,7 +109,8 @@ test("Draft one: a backstory from the concept and the build, shown before it's a
   const drafted = await draftBackstory(WHO, { ask });
   assert.deepEqual(drafted, { ok: true, value: "I was born above a chandler's shop. My mother taught me to count.\n\nThe King asked, so I came." });
   assert.match(asked[0]!.input, /halfling rogue 3 \(Thief\), sage background/, "it's told the build");
-  assert.match(asked[0]!.input, /The King's investigator/, "and the story it leads into");
+  assert.match(asked[0]!.input, /## The story this backstory leads into\nThis morning.*Wendell Prout, was found hanged.*the King's investigator now/, "and the story it leads into, from this morning");
+  assert.match(asked[0]!.instructions, /everything in it happened before this morning/, "it ends where the game begins");
   const offline = await draftBackstory(WHO);
   assert.match(offline.ok ? "" : offline.why, /offline/);
 });
@@ -155,6 +171,7 @@ test("into the game: the GM's brief says who they are, the whole of it is in the
   assert.match(docsBrief, /The whole of their backstory, in their own words, is in your notes/);
   assert.match(docsBrief, /know of it only what they'd plausibly know/);
   assert.match(docsBrief, /Nobody brings it up out of nowhere/);
+  assert.match(docsBrief, /they tell it as their backstory has it/, "a telling the player only sums up is told from it");
   assert.ok(!docsBrief.includes("Ada a letter"), "the whole of it is the notes' to give, not the brief's");
   // Without the docs service, the whole of it is in the brief.
   assert.match(sceneBrief(scene, session), /> I owe Fat Jory three crowns, and my sister Ada a letter\./);

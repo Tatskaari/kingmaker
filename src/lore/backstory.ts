@@ -38,7 +38,7 @@ const STYLE = "The house style is dry and a little comic (Pratchett): the world 
 // The world, as the model's told it (the docs service's authored lore).
 
 /** The story the backstory leads into (why they took this case). */
-export const PREMISE = "The King's investigator, on the morning of the eve of the Centennial Assembly in Caerwyn: King Aldren, who remembers how the dead clerk Wendell Prout took his tea, has asked them quietly to see Prout done right by, and lent them a sergeant of the watch, Agnes Kell, who has never met them.";
+export const PREMISE = "This morning, the eve of the Centennial Assembly in Caerwyn, a palace clerk, Wendell Prout, was found hanged behind the King's Granary, and the Watch Captain has already called it suicide. When the news reached him, King Aldren, who remembers how Prout took his tea, asked the player character quietly to see Prout done right by (they're the King's investigator now), and lent them a sergeant of the watch, Agnes Kell, who has never met them. The game begins as they walk into the granary yard to meet her. The King asked for them, but none of the story's other named people know them yet.";
 
 /** Who in the Cast the backstory touches, by the words that bring them in: their folder, and what calls them up. */
 const CAST_WORDS: Array<[string, RegExp]> = [
@@ -115,7 +115,8 @@ export async function draftBackstory(w: Who, options: { ask?: Ask } = {}): Promi
       instructions: [
         "You write a player character's backstory for a tabletop roleplaying game, in the first person, as the player would write it at the table: where they're from, what they owe (and to whom), who they've lost, and why they took this case (the story it leads into).",
         "120 to 180 words, in two or three short paragraphs; plain and specific: names, places, and one good detail each. Their past makes sense of their concept and their build (the class's skills, the background's trade, the species).",
-        "Invent their own people and places freely, but fit the world below: don't make them kin to, or old friends or enemies of, the story's named people, and don't give them anything the world would have had to record (a title, an office, a famous deed).",
+        "Invent their own people and places freely, but fit the world below: don't make them kin to, or old friends or enemies of, the story's named people (they've never met any of them), and don't give them anything the world would have had to record (a title, an office, a famous deed).",
+        "It ends where the game begins: everything in it happened before this morning, when Prout was found and the King asked them. Say why they said yes, not how the case goes: their reasons are their own (a debt, a loss, a conscience), but the case is Prout's alone, and nothing in their past is part of it.",
         STYLE,
       ].join("\n"),
       input: [{ role: "user", content: [`## The player character\n${who(w)}`, primer()].join("\n\n") }],
@@ -204,12 +205,39 @@ export function locate(text: string, quote: string): { start: number; end: numbe
   return { start: at[found]!, end: at[found + needle.length - 1]! + 1 };
 }
 
-/** The text with a fix accepted: the quote's words replaced by the fix's. Undefined if the quote isn't there any more. */
+/** A text's words, case and curly apostrophes aside, with where each starts. */
+const wordsOf = (t: string) => [...t.matchAll(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)].map(m => ({ w: m[0].toLowerCase().replace(/’/g, "'"), start: m.index }));
+
+/**
+ * The text with a fix accepted: the quote's words replaced by the fix's, fitted to where they go (a
+ * fix that runs on into the words after its quote, or back into those before, doesn't say them
+ * twice; a capital only where a sentence starts, as in "..., and a retired watchman taught me"; the
+ * sentence's own full stop, kept or not doubled). Undefined if the quote isn't there any more.
+ */
 export function applyFix(text: string, issue: LoreIssue): string | undefined {
   if (!issue.quote) return undefined;
   const span = locate(text, issue.quote);
   if (!span) return undefined;
-  return `${text.slice(0, span.start)}${issue.fix.trim()}${text.slice(span.end)}`;
+  const before = text.slice(0, span.start), quote = text.slice(span.start, span.end), after = text.slice(span.end);
+  let fix = issue.fix.trim();
+  // Words the fix repeats from before its quote ("and" after ", and"; two or more of anything else) come off its start.
+  const head = wordsOf(fix), prev = wordsOf(before);
+  for (let n = Math.min(head.length - 1, prev.length); n >= 1; n--) {
+    if (head.slice(0, n).every((h, i) => h.w === prev[prev.length - n + i]!.w) && (n >= 2 || STARTERS.has(head[0]!.w))) { fix = fix.slice(head[n]!.start); break; }
+  }
+  // Two or more words it runs on into, from after its quote, come off its end.
+  const tail = wordsOf(fix), next = wordsOf(after);
+  for (let n = Math.min(tail.length - 1, next.length); n >= 2; n--) {
+    if (tail.slice(-n).every((t, i) => t.w === next[i]!.w)) { fix = fix.slice(0, tail[tail.length - n]!.start).replace(/[\s,;:—–-]+$/, ""); break; }
+  }
+  const opens = !before.trim() || /([.!?…]["”’)]?\s+|\n\s*)$/.test(before);
+  const word = /^[A-Za-z]+/.exec(fix)?.[0] ?? "";
+  if (opens) fix = fix.charAt(0).toUpperCase() + fix.slice(1);
+  else if (word !== "I" && /^[A-Z][a-z]*$/.test(word) && STARTERS.has(word.toLowerCase())) fix = fix.charAt(0).toLowerCase() + fix.slice(1);
+  const stop = /[.!?]["”’]?$/;
+  if (stop.test(quote) && !stop.test(fix)) fix += stop.exec(quote)![0];
+  else if (!stop.test(quote) && stop.test(fix) && /^\s*([,;:]|[a-z])/.test(after)) fix = fix.replace(/[.!?]+$/, "");
+  return `${before}${fix}${after}`;
 }
 
 /**
@@ -229,7 +257,8 @@ export async function checkLore(story: string, w: Who, options: { ask?: Ask } = 
         "You check a player character's backstory against the lore of the world they're about to play in, before the game starts, as a good GM would at session zero.",
         "The backstory is theirs, and most of it is simply new: their own family, home, trade, debts, losses and people are theirs to invent, and need no lore behind them. Leave all of that alone.",
         "Flag only what doesn't fit the world: what contradicts the lore below (a place, a law, an event, how someone is), or what claims a tie to the world's named people, offices or events that the lore would have had to record and doesn't (kin to the King, a post at court, an old partner or enemy of someone the story will introduce as a stranger, a hand in what the story is about). The story's premise holds too: the people of the story don't know them yet, but the King asked for them.",
-        "For each: quote, the backstory's own words that don't fit, copied exactly (as short as makes sense, a phrase or a sentence); problem, what doesn't fit, in a sentence for the player, in terms anyone in Caerwyn could know (if it's a GM's truth that it breaks, say only that it doesn't fit the world as it stands, never what the truth is); fix, words to put in the quote's place that keep its spirit (what it does for them: a tie to the court, a grudge, a debt, a reason) and fit the world, in their voice, about as long.",
+        "For each: quote, the backstory's own words that don't fit, copied exactly (as short as makes sense, a phrase or a sentence); problem, what doesn't fit, in a sentence for the player, in terms anyone in Caerwyn could know (if it's a GM's truth that it breaks, say only that it doesn't fit the world as it stands, never what the truth is); fix, words to put in the quote's place that keep its spirit (what it does for them: a tie to the court, a grudge, a debt, a reason) and fit the world, in their voice, about as long: they replace the quote and nothing else, reading on from the words before it and into the words after it without repeating them.",
+        "A fix has to fit everything a story does, the premise too: it never keeps what didn't fit by another road (if they can't have met someone, the fix doesn't have them meet some other way; not kin, then not kin by marriage either). Check each fix as you checked the story.",
         "Most backstories fit: then there are no issues. Never more than four.",
       ].join("\n"),
       input: [{ role: "user", content: [

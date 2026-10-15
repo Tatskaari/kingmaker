@@ -76,6 +76,8 @@ export interface Creation {
   issue: number;
   /** The issue they chose to rewrite themselves: it stays over the box while they do. */
   rewriting?: LoreIssue;
+  /** The fixes taken are being checked once more (the issues on show are that second look's): not a third time. */
+  again?: boolean;
   /** What the model's part is doing (the spinner's word). */
   busy?: string;
   /** A word for the player: the GM offline, couldn't be reached, nothing to work in. */
@@ -590,11 +592,19 @@ export class Game {
     if (!c || c.busy) return;
     c.story = text;
     delete c.rewriting;
+    delete c.again;
     if (!text.trim()) { await this.makeCharacter(); return; }
+    await this.checkStory();
+  }
+
+  /** The backstory as it stands, checked against the world: what doesn't fit, one at a time, or into the game. */
+  private async checkStory(): Promise<void> {
+    const c = this.creation;
+    if (!c) return;
     c.busy = "check";
     delete c.note;
     this.emit();
-    const checked = await checkLore(text, this.who(), this.ask ? { ask: this.ask } : {});
+    const checked = await checkLore(c.story, this.who(), this.ask ? { ask: this.ask } : {});
     delete c.busy;
     if (checked.ok && checked.value.length) {
       c.issues = checked.value;
@@ -606,16 +616,21 @@ export class Game {
     await this.makeCharacter();
   }
 
-  /** The issue on show, fixed as the check suggests (the player saw the words it changes): the next one, or into the game. */
+  /**
+   * The issue on show, fixed as the check suggests (the player saw the words it changes): the next
+   * one; after the last, the story with the fixes in is checked once more (a fix can miss too, and
+   * what it finds is shown the same way), then into the game.
+   */
   async acceptFix(): Promise<void> {
     const c = this.creation, issue = c?.issues?.[c.issue];
-    if (!c || !issue) return;
+    if (!c || !issue || c.busy) return;
     const fixed = applyFix(c.story, issue);
     if (fixed === undefined) { this.rewriteIssue(); return; }
     c.story = fixed;
     c.version++;
     if (c.issue + 1 < (c.issues?.length ?? 0)) { c.issue++; this.emit(); return; }
     delete c.issues;
+    if (!c.again) { c.again = true; await this.checkStory(); return; }
     await this.makeCharacter();
   }
 

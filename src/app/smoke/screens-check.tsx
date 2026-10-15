@@ -619,12 +619,14 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
   const WORKED = "I grew up in the Nine Furrows, where Mum drowned in the flood of '89. I still owe Fat Jory three crowns.";
   const STORY = "I'm the King's nephew, though nobody at court will say so. I owe Fat Jory three crowns.";
   /** A stand-in for the model: what each of character creation's calls answers, and what it was asked. */
-  const standIn = (asked: string[]): NonNullable<Game["ask"]> => (async <T,>(request: { operation: string }) => {
+  const standIn = (asked: string[]): NonNullable<Game["ask"]> => (async <T,>(request: { operation: string; input: Array<{ content: unknown }> }) => {
     asked.push(request.operation);
+    const input = request.input.map(m => String(m.content)).join("\n");
     const answers: Record<string, unknown> = {
       "backstory.draft": { story: DRAFT },
       "backstory.work": { story: WORKED },
-      "backstory.check": { issues: [{ quote: "I'm the King's nephew", problem: "King Aldren's family is known to all Caerwyn, and there's no nephew in it.", fix: "I'm a cousin of a minor courtier, twice removed" }] },
+      // The nephew, while the story has him (the fixed story, checked again, fits).
+      "backstory.check": { issues: input.includes("King's nephew") ? [{ quote: "I'm the King's nephew", problem: "King Aldren's family is known to all Caerwyn, and there's no nephew in it.", fix: "I'm a cousin of a minor courtier, twice removed" }] : [] },
       "backstory.traits": { summary: "Tamsin Vell, a minor courtier's cousin who owes Fat Jory three crowns.", personality: ["Sharp-tongued"], ideals: ["The books should balance"], bonds: ["Fat Jory, owed three crowns"], flaws: ["Can't leave a sum alone"] },
     };
     if (!(request.operation in answers)) throw new Error(`no stand-in for ${request.operation}`);
@@ -808,8 +810,36 @@ for (const [w, h] of [[80, 24], [130, 42]] as const) {
       frame = setup.captureCharFrame();
       await press(setup, "Accept the fix");
       for (let i = 0; i < 100 && game.screen !== "created"; i++) await settle(setup, 50);
-      checks.push([`the lore check ${w}x${h}: Accept the fix changes just those words, and it's into the game with the backstory on the sheet`, game.creation!.story === "I'm a cousin of a minor courtier, twice removed, though nobody at court will say so. I owe Fat Jory three crowns."
+      checks.push([`the lore check ${w}x${h}: Accept the fix changes just those words, checks it once more, and it's into the game with the backstory on the sheet`, game.creation!.story === "I'm a cousin of a minor courtier, twice removed, though nobody at court will say so. I owe Fat Jory three crowns."
+        && asked.filter(a => a === "backstory.check").length === 3
         && game.screen === "created" && game.sheet?.story?.backstory === game.creation!.story && game.session?.player.backstory?.summary === "Tamsin Vell, a minor courtier's cousin who owes Fat Jory three crowns."]);
+      await setup.dispose();
+    }
+    // A fix that misses: the second look finds what it kept, says it's the second look, and its fix taken goes in (no third).
+    {
+      const asked: string[] = [];
+      const game = fresh("backstory", STORY);
+      const kin = { issues: [{ quote: "a cousin of a minor courtier", problem: "Still kin to the court, by another road.", fix: "a clerk's errand-boy at court" }] };
+      const first = standIn(asked);
+      game.ask = (async <T,>(request: Parameters<typeof first>[0]) => {
+        const input = request.input.map(m => String(m.content)).join("\n");
+        if (request.operation === "backstory.check" && input.includes("cousin of a minor courtier")) { asked.push(request.operation); return kin as T; }
+        return first<T>(request);
+      }) as NonNullable<Game["ask"]>;
+      const setup = await testRender(<BackstoryScreen game={game} />, { width: w, height: h });
+      await settle(setup);
+      await press(setup, "Done");
+      await settle(setup);
+      await press(setup, "Accept the fix");
+      await settle(setup);
+      for (let i = 0; i < 40 && (game.creation!.busy || !game.creation!.again); i++) await settle(setup, 25);
+      const frame = setup.captureCharFrame();
+      if (show) console.log(`lore again ${w}x${h}\n${frame}`);
+      checks.push([`the lore check ${w}x${h}: a fix that misses is caught by the second look, and says so`, frame.includes("The lore check, again, with the fixes in: 1 of 1") && flat(frame).includes("Your story says: \"a cousin of a minor courtier\"")]);
+      await press(setup, "Accept the fix");
+      for (let i = 0; i < 100 && game.screen !== "created"; i++) await settle(setup, 50);
+      checks.push([`the lore check ${w}x${h}: the second look's fix taken goes in, with no third look`, game.screen === "created" && asked.filter(a => a === "backstory.check").length === 2
+        && game.session?.player.backstory?.text === "I'm a clerk's errand-boy at court, twice removed, though nobody at court will say so. I owe Fat Jory three crowns."]);
       await setup.dispose();
     }
   }

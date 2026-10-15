@@ -160,6 +160,7 @@ function backstoryBrief(state: SessionState, inNotes: boolean): string {
     `\nWho they are, from their own backstory: ${b.summary}${traits.length ? ` (${traits.join(". ")}.)` : ""}`,
     inNotes ? "The whole of their backstory, in their own words, is in your notes (the player character's doc)." : `Their backstory, in their own words:\n${b.text.trim().split(/\n+/).map(l => `> ${l}`).join("\n")}`,
     "It's their past, and true for them: let it colour the world when it would (a face from home, an old debt coming due, a name that means something to them), but people in the story know of it only what they'd plausibly know (someone from that past, something that was public) or what the player tells or shows them. Nobody brings it up out of nowhere.",
+    "When the player tells someone of their past without saying it word for word (\"I tell her where I'm from\"), they tell it as their backstory has it: show what they told, in its own details, and how the listener takes it.",
   ].join("\n");
 }
 
