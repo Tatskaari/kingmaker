@@ -87,7 +87,7 @@ It calls [src/llm](../llm/README.md) (`JevDecider` for disclosure and the attent
 
 ### Reviews (`memory: "docs"`)
 
-After each turn, a background job ([src/runtime/jobs.ts](../runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:168](reviews.ts#L168)) on that turn's snapshot.
+After each turn, a background job ([src/runtime/jobs.ts](../runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:171](reviews.ts#L171)) on that turn's snapshot.
 
 - **`attend`:** one Jev call with V1's seven attention categories, and an eighth, `witnessed`: someone present saw or heard for themselves something the story may need them to tell or swear to later (an admission, who came in), a companion or whoever stood watch included. A category flagged at 0.4 or more (`FLAG_THRESHOLD`) fires its agent: a false flag costs a review that writes nothing, and a missed one loses the memory.
 - **The personal-memories agent** handles commitments, changes in trust or knowledge, exchanges, and what witnesses saw and heard (in its own words: what Hobb admitted, not that it was recorded), with `save_memory`, `list_memories`, `read_doc` and `edit_doc`. It's told to write at most one memory per person present.
@@ -117,7 +117,7 @@ Talks ([src/runtime/talk.ts](../runtime/talk.ts)) keep a companion's stories wit
 ## Where to look first
 
 - **Access.** A new doc's `visibility` and `readers`, and any change to `permitted` or `parseDoc`. A private note whose frontmatter loses its `visibility` becomes everyone's.
-- **What the agents can write.** The tools' definitions ([reviews.ts:82](reviews.ts#L82)) and their handlers ([reviews.ts:112](reviews.ts#L112)). The paths come from the model; `save_memory` takes only people present.
+- **What the agents can write.** The tools' definitions ([reviews.ts:85](reviews.ts#L85)) and their handlers ([reviews.ts:115](reviews.ts#L115)). The paths come from the model; `save_memory` takes only people present.
 - **The thresholds:** `OPEN_THRESHOLD` (0.7), `PER_ROUND` (4), `MAX_OPEN` (24) and `URGENT` (0.9) in disclosure.ts; `FLAG_THRESHOLD` (0.4) in reviews.ts.
 - **The stable and live parts of `memoryBrief`.** Something that changes every turn, put in `stable`, spoils the GM's prompt cache on every turn.
 - **Writes go to the overlay.** `writeDoc` writes only to this game's copy. Nothing should write under lore/.

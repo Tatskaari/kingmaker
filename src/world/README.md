@@ -128,7 +128,7 @@ The zoo's Works wing ([src/game/zoo/README.md](../game/zoo/README.md#the-works-z
   - people don't burn outside fights: `ignite` does nothing to a person, and a burning surface burns only things ([systems.ts:196](systems.ts#L196));
   - something the story creates can't catch fire: `create` gives it no `flammable` tag ([scene-world.ts:526](scene-world.ts#L526));
   - the look director waits for a "fire spread to" log line ([src/game/look/director.ts:139](../game/look/director.ts#L139)) that nothing writes (the world logs "X catches fire").
-- **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:325](../runtime/engine.ts#L325)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
+- **Story time passes only while something burns.** The runtime calls `tick` only then ([src/runtime/engine.ts:435](../runtime/engine.ts#L435)), so a puddle doesn't dry and smoke doesn't drift otherwise. The town's world never ticks: the map ages what was left by the time of day instead.
 - **Spell areas ignore walls.** `caughtIn` is geometry in feet (its comment says the map will add walls). Fights lay areas on tiles and walls stop them ([src/game/combat/grid.ts `areaTiles`](../game/combat/grid.ts#L157)), so one Fireball can catch different people in a scene and in a fight.
 - **The DSL is a stub.** An exit script's `setFlag`, `quest`, `moveTo` or `addItem` is recorded and changes nothing in play. The story's flags come only from a fight's result.
 - **Half the inventory has no caller.** The strict, versioned `read`/`transfer`/`commit` are exercised only by their tests; the game uses `add` (the starting purse) and `settle`.
