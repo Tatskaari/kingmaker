@@ -31,7 +31,8 @@ const has = (facts: string[], fact: string) => facts.includes(fact);
 /** Kell's one voice line, shared by every scene she's in (her private.md holds the rest). */
 export const KELL_VOICE = "Dry, calm and sparing: short sentences, and 'Noted.' only when something goes in the notebook. Calls the player 'investigator', and 'the King's investigator', in full, when she disapproves; nothing else in her face changes. Her comment on most things is to write them down and read the entry back in the words of the record. 'That's a theory, investigator. I can't arrest a theory.' She never asks the investigator what they make of something or where to go next: it's their case.";
 
-const pageItem = {
+/** The page as an item the player can carry and read (the exit scripts', and the Rat's, if it comes out there). */
+export const pageItem = {
   id: "prout-ledger-page",
   name: "Page from the Royal Granary Roll",
   content: "A dozen grain wagons for the King's Road this past month, each marked 'lost to goblins' and countersigned 'J. Sallow, for the Royal Purveyor'. Beside each, in Prout's small pencil, what the same wagon weighed at the river warehouses two days later. At the foot, underlined: 'Not goblins. Who pays the hedge-folk?'",
@@ -395,7 +396,11 @@ export const hangedClerk: Scene = {
   ],
   essentials: [
     { id: "not-suicide", what: "Prout didn't hang himself: he was struck and strangled, then hoisted up for show.", placedWith: ["the body (cord mark, the blow to the head)", "Cob's account of the loft", "the scraped heels of Prout's boots"], carriers: ["cob"], unlocks: "Kell treating it as murder" },
-    { id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], carriers: [], unlocks: "the motive, and the name Sallow" },
+    {
+      id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], carriers: [], unlocks: "the motive, and the name Sallow",
+      // Missed here, it goes on with the boots (the Drowned Rat has prep for it: Cob is Nan's pot-boy there).
+      later: "the King's morning needs proof he can hold, and the page is Sallow's countersignature in writing on every 'lost' wagon", things: ["ledger-page"],
+    },
     { id: "silvertop", what: "A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night.", placedWith: ["Cob ('Silvertop')", "Moll, if she cracks"], carriers: ["cob", "moll"], unlocks: "naming Sallow as the man behind it" },
   ],
   world: hangedClerkWorld,

@@ -43,15 +43,25 @@ export function withImprovisedEnding(scene: Scene): Scene {
   };
 }
 
-/** The authored scene plus whatever the repair agent has added during play. */
+/**
+ * The authored scene as play has it: what the co-GM has added during play, and what the boundary
+ * brought over from earlier scenes. An essential the scene preps for if the player missed it
+ * earlier (`missed`) is the scene's only once the boundary has brought it over, and a route that
+ * brings an essential the scene hasn't got isn't there.
+ */
 export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   const scene = withImprovisedEnding(authored);
-  if (!patches.length) return scene;
-  const beats = scene.beats.map(b => ({ ...b, transitions: [...b.transitions] }));
+  const brought = patches.flatMap(p => (p.essential ? [p.essential] : []));
+  if (!patches.length && !scene.essentials?.some(e => e.missed)) return scene;
+  // The scene's own essentials, and what the boundary brought (in place of the scene's prep for it).
+  const essentials = [...(scene.essentials ?? []).filter(e => !e.missed && !brought.some(b => b.id === e.id)), ...brought];
+  const has = new Set(essentials.map(e => e.id));
+  const live = (t: Transition) => !t.essential || has.has(t.essential);
+  const beats = scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(live) }));
   for (const patch of patches) {
     if (patch.beat && !beats.some(b => b.id === patch.beat!.id)) beats.push({ ...patch.beat, transitions: [...patch.beat.transitions] });
   }
-  const anytime = [...(scene.anytime ?? [])];
+  const anytime = (scene.anytime ?? []).filter(live);
   for (const patch of patches) {
     if (!patch.transition) continue;
     // "*" = scene-wide, so a later tracker move can't strand a route the player is pursuing.
@@ -64,7 +74,7 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
     const amended = patches.filter(p => p.cast?.id === c.id).at(-1)?.cast;
     return amended ? { ...c, secrets: [...amended.secrets] } : c;
   });
-  return { ...scene, beats, anytime, cast };
+  return { ...scene, beats, anytime, cast, ...(scene.essentials || brought.length ? { essentials } : {}) };
 }
 
 export function currentBeat(scene: Scene, state: SessionState): Beat {
@@ -204,7 +214,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     ...(state.adjustments?.length ? [`## Where the prep is out of date\nThe story has moved on from parts of this prep. These are true now, and they override anything in the prep that says otherwise:\n${bullets(state.adjustments)}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
-    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
+    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${e.missed ? " [missed in an earlier scene, and the story still needs it: what it's in stays where the world has it, with whoever has it]" : ""}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
     `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it. ${STRANGER}${skillSummary(state)}${backstoryBrief(state, !!options.docs)}`,
     `## Table rules (for out-of-character questions)\n${state.rules
@@ -245,6 +255,12 @@ export function spentHere(state: SessionState): Set<string> {
   return spent;
 }
 
+/** The routes to offer now: not one already achieved here, nor one that brings what the player has already come across. */
+export function openRoutes(transitions: Transition[], state: SessionState): Transition[] {
+  const spent = spentHere(state);
+  return transitions.filter(t => !spent.has(t.id) && !(t.essential && state.landed?.includes(t.essential)));
+}
+
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
 const GUARD_NOTE: Record<string, string> = {
   surface: "nothing has shown yet. What would show first is something that doesn't fit: a dodge, a slip, a reaction they can't quite hide.",
@@ -266,8 +282,7 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const castNotes = Object.entries(beat.cast ?? {}).filter(([id]) => present.has(id))
     .map(([id, note]) => `- ${scene.cast.find(c => c.id === id)?.name ?? id}: ${note}`);
-  const spent = spentHere(state);
-  const transitions = [...beat.transitions, ...(scene.anytime ?? [])].filter(t => !spent.has(t.id));
+  const transitions = openRoutes([...beat.transitions, ...(scene.anytime ?? [])], state);
   const strangers = Object.entries(unnamed(scene, state)).filter(([id]) => present.has(id)).map(([id, called]) => `- ${scene.cast.find(c => c.id === id)!.name}: "${called}"`);
   const parts = [
     `## Where the scene is now: ${beat.title}\n${beat.direction}`,

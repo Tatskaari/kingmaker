@@ -37,7 +37,7 @@ import { gmReply } from "./voices.ts";
  */
 
 /** What a session keeps across scenes (the story, the dice, the sheet, the talks): a talk shares it. */
-const STORY_WIDE = new Set(["id", "approach", "seed", "rollCount", "player", "turn", "transcript", "metrics", "rules", "history", "speculation", "lateRepairs", "talk", "talks"]);
+const STORY_WIDE = new Set(["id", "approach", "seed", "rollCount", "player", "turn", "transcript", "metrics", "rules", "history", "speculation", "lateRepairs", "talk", "talks", "owed"]);
 
 /** Everything else is the waiting scene's own: set aside as it is, and put back as it was. */
 function sceneOwn(state: SessionState): Partial<SessionState> {

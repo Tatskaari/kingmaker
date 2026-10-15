@@ -1,5 +1,5 @@
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
-import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, presentCast, scriptTranscript, sceneEntries, spentHere } from "./brief.ts";
+import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, openRoutes, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, titleCase, type RollResult } from "./dice.ts";
 import { HAZARD_KINDS, rollFor, type SpellChoice, type WeaponChoice } from "../rules/dnd.ts";
 import { SKILLS, type Character, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
@@ -92,8 +92,7 @@ function question(phase: keyof typeof QUESTION_TEXT, transitions: Transition[], 
 function transitionsFor(scene: Scene, state: SessionState, phase: "attempt" | "cue" | "outcome"): Transition[] {
   if (state.fought?.length) return transitionsFor({ ...scene, beats: scene.beats.map(b => ({ ...b, transitions: b.transitions.filter(t => !state.fought!.includes(t.to ?? "")) })), anytime: (scene.anytime ?? []).filter(t => !state.fought!.includes(t.to ?? "")) }, { ...state, fought: [] }, phase);
   const beat = currentBeat(scene, state);
-  const spent = spentHere(state);
-  return [...beat.transitions, ...(scene.anytime ?? [])].filter(t => phaseOf(t) === phase && !spent.has(t.id));
+  return openRoutes([...beat.transitions, ...(scene.anytime ?? [])], state).filter(t => phaseOf(t) === phase);
 }
 
 /** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
