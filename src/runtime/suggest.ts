@@ -499,10 +499,10 @@ function speechOf(line: string): string {
   return s.replace(/^["“'‘]+|["”'’]+$/g, "").trim();
 }
 
-/** What's left of a line that couldn't be cleaned: nothing to say, a deed of a word ("(I)"), or noise stuck together ("JSImportassistant"). */
+/** What's left of a line that couldn't be cleaned: nothing to say, a deed of a word ("(I)"), or the model's markers stuck to its words ("JSImportassistant", "to=final"). */
 function fragment(line: string): boolean {
   const words = line.replace(/^\(|\)$/g, "").trim().split(/\s+/).filter(w => /\p{L}/u.test(w)).length;
-  return words < (line.startsWith("(") ? 2 : 1) || /assistant|to=\w|\bfinal\b\W*$/i.test(line);
+  return words < (line.startsWith("(") ? 2 : 1) || /\p{L}assistant|assistant\p{L}|\bto=\w/iu.test(line);
 }
 
 /** What a set of lines is vetted against: see vetting(). */
@@ -524,7 +524,7 @@ export interface Vetting {
   limits: string[];
   /** A way out fits now (leaveFits). */
   leave: boolean;
-  /** Word stems of what the GM's descriptions of the people here have that the scene hasn't shown (the string round Hobb's neck, Kell's borrowed coat). */
+  /** Word stems of the signs of what someone here hides in how the GM pictures them, that the scene hasn't shown (the string round Hobb's neck, Moll's fist). */
   looks?: string[];
   /** Places and things of the story's other scenes the player hasn't heard of, in a few words each ("river door", "plank walk"). */
   places?: string[];
@@ -574,9 +574,9 @@ export function vetting(scene: Scene, state: SessionState): Vetting {
   const left = new Set(scene.cast.filter(c => world?.entities[c.id]?.states.includes("gone")).map(c => c.id));
   const away = people.filter(c => !onStage.has(c.id) && !left.has(c.id) && !unheard.includes(c)).flatMap(nameTokens).filter(t => !self.includes(t));
   // The places and things of the story's other scenes, by the few words that name them ("the river door
-  // off the plank walk" is the river door), that nobody has spoken of yet.
-  // (What this place has too, the hoist rope in the granary yard, isn't another scene's.)
-  const own = `${scene.setting}\n${Object.values(world?.entities ?? {}).map(e => `${e.name} ${e.description ?? ""}`).join("\n")}`.toLowerCase();
+  // off the plank walk" is the river door), that nobody has spoken of yet; not what this place has too
+  // (the granary yard has a hoist rope as well as the Heron).
+  const own =`${scene.setting}\n${Object.values(world?.entities ?? {}).map(e => `${e.name} ${e.description ?? ""}`).join("\n")}`.toLowerCase();
   const places = story.filter(s => s.id !== scene.id && s.world).flatMap(s => [...s.world!.areas, ...s.world!.things].map(t => placeName(t.name)))
     .filter((p): p is string => !!p && !said.includes(p) && !own.includes(p));
   return {

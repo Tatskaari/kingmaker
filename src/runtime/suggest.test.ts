@@ -307,7 +307,8 @@ test("the model's noise is cleaned from the lines, as the testers' own replies h
   assert.deepEqual(read("leave: (I leave the yard and trust Kell to stand by her record.) 二四六\n \u{5ffff}\n \nThere is an issue: user asked nothing else four to six lines.", false), ["leave: (I leave the yard and trust Kell to stand by her record.)"]);
   assert.deepEqual(read("leave: (I ask Kell to record murder by persons unknown and close the inquiry.)RGCTX\nไม่ต้องฝาก}\n</assistantileswisay: Your boots stay yours, Cob. I gave my word.", false), ["leave: (I ask Kell to record murder by persons unknown and close the inquiry.)"]);
   // Speech keeps what's said, and loses a bracket or a word of noise stuck on after it.
-  assert.deepEqual(read("say: Is the body still on the hook? eject\nsay: Who found him?)\nsay: Lovely morning, Sergeant. Isn't it?", false), ["say: Is the body still on the hook?", "say: Who found him?", "say: Lovely morning, Sergeant. Isn't it?"]);
+  assert.deepEqual(read("say: Is the body still on the hook? eject\nsay: Who found him?)\nsay: Lovely morning, Sergeant. Isn't it?\nsay: That's my final offer.\ndo: (I ask the clerk's assistant for the book.)", false),
+    ["say: Is the body still on the hook?", "say: Who found him?", "say: Lovely morning, Sergeant. Isn't it?", "say: That's my final offer.", "do: (I ask the clerk's assistant for the book.)"]);
   // Nothing on screen is noise.
   for (const l of parseSuggestions("say: Sergeant, a word.\ndo: (I look up at the hoist.) ♀♀\ntry: (I try to climb the water butt.) ★ System 1: I'm concerned")) assert.match(l.text, /^[\p{Script=Latin}0-9\s.,;:!?'"‘’“”()\-–—…]+$/u);
 });
