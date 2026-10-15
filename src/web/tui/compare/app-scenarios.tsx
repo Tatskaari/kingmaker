@@ -19,12 +19,15 @@ import { sheetData } from "../../../rules/dnd.ts";
 import { presentCast } from "../../../runtime/brief.ts";
 import { forceEnding } from "../../../runtime/engine.ts";
 import { buildWorld, joinWorld } from "../../../world/scene-world.ts";
+import { placePlayer, WELCOME } from "../../../game/zoo/explorer.ts";
+import { newZoo } from "../../../game/zoo/game.ts";
 import type { Scenario } from "./scenarios.tsx";
 
 /**
  * The game's own screens for the comparison, set up as src/app/smoke's checks set them up (a
  * ready-made character, no model calls): the title, making a character, the map, a scene mid-talk
- * and once it's over, Kell between scenes, the fight, the End and the overlays, at the sizes the
+ * and once it's over, Kell between scenes, the fight, the End and the overlays, and the zoo (its
+ * hall, a sign's card, the view from above, a wizard's sheet, the action menu), at the sizes the
  * game is played at.
  */
 
@@ -92,6 +95,19 @@ const fight = (await mapFights().start(fightState, heronSession)) as TacticalFig
 const fightCore = { state: fightState, session: heronSession, currentFight: fight, observe: () => ({ mode: "combat", text: "", actions: [] }) } as unknown as Core;
 
 const sheet = await sheetData(core.session);
+
+// The zoo (src/game/zoo), as screens-check sets it up: its hall on the map, by the wardrobe.
+const zooCore = await newZoo({ seed: 4 });
+placePlayer(zooCore.state, "zoo-hall", { x: 4, y: 8 });
+const zooSheet = await sheetData(zooCore.session);
+
+function zooGame(): Game {
+  const game = new Game();
+  game.core = zooCore;
+  game.screen = "explore";
+  game.messages = [WELCOME];
+  return game;
+}
 
 const sizes = (name: string, list: Array<[number, number]>, make: () => { node: ReactNode; then?: () => void }): Scenario[] =>
   list.map(([width, height]) => {
@@ -188,5 +204,27 @@ export const appScenarios: Scenario[] = [
     game.screen = "scene"; game.lines = lines;
     game.overlay = { kind: "scene-map" };
     return { node: <><SceneScreen game={game} /><Overlay game={game} /></> };
+  }),
+  // The zoo: its map and side panel, a sign's card, the view from above, a spell's page on the sheet, the action menu.
+  ...sizes("zoo", [[130, 42], [80, 24]], () => ({ node: <ExploreScreen game={zooGame()} /> })),
+  ...sizes("zoo sign", [[130, 42], [80, 24]], () => {
+    const game = zooGame();
+    game.overlay = { kind: "sign", exhibit: "wardrobe" };
+    return { node: <><ExploreScreen game={game} /><Overlay game={game} /></> };
+  }),
+  ...sizes("zoo from above", [[130, 42]], () => {
+    const game = zooGame();
+    game.overlay = { kind: "stage" };
+    return { node: <><ExploreScreen game={game} /><Overlay game={game} /></> };
+  }),
+  ...sizes("zoo sheet", [[130, 42]], () => {
+    const game = zooGame();
+    game.overlay = { kind: "sheet", sheet: zooSheet };
+    return { node: <><ExploreScreen game={game} /><Overlay game={game} /></> };
+  }),
+  ...sizes("zoo action menu", [[130, 42], [80, 24]], () => {
+    const game = zooGame();
+    game.openActions();
+    return { node: <ExploreScreen game={game} /> };
   }),
 ];

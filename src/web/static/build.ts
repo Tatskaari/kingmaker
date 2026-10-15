@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
 import { fontFaceCss, fontList, webFonts } from "../fonts.ts";
+import { CONTENT } from "./content.ts";
 import { importMeta, openTuiFonts, stubModules, virtualModules } from "./plugins.ts";
 import { shimProblems } from "./shims.ts";
 
@@ -40,13 +41,6 @@ const STATIC = join(ROOT, "src", "web", "static");
 const PAGE = join(ROOT, "src", "web", "page");
 const require = createRequire(import.meta.url);
 const started = performance.now();
-
-/** The game's files, by repo directory: only these are bundled (what the game reads with node:fs). */
-const CONTENT: Array<{ dir: string; include: RegExp }> = [
-  { dir: "lore", include: /\.md$/ },
-  { dir: "prompts", include: /\.md$/ },
-  { dir: "vendor/dnd-srd-engine", include: /^starter-pack\.json$/ },
-];
 
 const NODE_SHIMS: Record<string, string> = {
   fs: "fs.ts", "fs/promises": "fs.ts", path: "path.ts", os: "os.ts", url: "url.ts", crypto: "crypto.ts",
@@ -134,7 +128,7 @@ writeFileSync(join(OUT, "fonts.css"), fontFaceCss(fonts, "fonts/"));
 writeFileSync(join(OUT, "fonts.json"), JSON.stringify(fontList(fonts)));
 
 // ---------------------------------------------------------------------------------------------
-// The game's content, from the allowlist
+// The game's content, from the allowlist (content.ts)
 
 const files: Record<string, string> = {};
 function collect(dir: string, include: RegExp): void {

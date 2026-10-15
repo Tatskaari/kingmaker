@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { allowed, CONTENT } from "./content.ts";
 import { dbName } from "./persist.ts";
 import { DEFAULT_BASE, serveStatic } from "./serve.ts";
 
@@ -18,7 +19,9 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  *                                                       app's (runs/app-smoke); the map by keys and by
  *                                                       mouse; copying; a scene offline; latency and
  *                                                       bandwidth; saves kept in IndexedDB through
- *                                                       reloads; x x deleting a game; resizing; one
+ *                                                       reloads; x x deleting a game; the zoo (a sign,
+ *                                                       an exhibit, a spell's SRD page, the action
+ *                                                       menu, from above); resizing; one
  *                                                       tab at a time; a browser that won't keep
  *                                                       anything; the key form (OpenRouter faked: no
  *                                                       key goes anywhere)
@@ -99,12 +102,16 @@ function inspect(): void {
   const bytes = files.reduce((n, f) => n + statSync(f).size, 0);
   note(`dist/web: ${files.length} files, ${(bytes / 1e6).toFixed(2)} MB`);
 
-  // The content is what the allowlist lets in (lore and prompts as Markdown, the rules' content pack).
+  // The content is what the allowlist lets in (content.ts: lore and prompts as Markdown, the rules' content pack, the SRD's spells).
   const content = JSON.parse(readFileSync(join(DIST, "content.json"), "utf8")) as { files: Record<string, string> };
   const paths = Object.keys(content.files);
-  const strays = paths.filter(p => !/^(lore|prompts)\/[^.][^]*\.md$/.test(p) && p !== "vendor/dnd-srd-engine/starter-pack.json" || p.split("/").some(part => part.startsWith(".")));
-  if (!strays.length && paths.length > 50) ok(`content.json holds only allowlisted files (${paths.length}: lore/ and prompts/ Markdown, the rules' starter pack)`);
+  const strays = paths.filter(p => !allowed(p));
+  if (!strays.length && paths.length > 50) ok(`content.json holds only allowlisted files (${paths.length}: ${CONTENT.map(c => c.what).join(", ")})`);
   else fail(`content.json: ${paths.length} files, outside the allowlist: ${strays.slice(0, 5).join(", ")}`);
+  // Each kind there: without one, the game goes without (the SRD's words on the sheet's spell pages, say) and says nothing.
+  const absent = CONTENT.filter(c => !paths.some(p => p.startsWith(`${c.dir}/`)));
+  if (!absent.length) ok("every kind of content the allowlist names is in it");
+  else fail(`content.json has nothing of ${absent.map(c => c.what).join(", ")}`);
 
   // No secret: as grep -c -F -f ~/secrets/kingmaker-dev-openrouter.txt -r dist/web would look (each line of the file a fixed string).
   if (existsSync(KEY_FILE)) {
@@ -662,6 +669,71 @@ async function play(browser: Browser, url: string): Promise<void> {
   }
 }
 
+/**
+ * The zoo (src/game/zoo), in the browser: from the title (z), a visit on its own maps; a sign read in
+ * its card, and an exhibit set off from it (the window onto the story's first morning); a spell on the
+ * sheet with the SRD's own words (vendor/srd-spells, from content.json); the action menu; the view
+ * from above; and back to the title, where the visit is carried on and not offered as a game to
+ * Continue. Offline: nothing in it needs the GM.
+ */
+async function zoo(browser: Browser, url: string): Promise<void> {
+  const context = await browser.newContext({ viewport: VIEWPORT });
+  watch(context);
+  try {
+    const { page } = await open(context, url, `offline&size=${COLS}x${ROWS}`);
+    await waitFor(page, "Hanged Clerk of Caerwyn", "the title, for the zoo");
+    await press(page, "z");
+    await waitFor(page, "Next: Welcome to the Zoo", "z opens the zoo: a visit on a map of its own, the next exhibit in the sidebar", 60000);
+    await waitFor(page, "Welcome to the Zoo: everything the game does", "the zoo's welcome in What happens");
+    await sleep(500);
+    await shot(page, "zoo-hall");
+    // A sign read (a right-click on it in Nearby, then Read): its card, in full.
+    const read = async (sign: string, card: string, what: string) => {
+      await waitFor(page, `the sign: ${sign}`, `the sign "${sign}" is in Nearby`);
+      await clickOn(page, `the sign: ${sign}`, "right");
+      // The menu's own line (the sidebar's e line says Read the sign too, when you face one).
+      await waitFor(page, `1 Read the sign: ${sign}`, `a right-click on the sign "${sign}" offers to read it`);
+      await clickOn(page, `1 Read the sign: ${sign}`);
+      await waitFor(page, card, what);
+    };
+    await read("Welcome", "Welcome to the Zoo.*Everything the game does", "the welcome sign's card");
+    await press(page, "Escape");
+    await read("The story's", "The story's first morning.*Set it off.*1 Look out of the window", "the first morning's sign: its card, and what it sets off");
+    await shot(page, "zoo-sign");
+    // Set off from the card: the zoo's explorer and the story's map, in the worker.
+    await press(page, "1");
+    await waitFor(page, "Through the window: the story's first morning", "1 on the card sets it off: the window onto Caerwyn's first morning");
+    await sleep(400);
+    await shot(page, "zoo-window");
+    await press(page, "Escape");
+    // A spell on the sheet: its card, the game's numbers, and the SRD's own words (content.json's vendor/srd-spells).
+    await press(page, "c");
+    await waitFor(page, "Character sheet", "c: the visitor's sheet");
+    await clickOn(page, "Spells");
+    await waitFor(page, "Fire Bolt", "the sheet's spells");
+    await clickOn(page, "Fire Bolt");
+    await waitFor(page, "Fire Bolt.*In this game.*From the SRD 5\\.2\\.1.*You hurl a mote of fire", "a click on Fire Bolt shows its card and the SRD's description");
+    await shot(page, "zoo-spell");
+    for (let i = 0; i < 4 && /Character sheet/.test(await text(page)); i++) await press(page, "Escape");
+    // The action menu, on the wing's world.
+    await press(page, "m");
+    await waitFor(page, "What will you do\\?.*Fire Bolt", "m: the action menu in the zoo");
+    await shot(page, "zoo-menu");
+    await press(page, "Escape");
+    await press(page, "v");
+    await waitFor(page, "The Front Hall, from above", "v looks down on the wing from above");
+    await press(page, "Escape");
+    await press(page, "Escape");
+    await waitFor(page, "Save and return to the title", "Esc: the menu");
+    await clickOn(page, "Save and return to the title");
+    await waitFor(page, "carry on your visit", "back on the title, the zoo carries the visit on");
+    if (/Continue.*Wren Ashdown/s.test(await text(page))) fail("the zoo visit is offered as a game to Continue");
+    else ok("the zoo visit isn't offered as a game to Continue");
+  } finally {
+    await context.close();
+  }
+}
+
 /** Resize follows the browser: an unpinned page fits the window, and the game in the worker redraws to it. */
 async function resize(browser: Browser, url: string): Promise<void> {
   const context = await browser.newContext({ viewport: { width: 1500, height: 900 } });
@@ -933,6 +1005,7 @@ const browser = await chromium.launch();
 try {
   await besideTheTerminal(browser, server.url);
   await play(browser, server.url);
+  await zoo(browser, server.url);
   await resize(browser, server.url);
   await twoTabs(browser, server.url);
   await noStorage(browser, server.url);
