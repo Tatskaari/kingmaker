@@ -2,6 +2,7 @@ import { intersect, OptimizedBuffer, type ClipRect } from "./buffer.ts";
 import { EventEmitter, InputSplitter, KeyHandler, MouseEvent, MouseParser, parseKeypress, type RawMouseEvent } from "./events.ts";
 import { Direction, initLayout, Renderable, RootRenderable, type RenderContext } from "./renderable.ts";
 import { parseColor, RGBA, type ColorInput } from "./rgba.ts";
+import { releaseSelections } from "./textarea.ts";
 
 /**
  * The renderer (@opentui/core's CliRenderer, with the native scene's frame: packages/native/src/
@@ -458,6 +459,9 @@ export class CliRenderer extends EventEmitter implements RenderContext {
       this.capturedRenderable = undefined;
       this.requestRender();
     }
+    // A left click lets go of the zero-width selection a click on a textarea started (the native
+    // renderer starts a new selection, or clears the old one): a click on the textarea starts it again.
+    if (mouse.type === "down" && mouse.button === 0 && !mouse.modifiers.ctrl) releaseSelections();
     if (hit) {
       this.capturedRenderable = mouse.type === "drag" && mouse.button === 0 ? hit : undefined;
       this.dispatchMouse(hit, mouse);
