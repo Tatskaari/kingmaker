@@ -1,7 +1,7 @@
 import { respondJson, type Message } from "../llm/openrouter.ts";
 import { listDocs, readDoc, titleOf, type Doc } from "../lore/docs.ts";
-import { presentCast, prompt } from "./brief.ts";
-import { asKnown, deedFor, lead, linkMarks, nameAsKnown, playerKnowledge } from "./knowledge.ts";
+import { knownCast, nameTokens, presentCast, prompt } from "./brief.ts";
+import { asKnown, deedFor, lead, linkMarks, nameAsKnown, playerKnowledge, supports } from "./knowledge.ts";
 import { MARK_KINDS, type Mark, type MarkKind, type Speech } from "./markup.ts";
 import type { Scene } from "./scene.ts";
 import type { Entry, SessionState } from "./session.ts";
@@ -82,9 +82,12 @@ export function forReaders(doc: Doc, time?: Scene["time"]): string {
 /**
  * The lore anyone could read, as the writer gets it: the scene's own public docs whole, the people
  * here by their public faces, and a line on each of the world's other public docs and places.
- * Names the player hasn't heard are put as what they'd call their owners.
+ * Names the player hasn't heard are put as what they'd call their owners. Someone's public face is
+ * what the people who know them know: it's there once the player has heard their name, before this
+ * reply (`before`), and not while they're only the big man by the fire (what the Rat's regulars know
+ * of him is for the landlady to sell).
  */
-export function publicLore(scene: Scene, state: SessionState): { refs: LoreRef[]; text: string } {
+export function publicLore(scene: Scene, state: SessionState, before: Entry[] = state.transcript): { refs: LoreRef[]; text: string } {
   const refs: LoreRef[] = [];
   const parts: string[] = [];
   const add = (path: string, body: string, title: string) => {
@@ -94,7 +97,8 @@ export function publicLore(scene: Scene, state: SessionState): { refs: LoreRef[]
   };
   const own = (scene.lore ?? []).map(p => readDoc(state.id, p)).filter(isPublic);
   for (const doc of own) add(doc.path, forReaders(doc, scene.time), titleOf(doc));
-  for (const c of presentCast(scene, state)) {
+  const named = knownCast(scene, { ...state, transcript: before });
+  for (const c of presentCast(scene, state).filter(c => named.has(c.id))) {
     const doc = readDoc(state.id, `Cast/${c.name}/public.md`);
     if (isPublic(doc)) add(doc.path, forReaders(doc, scene.time), titleOf(doc));
   }
@@ -171,30 +175,63 @@ function wordsAt(text: string, words: string, from = 0, to = text.length): { sta
 
 const overlaps = (a: { start: number; end: number }, b: { start: number; end: number }) => a.start < b.end && b.start < a.end;
 
+/** A note about itself, not the story ("the reason for this line isn't clear"). */
+const ABOUT_ITSELF = /\b(?:isn['’]t|is not|not) (?:clear|certain|known|explained)\b|\bunclear\b|\bthis (?:line|note|mark|reply)\b|\bthe reason for (?:this|the) line\b/i;
+/** A know that only says what the reply has just told them, or tells them what they "know" ("You now know…", "You’re hearing…", "You know him as…"). */
+const ANNOUNCES = /^\s*(?:you(?:['’]ve| have)?\s+(?:now|already|just)\s+(?:know|knew|learn\w*|hear\w*|been told|seen?|saw)\b|you\s+know\s+(?:him|her|them)\s+as\b|you(?:['’]ve| have)?\s+(?:learn|learned|learnt|hear|heard|been told|see|seen|saw|notice|noticed)\b|you['’]re\s+(?:hearing|seeing|learning|being told|looking at)\b)/i;
+/** A reason that's something the player did ("You offered…", "You’re throwing…", "You told the King…"). */
+const PLAYER_DID = /^\s*you(?:['’]ve| have| had|['’]re| are| were)?\s+(?!(?:know|knew|are|were|can|could|may|might|must|should|would|will|need|now|already|still|also)\b)[a-z]+/i;
+/** Words that say what someone said or thinks ("the bargewoman says…", "she knows Nat Pike"). */
+const SAYS = "says|said|told|tells|thinks|thought|reckons|believes|knows|knew";
+
+/**
+ * Someone the note says said or thinks something, who hasn't said a word in the scene so far or the
+ * reply: a lore entry's "Dilly says he's sickening" is the lore talking, not her telling the player.
+ */
+function putsWordsIn(note: string, scene: Scene, state: SessionState, before: Entry[], speech: Speech[]): boolean {
+  const here = before.filter(e => (e.scene ?? state.sceneId) === state.sceneId);
+  const spoke = new Set([...here.flatMap(e => [...(e.marked?.speech ?? []).map(s => s.speaker), ...(e.kind === "dialogue" ? [e.speaker] : [])]), ...speech.map(s => s.speaker)]);
+  return presentCast(scene, state).some(c => {
+    if (spoke.has(c.id)) return false;
+    const called = c.called?.replace(/^(the|a|an)\s+/i, "");
+    const words = [...nameTokens(c), ...(called ? [called, called.split(/\s+(?:with|in|by|from|at|on)\s+/)[0]!.split(/\s+/).at(-1)!] : [])].filter(w => w.length >= 3);
+    return words.some(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+(?:${SAYS})\\b`, "i").test(note));
+  });
+}
+
 /**
  * The notes placed on the reply: each on its words (the GM's mark it was written for, the spoken
  * line it's on or the words of it it names, or words of the reply), with no two on the same words,
- * three at most. A `you` is about something the player did, or it goes; a turn or a lore doc the
- * writer named is the note's link.
+ * three at most. Only what's so, of what the player knows, and nothing guessed: a know explains from
+ * a lore entry, never says again what the reply just said; a `you`, or a why that's something the
+ * player did, is about one of their turns that's about it (the writer's turn, else the one that
+ * shares its words), or it goes; nobody says or thinks what they haven't said; a note about itself
+ * goes. A turn or a lore doc the writer named is the note's link.
  */
-export function placeNotes(text: string, speech: Speech[], drafted: Drafted[], written: Written[], refs: LoreRef[], state: SessionState, explained: string[] = [], scene?: Scene): Mark[] {
+export function placeNotes(text: string, speech: Speech[], drafted: Drafted[], written: Written[], refs: LoreRef[], state: SessionState, explained: string[] = [], scene?: Scene, before: Entry[] = state.transcript): Mark[] {
   const marks: Mark[] = [];
   const had = new Set(explained.map(sameWords));
-  const playerTurns = new Set(state.transcript.filter(e => e.kind === "player").map(e => e.turn));
   for (const w of written) {
     if (marks.length >= MAX_MARKS) break;
     const note = storyWords(w.note);
-    if (!MARK_KINDS.includes(w.kind) || note.length < 8) continue;
+    if (!MARK_KINDS.includes(w.kind) || note.length < 8 || ABOUT_ITSELF.test(note)) continue;
     const span = spanOf(text, speech, drafted, w);
     if (!span || marks.some(m => overlaps(m, span))) continue;
+    const phrase = text.slice(span.start, span.end);
     // What's been explained once in the scene isn't explained again; two reasons a reply is plenty.
-    if (w.kind === "know" && had.has(sameWords(text.slice(span.start, span.end)))) continue;
+    if (w.kind === "know" && had.has(sameWords(phrase))) continue;
     if (w.kind === "why" && marks.filter(m => m.kind === "why").length >= 2) continue;
-    const deedTurn = w.turn > 0 && playerTurns.has(w.turn) ? w.turn : undefined;
-    const deed = deedTurn !== undefined ? state.transcript.find(e => e.kind === "player" && e.turn === deedTurn) : w.kind === "you" ? deedFor(state, `${text.slice(span.start, span.end)} ${note}`) : undefined;
-    // A callback is to something the player did: without it, it isn't one.
-    if (w.kind === "you" && !deed) continue;
     const doc = refs.find(r => r.id === w.lore.trim());
+    // A know is what anyone could read in the lore, not a guess or the reply said again.
+    if (w.kind === "know" && (!doc || ANNOUNCES.test(note))) continue;
+    if (scene && putsWordsIn(note, scene, state, before, speech)) continue;
+    // The player's turn it's about: the writer's, when that turn is about it; else the one that is.
+    const cited = w.turn > 0 ? state.transcript.find(e => e.kind === "player" && e.turn === w.turn) : undefined;
+    const theirs = w.kind === "you" || (w.kind === "why" && PLAYER_DID.test(note));
+    const deed = cited && supports(state, cited, `${phrase} ${note}`) ? cited : theirs || cited ? deedFor(state, `${phrase} ${note}`) : undefined;
+    // A callback is to something the player did, and a reason that's something they did is too: without the turn, it isn't one.
+    if (w.kind === "you" && !deed) continue;
+    if (w.kind === "why" && !deed && theirs && !doc) continue;
     // Someone's public face is a person's card (by the name the player knows them by), not a doc's.
     const face = doc && /^Cast\/(.+)\/public\.md$/.exec(doc.path)?.[1];
     const person = face ? scene?.cast.find(c => c.name === face) : undefined;
@@ -243,7 +280,7 @@ function spanOf(text: string, speech: Speech[], drafted: Drafted[], w: Written):
  * scene so far and the reply. Everything in it is something the player knows.
  */
 export function notesInput(scene: Scene, state: SessionState, reply: { text: string; speech: Speech[]; drafted: Drafted[] }, before: Entry[]): { input: Message[]; refs: LoreRef[] } {
-  const known = knownToAll(scene, state);
+  const known = knownToAll(scene, state, before);
   return {
     refs: known.refs,
     input: [
@@ -260,8 +297,8 @@ function given(state: SessionState, before: Entry[]): string[] {
 }
 
 /** What anyone here knows (the scene's hook and `known`, the public lore, by id) and who the player is: what a note may explain from, besides the scene. */
-export function knownToAll(scene: Scene, state: SessionState): { refs: LoreRef[]; text: string } {
-  const lore = publicLore(scene, state);
+export function knownToAll(scene: Scene, state: SessionState, before: Entry[] = state.transcript): { refs: LoreRef[]; text: string } {
+  const lore = publicLore(scene, state, before);
   const common = [scene.hook, ...(scene.known ?? [])].map(k => `- ${asKnown(k, scene, state)}`).join("\n");
   return { refs: lore.refs, text: `# What anyone here knows\n${common}\n\n${lore.text}\n\n# The player\n${whoTheyAre(state)}` };
 }
@@ -275,7 +312,7 @@ export async function writeNotes(scene: Scene, state: SessionState, reply: { tex
   const { input, refs } = notesInput(scene, state, reply, before);
   const result = await respondJson<{ notes: Written[] }>({ operation: "notes", effort: "none", maxOutputTokens: 900, instructions: prompt("notes"), input, json: { name: "notes", schema } });
   const explained = before.filter(e => (e.scene ?? state.sceneId) === state.sceneId && e.marked?.marks.length).flatMap(e => e.marked!.marks.filter(m => m.kind === "know").map(m => e.text.slice(m.start, m.end)));
-  const placed = placeNotes(reply.text, reply.speech, reply.drafted, result.notes ?? [], refs, state, explained, scene);
+  const placed = placeNotes(reply.text, reply.speech, reply.drafted, result.notes ?? [], refs, state, explained, scene, before);
   // Names the player hasn't heard, kept out; a link where the writer gave none (someone they know, by name).
   const marks = linkMarks({ speech: reply.speech, marks: placed.map(m => ({ ...m, note: asKnown(m.note, scene, state) })) }, reply.text, scene, state).marks;
   const onGm = (m: Mark) => reply.drafted.some(d => overlaps(d, m));

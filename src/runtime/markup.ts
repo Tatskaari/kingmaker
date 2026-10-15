@@ -1,4 +1,4 @@
-import { firstNamed, quoteSpeaker, SPEECH, speechTagged, tagSpeaker, type Speaker } from "./speakers.ts";
+import { antecedent, arrived, firstNamed, newcomer, pronounTagged, quoteSpeaker, SPEECH, speechTagged, tagSpeaker, type Pronoun, type Speaker } from "./speakers.ts";
 
 /**
  * The GM's markup: what a reply says beyond its words, for the screen (each person's lines in
@@ -155,20 +155,34 @@ function phraseIn(text: string, phrase: string): number {
   return p.length >= 3 ? t.lastIndexOf(p) : -1;
 }
 
+/** A spoken line still open: the quote that opened it, and the closing quote it has twice when its tag came inside its quotes. */
+type OpenLine = Speech & { by: string; twice?: string };
+/** An open line as a spoken line. */
+const lineOf = ({ by, twice, ...line }: OpenLine): Speech => { void by; void twice; return line; };
+/** A spoken line with words in it (not a quote mark left on its own). */
+const hasWords = (text: string, s: Speech) => /[\p{L}\p{N}]/u.test(text.slice(s.start, s.end));
+
 /** What parsing builds: the words shown, the spoken lines, the notes. */
 class Reply {
   text = "";
   speech: Speech[] = [];
   marks: Mark[] = [];
   stats = emptyStats();
-  /** A spoken line still open, and the quote that opened it. */
-  open: (Speech & { by: string }) | undefined;
+  /** A spoken line still open, the quote that opened it, and the closing quote it came with twice (its tag inside its quotes: “[Kell] “No.””). */
+  open: OpenLine | undefined;
   /** A speaker's tag waiting for its line. */
   tag: string | undefined;
+  /** A closing quote that came twice, to be dropped if it's next. */
+  private swallow: string | undefined;
 
   char(c: string): void {
     // A reply starts with its first word (whatever markup came before it).
     if (!this.text && /\s/.test(c)) return;
+    if (this.swallow) {
+      const s = this.swallow;
+      this.swallow = undefined;
+      if (c === s || (s === "”" && c === "\"")) return;
+    }
     if (c === "\n" && this.open && this.text.endsWith("\n")) this.close();
     if (c === "“" || c === "”" || c === "\"") this.quote(c);
     else this.text += c;
@@ -179,15 +193,20 @@ class Reply {
   private close(): void {
     const o = this.open!;
     o.end = Math.max(o.start + 1, this.text.trimEnd().length);
-    const { by, ...line } = o;
-    void by;
-    this.speech.push(line);
+    this.speech.push(lineOf(o));
     this.open = undefined;
   }
 
   private quote(c: string): void {
     if (this.open) {
-      if (c === "”" || (c === "\"" && this.open.by === "\"")) { this.text += c; this.open.end = this.text.length; this.close(); this.open = undefined; return; }
+      if (c === "”" || (c === "\"" && this.open.by === "\"")) {
+        this.text += c;
+        this.open.end = this.text.length;
+        const twice = this.open.twice;
+        this.close();
+        if (twice === "”" || twice === "\"") this.swallow = twice;
+        return;
+      }
       // A new line opened while one is open: the last never closed.
       if (c === "“") this.close();
       else { this.text += c; return; }
@@ -422,10 +441,19 @@ export function parseMarkup(written: string, options: { final?: boolean } = {}):
     while (q < raw.length && (raw[q] === " " || raw[q] === "\t" || raw[q] === ":")) q++;
     if (q >= raw.length && !final) return HOLD;
     if (raw[q] === "(" && q + 1 >= raw.length && !final) return HOLD;
+    // Just inside a line that has only just opened (“[Kell] Not for you”): the tag for it. When the
+    // line's own quote comes after the tag (“[Kell] “No.”” or “[Kell] ‘No.’”), one pair goes: the
+    // quote after it, and the one that closes it.
+    const inside = r.open && !r.open.tag && r.open.start === r.text.length - 1 && tagLike(inner) ? r.open : undefined;
+    if (inside && (raw[q] === "“" || raw[q] === "\"" || raw[q] === "‘")) {
+      inside.tag = inner.trim();
+      inside.twice = raw[q] === "‘" ? "’" : raw[q] === "“" ? "”" : "\"";
+      r.stats.tagged++;
+      return q + 1;
+    }
     if ((isOpening(raw[q]) || (raw[q] === "(" && isOpening(raw[q + 1]))) && tagLike(inner)) { r.tag = inner.trim(); return q; }
-    // Just inside a line that has only just opened (“[Kell] Not for you”): the tag for it.
-    if (r.open && !r.open.tag && r.open.start === r.text.length - 1 && tagLike(inner)) {
-      r.open.tag = inner.trim();
+    if (inside) {
+      inside.tag = inner.trim();
       r.stats.tagged++;
       return raw[k] === " " ? k + 1 : k;
     }
@@ -451,21 +479,23 @@ export function parseMarkup(written: string, options: { final?: boolean } = {}):
   let pending = raw.length < bolded.length;
   while (i < raw.length) {
     const ch = raw[i]!;
+    // A line whose tag came inside its quotes, with its own in single ones (“[Kell] ‘No.’”): the
+    // single quote that closes it goes (held until it's clear it's not an apostrophe).
+    if (ch === "’" && r.open?.twice === "’") {
+      if (i + 1 >= raw.length && !final) { pending = true; break; }
+      if (raw[i + 1] === "”" || raw[i + 1] === "\"") { i++; continue; }
+    }
     const next = unbracket.has(i) ? i + 1 : ch === "(" ? round(i) : ch === "[" ? square(i) : (r.char(ch), i + 1);
     if (next === HOLD) { pending = true; break; }
     i = next;
   }
   const speech = [...r.speech];
-  if (r.open) {
-    const { by, ...line } = r.open;
-    void by;
-    speech.push({ ...line, end: Math.max(line.start + 1, r.text.trimEnd().length) });
-  }
+  if (r.open) speech.push({ ...lineOf(r.open), end: Math.max(r.open.start + 1, r.text.trimEnd().length) });
   let text = r.text;
   if (final) text = text.trimEnd();
   return {
     text,
-    speech: speech.map(s => ({ ...s, end: Math.min(s.end, text.length) })).filter(s => s.end > s.start),
+    speech: speech.map(s => ({ ...s, end: Math.min(s.end, text.length) })).filter(s => s.end > s.start && hasWords(text, s)),
     marks: r.marks.map(m => ({ ...m, end: Math.min(m.end, text.length) })).filter(m => m.end > m.start).sort((a, b) => a.start - b.start),
     pending,
     stats: r.stats,
@@ -484,33 +514,44 @@ export function speechIn(text: string): Speech[] {
   r.text = text.slice(0, text.length - text.trimStart().length);
   r.emit(text.trimStart());
   const speech = [...r.speech];
-  if (r.open) { const { by, ...line } = r.open; void by; speech.push({ ...line, end: Math.max(line.start + 1, r.text.trimEnd().length) }); }
-  return speech.filter(s => s.end > s.start);
+  if (r.open) speech.push({ ...lineOf(r.open), end: Math.max(r.open.start + 1, r.text.trimEnd().length) });
+  return speech.filter(s => s.end > s.start && hasWords(text, s));
 }
 
 /**
- * Who says each line: the tag the GM wrote; else the one who said the line before, when only a
- * speech tag ("…,” she says, “…”) or a pause ("A beat.") comes between; else as a reader would tell
- * from the prose (the speech tag after it, or the sentence leading in); else, after narration that
- * goes on about someone only as "she" or "he", the one who said the last line. Words quoted in
- * narration rather than said ("At “the Purveyor's office,” her pencil stills.") are nobody's line,
- * or the player's own when they echo `player`, the player's latest turn.
+ * Who says each line: the tag the GM wrote; else as the prose says, the speech tag after it (in its
+ * paragraph: "…,” Nan says, or the one a "…,” he blurts" means); else the one who said the line
+ * before, when only a speech tag ("…,” she says, “…”) or a pause ("A beat.") comes between; else the
+ * one the sentence leading in is about (the first named there who isn't only looked at, or the one
+ * its "she" means: "Her eyes flick to Sergeant Kell’s notebook." isn't Kell); else, after narration
+ * that goes on about someone only as "she" or "he", the one who said the last line, when that's who
+ * the pronoun can be and nobody new has come into it ("The boy stops."). Nobody, rather than a guess.
+ * Words quoted in narration rather than said ("At “the Purveyor's office,” her pencil stills.", "each
+ * marked “lost to goblins”", "At the bottom: “Not goblins.”") are nobody's line, or the player's own
+ * when they echo `player`, the player's latest turn.
  */
-export function withSpeakers(marked: Marked, people: Speaker[], options: { player?: string | undefined } = {}): Marked {
+export function withSpeakers(marked: Marked, everyone: Speaker[], options: { player?: string | undefined } = {}): Marked {
+  // Someone away whom the narration brings in by what they're called is known by it.
+  const people = arrived(everyone, marked.text);
   const speech: Speech[] = [];
+  const pronounOf = (id?: string) => people.find(p => p.id === id)?.pronoun;
   let prev: Speech | undefined;
   for (const s of marked.speech) {
-    if (!s.tag && mentioned(marked.text, s)) {
+    if (!s.tag && notSaid(marked.text, s)) {
       if (options.player && echoes(marked.text.slice(s.start, s.end), options.player)) speech.push({ ...s, speaker: "you" });
       continue;
     }
     let id = s.tag ? tagSpeaker(s.tag, people) : speechTagged(marked.text, s.end, people);
     const between = prev ? marked.text.slice(prev.end, s.start) : "";
-    const carried = !s.tag && prev?.speaker;
-    if (!id && carried && (continues(between, people) || pause(between, people))) id = prev!.speaker;
-    id ??= s.tag ? undefined : quoteSpeaker(marked.text, s.start, s.end, people);
-    // Untold, after a "she" or a "he" and nobody else named since the last line: the one who said it.
-    if (!id && carried && prev!.speaker !== "you" && pronounOnly(between, people)) id = prev!.speaker;
+    const carried = !s.tag && prev?.speaker ? prev.speaker : undefined;
+    const fits = (p: Pronoun | undefined) => !p || !pronounOf(carried) || pronounOf(carried) === p;
+    // "…,” he blurts: whoever he is.
+    const told = !id && !s.tag ? pronounTagged(marked.text, s.end) : undefined;
+    if (told) id = carried && carried !== "you" && pronounOf(carried) === told && !named(between, people) && !newcomerIn(between) ? carried : antecedent(marked.text, s.start, told, people, speech);
+    if (!id && !told && carried && ((continues(between, people) && fits(attributed(between))) || pause(between, people))) id = carried;
+    if (!id && !told && !s.tag) id = quoteSpeaker(marked.text, s.start, s.end, people, speech);
+    // Untold, after a "she" or a "he" that can be them and nobody else named since the last line: the one who said it.
+    if (!id && !told && carried && carried !== "you" && pronounOnly(between, people, pronounOf(carried))) id = carried;
     const line = id ? { ...s, speaker: id } : { ...s };
     speech.push(line);
     prev = line;
@@ -521,10 +562,25 @@ export function withSpeakers(marked: Marked, people: Speaker[], options: { playe
 /** Someone named in some words, as more than a mention ("Kell turns", not "Her gaze settles on Kell"). */
 const named = (words: string, people: Speaker[]) => !!firstNamed(words.toLowerCase(), people);
 
-/** Narration that goes on about someone only as "she" or "he" (no one else named in it), a short paragraph at most. */
-function pronounOnly(between: string, people: Speaker[]): boolean {
+/** Narration's sentences. */
+const sentencesOf = (words: string) => words.match(/[^.!?…\n]+(?:[.!?…]+[”"’)]*)?/g) ?? [];
+/** Someone the narration brings in that we can't name ("The boy stops at your crown.", "A woman steps in."), who might be the one talking. */
+const newcomerIn = (words: string) => sentencesOf(words).some(s => { const n = newcomer(s); return n && !n.plural; });
+
+/** The pronoun narration goes on with (its first "she", "her", "he", "his" or "him"). */
+function pronounIn(words: string): Pronoun | undefined {
+  const m = /\b(she|her|hers|he|his|him)\b/.exec(words.toLowerCase());
+  return m ? (/^(she|her|hers)$/.test(m[1]!) ? "she" : "he") : undefined;
+}
+
+/**
+ * Narration that goes on about someone only as "she" or "he" (no one else named in it, nobody
+ * brought in), a short paragraph at most, with the pronoun the speaker has (`pronoun`, when known).
+ */
+function pronounOnly(between: string, people: Speaker[], pronoun: Speaker["pronoun"]): boolean {
   const b = between.toLowerCase();
-  return between.length <= 240 && /\b(she|he|her|his|him)\b/.test(b) && !/\byou\s+(say|said|ask|asked|answer|reply)/.test(b) && !named(between, people);
+  const said = pronounIn(between);
+  return between.length <= 240 && !!said && (!pronoun || said === pronoun) && !/\byou\s+(say|said|ask|asked|answer|reply)/.test(b) && !named(between, people) && !newcomerIn(between);
 }
 
 /** Narration that's only a pause ("A beat.", "A long pause.", "Then:", "—"). */
@@ -534,19 +590,26 @@ const pause = (between: string, people: Speaker[]) => !between.includes("\n") &&
 
 /** A speech tag with no one named in it, that carries a speaker on to their next line: “…,” she says, not looking up, “…” */
 const ATTRIBUTION = new RegExp(`^[\\s,;:—–-]*(?:she|he|they|it)\\s+(?:${SPEECH})\\b[^.!?“”"\\n]{0,50}[.!?,;:—–-]?\\s*$`, "i");
+/** The pronoun of a speech tag between two lines ("she says"), if it has one. */
+const attributed = (between: string): Pronoun | undefined => { const m = /^[\s,;:—–-]*(she|he)\b/i.exec(between); return m ? (m[1]!.toLowerCase() as Pronoun) : undefined; };
 
 /** Narration between two lines that only carries one speaker on to the next. */
 function continues(between: string, people: Speaker[]): boolean {
   return ATTRIBUTION.test(between) && !named(between, people);
 }
 
-/** Words that, just before a quote, make it words mentioned in the sentence rather than a line said: "at “…”", "the word “…”". */
-const MENTION = /(?:^|[\s(])(?:at|of|on|in|for|from|to|with|like|as|than|the|word|words|called|named|about|into|onto|upon)\s+$/i;
+/** Words that, just before a quote, make it words mentioned in the sentence rather than a line said: "at “…”", "the word “…”", "each “lost” wagon", "the crowd’s “lost to goblins!”". */
+const MENTION = /(?:^|[\s(])(?:at|of|on|in|for|from|to|with|like|as|than|the|word|words|called|named|about|into|onto|upon|each|every|its|their|his|her|our|your|my|this|that|these|those|so-called|where)\s+$|\w['’]s\s+$/i;
+/** Words after a quote that carry its sentence on, the quote its subject: "where “Lost to goblins!” rises from the crowd". */
+const CARRIED_ON = new RegExp(`^\\s+(?!(?:she|he|they|it|you|i|we|and|but|or|then|${SPEECH})\\b)[a-z]+s\\b`);
+/** Words written, not said, just before a quote: "each marked “lost to goblins”", "countersigned “J. Sallow”", "The sign reads “…”", "At the bottom: “…”". */
+const WRITTEN = /\b(?:marked|labell?ed|stamped|headed|titled|signed|countersigned|inscribed|written|scrawled|printed|lettered|chalked|painted|pencilled|reads|spells)\b[^.!?“”"\n]{0,20}[:,]?\s*$|\b(?:page|ledger|letter|sign|board|note|entry|entries|column|heading|margin|bottom|foot|label|inscription|notice|list|signature|countersignature|initials|legend|motto)\b[^.!?“”"\n]{0,15}[:,]?\s*$/i;
 
-/** A short quote inside a sentence of narration, with no tag ("At “the Royal Purveyor's office,” her pencil stills."). */
-function mentioned(text: string, s: Speech): boolean {
+/** Quoted words that aren't a line said: a short quote inside a sentence of narration, with no tag ("At “the Royal Purveyor's office,” her pencil stills."), or words written and read. */
+function notSaid(text: string, s: Speech): boolean {
   const said = text.slice(s.start, s.end).replace(/^[“"]|[”"]$/g, "").trim();
-  return said.split(/\s+/).length <= 8 && MENTION.test(text.slice(Math.max(0, s.start - 30), s.start));
+  const before = text.slice(Math.max(0, s.start - 40), s.start);
+  return (said.split(/\s+/).length <= 8 && (MENTION.test(before.slice(-30)) || CARRIED_ON.test(text.slice(s.end, s.end + 20)))) || WRITTEN.test(before);
 }
 
 const plain = (s: string) => s.toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -559,8 +622,10 @@ const echoes = (quote: string, player: string) => { const q = plain(quote); retu
  */
 export function markupLines(text: string, markup: Markup, name: (id: string) => string | undefined): string[] {
   const clip = (s: string, n = 28) => (s.length > n ? `${s.slice(0, n - 1)}…”` : s);
-  const who = markup.speech.map(s => `${s.speaker === "you" ? "you" : (s.speaker ? name(s.speaker) : undefined) ?? (s.tag ? `${s.tag} (not here)` : "nobody can tell")} ${clip(text.slice(s.start, s.end))}`);
-  const link = (l: MarkLink) => (l.kind === "deed" ? `what you did, turn ${l.turn}` : l.kind === "person" ? `who: ${name(l.id) ?? l.id}` : `lore: ${l.path}`);
+  // A tag that's no one in the cast is someone the GM brought in ("the porter"), not someone away.
+  const who = markup.speech.map(s => `${s.speaker === "you" ? "you" : (s.speaker ? name(s.speaker) : undefined) ?? (s.tag ? `${s.tag} (not in the cast)` : "nobody can tell")} ${clip(text.slice(s.start, s.end))}`);
+  // A lore doc by its name ("the Heron Warehouse"), as the popover shows it, not its path.
+  const link = (l: MarkLink) => (l.kind === "deed" ? `what you did, turn ${l.turn}` : l.kind === "person" ? `who: ${name(l.id) ?? l.id}` : `lore: ${l.path.replace(/^.*\//, "").replace(/\.md$/, "")}`);
   return [
     ...(who.length ? [`  ⟨who says what: ${who.join("; ")}⟩`] : []),
     ...markup.marks.map(m => `  ⟨${m.kind} on “${text.slice(m.start, m.end)}”: ${m.note}${m.link ? ` (${link(m.link)})` : ""}⟩`),

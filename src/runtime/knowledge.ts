@@ -82,14 +82,21 @@ export function knowledgeBrief(state: SessionState): string {
 
 // --- Who speaks: the scene's people by the names that mean them in prose.
 
-/** Everyone who might speak in a reply: the scene's cast (those here first), then the rest of the place's people. */
+/**
+ * Everyone who might speak in a reply: the scene's cast (those here first), then the rest of the
+ * place's people. The cast who aren't here are away: known by their names only (someone the
+ * narration names may call from off, or come in), never by what they're called or look like ("the
+ * porter" isn't Hobb when Hobb is in the cells).
+ */
 export function speakersOf(scene: Scene, state: SessionState): Speaker[] {
   const here = presentCast(scene, state);
-  const cast = [...here, ...scene.cast.filter(c => !here.includes(c))];
-  const out: Speaker[] = cast.map(c => speaker(c.id, c.name, c.called, c.aka));
+  const out: Speaker[] = [
+    ...here.map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look })),
+    ...scene.cast.filter(c => !here.includes(c)).map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look, away: true })),
+  ];
   for (const e of Object.values(state.world?.entities ?? {})) {
     if ((e.kind !== "person" && e.kind !== "creature") || e.player || e.states.includes("gone") || out.some(p => p.id === e.id || p.id === e.cast)) continue;
-    out.push(speaker(e.id, e.name));
+    out.push(speaker(e.id, e.name, undefined, [], { look: e.description }));
   }
   return distinct(out);
 }
@@ -103,8 +110,9 @@ export function nameAsKnown(scene: Scene, state: SessionState, id: string): stri
 
 // --- Marks: linking each to what the player knows, and keeping names they haven't heard out of it.
 
-/** Words too common to tell one deed from another. */
-const STOP = new Set(["that", "this", "with", "from", "your", "you're", "they", "them", "their", "there", "then", "than", "have", "been", "were", "what", "when", "where", "which", "while", "would", "could", "should", "about", "into", "just", "only", "very", "some", "said", "says", "will", "it's", "isn't", "don't", "didn't", "here", "over", "back", "down", "still", "made", "make", "like", "know", "knows"]);
+/** Words too common to tell one deed from another: the little words, the verbs of anything anyone does ("told", "took", "looks"), and where things are ("beneath", "behind"). */
+const STOP = new Set(["that", "this", "with", "from", "your", "you're", "they", "them", "their", "there", "then", "than", "have", "been", "were", "what", "when", "where", "which", "while", "would", "could", "should", "about", "into", "just", "only", "very", "some", "said", "says", "will", "it's", "isn't", "don't", "didn't", "here", "over", "back", "down", "still", "made", "make", "like", "know", "knows",
+  "told", "tell", "tells", "say", "asked", "asks", "took", "take", "takes", "gave", "give", "gives", "want", "wants", "wanted", "think", "thinks", "thought", "look", "looks", "looked", "turn", "turns", "turned", "came", "come", "comes", "went", "goes", "going", "keep", "keeps", "kept", "need", "needs", "help", "helps", "seem", "seems", "feel", "feels", "felt", "tried", "tries", "makes", "find", "found", "call", "called", "calls", "sent", "send", "left", "leave", "lets", "away", "again", "even", "also", "more", "most", "much", "once", "other", "same", "such", "well", "being", "doing", "done", "does", "after", "before", "beneath", "under", "above", "behind", "below", "beside", "against", "toward", "towards", "through", "around", "across", "along", "upon", "onto", "into", "without", "within", "because", "though", "now", "today", "tonight", "moment", "time"]);
 /** A word's stem, roughly ("throwing", "throws" and "thrown" are all "throw"; "stones" is "stone"). */
 const stem = (w: string) => w.replace(/(?:ing|ed|es|s|ly|n)$/, "").replace(/(.)\1$/, "$1");
 const contentWords = (s: string) => new Set((s.toLowerCase().match(/[a-z][a-z'’]{3,}/g) ?? []).map(w => w.replace(/[’']s$/, "")).filter(w => !STOP.has(w)).map(stem).filter(w => w.length >= 3));
@@ -112,19 +120,40 @@ const contentWords = (s: string) => new Set((s.toLowerCase().match(/[a-z][a-z'�
 /** The player's own turns in the session, newest first. */
 const deeds = (state: SessionState) => state.transcript.filter(e => e.kind === "player").reverse();
 
+/** Names that don't tell one deed from another: the player's, the scene's people's, and what they're called by rank. */
+function namesHere(state: SessionState): Set<string> {
+  const scene = safeScene(state.sceneId);
+  const words = [...state.player.name.split(/\s+/), ...(scene?.cast ?? []).flatMap(c => [...nameTokens(c), ...(c.called?.split(/\s+/) ?? [])]), "king", "majesty", "sergeant", "marshal", "master", "mister", "investigator", "captain"];
+  return new Set(words.map(w => stem(w.toLowerCase().replace(/[’']s$/, ""))).filter(w => w.length >= 3));
+}
+
+/** The names in some words: capitalised but for starting a sentence ("Wendell", "Prout"). */
+const properIn = (s: string) => (s.match(/(?<![.!?…"“]\s*|^\s*)\b[A-Z][a-z'’]+/g) ?? []).map(w => stem(w.toLowerCase().replace(/[’']s$/, "")));
+
+/** The words a note and a turn share that tell what was done ("milk", "stones"), not who to or about ("Kell", "the King", "Wendell"). */
+function shared(names: Set<string>, turn: string, text: string): string[] {
+  const words = contentWords(text);
+  const proper = new Set([...properIn(turn), ...properIn(text)]);
+  return [...contentWords(turn)].filter(w => words.has(w) && !names.has(w) && !proper.has(w));
+}
+
+/** Is a note about this turn of the player's: does it share a word with it that tells what they did? */
+export const supports = (state: SessionState, turn: Entry, text: string): boolean => shared(namesHere(state), turn.text, text).length > 0;
+
 /**
- * The player's turn a note is about: the one sharing the most words with it (two at least, or a
- * long one; one will do among their last few turns in this scene), the more recent the likelier.
+ * The player's turn a note is about: the one sharing the most words with it that tell what was done
+ * (two at least, or a long one; one will do among their last few turns in this scene), the more
+ * recent the likelier. Names don't count: "Kell" is in half the turns.
  */
 export function deedFor(state: SessionState, text: string): Entry | undefined {
-  const words = contentWords(text);
   const all = deeds(state);
+  const names = namesHere(state);
   const recent = new Set(all.filter(e => (e.scene ?? state.sceneId) === state.sceneId).slice(0, 4));
   let best: { e: Entry; score: number } | undefined;
   for (const e of all) {
-    const shared = [...contentWords(e.text)].filter(w => words.has(w));
-    const score = shared.length + shared.filter(w => w.length >= 6).length * 0.5 + (recent.has(e) ? 0.5 : 0);
-    const enough = shared.length >= 2 || shared.some(w => w.length >= 6) || (shared.length === 1 && recent.has(e));
+    const both = shared(names, e.text, text);
+    const score = both.length + both.filter(w => w.length >= 6).length * 0.5 + (recent.has(e) ? 0.5 : 0);
+    const enough = both.length >= 2 || both.some(w => w.length >= 6) || (both.length === 1 && recent.has(e));
     if (enough && (!best || score > best.score)) best = { e, score };
   }
   return best?.e;

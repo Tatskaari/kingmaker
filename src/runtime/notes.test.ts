@@ -109,12 +109,13 @@ test("a note speaks of the story, not the game: no turn numbers or ids in it", (
 });
 
 test("what's been explained in the scene isn't explained again, and two reasons a reply are plenty", () => {
-  const state = session("zoo-ferry", [["player", "Ferryman! Take me across."]]);
+  const state = session("zoo-ferry", [["player", "Ferryman! Take me across. I'm here for the watch."]]);
   const text = "“The Heron? Not for you. Not for the watch. Not tonight.”";
   const speech = [{ start: 0, end: text.length }];
-  const know: Written = { on: "", words: "the Heron", kind: "know", note: "The last warehouse at the downriver end of the wharves.", turn: 0, lore: "" };
-  assert.equal(placeNotes(text, speech, [], [know], [], state, ["Heron"]).length, 0);
-  assert.equal(placeNotes(text, speech, [], [know], [], state, ["Rule four"]).length, 1);
+  const know: Written = { on: "", words: "the Heron", kind: "know", note: "The last warehouse at the downriver end of the wharves.", turn: 0, lore: "D1" };
+  const refs = [{ id: "D1", path: "Places/Heron Warehouse.md" }];
+  assert.equal(placeNotes(text, speech, [], [know], refs, state, ["Heron"]).length, 0);
+  assert.equal(placeNotes(text, speech, [], [know], refs, state, ["Rule four"]).length, 1);
   const why = (words: string): Written => ({ on: "", words, kind: "why", note: "You came in the watch's name.", turn: 1, lore: "" });
   assert.deepEqual(placeNotes(text, speech, [], [why("Not for you"), why("Not for the watch"), why("Not tonight")], [], state).map(m => text.slice(m.start, m.end)), ["Not for you", "Not for the watch"]);
 });
@@ -125,4 +126,51 @@ test("a note about someone's public face is linked to them, as a person, not to 
   const text = "“That's the champion,” says the young lighterman.";
   const marks = placeNotes(text, [], [], [{ on: "", words: "the champion", kind: "know", note: "He's held the Rat's arm-wrestling chair these eleven years.", turn: 0, lore: "D1" }], [{ id: "D1", path: "Cast/Big Hobb Mallory/public.md" }], state, [], scene);
   assert.deepEqual(marks[0]?.link, { kind: "person", id: "hobb" });
+});
+
+// --- What the QA pass's players were told that wasn't so, or wasn't theirs to know (the notes as written).
+
+test("someone's public face reaches the writer once the player has heard their name, not while he's the big man by the fire", () => {
+  const scene = sceneById("drowned-rat");
+  const reply = parseMarkup("By the fire, an old bargewoman deals cards beside the big man with the bandaged right hand. [the young lighterman] “Not tonight, Hobb?”");
+  const before = session("drowned-rat", [["narration", "The Rat's din drops by half as you come in."], ["player", "Two of whatever's honest, missus."]]);
+  const told = (state: SessionState, upTo = state.transcript) => notesInput(scene, state, { text: reply.text, speech: reply.speech, drafted: [] }, upTo).input.map(m => m.content).join("\n");
+  // The lighterman says his name in this reply: it's not the writer's to explain him from what the regulars know (the robustness tester's rb-2b).
+  assert.doesNotMatch(told({ ...before, transcript: [...before.transcript, { turn: 1, scene: "drowned-rat", speaker: "gm", kind: "narration", text: reply.text }] }, before.transcript), /sickening for something/);
+  // Once the landlady has sold his name, it is.
+  const sold = session("drowned-rat", [["player", "A gill of gossip, missus. The big lad by the fire?"], ["narration", "“Big Hobb Mallory. Champion of the Rat these eleven years.”"]]);
+  assert.match(told(sold), /sickening for something/);
+});
+
+test("a note says only what's so of what the player knows: no guess, no echo, nothing the player didn't do, no words in anyone's mouth", () => {
+  const yard = sceneById("hanged-clerk");
+  const opening = session("hanged-clerk", []);
+  const text = "Below him, a scrawny boy lobs gutter stones. “Cob says he’s dead already! Stop hogging the sky, Mister Prout!” A woman in a rain cape steps away from the gate. “The Captain calls it suicide.”";
+  const speech = parseMarkup(text).speech;
+  const place = (w: Written, state = opening, scene = yard, refs = [{ id: "D1", path: "Places/Granary Yard.md" }]) => placeNotes(text, speech, [], [w], refs, state, [], scene, state.transcript);
+  // At the opening the player hasn't done anything: the stones are the boy's (barbarian#55, the goals tester's g2 and g9).
+  assert.equal(place({ on: "L1", words: "Stop hogging the sky, Mister Prout!", kind: "why", note: "You’re interrupting Cob’s game by occupying the hoist he’s throwing stones at.", turn: 0, lore: "" }).length, 0);
+  assert.equal(place({ on: "L1", words: "Stop hogging the sky", kind: "why", note: "You’re throwing stones at the body, and Cob is trying to hit its nose.", turn: 0, lore: "" }).length, 0);
+  // A know is from the lore, not a guess or the reply said again (the thief's T10, the robustness tester's openings).
+  assert.equal(place({ on: "L2", words: "The Captain calls it suicide.", kind: "know", note: "The Watch Captain has already called Prout’s death a suicide, but Kell hasn’t recorded that as her finding.", turn: 0, lore: "" }).length, 0);
+  assert.equal(place({ on: "L2", words: "The Captain calls it suicide.", kind: "know", note: "You now know the Watch Captain has called Prout’s death a suicide.", turn: 0, lore: "D1" }).length, 0);
+  assert.equal(place({ on: "L2", words: "The Captain calls it suicide.", kind: "know", note: "The Watch Captain files what the Purveyor's office asks him to file.", turn: 0, lore: "D1" }).length, 1);
+  // A note about itself is no note (g11).
+  assert.equal(place({ on: "L1", words: "Stop hogging the sky", kind: "why", note: "Cob may be teasing the dead man, but the reason for this line isn’t clear.", turn: 0, lore: "D1" }).length, 0);
+  // A callback the turn it names doesn't bear out (g1's T40: the King told the player how Wendell took his tea, not the other way round).
+  const king = sceneById("kings-morning");
+  const morning = session("kings-morning", [["player", "Majesty, Wendell Prout was murdered."], ["narration", "“Wendell took his tea with the milk in first, one sugar.”"], ["player", "Majesty, what becomes of Hobb? He held the rope, but he's the one who told us."]]);
+  const tea = "The King looks toward you. “You take your tea without milk, I think. I shall remember.”";
+  const teaSpeech = parseMarkup(tea).speech;
+  assert.equal(placeNotes(tea, teaSpeech, [], [{ on: "L1", words: "You take your tea without milk", kind: "you", note: "You told the King Wendell took his tea with the milk first, and made it feel expected.", turn: 2, lore: "" }], [], morning, [], king, morning.transcript).length, 0);
+  // A reason that isn't the player's own doing keeps its note, without a link to a turn that isn't about it.
+  const kept = placeNotes(tea, teaSpeech, [], [{ on: "L1", words: "I shall remember", kind: "why", note: "The King remembers how everyone takes their tea.", turn: 2, lore: "" }], [], morning, [], king, morning.transcript);
+  assert.equal(kept.length, 1);
+  assert.equal(kept[0]!.link, undefined);
+  // Nobody says what they haven't said: the bargewoman hasn't spoken, whatever her lore says she says (rb-2b's T2).
+  const rat = sceneById("drowned-rat");
+  const gill = session("drowned-rat", [["player", "A gill of gossip, missus."]]);
+  const said = "[Nan Quill] “Big Hobb Mallory. He’s been drinking for two since last night.”";
+  const p = parseMarkup(said);
+  assert.equal(placeNotes(p.text, p.speech, [], [{ on: "L1", words: "He’s been drinking for two since last night.", kind: "know", note: "The old bargewoman says Hobb has been drinking for two lately; she thinks he’s sickening for something.", turn: 0, lore: "D1" }], [{ id: "D1", path: "Cast/Big Hobb Mallory/public.md" }], gill, [], rat, gill.transcript).length, 0);
 });
