@@ -30,7 +30,8 @@ import { DEFAULT_BASE, serveStatic } from "./serve.ts";
  *                                                       key goes anywhere, a report from the title
  *                                                       included)
  *   node --no-warnings src/web/static/check.ts --live   also the key from ~/secrets typed into the key
- *                                                       form, a real GM reply, and the GM's notes on it
+ *                                                       form, the suggested lines after the opening, a
+ *                                                       real GM reply, and the GM's notes on it
  *                                                       (held back, so Ctrl+C catches them running)
  *                                                       finished and saved before the next game
  *   ... --no-build                                      check the dist/web there is
@@ -1005,6 +1006,9 @@ async function live(browser: Browser, url: string): Promise<void> {
     await waitFor(page, "Kell", "the GM's opening mentions Kell", 150000);
     await waitFor(page, "Say it out loud", "the GM's opening is done", 150000);
     await shot(page, "gm-opening");
+    // A moment later, the suggested lines (src/runtime/suggest.ts, in the worker), numbered over the box.
+    await waitFor(page, "1–\\d into the box", "the suggested lines come after the opening, numbered over the box", 30000);
+    await shot(page, "suggested-lines");
     const line = "\"Morning, Sergeant. What have we got?\" I look up at the body, then at the boy with the stones.";
     await waitFor(page, "Say it out loud", "the input is ready", 150000);
     await page.keyboard.type(line, { delay: 8 });
