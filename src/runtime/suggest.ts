@@ -384,10 +384,25 @@ function foundOut(scene: Scene, state: SessionState, v: Vetting): string[] {
   const partly = storyCast(storyScenes(scene, state)).map(c => [c.name, knownAs(c, v)] as const).filter(([name, known]) => name !== known && name.includes(known.split(" ").at(-1)!));
   const named = (text: string) => partly.reduce((t, [name, known]) => t.replaceAll(name, known), text);
   // A sentence at a time ("J. Sallow" isn't the end of one).
-  const met = (text: string) => asTheyKnowIt(named(text), scene, state).split(/(?<=(?<!\b\p{Lu})[.!?]["”’)]*)\s+(?=["“'‘(]?\p{Lu})/u).map(s => s.trim()).filter(s => s && !unmetIn(s, v)).join(" ");
+  const met = (text: string, keep: (s: string) => boolean = () => true) => asTheyKnowIt(named(text), scene, state).split(/(?<=(?<!\b\p{Lu})[.!?]["”’)]*)\s+(?=["“'‘(]?\p{Lu})/u)
+    .map(s => s.trim()).filter(s => s && !unmetIn(s, v) && keep(s)).join(" ");
+  // What the player carries is as the world has it now, in who they are: a fact about one of those
+  // things can be behind it ("Nim's dagger lies on the cobbles near Kell", ten turns after she'd taken
+  // it back, and the lines had her ask Kell for it).
+  // (Not their coins: "the Crown" isn't a crown in their purse.)
+  const own = new RegExp(`^(?:${nameTokens({ name: state.player.name }).map(escape).join("|") || "\\0"})['’]s\\s+`);
+  const theirs = new Set(Object.values(state.world?.entities ?? {}).filter(e => e.parent === "player" && !e.states.includes("gone") && !e.tags.includes("coin"))
+    .map(e => headNoun(e.name.replace(own, ""))).filter(h => !MONEY.test(h)).map(stem));
+  const current = (s: string) => !words(s).some(w => theirs.has(stem(w)));
   const landed = (scene.essentials ?? []).filter(e => state.landed?.includes(e.id)).map(e => met(e.what));
-  return [...new Set([...landed, ...state.established.map(met)].filter(Boolean))];
+  return [...new Set([...landed, ...state.established.map(f => met(f, current))].filter(Boolean))];
 }
+
+/** Money, by the word for it. */
+const MONEY = /^(?:crowns?|shillings?|penn(?:y|ies)|pence|silver|gold|coppers?|coins?|marks?)$/;
+
+/** A thing by the word that names it: "a silver crown stamped with a wheat-ear" is a crown, "2 silver crowns" crowns. */
+const headNoun = (name: string) => name.toLowerCase().replace(/^(?:\d+|the|a|an|some)\s+/, "").split(/\s+(?:stamped|with|of|from|for|in|on|marked|full|that)\s+/)[0]!.split(/\s+/).at(-1)!;
 
 /** The lines offered last time, in this scene. */
 function lastOffered(state: SessionState): string[] {

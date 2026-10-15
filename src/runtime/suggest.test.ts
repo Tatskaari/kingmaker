@@ -372,7 +372,11 @@ test("the brief has only what the player has met: who's here by the names they k
   const state = rat("suggest-rat-brief");
   // The thief's Rat: the token stolen, and with it the way in "come across", ten turns before Hobb said what it opened.
   state.landed = ["which-man", "way-in"];
-  state.established = ["Big Hobb Mallory has begun to tell the player what he did, the loft first. The rest (his master's name, the Heron) comes as he's asked."];
+  state.established = [
+    // The thief's T7: she took her dagger back, and ten turns on the lines had her ask Kell for it. What she carries is as the world has it.
+    "Nim's dagger lies on the cobbles near Kell.",
+    "Big Hobb Mallory has begun to tell the player what he did, the loft first. The rest (his master's name, the Heron) comes as he's asked.",
+  ];
   const brief = suggestionBrief(effectiveScene(sceneById("drowned-rat"), state.patches), state);
   const here = /## Who's here now\n((?:- .*\n)+)/.exec(brief)![1]!;
   assert.deepEqual(here.trim().split("\n"), [
@@ -386,6 +390,7 @@ test("the brief has only what the player has met: who's here by the names they k
   assert.match(brief, /## What's come out here[^\n]*\n- Which of the Rat's many big men is the one: Big Hobb in the fireside corner[^\n]*\n- Big Hobb has begun to tell the player what he did, the loft first\.\n\n/);
   assert.doesNotMatch(brief, /Heron|river door|grille|midnight|plank walk|Mallory|his mum|string|Dabchick|Shambles/, "the way in's words, the fact's running ahead, Hobb's look and secrets, the routes");
   assert.match(brief, /Carrying: dagger\./, "what they carry is theirs: a line says \"my dagger\"");
+  assert.doesNotMatch(brief, /on the cobbles/, "and as the world has it now, not as a fact of ten turns ago has it");
   assert.match(brief, /# A way out\nNo leave line yet/);
 });
 
