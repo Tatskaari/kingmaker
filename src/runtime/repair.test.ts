@@ -9,7 +9,7 @@ process.env.KM_COST_LEDGER = join(RUNS, "cost-ledger.jsonl");
 process.env.OPENROUTER_API_KEY = "offline";
 const { SCENES, sceneById } = await import("../../scenes/index.ts");
 const { effectiveScene, leftBehind, openRoutes } = await import("./brief.ts");
-const { applyPendingRepairs, applyRepair, repairFile, writeRepair } = await import("./repair.ts");
+const { applyPendingRepairs, applyRepair, repairFile, runRepair, writeRepair } = await import("./repair.ts");
 const { playerTurn } = await import("./engine.ts");
 const { saveSession } = await import("./session.ts");
 const { fakeOpenRouter } = await import("../llm/fake-openrouter.ts");
@@ -136,5 +136,19 @@ test("in v2-quick, a quick co-GM past its deadline writes its own file, beside t
     globalThis.fetch = inner;
     fake.restore();
     authored.approach = was;
+  }
+});
+
+test("the co-GM moves the scene's own clues through who and what is there, and makes up none (a silver cane-cap, an order naming Sallow)", async () => {
+  const fake = fakeOpenRouter();
+  try {
+    await runRepair(rat, confessing("repair-no-invention"));
+    const review = fake.sent.find(b => b.text?.format?.name === "repair" || b.instructions?.startsWith("You are the co-GM"))!;
+    assert.match(review.instructions!, /What you move is the scene's own essential, as its prep has it: never a clue of your own making \(a new object, document, mark or witness: a dropped cane-cap, an order naming the culprit\), and nothing about it goes into canon until the GM has shown it in play\./);
+    const schema = JSON.stringify(review.text?.format?.schema);
+    assert.match(schema, /Never a clue of your own making \(a new object, document, mark or witness\)/);
+    assert.match(schema, /never a clue or detail of your own that the GM hasn't narrated/);
+  } finally {
+    fake.restore();
   }
 });
