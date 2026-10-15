@@ -139,9 +139,12 @@ export type Urge = "yield" | "go" | "hold";
 /**
  * How the one urged takes it (the 2024 rules' Influence: willing needs no roll; hesitant rolls, at
  * disadvantage while they're hostile, which everyone fighting you is unless the fight has gone out
- * of them). Unwilling is never rolled: it's words, and costs nothing.
+ * of them). Unwilling is never rolled: it's words, and costs nothing. The fight's state says which
+ * (Skirmish.moodOf: Sallow with his Crakes on their feet is unwilling, a Crake whose paymaster is
+ * down is willing); a read of who they are can only make it harder.
  */
 export type Mood = "willing" | "wavering" | "hostile";
+export type Willingness = Mood | "unwilling";
 /** The skills a look or a think is rolled with (the Search and Study actions). */
 export type CheckSkill = "perception" | "insight" | "medicine" | "survival" | "investigation" | "arcana" | "history" | "nature" | "religion";
 
@@ -154,8 +157,11 @@ export type PlayerAction =
   | { kind: "use"; prop: string }
   /** A grab (grappled: they can't move), a shove over (prone), or a shove away (pushed 5 ft): the target saves. */
   | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push" }
-  /** Words with the weight of an action behind them: urging someone on the other side to give it up. */
-  | { kind: "influence"; target: string; skill: InfluenceSkill; urge: Urge; mood: Mood }
+  /**
+   * Words with the weight of an action behind them: urging someone on the other side to give it up.
+   * mood: a read of how they'd take it, which can only make it harder than the fight's state has it.
+   */
+  | { kind: "influence"; target: string; skill: InfluenceSkill; urge: Urge; mood?: Mood }
   /** Looking for something, or working it out: a check the rules roll, which changes nothing on the board. */
   | { kind: "check"; skill: CheckSkill; dc: number }
   | { kind: "dash" } | { kind: "dodge" } | { kind: "disengage" }
@@ -177,8 +183,11 @@ export interface PlayerOptions {
   props: Array<{ id: string; name: string; how: string }>;
   /** Who's close enough to grab or shove (beside you, on the other side), while the action's free. */
   wrestle: Array<{ id: string; name: string }>;
-  /** Who's close enough to hear you urge them to give it up (on the other side, standing), while the action's free. */
-  hear: Array<{ id: string; name: string; understands: boolean }>;
+  /**
+   * Who's close enough to hear you urge them to give it up (on the other side, standing), while the
+   * action's free, and how they'd take it as the fight stands (why, when it's never).
+   */
+  hear: Array<{ id: string; name: string; understands: boolean; mood: Willingness; why: string }>;
   bonusActionUsed: boolean;
   dash: boolean;
   dodge: boolean;

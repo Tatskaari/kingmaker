@@ -7,7 +7,7 @@ What makes a good line:
 - It shows what the rules' lines say happened, in the fiction, and nothing more: a hit lands, a miss misses, a save is a save, a check that failed failed. Nobody else is hurt, moves, falls, gives up or runs unless a line says so. If the dice went against the player, they went against the player. Anyone down is out cold, and an animal has no words.
 - Whoever answers is themselves: their own voice, what they want, what they know, and how the fight is going for them right now. If the player urged them to give up, run or hold back and the rules say it worked, they go along with it, in their own way. If it didn't work, or there was no roll, they don't, and their answer shows why.
 - When the player only talked, the words land: whoever they spoke to hears them and answers as they would, mid-fight, with their weapon still in their hand.
-- It belongs to this moment: what the player just did or said, and the people in reach of it. What happens next is the next turn's.
+- It belongs to this moment: what the player just did or said, and the people in reach of it. What happens next is the next turn's: nobody else advances, swings, keeps coming or closes in in your line, whatever they'd like to.
 - It's short, because a fight moves fast: one or two sentences, under 40 words.
 
 {{tone}}

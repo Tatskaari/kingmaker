@@ -3,7 +3,7 @@ import { inFights, RAYS } from "../../rules/spells.ts";
 import type { CombatResult, Tile2 } from "../types.ts";
 import { flavour, has as hasFlavour, hash, listing } from "./flavour.ts";
 import { areaTiles, clearShot, explore, FEET, feetBetween, findPath, fromFeet, fromKey, key, line, neighbours, rangeFeet, same, solid, steps, toFeet, type PathRules } from "./grid.ts";
-import type { CheckSkill, CombatG, InfluenceSkill, Mood, PlayerOptions, Prop, Unit, Urge } from "./model.ts";
+import type { CheckSkill, CombatG, InfluenceSkill, Mood, PlayerOptions, Prop, Unit, Urge, Willingness } from "./model.ts";
 import { diceLines, signed, type EngineCombatant, type Namer, type Rules, type Table } from "./rules.ts";
 
 /** How far a word carries in a fight: shouted across a warehouse floor, not across the river. */
@@ -14,6 +14,9 @@ const STUDY_SKILLS: readonly CheckSkill[] = ["investigation", "arcana", "history
 const SKILL_NAME = (skill: string) => skill.charAt(0).toUpperCase() + skill.slice(1);
 /** What each urge asks of them, in the dice line's words. */
 const URGED: Record<Urge, string> = { yield: "to give up", go: "to leave the fight", hold: "to hold back" };
+/** The less willing of the fight's mood and a read of who they are (none: the fight's). */
+const MOODS: Mood[] = ["hostile", "wavering", "willing"];
+const harder = (fight: Mood, read: Mood | undefined): Mood => (read && MOODS.indexOf(read) < MOODS.indexOf(fight) ? read : fight);
 
 /**
  * The rules of a fight on the map, as operations on G: whose turn it is, moving a step at a time
@@ -33,6 +36,11 @@ const ordinal = (n: number) => ["cantrip", "1st", "2nd", "3rd"][n] ?? `${n}th`;
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const possessive = (name: string) => (name === "you" ? "your" : name.endsWith("s") ? `${name}'` : `${name}'s`);
 const reason = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error:\s*/, "");
+/** The engine's refusal of a cast, in the game's words: its first swing wanting the action too (Spiritual Weapon), or the rest without the engine's notes. */
+function castRefused(name: string, said: string, you: boolean): string {
+  if (/cannot hurl .*action already used/.test(said)) return `${name} takes ${you ? "your" : "their"} action as well as the bonus action (its first swing), and ${you ? "your" : "their"} action's spent this turn.`;
+  return `${name} can't be cast like that: ${said.replace(/\s*\(RAW:[^)]*\)/g, "").replace(/^.*? cannot /, you ? "you can't " : "they can't ")}.`.replace(/\.\.$/, ".");
+}
 /** The spell effects a fight on the map can play out (summons, zones and teleports aren't here yet). */
 /** Buffs cast on a foe: the caster marks them. */
 const FOE_MARKS = new Set(["hunters-mark", "hex"]);
@@ -42,7 +50,11 @@ export function attackBonus(sheet: Dnd.CharacterSheet, weapon: string): number {
   return sheet.attacks.find(a => of(a) === weapon)?.attackBonus ?? sheet.attacks[0]?.attackBonus ?? 0;
 }
 
-export interface SpellChoice { id: string; name: string; level: number; slot: number; spell: Dnd.SpellDef; targeting: "unit" | "area" | "self"; range: number; fire: boolean; heal: boolean; bonus: boolean }
+/**
+ * `hurls`: a bonus-action spell that makes its attack as it's cast and lasts (Spiritual Weapon):
+ * the engine wants the action unspent too, for that first swing.
+ */
+export interface SpellChoice { id: string; name: string; level: number; slot: number; spell: Dnd.SpellDef; targeting: "unit" | "area" | "self"; range: number; fire: boolean; heal: boolean; bonus: boolean; hurls: boolean }
 
 export class Skirmish {
   readonly G: CombatG;
@@ -508,6 +520,7 @@ export class Skirmish {
           id: spell.id, name: spell.name, level: spell.level, slot, spell, range,
           targeting: spell["targeting"] ? "area" : range === 0 && (heal || buff) ? "self" : "unit",
           fire: effects.some(m => m["damageType"] === "fire"), heal: heal || buff, bonus: /bonus/i.test(spell.castingTime),
+          hurls: /bonus/i.test(spell.castingTime) && effects.some(m => m.kind === "attack") && spell.duration.trim().toLowerCase() !== "instantaneous",
         });
       }
     }
@@ -569,7 +582,7 @@ export class Skirmish {
       // Rays and beams (Scorching Ray, Eldritch Blast) are an attack each, at whoever's aimed at.
       const rays = RAYS[spellId]?.(slot, this.t.sheet(u.engineId).totalLevel);
       const aimed = rays ? Array.from({ length: rays }, (_, i) => targets[i % targets.length]!.engineId) : targets.map(v => v.engineId);
-      try { events = this.t.plan("castSpell", { characterId: u.engineId, spellId, slotLevel: slot, targetIds: aimed }); } catch (e) { return `${spell.name} can't be cast like that: ${reason(e)}`; }
+      try { events = this.t.plan("castSpell", { characterId: u.engineId, spellId, slotLevel: slot, targetIds: aimed }); } catch (e) { return castRefused(spell.name, reason(e), this.isYou(u)); }
     } else {
       // At the dust, a lantern or bare boards: it goes off, but the engine wants a creature, so spend it here.
       this.t.apply([
@@ -648,12 +661,14 @@ export class Skirmish {
 
   /**
    * Words with an action behind them (2024's Influence): urging someone on the other side to give
-   * it up, leave the fight or hold back. Willing, they do it; otherwise it's a Charisma check (by
-   * the skill the words are), at disadvantage while they're still hostile, against 15 or their
-   * Intelligence, whichever is higher. A failure can't be tried the same way on them again this
-   * fight. A beast takes the meaning of a threat and nothing else.
+   * it up, leave the fight or hold back. How they take it is the fight's to say (moodOf): never,
+   * and it's words, refused here with nothing spent; willing, they do it; otherwise it's a Charisma
+   * check (by the skill the words are), at disadvantage while they're still hostile, against 15 or
+   * their Intelligence, whichever is higher. `mood`, a read of who they are, can only make it
+   * harder. A failure can't be tried the same way on them again this fight. A beast takes the
+   * meaning of a threat and nothing else.
    */
-  influence(u: Unit, targetId: string, skill: InfluenceSkill, urge: Urge, mood: Mood): string | undefined {
+  influence(u: Unit, targetId: string, skill: InfluenceSkill, urge: Urge, mood?: Mood): string | undefined {
     if (!this.isTurnOf(u)) return "It isn't their turn.";
     if (!this.able(u)) return `${cap(this.you(u).called)} can't.`;
     const target = this.unit(targetId);
@@ -663,13 +678,43 @@ export class Skirmish {
     const tried = `urged:${target.id}:${skill}`;
     if (this.G.flags[tried]) return `${cap(this.you(u).called)} tried that on ${target.called} already: the same ${skill} won't work twice in one fight.`;
     if (!this.actionLeft(u)) return "Urging them takes your action, and you've used it this turn.";
+    const stands = this.moodOf(target);
+    if (stands.mood === "unwilling") return `${cap(stands.why)}.`;
+    const took = harder(stands.mood, mood);
     this.t.apply([this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "action" })]);
-    const willing = mood === "willing" || this.rollInfluence(u, target, skill, urge, mood);
-    if (mood === "willing") this.log("system", `No roll needed: ${target.called} was ready ${URGED[urge]}.`, target.id);
+    const willing = took === "willing" || this.rollInfluence(u, target, skill, urge, took);
+    if (took === "willing") this.log("system", `No roll needed: ${target.called} was ready ${URGED[urge]}.`, target.id);
     if (!willing) this.G.flags[tried] = true;
     else this.comply(target, urge);
     this.settle();
     return undefined;
+  }
+
+  /**
+   * How someone on the other side would take being urged to stop, as the fight stands for them: the
+   * AI's own reasons to fight on or give up (src/game/combat/ai.ts), read as the 2024 rules' moods.
+   * Never, for a gentleman whose hired hands are still on their feet (nor while he's paying, for
+   * anyone who'd give him away by stopping); gladly, for hired hands whose paymaster is down, or
+   * anyone the fight has gone out of; in two minds, badly hurt, alone or outnumbered; otherwise only
+   * under real pressure. `why` says so in words.
+   */
+  moodOf(v: Unit): { mood: Willingness; why: string } {
+    const name = v.called;
+    if (v.role === "villain") {
+      const guards = this.hiredBy(v).filter(g => this.able(g));
+      if (guards.length && this.G.flags[`nerve:hurt:${v.id}`] !== "broke") return { mood: "unwilling", why: `${name} won't hear of it while ${guards.length > 1 ? "his people are" : `${guards[0]!.called} is`} still standing` };
+      return { mood: "wavering", why: `${name} has nobody left to hide behind` };
+    }
+    const paymaster = this.units.find(o => o.side === v.side && o.role === "villain");
+    if (paymaster && paymaster.state !== "fighting" && (v.role === "bruiser" || v.role === "brawler")) return { mood: "willing", why: `nobody's paying ${name} now` };
+    const lost = this.G.flags[`nerve:alone:${v.id}`] === "broke" || (v.role === "brawler" ? v.hp * 2 <= v.maxHp : v.hp * 4 <= v.maxHp);
+    if (lost) return { mood: "willing", why: `the fight's gone out of ${name}` };
+    const friends = this.units.filter(o => o.id !== v.id && this.friendly(o, v) && this.able(o) && o.role !== "coward");
+    const foes = this.units.filter(o => this.hostile(o, v) && this.able(o));
+    if (v.hp * 2 <= v.maxHp) return { mood: "wavering", why: `${name} is badly hurt` };
+    if (!friends.length) return { mood: "wavering", why: `${name} is on ${this.understands(v) ? "their" : "its"} own` };
+    if (foes.length > friends.length + 1) return { mood: "wavering", why: `${name}'s side is outnumbered` };
+    return { mood: "hostile", why: `${name} is still keen on the fight` };
   }
 
   /** The Influence check, through the engine; true if it worked. */
@@ -753,7 +798,8 @@ export class Skirmish {
   surrender(u: Unit): string | undefined {
     if (u.state !== "fighting") return "They're not fighting.";
     this.offMap(u, "surrendered");
-    this.say(u.role === "villain" ? "surrender:sallow" : u.castId && hasFlavour(`surrender:${u.castId}`) ? `surrender:${u.castId}` : "surrender:any", u);
+    const kell = this.units.some(v => v.castId === "kell" && v.side === "ally" && v.state === "fighting");
+    this.say(u.role === "villain" ? "surrender:sallow" : u.castId && hasFlavour(`surrender:${u.castId}`) ? `surrender:${u.castId}` : kell ? "surrender:any:kell" : "surrender:any", u);
     if (u.role === "villain") this.walkOff(this.hiredBy(u));
     this.settle();
     return undefined;
@@ -970,7 +1016,7 @@ export class Skirmish {
         if (w) attacks.push({ target: p.id, name: `the ${p.name}`, weapon: w, weaponName: this.namer().weapon(w), bonus: attackBonus(this.t.sheet(u.engineId), w), note: this.dustAt(p.at) ? "it hangs over the dust" : "" });
       }
     }
-    const spells = this.spellChoices(u).filter(s => (s.bonus ? !use.bonusActionUsed : !use.actionUsed)).map(s => ({
+    const spells = this.spellChoices(u).filter(s => (s.bonus ? !use.bonusActionUsed && !(s.hurls && use.actionUsed) : !use.actionUsed)).map(s => ({
       id: s.id, name: s.name, level: s.level, slot: s.slot, targeting: s.targeting, range: s.range, fire: s.fire,
       ...(s.spell["targeting"] ? { area: s.spell["targeting"] as { shape: string; size: number } } : {}),
       targets: s.targeting === "self" ? [] : this.units.filter(v => v.state !== "fled" && v.state !== "dead" && (s.heal ? this.friendly(v, u) || v.id === u.id : this.hostile(u, v) && v.state === "fighting" && v.role !== "coward"))
@@ -981,7 +1027,7 @@ export class Skirmish {
       .map(p => ({ id: p.id, name: p.name, how: p.kind === "brazier" ? "kick it over" : "bring it down" }));
     // A grab or a shove for whoever's beside you; a word with weight for whoever can hear it.
     const wrestle = use.actionUsed ? [] : targets.filter(v => steps(u.at, v.at) <= 1).map(v => ({ id: v.id, name: v.name }));
-    const hear = use.actionUsed ? [] : targets.filter(v => this.able(v) && feetBetween(u.at, v.at) <= EARSHOT).map(v => ({ id: v.id, name: v.name, understands: this.understands(v) }));
+    const hear = use.actionUsed ? [] : targets.filter(v => this.able(v) && feetBetween(u.at, v.at) <= EARSHOT).map(v => ({ id: v.id, name: v.name, understands: this.understands(v), ...this.moodOf(v) }));
     const exit = this.exitAt(u.at);
     return {
       ready, movementLeft: this.movementLeft(u), actionUsed: use.actionUsed, moves: this.moveTargets(u), attacks, spells, props, wrestle, hear, bonusActionUsed: use.bonusActionUsed,

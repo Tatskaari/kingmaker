@@ -34,7 +34,9 @@ const pools: Record<string, string[]> = {
   "flee:sallow": ["Master Sallow remembers an urgent appointment elsewhere and makes for the door at a pace nobody at the palace has ever seen."],
   "surrender:crake-1": ["'Nobody said nothing about this,' says the talking Crake, and puts the cudgel down."],
   "surrender:crake-2": ["The silent Crake, who has never been heard to say anything, says 'Fair enough,' and puts the cudgel down."],
-  "surrender:any": ["{Who} looks at the state of things, looks at the door, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands where Kell can see them."],
+  "surrender:any": ["{Who} looks at the state of things, looks at the door, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands up, slowly, where everyone can see them."],
+  // With Kell in the fight, someone's hands go where she can see them.
+  "surrender:any:kell": ["{Who} looks at the state of things, looks at the door, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands where Kell can see them."],
   "walkoff:crake-1+crake-2": [
     "The Crakes look at their employer, look at each other, and put their cudgels down. 'We was never here,' says the talking Crake, 'and we wasn't paid for this bit.' They walk out, and leave the gentleman to it.",
     "'That's the end of the paid bit,' the talking Crake announces. The Crakes lower their cudgels together, nod to the sergeant as if to a colleague, and walk out of {place}, leaving the gentleman to it.",
@@ -76,6 +78,7 @@ const pools: Record<string, string[]> = {
   "down:player:clean@caerwyn": ["You go down on the cobbles. They've been swept for the Assembly, which is something."],
   "victory@caerwyn": ["And then it's over. Caerwyn, which has seen worse on a market day, goes back to its bunting.", "And then it's quiet, except for the pigeons, who have opinions."],
   "surrender:any@caerwyn": ["{Who} looks at the state of things, looks at the people watching, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands up, where the whole street can see them."],
+  "surrender:any:kell@caerwyn": ["{Who} looks at the state of things, looks at the people watching, and puts the {weapon} down.", "{Who} drops the {weapon} and puts both hands up, where the whole street can see them."],
   "surrender@caerwyn": ["It's over: the last of them has their hands up in the middle of the street."],
   "surrender:yielded@caerwyn": ["It's over: the last of them has their hands up in the middle of the street."],
   "defeat@caerwyn": ["The last thing you see is the cobbles coming up to meet you, and a great many boots stepping round."],

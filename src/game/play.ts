@@ -135,6 +135,8 @@ export interface SayHooks extends TurnHooks {
   onReading?(): void;
   /** The rules have done what it came to: their lines are in the fight's log, and the GM's line follows. */
   onRules?(): void;
+  /** Aborted, the GM's line is cut short where it's got to (the player waved it on): the rules' lines stand. */
+  skip?: AbortSignal;
 }
 
 export interface FightFactory {

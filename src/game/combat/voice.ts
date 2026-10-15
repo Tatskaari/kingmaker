@@ -21,6 +21,8 @@ export interface VoiceInput {
   reading: Reading;
   /** The fight's log since the line was typed: the typed line, then the rules' lines. */
   rules: LogLine[];
+  /** Cuts the line short (too slow, or waved on). */
+  signal?: AbortSignal;
   onSpeaker(who: string): void;
   onText(text: string): void;
 }
@@ -29,7 +31,7 @@ export interface VoiceInput {
 export type Voice = (input: VoiceInput) => Promise<{ who: string; text: string } | undefined>;
 
 /** The house voice, by the fast model (the scene GM's own: no reasoning, so it's quick). */
-export const speak: Voice = async ({ fight, reading, rules, onSpeaker, onText }) => {
+export const speak: Voice = async ({ fight, reading, rules, signal, onSpeaker, onText }) => {
   if (modelOffline()) return undefined;
   const who = speakerOf(fight, reading);
   // As the fight calls them ("Master Sallow", "the talking Crake").
@@ -45,16 +47,21 @@ export const speak: Voice = async ({ fight, reading, rules, onSpeaker, onText })
     ],
     effort: "none",
     maxOutputTokens: 200,
+    ...(signal ? { signal } : {}),
     onText: text => onText(lineOf(name, plain(text))),
   });
   const text = lineOf(name, plain(result.text));
   return text ? { who, text } : undefined;
 };
 
-/** Who answers: whoever was spoken to, if they're in a state to and have words to answer with (a wolf hasn't); otherwise the GM. */
+/**
+ * Who answers: whoever was spoken to, if they're in a state to (standing, or with their hands up:
+ * someone just talked round has words for it) and have words to answer with (a wolf hasn't);
+ * otherwise the GM.
+ */
 function speakerOf(fight: CombatController, reading: Reading): string {
   const u = spokenTo(fight, reading);
-  return u && u.state === "fighting" && u.id !== fight.state().pc && fight.look().understands(u) ? u.id : "gm";
+  return u && (u.state === "fighting" || u.state === "surrendered") && u.id !== fight.state().pc && fight.look().understands(u) ? u.id : "gm";
 }
 
 /** Whoever the words were said to, if anyone in particular. */

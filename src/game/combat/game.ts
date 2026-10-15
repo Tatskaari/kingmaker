@@ -45,7 +45,7 @@ export function combatGame(initial: CombatG, rules: Rules): Game<CombatG> {
       cast: ({ G }, spell: string, target?: string, at?: Tile2, slot?: number) => act(G, s => s.cast(me(s), spell, target, at, slot)),
       use: ({ G }, prop: string) => act(G, s => s.use(me(s), prop)),
       wrestle: ({ G }, target: string, how: "grapple" | "prone" | "push") => act(G, s => s.wrestle(me(s), target, how)),
-      influence: ({ G }, target: string, skill: InfluenceSkill, urge: Urge, mood: Mood) => act(G, s => s.influence(me(s), target, skill, urge, mood)),
+      influence: ({ G }, target: string, skill: InfluenceSkill, urge: Urge, mood?: Mood) => act(G, s => s.influence(me(s), target, skill, urge, mood)),
       check: ({ G }, skill: CheckSkill, dc: number) => act(G, s => s.check(me(s), skill, dc)),
       dash: ({ G }) => act(G, s => s.simple(me(s), "dash")),
       dodge: ({ G }) => act(G, s => s.simple(me(s), "dodge")),

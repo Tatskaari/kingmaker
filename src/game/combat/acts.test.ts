@@ -48,6 +48,8 @@ async function room(pregen: string, foes: Array<Pick<CombatantSetup, "id" | "nam
 
 const BESIDE = { "crake-1": { x: 23, y: 6 } };
 const usage = (c: CombatController) => c.look().usage(c.look().pc());
+/** The fight's rules, for a Skirmish over a copy of its state (to try something without spending it). */
+const rulesOf = (c: CombatController) => (c as unknown as { rules: Rules }).rules;
 
 /** Try something on a fresh fight from each seed until the dice let it happen. */
 async function until<T>(make: (from: number) => Promise<T>, happened: (t: T) => boolean): Promise<T> {
@@ -109,11 +111,33 @@ describe("a grab and a shove", () => {
 describe("a word with weight (the Influence action)", () => {
   it("willing ears need no roll: the action, and they give up", async () => {
     const { combat } = await heron("fighter", BESIDE);
-    const done = combat.act({ kind: "influence", target: "crake-1", skill: "persuasion", urge: "yield", mood: "willing" });
-    assert.ok(done.ok, done.error ?? "");
-    assert.equal(combat.state().units["crake-1"]!.state, "surrendered");
-    assert.equal(usage(combat)?.actionUsed, true);
-    assert.ok(combat.state().log.some(l => /No roll needed: the talking Crake was ready to give up/.test(l.text)));
+    // Their paymaster down: nobody's paying the Crakes now, so the fight's state has them willing.
+    const s = new Skirmish(structuredClone(combat.state()), rulesOf(combat));
+    s.unit("sallow")!.state = "down";
+    assert.deepEqual(s.moodOf(s.unit("crake-1")!), { mood: "willing", why: "nobody's paying the talking Crake now" });
+    assert.equal(s.influence(s.pc(), "crake-1", "persuasion", "yield"), undefined);
+    assert.equal(s.unit("crake-1")!.state, "surrendered");
+    assert.equal(s.usage(s.pc())?.actionUsed, true);
+    assert.ok(s.G.log.some(l => /No roll needed: the talking Crake was ready to give up/.test(l.text)));
+  });
+
+  it("how they take it is the fight's: Sallow never while his Crakes stand (refused, nothing spent), and a read of who they are only makes it harder", async () => {
+    const { combat } = await heron("fighter", { sallow: { x: 23, y: 7 }, ...BESIDE });
+    const before = combat.state().log.length;
+    const never = combat.act({ kind: "influence", target: "sallow", skill: "persuasion", urge: "yield" });
+    assert.equal(never.ok, false);
+    assert.equal(never.error, "Master Sallow won't hear of it while his people are still standing.");
+    assert.equal(usage(combat)?.actionUsed, false, "nothing spent");
+    assert.equal(combat.state().log.length, before);
+    assert.equal(combat.options().hear.find(h => h.id === "sallow")?.mood, "unwilling");
+    assert.equal(combat.options().hear.find(h => h.id === "crake-1")?.mood, "hostile");
+    // Badly hurt, the Crake's in two minds; with Sallow down he'd gladly stop, but read as wanting real pressure, it's a roll at disadvantage.
+    const s = new Skirmish(structuredClone(combat.state()), rulesOf(combat));
+    s.unit("crake-1")!.hp = 8;
+    assert.equal(s.moodOf(s.unit("crake-1")!).mood, "wavering");
+    s.unit("sallow")!.state = "down";
+    assert.equal(s.influence(s.pc(), "crake-1", "intimidation", "yield", "hostile"), undefined);
+    assert.ok(s.G.log.some(l => /^Intimidation \(Influence\): you urge the talking Crake to give up: \d+\/\d+ \(disadvantage\)/.test(l.text)));
   });
 
   it("a hostile foe is a Charisma check at disadvantage against 15 or their Intelligence, once per way", async () => {
@@ -138,17 +162,18 @@ describe("a word with weight (the Influence action)", () => {
 
   it("talked into leaving, they make for the way out on their turn (or give up, cornered); talked into holding back, their turn goes by", async () => {
     const { combat } = await heron("fighter", BESIDE);
-    combat.act({ kind: "influence", target: "crake-1", skill: "persuasion", urge: "go", mood: "willing" });
-    assert.match(combat.state().log.at(-1)!.text, /will leave the fight/);
-    const rules = (combat as unknown as { rules: Rules }).rules;
-    const G = structuredClone(combat.state());
-    G.active = G.order.indexOf("crake-1");
-    const s = new Skirmish(G, rules);
+    const s = new Skirmish(structuredClone(combat.state()), rulesOf(combat));
+    s.unit("crake-1")!.hp = 4;
+    assert.equal(s.influence(s.pc(), "crake-1", "persuasion", "go"), undefined, "the fight's gone out of him: willing");
+    assert.match(s.G.log.at(-1)!.text, /will leave the fight/);
+    s.G.active = s.G.order.indexOf("crake-1");
     const step = decide(s, s.unit("crake-1")!, freshMemo());
     assert.ok(["move", "dash", "leave", "surrender"].includes(step.kind), `running for it: ${step.kind}`);
-    // Holding back: the turn goes by.
-    const held = await heron("fighter", BESIDE);
-    held.combat.act({ kind: "influence", target: "crake-1", skill: "intimidation", urge: "hold", mood: "willing" });
+    // Holding back: the turn goes by (a hostile Crake, so a roll until the dice allow it).
+    const held = await until(from => heron("fighter", BESIDE, { from }), ({ combat }) => {
+      combat.act({ kind: "influence", target: "crake-1", skill: "intimidation", urge: "hold" });
+      return combat.state().log.some(l => /will hold back on their next turn/.test(l.text));
+    });
     held.combat.act({ kind: "end" });
     held.combat.advance(undefined, 10);
     assert.ok(held.combat.state().log.some(l => /The talking Crake hangs back, in two minds/.test(l.text)));
@@ -159,8 +184,10 @@ describe("a word with weight (the Influence action)", () => {
   });
 
   it("a fight that ends with the last of them yielding is a surrender (nobody in charge)", async () => {
-    const combat = await room("fighter", [{ id: "porter", name: "a big porter", statblock: "bandit", role: "brawler", at: { x: 11, y: 4 } }]);
-    combat.act({ kind: "influence", target: "porter", skill: "intimidation", urge: "yield", mood: "willing" });
+    const combat = await until(from => room("fighter", [{ id: "porter", name: "a big porter", statblock: "bandit", role: "brawler", at: { x: 11, y: 4 } }], from), combat => {
+      combat.act({ kind: "influence", target: "porter", skill: "intimidation", urge: "yield" });
+      return combat.over();
+    });
     assert.ok(combat.over());
     assert.equal(combat.result().outcome, "surrender");
     assert.match(combat.result().summary, /gave up/);

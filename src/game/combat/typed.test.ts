@@ -3,11 +3,12 @@ import { describe, it } from "node:test";
 import type { ChoiceQuestion, Decider, Decision } from "../../llm/decide.ts";
 import type { CombatantSetup, Tile2 } from "../types.ts";
 import { startCombat } from "./controller.ts";
-import { TacticalFight } from "./fights.ts";
+import { tacticalFights, TacticalFight } from "./fights.ts";
 import { heronMap } from "./heron-grid.ts";
 import { heronEncounter } from "./heron.ts";
 import { pregenSession } from "./pregen.ts";
 import { parseCommand, readLine, type Reading } from "./typed.ts";
+import { areaCatch, turnOf } from "./typed-turn.ts";
 import type { Voice } from "./voice.ts";
 
 /**
@@ -42,20 +43,20 @@ const BESIDE = { "crake-1": { x: 23, y: 6 } };
 
 /**
  * A decider that answers as told, and otherwise the quiet answer (no, none, nobody, lowest), and
- * keeps what it was asked. Probabilities are 1 unless `unsure`.
+ * keeps what it was asked. Probabilities are 1 unless `unsure` (0.3), or as given in `spread`.
  */
-function stub(answers: Record<string, string>, unsure: string[] = []): Decider & { asked: Array<Record<string, ChoiceQuestion>> } {
+function stub(answers: Record<string, string>, unsure: string[] = [], spread: Record<string, Record<string, number>> = {}): Decider & { asked: Array<Record<string, ChoiceQuestion>> } {
   const asked: Array<Record<string, ChoiceQuestion>> = [];
   return {
     name: "stub", asked,
     async decide(_state: unknown, questions: Record<string, ChoiceQuestion>): Promise<Decision> {
       asked.push(questions);
-      const quiet = ["no", "none", "nobody", "lowest", "not_possible"];
+      const quiet = ["no", "none", "nobody", "lowest", "not_possible", "after"];
       const out: Decision["answers"] = {};
       for (const [id, q] of Object.entries(questions)) {
         const keys = Object.keys(q.criteria);
         const choice = answers[id] !== undefined && keys.includes(answers[id]!) ? answers[id]! : quiet.find(k => keys.includes(k)) ?? keys[0]!;
-        out[id] = { choice, probabilities: { [choice]: unsure.includes(id) ? 0.3 : 1 } };
+        out[id] = { choice, probabilities: spread[id] ?? { [choice]: unsure.includes(id) ? 0.3 : 1 } };
       }
       return { answers: out, latencyMs: 0, costUsd: 0, decider: "stub" };
     },
@@ -63,6 +64,8 @@ function stub(answers: Record<string, string>, unsure: string[] = []): Decider &
 }
 
 const offline = (line: string, fight: TacticalFight) => readLine(line, fight, null);
+/** The deeds the decider is offered on this turn (a stub's first question). */
+const offered = async (fight: TacticalFight) => { const d = stub({ deed: "speak_only" }); await readLine("Hm.", fight, d); return d.asked[0]!.deed!.criteria; };
 const spent = (fight: TacticalFight) => { const o = fight.controller.options(); return { action: o.actionUsed, moved: fight.controller.state().units.player!.at, log: fight.controller.state().log.length }; };
 
 describe("the plain commands, with no model", () => {
@@ -77,7 +80,7 @@ describe("the plain commands, with no model", () => {
     assert.deepEqual((await offline("shove the crake over", f)).steps, ["shove_crake-1"]);
     assert.deepEqual((await offline("push the crake back", f)).steps, ["push_crake-1"]);
     assert.deepEqual((await offline("grab the talking crake", f)).steps, ["grapple_crake-1"]);
-    assert.deepEqual((await offline("intimidate the crake into giving up", f)).steps, ["urge_intimidation_yield_hostile_crake-1"]);
+    assert.deepEqual((await offline("intimidate the crake into giving up", f)).steps, ["urge_intimidation_yield_crake-1"]);
     assert.deepEqual((await offline("dodge", f)).steps, ["dodge"]);
     assert.deepEqual((await offline("end turn", f)).steps, ["end_turn"]);
     assert.equal((await offline("end turn", f)).by, "parser");
@@ -130,31 +133,31 @@ describe("the plain commands, with no model", () => {
     assert.match((await offline("cast healing word on kell and cast shield of faith on kell", cleric)).refusal ?? "", /two bonus actions/);
     const both = await readLine("I clout the crake with my mace and call a word of healing to Kell", cleric, stub({ deed: "attack:crake-1:mace", bonus: "cast:healing-word:kell" }));
     assert.deepEqual(both.steps, ["attack_crake-1_with_mace", "cast_healing-word_kell"]);
+    // Spiritual Weapon is a bonus action whose first swing wants the action too: not beside a blow, and not once the action's gone.
+    assert.match((await offline("attack the crake and cast spiritual weapon at the crake", cleric)).refusal ?? "", /more than one thing that takes your action/);
+    await cleric.say("attack the crake", {}, { decider: null, voice: null });
+    assert.match((await offline("cast spiritual weapon at the crake", cleric)).refusal ?? "", /^Spiritual Weapon takes your action as well as your bonus action \(its first swing\), and your action's spent this turn\.$/);
   });
 
-  it("say the GM is offline for a line that isn't a plain command", async () => {
+  it("say the GM is offline for a line that isn't a plain command, with commands that fit the fight", async () => {
     const f = await heron("fighter", BESIDE);
     const r = await offline("Give it up, Crake, nobody's paying you for this!", f);
     assert.equal(r.offline, true);
-    assert.match(r.refusal ?? "", /The GM is offline.*attack sallow, cast fire bolt at the nearest crake, move to the brazier/);
-    assert.equal(parseCommand("I gaze thoughtfully at the brazier", turnFor(f)), undefined);
+    assert.match(r.refusal ?? "", /The GM is offline.*attack the crake, move to the brazier, shove the crake over, end turn/);
+    const wizard = await heron("wizard", BESIDE, 5);
+    assert.match((await offline("Give it up!", wizard)).refusal ?? "", /attack the crake, cast fire bolt at the nearest crake, move to the brazier/);
+    assert.equal(parseCommand("I gaze thoughtfully at the brazier", turnOf(f)), undefined);
   });
 
   it("don't take a shout at someone else for the player's own move", async () => {
     const f = await heron("fighter", BESIDE);
     assert.deepEqual((await offline("back off", f)).steps, ["back_off"], "typed plainly, it's a command");
     for (const shout of ["Back off!", "Wait!", "Get out!", "Flee, you fools!", "Done!"]) {
-      assert.equal(parseCommand(shout, turnFor(f)), undefined, `"${shout}" is words`);
+      assert.equal(parseCommand(shout, turnOf(f)), undefined, `"${shout}" is words`);
       assert.equal((await offline(shout, f)).offline, true);
     }
   });
 });
-
-/** The parser's own view of the turn (as readLine builds it). */
-function turnFor(f: TacticalFight): Parameters<typeof parseCommand>[1] {
-  const c = f.controller, s = c.look();
-  return { s, me: s.pc(), o: c.options(), actions: f.actions(), others: s.units.filter(u => u.id !== "player" && u.state !== "fled"), props: Object.values(c.state().props).filter(p => !p.carriedBy) };
-}
 
 describe("the decider, choosing among the turn's own actions", () => {
   it("is offered what the rules allow this turn, and why not for the rest", async () => {
@@ -167,19 +170,80 @@ describe("the decider, choosing among the turn's own actions", () => {
     assert.ok(Object.keys(d.asked[0]!.urged!.criteria).includes("crake-1"));
   });
 
-  it("puts a deed's steps together: a move first, the act, a bonus action, a move after", async () => {
+  it("puts a deed's steps together: the act, a move before or after it (once), a second act, a bonus action", async () => {
     const f = await heron("fighter", BESIDE);
-    const r = await readLine("I hit him and back off", f, stub({ deed: "attack:crake-1:longsword", move_after: "away" }));
+    const r = await readLine("I hit him and back off", f, stub({ deed: "attack:crake-1:longsword", move: "away", move_when: "after" }));
     assert.deepEqual(r.steps, ["attack_crake-1_with_longsword", "back_off"]);
     const far = await heron("fighter", { "crake-1": { x: 19, y: 6 } });
     const closed = await readLine("I charge the talking crake and cut him down", far, stub({ deed: "attack:crake-1:close" }));
     assert.deepEqual(closed.steps, ["close_crake-1", "attack_crake-1_with_longsword"]);
-    const brazier = await readLine("I run to the brazier", far, stub({ deed: "move_only", move_first: "close:brazier" }));
+    const brazier = await readLine("I run to the brazier", far, stub({ deed: "move_only", move: "close:brazier" }));
     assert.deepEqual(brazier.steps, ["close_brazier"]);
-    // Words move nobody: "Get back!" is for whoever it's said to, however the move questions read it.
-    const told = await readLine("Back! Go on, get back, the lot of you!", f, stub({ deed: "speak_only", said_to: "crake-1", move_after: "away" }));
+    // One move, where the line has it: after the shot, not before it and after it.
+    const wizard = await heron("wizard", BESIDE, 5);
+    const ran = await readLine("*I shoot a ray of frost at the crake, then run to the brazier*", wizard, stub({ deed: "cast:ray-of-frost:crake-1", move: "close:brazier", move_when: "after" }));
+    assert.deepEqual(ran.steps, ["cast_ray-of-frost_crake-1", "close_brazier"]);
+    // A Disengage comes before the move it's for, whatever the read of when.
+    const away = await readLine("I disengage and back off to the gate", wizard, stub({ deed: "disengage", move: "door", move_when: "before" }));
+    assert.deepEqual(away.steps, ["disengage", "make_for_the_door"]);
+    // Words move nobody: "Get back!" is for whoever it's said to, however the move question reads it.
+    const told = await readLine("Back! Go on, get back, the lot of you!", f, stub({ deed: "speak_only", said_to: "crake-1", move: "away" }));
     assert.deepEqual(told.steps, []);
     assert.equal(told.speech?.to, "crake-1");
+    // A second act: a fighter's second attack is done; after a shove, which takes the whole action, the stab isn't, and it says so.
+    const fifth = await heron("fighter", BESIDE, 5);
+    assert.deepEqual((await readLine("I hit the talking crake twice", fifth, stub({ deed: "attack:crake-1:longsword", deed2: "attack:crake-1:longsword" }))).steps, ["attack_crake-1_with_longsword", "attack_crake-1_with_longsword"]);
+    const shoved = await readLine("I shove him down, then stab him", fifth, stub({ deed: "shove:crake-1", deed2: "attack:crake-1:longsword" }));
+    assert.deepEqual(shoved.steps, ["shove_crake-1"]);
+    assert.match(shoved.note ?? "", /took your whole action, so attack the talking Crake with your Longsword didn't happen as well/);
+  });
+
+  it("walks the plan on the board first: a step back keeps the line for the spell after it, and a way out too far is refused", async () => {
+    const wizard = await heron("wizard", BESIDE, 5);
+    const before = spent(wizard);
+    const r = await readLine("I step away from the crake and cast fire bolt at Sallow", wizard, stub({ deed: "cast:fire-bolt:sallow", move: "away", move_when: "before" }));
+    assert.equal(r.steps.length, 2);
+    assert.match(r.steps[0]!, /^(?:back_off|move_\d+_\d+)$/);
+    assert.equal(r.steps[1], "cast_fire-bolt_sallow");
+    // Done: the step back, then the bolt (the Crake's swing as the wizard goes is the rules').
+    const said = await wizard.say("I step away from the crake and cast fire bolt at Sallow", {}, { decider: stub({ deed: "cast:fire-bolt:sallow", move: "away", move_when: "before" }), voice: null });
+    assert.match(said, /You move \d+ ft/);
+    assert.match(said, /You cast Fire Bolt \(cantrip\) at Master Sallow/);
+    assert.notDeepEqual(spent(wizard).moved, before.moved);
+    // Too far to get out through the door this turn: how far, and what would do it; nothing spent.
+    const fighter = await heron("fighter", BESIDE);
+    const fled = await offline("flee", fighter);
+    assert.match(fled.refusal ?? "", /The river door is 35 ft off, and going out through it takes 5 ft more: you've 35 ft of movement\. A Dash would get you out \("dash and leave"\)/);
+    assert.deepEqual((await offline("dash and leave", fighter)).steps, ["dash", "make_for_the_door", "leave"]);
+    const stayed = spent(fighter);
+    assert.match(await fighter.say("flee", {}, { decider: null, voice: null }), /^\(The river door is 35 ft off/);
+    assert.deepEqual(spent(fighter), stayed);
+    // A named move that's there already is no move: beside the Crake, closing on him goes nowhere.
+    const beside = fighter.perform("close_crake-1");
+    assert.equal(beside.ok, true);
+    assert.deepEqual(spent(fighter), stayed);
+    // Standing in the way out, it's leave, not making for it.
+    const door = await heron("fighter", { player: { x: 29, y: 6 } });
+    assert.ok(door.actions().some(a => a.id === "leave"));
+    assert.ok(!door.actions().some(a => a.id === "make_for_the_door"));
+  });
+
+  it("aims an area where it misses you and yours when it isn't said where, and asks again before one that catches a friend", async () => {
+    const wizard = await heron("wizard", BESIDE, 5);
+    const untold = await offline("cast fireball", wizard);
+    const aim = /^cast_fireball_at_(.+)$/.exec(untold.steps[0] ?? "")?.[1];
+    assert.ok(aim, untold.refusal ?? "no aim");
+    const t = turnOf(wizard);
+    assert.deepEqual(areaCatch(t.o.spells.find(sp => sp.id === "fireball")!, t.s.unit(aim)!.at, t).friends, [], "nobody of yours in it");
+    // At the Crake beside you: it catches you and Kell. Said once, it says so and spends nothing; said again, it's done.
+    const before = spent(wizard);
+    const first = await wizard.say("cast fireball at the talking crake", {}, { decider: null, voice: null });
+    assert.match(first, /^\(Fireball at the talking Crake would catch you and Sergeant Kell too\. Say it again to do it anyway/);
+    assert.deepEqual(spent(wizard), before);
+    // Said again in a game loaded from its save (the QA console's way: a process a command), it's done.
+    const loaded = tacticalFights().load(JSON.parse(JSON.stringify(wizard.save())), wizard.controller.session) as TacticalFight;
+    const again = await loaded.say("cast fireball at the talking crake", {}, { decider: null, voice: null });
+    assert.match(again, /You cast Fireball \(3rd-level slot\): a 20-foot sphere, catching .*you/);
   });
 
   it("refuses magic they haven't got, a spell that can't be cast now, and what it isn't sure of", async () => {
@@ -190,20 +254,53 @@ describe("the decider, choosing among the turn's own actions", () => {
     const wizard = await heron("wizard", BESIDE, 5);
     assert.match((await readLine("I put up a shield", wizard, stub({ deed: "cannot:cast:shield" }))).refusal ?? "", /Shield isn't a spell a fight on the map can play out/);
     assert.match((await readLine("I do the thing", f, stub({ deed: "attack:crake-1:longsword" }, ["deed"]))).refusal ?? "", /Not sure what you mean/);
+    // Hand to hand with someone a shot can reach but feet can't: why not, and what can.
+    const rogue = await heron("rogue", BESIDE);
+    assert.match((await readLine("*I tumble past the crake and go for Sallow*", rogue, stub({ deed: "cannot:close:sallow" }))).refusal ?? "", /Master Sallow is 50 ft off: you can't get beside them this turn \(your Shortbow reaches them from here\)/);
+    // A spell at someone it can't reach says why in its own words, not a blow's.
+    const hidden = await heron("wizard", { ...BESIDE, "crake-2": { x: 2, y: 1 } }, 5);
+    assert.ok(Object.keys(await offered(hidden)).includes("cannot:cast:fire-bolt:crake-2"));
+    assert.match((await readLine("*I loose a fire bolt at the silent crake, wherever he's got to*", hidden, stub({ deed: "cannot:cast:fire-bolt:crake-2" }))).refusal ?? "", /^There's no clear line to the silent Crake from here\. Nothing's spent\.$/);
+    // Hurled, a spell is still a spell, not a throw.
+    assert.match((await offline("*I hurl a fire bolt at the silent crake*", hidden)).refusal ?? "", /^There's no clear line to the silent Crake from here\.$/);
+    assert.match((await offline("cast fire bolt at the silent crake", hidden)).refusal ?? "", /^There's no clear line to the silent Crake from here\.$/);
     assert.match((await readLine("I summon a dragon", f, stub({ deed: "not_possible" }))).refusal ?? "", /isn't something this fight can do/);
   });
 
-  it("makes an urge to give it up the Influence action, unless it's unwilling ears or the action's spoken for", async () => {
+  it("makes an urge to give it up the Influence action, as the fight has them take it, unless it's ears that never would or the action's spoken for", async () => {
     const f = await heron("fighter", BESIDE);
-    const urged = await readLine("Drop the cudgel, Crake. Nobody's paying you enough for this.", f, stub({ deed: "speak_only", said_to: "crake-1", urge: "yield", urged: "crake-1", urge_how: "persuasion", urge_mood: "wavering" }));
-    assert.deepEqual(urged.steps, ["urge_persuasion_yield_wavering_crake-1"]);
+    // The fight's own mood (the rules' moodOf), with the decider's read of who they are only making it harder.
+    const urged = await readLine("Drop the cudgel, Crake. Nobody's paying you enough for this.", f, stub({ deed: "speak_only", said_to: "crake-1", urge: "yield", urged: "crake-1", urge_how: "persuasion" }));
+    assert.deepEqual(urged.steps, ["urge_persuasion_yield_crake-1"]);
     assert.deepEqual(urged.speech, { words: "Drop the cudgel, Crake. Nobody's paying you enough for this.", to: "crake-1" });
-    const never = await readLine("Sallow! Surrender!", f, stub({ deed: "speak_only", said_to: "sallow", urge: "yield", urged: "sallow", urge_how: "intimidation", urge_mood: "unwilling" }));
+    const harder = await readLine("Drop it, Crake.", f, stub({ deed: "speak_only", said_to: "crake-1", urge: "yield", urged: "crake-1", urge_how: "intimidation", urge_mood: "hostile" }));
+    assert.deepEqual(harder.steps, ["urge_intimidation_yield_hostile_crake-1"]);
+    // Sallow with his Crakes on their feet never would, however the line reads: words, and nothing spent.
+    const never = await readLine("Master Sallow! Lay down the cane in the King's name.", f, stub({ deed: "speak_only", said_to: "sallow", urge: "yield", urged: "sallow", urge_how: "persuasion" }));
     assert.deepEqual(never.steps, []);
-    assert.match(never.note ?? "", /won't hear of it: that's just words/);
-    const both = await readLine("Give up! *shoves him*", f, stub({ deed: "shove:crake-1", said_to: "crake-1", urge: "yield", urged: "crake-1", urge_how: "intimidation", urge_mood: "hostile" }));
+    assert.match(never.note ?? "", /Master Sallow won't hear of it while his people are still standing: that's just words/);
+    assert.match((await offline("persuade sallow to give up", f)).refusal ?? "", /Master Sallow won't hear of it while his people are still standing/);
+    // An unclear read of the mood is the fight's.
+    const unsure = await readLine("Drop it, Crake.", f, stub({ deed: "speak_only", said_to: "crake-1", urge: "yield", urged: "crake-1", urge_how: "intimidation", urge_mood: "unwilling" }, ["urge_mood"]));
+    assert.deepEqual(unsure.steps, ["urge_intimidation_yield_crake-1"]);
+    const both = await readLine("Give up! *shoves him*", f, stub({ deed: "shove:crake-1", said_to: "crake-1", urge: "yield", urged: "crake-1", urge_how: "intimidation" }));
     assert.deepEqual(both.steps, ["shove_crake-1"]);
     assert.match(both.note ?? "", /would take your action too/);
+  });
+
+  it("holds an act to the line's own words: the weapon named, a throw not yet, a heal as sure as its kind", async () => {
+    const rogue = await heron("rogue", BESIDE);
+    assert.match((await readLine("I throw a dagger at Sallow", rogue, stub({ deed: "attack:sallow:shortbow" }))).refusal ?? "", /Throwing isn't part of a fight on the map yet .*: your Shortbow reaches Master Sallow from where you stand/);
+    const fighter = await heron("fighter", BESIDE);
+    assert.deepEqual((await readLine("I shoot the crake with my bow", fighter, stub({ deed: "attack:crake-1:longsword" }))).steps, ["attack_crake-1_with_longbow"]);
+    assert.match((await readLine("I stab him with my dagger", fighter, stub({ deed: "attack:crake-1:longsword" }))).refusal ?? "", /You haven't got a dagger: you've longsword and longbow/);
+    const wizard = await heron("wizard", BESIDE, 5);
+    assert.deepEqual((await readLine("I crack him over the head with my staff", wizard, stub({ deed: "improvised:crake-1" }))).steps, ["attack_crake-1_with_quarterstaff"]);
+    // Cure Wounds or Healing Word: unsure which, but sure it's a heal.
+    const cleric = await heron("cleric", { kell: { x: 22, y: 5 } });
+    const healed = await readLine("I lay hands on Kell and heal her", cleric, stub({ deed: "cast:cure-wounds:kell" }, [], { deed: { "cast:cure-wounds:kell": 0.35, "cast:healing-word:kell": 0.3, "not_possible": 0.35 } }));
+    assert.deepEqual(healed.steps, ["cast_cure-wounds_kell"]);
+    assert.match((await readLine("I take a second wind", fighter, stub({ deed: "not_yet" }))).refusal ?? "", /isn't part of a fight on the map yet/);
   });
 
   it("asks which skill and how hard for a look or a think, and rolls it as the Search or Study action", async () => {
@@ -248,6 +345,21 @@ describe("a typed line, done through the fight", () => {
     assert.equal(lines[0], "› attack the talking crake");
     assert.ok(lines[1]!.startsWith("🎲 Longsword: your attack on the talking Crake"));
     assert.ok(lines.indexOf("Your blade finds the gap in his guard.") > 1);
+  });
+
+  it("lets the GM's line be waved on: what was said so far stands, and the fight goes on", async () => {
+    const f = await heron("fighter", BESIDE);
+    const skip = new AbortController();
+    // A voice that says half a line and then would go on and on, until it's cut short.
+    const slow: Voice = ({ signal, onSpeaker, onText }) => new Promise((_resolve, reject) => {
+      onSpeaker("gm");
+      onText("Your blade finds the gap in his guard, and");
+      skip.abort();
+      signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    });
+    const said = await f.say("attack the talking crake", { skip: skip.signal }, { decider: null, voice: slow });
+    assert.match(said, /Your blade finds the gap in his guard, and…/);
+    assert.ok(f.controller.view().log.some(l => l.kind === "narration" && l.who === "gm" && l.text.endsWith("and…")));
   });
 
   it("refuses with the rules' reason when the deed can't happen, and spends nothing", async () => {

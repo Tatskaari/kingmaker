@@ -17,8 +17,9 @@
  *
  * Or, in the play loop (src/game/play.ts): `fights: tacticalFights()` instead of the stand-in.
  * There a line can be typed as well as an action taken by id (`TacticalFight.say`): typed.ts reads
- * it onto the turn's own actions (plain commands with no model, the decider for the rest), the
- * fight does them as it does a click, and voice.ts gives the GM's line on what the rules did.
+ * it onto the turn's own actions (plain commands with no model, typed-decider.ts for the rest),
+ * typed-plan.ts walks the plan on the board before any of it's done, the fight does it as it does
+ * a click, and voice.ts gives the GM's line on what the rules did.
  *
  * Rules decisions:
  * - The grid is 5 ft a tile; diagonals cost 5 ft (2024). Movement goes a step at a time through
@@ -37,15 +38,29 @@
  *   whoever holds them is down, gone or stepped away; knocked over, they get up as their turn starts
  *   for half their movement (the engine leaves standing up to the board); shoved away, a tile
  *   straight back if there's floor there. Something to hand that isn't a weapon is the rules'
- *   unarmed strike (1d4), called an improvised weapon.
+ *   unarmed strike (1d4), called an improvised weapon, and proficient as an unarmed strike is (the
+ *   2024 rules would leave proficiency out for something that isn't like a weapon you know: a
+ *   simplification). A shove takes the whole action, as the engine has it, not one of its attacks.
  * - A word with weight is 2024's Influence action, at someone on the other side within earshot
- *   (60 ft): willing, they do as urged with no roll; otherwise a Charisma check by its skill
+ *   (60 ft). How they take it is the fight's (`Skirmish.moodOf`, from the AI's own reasons to fight
+ *   on or give up): never, for Sallow while his hired hands stand (it's words, and costs nothing);
+ *   gladly, for hired hands whose paymaster is down, or anyone the fight's gone out of (no roll);
+ *   in two minds, badly hurt, alone or outnumbered; otherwise hostile. A read of who they are (the
+ *   decider's) can only make it harder. Otherwise it's a Charisma check by its skill
  *   (intimidation, persuasion, deception, performance), at disadvantage while they're hostile,
  *   against 15 or their Intelligence. Urged to yield, they surrender; to go, they make for the way
  *   out on their turns (giving up if they can't get there); to hold back, their next turn goes by.
  *   A failure can't be tried the same way on them again that fight. A beast understands only a
  *   threat. A look or a think is the Search or Study action: a check that changes nothing on the
  *   board. Talking costs nothing: only urging takes the action.
+ * - A typed line is walked on the board before any of it is done (typed-plan.ts): where each
+ *   move would leave the player and with what movement, and whether each act could be done from
+ *   there, the dice aside. A move before an act goes somewhere the act can be done from (a step
+ *   back that keeps the line for the Fire Bolt). What couldn't be done is refused, and nothing's
+ *   spent; what the dice then overtake (the one a second blow was for went down to the first)
+ *   stops there, and says so.
+ * - Spiritual Weapon (a bonus action that swings as it's cast and lasts) wants the action unspent
+ *   too, as the engine has it: it isn't offered once the action's gone.
  * - Table talk (what the player typed, who answered, the GM's line on what the rules did) is kept
  *   beside the rules' log, never in it (`note`; `view().log` shows both, in order), and saved with it.
  * - At 0 hit points: the player makes the engine's death saves at the start of their turns (a
@@ -75,6 +90,7 @@ export { heronEncounter, type HeronOptions } from "./heron.ts";
 export { HERON_LAYOUT, HERON_MAP_ID, heronMap } from "./heron-grid.ts";
 export { arenaMap, encounterFor, show as showLine, tacticalFights, TacticalFight, type Field, type TacticalFights, type TacticalOptions } from "./fights.ts";
 export { gridStyled, gridText, KEY, legend, type GridOptions } from "./render.ts";
+export { headOf } from "./typed-turn.ts";
 export { pregenSession, PREGENS } from "./pregen.ts";
 export { STATBLOCKS, wellFormed, type CombatStatblock } from "./rules.ts";
 export type { PlayerStyle } from "./ai.ts";
