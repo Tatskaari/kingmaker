@@ -1,5 +1,7 @@
 # Kingmaker Glyphs: our own font of pixel-art people and creatures
 
+Part of the [architecture overview](../../ARCHITECTURE.md); the look layer that draws with these is [src/game/look](../../src/game/look/README.md).
+
 The game draws its world in a terminal, and a terminal draws characters from a font, so custom art
 for the cast and the monsters means a custom font.
 
@@ -44,13 +46,22 @@ embolden the Regular one synthetically and smear the pixels.
 ```sh
 npm run glyphs              # build the fonts and install them (~/.local/share/fonts/kingmaker), then fc-cache -f
 node --experimental-ffi --no-warnings --import tsx src/game/look/gallery.tsx sprites --glyphs kingmaker
-KM_GLYPHS=kingmaker npm run game
+npm run game                # draws with them once they're installed here (KM_GLYPHS=ascii for letters)
+KM_GLYPHS=kingmaker npm run game   # over SSH, with the font installed where your terminal is
 npm run glyphs:uninstall    # remove the installed fonts (and fc-cache -f)
 ```
 
-The gallery shows the sprites at once. The game's map shows them where it draws its actors through
-the look layer (`actorLook`, which the map renderer takes on when the look is wired into it); until
-then it draws the cast's letters.
+The gallery shows the sprites at once. The game draws them wherever it draws a being: on the map
+(the map renderer draws its actors through the look layer's `actorLook`), on a scene's place from
+above, and in fights. With the font installed in `~/.local/share/fonts/kingmaker` and the terminal
+local, the game picks the set by itself (`detectGlyphSet` in `src/game/look/glyphs.ts`). Over SSH it
+can't tell what fonts your terminal has, so it draws letters unless `KM_GLYPHS=kingmaker` says
+otherwise.
+
+The browser needs no install: the server build and the static build both serve the two fonts in
+`assets/fonts/` with the page (`/fonts.css`, made by `src/web/fonts.ts`). The static build draws
+with them by default; the server build's game decides as a terminal game does, on the server
+(src/web/README.md).
 
 Building needs fontTools (`pip install fonttools`, or the `python3-fonttools` package). Installing
 doesn't: without fontTools, `npm run glyphs` installs the committed fonts as they are, and says so.
@@ -82,8 +93,8 @@ it (the metrics are constants at the top of `build.py`; `--metrics` compares the
    draws the sheets: look at `runs/glyphs/pango-3x.png`, the real rendering three times up, and
    `npm run glyphs:vte` has a real terminal draw them.
 3. For it to appear in the game, map words to it in `src/game/look/kingmaker.ts` (`PEOPLE`,
-   `CREATURES`, or `ROLES` by role id), or give a cast member it as their `km` in `people.ts` and
-   `src/game/map/looks.ts`.
+   `CREATURES`, or `ROLES` by role id), or give a cast member it as their `km` in the cast table
+   (`CAST` in `src/game/map/looks.ts`, which `src/game/look/people.ts` reads).
 4. `node --no-warnings --test src/game/look/*.test.ts` checks the fonts and the code were rebuilt from
    the bitmaps as they are, and that OpenTUI measures every sprite as one cell.
 

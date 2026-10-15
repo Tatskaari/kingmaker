@@ -9,9 +9,10 @@ player turn
   ├─ decide before (Luna decision mode, one call, parallel questions, ~0.3–1 s)
   │     attempt? (an authored route, maybe with a roll) · cue? · limit? · out of character?
   │     off the graph? · daft act with consequences? · earned the payoff? · pressing a secret?
+  │     something the rules resolve (a spell, a blow, a jump)?
   ├─ disclose (Jev, in parallel): open the memories and lore that bear on this moment
-  ├─ reply (Luna, reasoning none, streamed; speculative: started alongside the decision and
-  │         kept when the decision changes nothing)
+  ├─ quick co-GM (in parallel; waited for only off the graph, up to 3 s from the turn's start)
+  ├─ reply (Luna, reasoning none, streamed, once the decision is in)
   ├─ decide after (same call shape): what happened? which ending is the story at? on track or
   │         stuck? what the player has come across? how far secret-holders have opened up?
   └─ background, never waited for:
@@ -96,7 +97,7 @@ V1's docs service, rebuilt (`memory: "docs"`, part of `v2`):
 
 - **Lore.** Authored lore lives in [lore/](../../lore/) in V1's format: frontmatter with visibility, readers and summary, linked docs, a "Read when relevant" section, and per-observer knowledge docs. Each session gets a copy-on-write overlay that play edits.
 - **Memories.** Each character has a memory index next to their lore entry: first-person notes about what they saw, did, learned or were told, private to them.
-- **Disclosure (Jev).** Each person present has a scope: their lore entry and memory index are always in. Each turn Jev opens linked notes above 0.7, in parallel with the decision. A note restarts the speculative reply only when it's clearly about this moment (≥ 0.9). Access fails closed.
+- **Disclosure (Jev).** Each person present has a scope: their lore entry and memory index are always in. Each turn Jev opens linked notes above 0.7, in parallel with the decision. A note clearly about this moment (≥ 0.9) also gets a line in the reply's directions, so it shows in how people respond. Access fails closed.
 - **Capture (background).**
   1. After each reply, Jev classifies the moment with V1's attention categories (trigger 0.4: a false flag costs a review that writes nothing).
   2. A **personal-memory agent** handles commitments, changes in trust or knowledge, and gifts, with `save_memory` for each witness.

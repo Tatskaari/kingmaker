@@ -1,5 +1,7 @@
 # The SRD's spell descriptions (vendored)
 
+Part of the [architecture overview](../../ARCHITECTURE.md); the code that reads it is [src/rules](../../src/rules/README.md).
+
 `spells.json` is the description of every spell in the rules engine's starter pack (all 339), in the
 words of Wizards of the Coast's **System Reference Document 5.2.1**, keyed by the engine's spell id
 (`fire-bolt`). The sheet shows it when a spell on it is picked (`src/rules/spells.ts`).
