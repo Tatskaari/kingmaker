@@ -226,7 +226,7 @@ export const heronWarehouse: Scene = {
         { id: "inside", when: "The player is inside the Heron, unnoticed or taken for someone who belongs there (in at the river door with Hobb's token or his help, past Saul, as a hand in Hep's gang, or any other way established in play).", to: "floor" },
         {
           id: "sneak-in", on: "attempt",
-          when: "The player tries to slip into the Heron unseen: past Saul's deaf side and the sleeping dog, or along the plank walk and in at the river door while the gang's backs are turned.",
+          when: "The player tries to slip into the Heron unseen: past Saul's deaf side and the sleeping dog, or along the plank walk and in at the river door while the gang's backs are turned. (Walking in with a sack on their shoulder, as one of the gang, isn't slipping in unseen: that's going in to work, with no dice.)",
           check: { reason: "to slip into the Heron unseen",
             skill: "stealth", dc: 13,
             success: "They're in, in the shadow of the wheat-ear stacks, with the whole floor in front of them and nobody the wiser.",

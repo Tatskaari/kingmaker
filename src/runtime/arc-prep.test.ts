@@ -107,6 +107,7 @@ test("the Heron: without a token, going in to work is a way in of its own with n
   assert.equal(taken.to, "floor");
   assert.match(taken.when, /shoulders a sack[\s\S]*answers Hep's shout for hands[\s\S]*asks there to be taken on[\s\S]*No dice: Hep is short-handed/);
   assert.match(route(heron, "wharf", "talk-past").when, /going in to work with a sack on their shoulder or at Hep's shout for hands, are ways in of their own with no dice/);
+  assert.match(route(heron, "wharf", "sneak-in").when, /Walking in with a sack on their shoulder, as one of the gang, isn't slipping in unseen/);
   // The token makes them a hand too, and the hand's standing is a fact, for a ruling that stands in for either route (robust-3: in "unnoticed", then a Stealth roll to carry a sack).
   const token = route(heron, "wharf", "show-token");
   assert.deepEqual(token.establishes, taken.establishes);
