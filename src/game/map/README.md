@@ -101,7 +101,7 @@ flowchart TD
   again --> out
 ```
 
-- `actorsHere` (explore.ts:130) gathers everyone and everything on the map: `presence` for the story's people, the map's decor with the town's changes applied (`withTownChanges`), what played scenes left (`overlayActors`), a live scene's world or a zoo wing's through `actorsFromWorld`, the followers and the player.
+- `actorsHere` (explore.ts:130) gathers everyone and everything on the map: `presence` for the story's people, the map's decor with the town's changes applied (`withTownChanges`), what played scenes left (`overlayActors`), a live scene's world or a zoo wing's through `actorsFromWorld`, the followers and the player. A town change keeps the map's own marks on what it leaves standing (`post`, `lamp`, `scenery`: how the map draws a thing, which the town's world leaves out), so a lamp post lit by Light is still up its post; a wreck loses them.
 - `render` (render.ts:182) paints rows of the projected plane back to front. Ground comes per cell from the look layer, then raised blocks (a lit top, the west face, the south face), with the roof off and the front walls cut down to a ledge in the room the player is in. Then actors by `actorLook`, surfaces, hazards, effects, smoke, the lead marker, coloured light per tile, and floating text last. Its passes are commented in that order. It fills `Picks` as it paints, so a click picks what's drawn in that cell.
 - `xrayExplore` (xray.ts:74) draws the frame once. When someone who matters (`matters`: people, the player, items, things a scene put there) is under something nearer, it draws it again with those buildings cleared and blends the two round each hidden one. A frame with nobody hidden costs one render and comes back untouched.
 
