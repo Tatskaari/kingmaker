@@ -64,6 +64,12 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
     const amended = patches.filter(p => p.cast?.id === c.id).at(-1)?.cast;
     return amended ? { ...c, secrets: [...amended.secrets] } : c;
   });
+  // Routes a ruling ruled out: gone from their beat (or from anywhere), wherever they came from.
+  const closed = patches.filter(p => p.close).map(p => p.close!);
+  if (closed.length) {
+    for (const b of beats) b.transitions = b.transitions.filter(t => !closed.some(c => c.beat === b.id && c.id === t.id));
+    return { ...scene, beats, anytime: anytime.filter(t => !closed.some(c => c.beat === "*" && c.id === t.id)), cast };
+  }
   return { ...scene, beats, anytime, cast };
 }
 

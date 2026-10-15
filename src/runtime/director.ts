@@ -61,6 +61,13 @@ export function endsScene(scene: Scene, t: Transition): boolean {
 const SCENE_ENDING_CONFIDENCE = 0.6;
 
 /**
+ * A considered turn costs the player seconds, so the flag wants a clear read: on the QA runs' turns
+ * every act a table would roll for read 0.84 or more ("route" and "new" together), and small honest
+ * asks and making a case 0.62 to 0.64.
+ */
+const CONSIDER_CONFIDENCE = 0.7;
+
+/**
  * A check is rolled for the act it tests, so the attempt is judged against that act: getting to
  * where it can be done (getting him down, getting the door open) is an act of its own, for the
  * rules or the story, not a reason to roll this.
@@ -97,9 +104,29 @@ function transitionsFor(scene: Scene, state: SessionState, phase: "attempt" | "c
 }
 
 /** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
-const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
+export const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
 
-async function resolve(scene: Scene, state: SessionState, transition: Transition, phase: Move["phase"], means?: Skill): Promise<Move> {
+/**
+ * Considered rolls' flag (asked in the decision the turn makes anyway): would a good GM call for a
+ * roll, and is it what one of the scene's routes with a roll is for? Its "yes" is split in two (a
+ * route's, or none's), and the two count together for whether a roll is wanted at all.
+ */
+function rollCallQuestion(checks: Transition[]): ChoiceQuestion {
+  const routes = checks.map(t => `[${t.id}] ${titleCase(t.check!.skill)} ${t.check!.reason ? t.check!.reason.trim().replace(/\.$/, "") : `(${t.when.replace(/\.$/, "")})`}`);
+  return {
+    instructions: `A good tabletop GM calls for a roll when what the player attempts could go either way and failing would cost something or change things, and otherwise just says yes or no. In the player's latest turn (${READ_TURN}), are they attempting something like that? Either working on someone for something that matters to that person (their safety, what they own or hold, what they know or hide, their loyalty, their pride), by whatever means: persuading, bargaining, bribing, threatening, lying, bluffing, forging, reading them, performing. Or a physical, sneaky or knowledge feat that could fail: climbing, forcing, palming, sneaking, recalling, working something out against the clock. Judge what they actually do and ask for, and what giving it would cost the other person, not how boldly or kindly it's put.`,
+    criteria: {
+      ...(routes.length ? { route: `Yes, and it's squarely what one of these is for: the same person, the same thing asked or tried, and its payoff is what the player is after: ${routes.join("; ")}.` } : {}),
+      new: routes.length
+        ? "Yes, but none of those is for it: someone else, a different ask, a different payoff, or another kind of attempt."
+        : "Yes: an attempt like that, whose outcome is genuinely uncertain.",
+      none: "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking or searching at leisure, something that simply works, or something that plainly can't.",
+    },
+  };
+}
+
+/** A route's check, rolled for the move (its method swapped for the player's, among social means). */
+export async function resolve(scene: Scene, state: SessionState, transition: Transition, phase: Move["phase"], means?: Skill): Promise<Move> {
   let to = transition.to ?? state.beat;
   let roll: RollResult | undefined;
   if (transition.check) {
@@ -156,6 +183,14 @@ export interface PreDecision {
   freeform?: FreeformCheck;
   /** Something the rules resolve (rules sessions): a spell, a blow, a rest. */
   mechanic?: Mechanic;
+  /**
+   * Considered rolls: the player is attempting something a roll should settle that none of the
+   * scene's routes does (another person, another ask, another payoff), so the GM rules on it before
+   * replying. Nothing was rolled or moved for it here. `routes`: the routes with a roll the decider
+   * leant towards, nearest first; `means`: the method, when it was asked and sure; `earned`: how far
+   * it thought the player had already met the person's terms, when it half thought so.
+   */
+  considered?: { probability: number; routes: Array<{ id: string; p: number }>; means?: Skill; earned?: number };
 }
 
 /** What the player is doing that the D&D rules resolve, and with what. */
@@ -330,7 +365,8 @@ const SKILL_TEXT: Record<Skill, string> = {
 };
 const DIFFICULTY = { easy: 10, moderate: 13, hard: 16 } as const;
 
-async function freeformCheck(decider: Decider, scene: Scene, state: SessionState, playerTurn: string): Promise<{ check: FreeformCheck; decision: Decision }> {
+/** A risky attempt no route covers, rolled on the decider's skill and difficulty (and the fallback for a considered turn whose review failed). */
+export async function freeformCheck(decider: Decider, scene: Scene, state: SessionState, playerTurn: string): Promise<{ check: FreeformCheck; decision: Decision }> {
   const decision = await decider.decide(decisionState(scene, state, playerTurn), {
     skill: { instructions: "The player is attempting something risky in a tabletop roleplaying scene (latest_player_turn). Which skill best decides whether it works?", criteria: SKILL_TEXT },
     difficulty: { instructions: "How hard is what the player is attempting, given the situation and the people involved?", criteria: {
@@ -409,7 +445,7 @@ function rulingOf(m: Mechanic): string {
  * rules resolve? `forced`: what the rules resolve this turn, chosen already (the map's action menu),
  * in place of asking.
  */
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; rules?: RulesOptions; forced?: Mechanic }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; considered?: boolean; rules?: RulesOptions; forced?: Mechanic }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -437,6 +473,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     };
   }
   if (cues.length) questions.cue = question("cue", cues);
+  // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
+  if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
   if (options.offGraph) {
     const routes = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].map(t => t.when);
     questions.off_graph = {
@@ -503,7 +541,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   };
   if (scene.limits?.length) {
     questions.limit = {
-      instructions: "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on it.",
+      // (Considered rolls: a forged warrant is a lie to be judged, not the real warrant the scene can't offer.)
+      instructions: `Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on it.${options.considered ? " Pretending isn't reaching for it: a fake, a forgery, a bluff or a lie about one of these is something the player is attempting, to be judged as that." : ""}`,
       criteria: { ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])), none: "No: the player's turn doesn't depend on any of these." },
     };
   }
@@ -543,10 +582,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
-  const chosen = attempt ?? plainEnding ?? cue;
-  // (a plain action alongside a cue: the cue's beat change carries the reply)
   const means = decision.answers.attempt_means?.choice;
-  const method = attempt && means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
+  const sureMeans = means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
   const ooc = decision.answers.ooc?.choice === "out_of_character";
   // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
   const limitChoice = decision.answers.limit?.choice;
@@ -559,13 +596,6 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const sure = !!forced || (asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE);
   const ruling = options.rules && sure && !limit && (!ooc || forced) ? asked : undefined;
   const act = ruling && RULED_ACTS.includes(ruling) ? ruling as RuledAct : undefined;
-  // When the rules resolve the player's act, that act is the turn: a route's check waits for the
-  // act's details, and is rolled only if the player is also doing what the check is for. Otherwise
-  // the route stays open for when they do.
-  const held = act && attempt?.check ? attempt : undefined;
-  let move = chosen && !held ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", method) : undefined;
-  let freeform: FreeformCheck | undefined;
-  let combined = decision;
   // No dice for the impossible: if the player is reaching for something the scene can't offer,
   // the "no, but" answers it and nothing is rolled.
   const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
@@ -574,7 +604,34 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // class feature isn't such an act: something risky alongside it can still call for a roll.)
   const ruled = forced ?? decision.answers.mechanic?.choice;
   const actSettles = !!ruled && ruled !== "feature" && RULED_ACTS.includes(ruled) && (!!forced || (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE);
-  if (answer === "other_risky" && !move && !limitBlocks && !actSettles && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
+  // Considered rolls: a roll is wanted (a route's "yes" and none's count together), and nothing the
+  // author wrote settles it: a route's roll the decider chose and didn't call the act another's, a
+  // route the author gave no dice, or an ending the player simply reaches. Then no route is rolled
+  // here, and no cue fires: the GM rules on it before the reply.
+  // (A player who has just met someone's terms has earned the payoff: that lands, as ever, without dice.)
+  const call = decision.answers.roll_call;
+  const yes = (option: string) => call ? call.probabilities?.[option] ?? (call.choice === option ? 1 : 0) : 0;
+  const settledByPrep = attempt ? !attempt.check || yes("route") >= yes("new") : !!plainEnding;
+  const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
+  const considered = options.considered && yes("route") + yes("new") >= CONSIDER_CONFIDENCE && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !actSettles && !ooc && !forced
+    ? {
+      probability: yes("route") + yes("new"),
+      routes: attempts.filter(t => t.check).map(t => ({ id: t.id, p: decision.answers.attempt?.probabilities?.[t.id] ?? 0 })).filter(r => r.p >= 0.05).sort((a, b) => b.p - a.p),
+      ...(sureMeans ? { means: sureMeans } : {}),
+      ...(earnedRead >= 0.3 ? { earned: earnedRead } : {}),
+    }
+    : undefined;
+  const chosen = considered ? undefined : attempt ?? plainEnding ?? cue;
+  // (a plain action alongside a cue: the cue's beat change carries the reply)
+  const method = attempt ? sureMeans : undefined;
+  // When the rules resolve the player's act, that act is the turn: a route's check waits for the
+  // act's details, and is rolled only if the player is also doing what the check is for. Otherwise
+  // the route stays open for when they do.
+  const held = act && attempt?.check && !considered ? attempt : undefined;
+  let move = chosen && !held ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", method) : undefined;
+  let freeform: FreeformCheck | undefined;
+  let combined = decision;
+  if (answer === "other_risky" && !move && !considered && !limitBlocks && !actSettles && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
@@ -583,7 +640,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;
-  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move && !held ? scene.cast.find(c => c.id === pressed) : undefined;
+  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move && !held && !considered ? scene.cast.find(c => c.id === pressed) : undefined;
   if (target) {
     const details = await pressureDetails(decider, scene, state, playerTurn, target);
     combined = { ...combined, answers: { ...combined.answers, ...details.answers }, latencyMs: combined.latencyMs + details.latencyMs, costUsd: combined.costUsd + details.costUsd };
@@ -618,7 +675,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     .slice(0, 1)
     .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const plainTransition = plain && !plainEnding ? plainOutcome : undefined;
+  const plainTransition = plain && !plainEnding && !considered ? plainOutcome : undefined;
   // The rules: a spell or a blow gets its details in a second small call; a rest needs none. Not
   // when it starts a fight for the map.
   let mechanic: Mechanic | undefined;
@@ -643,6 +700,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
     ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
+    ...(considered ? { considered } : {}),
   };
 }
 

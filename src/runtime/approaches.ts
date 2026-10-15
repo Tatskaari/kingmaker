@@ -42,6 +42,16 @@ export interface Approach {
   /** The decider flags daft or reckless acts the world would answer, and the GM is told to follow them through. */
   consequences?: boolean;
   /**
+   * Considered rolls (src/runtime/consider.ts): the decider flags an act a roll should settle that
+   * none of the scene's routes does (and a plan off the graph), in the call it makes anyway; on
+   * those turns only, the GM reviews it before replying: a roll or not, the skill and the DC (from
+   * docs/research/dc-guidance.md), and what success and failure each change in the scene (a beat,
+   * something coming out, someone acting on it, a route opened or closed). The rules roll, the
+   * outcome's changes apply, and the reply plays what was decided. Those turns take longer (the
+   * app says the GM is considering); it replaces the quick co-GM's wait and the stall.
+   */
+  considered?: boolean;
+  /**
    * "docs": the docs service (after V1). Each character has a memory index, played scenes leave a
    * story note, Jev opens the relevant notes each turn (progressive disclosure), and background
    * reviews fired by attention flags write first-person memories. Otherwise: prose hand-offs only.
@@ -61,11 +71,15 @@ export interface Approach {
 
 export const APPROACHES: Record<string, Approach> = {
   // Recommended: what the experiments support (docs/experiments/deviation-repair.md). Single GM
-  // voice with the scene's essentials in its prep; on a turn the decider judges off the graph, wait up
-  // to 3 s for the quick co-GM (routes with rolls, relocations), then one reply; the full co-GM reviews
-  // in the background between turns. No speculative replies: one started before the decision was
-  // sometimes shown and then taken back, and the reply after the decision is quick enough.
-  v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs", freeformChecks: true },
+  // voice with the scene's essentials in its prep. A turn whose act a roll should settle and no
+  // route does (or a plan off the graph) is considered: the GM rules on it before replying (a roll
+  // or not, the DC, what each outcome changes), and the reply plays what was decided; those turns
+  // take longer. The full co-GM reviews in the background between turns. No speculative replies:
+  // one started before the decision was sometimes shown and then taken back.
+  v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), considered rolls (an act a roll should settle that no route covers is ruled on by the GM before the reply: the roll, the DC, what success and failure change), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true },
+  // v2 as it was before considered rolls, to compare against: off-graph turns wait up to 3 s for the
+  // quick co-GM (routes with rolls), and a risky attempt no route covers gets a freeform roll.
+  "v2-quick": { id: "v2-quick", description: "v2 before considered rolls: quick co-GM on off-graph turns (3 s), freeform rolls for risky attempts no route covers, background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs", freeformChecks: true },
   "v2-staged": { id: "v2-staged", description: "v2 plus staged secrets: people open up one step per reply (a tell, guard up, torn, then told, bargained or refused).", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs", staging: true },
   "v2-nomemory": { id: "v2-nomemory", description: "v2 without the docs service: prose hand-offs between scenes only.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true },
   "v2-memory": { id: "v2-memory", description: "v2 plus V1's docs service: lore and per-character memories, Jev opens what matters each turn, Jev-flagged background reviews write memories and record improvised details into the lore.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs" },

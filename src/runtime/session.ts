@@ -56,6 +56,8 @@ export interface TurnMetric {
   followUpMs?: number | null;
   /** Time until text that answers the player started (follow-up after a holding beat, else first text). */
   resolvingTextMs?: number | null;
+  /** A considered turn: how long the GM's review took (its call, from the decision to the ruling). */
+  considerMs?: number;
   preDecisionMs: number;
   firstTextMs: number | null;
   replyMs: number;
@@ -73,7 +75,35 @@ export interface ScenePatch {
   transition?: { beat: string; transition: Transition };
   /** What someone is keeping back now, in place of their card's secrets (a talk's one thing to open up about). */
   cast?: { id: string; secrets: string[] };
+  /** A route ruled out (a considered ruling's outcome): gone from that beat ("*": from anywhere) for the rest of the scene. */
+  close?: { beat: string; id: string };
   why: string;
+}
+
+/**
+ * A considered turn's ruling (src/runtime/consider.ts): what the player attempted that no route
+ * settled, whether it was rolled and at what, and what each outcome changed. The scene's own, kept
+ * for the record and for the next ruling (the same push again gets the same answer).
+ */
+export interface RulingRecord {
+  turn: number;
+  /** What the player attempted, as the GM saw it. */
+  act: string;
+  /** Who they were working on (a cast id), or "world" for a feat. */
+  target: string;
+  skill: Skill;
+  /** "roll", or no roll: "yes" (it works) or "no" (not like this). */
+  kind: "roll" | "yes" | "no";
+  dc?: number;
+  /** Why there was no roll, or what set the DC (the judgements, in a few words). */
+  why: string;
+  roll?: RollResult;
+  /** How it went: the outcome that was played. */
+  went: "success" | "failure";
+  /** What the played outcome changed: where it went, the facts, what came out, routes opened and closed. */
+  changed: string;
+  costUsd: number;
+  latencyMs: number;
 }
 
 /** How far someone has opened up about what they're keeping back (staged secrets): it never goes back. */
@@ -173,6 +203,8 @@ export interface SessionState {
   sceneStatus?: SceneStatus;
   lastRepairTurn?: number;
   patches: ScenePatch[];
+  /** Considered turns' rulings in this scene, in order. */
+  rulings?: RulingRecord[];
   repairs: Array<Omit<RepairResult, "patches" | "canon" | "whispers" | "relocations"> & { patches: number; canon: number; whispers: number; relocations?: Array<{ essential: string; technique: string; to: string; how: string }> }>;
   transcript: Entry[];
   metrics: TurnMetric[];

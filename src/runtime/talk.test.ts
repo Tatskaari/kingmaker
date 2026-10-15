@@ -42,7 +42,7 @@ test("a talk scene is built from any companion's lore: their look and voice, no 
   assert.match(kell.cast[0]!.voice, /Noted/);
   assert.equal(kell.cast[0]!.statblock, "guard", "the rules' stats come from her authored card");
   assert.ok(kell.exits.every(e => !e.next), "no exit leads anywhere in the story");
-  assert.deepEqual(sceneApproach({ approach: "v2" }, kell), { ...sceneApproach({ approach: "v2" }, {}), repair: "off", freeformChecks: false, staging: true });
+  assert.deepEqual(sceneApproach({ approach: "v2" }, kell), { ...sceneApproach({ approach: "v2" }, {}), repair: "off", freeformChecks: false, considered: false, staging: true });
   // Anyone with a lore entry, not just Kell.
   const nan = sceneById(talkSceneId("nan-quill", 1));
   assert.equal(nan.title, "A word with Nan Quill");
