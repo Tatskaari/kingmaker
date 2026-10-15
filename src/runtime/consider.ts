@@ -1,5 +1,5 @@
 import { costOf, logCall, respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
-import { asHeard, currentBeat, heardIn, IMPROVISED_EXIT_ID, openRoutes, presentCast, prompt, sceneBrief, sceneEntries, scriptTranscript, targetTitle, unnamed } from "./brief.ts";
+import { asHeard, currentBeat, heardIn, IMPROVISED_EXIT_ID, leftBehind, openRoutes, presentCast, prompt, sceneBrief, sceneEntries, scriptTranscript, targetTitle, unnamed } from "./brief.ts";
 import { describeRoll, titleCase } from "./dice.ts";
 import { failedTries, moveDirective, resolve, SOCIAL, type Move, type PreDecision } from "./director.ts";
 import { SKILLS, type Scene, type Skill, type Transition } from "./scene.ts";
@@ -384,7 +384,9 @@ function toOutcome(scene: Scene, state: SessionState, o: OutcomeJson, went: "suc
   const places = new Set([...scene.beats.map(b => b.id), ...scene.exits.map(e => e.id)]);
   const counts = outcomes.find(t => t.id === o.counts_as);
   const target = counts?.to ?? (o.to !== "stay" && places.has(o.to) ? o.to : undefined);
-  const to = target && target !== state.beat ? target : undefined;
+  // Never back to a beat the scene has left with something settled since (the Rat's confession, left
+  // for "on his feet" by a failed lie about the Master: the name the beat gives freely was lost).
+  const to = target && target !== state.beat && !leftBehind(state, target) ? target : undefined;
   // Taken somewhere without counting as a route, it settles what the ways in there settle.
   const entering = to && !counts ? entryFacts(scene, state, to, went) : [];
   const facts = [...(counts?.establishes ?? []), ...entering, ...o.establishes.map(f => f.trim()).filter(Boolean)];

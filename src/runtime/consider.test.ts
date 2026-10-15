@@ -403,6 +403,28 @@ test("what lands is what the reply showed: not what a ruling's list said, nor th
   assert.deepEqual(stops.failure.establishes, [], "nothing every way to Hobb running settles");
 });
 
+test("a ruling never takes the scene back past a beat it has reached: a failed lie about the Master keeps the Rat in the confession (robust#77)", async () => {
+  const drownedRat = effectiveScene(sceneById("drowned-rat"), []);
+  // rb-2b2 at turn 8: the co-GM had moved the Rat into the confession at turn 7, with Hobb's admission on record since.
+  const state = rat();
+  state.turn = 8;
+  state.path = [
+    { turn: 4, from: "the-rat", to: "big-hobb", via: "found-him", source: "post", known: 1 },
+    { turn: 5, from: "big-hobb", to: "on-his-feet", via: "considered-5", source: "pre", known: 2 },
+    { turn: 7, from: "on-his-feet", to: "confession", via: "repair", source: "repair", known: 6 },
+  ];
+  state.established = ["one", "two", "three", "four", "five", "six", "Hobb has admitted that he held the clerk while his Master struck and strangled him, then hauled him up on the rope."];
+  const master = toRuling(drownedRat, state, { ...LINING, act: "Get Hobb to name his master", target: "hobb", lie: true, skill: "deception", stakes: "ruinous", approach: "excellent",
+    success: outcome({ happens: "Hobb leans close and whispers, “Master Sallow, of the Royal Purveyor’s office.”", gets: "all", counts_as: "told-master" }),
+    failure: outcome({ happens: "Hobb starts to whisper, then goes rigid. “You can’t promise that, sir.” He backs toward the door.", gets: "none", to: "on-his-feet", establishes: ["Hobb believes Ivo has promised an outcome Ivo cannot guarantee."] }) }, META);
+  assert.equal(master.failure.to, undefined, "on his feet is behind the confession now");
+  const settled = await settleRuling(drownedRat, { ...state, player: { ...state.player, modifiers: { deception: -30 } } }, master);
+  assert.deepEqual([settled.move.roll?.success, settled.move.to], [false, "confession"]);
+  // A beat it hasn't left behind is still somewhere to go: Hobb can still bolt from the room he's talking in.
+  const fresh = rat();
+  assert.equal(toRuling(drownedRat, fresh, { ...LINING, target: "hobb", failure: outcome({ happens: "Hobb lurches for the door.", gets: "none", to: "on-his-feet" }) }, META).failure.to, "on-his-feet");
+});
+
 test("on a ruled turn, what the reply brings out of what the story owes the player settles it: Prout's page, in the Drowned Rat", async () => {
   const rat = sceneById("drowned-rat");
   const missed = authored.essentials!.find(e => e.id === "page")!;
