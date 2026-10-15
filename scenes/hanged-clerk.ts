@@ -81,7 +81,7 @@ const coaxCob: Transition = {
 };
 
 /** What Cob is afraid of, as a promise that answers it names it (his granary fears). */
-const COB_FEARS = "his name kept out of it (nothing to the watch, nothing in anybody's book), the men from the loft kept off him, no Mending House, the boots his to keep";
+const COB_FEARS = "his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep";
 
 const trustCob: Transition = {
   id: "trust-cob", essential: "page",
@@ -96,7 +96,7 @@ const trustCob: Transition = {
  */
 const promiseCob = (beat: "yard" | "doubt"): Transition => ({
   id: "promise-cob", essential: beat === "yard" ? "not-suicide" : "silvertop",
-  when: `The player makes Cob a promise that truly answers what he's afraid of, and means it (${COB_FEARS}), or asks him what he knows under one they've made. No dice, whatever they ask with it: he believes it, near enough. ${beat === "yard"
+  when: `The player makes Cob a promise that truly answers what he's afraid of, and means it (${COB_FEARS}), or asks him what he knows under a promise like that made before. No dice, whatever they ask with it: he believes it, near enough. ${beat === "yard"
     ? "He checks Moll can't hear, then tells it in a frightened rush: he sleeps in the loft, and last night he woke to a lantern and voices, Mister Prout arguing with two men; then a thump, a choking noise and the hoist creaking with no sacks on it. He hid in his sacks till morning."
     : "He gives up who, in a whisper: Silvertop, the posh cove with the silver-topped cane, the flower smell and a ring with a bit of wheat on it, who comes with the Purveyor's wagons and opens the big doors with his own key; and a big man with a bandaged hand, who said 'Yes, Master'."} Asked for a look in his boot as well, he holds the left one out himself.`,
   to: "doubt", ...(beat === "yard" ? { establishes: [NOT_SUICIDE] } : {}),

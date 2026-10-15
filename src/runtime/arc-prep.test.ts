@@ -495,7 +495,7 @@ test("Cob: a promise that answers his fear is a yes with no dice, and his granar
     const promise = route(clerk, beat, "promise-cob");
     assert.equal(promise.check, undefined, "no dice");
     assert.equal(promise.on, undefined, "it simply happens: the decider sees it beside the rolls");
-    assert.match(promise.when, /his name kept out of it \(nothing to the watch, nothing in anybody's book\), the men from the loft kept off him, no Mending House/);
+    assert.match(promise.when, /his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House/);
     assert.match(promise.when, /Asked for a look in his boot as well, he holds the left one out himself/);
     assert.match(route(clerk, beat, "trust-cob").when, /or they make him a promise, now or before, that truly answers what he's afraid of \(his name kept out of it/);
   }
