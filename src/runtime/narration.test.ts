@@ -61,6 +61,8 @@ test("the world in the GM's note says what the player hasn't seen, by name and w
   const note = nowNote(scene, state, []);
   const world = note.slice(note.indexOf("## The world right now"));
   assert.match(world, /It's the truth behind the screen, not what the player has seen/);
+  // The world is as things stood before the player's turn (the clerk turned the open book the player had just buttoned into her coat).
+  assert.match(world, /It's as things stood before the player's turn: what the player does in it \(shutting a book and buttoning it into their coat, picking something up, crossing the room\) has happened by your reply, and the world catches up after it\./);
   assert.match(world, /Out of the player's sight, and nobody has shown or told them of it: a folded page sewn into the left boot's lining \[ledger-page\]\. Until they find it, the narration doesn't mention it or where it is\./);
   // The GM still knows where it is: the world lists it under the boots.
   assert.match(world, /- a folded page sewn into the left boot's lining \[ledger-page\]/);
@@ -79,13 +81,13 @@ test("names the player hasn't heard come last before the reply's form, with ever
   assert.ok(names > note.indexOf("## The world right now"), "after the world, which uses the names");
   assert.ok(names < note.indexOf("Mark this reply up.") && names < note.indexOf("## For this reply"));
   assert.match(note, /- Hepzibah Grist \(Hep\): "the forewoman with the sack-needle"/, "Hep is her name too");
-  assert.match(note, /Your prep, the details established, the world and your directions use their names; your reply doesn't\./);
+  assert.match(note, /Your prep, the details established, the world and your directions use their names; your narration doesn't, until someone says it\./);
 });
 
 test("the prep's essentials each say whether the player has come across them, and what's owed is out of sight", () => {
   const state = at("hanged-clerk");
   const brief = sceneBrief(sceneById("hanged-clerk"), { ...state, landed: ["not-suicide"], hinted: ["silvertop"] });
-  assert.match(brief, /Until they have, it's behind the screen: they don't know it, and the narration doesn't tell it/);
+  assert.match(brief, /Until they have, it's behind the screen: they don't know it, and it comes out only through play/);
   assert.match(brief, /he was struck and strangled, then hoisted up for show\.[^\n]*\[already come across\]/);
   assert.match(brief, /countersigned 'J\. Sallow, for the Royal Purveyor'\.[^\n]*\[not come across yet\]/);
   assert.match(brief, /signet ring \(Sallow\) was in the loft that night\.[^\n]*\[already hinted at/);
