@@ -173,6 +173,17 @@ const cellOf = (X: number, Y: number) => ({ x: Math.floor(X / AX), y: Math.floor
 //   barred   the leaf darker, one bar across it and past both jambs onto the wall
 //   broken   a dark gap, the leaf's foot left standing with a notched top, a few splinters in front
 
+/** The art row a map door's sill stands on at its high end: the last of its wall's above the ground, on the step it's over (its tile's centre row, sr). */
+export const footY = (sr: number): number => (sr + 1) * AY - 1;
+
+/**
+ * The cells of the ground in front of a map door (on the row under its tile's centre, sr) that its
+ * sill runs down into: the ground there is in the ASCII's step, where the face would meet the ground
+ * if it were drawn straight. A door's picture may paint them where nothing stands or burns on them.
+ */
+export const footCells = (face: "south" | "west", sc: number, sr: number): Array<{ x: number; y: number }> =>
+  (face === "south" ? [sc + 1, sc + 2] : [sc - 2, sc - 1]).map(x => ({ x, y: sr + 1 }));
+
 export function mapDoorParts(d: MapDoorShape): Part[] {
   const south = d.face === "south";
   const sc = d.x, sr = d.y, height = Math.max(1, Math.min(6, d.h));
@@ -180,7 +191,13 @@ export function mapDoorParts(d: MapDoorShape): Part[] {
   // Face space: u across from the door's left jamb, v up from its sill; the sill climbs with the face.
   const W = 10, H = Math.max(12, Math.min(30, height * AY - 14));
   const X0 = south ? (sc + 1) * AX - 1 : (sc - 1) * AX - 2;
-  const Y0 = south ? (sr + 1) * AY : (sr + 1) * AY - (W - 1);
+  // The door stands on the ground: the ASCII draws the foot of its wall's face in steps (two columns
+  // to a row), and the sill's high end (the left on a west face, which falls to the right; the right
+  // on a south face) stands on the step it's over, on the last row of wall above the ground (footY).
+  // The rest of the sill runs down past the step into the ground's cells in front (footCells), where
+  // the face would meet the ground if it were drawn straight; the ASCII door's foot (the ▀ under its
+  // tile) steps down there too.
+  const Y0 = south ? footY(sr) + (W - 1) : footY(sr);
   const X = (u: number) => X0 + u, Y = (u: number, v: number) => Y0 + (south ? -u : u) - v;
   // A rounded head (kept low, so a narrow door sheared this steeply stays a door): its top two rows stepped in by two and one.
   const inset = (v: number) => (v === H - 1 ? 2 : v === H - 2 ? 1 : 0);

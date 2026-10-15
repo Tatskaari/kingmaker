@@ -5,7 +5,7 @@ import { areaCell, type EffectFrame, type FloatText } from "../look/effects.ts";
 import { glyphSet, inSet, plainText, type GlyphSet } from "../look/glyphs.ts";
 import { shadeBeing, shadeBy } from "../look/light.ts";
 import { actorLook, dustAt, fireAt, groundAt, surfaceLayer, type ActorLook, type LookFrame, type SurfaceLayer } from "../look/map.ts";
-import { doorLook, type DoorLook } from "../look/door-art.ts";
+import { doorLook, footCells, type DoorLook } from "../look/door-art.ts";
 import { clamp01, hash01, noise2, seedOf } from "../look/noise.ts";
 import { BLOCKS, DAYLIGHT, DEFAULT_STYLE, FIRE, GROUND, TREE, WINDOW_LIGHT, hash, pick, scale, type BlockLook, type GroundLook } from "./palette.ts";
 import { raiseFor } from "./looks.ts";
@@ -97,6 +97,8 @@ export interface DoorPick {
   light: { r: number; g: number; b: number };
   floor: number;
   wall: Array<{ x: number; y: number; ch: string; fg: string; bg: string }>;
+  /** The cells of its foot (door-art.ts footCells) where the tile in front shows bare ground: its sill may run down into them. */
+  foot: Array<{ x: number; y: number }>;
 }
 
 /**
@@ -273,9 +275,13 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   // For the browser's overlay (Picks): the doors drawn in walls, and what's drawn over the map once
   // it's painted (`late`: everything put from then on), with the tinted and bracketed tiles.
   const over = options.pick?.tracking && !text ? new Uint8Array(w * h) : undefined;
-  const doorPicks: Array<DoorPick & { raw: Array<{ x: number; y: number; cell: Cell }> }> | undefined = over ? [] : undefined;
+  const doorPicks: Array<DoorPick & { raw: Array<{ x: number; y: number; cell: Cell }>; front: number }> | undefined = over ? [] : undefined;
   const cover = (sx: number, sy: number) => { if (over && sx >= 0 && sy >= 0 && sx < w && sy < h) over[sy * w + sx] = 1; };
   let late = false;
+  // And which cells show a tile's bare ground (`grounding`: ground() is painting, nothing burning):
+  // a door's sill may run down into its foot (DoorPick.foot).
+  const bare = over ? new Uint8Array(w * h) : undefined;
+  let grounding = false;
   let tile = -1, actor: MapActor | undefined;
   const put = (sx: number, sy: number, ch: string, fg: string | RGB, bg?: string | RGB, extra: { bold?: boolean; glow?: boolean; floor?: number; being?: boolean } = {}) => {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
@@ -287,6 +293,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     cell.being = extra.being ? cell.ch : "";
     owner[sy * w + sx] = tile;
     if (drawn) drawn[sy * w + sx] = actor;
+    if (bare) bare[sy * w + sx] = grounding && !extra.glow ? 1 : 0;
     if (late) cover(sx, sy);
   };
   /** A cell as the look layer takes one (hex), for laying something over it. */
@@ -450,6 +457,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const p = project(at);
     const i = index(at);
     const fire = fires.has(i), dust = dusts.has(i);
+    grounding = !fire;
     const flow = kind === "water" || kind === "deep-water" ? flowOf(kind) : undefined;
     const indoors = isRoofed(tileAt(map, at));
     // Only the layers with something near this tile.
@@ -487,6 +495,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       const heat = noise2(i * 0.37, t / 160, 11);
       if (heat > 0.45) put(sc + (hash(at.x, at.y, beat >> 2) % 3) - 1, sr - 1, heat > 0.7 ? "▲" : "^", hexOf(mixRGB(rgbOf("#ff7a10"), rgbOf("#ffe680"), heat - 0.45)), undefined, { bold: true, glow: true });
     }
+    grounding = false;
   }
 
   /** The river's current on the projected plane (square units a second), from which way it runs on this map. */
@@ -532,7 +541,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       const keep = (x: number, y: number) => { if (x >= 0 && y >= 0 && x < w && y < h) raw.push({ x, y, cell: { ...cells[y]![x]! } }); };
       for (let r = sr - Math.min(2, height - 1); r <= sr; r++) keep(col, r);
       keep(sc, sr + 1);
-      doorPicks.push({ at: { ...at }, sc, sr, height, face: through, look: doorLook(states, !!t.blocks), light: { ...light }, floor: BLOCK_FLOOR * 0.7, wall: [], raw });
+      const front = index(through === "south" ? { x: at.x, y: at.y + 1 } : { x: at.x - 1, y: at.y });
+      doorPicks.push({ at: { ...at }, sc, sr, height, face: through, look: doorLook(states, !!t.blocks), light: { ...light }, floor: BLOCK_FLOOR * 0.7, wall: [], foot: footCells(through, sc, sr), raw, front });
     }
     for (let r = sr - Math.min(2, height - 1); r <= sr; r++) put(col, r, open ? " " : r === sr ? "▙" : "█", colour, scale(colour, 0.6), struct);
     put(sc, sr + 1, "▀", colour, scale(colour, 0.5), struct);
@@ -845,8 +855,10 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   }
 
   // The doors' walls, lit as the light pass lit the cells round them.
-  const doorsDrawn = doorPicks?.map(({ raw, ...d }) => ({
+  const doorsDrawn = doorPicks?.map(({ raw, front, ...d }) => ({
     ...d,
+    // Its foot: where the tile in front still shows its bare ground (nobody and nothing on it, nothing burning).
+    foot: d.foot.filter(({ x, y }) => x >= 0 && y >= 0 && x < w && y < h && owner[y * w + x] === front && !drawn?.[y * w + x] && !!bare?.[y * w + x]),
     wall: raw.map(({ x, y, cell: c }) => ({
       x, y, ch: c.ch,
       fg: hexOf(c.fg === NONE ? INK : c.glow ? c.fg : shadeBy(c.fg, c.light.r, c.light.g, c.light.b, c.floor)),

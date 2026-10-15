@@ -64,18 +64,21 @@ export function mapDoors(picks: Picks, frame: StyledLine[]): MapDoorShape[] {
       colors: { wood: lit(dark ? MAP_DOOR.dark : MAP_DOOR.wood), mark: lit(MAP_DOOR.mark), brass: lit(MAP_DOOR.brass), bar: lit(MAP_DOOR.bar), gap: lit(MAP_DOOR.gap) },
       cells: [], wall: d.wall.map(c => [c.x, c.y, c.ch, c.fg, c.bg]),
     };
-    // Its leaf swings out over the tile in front of its face; splinters fall there.
+    // Its leaf swings out over the tile in front of its face; splinters fall there. It stands on its
+    // foot, the bare ground in front that the sill runs down into (as if the face were drawn straight).
     const door = orderOf(d.at), front = orderOf(d.face === "south" ? { x: d.at.x, y: d.at.y + 1 } : { x: d.at.x - 1, y: d.at.y });
+    const foot = new Set(d.foot.map(c => `${c.x},${c.y}`));
     for (const { x, y } of doorCells(shape)) {
       if (x < 0 || y < 0 || x >= picks.w || y >= picks.h || over[y * picks.w + x]) continue;
       const pk = picks.at(x, y);
       let level: 0 | 1 | 2 = 2;
       if (pk) {
-        // What shows there is behind the door or the door's own (2), between it and the tile in front (1),
-        // or nearer still (0); and nobody standing in the doorway or in front of it is drawn over.
+        // What shows there is behind the door or the door's own, or its foot (2), between it and the
+        // tile in front (1), or nearer still (0); and nobody standing in the doorway or in front of it
+        // is drawn over.
         const o = orderOf(pk.at);
         const being = !!pk.actor && (pk.actor.kind === "person" || pk.actor.kind === "creature" || pk.actor.kind === "player");
-        level = being && (o === door || o === front) ? 0 : o <= door ? 2 : o <= front ? 1 : 0;
+        level = being && (o === door || o === front) ? 0 : o <= door || foot.has(`${x},${y}`) ? 2 : o <= front ? 1 : 0;
       }
       if (level) shape.cells.push([x, y, level, bgAt(x, y) ?? THEME_BG]);
     }
