@@ -54,6 +54,8 @@ const NAME = "Tamsin Vell";
 const CONCEPT = "a disgraced palace auditor with a ledger-keeper's eye and a borrowed rapier";
 /** The smoke test's backstory (src/app/smoke/smoke.py's BACKSTORY), so the screens can be the same. */
 const BACKSTORY = "I kept a grain factor's books on the wharves for nine years, until the night the sums came out too right. I owe Fat Jory three crowns.";
+/** The lore check's panel, as a regex in the page: a fix on show (the first look's, or the second's, after the fixes). */
+const LORE_PANEL = String.raw`/The lore check[^\n]*?: \d+ of \d+[\s\S]*?Your story says: [^\n│]*/`;
 mkdirSync(OUT, { recursive: true });
 
 let failures = 0;
@@ -512,10 +514,14 @@ async function makeCharacter(page: Page, live: boolean): Promise<void> {
   await page.keyboard.type("honestly ", { delay: 10 });
   await waitFor(page, "I honestly kept a grain factor", "a click put the cursor in the text, and what's typed went there");
   await press(page, "Tab", "Enter");
-  if (live && await until(page, `window.km ? /The lore check: 1 of/.test(km.text()) : false`, 60000)) {
-    await shot(page, "lore-check");
+  // The lore check's fixes, if it finds any (live): each taken with Enter, and its second look's too.
+  for (let look = 0; live && look < 6; look++) {
+    if (!await until(page, `window.km ? /Character sheet/.test(km.text()) || ${LORE_PANEL}.test(km.text()) : false`, 90000) || !await page.evaluate(`${LORE_PANEL}.test(km.text())`)) break;
+    const shown = String(await page.evaluate(`(${LORE_PANEL}.exec(km.text()) || [""])[0]`));
+    await shot(page, `lore-check-${look + 1}`);
     await press(page, "Enter");
     ok("the lore check offered a fix, and Enter took it");
+    await until(page, `window.km ? !km.text().includes(${JSON.stringify(shown)}) : false`, 10000);
   }
 }
 

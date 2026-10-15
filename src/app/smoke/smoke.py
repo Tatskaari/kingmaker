@@ -142,10 +142,23 @@ def new_game(app, name, concept, by_click=False):
         click(app, " Done ", "a click on Done")
     else:
         app.send("\x1b\r", 0.5)
-    # Offline the lore check says it isn't checked; with the GM it may offer a fix: take it.
-    if app.wait_for(r"The lore check: 1 of", 30 if LIVE else 3):
-        dump(app, "lore-check")
+    # Offline the lore check says it isn't checked; with the GM it may offer fixes, one at a time, and look
+    # again once they're in: take each.
+    panel = r"The lore check[^\n│]*?: \d+ of \d+.*?Your story says: [^\n│]*"
+    for look in range(6):
+        m = app.wait_for(panel, 30 if LIVE else 3)
+        if not m:
+            break
+        dump(app, f"lore-check-{look + 1}")
+        shown = m.group(0)
         click(app, "Accept the fix", "the lore check's fix accepted")
+        # The next fix, the check looking again, or the sheet: anything but this one.
+        end = time.time() + 10
+        while time.time() < end:
+            app.pump(0.2)
+            now = re.search(panel, app.text(), re.S | re.I)
+            if not now or now.group(0) != shown:
+                break
     expect(app, r"Character sheet.*AC \d+", "the rules engine made a sheet", timeout=120)
     expect(app, r"1 Character.*2 Combat.*HP .*\d+/\d+.*STR.*DEX.*CON.*Saving throws", "the sheet: in pages, the numbers and the six abilities")
     keys(app, "right")
