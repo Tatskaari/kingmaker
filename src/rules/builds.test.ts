@@ -114,6 +114,25 @@ test("the model's three, made legal: unknown ids fall back, spells off the class
   assert.ok(bard.plays.length > 20, "no line from the model: the class's own");
 });
 
+test("the model's three written as names, not ids (\"Cleric\", \"Life Domain\", \"Wisdom\"): read as the ids they are", async () => {
+  const ask = answering({
+    first: { classId: "Cleric", subclassId: "Life Domain", speciesId: "Goliath", backgroundId: "Acolyte", abilities: ["Wisdom", "Constitution", "Strength"], skills: ["Insight", "Medicine"], feat: "Magic Initiate (Cleric)", cantrips: ["Guidance", "Spare the Dying", "Thaumaturgy"], spells: ["Cure Wounds", "Healing Word", "Bless"], weapons: ["Mace"], armor: "Chain Shirt", shield: true, style: "none", plays: "Sits on the argument." },
+    second: { classId: "Fighter", subclassId: "Champion", speciesId: "Half-Orc", backgroundId: "Soldier", abilities: ["STR"], skills: [], feat: "", cantrips: [], spells: [], weapons: ["Greatsword"], armor: "Chain Mail", shield: false, style: "Great Weapon Fighting", plays: "Hits it." },
+    third: { classId: "Ranger", subclassId: "Hunter", speciesId: "Elf", backgroundId: "Sage", abilities: ["DEX"], skills: [], feat: "", cantrips: [], spells: ["Hunter's Mark"], weapons: ["Longbow"], armor: "Studded Leather", shield: false, style: "Fighting Style: Archery", plays: "Shoots it." },
+  });
+  const offer = await threeBuilds("Brother Odo", "a large, gentle hedge-priest who settles arguments by sitting on them", 3, { ask });
+  assert.deepEqual(offer.options.map(o => o.from), ["model", "model", "model"], "all three the model's");
+  const [cleric, fighter, ranger] = offer.options as [BuildOption, BuildOption, BuildOption];
+  assert.deepEqual([cleric.build.classId, cleric.build.subclassId, cleric.build.speciesId, cleric.build.backgroundId, cleric.build.armor], ["cleric", "life-domain", "goliath", "acolyte", "chain-shirt"]);
+  assert.deepEqual(cleric.build.abilities.slice(0, 3), ["WIS", "CON", "STR"]);
+  assert.ok(cleric.build.spells.includes("cure-wounds") && cleric.build.cantrips.includes("spare-the-dying") && cleric.build.weapons[0] === "mace");
+  assert.equal(cleric.build.feat, "magic-initiate-cleric", "a feat by its name");
+  assert.equal(fighter.build.style, "great-weapon");
+  assert.equal(ranger.build.style, "archery");
+  assert.ok(ranger.build.spells.includes("hunters-mark"));
+  for (const o of offer.options) assert.deepEqual(await illegal(o.build, 3), [], o.line);
+});
+
 test("the model failing: the class defaults, and the note says the GM couldn't be reached", async () => {
   const ask: Ask = async () => { throw new Error("HTTP 503: the river is up"); };
   const offer = await threeBuilds("Wren", "a quick-witted ranger", 3, { ask });
@@ -164,4 +183,23 @@ test("settling a build twice changes nothing: the build the card was made from i
   const made = await throughEngine({ classId: "sorcerer", spells: ["fireball"], cantrips: [] }, 5, "Vesper");
   assert.deepEqual(settleBuild(made.build, 5, content), made.build);
   assert.ok(made.build.spells.includes("fireball"), "fireball at level 5");
+});
+
+test("a Fighting Style that fits: the model's own, where its class has it; otherwise the one the weapons suggest", async () => {
+  const content = await srdContent();
+  const style = (o: { card: { features: string[] } }) => o.card.features.find(f => f.startsWith("Fighting Style"));
+  // The model's: a duellist's Dueling.
+  assert.equal(style(await throughEngine({ classId: "fighter", weapons: ["rapier"], armor: "leather-armor", shield: false, style: "dueling" }, 3, "Lucan")), "Fighting Style (Dueling)");
+  // None chosen: by the weapons. A greatsword's Great Weapon Fighting, a bow's Archery, a shield's Defense, two light blades'.
+  assert.equal(style(await throughEngine({ classId: "fighter", weapons: ["greatsword"], shield: false }, 3)), "Fighting Style (Great Weapon Fighting)");
+  assert.equal(style(await throughEngine({ classId: "ranger", weapons: ["longbow", "shortsword"] }, 3)), "Fighting Style (Archery)");
+  assert.equal(style(await throughEngine({ classId: "paladin", weapons: ["longsword"], shield: true }, 3)), "Fighting Style (Defense)");
+  assert.equal(style(await throughEngine({ classId: "ranger", weapons: ["shortsword", "scimitar"], shield: false }, 3)), "Fighting Style (Two-Weapon Fighting)");
+  // One the class hasn't got is dropped (a paladin has no Archery), and a class without styles has none.
+  assert.equal(settleBuild({ classId: "paladin", style: "archery" }, 3, content).style, undefined);
+  assert.equal(style(await throughEngine({ classId: "paladin", weapons: ["longbow"], shield: false, style: "archery" }, 3)), "Fighting Style (Defense)");
+  assert.equal(settleBuild({ classId: "rogue", style: "dueling" }, 3, content).style, undefined);
+  // The offline fighter (a longsword and a shield) fights with Defense.
+  const offline = (await threeBuilds("Bram", "a broken-nosed ex-soldier of the watch", 3)).options.find(o => o.build.classId === "fighter")!;
+  assert.equal(style(offline), "Fighting Style (Defense)");
 });

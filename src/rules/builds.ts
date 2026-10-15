@@ -1,6 +1,6 @@
 import { gmOffline, respondJson, type Ask } from "../llm/openrouter.ts";
 import type { SessionState } from "../runtime/session.ts";
-import { BUILD_FIELDS, BUILD_GUIDE, BUILD_SCHEMA, buildMenu, createCharacter, settleBuild, sheetData, srdContent, type Build, type SheetData } from "./dnd.ts";
+import { BUILD_FIELDS, BUILD_GUIDE, BUILD_SCHEMA, buildMenu, createCharacter, settleBuild, sheetData, srdContent, srdId, styleFor, type Build, type SheetData } from "./dnd.ts";
 
 /**
  * Character creation's choices (the app's creation screens, the QA console's qa new, the zoo's
@@ -228,7 +228,11 @@ export function cardOf(sheet: SheetData, build: Build): BuildCard {
 
 /** A build made legal and made by the engine as character creation would make it: the build, its line and its card. */
 export async function throughEngine(raw: Partial<Build>, level: number, name = "You"): Promise<{ build: Build; line: string; card: BuildCard }> {
-  const build = settleBuild(raw, level, await srdContent());
+  const content = await srdContent();
+  const settled = settleBuild(raw, level, content);
+  // A Fighting Style to fit the weapons, where none was chosen (the engine's first is a bow's).
+  const style = settled.style ? undefined : styleFor(settled, content);
+  const build = style ? { ...settled, style } : settled;
   const state = scratch(name);
   await createCharacter(state, level, build);
   const sheet = await sheetData(state);
@@ -275,7 +279,8 @@ export async function threeBuilds(name: string, concept: string, level: number, 
   const content = await srdContent();
   const picked: Array<{ raw: Partial<Build>; plays: string; from: BuildOption["from"] }> = [];
   for (const s of suggested) {
-    const classId = s.classId && content.classes.has(s.classId) ? s.classId : undefined;
+    const id = typeof s.classId === "string" ? srdId(s.classId) : "";
+    const classId = content.classes.has(id) ? id : undefined;
     if (!classId || picked.some(p => p.raw.classId === classId) || picked.length >= 3) continue;
     const { plays, ...raw } = s;
     picked.push({ raw: { ...raw, classId }, plays: plays?.trim() || DEFAULTS[classId]!.plays, from: "model" });
