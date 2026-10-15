@@ -63,7 +63,7 @@ export interface Approach {
    * one step per reply at most, unless the player brings proof or real leverage.
    */
   staging?: boolean;
-  /** House style for the GM voice: "comic" adds prompts/tone-comic.md (Pratchett / Monty Python). */
+  /** House style for the GM voice: "comic" adds v2/ai/prompts/tone-comic.md (Pratchett / Monty Python). */
   tone?: "comic";
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
   effort?: "none" | "low" | "medium" | "high";

@@ -42,14 +42,14 @@ flowchart LR
   run --> director["src/runtime/director.ts:<br/>decideBefore, decideAfter"]
   run --> repair["src/runtime/repair.ts"]
   run --> scribe["src/world/scribe.ts"]
-  run --> judge["judge.ts"] --> llm["src/llm/openrouter.ts"]
+  run --> judge["judge.ts"] --> llm["v2/ai/llm/openrouter.ts"]
   engine --> llm
   wrun["evals/world/run.ts"] --> systems["systems.ts"] --> stage["src/world/stage.ts"]
   systems --> llm
   wplay["evals/world/play.ts"] -.->|"scene say, traced"| cli["src/cli/scene.ts"]
 ```
 
-- **The GM evals call the runtime as the game does,** not through a CLI: `playerTurn` for a reply or a trajectory, `decideBefore` and `decideAfter` with a named decider (`deciderFor` in src/llm/decide.ts), `chainScene` and `openScene` for an opening, and the scribe for the world suite. The co-GM runs inline when the approach has one, before the reply or between a trajectory's turns, rather than as a background job.
+- **The GM evals call the runtime as the game does,** not through a CLI: `playerTurn` for a reply or a trajectory, `decideBefore` and `decideAfter` with a named decider (`deciderFor` in v2/ai/llm/decide.ts), `chainScene` and `openScene` for an opening, and the scribe for the world suite. The co-GM runs inline when the approach has one, before the reply or between a trajectory's turns, rather than as a background job.
 - **Nothing in the game calls the evals,** and CI doesn't run them (see below).
 - **QA failures become cases** by copying the session's `snapshots/<scene>-turn-NNN.json` into `evals/fixtures/<topic>/` and writing a case with the player's real input (docs/guide/testing.md, "Turning a failure into a case").
 
@@ -69,7 +69,7 @@ The suites:
 |---|---|---|
 | `reply` | one player turn at a fixed moment | the five dimensions and the case's criterion, plus mechanical expectations |
 | `decision` | the decider alone, before or after a reply | whether its choice is one of the acceptable ones, and its latency |
-| `trajectory` | a whole scene, a simulated player (`prompts/player-sim.md`) with a persona, up to `maxTurns` | the transcript: the dimensions, progress, tangents and how they were handled, the criterion |
+| `trajectory` | a whole scene, a simulated player (`v2/ai/prompts/player-sim.md`) with a persona, up to `maxTurns` | the transcript: the dimensions, progress, tangents and how they were handled, the criterion |
 | `opening` | the next scene's opening after a recorded ending | whether it picks up from what really happened |
 | `world` | the scribe on scene endings found under `--from` (default `runs/sessions`) | missing and wrong changes in the world script |
 
@@ -78,7 +78,7 @@ The suites:
 ## Where to look first
 
 - **A new or changed case:** its file in `src/eval/cases/`, the criterion's wording (it should name an outcome, and fail stalling and withholding as well as the failure seen), and the fixture it's pinned to.
-- **A change to the judge:** `prompts/judge.md` and judge.ts. Any change moves every score, so compare a run before and after with `npm run compare`, or re-judge an old run with rejudge.ts.
+- **A change to the judge:** `v2/ai/prompts/judge.md` and judge.ts. Any change moves every score, so compare a run before and after with `npm run compare`, or re-judge an old run with rejudge.ts.
 - **A change to the runtime the evals call:** run.ts calls `playerTurn`, `decideBefore` and `decideAfter` with their real signatures, so a signature change shows up here at the typecheck.
 - **A change to `SessionState`:** the fixtures are snapshots of it as it was when they were taken, and nothing migrates them. `buildFixture` spreads a snapshot over a new session's fields.
 
@@ -94,7 +94,7 @@ npm run eval -- --suite opening
 npm run eval -- --suite world --from runs/sessions --mode reconcile         # the scribe on recorded endings (default mode: append)
 npm run compare -- runs/evals/<a> runs/evals/<b>                            # aggregates side by side
 KM_JUDGE_MODEL=openai/gpt-6-sol KM_JUDGE_EFFORT=medium node --no-warnings src/eval/rejudge.ts runs/evals/<a> [limit]
-KM_PROMPTS_DIR=/some/dir npm run eval -- --suite reply --approach v2 --label variant   # a prompt variant: a gm.md there is used in place of prompts/gm.md
+KM_PROMPTS_DIR=/some/dir npm run eval -- --suite reply --approach v2 --label variant   # a prompt variant: a gm.md there is used in place of v2/ai/prompts/gm.md
 node --no-warnings src/eval/memory-eval.ts [--case id,id] [--approach v2-nomemory,v2,v2-memory-lite] [--samples 1]
 
 node --no-warnings evals/world/run.ts [--systems current,ops,tools] [--samples 2] [--cases id,...]

@@ -62,7 +62,7 @@ flowchart LR
 ```
 
 - **Who calls it.** Nothing in the story does yet. The zoo's chandlery wing (`zoo-chandlery`) is compiled from a plan written by hand with `compilePlan`, with no model, and installed as a wing. bench.ts and generate.test.ts call `generatePlace`, the first with the model and the second with plans already written.
-- **What it calls.** The model through `respondJson` (src/llm/openrouter.ts), for the plan; the look layer, for the looks of the things it names (`inventNow`, `baseLook`); and the map module's own renderer and reconcile, for the checks (`render`, `actorsFromWorld`), so a check sees what the game would draw.
+- **What it calls.** The model through `respondJson` (v2/ai/llm/openrouter.ts), for the plan; the look layer, for the looks of the things it names (`inventNow`, `baseLook`); and the map module's own renderer and reconcile, for the checks (`render`, `actorsFromWorld`), so a check sees what the game would draw.
 - **The seams.** `generatePlace` takes a `planner`, so the tests and the bench can hand it plans without the model, and `onShell` and `onRound` to watch it work.
 
 ## How it works

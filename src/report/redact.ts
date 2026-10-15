@@ -15,7 +15,7 @@ const KEY_SHAPED = /sk-(?:or|ant|proj)-[A-Za-z0-9_-]{8,}/g;
 /** What a key becomes in a report. */
 export const REMOVED = "[key removed]";
 
-/** The dev key's file (src/llm/openrouter.ts reads it when OPENROUTER_API_KEY isn't set). */
+/** The dev key's file (v2/ai/llm/openrouter.ts reads it when OPENROUTER_API_KEY isn't set). */
 const KEY_FILE = () => join(homedir(), "secrets", "kingmaker-dev-openrouter.txt");
 
 /** The keys this process could be using: OPENROUTER_API_KEY, and the dev key file's (never "offline", never a stub). */
@@ -24,7 +24,7 @@ export function keysInUse(): string[] {
   return [...new Set(keys.map(k => k.trim()).filter(k => k.length >= 8 && k.toLowerCase() !== "offline"))];
 }
 
-/** The key the GM calls with, as src/llm/openrouter.ts's apiKey() picks it: OPENROUTER_API_KEY, else the dev key file's. */
+/** The key the GM calls with, as v2/ai/llm/openrouter.ts's apiKey() picks it: OPENROUTER_API_KEY, else the dev key file's. */
 export function keyInUse(): string | undefined {
   return process.env.OPENROUTER_API_KEY?.trim() || devKeys()[0]?.trim() || undefined;
 }

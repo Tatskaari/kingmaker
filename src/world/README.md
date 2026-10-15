@@ -54,7 +54,7 @@ A fight has a model of its own (tiles on fire, props), and writes back into the 
 | src/cli/qa.ts, src/cli/scene.ts | `asciiMap`; the scene CLI runs the scribe |
 | src/game/zoo | the wings' worlds; its exhibits call the operations and verbs directly |
 
-It calls out to `rng` in src/runtime/dice.ts (the spread of things in an area and the tick's dice, both seeded), `respondJson` in src/llm/openrouter.ts (the stage manager and the scribe), and the runtime's brief for the scribe's prompt.
+It calls out to `rng` in src/runtime/dice.ts (the spread of things in an area and the tick's dice, both seeded), `respondJson` in v2/ai/llm/openrouter.ts (the stage manager and the scribe), and the runtime's brief for the scribe's prompt.
 
 ## How it works
 

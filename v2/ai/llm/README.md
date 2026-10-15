@@ -1,6 +1,6 @@
-# src/llm: model calls
+# v2/ai/llm: model calls
 
-Part of the [architecture overview](../../ARCHITECTURE.md).
+Part of the [architecture overview](../../../ARCHITECTURE.md), and of [v2/ai](../README.md): the AI API's model client, one copy shared by the prototype and v2. The prototype imports it where it always did, through a one-line shim at each old path (src/llm/openrouter.ts, decide.ts, tools.ts and fake-openrouter.ts, each `export *` from here), so the call log and the spend are this module's whichever path a caller used.
 
 Every model call in the game goes through here: text, JSON and tool loops on OpenRouter's Responses API, and the deciders on its Decisions API. Each call is logged with what it cost and how long it took.
 
@@ -10,7 +10,7 @@ npm run eval -- --suite decision --decider luna-decisions,jev,luna-none   # the 
 
 ## What it is
 
-A thin client over OpenRouter with no SDK: `fetch`, server-sent events and JSON schemas. It decides nothing about the game. It carries the requests that the runtime, the lore, the world and the evals build, retries what's worth retrying, and records each call twice: in full in the caller's call log, and as a line of cost and latency in the cost ledger.
+A thin client over OpenRouter with no SDK: `fetch`, server-sent events and JSON schemas. It decides nothing about the game. It carries the requests that the runtime, the docs service, the world and the evals build, retries what's worth retrying, and records each call twice: in full in the caller's call log, and as a line of cost and latency in the cost ledger.
 
 ## What it owns
 
@@ -19,6 +19,7 @@ A thin client over OpenRouter with no SDK: `fetch`, server-sent events and JSON 
 | [openrouter.ts](openrouter.ts) | `respond` (streamed text, optionally held to a JSON schema), `respondJson`, `fetchWithRetry`, the API key (`apiKey`), the call log (`setCallLog`, `logCall`), the cost ledger and the process's spend (`recordCost`, `sessionSpend`), and the model ids `LUNA` and `SOL` |
 | [decide.ts](decide.ts) | The `Decider` interface (one named choice per question, with probabilities) and its implementations: `JevDecider` (the Decisions API, for Jev and for Luna's decision mode), `LunaDecider` (strict structured output) and `CascadeDecider` (Jev, then Luna for unsure answers). `deciderFor` turns an approach's decider name into one. |
 | [tools.ts](tools.ts) | `runTools`: the tool-calling loop the background memory reviews run |
+| [fake-openrouter.ts](fake-openrouter.ts) | `fakeOpenRouter`: a stand-in for OpenRouter (it replaces `fetch`) for tests that play real turns with no network: each decision's quietest choice, JSON made to fit the schema asked for, the GM's lines from a script |
 
 **State.** Two module-level values: the call log's path (from `KM_CALL_LOG`, or `setCallLog`) and the spend so far in this process (`sessionSpend`). Two files:
 
@@ -31,8 +32,8 @@ A thin client over OpenRouter with no SDK: `fetch`, server-sent events and JSON 
 |---|---|---|
 | `openai/gpt-6-luna` | `LUNA` | The default for `respond`. Every voice (GM, narrator, actors) at reasoning `none`; the hand-off, the boundary verdict and the fronts at `low`; the full co-GM at `medium` and the quick one at `none`. Also the stage manager, the scribe, the memory reviews, the character sheet, the talk's plan and lines, the look inventions, and the eval judge at `high`. |
 | `openai/gpt-6-luna-decisions` | `LUNA_DECISIONS_MODEL` | `luna-decisions`, the decider of `v2` and most approaches: the director, who is present, reactions, a talk's sift |
-| `typesafe/jev-1.13` | `JEV_MODEL` | Disclosure and the attention filter (src/lore makes its own `JevDecider`, whatever the approach), the `jev` approaches, and the fast half of a cascade |
-| `openai/gpt-6-sol` | `SOL` | Nothing by default: the eval judge's second opinion, with `KM_JUDGE_MODEL=openai/gpt-6-sol` ([src/eval/judge.ts](../eval/judge.ts)) |
+| `typesafe/jev-1.13` | `JEV_MODEL` | Disclosure and the attention filter (the docs service makes its own `JevDecider`, whatever the approach), the `jev` approaches, and the fast half of a cascade |
+| `openai/gpt-6-sol` | `SOL` | Nothing by default: the eval judge's second opinion, with `KM_JUDGE_MODEL=openai/gpt-6-sol` ([src/eval/judge.ts](../../../src/eval/judge.ts)) |
 
 ## How it fits
 
@@ -47,16 +48,16 @@ flowchart LR
   tools --> responses
 ```
 
-Each of the three logs every call to the caller's call log and the cost ledger.
+Each of the three logs every call to the caller's call log and the cost ledger. The prototype's callers import it at src/llm, through the shims; the docs service imports it here.
 
 | Caller | Uses |
 |---|---|
-| [src/runtime](../runtime/README.md) | `respond` and `respondJson` (the voices, the hand-off, the boundary verdict and the fronts, the co-GM, talks, the character sheet); `deciderFor` (the director) |
-| [src/lore](../lore/README.md) | `JevDecider` (disclosure, the attention filter), `runTools` (the review agents), `respondJson` (the lite reviews) |
-| [src/world](../world/) | `respondJson` (the stage manager, the scribe) |
+| [src/runtime](../../../src/runtime/README.md) | `respond` and `respondJson` (the voices, the hand-off, the boundary verdict and the fronts, the co-GM, talks, the character sheet); `deciderFor` (the director) |
+| [the docs service](../docs/README.md) | `JevDecider` (disclosure, the attention filter), `runTools` (the review agents), `respondJson` (the lite reviews) |
+| [src/world](../../../src/world/) | `respondJson` (the stage manager, the scribe) |
 | src/rules, src/game | `respondJson` (the D&D build, the look inventions, places from a plan) |
-| [src/eval](../eval/) | `respond`, `respondJson`, `deciderFor` (the cases, the judge, simulated players) |
-| the app, the zoo | `sessionSpend`, for the End's bar tab ([src/app/story.ts:77](../app/story.ts#L77)) |
+| [src/eval](../../../src/eval/) | `respond`, `respondJson`, `deciderFor` (the cases, the judge, simulated players) |
+| the app, the zoo | `sessionSpend`, for the End's bar tab ([src/app/story.ts:77](../../../src/app/story.ts#L77)) |
 
 It calls `https://openrouter.ai/api/v1/responses` (`respond`, `runTools`) and `https://openrouter.ai/api/alpha/decisions` (`JevDecider`), with the key from `OPENROUTER_API_KEY` or `~/secrets/kingmaker-dev-openrouter.txt`.
 
@@ -92,7 +93,7 @@ There are no unit tests here. `OPENROUTER_API_KEY=offline`, as the screens check
 
 ## Known gaps and sharp edges
 
-- **No seam.** Two dozen call sites import `respond`, `respondJson` and the deciders directly. There's no fake or replay client, so nothing that makes a model call has a unit test; the director's test passes a scripted `Decider` instead. [docs/design/productionise.md](../../docs/design/productionise.md) puts a model client here first.
+- **No seam.** Two dozen call sites import `respond`, `respondJson` and the deciders directly. There's a stand-in for tests (fake-openrouter.ts, which replaces `fetch` for the whole process) but no replay client; the director's test passes a scripted `Decider` instead. [docs/design/productionise.md](../../../docs/design/productionise.md) puts a model client here first.
 - **Per process, not per game.** The call log's path and the spend are module state: two games in one process log to whichever path was set last and share one spend. A background job in a process of its own isn't in the game's spend (in the browser it is).
 - **The ledger isn't the bill.** A reply split into commentary and answer is recorded and then retried, so the ledger has both, but the result's `costUsd` (and so the turn's metric) has only the retry. Failed and incomplete attempts aren't recorded at all. `runTools` records each round with the latency since the loop began.
 - **The deciders differ in more than speed.** `LunaDecider`'s probabilities are 1 and 0, so every confidence bar in the director passes on any answer it gives; Jev and Luna's decision mode return real probabilities. Comparing deciders compares behaviour, not only accuracy.

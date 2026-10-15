@@ -7,7 +7,7 @@ visibility: "gm"
 
 Part of the [architecture overview](../ARCHITECTURE.md).
 
-The lore for the Caerwyn arc, in V1's docs format: Markdown with frontmatter, linked by relative links. It's the seed of the docs service ([src/lore](../src/lore/)): each game reads it through a copy of its own that play writes to, and nothing writes here.
+The lore for the Caerwyn arc, in V1's docs format: Markdown with frontmatter, linked by relative links. It's the seed of the docs service ([v2/ai/docs](../v2/ai/docs/)): each game reads it through a copy of its own that play writes to, and nothing writes here.
 
 This README has frontmatter because the docs service reads every `.md` under lore/ as lore, this one included (see the sharp edges below).
 
@@ -39,9 +39,9 @@ Memories aren't here. They're written in play, into each game's copy, beside the
 
 | Reader | What it reads |
 |---|---|
-| The docs store ([src/lore/docs.ts](../src/lore/docs.ts)) | Everything: `readDoc` tries a game's copy first, then lore/; `characterEntry` scans the `private.md` files for their `character` ids, once per process |
-| Disclosure ([src/lore/disclosure.ts](../src/lore/disclosure.ts)) | Each person's `private.md` and the notes it links to; the scene's `lore` docs for the GM |
-| The review agents ([src/lore/reviews.ts](../src/lore/reviews.ts)) | Search, read, edit and create, with their edits in the game's copy |
+| The docs store ([v2/ai/docs/docs.ts](../v2/ai/docs/docs.ts)) | Everything: `readDoc` tries a game's copy first, then lore/; `characterEntry` scans the `private.md` files for their `character` ids, once per process |
+| Disclosure ([v2/ai/docs/disclosure.ts](../v2/ai/docs/disclosure.ts)) | Each person's `private.md` and the notes it links to; the scene's `lore` docs for the GM |
+| The review agents ([v2/ai/docs/reviews.ts](../v2/ai/docs/reviews.ts)) | Search, read, edit and create, with their edits in the game's copy |
 | The boundary ([src/runtime/engine.ts](../src/runtime/engine.ts)) | `World/Fronts.md` (a scene's `fronts`), in the game's copy; and the "What they do next" section of the `gm.md` of each of the last scene's people who are in the scenes to come (`errandsOf`): what they do in the time between, which is how the player can hear where the story goes next |
 | Talks ([scenes/talk.ts](../scenes/talk.ts), [src/runtime/talk.ts](../src/runtime/talk.ts)) | A companion's `private.md` (their voice) and `public.md` (their look), their `knowledge/` notes, and `gm.md` (to judge which story is the deepest) |
 | Scenes ([scenes/](../scenes/)) | Name docs in their `lore` and `fronts` |
@@ -51,7 +51,7 @@ Memories aren't here. They're written in play, into each game's copy, beside the
 ## How it works
 
 - **A game's copy.** A read tries `runs/sessions/<id>/docs/<path>`, then `lore/<path>`; a write goes only to the game's copy. So two games never share an edit, and a new game starts from the lore as authored.
-- **Access.** The GM reads everything; a person reads public docs and private docs that list them. How each turn's notes are chosen is in [src/lore](../src/lore/).
+- **Access.** The GM reads everything; a person reads public docs and private docs that list them. How each turn's notes are chosen is in [v2/ai/docs](../v2/ai/docs/).
 - **The world moves at scene boundaries.** Each step of a front in `World/Fronts.md` has an "if" or an hour, how it shows, and the scene endings that tick it. At a boundary the model ticks or strikes steps in the game's copy, adds bills, and passes what shows on to the next scene. What anyone could hear goes in `World/Caerwyn now.md`, with who says it.
 
 ## Where to look first
@@ -61,18 +61,18 @@ Memories aren't here. They're written in play, into each game's copy, beside the
 - **Summaries are for retrieval.** They decide whether a note is opened, so they name the people, topics and everyday words a player would use.
 - **Links** are relative, with spaces as `%20` and brackets as `%28` and `%29`. A public doc's link to its truth says when to read it, never what it says.
 - **One home per fact** ([index.md](index.md)): a scene's prose cites the lore rather than restating it.
-- **`World/Fronts.md`'s shape is parsed:** a `## ` heading per front, steps as `- [ ] **opening words**`, and a `## Bills still to come due` section ([src/lore/fronts.ts](../src/lore/fronts.ts)).
+- **`World/Fronts.md`'s shape is parsed:** a `## ` heading per front, steps as `- [ ] **opening words**`, and a `## Bills still to come due` section ([v2/ai/docs/fronts.ts](../v2/ai/docs/fronts.ts)).
 
 ## How to test it
 
 ```sh
-node --no-warnings --test src/lore/fronts.test.ts   # moves the authored Fronts.md on, in a test game's copy
+node --no-warnings --test v2/ai/docs/fronts.test.ts   # moves the authored Fronts.md on, in a test game's copy
 grep -rL '^visibility:' lore --include='*.md'       # docs without a visibility: should print nothing
 grep -rlZ '^visibility: "private"' lore --include='*.md' | xargs -0 grep -L '^readers:'   # private docs with no readers: nothing
 npm run scene -- memories <session>                 # a game's docs as it has them, with their visibility and readers
 ```
 
-The memory evals ([src/lore](../src/lore/)) test what the lore does in play.
+The memory evals ([v2/ai/docs](../v2/ai/docs/)) test what the lore does in play.
 
 ## Known gaps and sharp edges
 

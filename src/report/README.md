@@ -25,6 +25,6 @@ npm run report (src/cli/report.ts)
 | `recent.ts` | what the files don't have: the errors caught or logged (and the game they were caught in), and the last few screens |
 | `inspect.ts` | reading one: finding it (runs/reports, ~/Downloads), the summary, and each part in full |
 | `restore.ts` | its game as a session of its own, under a new id |
-| `report.test.ts` | keys planted everywhere a report reads, and none surviving; a real game, played with a stand-in for OpenRouter (src/llm/fake-openrouter.ts), reported, read and restored |
+| `report.test.ts` | keys planted everywhere a report reads, and none surviving; a real game, played with a stand-in for OpenRouter (v2/ai/llm/fake-openrouter.ts), reported, read and restored |
 
-The cost ledger (src/llm/openrouter.ts) names the game each line is for, so a report can keep its game's lines.
+The cost ledger (v2/ai/llm/openrouter.ts) names the game each line is for, so a report can keep its game's lines.

@@ -390,7 +390,7 @@ These are mostly structural (endings fire as soon as the matter is settled, and 
 
    One success line per holder, naming the outcome rather than every fact, would let the GM drip the rest.
 2. **Rolls on announcements.** The decider acted on weak reads of intent: `catch-moll` at 0.38 (F1) and `press-hester` at 0.39 on a turn spoken to someone else (F7). A rolled success then forces the reveal into the reply. The FINDINGS rule "ending the scene or saying no needs ≥ 0.6" has no counterpart for reveals.
-3. **The GM over-delivers past its directive.** On playtest t4 the directive gave the loft and the sounds; the reply added Silvertop and the bandaged man. In F4 the cast note said "no more: the Book can wait" and the whisper said "give them a moment"; the reply raised the Clause. `prompts/gm.md` has nothing on delivering a revelation: one per reply, a reaction, then hand back. Its only pacing lines are "Keep it moving" and "People move the conversation on".
+3. **The GM over-delivers past its directive.** On playtest t4 the directive gave the loft and the sounds; the reply added Silvertop and the bandaged man. In F4 the cast note said "no more: the Book can wait" and the whisper said "give them a moment"; the reply raised the Clause. `v2/ai/prompts/gm.md` has nothing on delivering a revelation: one per reply, a reaction, then hand back. Its only pacing lines are "Keep it moving" and "People move the conversation on".
 4. **Lines that keep being re-sent:**
    - A co-GM note that says "land her urgency…" lasts three turns, and the GM lands it every turn (F6).
    - A beat's cast note arrives a turn late after a post-reply beat change, so a reveal already played is played again (F10, F9).

@@ -23,7 +23,7 @@ export interface PlayerCharacter {
   modifiers: Partial<Record<Skill, number>>;
   /** Their D&D build in a line ("human rogue 3 (thief), criminal background"), when the rules engine made the sheet. */
   build?: string;
-  /** Their own backstory, from character creation (src/lore/backstory.ts): the sheet shows it, and the GM knows it. */
+  /** Their own backstory, from character creation (v2/ai/docs/backstory.ts): the sheet shows it, and the GM knows it. */
   backstory?: Backstory;
 }
 

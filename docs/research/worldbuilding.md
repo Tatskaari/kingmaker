@@ -19,7 +19,7 @@ The lore conventions are those in [lore/index.md](../../lore/index.md):
 - a public doc's secrets go in a "(truth)" doc beside it;
 - each doc ends with "Read when relevant" links whose labels say when to open them.
 
-Disclosure is progressive ([disclosure.ts](../../src/lore/disclosure.ts)). The scene's `lore` docs are always in the GM's brief. A linked doc opens when the per-turn decider rates it above 0.7. Edits made during play go into a per-session overlay.
+Disclosure is progressive ([disclosure.ts](../../v2/ai/docs/disclosure.ts)). The scene's `lore` docs are always in the GM's brief. A linked doc opens when the per-turn decider rates it above 0.7. Edits made during play go into a per-session overlay.
 
 **What this doc doesn't repeat.** General GM craft is in [ai-gm-and-craft.md](ai-gm-and-craft.md) §2: situations rather than plots, the Three Clue Rule, and the PbtA principles. The pacing of reveals is in [pacing.md](pacing.md) and [pacing-failures.md](pacing-failures.md). Moving a missed clue is in [gm-techniques.md](gm-techniques.md), and the repair co-GM is in [experiments/deviation-repair.md](../experiments/deviation-repair.md). The world-state ledger is in [compaction.md](compaction.md), and bills for daft acts are in [experiments/absurdity.md](../experiments/absurdity.md). This doc is about the world those scenes stand in.
 
@@ -168,7 +168,7 @@ A character brings the world up because it bears on what they want: "Tuppence a 
 - **Even narrative is a law of nature.** On the Discworld "things which have a one-in-a-million chance of succeeding often do so" ([L-Space: Narrativium](https://wiki.lspace.org/Narrativium)).
 - **AW's moves for afflictions read like straight-faced stage directions for a crisis.** "Someone proclaims the affliction to be a just punishment." "Someone proclaims the affliction to be, in fact, a blessing." "Someone refuses or fails to adapt to new circumstances" (AW, p. 141).
 
-**For us.** Comic worldbuilding is causal worldbuilding with the dial turned up. Each institution has a sensible origin, takes itself entirely seriously, and follows its rule one step past sense: purveyance, wheat-ear silver, "After the Assembly." That lets the GM improvise jokes that are also consequences, which is what [tone-comic.md](../../prompts/tone-comic.md) asks for ("every daft act sends a bill"). A doc that only lists funny facts gives the GM one joke each; a doc that gives the cause gives it a joke generator.
+**For us.** Comic worldbuilding is causal worldbuilding with the dial turned up. Each institution has a sensible origin, takes itself entirely seriously, and follows its rule one step past sense: purveyance, wheat-ear silver, "After the Assembly." That lets the GM improvise jokes that are also consequences, which is what [tone-comic.md](../../v2/ai/prompts/tone-comic.md) asks for ("every daft act sends a bill"). A doc that only lists funny facts gives the GM one joke each; a doc that gives the cause gives it a joke generator.
 
 ### 1.6 Write it down, and send the bill
 
@@ -319,7 +319,7 @@ The interludes are made for this. Each is downtime "standing in for the world ma
 
 ### 2.4 How background agents should record world changes
 
-Today, per flagged turn, the lore reviewer runs [review/improvised.md](../../prompts/review/improvised.md) and [review/world.md](../../prompts/review/world.md), with [review/focused.md](../../prompts/review/focused.md) as shared rules. It edits or creates lore docs and saves memories. At scene end the runtime:
+Today, per flagged turn, the lore reviewer runs [review/improvised.md](../../v2/ai/prompts/review/improvised.md) and [review/world.md](../../v2/ai/prompts/review/world.md), with [review/focused.md](../../v2/ai/prompts/review/focused.md) as shared rules. It edits or creates lore docs and saves memories. At scene end the runtime:
 - runs the exit script against a recording world;
 - writes the hand-off, which is saved as the scene's story doc and linked from the story index;
 - gives everyone present a memory of how the scene ended.

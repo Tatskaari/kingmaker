@@ -36,7 +36,7 @@ Characters also judged bits from outside the story instead of arguing inside the
 
 ## The change
 
-1. **[prompts/tone-comic.md](../../prompts/tone-comic.md)** is the comic house style (approach `tone: "comic"`), added to the GM prompt:
+1. **[v2/ai/prompts/tone-comic.md](../../v2/ai/prompts/tone-comic.md)** is the comic house style (approach `tone: "comic"`), added to the GM prompt:
    - The world plays it straight, and that's where the comedy comes from.
    - People deal with daft ideas on their own terms: they believe them, dispute them, cite their own rules, take offence or see an opportunity. They never treat them as a joke from outside.
    - Every daft act sends a bill, good or bad, now or later.
