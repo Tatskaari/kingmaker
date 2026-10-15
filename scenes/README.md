@@ -11,7 +11,7 @@ npm run scene -- start hanged-clerk --session s1   # play one in the terminal
 
 ## What it is
 
-A scene is prep, not a script. The type is `Scene`, at [src/runtime/scene.ts:164](../src/runtime/scene.ts#L164), where most fields carry a comment. The GM improvises everything between the beats; the runtime keeps track of which beat the story is at, judges the routes the player takes, and closes the scene through one of its exits. Each exit can say which scene comes next, and a scene can say what it takes for granted, so the story skips it once play has made that untrue. The story's scenes share one world, Caerwyn on the eve of the Centennial Assembly, whose lore is in [lore/](../lore/README.md).
+A scene is prep, not a script. The type is `Scene`, at [src/runtime/scene.ts:166](../src/runtime/scene.ts#L166), where most fields carry a comment. The GM improvises everything between the beats; the runtime keeps track of which beat the story is at, judges the routes the player takes, and closes the scene through one of its exits. Each exit can say which scene comes next, and a scene can say what it takes for granted, so the story skips it once play has made that untrue. The story's scenes share one world, Caerwyn on the eve of the Centennial Assembly, whose lore is in [lore/](../lore/README.md).
 
 ## What it owns
 
