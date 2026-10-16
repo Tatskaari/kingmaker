@@ -26,6 +26,8 @@ export interface SceneRows {
   looks: Array<Pick<Look, "entityId" | "fg">>;
   /** The words of the last move the simulation refused, until the next move. */
   refusal?: string;
+  /** What's wrong with the connection to the server, while something is (it's reconnecting). */
+  trouble?: string;
 }
 
 type TurnRow = SceneRows["turns"][number];
@@ -37,7 +39,8 @@ const OPEN: readonly Phase[] = ["idle", "settling", "done"];
 
 export function sceneViewOf(rows: SceneRows): SceneView {
   const { lease, newest } = turnsOf(rows);
-  const phase = phaseOf(lease, newest);
+  const shown = shownTurn(lease, newest);
+  const phase = shown && PHASES.includes(shown.phase as Phase) ? shown.phase as Phase : "idle";
   const draft = draftOf(rows, lease);
 
   const lead = rows.players.find(p => p.id === rows.scene.controllerId);
@@ -55,10 +58,10 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     present: presentOf(rows),
     entries: entriesOf(rows),
     ...(draft ? { draft } : {}),
-    phase, mayType,
+    phase, ...(shown ? { turn: shown.n } : {}), mayType,
     over: rows.scene.status === "ended",
     ...(rows.refusal ? { refusal: rows.refusal } : {}),
-    ...(lease?.note && phase !== "failed" ? { note: lease.note } : {}),
+    ...noteOf(rows, lease, phase),
     ...(phase === "failed" ? { failed: lease?.error ?? "" } : {}),
   };
 }
@@ -74,13 +77,20 @@ function turnsOf(rows: SceneRows): { lease?: TurnRow; newest?: TurnRow } {
 }
 
 /**
- * The phase the screen shows: a failed turn's, until it's retried; a queued line's, so the box
- * stays shut behind it as the simulation would refuse a second (turn_in_flight); else the turn in
- * flight's, or the last one's. "idle" before any.
+ * The turn whose phase the screen shows: a failed one, until it's retried; a queued line, so the
+ * box stays shut behind it as the simulation would refuse a second (turn_in_flight); else the turn
+ * in flight, or the last one. None before the scene's first turn: "idle".
  */
-function phaseOf(lease: TurnRow | undefined, newest: TurnRow | undefined): Phase {
-  const phase = lease?.phase === "failed" ? "failed" : newest?.phase === "queued" ? "queued" : lease?.phase ?? newest?.phase;
-  return phase && PHASES.includes(phase as Phase) ? phase as Phase : "idle";
+function shownTurn(lease: TurnRow | undefined, newest: TurnRow | undefined): TurnRow | undefined {
+  if (lease?.phase === "failed") return lease;
+  if (newest?.phase === "queued") return newest;
+  return lease ?? newest;
+}
+
+/** What the game is waiting on: the server, while the connection's down, else the AI service (the turn's note, until it fails). */
+function noteOf(rows: SceneRows, lease: TurnRow | undefined, phase: Phase): { note?: string } {
+  const note = rows.trouble ?? (phase === "failed" ? undefined : lease?.note);
+  return note ? { note } : {};
 }
 
 /** The reply being written for the turn in flight: narration when it's the GM's, else dialogue. A draft of any other turn is stale. */

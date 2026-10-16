@@ -94,12 +94,13 @@ test("a spectator never types: they're told who has the lead, and see that chara
   assert.deepEqual(view.entries, sceneViewOf(base()).entries);
 });
 
-test("a turn waiting on the AI service shows its note, until it fails", () => {
+test("a turn waiting on the AI service shows its note, until it fails; a lost connection says so first", () => {
   const rows = base();
   rows.scene.turnId = 5n;
   rows.turns = [turn(5n, 1, "replying", { note: "The GM has lost the thread for a moment: trying again." })];
 
   assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
+  assert.equal(sceneViewOf({ ...rows, trouble: "(Lost the game's server: reconnecting…)" }).note, "(Lost the game's server: reconnecting…)");
 
   rows.turns = [turn(5n, 1, "failed", { note: "The GM has lost the thread for a moment: trying again.", error: "The GM couldn't answer: 500 model_failed" })];
   const view = sceneViewOf(rows);
@@ -127,12 +128,12 @@ test("a line said while the last turn settles waits, queued, and shuts the box; 
   rows.turns = [turn(5n, 1, "settling"), turn(6n, 2, "queued")];
 
   let view = sceneViewOf(rows);
-  assert.equal(view.phase, "queued");
+  assert.deepEqual([view.phase, view.turn], ["queued", 2]);
   assert.equal(view.mayType, false);
 
   rows.turns = [turn(5n, 1, "failed", { error: "the settle commit failed" }), turn(6n, 2, "queued")];
   view = sceneViewOf(rows);
-  assert.equal(view.phase, "failed");
+  assert.deepEqual([view.phase, view.turn], ["failed", 1]);
   assert.equal(view.failed, "the settle commit failed");
 });
 

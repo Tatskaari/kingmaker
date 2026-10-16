@@ -65,13 +65,15 @@ export interface SceneView {
   entries: Entry[];
   draft?: Draft;
   phase: Phase;
+  /** The turn the phase is of (its n: 0 is the opening); none before the first. */
+  turn?: number;
   /** The player may say a line now: they have the lead, the scene is live (or winding down), and no turn is queued, deciding or replying. */
   mayType: boolean;
   /** The scene has ended: there's nothing more to say in it. */
   over: boolean;
   /** The words of the last move the simulation refused (a SenderError's Refusal text), until the next move. */
   refusal?: string;
-  /** What the turn in flight is waiting on (`turn.note`): the AI service hasn't answered, and it's being asked again. */
+  /** What the game is waiting on: the AI service, which hasn't answered and is being asked again (`turn.note`), or the server itself, while the connection's down. */
   note?: string;
   /** Why the turn failed (`turn.error`), when it has: a retry is offered. */
   failed?: string;
