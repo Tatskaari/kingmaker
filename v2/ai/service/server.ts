@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HEADERS, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
-import { isTurnKey, keyParts, type Step } from "../../shared/protocol/keys.ts";
+import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
+import { isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
 import type { Faults } from "./config.ts";
@@ -11,16 +12,20 @@ import type { Stores } from "./stores.ts";
 import { streamSink, type StreamTarget } from "./stream.ts";
 
 /**
- * The AI service's HTTP API (v0-design §5.1): the four thinks, a campaign's words, and its health.
+ * The AI service's HTTP API (v0-design §5.1, v1-design §3.7): the thinks (a scene's four, and
+ * character creation's builds and backstories), a campaign's words, and its health.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
- * - A think is answered by its idempotency key: an answer kept from before is sent again with no
- *   model call (X-Km-Replayed: 1); a duplicate that comes while the first is still running waits for
- *   its answer; otherwise the endpoint runs, and its answer is stored before it's sent, so a crash
- *   after the store loses nothing. The same key with another body is 409 key_reused.
+ * - A think is answered by its idempotency key, which names its step (a creation's endpoints serve
+ *   several): an answer kept from before is sent again with no model call (X-Km-Replayed: 1); a
+ *   duplicate that comes while the first is still running waits for its answer; otherwise the
+ *   endpoint runs, and its answer is stored before it's sent, so a crash after the store loses
+ *   nothing. The same key with another body is 409 key_reused.
+ * - The daily ceiling (budget.ts): past it, a think that may call a model is 402 over_budget before
+ *   it runs; a kept answer is served all the same.
  * - Errors are { error: { code, message } }: 400 bad_request (a request it can't read, checked
- *   before any model is asked), 401 unauthorised, 409 other_campaign or key_reused, 500 model_failed
- *   (after the model client's own retries), 503 not_ready.
+ *   before any model is asked), 401 unauthorised, 402 over_budget, 409 other_campaign or
+ *   key_reused, 500 model_failed (after the model client's own retries), 503 not_ready.
  * - Shutting down, it takes nothing new and gives what's running ten seconds to finish and be sent.
  */
 
@@ -34,8 +39,10 @@ export interface ServiceOptions {
   transport(turn: number): Transport;
   /** Where replies stream to (and service_ping goes), and as whom. */
   stream: Omit<StreamTarget, "log">;
-  /** For the health answer: which model, and which GM. */
+  /** For the health answer: which model, and which GM (the canned GM calls none, so the ceiling never stops it). */
   serves: Pick<Health, "model" | "gm">;
+  /** The daily ceiling on what the models cost, in dollars (KM_AI_DAILY_USD); 0 or absent: none. */
+  dailyUsd?: number;
   faults: Faults;
   log(line: string): void;
   /** How a fault ends the process (process.exit; a test's stand-in). */
@@ -54,8 +61,13 @@ export interface AiService {
   shutdown(graceMs?: number): Promise<void>;
 }
 
-/** The thinks served, by endpoint (character creation's two, v1-design §3.7, aren't yet). */
-const THINKS: Partial<Record<Endpoint, Step & keyof Endpoints>> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
+/** The thinks, by endpoint: the handler that serves each (STEP_ENDPOINT says which steps are whose). */
+const THINKS: Record<Endpoint, keyof Endpoints> = {
+  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
+  "/v1/characters": "characters", "/v1/backstories": "backstories",
+};
+/** The steps that never call a model: the ceiling doesn't stop them. */
+const NO_MODEL: ReadonlyArray<Step | CreationStep> = ["own"];
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */
@@ -64,6 +76,7 @@ interface Answered { body: string; how: "ran" | "kept" | "joined"; usage?: { cal
 const HOW = { kept: "from the store, no model call", joined: "joined the same request in flight, no model call of its own" };
 
 export function aiService(options: ServiceOptions): AiService {
+  const ceiling = budget(options.dailyUsd ?? 0, options.stores.ledger);
   const inFlight = new Map<string, { hash: string; answer: Promise<Answered> }>();
   /** handle's responses until they're sent (or their connection is gone): the process mustn't exit before an answer it ran is sent. */
   const unsent = new Set<Promise<void>>();
@@ -73,12 +86,12 @@ export function aiService(options: ServiceOptions): AiService {
     const url = new URL(request.path, "http://ai.local");
     try {
       if (request.method === "GET" && url.pathname === "/v1/health") return json(200, await health(request, url.searchParams.has("deep")));
-      const step = THINKS[url.pathname as Endpoint];
+      const endpoint = Object.hasOwn(THINKS, url.pathname) ? (url.pathname as Endpoint) : undefined;
       const campaign = /^\/v1\/campaigns\/([^/]+)\/([^/]+)$/.exec(url.pathname);
-      if (!(request.method === "POST" && step) && !(request.method === "PUT" && campaign)) throw new Failure(404, "bad_request", `nothing at ${request.method} ${url.pathname}`);
+      if (!(request.method === "POST" && endpoint) && !(request.method === "PUT" && campaign)) throw new Failure(404, "bad_request", `nothing at ${request.method} ${url.pathname}`);
       if (closing) throw new Failure(503, "not_ready", "the AI service is shutting down");
       checkBearer(request, options.token);
-      if (step) return await think(step, request);
+      if (endpoint) return await think(endpoint, request);
       return json(200, await install(pathPart(campaign![1]!), pathPart(campaign![2]!), request.body));
     } catch (error) {
       return failed(error);
@@ -86,15 +99,17 @@ export function aiService(options: ServiceOptions): AiService {
   }
 
   /** A think: checked, then answered by its key (kept, joined, or run and kept). */
-  async function think(step: Step & keyof Endpoints, request: AiHttpRequest): Promise<AiHttpResponse> {
+  async function think(endpoint: Endpoint, request: AiHttpRequest): Promise<AiHttpResponse> {
     const body = parsed(request.body);
-    const key = checkedKey(body, step, request.headers[HEADERS.idempotencyKey]);
-    checkRequest(step, body);
+    const { key, parts } = checkedKey(body, endpoint, request.headers[HEADERS.idempotencyKey]);
+    // A scene's request is checked here; a creation's endpoints check their own (endpoints/characters.ts, backstories.ts).
+    if (isTurnKey(parts)) checkRequest(parts.step, body);
+    const step = parts.step;
     const attempt = Number(request.headers[HEADERS.attempt]) || 1;
     const campaign = options.campaigns.use(body.game.campaign, body.game.version);
     const started = performance.now();
 
-    const answered = await byKey(key, sha256(request.body), () => run(step, body, campaign, attempt, started));
+    const answered = await byKey(key, sha256(request.body), () => run(THINKS[endpoint], parts, body, campaign, attempt, started));
 
     const took = answered.how === "ran" ? `in ${Math.round(performance.now() - started)} ms, ${answered.usage?.calls ?? 0} calls, $${(answered.usage?.costUsd ?? 0).toFixed(4)}` : HOW[answered.how];
     options.log(`[ai] ${step} ${key} attempt ${attempt}: 200 ${took}`);
@@ -124,18 +139,26 @@ export function aiService(options: ServiceOptions): AiService {
     try { return await answer; } finally { inFlight.delete(key); }
   }
 
-  /** The endpoint, with this request's own model calls and stream; anything it throws but a Failure is the model's. */
-  async function run(step: Step & keyof Endpoints, body: ThinkBody, campaign: Campaign, attempt: number, started: number) {
-    const parts = keyParts(body.key)!;
-    // A creation's step has no turn: the stand-in's script starts at its first.
-    const { calls, usage } = callContext(options.transport(isTurnKey(parts) ? parts.turn : 0), options.stores, { game: body.game.id, key: body.key, attempt });
+  /**
+   * The endpoint, under the ceiling, with this request's own model calls and stream; anything it
+   * throws but a Failure is the model's.
+   */
+  async function run(handler: keyof Endpoints, parts: KeyParts, body: ThinkBody, campaign: Campaign, attempt: number, started: number) {
+    await withinCeiling(parts.step);
+    const { calls, usage } = callContext(options.transport(transportTurn(parts)), options.stores, { game: body.game.id, key: body.key, attempt });
     const ctx: AiContext = { campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }) };
     try {
-      return await (options.endpoints[step] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);
+      return await (options.endpoints[handler] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);
     } catch (error) {
       if (error instanceof Failure) throw error;
       throw new Failure(500, "model_failed", error instanceof Error ? error.message : String(error));
     }
+  }
+
+  /** Past the daily ceiling, a 402 for a think that may call a model (the canned GM and own's never do). */
+  async function withinCeiling(step: Step | CreationStep): Promise<void> {
+    if (options.serves.gm === "canned" || NO_MODEL.includes(step)) return;
+    await ceiling.check();
   }
 
   /** KM_AI_FAULTS=exit-after-store: the process ends with the answer stored and not sent (code 137, as a kill). */
@@ -158,6 +181,7 @@ export function aiService(options: ServiceOptions): AiService {
     return {
       ok: !closing, ...options.serves, campaigns: options.campaigns.list(), token: tokenOf(request, options.token),
       ...(deep ? { stdb: await servicePing(options.stream) } : {}),
+      budget: await ceiling.health(),
     };
   }
 
@@ -195,6 +219,11 @@ function untilSent(res: ServerResponse, unsent: Set<Promise<void>>): void {
 /** A think's body as far as the server reads it: the key, and the game it's for. */
 interface ThinkBody { key: string; game: { id: string; campaign: string; version: string } }
 
+type KeyParts = TurnKeyParts | CreationKeyParts;
+
+/** The turn a request's model calls are made for (the stand-in's replies begin there): a creation's step has none, so its first. */
+const transportTurn = (parts: KeyParts) => (isTurnKey(parts) ? parts.turn : 0);
+
 function parsed(text: string): ThinkBody {
   try {
     const value = JSON.parse(text) as unknown;
@@ -204,18 +233,18 @@ function parsed(text: string): ThinkBody {
 }
 
 /**
- * The key a think is for: the body's, the header's too, of the endpoint's step, for the game the
- * body names (its uid is a folder name in the store, so it's checked too).
+ * The key a think is for, and its parts: the body's, the header's too, of a step the endpoint
+ * serves, for the game the body names (its uid is a folder name in the store, so it's checked too).
  */
-function checkedKey(body: ThinkBody, step: Step, header: string | undefined): string {
+function checkedKey(body: ThinkBody, endpoint: Endpoint, header: string | undefined): { key: string; parts: KeyParts } {
   const parts = typeof body.key === "string" ? keyParts(body.key) : undefined;
-  if (!parts) throw new Failure(400, "bad_request", "the body's key isn't <game>:s<scene>:t<turn>:<step>");
+  if (!parts) throw new Failure(400, "bad_request", "the body's key isn't <game>:s<scene>:t<turn>:<step> or <uid>:c<rev>:<step>");
   if (header !== body.key) throw new Failure(400, "bad_request", `the Idempotency-Key header (${header ?? "none"}) isn't the body's key (${body.key})`);
-  if (parts.step !== step) throw new Failure(400, "bad_request", `${body.key} is a ${parts.step} key, not ${step}'s`);
+  if (STEP_ENDPOINT[parts.step] !== endpoint) throw new Failure(400, "bad_request", `${body.key} is for the ${parts.step} step, which ${endpoint} doesn't serve`);
   const game = body.game;
   if (!game || typeof game.campaign !== "string" || typeof game.version !== "string") throw new Failure(400, "bad_request", "the body has no game { id, campaign, version }");
   if (game.id !== parts.game || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
-  return body.key;
+  return { key: body.key, parts };
 }
 
 /** A campaign's or a version's name from the PUT's path, decoded: a 400 when it isn't a URI's encoding. */

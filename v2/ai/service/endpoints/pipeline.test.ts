@@ -96,6 +96,47 @@ test("the opening: what bears on the scene's start is opened, the GM opens it, a
   assert.ok(answer.usage.calls === fake.sent.length && answer.usage.byOperation["gm.opening"]?.calls === 1);
 });
 
+test("the opening writes the player's backstory into their doc before disclosure reads it, and the GM's brief says who they are from it", async () => {
+  const { campaign, fake, contextFor, store } = await setUp({ replies: ["Rain on the cobbles."] });
+  const backstory = {
+    text: "I'm the King's nephew, though nobody at court will say so.\n\nI owe Fat Jory three crowns.",
+    summary: "Wren Ashdown is a fen hedge wizard, quietly the King's nephew, who owes Fat Jory three crowns.",
+    personality: ["Dry"], ideals: ["The truth, whoever it embarrasses"], bonds: ["I owe Fat Jory three crowns."], flaws: ["Can't leave a puzzle alone"],
+  };
+  const req: OpenRequest = { ...openRequest(openingRows(initialGm({ start: "yard" }), campaign)), party: [{ ...party[0]!, backstory }] };
+  await pipeline.open(req, contextFor(req.key));
+
+  const doc = readFileSync(join(store, "games", GAME, "docs", "Player", "Wren Ashdown.md"), "utf8");
+  const disclosure = fake.sent.find(b => (b as { state?: string }).state?.includes("# Lore: Player/Wren Ashdown.md")) as { state: string } | undefined;
+  const gmCall = fake.sent.find(b => b.stream)!;
+  assert.match(doc, /## Their backstory, in their own words \(written at character creation\)/);
+  assert.match(doc, /- Bonds: I owe Fat Jory three crowns\./);
+  assert.ok(disclosure?.state.includes("I owe Fat Jory three crowns."), "disclosure read the doc with the backstory in it");
+  assert.match(gmCall.input![0]!.content, /Who they are, from their own backstory: Wren Ashdown is a fen hedge wizard, quietly the King's nephew/);
+  assert.ok(gmCall.input!.some(m => m.role === "developer" && m.content.includes("I'm the King's nephew, though nobody at court will say so.")), "the GM's notes have the whole of it");
+});
+
+test("a turn's view has the player's backstory from their sheet: the reply's prep says who they are from it, and how to address them", async () => {
+  const { campaign, fake, contextFor } = await setUp({ replies: ["Kell nods."] });
+  const gm = initialGm({ start: "yard" });
+  const backstory = { text: "I was a fishwife's daughter before the College took me.", summary: "Wren Ashdown is a fishwife's daughter turned College wizard; she took the case to pay her mother's debts.", personality: [], ideals: [], bonds: [], flaws: [] };
+  const turn = { ...turnOf(1, gm, openingRows(gm, campaign), [opening, said(1)]), party: [{ ...party[0]!, backstory }] };
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  await pipeline.reply(req, contextFor(req.key));
+
+  const prep = fake.sent[0]!.input![0]!.content;
+  assert.match(prep, /Who they are, from their own backstory: Wren Ashdown is a fishwife's daughter turned College wizard/);
+  assert.match(prep, /She's a woman: people speak of her as she and her/, "her backstory's summary says so");
+});
+
+test("a sheet with no backstory written leaves the player's doc as it was: their name and concept", async () => {
+  const { campaign, contextFor, store } = await setUp();
+  const req: OpenRequest = { ...openRequest(openingRows(initialGm({ start: "yard" }), campaign)), party: [{ ...party[0]!, backstory: { text: " ", summary: "", personality: [], ideals: [], bonds: [], flaws: [] } }] };
+  await pipeline.open(req, contextFor(req.key));
+
+  assert.equal(readFileSync(join(store, "games", GAME, "docs", "Player", "Wren Ashdown.md"), "utf8").includes("backstory"), false);
+});
+
 test("decide: the route the turn takes with its check (rolled by the simulation), and whose memories bear on it", async () => {
   const { campaign, fake, contextFor } = await setUp({ choices: { attempt: "catch-moll" } });
   const gm = initialGm({ start: "yard" });

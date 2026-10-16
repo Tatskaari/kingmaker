@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, normalize } from "node:path";
 import { configureDocs } from "../docs/config.ts";
+import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
 import type { CampaignFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
@@ -11,8 +12,9 @@ import type { CampaignStore } from "./stores.ts";
 /**
  * The campaigns the AI service has the words of (v0-design §8): each version as the install tool PUT
  * it, the whole folder, since the GM needs the graph as well as the prose. A request names its game's
- * version, and gets each scene with its words. A version never changes once installed (a release
- * bumps it), so its scenes are kept once read: the one cache of a game's content the service allows.
+ * version, and gets each scene with its words, and the world a backstory is written for (campaign.json's
+ * `creation`, v1-design §3.9). A version never changes once installed (a release bumps it), so its
+ * scenes are kept once read: the one cache of a game's content the service allows.
  *
  * The docs service has one lore root per process, so V0's service serves one campaign version: the
  * first request or PUT sets it, and a request for another gets 409 other_campaign (restart the
@@ -25,6 +27,8 @@ export interface Campaign {
   version: string;
   /** "Caerwyn": what anyone there knows, in the GM's note of what the player knows. */
   title: string;
+  /** The world a backstory is written for and checked against, at character creation. */
+  creation: CreationWorld;
   /** A scene as authored, with its words. Throws a 400 for a scene the campaign hasn't got. */
   scene(key: string): Scene;
 }
@@ -59,6 +63,7 @@ export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
       checkNames(campaign, version);
       checkPaths(files);
       const file = campaignFileOf(files, campaign, version);
+      checkCreation(file.creation);
       const scenes = file.scenes.map(key => sceneFrom(key, path => files[path]));
       refuseOther(campaign, version);
 
@@ -92,7 +97,7 @@ function campaignAt(root: string, campaign: string, version: string): Campaign {
   const scenes = new Map<string, Scene>();
   const words = (path: string) => (existsSync(join(root, path)) ? readFileSync(join(root, path), "utf8") : undefined);
   return {
-    id: campaign, version, title: file.title,
+    id: campaign, version, title: file.title, creation: file.creation,
     scene(key) {
       if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
       const scene = scenes.get(key) ?? sceneFrom(key, words);
@@ -129,6 +134,15 @@ function isCampaignFile(file: unknown): file is CampaignFile {
   return !!f && typeof f === "object" && !Array.isArray(f)
     && typeof f.id === "string" && typeof f.version === "string" && typeof f.title === "string"
     && Array.isArray(f.scenes) && f.scenes.every(key => typeof key === "string");
+}
+
+/** The creation block as the backstory's calls read it: a 400 for one that isn't, or whose places' words aren't regular expressions. */
+function checkCreation(world: CreationWorld | undefined): void {
+  const strings = (list: unknown) => Array.isArray(list) && list.every(x => typeof x === "string");
+  const compiles = (words: unknown) => { try { return typeof words === "string" && !!new RegExp(words, "i"); } catch { return false; } };
+  const fits = !!world && typeof world.name === "string" && typeof world.premise === "string" && typeof world.primer === "string" && strings(world.notCanon)
+    && Array.isArray(world.places) && world.places.every(p => typeof p?.doc === "string" && compiles(p.words));
+  if (!fits) throw new Failure(400, "bad_request", "campaign.json's creation isn't { name, premise, primer, notCanon: [doc], places: [{ doc, words }] }, each place's words a regular expression");
 }
 
 /** A campaign's and a version's names make folders: letters, digits, dots, dashes and underscores. */

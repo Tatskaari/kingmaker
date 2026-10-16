@@ -82,13 +82,17 @@ export const openSource = (req: OpenRequest): ViewSource => ({ game: req.game.id
 
 export const turnSource = (req: DecideRequest | ReplyRequest | SettleRequest): ViewSource => ({ game: req.game.id, scene: req.turn.scene, pc: req.turn.pc, gm: req.turn.gm, transcript: req.turn.transcript, world: req.turn.world, party: req.turn.party });
 
-/** The view of a request: its bookkeeping copied (the view may be written to), its world rebuilt, its first sheet the player. */
+/**
+ * The view of a request: its bookkeeping copied (the view may be written to), its world rebuilt, its
+ * first sheet the player, with their backstory from character creation when they wrote one (the
+ * brief's "who they are" and the player's doc read it).
+ */
 export function viewOf(source: ViewSource, scene: Scene): TurnView {
   const sheet = source.party[0]!;
   const gm = structuredClone(source.gm);
   const view: TurnView = {
     id: source.game, sceneId: source.scene.key, turn: source.scene.turn,
-    player: { name: sheet.name, concept: sheet.concept, modifiers: { ...sheet.skills }, ...(sheet.build ? { build: sheet.build } : {}) },
+    player: playerOf(sheet),
     beat: gm.beat, turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
     memory: { opened: gm.opened },
     ...(gm.endingLead ? { endingLead: gm.endingLead } : {}), ...(gm.pendingExit ? { pendingExit: gm.pendingExit } : {}),
@@ -102,6 +106,14 @@ export function viewOf(source: ViewSource, scene: Scene): TurnView {
   // As the prototype sets them at each turn's start (engine.ts:470): what the player calls those whose names they haven't heard.
   if (sheet.build) view.rules = { ...(sheet.status ? { status: sheet.status } : {}), aliases: unnamed(scene, view) };
   return view;
+}
+
+/** The player as the prototype's session has them: a backstory only when there's one written (createSession, engine.ts:111). */
+function playerOf(sheet: SheetRow): TurnView["player"] {
+  return {
+    name: sheet.name, concept: sheet.concept, modifiers: { ...sheet.skills }, ...(sheet.build ? { build: sheet.build } : {}),
+    ...(sheet.backstory?.text.trim() ? { backstory: sheet.backstory } : {}),
+  };
 }
 
 /** A request's entry as the prototype's: the player's lines are "player"'s (V0 has one), the markup is `marked`. */

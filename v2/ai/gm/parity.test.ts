@@ -11,18 +11,21 @@ import type { AiContext } from "../service/context.ts";
 import { pipeline } from "../service/endpoints/pipeline.ts";
 import { folderStores } from "../service/folder-stores.ts";
 import type { StreamSink } from "../service/stream.ts";
+import type { Backstory } from "../../shared/creation/types.ts";
 import type { GmState } from "../../shared/gm/state.ts";
 import type { AiRequest, Decision, DecideRequest, Entry, OpenRequest, Outcome, ReplyRequest, SettleRequest, SheetRow, TurnContext } from "../../shared/protocol/ai.ts";
 import { keysFor, worldToRows } from "../../shared/world/rows.ts";
 import type { SceneWorld } from "../../shared/world/scene-world.ts";
 
 /**
- * Prompt parity (v0-design §10.2), the AI service's acceptance test: V0's GM asks the models what
- * the prototype's asks, for the same state. golden/hanged-clerk holds the prototype's calls on the
- * hanged clerk at 44c6d4a (recorded by the repo's tools/record-golden.mts; golden/README.md): for
- * each step, the session as it stood and every call it made. Each step's session becomes the
- * request the simulation would send, V0's endpoint runs on the same stand-in, and its calls are
- * compared:
+ * Prompt parity (v0-design §10.2, v1-design §4.2), the AI service's acceptance test: V0's GM asks
+ * the models what the prototype's asks, for the same state. golden/hanged-clerk holds the
+ * prototype's calls on the hanged clerk at 44c6d4a (recorded by the repo's tools/record-golden.mts;
+ * golden/README.md): for each step, the session as it stood and every call it made;
+ * golden/hanged-clerk-backstory the same for a player with a backstory from character creation
+ * (tools/v2/record-v1-golden.mts), whose opening writes it into the player's doc and whose brief
+ * says who they are from it. Each step's session becomes the request the simulation would send,
+ * V0's endpoint runs on the same stand-in, and its calls are compared:
  *
  * - byte for byte: the GM's (gm.opening, gm.reply), the stage manager's (instructions, input,
  *   schema), and disclosure's (each scope's state and questions);
@@ -34,7 +37,7 @@ import type { SceneWorld } from "../../shared/world/scene-world.ts";
  * the decide commit did (the roll, the move) is read off the prototype's session.
  */
 
-const GOLDEN = join(import.meta.dirname, "golden", "hanged-clerk");
+const GOLDEN = join(import.meta.dirname, "golden");
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const GAME = "6f0c1d2e-0000-4000-8000-00000000901d";
 
@@ -44,7 +47,7 @@ interface Session {
   patches: GmState["patches"]; landed?: string[]; hinted?: string[]; memory?: { opened: GmState["opened"] }; endingLead?: GmState["endingLead"];
   pendingExit?: GmState["pendingExit"]; closing?: GmState["closing"]; sceneStatus?: GmState["sceneStatus"]; oocTurns?: number[]; pressureOffered?: string[];
   repeated?: string; entered?: string[]; absent?: string[]; whispers?: GmState["whispers"]; rulings?: unknown[];
-  player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string };
+  player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string; backstory?: Backstory };
   rules?: { status?: string };
   transcript: Array<{ turn: number; speaker: string; kind: Entry["kind"]; text: string; marked?: Entry["markup"] }>;
   world: SceneWorld;
@@ -62,7 +65,9 @@ const NOT_ASKED = { before: ["roll_call", "attempt_means", "off_graph", "mechani
 /** Questions asked in both whose words differ, and why. None: each V0 asks is the prototype's to the letter. */
 const WORDED_OTHERWISE: string[] = [];
 
-const steps = readdirSync(GOLDEN).filter(f => f.endsWith(".json")).sort().map(f => JSON.parse(readFileSync(join(GOLDEN, f), "utf8")) as Golden);
+const recorded = (name: string) => readdirSync(join(GOLDEN, name)).filter(f => f.endsWith(".json")).sort().map(f => JSON.parse(readFileSync(join(GOLDEN, name, f), "utf8")) as Golden);
+const steps = recorded("hanged-clerk");
+const withBackstory = recorded("hanged-clerk-backstory");
 
 test("the golden recording is there: the opening and three turns, each step's calls", () => {
   assert.deepEqual(steps.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle", "t2-decide", "t2-reply", "t2-settle", "t3-decide", "t3-reply", "t3-settle"]);
@@ -70,11 +75,28 @@ test("the golden recording is there: the opening and three turns, each step's ca
 });
 
 test("V0's GM asks what the prototype's asks, step by step through the opening and three turns", async () => {
+  await playedAlong(steps);
+});
+
+test("the recording with a backstory is there: the opening and a turn, the GM told who they are from it", () => {
+  assert.deepEqual(withBackstory.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle"]);
+  assert.ok(withBackstory.every(s => s.session.player.backstory?.text.trim()), "a backstory on the player throughout");
+  const gm = withBackstory.flatMap(s => s.calls).filter(c => c.operation === "gm.opening" || c.operation === "gm.reply");
+  assert.equal(gm.length, 2);
+  for (const call of gm) assert.match(call.body.input![0]!.content, /Who they are, from their own backstory: /);
+});
+
+test("with a backstory from character creation, the GM asks what the prototype's asks: the player's doc written before disclosure, the brief's who they are", async () => {
+  await playedAlong(withBackstory);
+});
+
+/** A recording's steps in order on one game, each compared with the prototype's calls. */
+async function playedAlong(recording: Golden[]): Promise<void> {
   const play = await game();
   const decisions = new Map<string, Decision>();
   const before = new Map<string, Session>();
 
-  for (const golden of steps) {
+  for (const golden of recording) {
     const turn = golden.step.split("-")[0]!;
     const asked = await play.run(golden, request => {
       if (golden.step === "open") return pipeline.open(openRequest(golden), request);
@@ -86,7 +108,7 @@ test("V0's GM asks what the prototype's asks, step by step through the opening a
 
     compare(golden, asked.calls);
   }
-});
+}
 
 /** Each of the prototype's calls against V0's of the same operation (in turn, for an operation made more than once). */
 function compare(golden: Golden, ours: Array<{ operation: string; body: Request }>): void {
@@ -170,19 +192,19 @@ function filesOf(dir: string): Record<string, string> {
 // ---------------------------------------------------------------------------------------------
 // The requests the simulation would send, from the prototype's session as it stood.
 
-const base = (step: string, n: number): AiRequest => ({ key: `${GAME}:s1:t${n}:${step}`, game: { id: GAME, campaign: "caerwyn", version: "0.1.0" }, player: { id: "1", name: "Wren Ashdown" } });
+const base = (step: string, n: number, s: Session): AiRequest => ({ key: `${GAME}:s1:t${n}:${step}`, game: { id: GAME, campaign: "caerwyn", version: "0.1.0" }, player: { id: "1", name: s.player.name } });
 const story = { time: "morning", day: 1, flags: {} };
 
 function openRequest(g: Golden): OpenRequest {
-  return { ...base("open", 0), scene: { id: "1", key: "hanged-clerk", kind: "scene" }, pc: "pc:1", gm: gmOf(g.session), world: rowsOf(g.session), party: partyOf(g.session), story, stream: { turn: "1" } };
+  return { ...base("open", 0, g.session), scene: { id: "1", key: "hanged-clerk", kind: "scene" }, pc: "pc:1", gm: gmOf(g.session), world: rowsOf(g.session), party: partyOf(g.session), story, stream: { turn: "1" } };
 }
 
 function decideRequest(g: Golden): DecideRequest {
-  return { ...base("decide", g.session.turn), turn: turnOf(g.session), landed: [] };
+  return { ...base("decide", g.session.turn, g.session), turn: turnOf(g.session), landed: [] };
 }
 
 function replyRequest(g: Golden, decision: Decision, before: Session): ReplyRequest {
-  return { ...base("reply", g.session.turn), turn: turnOf(g.session), decision, outcome: outcomeOf(before, g.session, decision), stream: { turn: String(g.session.turn + 1) } };
+  return { ...base("reply", g.session.turn, g.session), turn: turnOf(g.session), decision, outcome: outcomeOf(before, g.session, decision), stream: { turn: String(g.session.turn + 1) } };
 }
 
 function settleRequest(g: Golden, before: Session): SettleRequest {
@@ -190,7 +212,7 @@ function settleRequest(g: Golden, before: Session): SettleRequest {
   const reply = s.transcript.filter(e => e.turn === s.turn && e.kind === "narration").at(-1)!.text;
   const lines = s.transcript.filter(e => e.turn === s.turn && e.kind === "roll").map(e => e.text);
   // What was settled before the turn (settledFacts: the facts, and the rulings, none here), the last 16.
-  return { ...base("settle", s.turn), turn: turnOf(s), reply, lines, settled: before.established.slice(-16) };
+  return { ...base("settle", s.turn, s), turn: turnOf(s), reply, lines, settled: before.established.slice(-16) };
 }
 
 function turnOf(s: Session): TurnContext {
@@ -210,7 +232,11 @@ function gmOf(s: Session): GmState {
 }
 
 const rowsOf = (s: Session) => worldToRows(s.world, keysFor("granary-yard", "hanged-clerk", "pc:1"));
-const partyOf = (s: Session): SheetRow[] => [{ name: s.player.name, concept: s.player.concept, ...(s.player.build ? { build: s.player.build } : {}), skills: s.player.modifiers, ...(s.rules?.status ? { status: s.rules.status } : {}) }];
+/** The sheet as the simulation sends it: the player's, the rules' status line, and the backstory they wrote at character creation. */
+const partyOf = (s: Session): SheetRow[] => [{
+  name: s.player.name, concept: s.player.concept, ...(s.player.build ? { build: s.player.build } : {}), skills: s.player.modifiers,
+  ...(s.rules?.status ? { status: s.rules.status } : {}), ...(s.player.backstory ? { backstory: s.player.backstory } : {}),
+}];
 const entryOf = (e: Session["transcript"][number]): Entry => ({ turn: e.turn, speaker: e.speaker === "player" ? "player:1" : e.speaker, kind: e.kind, text: e.text, ...(e.marked ? { markup: e.marked } : {}) });
 
 /**

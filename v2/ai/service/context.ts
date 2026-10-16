@@ -1,5 +1,8 @@
 import type { CallContext } from "../llm/openrouter.ts";
-import type { AiErrorCode, DecideRequest, DecideResponse, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, Usage } from "../../shared/protocol/ai.ts";
+import type {
+  AiErrorCode, BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, DecideRequest, DecideResponse, OpenRequest, OpenResponse,
+  ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, Usage,
+} from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
 import type { StreamSink } from "./stream.ts";
 
@@ -23,12 +26,19 @@ export interface AiContext {
 
 export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
-/** The four thinks: the pipeline's (endpoints/*.ts) or the canned ones (KM_AI_GM=canned). */
+/**
+ * The thinks: a scene's four, and character creation's two (v1-design §3.7), each serving several
+ * steps. The pipeline's (endpoints/*.ts), or the canned ones (KM_AI_GM=canned: no model at all).
+ */
 export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
   decide: Handler<DecideRequest, DecideResponse>;
   reply: Handler<ReplyRequest, ReplyResponse>;
   settle: Handler<SettleRequest, SettleResponse>;
+  /** The builds: three offered (offer), the model's one (pick), the player's own made legal (own). */
+  characters: Handler<CharactersRequest, CharactersResponse>;
+  /** The backstory: a draft, notes worked in, the lore check, and what it says of them (traits). */
+  backstories: Handler<BackstoriesRequest, BackstoriesResponse>;
 }
 
 /** A request the service won't or can't answer, with its status and code ({ error: { code, message } }). */
