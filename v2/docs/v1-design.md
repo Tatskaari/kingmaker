@@ -581,6 +581,7 @@ V1 keeps to this blueprint, but for these departures, each with its reason. The 
 | The blueprint says | V1 does | Why |
 |---|---|---|
 | A creation step's plan is `{ step, identity, uid, rev, ask?, op?, text? }` (§3.5) | `{ step, identity, uid, rev }` | The think reads the rest from the row at that rev, in the same transaction, so the stored request is the same |
+| `start_creation` keeps the story of the creation it replaces (§3.3) | Not with `afresh`, which the title's New game and the client's `--new` send: nothing of the one before comes with it, its story or its builds. Back at the concept of the one being made, a new concept still keeps the story, and `play new` keeps the offer `play builds` made | The prototype's New game drops its creation (`newCharacter`, `game.ts:488`): a character left half made gave its backstory to the next one, under another name |
 | The owner's `failed` clears busy and notes the words | Also back to the concept when the builds (or the model's pick) never came; and their own pick that was never made leaves no card (`take_own` is `not_now` until one is), as `game.ts:584` deletes it | The screen would otherwise wait on cards that don't exist; and Take this one would have taken the card of the picks before, under the lists' newer ones |
 | A failed job is kept | A creation's is deleted; a turn's is kept for `retry_turn` | Nothing retries a creation's step but the player's next move |
 | The job loop's revision check is at commit | `wanted` is asked first, before a retry or a failure, and the reaper and `dispatch_waiting` let go of what nobody wants | A creation the player has moved on from was otherwise asked again for ten minutes |
@@ -607,7 +608,7 @@ V1 keeps to this blueprint, but for these departures, each with its reason. The 
 
 | The blueprint says | V1 does | Why |
 |---|---|---|
-| Three intents: title, creation, game (§3.10) | A fourth, `new`: the create screen until `start_creation` goes in | Without it New game dropped the player into an old creation's screen |
+| Three intents: title, creation, game (§3.10) | A fourth, `new`: the create screen, its fields empty, until `start_creation` goes in afresh | Without it New game dropped the player into an old creation's screen, or filled the fields from one half made |
 | The create screen before `start_creation`, or at step concept | Also at step `choose` with no offer, or `backstory` with no build chosen | A failed offer or pick: the row's note says why there, as the prototype went back to its create screen with the error |
 | r on the created screen chooses again | Only when this creation made the seat's game, and it says "Start again" when there was no offer | `choose_again` without an offer goes back to the concept now |
 | Their own build's lists are the engine's | The screen waits for them ("The rules engine lays out the SRD's…") | They come with the first `own` answer: the client never loads the engine |

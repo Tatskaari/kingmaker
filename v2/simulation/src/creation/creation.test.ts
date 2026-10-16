@@ -75,6 +75,20 @@ test("the same name and concept again go back to the builds offered, asking for 
   assert.equal(script.to("offer").length, 2);
 });
 
+test("afresh (the title's New game): nothing of the creation it replaces, its story or its builds, even for the same name and concept", async () => {
+  const { host, script, tamsin } = await started();
+  const first = creationOf(host);
+  host.as(tamsin).setBackstory({ text: NEPHEW });
+  host.as(tamsin).creationBack();
+
+  assert.equal(host.as(tamsin).startCreation({ ...TAMSIN, how: "three", afresh: true }), undefined);
+  const fresh = creationOf(host);
+  assert.notEqual(fresh.uid, first.uid);
+  assert.deepEqual([fresh.step, fresh.busy, fresh.story, fresh.version, fresh.offer], ["choose", "builds", "", first.version + 1, undefined]);
+  await host.drain();
+  assert.deepEqual([script.to("offer").length, !!creationOf(host).offer], [2, true], "the builds asked for again");
+});
+
 test("three: a build chosen, a backstory that fits the lore, its traits, and the game made from them under the creation's uid", async () => {
   const { host, script, tamsin } = await atBackstory();
   const chosen = creationOf(host);

@@ -67,17 +67,19 @@ test("the app: a character made goes on to its sheet; choosing again goes back t
   assert.deepEqual(backend.made(), ["chooseAgain"], "/quit makes no move: the game is kept");
 });
 
-test("the app: New game starts at the concept, whatever was being made; one made before isn't the one shown", () => {
+test("the app: New game starts afresh at the concept, whatever was being made, as the prototype's newCharacter drops its creation", async () => {
   const backend = new StubBackend({ creation: creationRow({ step: "made", gameId: 3n }) });
   const app = new AppModel(backend, { campaign: "caerwyn" });
   app.title.newCharacter();
   assert.equal(app.screen, "create");
-  const fresh = app.creation.creation;
-  assert.equal(fresh, undefined, "the fields start empty");
+  assert.equal(app.creation.creation, undefined, "the fields start empty: one made before isn't this one");
 
-  backend.set({ creation: creationRow({ step: "backstory", chosen: OFFER.options[1]! }) });
-  assert.equal(app.screen, "create", "still the create screen, until its concept goes in");
-  assert.equal(app.creation.creation?.name, "Tamsin Vell", "the fields filled from the one half made");
+  backend.set({ creation: creationRow({ step: "backstory", chosen: OFFER.options[1]!, story: "I kept the Exchequer's ledgers for nine years." }) });
+  assert.deepEqual([app.screen, app.creation.creation], ["create", undefined], "nor is one half made: its name, concept and story aren't this one's");
+
+  await app.creation.offerBuilds("Wren Hale", "a hedge-witch with a crooked hat");
+  assert.deepEqual(backend.moves.at(-1), { name: "startCreation", args: { campaign: "caerwyn", name: "Wren Hale", concept: "a hedge-witch with a crooked hat", how: "three", afresh: true } }, "afresh: the simulation keeps nothing of the one before");
+  assert.equal(app.intent, "creation");
 });
 
 test("a refusal is said on the screen it came on: a line refused in a scene isn't the title's after /quit", async () => {

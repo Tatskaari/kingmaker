@@ -15,4 +15,5 @@ export default {
   name: __t.string(),
   concept: __t.string(),
   how: __t.string(),
+  afresh: __t.option(__t.bool()),
 };

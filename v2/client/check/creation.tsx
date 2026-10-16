@@ -149,9 +149,20 @@ async function create(checks: Array<[string, boolean]>, size: Size, show: boolea
   await s.press(() => s.setup.mockInput.pressEnter());
   await s.settle();
   const started = s.backend.moves.at(-1);
-  checks.push([`the create screen ${label(size)}: Enter, Enter with nothing typed starts it with the defaults (start_creation, three)`,
-    started?.name === "startCreation" && JSON.stringify(started.args) === JSON.stringify({ campaign: "caerwyn", name: DEFAULT_NAME, concept: DEFAULT_CONCEPT, how: "three" })]);
+  const defaults = JSON.stringify({ campaign: "caerwyn", name: DEFAULT_NAME, concept: DEFAULT_CONCEPT, how: "three", afresh: true });
+  checks.push([`the create screen ${label(size)}: Enter, Enter with nothing typed starts it afresh with the defaults (start_creation, three)`,
+    started?.name === "startCreation" && JSON.stringify(started.args) === defaults]);
   await s.setup.dispose();
+
+  // New game over a character half made: nothing of it on the screen, and it starts afresh (the prototype's newCharacter drops its creation).
+  const half = await open({ creation: creationRow({ name: "Bet Vell", concept: "a ledger-keeper's sister who sells eggs", step: "backstory", chosen: OFFER.options[1]!, story: "I kept the Exchequer's ledgers." }) }, "new", size);
+  const empty = !half.frame.includes("Bet Vell") && !half.frame.includes("sells eggs") && half.frame.includes(`${DEFAULT_NAME} (Enter for the default)`);
+  await half.press(() => half.setup.mockInput.pressEnter());
+  await half.press(() => half.setup.mockInput.pressEnter());
+  await half.settle();
+  const afresh = half.backend.moves.at(-1);
+  checks.push([`the create screen ${label(size)}: New game over a character half made shows none of it, and starts afresh`, empty && afresh?.name === "startCreation" && JSON.stringify(afresh.args) === defaults]);
+  await half.setup.dispose();
 
   const t = await open({}, "new", size);
   await t.type("Tamsin Vell");

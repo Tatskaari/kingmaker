@@ -45,23 +45,25 @@ const OVER_THE_BOX = { proposal: undefined, issues: undefined, issue: 0, note: u
 
 /**
  * A name and a concept to make a character from (offerBuilds, game.ts:500), in place of any the
- * caller was making, the backstory written so far kept. The same name and concept as one already
- * offered builds go back to those (nothing asked); otherwise by how: three builds offered, the model
- * picks one, or the player's own picks made.
+ * caller was making. Back at the concept, the backstory written so far is kept, and the same name
+ * and concept as builds already offered go back to those (nothing asked); afresh (the title's New
+ * game, which drops the prototype's creation: newCharacter, game.ts:488), nothing of the one before
+ * is. Then by how: three builds offered, the model picks one, or the player's own picks made.
  */
-export function startCreationReducer(tx: TxCtx, sender: Identity, args: { campaign: string; name: string; concept: string; how: string }): void {
+export function startCreationReducer(tx: TxCtx, sender: Identity, args: { campaign: string; name: string; concept: string; how: string; afresh?: boolean | undefined }): void {
   const campaign = campaignNamed(tx, args.campaign);
   const name = characterName(args.name.replace(/:/g, " "));
   const concept = characterConcept(args.concept);
   const how = howOf(args.how);
   const was = creationOf(tx, sender);
+  const kept = args.afresh ? undefined : was;
 
-  if (how.kind === "three" && was && sameOffer(was, campaign, name, concept)) {
-    moveOn(tx, was, { step: "choose", busy: undefined, proposal: undefined, issues: undefined, issue: 0, note: undefined, rewriting: undefined });
+  if (how.kind === "three" && kept && sameOffer(kept, campaign, name, concept)) {
+    moveOn(tx, kept, { step: "choose", busy: undefined, proposal: undefined, issues: undefined, issue: 0, note: undefined, rewriting: undefined });
     return;
   }
 
-  const row = newCreation(tx, sender, campaign, { name, concept }, how, was);
+  const row = newCreation(tx, sender, campaign, { name, concept }, how, was, kept?.story ?? "");
   ask(tx, row, START[how.kind].ask);
 }
 
@@ -230,14 +232,14 @@ function howOf(how: string): How {
 const sameOffer = (was: CreationRow, campaign: CampaignRow, name: string, concept: string) =>
   was.step !== "made" && !!was.offer && was.name === name && was.concept === concept && was.campaign === campaign.key && was.campaignVersion === campaign.version;
 
-/** A creation afresh, in place of the caller's last: a new uid (the game made from it takes it), and the backstory they'd written kept. */
-function newCreation(tx: TxCtx, sender: Identity, campaign: CampaignRow, who: { name: string; concept: string }, how: How, was: CreationRow | undefined): CreationRow {
+/** A new creation, in place of the caller's last (its rev and version go on, so nothing asked for it lands and the box starts again): a new uid, which the game made from it takes, and the story it starts with. */
+function newCreation(tx: TxCtx, sender: Identity, campaign: CampaignRow, who: { name: string; concept: string }, how: How, was: CreationRow | undefined, story: string): CreationRow {
   const file = campaignFile(campaign);
   const row: CreationRow = {
     identity: sender, uid: newUid(tx), campaign: file.id, campaignVersion: file.version, name: who.name, concept: who.concept,
     how: how.kind, step: START[how.kind].step, busy: undefined, rev: (was?.rev ?? 0) + 1,
     offer: undefined, own: how.kind === "own" ? json({ picks: how.picks }) : undefined, chosen: undefined,
-    story: was?.story ?? "", version: (was?.version ?? 0) + 1, proposal: undefined, issues: undefined, issue: 0, rewriting: undefined,
+    story, version: (was?.version ?? 0) + 1, proposal: undefined, issues: undefined, issue: 0, rewriting: undefined,
     again: false, note: undefined, unchecked: undefined, backstory: undefined, gameId: undefined, calls: 0, costMicros: 0n, updatedAt: tx.now,
   };
   return was ? tx.db.creation.identity.update(row) : tx.db.creation.insert(row);

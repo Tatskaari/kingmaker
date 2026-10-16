@@ -115,16 +115,16 @@ class Demo implements Backend {
     return code ? this.refuse(code, code === "story_too_long" ? { words: String((args as { text: string }).text.match(/\S+/g)?.length ?? 0) } : {}) : this.done();
   }
 
-  startCreation({ name, concept, how }: Moves["startCreation"]): RefusalCode | undefined {
+  startCreation({ name, concept, how, afresh }: Moves["startCreation"]): RefusalCode | undefined {
     if (!name.trim() || name.length > MAX_NAME) return "bad_name";
     if (concept.length > MAX_CONCEPT) return "bad_concept";
     const own = /^own:([\w-]+),([\w-]+),([\w-]*),([\w-]+)$/.exec(how);
     if (how !== "three" && how !== "model" && !own) return "bad_how";
-    const was = this.creation;
-    if (was?.offer && was.name === name && was.concept === concept && how === "three") { this.change({ step: "choose", busy: undefined, note: undefined }); return undefined; }
+    const was = this.creation, kept = afresh ? undefined : was;
+    if (kept?.offer && kept.name === name && kept.concept === concept && how === "three") { this.change({ step: "choose", busy: undefined, note: undefined }); return undefined; }
     this.creation = {
       campaign: "caerwyn", name, concept, how: own ? "own" : how, step: "choose", busy: "builds", rev: 1, offer: undefined, own: undefined, chosen: undefined,
-      story: was?.story ?? "", version: (was?.version ?? 0) + 1, proposal: undefined, issues: undefined, issue: 0, rewriting: undefined, again: false,
+      story: kept?.story ?? "", version: (was?.version ?? 0) + 1, proposal: undefined, issues: undefined, issue: 0, rewriting: undefined, again: false,
       note: undefined, unchecked: undefined, backstory: undefined, gameId: undefined,
     };
     if (how === "three") this.later(40, () => this.change({ offer: JSON.stringify(OFFER), busy: undefined }));

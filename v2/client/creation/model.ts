@@ -42,10 +42,10 @@ export class CreationModel {
 
   get screen(): string { return this.app.screen; }
 
-  /** The character being made, as the screens read it; none for a new one until its concept goes in (one made before isn't this one). */
+  /** The character being made, as the screens read it; none for a new one until its concept goes in (New game starts afresh: one made, or half made, before isn't this one). */
   get creation(): Creation | undefined {
     const row = this.app.rows.creation;
-    if (!row || (this.app.intent === "new" && row.step === "made")) return undefined;
+    if (!row || this.app.intent === "new") return undefined;
     return creationOf(row, this.local, this.parse);
   }
 
@@ -102,14 +102,16 @@ export class CreationModel {
   /**
    * The name and concept are in: three builds that fit, as cards (the GM's, made legal by the
    * engine). The same name and concept again (back from the cards, nothing changed) offer the same
-   * three, and the card picked out stays.
+   * three, and the card picked out stays. From New game it's afresh: nothing of a creation before
+   * (its story, its builds) comes with it, as the prototype's newCharacter dropped its creation.
    */
   async offerBuilds(name: string, concept: string): Promise<void> {
     name = (name.trim() || DEFAULT_NAME).replace(/:/g, " ");
     concept = concept.trim() || DEFAULT_CONCEPT;
-    const was = this.app.rows.creation;
+    const afresh = this.app.intent === "new";
+    const was = afresh ? undefined : this.app.rows.creation;
     if (!was?.offer || was.name !== name || was.concept !== concept) this.local = { index: 0, column: 0 };
-    if (await this.move("startCreation", { campaign: this.app.campaign, name, concept, how: "three" })) this.app.go("creation");
+    if (await this.move("startCreation", { campaign: this.app.campaign, name, concept, how: "three", ...(afresh ? { afresh } : {}) })) this.app.go("creation");
   }
 
   /** Back to the name and concept (from the cards): as they were typed. */

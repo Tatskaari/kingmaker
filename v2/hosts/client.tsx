@@ -83,7 +83,7 @@ async function started(game: Backend, args: Args, campaign: string): Promise<Int
     const who = newGameOf(args.new, args.build ?? "", campaign);
     const refused = args.build
       ? await game.newGame(who)
-      : await game.act("startCreation", { campaign, name: who.name, concept: who.concept, how: "three" });
+      : await game.act("startCreation", { campaign, name: who.name, concept: who.concept, how: "three", afresh: true });
     if (refused) throw new Error(refused.text);
     return args.build ? "game" : "creation";
   }

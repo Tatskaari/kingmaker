@@ -14,16 +14,16 @@ function making(row = creationRow(), saveMs = 5) {
 }
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-test("the concept in: start_creation with the defaults for empty fields (a colon in the name a space), then the creation's screens", async () => {
+test("the concept in: start_creation with the defaults for empty fields (a colon in the name a space), afresh from New game; then the creation's screens", async () => {
   const backend = new StubBackend();
   const app = new AppModel(backend, { campaign: "caerwyn", intent: "new" });
   await app.creation.offerBuilds("  ", "");
-  assert.deepEqual(backend.moves, [{ name: "startCreation", args: { campaign: "caerwyn", name: DEFAULT_NAME, concept: DEFAULT_CONCEPT, how: "three" } }]);
+  assert.deepEqual(backend.moves, [{ name: "startCreation", args: { campaign: "caerwyn", name: DEFAULT_NAME, concept: DEFAULT_CONCEPT, how: "three", afresh: true } }]);
   assert.equal(app.intent, "creation");
 
   backend.moves.length = 0;
   await app.creation.offerBuilds("Tamsin: Vell", "a disgraced auditor");
-  assert.deepEqual(backend.moves[0]?.args, { campaign: "caerwyn", name: "Tamsin  Vell", concept: "a disgraced auditor", how: "three" });
+  assert.deepEqual(backend.moves[0]?.args, { campaign: "caerwyn", name: "Tamsin  Vell", concept: "a disgraced auditor", how: "three" }, "back at the concept of the one being made: not afresh, so its story stays");
 });
 
 test("a refused concept stays on the create screen, the refusal its error", async () => {

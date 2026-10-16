@@ -45,7 +45,7 @@ export const say = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asRe
 export const retryTurn = spacetimedb.reducer({ turn: t.u64() }, (ctx, args) => asReducer(ctx, tx => retryTurnReducer(tx, ctx.sender, args)));
 
 // Character creation (v1-design §3.3): the caller's creation row, from a concept to the game made from it.
-export const startCreation = spacetimedb.reducer({ campaign: t.string(), name: t.string(), concept: t.string(), how: t.string() }, (ctx, args) => asReducer(ctx, tx => startCreationReducer(tx, ctx.sender, args)));
+export const startCreation = spacetimedb.reducer({ campaign: t.string(), name: t.string(), concept: t.string(), how: t.string(), afresh: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => startCreationReducer(tx, ctx.sender, args)));
 export const creationBack = spacetimedb.reducer({ story: t.option(t.string()) }, (ctx, args) => asReducer(ctx, tx => creationBackReducer(tx, ctx.sender, args)));
 export const chooseBuild = spacetimedb.reducer({ index: t.u32() }, (ctx, args) => asReducer(ctx, tx => chooseBuildReducer(tx, ctx.sender, args)));
 export const makeOwn = spacetimedb.reducer({ from: t.u32() }, (ctx, args) => asReducer(ctx, tx => makeOwnReducer(tx, ctx.sender, args)));
