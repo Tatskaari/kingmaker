@@ -622,6 +622,8 @@ V1 keeps to this blueprint, but for these departures, each with its reason. The 
 | `npm run arc` runs `play new` | The headless client's `new` in process, over the client's connection, on a stack of its own (3320 and 8807) | The same verb, without a child process to parse |
 | The live run: about $0.03 | $0.0126 (20 calls) | The models' prices; the run is as specified |
 | The dev host's Play lines are V0's | The title first: `npm run client -- --session <name>` | V1's way in |
+| The dev host's `--delete-data=on-conflict` wipes a V0 database once, and says so (§3.1) | It also answers the CLI's prompt for it (`--yes=…,delete-data`, never `remote`), and reads the 2.12 CLI's words for a clear ("Proceeding with database clear…") | With no terminal to answer "this will DESTROY … ALL corresponding data", the publish was aborted, so a folder that had run V0 couldn't start V1; and the clear went unsaid |
+| `npm run live` writes `docs/live/<unit>-<date>.md` | Never over a record without `--force`: a second run that day goes beside the first, and a rehearsal to `runs/live/` | V0's review found a rehearsal could replace the committed record; V1's run takes the same rule |
 
 ### Known limits
 
