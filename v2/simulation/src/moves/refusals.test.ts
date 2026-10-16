@@ -59,6 +59,26 @@ test("say: a turn deciding or replying; a failed turn; a scene that's over", asy
   assert.deepEqual(host.as(wren).say({ text: "Hello?" }), { code: "scene_over", text: "(The scene is over.)" });
 });
 
+test("say: an opening that failed is a failed turn: its lead is told to /retry it, a spectator who has the lead", async () => {
+  const { host, script } = hostWithCampaign();
+  const wren = identity(1), tamsin = identity(2);
+  script.then("open", http(400));
+  host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "", build: "ranger" });
+  await host.drain();
+  const scene = all(host.db.scene)[0]!;
+  const opening = sceneNow(host, scene.id).turns[0]!;
+  assert.deepEqual([scene.status, opening.n, opening.phase, scene.turnId], ["opening", 0, "failed", opening.id]);
+
+  assert.deepEqual(host.as(wren).say({ text: "Hello?" }), { code: "turn_failed", text: "(The GM lost the thread: /retry to carry on.)" });
+  host.as(tamsin).joinGame({ game: scene.gameId });
+  assert.equal(code(host.as(tamsin).say({ text: "Hello?" })), "not_controller");
+  assert.equal(sceneNow(host, scene.id).turns.length, 1, "nothing said");
+
+  assert.equal(host.as(wren).retryTurn({ turn: opening.id }), undefined);
+  await host.drain();
+  assert.equal(host.db.scene.id.find(scene.id)!.status, "live");
+});
+
 test("retry_turn: not in a game, no such turn, not the lead, a turn that hasn't failed", async () => {
   const { host, wren, scene } = await openedGame();
   const tamsin = identity(2);

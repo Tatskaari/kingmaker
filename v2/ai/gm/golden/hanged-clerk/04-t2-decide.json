@@ -104,40 +104,6 @@
     "text": "Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?"
    }
   ],
-  "metrics": [
-   {
-    "turn": 1,
-    "repairMs": 0,
-    "preDecisionMs": 17.78332899999998,
-    "firstTextMs": 33.431225999999924,
-    "followUpMs": null,
-    "resolvingTextMs": 33.431225999999924,
-    "replyMs": 21.323263999999995,
-    "postDecisionMs": 1.3086309999999912,
-    "costUsd": 0.0012000000000000001,
-    "calls": 6,
-    "markup": {
-     "quotes": 2,
-     "tagged": 0,
-     "marks": 0,
-     "kinds": {
-      "why": 0,
-      "know": 0,
-      "you": 0
-     },
-     "unlabelled": 0,
-     "dropped": 0,
-     "malformed": 0
-    },
-    "notes": {
-     "drafted": 0,
-     "written": 0,
-     "added": 0,
-     "costUsd": 0.0002,
-     "ms": 2.6911910000000034
-    }
-   }
-  ],
   "history": [],
   "rules": {
    "pc": "01M518HX9J2WXAKV4MADG9MPEP",

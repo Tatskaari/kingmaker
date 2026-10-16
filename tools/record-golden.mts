@@ -73,10 +73,14 @@ function standIn(options: { replies: string[]; choices?: Record<string, string> 
   return () => fake.restore();
 }
 
-/** The session now, as V0's parity test reads it: the rules engine's own state (a serialised campaign, 10 KB) left out. */
+/**
+ * The session now, as V0's parity test reads it: the rules engine's own state (a serialised campaign,
+ * 10 KB) left out, and the turns' timings (metrics), which no prompt shows and every recording changes.
+ */
 function snapshot(): unknown {
-  const copy = structuredClone(session) as { rules?: Record<string, unknown> };
+  const copy = structuredClone(session) as { rules?: Record<string, unknown>; metrics?: unknown };
   if (copy.rules) delete copy.rules.campaign;
+  delete copy.metrics;
   return copy;
 }
 

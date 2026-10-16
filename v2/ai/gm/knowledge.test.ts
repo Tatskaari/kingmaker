@@ -1,7 +1,7 @@
 // After the prototype's src/runtime/knowledge.test.ts at 44c6d4a: what the player knows is built from what they lived, never from the prep (V0's one scene has no earlier scenes or talks to add), and someone goes by what the player calls them until their name is heard.
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
@@ -10,6 +10,7 @@ import { hangedClerk, viewAt } from "./fixtures.ts";
 import { knowledgeBrief, nameAsKnown } from "./knowledge.ts";
 
 const overlays = mkdtempSync(join(tmpdir(), "km-knowledge-"));
+after(() => rmSync(overlays, { recursive: true, force: true }));
 configureDocs({ overlay: game => join(overlays, game) });
 const scene = hangedClerk();
 

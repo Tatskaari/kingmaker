@@ -1,11 +1,12 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // The process's ledger and call log, where a call with no context goes: somewhere to check nothing went.
 const scratch = mkdtempSync(join(tmpdir(), "km-seam-"));
+after(() => rmSync(scratch, { recursive: true, force: true }));
 process.env.KM_COST_LEDGER = join(scratch, "ledger.jsonl");
 delete process.env.KM_CALL_LOG;
 

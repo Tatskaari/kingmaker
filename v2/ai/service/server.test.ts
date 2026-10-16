@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -19,6 +19,10 @@ const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const TOKEN = "the-bearer";
 const GAME = "5f0c2b7e-0000-4000-8000-000000000001";
 
+/** Every test's store is a folder in this one, removed once the file's tests are done (a store holds a whole campaign: left behind, a run's worth fills a tmpfs's inodes in a few hundred runs). */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-ai-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
+
 /** A campaign folder as the install tool PUTs it: every file, by its path in the folder. */
 function filesOf(dir: string): Record<string, string> {
   const files: Record<string, string> = {};
@@ -35,7 +39,7 @@ function filesOf(dir: string): Record<string, string> {
 
 /** A service on a fresh store, its endpoints counting what they're asked (canned answers), its exits recorded. */
 function service(overrides: Partial<ServiceOptions> & { slowMs?: number } = {}) {
-  const stores = folderStores(mkdtempSync(join(tmpdir(), "km-ai-")));
+  const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const ran: string[] = [];
   const exits: number[] = [];
   const lines: string[] = [];

@@ -22,9 +22,9 @@ It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOp
 | t2 | presses on the holes in Moll's story | `attempt: catch-moll` (the Insight check fails: 3 + 1 = 4) |
 | t3 | "(Out of character: what can I actually do here?)" | `ooc: out_of_character` |
 
-It wraps the stand-in's fetch to keep every call's body with a copy of the session as it stood (the rules engine's serialised campaign left out), names each call by its operation from the prototype's call log, and writes one file a step: the opening, then each turn's decide (disclosure and `director.before`), reply (`gm.reply`) and settle (`world.stage` and `director.after`). Each file has the step's line, the stand-in's scripted choices and replies, the session at the step's first call, and every call the step made. The notes on the GM's marks (`notes`) are a later vertical's and left out.
+It wraps the stand-in's fetch to keep every call's body with a copy of the session as it stood (the rules engine's serialised campaign and the turns' timings left out), names each call by its operation from the prototype's call log, and writes one file a step: the opening, then each turn's decide (disclosure and `director.before`), reply (`gm.reply`) and settle (`world.stage` and `director.after`). Each file has the step's line, the stand-in's scripted choices and replies, the session at the step's first call, and every call the step made. The notes on the GM's marks (`notes`) are a later vertical's and left out.
 
-Re-recording gives the same calls; the files differ only in the rules engine's random ids for the character and their gear, which no prompt shows. Checked on 16 Oct from the prototype at `44c6d4a` and from this branch's: every step's calls byte for byte the committed ones.
+Re-recording gives the same calls; the files differ only in the rules engine's random ids for the character and their gear, which no prompt shows. (The turns' timings, `metrics`, would differ every time too: they aren't kept.) Checked on 16 Oct from the prototype at `44c6d4a` and from this branch's: every step's calls byte for byte the committed ones, and nothing else in the files changed but those ids.
 
 ## What the test compares
 
