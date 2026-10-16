@@ -143,6 +143,16 @@ test("an ending that leads twice running is reached, though neither read was sur
   assert.deepEqual([twice.gm.endingLead, twice.gm.closing], [undefined, { exitId: "open-case", turn: 2 }]);
 });
 
+test("an outcome into the improvised ending gives way to the authored ending the AI service names", async () => {
+  const { line } = await game();
+  const own = await line("I'll settle this my own way.", decided(), read({ outcome: { route: "improvised-ending" }, theirs: true }));
+  assert.deepEqual([own.gm.closing?.exitId, own.gm.path.at(-1)?.to], ["own-ending", "own-ending"]);
+
+  const { line: again } = await game();
+  const authored = await again("I'll settle this my own way.", decided(), read({ outcome: { route: "improvised-ending", exit: "case-made" } as After["outcome"], theirs: true }));
+  assert.deepEqual([authored.gm.closing?.exitId, authored.gm.path.at(-1)?.to, authored.gm.path.at(-1)?.via], ["case-made", "case-made", "improvised-ending"]);
+});
+
 test("the same push again: no dice, and a step on the path that the reply is told of", async () => {
   const { host, script, scene, line } = await game();
   const now = await line("You were never up that wall, Moll!", decided({ sameAgain: { route: "catch-moll", answer: "Moll sticks to her story." } }));
