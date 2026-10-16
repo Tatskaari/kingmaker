@@ -1,13 +1,13 @@
-// Copied from the prototype's src/runtime/knowledge.ts at 44c6d4a, whole: it reads a TurnView (gm/view.ts) for the session; the scenes it names besides this one are the view's story (gm/story.ts) for sceneById; a talk (talkOf) is V11's, so none is; the world whose common knowledge the player shares is the campaign's (`setting`: "Caerwyn"), in the brief and on a lore card; the public lore's index is kept per lore root; Card is v2/shared/markup.ts's.
+// Copied from the prototype's src/runtime/knowledge.ts at 44c6d4a, whole: it reads a TurnView (gm/view.ts) for the session; the scenes it names besides this one are the view's story (gm/story.ts) for sceneById; a talk (talkOf) is V11's, so none is; the world whose common knowledge the player shares is the campaign's (`setting`: "Caerwyn"), in the brief and on a lore card; the public lore's index is kept with the view's story (a campaign version as installed), so a version PUT again is indexed afresh; Card is v2/shared/markup.ts's.
 
 import { basename } from "node:path";
-import { docsConfig } from "../docs/config.ts";
 import { listDocs, playerDocPath, readDoc, seedDoc, titleOf, type Doc } from "../docs/docs.ts";
 import type { Card, Mark, MarkLink, Markup } from "../../shared/markup.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
 import { knownCast, nameTokens } from "../../shared/scene/names.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { distinct, speaker, type Speaker } from "./speakers.ts";
+import type { Story } from "./story.ts";
 import type { TurnView, ViewEntry } from "./view.ts";
 
 /**
@@ -187,8 +187,8 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** What a public lore doc is called in prose. */
 interface LoreKey { path: string; keys: RegExp[] }
-/** By lore root: a campaign version's lore never changes. */
-const loreIndexes = new Map<string, LoreKey[]>();
+/** By the view's story: a campaign version as installed, whose lore the docs service reads (PUT again, it's a new one). */
+const loreIndexes = new WeakMap<Story, LoreKey[]>();
 /** Last words of a name too common to stand for it alone ("the office", "the road"). */
 const COMMON_TAIL = /^(Office|Notes|Stairs|Square|Crisis|Road|Yard|House|Kitchens|Now|Docks)$/;
 
@@ -198,11 +198,11 @@ const COMMON_TAIL = /^(Office|Notes|Stairs|Square|Crisis|Road|Yard|House|Kitchen
  * office", "the Assembly"), and a proper last word alone ("the Watch", "the Rat"). A name of
  * several words is matched in any case; one word only as a proper name.
  */
-function publicLore(): LoreKey[] {
-  let loreIndex = loreIndexes.get(docsConfig().loreRoot);
+function publicLore(story: Story | undefined): LoreKey[] {
+  let loreIndex = story && loreIndexes.get(story);
   if (loreIndex) return loreIndex;
   loreIndex = [];
-  loreIndexes.set(docsConfig().loreRoot, loreIndex);
+  if (story) loreIndexes.set(story, loreIndex);
   // A session that doesn't exist: the authored lore alone.
   for (const path of listDocs("(authored lore)", { sessionOnly: false })) {
     if (!/^(World|Places)\//.test(path)) continue;
@@ -222,8 +222,8 @@ function publicLore(): LoreKey[] {
 }
 
 /** The lore doc a phrase names, the scene's own first (and those in any case: in its scene, "the watch" is the City Watch). */
-function loreFor(scene: Scene, text: string): string | undefined {
-  const all = publicLore();
+function loreFor(scene: Scene, text: string, story: Story | undefined): string | undefined {
+  const all = publicLore(story);
   const own = (l: LoreKey) => !!scene.lore?.includes(l.path);
   const ordered = [...all.filter(own), ...all.filter(l => !own(l))];
   return ordered.find(l => l.keys.some(k => k.test(text) || (own(l) && new RegExp(k.source, "i").test(text))))?.path;
@@ -242,7 +242,7 @@ export function linkMarks(markup: Markup, text: string, scene: Scene, state: Tur
     const phrase = text.slice(m.start, m.end);
     const deed = m.kind === "you" || (m.kind === "why" && /\byou\b/i.test(m.note)) ? deedFor(state, `${phrase} ${m.note}`) : undefined;
     const person = [phrase, m.note].map(s => who.find(p => p.names.some(n => n.test(s)))).find(Boolean);
-    const lore = loreFor(scene, phrase);
+    const lore = loreFor(scene, phrase, state.story);
     const link: MarkLink | undefined = deed ? { kind: "deed", scene: deed.scene ?? state.sceneId, turn: deed.turn }
       : person ? { kind: "person", id: person.id }
       : lore ? { kind: "lore", path: lore }

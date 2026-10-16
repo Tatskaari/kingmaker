@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/suggest.ts at 44c6d4a, all but the lines in flight (:53-93: one set a session, landed for its scene and turn, stopped when the scene ends or they're turned off), whose rules the simulation's suggest job and its rows keep (v5-design §3.5). It reads a TurnView (gm/view.ts) for the session; the scene it plays and the story's others are the view's story (gm/story.ts) for sceneById, SCENES and ZOO_SCENES, so its caches are kept by the story's campaign version (namesInPrep, everyday) and prepText takes a stub's prep as written; the judge (the session's decider) is handed in; storyScenes and everyday are exported for the tests, and prepText for the campaign check (hosts/dev/vocabulary.ts).
+// Copied from the prototype's src/runtime/suggest.ts at 44c6d4a, all but the lines in flight (:53-93: one set a session, landed for its scene and turn, stopped when the scene ends or they're turned off), whose rules the simulation's suggest job and its rows keep (v5-design §3.5). It reads a TurnView (gm/view.ts) for the session; the scene it plays and the story's others are the view's story (gm/story.ts) for sceneById, SCENES and ZOO_SCENES, so its caches are kept with the story, a campaign version as installed (namesInPrep, everyday) and prepText takes a stub's prep as written; the judge (the session's decider) is handed in; storyScenes and everyday are exported for the tests, and prepText for the campaign check (hosts/dev/vocabulary.ts).
 
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { respond, type RespondRequest } from "../llm/openrouter.ts";
@@ -617,13 +617,21 @@ function plainWords(): Set<string> {
 /** The same, as stems: words too plain to call a description's own ("hand", "corner", "watching"). */
 const plainStems = (): Set<string> => (plainStemmed ??= new Set([...plainWords()].map(stem)));
 
-/** By the story's campaign version and the scene. */
-const prepNames = new Map<string, string[]>();
+/** By the story (a campaign version as installed: PUT again, it's a new one) and the scene. */
+const prepNames = new WeakMap<Story, Map<string, string[]>>();
 /** A scene's names and places, as its prep writes them, less the words only capitalised for where they stand. */
 function namesInPrep(scene: Scene, story: Story): string[] {
-  let names = prepNames.get(`${story.id} ${scene.id}`);
-  if (!names) prepNames.set(`${story.id} ${scene.id}`, names = [...new Set(properNouns(prepText(scene)).map(nameKey).filter(w => w.length >= 3 && !plainWords().has(w.toLowerCase()) && !STOP.has(stem(w))))]);
+  const byScene = keptFor(prepNames, story, () => new Map<string, string[]>());
+  let names = byScene.get(scene.id);
+  if (!names) byScene.set(scene.id, names = [...new Set(properNouns(prepText(scene)).map(nameKey).filter(w => w.length >= 3 && !plainWords().has(w.toLowerCase()) && !STOP.has(stem(w))))]);
   return names;
+}
+
+/** What's kept for a story, made the first time it's asked for. */
+function keptFor<T>(kept: WeakMap<Story, T>, story: Story, make: () => T): T {
+  let value = kept.get(story);
+  if (value === undefined) kept.set(story, value = make());
+  return value;
 }
 
 /** The names in some text: its capitalised words that don't start a sentence, a line or a quote ("'Noted.'"). */
@@ -719,10 +727,10 @@ export function prepText(scene: StoryScene): string {
 const routeText = (t: Transition) => [t.when, ...(t.check ? [t.check.reason ?? "", t.check.success, t.check.failure] : []), ...(t.establishes ?? [])];
 
 const stemsOf = (text: string) => new Set(words(text).map(stem));
-/** By the story's campaign version. */
-const corpora = new Map<string, Map<string, Set<string>>>();
-/** By the story's campaign version and the scenes it's for. */
-const ordinaries = new Map<string, Set<string>>();
+/** By the story (a campaign version as installed): each scene's prep, as stems. */
+const corpora = new WeakMap<Story, Map<string, Set<string>>>();
+/** By the story, then the scenes it's for. */
+const ordinaries = new WeakMap<Story, Map<string, Set<string>>>();
 
 /**
  * The words any scene might use, as far as this story's concerned: the prep of every scene outside it
@@ -731,14 +739,14 @@ const ordinaries = new Map<string, Set<string>>();
  * the river door and the midnight bell, so with them in, none of those was hidden at the Rat).
  */
 export function everyday(story: Scene[], all: Story): Set<string> {
-  const key = `${all.id} ${story.map(s => s.id).sort().join(" ")}`;
-  const cached = ordinaries.get(key);
+  const key = story.map(s => s.id).sort().join(" ");
+  const kept = keptFor(ordinaries, all, () => new Map<string, Set<string>>());
+  const cached = kept.get(key);
   if (cached) return cached;
-  const corpus = corpora.get(all.id) ?? new Map(all.all().map(s => [s.id, stemsOf(prepText(s))]));
-  corpora.set(all.id, corpus);
+  const corpus = keptFor(corpora, all, () => new Map(all.all().map(s => [s.id, stemsOf(prepText(s))])));
   const out = stemsOf(`${prompt("gm")}\n${prompt("tone-comic")}`);
   for (const [id, stems] of corpus) if (!story.some(s => s.id === id)) for (const w of stems) out.add(w);
-  ordinaries.set(key, out);
+  kept.set(key, out);
   return out;
 }
 

@@ -510,6 +510,7 @@ V5 keeps to this blueprint but for these, each with its reason. The packages' re
 | `markupLines` joins `ai/gm/markup.ts` (§2.3) | It's the client's (`client/scene/text.ts`) | The AI service never prints markup |
 | The golden sessions | Keep no timings: the turns' `metrics` (V0's review) and how long the last lines took (`suggestions.ms`) | So a recording differs from the last only in the rules engine's random ids |
 | Several sets of stand-in lines | Go a turn each, as the stand-in's replies do | A set is never offered twice running, so one set every turn would be dropped every other turn |
+| The copied code's caches are kept by campaign version (§2.3), the public lore's index per lore root | All are kept with the story object: each scene's names and the words any other scene might use (`suggest.ts`), and the public lore's index (`knowledge.ts`) | V0's PUT replaces a version's files and the scenes and story read from them, but a version's name and its lore root stay the same: after the dev host's `p` the lines were vetted with the old words beside the new until a restart |
 | The PUT carries `vocabulary.json` with the rest of the folder (§3.8) | It refuses one that doesn't read as the story reads it (400 `bad_request`), with the campaign check's own reader (`vocabularyOf`, now in `ai/gm/story.ts`); and the story is on the view only for the notes and the lines | V0's PUT refuses a campaign it can't read. A vocabulary read only at first use made every think of that version a 500, the turn's own too, though none of them reads it |
 
 ### The client (D)

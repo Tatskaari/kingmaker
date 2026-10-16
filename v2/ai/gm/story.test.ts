@@ -6,6 +6,7 @@ import { join, relative } from "node:path";
 import { campaigns } from "../service/campaigns.ts";
 import { folderStores } from "../service/folder-stores.ts";
 import { CAERWYN, hangedClerk, stateIn } from "./fixtures.ts";
+import { linkMarks } from "./knowledge.ts";
 import { storyOf, type Vocabulary } from "./story.ts";
 import { everyday, storyScenes, vetting } from "./suggest.ts";
 
@@ -75,4 +76,44 @@ test("the hanged clerk's story and the words any other scene might use are the p
   const v = vetting(scene, state);
   assert.ok(v.proper.includes("Heron"));
   assert.ok(v.places?.includes("river door"));
+});
+
+test("a version PUT again is vetted with its new words: what the vetting keeps goes with the story it was kept for", async () => {
+  const stores = folderStores(mkdtempSync(join(scratch, "store-")));
+  const all = campaigns(stores.campaigns, stores.docsRoot);
+  const files = filesOf(CAERWYN);
+  const scene = hangedClerk();
+  const vettingNow = () => vetting(scene, { ...stateIn("hanged-clerk"), story: all.use("caerwyn", "0.1.0").story });
+  await all.put("caerwyn", "0.1.0", files);
+  const before = vettingNow();
+
+  const vocabulary = JSON.parse(files["vocabulary.json"]!) as Vocabulary;
+  const withoutHobb = { ...vocabulary, scenes: vocabulary.scenes.map(e => ({ ...e, cast: e.cast.filter(c => c.id !== "hobb"), hook: e.hook.replaceAll("Hobb", "Someone"), prep: e.prep.replaceAll("Hobb", "Someone") })) };
+  await all.put("caerwyn", "0.1.0", { ...files, "vocabulary.json": JSON.stringify(withoutHobb) });
+  const after = vettingNow();
+
+  assert.deepEqual([before.names.includes("Hobb"), before.proper.includes("Hobb")], [true, true], "Hobb, from the Rat and the Heron, is a name the player hasn't heard");
+  assert.deepEqual([after.names.includes("Hobb"), after.proper.includes("Hobb")], [false, false], "gone from the words PUT since, in the same process");
+});
+
+test("so does the notes' index of the public lore: a version PUT again links a phrase by its new lore", async () => {
+  const stores = folderStores(mkdtempSync(join(scratch, "store-")));
+  const all = campaigns(stores.campaigns, stores.docsRoot);
+  const files = filesOf(CAERWYN);
+  const linked = (phrase: string) => {
+    const story = all.use("caerwyn", "0.1.0").story;
+    const text = `She nods towards ${phrase}.`;
+    const start = text.indexOf(phrase);
+    const marks = linkMarks({ speech: [], marks: [{ start, end: start + phrase.length, kind: "know", note: "Where the grain is sold." }] }, text, hangedClerk(), { ...stateIn("hanged-clerk"), story }).marks;
+    return marks[0]!.link;
+  };
+  await all.put("caerwyn", "0.1.0", files);
+  const before = [linked("the market square"), linked("the Corn Exchange")];
+
+  const { "lore/Places/Market Square.md": square, ...rest } = files;
+  await all.put("caerwyn", "0.1.0", { ...rest, "lore/Places/Corn Exchange.md": square!.replace("# The market square and the Corn Exchange", "# The Corn Exchange") });
+  const after = [linked("the market square"), linked("the Corn Exchange")];
+
+  assert.deepEqual(before, [{ kind: "lore", path: "Places/Market Square.md" }, undefined]);
+  assert.deepEqual(after, [undefined, { kind: "lore", path: "Places/Corn Exchange.md" }]);
 });
