@@ -53,7 +53,7 @@ function betweenText(view: SceneView, story: StoryView): string {
 
 /** The fight's stand-in: what it says of itself, and Fight it out (the one who has the lead's to take). */
 function fightText(view: SceneView, way: WayOn): string {
-  const fight = fightOf(false);
+  const fight = fightOf();
   return [
     "MODE: fight",
     `[${view.title}] ${way.title}`,

@@ -145,22 +145,23 @@ export function betweenOf(story: StoryView, sceneId: string | undefined): Betwee
   };
 }
 
-/** The fight's card (the stand-in's): what it says before the fight, and once fought. */
+/** The fight's card (the stand-in's): what it says of itself, and its one action. */
 export interface FightView {
   title: string;
   /** What the stand-in says. */
   lines: string[];
-  /** Where Enter goes: the fight, or once it's fought, back to the scene. */
+  /** Where Enter goes: Fight it out. */
   go: string;
   hint: string;
-  done: boolean;
 }
 
-/** The stand-in's card: before, its word on itself and Fight it out; once fought, what happened, and back to the scene, which picks up from it. */
-export function fightOf(fought: boolean): FightView {
-  return fought
-    ? { title: "Roll for initiative!", lines: [STANDIN.act], go: "See what comes of it", hint: "the scene picks up from the fight", done: true }
-    : { title: "Roll for initiative!", lines: [STANDIN.observe], go: STANDIN.action.label, hint: "the stand-in resolves it, as won", done: false };
+/**
+ * The stand-in's card (src/game/fight-standin.ts's observe and its one action): Fight it out resolves
+ * it as won, and the scene picks up from it, its line ("Steel, dust and lantern light: …") and how it
+ * went in the scene's transcript (the simulation writes them).
+ */
+export function fightOf(): FightView {
+  return { title: "Roll for initiative!", lines: [STANDIN.observe], go: STANDIN.action.label, hint: "the stand-in resolves it, as won, and the scene picks up from it" };
 }
 
 /** The End: the last scene's closing, how each scene ended with its notebook lines, and the GM's bar tab (the prototype's epilogue). */

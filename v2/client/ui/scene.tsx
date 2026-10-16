@@ -199,15 +199,20 @@ function Picks({ picks, rows, width }: { picks: Pick[]; rows: number; width: num
   </box>;
 }
 
-/** In place of the box once the scene is over: the way on, to press or click when the player has finished reading (the prototype's Continue). */
-function Continue({ way, onGo }: { way: WayOn; onGo: () => void }) {
+/**
+ * In place of the box once the scene is over: the way on, to press or click when the player has
+ * finished reading (the prototype's Continue). Its hint in short where the whole won't fit (80 columns).
+ */
+function Continue({ way, onGo, width }: { way: WayOn; onGo: () => void; width: number }) {
   const { title, go, ready, fight } = way;
+  const wait = `   (take your time: the last word stays put)`;
+  const hint = ready ? "   Enter, or click here" : go.length + wait.length + 6 <= width ? wait : "   (take your time)";
   return <Clickable height={3} flexShrink={0} border borderColor={!ready ? C.border : fight ? C.danger : C.borderHot}
     title={` ${title} `} titleAlignment="left" titleColor={fight ? C.danger : C.title} paddingX={1} onClick={onGo}>
     <text>
       <span fg={ready ? C.lead : C.faint}>{"▶ "}</span>
       <span fg={!ready ? C.dim : fight ? C.danger : C.lead} attributes={ready ? BOLD : 0}>{go}</span>
-      <span fg={C.faint}>{ready ? "   Enter, or click here" : "   (take your time: the last word stays put)"}</span>
+      <span fg={C.faint}>{hint}</span>
     </text>
   </Clickable>;
 }
@@ -397,7 +402,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       {busy && !said ? <Spinner label={busy} /> : <text fg={said ? C.warn : C.faint}>{said ?? " "}</text>}
     </box>
     {kept && !way ? <Picks picks={toPick} rows={kept} width={width - 2} /> : null}
-    {way ? <Continue way={way} onGo={() => { clear(); scene.goOn(); }} /> : <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
+    {way ? <Continue way={way} width={width} onGo={() => { clear(); scene.goOn(); }} /> : <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
       {/* As much as a turn takes (the simulation's limit): OpenTUI's own is 1,000, and it cut a longer line without a word. */}

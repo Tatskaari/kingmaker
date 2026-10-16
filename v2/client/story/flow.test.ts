@@ -5,6 +5,7 @@ import type { Rejection } from "../backend.ts";
 import { clerkEnded, heronFought, OPEN_CASE, ratOpening, ratWaiting, storyOf, storyOver, yardOver } from "../check/story.ts";
 import { YARD } from "../check/fixture.ts";
 import { SceneModel, type SceneActions } from "../scene/model.ts";
+import { STANDIN } from "./words.ts";
 
 /**
  * The way on through the scene's model (story-design §4.5), as the screens drive it: a scene that's
@@ -94,7 +95,7 @@ test("stuck: Enter carries the story on, and a refusal says why", async () => {
   assert.equal(scene.status, "(The story isn't stuck: there's nothing to carry on.)");
 });
 
-test("the fight: to its card, Fight it out, how it went, back to the scene as it picks up", async () => {
+test("the fight: to its card, Fight it out, and back in the scene as it picks up; refused, the card says why", async () => {
   const { made, actions } = moves();
   const fighting = { ...yardOver(heronFought()), over: false, fighting: true };
   const scene = new SceneModel(fighting, actions);
@@ -102,13 +103,16 @@ test("the fight: to its card, Fight it out, how it went, back to the scene as it
   assert.deepEqual([scene.page, scene.fight().go], ["fight", "Fight it out"]);
   scene.fightOn();
   await tick();
-  assert.deepEqual(made, ["fightItOut"]);
-  assert.equal(scene.fight().go, "See what comes of it");
-  // The scene picks up (the same scene, live again, the aftermath being written): the card stays until Enter.
-  scene.update({ ...YARD, story: storyOf(heronFought()), phase: "replying", mayType: false, entries: [...fighting.entries, { turn: 4, speaker: "system", kind: "system", text: "The fight: After a short, ugly fight the Crakes went down and Sallow surrendered, very politely." }] });
-  assert.equal(scene.page, "fight");
-  scene.fightOn();
-  assert.deepEqual([scene.page, scene.wayOn()], ["scene", undefined]);
+  assert.deepEqual([made, scene.page], [["fightItOut"], "scene"]);
+  // The rows come with the move: the same scene, live again, the stand-in's lines in it and the aftermath being written.
+  scene.update({ ...YARD, story: storyOf(heronFought()), phase: "replying", mayType: false, entries: [...fighting.entries, { turn: 4, speaker: "system", kind: "system", text: `The fight: ${STANDIN.summary}` }] });
+  assert.deepEqual([scene.page, scene.wayOn(), scene.busy()], ["scene", undefined, "The GM is speaking…"]);
+
+  const refused = new SceneModel(fighting, moves(() => refusal("no_fight")).actions);
+  refused.goOn();
+  refused.fightOn();
+  await tick();
+  assert.deepEqual([refused.page, refused.status], ["fight", "(There's no fight to be had here.)"]);
 });
 
 test("The End: Enter on the way on, then Enter goes back to the title", () => {

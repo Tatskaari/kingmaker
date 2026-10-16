@@ -17,8 +17,9 @@
  * first when there's no room. Last, the screen coming up as the rows move on: a change between its
  * first render and its subscription to the model is drawn. Then the full GM's: a considered turn
  * from rows, its status line, its shut box and its dice line before the reply. Then V1's: the
- * title, character creation's six screens and the sheet (check/creation.tsx). (The prototype's
- * src/app/smoke/screens-check.tsx, for this client.)
+ * title, character creation's six screens and the sheet (check/creation.tsx). Then the story's:
+ * the way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and
+ * The End (check/story-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
@@ -32,6 +33,7 @@ import type { SceneView, Suggestion } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
 import { checkCreation } from "./creation.tsx";
+import { checkStory } from "./story-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -695,6 +697,9 @@ for (const [w, h] of [[80, 24], [120, 40]] as const) {
 
 // The title, character creation and the sheet (V1's).
 await checkCreation(checks, show);
+
+// The way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and The End (the story's).
+await checkStory(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

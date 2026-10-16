@@ -12,7 +12,6 @@ import type { SceneView } from "./scene/view.ts";
 import { sheetOf } from "./sheet/rows.ts";
 import { journalText, storyText } from "./story/text.ts";
 import { wayOnOf } from "./story/view.ts";
-import { STANDIN } from "./story/words.ts";
 import { describe } from "./title/model.ts";
 
 /**
@@ -229,9 +228,9 @@ export async function go(game: Backend, out: Out, waiting: Waiting = {}): Promis
 }
 
 /**
- * The fight's stand-in (act --id fight): fought out, as won (fight_it_out); what it says of the
- * fight, then the scene picking up from it, the GM's aftermath played (and its notes and lines in),
- * as for a line said.
+ * The fight's stand-in (act --id fight): fought out, as won (fight_it_out); then the scene picking
+ * up from it (the stand-in's line and how it went, as the simulation writes them in the scene, then
+ * the GM's aftermath, its notes and lines in), as for a line said.
  */
 export async function fight(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
   const view = game.view();
@@ -241,7 +240,6 @@ export async function fight(game: Backend, out: Out, waiting: Waiting = {}): Pro
   const refused = await game.act("fightItOut", {});
   if (refused) return said(out, refused);
 
-  out.print(`${STANDIN.act}\n`);
   const stream = streamTo(out, waiting);
   const picked = await viewWhen(game, v => !v.fighting && v.entries.length > seen && finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
   stream.end(picked);

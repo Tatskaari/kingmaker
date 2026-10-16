@@ -82,8 +82,6 @@ export class SceneModel {
   page: Page = "scene";
   /** Enter was pressed before the story had moved on (the prototype's queued): it goes on as soon as it has. */
   queued = false;
-  /** The fight's stand-in has been fought (fight_it_out made): its card says how it went, and goes back to the scene. */
-  fought = false;
 
   private readonly actions: SceneActions;
   /** The seat's sheet, read when /sheet shows it: the rows have it, not the scene's view. */
@@ -153,7 +151,6 @@ export class SceneModel {
       this.forgetMarks();
       this.next = undefined;
       this.queued = false;
-      this.fought = false;
       if (this.page === "between") this.page = "scene";
     }
     this.view = view;
@@ -206,7 +203,7 @@ export class SceneModel {
       case "carry_on": void this.answer(this.actions.carryOn?.()); return;
       case "between": this.page = "between"; break;
       case "next": if (this.next) { this.show(this.next); return; } break;
-      case "fight": this.page = "fight"; this.fought = false; break;
+      case "fight": this.page = "fight"; break;
       case "end": this.page = "end"; this.overlay = undefined; break;
     }
     this.emit();
@@ -225,17 +222,20 @@ export class SceneModel {
     this.emit();
   }
 
-  /** The fight's card: the stand-in's word on itself, or once fought, how it went. */
+  /** The fight's card: the stand-in's word on itself, and Fight it out. */
   fight(): FightView {
-    return fightOf(this.fought);
+    return fightOf();
   }
 
-  /** Enter on the fight's card: fight it out (the stand-in resolves it, as won, and the scene picks up from it); fought, back to the scene. */
+  /**
+   * Enter on the fight's card: fight it out (fight_it_out: the stand-in resolves it, as won). Made,
+   * it's back to the scene, which picks up from the fight: the stand-in's line and how it went are
+   * in its transcript, and the GM's aftermath streams in.
+   */
   fightOn(): void {
     this.typing = false;
     this.status = undefined;
-    if (this.fought) { this.page = "scene"; this.fought = false; this.emit(); return; }
-    void this.answer(this.actions.fightItOut?.(), () => { this.fought = true; });
+    void this.answer(this.actions.fightItOut?.(), () => { this.page = "scene"; });
     this.emit();
   }
 

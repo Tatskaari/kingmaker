@@ -96,9 +96,9 @@ function Plain({ scene, card }: { scene: SceneModel; card: BetweenView }) {
 
 /**
  * The fight (story-design §4.5): until it's played on the map (V12), the prototype's stand-in, as a
- * card. It says what it is; Enter (or a click) fights it out, as won (fight_it_out), and the card
- * says how it went; Enter again goes back to the scene, which picks up from the fight, the GM's
- * aftermath streaming in.
+ * card. It says what it is; Enter (or a click) fights it out, as won (fight_it_out), and it's back to
+ * the scene, which picks up from the fight: the stand-in's line, how it went, the GM's aftermath
+ * streaming in.
  */
 export function FightScreen({ scene }: { scene: SceneModel }) {
   useStore(scene);
@@ -111,16 +111,16 @@ export function FightScreen({ scene }: { scene: SceneModel }) {
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     <text fg={C.danger} attributes={BOLD}>{fight.title}</text>
     <box width={w} marginTop={1} flexDirection="column" border borderColor={C.danger} paddingX={1} paddingY={1}>
-      {lines.map((l, i) => <text key={i} fg={fight.done ? C.text : C.dim}>{l || " "}</text>)}
+      {lines.map((l, i) => <text key={i} fg={C.dim}>{l || " "}</text>)}
     </box>
-    <Clickable width={w} height={3} flexShrink={0} border borderColor={fight.done ? C.borderHot : C.danger} title={fight.done ? " The fight is over " : " The fight "} titleAlignment="left" titleColor={fight.done ? C.title : C.danger} paddingX={1} onClick={() => scene.fightOn()}>
+    <Clickable width={w} height={3} flexShrink={0} border borderColor={C.danger} title=" The fight " titleAlignment="left" titleColor={C.danger} paddingX={1} onClick={() => scene.fightOn()}>
       <text>
         <span fg={C.lead}>{"▶ "}</span>
-        <span fg={fight.done ? C.lead : C.danger} attributes={BOLD}>{fight.go}</span>
-        <span fg={C.faint}>{typed ? TYPED : `   Enter, or click (${fight.hint})`}</span>
+        <span fg={C.danger} attributes={BOLD}>{fight.go}</span>
+        <span fg={C.faint}>{typed ? TYPED : "   Enter, or click"}</span>
       </text>
     </Clickable>
     <box height={1} flexShrink={0}><text fg={C.warn}>{scene.status ?? " "}</text></box>
-    <box height={1} flexShrink={0}><Keys items={[["Enter", fight.done ? "back to the scene" : "fight it out", () => scene.fightOn()], ["j", "notebook", () => { scene.overlay = { kind: "journal" }; scene.emit(); }]]} /></box>
+    <box height={1} flexShrink={0}><Keys items={[["Enter", "fight it out", () => scene.fightOn()], ["j", "notebook", () => { scene.overlay = { kind: "journal" }; scene.emit(); }]]} /></box>
   </box>;
 }
