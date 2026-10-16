@@ -1,0 +1,846 @@
+{
+  "id": "drowned-rat",
+  "title": "The Drowned Rat",
+  "summary": "A dockside dive with house rules, a landlady who sells gossip by the measure, and a big frightened man with a bandaged hand.",
+  "kind": "scene",
+  "time": "evening",
+  "assumes": [
+    "Big Hobb Mallory, the big man with the bandaged hand, is still at large and hasn't told the player what he knows (he hasn't been caught, arrested or questioned yet). The player knowing who his master is doesn't change that."
+  ],
+  "overtaken": "wharf-night",
+  "background": [
+    "This is the evening of the day Wendell Prout was found hanged behind the King's Granary. What the player and Kell found there, and how they left it, is in what happened just before this scene, and that wins. Whatever they found, Kell saw the big man with the bandaged hand at a gentleman's elbow by the Purveyor's wagons at noon, and followed him here (her card says how): that's how they know where he drinks. If nothing happened before: they also know a gentleman with a silver-topped cane (the granary children's 'Silvertop') and a big man with a bandaged hand were in the tally loft the night Prout died, and they've come looking for the big man.",
+    "If Prout went into the Captain's book as a murder with no granary child taken in for it, Master Sallow has heard of it from the Captain by evening and sent the Crake brothers down the river stairs to find out who's been asking after his porter. They're barred from the Rat (rule three, once each), so they ask at the pump on the stairs and come no further."
+  ],
+  "place": "drowned-rat",
+  "start": "the-rat",
+  "cast": [
+    {
+      "id": "hobb",
+      "name": "Big Hobb Mallory",
+      "card": "cast/hobb.md",
+      "called": "the big man with the bandaged hand",
+      "statblock": "tough",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "nan-quill",
+      "name": "Nan Quill",
+      "card": "cast/nan-quill.md",
+      "called": "the landlady",
+      "statblock": "tough",
+      "weapon": "club"
+    },
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "card": "cast/kell.md",
+      "statblock": "guard",
+      "weapon": "club"
+    },
+    {
+      "id": "cob",
+      "name": "Cob",
+      "card": "cast/cob.md",
+      "called": "the pot-boy",
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "arlo",
+      "name": "Arlo Quarry",
+      "card": "cast/arlo.md",
+      "called": "the young lighterman with the black eye",
+      "statblock": "tough",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "dilly",
+      "name": "Dilly Sparrow",
+      "card": "cast/dilly.md",
+      "called": "the old bargewoman with the cards",
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    }
+  ],
+  "facts": {
+    "hobb-picked-out": "The player has picked out Big Hobb Mallory, in the fireside corner, as the big man with the bandaged hand.",
+    "knows-heron": "The player knows that Hobb does night work at the Heron warehouse, at the downriver end of the wharves.",
+    "hobb-talked": "Big Hobb has broken and begun to tell the player what he did, the loft first: he held the clerk while his master killed him, and hauled the rope. The rest (his master's name, the Heron) comes as he's asked.",
+    "cob-kindness": "Cob has had a kindness from the player with nothing asked back (his dinner or an extra bowl stood him with no strings): it counts with him.",
+    "page-out": "Prout's page is out of the lining of Cob's left boot: razored from the Royal Granary Roll, a dozen King's Road grain wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and, at the foot, 'Not goblins. Who pays the hedge-folk?'",
+    "mum-safe": "Hobb's mum is to be kept safe tonight: someone here has agreed to take her in, out of the Master's reach, and she'll be fetched from the Shambles before he thinks to look.",
+    "master-named": "Big Hobb has named his master to the player: Master Sallow of the Royal Purveyor's office.",
+    "token-handed": "Hobb has handed over his brass river-door token for the Heron warehouse.",
+    "hobb-inside": "Hobb has agreed to be the player's man inside the Heron tonight."
+  },
+  "beats": {
+    "the-rat": {
+      "title": "Rules of the house",
+      "text": "beats/the-rat.md",
+      "routes": [
+        {
+          "id": "found-him",
+          "on": "outcome",
+          "when": "The player has picked out Big Hobb as the big man they're after (by his hidden hand, Arlo's challenge, Nan's gossip, Cob, or the way he flinches at the door) and has gone over to him, sat down with him or spoken to him.",
+          "to": "big-hobb",
+          "establishes": [
+            "hobb-picked-out"
+          ]
+        },
+        {
+          "id": "heron-learned",
+          "on": "outcome",
+          "when": "The player has learned that Hobb does night work at the Heron warehouse downriver (from Nan's gossip, Dilly, the regulars, or the heron on the new pennies).",
+          "to": "the-rat",
+          "establishes": [
+            "knows-heron"
+          ]
+        },
+        {
+          "id": "win-hobb",
+          "on": "attempt",
+          "when": "The player tries to talk Hobb into telling what he did and who he does it for, with an appeal, an argument, a bargain or a promise of protection, while he's still holding out and it could go either way. (Just asking isn't this; a kindness or a trade that truly answers his fear needs no dice.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 14,
+            "reason": "to get Big Hobb to tell you what he did",
+            "success": "Something gives. Hobb looks at his wrapped hand for a long moment and says, very quietly, 'I only held the rope.' The loft comes out first, haltingly; the rest will come as he's asked.",
+            "failure": "Hobb shakes his head and drinks, and his eyes go to the door: not here, not yet. He heard it, though, and he's closer to leaving.",
+            "onSuccess": "confession",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "scare-hobb",
+          "on": "attempt",
+          "when": "The player tries to frighten Hobb into talking: threats, the noose, the watch, his mum, or looming over him.",
+          "check": {
+            "skill": "intimidation",
+            "dc": 15,
+            "reason": "to frighten Big Hobb into talking",
+            "success": "For a moment the player frightens him more than his master does, and the loft comes out in a terrified rush; the rest will come as he's asked. He won't forget who frightened it out of him.",
+            "failure": "His master frightens him more than anyone in this room. Hobb comes up out of his chair like a wall falling over and makes for the door.",
+            "onSuccess": "confession",
+            "onFailure": "on-his-feet",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "trick-hobb",
+          "on": "attempt",
+          "when": "The player tries to fool Hobb: passing as sent by his master to check he's kept quiet, telling him his master has already sold him to the watch, or some other lie he might swallow.",
+          "check": {
+            "skill": "deception",
+            "dc": 13,
+            "reason": "to fool Big Hobb into giving himself away",
+            "success": "He swallows it whole and, in a panic, blurts out a piece more than they asked for (to prove he's kept faith, or to save his own skin), and he'll answer the next question too.",
+            "failure": "He sees through it, and that's the worst thing it could be: proof that people are asking. He's up out of his chair and making for the door.",
+            "onSuccess": "confession",
+            "onFailure": "on-his-feet",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "arm-wrestle",
+          "on": "attempt",
+          "when": "The player arm-wrestles someone in the Rat (Arlo for the champion's chair, a regular for a wager, or Hobb if he can be got to the table), elbows down and Nan refereeing, where it could go either way.",
+          "check": {
+            "skill": "athletics",
+            "dc": 14,
+            "reason": "to win an arm-wrestle in front of the whole Rat",
+            "success": "Their opponent's knuckles hit the table. The Rat roars, Nan pays out the wagers, and the regulars stop clamming up around whoever just did that. If it was Hobb, the rag tore loose as his arm went over: his right palm is skinned raw in a stripe straight across, like a rope burn, and he hides it at once.",
+            "failure": "Their own knuckles hit the table, and the Rat roars anyway. Their arm will ache till morning, whoever beat them is unbearable about it, and the room has a new story about the sergeant's friend. If it was Hobb, he won through his teeth with the bad hand, and the rag came loose: his palm is skinned raw in a stripe straight across, like a rope burn, and he hides it at once.",
+            "onSuccess": "the-rat"
+          }
+        },
+        {
+          "id": "bribe-cob",
+          "on": "outcome",
+          "when": "The player offers coin, or more stew, as the price of a look in Cob's boot (to Cob, or to Nan for him), and nothing more (no appeal to what he's afraid of, no promise that answers it): Cob haggles, boasts and takes what's going, but the boot stays on, and Nan won't sell a look in a child's boot either. Bought attention isn't trust. What's really wrong comes out instead, his way: not out here, not with the big cove looking, and what happens to Cob after? (A meal stood him with nothing asked back is a kindness, not this.)",
+          "to": "the-rat",
+          "towards": "prouts-page"
+        },
+        {
+          "id": "kind-to-cob",
+          "on": "outcome",
+          "when": "The player does Cob a kindness with nothing asked back: stands him his dinner or an extra bowl with no strings, or gives it freely after he's eaten. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, out of the big cove's sight, gets a yes.",
+          "to": "the-rat",
+          "establishes": [
+            "cob-kindness"
+          ],
+          "towards": "prouts-page"
+        },
+        {
+          "id": "trust-cob",
+          "on": "outcome",
+          "when": "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player asks Cob for a look after giving him real reason to trust them (a kindness with nothing asked back, like his dinner stood him with no strings), or makes him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, the boots his to keep, whatever's in the boot going to the King and not the watch), or he has already told them they can look; or Nan, given a reason plainly good for the boy, tells him to. No dice, however it's put: Cob takes the left boot off and lets them unpick the lining: Prout's page is out.",
+          "to": "the-rat",
+          "establishes": [
+            "page-out"
+          ],
+          "essential": "prouts-page"
+        },
+        {
+          "id": "coax-cob",
+          "on": "attempt",
+          "when": "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), before Cob has any reason to trust them (no kindness with nothing asked back done him yet tonight, no promise that answers what he's afraid of, no yes from him already), the player asks Cob to show them what crackles in his left boot (taking it off, or letting them unpick the lining), politely and with the boots staying his, or tries to win him round to it by reaching him (an appeal to what he cares about: Mister Prout, the men from the loft, his own skin; or a tale he might swallow), where it could go either way. Paying for a look isn't this. (After a kindness with nothing asked back, for someone he really trusts, for a promise that truly answers what he's afraid of, or once he's said they can look, it needs no dice. Out in the room, under the big cove's eye, he won't, and says so his way: not out here.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 13,
+            "reason": "to get Cob to show you what's in his boot",
+            "success": "Cob looks past them at the scullery door, and the fire beyond it, for a long moment. Then he sits on an upturned pot, unlaces the left boot and picks the lining open with a dirty thumbnail, muttering that if this is a trick Cob'll know. Out comes a page, folded small and gone soft at the corners, and he holds it out like it might bite: 'That's Mister Prout's writing. That's why it crackled.' He can't read it; anyone who can sees a dozen grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'. If he heard the posh cove ask for 'the page' that night, it comes together for him now, and he goes white.",
+            "failure": "Cob won't, and it costs, whichever fits where and how they tried: in the scullery, he's out through the slop hatch Nan told him never to use and down onto the wet steps under it, and her face says whose fault that is; or he yells for Mrs Q, and Nan comes round the bar to ask what the player wants with her pot-boy's boots; or, out in the room, his yelp turns heads, and in the fireside corner Hobb looks up and sees who's bothering the boy. The boot isn't lost: Cob comes back for his stew, warier, and real trust or Nan's word can still open it.",
+            "onSuccess": "the-rat"
+          },
+          "essential": "prouts-page"
+        },
+        {
+          "id": "nan-vouches",
+          "on": "attempt",
+          "when": "The player asks Nan to tell Cob to show them what's in his boot (or to vouch for them to the boy), giving her a reason, where it could go either way. Paying her for it isn't this. (A reason plainly good for the boy, his name kept out of it and the big man's sort kept off him, needs no dice.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get Nan to tell Cob to show you his boot",
+            "success": "Nan looks at the player for a long moment, then wipes her hands and calls through to the scullery: 'Cob. Here, my duck. Show them your boot.' And because it's Nan, he does, sulking: the left one off, the lining picked open, a folded page held out at arm's length. 'That's Mister Prout's.'",
+            "failure": "Nan says the boy's boots are the boy's business, and that's a rule of the house now if it wasn't before. She keeps Cob by her behind the bar the rest of the night, and an eye on the player. The boy himself might still be won, if he's given real reason.",
+            "onSuccess": "the-rat"
+          },
+          "essential": "prouts-page"
+        },
+        {
+          "id": "page-shown",
+          "on": "outcome",
+          "when": "Prout's page has come out of the lining of Cob's left boot and the player has it in hand or has read it: Cob unpicked it for them or let them (trusting them, for a promise that answered his fear, or on Nan's word), or it came out some other way.",
+          "to": "the-rat",
+          "establishes": [
+            "page-out"
+          ],
+          "given": true,
+          "essential": "prouts-page"
+        },
+        {
+          "id": "bell",
+          "on": "cue",
+          "when": "The player has been in the Rat a long while (at least eight exchanges at this point) without getting anywhere with Hobb, or is idling or going round in circles: the eleventh bell rings across the water, and Hobb gets up to go to work.",
+          "to": "on-his-feet"
+        }
+      ]
+    },
+    "big-hobb": {
+      "title": "The big man by the fire",
+      "text": "beats/big-hobb.md",
+      "routes": [
+        {
+          "id": "hobb-breaks",
+          "on": "outcome",
+          "when": "Hobb has broken and begun to tell what he did or who he does it for (the loft, his master, the Heron), however it came out: a kindness or a trade that answered his fear, a promise he believed, a fright, a trick he swallowed, or something put in front of him that he couldn't deny.",
+          "to": "confession",
+          "establishes": [
+            "hobb-talked"
+          ]
+        },
+        {
+          "id": "heron-learned",
+          "on": "outcome",
+          "when": "The player has learned that Hobb does night work at the Heron warehouse downriver (from Hobb, Nan's gossip, Dilly, the regulars, or the heron on the new pennies).",
+          "to": "big-hobb",
+          "establishes": [
+            "knows-heron"
+          ]
+        },
+        {
+          "id": "win-hobb",
+          "on": "attempt",
+          "when": "The player tries to talk Hobb into telling what he did and who he does it for, with an appeal, an argument, a bargain or a promise of protection, while he's still holding out and it could go either way. (Just asking isn't this; a kindness or a trade that truly answers his fear needs no dice.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 14,
+            "reason": "to get Big Hobb to tell you what he did",
+            "success": "Something gives. Hobb looks at his wrapped hand for a long moment and says, very quietly, 'I only held the rope.' The loft comes out first, haltingly; the rest will come as he's asked.",
+            "failure": "Hobb shakes his head and drinks, and his eyes go to the door: not here, not yet. He heard it, though, and he's closer to leaving.",
+            "onSuccess": "confession",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "scare-hobb",
+          "on": "attempt",
+          "when": "The player tries to frighten Hobb into talking: threats, the noose, the watch, his mum, or looming over him.",
+          "check": {
+            "skill": "intimidation",
+            "dc": 15,
+            "reason": "to frighten Big Hobb into talking",
+            "success": "For a moment the player frightens him more than his master does, and the loft comes out in a terrified rush; the rest will come as he's asked. He won't forget who frightened it out of him.",
+            "failure": "His master frightens him more than anyone in this room. Hobb comes up out of his chair like a wall falling over and makes for the door.",
+            "onSuccess": "confession",
+            "onFailure": "on-his-feet",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "trick-hobb",
+          "on": "attempt",
+          "when": "The player tries to fool Hobb: passing as sent by his master to check he's kept quiet, telling him his master has already sold him to the watch, or some other lie he might swallow.",
+          "check": {
+            "skill": "deception",
+            "dc": 13,
+            "reason": "to fool Big Hobb into giving himself away",
+            "success": "He swallows it whole and, in a panic, blurts out a piece more than they asked for (to prove he's kept faith, or to save his own skin), and he'll answer the next question too.",
+            "failure": "He sees through it, and that's the worst thing it could be: proof that people are asking. He's up out of his chair and making for the door.",
+            "onSuccess": "confession",
+            "onFailure": "on-his-feet",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mum-safe",
+          "on": "attempt",
+          "when": "The player tries to get Hobb's mum kept safe tonight, out of the Master's reach, by asking someone here who could give her that to take her in (Kell, for a night in her own room or at the watch house; Dilly, aboard the Dabchick at the foot of the stairs; Nan, who knows every bolt-hole on the stairs), where it could go either way. (Promising it with nothing behind it isn't this, and nor is the player going across the city themselves before the bell.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get someone to take Hobb's mum in tonight",
+            "success": "Whoever was asked grumbles and gives way: Kell, for one night in her own room, and it goes in the book ('One night. It's written down.'); or Dilly, aboard the Dabchick under the onions, as long as nobody in a uniform sets foot on her; or Nan, who has a word with a widow on the landing who owes her. Someone will fetch her from the Shambles tonight, before the Master thinks to look. Hobb looks from one of them to the other for a long moment, and his shoulders come down: he believes it. If he hasn't told it yet, it starts now, very quietly: 'I only held the rope.'",
+            "failure": "Whoever was asked won't, not like that and not tonight (Kell won't call her room a safe house or keep it from her own notebook; Dilly won't have the watch anywhere near her barge; Nan won't have the gentleman's trouble on her stairs), and Hobb heard the no: he's nearer the door for it. But the need is out in the open now, and the others in the room haven't been asked.",
+            "onSuccess": "confession",
+            "establishes": {
+              "success": [
+                "mum-safe",
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mum-taken-in",
+          "on": "outcome",
+          "when": "Someone here has agreed to take Hobb's mum in tonight, out of the Master's reach (Kell, for a night in her own room; Dilly, aboard the Dabchick; Nan, with the widow on the landing who owes her), and Hobb has heard it. He believes it, and his shoulders come down: if he hasn't told it yet, it starts now, very quietly ('I only held the rope.'), and the rest comes as he's asked.",
+          "to": "confession",
+          "establishes": [
+            "mum-safe",
+            "hobb-talked"
+          ],
+          "given": true
+        },
+        {
+          "id": "arm-wrestle",
+          "on": "attempt",
+          "when": "The player arm-wrestles someone in the Rat (Arlo for the champion's chair, a regular for a wager, or Hobb if he can be got to the table), elbows down and Nan refereeing, where it could go either way.",
+          "check": {
+            "skill": "athletics",
+            "dc": 14,
+            "reason": "to win an arm-wrestle in front of the whole Rat",
+            "success": "Their opponent's knuckles hit the table. The Rat roars, Nan pays out the wagers, and the regulars stop clamming up around whoever just did that. If it was Hobb, the rag tore loose as his arm went over: his right palm is skinned raw in a stripe straight across, like a rope burn, and he hides it at once.",
+            "failure": "Their own knuckles hit the table, and the Rat roars anyway. Their arm will ache till morning, whoever beat them is unbearable about it, and the room has a new story about the sergeant's friend. If it was Hobb, he won through his teeth with the bad hand, and the rag came loose: his palm is skinned raw in a stripe straight across, like a rope burn, and he hides it at once.",
+            "onSuccess": "big-hobb"
+          }
+        },
+        {
+          "id": "bribe-cob",
+          "on": "outcome",
+          "when": "The player offers coin, or more stew, as the price of a look in Cob's boot (to Cob, or to Nan for him), and nothing more (no appeal to what he's afraid of, no promise that answers it): Cob haggles, boasts and takes what's going, but the boot stays on, and Nan won't sell a look in a child's boot either. Bought attention isn't trust. What's really wrong comes out instead, his way: not out here, not with the big cove looking, and what happens to Cob after? (A meal stood him with nothing asked back is a kindness, not this.)",
+          "to": "big-hobb",
+          "towards": "prouts-page"
+        },
+        {
+          "id": "kind-to-cob",
+          "on": "outcome",
+          "when": "The player does Cob a kindness with nothing asked back: stands him his dinner or an extra bowl with no strings, or gives it freely after he's eaten. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, out of the big cove's sight, gets a yes.",
+          "to": "big-hobb",
+          "establishes": [
+            "cob-kindness"
+          ],
+          "towards": "prouts-page"
+        },
+        {
+          "id": "trust-cob",
+          "on": "outcome",
+          "when": "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player asks Cob for a look after giving him real reason to trust them (a kindness with nothing asked back, like his dinner stood him with no strings), or makes him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, the boots his to keep, whatever's in the boot going to the King and not the watch), or he has already told them they can look; or Nan, given a reason plainly good for the boy, tells him to. No dice, however it's put: Cob takes the left boot off and lets them unpick the lining: Prout's page is out.",
+          "to": "big-hobb",
+          "establishes": [
+            "page-out"
+          ],
+          "essential": "prouts-page"
+        },
+        {
+          "id": "coax-cob",
+          "on": "attempt",
+          "when": "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), before Cob has any reason to trust them (no kindness with nothing asked back done him yet tonight, no promise that answers what he's afraid of, no yes from him already), the player asks Cob to show them what crackles in his left boot (taking it off, or letting them unpick the lining), politely and with the boots staying his, or tries to win him round to it by reaching him (an appeal to what he cares about: Mister Prout, the men from the loft, his own skin; or a tale he might swallow), where it could go either way. Paying for a look isn't this. (After a kindness with nothing asked back, for someone he really trusts, for a promise that truly answers what he's afraid of, or once he's said they can look, it needs no dice. Out in the room, under the big cove's eye, he won't, and says so his way: not out here.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 13,
+            "reason": "to get Cob to show you what's in his boot",
+            "success": "Cob looks past them at the scullery door, and the fire beyond it, for a long moment. Then he sits on an upturned pot, unlaces the left boot and picks the lining open with a dirty thumbnail, muttering that if this is a trick Cob'll know. Out comes a page, folded small and gone soft at the corners, and he holds it out like it might bite: 'That's Mister Prout's writing. That's why it crackled.' He can't read it; anyone who can sees a dozen grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'. If he heard the posh cove ask for 'the page' that night, it comes together for him now, and he goes white.",
+            "failure": "Cob won't, and it costs, whichever fits where and how they tried: in the scullery, he's out through the slop hatch Nan told him never to use and down onto the wet steps under it, and her face says whose fault that is; or he yells for Mrs Q, and Nan comes round the bar to ask what the player wants with her pot-boy's boots; or, out in the room, his yelp turns heads, and in the fireside corner Hobb looks up and sees who's bothering the boy. The boot isn't lost: Cob comes back for his stew, warier, and real trust or Nan's word can still open it.",
+            "onSuccess": "big-hobb"
+          },
+          "essential": "prouts-page"
+        },
+        {
+          "id": "nan-vouches",
+          "on": "attempt",
+          "when": "The player asks Nan to tell Cob to show them what's in his boot (or to vouch for them to the boy), giving her a reason, where it could go either way. Paying her for it isn't this. (A reason plainly good for the boy, his name kept out of it and the big man's sort kept off him, needs no dice.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get Nan to tell Cob to show you his boot",
+            "success": "Nan looks at the player for a long moment, then wipes her hands and calls through to the scullery: 'Cob. Here, my duck. Show them your boot.' And because it's Nan, he does, sulking: the left one off, the lining picked open, a folded page held out at arm's length. 'That's Mister Prout's.'",
+            "failure": "Nan says the boy's boots are the boy's business, and that's a rule of the house now if it wasn't before. She keeps Cob by her behind the bar the rest of the night, and an eye on the player. The boy himself might still be won, if he's given real reason.",
+            "onSuccess": "big-hobb"
+          },
+          "essential": "prouts-page"
+        },
+        {
+          "id": "page-shown",
+          "on": "outcome",
+          "when": "Prout's page has come out of the lining of Cob's left boot and the player has it in hand or has read it: Cob unpicked it for them or let them (trusting them, for a promise that answered his fear, or on Nan's word), or it came out some other way.",
+          "to": "big-hobb",
+          "establishes": [
+            "page-out"
+          ],
+          "given": true,
+          "essential": "prouts-page"
+        },
+        {
+          "id": "bell",
+          "on": "cue",
+          "when": "The player has been at Hobb a good while (at least six exchanges at this point) without him breaking, or is going round in circles: the eleventh bell rings across the water, and Hobb gets up to go to work.",
+          "to": "on-his-feet"
+        }
+      ]
+    },
+    "on-his-feet": {
+      "title": "Out of his chair",
+      "text": "beats/on-his-feet.md",
+      "routes": [
+        {
+          "id": "catch-him",
+          "on": "attempt",
+          "when": "Hobb is bolting, and the player goes after him to stop him: a tackle on the stairs, a grab at his coat, a sprint to cut him off.",
+          "check": {
+            "skill": "athletics",
+            "dc": 13,
+            "reason": "to catch Big Hobb before he's gone into the dark",
+            "success": "They bring him down on the wet steps, or pin him against the river wall. He doesn't fight. He sits there in the drizzle like a felled tree, and it starts coming out of him, the loft first.",
+            "failure": "He's faster than he looks and more frightened than they are: up the stairs, through the bunting and gone into the dark.",
+            "onSuccess": "confession",
+            "onFailure": "hobb-fled",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "last-word",
+          "on": "attempt",
+          "when": "Hobb is going to his night's work (not bolting), and the player makes one last real appeal to stop him and get him to tell what he knows, where it could go either way.",
+          "check": {
+            "skill": "persuasion",
+            "dc": 14,
+            "reason": "to stop Big Hobb at the door and get the truth out of him",
+            "success": "Hobb stops with his hand on the door. His shoulders go down. He comes back to the corner, sits, and says, 'I only held the rope.'",
+            "failure": "He shakes his head and says he's sorry, and why, at the door: if he isn't at the river door when the Master comes, the Master will know, and the Master knows where his mum lives. Then he goes out into the dark, down the stairs towards the wharves.",
+            "onSuccess": "confession",
+            "onFailure": "gone-to-work",
+            "establishes": {
+              "success": [
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mum-safe",
+          "on": "attempt",
+          "when": "The player tries to get Hobb's mum kept safe tonight, out of the Master's reach, by asking someone here who could give her that to take her in (Kell, for a night in her own room or at the watch house; Dilly, aboard the Dabchick at the foot of the stairs; Nan, who knows every bolt-hole on the stairs), where it could go either way. (Promising it with nothing behind it isn't this, and nor is the player going across the city themselves before the bell.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get someone to take Hobb's mum in tonight",
+            "success": "Whoever was asked grumbles and gives way: Kell, for one night in her own room, and it goes in the book ('One night. It's written down.'); or Dilly, aboard the Dabchick under the onions, as long as nobody in a uniform sets foot on her; or Nan, who has a word with a widow on the landing who owes her. Someone will fetch her from the Shambles tonight, before the Master thinks to look. Hobb looks from one of them to the other for a long moment, and his shoulders come down: he believes it. If he hasn't told it yet, it starts now, very quietly: 'I only held the rope.'",
+            "failure": "Whoever was asked won't, not like that and not tonight (Kell won't call her room a safe house or keep it from her own notebook; Dilly won't have the watch anywhere near her barge; Nan won't have the gentleman's trouble on her stairs), and Hobb heard the no: he's nearer the door for it. But the need is out in the open now, and the others in the room haven't been asked.",
+            "onSuccess": "confession",
+            "establishes": {
+              "success": [
+                "mum-safe",
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mum-taken-in",
+          "on": "outcome",
+          "when": "Someone here has agreed to take Hobb's mum in tonight, out of the Master's reach (Kell, for a night in her own room; Dilly, aboard the Dabchick; Nan, with the widow on the landing who owes her), and Hobb has heard it. He believes it, and his shoulders come down: if he hasn't told it yet, it starts now, very quietly ('I only held the rope.'), and the rest comes as he's asked.",
+          "to": "confession",
+          "establishes": [
+            "mum-safe",
+            "hobb-talked"
+          ],
+          "given": true
+        },
+        {
+          "id": "hobb-breaks",
+          "on": "outcome",
+          "when": "Hobb, on his feet or in the doorway, has broken and begun to tell what he did or who he does it for (the loft, his master, the Heron), however it came out.",
+          "to": "confession",
+          "establishes": [
+            "hobb-talked"
+          ]
+        },
+        {
+          "id": "sat-down",
+          "on": "outcome",
+          "when": "Hobb has sat back down, or been talked back to his corner, without having told what he knows.",
+          "to": "big-hobb"
+        },
+        {
+          "id": "gone-talked",
+          "on": "outcome",
+          "when": "Hobb has gone out of the Rat to his night's work (not bolting) after owning to some of it (the loft and his part in it, his master, the Heron or his token), and the player has let him go or gone out after him to follow.",
+          "to": "hobb-talks"
+        },
+        {
+          "id": "gone",
+          "on": "outcome",
+          "when": "Hobb has gone out of the Rat to his night's work (not bolting) without having owned to any of it (not the loft, his master or the Heron), and the player has let him go or gone out after him to follow.",
+          "to": "gone-to-work"
+        },
+        {
+          "id": "got-away",
+          "on": "outcome",
+          "when": "Hobb has bolted out of the Rat and away up the stairs into the dark, and nobody went after him, or they've lost him.",
+          "to": "hobb-fled"
+        }
+      ]
+    },
+    "confession": {
+      "title": "I only held the rope",
+      "text": "beats/confession.md",
+      "routes": [
+        {
+          "id": "told-heron",
+          "on": "outcome",
+          "when": "The player asks Hobb where he works, or where he's due at the bell, what goes on there tonight or how a body gets in, or Hobb tells it. No dice: the loft is out, and the rest comes as he's asked. He tells his own part of the night as he knows it: the Heron warehouse, at the downriver end of the wharves, re-sacking ('It's the King's grain, sir. Everyone knows. Nobody says.'); tonight's a loading night, with a barge for Saltmere; he's due on the hoist at the eleventh bell, the gang go in at the river door off the plank walk, showing a brass heron token at its grille, and the Master comes at the midnight bell to see the barge off.",
+          "to": "confession",
+          "establishes": [
+            "knows-heron"
+          ]
+        },
+        {
+          "id": "told-master",
+          "on": "outcome",
+          "when": "The player asks Hobb straight for his master's name (who he is, who he does it for, who 'the Master' is), or Hobb gives it. No dice: the loft is out, and the rest comes as he's asked. It costs him most, so it comes in a whisper, with a look at the door: Master Sallow of the Royal Purveyor's office, who struck the clerk with the head of his cane and used the cord.",
+          "to": "confession",
+          "establishes": [
+            "master-named"
+          ]
+        },
+        {
+          "id": "token-given",
+          "on": "outcome",
+          "when": "The player asks Hobb for his brass river-door token (the heron on the greasy string round his neck), or Hobb hands it over, to the player or to Kell. No dice: it's only brass, and the gang know his face at the grille, so he has no need of it tonight. He pulls it over his head and holds it out: shown at the grille of the Heron's river door, it gets the bolt drawn.",
+          "to": "confession",
+          "establishes": [
+            "token-handed"
+          ]
+        },
+        {
+          "id": "inside-man",
+          "on": "outcome",
+          "when": "The player asks Hobb to be their man inside the Heron tonight (to open the river door to their knock, keep the gang off them, or point out the clerk's book) once his mum is to be kept safe tonight or they've made him a promise that truly answers his fear, or Hobb has agreed to it. No dice: he swallows, nods and says he'll do it, for as long as his nerve holds.",
+          "to": "confession",
+          "establishes": [
+            "hobb-inside"
+          ]
+        },
+        {
+          "id": "turn-hobb",
+          "on": "attempt",
+          "when": "The player tries to talk Hobb into going back into the Heron tonight as their man inside, while his fear of his master could still win: his mum isn't safe yet, and nothing they've promised answers his fear. (Once his mum is to be kept safe tonight, or for a promise that truly answers his fear, it needs no dice: that isn't this.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 14,
+            "reason": "to talk Hobb into being your man inside the Heron",
+            "success": "Hobb swallows, nods and says he'll do it: he'll open the river door to their knock and keep the gang off them, for as long as his nerve holds.",
+            "failure": "He can't. He'll go to work, because not going would tell his master everything, but in there he'll keep his head down and pray; he won't lift a finger for them.",
+            "onSuccess": "confession",
+            "establishes": {
+              "success": [
+                "hobb-inside"
+              ]
+            }
+          }
+        },
+        {
+          "id": "let-him-go",
+          "on": "attempt",
+          "when": "The player is done at the Rat: they leave with what Hobb told them, letting him go to his night's work (or taking him along), without having him arrested.",
+          "to": "hobb-talks"
+        },
+        {
+          "id": "hobb-runs",
+          "on": "outcome",
+          "when": "Hobb's nerve has gone and he's bolting for the door (at the word 'arrest', or at the thought of his master).",
+          "to": "on-his-feet"
+        },
+        {
+          "id": "mum-safe",
+          "on": "attempt",
+          "when": "The player tries to get Hobb's mum kept safe tonight, out of the Master's reach, by asking someone here who could give her that to take her in (Kell, for a night in her own room or at the watch house; Dilly, aboard the Dabchick at the foot of the stairs; Nan, who knows every bolt-hole on the stairs), where it could go either way. (Promising it with nothing behind it isn't this, and nor is the player going across the city themselves before the bell.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get someone to take Hobb's mum in tonight",
+            "success": "Whoever was asked grumbles and gives way: Kell, for one night in her own room, and it goes in the book ('One night. It's written down.'); or Dilly, aboard the Dabchick under the onions, as long as nobody in a uniform sets foot on her; or Nan, who has a word with a widow on the landing who owes her. Someone will fetch her from the Shambles tonight, before the Master thinks to look. Hobb looks from one of them to the other for a long moment, and his shoulders come down: he believes it. If he hasn't told it yet, it starts now, very quietly: 'I only held the rope.'",
+            "failure": "Whoever was asked won't, not like that and not tonight (Kell won't call her room a safe house or keep it from her own notebook; Dilly won't have the watch anywhere near her barge; Nan won't have the gentleman's trouble on her stairs), and Hobb heard the no: he's nearer the door for it. But the need is out in the open now, and the others in the room haven't been asked.",
+            "onSuccess": "confession",
+            "establishes": {
+              "success": [
+                "mum-safe",
+                "hobb-talked"
+              ]
+            }
+          }
+        },
+        {
+          "id": "mum-taken-in",
+          "on": "outcome",
+          "when": "Someone here has agreed to take Hobb's mum in tonight, out of the Master's reach (Kell, for a night in her own room; Dilly, aboard the Dabchick; Nan, with the widow on the landing who owes her), and Hobb has heard it. He believes it, and his shoulders come down: if he hasn't told it yet, it starts now, very quietly ('I only held the rope.'), and the rest comes as he's asked.",
+          "to": "confession",
+          "establishes": [
+            "mum-safe",
+            "hobb-talked"
+          ],
+          "given": true
+        },
+        {
+          "id": "bribe-cob",
+          "on": "outcome",
+          "when": "The player offers coin, or more stew, as the price of a look in Cob's boot (to Cob, or to Nan for him), and nothing more (no appeal to what he's afraid of, no promise that answers it): Cob haggles, boasts and takes what's going, but the boot stays on, and Nan won't sell a look in a child's boot either. Bought attention isn't trust. What's really wrong comes out instead, his way: not out here, not with the big cove looking, and what happens to Cob after? (A meal stood him with nothing asked back is a kindness, not this.)",
+          "to": "confession",
+          "towards": "prouts-page"
+        },
+        {
+          "id": "kind-to-cob",
+          "on": "outcome",
+          "when": "The player does Cob a kindness with nothing asked back: stands him his dinner or an extra bowl with no strings, or gives it freely after he's eaten. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, out of the big cove's sight, gets a yes.",
+          "to": "confession",
+          "establishes": [
+            "cob-kindness"
+          ],
+          "towards": "prouts-page"
+        },
+        {
+          "id": "trust-cob",
+          "on": "outcome",
+          "when": "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), the player asks Cob for a look after giving him real reason to trust them (a kindness with nothing asked back, like his dinner stood him with no strings), or makes him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, the big cove put away where he can't come back for him, the boots his to keep, whatever's in the boot going to the King and not the watch), or he has already told them they can look; or Nan, given a reason plainly good for the boy, tells him to. No dice, however it's put: Cob takes the left boot off and lets them unpick the lining: Prout's page is out.",
+          "to": "confession",
+          "establishes": [
+            "page-out"
+          ],
+          "essential": "prouts-page"
+        },
+        {
+          "id": "coax-cob",
+          "on": "attempt",
+          "when": "Out of the big cove's sight (in the scullery, or anywhere the fireside can't see), before Cob has any reason to trust them (no kindness with nothing asked back done him yet tonight, no promise that answers what he's afraid of, no yes from him already), the player asks Cob to show them what crackles in his left boot (taking it off, or letting them unpick the lining), politely and with the boots staying his, or tries to win him round to it by reaching him (an appeal to what he cares about: Mister Prout, the men from the loft, his own skin; or a tale he might swallow), where it could go either way. Paying for a look isn't this. (After a kindness with nothing asked back, for someone he really trusts, for a promise that truly answers what he's afraid of, or once he's said they can look, it needs no dice. Out in the room, under the big cove's eye, he won't, and says so his way: not out here.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 13,
+            "reason": "to get Cob to show you what's in his boot",
+            "success": "Cob looks past them at the scullery door, and the fire beyond it, for a long moment. Then he sits on an upturned pot, unlaces the left boot and picks the lining open with a dirty thumbnail, muttering that if this is a trick Cob'll know. Out comes a page, folded small and gone soft at the corners, and he holds it out like it might bite: 'That's Mister Prout's writing. That's why it crackled.' He can't read it; anyone who can sees a dozen grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'. If he heard the posh cove ask for 'the page' that night, it comes together for him now, and he goes white.",
+            "failure": "Cob won't, and it costs, whichever fits where and how they tried: in the scullery, he's out through the slop hatch Nan told him never to use and down onto the wet steps under it, and her face says whose fault that is; or he yells for Mrs Q, and Nan comes round the bar to ask what the player wants with her pot-boy's boots; or, out in the room, his yelp turns heads, and in the fireside corner Hobb looks up and sees who's bothering the boy. The boot isn't lost: Cob comes back for his stew, warier, and real trust or Nan's word can still open it.",
+            "onSuccess": "confession"
+          },
+          "essential": "prouts-page"
+        },
+        {
+          "id": "nan-vouches",
+          "on": "attempt",
+          "when": "The player asks Nan to tell Cob to show them what's in his boot (or to vouch for them to the boy), giving her a reason, where it could go either way. Paying her for it isn't this. (A reason plainly good for the boy, his name kept out of it and the big man's sort kept off him, needs no dice.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get Nan to tell Cob to show you his boot",
+            "success": "Nan looks at the player for a long moment, then wipes her hands and calls through to the scullery: 'Cob. Here, my duck. Show them your boot.' And because it's Nan, he does, sulking: the left one off, the lining picked open, a folded page held out at arm's length. 'That's Mister Prout's.'",
+            "failure": "Nan says the boy's boots are the boy's business, and that's a rule of the house now if it wasn't before. She keeps Cob by her behind the bar the rest of the night, and an eye on the player. The boy himself might still be won, if he's given real reason.",
+            "onSuccess": "confession"
+          },
+          "essential": "prouts-page"
+        },
+        {
+          "id": "page-shown",
+          "on": "outcome",
+          "when": "Prout's page has come out of the lining of Cob's left boot and the player has it in hand or has read it: Cob unpicked it for them or let them (trusting them, for a promise that answered his fear, or on Nan's word), or it came out some other way.",
+          "to": "confession",
+          "establishes": [
+            "page-out"
+          ],
+          "given": true,
+          "essential": "prouts-page"
+        },
+        {
+          "id": "bell-talked",
+          "on": "cue",
+          "when": "The player has had Hobb's story a while (at least five exchanges at this point) without deciding what becomes of him: the eleventh bell, and Hobb has to go to work.",
+          "to": "hobb-talks"
+        }
+      ]
+    }
+  },
+  "anytime": [
+    {
+      "id": "taken",
+      "on": "outcome",
+      "when": "Kell has arrested Big Hobb, on evidence she accepts (his own words, a witness to the loft, the rope burn set beside them), and is taking him out of the Rat for the watch-house cells.",
+      "to": "taken-in"
+    },
+    {
+      "id": "brawl",
+      "on": "attempt",
+      "when": "The player starts a real fight in the Rat (throws a punch, goes for someone to hurt them, draws a blade on someone), or breaks a house rule again after Nan's one warning.",
+      "to": "thrown-out"
+    },
+    {
+      "id": "thrown",
+      "on": "outcome",
+      "when": "Nan has put the player out of the Rat with Manners and barred them.",
+      "to": "thrown-out"
+    },
+    {
+      "id": "walk-out",
+      "on": "attempt",
+      "when": "The player leaves the Rat without Hobb and without his story (giving up on him, or going to wait for him outside).",
+      "to": "gone-to-work"
+    }
+  ],
+  "exits": {
+    "hobb-talks": {
+      "kind": "progress",
+      "title": "What Big Hobb knows",
+      "next": "wharf-night",
+      "text": "exits/hobb-talks.md",
+      "effects": []
+    },
+    "taken-in": {
+      "kind": "progress",
+      "title": "Taken in",
+      "next": "wharf-night",
+      "text": "exits/taken-in.md",
+      "effects": []
+    },
+    "hobb-fled": {
+      "kind": "other",
+      "title": "Hobb runs",
+      "next": "wharf-night",
+      "text": "exits/hobb-fled.md",
+      "effects": []
+    },
+    "thrown-out": {
+      "kind": "other",
+      "title": "Manners",
+      "next": "wharf-night",
+      "text": "exits/thrown-out.md",
+      "effects": []
+    },
+    "gone-to-work": {
+      "kind": "leave",
+      "title": "Hobb goes to work",
+      "next": "wharf-night",
+      "text": "exits/gone-to-work.md",
+      "effects": []
+    }
+  },
+  "essentials": {
+    "which-man": {
+      "what": "Which of the Rat's many big men is the one: Big Hobb Mallory in the fireside corner, who keeps his bandaged right hand out of sight and won't arm-wrestle tonight.",
+      "placedWith": [
+        "Hobb himself (the hidden hand, the flinch at the door)",
+        "Arlo's challenge for the champion's chair",
+        "Nan's gossip, a gill",
+        "Cob, who knows him from the loft"
+      ],
+      "carriers": [
+        "arlo",
+        "nan-quill",
+        "cob"
+      ],
+      "unlocks": "working on Hobb"
+    },
+    "heron": {
+      "what": "Hobb does night work for a gentleman at the Heron warehouse, at the downriver end of the wharves, paid in new silver pennies stamped with a heron; tonight's a loading night.",
+      "placedWith": [
+        "Nan's gossip (a half and a pint) and her jar of heron pennies",
+        "Dilly, who has won a pile of those pennies off him",
+        "Cob's pinched penny",
+        "Hobb"
+      ],
+      "carriers": [
+        "nan-quill",
+        "dilly",
+        "cob",
+        "hobb"
+      ],
+      "unlocks": "where the grain goes, and where Hobb goes at the bell"
+    },
+    "way-in": {
+      "what": "How to get into the Heron at night: the river door off the plank walk opens to a brass heron token shown at its grille (Hobb wears one round his neck), and the Master comes at the midnight bell to see a Saltmere barge off.",
+      "placedWith": [
+        "Hobb, once he talks, and the token on the string round his neck"
+      ],
+      "carriers": [
+        "hobb"
+      ],
+      "unlocks": "getting into the Heron tonight, and catching its master at it"
+    },
+    "prouts-page": {
+      "missed": "hanged-clerk:page",
+      "what": "Prout's page, still sewn into the lining of the left boot on Cob's feet: razored from the Royal Granary Roll, a dozen King's Road grain wagons marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and, at the foot, 'Not goblins. Who pays the hedge-folk?'",
+      "placedWith": [
+        "the left boot on Cob's feet, which crackles when he stamps (he thinks that's what good boots do)",
+        "Cob, in the scullery out of the big cove's sight, for someone he trusts or a promise that answers what he's afraid of",
+        "Nan, whose word Cob would take, for a reason plainly good for the boy"
+      ],
+      "carriers": [
+        "cob",
+        "nan-quill"
+      ],
+      "unlocks": "Sallow's countersignature in writing, beside Prout's weights: the motive, and proof the King can hold"
+    }
+  },
+  "afterwards": [],
+  "lore": [
+    "Places/The Drowned Rat.md",
+    "World/Caerwyn now.md"
+  ],
+  "fronts": "World/Fronts.md"
+}
