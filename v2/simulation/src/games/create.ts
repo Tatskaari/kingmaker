@@ -73,6 +73,7 @@ export function createGame(tx: TxCtx, campaign: CampaignRow, sender: Identity, w
   const made = tx.db.game.insert({
     id: 0n, uid: who.uid ?? "new", campaign: file.id, campaignVersion: file.version, title: file.title,
     time: firstSceneTime(tx, campaign, file), day: file.start.day, hostId: 0n, status: "playing", createdAt: tx.now,
+    leadScene: undefined, leadText: undefined, onward: undefined, onwardNote: undefined,
   });
   const game = who.uid ? made : tx.db.game.id.update({ ...made, uid: gameUid(made.id, tx.now, tx.database(), tx.uuid()) });
   const player = tx.db.player.insert({

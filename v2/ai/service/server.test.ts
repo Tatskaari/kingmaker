@@ -5,7 +5,10 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { BackstoriesRequest, BackstoryOp, CharactersRequest, DecideRequest, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse, SettleRequest, SuggestRequest, SuggestResponse } from "../../shared/protocol/ai.ts";
+import type {
+  BackstoriesRequest, BackstoryOp, BoundaryRequest, BoundaryResponse, CharactersRequest, DecideRequest, Entry, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse,
+  SettleRequest, SuggestRequest, SuggestResponse,
+} from "../../shared/protocol/ai.ts";
 import { creationKey } from "../../shared/protocol/keys.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
@@ -459,6 +462,35 @@ test("canned: a reply with nobody of the cast speaking gets no notes", async () 
   const notes: NotesRequest = { key: `${GAME}:s1:t1:notes`, game: decideRequest().game, player: decideRequest().player, turn: scene, reply: { seq: 2, text, speech: [{ start: 19, end: 23, speaker: "you" }], drafted: [] } };
 
   assert.deepEqual((JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse).marks, []);
+});
+
+test("canned, and the pipeline until the boundary's copied: the story goes to the first scene it could, with the prototype's fallback hand-off and the scene's last moments (story-design §4.4)", async () => {
+  for (const endpoints of [canned, pipeline]) {
+    const { ai } = service({ endpoints });
+    await ai.answer(put());
+    const { line: _, ...scene } = decideRequest(3).turn;
+    const transcript: Entry[] = [
+      { turn: 1, speaker: "player:1", kind: "player", text: "Sergeant, who found him?" },
+      { turn: 1, speaker: "gm", kind: "narration", text: "Kell looks up from her notebook." },
+      { turn: 2, speaker: "player:1", kind: "player", text: "Write him down as murdered." },
+      { turn: 2, speaker: "gm", kind: "narration", text: "She writes it down." },
+      { turn: 2, speaker: "system", kind: "system", text: "Scene ends: Murder by persons unknown" },
+    ];
+    const request: BoundaryRequest = {
+      key: `${GAME}:s1:t2:boundary`, game: decideRequest().game, player: decideRequest().player,
+      turn: { ...scene, transcript }, exit: "open-case", candidates: ["drowned-rat", "heron-warehouse", "kings-morning"],
+    };
+    const crossed = JSON.parse((await ai.answer(post("/v1/scenes/boundary", request))).body) as BoundaryResponse;
+
+    assert.match(crossed.handOff, /^Previous scene, "The Hanged Clerk", ended: Murder by persons unknown \(hanged-clerk: open-case\)\. /);
+    assert.deepEqual(crossed.lastMoments, ["Wren Ashdown (player): Sergeant, who found him?", "Kell looks up from her notebook.", "Wren Ashdown (player): Write him down as murdered.", "She writes it down."]);
+    assert.deepEqual(crossed.next, { scene: "drowned-rat", skipped: [], adjustments: [], absent: [], patches: [], hinted: [] });
+    assert.deepEqual([crossed.owed, crossed.fronts, crossed.usage.calls], [[], [], 0]);
+    const nowhere: BoundaryRequest = { ...request, key: `${GAME}:s2:t2:boundary`, candidates: [] };
+    const none = await ai.answer(post("/v1/scenes/boundary", nowhere));
+    assert.equal(none.status, 400, "a boundary with nowhere to go is the sender's mistake: the story's end queues none");
+    assert.match(JSON.parse(none.body).error.message, /candidates/);
+  }
 });
 
 test("a think missing what its endpoint reads is a 400 before any model is asked (the module fails the turn rather than retry it), and nothing is kept", async () => {

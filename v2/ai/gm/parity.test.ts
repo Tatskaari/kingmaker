@@ -362,7 +362,7 @@ function gmOf(s: Session): GmState {
     ...(s.endingLead ? { endingLead: s.endingLead } : {}), ...(s.pendingExit ? { pendingExit: s.pendingExit } : {}), ...(s.closing ? { closing: s.closing } : {}),
     ...(s.sceneStatus ? { sceneStatus: s.sceneStatus } : {}), oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [], ...(s.repeated ? { repeated: s.repeated } : {}),
     canon: s.canon, patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], notes: s.notes, whispers: s.whispers ?? [],
-    notesTurn: null, rulings: [],
+    notesTurn: null, rulings: [], adjustments: [], owed: [], fought: [],
   };
 }
 

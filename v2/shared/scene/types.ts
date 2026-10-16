@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/scene.ts at 44c6d4a, whole; an exit's script is its effects (data), and there's no approach.
+// Copied from the prototype's src/runtime/scene.ts at 44c6d4a, whole; an exit's script is its effects (data), a scene's onEnd its effects on every ending (story-design §4.2), and there's no approach.
 
 import type { Effect } from "./files.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
@@ -245,6 +245,8 @@ export interface Scene {
    * Nothing in it moves the story, and the scene the story is heading for waits until it's over.
    */
   companion?: string;
+  /** Effects of every ending, before the exit's own (v2's: in the prototype, story code in the map module, src/game/map/explore.ts:100-112). */
+  onEnd?: Effect[];
 }
 
 export function beatOrExit(scene: Scene, id: string): { beat?: Beat; exit?: Exit } {

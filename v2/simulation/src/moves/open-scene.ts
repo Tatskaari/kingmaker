@@ -81,6 +81,7 @@ function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, g
   const scene = tx.db.scene.insert({
     id: 0n, gameId: game.id, sceneKey: def.key, title: def.title, hook: def.hook, kind: "scene", placeId: place.placeId,
     status: "opening", controllerId: controller.id, turnId: undefined, turns: 0, exitKey: undefined, rev: 0, openedAt: tx.now, endedAt: undefined,
+    time: graph.time,
   });
 
   tx.db.place.id.update({ ...placeRow(tx, place.placeId), sceneId: scene.id });

@@ -156,9 +156,11 @@ function sceneProblems(file: SceneFile, files: CampaignFiles, pack: CampaignPack
 /** An exit's effect: its condition on a known fact, and the cast or things it names. */
 function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, facts: Record<string, string>): string[] {
   const problems: string[] = [];
-  for (const cond of [effect.if, effect.unless]) if (cond && !(cond.established in facts)) problems.push(`condition on unknown fact ${cond.established}`);
-  if (effect.op === "attitude" || effect.op === "remember") {
+  for (const cond of [effect.if, effect.unless]) for (const fact of cond ? [cond.established].flat() : []) if (!(fact in facts)) problems.push(`condition on unknown fact ${fact}`);
+  if (effect.op === "attitude" || effect.op === "remember" || effect.op === "follow") {
     if (!cast.has(effect.who)) problems.push(`${effect.op} names unknown ${effect.who}`);
+  } else if (effect.op === "promise") {
+    for (const who of [effect.by, effect.to]) if (who !== "$player" && !cast.has(who)) problems.push(`promise names unknown ${who}`);
   } else if (effect.op !== "quest" && effect.op !== "flag" && effect.op !== "journal") {
     for (const k of namedKeys(effect)) if (!keys.has(k)) problems.push(`${effect.op} names unknown ${k}`);
   }

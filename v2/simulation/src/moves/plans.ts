@@ -11,8 +11,12 @@ import type { Transition } from "../../../shared/scene/types.ts";
 /** The scene's and the place's revs when a plan was made. A record, not a guard: the scene's lease is the guard, and a line queued while a turn settles moves the scene's rev on legitimately. */
 export interface Seen { scene: number; place: number }
 
-/** The opening's plan: one think, POST /v1/scenes/open. */
-export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen }
+/**
+ * The opening's plan: one think, POST /v1/scenes/open. With `aftermath` (story-design §4.3), the
+ * scene picking up after a fight on a turn of its own: the think is told how the fight went, and its
+ * commit applies what the stage manager says the aftermath did.
+ */
+export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string } }
 
 /**
  * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
@@ -69,3 +73,11 @@ export interface RememberPlan { step: "remember"; game: string; scene: string; t
  * /v1/turns/repair, its answer a co_gm_result row the next turn's start merges. `n` as remember's.
  */
 export interface RepairPlan { step: "repair"; game: string; scene: string; turn: string; n: number }
+
+/**
+ * A scene's boundary once it has ended (story-design §4.3): one think, POST /v1/scenes/boundary,
+ * keyed by the scene's last turn (`n`), its job the scene's and the game's with no turn. `exit`: the
+ * exit it ended by; `candidates`: candidatesOf's scene keys, in order. Its commit leaves the scene
+ * the answer chose waiting, with what was handed on, or opens it at once (a summons).
+ */
+export interface BoundaryPlan { step: "boundary"; game: string; scene: string; n: number; exit: string; candidates: string[] }
