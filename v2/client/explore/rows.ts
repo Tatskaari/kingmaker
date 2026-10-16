@@ -14,7 +14,7 @@ import { placeRowsOf, type PlaceTables } from "../scene/place-rows.ts";
  * walked from what any client sees, so both sides offer the same ids.
  */
 export interface MapPlaceTables extends Omit<PlaceTables, "sceneKey" | "place"> {
-  place: PlaceTables["place"] & Pick<Place, "mapKey" | "region" | "origin">;
+  place: PlaceTables["place"] & Pick<Place, "sceneId" | "mapKey" | "region" | "origin" | "active">;
 }
 
 /** Everything the explore screen is drawn from, as the bindings have it. */
@@ -73,10 +73,13 @@ const timeOf = (word: string): TimeOfDay => (TIMES.includes(word as TimeOfDay) ?
 export const walkerOf = (rows: Pick<ExploreRows, "game" | "explore">): Explore | undefined => rows.explore.find(e => e.playerId === rows.game.hostId);
 
 /**
- * The rows as shared/map reads them (MapRows): the campaign's map files, the walker's row with its
- * ids as strings, the story (the game's time of day, its lead, the scenes played, oldest first), the
- * game's places on maps with their rows, and the names unheard (my_names' that differ from the
- * entity's own: asHeard's pairs).
+ * The rows as shared/map reads them (MapRows), as the simulation reads them in a move
+ * (simulation/src/map/rows.ts mapRowsOf), so both sides make the same state and offer the same ids:
+ * the campaign's map files, the walker's row with its ids as strings, the story (the game's time of
+ * day, its lead, the scenes played, oldest first), the game's places on their maps now with their
+ * rows (by id), and the cast the player hasn't heard named. A scene is played at the game's time of
+ * day (the simulation reads its scene file's, which the client hasn't: the same, until a story's
+ * clock moves on with V3).
  */
 export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
   const row = walkerOf(rows);
@@ -84,11 +87,11 @@ export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
   const time = timeOf(rows.game.time);
   const maps = rows.maps.map(m => JSON.parse(m.json) as MapFile);
   const played = rows.scenes.filter(s => s.status === "ended").sort((a, b) => (a.id < b.id ? -1 : 1)).map(s => s.sceneKey);
-  const places: MapPlace[] = rows.places.flatMap(p => {
+  const onMaps = onMapsOf(rows);
+  const places: MapPlace[] = onMaps.flatMap(p => {
     const mapKey = p.place.mapKey;
     if (mapKey === undefined) return [];
-    // The place's scene: the latest played there.
-    const scene = rows.scenes.filter(s => s.placeId === p.place.id).sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+    const scene = p.place.sceneId === undefined ? undefined : rows.scenes.find(s => s.id === p.place.sceneId);
     return [{
       key: p.place.key, mapKey, ...(p.place.region !== undefined ? { region: p.place.region } : {}),
       origin: p.place.origin ? { x: p.place.origin.x, y: p.place.origin.y } : { x: 0, y: 0 },
@@ -103,16 +106,26 @@ export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
     quips: row.quips, ...(row.lastQuip !== undefined ? { lastQuip: row.lastQuip } : {}), styles: [...row.styles],
     acts: row.acts, said: row.said, log: [...row.log],
   };
-  return { maps, explore, story: { time, ...(rows.game.leadScene !== undefined ? { lead: rows.game.leadScene } : {}), played }, places, unheard: unheardOf(rows) };
+  return { maps, explore, story: { time, ...(rows.game.leadScene !== undefined ? { lead: rows.game.leadScene } : {}), played }, places, unheard: unheardOf(rows, onMaps) };
 }
 
-/** The cast the player hasn't heard named: each my_names row whose name isn't the entity's own, as asHeard pairs them. */
-function unheardOf(rows: ExploreRows): Unheard {
-  const entities = new Map(rows.places.flatMap(p => p.entity.map(e => [e.id, e] as const)));
-  return rows.names.flatMap(n => {
-    const e = entities.get(n.entityId);
-    return e && n.name !== e.name ? [{ name: e.name, called: n.name }] : [];
-  });
+/** The game's places on their maps now (a mapKey, and active), by id. */
+const onMapsOf = (rows: ExploreRows) => rows.places.filter(p => p.place.mapKey !== undefined && p.place.active).sort((a, b) => (a.place.id < b.place.id ? -1 : 1));
+
+/**
+ * The cast the player hasn't heard named, with what they'd call them (asHeard's pairs), in the
+ * simulation's order: place by place, each entity with a `called` by its order, once a key, unless
+ * my_names gives it its own name (heard).
+ */
+function unheardOf(rows: ExploreRows, places: MapPlaceTables[]): Unheard {
+  const known = new Map(rows.names.map(n => [n.entityId, n.name] as const));
+  const out = new Map<string, { name: string; called: string }>();
+  for (const p of places) {
+    for (const e of [...p.entity].sort((a, b) => a.ord - b.ord)) {
+      if (e.called && known.get(e.id) !== e.name && !out.has(e.key)) out.set(e.key, { name: e.name, called: e.called });
+    }
+  }
+  return [...out.values()];
 }
 
 /**
@@ -133,7 +146,8 @@ export function exploreViewOf(rows: ExploreRows): ExploreView | undefined {
   const host = rows.players.find(p => p.id === rows.game.hostId);
   const sheet = rows.sheets.find(s => s.playerId === rows.game.hostId);
   const watching = rows.me === rows.game.hostId ? undefined : host?.name ?? "Someone else";
-  const lead = rows.game.leadScene === undefined ? undefined : rows.scenes.find(s => s.sceneKey === rows.game.leadScene);
+  // The lead, while it's still ahead: once its scene is played, the story comes to the player from there (V3 moves it on).
+  const lead = rows.game.leadScene === undefined ? undefined : rows.scenes.find(s => s.sceneKey === rows.game.leadScene && s.status !== "ended");
   return {
     game: String(rows.game.id), ex, unheard: map.unheard,
     player: { name: host?.name ?? "", ...(sheet?.statusLine ? { status: sheet.statusLine } : {}), ...(sheet?.build ? { build: sheet.build } : {}), ...(host?.concept ? { concept: host.concept } : {}) },

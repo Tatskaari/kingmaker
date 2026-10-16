@@ -183,12 +183,33 @@ test("a line while a turn is failed: the simulation's words, then the verb that 
   assert.equal(out.printed, "(The GM lost the thread: /retry to carry on.)\nCarry it on: npm run play -- retry --session <name>.\n");
 });
 
-test("new: the opening, then the game's number to watch it by; join: the game as its player sees it, and who has the lead", async () => {
+test("new: on the map in the lane (MODE: explore), then the game's number to watch it by; act takes the map's ids, and talking to Kell opens the scene; join: the game as its player sees it, and who has the lead", async () => {
   const game = demoBackend({ ms: 1 });
   const made = capture();
   assert.equal(await verbs.newGame(game, { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard", build: "wizard" }, made), 0);
-  assert.match(made.printed, /^MODE: scene\n/);
+  assert.match(made.printed, /^MODE: explore\n\nCaerwyn: the granary lane, morning\. You are the @; on this map north is up-left and east is up-right\.\n/);
+  assert.match(made.printed, /\nThe story is heading for The Hanged Clerk: the granary yard, [^\n]*\.\n/);
+  assert.match(made.printed, /\nACTIONS:\n- go_to_lead: Walk to where the story is heading: the granary yard, [^\n]*\n- talk_kell: Talk to Sergeant Kell /);
+  assert.match(made.printed, /- talk_cob: Talk to the boy in the too-big boots /, "the people go by what the player would call them");
   assert.match(made.printed, /Game 3\. Another terminal can watch it: npm run play -- join --session <name> --game 3\n$/);
+
+  // An id not on offer is refused in the game's words; a look is the map's words, and the map again.
+  const nothing = capture();
+  assert.equal(await verbs.act(game, "talk_nobody", nothing), 1);
+  assert.match(nothing.printed, /^\(That isn't there to do from here: look again at what's in sight\.\)\n$/);
+  const looked = capture();
+  assert.equal(await verbs.act(game, "look", looked), 0);
+  assert.match(looked.printed, /^You're in the granary lane, on the cobbles\. [\s\S]*\n\nMODE: explore\n/);
+  assert.equal(game.explore()?.log.at(-1)?.startsWith("You're in the granary lane"), true, "the explore row keeps what was said");
+
+  // Talking to Kell walks over to her and opens the scene: its opening, as new's would be.
+  const talked = capture();
+  assert.equal(await verbs.act(game, "talk_kell", talked), 0);
+  assert.match(talked.printed, /\nMODE: scene\n\n\[The Hanged Clerk, morning\]/);
+  assert.equal(game.explore()?.ex.scene, "hanged-clerk");
+  const busy = capture();
+  assert.equal(await verbs.act(game, "walk_north", busy), 1);
+  assert.match(busy.printed, /^\(You're in the middle of a scene: see it through first\.\)\n$/);
 
   const watched = capture();
   assert.equal(await verbs.joinGame(game, 1n, watched), 0);
@@ -296,7 +317,7 @@ test("new --build 2 --backstory --accept-fixes: the build, each issue fixed and 
   assert.match(out.printed, /^Build 2 of three: human bard 3 \(College of Lore\), sage background\nHuman Bard 3 · College of Lore · Sage\n/);
   assert.match(out.printed, /\nBackstory: "I'm the King's nephew" doesn't fit: King Aldren's family is known to all Caerwyn, and there's no nephew in it\.\n  A fix that keeps its spirit: "I'm a cousin of a minor courtier, twice removed"\n  \(fixed: --accept-fixes\)\nBackstory: with the fixes in, it fits\.\nWho you are: Tamsin Vell, /);
   assert.match(out.printed, /\nGame 3: you are Tamsin Vell\b/);
-  assert.match(out.printed, /\nMODE: scene\n/);
+  assert.match(out.printed, /\nMODE: explore\n\nCaerwyn: the granary lane, morning\./);
 });
 
 test("new with a backstory the lore check doesn't take, and no --accept-fixes: the issue, unchanged, exit 1, the creation kept", async () => {
@@ -343,16 +364,19 @@ test("games, continue, delete, begin, sheet and observe: the title's lines, the 
 
   const begun = capture();
   assert.equal(await verbs.begin(game, begun), 0);
-  assert.match(begun.printed, /^MODE: scene\n/);
+  assert.match(begun.printed, /^MODE: explore\n\nCaerwyn: the granary lane, morning\./);
   assert.equal(await verbs.begin(game, capture()), 1, "already begun");
+  const seen = capture();
+  assert.equal(verbs.observe(game, seen), 0);
+  assert.match(seen.printed, /^MODE: explore\n/, "observe on the map");
 
   const gone = capture();
   assert.equal(await verbs.deleteGame(game, 1n, gone), 0);
   assert.match(gone.printed, /^Game 1 is deleted\.\n\nMODE: title\n\nYour games, the one played last first:\n  Game 2\. /);
   assert.equal(await verbs.deleteGame(game, 1n, capture()), 1, "no such game");
 
-  const seen = capture();
+  const none = capture();
   assert.equal(await verbs.deleteGame(game, 2n, capture()), 0);
-  assert.equal(verbs.observe(game, seen), 0);
-  assert.match(seen.printed, /^MODE: title\n\nYou have no games yet\.\n/);
+  assert.equal(verbs.observe(game, none), 0);
+  assert.match(none.printed, /^MODE: title\n\nYou have no games yet\.\n/);
 });
