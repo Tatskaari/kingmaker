@@ -203,7 +203,7 @@ function usageOf(answer: unknown): Usage {
 /** Its owner no longer waits on it (the scene ended, another turn holds the lease, the creation moved on): the move stops, keeping what was committed. */
 function dropJob(tx: TxCtx, job: JobRow, who: string): void {
   tx.db.job.id.delete(job.id);
-  tx.log(`${who} dropped: ${job.turnId === undefined ? "its creation has moved on" : `scene ${job.sceneId} no longer waits on turn ${job.turnId}`}`);
+  tx.log(`${who} dropped: ${job.turnId !== undefined ? `scene ${job.sceneId} no longer waits on turn ${job.turnId}` : job.sceneId !== undefined ? `scene ${job.sceneId}'s boundary has been crossed` : "its creation has moved on"}`);
 }
 
 /** Try again later: waiting until retryAt (1, 2, 4, 8, then every 15 s), and the owner says so (a turn's job in the background only while the turn waits on it). */
