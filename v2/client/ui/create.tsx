@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/create.tsx at 44c6d4a: the screens read a CreationModel in place of the Game (the flow is the simulation's: client/creation/model.ts), LEVEL is the model's (the campaign's), and nothing is drawn over them (no overlay to wait for). Edits: the creating screen's WRITING lines are busy "traits"; the backstory's "(GM offline)" labels go (the answer says when the GM is offline) and a refusal comes before the row's note; the cards and their own build show a refusal in their note line; the create screen says why the GM's part came to nothing (the row's note, as the prototype's error did), and the creating screen what it waits on, each in two lines; their own build waits for the engine's lists with a spinner; the sheet's r is there only when this creation made the game, and says "Start again" when there were no builds to choose from.
+// Copied from the prototype's src/app/ui/create.tsx at 44c6d4a: the screens read a CreationModel in place of the Game (the flow is the simulation's: client/creation/model.ts), LEVEL is the model's (the campaign's), and nothing is drawn over them (no overlay to wait for). Edits: the creating screen's WRITING lines are busy "traits"; the backstory's "(GM offline)" labels go (the answer says when the GM is offline) and a refusal comes before the row's note; the cards and their own build show a refusal in their note line; the create screen says why the GM's part came to nothing (the row's note, as the prototype's error did), and the creating screen what it waits on; those notes and the backstory's note line take two lines, so the ceiling's words are whole; their own build waits for the engine's lists with a spinner; the sheet's r is there only when this creation made the game, and says "Start again" when there were no builds to choose from.
 import type { KeyEvent, MouseEvent, TextareaRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
@@ -335,8 +335,9 @@ export function BackstoryScreen({ game }: { game: CreationModel }) {
   const tall = height >= 30;
   // Every row is always there (only what's in it changes), and the main box is the same height whatever
   // it shows: OpenTUI leaves a box where it was when a row comes or goes and the screen re-centres.
-  // Besides the main box: the title and who, the prompts, the buttons, the note, the keys, and on a tall screen a row between each part.
-  const fixed = 6 + (tall ? 3 : 0);
+  // Besides the main box: the title and who, the prompts, the buttons, the note's two rows, the keys, and on a tall screen a row between
+  // each part (the note's second row is the one after it: a long note, the ceiling's words say, takes it).
+  const fixed = 7 + (tall ? 2 : 0);
   const mainH = Math.max(6, Math.min(26, height - fixed - (tall ? 2 : 0)));
   // What the lore check says of the issue on show: all of it if there's room, the fix whole before anything else
   // (Accept puts it in), the story above keeping a row of its own; Accept waits when even the fix can't be shown.
@@ -417,9 +418,8 @@ export function BackstoryScreen({ game }: { game: CreationModel }) {
   });
   if (!c) return <box width={width} height={height} backgroundColor={C.bg} />;
   const sub = c.chosen ? `${c.name} · ${c.chosen.line}` : c.name;
-  // A word for the player, one line: the screen's own, a move's refusal (or the model's own word), or the GM's part's.
-  const note = said ?? game.error ?? c.note;
-  const noteLine = note ? (note.length > w - 2 ? `${note.slice(0, w - 3)}…` : note) : "";
+  // A word for the player, in two lines at most: the screen's own, a move's refusal (or the model's own word), or the GM's part's.
+  const note = twoLines(said ?? game.error ?? c.note, w - 2);
   const keys: KeyHint[] = mode === "proposal" || mode === "issue"
     ? [["Enter", choices[choice]!.label.toLowerCase(), choices[choice]!.run], ["Esc", choices[1]!.label.toLowerCase(), choices[1]!.run], ["↑↓", "scroll"]]
     : [["Tab", focus === "box" ? "to the buttons" : "back to writing"], ["Alt+Enter", "done", actions[3]!.run], ["Esc", "back to the builds", back]];
@@ -487,8 +487,7 @@ export function BackstoryScreen({ game }: { game: CreationModel }) {
         : mode === "write" ? actions.map((a, i) => <Button key={a.label} label={a.label} dim={a.dim} on={focus === "buttons" && i === button} onClick={() => { setButton(i); a.run(); }} />)
         : choices.map((a, i) => <Button key={a.label} label={a.label} dim={a.dim} on={i === choice} onClick={a.run} />)}
     </box>
-    <box width={w} height={1} flexShrink={0} alignItems="center"><text fg={said ? C.warn : C.dim} attributes={ITALIC}>{noteLine}</text></box>
-    {gap}
+    <box width={w} height={2} flexShrink={0} flexDirection="column" alignItems="center">{note.map((l, i) => <text key={i} height={1} flexShrink={0} fg={said ? C.warn : C.dim} attributes={ITALIC}>{l}</text>)}</box>
     <box width={w} height={1} flexShrink={0} alignItems="center"><Keys items={fit(keys, width - 2)} /></box>
   </box>;
 }

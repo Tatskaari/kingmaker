@@ -518,6 +518,14 @@ async function smallCases(checks: Array<[string, boolean]>, show: boolean): Prom
     checks.push([`the backstory 80x24: a refusal on the note line, before the row's own note`, refused.includes("(The GM is still working on it.)") && noted.includes("The GM couldn't be reached: HTTP 503.")]);
     await s.setup.dispose();
   }
+  // A long note whole, in two lines: the ceiling's words, what to do included, at the walk-through's sizes.
+  for (const room of [[80, 24], [100, 30]] as const) {
+    const s = await open(writing({ note: CEILING }), "creation", room);
+    const frame = await s.settle();
+    if (show) console.log(`backstory, the ceiling ${label(room)}\n${frame}`);
+    checks.push([`the backstory ${label(room)}: a long note whole, in two lines (the ceiling's words)`, flat(frame).includes(CEILING) && frame.includes("Draft one") && frame.includes("Esc back to the builds")]);
+    await s.setup.dispose();
+  }
   // The cards when the GM couldn't be reached: why, in two lines at 80 columns (what it means first).
   {
     const offer = { ...OFFER, note: "The GM couldn't be reached, so here are three from the class defaults that best match your words (OpenRouter rules.builds HTTP 401: {\"error\":{\"message\":\"No auth credentials found\",\"code\":401}})." };
