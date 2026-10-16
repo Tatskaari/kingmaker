@@ -102,8 +102,8 @@ export function aiService(options: ServiceOptions): AiService {
   async function think(endpoint: Endpoint, request: AiHttpRequest): Promise<AiHttpResponse> {
     const body = parsed(request.body);
     const { key, parts } = checkedKey(body, endpoint, request.headers[HEADERS.idempotencyKey]);
-    // A scene's request is checked here; a creation's endpoints check their own (endpoints/characters.ts, backstories.ts).
-    if (isTurnKey(parts)) checkRequest(parts.step, body);
+    // What its endpoint reads, before a kept answer or the ceiling is looked at: a request it can't read is a 400 whatever the day's spend.
+    checkRequest(parts.step, body);
     const step = parts.step;
     const attempt = Number(request.headers[HEADERS.attempt]) || 1;
     const campaign = options.campaigns.use(body.game.campaign, body.game.version);

@@ -598,6 +598,7 @@ V1 keeps to this blueprint, but for these departures, each with its reason. The 
 | `threeBuilds` as the prototype's | The three made one at a time, a turn of the event loop between | The engine is synchronous in the service: three cold builds held the event loop about 360 ms, which would stall other games' streams |
 | The ceiling stops a think that may call a model | Never the canned GM, nor `own`'s step; a 402 stores nothing for its key | They call no model; `/retry` after the ceiling is raised should run anew |
 | `Health.budget` | Always present | So the doctor and the dev host can read it |
+| A creation's endpoints check their requests (§3.7) | `service/requests.ts` checks them with a scene's, before a kept answer or the ceiling is looked at; the endpoints take their ask or op from the same check | Past the ceiling, a creation's request it couldn't read was a 402 in the budget's words, a scene's a 400 |
 | The engine loads on the first `/v1/characters` | The shim too | `hosts/local.ts` runs the pipeline beside `spacetimedb` in one process |
 | A campaign PUT is V0's | It checks `creation` (each place's words a regular expression), else 400 | A broken block would otherwise surface only as a 500 at the first lore check |
 | A ceiling's words: "($5.00)" | To the hundredth of a cent below a cent ("$0.0010") | `KM_AI_DAILY_USD=0.001` read as "$0.00" |

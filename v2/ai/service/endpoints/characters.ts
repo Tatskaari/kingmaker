@@ -2,9 +2,9 @@ import type { Ask } from "../../llm/openrouter.ts";
 import { pickBuild, threeBuilds } from "../../rules/builds.ts";
 import { rulesEngine } from "../../rules/load.ts";
 import type { CharactersRequest, CharactersResponse } from "../../../shared/protocol/ai.ts";
-import { keyParts, type CreationStep } from "../../../shared/protocol/keys.ts";
 import { ownBuild, srdLists, type OwnPicks, type Rules } from "../../../shared/rules/index.ts";
-import { Failure, type AiContext, type Handler } from "../context.ts";
+import type { AiContext, Handler } from "../context.ts";
+import { charactersAsk } from "../requests.ts";
 
 /**
  * POST /v1/characters (v1-design §3.7): character creation's builds, each made legal by the rules
@@ -16,7 +16,7 @@ import { Failure, type AiContext, type Handler } from "../context.ts";
  */
 export function characters(askOf: (ctx: AiContext) => Ask | null): Handler<CharactersRequest, CharactersResponse> {
   return async (req, ctx) => {
-    const ask = checked(req);
+    const ask = charactersAsk(req);
     const rules = await rulesEngine();
     const { name, concept } = req.who;
 
@@ -39,22 +39,3 @@ function own(rules: Rules, picks: OwnPicks, level: number, name: string): Omit<C
     return { refusal: error instanceof Error ? error.message : String(error), lists };
   }
 }
-
-/** Which ask each step's key is for. */
-const STEP_ASK: Partial<Record<CreationStep, CharactersRequest["ask"]["kind"]>> = { offer: "three", pick: "one", own: "own" };
-
-/** The request's ask, or a 400 for a request the service can't read, or an ask that isn't its key's step's (the server let only this endpoint's steps through). */
-function checked(req: CharactersRequest): CharactersRequest["ask"] {
-  const step = keyParts(req.key)?.step as CreationStep;
-  const missing = [
-    !(typeof req.who?.name === "string" && req.who.name.trim()) && "who.name",
-    typeof req.who?.concept !== "string" && "who.concept",
-    !(Number.isInteger(req.level) && req.level >= 1 && req.level <= 20) && "a level from 1 to 20",
-    req.ask?.kind === "own" && !picksRead(req.ask.picks) && "own's picks { speciesId, classId, subclassId?, backgroundId }",
-  ].filter(Boolean);
-  if (missing.length) throw new Failure(400, "bad_request", `the request is missing ${missing.join(", ")}`);
-  if (STEP_ASK[step] !== req.ask?.kind) throw new Failure(400, "bad_request", `the ask is ${JSON.stringify(req.ask?.kind)}, not the key's step's (${step}: ${STEP_ASK[step]})`);
-  return req.ask;
-}
-
-const picksRead = (p: OwnPicks | undefined) => !!p && [p.speciesId, p.classId, p.backgroundId].every(id => typeof id === "string") && (p.subclassId === undefined || typeof p.subclassId === "string");

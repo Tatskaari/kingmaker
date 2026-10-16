@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { BackstoriesRequest, BackstoryOp, DecideRequest, OpenRequest, ReplyRequest, SettleRequest } from "../../shared/protocol/ai.ts";
+import type { BackstoriesRequest, BackstoryOp, CharactersRequest, DecideRequest, OpenRequest, ReplyRequest, SettleRequest } from "../../shared/protocol/ai.ts";
 import { creationKey } from "../../shared/protocol/keys.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
@@ -100,6 +100,11 @@ function without<T extends { key: string }>(request: T, path: string): T {
 const UID = "6a1b2c3d-0000-4000-8000-0000000000c1";
 function backstoriesRequest(op: BackstoryOp = "draft", rev = 1): BackstoriesRequest {
   return { key: creationKey(UID, rev, op), game: { id: UID, campaign: "caerwyn", version: "0.1.0" }, op, who: { name: "Tamsin Vell", concept: "a disgraced palace auditor", build: "halfling rogue 3 (Thief), criminal background" }, text: op === "draft" ? "" : "I owe Fat Jory three crowns." };
+}
+
+/** A creation's three builds, as the simulation asks for them (with any part changed, as a sender with a bug might send it). */
+function charactersRequest(changes: Partial<CharactersRequest> = {}): CharactersRequest {
+  return { key: creationKey(UID, 2, "offer"), game: { id: UID, campaign: "caerwyn", version: "0.1.0" }, who: { name: "Tamsin Vell", concept: "a disgraced palace auditor" }, level: 3, ask: { kind: "three" }, ...changes };
 }
 
 function post(path: string, body: { key: string }, headers: Record<string, string> = {}): AiHttpRequest {
@@ -238,7 +243,7 @@ test("a key is for its step's endpoint: a creation's step at a scene's endpoint,
   assert.equal(await code(post("/v1/backstories", decideRequest())), "400 bad_request");
   assert.equal(await code(post("/v1/backstories", { ...backstoriesRequest("check"), op: "draft" } as BackstoriesRequest)), "400 bad_request");
   assert.equal(await code(post("/v1/backstories", { ...backstoriesRequest("work"), who: { concept: "nobody" } } as unknown as BackstoriesRequest)), "400 bad_request");
-  assert.deepEqual(ran, ["backstories", "backstories"], "the op and who are the endpoint's to check: the key's step was the server's");
+  assert.deepEqual(ran, [], "the op and who are checked before the endpoint runs, as a scene's request is");
 });
 
 test("exit-after-store names a creation's step too", async () => {
@@ -251,16 +256,22 @@ test("exit-after-store names a creation's step too", async () => {
   assert.ok(await stores.answers.get(backstoriesRequest("traits").key));
 });
 
-test("past the daily ceiling, a think that would call a model is 402 over_budget before it runs, in the words the game shows", async () => {
+test("past the daily ceiling, a think that would call a model is 402 over_budget before it runs, in the words the game shows; one it can't read is still a 400", async () => {
   const { ai, stores, ran } = service({ serves: { model: "fake", gm: "pipeline" }, dailyUsd: 5 });
   await ai.answer(put());
   stores.ledger.append({ at: new Date().toISOString(), operation: "gm.reply", costUsd: 5 });
   const decided = await ai.answer(post("/v1/turns/decide", decideRequest()));
   const drafted = await ai.answer(post("/v1/backstories", backstoriesRequest("draft")));
+  const unread = [
+    await ai.answer(post("/v1/turns/decide", without(decideRequest(2), "turn.line"))),
+    await ai.answer(post("/v1/backstories", { ...backstoriesRequest("work"), who: { concept: "nobody" } } as unknown as BackstoriesRequest)),
+    await ai.answer(post("/v1/characters", charactersRequest({ level: 0 }))),
+  ];
 
   assert.equal(decided.status, 402);
   assert.deepEqual(JSON.parse(decided.body), { error: { code: "over_budget", message: "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD." } });
   assert.equal(drafted.status, 402);
+  assert.deepEqual(unread.map(r => `${r.status} ${JSON.parse(r.body).error.code}`), Array(3).fill("400 bad_request"), "a scene's and a creation's alike");
   assert.deepEqual(ran, [], "no endpoint ran");
   assert.equal(await stores.answers.get(decideRequest().key), undefined, "nothing kept: the move fails, and /retry asks again");
 });
