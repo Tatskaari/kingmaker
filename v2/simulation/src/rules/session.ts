@@ -42,7 +42,7 @@ export function sessionOf(tx: TxCtx, player: PlayerRow, world?: SceneWorld): Rul
   const state = tx.db.rulesState.playerId.find(player.id) ?? undefined;
   const backstory = sheet?.backstory ? (JSON.parse(sheet.backstory) as Backstory) : undefined;
   return {
-    id: gameRow(tx, player.gameId).uid, seed: dice.seed, rollCount: dice.rolls,
+    id: gameRow(tx, player.gameId).uid, seed: dice.seed, rollCount: dice.rolls, turn: 0,
     player: {
       name: player.name, concept: player.concept, modifiers: sheet ? (JSON.parse(sheet.skills) as Partial<Record<Skill, number>>) : {},
       ...(sheet ? { build: sheet.build } : {}), ...(backstory ? { backstory } : {}),
@@ -57,7 +57,10 @@ export function sessionOf(tx: TxCtx, player: PlayerRow, world?: SceneWorld): Rul
 export function insertCharacter(tx: TxCtx, player: PlayerRow, session: RulesSession, rules: Rules, pockets: Pockets): void {
   const state = session.rules;
   if (!state) throw new Error(`player ${player.id}'s character wasn't made`);
-  tx.db.rulesState.insert({ playerId: player.id, gameId: player.gameId, pc: state.pc, campaign: state.campaign, prefer: state.prefer ?? [], gear: (state.gear ?? []).map(gearRow), gone: state.gone ?? [] });
+  tx.db.rulesState.insert({
+    playerId: player.id, gameId: player.gameId, pc: state.pc, campaign: state.campaign, prefer: state.prefer ?? [], gear: (state.gear ?? []).map(gearRow), gone: state.gone ?? [],
+    npcs: JSON.stringify(state.npcs ?? {}), timed: state.timed ?? false, rage: state.rage,
+  });
   tx.db.sheet.insert({ playerId: player.id, gameId: player.gameId, ...sheetRows(rules, session), pockets: JSON.stringify(pockets) });
 }
 
@@ -107,7 +110,7 @@ function diceOf(tx: TxCtx, gameId: bigint): RowOf<"dice"> {
 
 /** A session with only what pocketsOf reads (the world, what was carried, the scenes played): no rows but the player's. */
 const lightSession = (tx: TxCtx, player: PlayerRow): RulesSession => ({
-  id: gameRow(tx, player.gameId).uid, seed: 0, rollCount: 0, player: { name: player.name, concept: player.concept, modifiers: {} }, history: [],
+  id: gameRow(tx, player.gameId).uid, seed: 0, rollCount: 0, turn: 0, player: { name: player.name, concept: player.concept, modifiers: {} }, history: [],
 });
 
 /** A gear row as the table takes it: an option column's key always there. */

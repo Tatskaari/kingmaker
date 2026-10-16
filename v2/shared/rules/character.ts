@@ -446,6 +446,8 @@ export function sheetRows(rules: Rules, state: RulesSession): SheetRows {
     features: featuresOf(ctx, id),
     data: JSON.stringify(data),
     backstory: storyOf(state).story ? JSON.stringify(state.player.backstory) : undefined,
+    // The world bridge's rules work out what each spell reaches (acts.ts spellFactsOf); until then, none.
+    spellFacts: "",
   };
 }
 

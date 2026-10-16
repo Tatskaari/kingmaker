@@ -15,6 +15,8 @@ function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
       ending_lead: null, pending_exit: null, closing: null, ended: null, scene_status: null, ooc_turns: [], pressure_offered: [], repeated: null,
       // The full GM's columns as a V1 database has them once migrated: their defaults.
       canon: [], patches: "[]", notes: null, notes_turn: null, whispers: [], last_repair_turn: null, off_graph_turn: null, rulings: [],
+      // The world bridge's, likewise.
+      threat: null, held: null, brawl: null, absent: [],
       ...gm,
     },
     turns: [

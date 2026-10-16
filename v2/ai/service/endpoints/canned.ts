@@ -15,8 +15,9 @@ import { characters } from "./characters.ts";
  * end before, or without, the GM, and for telling the plumbing's faults from the GM's. The opening
  * and each reply stream a word at a time, as a model's would, so the draft grows on every screen, and
  * someone of the cast says a line in each, so the screen has a speaker to colour and the notes a line
- * to go on. Nothing moves the scene: no route is taken, nothing lands, no ending comes, and the GM
- * rules on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
+ * to go on. Nothing moves the scene: no route is taken, nothing lands, no ending comes, the rules
+ * resolve no act (so nobody reacts: reactions asked for anyway come back with none), and the GM rules
+ * on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
  * The notes put one why on the first line someone of the cast says, linked to them, with their card;
  * the suggested lines are the same four every time. After a turn, nobody remembers anything, and the
  * co-GM finds the scene on track, with no notes. Character creation gets the prototype's offline
@@ -33,6 +34,9 @@ export const canned: Endpoints = {
   },
   async decide() {
     return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: noUsage() };
+  },
+  async reactions() {
+    return { reactions: {}, usage: noUsage() };
   },
   async consider() {
     return { error: "the canned GM rules on nothing (no model was asked)", ms: 0, usage: noUsage() };

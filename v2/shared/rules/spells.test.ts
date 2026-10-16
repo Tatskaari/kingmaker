@@ -121,7 +121,7 @@ test("a caster's sheet gives each spell's card their own save DC and attack bonu
     ["wizard", 3, 13, 5, "fire-bolt", "burning-hands"], ["wizard", 4, 14, 6, "fire-bolt", "burning-hands"], ["wizard", 5, 15, 7, "scorching-ray", "fireball"],
     ["cleric", 5, 15, 7, "guiding-bolt", "sacred-flame"],
   ] as const) {
-    const session: RulesSession = { id: `${id}-${level}`, seed: 4, rollCount: 0, player: { name: "Pell Marrow", concept: "", modifiers: {} } };
+    const session: RulesSession = { id: `${id}-${level}`, seed: 4, rollCount: 0, turn: 0, player: { name: "Pell Marrow", concept: "", modifiers: {} } };
     createCharacter(rules, session, level, builds[id]!.build);
     const sc = sheetData(rules, session)!.spellcasting!;
     assert.deepEqual([sc.saveDC, sc.attackBonus], [dc, bonus], `${id} ${level}: the sheet`);
