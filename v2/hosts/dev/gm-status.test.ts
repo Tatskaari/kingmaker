@@ -37,6 +37,7 @@ test("a V1 game: the prototype's fields, and the full GM's there and empty", () 
     beat: "yard", turnsInBeat: 2, path: [], ended: null,
     notes: null, notesTurn: null, whispers: [], canon: [], established: [], patches: [], rulings: [], landed: [], hinted: [],
     sceneStatus: null, offGraphTurn: null, lastRepairTurn: null, opened: [],
+    threat: null, held: null, brawl: null, absent: [],
     repairs: [], memoryReviews: [], jobs: [],
     latency: { avgFirstTextMs: 4000, consideredTurns: 0, avgConsiderMs: 0 },
     costUsd: "0.00460",
@@ -80,6 +81,16 @@ test("the co-GM's steering, the rulings and the reviews, summarised as the proto
   assert.deepEqual(status.memoryReviews, ["1: witnessed, conversational_exchange — memory cob: The coin", "2: nothing flagged", "3: improvised_detail [lore failed: tool limit reached]"]);
   assert.deepEqual(status.jobs, ["remember/remember: waiting, attempt 2 (503 from the AI service)", "repair/repair: running"]);
   assert.deepEqual(status.latency, { avgFirstTextMs: 4000, consideredTurns: 1, avgConsiderMs: 4200 });
+});
+
+test("the world bridge's: a blow left hanging, a hold, a fight that broke out, and who left", () => {
+  const status = statusOf(rows({
+    threat: { kind: "attack", by: "kell", hazard: null, severity: null, turn: 3 }, held: 3,
+    brawl: { turn: 3, cause: "attacked Sergeant Agnes Kell with a quarterstaff", against: ["kell"], allies: [], fled: ["cob"] }, absent: ["cob"],
+  }));
+  assert.deepEqual([status.threat, status.held, status.brawl, status.absent], ["3: an attack by kell", 3, "3: attacked Sergeant Agnes Kell with a quarterstaff; against kell; fled cob", ["cob"]]);
+  const hazard = statusOf(rows({ threat: { kind: "hazard", by: null, hazard: "fire", severity: "serious", turn: 4 } }));
+  assert.equal(hazard.threat, "4: fire, serious");
 });
 
 test("an ended scene's review that never merged says so", () => {

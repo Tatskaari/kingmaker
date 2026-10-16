@@ -11,14 +11,16 @@ import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
 import { aConceptToTheOpening, checksBesideAStream, continueAndDelete, creationFake, restartedMidBuilds, theCeiling, type Game } from "./e2e/creation.ts";
 import { aConsideredAct, aMemory, theCoGmSteers, walkingOut } from "./e2e/gm.ts";
+import { aBlowLeftHanging, beforeTheGmSpeaks, fireBurnsOn, keptReactions, rowForRow } from "./e2e/world.ts";
 import {
   aiLog as aiLogIn, callLog as callLogOf, check, doneTurn, elapsed, escaped, Failed, millis, modelCalls as modelCallsOf, moduleLog, nextTurn, ok, pause,
   player, restartAi, seconds, step, turnOf, until, type Player,
 } from "./e2e/kit.ts";
 
 /**
- * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3, full-gm-design §4.4): a line
- * in a scene, a character made from a concept, and the full GM, through every part. A real SpacetimeDB with the module, the AI
+ * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3, full-gm-design §4.4,
+ * world-bridge-design §3.4): a line in a scene, a character made from a concept, the full GM, and
+ * spells and blows in the scene's world, through every part. A real SpacetimeDB with the module, the AI
  * service as a node process on the fake model, and clients on the client's own connection,
  * recording every row event they see. V0's steps: the AI service killed mid-reply and restarted
  * mid-reply (as the dev host's k and r), the AI service gone after it kept an answer, SpacetimeDB
@@ -30,7 +32,10 @@ import {
  * while the builds are made, a character made and checks rolled beside another game's stream, the
  * daily ceiling, continue and delete. The full GM's (e2e/gm.ts): a memory kept and brought back, the
  * co-GM steering, a risky act ruled (and the plain check when the ruling is too slow), and walking out
- * of the place. Host mode in CI; namespace mode where 11.0.0.1 isn't this machine's.
+ * of the place. The world bridge's (e2e/world.ts): a spell resolved before the GM speaks and the
+ * people who saw it reacting, a blow left hanging landing first next turn, fire burning on, the AI
+ * service gone after it kept the reactions, and the spectator's world row for row the lead's. Host
+ * mode in CI; namespace mode where 11.0.0.1 isn't this machine's.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -66,7 +71,7 @@ const REPLIED = ["settling", "noting", "done"];
 
 const flags = flagsOf(process.argv.slice(2));
 
-console.log(`The e2e: a line in a scene, its reply as drawn, a character made, and the full GM, end to end (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
+console.log(`The e2e: a line in a scene, its reply as drawn, a character made, the full GM, and spells and blows in the world, end to end (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
 const stack = await startStack({
   root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
   // The ceiling pinned at its default, whatever this shell says: step 20 spends past it.
@@ -106,6 +111,12 @@ try {
   await theCoGmSteers(stack, flags.root, a, remembered);
   const ruled = await aConsideredAct(stack, flags.root, a, b, FAKE);
   await walkingOut(stack, a, b, ruled, FAKE);
+
+  const world = await beforeTheGmSpeaks(stack, flags.root, a, b, FAKE);
+  await aBlowLeftHanging(stack, a, world, FAKE);
+  await fireBurnsOn(stack, a, world, FAKE);
+  await keptReactions(stack, flags.root, a, world, FAKE);
+  await rowForRow(stack, a, b, world);
   await latencies(stack, a);
 
   a.conn.close();
@@ -122,7 +133,7 @@ console.log(passed ? `\nPASS: every step, in ${elapsed()}` : "\nFAIL");
 process.exit(passed ? 0 : 1);
 
 // ---------------------------------------------------------------------------------------------
-// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, and the full GM's, 22 to 25, e2e/gm.ts's.
+// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the full GM's, 22 to 25, e2e/gm.ts's, and the world bridge's, 26 to 30, e2e/world.ts's.
 
 /** 1. The stack is up (--fresh); the campaign goes into both; the doctor finds all well. */
 async function installedAndWell(stack: Stack): Promise<void> {
@@ -419,9 +430,9 @@ async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise
   ok("B saw it end too");
 }
 
-/** 26. Each turn's first words and its end, from the turn rows, game by game; its notes and lines after the reply, as A saw them come (A's games). */
+/** 31. Each turn's first words and its end, from the turn rows, game by game; its notes and lines after the reply, as A saw them come (A's games). */
 async function latencies(stack: Stack, a: Player): Promise<void> {
-  step("26. Each turn's times: first words and its end (the turn rows), its notes and lines after the reply (as A saw them)");
+  step("31. Each turn's times: first words and its end (the turn rows), its notes and lines after the reply (as A saw them)");
   const turns = (await stack.sql("SELECT * FROM turn")).sort((x, y) => Number(x.game_id) - Number(y.game_id) || Number(x.n) - Number(y.n));
   for (const t of turns) {
     const from = Number(t.started_at);

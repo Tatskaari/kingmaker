@@ -7,7 +7,8 @@ import { gmFromRow, type GmRow, type GmState, type ScenePatch } from "../../shar
 
 /**
  * The GM's side of a game, as `npm run status` prints it (full-gm-design §4.4): the prototype's
- * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, rulings),
+ * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, rulings, and
+ * the world bridge's threat, hold, brawl and who left),
  * its co-GM reviews from co_gm_result (`repairs`), and what the prototype kept in files: the memory
  * reviews (the AI service's memory-reviews.jsonl) and the notes they wrote (`--memories`, as
  * `scene memories` prints them). Pure: hosts/status.ts reads the rows and the files.
@@ -90,6 +91,11 @@ function gmFields(gm: GmState): Record<string, unknown> {
     landed: gm.landed, hinted: gm.hinted,
     sceneStatus: gm.sceneStatus ?? null, offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
     opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),
+    // The world bridge's (world-bridge-design §3.3): what the last reply left hanging, a hold on the player, a fight that broke out, and who left.
+    threat: gm.threat ? `${gm.threat.turn}: ${gm.threat.kind === "attack" ? `an attack by ${gm.threat.by}` : `${gm.threat.hazard}, ${gm.threat.severity}`}` : null,
+    held: gm.held ?? null,
+    brawl: gm.brawl ? `${gm.brawl.turn}: ${gm.brawl.cause}; against ${gm.brawl.against.join(", ") || "nobody"}${gm.brawl.allies.length ? `; with ${gm.brawl.allies.join(", ")}` : ""}${gm.brawl.fled.length ? `; fled ${gm.brawl.fled.join(", ")}` : ""}` : null,
+    absent: gm.absent,
   };
 }
 
