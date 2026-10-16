@@ -133,10 +133,10 @@ function handOut(world: SceneWorld, playerName: string, start: Start): void {
   giveGear(world, playerName, start.gear);
 }
 
-/** The player's character out of a world, and whatever they hold. */
+/** The player's character out of a world, and whatever they hold (through bags: positionOf's twelve holders at most). */
 function withoutPlayer(world: SceneWorld): void {
-  const theirs = (id: string | null): boolean => id === "player" || (!!id && !!world.entities[id] && theirs(world.entities[id]!.parent));
-  for (const id of Object.keys(world.entities).filter(theirs)) delete world.entities[id];
+  const theirs = (id: string | null, depth = 0): boolean => id === "player" || (!!id && depth < 12 && theirs(world.entities[id]?.parent ?? null, depth + 1));
+  for (const id of Object.keys(world.entities).filter(id => theirs(id))) delete world.entities[id];
 }
 
 /** Rows whose entities are numbered (entity.ord) in the world's order, as worldToRows numbers a world it builds afresh. */

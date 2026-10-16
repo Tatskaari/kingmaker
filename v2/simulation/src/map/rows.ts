@@ -1,13 +1,12 @@
-import { useMaps } from "../../../shared/map/maps.ts";
+import { getMap, useMaps } from "../../../shared/map/maps.ts";
 import type { ExploreRow, MapPlace, MapRows } from "../../../shared/map/rows.ts";
-import { getMap } from "../../../shared/map/maps.ts";
 import type { MapFile } from "../../../shared/map/tiles.ts";
 import type { Unheard } from "../../../shared/map/town.ts";
 import type { Tile2 } from "../../../shared/map/types.ts";
 import { idText } from "../../../shared/protocol/keys.ts";
 import type { TimeOfDay } from "../../../shared/scene/files.ts";
 import type { TxCtx } from "../context.ts";
-import { placeRow, type GameRow, type PlaceRow, type RowOf, type SceneRow } from "../rows.ts";
+import type { GameRow, PlaceRow, RowOf, SceneRow } from "../rows.ts";
 import { gameCampaignId, sceneDefOf, sceneFileOf } from "../scenes.ts";
 import { placeRows } from "../world/rows-io.ts";
 
@@ -39,7 +38,7 @@ export function mapRowsOf(tx: TxCtx, game: GameRow, walker: ExploreTableRow): Ma
     maps: mapFilesOf(tx, game),
     explore: exploreRowFrom(walker),
     story: { time: game.time as TimeOfDay, ...(game.leadScene ? { lead: game.leadScene } : {}), played: scenes.filter(s => s.status === "ended").map(s => s.sceneKey) },
-    places: places.map(p => mapPlaceOf(tx, game, p, scenes)),
+    places: places.map(p => placeOnMap(tx, game, p, scenes)),
     unheard: unheardOf(tx, game, places),
   };
 }
@@ -73,13 +72,21 @@ export function writeExplore(tx: TxCtx, r: ExploreRow): void {
 
 /**
  * A map's own place in a game (map:caerwyn), made the first time anyone's on that map: the place the
- * seats are in while they're on it, with no world of its own yet (the town's people and things are
- * the map's: presence.ts and its legend make them from the time of day, on both sides).
+ * seats are in while they're on it, with no world of its own yet (rootId 0, no entities: the town's
+ * people and things are the map's, which presence.ts and its legend make from the time of day, on
+ * both sides).
  */
-export function mapPlaceOf(tx: TxCtx, game: GameRow, mapKey: string): PlaceRow;
-export function mapPlaceOf(tx: TxCtx, game: GameRow, place: PlaceRow, scenes: SceneRow[]): MapPlace;
-export function mapPlaceOf(tx: TxCtx, game: GameRow, of: string | PlaceRow, scenes?: SceneRow[]): PlaceRow | MapPlace {
-  return typeof of === "string" ? townPlace(tx, game, of) : placeOnMap(tx, game, of, scenes!);
+export function mapPlaceOf(tx: TxCtx, game: GameRow, mapKey: string): PlaceRow {
+  const key = mapPlaceKey(mapKey);
+  const there = [...tx.db.place.gameId.filter(game.id)].find(p => p.key === key);
+  if (there) return there;
+
+  useMaps(mapFilesOf(tx, game));
+  const map = getMap(mapKey);
+  return tx.db.place.insert({
+    id: 0n, gameId: game.id, key, name: map.name, rootId: 0n, sizeW: map.width * FEET_PER_TILE, sizeH: map.height * FEET_PER_TILE, round: 0, rev: 0,
+    sceneId: undefined, mapKey, region: undefined, origin: { x: 0, y: 0 }, active: true,
+  });
 }
 
 /**
@@ -97,26 +104,13 @@ export const originOf = (region: { rect: { x: number; y: number }; worldOrigin?:
 
 // ---------------------------------------------------------------------------------------------
 
-function townPlace(tx: TxCtx, game: GameRow, mapKey: string): PlaceRow {
-  const key = mapPlaceKey(mapKey);
-  const there = [...tx.db.place.gameId.filter(game.id)].find(p => p.key === key);
-  if (there) return there;
-
-  useMaps(mapFilesOf(tx, game));
-  const map = getMap(mapKey);
-  return tx.db.place.insert({
-    id: 0n, gameId: game.id, key, name: map.name, rootId: 0n, sizeW: map.width * FEET_PER_TILE, sizeH: map.height * FEET_PER_TILE, round: 0, rev: 0,
-    sceneId: undefined, mapKey, region: undefined, origin: { x: 0, y: 0 }, active: true,
-  });
-}
-
 /** A place on a map as MapRows has it: its scene's key, status and time of day, and its rows but gm_note. */
 function placeOnMap(tx: TxCtx, game: GameRow, place: PlaceRow, scenes: SceneRow[]): MapPlace {
   const scene = place.sceneId === undefined ? undefined : scenes.find(s => s.id === place.sceneId);
   return {
     key: place.key, mapKey: place.mapKey!, ...(place.region ? { region: place.region } : {}), origin: place.origin ?? { x: 0, y: 0 },
     ...(scene ? { scene: { key: scene.sceneKey, status: scene.status, time: timeOf(tx, game, scene) } } : {}),
-    rows: { ...placeRows(tx, placeRow(tx, place.id).id), gmNote: [] },
+    rows: { ...placeRows(tx, place.id), gmNote: [] },
   };
 }
 
