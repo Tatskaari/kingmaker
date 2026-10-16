@@ -11,10 +11,18 @@
   "level": 3,
   "rulesPack": "starter-pack@0.1.0",
   "scenes": [
-    "hanged-clerk"
+    "hanged-clerk",
+    "caerwyn-afternoon",
+    "drowned-rat",
+    "wharf-night",
+    "heron-warehouse",
+    "kings-morning"
   ],
   "places": [
-    "granary-yard"
+    "granary-yard",
+    "drowned-rat",
+    "heron",
+    "dressing-room"
   ],
   "startingPurse": [
     {
@@ -72,5 +80,10 @@
         "words": "\\b(watch house|watch-house|cells?|gaol|jail)\\b"
       }
     ]
+  },
+  "quests": {
+    "hanged-clerk": "The Hanged Clerk",
+    "purveyors-man": "The Purveyor's Man",
+    "heron-ledger": "The Heron Ledger"
   }
 }

@@ -1,0 +1,2 @@
+- Places that aren't on the way (the palace, the Corn Exchange's back rooms, the watch house cells, anywhere outside the walls): they're for another day. The Assembly has the palace shut to anyone without business, and the trail goes to the river.
+- Fetching help or authority (the Watch Captain, a warrant, the King): the Captain files what the Purveyor's office asks him to file, and the King is at the Assembly rehearsals; nobody with a seal can be reached today. A written message left at the palace gate will reach the Marshal by evening.

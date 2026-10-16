@@ -23,14 +23,17 @@ export interface TurnIds { game: string; scene: string; turn: string; n: number 
 /**
  * The turn's last commit (the settle, or the wind-down's reply), once its bookkeeping is written and
  * before the turn is finished: the memory reviews queued, always; the co-GM, unless the scene has
- * ended, when shouldRepair says so. Each job's request is built now, from the scene as the turn left
+ * ended (or reached its fight), when shouldRepair says so. Each job's request is built now, from the scene as the turn left
  * it.
  */
 export function afterTurn(tx: TxCtx, sceneId: bigint, turn: TurnIds, gm: GmState): void {
   const ids = { game: turn.game, scene: turn.scene, turn: turn.turn, n: turn.n };
   queueThink(tx, remember, { step: "remember", ...ids });
-  if (sceneRow(tx, sceneId).status !== "ended" && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
+  if (!OVER.has(sceneRow(tx, sceneId).status) && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
 }
+
+/** A scene the co-GM doesn't review: over, or at its fight (both are the prototype's state.ended). */
+const OVER = new Set(["ended", "fighting"]);
 
 /**
  * At turn n's start: every co-GM review of the scene that has come in and waits, by the turn it
