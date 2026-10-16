@@ -153,7 +153,7 @@ export function aiService(options: ServiceOptions): AiService {
     const { calls, usage } = callContext(options.transport(transportTurn(parts)), options.stores, { game: body.game.id, key: body.key, attempt });
     const ctx: AiContext = {
       campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }),
-      considerDeadlineMs: options.considerDeadlineMs ?? CONSIDER_DEADLINE_MS,
+      considerDeadlineMs: options.considerDeadlineMs ?? CONSIDER_DEADLINE_MS, reviews: options.stores.reviews,
     };
     try {
       return await (options.endpoints[handler] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);

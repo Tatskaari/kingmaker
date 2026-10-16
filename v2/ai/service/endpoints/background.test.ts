@@ -14,8 +14,9 @@ import { keysFor, worldToRows } from "../../../shared/world/rows.ts";
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
-import { remember, type RememberContext } from "./remember.ts";
+import { remember } from "./remember.ts";
 import { repair } from "./repair.ts";
 
 /**
@@ -47,7 +48,7 @@ async function setUp(options: FakeOptions, ownLog = true) {
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
-  const contextFor = (key: string): RememberContext => {
+  const contextFor = (key: string): AiContext => {
     const { calls, usage } = callContext({ fetch: fake.fetch, apiKey: "test" }, stores, { game: GAME, key, attempt: 1 });
     return { campaign, calls, usage, attempt: 1, stream: () => { throw new Error("nothing streams after a turn"); }, ...(ownLog ? { reviews: stores.reviews } : {}) };
   };

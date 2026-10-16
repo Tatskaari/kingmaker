@@ -13,14 +13,6 @@ import { reviewedSource } from "./reviewed.ts";
 import { sceneAndView } from "./turn.ts";
 
 /**
- * The context the memory reviews are run in: a request's, and the stores' log of memory reviews
- * (Stores.reviews) when the server hands it on. Without it, the line goes in the game's own folder,
- * beside its docs, where the prototype keeps it (runs/sessions/<id>/): for the service's folder store
- * that's the same file, <store>/games/<uid>/memory-reviews.jsonl.
- */
-export type RememberContext = AiContext & { reviews?: ReviewLog };
-
-/**
  * POST /v1/turns/remember (full-gm-design §4.1): the memory reviews of a turn once it's over, as the
  * prototype's job runs them. The attention filter (Jev) reads the turn's exchange; nothing flagged,
  * nothing more is asked (one call). Each agent the flags fire (the memories, then the lore) is a Luna
@@ -31,14 +23,19 @@ export type RememberContext = AiContext & { reviews?: ReviewLog };
  * The attention filter failing is a 500, with nothing written yet (the simulation's job tries again
  * or gives up with a log line); an agent's own failure is its record's `error`, as the prototype's is.
  */
-export async function remember(req: RememberRequest, ctx: RememberContext): Promise<RememberResponse> {
+export async function remember(req: RememberRequest, ctx: AiContext): Promise<RememberResponse> {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, reviewedSource(req));
   const result = await reviewTurn(workingSet(scene, view), req.reviewed, { decider: new JevDecider(JEV_MODEL, "jev", ctx.calls), effort: "medium", calls: ctx.calls });
   (ctx.reviews ?? besideDocs).append(req.game.id, { turn: req.reviewed, at: new Date().toISOString(), ...result });
   return { ...result, usage: ctx.usage() };
 }
 
-/** The game's memory-reviews.jsonl in its own folder, beside its docs (docs/config.ts: the docs service's overlay is <folder>/docs). */
+/**
+ * The game's memory-reviews.jsonl in its own folder, beside its docs (docs/config.ts: the docs
+ * service's overlay is <folder>/docs), where the prototype keeps it (runs/sessions/<id>/): for a
+ * context with no log of memory reviews (a test's). For the service's folder store it's the same
+ * file the server's log writes, <store>/games/<uid>/memory-reviews.jsonl.
+ */
 const besideDocs: ReviewLog = {
   append(game, line) {
     const file = join(dirname(docsConfig().overlay(game)), "memory-reviews.jsonl");
