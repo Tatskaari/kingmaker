@@ -79,3 +79,17 @@ test("the app: New game starts at the concept, whatever was being made; one made
   assert.equal(app.screen, "create", "still the create screen, until its concept goes in");
   assert.equal(app.creation.creation?.name, "Tamsin Vell", "the fields filled from the one half made");
 });
+
+test("a refusal is said on the screen it came on: a line refused in a scene isn't the title's after /quit", async () => {
+  const backend = new StubBackend({ seat: { playerId: 9n, gameId: 4n, sceneId: 7n }, sheet: sheetRow(FIGHTER) }, YARD);
+  backend.answers.say = () => ({ code: "turn_in_flight", text: "(The GM is still answering.)" });
+  const app = new AppModel(backend, { campaign: "caerwyn", intent: "game" });
+  await backend.say("Who found him?");
+  assert.equal(app.refusal, "(The GM is still answering.)");
+  app.scene!.input("/quit");
+  assert.deepEqual([app.screen, app.title.error], ["title", undefined]);
+
+  backend.answers.continueGame = () => ({ code: "not_yours", text: "(That isn't one of your games.)" });
+  await app.title.resume(gameRow(5n, "Wren Ashdown", "in The Hanged Clerk", 5));
+  assert.equal(app.title.error, "(That isn't one of your games.)");
+});

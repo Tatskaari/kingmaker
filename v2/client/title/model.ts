@@ -27,7 +27,7 @@ export class TitleModel {
   }
 
   /** Why the last move on the title wasn't made (a game deleted elsewhere, say), in the game's words; or what went wrong in the client. */
-  get error(): string | undefined { return this.app.rows.refusal ?? this.app.problem; }
+  get error(): string | undefined { return this.app.refusal ?? this.app.problem; }
 
   /** New game: a name and a concept to start with. */
   newCharacter(): void {

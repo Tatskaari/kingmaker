@@ -61,7 +61,7 @@ export class CreationModel {
   }
 
   /** The last word on a move: the model's own, else the simulation's refusal, in the game's words; or what went wrong in the client. */
-  get error(): string | undefined { return this.said ?? this.app.rows.refusal ?? this.app.problem; }
+  get error(): string | undefined { return this.said ?? this.app.refusal ?? this.app.problem; }
 
   // -------------------------------------------------------------------------------------------
   // The created screen: the sheet the engine made, where the story starts, and whether choosing again applies.

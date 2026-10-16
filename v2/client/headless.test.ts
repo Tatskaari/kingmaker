@@ -95,6 +95,9 @@ test("new with a backstory the lore check doesn't take, and no --accept-fixes: t
   assert.match(out.printed, /doesn't fit: .*\n  A fix that keeps its spirit: .*\n  \(not changed: --accept-fixes takes the fixes\)\n/);
   assert.match(out.printed, /The creation is kept\.\)\n$/);
   assert.equal(game.home().creation?.step, "backstory");
+  const title = capture();
+  verbs.games(game, title);
+  assert.match(title.printed, /\nHalf made: Tamsin Vell, a disgraced palace auditor[^\n]*\. play new --as "Tamsin Vell: [^"]*" carries it on \(its builds and backstory kept\)\.\n/);
 });
 
 test("new without --build: the GM picks; own: the engine's card for their own picks; a ready-made build won't take a backstory", async () => {

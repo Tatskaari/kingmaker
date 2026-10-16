@@ -226,14 +226,16 @@ export function sheet(game: Backend, out: Out): number {
   return 0;
 }
 
-/** The player's games, as the title lists them: the one played last first. */
+/** The player's games, as the title lists them: the one played last first; and a character half made, if there is one. */
 export function games(game: Backend, out: Out): number {
   const rows = game.home();
   const list = [...rows.games].sort((a, b) => Number(b.lastPlayedAt.microsSinceUnixEpoch - a.lastPlayedAt.microsSinceUnixEpoch));
+  const making = rows.creation && rows.creation.step !== "made" ? rows.creation : undefined;
   out.print([
     "MODE: title",
     "",
     ...(list.length ? ["Your games, the one played last first:", ...list.map(g => `  Game ${g.gameId}. ${describe(g)}`)] : ["You have no games yet."]),
+    ...(making ? ["", `Half made: ${making.name}, ${making.concept}. play new --as "${making.name}: ${making.concept}" carries it on (its builds and backstory kept).`] : []),
     "",
     `Use: ${list.length ? "play continue --game <id> carries one on; play delete --game <id> deletes one; " : ""}play new --as "Name: concept" makes a character.`,
   ].join("\n"));

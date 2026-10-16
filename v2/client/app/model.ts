@@ -78,6 +78,8 @@ export interface AppPart {
   readonly campaign: string;
   /** Something that went wrong in the client itself, until the next move: the title's and creation's error line says it. */
   readonly problem: string | undefined;
+  /** The last move's refusal, on the screen it was made on: the title's and creation's error line (a scene's is its status line). */
+  readonly refusal: string | undefined;
   go(intent: Intent): void;
   act: Backend["act"];
   subscribe(listener: () => void): () => void;
@@ -108,6 +110,8 @@ export class AppModel implements AppPart {
   private shown: Screen;
   /** The creation's step at the last change: one that turns made takes the player on to its sheet. */
   private stepWas: string | undefined;
+  /** The screen the last refusal came on: a line refused in a scene isn't the title's to say after /quit. */
+  private refusedOn?: { words: string; screen: Screen };
 
   constructor(backend: Backend, options: { campaign: string; intent?: Intent; onQuit?: () => void; saveMs?: number }) {
     this.backend = backend;
@@ -121,10 +125,15 @@ export class AppModel implements AppPart {
     const view = backend.view();
     this.followScene(view);
     this.shown = this.screenNow(view);
+    this.noteRefusal();
     backend.onChange(() => this.update());
   }
 
   get screen(): Screen { return this.shown; }
+
+  get refusal(): string | undefined {
+    return this.refusedOn?.screen === this.shown ? this.refusedOn.words : undefined;
+  }
 
   act: Backend["act"] = (move, args) => {
     this.problem = undefined;
@@ -162,10 +171,18 @@ export class AppModel implements AppPart {
   private update(): void {
     this.rows = this.backend.home();
     const view = this.backend.view();
+    this.noteRefusal();
     this.onToTheSheet();
     this.followScene(view);
     this.shown = this.screenNow(view);
     this.emit();
+  }
+
+  /** A refusal that's new: said on the screen it came on (a refused move changes no rows, so the screen hasn't moved). */
+  private noteRefusal(): void {
+    const words = this.rows.refusal;
+    if (!words) this.refusedOn = undefined;
+    else if (words !== this.refusedOn?.words) this.refusedOn = { words, screen: this.shown };
   }
 
   /** The character being made is made: the game it made is the seat's now, and its sheet comes up. */
