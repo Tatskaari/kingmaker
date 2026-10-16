@@ -1,14 +1,18 @@
 /**
  * The live runs' scripts: what each says in the hanged clerk's scene, line by line, and as whom.
  * v0 is V0's (v0-design §10.6); v5 is v5-design §4.6's twelve, two of them a suggested line picked
- * as the headless client's `act` picks one.
+ * as the headless client's `act` picks one; gm is full-gm-design §1.2's eight, two of them said once
+ * the memory review and the co-GM are done, as a tester reading the reply would.
  */
 
 /** A suggested line as `act` names it: say_N, or the first of a kind ("the try line"). */
 export type Pick = { id: `say_${number}` } | { kind: "say" | "do" | "try" | "leave" };
 
-/** A line of a script: words to say, or a suggested line to pick, the first of the picks that's there. */
-export type Step = { say: string } | { act: Pick[] };
+/**
+ * A line of a script: words to say, or a suggested line to pick, the first of the picks that's there.
+ * `wait: "background"`: said once the scene's background jobs (the memory review, the co-GM) are done.
+ */
+export type Step = { say: string; wait?: "background" } | { act: Pick[] };
 
 export interface Script {
   name: string;
@@ -21,10 +25,17 @@ export interface Script {
   steps: Step[];
   /** How many of its steps a run plays unless told (--lines). */
   lines: number;
+  /**
+   * The GM's side is recorded (npm run status): each line's ruling, memory review and co-GM review,
+   * with the background jobs waited for once the last line is done, so its review is in.
+   */
+  gmSide?: boolean;
 }
 
 const say = (text: string): Step => ({ say: text });
 const act = (...picks: Pick[]): Step => ({ act: picks });
+/** Words said once the memory review and the co-GM have done with the lines before. */
+const later = (text: string): Step => ({ say: text, wait: "background" });
 
 export const SCRIPTS: Record<string, Script> = {
   v0: {
@@ -67,6 +78,29 @@ export const SCRIPTS: Record<string, Script> = {
       say("Kell, I think he was killed. Let's look at the loft."),
     ],
     lines: 12,
+  },
+  gm: {
+    name: "gm",
+    title: "The full GM live run",
+    about: "The full GM (full-gm-design §1.2): people remember what the player did, the co-GM steers a scene that drifts or leaves the graph, the GM rules on a risky act before the reply, and walking out is an ending of the player's own",
+    who: "Wren Ashdown: a hedge wizard from the fens",
+    build: "wizard",
+    // full-gm-design §1.2, rows 2 to 8: a coin for Cob (someone remembers it), a question at once (the
+    // review doesn't hold the turn), a lift from his boot (considered: a ruling and a roll), what Kell
+    // remembers (once the reviews are in), a plan off the graph, two lines that drift (the co-GM), and
+    // walking out (left: an ending of their own), once the co-GM has had its say.
+    steps: [
+      say("(I crouch and press a silver crown into the boy's hand) Get yourself something hot, lad. No questions."),
+      say("Sergeant, who found him?"),
+      say("(I try to lift the folded paper out of the boy's boot while he watches the sergeant)"),
+      later("Sergeant, you saw what I gave the boy. Think me soft?"),
+      say("Sergeant, what if we leave him up there and watch who comes back for those boots? I'll wait in the loft."),
+      say("I ask the girl what songs the granary kids sing."),
+      say("And the one about the miller's cat?"),
+      later("(I nod to the sergeant and walk out of the yard, back towards the palace)"),
+    ],
+    lines: 8,
+    gmSide: true,
   },
 };
 

@@ -4,22 +4,25 @@ import { connect } from "../client/net/connection.ts";
 import { refuseTakenOut, writeRecord } from "./live/common.ts";
 import { creationRun } from "./live/creation.ts";
 import { playScript } from "./live/play.ts";
-import { offeredOf, recordOf, spentOf } from "./live/record.ts";
+import { backgroundIn, offeredOf, recordOf, spentOf } from "./live/record.ts";
 import { markdownOf } from "./live/report.ts";
 import { SCRIPTS, type Script } from "./live/scripts.ts";
 import { modelOf, runningStack } from "./live/stack.ts";
 
 /**
- * The live runs (v0-design §1.4, §10.6; v5-design §4.6; v1-design §4.6), against the running dev
- * stack and its models, recorded as Markdown. A script's: a new game and its lines (V0's six, or
- * V5's twelve), each turn's timings (from the turn rows, and the notes and lines as they reached
- * this client), who said what, the notes with their cards, the lines offered and those screened out,
- * the model calls and their cost (the AI service's call log), the measures against the prototype's,
- * and what the scene holds back from the player. V1's, with --creation: three concepts' builds and
- * Tamsin Vell made from a sentence through the lore check to her first line (live/creation.ts).
+ * The live runs (v0-design §1.4, §10.6; v5-design §4.6; v1-design §4.6; full-gm-design §1.5), against
+ * the running dev stack and its models, recorded as Markdown. A script's: a new game and its lines
+ * (V0's six, V5's twelve, or the full GM's eight), each turn's timings (from the turn rows, and the
+ * notes and lines as they reached this client), who said what, the notes with their cards, the lines
+ * offered and those screened out, the model calls and their cost (the AI service's call log), the
+ * measures against the prototype's, what the scene holds back from the player, and for the full
+ * GM's the GM's side (each line's ruling, memory review and co-GM review: npm run status). V1's,
+ * with --creation: three concepts' builds and Tamsin Vell made from a sentence through the lore
+ * check to her first line (live/creation.ts).
  *
  *   npm run dev                                # real models, in another terminal
  *   npm run live -- --script v5               # writes docs/live/v5-<date>.md
+ *   npm run live -- --script gm               # writes docs/live/gm-<date>.md
  *   npm run live -- --lines 4                 # V0's script: docs/live/v0-<date>.md
  *   npm run live -- --creation                # V1's run: docs/live/v1-<date>.md
  *
@@ -32,8 +35,9 @@ import { modelOf, runningStack } from "./live/stack.ts";
 
 const USAGE = `npm run live [-- options]
   --creation         V1's run: three concepts' builds, then a character made through the lore check to a line
-  --script v0|v5     the lines to play (v0): V0's six, or V5's twelve, two of them a suggested line picked
-  --lines <n>        how many of the script's lines (v0: 4; v5: 12)
+  --script v0|v5|gm  the lines to play (v0): V0's six, V5's twelve (two of them a suggested line picked),
+                     or the full GM's eight (two said once the memory review and the co-GM are done)
+  --lines <n>        how many of the script's lines (v0: 4; v5: 12; gm: 8)
   --as "Name: concept" --build <id>   the character (the script's own)
   --port <n>         the dev stack's SpacetimeDB port (3300)
   --ai-port <n>      its AI service's port (8787)
@@ -61,7 +65,8 @@ async function main(flags: Flags): Promise<void> {
   console.log(`The live run: ${flags.script.name}, ${flags.lines} lines against ${stack.http} (${model} model)`);
   const run = await playScript(conn, flags.script, {
     who: flags.who, build: flags.build, lines: flags.lines, budget: flags.budget,
-    spent: uid => spentOf(stack.root, uid), offered: scene => offeredOf(stack, scene), log: line => console.log(`  ${line}`),
+    spent: uid => spentOf(stack.root, uid), offered: scene => offeredOf(stack, scene), background: scene => backgroundIn(stack, scene),
+    log: line => console.log(`  ${line}`),
   });
   if (run.stopped) console.log(`  stopped: ${run.stopped}`);
   if (!run.game) throw new Error(run.stopped ?? "the game didn't open");

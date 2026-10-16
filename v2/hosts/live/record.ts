@@ -6,6 +6,7 @@ import type { SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { readCampaignFiles } from "../dev/campaign.ts";
+import { backgroundOf, statusOf, statusRows } from "../dev/gm-status.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
 import type { Offered, Played, Run } from "./play.ts";
@@ -31,6 +32,8 @@ export interface TurnRecord {
   /** The script's step, and the line said (for an act, the line it picked). */
   step?: string;
   said?: string;
+  /** How long the line waited for the background jobs (the memory review, the co-GM) before it was said. */
+  waited?: number;
   /** Server times in microseconds: the turn's start, its first words, its reply's entry, its end. */
   saidAt: number;
   firstAt?: number;
@@ -72,6 +75,10 @@ export interface LiveRecord {
   calls: Call[];
   cost: number;
   held: Held;
+  /** The GM's side once the run was over, as npm run status prints it (a script that records it: full-gm-design §4.4). */
+  gm?: Record<string, unknown>;
+  /** How long the run waited after its last line for the background jobs. */
+  settledMs?: number;
 }
 
 export interface RecordSetup { script: Script; date: string; rehearse: boolean; lines: number; model: string }
@@ -97,6 +104,7 @@ export async function recordOf(stack: StackFile, run: Run, setup: RecordSetup): 
     skipped: run.played.filter(p => p.skipped),
     ...(run.stopped ? { stopped: run.stopped } : {}),
     ...(rows.scene.exit_key ? { ending: String(rows.scene.exit_key) } : {}),
+    ...(setup.script.gmSide ? { gm: await gmSideOf(stack, game, rows.scene), ...(run.settledMs !== undefined ? { settledMs: run.settledMs } : {}) } : {}),
     calls,
     cost: calls.reduce((sum, c) => sum + c.costUsd, 0),
     held: heldFrom(scene, (rows.gm?.landed as string[] | undefined) ?? []),
@@ -108,6 +116,17 @@ export function spentOf(root: string, uid: string): { total: number; dearest: nu
   const byTurn = new Map<number, number>();
   for (const c of callsOf(root, uid)) byTurn.set(c.turn ?? -1, (byTurn.get(c.turn ?? -1) ?? 0) + c.costUsd);
   return { total: [...byTurn.values()].reduce((a, b) => a + b, 0), dearest: Math.max(0, ...byTurn.values()) };
+}
+
+/** The GM's side of the game's scene, as npm run status prints it: its rows read as the owner, and the AI service's lines on its memory reviews. */
+async function gmSideOf(stack: StackFile, game: NonNullable<Run["game"]>, scene: Row): Promise<Record<string, unknown>> {
+  const query = (q: string) => sql(stack.http, q, stack.owner.token);
+  return statusOf(await statusRows(query, join(stack.root, "ai", "games", game.uid), { id: String(game.id), uid: game.uid }, scene));
+}
+
+/** The scene's background jobs in flight (the memory reviews, the co-GM), as "remember t3". */
+export async function backgroundIn(stack: StackFile, sceneId: bigint): Promise<string[]> {
+  return backgroundOf(await sql(stack.http, "SELECT * FROM job", stack.owner.token), String(sceneId));
 }
 
 /** The scene's suggested lines now, as its rows have them. */
@@ -145,7 +164,7 @@ function turnRecord(t: Row, from: TurnSources): TurnRecord {
   const seen = from.run.seen.get(n) ?? {};
   const after = (at: number | undefined) => (at !== undefined && seen.final !== undefined ? at - seen.final : undefined);
   return {
-    n, ...(from.step ? { step: from.step.step, ...(from.step.said ? { said: from.step.said } : {}) } : {}),
+    n, ...(from.step ? { step: from.step.step, ...(from.step.said ? { said: from.step.said } : {}), ...(from.step.waitedMs !== undefined ? { waited: from.step.waitedMs } : {}) } : {}),
     saidAt: Number(t.started_at),
     ...(t.first_text_at !== null ? { firstAt: Number(t.first_text_at) } : {}),
     ...(reply ? { finalAt: Number(reply.at) } : {}),

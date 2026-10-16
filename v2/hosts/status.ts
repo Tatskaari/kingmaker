@@ -1,7 +1,7 @@
 // After the prototype's src/cli/scene.ts at 44c6d4a (status, :250-268; memories, :182-190): the same views of a game the dev stack plays, from its rows (owner SQL) and the AI service's store.
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { memoriesText, reviewLines, statusOf, type Row } from "./dev/gm-status.ts";
+import { memoriesText, statusOf, statusRows, type Row } from "./dev/gm-status.ts";
 import { sql } from "./dev/spacetime.ts";
 import { readStackFile } from "./dev/stack-file.ts";
 
@@ -44,15 +44,7 @@ async function main(argv: string[]): Promise<number> {
   const scenes = await query(`SELECT * FROM scene WHERE game_id = ${String(game.id)}`);
   const scene = scenes.sort((a, b) => Number(b.id) - Number(a.id))[0];
   if (!scene) { console.error(`Game ${String(game.id)} hasn't begun: it has no scene yet.`); return 1; }
-  const id = String(scene.id);
-  const [[gm], turns, repairs, jobs] = await Promise.all([
-    query(`SELECT * FROM gm_state WHERE scene_id = ${id}`), query(`SELECT * FROM turn WHERE scene_id = ${id}`),
-    query(`SELECT * FROM co_gm_result WHERE scene_id = ${id}`),
-    // A job's scene is an option column: the whole table, read for this scene's (statusOf).
-    query("SELECT * FROM job"),
-  ]);
-  const status = statusOf({ game: game as Row, scene: scene as Row, ...(gm ? { gm: gm as Row } : {}), turns, repairs, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")) });
-  console.log(JSON.stringify(status, null, 1));
+  console.log(JSON.stringify(statusOf(await statusRows(query, store, game as Row, scene as Row)), null, 1));
   return 0;
 }
 

@@ -2,9 +2,11 @@ import type { Call, EntryRecord, LiveRecord, TurnRecord } from "./record.ts";
 
 /**
  * A live run's record as Markdown (v5-design §4.6): the run at a glance, each turn's moments, the
- * measures against the prototype's live ones, the calls, then turn by turn who said what, the notes
- * with their cards and the lines offered with what was screened out, and last what the scene holds
- * back from the player, for a reader to check every note and line against.
+ * measures against the prototype's live ones, the calls, the GM's side when the script records it
+ * (full-gm-design §1.5: each line's ruling, memory review and co-GM review, and where the co-GM left
+ * the scene), then turn by turn who said what, the notes with their cards and the lines offered with
+ * what was screened out, and last what the scene holds back from the player, for a reader to check
+ * every note and line against.
  */
 
 /** The prototype's live measures (docs/LOG.md, 15 October): the notes over 19 calls, the lines over 21 replies, speakers over 52 lines. */
@@ -26,6 +28,7 @@ export function markdownOf(r: LiveRecord, command: string): string {
     ...againstPrototype(r),
     ...callsByOperation(r.calls),
     ...models(r.calls),
+    ...gmSide(r),
     "## Turn by turn",
     "",
     ...r.turns.flatMap(turnSection),
@@ -150,6 +153,43 @@ function linesOffered(t: TurnRecord): string[] {
     ...(t.lines.length ? [`Lines offered (${LINES[t.suggest] ?? t.suggest}${when}):`, ...t.lines.map(l => `${l.ord}. ${l.kind}: ${l.text}`)] : [`Lines offered: none (${LINES[t.suggest] ?? t.suggest}${when}).`]),
     ...(t.dropped.length ? ["", `Screened out: ${t.dropped.map(d => `${quoted(d.text)} (${d.why})`).join("; ")}.`] : []),
     "",
+  ];
+}
+
+/**
+ * The GM's side (npm run status, once the run was over): for each turn, whether the GM ruled on it
+ * (the ruling, its roll and what it changed), what the memory review flagged and saved, and the
+ * co-GM's review of it, merged or waiting; then the co-GM's steering as it was left.
+ */
+function gmSide(r: LiveRecord): string[] {
+  if (!r.gm) return [];
+  const byTurn = (field: string) => {
+    const lines = new Map<number, string[]>();
+    for (const line of (r.gm![field] as string[] | undefined) ?? []) {
+      const m = /^(\d+): (.*)$/s.exec(line);
+      if (m) lines.set(Number(m[1]), [...(lines.get(Number(m[1])) ?? []), m[2]!]);
+    }
+    return (n: number) => (lines.get(n) ?? []).map(cell).join("; ");
+  };
+  const ruled = byTurn("rulings"), remembered = byTurn("memoryReviews"), reviewed = byTurn("repairs");
+  const waited = (t: TurnRecord) => (t.waited !== undefined ? ` (after ${secs(t.waited)} waiting for the background jobs)` : "");
+  const list = (field: string) => ((r.gm![field] as string[] | undefined) ?? []);
+  const value = (field: string) => (r.gm![field] === null || r.gm![field] === undefined ? "none" : String(r.gm![field]));
+  return [
+    "## The GM's side",
+    "",
+    `What \`npm run status\` showed once the run was over${r.settledMs !== undefined ? ` (the background jobs waited for: ${secs(r.settledMs)})` : ""}: for each turn, the GM's ruling on it, what the memory review flagged and saved, and the co-GM's review of it.`,
+    "",
+    "| Turn | Line | Ruled | Memory review | The co-GM |",
+    "|---|---|---|---|---|",
+    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : `${cell(lineOf(t))}${waited(t)}`} | ${ruled(t.n) || "no"} | ${remembered(t.n)} | ${reviewed(t.n)} |`),
+    "",
+    `Where it was left: beat ${value("beat")}; the scene ${value("sceneStatus")}; the co-GM's notes: ${r.gm.notes === null || r.gm.notes === undefined ? "none" : `${cell(String(r.gm.notes))} (from turn ${value("notesTurn")})`}; the last turn off the graph with nothing ruled on it: ${value("offGraphTurn")}; the turn the co-GM last reviewed (merged): ${value("lastRepairTurn")}.`,
+    "",
+    ...[["Whispers", "whispers"], ["Canon", "canon"], ["Patches", "patches"], ["Established", "established"]].flatMap(([title, field]) => {
+      const items = list(field!);
+      return items.length ? [`**${title}**`, "", ...items.map(l => `- ${l}`), ""] : [`**${title}**: none.`, ""];
+    }),
   ];
 }
 

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { memoriesText, statusOf, type Row, type StatusRows } from "./gm-status.ts";
+import { backgroundOf, memoriesText, statusOf, type Row, type StatusRows } from "./gm-status.ts";
 
 /** Game 1's rows as the owner's SQL gives them: snake_case, an empty option null, times in microseconds. */
 function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
@@ -103,4 +103,17 @@ test("--memories: every person's index and notes in full, as scene memories prin
   } finally {
     rmSync(docs, { recursive: true, force: true });
   }
+});
+
+test("the scene's background jobs in flight: its memory reviews and co-GM reviews, by the turn their key names", () => {
+  const jobs = [
+    { scene_id: 7, move: "remember", key: "g1-abc:s7:t3:remember" },
+    { scene_id: 7, move: "repair", key: "g1-abc:s7:t3:repair" },
+    { scene_id: 7, move: "say", key: "g1-abc:s7:t4:decide" },
+    { scene_id: 8, move: "remember", key: "g2-def:s8:t1:remember" },
+    { scene_id: null, move: "creation", key: "c5:offer" },
+  ];
+
+  assert.deepEqual(backgroundOf(jobs, "7"), ["remember t3", "repair t3"]);
+  assert.deepEqual(backgroundOf(jobs, "9"), []);
 });

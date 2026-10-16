@@ -28,6 +28,30 @@ export interface StatusRows {
   reviews: unknown[];
 }
 
+/**
+ * What statusOf reads for a game's scene: its gm_state, turns, co-GM reviews and jobs by owner SQL
+ * (`query`), and the memory reviews' lines from the game's folder in the AI service's store.
+ */
+export async function statusRows(query: (q: string) => Promise<Row[]>, store: string, game: Row, scene: Row): Promise<StatusRows> {
+  const id = String(scene.id);
+  const [[gm], turns, repairs, jobs] = await Promise.all([
+    query(`SELECT * FROM gm_state WHERE scene_id = ${id}`), query(`SELECT * FROM turn WHERE scene_id = ${id}`),
+    query(`SELECT * FROM co_gm_result WHERE scene_id = ${id}`),
+    // A job's scene is an option column: the whole table, read for this scene's (statusOf).
+    query("SELECT * FROM job"),
+  ]);
+  return { game, scene, ...(gm ? { gm } : {}), turns, repairs, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")) };
+}
+
+/** The background moves (full-gm-design §4.2): a memory review and a co-GM review run after a turn, holding nothing. */
+const BACKGROUND = ["remember", "repair"];
+
+/** The scene's background jobs in flight, as "remember t3" (by the turn they're for: its key's). */
+export function backgroundOf(jobs: Row[], sceneId: string): string[] {
+  return jobs.filter(j => String(j.scene_id) === sceneId && BACKGROUND.includes(String(j.move)))
+    .map(j => `${String(j.move)} ${/:(t\d+):/.exec(String(j.key))?.[1] ?? "?"}`);
+}
+
 /** One memory review's line: the turn it reviewed, what the attention filter flagged, and what each agent did. */
 interface ReviewLine { turn?: number; reviewed?: number; flags?: string[]; reviews?: Array<{ kind?: string; changes?: string[]; error?: string }> }
 
