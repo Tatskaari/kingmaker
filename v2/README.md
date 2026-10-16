@@ -52,6 +52,8 @@ npm run dev              # SpacetimeDB, the module, the AI service and the campa
 npm run dev -- --fake    # the same on the fake model: no key, no cost
 ```
 
+The fake model's GM answers every line with the same stand-in words, written over four seconds as a model's are, and its decider takes the quietest choice, so nothing rolls. `KM_AI_FAKE` (JSON) changes that: with `KM_AI_FAKE='{"choices":{"attempt":"examine-body"}}' npm run dev -- --fake` the decider takes the examination of the body whenever it's on offer, so a line in the yard rolls the Medicine check. [hosts/dev/README.md](hosts/dev/README.md) has more.
+
 It brings everything up, installs the campaign in both services, checks that each can reach the other, and prints where things are. Then it takes keys while you play:
 
 | Key | What |

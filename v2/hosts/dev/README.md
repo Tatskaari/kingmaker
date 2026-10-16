@@ -14,7 +14,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 
 | Flag | What |
 |---|---|
-| `--fake` | the fake model (`KM_AI_MODEL=fake`) |
+| `--fake` | the fake model (`KM_AI_MODEL=fake`): its GM writes each reply over four seconds, as a model takes about that long, so you see it grow and `k` can land in it. Its options are `KM_AI_FAKE`'s, JSON, on top: `'{"streamMs":0}'` answers at once, `'{"choices":{"attempt":"examine-body"}}'` makes the decider take the body's examination (a Medicine roll) where it can, `'{"replies":["…"]}'` gives the GM its words |
 | `--gm canned` | the AI service's canned GM: no model at all, for checking the plumbing |
 | `--container` | the AI service in its podman image, built from `ai/Containerfile` at every start |
 | `--fresh` | start with no data: deletes `runs/dev/stdb`, `runs/dev/ai` and `runs/play`. The keys stay, so the identities do |

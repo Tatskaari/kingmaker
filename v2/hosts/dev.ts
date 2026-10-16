@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import type { BuildsFile, CampaignFile } from "../shared/scene/files.ts";
 import { signalGroup } from "./dev/child.ts";
 import { reportLines, type DoctorReport } from "./dev/doctor.ts";
@@ -20,7 +21,9 @@ import { startStack, type Stack } from "./dev/stack.ts";
  */
 
 const USAGE = `npm run dev [-- options]
-  --fake                the fake model (no key, no cost)
+  --fake                the fake model (no key, no cost): each reply written over 4 s, as a model's
+                        is; KM_AI_FAKE (JSON) changes it: '{"streamMs":0}' answers at once,
+                        '{"choices":{"attempt":"examine-body"}}' rolls the Medicine check
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
   --mode host|namespace detected when absent: host when ${AI_ADDRESS} is on this machine
@@ -36,6 +39,8 @@ const CAMPAIGN = join(V2, "campaigns", "caerwyn");
 const FAULT = "exit-after-store:any";
 
 const flags = flagsOf(process.argv.slice(2));
+/** The fake model's options, with --fake. */
+const fake = flags.fake ? fakeOptions(process.env.KM_AI_FAKE) : undefined;
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN, "campaign.json"), "utf8")) as CampaignFile;
 const builds = Object.keys(JSON.parse(readFileSync(join(CAMPAIGN, "builds.json"), "utf8")) as BuildsFile);
 const campaignId = `${campaign.id}@${campaign.version}`;
@@ -101,13 +106,26 @@ async function start(): Promise<Stack> {
   try {
     return await startStack({
       root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
-      model: flags.fake ? "fake" : "openrouter", ...(flags.gm ? { gm: flags.gm } : {}), container: flags.container, fresh: flags.fresh,
+      model: fake ? "fake" : "openrouter", ...(fake ? { fake } : {}),
+      ...(flags.gm ? { gm: flags.gm } : {}), container: flags.container, fresh: flags.fresh,
       sessions: join(V2, "runs", "play"), log: line => print(`  … ${line}`), signal: starting.signal,
     });
   } catch (e) {
     if (starting.signal.aborted) return done(130, "stopped before the stack was up");
     console.error(`\nThe dev stack didn't start: ${(e as Error).message}`);
     process.exit(1);
+  }
+}
+
+/**
+ * --fake's stand-in: each reply written over four seconds, about as long as a model takes, so a
+ * reply is seen growing and k can land in it; KM_AI_FAKE's options (JSON) go on top.
+ */
+function fakeOptions(own: string | undefined): FakeOptions {
+  try {
+    return { streamMs: 4_000, ...(own ? JSON.parse(own) as FakeOptions : {}) };
+  } catch {
+    return fail(`KM_AI_FAKE isn't JSON: ${own}`);
   }
 }
 
@@ -118,7 +136,8 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
   const modeLine = s.mode === "namespace"
     ? `namespace mode (SpacetimeDB in a pasta namespace; ${AI_ADDRESS} is this machine's loopback)`
     : `host mode (${AI_ADDRESS} is on this machine)`;
-  const model = `${file.ai.model}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
+  const replies = fake && file.ai.gm !== "canned" ? (fake.streamMs ? ` (each reply written over ${fake.streamMs / 1000} s)` : " (replies at once)") : "";
+  const model = `${file.ai.model}${replies}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
   // The two paths are the summary's; anything else wrong is listed under it.
   const failing = report.checks.filter(c => !c.ok && !c.name.includes("→"));
   return [
