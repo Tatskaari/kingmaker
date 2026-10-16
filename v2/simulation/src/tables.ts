@@ -61,4 +61,7 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   campaign: { primaryKey: "id" },
   sceneDef: { primaryKey: "id", indexes: ["campaignId"] },
   placeDef: { primaryKey: "id", indexes: ["campaignId"] },
+
+  creation: { primaryKey: "identity" },
+  rulesState: { primaryKey: "playerId", indexes: ["gameId"] },
 };

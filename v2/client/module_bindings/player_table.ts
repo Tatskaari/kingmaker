@@ -21,4 +21,5 @@ export default __t.row({
   placeId: __t.option(__t.u64()).name("place_id"),
   sceneId: __t.option(__t.u64()).name("scene_id"),
   online: __t.bool(),
+  lastPlayedAt: __t.timestamp().name("last_played_at"),
 });

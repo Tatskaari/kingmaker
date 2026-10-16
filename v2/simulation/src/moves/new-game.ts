@@ -56,11 +56,14 @@ function createGame(tx: TxCtx, campaign: CampaignRow, sender: Identity, characte
   });
   const player = tx.db.player.insert({
     id: 0n, identity: sender, gameId: game.id, name: character.name, concept: character.concept, role: "host",
-    characterId: undefined, placeId: undefined, sceneId: undefined, online: true,
+    characterId: undefined, placeId: undefined, sceneId: undefined, online: true, lastPlayedAt: tx.now,
   });
 
   seatPlayer(tx, sender, player.id);
-  tx.db.sheet.insert({ playerId: player.id, gameId: game.id, build: character.build.build, skills: JSON.stringify(character.build.skills), statusLine: character.build.status });
+  tx.db.sheet.insert({
+    playerId: player.id, gameId: game.id, build: character.build.build, skills: JSON.stringify(character.build.skills), statusLine: character.build.status,
+    level: character.build.level, hp: 0, maxHp: 0, ac: 0, slots: [], conditions: [], spells: [], weapons: [], features: [], data: "", pockets: "", backstory: undefined,
+  });
   tx.db.dice.insert({ gameId: game.id, seed: tx.seed(), rolls: 0 });
   return tx.db.game.id.update({ ...game, hostId: player.id });
 }

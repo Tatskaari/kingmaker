@@ -100,16 +100,16 @@ function claimedJob(tx: TxCtx, claim: Claim): JobRow | undefined {
   return job && job.state === "running" && job.attempts === claim.attempt && job.key === claim.key ? job : undefined;
 }
 
-/** The scene still waits on this turn: its lease is the turn's, and it hasn't ended. */
+/** The scene still waits on this turn: its lease is the turn's, and it hasn't ended. (Every job is a turn's until creation's own come, v1-design §3.5: hence the !s.) */
 function leaseHeld(tx: TxCtx, job: JobRow): boolean {
-  const scene = tx.db.scene.id.find(job.sceneId);
+  const scene = tx.db.scene.id.find(job.sceneId!);
   return !!scene && scene.turnId === job.turnId && scene.status !== "ended";
 }
 
 /** The answer applied by its move; then the move's next think, or its end. */
 function commitAnswer(tx: TxCtx, job: JobRow, claim: Claim, answer: Extract<AiOutcome, { kind: "answer" }>): void {
   const move = moveNamed(job.move);
-  addUsage(tx, job.turnId, answer.answer);
+  addUsage(tx, job.turnId!, answer.answer);
 
   const next = move.commit!(tx, JSON.parse(job.plan) as JobPlan, answer.answer);
 
@@ -144,14 +144,14 @@ function dropJob(tx: TxCtx, job: JobRow, claim: Claim): void {
 function waitToRetry(tx: TxCtx, job: JobRow, claim: Claim, reason: string): void {
   const seconds = RETRY_SECONDS[Math.min(claim.attempt, RETRY_SECONDS.length) - 1]!;
   tx.db.job.id.update({ ...job, state: "waiting", retryAt: after(tx.now, seconds * 1000), deadline: undefined, failingSince: job.failingSince ?? tx.now, error: reason, updatedAt: tx.now });
-  updateTurn(tx, job.turnId, { note: LOST_THREAD });
+  updateTurn(tx, job.turnId!, { note: LOST_THREAD });
   tx.log(`${label(claim)} ${reason}: waiting, retry in ${seconds} s`);
 }
 
 function failJobRow(tx: TxCtx, job: JobRow, who: string, reason: string): void {
   tx.db.job.id.update({ ...job, state: "failed", error: reason, deadline: undefined, retryAt: undefined, updatedAt: tx.now });
-  updateTurn(tx, job.turnId, { phase: "failed", error: `The GM couldn't answer: ${shortly(reason)}`, note: undefined });
-  tx.db.replyDraft.turnId.delete(job.turnId);
+  updateTurn(tx, job.turnId!, { phase: "failed", error: `The GM couldn't answer: ${shortly(reason)}`, note: undefined });
+  tx.db.replyDraft.turnId.delete(job.turnId!);
   tx.log(`${who} failed: ${reason}`);
 }
 
@@ -178,7 +178,7 @@ function redispatchOverdue(tx: TxCtx): void {
   for (const job of jobsIn(tx, "running")) {
     if (!job.deadline || job.deadline.microsSinceUnixEpoch > tx.now.microsSinceUnixEpoch) continue;
     tx.db.job.id.update({ ...job, state: "queued", deadline: undefined, failingSince: job.failingSince ?? tx.now, error: "no answer by its deadline", updatedAt: tx.now });
-    updateTurn(tx, job.turnId, { note: LOST_THREAD });
+    updateTurn(tx, job.turnId!, { note: LOST_THREAD });
     dispatch(tx, job.id);
     tx.log(`[reaper] job ${job.id} ${job.key} re-dispatched after its deadline`);
   }

@@ -10,6 +10,9 @@ import type { NameView, SeatView } from "./schema.ts";
 
 type Ctx = ViewCtx<Schema>;
 
+/** my_creation and my_games (v1-design §3.2): package B's; stand-ins until then, both empty. */
+export { myCreationView, myGamesView } from "./stubs.ts";
+
 export function mySeatView(ctx: Ctx): Infer<typeof SeatView> | undefined {
   const player = seatedPlayer(ctx);
   if (!player) return undefined;

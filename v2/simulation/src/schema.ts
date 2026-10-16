@@ -1,11 +1,14 @@
+import { Timestamp } from "spacetimedb";
 import { schema, t, table } from "spacetimedb/server";
 
 /**
- * Every table of the module, and its env (v0-design §3.1). Columns are the TypeScript names; SQL,
- * HTTP and subscription queries use snake_case (sceneId is scene_id). Ids are u64 (bigint); an
- * autoInc id is inserted as 0n. Every row belongs to one game. Public tables are subscribed to by
- * clients; private ones are the module's (and the owner's, through SQL). B may add private tables
- * and columns; the public ones are the client's contract (client/module_bindings).
+ * Every table of the module, and its env (v0-design §3.1, v1-design §3.1). Columns are the
+ * TypeScript names; SQL, HTTP and subscription queries use snake_case (sceneId is scene_id). Ids are
+ * u64 (bigint); an autoInc id is inserted as 0n. Every row belongs to one game, but a creation's,
+ * which belongs to an identity until the game is made. Public tables are subscribed to by clients;
+ * private ones are the module's (and the owner's, through SQL); the public ones are the client's
+ * contract (client/module_bindings). A column added to a table that has rows has a default, so a dev
+ * database migrates (spacetime.md §4.10).
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -39,6 +42,8 @@ export const player = table({ name: "player", public: true }, {
   placeId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   online: t.bool(),
+  /** When they last played it (made it, began it, continued it): the title's "(5 min ago)". */
+  lastPlayedAt: t.timestamp().default(new Timestamp(0n)),
 });
 
 /** The game a connection is playing now: read through my_seat. */
@@ -47,6 +52,18 @@ export const seat = table({ name: "seat" }, {
   playerId: t.u64(),
 });
 
+const SlotRow = t.object("SlotRow", { level: t.u32(), max: t.u32(), used: t.u32() });
+const SpellRef = t.object("SpellRef", { id: t.string(), name: t.string(), level: t.u32() });
+const WeaponRef = t.object("WeaponRef", { id: t.string(), name: t.string() });
+/** target: self, creature. */
+const FeatureRef = t.object("FeatureRef", { id: t.string(), name: t.string(), target: t.string() });
+
+/**
+ * The player's character as the rules engine made it (v1-design §3.6), what the GM's brief, the side
+ * panel and the sheet screen read: shared/rules sheetRows writes every column but the keys and
+ * pockets (types.ts SheetRows), after creation and whenever the engine changes the character;
+ * pockets is refreshed from the world without the engine.
+ */
 export const sheet = table({ name: "sheet", public: true }, {
   playerId: t.u64().primaryKey(),
   gameId: t.u64().index("btree"),
@@ -56,6 +73,23 @@ export const sheet = table({ name: "sheet", public: true }, {
   skills: t.string(),
   /** "HP 28/28, spell slots 1st 3/3" */
   statusLine: t.string(),
+  level: t.u32().default(0),
+  hp: t.i32().default(0),
+  maxHp: t.i32().default(0),
+  ac: t.i32().default(0),
+  slots: t.array(SlotRow).default([]),
+  conditions: t.array(t.string()).default([]),
+  /** Cantrips and prepared spells. */
+  spells: t.array(SpellRef).default([]),
+  weapons: t.array(WeaponRef).default([]),
+  /** Class features with uses they can use in a scene. */
+  features: t.array(FeatureRef).default([]),
+  /** JSON: shared/rules SheetData without purse and carrying (about 19 KB for a wizard); "" before V1. */
+  data: t.string().default(""),
+  /** JSON: shared/rules Pockets, the purse and what else they carry; "" before V1. */
+  pockets: t.string().default(""),
+  /** JSON: the Backstory they wrote at creation, if they wrote one. */
+  backstory: t.option(t.string()).default(undefined),
 });
 
 /** The game's only randomness after its creation (shared/dice.ts rollFrom). */
@@ -319,12 +353,13 @@ export const job = table({ name: "job" }, {
   id: t.u64().primaryKey().autoInc(),
   /** The current step's idempotency key. */
   key: t.string().unique(),
-  gameId: t.u64(),
-  sceneId: t.u64(),
-  turnId: t.u64(),
-  /** say, openScene. */
+  /** The game, scene and turn a turn's job is for; none for a creation's (its plan names the creation). */
+  gameId: t.option(t.u64()),
+  sceneId: t.option(t.u64()),
+  turnId: t.option(t.u64()),
+  /** say, openScene, creation. */
   move: t.string(),
-  /** open, decide, reply, settle. */
+  /** open, decide, reply, settle; a creation's offer, pick, own, draft, work, check, traits. */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),
@@ -394,6 +429,87 @@ export const placeDef = table({ name: "place_def" }, {
 });
 
 // ---------------------------------------------------------------------------------------------
+// Character creation and the rules engine (v1-design §3.1, §3.5).
+
+/**
+ * A character being made, one per identity, read through my_creation: from the concept to the game
+ * made from it, which `begin` sets off in (and deletes this row). Each move bumps `rev` (but
+ * setBackstory), and a creation step's answer lands only while `rev` is still the one it was asked
+ * at. JSON columns hold shared/rules and shared/creation types.
+ */
+export const creation = table({ name: "creation" }, {
+  identity: t.identity().primaryKey(),
+  /** tx.uuid(): the creation's id in requests and keys; the game made from it takes it as game.uid. */
+  uid: t.string(),
+  /** caerwyn, and its version, 0.1.0 (as game.campaign and campaignVersion). */
+  campaign: t.string(),
+  campaignVersion: t.string(),
+  name: t.string(),
+  concept: t.string(),
+  /** three, model, own. */
+  how: t.string(),
+  /** concept, choose, custom, backstory, made. */
+  step: t.string(),
+  /** What the GM is working on: builds, pick, own, draft, work, check, traits. */
+  busy: t.option(t.string()),
+  rev: t.u32(),
+  /** JSON: Offer, the three builds. */
+  offer: t.option(t.string()),
+  /** JSON: OwnBuild, the player's own picks, what they come to, and the lists. */
+  own: t.option(t.string()),
+  /** JSON: BuildOption, the build chosen. */
+  chosen: t.option(t.string()),
+  /** The backstory as the box last had it. */
+  story: t.string(),
+  /** Bumped when the story is replaced from outside (a draft taken, a fix accepted): the box starts again with it. */
+  version: t.u32(),
+  /** JSON: Proposal, a draft or the notes worked in, waiting to be taken or left. */
+  proposal: t.option(t.string()),
+  /** JSON: LoreIssue[], what the lore check found, shown one at a time. */
+  issues: t.option(t.string()),
+  /** The issue on show. */
+  issue: t.u32(),
+  /** JSON: LoreIssue, the one they chose to rewrite themselves. */
+  rewriting: t.option(t.string()),
+  /** The fixes taken are being checked once more: not a third time. */
+  again: t.bool(),
+  /** A word for the player on the creation screens. */
+  note: t.option(t.string()),
+  /** Why the backstory went in without the lore check: the sheet says so over it. */
+  unchecked: t.option(t.string()),
+  /** JSON: Backstory, what the finished backstory says of them. */
+  backstory: t.option(t.string()),
+  /** The game made from it, until `begin`. */
+  gameId: t.option(t.u64()),
+  /** The model calls its steps made, and what they cost. */
+  calls: t.u32(),
+  costMicros: t.u64(),
+  updatedAt: t.timestamp(),
+});
+
+/** kind: weapon, armor, shield, item; slot: mainHand, offHand, armor, shield. */
+const GearRow = t.object("GearRow", { id: t.string(), name: t.string(), kind: t.string(), slot: t.option(t.string()) });
+
+/**
+ * The rules engine's side of a player's character: its campaign, serialized, which is the engine's
+ * event log (loading it replays the events; shared/rules caches the loaded campaign per isolate).
+ */
+export const rulesState = table({ name: "rules_state" }, {
+  playerId: t.u64().primaryKey(),
+  gameId: t.u64().index("btree"),
+  /** The engine's id for the character. */
+  pc: t.string(),
+  /** serializeCampaign: the engine's event log. */
+  campaign: t.string(),
+  /** The build's preferences, in order, for choices that come later (V7's level-ups). */
+  prefer: t.array(t.string()),
+  /** The character's gear: engine item instances, mirrored into the world as things they carry. */
+  gear: t.array(GearRow),
+  /** Gear the story has parted them from: off the sheet until they get it back. */
+  gone: t.array(t.string()),
+});
+
+// ---------------------------------------------------------------------------------------------
 // The views' rows: each with a primary key, so a change arrives as one onUpdate.
 
 /** my_seat: the caller's seat, as its player row has it. */
@@ -412,6 +528,22 @@ export const NameView = t.row("NameView", {
   name: t.string(),
 });
 
+/** my_games: one of the caller's games, as the title lists it (v1-design §3.2). */
+export const GameSummary = t.row("GameSummary", {
+  gameId: t.u64().primaryKey(),
+  /** The character's. */
+  name: t.string(),
+  /** morning, afternoon, evening, night. */
+  time: t.string(),
+  /** "in The Hanged Clerk", "The Hanged Clerk, over", "heading for The Hanged Clerk". */
+  where: t.string(),
+  /** The scene's hook: where it is, or where it's heading. */
+  hook: t.string(),
+  /** Whether it has set off (begin), or is still the sheet. */
+  begun: t.bool(),
+  lastPlayedAt: t.timestamp(),
+});
+
 // ---------------------------------------------------------------------------------------------
 
 const spacetimedb = schema(
@@ -421,6 +553,7 @@ const spacetimedb = schema(
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,
     job, jobDispatch, reaper,
     campaign, sceneDef, placeDef,
+    creation, rulesState,
   },
   {
     /** Set at publish (`AI_URL=… spacetime publish …`, or --env-only). */
