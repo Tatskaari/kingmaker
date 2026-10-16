@@ -15,7 +15,7 @@
  */
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
-import { App } from "../app.tsx";
+import { ScenePlay } from "../app.tsx";
 import { GM_BUSY } from "../busy.ts";
 import { SceneModel } from "../scene/model.ts";
 import { markupOf } from "../scene/rows.ts";
@@ -46,7 +46,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   let view: SceneView = YARD;
   const scene = new SceneModel(view, { say: text => sent.push(text), retry: () => sent.push("/retry"), quit: () => {} });
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; act(() => scene.update(view)); };
-  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   /** A lone Esc is held a moment by the key parser (it might start a sequence): wait it out, as the prototype's checks do. */
   const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); };

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { newGameOf, type Backend } from "../client/backend.ts";
@@ -7,17 +8,32 @@ import { connect } from "../client/net/connection.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
 
 /**
- * The headless client (v0-design §7), one verb a process: what an agent or a QA run plays
- * through, printing what the player would see. The session keeps the identity (runs/play/); the
- * simulation keeps the game.
+ * The headless client (v0-design §7, v1-design §3.10), one verb a process: what an agent or a QA
+ * run plays through, printing what the player would see. The session keeps the identity
+ * (runs/play/), whose games the simulation keeps.
  */
 
 const USAGE = `Kingmaker: headless play
 
-  play new --session <name> --as "Name: concept" [--build ranger|rogue|wizard] [--campaign caerwyn]
-                                                start a game as a ready-made character; waits for the opening
+  play builds --session <name> --as "Name: concept"
+                                                three builds that fit, as the game offers them (play new --build takes one)
+  play new --session <name> --as "Name: concept" [--campaign caerwyn]
+                                                make a character, and set off; waits for the opening. With no --build the GM picks one
+      [--build 1|2|3]                           one of the three builds (play builds' offer, or a new one)
+      [--build own:<species>,<class>,<subclass>,<background>]
+                                                one of your own making, from the SRD's ids
+      [--build cleric|fighter|ranger|rogue|wizard]
+                                                a ready-made character instead (no backstory: it goes straight in)
+      [--backstory "..." | --backstory-file <path>]
+                                                your backstory, checked against the lore: what doesn't fit is said, with
+                                                a fix, and stops it there; --accept-fixes takes the fixes (and checks once more)
+  play sheet --session <name>                   your character sheet
+  play games --session <name>                   your games, as the title lists them
+  play continue --session <name> --game <id>    carry one of your games on
+  play delete --session <name> --game <id>      delete one of your games, for good
+  play begin --session <name>                   set off, from the sheet of a character just made
   play join --session <name> --game <id>        watch someone's game (you see it as they do; you can't speak)
-  play observe --session <name>                 the scene as the player sees it, and whose turn it is
+  play observe --session <name>                 what you see: your games, your sheet before you set off, or the scene and whose turn it is
   play say --session <name> <what you say or do>
                                                 plain words are said; *asterisks* or (brackets) are done
       [--wait settled]                          wait for the world to settle too, not just the reply
@@ -57,6 +73,7 @@ function argsOf(argv: string[]) {
     allowPositionals: true,
     options: {
       session: { type: "string" }, as: { type: "string" }, build: { type: "string" }, campaign: { type: "string" },
+      backstory: { type: "string" }, "backstory-file": { type: "string" }, "accept-fixes": { type: "boolean" },
       game: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
     },
@@ -82,8 +99,14 @@ async function run(game: Backend, args: Args): Promise<number> {
   const waiting = { settled: args.values.wait === "settled", stream: args.values.stream ?? false };
 
   switch (args.verb) {
-    case "new": return await verbs.newGame(game, newGameOf(args.values.as ?? DEFAULT_WHO, args.values.build ?? "ranger", args.values.campaign ?? "caerwyn"), out, waiting);
-    case "join": return await verbs.joinGame(game, gameId(args.values.game), out);
+    case "builds": return await verbs.builds(game, characterOf(args), out, waiting);
+    case "new": return await verbs.newCharacter(game, characterOf(args), out, waiting);
+    case "sheet": return verbs.sheet(game, out);
+    case "games": return verbs.games(game, out);
+    case "continue": return await verbs.continueGame(game, gameId(args.values.game, "continue"), out);
+    case "delete": return await verbs.deleteGame(game, gameId(args.values.game, "delete"), out);
+    case "begin": return await verbs.begin(game, out, waiting);
+    case "join": return await verbs.joinGame(game, gameId(args.values.game, "join"), out);
     case "observe": return verbs.observe(game, out);
     case "say": return await verbs.say(game, args.text, out, waiting);
     case "retry": return await verbs.retry(game, out, waiting);
@@ -92,8 +115,16 @@ async function run(game: Backend, args: Args): Promise<number> {
   }
 }
 
-function gameId(game: string | undefined): bigint {
-  if (!game || !/^\d+$/.test(game)) throw new Error("Which game? join takes --game <id>: the number in the side panel of the game you'll watch.");
+/** Who to make, and how, from new's (or builds') arguments: --as, --build, the backstory from --backstory or its file, --accept-fixes. */
+function characterOf(args: Args): verbs.NewCharacter {
+  const { name, concept, campaign } = newGameOf(args.values.as ?? DEFAULT_WHO, "", args.values.campaign ?? "caerwyn");
+  const file = args.values["backstory-file"];
+  const backstory = file ? readFileSync(file, "utf8") : args.values.backstory;
+  return { campaign, name, concept, build: args.values.build, backstory, acceptFixes: args.values["accept-fixes"] ?? false, session: args.values.session };
+}
+
+function gameId(game: string | undefined, verb: string): bigint {
+  if (!game || !/^\d+$/.test(game)) throw new Error(`Which game? ${verb} takes --game <id>: ${verb === "join" ? "the number in the side panel of the game you'll watch" : "its number in play games"}.`);
   return BigInt(game);
 }
 
