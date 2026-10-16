@@ -1,3 +1,4 @@
+// The checks' words are the prototype's src/app/smoke/flow.ts at 44c6d4a (its sixteen asserts, in order); the run around them is v2's: a stack of its own, play new, and each check on once its vertical lands.
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { newGameOf, type HomeRows } from "../client/backend.ts";
