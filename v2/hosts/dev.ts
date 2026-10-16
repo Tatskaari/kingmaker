@@ -104,6 +104,8 @@ async function start(): Promise<Stack> {
 
 function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] {
   const file = s.file(), logs = relative(process.cwd(), join(file.root, "logs")) || ".";
+  // The clients find runs/dev's stack by themselves; another folder they're told.
+  const stackFlag = file.root === join(V2, "runs", "dev") ? "" : ` --stack ${relative(process.cwd(), file.root) || "."}`;
   const modeLine = s.mode === "namespace"
     ? `namespace mode (SpacetimeDB in a pasta namespace; ${AI_ADDRESS} is this machine's loopback)`
     : `host mode (${AI_ADDRESS} is on this machine)`;
@@ -117,8 +119,8 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `  Campaign      ${campaignLine}`,
     `  Doctor        ${report.summary}`,
     ...failing.map(c => `                ✗ ${c.name}: ${c.detail}`),
-    `Play:  npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]`,
-    "       npm run client -- --session <name> --join <game>",
+    `Play:  npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
+    `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
       ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored answer", "       p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),
