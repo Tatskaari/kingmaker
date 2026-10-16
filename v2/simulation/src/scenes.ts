@@ -1,3 +1,4 @@
+import type { GmState, ScenePatch } from "../../shared/gm/state.ts";
 import { campaignId, type BuildFile, type BuildsFile, type CampaignFile, type LooksFile, type PlaceFile, type SceneFile } from "../../shared/scene/files.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
@@ -63,14 +64,19 @@ export function placeFileOf(tx: TxCtx, game: GameRow, placeKey: string): PlaceFi
 
 export const sceneFileOf = (def: SceneDefRow) => JSON.parse(def.json) as SceneFile;
 
-/** A scene's graph from its def: the structure, the hook (for the names heard), and the improvised ending. */
-export function graphOf(def: SceneDefRow): Scene {
-  return effectiveScene({ ...sceneOf(sceneFileOf(def)), hook: def.hook }, []);
+/** A scene's graph from its def: the structure, the hook (for the names heard), and the improvised ending; with `patches`, as play has changed it. */
+export function graphOf(def: SceneDefRow, patches: ScenePatch[] = []): Scene {
+  return effectiveScene({ ...sceneOf(sceneFileOf(def)), hook: def.hook }, patches);
 }
 
-/** The graph of a scene being played. */
-export function sceneGraph(tx: TxCtx, scene: SceneRow): Scene {
-  return graphOf(sceneDefOf(tx, gameRow(tx, scene.gameId), scene.sceneKey));
+/**
+ * The graph of a scene being played, as play has changed it (full-gm-design §4.2): the co-GM's routes
+ * and bridging beats, and the ways of trying a ruling shut (gm.patches), as the AI service's own graph
+ * has them, so a route it offers is one the decide commit finds. `{ patches: [] }`: the scene as
+ * authored.
+ */
+export function sceneGraph(tx: TxCtx, scene: SceneRow, gm: Pick<GmState, "patches">): Scene {
+  return graphOf(sceneDefOf(tx, gameRow(tx, scene.gameId), scene.sceneKey), gm.patches);
 }
 
 /** An exit of the graph by its id. */

@@ -203,3 +203,19 @@ test("a decision naming a route that isn't open here moves nothing", async () =>
   assert.match(host.logs.join("\n"), /the decision's route insist-cob isn't open from yard: no move/);
   assert.equal(all(host.db.job).length, 0);
 });
+
+test("the player walking out of the place ends the scene on an ending of their own, and the stage manager's removal of them stands", async () => {
+  const { host, scene, player, line } = await game();
+  const out = { what: `pc:${player.id}`, to: "", how: "", name: "", kind: "", text: "out of the gate", add: [], remove: [] };
+  const ended = await line("(I nod to the sergeant and walk out of the yard, back towards the palace)", decided(), { ...read({ left: true }), ops: [{ ...out, op: "remove" }] });
+
+  assert.deepEqual([ended.scene.status, ended.scene.exitKey, ended.lines.at(-1)!.text], ["ended", "own-ending", "Scene ends: An ending of their own"]);
+  assert.deepEqual(ended.gm.path.at(-1), { turn: 1, from: "yard", to: "own-ending", via: "left-the-place", source: "post" });
+  assert.equal([...host.db.entity.placeId.filter(scene.placeId)].find(e => e.key === `pc:${player.id}`)!.gone, true);
+});
+
+test("walking out as the same read finds the story at one of its endings: that ending, wound down, rather than one of their own", async () => {
+  const { line } = await game();
+  const now = await line("We're done here. *I walk out with the sergeant.*", decided(), read({ left: true, ending: { exitId: "case-made", probability: 0.9 }, theirs: true }));
+  assert.deepEqual([now.scene.status, now.gm.closing?.exitId, now.gm.ended], ["closing", "case-made", undefined]);
+});

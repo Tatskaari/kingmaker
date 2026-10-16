@@ -65,7 +65,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     const opening = writeReply(tx, scene, 0, turnId, opened.entries);
     if (opening) askForNotes(tx, turnId, opening);
     suggestAfter(tx, scene, turnId);
-    noteHeard(tx, scene, sceneGraph(tx, scene));
+    noteHeard(tx, scene, sceneGraph(tx, scene, gm));
 
     updateScene(tx, scene.id, { status: "live" });
     finishTurn(tx, scene.id, turnId);
