@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :163-172, :190-191): the mark's popover and the help only, HELP.scene trimmed to this client's commands.
+// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :163-172, :190-191): the mark's popover and the help only, HELP.scene trimmed to this client's commands; its suggested lines' paragraph (:45) less a talk's and the Esc menu's words.
 import type { MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { ReactNode } from "react";
@@ -11,6 +11,7 @@ import { MarkPopover } from "./popover.tsx";
 const HELP = [
   "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
   "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Underlined words are the GM's marks (on coral, why someone acts as they do; teal, something you'd know; lavender, something you did): click one, or Tab to it and press Enter, for a note from what you know. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
+  "After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. /suggestions off turns them off.",
   "/help this · /retry carries on a turn the GM lost · /quit leaves (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
 ];
 

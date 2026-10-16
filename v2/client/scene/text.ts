@@ -1,16 +1,21 @@
-// The prototype's src/runtime/markup.ts:623-635 (markupLines) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; viewText and phaseLine are new.
+// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines); viewText and phaseLine are new.
 import type { Mark, MarkLink, Markup } from "../../shared/markup.ts";
 import { isPlayer, type Entry, type SceneView } from "./view.ts";
 
 /**
  * The scene as text, for the headless client (an agent plays through it) and the logs: the last few
- * entries, a GM reply's markup under it (who says what, each marked phrase's note), the phase and
- * whether the player may speak. The prototype's QA console printed the same way (src/game/play.ts
+ * entries, a GM reply's markup under it (who says what, each marked phrase's note and card), the
+ * lines suggested for this moment (say_1…, as the agent picks them), the phase and whether the
+ * player may speak. The prototype's QA console printed the same way (src/game/play.ts
  * render, src/runtime/markup.ts markupLines), from the core; this prints from the same view model the
  * screen draws, so the agent sees what the player sees.
  */
 
-/** A reply's markup in words: who says each line, then each marked phrase with its note and what it's linked to. */
+/**
+ * A reply's markup in words: who says each line, then each marked phrase with its note and what
+ * it's linked to, and under it the card its popover shows (what the player knows of that), when it
+ * has one to show.
+ */
 export function markupLines(text: string, markup: Markup, name: (id: string) => string | undefined): string[] {
   const clip = (s: string, n = 28) => (s.length > n ? `${s.slice(0, n - 1)}…”` : s);
   // A tag that's no one here is someone the GM brought in ("the porter"), not someone away.
@@ -18,7 +23,10 @@ export function markupLines(text: string, markup: Markup, name: (id: string) => 
   const link = (l: MarkLink) => (l.kind === "deed" ? `what you did, turn ${l.turn}` : l.kind === "person" ? `who: ${name(l.id) ?? l.id}` : `lore: ${l.path.replace(/^.*\//, "").replace(/\.md$/, "")}`);
   return [
     ...(who.length ? [`  ⟨who says what: ${who.join("; ")}⟩`] : []),
-    ...markup.marks.map((m: Mark) => `  ⟨${m.kind} on “${text.slice(m.start, m.end)}”: ${m.note}${m.link ? ` (${link(m.link)})` : ""}⟩`),
+    ...markup.marks.flatMap((m: Mark) => [
+      `  ⟨${m.kind} on “${text.slice(m.start, m.end)}”: ${m.note}${m.link ? ` (${link(m.link)})` : ""}⟩`,
+      ...(m.card?.lines.length ? [`    ⟨card: ${[m.card.title, ...m.card.lines].join(" · ")}⟩`] : []),
+    ]),
   ];
 }
 
@@ -30,6 +38,11 @@ export function render(view: SceneView, entries: Entry[]): string {
     : e.markup ? [e.text, ...markupLines(e.text, e.markup, name)].join("\n") : e.text).join("\n\n");
 }
 
+/** The lines suggested for this moment, as the agent picks them (act --id say_2): nothing when there are none. */
+export function actionLines(view: SceneView): string[] {
+  return view.suggestions.length ? ["ACTIONS:", ...view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`)] : [];
+}
+
 /** What the player can do now, in a line, for the agent. */
 export function phaseLine(view: SceneView): string {
   if (view.over) return "PHASE: over (the scene has ended: there's nothing more to say in it)";
@@ -39,10 +52,11 @@ export function phaseLine(view: SceneView): string {
   return `PHASE: ${view.phase} (the GM has the floor)`;
 }
 
-/** The scene as the player sees it: where and when, who's here, the last `last` entries, the draft, a refusal or what the turn waits on, the phase. */
+/** The scene as the player sees it: where and when, who's here, the last `last` entries, the draft, a refusal or what the turn waits on, the lines suggested, the phase. */
 export function viewText(view: SceneView, last = 8): string {
   const here = view.present.length ? `Here: ${view.present.map(p => p.name).join(", ")}.` : "Nobody else is here.";
   const word = view.refusal ?? view.note;
+  const actions = actionLines(view);
   return [
     `MODE: scene`,
     ``,
@@ -51,6 +65,7 @@ export function viewText(view: SceneView, last = 8): string {
     render(view, view.entries.slice(-last)),
     ...(view.draft ? [``, `(${view.draft.name ?? "The GM"} is still speaking: ${view.draft.text}…)`] : []),
     ...(word ? [``, word] : []),
+    ...(actions.length ? [``, ...actions] : []),
     ``,
     phaseLine(view),
   ].join("\n");

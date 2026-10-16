@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { Backend } from "./backend.ts";
+import { YARD } from "./check/fixture.ts";
 import { demoBackend } from "./demo.ts";
 import * as verbs from "./headless.ts";
+import type { SceneView } from "./scene/view.ts";
 
 /** A verb's words, and the reply's progress, kept to read back. */
 function capture(): verbs.Out & { printed: string; streamed: string } {
@@ -9,18 +12,82 @@ function capture(): verbs.Out & { printed: string; streamed: string } {
   return out;
 }
 
-test("say: what answered the line, then whose turn it is; with --wait settled, once the world has settled", async () => {
+test("say: what answered the line, its notes and the lines suggested after it, then whose turn it is", async () => {
   const out = capture();
   const code = await verbs.say(demoBackend({ ms: 1 }), "Sergeant, who found him?", out);
 
   assert.equal(code, 0);
   assert.match(out.printed, /^Sergeant Kell glances up at the body/);
   assert.doesNotMatch(out.printed, /Sergeant, who found him\?/);
-  assert.match(out.printed, /PHASE: settling \(your turn: say what your character says or does\)\n$/);
+  assert.match(out.printed, /\n {2}⟨who says what: Sergeant Agnes Kell “The porters\. First light\. …”⟩\n/);
+  assert.match(out.printed, /\n {2}⟨know on “ran for the watch”: The watch keeps a house .* \(lore: City Watch\)⟩\n {4}⟨card: The City Watch · .* · What anyone in Caerwyn could tell you\.⟩\n/);
+  assert.match(out.printed, /\n {2}⟨why on “Her pencil taps once against the page”: .* \(who: Sergeant Agnes Kell\)⟩\n {4}⟨card: Sergeant Agnes Kell · .* · Last said to you \(turn 3\): “The porters\. First light\. .*”⟩\n/);
+  assert.match(out.printed, /\nACTIONS:\n- say_1: Sergeant, who found him, .*\n- say_2: Nice boots, lad\. Yours\?\n- say_3: .*\n- say_4: .*\n\nPHASE: done \(your turn: say what your character says or does\)\n$/);
+});
 
+test("say --wait settled: once the world has settled and the notes are in", async () => {
   const settled = capture();
   await verbs.say(demoBackend({ ms: 1 }), "Who else?", settled, { settled: true });
+
+  assert.match(settled.printed, /⟨why on “Her pencil taps/);
   assert.match(settled.printed, /PHASE: done \(your turn/);
+});
+
+test("the waits for the notes and the lines give up after a while: then what's there", async () => {
+  const out = capture();
+  const started = Date.now();
+  const code = await verbs.say(stalled(), "Anyone?", out, { afterMs: 40 });
+
+  assert.equal(code, 0);
+  assert.ok(Date.now() - started < 2000);
+  assert.match(out.printed, /^Kell says nothing\.\n\nPHASE: noting \(your turn/);
+  assert.doesNotMatch(out.printed, /ACTIONS:/);
+});
+
+test("act: the second line suggested said, and what answered it", async () => {
+  const game = demoBackend({ ms: 1 });
+  const out = capture();
+
+  assert.equal(await verbs.act(game, "say_2", out), 0);
+  assert.match(out.printed, /^> Nice boots, lad\. Yours\?\n\nSergeant Kell glances up/);
+  assert.equal(game.view()!.entries.filter(e => e.kind === "player").at(-1)?.text, "Nice boots, lad. Yours?");
+  assert.match(out.printed, /PHASE: done/);
+});
+
+test("act: no such line, a line with the lines off, or a spectator's, is refused (exit 1)", async () => {
+  const game = demoBackend({ ms: 1 });
+  const out = capture();
+
+  assert.equal(await verbs.act(game, "say_9", out), 1);
+  assert.equal(out.printed, "(There's no say_9 here: the choices are say_1 to say_4.)\n");
+  assert.equal(await verbs.act(game, "talk_kell", capture()), 1);
+
+  await game.setSuggestions(false);
+  const off = capture();
+  assert.equal(await verbs.act(game, "say_1", off), 1);
+  assert.equal(off.printed, "(There's no say_1 here: the suggested lines are off (suggestions on brings them back).)\n");
+
+  await game.joinGame(1n);
+  const watching = capture();
+  assert.equal(await verbs.act(game, "say_1", watching), 1);
+  assert.equal(watching.printed, "(Pell Marrow has the lead here: you're watching.)\n");
+});
+
+test("suggestions: which it is; off, and none listed; on, this moment's asked for at once, waited for and listed", async () => {
+  const game = demoBackend({ ms: 1 });
+
+  const now = capture();
+  assert.equal(await verbs.suggestions(game, undefined, now), 0);
+  assert.match(now.printed, /^Suggested lines: on\.\n\nACTIONS:\n- say_1: /);
+
+  const off = capture();
+  assert.equal(await verbs.suggestions(game, false, off), 0);
+  assert.equal(off.printed, "Suggested lines: off.\n");
+  assert.equal(game.view()!.suggestions.length, 0);
+
+  const on = capture();
+  assert.equal(await verbs.suggestions(game, true, on), 0);
+  assert.match(on.printed, /^Suggested lines: on\.\n\nACTIONS:\n- say_1: .*\n- say_2: .*\n- say_3: .*\n- say_4: .*\n$/);
 });
 
 test("say --stream: the reply as it's written, on its own stream", async () => {
@@ -64,3 +131,22 @@ test("observe and transcript: the scene, and everything said in it", () => {
   assert.match(seen.printed, /^MODE: scene\n\n\[The Hanged Clerk, morning\] Here: /);
   assert.match(all.printed, /^MODE: transcript\n\n\[The Hanged Clerk\]\n\nThe yard behind the King's Granary/);
 });
+
+/** A game whose reply comes at once, and whose notes and lines never do: what the waits give up on. */
+function stalled(): Backend {
+  let view: SceneView = YARD;
+  return {
+    view: () => view,
+    onChange: () => () => {},
+    newGame: () => Promise.resolve(undefined),
+    joinGame: () => Promise.resolve(undefined),
+    say(text) {
+      const turn = 3;
+      view = { ...view, entries: [...view.entries, { turn, speaker: "player:1", kind: "player", text }, { turn, speaker: "gm", kind: "narration", text: "Kell says nothing." }], phase: "noting", turn, notesComing: true, suggestionsComing: true };
+      return Promise.resolve(undefined);
+    },
+    retry: () => Promise.resolve(undefined),
+    setSuggestions: () => Promise.resolve(undefined),
+    close() {},
+  };
+}

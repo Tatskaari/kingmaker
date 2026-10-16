@@ -1,4 +1,5 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1897-1935 (speechColor and the marks), :2341-2344 (closeOverlay).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2341-2344 (closeOverlay).
+import type { Rejection } from "../backend.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { C } from "../theme.ts";
@@ -17,8 +18,14 @@ export interface SceneActions {
   say(text: string): void;
   /** The `retryTurn` move, for a turn that failed. */
   retry(): void;
+  /** The `setSuggestions` move: this player's own setting. Answers why not, when it wasn't made (the view's refusal says so too). */
+  setSuggestions(on: boolean): Promise<Rejection | undefined>;
   quit(): void;
 }
+
+/** What /suggestions says it did (the prototype's words, less the Esc menu, which this client hasn't got). */
+export const SUGGESTIONS_ON = "Suggested lines on: a few things to say or do come up over the box after each reply.";
+export const SUGGESTIONS_OFF = "Suggested lines off. (/suggestions brings them back.)";
 
 export type Overlay =
   | { kind: "help" }
@@ -87,7 +94,8 @@ export class SceneModel {
     const { phase, draft } = this.view;
     if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
     if (phase === "replying") return draft?.kind === "dialogue" ? `${draft.name ?? draft.speaker} is speaking…` : "The GM is speaking…";
-    if (phase === "settling") return "The GM makes a note…";
+    // The world settling behind the reply, and the notes on its marks being written: the GM's bookkeeping, either way.
+    if (phase === "settling" || phase === "noting") return "The GM makes a note…";
     return undefined;
   }
 
@@ -107,19 +115,33 @@ export class SceneModel {
   }
 
   private command(command: string): void {
-    const [typed = ""] = command.trim().split(/\s+/);
+    const [typed = "", word] = command.trim().split(/\s+/);
     switch (commandNamed(typed)) {
       case "help": this.overlay = { kind: "help" }; break;
       case "retry":
         if (this.view.phase === "failed") this.actions.retry();
         else this.status = "Nothing to retry: the last turn didn't fail.";
         break;
+      case "suggestions": void this.turnSuggestions(word); break;
       case "quit": this.actions.quit(); return;
       default:
         this.status = typed
           ? `There's no /${typed}. There's ${COMMANDS.filter(c => !c.testing).map(c => `/${c.name}`).join(", ").replace(/, ([^,]+)$/, " and $1")}.`
           : "A slash on its own says very little. Try /help.";
     }
+    this.emit();
+  }
+
+  /**
+   * /suggestions on or off, and with no word turned over: the player's own setting, which the
+   * simulation keeps (turned on, it asks for this moment's lines at once). It goes any time, with the
+   * GM mid-sentence or the scene over. Its words once it's made; a refusal's are the view's.
+   */
+  private async turnSuggestions(word: string | undefined): Promise<void> {
+    const on = word === undefined ? !this.view.suggestionsOn : /^(on|yes)$/i.test(word) ? true : /^(off|no)$/i.test(word) ? false : undefined;
+    if (on === undefined) { this.status = `/suggestions takes on or off (or nothing, to turn them over), not "${word}".`; this.emit(); return; }
+    if (await this.actions.setSuggestions(on)) return;
+    this.status = on ? SUGGESTIONS_ON : SUGGESTIONS_OFF;
     this.emit();
   }
 
