@@ -53,7 +53,7 @@ For host mode, once per boot: `sudo ip addr add 11.0.0.1/32 dev lo`. For good: `
 | `stack.json` | the URLs, the mode, the identities' tokens, the bearer and the pids. Local dev credentials: private to you, and gitignored with `runs/` |
 | `stdb/` | SpacetimeDB's data. `config.toml` sets the procedure pool to 16 |
 | `keys/` | the keys that sign this server's tokens |
-| `cli.toml` | the CLI's config for this stack, logged in as the owner (never `~/.config/spacetime`) |
+| `cli.toml` | the CLI's config for this stack (never `~/.config/spacetime`): the stack's server is its default and Maincloud isn't in it, so a command without `-s` stays on this machine. Logged in as the owner |
 | `ai/` | the AI service's store: kept answers, call logs, the ledger, installed campaigns |
 | `logs/` | `spacetime.log`, `ai.log`, and `dev.log` (each step, and the CLI's output) |
 
