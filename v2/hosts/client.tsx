@@ -91,7 +91,7 @@ async function seated(game: Backend, args: Args): Promise<SceneView> {
     return await viewWhen(game, v => v.game === args.join, ROWS_MS);
   }
   const view = game.view();
-  if (!view) throw new Error(refusal("not_in_game").text);
+  if (!view) throw new Error(`${refusal("not_in_game").text} Start one with --new "Name: concept", or watch one with --join <game>.`);
   return view;
 }
 

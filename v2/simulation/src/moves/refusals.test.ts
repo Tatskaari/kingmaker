@@ -29,7 +29,7 @@ test("say: not in a game; while the scene opens; a spectator's line; nothing sai
   const { host } = hostWithCampaign();
   const wren = identity(1), stranger = identity(9), tamsin = identity(2);
 
-  assert.deepEqual(host.as(stranger).say({ text: "Hello" }), { code: "not_in_game", text: "(You're not in a game: start one with --new, or watch one with --join.)" });
+  assert.deepEqual(host.as(stranger).say({ text: "Hello" }), { code: "not_in_game", text: "(You're not in a game: start one, or watch someone's.)" });
   host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "", build: "ranger" });
   assert.deepEqual(host.as(wren).say({ text: "Hello" }), { code: "not_ready", text: "(The scene is still opening.)" });
   await host.drain();
@@ -156,7 +156,7 @@ test("own: taking it while the engine is still making it", () => {
 test("the games' moves: begin with no game or one already begun, a game that isn't theirs or doesn't exist, watching a game that hasn't begun", async () => {
   const { host } = hostWithCampaign();
   const tamsin = identity(2), stranger = identity(9);
-  assert.deepEqual(host.as(tamsin).begin(), { code: "not_in_game", text: "(You're not in a game: start one with --new, or watch one with --join.)" });
+  assert.deepEqual(host.as(tamsin).begin(), { code: "not_in_game", text: "(You're not in a game: start one, or watch someone's.)" });
 
   const { game } = await madeCharacter(host, tamsin);
   assert.deepEqual(host.as(stranger).joinGame({ game: game.id }), { code: "not_begun", text: "(That game hasn't begun: its player is still making their character.)" });

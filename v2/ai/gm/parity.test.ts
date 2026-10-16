@@ -19,9 +19,10 @@ import type { SceneWorld } from "../../shared/world/scene-world.ts";
 /**
  * Prompt parity (v0-design §10.2), the AI service's acceptance test: V0's GM asks the models what
  * the prototype's asks, for the same state. golden/hanged-clerk holds the prototype's calls on the
- * hanged clerk at 44c6d4a (record-golden.mts, golden/README.md): for each step, the session as it
- * stood and every call it made. Each step's session becomes the request the simulation would send,
- * V0's endpoint runs on the same stand-in, and its calls are compared:
+ * hanged clerk at 44c6d4a (recorded by the repo's tools/record-golden.mts; golden/README.md): for
+ * each step, the session as it stood and every call it made. Each step's session becomes the
+ * request the simulation would send, V0's endpoint runs on the same stand-in, and its calls are
+ * compared:
  *
  * - byte for byte: the GM's (gm.opening, gm.reply), the stage manager's (instructions, input,
  *   schema), and disclosure's (each scope's state and questions);

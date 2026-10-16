@@ -6,29 +6,17 @@ import { workingSet } from "../../gm/working-set.ts";
 import type { OpenedNote } from "../../../shared/gm/state.ts";
 import { effectiveScene } from "../../../shared/scene/graph.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
-import { Failure, type AiContext } from "../context.ts";
+import type { AiContext } from "../context.ts";
 
 /**
  * What every think starts from: the scene the request plays, with its words, as play has it (its
  * patches: none in V0, so it's the authored scene with an ending of its own), and the request's view
- * of it, which the GM code reads as the prototype's session.
+ * of it, which the GM code reads as the prototype's session. The server has checked the request has
+ * what this reads (requests.ts).
  */
 export function sceneAndView(ctx: AiContext, key: string, source: ViewSource): { scene: Scene; view: TurnView } {
-  checkShape(source);
   const scene = effectiveScene(ctx.campaign.scene(key), source.gm.patches);
   return { scene, view: viewOf(source, scene) };
-}
-
-/** A request missing what every think reads is the sender's mistake (400, which the module doesn't retry), not the model's. */
-function checkShape(source: ViewSource): void {
-  const missing = [
-    !source.gm?.beat && "gm (the scene's bookkeeping)",
-    !Array.isArray(source.transcript) && "the transcript",
-    !source.world?.place?.key && "the world's rows",
-    !source.party?.[0]?.name && "a character in the party",
-    !/^pc:/.test(source.pc ?? "") && "pc (the controller's character's key)",
-  ].filter(Boolean);
-  if (missing.length) throw new Failure(400, "bad_request", `the request is missing ${missing.join(", ")}`);
 }
 
 /** The deciders the prototype's v2 approach uses: Luna's decision mode for the director, and Jev for disclosure (the docs service's own). */

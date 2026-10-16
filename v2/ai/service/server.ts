@@ -6,6 +6,7 @@ import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
 import type { Faults } from "./config.ts";
 import { Failure, type AiContext, type Endpoints } from "./context.ts";
+import { checkRequest } from "./requests.ts";
 import type { Stores } from "./stores.ts";
 import { streamSink, type StreamTarget } from "./stream.ts";
 
@@ -17,8 +18,9 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  *   model call (X-Km-Replayed: 1); a duplicate that comes while the first is still running waits for
  *   its answer; otherwise the endpoint runs, and its answer is stored before it's sent, so a crash
  *   after the store loses nothing. The same key with another body is 409 key_reused.
- * - Errors are { error: { code, message } }: 400 bad_request, 401 unauthorised, 409 other_campaign
- *   or key_reused, 500 model_failed (after the model client's own retries), 503 not_ready.
+ * - Errors are { error: { code, message } }: 400 bad_request (a request it can't read, checked
+ *   before any model is asked), 401 unauthorised, 409 other_campaign or key_reused, 500 model_failed
+ *   (after the model client's own retries), 503 not_ready.
  * - Shutting down, it takes nothing new and gives what's running ten seconds to finish and be sent.
  */
 
@@ -77,7 +79,7 @@ export function aiService(options: ServiceOptions): AiService {
       if (closing) throw new Failure(503, "not_ready", "the AI service is shutting down");
       checkBearer(request, options.token);
       if (step) return await think(step, request);
-      return json(200, await install(decodeURIComponent(campaign![1]!), decodeURIComponent(campaign![2]!), request.body));
+      return json(200, await install(pathPart(campaign![1]!), pathPart(campaign![2]!), request.body));
     } catch (error) {
       return failed(error);
     }
@@ -87,6 +89,7 @@ export function aiService(options: ServiceOptions): AiService {
   async function think(step: Step & keyof Endpoints, request: AiHttpRequest): Promise<AiHttpResponse> {
     const body = parsed(request.body);
     const key = checkedKey(body, step, request.headers[HEADERS.idempotencyKey]);
+    checkRequest(step, body);
     const attempt = Number(request.headers[HEADERS.attempt]) || 1;
     const campaign = options.campaigns.use(body.game.campaign, body.game.version);
     const started = performance.now();
@@ -213,6 +216,15 @@ function checkedKey(body: ThinkBody, step: Step, header: string | undefined): st
   if (!game || typeof game.campaign !== "string" || typeof game.version !== "string") throw new Failure(400, "bad_request", "the body has no game { id, campaign, version }");
   if (game.id !== parts.game || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
   return body.key;
+}
+
+/** A campaign's or a version's name from the PUT's path, decoded: a 400 when it isn't a URI's encoding. */
+function pathPart(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    throw new Failure(400, "bad_request", `"${text}" in the path isn't a name`);
+  }
 }
 
 function checkBearer(request: AiHttpRequest, token: string): void {

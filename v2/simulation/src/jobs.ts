@@ -1,8 +1,10 @@
-import { ScheduleAt, Timestamp } from "spacetimedb";
+import { ScheduleAt, Timestamp, type Identity } from "spacetimedb";
 import type { Endpoint, Usage } from "../../shared/protocol/ai.ts";
 import { idOf, type CreationStep, type Step } from "../../shared/protocol/keys.ts";
+import { refusal } from "../../shared/protocol/refusals.ts";
+import { isAdmin } from "./access.ts";
 import type { AiOutcome, Claim } from "./ai-call.ts";
-import type { TxCtx } from "./context.ts";
+import { Refused, type TxCtx } from "./context.ts";
 import type { JobOwner, Move } from "./moves/move.ts";
 import { moveNamed } from "./moves/registry.ts";
 import { turnRow, updateTurn, type JobRow } from "./rows.ts";
@@ -81,6 +83,16 @@ export function reapJobs(tx: TxCtx): void {
   retryWaiting(tx);
   redispatchOverdue(tx);
   redispatchForgotten(tx);
+}
+
+/**
+ * dispatch_waiting, the owner's: every waiting job dispatched now, not at its time. The dev host
+ * calls it once it has started the AI service again (s, r, f), so a turn the backoff would hold for
+ * up to 15 s more goes on at once.
+ */
+export function dispatchWaitingReducer(tx: TxCtx, sender: Identity): void {
+  if (!isAdmin(tx, sender)) throw new Refused(refusal("not_admin", { what: "dispatch the waiting thinks" }));
+  for (const job of jobsIn(tx, "waiting")) if (!dropUnwanted(tx, job)) dispatchAgain(tx, job, "[dispatch_waiting]");
 }
 
 /** retry_turn's: a failed job queued again from its first attempt, with a dispatch. */
@@ -210,10 +222,15 @@ function retryWaiting(tx: TxCtx): void {
   for (const job of jobsIn(tx, "waiting")) {
     if (job.retryAt && job.retryAt.microsSinceUnixEpoch > tx.now.microsSinceUnixEpoch) continue;
     if (dropUnwanted(tx, job)) continue;
-    tx.db.job.id.update({ ...job, state: "queued", retryAt: undefined, updatedAt: tx.now });
-    dispatch(tx, job.id);
-    tx.log(`[reaper] job ${job.id} ${job.key} dispatched again (attempt ${job.attempts + 1})`);
+    dispatchAgain(tx, job, "[reaper]");
   }
+}
+
+/** A waiting job queued, with a dispatch: its next attempt. */
+function dispatchAgain(tx: TxCtx, job: JobRow, who: string): void {
+  tx.db.job.id.update({ ...job, state: "queued", retryAt: undefined, updatedAt: tx.now });
+  dispatch(tx, job.id);
+  tx.log(`${who} job ${job.id} ${job.key} dispatched again (attempt ${job.attempts + 1})`);
 }
 
 /** A running job past its deadline: its procedure died with the server, or its POST never came back. */
