@@ -1,0 +1,22 @@
+{
+  "kell": {
+    "role": "person",
+    "glyph": "K",
+    "fg": "#6d9eeb"
+  },
+  "cob": {
+    "role": "person",
+    "glyph": "c",
+    "fg": "#e8b15a"
+  },
+  "moll": {
+    "role": "person",
+    "glyph": "m",
+    "fg": "#e07ab0"
+  },
+  "tull": {
+    "role": "person",
+    "glyph": "T",
+    "fg": "#6d9eeb"
+  }
+}
