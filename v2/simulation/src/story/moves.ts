@@ -46,8 +46,9 @@ export function endSceneReducer(tx: TxCtx, sender: Identity, args: { game: bigin
   const scene = sceneInPlay(tx, game);
   if (!scene) throw new Refused(refusal("no_scene"));
 
-  const exit = sceneGraph(tx, scene, getGm(tx, scene.id)).exits.find(e => e.id === args.exit);
-  if (!exit) throw new Refused(refusal("no_exit", { exit: args.exit, exits: andList(sceneGraph(tx, scene, getGm(tx, scene.id)).exits.map(e => `${e.id} (${e.title})`)) }));
+  const exits = sceneGraph(tx, scene, getGm(tx, scene.id)).exits;
+  const exit = exits.find(e => e.id === args.exit);
+  if (!exit) throw new Refused(refusal("no_exit", { exit: args.exit, exits: andList(exits.map(e => `${e.id} (${e.title})`)) }));
   letGo(tx, scene);
 
   endScene(tx, scene.id, exit, sceneRow(tx, scene.id).turns, "forced");
