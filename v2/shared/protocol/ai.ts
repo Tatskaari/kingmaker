@@ -142,8 +142,9 @@ export type CharactersAsk = { kind: "three" } | { kind: "one" } | { kind: "own";
 /** POST /v1/characters: who they are, the level they start at, and what's asked. */
 export interface CharactersRequest extends AiRequestBase { who: { name: string; concept: string }; level: number; ask: CharactersAsk }
 /**
- * The answer: three's `offer`; one's or own's `option`; or, for own picks that aren't on the SRD's
- * lists, `refusal` (its words) with the `lists` to pick from.
+ * The answer: three's `offer`; one's or own's `option`, or, for own picks that aren't on the SRD's
+ * lists, `refusal` (its words). An own answer brings the `lists` to pick from (a refusal always
+ * does): the creation keeps them.
  */
 export interface CharactersResponse { offer?: Offer; option?: BuildOption; refusal?: string; lists?: SrdLists; usage: Usage }
 
