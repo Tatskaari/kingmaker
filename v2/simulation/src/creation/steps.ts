@@ -29,7 +29,10 @@ export const creationSteps: Move<{ step: CreationStep }, CreationPlan> = {
 
   commit: (tx, plan, answer) => COMMITS[plan.step](tx, rowFor(tx, plan), answer),
 
-  owner: creationOwner,
+  /** Read when the job loop asks, never at load: this file and the owner's import each other through the job loop. */
+  get owner() {
+    return creationOwner;
+  },
 };
 
 /** What the GM is busy with while each step thinks (the busy column, which the screens show). */

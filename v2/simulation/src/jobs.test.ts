@@ -176,3 +176,19 @@ test("with no AI_URL, the opening fails at once: nothing to POST to", async () =
   const turn0 = sceneNow(host, scene.id).turns[0]!;
   assert.deepEqual([scene.status, turn0.phase, turn0.error], ["opening", "failed", "The GM couldn't answer: the AI service isn't configured (no AI_URL)"]);
 });
+
+test("over the AI service's daily budget, the turn fails at once in its words; retry_turn, once there's budget again, finishes it", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const message = "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.";
+  script.then("decide", http(402, { error: { code: "over_budget", message } }));
+
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  const failed = sceneNow(host, scene.id).turns[1]!;
+  assert.deepEqual([failed.phase, failed.error], ["failed", message]);
+  assert.equal(script.to("decide").length, 1, "not tried again");
+
+  assert.equal(host.as(wren).retryTurn({ turn: failed.id }), undefined);
+  await host.drain();
+  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "done");
+});
