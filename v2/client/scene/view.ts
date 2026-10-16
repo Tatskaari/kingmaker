@@ -1,6 +1,8 @@
-// New, with the prototype's src/app/game.ts:98-114 (Line, less look and scene), :163-170 (isRoll) and :1330-1339 (lineOf and header, as linesOf and liveOf) at 44c6d4a.
+// New, with the prototype's src/app/game.ts:98-114 (Line, less scene), :163-170 (isRoll) and :1330-1339 (lineOf and header, as linesOf and liveOf) at 44c6d4a.
 import type { Markup } from "../../shared/markup.ts";
 import type { Suggestion } from "../../shared/protocol/ai.ts";
+import type { SceneWorld } from "../../shared/world/scene-world.ts";
+import type { SpellFacts } from "./menu.ts";
 
 export type { Suggestion };
 
@@ -96,6 +98,27 @@ export interface SceneView {
   suggestionsOn: boolean;
   /** The GM is still writing the notes on the shown turn's reply: its marks come with them. */
   notesComing: boolean;
+  /** The scene's place, from its rows (the world bridge): none until they've come, and none for a scene without one. */
+  place?: PlaceView;
+}
+
+/** The light a place is drawn in: the game's time of day (the look layer's TimeOfDay). */
+export type TimeOfDay = "morning" | "afternoon" | "evening" | "night" | "next-morning";
+
+/**
+ * The scene's place as the rows have it (the world bridge's §3.5): its world, rebuilt from the
+ * place's rows with the scene's lead's character as "player", the light it's in, and what the place's
+ * menu words things by and offers (scene/menu.ts SceneContext).
+ */
+export interface PlaceView {
+  /** Which rows the world was rebuilt from (the place and its rev, which every world write moves on): a new one is a changed world. */
+  rev: string;
+  world: SceneWorld;
+  time: TimeOfDay;
+  /** What the lead calls the cast whose names they haven't heard (my_names), by key: "the boy in the too-big boots". */
+  unnamed: Record<string, string>;
+  /** The lead's spells, cantrips and prepared, with what the rules say of each's reach when the sheet has it: the menu offers each where it fits. */
+  spells: SpellFacts[];
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -105,9 +128,10 @@ export interface Line {
   /**
    * "info": the rules' word on what changed without a roll (what you carry, what's burning); "roll"
    * keeps the dice. "error": a turn that failed, the client's own line. "header": the scene's title
-   * and hook, at the top.
+   * and hook, at the top. "look": a glance at something in the place (the menu's Look), a quiet note
+   * of the screen's own: it isn't a turn, and the GM never hears it.
    */
-  kind: EntryKind | "header" | "error" | "info";
+  kind: EntryKind | "header" | "error" | "info" | "look";
   /** Speaker id (a cast key, "gm", "player:<id>", "dice", "system"). */
   speaker: string;
   /** Display name for dialogue and the player. */
