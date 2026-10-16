@@ -40,18 +40,18 @@ Re-recording gives the same calls, notes and lines; the files differ only in the
 
 ## What the test compares
 
-Each step's or moment's session becomes the request the simulation would send (the GM's bookkeeping from the session's fields of the same names, the world through `worldToRows`, the transcript with the player's lines as `player:1` and each entry's markup by the game's keys, the sheet from the player and the rules' status line; a reply's seq its place on the transcript, from 1; the lines offered last, from the session's), the AI service's endpoint runs on a stand-in told the same, and its calls are compared with the prototype's, in the game's order, on one store (the opening writes the player's doc, which every later prompt reads).
+Each step's or moment's session becomes the request the simulation would send (the GM's bookkeeping from the session's fields of the same names, the world through `worldToRows`, the transcript with the player's lines as `player:1` and each entry's markup by the game's keys, the sheet from the player, the rules' status line and the spells, weapons and features they keep ready; a reply's seq its place on the transcript, from 1; the lines offered last, from the session's), the AI service's endpoint runs on a stand-in told the same, and its calls are compared with the prototype's, in the game's order, on one store (the opening writes the player's doc, which every later prompt reads).
 
 | Call, or what came of it | Compared |
 |---|---|
 | `gm.opening`, `gm.reply` | the whole request, byte for byte (instructions, every input message, model, effort, token cap): the history writes back who says each line, by the name the player knows them by, and the notes on the earlier replies |
 | `world.stage` | the whole request, byte for byte (instructions, input, the schema of the world's ids) |
 | `memory.disclose.*` | the whole request, byte for byte (each scope's state, every candidate's question) |
-| `director.before`, `director.after` | the state byte for byte, and each question the AI service asks equal to the prototype's of that id |
+| `director.before`, `director.after` | the state byte for byte; every question the prototype asked is asked, each equal to the prototype's of that id |
 | who says each line | as the reply streams, a word at a time (the draft's posts), and once it's whole, with the GM's drafted marks; no mark of the GM's own on the reply |
 | `notes` | the whole request, byte for byte (instructions, input, the schema); the marks placed (offsets, kinds, notes, links by the game's keys) and each link's card |
-| `scene.suggest` | the whole request, byte for byte but for the spells (below) |
-| `scene.suggest.judge` | the state byte for byte but for the spells, and every question |
+| `scene.suggest` | the whole request, byte for byte (the player's spells in "who they are" too) |
+| `scene.suggest.judge` | the state byte for byte, and every question |
 | the vetting, the lines | every field of the vetting, equal; the lines, and what was dropped and why |
 
 A reply's decision is the AI service's own, from its decide on the same turn; what the decide commit did (the roll and the move) is read off the prototype's session, so parity doesn't depend on V0's dice.
@@ -60,8 +60,8 @@ A reply's decision is the AI service's own, from its decide on the same turn; wh
 
 All of it pinned by the test.
 
-- **The director asks fewer questions.** Not the rules' `mechanic` before the reply, nor their `threat` and `threat_severity` after it: those come with the world bridge. gm-port §6, §9. Since the full GM (full-gm-design §4.1) it asks considered rolls' `roll_call` and the means (`attempt_means`) in every beat, the co-GM's `off_graph`, and after the reply the rules' `left` (asked when the sheet has a build, as the recording's wizard's has). Every question it does ask is the prototype's to the letter, the limit with its `pretending` option included.
-- **No spells in the suggested lines' "who they are".** The prototype tells the suggester and the judge the character's spells (`suggest.ts`'s `who`, from the rules engine); v2's sheet has none until the rules come (V7), so the sentence `Spells: …` is the one difference in what they're sent. The wizard's spells are in the prototype's, and in neither of the AI service's.
+- **The director asks every question the prototype's does.** Since the full GM (full-gm-design §4.1) it asks considered rolls' `roll_call` and the means (`attempt_means`) in every beat, the co-GM's `off_graph`, and after the reply the rules' `left`; since the world bridge (world-bridge-design §3.1) the rules' `mechanic` before the reply, and their `threat` and `threat_severity` after it. The rules' questions are asked when the sheet has a build, as both recordings' have (the wizard's and the rogue's), so the test's `NOT_ASKED` is empty. Every question is the prototype's to the letter, the limit with its `pretending` option included. The act's details call (`director.mechanic`, `.jump`, `.feature`) and the reactions (`director.reactions`) aren't in the recordings: none of their turns casts, strikes or jumps.
+- **The spells in the suggested lines' "who they are" are the sheet's.** The prototype tells the suggester and the judge the character's spells from the rules engine (`suggest.ts`'s `who`); the AI service from the sheet the request sends (`SheetRow.spells`, since the world bridge), the same list, so what they're sent is the same byte for byte.
 - **The dice.** The prototype rolls through its rules engine when there's a sheet; V0's simulation rolls its no-sheet `rollCheck` from the game's dice row, so the same seed rolls differently (v0-design §6.4). The prompts carry whatever was rolled.
 
 V0's difference on the GM's marks is gone: a reply's drafted marks go back with it (`drafted`), the notes are written on them, and the next reply's history has them, as the prototype's.
