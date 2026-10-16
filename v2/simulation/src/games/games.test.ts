@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { OpenRequest } from "../../../shared/protocol/ai.ts";
 import type { MemoryHost } from "../host/memory.ts";
-import { all, hostWithCampaign, identity, madeCharacter, sceneNow, traitsOf } from "../host/testing.ts";
+import { all, hostWithCampaign, identity, madeCharacter, openedGame, sceneNow, traitsOf } from "../host/testing.ts";
 import { TABLES } from "../tables.ts";
 
 /**
@@ -135,4 +135,20 @@ test("my_games: each of the caller's games as the title lists it, newest first, 
   ]);
   assert.ok(games.every(g => /^This morning a palace clerk, Wendell Prout/.test(g.hook)));
   assert.deepEqual(host.view(identity(9)).myGames(), []);
+});
+
+test("my_games: a game was last played when a line was last said in it, so the title says \"just now\" after an hour's play, and lists it first", async () => {
+  const { host, wren } = await openedGame();
+  host.advance(60_000);
+  host.as(wren).newGame({ campaign: "caerwyn", name: "Odo", concept: "", build: "cleric" });
+  await host.drain();
+  host.as(wren).continueGame({ game: all(host.db.game)[0]!.id });
+
+  for (const line of ["I look around the yard.", "Sergeant, who found him?", "And when?"]) {
+    host.advance(20 * 60_000);
+    assert.equal(host.as(wren).say({ text: line }), undefined);
+    const [latest] = host.view(wren).myGames();
+    assert.deepEqual([latest!.name, latest!.lastPlayedAt.microsSinceUnixEpoch], ["Wren Ashdown", host.now().microsSinceUnixEpoch]);
+    await host.drain();
+  }
 });
