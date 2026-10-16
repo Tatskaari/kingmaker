@@ -1,9 +1,9 @@
-// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 110-125 (close, refresh), 140-447 but chooseBuild, 449-560, 562-632, 635-878, 884-909, 1108-1183, 1454, 1459-1512, 1765-1772, 1870-1883, 1951-1992. SessionState is RulesSession, under the same names; each function takes the Rules its host loaded, and none awaits; createCharacter requires a build (its model half is the AI service's, ai/rules/builds.ts); sheetText reads the sheet's data, not the engine; pocketsOf takes the campaign's starting purse, and sheetData leaves it to it; sheetData takes no fight's campaign (V12); sheetRows is v2's; withTopSpell's .at(-1) made ES2021. The engine plumbing (open, the loader, event) is engine.ts's.
+// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 110-125 (close, refresh), 140-447 but chooseBuild, 449-560, 562-632, 635-878, 884-909, 1108-1183, 1454, 1459-1512, 1765-1772, 1870-1883, 1951-1992. SessionState is RulesSession, under the same names; each function takes the Rules its host loaded, and none awaits; createCharacter requires a build (its model half is the AI service's, ai/rules/builds.ts); sheetText reads the sheet's data, not the engine; pocketsOf takes the campaign's starting purse, and sheetData leaves it to it; sheetData takes no fight's campaign (V12); sheetRows is v2's; close takes the Rules, and keeps the campaign in the isolate's cache when it's as loaded (engine.ts Ctx.asLoaded); withTopSpell's .at(-1) made ES2021. The engine plumbing (open, the loader, event) is engine.ts's.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { rng, rollCheck, type RollResult } from "../dice.ts";
 import { SKILLS, type Skill } from "../scene/types.ts";
 import type { Entity } from "../world/scene-world.ts";
-import { ABILITIES, ABILITY_NAME, changing, engineSkill, event, loadWellFormed, opened, ordinal, reading, signed, SKILL_ABILITY, type Ctx } from "./engine.ts";
+import { ABILITIES, ABILITY_NAME, changing, engineSkill, event, keep, loadWellFormed, opened, ordinal, reading, signed, SKILL_ABILITY, type Ctx } from "./engine.ts";
 import { spellDetails, type Caster, type Extras, type Names } from "./spells.ts";
 import type { Build, FeatureRef, GearRow, Pockets, Rules, RulesSession, SheetData, SheetRows, SlotRow, SpellRef, Uses, WeaponRef } from "./types.ts";
 
@@ -277,7 +277,7 @@ export function createCharacter(rules: Rules, state: RulesSession, level: number
     hp: { current: hitDie + conMod, max: hitDie + conMod, temp: 0 },
     knownSpells: [...build.cantrips, ...build.spells], preparedSpells: build.spells,
   });
-  const ctx = changing(E, engine, engine.createCampaign({ name: state.id }));
+  const ctx = changing(E, engine, engine.createCampaign({ name: state.id }), false);
   ctx.apply([event(E, "CharacterCreated", { snapshot: pc })]);
   const item = (definitionId: string) => ({ id: E.newItemInstanceId(), definitionId, quantity: 1, attuned: false, identifiedByCharacterIds: [] });
   const gear = [...build.weapons, "unarmed-strike", ...(build.armor !== "none" ? [build.armor] : []), ...(build.shield ? ["shield"] : [])].filter(id => content.items.has(id)).map(item);
@@ -306,7 +306,7 @@ export function createCharacter(rules: Rules, state: RulesSession, level: number
   grantResources(ctx, pc.id);
   state.rules = { campaign: "", pc: pc.id, npcs: {}, prefer };
   refresh(ctx, state);
-  close(state, ctx);
+  close(rules, state, ctx);
   const sheet = sheetOf(ctx, pc.id);
   return `${state.player.name}: ${state.player.build}. AC ${sheet.ac.total}, HP ${sheet.hp.current}/${sheet.effectiveHpMax}.`;
 }
@@ -364,6 +364,8 @@ function grantResources(ctx: Ctx, pcId: string): void {
   if (!created) return;
   (created["snapshot"] as { resources?: Resource[] }).resources = want;
   ctx.campaign = loadWellFormed(ctx.E, JSON.stringify(raw), ctx.engine);
+  // Loaded, and nothing committed since: the campaign close writes can be kept, so the sheet's load is skipped.
+  ctx.asLoaded = true;
 }
 
 /**
@@ -720,7 +722,7 @@ function storyOf(state: RulesSession): Pick<SheetData, "story"> {
 function skillCheck(rules: Rules, state: RulesSession, skill: Skill, dc: number, advantage?: "advantage" | "disadvantage"): RollResult {
   const ctx = opened(rules, state);
   const [rolled] = ctx.apply(ctx.engine.plan.abilityCheck(ctx.campaign.state, { type: "AbilityCheck", characterId: state.rules!.pc, ability: SKILL_ABILITY[skill], skill: engineSkill(skill), dc, ...(advantage ? { advantage } : {}) }).events);
-  close(state, ctx);
+  close(rules, state, ctx);
   return rollResult(rolled!, skill, dc);
 }
 
@@ -862,7 +864,7 @@ export function carryGear(rules: Rules, state: RulesSession, instanceId: string,
   state.rules.gone = [...gone];
   refresh(ctx, state);
   const ac = sheetOf(ctx, pcId).ac.total;
-  close(state, ctx);
+  close(rules, state, ctx);
   // Armour coming off changes your AC; say so.
   const acNote = slot === "armor" || slot === "shield" ? ` (AC now ${ac})` : "";
   return carried ? `You have your ${name.toLowerCase()} again` : `You no longer have your ${name.toLowerCase()}${acNote}`;
@@ -908,7 +910,7 @@ export function comeTo(rules: Rules, state: RulesSession): string | undefined {
   // Coming to (from a knock-out, or at the next scene), any Rage is long over.
   endRage(ctx, state);
   const line = down ? `You come to: ${status(ctx, me.id)}` : undefined;
-  close(state, ctx);
+  close(rules, state, ctx);
   return line;
 }
 
@@ -961,10 +963,11 @@ export function featureRule(id: string): Omit<FeatureRule, "intent"> | undefined
 // ---------------------------------------------------------------------------------------------
 // What the rules keep on the session as the engine changes the character.
 
-/** The campaign as it now is, and the status line from it, back on the session. */
-function close(state: RulesSession, ctx: Ctx): void {
+/** The campaign as it now is, and the status line from it, back on the session; kept in the isolate's cache when it's as a load of that string would give it. */
+function close(rules: Rules, state: RulesSession, ctx: Ctx): void {
   state.rules!.campaign = ctx.E.serializeCampaign(ctx.campaign);
   state.rules!.status = status(ctx, state.rules!.pc);
+  if (ctx.asLoaded) keep(rules, state.rules!.campaign, ctx.campaign);
 }
 
 /** What a turn's decision needs from the sheet, cached on the session: spells, weapons, skills, the build line. */

@@ -1,4 +1,4 @@
-// Copied from the prototype's src/rules/dnd.ts:19-138 at 44c6d4a: dnd() and srdContent() are the Rules a host hands over (rulesFrom); engineFor is one engine per isolate, reseeded per use; open() and its read-only twins take the campaign from a per-isolate cache (loaded); event()'s time is its id's (the shim pins both). The pin itself is pin.ts's. rulesNow and missesMiss wait for V7 with their callers; refresh and close are character.ts's.
+// Copied from the prototype's src/rules/dnd.ts:19-138 at 44c6d4a: dnd() and srdContent() are the Rules a host hands over (rulesFrom); engineFor is one engine per isolate, reseeded per use; open() and its read-only twins take the campaign from a per-isolate cache (loaded), and a rolling context commits its events as a load parses them, so what it leaves can be kept there too; event()'s time is its id's (the shim pins both). The pin itself is pin.ts's. rulesNow and missesMiss wait for V7 with their callers; refresh and close are character.ts's.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import type { Skill } from "../scene/types.ts";
 import type { Rules, RulesSession, SrdFile } from "./types.ts";
@@ -54,6 +54,18 @@ export function loaded(rules: Rules, serialized: string): Dnd.Campaign {
   return campaign;
 }
 
+/**
+ * A campaign kept under the string it serializes to, so the next load of that string is skipped:
+ * only one that's as loading the string would give it (Ctx.asLoaded; character.test.ts holds it),
+ * else a game's next commit would depend on whether this isolate had it.
+ */
+export function keep(rules: Rules, serialized: string, asLoaded: Dnd.Campaign): void {
+  const { campaigns } = isolateOf(rules);
+  campaigns.delete(serialized);
+  campaigns.set(serialized, asLoaded);
+  if (campaigns.size > CAMPAIGNS) campaigns.delete(campaigns.keys().next().value!);
+}
+
 function isolateOf(rules: Rules): Isolate {
   const isolate = isolates.get(rules);
   if (!isolate) throw new Error("shared/rules: a Rules not made by rulesFrom");
@@ -63,29 +75,52 @@ function isolateOf(rules: Rules): Isolate {
 // ---------------------------------------------------------------------------------------------
 // The session's campaign, as the rules code works on it.
 
-/** The engine and the campaign being worked on; apply commits events to it (or, read-only, does nothing). */
-export interface Ctx { E: typeof Dnd; engine: Dnd.Engine; campaign: Dnd.Campaign; apply(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] }
+/**
+ * The engine and the campaign being worked on; apply commits events to it (or, read-only, does
+ * nothing). asLoaded: the campaign is what loading the string it serializes to would give (each
+ * event as the load parses it), so it can be kept under that string (keep).
+ */
+export interface Ctx { E: typeof Dnd; engine: Dnd.Engine; campaign: Dnd.Campaign; apply(events: Dnd.EngineEvent[]): Dnd.EngineEvent[]; asLoaded: boolean }
 
 /** The session's campaign to read: nothing is rolled (so the engine isn't reseeded) or committed. */
 export function reading(rules: Rules, session: RulesSession): Ctx {
   if (!session.rules) throw new Error("This session has no rules-engine character.");
-  return { E: rules.E, engine: isolateOf(rules).engine, campaign: loaded(rules, session.rules.campaign), apply: e => e };
+  return { E: rules.E, engine: isolateOf(rules).engine, campaign: loaded(rules, session.rules.campaign), apply: e => e, asLoaded: true };
 }
 
 /**
  * The session's campaign to change, with the dice for one roll: the engine seeded from the game's
- * seed and its next roll (session.rollCount one more), so a session's dice can be replayed.
+ * seed and its next roll (session.rollCount one more), so a session's dice can be replayed. Its few
+ * events are committed as a load parses them, so what it leaves can be kept: the next check on it
+ * needn't load it (loading replays and parses every event; a check's own takes a hundredth of a ms).
  */
 export function opened(rules: Rules, session: RulesSession): Ctx {
   if (!session.rules) throw new Error("This session has no rules-engine character.");
   const engine = rules.engine(session.seed + 7919 * ++session.rollCount);
-  return changing(rules.E, engine, loaded(rules, session.rules.campaign));
+  return changing(rules.E, engine, loaded(rules, session.rules.campaign), true);
 }
 
-/** A campaign to change: apply commits each event to it, made well-formed first. */
-export function changing(E: typeof Dnd, engine: Dnd.Engine, campaign: Dnd.Campaign): Ctx {
-  const ctx: Ctx = { E, engine, campaign, apply(events) { ctx.campaign = E.commit(ctx.campaign, wellFormed(events)); return events; } };
+/**
+ * A campaign to change: apply commits each event to it, made well-formed first, and as a load parses
+ * it while the campaign is as loaded (else as it comes: character creation's choices take as long to
+ * parse as a load, and its campaign is reloaded anyway).
+ */
+export function changing(E: typeof Dnd, engine: Dnd.Engine, campaign: Dnd.Campaign, asLoaded: boolean): Ctx {
+  const ctx: Ctx = {
+    E, engine, campaign, asLoaded,
+    apply(events) {
+      const committed = wellFormed(events);
+      ctx.campaign = E.commit(ctx.campaign, ctx.asLoaded ? committed.map(e => parsed(E, e)) : committed);
+      return events;
+    },
+  };
   return ctx;
+}
+
+/** An event as loading a campaign gives it back: through JSON, then the engine's schema for events (its keys in the schema's order, its defaults filled), which the engine's typings leave out. */
+function parsed(E: typeof Dnd, event: Dnd.EngineEvent): Dnd.EngineEvent {
+  const schema = (E as unknown as { EventSchema: { parse(event: unknown): Dnd.EngineEvent } }).EventSchema;
+  return schema.parse(JSON.parse(JSON.stringify(event)));
 }
 
 /**

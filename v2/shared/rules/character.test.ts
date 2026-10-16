@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "./shim.ts";
 import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
+import type { Engine } from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { rng, rollCheck } from "../dice.ts";
 import type { BuildsFile } from "../scene/files.ts";
 import { carryGear, comeTo, createCharacter, pocketsOf, rollFor, sheetData, sheetRows } from "./character.ts";
@@ -161,6 +162,51 @@ test("loaded: a campaign is loaded once and kept by its string; another string, 
   assert.equal(loaded(rules, session.rules!.campaign), first);
   assert.notEqual(loaded(rules, made("cleric", 8, 2).rules!.campaign), first);
   assert.throws(() => loaded({ ...rules }, session.rules!.campaign), /not made by rulesFrom/);
+});
+
+test("what the isolate keeps is what loading its string gives: the campaign creation reloaded, and every check, coming to and gear change after", () => {
+  // An isolate whose loads are counted: a campaign it kept needs none.
+  let loads = 0;
+  const counted = rulesFrom({ ...E, loadCampaign: (s: string, engine: Engine) => { loads++; return E.loadCampaign(s, engine); } }, rules.pack, rules.srd);
+  const keptAsLoaded = (serialized: string) => {
+    const before = loads;
+    const kept = loaded(counted, serialized), fresh = E.loadCampaign(serialized, rules.engine(0));
+    return loads === before && E.serializeCampaign(kept) === serialized && JSON.stringify(kept.events) === JSON.stringify(fresh.events) && JSON.stringify(kept.state) === JSON.stringify(fresh.state);
+  };
+  for (const id of ["cleric", "fighter", "ranger", "wizard", "rogue"]) {
+    const session = fresh();
+    withEngine({ seed: 1, nowMs: T }, () => createCharacter(counted, session, 3, BUILDS[id]!.build));
+    // A class with resources is reloaded with them, and kept; the rogue has none, so its first load is a load.
+    assert.equal(keptAsLoaded(session.rules!.campaign), id !== "rogue", `${id}: as made`);
+    for (const [i, skill] of (["perception", "arcana", "athletics"] as const).entries()) {
+      withEngine({ seed: 10 + i, nowMs: T }, () => rollFor(counted, session, skill, 13));
+      assert.ok(keptAsLoaded(session.rules!.campaign), `${id}: after check ${i + 1}`);
+    }
+    withEngine({ seed: 20, nowMs: T }, () => comeTo(counted, session));
+    assert.ok(keptAsLoaded(session.rules!.campaign), `${id}: after coming to`);
+    const worn = session.rules!.gear!.find(g => g.slot)!;
+    withEngine({ seed: 21, nowMs: T }, () => carryGear(counted, session, worn.id, false));
+    withEngine({ seed: 22, nowMs: T }, () => carryGear(counted, session, worn.id, true));
+    assert.ok(keptAsLoaded(session.rules!.campaign), `${id}: after its ${worn.name} went and came back`);
+  }
+});
+
+test("a commit is a pure function of the rows: an isolate that kept the campaign and one that loads it afresh write the same strings and roll the same", () => {
+  /** The steps a game takes, each in its own transaction: on one isolate throughout (warm), or each on a new one (cold). */
+  const play = (isolate: () => typeof rules) => {
+    const session = fresh(3);
+    const out: string[] = [];
+    const step = (pin: number, f: (r: typeof rules) => unknown) => { out.push(JSON.stringify(withEngine({ seed: pin, nowMs: T }, () => f(isolate()))), session.rules?.campaign ?? ""); };
+    step(1, r => createCharacter(r, session, 3, BUILDS.wizard!.build));
+    step(2, r => rollFor(r, session, "arcana", 12));
+    step(3, r => rollFor(r, session, "perception", 14));
+    step(4, r => comeTo(r, session));
+    step(5, r => carryGear(r, session, session.rules!.gear![0]!.id, false));
+    step(6, r => rollFor(r, session, "investigation", 10));
+    step(7, r => sheetRows(r, session));
+    return out;
+  };
+  assert.deepEqual(play(() => rules), play(() => rulesFrom(E, rules.pack, rules.srd)));
 });
 
 test("an event's time, from its id, is written as Date writes it", () => {
