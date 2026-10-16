@@ -2,6 +2,8 @@
 
 The brief for one PR, `claude/v2-story`, stacked on the full GM (`claude/v2-gm` at 1e7c5ed: V0, V5, V1, then the full GM). It is the plan's V3 and V4 ([verticals.md](verticals.md) §3) as one unit, with the fight stubbed. After it, a game plays from the title to The End: a scene ends through any of its exits, the story crosses the boundary as the prototype's does, and the player goes on to the Drowned Rat, the Heron and the King's morning, and reads The End.
 
+> **As built.** The whole story was built to this brief as one pull request, `claude/v2-story`, on the full GM at 1e7c5ed: A's contracts on that branch, then B, C, D and E each on a branch from A's commit (`claude/v2-story-b`, `-c`, `-d`, `-e`; B merged E's commits as it went), merged in that order by the integrator. Where the build departs from the text below, §7 says so and why, with the live run beside the prototype's.
+
 The user's direction: **drop in.** Copy the prototype's files whole wherever possible, each headed by its source at `44c6d4a` and its edits; adapt only at the seams. Checks are functional: the type check, the unit tests, one run of the e2e and a short playthrough. The first blueprint, `v3-design.md` (in the author's scratchpad, written against V0), is reused where it still holds. `file:line` means the prototype unless a v2 path is given.
 
 **Decisions, in short**
@@ -197,3 +199,59 @@ A lands first on `claude/v2-story`; B, C, D and E build from A's commit on `clau
 ## 7. As built
 
 **A (contracts):** as §4, with these choices made in building it. `Story.history` and `earlier` are optional, as the full GM's `gm.rulings` was: a request a job stored before them reads as a first scene. The aftermath's request carries the scene's `transcript` (an opening has none). The boundary is keyed by the ended scene's last turn (`<uid>:s<scene>:t<n>:boundary`), so `keyParts` and the AI service's faults name it as any step. The stubs sit where B fills them (`story/moves.ts` for the four reducers, `story/boundary.ts` for the job's move), so the registrations never change. Until C, the pipeline's boundary answers as the canned GM does, so a stack crosses every boundary on the fake meanwhile. A scene's row gets its `time` from its `scene.json` as it's inserted. The literals the type check found were given the new fields (`ai/gm/fixtures.ts`, `parity.test.ts`, `games/create.ts`, `host/memory.test.ts`, `hosts/dev/gm-status.test.ts`), and the campaign check reads a list of facts and the two new effects (`hosts/dev/campaign.ts`). The integrator adds each package's departures here.
+
+The packages' reports (A to F, in the author's scratchpad) and the PR give the full account. Every copied file's first line names its source at `44c6d4a` and its edits.
+
+### B: the simulation
+
+| The brief says | The build does | Why |
+|---|---|---|
+| A fact id in a condition is tested against `gm.established` (§4.3) | Against `gm.established` and `gm.canon` both | `engine.ts:986` hands the endings' scripts both, so a fact the co-GM made canon counts, as it did there |
+| `closeScene` is V0's end, then the rest (§4.3) | It also sets `gm.ended` when the wind-down or the owner's end didn't; a combat exit clears the scene's `endedAt` and keeps its exit | One function ends a scene, however it ends; a scene at its fight isn't over |
+| The boundary's commit builds the scene the answer chose | Only if it's one of the plan's candidates; else the first | An answer can't send the story somewhere the graph doesn't go |
+| The movers (§4.3, §6) | `writePlace` moves, rather than inserts, a person or creature whose key the game has in another place (the player's character, Kell, Cob, and a cue's late entrance, such as Sallow at the King's face-to-face); a thing moves only when the place being built names it (re-keyed: `granary-yard/boots` → `drowned-rat/boots`). A moved cast member is called as the new scene's cast has them (Cob is "the pot-boy" at the Rat), and what they held that isn't moving stays where it stood, under the nearest holder that stays | Entity keys are unique in a game; Sallow would otherwise clash with his Heron entity |
+| The map unit's seams, mirrored (§6) | Its names and signatures, but `buildLead` takes the handed-on `gm_state`, `openLead` has no `walked`, `waitingPlace` and `joinPlace` return more (what was renamed, what's owed), and `moveSeats` is in `world/cross.ts` (the map's `map/rows.ts`). `openScene.resolve` differs from the map's (the handed-on `gm_state`, names heard across the whole story) | The map unit, stacked on this one, folds two of each; `resolve` needs folding by hand |
+| `fight_it_out` writes "its line" (§4.3) | The stand-in's line and "The fight: …" are system entries on the aftermath's own turn (n = turns + 1); the notebook's "The fight wasn't played: it's told as won." is a journal row, left out of every request's chapter journal | The client draws step 7 from rows, and the later prompts stay the prototype's |
+| `afterFight` (§3) | No coming to after the fight | The stand-in hurts nobody: one die fewer than the prototype draws |
+| Who may (§4.3) | `walk` and `carry_on` are the game's host's (a spectator: `not_controller`); `fight_it_out` the fighting scene's controller's; `end_scene` the owner's, which lets go of a settling, noting or failed turn first and refuses while one decides, considers or replies | A spectator follows; the owner's end shouldn't strand a turn |
+| The boundary as a job | Its row has `gameId` and `sceneId`, no `turnId`; failing for good deletes it, and `carry_on` queues a new one under the same key | As creation's jobs |
+| The rest of play | `say` is refused `not_now` while the scene is fighting, and the co-GM isn't asked of a fighting scene; `my_games` says "heading for <title>" for a waiting scene (the map unit's words) | The prototype's `state.ended` is set then too |
+
+### C: the AI service
+
+| The brief says | The build does | Why |
+|---|---|---|
+| `chainScene`'s middle copied (§3) | `chainScene(scene, view, exit, candidates, how)` starts at what's owed (the candidates are the simulation's) and returns what the prototype pushed or handed on: the history entry, the next scene's `next`, what's still owed, the fronts moved | The session isn't the AI service's to keep |
+| The docs, once per key (§4.4) | `broadcastEnding` skips anyone whose memory index has "<title>: how it ended", `rememberBetween` anyone with "Between <title> and <next title>", `savePlayedScene` a scene already in `story/scenes/`; `moveFronts` is idempotent as it is. A rerun after a crash (the docs written, the answer not stored) asks the models again: the docs keep the first run's | The prototype writes them unconditionally; a job may run twice |
+| `journalOf` copied | Not copied | The notebook's lines are the simulation's rows |
+| `owed.ts` but `placeOwedThings` | `bringOver` returns `{ patches, owed, hinted }`; the answer's owed things go back by full entity key where the boundary traced them (else the request's own keys) | The simulation moves and re-keys them |
+| `stageAftermath` (§4.4) | An operation that would make the player gone is dropped, or its `gone` stripped | The prototype's last lines, as a filter |
+| The story so far on every think | `sceneAndView` puts the campaign's story on a think's view once the request has a story so far, so the notes' writer names the scenes played by title; a first scene's thinks are as before | As the prototype's `sceneById` did |
+| The copied tests | `owed.test.ts` 11 of its 13 cases (a talk's is V11's; someone coming on later with what's owed is the simulation's `placeOwedThings`); `story.test.ts` as `story-so-far.test.ts` | `gm/story.test.ts` was taken |
+| A sharp edge | An earlier scene's entries keep their own turn numbers, so where the copied code looks up a player's line by number alone, an earlier scene's line can be found ([ai/README.md](../ai/README.md)) | Kept as the prototype has it |
+
+### D: the client
+
+| The brief says | The build does | Why |
+|---|---|---|
+| The rows by game (§4.5) | The turn subscription is by game too, not by scene | The End's bar tab adds up every scene's turns |
+| `between.tsx` (§3) | "On to The Drowned Rat" where the prototype's says "Back to the map", and `j` opens the notebook where Esc opened the menu | There's no map yet |
+| The fight card | "Fight it out" goes straight back to the Heron: no third Enter | The stand-in's lines are in the scene |
+| The spectator sees every step (§1.2) | They see the scenes, the way on and The End, but not Kell's talk: only the lead walks | The talk is the lead's walk |
+| `end.tsx` | It drops b and q | No report tool; Ctrl+C quits |
+| — | The help scrolls, as the prototype's does; the demo's fifth suggested line ends the yard | The help grew; the demo shows the way on |
+
+### E: the campaign
+
+| The brief says | The build does | Why |
+|---|---|---|
+| Kell's words between scenes as data (verticals.md V3) | No `between.json`: Kell's words are the client's | The brief chose the client (§2) |
+| The effects of §4.2 | What a script does that `Effect` has no op for is written as the nearest world op (`create`, `note`), but the fight's `startFight`, which the campaign check accepts by name and the simulation records | `startFight` is V12's to apply |
+| `looks.json` unchanged | It gains the new scenes' cast (14 looks) | The client draws the Rat's, the Heron's and the King's people with them |
+
+### The integrator
+
+- **The packages met with no conflicts** in the merges. Four tests outside E's files expected the story to stop at the granary: the AI service's campaign PUT now installs six scenes, the campaign's story reads the installed Rat live (and checks the vocabulary's stubs on a scene it doesn't install), a version PUT again renames Hobb in every file, and the scene loader's plain scene drops the hanged clerk's `onEnd`. The e2e's step 21 expects the first game "heading for The Drowned Rat", and its delete check counts the story's tables.
+- **The fake's hand-off.** On the fake, the hand-off was the yard's golden reply, markup and all, so the notebook's "how things stood" showed it raw. The fake now answers the hand-off's instructions with `handoff` when it's given, and `fake.json` gives a plain one that fits any boundary.
+- **`npm run status`** shows what the boundary handed on to the scene, and the story: the lead, each chapter, the quests, flags, followers and attitudes.
+- **The e2e's steps 26 to 29** play the whole story with a spectator (each turn's times are now step 30). **The arc** turns on checks 6 to 11 and 13 to 16: 11 ("Roll for initiative!") and 13 (back to the Heron for its aftermath) with the stand-in, 12 (Sallow and the Crakes in the fight) still V12's. **The local host** has one test of a boundary through the pipeline. **`npm run live -- --script story`** is the live run.
