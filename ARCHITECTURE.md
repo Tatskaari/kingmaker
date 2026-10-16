@@ -113,7 +113,7 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | The rules engine | `vendor/dnd-srd-engine` | dnd-srd-engine's bundled build, its starter pack, our typings and our patches. | [vendor/dnd-srd-engine](vendor/dnd-srd-engine/README.md) |
 | The SRD's spell text | `vendor/srd-spells` | Every spell's description in the SRD's own words, for the sheet. | [vendor/srd-spells](vendor/srd-spells/README.md) |
 | The glyph font | `tools/glyphs`, `assets/` | Kingmaker Glyphs, our font of pixel-art sprites, built from hand-drawn bitmaps. | [tools/glyphs](tools/glyphs/README.md) |
-| Other tools | `tools/` | Python, none of it in CI: building the SRD's spell text (`srd-spells/build.py`), PNGs of the zoo tour's and the place generator's pictures (`ansi2png.py`, `preview.py`), and the generator bench's contact sheets (`sheet.py`). | none |
+| Other tools | `tools/` | None of it in CI. Python: building the SRD's spell text (`srd-spells/build.py`), PNGs of the zoo tour's and the place generator's pictures (`ansi2png.py`, `preview.py`), and the generator bench's contact sheets (`sheet.py`). TypeScript: recording the prototype's GM calls for v2's prompt parity test (`record-golden.mts`). | [v2/ai/gm/golden](v2/ai/gm/golden/README.md) |
 
 How to write scenes, why the runtime does what it does, and how to test it are in the GM guide, [docs/guide](docs/guide/README.md).
 

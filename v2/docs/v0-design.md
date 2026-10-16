@@ -888,7 +888,7 @@ Checks a running stack and prints each with a fix: Node and CLI versions; the mo
 
 ### 10.2 Prompt parity (C)
 
-The acceptance test for the AI service (gm-port §16.1). A scratch script outside the repo (`record-golden.mts`, in the scratchpad; [ai/gm/golden/README.md](../ai/gm/golden/README.md) says how it was run) runs the prototype at `44c6d4a` under `fakeOpenRouter({ choices, replies })` with `KM_CALL_LOG` set: `createSession` (no backstory) and `openScene` for the hanged clerk, then three `playerTurn`s: a plain question to Kell; `catch-moll` (scripted `attempt`); an out-of-character question. It wraps the fake's fetch to capture a deep copy of the session at each model call. It writes `v2/ai/gm/golden/hanged-clerk/*.json`: each call's operation and body, and the session as it stood. `parity.test.ts` turns each session into the V0 request (`worldToRows` for the world, the gm fields, the transcript, the sheet), runs V0's code for that call under `fakeFetch` with the same options, and compares:
+The acceptance test for the AI service (gm-port §16.1). A script outside v2, with the prototype's tools ([tools/record-golden.mts](../../tools/record-golden.mts); [ai/gm/golden/README.md](../ai/gm/golden/README.md) says how to run it), runs the prototype at `44c6d4a` under `fakeOpenRouter({ choices, replies })` with `KM_CALL_LOG` set: `createSession` (no backstory) and `openScene` for the hanged clerk, then three `playerTurn`s: a plain question to Kell; `catch-moll` (scripted `attempt`); an out-of-character question. It wraps the fake's fetch to capture a deep copy of the session at each model call. It writes `v2/ai/gm/golden/hanged-clerk/*.json`: each call's operation and body, and the session as it stood. `parity.test.ts` turns each session into the V0 request (`worldToRows` for the world, the gm fields, the transcript, the sheet), runs V0's code for that call under `fakeFetch` with the same options, and compares:
 - **byte for byte:** `gm.opening` and `gm.reply` (instructions and input), `world.stage` (instructions, input, schema), each `memory.disclose.*` (state and questions);
 - **`director.before` and `director.after`:** the state string byte for byte, and each question V0 asks equal to the prototype's question of that id (V0 asks fewer: gm-port §6, §9).
 
@@ -943,7 +943,7 @@ Branches: A `claude/v2-v0-contracts` from `claude/v2-ai-shared`; B `-simulation`
 
 ### C: the AI service
 
-- **Owns:** `v2/ai/gm/**`, `v2/ai/service/**`, `v2/ai/Containerfile`, `hosts/ai.ts`, the edits to `v2/ai/llm/*` (§5.4) and to `v2/ai/README.md`; the golden recording script in the scratchpad.
+- **Owns:** `v2/ai/gm/**`, `v2/ai/service/**`, `v2/ai/Containerfile`, `hosts/ai.ts`, the edits to `v2/ai/llm/*` (§5.4) and to `v2/ai/README.md`; the golden recording script (built in the scratchpad; now `tools/record-golden.mts`).
 - **Builds against:** `shared/protocol/ai.ts`, `shared/scene`, `shared/gm/state.ts`, `shared/world`; gm-port (the copy list, §15); this §5.
 - **Order:** the seam and `canned.ts` first (so E and F can bring the stack up), then the pipeline, then parity.
 - **Done when:** §10.1's AI tests and §10.2's parity pass; `npm run ai` with `KM_AI_GM=canned` answers all four endpoints and streams to a stand-in; the image builds and answers `/v1/health`; at the repo root `npm run typecheck`, `npm test` and `npm run build:web` pass (the prototype still works through the shared llm code).
