@@ -1,17 +1,25 @@
+import type { InteractArgs, MapMove, TravelArgs, WalkArgs } from "../shared/map/moves.ts";
 import type { Refusal } from "../shared/protocol/refusals.ts";
+import type { ExploreView } from "./explore/rows.ts";
 import type { DbConnection } from "./module_bindings/index.ts";
 import type { Campaign, Creation, GameSummary, Player, SeatView, Sheet } from "./module_bindings/types.ts";
 import type { SceneView } from "./scene/view.ts";
 
 /**
- * What the screens and the headless client play through: the scene's view, the rows the title and
- * character creation read, word when they change, and the moves, each answered with why not when it
- * wasn't made. The SpacetimeDB connection (net/connection.ts) is one; the demo (demo.ts), canned
- * turns and a canned character with no server, is another.
+ * What the screens and the headless client play through: the scene's view, the map between scenes,
+ * the rows the title and character creation read, word when they change, and the moves, each
+ * answered with why not when it wasn't made. The SpacetimeDB connection (net/connection.ts) is one;
+ * the demo (demo.ts), canned turns and a canned character with no server, is another.
  */
 export interface Backend {
   /** The scene as this client sees it; undefined while there's no seat, its game hasn't begun, or its rows haven't come yet. */
   view(): SceneView | undefined;
+  /**
+   * The map between scenes as this client sees it (map-design §3.6): the walker's (the host's)
+   * ExploreState made from the rows, and what's said beside it; undefined while the seat's game has
+   * no one on a map, or its rows haven't come yet.
+   */
+  explore(): ExploreView | undefined;
   /** The player's games, the character they're making, the seat and its sheet, the campaigns: what the title and creation read. */
   home(): HomeRows;
   /** Called (once a tick at most) whenever the view or the rows may have changed; returns the unsubscribe. */
@@ -23,6 +31,10 @@ export interface Backend {
   retry(): Promise<Rejection | undefined>;
   /** This player's own setting, the suggested lines over the box: on (this moment's are asked for at once) or off. */
   setSuggestions(on: boolean): Promise<Rejection | undefined>;
+  /** The map's three moves (map-design §3.2): a step or a walk, something done with what's in sight or at a tile, a way out taken. */
+  walk(args: WalkArgs): Promise<Rejection | undefined>;
+  interact(args: InteractArgs): Promise<Rejection | undefined>;
+  travel(args: TravelArgs): Promise<Rejection | undefined>;
   /** One of V1's moves (v1-design §3.3), by its reducer's name. The refusal's words are home()'s `refusal` too, until the next move. */
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined>;
   close(): void;
@@ -95,6 +107,20 @@ function when<T>(game: Backend, read: () => T | undefined, done: (value: T) => b
     const stop = game.onChange(check);
     check();
   });
+}
+
+/** A map move (shared/map/moves.ts moveOf makes one from an action id) through the backend's walk, interact or travel. */
+export function mapMove(game: Pick<Backend, "walk" | "interact" | "travel">, m: MapMove): Promise<Rejection | undefined> {
+  switch (m.move) {
+    case "walk": return game.walk(m.args);
+    case "interact": return game.interact(m.args);
+    case "travel": return game.travel(m.args);
+  }
+}
+
+/** The map between scenes once it says so (`done`): a new game on its map, a move's row. An error when `ms` pass first. */
+export function exploreWhen(game: Backend, done: (view: ExploreView) => boolean, ms: number): Promise<ExploreView> {
+  return when(game, () => game.explore(), done, ms);
 }
 
 /** A new game, as new_game takes it: the campaign's key, the character's name and concept, a ready-made build's id. */

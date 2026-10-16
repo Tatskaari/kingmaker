@@ -1,14 +1,24 @@
 import { Timestamp } from "spacetimedb";
+import { enterScene, leaveScene } from "../shared/map/explore.ts";
+import { actionId, OUT, type InteractArgs, type MapMove, type TravelArgs, type WalkArgs } from "../shared/map/moves.ts";
+import { exploreOf, exploreRowOf, type ExploreRow, type MapRows } from "../shared/map/rows.ts";
+import { act as actOnMap, Unavailable, type Done } from "../shared/map/town.ts";
 import type { Mark, Markup } from "../shared/markup.ts";
 import { applyFix, tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild, Proposal } from "../shared/creation/types.ts";
 import { MAX_CONCEPT, MAX_NAME, MAX_STORY, refusal, type RefusalCode } from "../shared/protocol/refusals.ts";
 import type { BuildOption, Offer, OwnPicks, SheetData } from "../shared/rules/types.ts";
+import { rowsToWorld, type PlaceRows } from "../shared/world/rows.ts";
+import { damageThing, type SceneWorld } from "../shared/world/scene-world.ts";
 import type { Backend, CreationRow, GameRow, HomeRows, MoveName, Moves, NewGame, PlayerRow, Rejection, SheetRow } from "./backend.ts";
 import { YARD } from "./check/fixture.ts";
+import { CAERWYN_MAPS, exploreRow, UNHEARD, useCaerwyn, waitingYard, yardOnMap } from "./check/map.ts";
+import { WIZARD_SPELLS, yardKeys, yardNames, yardTables, yardWorld, YARD_SCENE } from "./check/place.ts";
+import type { ExploreView } from "./explore/rows.ts";
 import { DRAFT, FIGHTER, gameRow, LISTS, NEPHEW_ISSUE, OFFER, OWN, sheetRow, WIZARD, WORKED } from "./check/rows.ts";
 import { withSubclass } from "./creation/model.ts";
-import type { Entry, SceneView, Suggestion } from "./scene/view.ts";
+import { placeViewOf } from "./scene/place-rows.ts";
+import type { Entry, PlaceView, SceneView, Suggestion } from "./scene/view.ts";
 
 /**
  * The game with no server (--demo): the title with two games to carry on, a character made from a
@@ -20,7 +30,12 @@ import type { Entry, SceneView, Suggestion } from "./scene/view.ts";
  * moment after. A line said before the last turn is done waits, queued, as the simulation holds it;
  * /suggestions turns the lines off, and on (asked for at once). A move the simulation would refuse
  * is refused in its words. `ms` paces it; the player starts seated in Pell Marrow's game, a few
- * turns in.
+ * turns in. The yard is drawn beside the talk from its place's rows (the world bridge's client), and
+ * one line plays the rules' part as the bridge will: Magic Missile at the hoist rope breaks it (the
+ * world's own damageThing), Prout falls, and the dice lines come before the reply. A game set off
+ * (a new one, or one just made) begins on the town's map in the lane (map-design §3.3): the demo
+ * plays the simulation's part of a move with the same shared map code (exploreOf, act), the yard
+ * built on the map and its scene waiting; walking or talking into it opens its canned scene.
  */
 export function demoBackend(options: { ms?: number } = {}): Backend {
   return new Demo(options.ms ?? 40);
@@ -31,7 +46,10 @@ export function demoBackend(options: { ms?: number } = {}): Backend {
  * latest turn's n (a turn's late news, its notes and its lines, is only the view's while it's still
  * the latest), and the turn being played, until it's done (a line said meanwhile waits for it).
  */
-interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void> }
+interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void>; place?: PlaceRows; map?: DemoMap }
+
+/** A game on the town's map: the walker's explore row, the yard's world and its scene's status, and the view last made of them (made again after a move). */
+interface DemoMap { row: ExploreRow; yard: SceneWorld; status: "waiting" | "live" | "ended"; view?: ExploreView }
 
 class Demo implements Backend {
   private readonly ms: number;
@@ -47,8 +65,10 @@ class Demo implements Backend {
 
   constructor(ms: number) {
     this.ms = ms;
+    const pell: DemoGame = { row: gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), player: { name: "Pell Marrow", concept: WIZARD.concept }, sheet: sheetRow(WIZARD), latest: YARD.turn ?? 0 };
+    pell.view = { ...YARD, entries: [...YARD.entries], suggestions: [...LINES], place: placed(pell, pell.player.name, true) };
     this.games = [
-      { row: gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), player: { name: "Pell Marrow", concept: WIZARD.concept }, sheet: sheetRow(WIZARD), view: { ...YARD, entries: [...YARD.entries], suggestions: [...LINES] }, latest: YARD.turn ?? 0 },
+      pell,
       { row: gameRow(2n, "Wren Ashdown", "heading for The Hanged Clerk", 60 * 50, Date.now(), false), player: { name: "Wren Ashdown", concept: FIGHTER.concept }, sheet: sheetRow(FIGHTER) },
     ];
     this.seat = 1n;
@@ -56,6 +76,23 @@ class Demo implements Backend {
 
   view(): SceneView | undefined {
     return this.seated()?.view;
+  }
+
+  /** The map between scenes: the seat's game's, once it has set off on it (made again only after a move). */
+  explore(): ExploreView | undefined {
+    const game = this.seated();
+    const map = game?.map;
+    if (!game || !map) return undefined;
+    if (!map.view) {
+      const rows = this.mapRows(map);
+      map.view = {
+        game: String(game.row.gameId), ex: exploreOf(rows), unheard: rows.unheard,
+        player: { name: game.player.name, ...(game.sheet.statusLine ? { status: game.sheet.statusLine } : {}), ...(game.sheet.build ? { build: game.sheet.build } : {}), concept: game.player.concept },
+        ...(map.status === "waiting" ? { lead: { key: YARD_SCENE, title: YARD.title, hook: YARD.hook! } } : {}),
+        acts: map.row.acts, said: map.row.said, log: [...map.row.log],
+      };
+    }
+    return map.view;
   }
 
   home(): HomeRows {
@@ -85,8 +122,7 @@ class Demo implements Backend {
   newGame(args: NewGame): Promise<Rejection | undefined> {
     const sheet = { ...(args.build === "wizard" ? WIZARD : FIGHTER), name: args.name, concept: args.concept };
     const game = this.addGame(args.name, args.concept, sheet);
-    this.open(game);
-    game.row = { ...game.row, where: "in The Hanged Clerk", begun: true };
+    this.setOff(game);
     return this.done();
   }
 
@@ -94,8 +130,8 @@ class Demo implements Backend {
   joinGame(game: bigint): Promise<Rejection | undefined> {
     const theirs = this.games.find(g => g.row.gameId === game);
     if (theirs && !theirs.view) return this.refuse("not_begun");
-    const view: SceneView = { ...YARD, game: String(game), watching: YARD.player.name, mayType: false };
-    this.watched = { row: { ...gameRow(game, YARD.player.name, "in The Hanged Clerk", 0) }, player: { name: "", concept: "" }, sheet: { data: "", pockets: "", build: "", statusLine: "" }, view };
+    this.watched = { row: { ...gameRow(game, YARD.player.name, "in The Hanged Clerk", 0) }, player: { name: "", concept: "" }, sheet: { data: "", pockets: "", build: "", statusLine: "" } };
+    this.watched.view = { ...YARD, game: String(game), watching: YARD.player.name, mayType: false, place: placed(this.watched, YARD.player.name, true) };
     return this.done();
   }
 
@@ -288,9 +324,9 @@ class Demo implements Backend {
   begin(): RefusalCode | undefined {
     const game = this.seated();
     if (!game) return "not_in_game";
-    if (game.view) return "already_begun";
-    this.open(game);
-    game.row = { ...game.row, where: "in The Hanged Clerk", begun: true, lastPlayedAt: Timestamp.now() };
+    if (game.view || game.map) return "already_begun";
+    this.setOff(game);
+    game.row = { ...game.row, lastPlayedAt: Timestamp.now() };
     if (this.creation?.gameId === game.row.gameId) this.creation = undefined;
     return undefined;
   }
@@ -308,6 +344,71 @@ class Demo implements Backend {
     this.forget(game);
     if (this.creation?.gameId === game) this.change({ gameId: undefined });
     return undefined;
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The map between scenes (map-design §3.2, §3.3): the simulation's part, on the same shared code.
+
+  walk(args: WalkArgs): Promise<Rejection | undefined> { return this.mapMove({ move: "walk", args }); }
+  interact(args: InteractArgs): Promise<Rejection | undefined> { return this.mapMove({ move: "interact", args }); }
+  travel(args: TravelArgs): Promise<Rejection | undefined> { return this.mapMove({ move: "travel", args }); }
+
+  /** A game set off on the town's map (start.map): in the lane by the granary gate, facing south; the yard built and its scene waiting. */
+  private setOff(game: DemoGame): void {
+    useCaerwyn();
+    game.map = { row: exploreRow(), yard: waitingYard(game.player.name), status: "waiting" };
+    game.row = { ...game.row, where: "heading for The Hanged Clerk", begun: true };
+  }
+
+  /** What the map is read from (MapRows), as the simulation reads it: the maps, the walker's row, the story, the yard on its map. */
+  private mapRows(map: DemoMap): MapRows {
+    return { maps: CAERWYN_MAPS, explore: map.row, story: { time: "morning", lead: YARD_SCENE, played: map.status === "ended" ? [YARD_SCENE] : [] }, places: [yardOnMap(map.yard, map.status)], unheard: UNHEARD };
+  }
+
+  /**
+   * A move on the map, as the simulation makes it (simulation/src/map/moves.ts): the state from the
+   * rows, the prototype's act by the move's action id, the explore row written back with what it said;
+   * one that opens the lead opens its canned scene, the walker where its world starts them. Back to the
+   * map from a scene that's over (walk out) puts them where the scene left them.
+   */
+  private mapMove(m: MapMove): Promise<Rejection | undefined> {
+    const game = this.seated();
+    if (!game) return this.refuse("not_in_game");
+    if (this.watched) return this.refuse("not_controller", { name: YARD.player.name });
+    const map = game.map;
+    if (!map) return this.refuse("no_way");
+    const out = m.move === "walk" && m.args.toward === OUT;
+    if (game.view && !game.view.over) return this.refuse("scene_on");
+    const rows = this.mapRows(map);
+    const ex = exploreOf(rows);
+    if (out) {
+      if (!game.view) return this.refuse("unavailable");
+      leaveScene(ex, map.yard);
+      map.status = "ended";
+      delete game.view;
+      map.row = exploreRowOf(ex, map.row, "");
+      map.view = undefined;
+      return this.done();
+    }
+    const id = actionId(m);
+    if (!id) return this.refuse("unavailable");
+    let done: Done;
+    try {
+      done = actOnMap(ex, rows.unheard, id);
+    } catch (error) {
+      if (error instanceof Unavailable) return this.refuse("unavailable");
+      throw error;
+    }
+    if (done.scene) enterScene(ex, YARD_SCENE);
+    map.row = exploreRowOf(ex, map.row, done.text);
+    map.view = undefined;
+    if (done.scene) {
+      this.open(game);
+      map.status = "live";
+      map.yard = yardWorld(game.player.name);
+      game.row = { ...game.row, where: "in The Hanged Clerk" };
+    }
+    return this.done();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -438,6 +539,7 @@ class Demo implements Backend {
     game.latest = 0;
     game.view = {
       ...YARD, game: String(game.row.gameId), player: { name: game.player.name, status: "HP 28/28" }, entries: YARD.entries.slice(0, 1), phase: "done", turn: 0, mayType: true,
+      place: placed(game, game.player.name, /wizard/i.test(game.sheet.build)),
       suggestionsOn: true, suggestions: [...LINES], suggestionsComing: false, notesComing: false,
     };
   }
@@ -457,6 +559,9 @@ class Demo implements Backend {
     set({ entries: [...game.view!.entries, said], phase: behind ? "queued" : "deciding", turn, mayType: false, suggestions: [], suggestionsComing: game.view!.suggestionsOn, notesComing: false }, ["refusal"]);
     if (behind) { await behind; set({ phase: "deciding" }); }
     await sleep(15);
+    // The rules' part, before a word from the GM: the dice lines and the world they changed, together, as the decide commit writes them.
+    const ruled = rulesFor(game, text, turn);
+    if (ruled) { set({ entries: [...game.view!.entries, ...ruled.entries], place: ruled.place, player: { ...game.view!.player, status: ruled.status } }); await sleep(20); }
 
     const words = REPLY.split(/(?<= )/);
     for (let seq = 1; seq <= words.length; seq++) {
@@ -484,6 +589,37 @@ class Demo implements Backend {
       this.tell();
     });
   }
+}
+
+/**
+ * The yard's place for a game (check/place.ts: the world openPlace builds, as its rows), its lead
+ * the game's character; a wizard's sheet has the rules' word on its spells for the place's menu.
+ * The rows are kept on the game, for the rules' part to change.
+ */
+function placed(game: DemoGame, lead: string, wizard: boolean): PlaceView | undefined {
+  const { tables, rows } = yardTables(yardWorld(lead));
+  game.place = rows;
+  return placeViewOf({ tables, time: "morning", lead: 1n, names: yardNames(tables), sheet: wizard ? { spellFacts: JSON.stringify(WIZARD_SPELLS) } : {} });
+}
+
+/**
+ * The rules' part of a turn, canned as the world bridge will play it: Magic Missile at the hoist rope
+ * (three darts, 9 force) breaks it with the world's own damageThing, and what hung from it falls; the
+ * slot goes from the status line. Anything else rolls nothing.
+ */
+function rulesFor(game: DemoGame, text: string, turn: number): { entries: Entry[]; place: PlaceView; status: string } | undefined {
+  const view = game.view;
+  if (!game.place || !view?.place || !/magic missile/i.test(text) || !/rope/i.test(text)) return undefined;
+  const world = rowsToWorld(game.place, yardKeys());
+  const rope = world.entities["hoist-rope"];
+  if (!rope || rope.states.includes("destroyed")) return undefined;
+  const broke = damageThing(world, rope, 9, "force", turn);
+  const { tables, rows } = yardTables(world, game.place);
+  game.place = rows;
+  const status = (view.player.status ?? "").replace(/1st (\d+)\//, (_, n: string) => `1st ${Math.max(0, Number(n) - 1)}/`);
+  const lines = ["Cast Magic Missile (1st-level slot) on the hoist rope", "3 darts at the hoist rope: 9 force", ...broke, `${view.player.name}: ${status}`];
+  const place = placeViewOf({ tables, time: "morning", lead: 1n, names: yardNames(tables), sheet: { spellFacts: JSON.stringify(WIZARD_SPELLS) } });
+  return place ? { entries: lines.map(line => ({ turn, speaker: "dice", kind: "roll" as const, text: line })), place, status } : undefined;
 }
 
 /** What their own picks come to, canned: the fixture's orc rogue, or the card of the class nearest the picks, named for them. */

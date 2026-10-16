@@ -1,5 +1,8 @@
-import type { Backend, HomeRows } from "../backend.ts";
+import { OUT } from "../../shared/map/moves.ts";
+import { mapMove, type Backend, type HomeRows } from "../backend.ts";
 import { CreationModel } from "../creation/model.ts";
+import { ExploreModel } from "../explore/model.ts";
+import type { ExploreView } from "../explore/rows.ts";
 import { SceneModel, type SheetShown } from "../scene/model.ts";
 import type { SceneView } from "../scene/view.ts";
 import { TitleModel } from "../title/model.ts";
@@ -17,7 +20,7 @@ import { TitleModel } from "../title/model.ts";
  */
 export type Intent = "title" | "new" | "creation" | "game";
 
-export type Screen = "title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene";
+export type Screen = "title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene" | "explore";
 
 /** What the title says when the game the player was in has gone from the server. */
 export const GONE = "(The game's server no longer has that game: carry on another, or start a new one.)";
@@ -32,6 +35,8 @@ export interface ScreenRows {
   sheet: boolean;
   /** The seat's scene's rows are in: the scene screen has something to draw. */
   scene: boolean;
+  /** The seat's game is walked on a map, and its rows are in (map-design §3.6): the explore screen has something to draw. */
+  explore?: boolean;
 }
 
 /** What the creating screen waits through: the three builds measured, the GM picking one, the character written into the story. */
@@ -62,10 +67,16 @@ function creationScreen(c: ScreenRows["creation"]): Screen {
   }
 }
 
-/** The game: its scene once it has begun and its rows are in; before, the sheet the engine made (or the creating screen while it comes). */
+/**
+ * The game: its scene once it has begun and its rows are in; the map between scenes when the seat
+ * has no scene and the game is walked on a map (an ended scene stays up until the player goes back
+ * to the map: walk out moves the seat); before it has begun, the sheet the engine made (or the
+ * creating screen while it comes).
+ */
 function gameScreen(rows: ScreenRows): Screen {
   if (!rows.seat) return "title";
   if (rows.seat.sceneId !== undefined && rows.scene) return "scene";
+  if (rows.seat.sceneId === undefined && rows.explore) return "explore";
   return rows.sheet ? "created" : "creating";
 }
 
@@ -105,6 +116,8 @@ export class AppModel implements AppPart {
   readonly creation: CreationModel;
   /** The scene, once the seat's game has one: a new model for each game, so nothing of the last one's stays open. */
   scene?: SceneModel;
+  /** The map between scenes, once the seat's game is walked on one: a new model for each game. */
+  explore?: ExploreModel;
   /** The player asked to leave: the host takes the screen down. */
   quitting = false;
   problem: string | undefined;
@@ -130,7 +143,9 @@ export class AppModel implements AppPart {
     this.stepWas = this.rows.creation?.step;
     const view = backend.view();
     this.followScene(view);
-    this.shown = this.screenNow(view);
+    const map = backend.explore();
+    this.followMap(map);
+    this.shown = this.screenNow(view, map);
     this.noteRefusal();
     backend.onChange(() => this.update());
   }
@@ -151,6 +166,7 @@ export class AppModel implements AppPart {
   /** Something went wrong in the client itself: said on the scene's status line, or on the title's or creation's error line. */
   trouble(words: string): void {
     if (this.shown === "scene" && this.scene) { this.scene.status = words; this.scene.emit(); return; }
+    if (this.shown === "explore" && this.explore) { this.explore.say(words); this.explore.emit(); return; }
     this.problem = words;
     this.emit();
   }
@@ -174,7 +190,7 @@ export class AppModel implements AppPart {
   go(intent: Intent): void {
     this.intent = intent;
     this.problem = undefined;
-    this.shown = this.screenNow(this.backend.view());
+    this.shown = this.screenNow(this.backend.view(), this.backend.explore());
     this.leaveRefusal();
     this.emit();
   }
@@ -196,7 +212,9 @@ export class AppModel implements AppPart {
     this.noteRefusal();
     this.onToTheSheet();
     this.followScene(view);
-    this.shown = this.screenNow(view);
+    const map = this.backend.explore();
+    this.followMap(map);
+    this.shown = this.screenNow(view, map);
     if (this.intent === "game" && was !== "title" && this.shown === "title") this.problem = GONE;
     this.emit();
   }
@@ -228,8 +246,19 @@ export class AppModel implements AppPart {
       say: text => void this.backend.say(text),
       retry: () => void this.backend.retry(),
       setSuggestions: on => this.backend.setSuggestions(on),
+      out: () => void this.backend.walk({ toward: OUT }),
       quit: () => this.go("title"),
     }, () => this.sheetShown());
+  }
+
+  /** The map's model, fed the walker's state as it changes; a new one for another game. */
+  private followMap(view: ExploreView | undefined): void {
+    if (!view) return;
+    if (this.explore?.view.game === view.game) { if (this.explore.view !== view) this.explore.update(view); return; }
+    this.explore = new ExploreModel(view, {
+      move: m => mapMove(this.backend, m),
+      quit: () => this.go("title"),
+    }, () => this.backend.explore(), () => this.sheetShown());
   }
 
   /** The seat's sheet for /sheet: none while the engine hasn't made one (a spectator's seat has none of its own). */
@@ -238,8 +267,8 @@ export class AppModel implements AppPart {
     return data ? { data, who: this.creation.who } : undefined;
   }
 
-  private screenNow(view: SceneView | undefined): Screen {
+  private screenNow(view: SceneView | undefined, map: ExploreView | undefined): Screen {
     const { creation, seat, sheet } = this.rows;
-    return screenOf({ ...(creation ? { creation } : {}), ...(seat ? { seat } : {}), sheet: !!sheet?.data, scene: !!view }, this.intent);
+    return screenOf({ ...(creation ? { creation } : {}), ...(seat ? { seat } : {}), sheet: !!sheet?.data, scene: !!view, explore: !!map }, this.intent);
   }
 }

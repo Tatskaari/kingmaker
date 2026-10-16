@@ -1,8 +1,11 @@
 import { setGlobalLogLevel } from "spacetimedb";
+import type { InteractArgs, TravelArgs, WalkArgs } from "../../shared/map/moves.ts";
 import { refusal, refusalIn } from "../../shared/protocol/refusals.ts";
 import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
+import { exploreViewOf, type ExploreRows, type ExploreView, type MapPlaceTables } from "../explore/rows.ts";
 import { DbConnection, type SubscriptionHandle } from "../module_bindings/index.ts";
 import type { SeatView } from "../module_bindings/types.ts";
+import type { PlaceTables } from "../scene/place-rows.ts";
 import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 
@@ -11,7 +14,9 @@ import type { SceneView } from "../scene/view.ts";
  * SpacetimeDB connection that follows the seat. It subscribes to the caller's own views (my_seat,
  * my_names, my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join,
  * a game continued) it subscribes to that game's, scene's and place's rows (the scene's suggested
- * lines among them), and only then drops the old set, so nothing blinks out. Each row change
+ * lines among them, and the place's world, which the side panel draws), and the map's (map-design
+ * §3.6: the campaign's maps, the explore rows, and the rows of every place of the game on a map),
+ * and only then drops the old set, so nothing blinks out. Each row change
  * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
  * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
  * simulation wrote it, in the game's words.
@@ -31,7 +36,12 @@ export interface ConnectOptions {
 /** The tables and views a client watches, by their SQL names. */
 export type Watched =
   | "my_seat" | "my_names" | "my_games" | "my_creation" | "campaign"
-  | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion";
+  | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion"
+  | "place" | PlaceTable | "map_def" | "explore";
+
+/** The tables of a place's world a client watches (all but gm_note, which is the module's), by their SQL names. */
+type PlaceTable = (typeof PLACE_TABLES)[number];
+const PLACE_TABLES = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "world_log"] as const;
 export type RowOp = "insert" | "update" | "delete";
 export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
 
@@ -46,8 +56,11 @@ export async function connect(options: ConnectOptions): Promise<Connection> {
 /** The SDK's own news ("Connecting to SpacetimeDB WS...") goes to stdout, which is the screen, or the agent's answer: only its warnings and errors. */
 const quietSdk = () => setGlobalLogLevel("warn");
 
-/** What the seat's subscription set covers: the game, its scene, the place whose looks to read. */
-interface WatchKey { game: bigint; scene?: bigint; place?: bigint }
+/**
+ * What the seat's subscription set covers: the game, its scene, the place whose looks to read; the
+ * game's campaign version (its maps), once its row has come, and its places on maps (their rows).
+ */
+interface WatchKey { game: bigint; scene?: bigint; place?: bigint; campaign?: string; mapPlaces: bigint[] }
 interface Watching { key: WatchKey; handle: SubscriptionHandle; dropped: boolean }
 
 export class Connection implements Backend {
@@ -68,6 +81,9 @@ export class Connection implements Backend {
   private seatKnown = false;
   private settled = false;
   private pending = false;
+  /** Moves on with every row event of a table the map is read from: the explore view is made again only then. */
+  private mapRev = 0;
+  private explored?: { rev: number; refused: string | undefined; trouble: string | undefined; seat: string; view: ExploreView | undefined };
   private readonly changes = new Set<() => void>();
   private readonly events = new Set<RowListener>();
   private resolveReady!: () => void;
@@ -99,6 +115,8 @@ export class Connection implements Backend {
       names: [...this.db.db.myNames.iter()],
       looks: of(this.db.db.look, l => l.placeId === scene.placeId),
       suggestions: of(this.db.db.sceneSuggestion, s => s.sceneId === scene.id),
+      ...this.placeOf(scene),
+      ...(this.db.db.explore.playerId.find(game.hostId) ? { onMap: true } : {}),
       ...(this.refused ? { refusal: this.refused } : {}),
       ...(this.trouble ? { trouble: this.trouble } : {}),
       ...(this.cutOff ? { cutOff: true } : {}),
@@ -108,6 +126,67 @@ export class Connection implements Backend {
   view(): SceneView | undefined {
     const rows = this.rows();
     return rows && sceneViewOf(rows);
+  }
+
+  /**
+   * The map's rows as this client holds them (map-design §3.6): the seat's game, its players and
+   * sheets, the campaign's maps, the game's explore rows and scenes, its places on maps with their
+   * rows, and the names the player knows the people in them by; undefined while there's no seat or
+   * its game's row hasn't come.
+   */
+  exploreRows(): ExploreRows | undefined {
+    const seat = this.seat();
+    const game = seat ? this.db.db.game.id.find(seat.gameId) : undefined;
+    if (!seat || !game) return undefined;
+    const t = this.db.db;
+    const campaign = `${game.campaign}@${game.campaignVersion}`;
+    const ofGame = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.gameId === game.id);
+    const places: MapPlaceTables[] = ofGame(t.place).filter(p => p.mapKey !== undefined).map(place => {
+      const here = <T extends { placeId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.placeId === place.id);
+      return {
+        place, entity: here(t.entity), position: here(t.position), area: here(t.area), material: here(t.material), health: here(t.health),
+        stack: here(t.stack), surface: here(t.surface), creature: here(t.creature), playerCharacter: here(t.playerCharacter),
+        gear: here(t.gear), narrative: here(t.narrative), worldLog: here(t.worldLog),
+      };
+    });
+    return {
+      me: seat.playerId, game,
+      players: ofGame(t.player), sheets: ofGame(t.sheet),
+      maps: [...t.mapDef.iter()].filter(m => m.campaignId === campaign),
+      explore: ofGame(t.explore), scenes: ofGame(t.scene), places,
+      names: [...t.myNames.iter()],
+      ...(this.refused ? { refusal: this.refused } : {}),
+      ...(this.trouble ? { trouble: this.trouble } : {}),
+      ...(this.cutOff ? { cutOff: true } : {}),
+    };
+  }
+
+  /** The map between scenes, made from the rows: made again only when they (or the words beside it) have changed. */
+  explore(): ExploreView | undefined {
+    const seat = this.seat();
+    const key = { rev: this.mapRev, refused: this.refused, trouble: this.trouble, seat: seat ? `${seat.playerId}:${seat.gameId}` : "" };
+    const was = this.explored;
+    if (was && was.rev === key.rev && was.refused === key.refused && was.trouble === key.trouble && was.seat === key.seat) return was.view;
+    const rows = this.exploreRows();
+    const view = rows && exploreViewOf(rows);
+    this.explored = { ...key, view };
+    return view;
+  }
+
+  /** The scene's place and its world's rows, once its row has come (the world bridge's §3.5). */
+  private placeOf(scene: { placeId: bigint; sceneKey: string }): { place?: PlaceTables } {
+    const place = this.db.db.place.id.find(scene.placeId);
+    if (!place) return {};
+    const t = this.db.db;
+    const here = <T extends { placeId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.placeId === place.id);
+    return {
+      place: {
+        sceneKey: scene.sceneKey, place,
+        entity: here(t.entity), position: here(t.position), area: here(t.area), material: here(t.material), health: here(t.health),
+        stack: here(t.stack), surface: here(t.surface), creature: here(t.creature), playerCharacter: here(t.playerCharacter),
+        gear: here(t.gear), narrative: here(t.narrative), worldLog: here(t.worldLog),
+      },
+    };
   }
 
   /** The caller's seat (my_seat): its player, game, place and scene; undefined when it has none. */
@@ -153,6 +232,18 @@ export class Connection implements Backend {
 
   say(text: string): Promise<Rejection | undefined> {
     return this.move(() => this.db.reducers.say({ text }));
+  }
+
+  walk(args: WalkArgs): Promise<Rejection | undefined> {
+    return this.move(() => this.db.reducers.walk({ to: args.to, toward: args.toward }));
+  }
+
+  interact(args: InteractArgs): Promise<Rejection | undefined> {
+    return this.move(() => this.db.reducers.interact({ verb: args.verb, target: args.target, at: args.at }));
+  }
+
+  travel(args: TravelArgs): Promise<Rejection | undefined> {
+    return this.move(() => this.db.reducers.travel({ way: args.way, at: args.at }));
   }
 
   /** This player's own setting: the suggested lines on or off (on, this moment's are asked for at once). */
@@ -268,7 +359,12 @@ export class Connection implements Backend {
     if (!seat) return undefined;
     const scene = seat.sceneId === undefined ? undefined : this.db.db.scene.id.find(seat.sceneId);
     const place = seat.placeId ?? scene?.placeId;
-    return { game: seat.gameId, ...(seat.sceneId !== undefined ? { scene: seat.sceneId } : {}), ...(place !== undefined ? { place } : {}) };
+    const game = this.db.db.game.id.find(seat.gameId);
+    const mapPlaces = [...this.db.db.place.iter()].filter(p => p.gameId === seat.gameId && p.mapKey !== undefined).map(p => p.id).sort((a, b) => (a < b ? -1 : 1));
+    return {
+      game: seat.gameId, ...(seat.sceneId !== undefined ? { scene: seat.sceneId } : {}), ...(place !== undefined ? { place } : {}),
+      ...(game ? { campaign: `${game.campaign}@${game.campaignVersion}` } : {}), mapPlaces,
+    };
   }
 
   private subscribe(key: WatchKey, was: Watching | undefined): Watching {
@@ -289,9 +385,13 @@ export class Connection implements Backend {
     this.changed();
   }
 
-  /** Ready once the seat is known and its rows are in, or there's no seat. */
+  /**
+   * Ready once the seat is known and its rows are in, or there's no seat. Its rows are in once the set
+   * that's in is the one the rows ask for: the game's row brings its campaign's maps, and its places
+   * on maps their rows, in a set of their own.
+   */
   private readyOnceIn(): void {
-    if (this.settled || !this.seatKnown || (this.watching && !this.watching.handle.isActive())) return;
+    if (this.settled || !this.seatKnown || (this.watching && (!this.watching.handle.isActive() || !sameKey(this.wanted(), this.watching.key)))) return;
     this.settled = true;
     this.resolveReady();
   }
@@ -314,6 +414,9 @@ export class Connection implements Backend {
       ["game", t.game], ["player", t.player], ["sheet", t.sheet], ["scene", t.scene],
       ["transcript", t.transcript], ["reply_draft", t.replyDraft], ["turn", t.turn], ["on_stage", t.onStage], ["look", t.look],
       ["scene_suggestion", t.sceneSuggestion],
+      ["place", t.place], ["entity", t.entity], ["position", t.position], ["area", t.area], ["material", t.material], ["health", t.health],
+      ["stack", t.stack], ["surface", t.surface], ["creature", t.creature], ["player_character", t.playerCharacter], ["gear", t.gear],
+      ["narrative", t.narrative], ["world_log", t.worldLog], ["map_def", t.mapDef], ["explore", t.explore],
     ];
     for (const [name, table] of tables) {
       table.onInsert((_ctx, row) => this.event(name, "insert", row));
@@ -323,6 +426,7 @@ export class Connection implements Backend {
   }
 
   private event(table: Watched, op: RowOp, row: unknown): void {
+    if (MAP_TABLES.has(table)) this.mapRev++;
     for (const listener of this.events) listener(table, op, row);
     this.changed();
   }
@@ -370,17 +474,27 @@ interface Observable {
   onUpdate?(cb: (ctx: unknown, old: unknown, row: unknown) => void): void;
 }
 
-/** The seat's subscription set (v0-design §7, and v5-design §3.9's scene_suggestion). */
-function queriesFor({ game, scene, place }: WatchKey): string[] {
+/** The tables the map is read from (map-design §3.6): an event in one makes the explore view again. */
+const MAP_TABLES = new Set<Watched>(["my_seat", "my_names", "game", "player", "sheet", "scene", "place", ...PLACE_TABLES, "map_def", "explore"]);
+
+/**
+ * The seat's subscription set (v0-design §7, v5-design §3.9's scene_suggestion, the world bridge's
+ * §3.5: the place and its world, and map-design §3.6: the game's places and explore rows, its
+ * campaign's maps, and the rows of each of its places on a map).
+ */
+function queriesFor({ game, scene, place, campaign, mapPlaces }: WatchKey): string[] {
+  const places = [...new Set([...(place === undefined ? [] : [place]), ...mapPlaces])];
   return [
     `SELECT * FROM game WHERE id = ${game}`,
-    ...["player", "sheet", "scene"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
+    ...["player", "sheet", "scene", "place", "explore"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
+    ...(campaign === undefined ? [] : [`SELECT * FROM map_def WHERE campaign_id = '${campaign.replace(/'/g, "''")}'`]),
     ...(scene === undefined ? [] : ["transcript", "reply_draft", "turn", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
-    ...(place === undefined ? [] : [`SELECT * FROM look WHERE place_id = ${place}`]),
+    ...places.flatMap(id => ["look", ...PLACE_TABLES].map(table => `SELECT * FROM ${table} WHERE place_id = ${id}`)),
   ];
 }
 
-const sameKey = (a: WatchKey | undefined, b: WatchKey | undefined) => a?.game === b?.game && a?.scene === b?.scene && a?.place === b?.place;
+const sameKey = (a: WatchKey | undefined, b: WatchKey | undefined) =>
+  a?.game === b?.game && a?.scene === b?.scene && a?.place === b?.place && a?.campaign === b?.campaign && (a?.mapPlaces ?? []).join() === (b?.mapPlaces ?? []).join();
 
 /** Drops a set once (a second unsubscribe throws); one still on its way is dropped by `applied` when it lands. */
 function drop(watching: Watching | undefined): void {

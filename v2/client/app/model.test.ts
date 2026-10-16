@@ -44,6 +44,14 @@ test("the game: its scene once begun and in, the sheet before, the creating scre
   assert.equal(screenOf({ ...none, seat: { gameId: 3n, sceneId: 7n }, scene: true }, "game"), "scene", "a watcher, who has no sheet");
 });
 
+test("the game on a map: the explore screen between scenes, the scene while one's played from it (one that's over until walk out moves the seat)", () => {
+  assert.equal(screenOf({ ...none, seat: { gameId: 3n }, sheet: true, explore: true }, "game"), "explore", "on the map between scenes");
+  assert.equal(screenOf({ ...none, seat: { gameId: 3n }, explore: true }, "game"), "explore", "a watcher on the map");
+  assert.equal(screenOf({ ...none, seat: { gameId: 3n, sceneId: 7n }, sheet: true, scene: true, explore: true }, "game"), "scene", "in the scene opened from the map");
+  assert.equal(screenOf({ ...none, seat: { gameId: 3n, sceneId: 7n }, sheet: true, explore: true }, "game"), "created", "the scene's rows on their way: as before the map");
+  assert.equal(screenOf({ ...none, seat: { gameId: 3n }, sheet: true, explore: true }, "title"), "title");
+});
+
 test("the app: a character made goes on to its sheet; choosing again goes back to the builds; /quit goes to the title, the game kept", async () => {
   const backend = new StubBackend({ creation: creationRow({ step: "backstory", chosen: OFFER.options[0]! }) });
   const app = new AppModel(backend, { campaign: "caerwyn", intent: "creation" });

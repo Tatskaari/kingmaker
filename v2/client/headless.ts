@@ -1,15 +1,20 @@
-// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves.
+// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows; on the map between scenes (map-design §3.6), observe is MODE: explore (the town's observe: explore/text.ts) and act takes any of its action ids, each made as its move.
 import { tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild } from "../shared/creation/types.ts";
 import { refusal } from "../shared/protocol/refusals.ts";
 import { cardText, sheetText } from "../shared/rules/index.ts";
+import { asciiMap } from "../shared/world/scene-world.ts";
 import type { BuildOption, Offer } from "../shared/rules/types.ts";
-import { homeWhen, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
+import { OUT, moveOf, type MapMove } from "../shared/map/moves.ts";
+import { exploreWhen, homeWhen, mapMove, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
 import { timeWords } from "./creation/words.ts";
+import type { ExploreView } from "./explore/rows.ts";
+import { exploreText } from "./explore/text.ts";
 import { jsonOf } from "./json.ts";
 import { actionLines, phaseLine, render, viewText } from "./scene/text.ts";
 import type { SceneView } from "./scene/view.ts";
 import { sheetOf } from "./sheet/rows.ts";
+import { stageView } from "./look/stage-view.ts";
 import { describe } from "./title/model.ts";
 
 /**
@@ -43,41 +48,98 @@ export const AFTER_MS = 15_000;
 /** What a verb waits for: the world settled too (`settled`), the reply as it's written (`stream`); `ms` and `afterMs` bound the waits. */
 export interface Waiting { settled?: boolean; stream?: boolean; ms?: number; afterMs?: number }
 
-/** A new game: the opening played, then the scene as the player sees it. */
+/** A new game: on its map (map-design §3.3: it begins in the lane), or with none its opening played; then the map, or the scene, as the player sees it. */
 export async function newGame(game: Backend, args: NewGame, out: Out, waiting: Waiting = {}): Promise<number> {
-  const before = game.view()?.game;
+  const before = game.home().seat?.gameId;
   const refused = await game.newGame(args);
   if (refused) return said(out, refused);
 
-  // The new game's scene (a session already in a game moves to the new one), once its opening is
-  // over, and its notes and the lines suggested after it are in.
-  const stream = streamTo(out, waiting);
-  const opening = await viewWhen(game, v => v.game !== before && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(opening);
-  const opened = await afterwards(game, opening, waiting);
-  out.print(viewText(opened));
-  out.print(`\nGame ${opened.game}. Another terminal can watch it: npm run play -- join --session <name> --game ${opened.game}`);
-  return opened.phase === "failed" ? 1 : 0;
+  // The new game (a session already in a game moves to the new one): its map, or its scene once its
+  // opening is over, and its notes and the lines suggested after it are in.
+  return await setOff(game, id => id !== String(before), out, waiting);
 }
 
-/** Watching someone else's game: its scene as they see it. */
+/** Watching someone else's game: its map, or its scene, as they see it. */
 export async function joinGame(game: Backend, id: bigint, out: Out): Promise<number> {
   const refused = await game.joinGame(id);
   if (refused) return said(out, refused);
 
-  const view = await viewWhen(game, v => v.game === String(id), ROWS_MS);
+  const there = await startWhen(game, g => g === String(id), () => true, ROWS_MS);
+  out.print(there.map ? exploreText(there.map) : viewText(there.scene!));
+  return 0;
+}
+
+/** What the player sees: the title (their games) without a seat; the sheet before their game begins; the map between scenes; else the scene, and whose turn it is. */
+export function observe(game: Backend, out: Out): number {
+  const rows = game.home();
+  if (!rows.seat) return games(game, out);
+  if (rows.seat.sceneId === undefined) {
+    const map = game.explore();
+    if (!map) return created(rows, out);
+    out.print(exploreText(map));
+    return 0;
+  }
+  const view = game.view();
+  if (!view) return notInGame(out);
   out.print(viewText(view));
   return 0;
 }
 
-/** What the player sees: the title (their games) without a seat; the sheet before their game begins; else the scene, and whose turn it is. */
-export function observe(game: Backend, out: Out): number {
-  const rows = game.home();
-  if (!rows.seat) return games(game, out);
-  if (rows.seat.sceneId === undefined) return created(rows, out);
+/**
+ * A game set off: on its map, printed as the QA console printed it; or, with no map, its first
+ * scene once its opening is over (a failed opening's too), with its notes and the lines suggested after it.
+ */
+async function setOff(game: Backend, isIt: (game: string) => boolean, out: Out, waiting: Waiting): Promise<number> {
+  const stream = streamTo(out, waiting);
+  const first = await startWhen(game, isIt, v => v.phase === "failed" || v.mayType || v.over, waiting.ms ?? TURN_MS, stream.see);
+  if (first.map) {
+    out.print(exploreText(first.map));
+    out.print(watchIt(first.map.game));
+    return 0;
+  }
+  stream.end(first.scene!);
+  const opened = await afterwards(game, first.scene!, waiting);
+  out.print(viewText(opened));
+  out.print(watchIt(opened.game));
+  return opened.phase === "failed" ? 1 : 0;
+}
+
+const watchIt = (game: string) => `\nGame ${game}. Another terminal can watch it: npm run play -- join --session <name> --game ${game}`;
+
+/**
+ * A game's start as the rows bring it: its map, once someone walks it and no scene's open (`map`);
+ * or its scene, once `ready` says so (`scene`). An error when `ms` pass first.
+ */
+function startWhen(game: Backend, isIt: (game: string) => boolean, ready: (view: SceneView) => boolean, ms: number, see?: (view: SceneView) => void): Promise<{ map?: ExploreView; scene?: SceneView }> {
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      const scene = game.view();
+      if (scene) see?.(scene);
+      const map = scene ? undefined : game.explore();
+      const found = scene && isIt(scene.game) && ready(scene) ? { scene } : map && isIt(map.game) && !map.ex.scene ? { map } : undefined;
+      if (!found) return;
+      clearTimeout(timer);
+      stop();
+      resolve(found);
+    };
+    const timer = setTimeout(() => { stop(); reject(new Error(`No answer in ${ms / 1000} s: observe again in a moment.`)); }, ms);
+    const stop = game.onChange(check);
+    check();
+  });
+}
+
+/**
+ * The scene's place, its world as the rows have it: as the player sees it (the stage from above, in
+ * seven-bit characters, still), then the world from above with what's what (shared/world asciiMap,
+ * the prototype's QA map). Refused when there's no scene; says so when its place's rows haven't come.
+ */
+export function map(game: Backend, out: Out, size: { w: number; h: number } = { w: 100, h: 30 }): number {
   const view = game.view();
   if (!view) return notInGame(out);
-  out.print(viewText(view));
+  const place = view.place;
+  if (!place) { out.print("MODE: map\n\n(The scene's place hasn't come: its rows aren't in yet. Observe again in a moment.)"); return 1; }
+  const stage = stageView(place.world, size, { t: 0, time: place.time, glyphs: "plain" });
+  out.print(`MODE: map\n\n${stage?.toPlain() ?? ""}\n\n${asciiMap(place.world)}`);
   return 0;
 }
 
@@ -104,9 +166,11 @@ export async function say(game: Backend, text: string, out: Out, waiting: Waitin
 /**
  * One of the lines suggested for this moment said, as if typed (`say_2` is the second, as ACTIONS:
  * lists them): refused when there's no such line. What's said comes first, since the agent didn't
- * type it; then what answered it, as for a line said.
+ * type it; then what answered it, as for a line said. Any other id is the map's (mapAct).
  */
 export async function act(game: Backend, id: string, out: Out, waiting: Waiting = {}): Promise<number> {
+  const move = mapMoveOf(id);
+  if (move) return await mapAct(game, move, out, waiting);
   const view = game.view();
   if (!view) return notInGame(out);
   if (view.watching) return said(out, refusal("not_controller", { name: view.watching }));
@@ -117,6 +181,38 @@ export async function act(game: Backend, id: string, out: Out, waiting: Waiting 
 
   out.print(`> ${line.text}\n`);
   return await answered(game, out, waiting);
+}
+
+/** A map action's move: any of the QA console's ids (moveOf), and `out`, back to the map from a scene that's over (walk out has no id of its own). */
+function mapMoveOf(id: string): MapMove | undefined {
+  return id === "out" ? { move: "walk", args: { toward: OUT } } : moveOf(id);
+}
+
+/**
+ * One of the map's actions, made as its move (map-design §3.2): refused (nothing happened), or what
+ * it said, then where it left the player: the scene it opened, its opening played (as new's is), or
+ * the map again, as observe prints it.
+ */
+async function mapAct(game: Backend, move: MapMove, out: Out, waiting: Waiting): Promise<number> {
+  if (!game.home().seat) return notInGame(out);
+  const before = game.explore()?.acts;
+  const refused = await mapMove(game, move);
+  if (refused) return said(out, refused);
+
+  // The move's row (its words), then the seats where it left them: in the scene it opened, or on the map.
+  const moved = await exploreWhen(game, v => v.acts !== before, ROWS_MS).catch(() => game.explore());
+  if (moved && moved.acts !== before && moved.said) out.print(`${moved.said}\n`);
+  if (moved?.ex.scene) {
+    const stream = streamTo(out, waiting);
+    const opening = await viewWhen(game, v => v.phase === "failed" || v.mayType || v.over, waiting.ms ?? TURN_MS, stream.see);
+    stream.end(opening);
+    const opened = await afterwards(game, opening, waiting);
+    out.print(viewText(opened));
+    return opened.phase === "failed" ? 1 : 0;
+  }
+  const map = await startWhen(game, () => true, () => false, ROWS_MS).catch(() => ({ map: game.explore() }));
+  if (map.map) out.print(exploreText(map.map));
+  return 0;
 }
 
 /** Why there's no such line to say, and what there is. */
@@ -304,20 +400,14 @@ export async function newCharacter(game: Backend, ask: NewCharacter, out: Out, w
   return await begin(game, out, waiting);
 }
 
-/** Set off: the game's first scene opens, its opening played, then the scene as the player sees it. */
+/** Set off: on the game's map (map-design §3.3), or with none its first scene opens and its opening is played; then the map, or the scene, as the player sees it. */
 export async function begin(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
   const seat = game.home().seat;
   const refused = await game.act("begin", {});
   if (refused) return said(out, refused);
 
-  // Its opening over, and its notes and the lines suggested after it in, as for a new game.
-  const stream = streamTo(out, waiting);
-  const opening = await viewWhen(game, v => v.game === String(seat?.gameId) && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(opening);
-  const opened = await afterwards(game, opening, waiting);
-  out.print(viewText(opened));
-  out.print(`\nGame ${opened.game}. Another terminal can watch it: npm run play -- join --session <name> --game ${opened.game}`);
-  return opened.phase === "failed" ? 1 : 0;
+  // Its map; or its opening over, and its notes and the lines suggested after it in, as for a new game.
+  return await setOff(game, id => id === String(seat?.gameId), out, waiting);
 }
 
 /** The character sheet, as text: what the engine made, with the purse and pockets. */
@@ -351,7 +441,9 @@ export async function continueGame(game: Backend, id: bigint, out: Out): Promise
   const refused = await game.act("continueGame", { game: id });
   if (refused) return said(out, refused);
 
-  await homeWhen(game, rows => rows.seat?.gameId === id && (rows.seat.sceneId === undefined ? !!rows.sheet : !!game.view()), ROWS_MS);
+  // Its sheet before it has begun; its map once it has, between scenes; else its scene.
+  const begun = (rows: HomeRows) => !!rows.games.find(g => g.gameId === id)?.begun;
+  await homeWhen(game, rows => rows.seat?.gameId === id && (rows.seat.sceneId === undefined ? !!rows.sheet && (!begun(rows) || !!game.explore()) : !!game.view()), ROWS_MS);
   return observe(game, out);
 }
 

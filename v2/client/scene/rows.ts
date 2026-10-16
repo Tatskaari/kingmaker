@@ -1,6 +1,7 @@
 import type { Card, Mark, Markup, Speech } from "../../shared/markup.ts";
 import type { Game, Look, NameView, OnStage, Player, ReplyDraft, Scene, SceneSuggestion, Sheet, Transcript, Turn } from "../module_bindings/types.ts";
 import { colorOf } from "../theme.ts";
+import { placeViewOf, type LeadSheet, type PlaceTables } from "./place-rows.ts";
 import type { Draft, Entry, EntryKind, Person, Phase, SceneView, Suggestion } from "./view.ts";
 
 /**
@@ -18,7 +19,8 @@ export interface SceneRows {
   game: Pick<Game, "id" | "time">;
   scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns">;
   players: Array<Pick<Player, "id" | "name" | "suggestions">>;
-  sheets: Array<Pick<Sheet, "playerId" | "statusLine">>;
+  /** Each player's sheet: its status line; the lead's spells too, for the place's menu (LeadSheet: spellFacts is the world bridge's column, to come). */
+  sheets: Array<Pick<Sheet, "playerId" | "statusLine"> & LeadSheet>;
   transcript: Array<Pick<Transcript, "seq" | "turn" | "speaker" | "kind" | "text" | "markup">>;
   drafts: Array<Pick<ReplyDraft, "turnId" | "speaker" | "text" | "markup" | "attempt" | "seq">>;
   turns: Array<Pick<Turn, "id" | "n" | "phase" | "note" | "error" | "notes" | "suggest">>;
@@ -27,6 +29,10 @@ export interface SceneRows {
   looks: Array<Pick<Look, "entityId" | "fg">>;
   /** The scene's suggested lines (scene_suggestion): one set at a time, each row its turn and its place in the set. */
   suggestions: Array<Pick<SceneSuggestion, "sceneId" | "turn" | "ord" | "kind" | "text">>;
+  /** The scene's place and its world's rows (the world bridge's §3.5): what the side panel draws. None until they've come. */
+  place?: PlaceTables;
+  /** The game is walked on a map (the host has an explore row, map-design §3.1): a scene that's over goes back to it. */
+  onMap?: boolean;
   /** The words of the last move the simulation refused, until the next move. */
   refusal?: string;
   /** What's wrong with the connection to the server, while something is (it's reconnecting). */
@@ -77,7 +83,17 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...(phase === "failed" ? { failed: lease?.error ?? "" } : {}),
     ...suggestionsOf(rows, lease),
     notesComing: shown?.notes === "writing",
+    ...placeOf(rows),
+    ...(rows.onMap ? { onMap: true } : {}),
   };
+}
+
+/** The scene's place, its world rebuilt from its rows (scene/place-rows.ts), when they've come and make one. */
+function placeOf(rows: SceneRows): Pick<SceneView, "place"> {
+  if (!rows.place) return {};
+  const lead = rows.scene.controllerId;
+  const place = placeViewOf({ tables: rows.place, time: rows.game.time, lead, names: rows.names, sheet: rows.sheets.find(s => s.playerId === lead) });
+  return place ? { place } : {};
 }
 
 /**

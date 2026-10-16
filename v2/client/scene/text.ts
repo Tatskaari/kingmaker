@@ -1,4 +1,4 @@
-// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines); viewText and phaseLine are new.
+// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines, with the way back to the map once a scene on one is over: map-design §3.3); viewText and phaseLine are new.
 import type { Mark, MarkLink, Markup } from "../../shared/markup.ts";
 import { isPlayer, type Entry, type SceneView } from "./view.ts";
 
@@ -38,9 +38,14 @@ export function render(view: SceneView, entries: Entry[]): string {
     : e.markup ? [e.text, ...markupLines(e.text, e.markup, name)].join("\n") : e.text).join("\n\n");
 }
 
-/** The lines suggested for this moment, as the agent picks them (act --id say_2): nothing when there are none. */
+/**
+ * The lines suggested for this moment, as the agent picks them (act --id say_2), and once a scene
+ * played on a map is over, the way back to it (act --id out): nothing when there are none.
+ */
 export function actionLines(view: SceneView): string[] {
-  return view.suggestions.length ? ["ACTIONS:", ...view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`)] : [];
+  const lines = view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`);
+  if (view.over && view.onMap && !view.watching) lines.push("- out: Back to the map, where the scene left you");
+  return lines.length ? ["ACTIONS:", ...lines] : [];
 }
 
 /** What the player can do now, in a line, for the agent. */
