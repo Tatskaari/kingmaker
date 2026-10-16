@@ -1,5 +1,6 @@
 import { costOf, logCall, respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
 import { asHeard, currentBeat, heardIn, IMPROVISED_EXIT_ID, leftBehind, openRoutes, presentCast, prompt, sceneBrief, sceneEntries, scriptTranscript, targetTitle, unnamed } from "./brief.ts";
+import { approachById } from "./approaches.ts";
 import { describeRoll, titleCase } from "./dice.ts";
 import { failedTries, moveDirective, resolve, SOCIAL, type Move, type PreDecision } from "./director.ts";
 import { SKILLS, type Scene, type Skill, type Transition } from "./scene.ts";
@@ -329,6 +330,15 @@ export function reviewInput(scene: Scene, state: SessionState, playerTurn: strin
  * rulings and failed tries, the world, the scene so far and the player's turn; one structured answer.
  * `onStep` hears each step start (the call, then each section of the answer as it streams).
  */
+/** How the ruling treats looking: finding what's there needs no roll (the Three Clue Rule's safety net)... */
+const LOOKING = "Looking properly, or working out what's in front of them, finds what's there to find: no roll (a trivial feat).";
+/**
+ * ...or, with notice checks, noticing what a glance wouldn't show is the roll a table GM steers
+ * with: it decides whether this sign reaches the player now, never whether what the scene needs ever
+ * does (the decider flagged these acts, and the rulings still let every one through without dice).
+ */
+const NOTICING = "Noticing what a glance wouldn't show is a roll, at an honest DC: studying someone's face or manner (Insight), or watching, listening or searching for what's easy to miss (Perception, Investigation). Success shows a sign worth following (a tell, a slip, a detail out of place), not what it points at; failure shows only what anyone would see, and the sign waits for another way. Looking at what's plainly there finds it: no roll.";
+
 export async function considerAct(scene: Scene, state: SessionState, playerTurn: string, read: PreDecision["considered"], context: ReviewContext = {}): Promise<Ruling> {
   const input = [
     { role: "developer" as const, content: sceneBrief(scene, state) },
@@ -342,7 +352,7 @@ export async function considerAct(scene: Scene, state: SessionState, playerTurn:
   const json = await respondJson<RulingJson>({
     operation: "consider", model: LUNA, effort: considerEffort(),
     // A ruling in two phases is taken by its final answer when that reads: a retry rarely beats the deadline.
-    instructions: prompt("consider"), input, json: { name: "ruling", schema: rulingSchema(scene, state) }, maxOutputTokens: MAX_OUTPUT_TOKENS, onText, finalAnswer: true,
+    instructions: prompt("consider", { looking: approachById(state.approach).noticeChecks ? NOTICING : LOOKING }), input, json: { name: "ruling", schema: rulingSchema(scene, state) }, maxOutputTokens: MAX_OUTPUT_TOKENS, onText, finalAnswer: true,
     ...(context.signal ? { signal: context.signal } : {}),
   });
   return toRuling(scene, state, json, json._meta, { read, ...(context.unheard ? { unheard: context.unheard } : {}) });
