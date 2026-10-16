@@ -77,7 +77,7 @@ test("each of the hanged clerk's endings writes its quest, flag, attitude, journ
     assert.deepEqual(byGame(host.db.follower, gameId).map(f => [f.castKey, f.name, f.leaderId, f.sinceScene]), [["kell", "Sergeant Agnes Kell", player.id, "hanged-clerk"]], `${exit}: Kell follows, whichever way it ends (onEnd)`);
     const line = endLine(host, exit);
     assert.ok(line?.includes(`· recorded: ${want.recorded}`), `${exit}: the log line records the rest: ${line}`);
-    assert.ok(line?.startsWith(`[end hanged-clerk ${exit}] forced: applied:`), line);
+    assert.ok(line?.startsWith(`[end hanged-clerk ${exit}] forced: applied:`), String(line));
   }
 });
 
@@ -90,7 +90,7 @@ test("an effect is kept only when its facts hold: wrong-man with Moll taken in, 
     ["kell", "unfriendly", "Made to arrest a child for murder on no evidence."],
     ["moll", "hostile", "Taken in for a murder they didn't do, on the player's word."],
   ]);
-  assert.ok(endLine(host, "wrong-man")!.includes("· recorded: remove moll; remove cob; remember kell · afterwards: 1 changed"), endLine(host, "wrong-man"));
+  assert.ok(endLine(host, "wrong-man")!.includes("· recorded: remove moll; remove cob; remember kell · afterwards: 1 changed"), String(endLine(host, "wrong-man")));
 
   const other = await game();
   other.end("open-case");

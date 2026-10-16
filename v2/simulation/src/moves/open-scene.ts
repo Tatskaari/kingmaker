@@ -41,12 +41,11 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     const def = sceneDefOf(tx, game, sceneKey);
     const controller = playerRow(tx, actor.id!);
     const waiting = waitingScene(tx, game.id, sceneKey);
-    const handed = waiting ? getGm(tx, waiting.id) : initialGm(graphOf(def));
-    const graph = graphOf(def, handed.patches);
+    const gm = waiting ? getGm(tx, waiting.id) : initialGm(graphOf(def));
+    const graph = graphOf(def, gm.patches);
 
-    const opened = waiting ? openWaiting(tx, game, def, graph, handed, controller, start, waiting) : { scene: insertScene(tx, game, def, graph, handed, controller, start), gm: handed };
-    const { scene, gm } = opened;
-    putGm(tx, scene.id, gm);
+    const scene = waiting ? openWaiting(tx, game, def, graph, gm, controller, start, waiting) : insertScene(tx, game, def, graph, gm, controller, start);
+    if (!waiting) putGm(tx, scene.id, gm);
     syncStage(tx, scene, graph, gm);
     if (waiting) noteHeardInStory(tx, scene, graph);
     else noteHeard(tx, scene, graph);
@@ -104,13 +103,14 @@ function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, g
  * both. Its bookkeeping is what the boundary handed on, the owed things it names re-keyed if they
  * came in with the player.
  */
-function openWaiting(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined, waiting: SceneRow): { scene: SceneRow; gm: GmState } {
+function openWaiting(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined, waiting: SceneRow): SceneRow {
   const place = joinPlace(tx, game, placeKeyOf(tx, game, def), graph, gm, controller, start, waiting.placeId);
   refreshPockets(tx, controller.id, place.world);
   const scene = updateScene(tx, waiting.id, { status: "opening", controllerId: controller.id, openedAt: tx.now });
+  if (place.renamed.size) putGm(tx, scene.id, { ...gm, owed: rekeyOwed(gm.owed, place.renamed) });
 
   tx.db.player.id.update({ ...playerRow(tx, controller.id), characterId: place.characterId, placeId: place.placeId, sceneId: scene.id });
-  return { scene, gm: { ...gm, owed: rekeyOwed(gm.owed, place.renamed) } };
+  return scene;
 }
 
 /** A game's scene of that key waiting to be opened (the lead), if there is one. */
