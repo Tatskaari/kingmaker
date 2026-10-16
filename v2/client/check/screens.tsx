@@ -10,12 +10,13 @@
  * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
  * spectator's shut box and their line refused (the refusal giving way when the turn moves on), a
  * scene a reply has closed and its end, a failed turn's box and a line sent to be refused with its
- * /retry, a long paste kept to a turn's 2,000 characters, and a game gone from the server. (The prototype's
- * src/app/smoke/screens-check.tsx, for this client.)
+ * /retry, a long paste kept to a turn's 2,000 characters, and a game gone from the server. Last, the
+ * screen coming up as the rows move on: a change between its first render and its subscription to the
+ * model is drawn. (The prototype's src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { App } from "../app.tsx";
 import { GM_BUSY } from "../busy.ts";
@@ -301,6 +302,39 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   set({ refusal: "(The scene is over.)" });
   frame = await draw();
   checks.push([`${size}: its refusal, on the status line`, style("(The scene is over.)")?.fg === C.warn]);
+  await setup.dispose();
+}
+
+// The screen coming up as the rows move on. The TUI host keeps the model to the rows (follow), then
+// renders the App, whose parts subscribe to the model in their effects. A change between the first
+// render and those effects (a layout effect runs there) must still be drawn: the opening that failed
+// at once, the turn's note, the game gone. With no second look once subscribed, all three were lost.
+const OPENING: SceneView = { ...YARD, game: "2", entries: [], phase: "replying", turn: 0, mayType: false };
+const comingUp: Array<[what: string, rows: SceneView | undefined, shows: (frame: string) => boolean]> = [
+  ["an opening that failed: its box says /retry carries it on, and no spinner", { ...OPENING, phase: "failed", failed: "400 bad_request: campaign caerwyn@0.1.0 isn't installed here" },
+    frame => /The GM lost the thread: \/retry carries it on\./.test(frame) && !/The GM is speaking…/.test(frame) && !/The GM has the floor/.test(frame)],
+  ["the turn's note, in place of the spinner", { ...OPENING, note: "The GM has lost the thread for a moment: trying again." },
+    frame => /The GM has lost the thread for a moment: trying again\./.test(frame) && !/The GM is speaking…/.test(frame)],
+  ["the game gone from the server: the status line says so, the box is shut", undefined,
+    frame => /no longer has this game/.test(frame) && /The game is gone from the server\./.test(frame)],
+];
+for (const [what, next, shows] of comingUp) {
+  let rows: SceneView | undefined = OPENING;
+  const listeners = new Set<() => void>();
+  const game = { view: () => rows, onChange: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; } };
+  const scene = new SceneModel(OPENING, { say: () => {}, retry: () => {}, quit: () => {} });
+  scene.follow(game, "(The game's server no longer has this game: /quit, then start one with --new, or watch one with --join.)");
+  /** The App, and the rows moving on after its first render, before its effects run. */
+  function ComingUp() {
+    useLayoutEffect(() => { rows = next; for (const listener of listeners) listener(); }, []);
+    return <App scene={scene} onQuit={() => {}} />;
+  }
+  const setup = await testRender(<ComingUp />, { width: 100, height: 30 });
+  await setup.renderOnce();
+  await setup.renderOnce();
+  const frame = setup.captureCharFrame();
+  if (show) console.log(`coming up: ${what}\n${frame}`);
+  checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
   await setup.dispose();
 }
 

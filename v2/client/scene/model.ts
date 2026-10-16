@@ -44,6 +44,7 @@ export class SceneModel {
 
   private readonly actions: SceneActions;
   private listeners = new Set<() => void>();
+  private changes = 0;
   private pending?: ReturnType<typeof setTimeout>;
   private busyLines = new BusyLines();
   private busyLine?: string;
@@ -61,8 +62,15 @@ export class SceneModel {
     return () => { this.listeners.delete(listener); };
   }
 
+  /**
+   * How many changes the screen has been told of. The screen draws by it (useStore), and looks at it
+   * again once it has subscribed, so a change told of before then (with no one listening) still shows.
+   */
+  get version(): number { return this.changes; }
+
   emit(): void {
     if (this.pending) { clearTimeout(this.pending); this.pending = undefined; }
+    this.changes++;
     for (const l of this.listeners) l();
   }
 
