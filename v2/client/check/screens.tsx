@@ -361,7 +361,7 @@ const boxed = (frame: string) => { const rows = frame.split("\n"); return rows[r
 const framed = (frame: string, columns: number) => { const rows = frame.split("\n"); return rows.slice(0, rows.findIndex(r => /^└/.test(r))).map(r => [...r].slice(0, columns).join("")); };
 const bottomLine = (frame: string) => frame.split("\n").filter(r => r.trim()).at(-1)!.trim();
 /** What's inside a box drawn with a double border (the help), as one line. */
-const doubled = (frame: string) => flat(frame.split("\n").filter(r => r.includes("║")).map(r => r.slice(r.indexOf("║") + 1, r.lastIndexOf("║"))).join(" "));
+const doubled = (frame: string) => flat(frame.split("\n").filter(r => r.includes("║")).map(r => r.slice(r.indexOf("║") + 1, r.lastIndexOf("║")).replace(/[█▀▄]/g, " ")).join(" "));
 
 /** The prototype's suggested lines (screens-check.tsx:617-623): two to say, a deed, a risky try, a way out. */
 const LINES: Suggestion[] = [

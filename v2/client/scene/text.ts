@@ -1,5 +1,6 @@
-// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines); viewText and phaseLine are new.
+// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines); viewText and phaseLine are new, the way on's lines (story/text.ts) once the scene is over.
 import type { Mark, MarkLink, Markup } from "../../shared/markup.ts";
+import { wayOnActions, wayOnPhase } from "../story/text.ts";
 import { isPlayer, type Entry, type SceneView } from "./view.ts";
 
 /**
@@ -40,11 +41,15 @@ export function render(view: SceneView, entries: Entry[]): string {
 
 /** The lines suggested for this moment, as the agent picks them (act --id say_2): nothing when there are none. */
 export function actionLines(view: SceneView): string[] {
-  return view.suggestions.length ? ["ACTIONS:", ...view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`)] : [];
+  const lines = [...view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`), ...wayOnActions(view)];
+  return lines.length ? ["ACTIONS:", ...lines] : [];
 }
 
 /** What the player can do now, in a line, for the agent. */
 export function phaseLine(view: SceneView): string {
+  // Over (or its fight next), with the story around it: where the story's way on stands.
+  const onward = wayOnPhase(view);
+  if (onward) return onward;
   if (view.over) return "PHASE: over (the scene has ended: there's nothing more to say in it)";
   if (view.failed !== undefined) return view.watching ? `PHASE: failed (${view.failed}). ${view.watching} can retry it` : `PHASE: failed (${view.failed}). Use: retry`;
   if (view.ending) return `PHASE: ${view.phase} (the scene is ending: there's nothing more to say in it)`;

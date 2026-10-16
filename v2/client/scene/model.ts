@@ -98,6 +98,7 @@ export class SceneModel {
 
   constructor(view: SceneView, actions: SceneActions, sheet: () => SheetShown | undefined = () => undefined) {
     this.view = view;
+    if (view.story) this.story = view.story;
     this.actions = actions;
     this.sheet = sheet;
     this.noteRefusal(view);

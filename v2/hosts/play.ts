@@ -46,9 +46,15 @@ const USAGE = `Kingmaker: headless play
   play retry --session <name> [--wait settled] [--stream]
                                                 carry a turn the GM lost on from where it got to
   play transcript --session <name>              everything said in the scene
+  play end --session <name> [--exit <exit id>]  for testing, as the dev stack's owner: end the scene now through one of
+                                                its exits (lists them without --exit); waits for the story to move on
+  play go --session <name> [--stream]           on from a scene that's over: to the lead (its scene opens; act --id
+                                                go_to_lead too), the fight, or a story that got stuck tried again
+  play act --session <name> --id fight          the fight's stand-in: fought out, and the scene picks up from it
+  play journal --session <name>                 the investigator's notebook, the quests, the flags, the attitudes
 
-new, begin, say, act and retry wait for the notes on the reply's marks (the opening's, for new and
-begin) and the lines suggested after it (15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
+new, begin, say, act, retry and go wait for the notes on the reply's marks (the opening's, for new,
+begin and go) and the lines suggested after it (15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
 and --db for the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's, found in
 runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker). Sessions
 are kept in runs/play/ (KM_RUNS_DIR moves runs/). A refusal or a failed turn exits 1.
@@ -80,7 +86,7 @@ function argsOf(argv: string[]) {
     options: {
       session: { type: "string" }, as: { type: "string" }, build: { type: "string" }, campaign: { type: "string" },
       backstory: { type: "string" }, "backstory-file": { type: "string" }, "accept-fixes": { type: "boolean" },
-      game: { type: "string" }, id: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
+      game: { type: "string" }, id: { type: "string" }, exit: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
     },
   });
@@ -122,6 +128,9 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "suggestions": return await verbs.suggestions(game, setting(args.text), out);
     case "retry": return await verbs.retry(game, out, waiting);
     case "transcript": return verbs.transcript(game, out);
+    case "end": return await verbs.end(game, args.values.exit, out, waiting);
+    case "go": return await verbs.go(game, out, waiting);
+    case "journal": return verbs.journal(game, out);
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;
   }
 }
@@ -134,9 +143,9 @@ function characterOf(args: Args): verbs.NewCharacter {
   return { campaign, name, concept, build: args.values.build, backstory, acceptFixes: args.values["accept-fixes"] ?? false, session: args.values.session };
 }
 
-/** act's line: say_1, say_2… */
+/** act's id: say_1, say_2…, or the way on's (go_to_lead, fight, carry_on). */
 function lineId(id: string | undefined): string {
-  if (!id) throw new Error("Which line? act takes --id say_1, say_2… as ACTIONS: lists them (observe shows them).");
+  if (!id) throw new Error("Which line? act takes --id say_1, say_2… (or go_to_lead, fight, carry_on) as ACTIONS: lists them (observe shows them).");
   return id;
 }
 
