@@ -78,6 +78,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   const you = style("asking");
   checks.push([`${size}: a "you" mark underlined on its tint, in Kell's colour (${you?.fg} on ${you?.bg})`, !!you && you.underline && you.bg === MARK_TINT.you && you.fg === "#6d9eeb"]);
   checks.push([`${size}: the box is open, with its hint`, /What do you say\?/.test(frame) && /Say it out loud/.test(frame)]);
+  checks.push([`${size}: the hints offer a deed V0 can play (the box's whole, the side panel's where there's room), never a spell`, !/Fireball|I cast/.test(frame) && (w < 100 || /\(I check his pockets\)/.test(frame)) && /Say it out loud[^│]*(things|pockets\)) *│/.test(frame)]);
 
   // A line said: sent as the move, the box emptied.
   await act(async () => { await setup.mockInput.typeText("Sergeant, who found him?"); });
@@ -187,7 +188,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
   checks.push([`${size}: /help opens the help`, scene.overlay?.kind === "help" && /How to play/.test(frame)]);
-  checks.push([`${size}: the help says nothing of marks or ⓘ lines, which V0 never shows`, /🎲 lines/.test(frame) && !/Underlined|marks|ⓘ/.test(frame)]);
+  checks.push([`${size}: the help says nothing of marks or ⓘ lines, which V0 never shows, nor of spells`, /🎲 lines/.test(frame) && !/Underlined|marks|ⓘ/.test(frame) && !/Fireball|I cast/.test(frame) && /pockets\)/.test(frame)]);
   await esc();
   frame = await draw();
   checks.push([`${size}: Esc closes it`, !scene.overlay && !/How to play/.test(frame)]);
