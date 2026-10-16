@@ -31,6 +31,7 @@ import type { SceneView, Suggestion } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
 import { checkCreation } from "./creation.tsx";
+import { checkMap } from "./map-screens.tsx";
 import { checkPlace } from "./place-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
@@ -645,6 +646,9 @@ for (const [what, next, shows] of comingUp) {
 
 // The scene's place (the world bridge's): drawn from its rows, pointed at, its menu.
 await checkPlace(checks, show);
+
+// The map between scenes (V2's): the lane in the morning, walking and the lead, the map after the scene, and the way back to it.
+await checkMap(checks, show);
 
 // The title, character creation and the sheet (V1's).
 await checkCreation(checks, show);
