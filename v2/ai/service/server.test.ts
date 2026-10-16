@@ -217,6 +217,27 @@ test("shutting down, it takes nothing new: 503 not_ready", async () => {
   assert.equal(JSON.parse(answer.body).error.code, "not_ready");
 });
 
+test("shutting down over HTTP: a think in flight is answered before the shutdown is over, so a process that exits then has sent it", async () => {
+  const { ai, ran } = service({ slowMs: 300 });
+  await ai.answer(put());
+  const server = createServer((req, res) => ai.handle(req, res));
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const request = post("/v1/turns/decide", decideRequest());
+  try {
+    const asked = fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/v1/turns/decide`, { method: "POST", headers: request.headers as Record<string, string>, body: request.body });
+    while (!ran.length) await new Promise(resolve => setTimeout(resolve, 5));
+
+    await ai.shutdown(10_000);
+    server.closeAllConnections(); // what process.exit does to the sockets, at the moment hosts/ai.ts calls it
+
+    const answered = await asked;
+    assert.equal(answered.status, 200);
+    assert.deepEqual((await answered.json() as { decision: unknown }).decision, { earned: false, daft: false, outOfCharacter: false });
+  } finally {
+    server.close();
+  }
+});
+
 test("over HTTP on node's server (port 0): the same answers, and a body over its limit is a 413", async () => {
   const { ai } = service();
   const server = createServer((req, res) => ai.handle(req, res));
