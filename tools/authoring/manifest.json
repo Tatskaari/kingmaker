@@ -1,0 +1,9 @@
+{
+  "id": "kingmaker-authoring",
+  "name": "Kingmaker Authoring",
+  "version": "0.4.1",
+  "minAppVersion": "1.5.0",
+  "description": "Author scenes, map ports and scenario wiring in your lore vault.",
+  "author": "Kingmaker",
+  "isDesktopOnly": true
+}

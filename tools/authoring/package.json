@@ -1,0 +1,27 @@
+{
+  "name": "kingmaker-authoring-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node build.mjs --serve",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "test:host": "node --test tests/*.test.mjs",
+    "install:vault": "node scripts/install.mjs"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.10.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "^1.8.7",
+    "typescript": "^5.9.0"
+  }
+}
