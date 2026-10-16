@@ -69,6 +69,7 @@ export interface AiService {
 const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
   "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember", "/v1/turns/repair": "repair",
+  "/v1/scenes/boundary": "boundary",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
 /** The steps that never call a model: the ceiling doesn't stop them. */

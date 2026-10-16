@@ -15,8 +15,9 @@ function rows(gm: Row = {}, more: Partial<StatusRows> = {}): StatusRows {
       ending_lead: null, pending_exit: null, closing: null, ended: null, scene_status: null, ooc_turns: [], pressure_offered: [], repeated: null,
       // The full GM's columns as a V1 database has them once migrated: their defaults.
       canon: [], patches: "[]", notes: null, notes_turn: null, whispers: [], last_repair_turn: null, off_graph_turn: null, rulings: [],
-      // The world bridge's, likewise.
+      // The world bridge's, then the story's (story-design §4.1), as a full-GM database has them once migrated: their defaults.
       threat: null, held: null, brawl: null, absent: [],
+      adjustments: [], opening: null, lead: null, owed: [], fought: [],
       ...gm,
     },
     turns: [
@@ -38,9 +39,38 @@ test("a V1 game: the prototype's fields, and the full GM's there and empty", () 
     notes: null, notesTurn: null, whispers: [], canon: [], established: [], patches: [], rulings: [], landed: [], hinted: [],
     sceneStatus: null, offGraphTurn: null, lastRepairTurn: null, opened: [],
     threat: null, held: null, brawl: null, absent: [],
+    adjustments: [], opening: null, lead: null, owed: [], fought: [],
     repairs: [], memoryReviews: [], jobs: [],
     latency: { avgFirstTextMs: 4000, consideredTurns: 0, avgConsiderMs: 0 },
     costUsd: "0.00460",
+    story: { status: null, time: null, lead: null, onward: null, chapters: [], quests: [], flags: [], followers: [], attitudes: [] },
+  });
+});
+
+test("the story between scenes: what was handed on to the scene waiting, the lead, the chapters, quests, flags and followers", () => {
+  const status = statusOf(rows({
+    adjustments: ["Kell walks with the investigator now."], opening: "Open on the Rat's door.", lead: "The Drowned Rat, then.", absent: ["cob"],
+    owed: [{ from: "hanged-clerk", id: "ledger-page", hinted: false, things: ["drowned-rat/boots", "drowned-rat/ledger-page"], holders: ["cob"], where: null }],
+  }, {
+    game: { id: 1, uid: "g1-abc", status: "playing", time: "evening", lead_scene: "drowned-rat", lead_text: "The afternoon goes in paperwork.", onward: null, onward_note: null },
+    scene: { id: 8, scene_key: "drowned-rat", status: "waiting", turns: 0 },
+    story: {
+      chapters: [{ seq: 1, scene_key: "hanged-clerk", exit_key: "open-case", ending: "Murder by persons unknown", summary: "Previous scene, \"The Hanged Clerk\", ended: Murder by persons unknown (hanged-clerk: open-case).\nKell has it all.", calls: 3, cost_micros: 300, skipped: [] }],
+      quests: [{ key: "hanged-clerk", title: "The Hanged Clerk", status: "active", stage: null, notes: ["Prout's death is on the books as murder by persons unknown."] }],
+      flags: [{ name: "prout_death", value: "murder, unnamed" }],
+      followers: [{ cast_key: "kell", name: "Sergeant Agnes Kell", since_scene: "hanged-clerk" }],
+      attitudes: [],
+    },
+  }));
+
+  assert.deepEqual([status.adjustments, status.opening, status.lead, status.absent, status.owed], [
+    ["Kell walks with the investigator now."], "Open on the Rat's door.", "The Drowned Rat, then.", ["cob"], ["hanged-clerk/ledger-page: drowned-rat/ledger-page in drowned-rat/boots with cob"],
+  ]);
+  assert.deepEqual(status.story, {
+    status: "playing", time: "evening", lead: "drowned-rat: The afternoon goes in paperwork.", onward: null,
+    chapters: ["1. hanged-clerk -> open-case (Murder by persons unknown): Previous scene, \"The Hanged Clerk\", ended: Murder by persons unknown (hanged-clerk: open-case). [3 calls, $0.0003]"],
+    quests: ["hanged-clerk (active): Prout's death is on the books as murder by persons unknown."],
+    flags: ["prout_death = murder, unnamed"], followers: ["kell (Sergeant Agnes Kell), since hanged-clerk"], attitudes: [],
   });
 });
 

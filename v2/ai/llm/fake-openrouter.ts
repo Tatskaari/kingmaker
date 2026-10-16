@@ -5,12 +5,16 @@ import type { ToolCall } from "./tools.ts";
  * the game's own calls, through its own code, answered here.
  *
  * - The Decisions API (the decider, disclosure): every question gets its quietest choice (none,
- *   not_yet, on_track, in_character...), or its first; or the choice `choices` names for it.
+ *   not_yet, on_track, in_character...), or its first; or the choice `choices` names for it, or of
+ *   a list it names, the first the question offers (`"ending": ["open-case", "hobb-talks"]` ends
+ *   each scene at the first of them it has).
  * - The Responses API: JSON made to fit the schema asked for (the stage manager's operations, the
  *   quick co-GM), or one of `byName`'s by the schema's name; the lines a scene or a talk suggests
  *   (asked for in instructions that begin "You suggest what the player might": v2/ai/prompts/suggest.md,
- *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given; otherwise the GM's
- *   next line from `replies`, streamed as OpenRouter streams it.
+ *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given; the hand-off between
+ *   two scenes (instructions that begin "You write the hand-off between two scenes": v2/ai/gm/boundary.ts)
+ *   from `handoff`, when it's given; otherwise the GM's next line from `replies`, streamed as
+ *   OpenRouter streams it.
  *
  * - `stall`: structured calls (by the schema's name) that never answer, until the caller gives up.
  * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
@@ -43,9 +47,10 @@ const QUIET = ["none", "not_yet", "on_track", "in_character", "covered", "harmle
 export interface FakeOptions {
   replies?: string[];
   byName?: Record<string, unknown>;
-  choices?: Record<string, string>;
+  choices?: Record<string, string | string[]>;
   odds?: Record<string, number>;
   suggestions?: string | string[];
+  handoff?: string;
   stall?: string[];
   capped?: Record<string, number>;
   phased?: string[];
@@ -98,12 +103,14 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
     const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
+    const handing = options.handoff !== undefined && !!body.instructions?.startsWith("You write the hand-off between two scenes");
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
     const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
     if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
     const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
       : suggesting ? suggestions[suggested++ % suggestions.length]!
+      : handing ? options.handoff!
       : replies[next++ % replies.length]!;
     if (format && options.phased?.includes(format.name)) return phased(`${text.slice(0, 40)}"} \n\n the response is not valid json`, text);
     if (!body.stream) return json(completed(text));
@@ -158,10 +165,10 @@ function capped(cost: number): Response {
 }
 interface Schema { type?: string | string[]; enum?: unknown[]; const?: unknown; properties?: Record<string, Schema>; required?: string[]; anyOf?: Schema[] }
 
-function answer(questions: NonNullable<Request["questions"]>, choices: Record<string, string> = {}, odds: Record<string, number> = {}): Record<string, { choice: string; probabilities: Record<string, number>; confidence: number }> {
+function answer(questions: NonNullable<Request["questions"]>, choices: Record<string, string | string[]> = {}, odds: Record<string, number> = {}): Record<string, { choice: string; probabilities: Record<string, number>; confidence: number }> {
   return Object.fromEntries(Object.entries(questions).map(([id, q]) => {
     const keys = Object.keys(q.criteria);
-    const choice = choices[id] && keys.includes(choices[id]) ? choices[id] : QUIET.find(k => keys.includes(k)) ?? keys[0]!;
+    const choice = [choices[id] ?? []].flat().find(c => keys.includes(c)) ?? QUIET.find(k => keys.includes(k)) ?? keys[0]!;
     const sure = odds[id] ?? 0.97;
     const probabilities = Object.fromEntries(keys.map(k => [k, k === choice ? sure : (1 - sure) / Math.max(1, keys.length - 1)]));
     return [id, { choice, probabilities, confidence: 0.95 }];

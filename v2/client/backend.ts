@@ -40,11 +40,17 @@ export interface Backend {
   close(): void;
 }
 
-/** Character creation's moves, and the games': called by name (v1-design §3.10). */
+/**
+ * Character creation's moves, and the games': called by name (v1-design §3.10). And the story's
+ * (story-design §4.3): walk (toward the lead: its scene opens), carry_on (a boundary that got stuck,
+ * tried again), fight_it_out (the fight's stand-in), and end_scene, which only the database's owner
+ * may make: the connection makes it as the dev stack's owner (net/owner.ts), for testing.
+ */
 export type MoveName =
   | "startCreation" | "creationBack" | "chooseBuild" | "makeOwn" | "pickOwn" | "takeOwn" | "setBackstory" | "draftBackstory"
   | "workInBackstory" | "takeProposal" | "leaveProposal" | "finishBackstory" | "acceptFix" | "rewriteIssue" | "skipBackstory"
-  | "chooseAgain" | "begin" | "continueGame" | "deleteGame";
+  | "chooseAgain" | "begin" | "continueGame" | "deleteGame"
+  | "walk" | "carryOn" | "fightItOut" | "endScene";
 
 /** Each move's arguments, as the bindings have them. */
 export type Moves = { [K in MoveName]: Parameters<DbConnection["reducers"][K]>[0] };

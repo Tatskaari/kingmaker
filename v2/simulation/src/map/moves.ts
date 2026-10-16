@@ -11,6 +11,7 @@ import { gameRow, playerRow, type GameRow, type PlayerRow, type SceneRow } from 
 import { refreshPockets } from "../rules/session.ts";
 import { sceneGraph } from "../scenes.ts";
 import { placeWorldOf, savePlaceWorld } from "../world/place.ts";
+import { goOnReducer } from "../story/moves.ts";
 import { openLead } from "./lead.ts";
 import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreTableRow } from "./rows.ts";
 
@@ -26,6 +27,7 @@ import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreT
 
 export function walkReducer(tx: TxCtx, sender: Identity, args: WalkArgs): void {
   const actor = actorOf(tx, sender);
+  if (!onAMap(tx, actor)) return goOnReducer(tx, sender, args);
   if (args.toward === OUT) walkOut(tx, actor);
   else mapMove(tx, actor, { move: "walk", args });
 }
@@ -57,6 +59,12 @@ function mapMove(tx: TxCtx, actor: Actor, move: MapMove): void {
   tx.log(`[map] game ${game.id} ${id} ${Math.round(tx.elapsedMs() - started)} ms${done.scene ? `: ${game.leadScene} opens` : ""}`);
 }
 
+/** Whether the actor's game is walked on a map (it has an explore row): with none, walk is the story's Go on, straight into the lead (story-design §4.3). */
+function onAMap(tx: TxCtx, actor: Actor): boolean {
+  const player = actor.id === undefined ? undefined : (tx.db.player.id.find(actor.id) ?? undefined);
+  return !player || !!walkerOf(tx, gameRow(tx, player.gameId));
+}
+
 /** walk out: from a scene that has ended, back onto its map, where it left the walker. */
 function walkOut(tx: TxCtx, actor: Actor): void {
   const { game, scene, row } = walker(tx, actor);
@@ -73,6 +81,7 @@ function walker(tx: TxCtx, actor: Actor): { game: GameRow; host: PlayerRow; scen
   const player = actor.id === undefined ? undefined : (tx.db.player.id.find(actor.id) ?? undefined);
   if (!player) throw new Refused(refusal("not_in_game"));
   const game = gameRow(tx, player.gameId);
+  if (game.status === "ended") throw new Refused(refusal("story_over"));
   if (player.id !== game.hostId) throw new Refused(refusal("not_controller", { name: playerRow(tx, game.hostId).name }));
   const scene = player.sceneId === undefined ? undefined : (tx.db.scene.id.find(player.sceneId) ?? undefined);
   if (scene && scene.status !== "ended") throw new Refused(refusal("scene_on"));

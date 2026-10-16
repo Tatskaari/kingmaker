@@ -203,8 +203,8 @@ test("walking out after the ending: where the scene left her, Kell beside her, f
   // Out through the gate, and the yard's locked behind her: back through the gate, the step into the yard says so.
   assert.equal(host.as(wren).walk({ to: { x: 42, y: 8 } }), undefined);
   assert.deepEqual(explore().at, { x: 42, y: 8 });
-  assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
-  assert.equal(explore().said, "Nowhere to walk to: the story comes to you from here.");
+  // The story has moved on (story-design §4.3): the Rat is the lead now, a walk away down the river stairs.
+  assert.equal(host.db.game.id.find(game.id)!.leadScene, "drowned-rat");
   for (const y of [9, 10]) {
     host.as(wren).walk({ toward: "south" });
     assert.deepEqual(explore().at, { x: 42, y }, "down the lane to the gate");

@@ -69,8 +69,9 @@ export function bigints(_key: string, value: unknown): unknown {
 /** A client and every row event it has seen, in the order it saw them, with when (performance.now()). */
 export interface Player { name: string; conn: Connection; events: Array<{ table: Watched; op: RowOp; row: any; at: number }> }
 
-export async function player(stack: Stack, name: string): Promise<Player> {
-  const conn = await connect({ url: stack.ws, db: stack.db });
+/** A new client of the stack's: with `owner`, it makes the testing moves as the dev stack's owner (end_scene, as /end does). */
+export async function player(stack: Stack, name: string, owner = false): Promise<Player> {
+  const conn = await connect({ url: stack.ws, db: stack.db, ...(owner ? { owner: { http: stack.http, db: stack.db, token: stack.owner.token } } : {}) });
   const events: Player["events"] = [];
   conn.onEvent((table, op, row) => events.push({ table, op, row, at: performance.now() }));
   return { name, conn, events };

@@ -9,7 +9,9 @@ import { readStackFile } from "./dev/stack-file.ts";
  * The GM's side of a game (full-gm-design §4.4), as the prototype's `scene status` and
  * `scene memories` show it: where the scene stands in its beats, its path, the co-GM's notes,
  * whispers, canon and routes, the GM's rulings, the co-GM's reviews (merged or waiting), the memory
- * reviews, the notes disclosure opened, and the background jobs in flight; or, with --memories,
+ * reviews, the notes disclosure opened, the background jobs in flight, what the boundary handed on
+ * to the scene and the story between scenes (story-design §4.1: the lead, the chapters, the quests,
+ * the flags, who walks with the player, the attitudes); or, with --memories,
  * every memory the reviews wrote, in full. It reads the running dev stack: its private rows as the
  * database's owner (runs/dev/stack.json has the token), and the AI service's store (runs/dev/ai/).
  * Not for blind QA: it shows what the player hasn't seen.
@@ -17,8 +19,9 @@ import { readStackFile } from "./dev/stack-file.ts";
 
 const USAGE = `Kingmaker: the GM's side of a game
 
-  npm run status -- --game <n>              the GM's side of game n's scene: beat, path, notes, whispers, canon,
-                                            patches, rulings, the co-GM's reviews, the memory reviews, the jobs in flight
+  npm run status -- --game <n>              the GM's side of game n's latest scene: beat, path, notes, whispers, canon,
+                                            patches, rulings, the co-GM's reviews, the memory reviews, the jobs in flight,
+                                            what was handed on to it, and the story: the lead, chapters, quests, flags
   npm run status -- --game <n> --memories   every memory the reviews wrote, in full
 
 --game is the number in the game's side panel (the newest game when it's left out). --root is the

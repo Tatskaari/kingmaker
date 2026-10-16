@@ -80,6 +80,19 @@ export function noteHeard(tx: TxCtx, scene: SceneRow, graph: Scene): void {
 }
 
 /**
+ * As a scene after the first opens (story-design §4.3): whose names the controller has heard anywhere
+ * in the story so far, among this scene's cast (the prototype's knownCast reads the whole story's
+ * transcript, brief.ts:111), each new one a heard row.
+ */
+export function noteHeardInStory(tx: TxCtx, scene: SceneRow, graph: Scene): void {
+  const heard = new Set([...tx.db.heard.playerId.filter(scene.controllerId)].map(h => h.entityKey));
+  const story = [...tx.db.scene.gameId.filter(scene.gameId)].sort((a, b) => (a.id < b.id ? -1 : 1)).flatMap(s => rowsOf(tx, s.id));
+  for (const key of knownCast(graph, { transcript: story })) {
+    if (!heard.has(key)) tx.db.heard.insert({ id: 0n, gameId: scene.gameId, playerId: scene.controllerId, entityKey: key });
+  }
+}
+
+/**
  * A GM's reply as its entry: the words, and who says each line, with no marks until their notes are
  * written (v5-design §3.5): what the GM itself wrote on a mark never reaches the screen.
  */

@@ -1,0 +1,66 @@
+{
+  "id": "wharf-night",
+  "title": "The wharves after dark",
+  "summary": "Downtime on the river stairs at night, between the Drowned Rat and the Heron.",
+  "kind": "scene",
+  "time": "night",
+  "interlude": true,
+  "assumes": [
+    "The player hasn't yet gone into the Heron warehouse or dealt with what happens there tonight (the loading, the true book, the Master's visit)."
+  ],
+  "overtaken": "heron-warehouse",
+  "start": "downtime",
+  "cast": [
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "card": "cast/kell.md",
+      "statblock": "guard",
+      "weapon": "club"
+    }
+  ],
+  "facts": {},
+  "beats": {
+    "downtime": {
+      "title": "Downtime",
+      "text": "beats/downtime.md",
+      "routes": [
+        {
+          "id": "onward",
+          "on": "attempt",
+          "when": "The player sets off for the Heron warehouse (or says they're going there now), following the lead.",
+          "to": "onward"
+        }
+      ]
+    }
+  },
+  "anytime": [],
+  "exits": {
+    "onward": {
+      "kind": "progress",
+      "title": "Onward",
+      "next": "heron-warehouse",
+      "text": "exits/onward.md",
+      "effects": []
+    }
+  },
+  "essentials": {
+    "lead": {
+      "what": "The Heron warehouse, at the downriver end of the wharves, is loading a barge tonight that sails on the ebb at the second bell after midnight; if Hobb talked, the gentleman comes at midnight to see it off.",
+      "placedWith": [
+        "Sergeant Kell's own errand (she's going there)",
+        "gossip in the town"
+      ],
+      "carriers": [
+        "kell"
+      ],
+      "unlocks": "the next scene"
+    }
+  },
+  "afterwards": [],
+  "lore": [
+    "Places/River Stairs.md",
+    "World/Caerwyn now.md"
+  ],
+  "fronts": "World/Fronts.md"
+}

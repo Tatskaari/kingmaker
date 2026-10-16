@@ -11,7 +11,7 @@ import {
 } from "spacetimedb";
 import {
   Tile2,
-  Follower,
+  MapFollower,
 } from "./types";
 
 
@@ -29,7 +29,7 @@ export default __t.row({
   hidden: __t.bool(),
   scene: __t.option(__t.string()),
   get followers() {
-    return __t.array(Follower);
+    return __t.array(MapFollower);
   },
   quips: __t.u32(),
   lastQuip: __t.option(__t.string()).name("last_quip"),

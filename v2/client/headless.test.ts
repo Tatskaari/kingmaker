@@ -24,7 +24,7 @@ test("say: what answered the line, its notes and the lines suggested after it, t
   assert.match(out.printed, /\n {2}⟨who says what: Sergeant Agnes Kell “The porters\. First light\. …”⟩\n/);
   assert.match(out.printed, /\n {2}⟨know on “ran for the watch”: The watch keeps a house .* \(lore: City Watch\)⟩\n {4}⟨card: The City Watch · .* · What anyone in Caerwyn could tell you\.⟩\n/);
   assert.match(out.printed, /\n {2}⟨why on “Her pencil taps once against the page”: .* \(who: Sergeant Agnes Kell\)⟩\n {4}⟨card: Sergeant Agnes Kell · .* · Last said to you \(turn 3\): “The porters\. First light\. .*”⟩\n/);
-  assert.match(out.printed, /\nACTIONS:\n- say_1: Sergeant, who found him, .*\n- say_2: Nice boots, lad\. Yours\?\n- say_3: .*\n- say_4: .*\n\nPHASE: done \(your turn: say what your character says or does\)\n$/);
+  assert.match(out.printed, /\nACTIONS:\n- say_1: Sergeant, who found him, .*\n- say_2: Nice boots, lad\. Yours\?\n- say_3: .*\n- say_4: .*\n- say_5: Sergeant, that's a cord mark, .*\n\nPHASE: done \(your turn: say what your character says or does\)\n$/);
 });
 
 test("say --wait settled: once the world has settled and the notes are in", async () => {
@@ -61,7 +61,7 @@ test("act: no such line, a line with the lines off, or a spectator's, is refused
   const out = capture();
 
   assert.equal(await verbs.act(game, "say_9", out), 1);
-  assert.equal(out.printed, "(There's no say_9 here: the choices are say_1 to say_4.)\n");
+  assert.equal(out.printed, "(There's no say_9 here: the choices are say_1 to say_5.)\n");
   assert.equal(await verbs.act(game, "talk_kell", capture()), 1);
 
   await game.setSuggestions(false);
@@ -89,7 +89,7 @@ test("suggestions: which it is; off, and none listed; on, this moment's asked fo
 
   const on = capture();
   assert.equal(await verbs.suggestions(game, true, on), 0);
-  assert.match(on.printed, /^Suggested lines: on\.\n\nACTIONS:\n- say_1: .*\n- say_2: .*\n- say_3: .*\n- say_4: .*\n$/);
+  assert.match(on.printed, /^Suggested lines: on\.\n\nACTIONS:\n- say_1: .*\n- say_2: .*\n- say_3: .*\n- say_4: .*\n- say_5: .*\n$/);
 });
 
 test("say --stream: the reply as it's written, on its own stream", async () => {

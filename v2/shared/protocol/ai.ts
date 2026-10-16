@@ -2,7 +2,7 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
-import type { GmState, OpenedNote, SceneStatus } from "../gm/state.ts";
+import type { GmState, OpenedNote, OwedRow, ScenePatch, SceneStatus } from "../gm/state.ts";
 import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
 import type { Skill, Transition } from "../scene/types.ts";
@@ -15,29 +15,31 @@ import type { CreationStep, Step } from "./keys.ts";
  * back (v0-design §5.1-5.2, gm-port §13; the notes and the suggested lines, v5-design §3.6;
  * character creation's two, v1-design §3.7; a considered turn's ruling, and the memory reviews and
  * the co-GM after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
- * world-bridge-design §3.1). Every request carries its working set, read in the transaction that
- * queued it, and its idempotency key; every answer is data the simulation commits.
+ * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2).
+ * Every request carries its working set, read in the transaction that queued it, and its
+ * idempotency key; every answer is data the simulation commits.
  */
 
 export type Endpoint =
   | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
-  | "/v1/turns/remember" | "/v1/turns/repair"
+  | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary"
   | "/v1/characters" | "/v1/backstories";
 
 /**
  * Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap).
  * The reactions are one decider call (about 0.3 s), waited for as long as the decision; the ruling's
  * review is cut off at 12 s (KM_CONSIDER_DEADLINE_MS), then the plain check is asked for; a memory
- * review's or the co-GM's tool loops can take a minute and more.
+ * review's or the co-GM's tool loops can take a minute and more; a boundary's three calls at once,
+ * then presence, about 10 to 20 s on real models.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
   open: "/v1/scenes/open", decide: "/v1/turns/decide", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair",
+  notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000,
+  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -66,7 +68,8 @@ export interface AiRequest extends AiRequestBase {
 }
 
 export interface Usage { calls: number; costUsd: number; byOperation: Record<string, { calls: number; costUsd: number; ms: number }> }
-export interface Entry { turn: number; speaker: string; kind: "player" | "narration" | "dialogue" | "roll" | "system"; text: string; markup?: Markup }
+/** A transcript entry. scene: the scene's key, on an entry of an earlier scene (Story.earlier), as the prototype's entries have it. */
+export interface Entry { turn: number; speaker: string; kind: "player" | "narration" | "dialogue" | "roll" | "system"; text: string; markup?: Markup; scene?: string }
 /**
  * A player's sheet as the GM is told it; backstory: theirs from character creation, when they wrote
  * one (the brief and the player's doc read it). The spells ready, the weapons carried and the class
@@ -79,7 +82,24 @@ export interface SheetRow {
   weapons?: WeaponRef[];
   features?: Array<FeatureRef & { target: "self" | "creature" }>;
 }
-export interface Story { time: string; day: number; flags: Record<string, string> }
+/**
+ * The story so far, beside the scene: the time of day, the day, the flags its endings set; and
+ * (story-design §4.2) the scenes played before this one, oldest first, as the prototype's session's
+ * `history`, and every entry of theirs, in order, each with its scene's key (without markup), as the
+ * prototype's transcript holds the whole story. Both are absent (none) in a request built before
+ * the story unit, and in a game's first scene.
+ */
+export interface Story { time: string; day: number; flags: Record<string, string>; history?: Chapter[]; earlier?: Entry[] }
+
+/**
+ * A scene played, as the prototype's session's history has it (src/runtime/session.ts:337-345):
+ * its key and the exit it ended by, the hand-off, its last moments, the scenes the boundary skipped
+ * and why, what moved in the fronts, the notebook's lines its ending wrote, and the facts settled in it.
+ */
+export interface Chapter {
+  sceneId: string; exitId: string; summary: string;
+  lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>; fronts?: string[]; journal?: string[]; facts?: string[];
+}
 /**
  * A GM's entry. markup: who says each line, by game key where it resolves, and no marks (their notes
  * are written after, from what the player knows). drafted: the marks the GM made as it wrote.
@@ -116,13 +136,23 @@ export interface TurnContext {
 /** The scene's working set with no line in it: what a job beside a turn reads (an opening has no line). */
 export type SceneContext = Omit<TurnContext, "line">;
 
+/**
+ * POST /v1/scenes/open: a scene's opening; or, with `aftermath`, the scene picking up after a fight
+ * (story-design §4.4: the prototype's resumeAfterFight), told from the fight's summary in place of
+ * the opening, on a turn of its own, the scene's transcript and world as the fight left them.
+ */
 export interface OpenRequest extends AiRequest {
   scene: { id: string; key: string; kind: "scene" };
   pc: string; gm: GmState; world: PlaceRows; party: SheetRow[]; story: Story;
-  /** The opening's turn (turn 0), for stream_reply. */
+  /** The opening's turn (turn 0; an aftermath's own), for stream_reply. */
   stream: { turn: string };
+  /** The scene picks up after a fight: how it went. */
+  aftermath?: { summary: string };
+  /** An aftermath's: the scene's transcript so far (an opening has none). */
+  transcript?: Entry[];
 }
-export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; usage: Usage }
+/** ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key), applied through the gate. */
+export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; usage: Usage }
 
 export interface Check { skill: Skill; dc: number; reason?: string }
 export interface Decision {
@@ -295,6 +325,35 @@ export interface SuggestRequest extends AiRequest {
 }
 /** The lines in the order shown, and what was screened out and why; none when the model failed (a 200 all the same). */
 export interface SuggestResponse { lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; usage: Usage }
+
+/**
+ * POST /v1/scenes/boundary (story-design §4.4): the boundary after a scene ends, as the prototype's
+ * chainScene crosses it. turn: the ended scene's working set, its gm, transcript ("Scene ends: …"
+ * last) and world as it ended, `afterwards` applied, and the story before it; exit: the exit it
+ * ended by; candidates: the scenes the story could go to, in order (shared/scene/graph.ts
+ * candidatesOf: the exit's next, interludes skipped, then where each overtaken one goes), six at most.
+ */
+export interface BoundaryRequest extends AiRequest { turn: SceneContext; exit: string; candidates: string[] }
+/**
+ * The boundary crossed: the hand-off ("Previous scene, \"The Hanged Clerk\", ended: …"), the ended
+ * scene's last four moments, and the scene the story goes to, with what's handed on to it (the
+ * scenes skipped and why, where its prep is out of date, its opening rewritten, the lead, the cast
+ * absent, its prep's patches with what's owed brought over, the owed essentials already hinted at);
+ * what the story still owes after it, its things by entity key; and what moved in the fronts.
+ * The game's docs (the ending's memories, the time between, the played scene, the fronts) are
+ * written by then, once per key.
+ */
+export interface BoundaryResponse {
+  handOff: string;
+  lastMoments: string[];
+  next: {
+    scene: string; skipped: Array<{ sceneId: string; why: string }>; adjustments: string[]; opening?: string; lead?: string;
+    absent: string[]; patches: ScenePatch[]; hinted: string[];
+  };
+  owed: OwedRow[];
+  fronts: string[];
+  usage: Usage;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Character creation (v1-design §3.7): before there's a game, so no player and no scene.

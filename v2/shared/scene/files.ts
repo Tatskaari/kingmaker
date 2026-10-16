@@ -37,6 +37,8 @@ export interface CampaignFile {
   startingPurse: Array<{ name: string; quantity: number; description: string }>;
   /** The world a backstory is written for and checked against, at character creation (v1-design §3.9). */
   creation: CreationWorld;
+  /** The story's quests by key, each with its title: an exit's effect may advance one before any starts it (story-design §4.6). */
+  quests?: Record<string, string>;
 }
 
 export type Phase = "attempt" | "cue" | "outcome";
@@ -66,19 +68,30 @@ export interface CastFile {
   members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }>;
 }
 
-/** A condition on established facts (fact ids). */
-export type Cond = { if?: { established: string }; unless?: { established: string } };
+/**
+ * A condition on established facts (fact ids): `if`, every one of them established; `unless`, none
+ * of them (story-design §4.2: two facts at once, or an "or" written as two effects).
+ */
+export type Cond = { if?: { established: string | string[] }; unless?: { established: string | string[] } };
 
 /** A world operation as data: any of WorldOp's fields, `$player` naming the controller's character. */
 export type WorldOpData = Pick<WorldOp, "op"> & Partial<Omit<WorldOp, "op">>;
 
-/** What an exit does to the story and the world (the prototype's exit scripts, as data: content-world A6). */
+/**
+ * What an exit does to the story and the world (the prototype's exit scripts, as data: content-world
+ * A6). Story-design §4.3: quest, flag, attitude, journal and follow write the story's rows; the rest
+ * are recorded, as the prototype's recording world records every one.
+ */
 export type Effect = Cond & (
   | { op: "quest"; quest: string; do: "start" | "advance" | "complete" | "fail"; title?: string; stage?: string; text: string }
   | { op: "flag"; name: string; value: string }
   | { op: "attitude"; who: string; to: "hostile" | "unfriendly" | "wary" | "neutral" | "friendly" | "devoted"; text: string }
   | { op: "remember"; who: string; text: string }
   | { op: "journal"; text: string }
+  /** Someone of the cast walks with the player between scenes, from now on (Kell, after the granary: the prototype's syncFollowers). */
+  | { op: "follow"; who: string }
+  /** A promise made, by whom to whom (the prototype's world.promise). */
+  | { op: "promise"; by: string; to: string; text: string }
   | WorldOpData
 );
 
@@ -87,6 +100,18 @@ export interface SceneFile {
   id: string; title: string; summary: string;
   kind: "scene" | "talk";
   time?: TimeOfDay;
+  /** Downtime between scenes, standing in for the map: the story skips it, as the prototype's game does (story-design §4.6). */
+  interlude?: boolean;
+  /** What its prep takes for granted (a sentence each), and where the story goes instead when play has overtaken it. */
+  assumes?: string[];
+  overtaken?: string;
+  /** The rest before it opens, and whether reaching it is a milestone (a level gained): the world bridge's to apply. */
+  rest?: "short" | "long";
+  milestone?: boolean;
+  /** Established facts carried in from earlier scenes. */
+  background?: string[];
+  /** Effects of every ending, before the exit's own (Kell walks with the player after the granary, whichever way it ends). */
+  onEnd?: Effect[];
   /** The place's key: places/<key>.json. */
   place?: string;
   start: string;

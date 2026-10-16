@@ -87,7 +87,7 @@ function seatedPlayer(ctx: Ctx) {
 
 type Game = NonNullable<ReturnType<Ctx["db"]["game"]["id"]["find"]>>;
 
-/** Where a game's story is: in its latest scene ("in …", "…, over" once it's ended, "heading for …" while it waits on the map), or, before it has one, heading for its first. */
+/** Where a game's story is: in its latest scene ("in …", "…, over" once it's ended, "heading for …" while it waits: the lead, on the map), or, before it has one, heading for its first. */
 function whereOf(ctx: Ctx, game: Game): Pick<Summary, "where" | "hook" | "begun"> | undefined {
   const latest = [...ctx.db.scene.gameId.filter(game.id)].sort((a, b) => (a.id > b.id ? -1 : 1))[0];
   if (latest) return { where: latest.status === "ended" ? `${latest.title}, over` : latest.status === "waiting" ? `heading for ${latest.title}` : `in ${latest.title}`, hook: latest.hook, begun: true };

@@ -25,9 +25,10 @@ test("caerwyn is fit to install: its pack is the structure, its files every file
   const pack = packOf(files);
 
   assert.deepEqual(checkCampaign(files), []);
-  assert.deepEqual(pack.scenes.map(s => s.scene.id), ["hanged-clerk"]);
+  assert.deepEqual(pack.scenes.map(s => s.scene.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
   assert.match(pack.scenes[0]!.hook, /^This morning a palace clerk, Wendell Prout/);
-  assert.deepEqual(pack.places.map(p => p.key), ["granary-yard"]);
+  assert.deepEqual(pack.places.map(p => p.key), ["granary-yard", "drowned-rat", "heron", "dressing-room"]);
+  assert.deepEqual(pack.campaign.quests, { "hanged-clerk": "The Hanged Clerk", "purveyors-man": "The Purveyor's Man", "heron-ledger": "The Heron Ledger" });
   assert.deepEqual(pack.maps.map(m => m.id), ["caerwyn", "drowned-rat", "heron", "palace"]);
   assert.deepEqual([pack.campaign.start.map, pack.campaign.start.at], ["caerwyn", [42, 9]]);
   assert.deepEqual(Object.keys(pack.builds), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
@@ -81,12 +82,67 @@ test("the place's people are the cast, its things are somewhere, and its lore ex
   assert.deepEqual(checkCampaign(noLore), ["scenes/hanged-clerk: lore Places/Atlantis.md isn't in lore/"]);
 });
 
+const RAT = "scenes/drowned-rat/scene.json", HERON = "scenes/heron-warehouse/scene.json";
+/** The campaign's problems but the vocabulary's (which sees a changed next too: vocabulary.test.ts has those). */
+const storyChecks = (f: CampaignFiles) => checkCampaign(f).filter(p => !p.startsWith("vocabulary.json"));
+
+test("the story goes on: every exit's next and every overtaken is a scene, an interlude goes on, and what's owed is an earlier scene's", () => {
+  const lost = changed(RAT, s => { s.exits["hobb-talks"].next = "the-moon"; s.overtaken = "atlantis"; });
+  const stuck = changed("scenes/wharf-night/scene.json", s => { delete s.exits.onward.next; });
+  const loose = changed(HERON, s => { delete s.overtaken; });
+  const notOwed = changed(RAT, s => { s.essentials["prouts-page"].missed = "hanged-clerk:hat"; });
+  const notNeeded = changed(SCENE, s => { delete s.essentials.page.later; });
+
+  assert.deepEqual(storyChecks(lost), [
+    "scenes/drowned-rat: exit hobb-talks goes on to the-moon, which isn't one of the campaign's scenes",
+    "scenes/drowned-rat: overtaken, the story goes to atlantis, which isn't one of the campaign's scenes",
+  ]);
+  assert.deepEqual(storyChecks(stuck), ["scenes/wharf-night: an interlude, but none of its exits goes on (the story skips it to where they go)"]);
+  assert.deepEqual(storyChecks(loose), ["scenes/heron-warehouse: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)"]);
+  // (and with nothing owed in, the page the Rat's exits give isn't anywhere the Rat has)
+  assert.deepEqual(storyChecks(notOwed).filter(p => !p.endsWith("give names unknown ledger-page")), ["scenes/drowned-rat: essential prouts-page stands in for hanged-clerk:hat, which isn't another scene's essential"]);
+  assert.deepEqual(storyChecks(notNeeded), ["scenes/drowned-rat: essential prouts-page stands in for hanged-clerk:page, which the rest of the story doesn't need (it has no later)"]);
+});
+
+test("the effects name an op, facts, people, things and quests the story has, onEnd's too", () => {
+  const files2 = changed(RAT, s => {
+    s.onEnd = [{ op: "follow", who: "moll" }];
+    s.exits["taken-in"].effects.push(
+      { op: "teleport", what: "hobb" },
+      { op: "quest", quest: "lost-cat", do: "advance", stage: "x", text: "x" },
+      { op: "attitude", who: "hobb", to: "smitten", text: "x" },
+      { op: "promise", by: "$player", to: "sallow", text: "x" },
+      { op: "journal", text: "x", if: { established: ["hobb-talked", "nope"] } },
+    );
+  });
+  const fight = changed(HERON, s => { s.exits.fight.effects[0].allies = ["kell", "duchess"]; s.exits.fight.effects[1].at = "the-roof"; });
+
+  assert.deepEqual(checkCampaign(files2), [
+    "scenes/drowned-rat: onEnd: follow names unknown moll",
+    "scenes/drowned-rat: exit taken-in: teleport isn't an effect the story knows",
+    "scenes/drowned-rat: exit taken-in: quest lost-cat isn't one of campaign.json's quests",
+    "scenes/drowned-rat: exit taken-in: attitude smitten isn't an attitude",
+    "scenes/drowned-rat: exit taken-in: promise names unknown sallow",
+    "scenes/drowned-rat: exit taken-in: condition on unknown fact nope",
+  ]);
+  assert.deepEqual(checkCampaign(fight), ["scenes/heron-warehouse: exit fight: startFight names unknown duchess", "scenes/heron-warehouse: exit fight: startFight is at unknown the-roof"]);
+});
+
+test("the Rat may give the player Prout's page, which isn't its own but is owed into it from the granary", () => {
+  const rat = packOf(files).scenes.find(s => s.scene.id === "drowned-rat")!.scene;
+
+  assert.ok(rat.exits["hobb-talks"]!.effects.some(e => e.op === "give" && e.what === "ledger-page"));
+  assert.equal(rat.essentials["prouts-page"]!.missed, "hanged-clerk:page");
+  const unowed = changed(RAT, s => { delete s.essentials["prouts-page"].missed; });
+  assert.ok(checkCampaign(unowed).includes("scenes/drowned-rat: exit hobb-talks: give names unknown ledger-page"));
+});
+
 test("a build has a concept and every field the engine makes one from, and a look names the cast in one glyph and a colour", () => {
   const noClass = changed("builds.json", b => { delete b.rogue.concept; delete b.rogue.build.classId; b.wizard.build.spells = "fireball"; });
-  const badLooks = changed("looks.json", l => { l.sallow = { role: "person", glyph: "$", fg: "#c9a3ff" }; l.kell.fg = "blue"; });
+  const badLooks = changed("looks.json", l => { l.duchess = { role: "creature", glyph: "d", fg: "#c08a5a" }; l.kell.fg = "blue"; });
 
   assert.deepEqual(checkCampaign(noClass), ["builds.json: rogue: no concept", "builds.json: rogue: the build has no classId", "builds.json: wizard: the build's spells isn't a list of ids"]);
-  assert.deepEqual(checkCampaign(badLooks), ['looks.json: kell\'s colour "blue" isn\'t #rrggbb', "looks.json: sallow isn't in any scene's cast"]);
+  assert.deepEqual(checkCampaign(badLooks), ['looks.json: kell\'s colour "blue" isn\'t #rrggbb', "looks.json: duchess isn't in any scene's cast"]);
 });
 
 test("a build names what the rules engine's pack has: its class, species, background, and a subclass of its class", () => {

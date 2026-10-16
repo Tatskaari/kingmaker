@@ -23,4 +23,6 @@ export default __t.row({
   createdAt: __t.timestamp().name("created_at"),
   leadScene: __t.option(__t.string()).name("lead_scene"),
   leadText: __t.option(__t.string()).name("lead_text"),
+  onward: __t.option(__t.string()),
+  onwardNote: __t.option(__t.string()).name("onward_note"),
 });

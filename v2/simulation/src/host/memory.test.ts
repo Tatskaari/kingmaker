@@ -11,7 +11,10 @@ const at = new Timestamp(0n);
 
 test("autoInc ids from 0n; find by key gives null when there's none; rows handed out are copies", () => {
   const host = newHost();
-  const first = host.transact(tx => tx.db.game.insert({ id: 0n, uid: "a", campaign: "c", campaignVersion: "1", title: "t", time: "morning", day: 1, hostId: 0n, status: "playing", createdAt: at, leadScene: undefined, leadText: undefined }));
+  const first = host.transact(tx => tx.db.game.insert({
+    id: 0n, uid: "a", campaign: "c", campaignVersion: "1", title: "t", time: "morning", day: 1, hostId: 0n, status: "playing", createdAt: at,
+    leadScene: undefined, leadText: undefined, onward: undefined, onwardNote: undefined,
+  }));
   const second = host.transact(tx => tx.db.game.insert({ ...first, id: 0n, uid: "b" }));
 
   assert.deepEqual([first.id, second.id], [1n, 2n]);

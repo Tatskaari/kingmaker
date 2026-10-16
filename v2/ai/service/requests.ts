@@ -5,11 +5,11 @@ import { Failure } from "./context.ts";
 
 /**
  * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7, full-gm-design
- * §4.1, world-bridge-design §3.1), checked before any model is asked, whichever GM answers, and before a kept answer or the
- * day's ceiling is looked at. A request without it is the sender's mistake: 400 bad_request, which
- * the module doesn't retry, rather than the endpoint's TypeError, a 500 the module would retry for
- * ten minutes (or an answer made from undefined, kept by its key). It checks what the code reads, by
- * the path it reads it at, not every field of the types.
+ * §4.1, world-bridge-design §3.1, story-design §4.4), checked before any model is asked, whichever
+ * GM answers, and before a kept answer or the day's ceiling is looked at. A request without it is
+ * the sender's mistake: 400 bad_request, which the module doesn't retry, rather than the endpoint's
+ * TypeError, a 500 the module would retry for ten minutes (or an answer made from undefined, kept by
+ * its key). It checks what the code reads, by the path it reads it at, not every field of the types.
  */
 export function checkRequest(step: Step | CreationStep, body: unknown): void {
   const endpoint = STEP_ENDPOINT[step];
@@ -74,6 +74,12 @@ const STREAM: Need = ["stream { turn } (the draft it streams to)", r => isText(r
 /** The turn a job after it reviews. */
 const REVIEWED: Need = ["reviewed (the turn reviewed)", r => isNumber(r, "reviewed")];
 
+/** What a boundary reads besides the ended scene's context: the exit it ended by, and the scenes the story could go to (story-design §4.4). */
+const BOUNDARY: Need[] = [
+  ["exit (the exit the scene ended by)", r => isText(r, "exit")],
+  ["candidates (the scenes the story could go to, at least one)", r => isList(r, "candidates") && (at(r, "candidates") as unknown[]).length > 0 && (at(r, "candidates") as unknown[]).every(c => typeof c === "string")],
+];
+
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM],
   decide: TURN,
@@ -89,6 +95,7 @@ const NEEDS: Record<Step, Need[]> = {
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
   repair: [...SCENE, REVIEWED],
+  boundary: [...SCENE, ...BOUNDARY],
 };
 
 /** The value at a dotted path of the parsed JSON ("turn.party.0.name"), or undefined where the path breaks. */

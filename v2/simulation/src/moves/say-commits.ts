@@ -19,6 +19,7 @@ import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
 import { carryGearAfter, inPlay, playedOut } from "../rules/play.ts";
 import { engineCall, refreshPockets } from "../rules/session.ts";
 import { exitOf, sceneGraph } from "../scenes.ts";
+import { closeScene } from "../story/end.ts";
 import { addEntry, entriesOf, noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn } from "../turns.ts";
 import { applyStage, joinArrivals, placeWorldOf, savePlaceWorld } from "../world/place.ts";
@@ -199,15 +200,17 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
 /**
  * The scene ends on an exit: what a spell conjured goes with it (engine.ts:984: its lights and hands
  * don't outlast the scene), its system line, the scene's status and exit, and a line still waiting
- * cancelled.
+ * cancelled; then the story's end of it (story/end.ts closeScene: a fight, or its effects and the
+ * way on). `how`: played to it, or forced by the owner's end_scene.
  */
-export function endScene(tx: TxCtx, sceneId: bigint, exit: Exit, n: number): void {
+export function endScene(tx: TxCtx, sceneId: bigint, exit: Exit, n: number, how: "played" | "forced" = "played"): void {
   dispelAtTheEnd(tx, sceneRow(tx, sceneId), n);
   addEntry(tx, sceneRow(tx, sceneId), { turn: n, speaker: "system", kind: "system", text: `Scene ends: ${exit.title}` });
   updateScene(tx, sceneId, { status: "ended", exitKey: exit.id, endedAt: tx.now });
   for (const t of [...tx.db.turn.sceneId.filter(sceneId)].filter(t => t.phase === "queued")) {
     updateTurn(tx, t.id, { phase: "done", endedAt: tx.now, error: SCENE_ENDED_FIRST });
   }
+  closeScene(tx, sceneRow(tx, sceneId), exit, how);
 }
 
 /** engine.ts:984: what the scene's spells conjured fades as it ends; the world written back only when something did. */

@@ -8,15 +8,16 @@ import type { SeatView } from "../module_bindings/types.ts";
 import type { PlaceTables } from "../scene/place-rows.ts";
 import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
+import { endSceneAs, type Owner } from "./owner.ts";
 
 /**
  * The client's way into the simulation (v0-design §7, v1-design §3.10), and the e2e's: a
  * SpacetimeDB connection that follows the seat. It subscribes to the caller's own views (my_seat,
  * my_names, my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join,
  * a game continued) it subscribes to that game's, scene's and place's rows (the scene's suggested
- * lines among them, and the place's world, which the side panel draws), and the map's (map-design
- * §3.6: the campaign's maps, the explore rows, and the rows of every place of the game on a map),
- * and only then drops the old set, so nothing blinks out. Each row change
+ * lines among them, the story's tables: story-design §4.5, and the place's world, which the side
+ * panel draws), and the map's (map-design §3.6: the campaign's maps, the explore rows, and the rows
+ * of every place of the game on a map), and only then drops the old set, so nothing blinks out. Each row change
  * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
  * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
  * simulation wrote it, in the game's words.
@@ -31,12 +32,15 @@ export interface ConnectOptions {
   token?: string;
   /** Told the identity (hex) and its token once connected: a session keeps them. */
   onIdentity?(identity: string, token: string): void;
+  /** The dev stack's owner (net/owner.ts ownerAt), for the testing moves only the owner may make: end_scene. */
+  owner?: Owner;
 }
 
 /** The tables and views a client watches, by their SQL names. */
 export type Watched =
   | "my_seat" | "my_names" | "my_games" | "my_creation" | "campaign"
   | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion"
+  | "chapter" | "quest" | "flag" | "journal" | "attitude" | "follower"
   | "place" | PlaceTable | "map_def" | "explore";
 
 /** The tables of a place's world a client watches (all but gm_note, which is the module's), by their SQL names. */
@@ -69,6 +73,8 @@ export class Connection implements Backend {
   identity = "";
 
   private readonly db: DbConnection;
+  /** The dev stack's owner, for end_scene (testing): none when the client found no stack.json. */
+  private readonly owner?: Owner;
   private watching?: Watching;
   private refused?: string;
   /** What's wrong with the connection, while something is: shown on the status line. */
@@ -91,6 +97,7 @@ export class Connection implements Backend {
 
   constructor(options: ConnectOptions) {
     this.ready = new Promise((resolve, reject) => { this.resolveReady = resolve; this.rejectReady = reject; });
+    if (options.owner) this.owner = options.owner;
     this.db = this.open(options);
     this.watchTables();
   }
@@ -103,6 +110,7 @@ export class Connection implements Backend {
     if (!seat || !game || !scene) return undefined;
 
     const of = <T>(table: { iter(): Iterable<T> }, keep: (row: T) => boolean) => [...table.iter()].filter(keep);
+    const mine = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => of(table, r => r.gameId === game.id);
     return {
       me: seat.playerId,
       game, scene,
@@ -115,6 +123,10 @@ export class Connection implements Backend {
       names: [...this.db.db.myNames.iter()],
       looks: of(this.db.db.look, l => l.placeId === scene.placeId),
       suggestions: of(this.db.db.sceneSuggestion, s => s.sceneId === scene.id),
+      story: {
+        game, scenes: mine(this.db.db.scene), chapters: mine(this.db.db.chapter), quests: mine(this.db.db.quest), flags: mine(this.db.db.flag),
+        journal: mine(this.db.db.journal), attitudes: mine(this.db.db.attitude), followers: mine(this.db.db.follower), turns: mine(this.db.db.turn),
+      },
       ...this.placeOf(scene),
       ...(this.db.db.explore.playerId.find(game.hostId) ? { onMap: true } : {}),
       ...(this.refused ? { refusal: this.refused } : {}),
@@ -273,6 +285,8 @@ export class Connection implements Backend {
   }
 
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined> {
+    // end_scene is the owner's (testing): made as the dev stack's owner, over HTTP, not as this player.
+    if (move === "endScene") { const { game, exit } = args as Moves["endScene"]; return endSceneAs(this.owner, game, exit); }
     const reducer = this.db.reducers[move] as (args: Moves[K]) => Promise<void>;
     return this.move(() => reducer(args));
   }
@@ -425,6 +439,7 @@ export class Connection implements Backend {
       ["game", t.game], ["player", t.player], ["sheet", t.sheet], ["scene", t.scene],
       ["transcript", t.transcript], ["reply_draft", t.replyDraft], ["turn", t.turn], ["on_stage", t.onStage], ["look", t.look],
       ["scene_suggestion", t.sceneSuggestion],
+      ["chapter", t.chapter], ["quest", t.quest], ["flag", t.flag], ["journal", t.journal], ["attitude", t.attitude], ["follower", t.follower],
       ["place", t.place], ["entity", t.entity], ["position", t.position], ["area", t.area], ["material", t.material], ["health", t.health],
       ["stack", t.stack], ["surface", t.surface], ["creature", t.creature], ["player_character", t.playerCharacter], ["gear", t.gear],
       ["narrative", t.narrative], ["world_log", t.worldLog], ["map_def", t.mapDef], ["explore", t.explore],
@@ -489,17 +504,19 @@ interface Observable {
 const MAP_TABLES = new Set<Watched>(["my_seat", "my_names", "game", "player", "sheet", "scene", "place", ...PLACE_TABLES, "map_def", "explore"]);
 
 /**
- * The seat's subscription set (v0-design §7, v5-design §3.9's scene_suggestion, the world bridge's
- * §3.5: the place and its world, and map-design §3.6: the game's places and explore rows, its
- * campaign's maps, and the rows of each of its places on a map).
+ * The seat's subscription set (v0-design §7, v5-design §3.9's scene_suggestion), the story's
+ * (story-design §4.5): its tables by game, and every turn of the game (their costs are the GM's bar
+ * tab at The End), not only the scene's; the world bridge's (§3.5): the place and its world; and
+ * the map's (map-design §3.6): the game's places and explore rows, its campaign's maps, and the rows
+ * of each of its places on a map.
  */
 function queriesFor({ game, scene, place, campaign, mapPlaces }: WatchKey): string[] {
   const places = [...new Set([...(place === undefined ? [] : [place]), ...mapPlaces])];
   return [
     `SELECT * FROM game WHERE id = ${game}`,
-    ...["player", "sheet", "scene", "place", "explore"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
+    ...["player", "sheet", "scene", "place", "explore", "chapter", "quest", "flag", "journal", "attitude", "follower", "turn"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
     ...(campaign === undefined ? [] : [`SELECT * FROM map_def WHERE campaign_id = '${campaign.replace(/'/g, "''")}'`]),
-    ...(scene === undefined ? [] : ["transcript", "reply_draft", "turn", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
+    ...(scene === undefined ? [] : ["transcript", "reply_draft", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
     ...places.flatMap(id => ["look", ...PLACE_TABLES].map(table => `SELECT * FROM ${table} WHERE place_id = ${id}`)),
   ];
 }

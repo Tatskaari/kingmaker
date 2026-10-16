@@ -1,4 +1,4 @@
-// Copied from the prototype at 44c6d4a: the directives' words from src/runtime/director.ts:1021-1035, 1096-1097, 1190-1191, 1201-1211, 1387-1410 and src/runtime/engine.ts:225-228, 255-328, 586, 706, 728, 1329 (openingDirective without its after-a-boundary branch: V0 plays one scene). directivesFor is new: the list engine.ts's playerTurn builds step by step (:577-738), rebuilt from the decision and what the decide commit (and on a considered turn, the consider commit) did; with the world bridge, the rules' act's directive and the reactions' after the move's lines (:630-651), and on a fight breaking out the move's closing lines dropped (:643-648, the filter as it is).
+// Copied from the prototype at 44c6d4a: the directives' words from src/runtime/director.ts:1021-1035, 1096-1097, 1190-1191, 1201-1211, 1387-1410 and src/runtime/engine.ts:225-228, 255-328, 586, 706, 728, 1329 (openingDirective with its after-a-boundary branch, story-design §4.4, reading the view's history and the opening the boundary rewrote). directivesFor is new: the list engine.ts's playerTurn builds step by step (:577-738), rebuilt from the decision and what the decide commit (and on a considered turn, the consider commit) did; with the world bridge, the rules' act's directive and the reactions' after the move's lines (:630-651), and on a fight breaking out the move's closing lines dropped (:643-648, the filter as it is).
 
 import type { RollResult } from "../../shared/dice.ts";
 import { describeRoll, titleCase } from "../../shared/dice.ts";
@@ -113,11 +113,14 @@ export function exitOf(scene: Scene, id: string): Exit {
 // The words (the prototype's, exactly).
 
 /**
- * How a scene opens: all of its opening, none of which has happened yet. (The prototype's other
- * branch, picking up from how the last scene ended, comes with the boundary vertical.)
+ * How a scene opens: all of its opening, none of which has happened yet, picking up from how the
+ * last scene ended. "Pick up after the last scene's closing lines" beside an opening the boundary had
+ * written as prose ending on the landlady's question ("Sergeant, are you on duty?") had the GM begin
+ * after it, with Kell answering a question the player never heard (four Rat openings in nine).
  */
-export function openingDirective(scene: Scene): string {
-  return `Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`;
+export function openingDirective(scene: Scene, state: Pick<TurnView, "history" | "opening">): string {
+  if (!state.history.length) return `Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`;
+  return `Open the scene: show the whole of the opening below, from its first glance to the moment it ends on. None of it has happened yet; the player sees all of it now, for the first time. It picks up from how the last scene ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep), without repeating that scene's closing lines. The opening, as it stands after what actually happened: ${state.opening ?? scene.opening} Keep it to a short paragraph or two, and end on what it ends on: something the player can respond to.`;
 }
 
 /** A note opened at p ≥ 0.9 bears on this moment (engine.ts:584-586): whose memory it is, when it's someone's. */

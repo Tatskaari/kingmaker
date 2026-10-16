@@ -1,6 +1,8 @@
 import type { Card, Mark, Markup, Speech } from "../../shared/markup.ts";
 import type { Game, Look, NameView, OnStage, Player, ReplyDraft, Scene, SceneSuggestion, Sheet, Transcript, Turn } from "../module_bindings/types.ts";
 import { colorOf } from "../theme.ts";
+import { TIME_WORDS } from "../creation/words.ts";
+import { storyViewOf, type StoryRows } from "../story/rows.ts";
 import { placeViewOf, type LeadSheet, type PlaceTables } from "./place-rows.ts";
 import type { Draft, Entry, EntryKind, Person, Phase, SceneView, Suggestion } from "./view.ts";
 
@@ -17,7 +19,7 @@ export interface SceneRows {
   /** This client's player: my_seat's playerId. */
   me: bigint;
   game: Pick<Game, "id" | "time">;
-  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns">;
+  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns"> & Partial<Pick<Scene, "time">>;
   players: Array<Pick<Player, "id" | "name" | "suggestions">>;
   /** Each player's sheet: its status line; the lead's spells too, and what the rules say of them, for the place's menu. */
   sheets: Array<Pick<Sheet, "playerId" | "statusLine"> & LeadSheet>;
@@ -29,6 +31,8 @@ export interface SceneRows {
   looks: Array<Pick<Look, "entityId" | "fg">>;
   /** The scene's suggested lines (scene_suggestion): one set at a time, each row its turn and its place in the set. */
   suggestions: Array<Pick<SceneSuggestion, "sceneId" | "turn" | "ord" | "kind" | "text">>;
+  /** The game's story around the scene (story-design §4.5): the boundary, the lead, the notebook's tables, the costs. None until they've come. */
+  story?: StoryRows;
   /** The scene's place and its world's rows (the world bridge's §3.5): what the side panel draws. None until they've come. */
   place?: PlaceTables;
   /** The game is walked on a map (the host has an explore row, map-design §3.1): a scene that's over goes back to it. */
@@ -66,8 +70,12 @@ export function sceneViewOf(rows: SceneRows): SceneView {
   // A reply closed the scene: it ends once its settle is done (or, if that fails, once /retry has done it).
   const ending = rows.scene.status === "ending" && phase !== "failed";
 
+  // The scene's own time of day (the game's moves on with the story once it's over), in a word: "Evening".
+  const time = rows.scene.time ?? rows.game.time;
+  const name = (key: string) => rows.names.find(n => n.key === key)?.name;
   return {
-    title: rows.scene.title, ...(rows.game.time ? { time: capitalised(rows.game.time) } : {}), ...(rows.scene.hook ? { hook: rows.scene.hook } : {}),
+    sceneId: String(rows.scene.id),
+    title: rows.scene.title, ...(time ? { time: timeWord(time) } : {}), ...(rows.scene.hook ? { hook: rows.scene.hook } : {}),
     game: String(rows.game.id),
     player: { name: lead?.name ?? "", ...(status ? { status } : {}) },
     ...(watching ? { watching } : {}),
@@ -76,6 +84,7 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...(draft ? { draft } : {}),
     phase, ...(shown ? { turn: shown.n } : {}), mayType,
     over: rows.scene.status === "ended",
+    ...(rows.scene.status === "fighting" ? { fighting: true } : {}),
     ...(ending ? { ending } : {}),
     ...(rows.cutOff ? { cutOff: true } : {}),
     ...(rows.refusal ? { refusal: rows.refusal } : {}),
@@ -83,6 +92,7 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...(phase === "failed" ? { failed: lease?.error ?? "" } : {}),
     ...suggestionsOf(rows, lease),
     notesComing: shown?.notes === "writing",
+    ...(rows.story ? { story: storyViewOf(rows.story, rows.scene.controllerId, name) } : {}),
     ...placeOf(rows),
     ...(rows.onMap ? { onMap: true } : {}),
   };
@@ -92,7 +102,8 @@ export function sceneViewOf(rows: SceneRows): SceneView {
 function placeOf(rows: SceneRows): Pick<SceneView, "place"> {
   if (!rows.place) return {};
   const lead = rows.scene.controllerId;
-  const place = placeViewOf({ tables: rows.place, time: rows.game.time, lead, names: rows.names, sheet: rows.sheets.find(s => s.playerId === lead) });
+  // The scene's own time (story-design §4.1: an ended scene held on screen keeps its light as the story moves on), else the game's.
+  const place = placeViewOf({ tables: rows.place, time: rows.scene.time ?? rows.game.time, lead, names: rows.names, sheet: rows.sheets.find(s => s.playerId === lead) });
   return place ? { place } : {};
 }
 
@@ -216,5 +227,5 @@ function jsonObject(json: string | undefined): Partial<Record<keyof Markup, unkn
 /** A span of the text with numbers for its edges (a speech or a mark). */
 const isSpan = (s: unknown): boolean => !!s && typeof (s as Speech).start === "number" && typeof (s as Speech).end === "number";
 
-/** "morning" as the frame's title has it: "Morning". */
-const capitalised = (word: string) => `${word[0]!.toUpperCase()}${word.slice(1)}`;
+/** A time of day as the frame's title has it (the prototype's TIME_WORDS, to its first comma): "Morning"; "The morning of the Assembly". */
+const timeWord = (time: string) => (TIME_WORDS[time] ?? `${time[0]!.toUpperCase()}${time.slice(1)}`).split(",")[0]!;

@@ -107,13 +107,16 @@ function playedNow(tx: TxCtx, gameId: bigint): void {
  * ends it) is over already. A failed turn holding the lease gets turnRefusal's /retry instead: an
  * opening that failed (turn 0), or the settle of a reply that closed the scene, is a turn like any
  * other, and only /retry brings the scene on, or to its end. In a game on the map, between scenes,
- * there's nothing to say a line to (map-design §3.2).
+ * there's nothing to say a line to (map-design §3.2); nor in a scene at its fight (fighting), until
+ * the fight is fought.
  */
 function sceneRefusal(tx: TxCtx, actor: Actor, scene: SceneRow | undefined): Refusal | undefined {
   if (!scene) return onMap(tx, actor) ? refusal("not_in_scene") : refusal("not_in_game");
   const failed = leaseOf(tx, scene)?.phase === "failed";
   if (scene.status === "opening" && !failed) return refusal("not_ready");
   if (scene.status === "ended" || (scene.status === "ending" && !failed)) return refusal("scene_over");
+  // A fight is next (story-design §4.3): it takes no words, only its stand-in's action (fight_it_out).
+  if (scene.status === "fighting") return refusal("not_now");
   if (scene.controllerId !== actor.id) return refusal("not_controller", { name: playerRow(tx, scene.controllerId).name });
   return undefined;
 }

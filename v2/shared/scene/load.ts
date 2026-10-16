@@ -1,4 +1,4 @@
-// Copied from the scratchpad's tools/convert-hanged-clerk.mts (sections, items, loadScene) at 44c6d4a; the file reads are taken out (`words` reads them), and an exit keeps its effects.
+// Copied from the scratchpad's tools/convert-hanged-clerk.mts (sections, items, loadScene) at 44c6d4a; the file reads are taken out (`words` reads them), an exit keeps its effects, and the story's fields (interlude, assumes, overtaken, rest, milestone, background, onEnd: story-design §4.2) are carried.
 
 import type { CastFile, RouteFile, SceneFile } from "./files.ts";
 import type { Beat, Character, Exit, Scene, Transition } from "./types.ts";
@@ -27,6 +27,11 @@ export function sceneOf(file: SceneFile, words?: (path: string) => string | unde
     limits: items(read("limits.md")),
     lore: file.lore, ...(file.fronts ? { fronts: file.fronts } : {}),
     ...(file.afterwards.length ? { afterwards: file.afterwards } : {}),
+    ...(file.interlude ? { interlude: true } : {}),
+    ...(file.assumes?.length ? { assumes: file.assumes } : {}), ...(file.overtaken ? { overtaken: file.overtaken } : {}),
+    ...(file.rest ? { rest: file.rest } : {}), ...(file.milestone ? { milestone: true } : {}),
+    ...(file.background?.length ? { background: file.background } : {}),
+    ...(file.onEnd?.length ? { onEnd: file.onEnd } : {}),
   };
 }
 

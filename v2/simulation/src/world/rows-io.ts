@@ -2,6 +2,7 @@ import { idText } from "../../../shared/protocol/keys.ts";
 import { isNewId, type EntityRow, type PlaceRows } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import { placeRow, type RowOf } from "../rows.ts";
+import { moveEntity } from "./cross.ts";
 
 /**
  * A place's rows as shared/world/rows.ts has them (ids as strings, entities in order, the log's last
@@ -24,8 +25,14 @@ const OPTIONS: Record<Component, string[]> = {
 /** The log lines a place's rows carry: all that worldView's "Lately" reads, and all the AI service is sent. */
 export const LOG_TAIL = 6;
 
-/** What writing a world needs besides its rows: the game it's in, and what a new cast member is called until their name is heard. */
-export interface PlaceContext { gameId: bigint; called(key: string): string | undefined }
+/**
+ * What writing a world needs besides its rows: the game it's in, and what a new cast member is
+ * called until their name is heard. And what comes in from the game's other places (story-design
+ * §4.3, world/cross.ts), keeping its ids: someone whose key the game has in another place (the
+ * player's character, the recurring cast) moves in as they're written; a thing is re-keyed to its
+ * new place, so `moving` names it (its key here, its entity).
+ */
+export interface PlaceContext { gameId: bigint; called(key: string): string | undefined; moving?: ReadonlyMap<string, bigint> }
 
 type Plain = Record<string, unknown>;
 /** A component table as the writer drives it: every one has these accessors. */
@@ -98,10 +105,24 @@ function insertPlace(tx: TxCtx, after: PlaceRows, gameId: bigint): bigint {
   }).id;
 }
 
-/** Each new entity inserted, in order (its parent set in writeEntities, which may be newer still); provisional ids resolve to the ones given. */
+/**
+ * Each new entity inserted, in order (its parent set in writeEntities, which may be newer still), or,
+ * when it comes from another of the game's places, moved here with its id; provisional ids resolve to
+ * the ones given.
+ */
 function insertNewEntities(tx: TxCtx, after: PlaceRows, placeId: bigint, context: PlaceContext): (id: string) => bigint {
   const given = new Map<string, bigint>([[after.place.id, placeId]]);
-  for (const e of after.entity.filter(e => isNewId(e.id))) {
+  const fresh = after.entity.filter(e => isNewId(e.id));
+  const movers = new Map(fresh.flatMap(e => { const id = moverOf(tx, context, e, placeId); return id === undefined ? [] : [[e.id, id] as const]; }));
+  const moving = new Set(movers.values());
+  for (const e of fresh) {
+    const mover = movers.get(e.id);
+    if (mover !== undefined) {
+      const called = context.called(e.key);
+      moveEntity(tx, mover, { placeId, key: e.key, ...(called !== undefined ? { called } : {}) }, moving);
+      given.set(e.id, mover);
+      continue;
+    }
     refuseTakenKey(tx, context.gameId, e.key);
     const called = e.called ?? context.called(e.key);
     const row = tx.db.entity.insert({ ...entityIn(e, context.gameId, placeId, id => (isNewId(id) ? given.get(id) : BigInt(id))), id: 0n, called });
@@ -168,6 +189,18 @@ function entityIn(e: EntityRow, gameId: bigint, placeId: bigint, real: (id: stri
 function componentIn(c: Component, r: Plain, placeId: bigint, real: (id: string) => bigint): Plain {
   const blanks = Object.fromEntries(OPTIONS[c].map(k => [k, undefined]));
   return { ...blanks, ...r, entityId: real(r.entityId as string), placeId, ...(c === "playerCharacter" ? { playerId: BigInt(r.playerId as string) } : {}) };
+}
+
+/**
+ * The entity a new one is, come from another of the game's places: the one `moving` names, or
+ * someone (a person or creature: the cast, a player's character) whose key the game has elsewhere.
+ * A thing's key is its place's, so one is moved only when named.
+ */
+function moverOf(tx: TxCtx, context: PlaceContext, e: EntityRow, placeId: bigint): bigint | undefined {
+  const named = context.moving?.get(e.key);
+  if (named !== undefined) return named;
+  if (e.kind !== "person" && e.kind !== "creature") return undefined;
+  return [...tx.db.entity.byGameKey.filter([context.gameId, e.key])].find(o => o.placeId !== placeId && (o.kind === "person" || o.kind === "creature"))?.id;
 }
 
 /** A key is unique in its game (the schema can't say so across two columns: content-world B2). */

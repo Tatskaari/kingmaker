@@ -1,7 +1,8 @@
 import { MOST_WORDS } from "../creation/story.ts";
 
 /**
- * Refusals: a move the simulation won't make, in the game's words (v0-design §3.4, v1-design §3.4).
+ * Refusals: a move the simulation won't make, in the game's words (v0-design §3.4, v1-design §3.4,
+ * story-design §4.2: the way on between scenes, the testing end, the fight's stand-in).
  * A reducer throws one as a SenderError whose message is the refusal as JSON; the client parses it
  * back and shows `text` in its status line, or, on the creation screens, in their note line (the two
  * that are the prototype's notes keep its words, with no brackets).
@@ -13,7 +14,7 @@ export type RefusalCode =
   | "not_service" | "not_admin" | "bad_pack" | "not_built"
   | "not_creating" | "creation_busy" | "not_offered" | "still_making" | "not_now" | "bad_how"
   | "nothing_to_work_in" | "story_too_long" | "story_too_big" | "already_begun" | "not_yours" | "not_begun"
-  | "scene_on" | "no_way" | "unavailable" | "not_in_scene";
+  | "scene_on" | "no_way" | "unavailable" | "not_in_scene" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight";
 
 export interface Refusal { code: RefusalCode; text: string }
 
@@ -67,13 +68,20 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   no_way: () => "(There's no map to walk here yet: go on to the lead.)",
   unavailable: () => "(That isn't there to do from here: look again at what's in sight.)",
   not_in_scene: () => "(You're not in a scene: pick an action instead.)",
+  no_lead: () => "(The story hasn't said where it goes next yet.)",
+  story_over: () => "(The story is over.)",
+  not_stuck: () => "(The story isn't stuck: there's nothing to carry on.)",
+  no_scene: () => "(There's no scene being played.)",
+  no_exit: v => (v.exit ? `(There's no ending called ${v.exit} here: there's ${v.exits ?? "none"}.)` : `(The endings here: ${v.exits ?? "none"}.)`),
+  no_fight: () => "(There's no fight to be had here.)",
 };
 
 /**
  * A refusal in the game's words. `vars` by code: unknown `what` ("game" or "turn"); no_campaign
  * `campaign`; no_build `build` and `builds` (andList of the ids); not_controller `name`; not_admin
  * `what` ("install a campaign" when absent); bad_pack `why`; story_too_long `words` (the story's
- * wordCount, as shared/creation/story.ts tooLong says it).
+ * wordCount, as shared/creation/story.ts tooLong says it); no_exit `exit` (what was asked for: none
+ * lists them) and `exits` (andList of "<id> (<title>)").
  */
 export function refusal(code: RefusalCode, vars: Record<string, string> = {}): Refusal {
   return { code, text: WORDS[code](vars) };

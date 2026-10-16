@@ -19,6 +19,7 @@ import { retryTurnReducer } from "../moves/retry-turn.ts";
 import { sayReducer } from "../moves/say.ts";
 import { setSuggestionsReducer } from "../moves/set-suggestions.ts";
 import { loadRules } from "../rules/load.ts";
+import * as story from "../story/moves.ts";
 import { streamReplyReducer } from "../stream.ts";
 import { TABLES } from "../tables.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "../views.ts";
@@ -59,7 +60,7 @@ type Body<A> = (tx: TxCtx, sender: Identity, args: A) => void;
 /** The move, as a caller makes it (with no arguments, when none are needed): the refusal, or nothing when it was made. */
 type Made<B> = B extends Body<infer A> ? ({} extends A ? (args?: A) => Refusal | undefined : (args: A) => Refusal | undefined) : never;
 
-/** Character creation's moves, the games' (v1-design §3.3) and the map's (map-design §3.2), by their bodies' names. */
+/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and the story's between scenes (story-design §4.3), by their bodies' names. */
 const MOVES = {
   startCreation: creation.startCreationReducer, creationBack: creation.creationBackReducer, chooseBuild: creation.chooseBuildReducer,
   makeOwn: creation.makeOwnReducer, pickOwn: creation.pickOwnReducer, takeOwn: creation.takeOwnReducer, setBackstory: creation.setBackstoryReducer,
@@ -68,6 +69,7 @@ const MOVES = {
   rewriteIssue: creation.rewriteIssueReducer, skipBackstory: creation.skipBackstoryReducer, chooseAgain: creation.chooseAgainReducer,
   begin: games.beginReducer, continueGame: games.continueGameReducer, deleteGame: games.deleteGameReducer,
   walk: map.walkReducer, interact: map.interactReducer, travel: map.travelReducer,
+  carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
 };
 
 /** A caller's moves: each returns the refusal, or nothing when it was made. */

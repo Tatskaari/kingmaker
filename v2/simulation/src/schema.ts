@@ -3,14 +3,14 @@ import { schema, t, table } from "spacetimedb/server";
 
 /**
  * Every table of the module, and its env (v0-design §3.1, v1-design §3.1, v5-design §3.1,
- * full-gm-design §4.2, world-bridge-design §3.3, map-design §3.1). Columns are the TypeScript names;
- * SQL, HTTP and subscription queries use snake_case (sceneId is scene_id). Ids are u64 (bigint); an
- * autoInc id is inserted as 0n. Every row belongs to one game, but a creation's, which belongs to an
- * identity until the game is made, and a map's (map_def), which belongs to its campaign version.
- * Public tables are subscribed to by clients; private ones are the module's (and the owner's, through
- * SQL); the public ones are the client's contract (client/module_bindings). A column added after V0
- * goes at its table's end with a default, so a database keeps its rows across the publish
- * (spacetime.md §4.10).
+ * full-gm-design §4.2, world-bridge-design §3.3, story-design §4.1, map-design §3.1). Columns are the
+ * TypeScript names; SQL, HTTP and subscription queries use snake_case (sceneId is scene_id). Ids are
+ * u64 (bigint); an autoInc id is inserted as 0n. Every row belongs to one game, but a creation's,
+ * which belongs to an identity until the game is made, and a map's (map_def), which belongs to its
+ * campaign version. Public tables are subscribed to by clients; private ones are the module's (and
+ * the owner's, through SQL); the public ones are the client's contract (client/module_bindings). A
+ * column added after V0 goes at its table's end with a default, so a database keeps its rows across
+ * the publish (spacetime.md §4.10).
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -28,17 +28,21 @@ export const game = table({ name: "game", public: true }, {
   campaign: t.string(),
   campaignVersion: t.string(),
   title: t.string(),
-  /** morning, afternoon, evening, night. */
+  /** morning, afternoon, evening, night, next-morning: the time of the scene the story is at (the boundary moves it on). */
   time: t.string(),
   day: t.u32(),
   hostId: t.u64(),
-  /** playing. */
+  /** playing; ended (the last scene's ending went nowhere: The End). */
   status: t.string(),
   createdAt: t.timestamp(),
-  /** The scene the story is heading for (its key): the lead, on the map and in Go on (map-design §3.3; V3 sets the next). */
+  /** The scene the story is heading for (its key): the lead, waiting on the map, which walking there or Go on opens (map-design §3.3, story-design §4.1). */
   leadScene: t.option(t.string()).default(undefined),
-  /** What the story says of the lead, when it says something (V3's boundary). */
+  /** What the boundary said of the lead, in second-person fiction, when it said something. */
   leadText: t.option(t.string()).default(undefined),
+  /** A boundary in flight, between a scene's end and the next scene waiting: moving, waiting (to try again: onwardNote says why), failed (carry_on). None otherwise. */
+  onward: t.option(t.string()).default(undefined),
+  /** The boundary's note while it waits, or why it failed. */
+  onwardNote: t.option(t.string()).default(undefined),
 });
 
 export const player = table({ name: "player", public: true }, {
@@ -136,8 +140,13 @@ export const scene = table({ name: "scene", public: true }, {
   hook: t.string(),
   /** scene. */
   kind: t.string(),
+  /** The place it's played in: a waiting scene's is built as it becomes the lead, with no one playing in it yet (story-design §4.3; the map unit's buildLead). */
   placeId: t.u64(),
-  /** waiting (built, not yet opened: the lead), opening, live, closing (its ending's wind-down to play), ending (a reply closed it: its settle ends it), ended. */
+  /**
+   * waiting (handed on by the boundary, not yet opened: the lead), opening, live, closing (its
+   * ending's wind-down to play), ending (a reply closed it: its settle ends it), fighting (it reached
+   * its combat exit: the fight's stand-in is next, then it picks up), ended.
+   */
   status: t.string(),
   /** The player who has the lead. */
   controllerId: t.u64(),
@@ -149,6 +158,8 @@ export const scene = table({ name: "scene", public: true }, {
   rev: t.u32(),
   openedAt: t.timestamp(),
   endedAt: t.option(t.timestamp()),
+  /** Its time of day, from its scene.json (morning, afternoon, evening, night, next-morning). */
+  time: t.option(t.string()).default(undefined),
 });
 
 /** A roll as shared/dice.ts's RollResult has it (critical null and no advantage are empty options). */
@@ -168,6 +179,10 @@ const PendingExit = t.object("PendingExit", { exitId: t.string(), turn: t.u32(),
 const ExitAt = t.object("ExitAt", { exitId: t.string(), turn: t.u32() });
 /** The co-GM's steering for one of the cast, from the turn it reviewed. */
 const Whisper = t.object("Whisper", { to: t.string(), note: t.string(), turn: t.u32() });
+/** Something the story still owes the player (shared/gm/state.ts OwedRow): its things by entity key, outermost first, and who holds them. */
+const OwedRow = t.object("OwedRow", {
+  from: t.string(), id: t.string(), hinted: t.bool(), things: t.array(t.string()), holders: t.array(t.string()), where: t.option(t.string()),
+});
 /** A considered turn's ruling, as shared/gm/consider.ts's RulingRecord has it (no dc or no roll: an empty option). */
 const RulingRow = t.object("RulingRow", {
   turn: t.u32(), act: t.string(),
@@ -189,8 +204,10 @@ const Brawl = t.object("Brawl", { turn: t.u32(), cause: t.string(), against: t.a
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
  * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
- * rules in a scene leave hanging and who fled (world-bridge-design §3.3), each with a default, so a
- * scene from before them reads as one with none yet. V3's presence adds `entered`.
+ * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
+ * handed on (story-design §4.1), each with a default, so a scene from before them reads as one with
+ * none yet; the world bridge's before the story's, as they stack, so a database of either migrates.
+ * `entered` has no column yet.
  */
 export const gmState = table({ name: "gm_state" }, {
   sceneId: t.u64().primaryKey(),
@@ -233,8 +250,18 @@ export const gmState = table({ name: "gm_state" }, {
   held: t.option(t.u32()).default(undefined),
   /** A fight the player's violence started in the scene. */
   brawl: t.option(Brawl).default(undefined),
-  /** The cast who fled the player's violence or ran for help: off the stage for good. */
+  /** Cast who are away: those who fled the player's violence or ran for help (off the stage for good), and those from earlier scenes that what happened keeps away (the boundary's presence). */
   absent: t.array(t.string()).default([]),
+  /** The boundary's: where the scene's prep no longer matches the story. */
+  adjustments: t.array(t.string()).default([]),
+  /** The boundary's: the opening, rewritten for where the story is. */
+  opening: t.option(t.string()).default(undefined),
+  /** The boundary's: how the story led the player here. */
+  lead: t.option(t.string()).default(undefined),
+  /** What the story still owes the player from scenes already over. */
+  owed: t.array(OwedRow).default([]),
+  /** The combat exits already fought (the stand-in's). */
+  fought: t.array(t.string()).default([]),
 });
 
 /**
@@ -348,11 +375,109 @@ export const heard = table({ name: "heard" }, {
 });
 
 // ---------------------------------------------------------------------------------------------
+// The story between scenes (story-design §4.1): what a scene's ending wrote, and the boundary's
+// record of it. Public, read by game: the notebook, the quests and The End are drawn from them.
+
+/** A scene the boundary skipped (the prototype's history's skipped): its key, and why. */
+const Skipped = t.object("Skipped", { sceneKey: t.string(), why: t.string() });
+
+/**
+ * A scene played to its end (the prototype's session.history entry): written as it ends, and
+ * completed by the boundary after it (the hand-off, its last moments, what it skipped, what moved in
+ * the fronts, and what it cost). The last scene's has no hand-off.
+ */
+export const chapter = table({ name: "chapter", public: true }, {
+  /** The ended scene. */
+  sceneId: t.u64().primaryKey(),
+  gameId: t.u64().index("btree"),
+  /** Per game, from 1, in the order played. */
+  seq: t.u32(),
+  sceneKey: t.string(),
+  title: t.string(),
+  exitKey: t.string(),
+  /** The exit's title: "Murder by persons unknown". */
+  ending: t.string(),
+  /** The hand-off: "Previous scene, \"The Hanged Clerk\", ended: …"; "" until the boundary. */
+  summary: t.string(),
+  lastMoments: t.array(t.string()),
+  /** The facts settled in play there. */
+  facts: t.array(t.string()),
+  /** What moved in the world's fronts at its boundary. */
+  fronts: t.array(t.string()),
+  skipped: t.array(Skipped),
+  /** The boundary's model calls and what they cost. */
+  calls: t.u32(),
+  costMicros: t.u64(),
+  at: t.timestamp(),
+});
+
+/** One of the story's quests, as the endings have written it (`quest` effects): by key, unique in its game. */
+export const quest = table({ name: "quest", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  /** hanged-clerk, purveyors-man, heron-ledger. */
+  key: t.string(),
+  title: t.string(),
+  /** active, complete, failed. */
+  status: t.string(),
+  /** The stage it last advanced to. */
+  stage: t.option(t.string()),
+  /** Each change's words, oldest first. */
+  notes: t.array(t.string()),
+  updatedAt: t.timestamp(),
+});
+
+/** A story flag an ending set (`flag` effects): by name, unique in its game; the requests' story.flags. */
+export const flag = table({ name: "flag", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  name: t.string(),
+  value: t.string(),
+  /** The scene whose ending set it. */
+  sceneId: t.u64(),
+});
+
+/** A line in the investigator's notebook (`journal` effects, and the fight's stand-in), by the scene it's about. */
+export const journal = table({ name: "journal", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  sceneId: t.u64(),
+  /** Per game, from 1. */
+  seq: t.u32(),
+  text: t.string(),
+  at: t.timestamp(),
+});
+
+/** How one of the cast stands towards a player (`attitude` effects): one row a cast member and player. */
+export const attitude = table({ name: "attitude", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  castKey: t.string(),
+  playerId: t.u64(),
+  /** hostile, unfriendly, wary, neutral, friendly, devoted. */
+  attitude: t.string(),
+  reason: t.string(),
+  at: t.timestamp(),
+});
+
+/** Someone of the cast walking with a player between scenes (`follow` effects: Kell, after the granary). */
+export const follower = table({ name: "follower", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  castKey: t.string(),
+  name: t.string(),
+  /** The player they walk with: the scene's controller. */
+  leaderId: t.u64(),
+  /** The scene whose ending set them walking (its key). */
+  sinceScene: t.string(),
+});
+
+// ---------------------------------------------------------------------------------------------
 // The world (content-world B2): a component holds only a field that moves out of the prototype's
 // Entity unchanged; every word stays in `narrative`. Each component row is keyed by entityId, with
 // placeId copied in so a client can subscribe to one place.
 
-/** A tile on a map, 5 ft a side: x runs east, y south (the prototype's Tile2). */
+/** A tile on a map, 5 ft a side: x runs east, y south (the prototype's Tile2; the map unit's, for walk's `to`). */
 export const Tile2 = t.object("Tile2", { x: t.i32(), y: t.i32() });
 
 export const place = table({ name: "place", public: true }, {
@@ -475,9 +600,9 @@ export const job = table({ name: "job" }, {
   gameId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   turnId: t.option(t.u64()),
-  /** say, openScene, creation; beside a turn, notes and suggest; after it, remember and repair (one row a turn and move). */
+  /** say, openScene, creation; beside a turn, notes and suggest; after it, remember and repair (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn). */
   move: t.string(),
-  /** open, decide, reactions, consider, reply, settle, notes, suggest, remember, repair; a creation's offer, pick, own, draft, work, check, traits. */
+  /** open, decide, reactions, consider, reply, settle, notes, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),
@@ -559,8 +684,8 @@ export const mapDef = table({ name: "map_def", public: true }, {
 // ---------------------------------------------------------------------------------------------
 // The maps between scenes (map-design §3.1).
 
-/** Someone walking with the player on the map (the prototype's Follower: Kell, after the granary). */
-const Follower = t.object("Follower", { id: t.string(), name: t.string(), glyph: t.string(), color: t.string(), map: t.string(), at: Tile2 });
+/** Someone walking with the player on the map (the prototype's Follower: Kell, after the granary; MapFollower, as the story's follower table has the name Follower). */
+const MapFollower = t.object("MapFollower", { id: t.string(), name: t.string(), glyph: t.string(), color: t.string(), map: t.string(), at: Tile2 });
 
 /**
  * Where a player is on the maps between scenes: the prototype's ExploreState
@@ -581,7 +706,7 @@ export const explore = table({ name: "explore", public: true }, {
   /** The scene they're in, opened from here (its key), while it's played. */
   scene: t.option(t.string()),
   /** Who walks with them. */
-  followers: t.array(Follower),
+  followers: t.array(MapFollower),
   /** The house lines' memory (quips.ts QuipMemory): how many said, the last one, the kinds of wall walked into. */
   quips: t.u32(),
   lastQuip: t.option(t.string()),
@@ -726,6 +851,7 @@ const spacetimedb = schema(
   {
     game, player, seat, sheet, dice, admin,
     scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard, coGmResult,
+    chapter, quest, flag, journal, attitude, follower,
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,
     job, jobDispatch, reaper,
     campaign, sceneDef, placeDef, mapDef,

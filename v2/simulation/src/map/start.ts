@@ -1,4 +1,4 @@
-import { initialGm } from "../../../shared/gm/state.ts";
+import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import { useMaps } from "../../../shared/map/maps.ts";
 import { regionForScene, scenePlace } from "../../../shared/map/places.ts";
 import type { Tile2 } from "../../../shared/map/types.ts";
@@ -8,6 +8,7 @@ import { placeKeyOf } from "../moves/open-scene.ts";
 import { gameRow, placeRow, playerRow, type CampaignRow, type GameRow, type SceneRow } from "../rows.ts";
 import { campaignFile, graphOf, sceneDefOf } from "../scenes.ts";
 import { noteHeard } from "../transcript.ts";
+import { rekeyOwed } from "../world/cross.ts";
 import { waitingPlace } from "../world/place.ts";
 import { mapFilesOf, mapPlaceOf, originOf } from "./rows.ts";
 
@@ -40,24 +41,28 @@ export function startOnMap(tx: TxCtx, game: GameRow, campaign: CampaignRow): boo
 }
 
 /**
- * The lead's place, built on its map, and its scene waiting (map-design §3.3; V3's boundary does
- * the same for the next lead): the place from its file with the cast present at the scene's start
- * and no one playing in it yet, in the map's region for the scene (its origin the region's world
- * origin); the scene's row `waiting`, with its GM bookkeeping as it starts, in that place. The
- * names the hook has given are heard. openLead opens it.
+ * The lead's place built and its scene waiting (map-design §3.3; story-design §4.3, the boundary's
+ * commit): the place from its file with the cast present at the scene's start and no one playing in
+ * it yet (the absent left out; those of the cast already in the game moved in, with what the story
+ * still owes the player that they hold); the scene's row `waiting`, at its time of day, with its GM
+ * bookkeeping as it starts and what was handed on (`handed`: the adjustments, the opening rewritten,
+ * the lead, who's absent, what's owed; none for the game's first lead), in that place, filling its
+ * region of its map when the game's campaign has that map. The names the hook has given are heard.
+ * openLead opens it.
  */
-export function buildLead(tx: TxCtx, game: GameRow, sceneKey: string): SceneRow {
+export function buildLead(tx: TxCtx, game: GameRow, sceneKey: string, handed?: GmState): SceneRow {
   const def = sceneDefOf(tx, game, sceneKey);
-  const graph = graphOf(def);
-  const gm = initialGm(graph);
+  const gm = handed ?? initialGm(graphOf(def));
+  const graph = graphOf(def, gm.patches);
   const host = playerRow(tx, game.hostId);
 
-  const { placeId } = waitingPlace(tx, game, placeKeyOf(tx, game, def), graph, gm, host);
+  const { placeId, renamed, owed } = waitingPlace(tx, game, placeKeyOf(tx, game, def), graph, gm, host);
   const scene = tx.db.scene.insert({
     id: 0n, gameId: game.id, sceneKey: def.key, title: def.title, hook: def.hook, kind: "scene", placeId,
     status: "waiting", controllerId: host.id, turnId: undefined, turns: 0, exitKey: undefined, rev: 0, openedAt: tx.now, endedAt: undefined,
+    time: graph.time,
   });
-  putGm(tx, scene.id, gm);
+  putGm(tx, scene.id, { ...gm, owed: rekeyOwed(gm.owed, renamed) });
   noteHeard(tx, scene, graph);
 
   const on = regionOf(tx, game, sceneKey);
@@ -65,6 +70,7 @@ export function buildLead(tx: TxCtx, game: GameRow, sceneKey: string): SceneRow 
     ...placeRow(tx, placeId), sceneId: scene.id,
     mapKey: on?.map.id, region: on?.region.id, origin: on ? originOf(on.region) : undefined, active: !!on,
   });
+  if (owed.length) tx.log(`[story] ${sceneKey} waits with what's owed: ${owed.join(", ")}`);
   return scene;
 }
 

@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes and the scene; the fight and the End come with their verticals), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves.
+// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves.
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useCallback, useSyncExternalStore } from "react";
 import type { AppModel } from "./app/model.ts";
@@ -6,6 +6,8 @@ import type { ExploreModel } from "./explore/model.ts";
 import type { SceneModel } from "./scene/model.ts";
 import { C } from "./theme.ts";
 import { BackstoryScreen, ChooseScreen, CreatedScreen, CreateScreen, CreatingScreen, CustomScreen } from "./ui/create.tsx";
+import { BetweenScreen, FightScreen } from "./ui/between.tsx";
+import { EndScreen } from "./ui/end.tsx";
 import { ExploreScreen } from "./ui/explore.tsx";
 import { ExploreOverlay, Overlay } from "./ui/overlay.tsx";
 import { SceneScreen } from "./ui/scene.tsx";
@@ -39,10 +41,15 @@ export function App({ app }: { app: AppModel }) {
   return <box width={width} height={height} backgroundColor={C.bg}>{screen}</box>;
 }
 
-/** A scene, with what's open over it (the sheet, a mark, the help). */
+/**
+ * The game's screen, with what's open over it (the sheet, a mark, the help, the notebook, the
+ * quests): the scene; once it's over, the moment between scenes, the fight's stand-in, or The End,
+ * as the way on goes (SceneModel.page).
+ */
 export function ScenePlay({ scene }: { scene: SceneModel }) {
+  const page = usePage(scene);
   return <>
-    <SceneScreen scene={scene} />
+    {page === "between" ? <BetweenScreen scene={scene} /> : page === "fight" ? <FightScreen scene={scene} /> : page === "end" ? <EndScreen scene={scene} /> : <SceneScreen scene={scene} />}
     <Overlay scene={scene} />
   </>;
 }
@@ -53,6 +60,12 @@ export function ExplorePlay({ explore }: { explore: ExploreModel }) {
     <ExploreScreen explore={explore} />
     <ExploreOverlay explore={explore} />
   </>;
+}
+
+/** Which of the game's screens is up: redrawn when it changes, not at every row (each screen follows the scene's model itself). */
+function usePage(scene: SceneModel): SceneModel["page"] {
+  const subscribe = useCallback((listener: () => void) => scene.subscribe(listener), [scene]);
+  return useSyncExternalStore(subscribe, () => scene.page);
 }
 
 /**

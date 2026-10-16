@@ -4,6 +4,12 @@
   "summary": "A palace clerk hanged behind the granary, two foul-mouthed kids who know more than they say, and a dry watch sergeant with until noon.",
   "kind": "scene",
   "time": "morning",
+  "onEnd": [
+    {
+      "op": "follow",
+      "who": "kell"
+    }
+  ],
   "place": "granary-yard",
   "start": "yard",
   "cast": [

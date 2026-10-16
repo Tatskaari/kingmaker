@@ -91,13 +91,10 @@ export function mapPlaceOf(tx: TxCtx, game: GameRow, mapKey: string): PlaceRow {
 
 /**
  * Every seat of the game (the host's, each spectator's) in a place, and in a scene or none: the
- * seats follow the host, into a scene, back out onto the map, onto another map.
+ * seats follow the host, into a scene, back out onto the map, onto another map (the story's, in
+ * world/cross.ts, which moves them between scenes the same way).
  */
-export function moveSeats(tx: TxCtx, gameId: bigint, placeId: bigint, sceneId: bigint | undefined): void {
-  for (const p of [...tx.db.player.gameId.filter(gameId)]) {
-    if (p.placeId !== placeId || p.sceneId !== sceneId) tx.db.player.id.update({ ...p, placeId, sceneId });
-  }
-}
+export { moveSeats } from "../world/cross.ts";
 
 /** Where a region's world sits on its map: its (0, 0) feet, in tiles (reconcile.ts feetToTile's). */
 export const originOf = (region: { rect: { x: number; y: number }; worldOrigin?: Tile2 }): Tile2 => ({ ...(region.worldOrigin ?? { x: region.rect.x, y: region.rect.y }) });

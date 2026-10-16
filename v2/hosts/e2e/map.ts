@@ -68,14 +68,14 @@ export async function aWalkBothSee(a: Player, b: Player): Promise<string> {
 }
 
 /**
- * 14a. After the ending (step 14), back to the map (map-design §1 row 7): A walks out of the scene
- * that's over, and stands in the yard where it left them, Kell beside them, with B's seat following
- * onto the town's place; the way to the lead says there's nowhere to walk to; out through the gate,
- * the yard's locked; down to the river stairs, the Drowned Rat's door says it's shut in the morning,
- * and nothing moves. B saw every move as A did.
+ * 14a. After the ending (step 14), back to the map (map-design §1 row 7), the story moved on
+ * (story-design §4.3): A walks out of the scene that's over, and stands in the yard where it left
+ * them, Kell beside them, with B's seat following onto the town's place; out through the gate, the
+ * map's lead is the Drowned Rat at evening, the boundary's; the yard's locked once they're out. B saw
+ * every move as A did. (Walking on to the Rat is the whole story's step 32, in a game of its own.)
  */
 export async function backToTheMap(stack: Stack, a: Player, b: Player, game: bigint): Promise<void> {
-  step("14a. Back to the map after the ending: where the scene left A, B with them; the yard locked once they're out; the Drowned Rat shut in the morning");
+  step("14a. Back to the map after the ending: where the scene left A, B with them; the story on to the Rat at evening; the yard locked once they're out");
   check("A's scene is over", a.conn.rows()?.scene.status === "ended");
   const from = { a: a.events.length, b: b.events.length };
   check("A walks out (walk toward out)", (await a.conn.walk({ toward: "out" })) === undefined);
@@ -89,20 +89,15 @@ export async function backToTheMap(stack: Stack, a: Player, b: Player, game: big
 
   const gate = await moved(a, "A walks out through the gate (walk to 42,8)", () => a.conn.walk({ to: { x: 42, y: 8 } }));
   check(`A is out in the lane: ${whereabouts(gate)}`, gate.ex.at.x === 42 && gate.ex.at.y === 8);
-  const lead = await moved(a, "A asks the way to the lead (walk toward lead)", () => a.conn.walk({ toward: "lead" }));
-  check(`"${lead.said}"`, lead.said === "Nowhere to walk to: the story comes to you from here.");
+  const lead = await mapUntil(a, "the story to have moved on: the Rat the lead, at evening", 30_000, v => v.lead?.key === "drowned-rat" && v.ex.story.time === "evening" && v);
+  check(`the map's lead is the boundary's: "${lead.lead?.title}", at ${lead.ex.story.time}`, lead.lead?.key === "drowned-rat");
   for (const y of [9, 10]) await moved(a, `A steps south to (42,${y})`, () => a.conn.walk({ toward: "south" }));
   const locked = await moved(a, "A steps south into the yard", () => a.conn.walk({ toward: "south" }));
   check(`the yard's locked, and A stays at the gate: ${whereabouts(locked)}, "${locked.said}"`, locked.ex.at.x === 42 && locked.ex.at.y === 10 && /The yard's been locked up for the Assembly/.test(locked.said));
 
-  const stairs = await moved(a, "A walks down to the river stairs, by the Drowned Rat's door (walk to 25,35)", () => a.conn.walk({ to: { x: 25, y: 35 } }));
-  check(`A is at the foot of the stairs: ${whereabouts(stairs)}, "${stairs.said}"`, stairs.ex.map === "caerwyn" && stairs.ex.at.x === 25 && stairs.ex.at.y === 35);
-  const shut = await moved(a, "A tries the Rat's door (travel drowned_rats_door)", () => a.conn.travel({ way: "drowned_rats_door" }));
-  check(`the Rat's door is shut in the morning, and nothing moves: ${whereabouts(shut)}, "${shut.said}"`, shut.ex.map === "caerwyn" && shut.ex.at.x === 25 && shut.ex.at.y === 35 && /OPENS AT DUSK/.test(shut.said));
-
-  await mapUntil(b, "B to see A at the Rat's door", 10_000, v => v.acts === shut.acts && v);
+  await mapUntil(b, "B to see A at the gate", 10_000, v => v.acts === locked.acts && v);
   const seenA = exploreEvents(a, from.a), seenB = exploreEvents(b, from.b);
-  check(`B saw the same ${seenA.length} explore events as A`, seenA.length >= 7 && JSON.stringify(seenA) === JSON.stringify(seenB));
+  check(`B saw the same ${seenA.length} explore events as A`, seenA.length >= 5 && JSON.stringify(seenA) === JSON.stringify(seenB));
   ok(`B's map says they're watching: ${b.conn.explore()?.watching}`);
 }
 

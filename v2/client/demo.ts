@@ -16,9 +16,11 @@ import { CAERWYN_MAPS, exploreRow, UNHEARD, useCaerwyn, waitingYard, yardOnMap }
 import { WIZARD_SPELLS, yardKeys, yardNames, yardTables, yardWorld, YARD_SCENE } from "./check/place.ts";
 import type { ExploreView } from "./explore/rows.ts";
 import { DRAFT, FIGHTER, gameRow, LISTS, NEPHEW_ISSUE, OFFER, OWN, sheetRow, WIZARD, WORKED } from "./check/rows.ts";
+import { clerkEnded, OPEN_CASE, ratWaiting, storyOf } from "./check/story.ts";
 import { withSubclass } from "./creation/model.ts";
 import { placeViewOf } from "./scene/place-rows.ts";
 import type { Entry, PlaceView, SceneView, Suggestion } from "./scene/view.ts";
+import type { StoryRows } from "./story/rows.ts";
 
 /**
  * The game with no server (--demo): the title with two games to carry on, a character made from a
@@ -35,7 +37,11 @@ import type { Entry, PlaceView, SceneView, Suggestion } from "./scene/view.ts";
  * (the world's own damageThing), Prout falls, and the dice lines come before the reply. A game set
  * off (a new one, or one just made) begins on the town's map in the lane (map-design §3.3): the demo
  * plays the simulation's part of a move with the same shared map code (exploreOf, act), the yard
- * built on the map and its scene waiting; walking or talking into it opens its canned scene.
+ * built on the map and its scene waiting; walking or talking into it opens its canned scene. And the
+ * way on (story-design §4.5): a line that makes the case ("murder", "let's go"), or /end open-case,
+ * ends the yard through open-case; the story moves on a beat later, the Drowned Rat waiting with Kell
+ * walking with the investigator; Go on opens it, its opening streaming in (the demo's map has only
+ * the yard on it, so from the lead's card the demo goes straight on to the Rat).
  */
 export function demoBackend(options: { ms?: number } = {}): Backend {
   return new Demo(options.ms ?? 40);
@@ -46,7 +52,7 @@ export function demoBackend(options: { ms?: number } = {}): Backend {
  * latest turn's n (a turn's late news, its notes and its lines, is only the view's while it's still
  * the latest), and the turn being played, until it's done (a line said meanwhile waits for it).
  */
-interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void>; place?: PlaceRows; map?: DemoMap }
+interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void>; story?: StoryRows; reply?: string; place?: PlaceRows; map?: DemoMap }
 
 /** A game on the town's map: the walker's explore row, the yard's world and its scene's status, and the view last made of them (made again after a move). */
 interface DemoMap { row: ExploreRow; yard: SceneWorld; status: "waiting" | "live" | "ended"; view?: ExploreView }
@@ -65,8 +71,8 @@ class Demo implements Backend {
 
   constructor(ms: number) {
     this.ms = ms;
-    const pell: DemoGame = { row: gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), player: { name: "Pell Marrow", concept: WIZARD.concept }, sheet: sheetRow(WIZARD), latest: YARD.turn ?? 0 };
-    pell.view = { ...YARD, entries: [...YARD.entries], suggestions: [...LINES], place: placed(pell, pell.player.name, true) };
+    const pell: DemoGame = { row: gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), player: { name: "Pell Marrow", concept: WIZARD.concept }, sheet: sheetRow(WIZARD), latest: YARD.turn ?? 0, story: yardStory() };
+    pell.view = { ...YARD, entries: [...YARD.entries], suggestions: [...LINES, ENDING_LINE], place: placed(pell, pell.player.name, true), story: storyOf(yardStory()) };
     this.games = [
       pell,
       { row: gameRow(2n, "Wren Ashdown", "heading for The Hanged Clerk", 60 * 50, Date.now(), false), player: { name: "Wren Ashdown", concept: FIGHTER.concept }, sheet: sheetRow(FIGHTER) },
@@ -171,6 +177,10 @@ class Demo implements Backend {
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined> {
     const moves = this as unknown as Record<MoveName, (args: unknown) => RefusalCode | undefined>;
     this.refused = undefined;
+    // The owner's end_scene (testing): its refusal names the endings.
+    if (move === "endScene") return this.endScene((args as Moves["endScene"]).exit);
+    // The story's walk toward the lead is Go on here; the Backend's walk is the map's.
+    if (move === "walk") { const code = this.goOn(); return code ? this.refuse(code) : this.done(); }
     const code = moves[move].call(this, args);
     return code ? this.refuse(code, code === "story_too_long" ? { words: String((args as { text: string }).text.match(/\S+/g)?.length ?? 0) } : {}) : this.done();
   }
@@ -383,6 +393,8 @@ class Demo implements Backend {
     const ex = exploreOf(rows);
     if (out) {
       if (!game.view) return this.refuse("unavailable");
+      // The story has moved on to the Rat: the demo's map has only the yard, so it goes straight on, as Go on does.
+      if (game.story && storyOf(game.story).lead) { const code = this.goOn(); return code ? this.refuse(code) : this.done(); }
       leaveScene(ex, map.yard);
       map.status = "ended";
       delete game.view;
@@ -409,6 +421,86 @@ class Demo implements Backend {
       game.row = { ...game.row, where: "in The Hanged Clerk" };
     }
     return this.done();
+  }
+
+  // The story's moves (story-design §4.3): the way on to the lead, a stuck story, the fight.
+
+  /** Go on (the story's walk toward the lead, where there's no map): the lead's scene opens (the Drowned Rat), its opening streaming in; refused while the scene is on, or before the story has a lead. */
+  goOn(): RefusalCode | undefined {
+    const game = this.seated();
+    if (!game?.view || !game.story) return "not_in_game";
+    if (game.view.watching) return "not_controller";
+    if (game.story.game.status === "ended") return "story_over";
+    if (!game.view.over && !game.view.fighting) return "scene_on";
+    if (!storyOf(game.story).lead) return "no_lead";
+    void this.openRat(game);
+    return undefined;
+  }
+
+  /** Nothing in the demo gets stuck. */
+  carryOn(): RefusalCode | undefined {
+    return "not_stuck";
+  }
+
+  /** Nor does it fight. */
+  fightItOut(): RefusalCode | undefined {
+    return "no_fight";
+  }
+
+  /** end_scene as the owner: the yard ends through open-case at once; any other exit, or none, has its refusal list them. */
+  private endScene(exit: string): Promise<Rejection | undefined> {
+    const game = this.seated();
+    if (!game?.view || game.view.over || game.view.sceneId !== YARD.sceneId || game.view.phase !== "done") return this.refuse("no_scene");
+    if (exit !== "open-case") return this.refuse("no_exit", { ...(exit ? { exit } : {}), exits: EXITS });
+    this.endYard(game);
+    return this.done();
+  }
+
+  /**
+   * The yard over through open-case, as closeScene leaves it: "Scene ends", the box shut, the
+   * notebook's line, the quest, Kell walking with them, the boundary in flight; a beat later its
+   * commit, the Drowned Rat waiting, at evening.
+   */
+  private endYard(game: DemoGame): void {
+    game.story = clerkEnded();
+    const view: SceneView = {
+      ...game.view!, entries: [...game.view!.entries, { turn: game.latest ?? 0, speaker: "system", kind: "system", text: `Scene ends: ${OPEN_CASE.ending}` }],
+      phase: "done", mayType: false, over: true, suggestions: [], suggestionsComing: false, notesComing: false, story: storyOf(game.story),
+    };
+    delete view.draft;
+    game.view = view;
+    this.tell();
+    this.later(50, () => {
+      game.story = ratWaiting();
+      const yard = game.view;
+      if (yard && yard.sceneId === YARD.sceneId) game.view = { ...yard, story: storyOf(game.story) };
+      this.tell();
+    });
+  }
+
+  /** The Drowned Rat opens: the seat moves to it (scene 8), its opening written a word at a time, then its lines; Kell's here. */
+  private async openRat(game: DemoGame): Promise<void> {
+    const story = ratWaiting();
+    game.story = { ...story, scenes: story.scenes.map(s => (s.id === 8n ? { ...s, status: "live" } : s)) };
+    game.latest = 0;
+    game.reply = RAT_REPLY;
+    game.row = { ...game.row, where: "in The Drowned Rat", time: "evening" };
+    const set = (patch: Partial<SceneView>) => { game.view = { ...game.view!, ...patch }; this.tell(); };
+    game.view = {
+      ...YARD, sceneId: "8", title: "The Drowned Rat", time: "Evening", hook: RAT_HOOK, game: game.view!.game, player: game.view!.player,
+      present: [YARD.present[0]!, { key: "hobb", name: "the big man with the bandaged hand", color: "#c79bf2" }, { key: "mags", name: "the landlady", color: "#8fd8c8" }],
+      entries: [], phase: "replying", turn: 0, mayType: false, suggestions: [], suggestionsComing: true, notesComing: false, story: storyOf(game.story),
+    };
+    this.tell();
+    const words = RAT_OPENING.split(/(?<= )/);
+    for (let seq = 1; seq <= words.length; seq++) {
+      set({ draft: { speaker: "gm", kind: "narration", text: words.slice(0, seq).join(""), markup: kellIn(words.slice(0, seq).join("")), attempt: 1, seq } });
+      await new Promise<void>(resolve => this.later(1, resolve));
+    }
+    const view: SceneView = { ...game.view!, entries: [{ turn: 0, speaker: "gm", kind: "narration", text: RAT_OPENING, markup: kellIn(RAT_OPENING) }], phase: "done", mayType: true, suggestions: [...RAT_LINES], suggestionsComing: false };
+    delete view.draft;
+    game.view = view;
+    this.tell();
   }
 
   // -------------------------------------------------------------------------------------------
@@ -537,10 +629,11 @@ class Demo implements Backend {
   /** The yard's opening, for a game just begun, and its lines: a new game's player has them on, as the simulation's does. */
   private open(game: DemoGame): void {
     game.latest = 0;
+    game.story = yardStory();
     game.view = {
       ...YARD, game: String(game.row.gameId), player: { name: game.player.name, status: "HP 28/28" }, entries: YARD.entries.slice(0, 1), phase: "done", turn: 0, mayType: true,
       place: placed(game, game.player.name, /wizard/i.test(game.sheet.build)),
-      suggestionsOn: true, suggestions: [...LINES], suggestionsComing: false, notesComing: false,
+      suggestionsOn: true, suggestions: [...LINES, ENDING_LINE], suggestionsComing: false, notesComing: false, story: storyOf(game.story),
     };
   }
 
@@ -563,7 +656,10 @@ class Demo implements Backend {
     const ruled = rulesFor(game, text, turn);
     if (ruled) { set({ entries: [...game.view!.entries, ...ruled.entries], place: ruled.place, player: { ...game.view!.player, status: ruled.status } }); await sleep(20); }
 
-    const words = REPLY.split(/(?<= )/);
+    // A line that makes the case ends the yard: its closing reply, then the scene's end.
+    const ends = game.view!.sceneId === YARD.sceneId && ENDS.test(text);
+    const text_ = ends ? CLOSING : game.reply ?? REPLY;
+    const words = text_.split(/(?<= )/);
     for (let seq = 1; seq <= words.length; seq++) {
       const sofar = words.slice(0, seq).join("");
       set({ phase: "replying", draft: { speaker: "gm", kind: "narration", text: sofar, markup: kellIn(sofar), attempt: 1, seq } });
@@ -571,21 +667,23 @@ class Demo implements Backend {
     }
 
     // The reply final: the box opens, the world settles and the notes are written behind it, and the lines are asked for.
-    const reply: Entry = { turn, speaker: "gm", kind: "narration", text: REPLY, markup: kellIn(REPLY) };
-    set({ entries: [...game.view!.entries, reply], phase: "settling", mayType: true, notesComing: true }, ["draft"]);
+    const reply: Entry = { turn, speaker: "gm", kind: "narration", text: text_, markup: kellIn(text_) };
+    set({ entries: [...game.view!.entries, reply], phase: "settling", mayType: !ends, notesComing: !ends, ...(ends ? { ending: true, suggestionsComing: false } : {}) }, ["draft"]);
+    if (ends) { await sleep(25); delete game.view!.ending; this.endYard(game); return; }
     if (game.view!.suggestionsOn) this.ask(game, turn, 70);
     await sleep(25);
     if (game.latest === turn) set({ phase: "noting" });
     await sleep(25);
     // The notes: the reply's marks, each with its card; the turn done.
-    set({ entries: game.view!.entries.map(e => (e === reply ? { ...e, markup: notedIn(REPLY, turn) } : e)), ...(game.latest === turn ? { phase: "done" as const, notesComing: false } : {}) });
+    set({ entries: game.view!.entries.map(e => (e === reply ? { ...e, markup: game.reply ? kellIn(text_) : notedIn(text_, turn) } : e)), ...(game.latest === turn ? { phase: "done" as const, notesComing: false } : {}) });
   }
 
   /** The lines for a turn, `beats` from now: dropped when the player has moved on, or turned them off, meanwhile. */
   private ask(game: DemoGame, turn: number, beats: number): void {
     this.later(beats, () => {
       if (game.latest !== turn || !game.view) return;
-      game.view = { ...game.view, suggestions: game.view.suggestionsOn ? [...LINES] : [], suggestionsComing: false };
+      const lines = game.reply ? RAT_LINES : [...LINES, ENDING_LINE];
+      game.view = { ...game.view, suggestions: game.view.suggestionsOn ? [...lines] : [], suggestionsComing: false };
       this.tell();
     });
   }
@@ -645,6 +743,34 @@ const LINES: Suggestion[] = [
   { kind: "say", text: "Nice boots, lad. Yours?" },
   { kind: "do", text: "(I look up at the body, then along the hoist rope to the loft door)" },
   { kind: "try", text: "(I try to coax the boy down from his stones with a pie)" },
+];
+
+/** A line that makes the case, and ends the yard through open-case (the fake's recipe's first ending, as the demo has it). */
+const ENDS = /\bmurder|persons unknown|let's go\b/i;
+
+/** The way out the demo suggests: the case made, the yard over. */
+const ENDING_LINE: Suggestion = { kind: "leave", text: "Sergeant, that's a cord mark, not a rope. Write him down as murdered, persons unknown." };
+
+/** The yard's closing, as the GM winds it down. */
+const CLOSING = "Kell looks at the mark on Prout's neck for a long moment, then writes in a neat, square hand. “Murder,” she says. “Persons unknown.” She closes the notebook. “The Captain won't like it. Good.” Above you, the hoist rope creaks, and the pigeons settle back on the loft.";
+
+/** The yard's endings, as end_scene's refusal lists them. */
+const EXITS = "case-made (The case is made), open-case (Murder by persons unknown), wrong-man (The wrong name in the book), closed-suicide (Filed as a suicide) and walked-away (Walked away)";
+
+/** The yard being played, as the story's rows have it before its end: nothing in the notebook yet, no boundary in flight. */
+function yardStory(): StoryRows {
+  const ended = clerkEnded();
+  return { ...ended, game: { ...ended.game, onward: undefined }, scenes: [{ ...ended.scenes[0]!, status: "live" }], chapters: [], quests: [], flags: [], journal: [], attitudes: [], followers: [] };
+}
+
+/** The Drowned Rat, as the demo has it. */
+const RAT_HOOK = "Big Hobb drinks at the Drowned Rat, down the river stairs. So, tonight, do half the porters in Caerwyn.";
+const RAT_OPENING = "The Drowned Rat leans over the river stairs like a drunk over a rail. Inside it's all smoke and wet wool, and a fiddler is sawing at something that was a jig once. Kell shakes the rain off her hat. “Big Hobb's the one with the bandaged hand,” she says, not quite pointing. “The landlady will want to know if I'm on duty.”";
+const RAT_REPLY = "Kell leans back against the settle and watches the room over her mug. “He's seen us,” she says quietly. “He's deciding whether we're trouble.”";
+const RAT_LINES: Suggestion[] = [
+  { kind: "say", text: "(I sit by the big man with the bandaged hand) Your master had a clerk hanged." },
+  { kind: "say", text: "Landlady, a word, if you've a moment?" },
+  { kind: "do", text: "(I watch who goes in and out by the river door)" },
 ];
 
 /** The markup of the reply so far: Kell's line, as much of it as has come. */

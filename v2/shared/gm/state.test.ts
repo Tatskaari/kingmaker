@@ -36,6 +36,14 @@ const busy: GmState = {
     { turn: 4, act: "lifting the paper from Cob's boot", target: "cob", skill: "sleight_of_hand", kind: "roll", dc: 12, why: "guarded to lose, plausible cover, wary: they could notice", roll: rollCheck(rng(5), "sleight_of_hand", 12, 3), went: "failure", changed: "Cob yanks his foot away; closed: win-cob", costUsd: 0.0021, latencyMs: 4312.5 },
     { turn: 5, act: "asking Kell who found him", target: "kell", skill: "persuasion", kind: "yes", why: "it comes freely when asked (trivial, plausible, friendly)", went: "success", changed: "Kell says the carter found him", costUsd: 0.0018, latencyMs: 3900 },
   ],
+  adjustments: ["Hobb is in the watch-house cells, not on the hoist."],
+  opening: "Show the Rat's long smoky room. End on the landlady asking the sergeant whether she's on duty.",
+  lead: "Kell's runner finds you at the watch-house: the big man with the bandaged hand drinks at the Drowned Rat.",
+  owed: [
+    { from: "hanged-clerk", id: "page", hinted: true, things: ["granary-yard/boots", "granary-yard/ledger-page"], holders: ["cob"], where: "sewn into the left boot's lining, on Cob's feet" },
+    { from: "hanged-clerk", id: "silvertop", hinted: false, things: [], holders: [] },
+  ],
+  fought: ["fight"],
   threat: { kind: "attack", by: "kell", turn: 5 },
   held: 4,
   brawl: { turn: 5, cause: "cast Burning Hands at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: ["cob", "moll"] },
@@ -61,7 +69,9 @@ test("the row keeps empty options as undefined, as SpacetimeDB's rows do", () =>
 
   assert.deepEqual([row.endingLead, row.pendingExit, row.closing, row.ended, row.sceneStatus, row.repeated], [undefined, undefined, undefined, undefined, undefined, undefined]);
   assert.deepEqual([row.notes, row.notesTurn, row.lastRepairTurn, row.offGraphTurn], [undefined, undefined, undefined, undefined]);
-  assert.deepEqual([row.threat, row.held, row.brawl, row.absent], [undefined, undefined, undefined, []]);
+  assert.deepEqual([row.opening, row.lead, row.adjustments, row.owed, row.fought, row.absent], [undefined, undefined, [], [], [], []]);
+  assert.equal(gmToRow(1n, busy).owed[1]!.where, undefined);
+  assert.deepEqual([row.threat, row.held, row.brawl], [undefined, undefined, undefined]);
   assert.equal(row.patches, "[]");
   assert.equal(gmToRow(1n, busy).path[1]!.roll, undefined);
   assert.equal(gmToRow(1n, busy).path[0]!.roll!.critical, roll.critical ?? undefined);
@@ -78,6 +88,15 @@ test("a row from before the co-GM's columns (their defaults) reads as a scene wi
   assert.equal(gm.beat, "doubt");
 });
 
+test("a row from before the story's columns (their defaults) reads as a scene nothing was handed on to", () => {
+  const { adjustments: _a, opening: _o, lead: _l, owed: _w, fought: _f, absent: _b, ...gm } = gmToRow(1n, busy);
+  const read = gmFromRow({ ...gm, adjustments: [], opening: undefined, lead: undefined, owed: [], fought: [], absent: [] });
+
+  assert.deepEqual([read.adjustments, read.owed, read.fought, read.absent], [[], [], [], []]);
+  assert.ok(!("opening" in read) && !("lead" in read));
+  assert.deepEqual(read.rulings, busy.rulings);
+});
+
 test("a row from before the world bridge's columns (their defaults) reads as a scene with nothing hanging and nobody gone", () => {
   const { threat: _t, held: _h, brawl: _b, absent: _a, ...gmOnly } = gmToRow(1n, busy);
   const gm = gmFromRow({ ...gmOnly, threat: undefined, held: undefined, brawl: undefined, absent: [] });
@@ -87,7 +106,7 @@ test("a row from before the world bridge's columns (their defaults) reads as a s
   assert.deepEqual(gm.rulings, busy.rulings);
 });
 
-test("V3's entered has no column yet: writing it is an error, not a loss; the cast who fled have theirs", () => {
+test("who came on by a route has no column yet: writing it is an error, not a loss; the cast who are away have theirs", () => {
   assert.throws(() => gmToRow(1n, { ...busy, entered: ["tull"] }), /no column for entered/);
   assert.deepEqual(gmFromRow(gmToRow(1n, { ...busy, absent: ["moll"] })).absent, ["moll"]);
 });
