@@ -4,10 +4,11 @@ import { Refused, type TxCtx } from "../context.ts";
 import { playerRow, seatPlayer, type GameRow, type PlayerRow } from "../rows.ts";
 
 /**
- * join_game (v0-design §3.3, v1-design §3.3): a seat in a game as a spectator, with no character,
- * watching the host's scene row for row, once it has one (there's nothing to watch while the host
- * makes their character). Joining a game you're already in seats you as the player you were (the
- * host gets their lead back).
+ * join_game (v0-design §3.3, v1-design §3.3, map-design §3.3): a seat in a game as a spectator,
+ * with no character, watching the host row for row, in their scene or on the map with them, once
+ * the game has set off (there's nothing to watch while the host makes their character): the seat
+ * follows the host from then on. Joining a game you're already in seats you as the player you were
+ * (the host gets their lead back).
  */
 export function joinGameReducer(tx: TxCtx, sender: Identity, { game: gameId }: { game: bigint }): void {
   const game = tx.db.game.id.find(gameId);
@@ -25,7 +26,7 @@ function markPresent(tx: TxCtx, playerId: bigint): void {
   if (!player.online) tx.db.player.id.update({ ...player, online: true });
 }
 
-/** The game, if it has set off (not_begun otherwise). */
+/** The game, if it has set off (not_begun otherwise): a scene opened, or the lead waiting on the map. */
 function begun(tx: TxCtx, game: GameRow): GameRow {
   if (![...tx.db.scene.gameId.filter(game.id)].length) throw new Refused(refusal("not_begun"));
   return game;
@@ -35,7 +36,7 @@ function playerIn(tx: TxCtx, identity: Identity, game: GameRow): PlayerRow | und
   return [...tx.db.player.identity.filter(identity)].find(p => p.gameId === game.id);
 }
 
-/** A spectator watches the host's scene: on it, in its place, with no character. */
+/** A spectator watches the host: in their scene and its place, or on the map's place with them, with no character. */
 function addSpectator(tx: TxCtx, identity: Identity, game: GameRow): PlayerRow {
   const host = playerRow(tx, game.hostId);
   return tx.db.player.insert({

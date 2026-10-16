@@ -85,10 +85,11 @@ function playedNow(tx: TxCtx, gameId: bigint): void {
  * In a scene, which is open, and theirs to lead. A scene ending (a reply closed it, and its settle
  * ends it) is over already. A failed turn holding the lease gets turnRefusal's /retry instead: an
  * opening that failed (turn 0), or the settle of a reply that closed the scene, is a turn like any
- * other, and only /retry brings the scene on, or to its end.
+ * other, and only /retry brings the scene on, or to its end. In a game on the map, between scenes,
+ * there's nothing to say a line to (map-design §3.2).
  */
 function sceneRefusal(tx: TxCtx, actor: Actor, scene: SceneRow | undefined): Refusal | undefined {
-  if (!scene) return refusal("not_in_game");
+  if (!scene) return onMap(tx, actor) ? refusal("not_in_scene") : refusal("not_in_game");
   const failed = leaseOf(tx, scene)?.phase === "failed";
   if (scene.status === "opening" && !failed) return refusal("not_ready");
   if (scene.status === "ended" || (scene.status === "ending" && !failed)) return refusal("scene_over");
@@ -113,6 +114,13 @@ function turnRefusal(tx: TxCtx, scene: SceneRow): Refusal | undefined {
   if (inFlight?.phase === "failed") return refusal("turn_failed");
   if (inFlight && (!BOX_OPEN.has(inFlight.phase) || queuedTurnOf(tx, scene.id))) return refusal("turn_in_flight");
   return undefined;
+}
+
+/** A seated player whose game is on the map: its host walks it (an explore row). */
+function onMap(tx: TxCtx, actor: Actor): boolean {
+  const player = actor.id === undefined ? undefined : tx.db.player.id.find(actor.id);
+  const game = player ? tx.db.game.id.find(player.gameId) : undefined;
+  return !!game && !!tx.db.explore.playerId.find(game.hostId);
 }
 
 /** The phases of a turn in flight whose reply is in: a line said now waits for it (v5-design §3.3). */

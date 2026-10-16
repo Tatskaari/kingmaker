@@ -24,11 +24,20 @@ import { memoryHost, type AiPost, type AiReply, type MemoryHost } from "./memory
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
 const read = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
 
-/** campaigns/caerwyn as install_campaign takes it: no Markdown but each scene's hook. */
-export function caerwynPack(): CampaignPack {
+/** Whether a game starts on the campaign's map (map-design §3.3), or, as the stack's tests before the map, in its first scene at once. */
+export interface PackOptions { map?: boolean }
+
+/**
+ * campaigns/caerwyn as install_campaign takes it: no Markdown but each scene's hook. Its maps are
+ * installed either way; without `map: true` its start is off the map (campaign.json's start.map
+ * and start.at left out), so a new game opens its first scene at once, as the stack's tests from
+ * before the map expect.
+ */
+export function caerwynPack(options: PackOptions = {}): CampaignPack {
   const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
+  const { map: _map, at: _at, ...offMap } = campaign.start;
   return {
-    campaign,
+    campaign: options.map ? campaign : { ...campaign, start: offMap },
     scenes: campaign.scenes.map(key => ({ scene: JSON.parse(read(`scenes/${key}/scene.json`)) as SceneFile, hook: read(`scenes/${key}/hook.md`).trim() })),
     places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
     builds: JSON.parse(read("builds.json")) as BuildsFile,
@@ -37,7 +46,7 @@ export function caerwynPack(): CampaignPack {
   };
 }
 
-export const caerwynArgs = (): InstallArgs => installArgsOf(caerwynPack());
+export const caerwynArgs = (options: PackOptions = {}): InstallArgs => installArgsOf(caerwynPack(options));
 
 /** A player's identity, by a number. */
 export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
@@ -192,11 +201,11 @@ export const tick = () => new Promise(resolve => setImmediate(resolve));
 // ---------------------------------------------------------------------------------------------
 // Games.
 
-/** A memory host with the hanged clerk installed, and its scripted AI service. */
-export function hostWithCampaign(seed = 7) {
+/** A memory host with the hanged clerk installed (starting on the map with `map: true`), and its scripted AI service. */
+export function hostWithCampaign(seed = 7, options: PackOptions = {}) {
   const script = scriptedAi();
   const host = memoryHost({ ai: script.ai, seed });
-  const refused = host.as(host.owner).installCampaign(caerwynArgs());
+  const refused = host.as(host.owner).installCampaign(caerwynArgs(options));
   if (refused) throw new Error(`the install was refused: ${refused.text}`);
   return { host, script };
 }
