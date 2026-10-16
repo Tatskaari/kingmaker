@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CATEGORIES } from "../../ai/docs/reviews.ts";
-import { devFake, fakeOptions } from "./fake.ts";
+import { devFake, fakeOptions, onTop, quietGm } from "./fake.ts";
 
 const file = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8"));
 const fake = devFake();
@@ -70,4 +70,15 @@ test("the full GM's quiet defaults (full-gm-design §4.4): only witnessed flagge
   assert.deepEqual([ruling.target, ruling.skill, ruling.stakes, ruling.approach, ruling.disposition, ruling.lie, ruling.same_again], ["cob", "sleight_of_hand", "guarded", "plausible", "wary", false, false]);
   // A contest's DC by the prototype's verdict (src/runtime/consider.ts:157-167): 9 + 3 x (guarded 1 - plausible 0 - wary 0) = 12.
   for (const went of ["success", "failure"] as const) assert.deepEqual((ruling[went] as Record<string, unknown>).to, "stay");
+});
+
+test("a test's recipe on the quiet full GM: its choices beside the attention filter's, its own replies and answers on top", () => {
+  const quiet = quietGm();
+  const options = onTop(quiet, { replies: ["Kell nods."], choices: { outcome: "make-case" }, byName: { ruling: { act: "mine" } } });
+
+  assert.deepEqual(Object.keys(quiet).sort(), ["byName", "choices", "toolCalls"]);
+  assert.deepEqual(options.replies, ["Kell nods."]);
+  assert.deepEqual(options.choices, { ...fake.choices, outcome: "make-case" });
+  assert.deepEqual(options.byName, { co_gm_notes: fake.byName!.co_gm_notes, ruling: { act: "mine" } });
+  assert.deepEqual((options as { toolCalls?: unknown }).toolCalls, (fake as { toolCalls?: unknown }).toolCalls);
 });
