@@ -21,7 +21,7 @@ export function wayOnPhase(view: SceneView): string | undefined {
   const way = wayOnOf(view, view.story);
   if (!way) return undefined;
   switch (way.to) {
-    case "wait": return view.watching ? `PHASE: over (${view.watching} goes on when ready: observe again)` : `PHASE: over (the story is moving on: observe again)${view.story?.note ? ` ${view.story.note}` : ""}`;
+    case "wait": return view.watching && !view.story?.onward ? `PHASE: over (${view.watching} goes on when ready: observe again)` : `PHASE: over (the story is moving on: observe again)${view.story?.note ? ` ${view.story.note}` : ""}`;
     case "carry_on": return `PHASE: over (the story got stuck on the way${view.story?.note ? `: ${view.story.note.replace(/^The story got stuck on the way:?\s*/, "")}` : ""}). Use: go, which tries it again`;
     case "between": return "PHASE: between (Use: go)";
     case "fight": return "PHASE: fight (Use: act --id fight)";

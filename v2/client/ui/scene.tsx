@@ -333,7 +333,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   // or done with this session).
   const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
   // Once it's over, what the story's way on waits on (the GM lost, and asked again), or why it got stuck.
-  const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note ?? (way && !view.watching ? scene.story?.note : undefined);
+  const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note ?? (way ? scene.story?.note : undefined);
   // The box, while it's shut: the game gone, the connection cut off, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
   const shut = scene.gone ? "The game is gone from the server." : view.cutOff ? "Cut off from the game's server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
     : view.watching ? `${view.watching} has the lead: you're watching.`

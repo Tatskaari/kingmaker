@@ -273,6 +273,9 @@ async function answered(game: Backend, out: Out, waiting: Waiting): Promise<numb
   const after = await afterwards(game, replied, waiting);
   const answer = after.entries.filter(e => e.turn === turn && e.kind !== "player");
   if (answer.length) out.print(render(after, answer));
+  // A line that brought the fight on (or the story to its end): what comes next, as observe says it, as the QA console's say does.
+  const next = storyText(after);
+  if (next) { out.print(`\n${next}`); return 0; }
   const actions = actionLines(after);
   if (actions.length) out.print(`\n${actions.join("\n")}`);
   out.print(`\n${phaseLine(after)}`);
