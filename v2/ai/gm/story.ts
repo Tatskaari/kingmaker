@@ -35,7 +35,7 @@ export const VOCABULARY = "vocabulary.json";
 export type StoryScene = Scene & { prep?: string };
 
 export interface Story {
-  /** The campaign version ("caerwyn@0.1.0"): what the copied code's caches are kept by. */
+  /** The campaign version ("caerwyn@0.1.0"). What the copied code keeps is kept with the story object, not by this: a version PUT again is a new story of the same id. */
   id: string;
   /** A scene as play has it, with an ending of its own (the prototype's sceneById); undefined when the story hasn't got it. */
   scene(id: string): StoryScene | undefined;
