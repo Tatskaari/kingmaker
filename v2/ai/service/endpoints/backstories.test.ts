@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
@@ -12,6 +12,10 @@ import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { canned } from "./canned.ts";
 import { pipeline } from "./pipeline.ts";
+
+/** Each test's store, in a folder of this file's own that goes when its tests are done. */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-backstories-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
 
 /**
  * POST /v1/backstories (v1-design §3.7, §4.1): the four ops through the shared backstory code, on
@@ -33,7 +37,7 @@ function filesOf(dir: string): Record<string, string> {
 
 /** The campaign installed in a fresh store (its creation block changed by `world`, if given), and a request's context on the stand-in. */
 async function setUp(options: FakeOptions = {}, world: (creation: Record<string, unknown>) => Record<string, unknown> = c => c) {
-  const stores = folderStores(mkdtempSync(join(tmpdir(), "km-backstories-")));
+  const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const files = filesOf(CAERWYN);
   const file = JSON.parse(files["campaign.json"]!) as { creation: Record<string, unknown> };
   files["campaign.json"] = JSON.stringify({ ...file, creation: world(file.creation) });

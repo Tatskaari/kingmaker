@@ -16,7 +16,7 @@ import { schema, t, table } from "spacetimedb/server";
 
 export const game = table({ name: "game", public: true }, {
   id: t.u64().primaryKey().autoInc(),
-  /** tx.uuid(): the game's id in every AI request, key and folder. */
+  /** newUid (games/create.ts: the transaction's time, then tx.uuid()'s randomness): the game's id in every AI request, key and folder. */
   uid: t.string().unique(),
   campaign: t.string(),
   campaignVersion: t.string(),
@@ -439,7 +439,7 @@ export const placeDef = table({ name: "place_def" }, {
  */
 export const creation = table({ name: "creation" }, {
   identity: t.identity().primaryKey(),
-  /** tx.uuid(): the creation's id in requests and keys; the game made from it takes it as game.uid. */
+  /** newUid (games/create.ts): the creation's id in requests and keys; the game made from it takes it as game.uid. */
   uid: t.string(),
   /** caerwyn, and its version, 0.1.0 (as game.campaign and campaignVersion). */
   campaign: t.string(),

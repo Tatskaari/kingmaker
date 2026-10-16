@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
@@ -12,6 +12,10 @@ import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { canned } from "./canned.ts";
 import { pipeline } from "./pipeline.ts";
+
+/** Each test's store, in a folder of this file's own that goes when its tests are done. */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-characters-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
 
 /**
  * POST /v1/characters (v1-design §3.7, §4.1) on the stand-in for OpenRouter: the model's three
@@ -32,7 +36,7 @@ function filesOf(dir: string): Record<string, string> {
 }
 
 async function setUp(options: FakeOptions = {}) {
-  const stores = folderStores(mkdtempSync(join(tmpdir(), "km-characters-")));
+  const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const installed = campaigns(stores.campaigns, stores.docsRoot);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const fake = fakeFetch(options);

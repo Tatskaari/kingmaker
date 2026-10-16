@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type Request } from "../llm/fake-openrouter.ts";
@@ -12,6 +12,10 @@ import { folderStores } from "../service/folder-stores.ts";
 import type { Who } from "../../shared/creation/types.ts";
 import type { BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse } from "../../shared/protocol/ai.ts";
 import { creationKey, type CreationStep } from "../../shared/protocol/keys.ts";
+
+/** Each test's store, in a folder of this file's own that goes when its tests are done. */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-creation-parity-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
 
 /**
  * Creation's prompt parity (v1-design §4.2): POST /v1/characters and /v1/backstories ask the models
@@ -68,7 +72,7 @@ function requestOf(golden: Golden): { characters: CharactersRequest } | { backst
 
 /** The case's request through v2's endpoint, on the campaign as installed, the stand-in answering by schema name as the recording's did. */
 async function asked(golden: Golden): Promise<{ answer: CharactersResponse | BackstoriesResponse; sent: Request[] }> {
-  const stores = folderStores(mkdtempSync(join(tmpdir(), "km-creation-parity-")));
+  const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const installed = campaigns(stores.campaigns, stores.docsRoot);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const fake = fakeFetch({ byName: golden.byName ?? {} });
