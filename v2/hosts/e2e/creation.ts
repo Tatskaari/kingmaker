@@ -236,7 +236,8 @@ export async function theCeiling(stack: Stack, root: string, a: Player, fake: Fa
 // C4: continue and delete.
 
 /**
- * 21. A's games, the one played last first; continue_game moves A's seat to the first; delete_game
+ * 21. A's games, the one played last first (the first's story gone on from the yard at step 14: the
+ * Rat waits); continue_game moves A's seat to the first; delete_game
  * of the second leaves no row of it in any table the registry names (games/delete.ts), and B, who
  * watched it, loses its seat.
  */
@@ -244,7 +245,7 @@ export async function continueAndDelete(stack: Stack, a: Player, b: Player, firs
   step("21. Continue one game, delete another");
   const listed = [...a.conn.home().games].sort((x, y) => Number(y.lastPlayedAt.microsSinceUnixEpoch - x.lastPlayedAt.microsSinceUnixEpoch));
   check(`A's games, the one played last first: ${listed.map(g => `${g.gameId} (${g.name}: ${g.where})`).join("; ")}`,
-    listed.map(g => g.gameId).join() === `${made.id},${first}` && listed[0]!.where === "in The Hanged Clerk" && listed[1]!.where === "The Hanged Clerk, over");
+    listed.map(g => g.gameId).join() === `${made.id},${first}` && listed[0]!.where === "in The Hanged Clerk" && listed[1]!.where === "heading for The Drowned Rat");
 
   check(`A's continue_game(${first}) is made`, (await a.conn.act("continueGame", { game: first })) === undefined);
   await homeUntil(a, `A's seat in game ${first}`, 10_000, r => r.seat?.gameId === first);
@@ -264,6 +265,7 @@ export async function continueAndDelete(stack: Stack, a: Player, b: Player, firs
 const TABLES: Array<[table: string, column: string, by: keyof Ids]> = [
   ["game", "id", "game"], ["sheet", "game_id", "game"], ["rules_state", "game_id", "game"], ["dice", "game_id", "game"], ["job", "game_id", "game"],
   ["creation", "game_id", "game"], ["player", "game_id", "game"], ["scene", "game_id", "game"], ["place", "game_id", "game"],
+  ...["chapter", "quest", "flag", "journal", "attitude", "follower"].map(t => [t, "game_id", "game"] as [string, string, keyof Ids]),
   ["seat", "player_id", "players"], ["heard", "player_id", "players"],
   ["gm_state", "scene_id", "scenes"], ["on_stage", "scene_id", "scenes"], ["reply_draft", "scene_id", "scenes"], ["turn", "scene_id", "scenes"], ["transcript", "scene_id", "scenes"],
   ["scene_suggestion", "scene_id", "scenes"], ["co_gm_result", "scene_id", "scenes"],

@@ -150,7 +150,7 @@ test("a campaign PUT installs every file, loads its scenes with their words, and
   const health = JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body);
 
   assert.equal(answer.status, 200);
-  assert.deepEqual(JSON.parse(answer.body), { campaign: "caerwyn", version: "0.1.0", files: Object.keys(filesOf(CAERWYN)).length, scenes: ["hanged-clerk"] });
+  assert.deepEqual(JSON.parse(answer.body), { campaign: "caerwyn", version: "0.1.0", files: Object.keys(filesOf(CAERWYN)).length, scenes: ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"] });
   assert.deepEqual(health.campaigns, ["caerwyn@0.1.0"]);
 });
 

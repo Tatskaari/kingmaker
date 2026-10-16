@@ -61,6 +61,6 @@ test("the story's fields come through: an interlude, what it takes for granted, 
 
   assert.deepEqual([scene.interlude, scene.assumes, scene.overtaken, scene.rest, scene.milestone, scene.background, scene.onEnd],
     [true, ["The barge hasn't sailed."], "kings-morning", "long", true, ["Sallow came at midnight."], [{ op: "follow", who: "kell" }]]);
-  const plain = sceneOf(file);
+  const plain = sceneOf({ ...file, onEnd: undefined }); // the hanged clerk's own file has onEnd (Kell follows)
   assert.ok(!["interlude", "assumes", "overtaken", "rest", "milestone", "background", "onEnd"].some(k => k in plain));
 });
