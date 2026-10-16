@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { After, Decision, DecideResponse, SettleResponse, Suggestion, SuggestRequest, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
-import { keyParts } from "../../../shared/protocol/keys.ts";
+import { idText, keyParts } from "../../../shared/protocol/keys.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { all, DEFAULTS, down, held, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
+import { queueThink } from "../jobs.ts";
+import { suggest } from "./suggest.ts";
 
 /**
  * The lines suggested after a reply (v5-design §3.3-§3.5), on the memory host: asked for after the
@@ -201,6 +203,33 @@ test("a reply that ends the scene asks for no lines; a wind-down out of characte
   again.as(wren2).say({ text: "*I walk out of the gate.*" });
   await again.drain();
   assert.deepEqual(script2.to("suggest").map(s => keyParts(s.key)!.turn), [0], "a route into an ending closes the scene in its reply");
+});
+
+test("a reply that ends the scene gets no lines while it settles, the scene still live: set_suggestions asks for none, and a set for it that comes is dropped", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const settle = held<SettleResponse>();
+  script.then("decide", decided({ route: { id: "walk-away", phase: "attempt" } }));
+  script.then("settle", () => settle.promise);
+  host.as(wren).say({ text: "*I walk out of the gate.*" });
+  const first = host.drain();
+  await tick();
+  await host.drain();
+
+  const settling = sceneNow(host, scene.id);
+  assert.deepEqual([settling.scene.status, settling.turns[1]!.phase, settling.gm.ended?.exitId], ["live", "settling", "walked-away"]);
+  assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
+  assert.deepEqual([all(host.db.job).filter(j => j.move === "suggest").length, sceneNow(host, scene.id).turns[1]!.suggest], [0, "none"], "nothing asked for the closing reply");
+
+  const turn = settling.turns[1]!;
+  script.then("suggest", lines("A line for a scene that's over"));
+  host.transact(tx => queueThink(tx, suggest, { step: "suggest", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: 1, ask: 1 }));
+  await host.drain();
+  assert.deepEqual([sceneNow(host, scene.id).turns[1]!.suggest, setOf(host, scene.id)], ["dropped", asSet(0, DEFAULTS.suggest.lines)], "a set that comes before the settle ends the scene is dropped, the rows left");
+  assert.match(host.logs.join("\n"), /\[scene \d+ turn 1\] lines dropped \(the scene is over\)/);
+
+  settle.settle(read());
+  await first;
+  assert.deepEqual([sceneNow(host, scene.id).scene.status, sceneNow(host, scene.id).turns[1]!.phase], ["ended", "done"]);
 });
 
 test("lines given up once their moment has passed are lost, and leave the set that's there", async () => {

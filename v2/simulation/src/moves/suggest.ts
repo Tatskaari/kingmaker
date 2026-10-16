@@ -2,6 +2,7 @@ import type { Suggestion, SuggestResponse } from "../../../shared/protocol/ai.ts
 import { idOf, idText } from "../../../shared/protocol/keys.ts";
 import type { TxCtx } from "../context.ts";
 import { suggestCall } from "../gm/requests.ts";
+import { getGm } from "../gm/rows.ts";
 import { queueThink } from "../jobs.ts";
 import { playerRow, sceneRow, turnRow, updateTurn, type SceneRow, type TurnRow } from "../rows.ts";
 import type { Move } from "./move.ts";
@@ -59,6 +60,15 @@ export function hasLinesFor(tx: TxCtx, sceneId: bigint, n: number): boolean {
   return [...tx.db.sceneSuggestion.sceneId.filter(sceneId)].some(s => s.turn === n);
 }
 
+/**
+ * The scene is over, or ends on the reply just given: its decide found the reply closes it, and the
+ * settle ends it (gm.ended). A reply that ends the scene has no lines after it (v5-design §3.5), as
+ * the prototype stops suggesting at a scene's end (engine.ts:949).
+ */
+export function sceneOver(tx: TxCtx, scene: SceneRow): boolean {
+  return scene.status === "ended" || !!getGm(tx, scene.id).ended;
+}
+
 // ---------------------------------------------------------------------------------------------
 
 function updateTurnAsk(tx: TxCtx, turnId: bigint): TurnRow {
@@ -80,10 +90,10 @@ function landLines(tx: TxCtx, plan: SuggestPlan, lines: Suggestion[], came: "lan
   tx.log(`[scene ${plan.scene} turn ${plan.n}] lines ${state}${passed ? ` (${passed})` : came === "landed" ? `: ${lines.length}` : ": the set cleared"}`);
 }
 
-/** Why a set for turn n no longer lands, if it doesn't: a later line was said, the scene is over, or its controller turned them off. */
+/** Why a set for turn n no longer lands, if it doesn't: a later line was said, the scene is over (or ending), or its controller turned them off. */
 function momentPassed(tx: TxCtx, scene: SceneRow, n: number): string | undefined {
   if (scene.turns !== n) return `turn ${scene.turns} has been said`;
-  if (scene.status === "ended") return "the scene is over";
+  if (sceneOver(tx, scene)) return "the scene is over";
   if (!playerRow(tx, scene.controllerId).suggestions) return "they're turned off";
   return undefined;
 }

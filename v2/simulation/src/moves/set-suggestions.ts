@@ -3,7 +3,7 @@ import { refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, Refused, type TxCtx } from "../context.ts";
 import { playerRow, sceneOfPlayer, type PlayerRow } from "../rows.ts";
 import { latestTurnOf } from "../turns.ts";
-import { askForLines, hasLinesFor } from "./suggest.ts";
+import { askForLines, hasLinesFor, sceneOver } from "./suggest.ts";
 
 /**
  * set_suggestions (v5-design §3.3; the prototype's setSuggestions and suggestNow, play.ts:364-385):
@@ -29,11 +29,13 @@ function seatedPlayer(tx: TxCtx, sender: Identity): PlayerRow {
 
 /**
  * The turn whose lines to ask for now, if any: the latest of a live or closing scene the player
- * leads, its reply in (settling, noting or done), none of its lines coming or landed.
+ * leads, its reply in (settling, noting or done), none of its lines coming or landed, and the scene
+ * not ending on it (the reply's commit asked for none).
  */
 function turnWantingLines(tx: TxCtx, player: PlayerRow): bigint | undefined {
   const scene = sceneOfPlayer(tx, player.id);
   if (!scene || scene.controllerId !== player.id || (scene.status !== "live" && scene.status !== "closing")) return undefined;
+  if (sceneOver(tx, scene)) return undefined;
 
   const turn = latestTurnOf(tx, scene);
   if (!turn || !REPLIED.has(turn.phase) || turn.suggest === "coming" || hasLinesFor(tx, scene.id, turn.n)) return undefined;
