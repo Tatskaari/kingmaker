@@ -135,6 +135,9 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
 
 function listen(): void {
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => void quit());
+  // A closed terminal (SIGHUP) fails every write: stopping the stack matters more than saying so.
+  process.stdout.on("error", () => undefined);
+  process.on("uncaughtException", e => void crash(e));
   if (!flags.keys) return;
   // A terminal gives keys one at a time; a pipe (an agent's) gives them as they're written.
   if (process.stdin.isTTY) process.stdin.setRawMode(true);
@@ -201,6 +204,13 @@ async function quit(): Promise<void> {
   await queue.catch(() => undefined);
   await stack.down();
   done(0);
+}
+
+/** A bug in the dev host: the stack is stopped all the same, so nothing is left running. */
+async function crash(e: Error): Promise<void> {
+  console.error(`The dev host failed: ${e.stack ?? e.message}`);
+  if (!quitting) await stack.down().catch(() => undefined);
+  done(1);
 }
 
 function killNow(): void {
