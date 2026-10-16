@@ -9,6 +9,7 @@ import type { SceneView } from "../scene/view.ts";
 export const YARD: SceneView = {
   "title": "The Hanged Clerk",
   "time": "Morning",
+  "game": "1",
   "hook": "This morning a palace clerk, Wendell Prout, was found hanged behind the Caerwyn granary, and the Watch Captain has already called it suicide. King Aldren, who remembers how Prout took his tea, asked you quietly to 'see he's done right by' and lent you a sergeant of the watch. She's waiting for you in the granary yard. So, by the sound of it, are some children.",
   "player": {
     "name": "Pell Marrow",
@@ -151,5 +152,6 @@ export const YARD: SceneView = {
     }
   ],
   "phase": "done",
-  "mayType": true
+  "mayType": true,
+  "over": false
 };

@@ -1,47 +1,115 @@
-import type { Markup } from "../../shared/markup.ts";
+import type { Mark, Markup, Speech } from "../../shared/markup.ts";
+import type { Game, Look, NameView, OnStage, Player, ReplyDraft, Scene, Sheet, Transcript, Turn } from "../module_bindings/types.ts";
 import { colorOf } from "../theme.ts";
-import type { Entry, EntryKind, Phase, SceneView } from "./view.ts";
+import type { Draft, Entry, EntryKind, Person, Phase, SceneView } from "./view.ts";
 
 /**
- * The scene's view from the rows the client holds: the scene, its transcript, the draft the GM's
- * text grows in, the turn in flight, who's on stage and the names and looks the player knows them
- * by. Pure: the connection keeps the rows, and calls this whenever one of them changes. The row
- * shapes are the design's tables (content-server.md §2), as the module would declare them; the
- * generated bindings' own types replace these once the simulation has its schema.
+ * The scene's view from the rows the client holds (v0-design §7): the scene, its transcript, the
+ * draft the GM's text grows in, its turns, who's on stage, and the names and looks the player
+ * knows them by. Pure: the connection keeps the rows and calls this whenever one changes, and the
+ * screen, the headless client and the tests share it. The rows are the generated bindings' types,
+ * narrowed to the columns read here, so a change to the schema shows up in the type check.
  */
 
-export interface SceneRow { id: bigint; sceneKey: string; title: string; hook: string; status: string; controllerId: bigint; turnId?: bigint | undefined }
-export interface TranscriptRow { id: bigint; sceneId: bigint; turn: number; seq: number; speaker: string; kind: string; text: string; markup?: string | undefined }
-/** The design's reply_draft has no kind: the GM's ("gm") is narration, an actor's (a cast key) dialogue. */
-export interface DraftRow { turnId: bigint; sceneId: bigint; speaker: string; text: string; markup?: string | undefined; seq: number; done: boolean }
-export interface TurnRow { id: bigint; sceneId: bigint; n: number; playerId: bigint; phase: string; error?: string | undefined }
-export interface OnStageRow { entityId: bigint; sceneId: bigint; role: string }
-export interface NameRow { entityId: bigint; key: string; name: string }
-export interface LookRow { entityId: bigint; fg: string }
-export interface PlayerRow { id: bigint; name: string; characterId: bigint }
-
 export interface SceneRows {
-  me: PlayerRow;
-  scene: SceneRow;
-  time?: string;
-  status?: string;
-  transcript: TranscriptRow[];
-  drafts: DraftRow[];
-  turns: TurnRow[];
-  onStage: OnStageRow[];
-  names: NameRow[];
-  looks: LookRow[];
-  players: PlayerRow[];
+  /** This client's player: my_seat's playerId. */
+  me: bigint;
+  game: Pick<Game, "id" | "time">;
+  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId">;
+  players: Array<Pick<Player, "id" | "name">>;
+  sheets: Array<Pick<Sheet, "playerId" | "statusLine">>;
+  transcript: Array<Pick<Transcript, "seq" | "turn" | "speaker" | "kind" | "text" | "markup">>;
+  drafts: Array<Pick<ReplyDraft, "turnId" | "speaker" | "text" | "markup" | "attempt" | "seq">>;
+  turns: Array<Pick<Turn, "id" | "n" | "phase" | "note" | "error">>;
+  onStage: Array<Pick<OnStage, "entityId" | "role">>;
+  names: Array<Pick<NameView, "entityId" | "key" | "name">>;
+  looks: Array<Pick<Look, "entityId" | "fg">>;
+  /** The words of the last move the simulation refused, until the next move. */
   refusal?: string;
 }
 
+type TurnRow = SceneRows["turns"][number];
+
 const PHASES: readonly Phase[] = ["queued", "deciding", "replying", "settling", "done", "failed"];
 const KINDS: readonly EntryKind[] = ["player", "narration", "dialogue", "roll", "system"];
+/** The phases the player may speak in: before the first line, and once the reply is final (the world settles behind it). */
+const OPEN: readonly Phase[] = ["idle", "settling", "done"];
 
-/** A markup column (JSON), or nothing when it's missing or unreadable: the words are drawn plain. */
-function markupOf(json: string | undefined): Markup | undefined {
-  if (!json) return undefined;
-  try { return JSON.parse(json) as Markup; } catch { return undefined; }
+export function sceneViewOf(rows: SceneRows): SceneView {
+  const { lease, newest } = turnsOf(rows);
+  const phase = phaseOf(lease, newest);
+  const draft = draftOf(rows, lease);
+
+  const lead = rows.players.find(p => p.id === rows.scene.controllerId);
+  const watching = rows.scene.controllerId === rows.me ? undefined : lead?.name ?? "Someone else";
+  const status = lead ? rows.sheets.find(s => s.playerId === lead.id)?.statusLine : undefined;
+
+  const playing = rows.scene.status === "live" || rows.scene.status === "closing";
+  const mayType = !watching && playing && OPEN.includes(phase);
+
+  return {
+    title: rows.scene.title, ...(rows.game.time ? { time: capitalised(rows.game.time) } : {}), ...(rows.scene.hook ? { hook: rows.scene.hook } : {}),
+    game: String(rows.game.id),
+    player: { name: lead?.name ?? "", ...(status ? { status } : {}) },
+    ...(watching ? { watching } : {}),
+    present: presentOf(rows),
+    entries: entriesOf(rows),
+    ...(draft ? { draft } : {}),
+    phase, mayType,
+    over: rows.scene.status === "ended",
+    ...(rows.refusal ? { refusal: rows.refusal } : {}),
+    ...(lease?.note && phase !== "failed" ? { note: lease.note } : {}),
+    ...(phase === "failed" ? { failed: lease?.error ?? "" } : {}),
+  };
+}
+
+/**
+ * The turn that holds the scene's lease (scene.turnId: in flight, or failed and waiting for a
+ * retry), and the newest by n: a line said while the last turn settles waits behind it, queued.
+ */
+function turnsOf(rows: SceneRows): { lease?: TurnRow; newest?: TurnRow } {
+  const lease = rows.scene.turnId === undefined ? undefined : rows.turns.find(t => t.id === rows.scene.turnId);
+  const newest = rows.turns.reduce<TurnRow | undefined>((a, t) => (!a || t.n > a.n ? t : a), undefined);
+  return { ...(lease ? { lease } : {}), ...(newest ? { newest } : {}) };
+}
+
+/**
+ * The phase the screen shows: a failed turn's, until it's retried; a queued line's, so the box
+ * stays shut behind it as the simulation would refuse a second (turn_in_flight); else the turn in
+ * flight's, or the last one's. "idle" before any.
+ */
+function phaseOf(lease: TurnRow | undefined, newest: TurnRow | undefined): Phase {
+  const phase = lease?.phase === "failed" ? "failed" : newest?.phase === "queued" ? "queued" : lease?.phase ?? newest?.phase;
+  return phase && PHASES.includes(phase as Phase) ? phase as Phase : "idle";
+}
+
+/** The reply being written for the turn in flight: narration when it's the GM's, else dialogue. A draft of any other turn is stale. */
+function draftOf(rows: SceneRows, lease: TurnRow | undefined): Draft | undefined {
+  const d = lease ? rows.drafts.find(r => r.turnId === lease.id) : undefined;
+  if (!d) return undefined;
+  const kind = d.speaker === "gm" ? "narration" as const : "dialogue" as const;
+  const name = kind === "dialogue" ? nameOf(rows, d.speaker) : undefined;
+  const markup = markupOf(d.markup);
+  return { speaker: d.speaker, kind, ...(name ? { name } : {}), text: d.text, ...(markup ? { markup } : {}), attempt: d.attempt, seq: d.seq };
+}
+
+/** The transcript in order, a player's line and a line of dialogue named as the player knows the speaker. */
+function entriesOf(rows: SceneRows): Entry[] {
+  return [...rows.transcript].sort((a, b) => a.seq - b.seq).map(t => {
+    const kind = KINDS.includes(t.kind as EntryKind) ? t.kind as EntryKind : "system";
+    const name = kind === "player" || kind === "dialogue" ? nameOf(rows, t.speaker) : undefined;
+    const markup = markupOf(t.markup);
+    return { turn: t.turn, speaker: t.speaker, kind, ...(name ? { name } : {}), text: t.text, ...(markup ? { markup } : {}) };
+  });
+}
+
+/** Who's on stage besides the one who has the lead, by the names the player knows (my_names), in their look's colour or a hue of their own. */
+function presentOf(rows: SceneRows): Person[] {
+  return rows.onStage.filter(s => s.role !== "controller").flatMap(s => {
+    const known = rows.names.find(n => n.entityId === s.entityId);
+    if (!known) return [];
+    return [{ key: known.key, name: known.name, color: rows.looks.find(l => l.entityId === s.entityId)?.fg ?? colorOf(known.key) }];
+  });
 }
 
 /** The name a speaker goes by: a player's character, or whoever the player knows by that key. */
@@ -51,32 +119,31 @@ function nameOf(rows: SceneRows, speaker: string): string | undefined {
   return rows.names.find(n => n.key === speaker)?.name;
 }
 
-export function sceneViewOf(rows: SceneRows): SceneView {
-  const turn = rows.scene.turnId !== undefined ? rows.turns.find(t => t.id === rows.scene.turnId) : rows.turns.reduce<TurnRow | undefined>((a, t) => (!a || t.n > a.n ? t : a), undefined);
-  const phase: Phase = turn && PHASES.includes(turn.phase as Phase) ? turn.phase as Phase : "idle";
-  const draft = turn ? rows.drafts.find(d => d.turnId === turn.id) : undefined;
-  const entries: Entry[] = [...rows.transcript].sort((a, b) => a.seq - b.seq).map(t => {
-    const name = t.kind === "player" || t.kind === "dialogue" ? nameOf(rows, t.speaker) : undefined;
-    const markup = markupOf(t.markup);
-    return { turn: t.turn, speaker: t.speaker, kind: KINDS.includes(t.kind as EntryKind) ? t.kind as EntryKind : "system", ...(name ? { name } : {}), text: t.text, ...(markup ? { markup } : {}) };
-  });
-  const present = rows.onStage.filter(s => s.role !== "controller" && s.role !== "watcher").flatMap(s => {
-    const known = rows.names.find(n => n.entityId === s.entityId);
-    if (!known) return [];
-    return [{ key: known.key, name: known.name, color: rows.looks.find(l => l.entityId === s.entityId)?.fg ?? colorOf(known.key) }];
-  });
-  const controls = rows.scene.controllerId === rows.me.id && rows.scene.status === "live";
-  const mayType = controls && (phase === "idle" || phase === "settling" || phase === "done");
-  const draftMarkup = draft ? markupOf(draft.markup) : undefined;
-  const draftKind = draft && draft.speaker !== "gm" ? "dialogue" as const : "narration" as const;
-  const draftName = draft && draftKind === "dialogue" ? nameOf(rows, draft.speaker) : undefined;
-  return {
-    title: rows.scene.title, ...(rows.time ? { time: rows.time } : {}), hook: rows.scene.hook,
-    player: { name: rows.me.name, ...(rows.status ? { status: rows.status } : {}) },
-    present, entries,
-    ...(draft ? { draft: { speaker: draft.speaker, kind: draftKind, ...(draftName ? { name: draftName } : {}), text: draft.text, ...(draftMarkup ? { markup: draftMarkup } : {}) } } : {}),
-    phase, mayType,
-    ...(rows.refusal ? { refusal: rows.refusal } : {}),
-    ...(phase === "failed" ? { failed: turn?.error ?? "something went wrong" } : {}),
-  };
+/**
+ * A markup column (JSON), or nothing when it's missing or unreadable: the words are drawn plain.
+ * A mark is kept only when it has a note (v0-design §7): one without would underline words that
+ * open on nothing.
+ */
+export function markupOf(json: string | undefined): Markup | undefined {
+  const parsed = jsonObject(json);
+  if (!parsed) return undefined;
+  const speech = Array.isArray(parsed.speech) ? parsed.speech.filter(isSpan) as Speech[] : [];
+  const marks = Array.isArray(parsed.marks) ? (parsed.marks as Mark[]).filter(m => isSpan(m) && typeof m.note === "string" && m.note.trim() !== "") : [];
+  return { speech, marks };
 }
+
+function jsonObject(json: string | undefined): Partial<Record<keyof Markup, unknown>> | undefined {
+  if (!json) return undefined;
+  try {
+    const value: unknown = JSON.parse(json);
+    return value && typeof value === "object" ? value as Partial<Record<keyof Markup, unknown>> : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A span of the text with numbers for its edges (a speech or a mark). */
+const isSpan = (s: unknown): boolean => !!s && typeof (s as Speech).start === "number" && typeof (s as Speech).end === "number";
+
+/** "morning" as the frame's title has it: "Morning". */
+const capitalised = (word: string) => `${word[0]!.toUpperCase()}${word.slice(1)}`;

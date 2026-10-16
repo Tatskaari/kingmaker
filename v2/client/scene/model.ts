@@ -66,17 +66,16 @@ export class SceneModel {
   }
 
   /**
-   * A new view from the rows. A turn that starts deciding gets a fresh line for the spinner; new
-   * entries forget the marks picked out of the old ones only when the scene changes (the indexes
-   * stay good as entries are added at the end).
+   * A new view from the rows. A line that starts the GM thinking (queued, or deciding) gets a fresh
+   * line for the spinner; new entries forget the marks picked out of the old ones only when the
+   * scene changes (the indexes stay good as entries are added at the end).
    */
   update(view: SceneView): void {
     const was = this.view;
-    if (view.phase === "deciding" && was.phase !== "deciding") this.busyLine = this.busyLines.next(this.busyLine);
+    if (thinking(view) && !thinking(was)) this.busyLine = this.busyLines.next(this.busyLine);
     if (view.title !== was.title) this.forgetMarks();
     this.view = view;
-    // Only the draft growing: soon. Anything else: now.
-    if (was.draft && view.draft && was.entries.length === view.entries.length && was.phase === view.phase) this.emitSoon();
+    if (onlyGrew(was, view)) this.emitSoon();
     else this.emit();
   }
 
@@ -92,13 +91,16 @@ export class SceneModel {
     return undefined;
   }
 
-  /** The player's line: a /command (the old #command too), or what they say and do. */
+  /**
+   * The player's line: a /command (the old #command too), or what they say and do. A spectator's
+   * line goes to the simulation too, which refuses it in the game's words.
+   */
   input(raw: string): void {
     const text = raw.trim();
     if (!text) return;
     this.status = undefined;
     if (text.startsWith("/") || text.startsWith("#")) { this.command(text.slice(1)); return; }
-    if (!this.view.mayType) return;
+    if (!this.view.mayType && !this.view.watching) return;
     this.markFocus = undefined;
     this.actions.say(text);
     this.emit();
@@ -164,4 +166,16 @@ export class SceneModel {
     this.overlay = undefined;
     this.emit();
   }
+}
+
+/** The GM has a line to think about: said and waiting, or being decided. */
+const thinking = (view: SceneView) => view.phase === "queued" || view.phase === "deciding";
+
+/**
+ * Only the draft grew (the same try at the reply, further on): it's redrawn at most ~30 times a
+ * second. A new attempt starts the text again, so it's drawn at once, as is anything else.
+ */
+function onlyGrew(was: SceneView, view: SceneView): boolean {
+  return !!was.draft && !!view.draft && was.draft.attempt === view.draft.attempt
+    && was.entries.length === view.entries.length && was.phase === view.phase && was.note === view.note && was.refusal === view.refusal;
 }

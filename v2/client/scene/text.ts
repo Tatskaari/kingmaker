@@ -32,14 +32,17 @@ export function render(view: SceneView, entries: Entry[]): string {
 
 /** What the player can do now, in a line, for the agent. */
 export function phaseLine(view: SceneView): string {
-  if (view.failed) return `PHASE: failed (${view.failed}). Use: retry`;
+  if (view.over) return "PHASE: over (the scene has ended: there's nothing more to say in it)";
+  if (view.failed !== undefined) return view.watching ? `PHASE: failed (${view.failed}). ${view.watching} can retry it` : `PHASE: failed (${view.failed}). Use: retry`;
+  if (view.watching) return `PHASE: ${view.phase} (you're watching: ${view.watching} has the lead)`;
   if (view.mayType) return `PHASE: ${view.phase} (your turn: say what your character says or does)`;
   return `PHASE: ${view.phase} (the GM has the floor)`;
 }
 
-/** The scene as the player sees it: where and when, who's here, the last `last` entries, a refusal, the phase. */
+/** The scene as the player sees it: where and when, who's here, the last `last` entries, the draft, a refusal or what the turn waits on, the phase. */
 export function viewText(view: SceneView, last = 8): string {
   const here = view.present.length ? `Here: ${view.present.map(p => p.name).join(", ")}.` : "Nobody else is here.";
+  const word = view.refusal ?? view.note;
   return [
     `MODE: scene`,
     ``,
@@ -47,7 +50,7 @@ export function viewText(view: SceneView, last = 8): string {
     ``,
     render(view, view.entries.slice(-last)),
     ...(view.draft ? [``, `(${view.draft.name ?? "The GM"} is still speaking: ${view.draft.text}…)`] : []),
-    ...(view.refusal ? [``, view.refusal] : []),
+    ...(word ? [``, word] : []),
     ``,
     phaseLine(view),
   ].join("\n");

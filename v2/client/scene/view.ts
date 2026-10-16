@@ -4,7 +4,8 @@ import type { Markup } from "../../shared/markup.ts";
 /**
  * The scene screen's view model: everything it draws, made from the rows the client subscribes to
  * (the scene's `transcript` entries, the `reply_draft` the GM's text grows in, the `turn` row's
- * phase) and the names and looks of who's there. The screen holds nothing else about the game.
+ * phase and note) and the names and looks of who's there. The screen and the headless client hold
+ * nothing else about the game.
  */
 
 /** A turn's phase, as the `turn` row has it; "idle" before the scene's first line. */
@@ -34,6 +35,12 @@ export interface Draft {
   /** All of it so far. */
   text: string;
   markup?: Markup;
+  /**
+   * Which try at the reply this is, and how far it's got: the draft's identity. A reply the AI
+   * service lost is written again from the start as the next attempt, so its text may shrink.
+   */
+  attempt: number;
+  seq: number;
 }
 
 /** Someone in the scene, as the player knows them: by the name they've heard (or what they're called), in their look's colour. */
@@ -47,17 +54,25 @@ export interface SceneView {
   title: string;
   time?: string;
   hook?: string;
-  /** The player's character: their name, and their sheet's status line (HP, slots). */
+  /** The game's number: what a second terminal gives --join to watch it. */
+  game: string;
+  /** The character whose scene it is: the one who has the lead, with their sheet's status line (HP, slots). */
   player: { name: string; status?: string };
+  /** Who has the lead, when this client is a spectator's: its box never opens. */
+  watching?: string;
   /** Who's on stage, by their key (the speaker in markup and dialogue). */
   present: Person[];
   entries: Entry[];
   draft?: Draft;
   phase: Phase;
-  /** The player may say a line now: they control the scene, it's live, and no turn is deciding or replying. */
+  /** The player may say a line now: they have the lead, the scene is live (or winding down), and no turn is queued, deciding or replying. */
   mayType: boolean;
-  /** The words of the last move the simulation refused (a SenderError's Refusal text), until the next line. */
+  /** The scene has ended: there's nothing more to say in it. */
+  over: boolean;
+  /** The words of the last move the simulation refused (a SenderError's Refusal text), until the next move. */
   refusal?: string;
+  /** What the turn in flight is waiting on (`turn.note`): the AI service hasn't answered, and it's being asked again. */
+  note?: string;
   /** Why the turn failed (`turn.error`), when it has: a retry is offered. */
   failed?: string;
   suggestions?: Suggestion[];
@@ -102,11 +117,23 @@ export function linesOf(view: SceneView): Line[] {
   return [
     { kind: "header", speaker: "system", name: view.title, text: view.hook ?? "" },
     ...view.entries.map(lineOf),
-    ...(view.failed ? [{ kind: "error" as const, speaker: "system", text: `The GM lost the thread (${view.failed}). /retry carries the turn on from where it got to.` }] : []),
+    ...(view.failed !== undefined ? [{ kind: "error" as const, speaker: "system", text: failedLine(view.failed, view.watching) }] : []),
   ];
 }
 
-/** The reply being written, as the line the transcript draws with a cursor after it. */
+/** Why a turn failed, as the simulation put it, and what can be done: the one who has the lead can carry it on. */
+function failedLine(why: string, watching: string | undefined): string {
+  const retry = watching ? `${watching} can /retry it.` : "/retry carries the turn on from where it got to.";
+  return `${sentence(why)} ${retry}`;
+}
+
+/** Words as a sentence: a capital first, a stop last. */
+function sentence(words: string): string {
+  const said = words.trim() || "The GM lost the thread";
+  return `${said[0]!.toUpperCase()}${said.slice(1)}${/[.!?…)]$/.test(said) ? "" : "."}`;
+}
+
+/** The reply being written, as the line the transcript draws with a cursor after it (its attempt and seq aren't drawn). */
 export function liveOf(view: SceneView): Line | undefined {
   const d = view.draft;
   return d ? { kind: d.kind, speaker: d.speaker, ...(d.name !== undefined ? { name: d.name } : {}), text: d.text, ...(d.markup ? { marked: d.markup } : {}) } : undefined;

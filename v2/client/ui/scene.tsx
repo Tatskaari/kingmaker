@@ -178,10 +178,12 @@ function Picks({ picks, rows, width }: { picks: Pick[]; rows: number; width: num
 }
 
 /**
- * A scene: the conversation on the left, with the box to type in; on the right, the player and
- * who's there (a narrow panel at 80 columns, none below it). The line under the conversation says
- * what the GM is doing while it has the floor, or the game's word (a refusal). Tab goes through the
- * last reply's marked phrases, Enter opens the one picked out, a click opens any.
+ * A scene: the conversation on the left, with the box to type in; on the right, the character
+ * whose scene it is, who's there and the game's number (a narrow panel at 80 columns, none below
+ * it). The line under the conversation says what the GM is doing while it has the floor, or the
+ * game's word (a refusal, or what the turn is waiting on). A spectator's box never opens: it says
+ * who has the lead. Tab goes through the last reply's marked phrases, Enter opens the one picked
+ * out, a click opens any.
  */
 export function SceneScreen({ scene }: { scene: SceneModel }) {
   useStore(scene);
@@ -200,8 +202,9 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   const send = (value: string) => {
     if (!value.trim()) return;
     const command = /^[/#]/.test(value.trim());
-    // A line waits in the box while the GM has the floor; a command goes any time.
-    if (!command && !view.mayType) return;
+    // A line waits in the box while the GM has the floor; a command goes any time. A spectator's
+    // line goes too: the simulation refuses it, in the game's words.
+    if (!command && !view.mayType && !view.watching) return;
     clear();
     scene.input(value);
   };
@@ -270,8 +273,11 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   };
   const inner = side - 4;
   const busy = scene.busy();
-  // The game's word on the status line: the client's own, or the simulation's last refusal.
-  const said = scene.status ?? view.refusal;
+  // The game's word on the status line: the client's own, the simulation's last refusal, or what the
+  // turn is waiting on (the AI service lost, and asked again), in place of the spinner.
+  const said = scene.status ?? view.refusal ?? view.note;
+  // The box, while it's shut: who has the lead, that the scene's over, or that the GM has the floor.
+  const shut = view.watching ? `${view.watching} has the lead: you're watching.` : view.over ? "The scene is over." : "The GM has the floor…";
   const status = view.player.status ?? "";
   // How to talk: plain words are speech; asterisks and brackets are deeds. (A narrow panel leaves it to the box's own hint.)
   const talk = narrow ? [] : [
@@ -310,11 +316,17 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
         </scrollbox>
       </box>
       {side ? <box width={side} border borderColor={C.border} title=" At the scene " flexDirection="column" paddingX={1} overflow="hidden">
+        {view.watching ? <text fg={C.dim} flexShrink={0}>Watching</text> : null}
         <text fg={C.player} attributes={BOLD} flexShrink={0}>{truncate(view.player.name, inner)}</text>
         {status ? <text fg={C.dim} flexShrink={0}>{wrap(status, inner).join("\n")}</text> : null}
         <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title}>Here</text>
           {view.present.map(p => <text key={p.key} fg={p.color ?? C.text}>{truncate(p.name, inner)}</text>)}
+        </box>
+        {/* The game's number: a second terminal watches with it. */}
+        <box flexDirection="column" marginTop={1} flexShrink={0}>
+          <text fg={C.title}>{`Game ${view.game}`}</text>
+          <text fg={C.faint}>{truncate(`--join ${view.game} to watch`, inner)}</text>
         </box>
         {talk.length ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title} flexShrink={0}>How to talk</text>
@@ -330,7 +342,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
       <input ref={input} scrollMargin={0.05} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!scene.overlay}
-        placeholder={!view.mayType ? "The GM has the floor…" : width >= 100
+        placeholder={!view.mayType ? shut : width >= 100
           ? "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I cast Fireball)"
           : "Say it out loud; *asterisks* or (brackets) to do things"} />
     </box>

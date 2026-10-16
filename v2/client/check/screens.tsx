@@ -6,7 +6,10 @@
  * line said and sent, the GM thinking, the reply growing with its cursor, the note being made, the
  * box open again), a refusal on the status line, a line kept in the box while the GM has the floor,
  * a failed turn's word, the commands over the box and the help, a mark opened by a click and by
- * Tab and Enter. (The prototype's src/app/smoke/screens-check.tsx, for this client.)
+ * Tab and Enter. And V0's: the game's number, a turn waiting on the AI service (its note), the
+ * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
+ * spectator's shut box and their line refused, and the scene's end. (The prototype's
+ * src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
@@ -15,8 +18,10 @@ import { testRender } from "@opentui/react/test-utils";
 import { App } from "../app.tsx";
 import { GM_BUSY } from "../busy.ts";
 import { SceneModel } from "../scene/model.ts";
+import { markupOf } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
+import { sceneSide } from "../ui/scene.tsx";
 import { YARD } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -32,11 +37,12 @@ function at(frame: string, text: string): { x: number; y: number } | undefined {
   return { x: [...rows[y]!].join("").indexOf(text) + Math.floor(text.length / 2), y };
 }
 
-/** The text inside the conversation's frame and the box, as one line (so wrapped words read whole). */
-const said = (frame: string) => flat(frame.split("\n").map(r => r.replace(/[│┃╭╮╰╯─┌┐└┘▄█]/g, " ")).join(" "));
+/** The text in the conversation's frame (the `columns` left of the side panel), as one line, so wrapped words read whole. */
+const talkIn = (frame: string, columns: number) => flat(frame.split("\n").map(r => [...r].slice(0, columns).join("").replace(/[│┃╭╮╰╯─┌┐└┘▄█]/g, " ")).join(" "));
 
 for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   const sent: string[] = [];
+  const said = (frame: string) => talkIn(frame, w - sceneSide(w));
   let view: SceneView = YARD;
   const scene = new SceneModel(view, { say: text => sent.push(text), retry: () => sent.push("/retry"), quit: () => {} });
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; act(() => scene.update(view)); };
@@ -63,6 +69,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   checks.push([`${size}: the last reply drawn whole`, said(frame).includes(flat(last))]);
   checks.push([`${size}: the scene's title and the time`, frame.split("\n")[0]!.includes(" The Hanged Clerk · Morning ")]);
   checks.push([`${size}: the side panel names who's there, as the player knows them`, /At the scene/.test(frame) && /Sergeant Agnes Kell/.test(frame) && /the boy in the too/.test(frame)]);
+  checks.push([`${size}: the side panel gives the game's number, to watch it by`, /Game 1/.test(frame) && /--join 1 to watch/.test(frame)]);
   // Colours: a speaker's line in their look's colour, the narration in the GM's, a mark underlined on its kind's tint.
   checks.push([`${size}: Kell's line in her colour (${style("“You told the boy")?.fg})`, style("“You told the boy")?.fg === "#6d9eeb"]);
   checks.push([`${size}: the narration in the GM's colour`, style("The boy looks at your hands")?.fg === C.gm]);
@@ -94,14 +101,27 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   for (let i = 0; i < "Who else".length; i++) act(() => setup.mockInput.pressBackspace());
 
   // Replying: the draft grows, with its cursor, and who's speaking.
-  set({ phase: "replying", draft: { speaker: "gm", kind: "narration", text: "Sergeant Kell glances up at the body, then back to her notebook." } });
+  set({ phase: "replying", draft: { speaker: "gm", kind: "narration", text: "Sergeant Kell glances up at the body, then back to her notebook.", attempt: 1, seq: 1 } });
   frame = await draw();
   checks.push([`${size}: replying: the draft drawn with its cursor, and the GM speaking`, said(frame).includes("Sergeant Kell glances up at the body") && /▍/.test(frame) && /The GM is speaking…/.test(frame)]);
-  set({ draft: { speaker: "gm", kind: "narration", text: "Sergeant Kell glances up at the body, then back to her notebook. “The porters. First light.”" } });
+  set({ draft: { speaker: "gm", kind: "narration", text: "Sergeant Kell glances up at the body, then back to her notebook. “The porters. First light.”", attempt: 1, seq: 2 } });
   await soon();
   frame = await draw();
   if (show) console.log(`${size}, replying\n${frame}`);
   checks.push([`${size}: the draft grows`, said(frame).includes("“The porters. First light.”")]);
+
+  // The AI service lost mid-reply: the turn's note in place of the spinner, then the reply written
+  // again from the start as attempt 2, shorter for now, and drawn at once (no waiting for a redraw).
+  set({ note: "The GM has lost the thread for a moment: trying again." });
+  frame = await draw();
+  checks.push([`${size}: a turn waiting on the AI service: its note on the status line, in place of the spinner`, style("The GM has lost the thread for a moment")?.fg === C.warn && !/The GM is speaking…/.test(frame)]);
+  const { note: _note, ...back } = view;
+  view = back;
+  set({});
+  set({ draft: { speaker: "gm", kind: "narration", text: "Sergeant Kell looks up.", attempt: 2, seq: 3 } });
+  frame = await draw();
+  if (show) console.log(`${size}, attempt 2\n${frame}`);
+  checks.push([`${size}: the reply written again (attempt 2) is drawn at once, the first attempt's words gone`, said(frame).includes("Sergeant Kell looks up.") && !said(frame).includes("First light") && /The GM is speaking…/.test(frame)]);
 
   // Settling: the reply in the transcript, the draft gone, the box open, the GM making a note.
   const { draft: _gone, ...rest } = view;
@@ -124,7 +144,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   // A failed turn: its word in red, and /retry.
   set({ phase: "failed", failed: "the AI API timed out" });
   frame = await draw();
-  checks.push([`${size}: a failed turn says so, in red`, said(frame).includes("The GM lost the thread (the AI API timed out)") && style("The GM lost the thread")?.fg === C.danger]);
+  checks.push([`${size}: a failed turn says why and what to do, in red`, said(frame).includes("The AI API timed out. /retry carries the turn on from where it got to.") && style("The AI API timed out")?.fg === C.danger]);
   await act(async () => { await setup.mockInput.typeText("/retry"); });
   await draw();
   act(() => setup.mockInput.pressEnter());
@@ -168,6 +188,39 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   frame = await draw();
   // (The bottom line still says what Tab picked out, note and all, on a wide screen: the popover's frame is what goes.)
   checks.push([`${size}: a click outside it closes it`, !scene.overlay && !/╭─ You did this/.test(frame)]);
+
+  // A mark that came with no note: its words drawn plain, and nothing for Tab to pick out.
+  scene.markFocus = undefined;
+  const noted = YARD.entries.at(-1)!;
+  const bare = markupOf(JSON.stringify({ ...noted.markup, marks: noted.markup!.marks.map(m => ({ ...m, note: "" })) }));
+  view = { ...YARD, entries: [...YARD.entries.slice(0, -1), { ...noted, ...(bare ? { markup: bare } : {}) }] };
+  set({});
+  frame = await draw();
+  act(() => setup.mockInput.pressTab());
+  frame = await draw();
+  checks.push([`${size}: a mark with no note is drawn as plain words, with nothing for Tab to pick out`, style("asking")?.underline === false && style("asking")?.fg === "#6d9eeb" && scene.markFocus === undefined]);
+
+  // A spectator: the same conversation; the box never opens and says who has the lead; a line typed
+  // there goes to the simulation, which refuses it in the game's words.
+  view = { ...YARD, mayType: false, watching: "Pell Marrow" };
+  set({});
+  frame = await draw();
+  if (show) console.log(`${size}, watching\n${frame}`);
+  checks.push([`${size}: a spectator's box is shut, and says who has the lead`, /Pell Marrow has the lead: you're watching\./.test(frame) && style("What do you say?")?.fg === C.border && /Watching/.test(frame)]);
+  await act(async () => { await setup.mockInput.typeText("Can I help?"); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a spectator's line goes to the simulation, and the box empties`, sent.at(-1) === "Can I help?" && !/Can I help\?/.test(frame)]);
+  set({ refusal: "(Pell Marrow has the lead here: you're watching.)" });
+  frame = await draw();
+  checks.push([`${size}: the simulation's refusal, on the status line`, style("(Pell Marrow has the lead here")?.fg === C.warn]);
+
+  // The scene's end: a rule across with its title, and a box that says it's over.
+  view = { ...YARD, entries: [...YARD.entries, { turn: 3, speaker: "system", kind: "system", text: "Scene ends: The Hanged Clerk" }], mayType: false, over: true };
+  set({});
+  frame = await draw();
+  checks.push([`${size}: the scene's end: a rule with its title, and the box says the scene is over`, /─ The Hanged Clerk ─/.test(frame) && /The scene is over\./.test(frame)]);
   await setup.dispose();
 }
 
