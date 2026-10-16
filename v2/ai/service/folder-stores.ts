@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { AnswerStore, CallLog, CampaignStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
+import type { AnswerStore, CampaignStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
 
 /**
  * The stores as one folder (KM_AI_STORE; a volume in the container):
  *
  *   answers/<key, URI-encoded>.json   each answer by its idempotency key
  *   games/<uid>/calls.jsonl           a game's model calls
+ *   games/<uid>/memory-reviews.jsonl  a game's memory reviews, a line a reviewed turn
  *   games/<uid>/docs/…                a game's copy of the lore (the docs service's overlay)
  *   ledger.jsonl                      every call's cost
  *   campaigns/<campaign>/<version>/…  each installed version, as it was PUT
@@ -19,7 +20,8 @@ import type { AnswerStore, CallLog, CampaignStore, Ledger, StoredAnswer, Stores 
 export function folderStores(root: string): Stores & { sweepAnswers(olderThanMs: number, now?: number): number } {
   return {
     answers: answerFolder(join(root, "answers")),
-    calls: callFolder(join(root, "games")),
+    calls: gameLines(join(root, "games"), "calls.jsonl"),
+    reviews: gameLines(join(root, "games"), "memory-reviews.jsonl"),
     ledger: ledgerFile(join(root, "ledger.jsonl")),
     campaigns: campaignFolder(join(root, "campaigns")),
     docsRoot: join(root, "games"),
@@ -42,12 +44,13 @@ function answerFolder(dir: string): AnswerStore {
   };
 }
 
-function callFolder(gamesDir: string): CallLog {
+/** A file of JSON lines in each game's folder: its calls, its memory reviews. */
+function gameLines(gamesDir: string, name: string): { append(game: string, line: Record<string, unknown>): void } {
   return {
-    append(game, entry) {
-      const file = join(gamesDir, game, "calls.jsonl");
+    append(game, line) {
+      const file = join(gamesDir, game, name);
       mkdirSync(dirname(file), { recursive: true });
-      appendFileSync(file, JSON.stringify(entry) + "\n");
+      appendFileSync(file, JSON.stringify(line) + "\n");
     },
   };
 }

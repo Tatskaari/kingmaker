@@ -1,9 +1,11 @@
-import { apiKey, fetchWithRetry, logCall, recordCost, LUNA, type Effort, type Message } from "./openrouter.ts";
+import { apiKey, fetchWithRetry, logCall, recordCost, LUNA, type CallContext, type Effort, type Message } from "./openrouter.ts";
 
 /**
  * A tool-using agent on the OpenRouter Responses API (V1's runGameMaster loop): stateless
  * (store: false), with the model's raw output items replayed each round so reasoning carries
  * over, and tool results sent back as function_call_output items. Used by background reviews only.
+ * With `calls` (a request's call context, as the AI service's memory reviews pass it), every round
+ * goes through its fetch with its key, and is logged and costed there; without it, as it always has.
  */
 
 export interface ToolDef { name: string; description: string; parameters: Record<string, unknown> }
@@ -16,8 +18,11 @@ export class InvalidToolArguments extends Error {}
 export async function runTools(request: {
   operation: string; instructions: string; input: Message[]; tools: ToolDef[];
   model?: string; effort?: Effort; maxTurns?: number;
+  /** Whose calls these are, when they're kept apart from the process's (the AI service's requests). */
+  calls?: CallContext;
 }, call: (name: string, args: Record<string, unknown>) => Promise<unknown>): Promise<{ text: string; calls: ToolCall[]; costUsd: number; latencyMs: number }> {
   const model = request.model ?? LUNA;
+  const context = request.calls;
   const items: Array<Record<string, unknown>> = request.input.map(m => ({ role: m.role, content: m.content }));
   const calls: ToolCall[] = [];
   let costUsd = 0, corrections = 0;
@@ -30,24 +35,24 @@ export async function runTools(request: {
     };
     const response = await fetchWithRetry("https://openrouter.ai/api/v1/responses", {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey()}`, "Content-Type": "application/json", "X-Title": "Kingmaker V2 PoC" },
+      headers: { Authorization: `Bearer ${context?.apiKey ?? apiKey()}`, "Content-Type": "application/json", "X-Title": "Kingmaker V2 PoC" },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(180_000),
-    }, request.operation);
+    }, request.operation, context);
     const json = await response.json() as { status?: string; output?: OutputItem[]; usage?: { cost?: number }; error?: { message?: string }; incomplete_details?: { reason?: string } };
     if (!response.ok || json.status !== "completed") {
-      logCall({ provider: "openrouter", operation: request.operation, model, error: json.error?.message ?? `status ${json.status} ${json.incomplete_details?.reason ?? ""}` });
+      logCall({ provider: "openrouter", operation: request.operation, model, error: json.error?.message ?? `status ${json.status} ${json.incomplete_details?.reason ?? ""}` }, context);
       throw new Error(`${request.operation}: ${json.error?.message ?? json.status ?? `HTTP ${response.status}`}`);
     }
     const cost = json.usage?.cost ?? 0;
     costUsd += cost;
-    recordCost("openrouter", request.operation, model, cost, performance.now() - started);
+    recordCost("openrouter", request.operation, model, cost, performance.now() - started, context);
     const output = json.output ?? [];
     items.push(...output as Array<Record<string, unknown>>);
     const pending = output.filter(o => o.type === "function_call");
     if (!pending.length) {
       const text = output.filter(o => o.type === "message").flatMap(o => o.content ?? []).filter(p => p.type === "output_text").map(p => p.text ?? "").join("\n").trim();
-      logCall({ provider: "openrouter", operation: request.operation, model, effort: body.reasoning.effort, request: { instructions: request.instructions.slice(0, 400), input: request.input }, calls, text, latencyMs: Math.round(performance.now() - started), costUsd });
+      logCall({ provider: "openrouter", operation: request.operation, model, effort: body.reasoning.effort, request: { instructions: request.instructions.slice(0, 400), input: request.input }, calls, text, latencyMs: Math.round(performance.now() - started), costUsd }, context);
       return { text, calls, costUsd, latencyMs: performance.now() - started };
     }
     for (const fc of pending) {

@@ -68,6 +68,7 @@ flowchart TB
 | [src/runtime/engine.ts](../../../src/runtime/engine.ts) | `disclose` and `keepOpened` before each reply and before an opening; at a boundary `errandsOf` (for the verdict: what the people the story goes on with do in the time between), `savePlayedScene`, `broadcastEnding` or `rememberScene`, `frontsText` and `moveFronts` |
 | [src/runtime/voices.ts](../../../src/runtime/voices.ts) | `memoryBrief`, in every GM reply when the approach has memory |
 | [src/runtime/jobs.ts](../../../src/runtime/jobs.ts) | `reviewTurn` or `rememberTurn`, after each turn, in the background |
+| [v2/ai/service/endpoints/remember.ts](../service/endpoints/remember.ts) | `reviewTurn`, after each turn of a v2 game (the AI service's `POST /v1/turns/remember`), with the request's call context (`calls`) |
 | [src/runtime/talk.ts](../../../src/runtime/talk.ts), [scenes/talk.ts](../../../scenes/talk.ts) | A companion's lore entry, notes and memories (`characterEntry`, `seedDoc`, `readDoc`, `linksIn`, `permitted`, `memoryLines`, `saveMemory`), and `withhold` |
 | The scene harness, the evals, the zoo | `listDocs` and `readDoc` (`scene memories`), the memory evals, the zoo's own fronts |
 | [src/app](../../../src/app/README.md#making-a-character), [src/cli/qa.ts](../../../src/cli/qa.ts) | Character creation's backstory: `draftBackstory`, `workIn`, `checkLore`, `applyFix`, `finishBackstory` |
@@ -91,7 +92,7 @@ These are the prototype's, and they call it through the adapters in src/lore, by
 
 ### Reviews (`memory: "docs"`)
 
-After each turn, a background job ([src/runtime/jobs.ts](../../../src/runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:170](reviews.ts#L170)) on that turn's snapshot.
+After each turn, a background job ([src/runtime/jobs.ts](../../../src/runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:171](reviews.ts#L171)) on that turn's snapshot. In v2 the AI service runs it the same way when the simulation asks (`POST /v1/turns/remember`), on the working set it sends once the turn is over, and appends the same line to the game's `memory-reviews.jsonl` in its store.
 
 - **`attend`:** one Jev call with V1's seven attention categories, and an eighth, `witnessed`: someone present saw or heard for themselves something the story may need them to tell or swear to later (an admission, who came in), a companion or whoever stood watch included. A category flagged at 0.4 or more (`FLAG_THRESHOLD`) fires its agent: a false flag costs a review that writes nothing, and a missed one loses the memory.
 - **The personal-memories agent** handles commitments, changes in trust or knowledge, exchanges, and what witnesses saw and heard (in its own words: what Hobb admitted, not that it was recorded), with `save_memory`, `list_memories`, `read_doc` and `edit_doc`. It's told to write at most one memory per person present.
@@ -121,7 +122,7 @@ Talks ([src/runtime/talk.ts](../../../src/runtime/talk.ts)) keep a companion's s
 ## Where to look first
 
 - **Access.** A new doc's `visibility` and `readers`, and any change to `permitted` or `parseDoc`. A private note whose frontmatter loses its `visibility` becomes everyone's.
-- **What the agents can write.** The tools' definitions ([reviews.ts:84](reviews.ts#L84)) and their handlers ([reviews.ts:114](reviews.ts#L114)). The paths come from the model; `save_memory` takes only people present.
+- **What the agents can write.** The tools' definitions ([reviews.ts:85](reviews.ts#L85)) and their handlers ([reviews.ts:115](reviews.ts#L115)). The paths come from the model; `save_memory` takes only people present.
 - **The thresholds:** `OPEN_THRESHOLD` (0.7), `PER_ROUND` (4), `MAX_OPEN` (24) and `URGENT` (0.9) in disclosure.ts; `FLAG_THRESHOLD` (0.4) in reviews.ts.
 - **The stable and live parts of `memoryBrief`.** Something that changes every turn, put in `stable`, spoils the GM's prompt cache on every turn.
 - **Writes go to the overlay.** `writeDoc` writes only to this game's copy. Nothing should write under lore/.
