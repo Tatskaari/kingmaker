@@ -55,3 +55,57 @@ jobs:
             git status --short -- client/module_bindings; git diff -- client/module_bindings
             echo "client/module_bindings is out of date: run npm run simulation:generate in v2/ and commit it"; exit 1
           fi
+
+  e2e:
+    # A line in a scene end to end (v0-design §10.4): SpacetimeDB with the module, the AI service on
+    # the fake model, two clients, and the kills. Host mode: the module calls the AI service at
+    # 11.0.0.1, which SpacetimeDB allows (it refuses loopback and the private ranges).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.9.0
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - name: Install the SpacetimeDB CLI, pinned
+        run: |
+          curl -sSf https://install.spacetimedb.com | sh -s -- --yes
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/spacetime" version install "$SPACETIMEDB_VERSION" --use --yes
+          "$HOME/.local/bin/spacetime" --version
+      - name: Host mode's address
+        run: sudo ip addr add 11.0.0.1/32 dev lo
+      - run: npm run e2e
+      - name: The stack's logs, when it failed
+        # Its logs and the AI service's call logs; not stack.json or keys/ (this run's tokens).
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: |
+            v2/runs/e2e/logs/
+            v2/runs/e2e/ai/games/*/calls.jsonl
+          if-no-files-found: ignore
+
+  container:
+    # The AI service's image (v0-design §5.7): it builds from v2/ with no npm install, and the service
+    # starts in it on the fake model and answers its health with the bearer it was given.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - run: podman build -f ai/Containerfile -t kingmaker-ai .
+      - name: Run it on the fake model
+        run: podman run -d --name kingmaker-ai --network=host -e KM_AI_LISTEN=127.0.0.1:8787 -e KM_AI_TOKEN=ci -e KM_AI_MODEL=fake kingmaker-ai
+      - name: GET /v1/health
+        run: |
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8787/v1/health > /dev/null && break; sleep 1; done
+          health=$(curl -sf -H "authorization: Bearer ci" http://127.0.0.1:8787/v1/health)
+          echo "$health"
+          echo "$health" | grep -q '"ok":true' && echo "$health" | grep -q '"model":"fake"' && echo "$health" | grep -q '"token":"accepted"'
+      - name: The service's log
+        if: always()
+        run: podman logs kingmaker-ai || true
