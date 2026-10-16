@@ -57,7 +57,7 @@ It brings everything up, installs the campaign in both services, checks that eac
 | Key | What |
 |---|---|
 | `k` | kill the AI service, as a crash would |
-| `s` | start it again |
+| `s` | start it again: a turn waiting for it goes on at once |
 | `r` | restart it: what's in flight is finished and answered first |
 | `f` | make it exit right after it stores its next answer; `s` then starts it, and the turn is answered from the store |
 | `p` | build and republish the module (the data kept) |

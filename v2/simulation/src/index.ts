@@ -6,7 +6,7 @@ import { isAdmin, servicePing as servicePingBody } from "./access.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type AiResponse, type Claim } from "./ai-call.ts";
 import { Refused, type Schema, type TxCtx } from "./context.ts";
 import { installCampaignReducer } from "./install.ts";
-import { claimJob, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
+import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
 import { initDatabase, markOnline } from "./lifecycle.ts";
 import { joinGameReducer } from "./moves/join-game.ts";
 import { newGameReducer } from "./moves/new-game.ts";
@@ -44,12 +44,13 @@ export const streamReply = spacetimedb.reducer(
 );
 export const servicePing = spacetimedb.reducer(ctx => asReducer(ctx, tx => servicePingBody(tx, ctx.sender)));
 
-// The owner's: a campaign's structure, and whether the module reaches the AI service.
+// The owner's: a campaign's structure, whether the module reaches the AI service, and the waiting thinks sent now that it's back.
 export const installCampaign = spacetimedb.reducer(
   { id: t.string(), campaign: t.string(), scenes: t.string(), places: t.string(), builds: t.string(), looks: t.string() },
   (ctx, args) => asReducer(ctx, tx => installCampaignReducer(tx, ctx.sender, args)),
 );
 export const pingAi = spacetimedb.procedure(t.string(), ctx => pingAiBody(ctx));
+export const dispatchWaiting = spacetimedb.reducer(ctx => asReducer(ctx, tx => dispatchWaitingReducer(tx, ctx.sender)));
 
 // The job loop (§3.5): one think per dispatch (claim, POST with nothing locked, commit), and the reaper.
 export const runJob = spacetimedb.procedure({ onSchedule: jobDispatch }, { arg: jobDispatch.rowType }, t.unit(), (ctx, { arg }) => {

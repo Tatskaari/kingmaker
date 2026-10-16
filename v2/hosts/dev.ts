@@ -168,6 +168,12 @@ async function startAi(env?: Record<string, string>): Promise<void> {
   await stack.ai.start(env);
   faulted = !!env?.KM_AI_FAULTS;
   watchAi();
+  await dispatchWaiting();
+}
+
+/** The AI service is back: a turn waiting to try it again goes on now, not when the module's backoff is up (up to 15 s away). */
+async function dispatchWaiting(): Promise<void> {
+  await stack.call("dispatch_waiting", []).catch((e: Error) => note(`the module's waiting thinks weren't sent again (${e.message}): they go at their time`));
 }
 
 async function stopAi(signal: NodeJS.Signals): Promise<void> {
