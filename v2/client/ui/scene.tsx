@@ -362,11 +362,13 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
     if (marks.length && (edge || (on < 0 && (by > 0 || !things.length)))) return pick(by > 0 ? marks[0] : marks[marks.length - 1]);
     if (things.length) step(by);
   };
+  /** A spectator's pointer on the lead's character: the prototype's words for it are the lead's own ("You", "your things"), so there's nothing to do with it there. */
+  const theLead = (target: SceneTarget) => !!view.watching && "id" in target && !!world?.entities[target.id]?.player;
   const pointing: PlacePointing = {
     lit: scene.sceneMenu?.target ?? pointer?.target,
     picks, canvas, point, hit,
     click: (target, button, x, y) => {
-      if (scene.overlay) return;
+      if (scene.overlay || theLead(target)) return;
       if (button === "right") { openFor(target, { x, y }); return; }
       // A click with the menu open just puts it away; otherwise it does the first thing (talk to someone, look at something).
       if (scene.sceneMenu) { scene.closeSceneMenu(); return; }
@@ -400,9 +402,9 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       key.preventDefault();
       step(key.name === "up" ? -1 : 1);
     } else if (isEnter(key) && !typed() && pointer?.from === "keys" && world) {
-      // Enter with nothing in the box, on what Tab picked out: its menu. (Not what the mouse merely rests on.)
+      // Enter with nothing in the box, on what Tab picked out: its menu. (Not what the mouse merely rests on; nothing for a spectator on the lead.)
       key.preventDefault();
-      openFor(pointer.target);
+      if (!theLead(pointer.target)) openFor(pointer.target);
     } else if (!typed() && /^[1-9]$/.test(key.sequence ?? "") && toPick[Number(key.sequence) - 1] && typing === undefined) {
       // A number picks one of the suggested lines, while nothing's been typed (it goes in the box, even with the GM still busy).
       key.preventDefault();
@@ -485,8 +487,9 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   // What the pointer's on, and the bottom line about it in place of the keys (as the map's), while no menu's open.
   const menu = scene.overlay ? undefined : scene.sceneMenu;
   const about = world && side && !menu && !scene.overlay ? pointer?.target : undefined;
-  const pointed = about && world ? pointedAt(world, about, ctx) : undefined;
-  const first = about && world ? thingActions(world, about, ctx).actions[0] : undefined;
+  const lead = about && theLead(about) ? world?.entities.player : undefined;
+  const pointed = lead ? { title: lead.name, detail: "has the lead" } : about && world ? pointedAt(world, about, ctx) : undefined;
+  const first = about && world && !lead ? thingActions(world, about, ctx).actions[0] : undefined;
   // What Tab picked out: Enter opens its menu while the box is empty.
   const hint = !first ? undefined : pointer?.from === "keys" ? (draft ? { long: "Esc lets go", short: "Esc: let go" } : { long: "Enter for what you can do  ·  Esc lets go", short: "Enter: more · Esc: let go" })
     : first.id === "talk" ? { long: "click to talk  ·  right-click for more", short: "click: talk · right: more" } : { long: "click to look  ·  right-click for more", short: "click: look · right: more" };
@@ -522,7 +525,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
         {status ? <text fg={C.dim} flexShrink={0}>{wrap(status, inner).join("\n")}</text> : null}
         {world ? <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title} flexShrink={0}>{truncate(world.entities[world.root]?.name ?? "The place", inner)}</text>
-          <Place place={scene.place} ctx={ctx} width={inner} height={placeH} live={!scene.overlay} pointing={pointing} least={least} />
+          <Place place={scene.place} ctx={ctx} width={inner} height={placeH} live={!scene.overlay} watching={!!view.watching} pointing={pointing} least={least} />
         </box> : <box flexDirection="column" marginTop={1} flexShrink={0}>
           <text fg={C.title}>Here</text>
           {view.present.map(p => <text key={p.key} fg={p.color ?? C.text}>{truncate(p.name, inner)}</text>)}
@@ -558,7 +561,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
     {/* A right-click on the menu is one on what's under it (it may cover what was aimed at): never a choice. */}
     {menu ? <MenuBox title={menu.title} items={menu.actions.map(a => a.label)} index={menu.index} x={menu.x} y={menu.y} bounds={bounds}
       onChoose={choose} onHover={i => { menu.index = i; scene.emit(); }}
-      onRight={(x, y) => { const under = hit.current?.(x, y); if (under) openFor(under, { x, y }); else scene.closeSceneMenu(); }} /> : null}
+      onRight={(x, y) => { const under = hit.current?.(x, y); if (under && !theLead(under)) openFor(under, { x, y }); else scene.closeSceneMenu(); }} /> : null}
   </box>;
 }
 

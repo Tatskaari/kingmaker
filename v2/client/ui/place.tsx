@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/place.tsx at 44c6d4a: the Game is the PlaceModel (its world the place's rows', its look, its light) with the menu's words (SceneContext) and whether it's live passed in; the map view (townView, the map's Picks, its doors and lamps) cut, for V2's map. The painter reads the PlaceModel's world as it paints.
+// Copied from the prototype's src/app/ui/place.tsx at 44c6d4a: the Game is the PlaceModel (its world the place's rows', its look, its light) with the menu's words (SceneContext) and whether it's live passed in; the map view (townView, the map's Picks, its doors and lamps) cut, for V2's map. The painter reads the PlaceModel's world as it paints. A spectator's list names the lead's character, not "you".
 import { MouseButton, type MouseEvent } from "@opentui/core";
 import type { RefObject } from "react";
 import { lookOf } from "../look/appearance.ts";
@@ -48,8 +48,9 @@ export function targetOf(pick: StagePick | undefined, cell: { x: number; y: numb
  * With `pointing`, the mouse points at what's in it and clicks it, on the place and in the list.
  * `live`: it animates (held still while something's open over the scene).
  */
-export function Place({ place, ctx, width, height, legend = true, live = true, pointing, least = 8 }: {
+export function Place({ place, ctx, width, height, legend = true, live = true, watching = false, pointing, least = 8 }: {
   place: PlaceModel; ctx: SceneContext; width: number; height: number; legend?: boolean; live?: boolean; pointing?: PlacePointing;
+  /** A spectator's: the world's "player" is the lead's character, by its name. */ watching?: boolean;
   /** The fewest rows the place itself keeps (the list gets the rest). */ least?: number;
 }) {
   // The scene on screen: its place as the rows last had it, in its own light.
@@ -107,7 +108,7 @@ export function Place({ place, ctx, width, height, legend = true, live = true, p
       const seen = lookOf(e, { glyphs });
       const states = e.states.filter(s => s !== "gone" && s !== "lit");
       // The name first; how they are in what room's left, or not at all (never a lone ellipsis).
-      const name = truncate(nameOf(world, e, ctx), width - 2);
+      const name = truncate(e.player && watching ? e.name : nameOf(world, e, ctx), width - 2);
       const room = width - 2 - name.length;
       const how = states.length ? ` (${states.join(", ")})` : "";
       const on = !!lit && sameTarget(lit, { id: e.id });

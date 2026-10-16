@@ -231,6 +231,7 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   const theirs = watched > 0 ? await (async () => { for (let y = watched + 1; y < h - 4; y++) for (let x = w - side + 2; x < w - 2; x++) { await act(async () => { await setup.mockMouse.moveTo(x, y); }); await setup.renderOnce(); if (under(setup.captureCharFrame()).startsWith("Sergeant Agnes Kell")) return { x, y }; } return undefined; })() : undefined;
   if (theirs) await click(theirs, RIGHT);
   checks.push([`${size}: a spectator sees the place, and Kell's menu only looks (${scene.sceneMenu?.actions.map(a => a.label).join(", ")})`, /Watching/.test(frame) && /K Sergeant Agnes K/.test(frame) && scene.sceneMenu?.title === "Sergeant Agnes Kell" && scene.sceneMenu.actions.map(a => a.label).join() === "Look at them"]);
+  checks.push([`${size}: a spectator's list names the lead's character, not "you"`, /@ Pell Marrow/.test(frame) && !/@ you/.test(frame)]);
   await esc();
   await setup.dispose();
 }
