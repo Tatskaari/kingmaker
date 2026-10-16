@@ -114,12 +114,49 @@ export const ExitAt = __t.object("ExitAt", {
 });
 export type ExitAt = __Infer<typeof ExitAt>;
 
+export const Explore = __t.object("Explore", {
+  playerId: __t.u64(),
+  gameId: __t.u64(),
+  map: __t.string(),
+  get at() {
+    return Tile2;
+  },
+  get facing() {
+    return Tile2;
+  },
+  steps: __t.u32(),
+  hidden: __t.bool(),
+  scene: __t.option(__t.string()),
+  get followers() {
+    return __t.array(Follower);
+  },
+  quips: __t.u32(),
+  lastQuip: __t.option(__t.string()),
+  styles: __t.array(__t.string()),
+  acts: __t.u32(),
+  said: __t.string(),
+  log: __t.array(__t.string()),
+});
+export type Explore = __Infer<typeof Explore>;
+
 export const FeatureRef = __t.object("FeatureRef", {
   id: __t.string(),
   name: __t.string(),
   target: __t.string(),
 });
 export type FeatureRef = __Infer<typeof FeatureRef>;
+
+export const Follower = __t.object("Follower", {
+  id: __t.string(),
+  name: __t.string(),
+  glyph: __t.string(),
+  color: __t.string(),
+  map: __t.string(),
+  get at() {
+    return Tile2;
+  },
+});
+export type Follower = __Infer<typeof Follower>;
 
 export const Game = __t.object("Game", {
   id: __t.u64(),
@@ -132,6 +169,8 @@ export const Game = __t.object("Game", {
   hostId: __t.u64(),
   status: __t.string(),
   createdAt: __t.timestamp(),
+  leadScene: __t.option(__t.string()),
+  leadText: __t.option(__t.string()),
 });
 export type Game = __Infer<typeof Game>;
 
@@ -255,6 +294,14 @@ export const Look = __t.object("Look", {
 });
 export type Look = __Infer<typeof Look>;
 
+export const MapDef = __t.object("MapDef", {
+  id: __t.string(),
+  campaignId: __t.string(),
+  key: __t.string(),
+  json: __t.string(),
+});
+export type MapDef = __Infer<typeof MapDef>;
+
 export const Material = __t.object("Material", {
   entityId: __t.u64(),
   placeId: __t.u64(),
@@ -341,6 +388,12 @@ export const Place = __t.object("Place", {
   round: __t.u32(),
   rev: __t.u32(),
   sceneId: __t.option(__t.u64()),
+  mapKey: __t.option(__t.string()),
+  region: __t.option(__t.string()),
+  get origin() {
+    return __t.option(Tile2);
+  },
+  active: __t.bool(),
 });
 export type Place = __Infer<typeof Place>;
 
@@ -539,6 +592,12 @@ export const Surface = __t.object("Surface", {
   roundsLeft: __t.option(__t.i32()),
 });
 export type Surface = __Infer<typeof Surface>;
+
+export const Tile2 = __t.object("Tile2", {
+  x: __t.i32(),
+  y: __t.i32(),
+});
+export type Tile2 = __Infer<typeof Tile2>;
 
 export const Transcript = __t.object("Transcript", {
   id: __t.u64(),

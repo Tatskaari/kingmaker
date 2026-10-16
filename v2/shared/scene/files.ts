@@ -2,6 +2,7 @@ import type { CreationWorld } from "../creation/types.ts";
 import type { Build } from "../rules/types.ts";
 import type { Skill } from "./types.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
+import type { MapFile } from "../map/tiles.ts";
 
 /**
  * The campaign format: the files of a campaign folder (v2/campaigns/<id>/), as content-world A1-A4
@@ -19,12 +20,19 @@ export interface CampaignFile {
   version: string;
   firstScene: string;
   startPlace: string;
-  start: { day: number; time: TimeOfDay };
+  /**
+   * When the story starts: the day and the time of day; and, for a campaign with maps, where the
+   * player starts walking (a map's key and a tile on it: v2/docs/map-design.md §3.3). With no map,
+   * the first scene opens at once.
+   */
+  start: { day: number; time: TimeOfDay; map?: string; at?: [number, number] };
   /** The level a character starts at. */
   level: number;
   rulesPack: string;
   scenes: string[];
   places: string[];
+  /** The maps the story is walked on (maps/<key>.json), if it has any. */
+  maps?: string[];
   /** Coin the player starts with, given at the first scene. */
   startingPurse: Array<{ name: string; quantity: number; description: string }>;
   /** The world a backstory is written for and checked against, at character creation (v1-design §3.9). */
@@ -121,10 +129,12 @@ export interface CampaignPack {
   places: PlaceFile[];
   builds: BuildsFile;
   looks: LooksFile;
+  /** Its maps (campaign.json's `maps`), each as maps/<key>.json has it: none for a campaign without. */
+  maps: MapFile[];
 }
 
 /** install_campaign's arguments: each part of a pack as a JSON string, and the version's id ("caerwyn@0.1.0"). */
-export interface InstallArgs { id: string; campaign: string; scenes: string; places: string; builds: string; looks: string }
+export interface InstallArgs { id: string; campaign: string; scenes: string; places: string; builds: string; looks: string; maps: string }
 
 /** A campaign version's id: "caerwyn@0.1.0". */
 export const campaignId = (c: Pick<CampaignFile, "id" | "version">) => `${c.id}@${c.version}`;
@@ -134,7 +144,7 @@ export function installArgsOf(pack: CampaignPack): InstallArgs {
   return {
     id: campaignId(pack.campaign),
     campaign: JSON.stringify(pack.campaign), scenes: JSON.stringify(pack.scenes), places: JSON.stringify(pack.places),
-    builds: JSON.stringify(pack.builds), looks: JSON.stringify(pack.looks),
+    builds: JSON.stringify(pack.builds), looks: JSON.stringify(pack.looks), maps: JSON.stringify(pack.maps),
   };
 }
 
@@ -142,6 +152,6 @@ export function installArgsOf(pack: CampaignPack): InstallArgs {
 export function packOf(args: InstallArgs): CampaignPack {
   return {
     campaign: JSON.parse(args.campaign) as CampaignFile, scenes: JSON.parse(args.scenes) as SceneInstall[], places: JSON.parse(args.places) as PlaceFile[],
-    builds: JSON.parse(args.builds) as BuildsFile, looks: JSON.parse(args.looks) as LooksFile,
+    builds: JSON.parse(args.builds) as BuildsFile, looks: JSON.parse(args.looks) as LooksFile, maps: JSON.parse(args.maps) as MapFile[],
   };
 }

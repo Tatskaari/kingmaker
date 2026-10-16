@@ -8,6 +8,7 @@ import { CREATION_STEPS, type CreationStep } from "../../../shared/protocol/keys
 import { gmFromRow } from "../../../shared/gm/state.ts";
 import { rollFor } from "../../../shared/rules/index.ts";
 import type { BuildOption, OwnPicks, SrdLists } from "../../../shared/rules/types.ts";
+import type { MapFile } from "../../../shared/map/tiles.ts";
 import { installArgsOf, type BuildsFile, type CampaignFile, type CampaignPack, type InstallArgs, type LooksFile, type PlaceFile, type SceneFile } from "../../../shared/scene/files.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { playerRow } from "../rows.ts";
@@ -32,6 +33,7 @@ export function caerwynPack(): CampaignPack {
     places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
     builds: JSON.parse(read("builds.json")) as BuildsFile,
     looks: JSON.parse(read("looks.json")) as LooksFile,
+    maps: (campaign.maps ?? []).map(key => JSON.parse(read(`maps/${key}.json`)) as MapFile),
   };
 }
 

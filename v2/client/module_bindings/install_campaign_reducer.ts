@@ -17,4 +17,5 @@ export default {
   places: __t.string(),
   builds: __t.string(),
   looks: __t.string(),
+  maps: __t.string(),
 };

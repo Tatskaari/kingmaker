@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
+import type { MapFile } from "../../shared/map/tiles.ts";
 import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { validateScene, type Scene } from "../../shared/scene/types.ts";
@@ -29,8 +30,8 @@ export function readCampaignFiles(dir: string): CampaignFiles {
 
 /**
  * The structure install_campaign takes: campaign.json, each listed scene's scene.json with its hook
- * (hook.md, as the loader reads it), each listed place, the builds and the looks. Throws when a file
- * it needs is missing or isn't JSON.
+ * (hook.md, as the loader reads it), each listed place, the builds, the looks and each listed map.
+ * Throws when a file it needs is missing or isn't JSON.
  */
 export function packOf(files: CampaignFiles): CampaignPack {
   const campaign = json<CampaignFile>(files, "campaign.json");
@@ -40,6 +41,7 @@ export function packOf(files: CampaignFiles): CampaignPack {
     places: campaign.places.map(key => json<PlaceFile>(files, `places/${key}.json`)),
     builds: json<BuildsFile>(files, "builds.json"),
     looks: json<LooksFile>(files, "looks.json"),
+    maps: (campaign.maps ?? []).map(key => json<MapFile>(files, `maps/${key}.json`)),
   };
 }
 

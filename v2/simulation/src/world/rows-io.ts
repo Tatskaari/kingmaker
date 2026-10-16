@@ -92,7 +92,10 @@ const table = (tx: TxCtx, c: Component) => tx.db[c] as unknown as ComponentTable
 /** A new place's row: its root comes once its entities have ids (updatePlace). */
 function insertPlace(tx: TxCtx, after: PlaceRows, gameId: bigint): bigint {
   const p = after.place;
-  return tx.db.place.insert({ id: 0n, gameId, key: p.key, name: p.name, rootId: 0n, sizeW: p.sizeW, sizeH: p.sizeH, round: p.round, rev: p.rev, sceneId: undefined }).id;
+  return tx.db.place.insert({
+    id: 0n, gameId, key: p.key, name: p.name, rootId: 0n, sizeW: p.sizeW, sizeH: p.sizeH, round: p.round, rev: p.rev, sceneId: undefined,
+    mapKey: undefined, region: undefined, origin: undefined, active: false,
+  }).id;
 }
 
 /** Each new entity inserted, in order (its parent set in writeEntities, which may be newer still); provisional ids resolve to the ones given. */

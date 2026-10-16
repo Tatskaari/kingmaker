@@ -9,6 +9,10 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import {
+  Tile2,
+} from "./types";
+
 
 export default __t.row({
   id: __t.u64().primaryKey(),
@@ -21,4 +25,10 @@ export default __t.row({
   round: __t.u32(),
   rev: __t.u32(),
   sceneId: __t.option(__t.u64()).name("scene_id"),
+  mapKey: __t.option(__t.string()).name("map_key"),
+  region: __t.option(__t.string()),
+  get origin() {
+    return __t.option(Tile2);
+  },
+  active: __t.bool(),
 });

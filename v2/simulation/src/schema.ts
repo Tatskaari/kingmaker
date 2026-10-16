@@ -2,10 +2,11 @@ import { Timestamp } from "spacetimedb";
 import { schema, t, table } from "spacetimedb/server";
 
 /**
- * Every table of the module, and its env (v0-design §3.1, v1-design §3.1, v5-design §3.1). Columns
- * are the TypeScript names; SQL, HTTP and subscription queries use snake_case (sceneId is scene_id).
- * Ids are u64 (bigint); an autoInc id is inserted as 0n. Every row belongs to one game, but a
- * creation's, which belongs to an identity until the game is made. Public tables are subscribed to by
+ * Every table of the module, and its env (v0-design §3.1, v1-design §3.1, v5-design §3.1,
+ * map-design §3.1). Columns are the TypeScript names; SQL, HTTP and subscription queries use
+ * snake_case (sceneId is scene_id). Ids are u64 (bigint); an autoInc id is inserted as 0n. Every row
+ * belongs to one game, but a creation's, which belongs to an identity until the game is made, and a
+ * map's (map_def), which belongs to its campaign version. Public tables are subscribed to by
  * clients; private ones are the module's (and the owner's, through SQL); the public ones are the
  * client's contract (client/module_bindings). A column added after V0 goes at its table's end with a
  * default, so a database keeps its rows across the publish (spacetime.md §4.10).
@@ -33,6 +34,10 @@ export const game = table({ name: "game", public: true }, {
   /** playing. */
   status: t.string(),
   createdAt: t.timestamp(),
+  /** The scene the story is heading for (its key): the lead, on the map and in Go on (map-design §3.3; V3 sets the next). */
+  leadScene: t.option(t.string()).default(undefined),
+  /** What the story says of the lead, when it says something (V3's boundary). */
+  leadText: t.option(t.string()).default(undefined),
 });
 
 export const player = table({ name: "player", public: true }, {
@@ -125,7 +130,7 @@ export const scene = table({ name: "scene", public: true }, {
   /** scene. */
   kind: t.string(),
   placeId: t.u64(),
-  /** opening, live, closing (its ending's wind-down to play), ending (a reply closed it: its settle ends it), ended. */
+  /** waiting (built, not yet opened: the lead), opening, live, closing (its ending's wind-down to play), ending (a reply closed it: its settle ends it), ended. */
   status: t.string(),
   /** The player who has the lead. */
   controllerId: t.u64(),
@@ -277,6 +282,9 @@ export const heard = table({ name: "heard" }, {
 // Entity unchanged; every word stays in `narrative`. Each component row is keyed by entityId, with
 // placeId copied in so a client can subscribe to one place.
 
+/** A tile on a map, 5 ft a side: x runs east, y south (the prototype's Tile2). */
+export const Tile2 = t.object("Tile2", { x: t.i32(), y: t.i32() });
+
 export const place = table({ name: "place", public: true }, {
   id: t.u64().primaryKey().autoInc(),
   gameId: t.u64().index("btree"),
@@ -289,6 +297,14 @@ export const place = table({ name: "place", public: true }, {
   round: t.u32(),
   rev: t.u32(),
   sceneId: t.option(t.u64()),
+  /** The map it's on (its key: caerwyn), for a place on a map (map-design §3.3). */
+  mapKey: t.option(t.string()).default(undefined),
+  /** The map region it fills there (a scene's place: granary-yard). */
+  region: t.option(t.string()).default(undefined),
+  /** Where its world's (0, 0) feet sits on its map, in tiles (5 ft a tile): (0, 0) for a map's own place. */
+  origin: t.option(Tile2).default(undefined),
+  /** It's on its map now: drawn there, and walked into. */
+  active: t.bool().default(false),
 });
 
 /** A key is unique in its game: by a check in the write path (byGameKey finds it). */
@@ -460,6 +476,54 @@ export const placeDef = table({ name: "place_def" }, {
   json: t.string(),
 });
 
+/** A campaign version's map (maps/<key>.json), which the client and the simulation both build (shared/map mapOf). Public: the map is what anyone sees. */
+export const mapDef = table({ name: "map_def", public: true }, {
+  /** caerwyn@0.1.0/caerwyn */
+  id: t.string().primaryKey(),
+  campaignId: t.string().index("btree"),
+  key: t.string(),
+  /** maps/<key>.json whole */
+  json: t.string(),
+});
+
+// ---------------------------------------------------------------------------------------------
+// The maps between scenes (map-design §3.1).
+
+/** Someone walking with the player on the map (the prototype's Follower: Kell, after the granary). */
+const Follower = t.object("Follower", { id: t.string(), name: t.string(), glyph: t.string(), color: t.string(), map: t.string(), at: Tile2 });
+
+/**
+ * Where a player is on the maps between scenes: the prototype's ExploreState
+ * (src/game/map/explore.ts:22) but the story, which is the game's, and what the last move said.
+ * One row a player who walks (the host); public, so a spectator draws the host's map from it.
+ */
+export const explore = table({ name: "explore", public: true }, {
+  playerId: t.u64().primaryKey(),
+  gameId: t.u64().index("btree"),
+  /** The map they're on (its key: caerwyn). */
+  map: t.string(),
+  at: Tile2,
+  /** The way they last stepped: what's in front of them for interact. */
+  facing: Tile2,
+  steps: t.u32(),
+  /** Out of sight after a Stealth check (V10's), until they show themselves. */
+  hidden: t.bool(),
+  /** The scene they're in, opened from here (its key), while it's played. */
+  scene: t.option(t.string()),
+  /** Who walks with them. */
+  followers: t.array(Follower),
+  /** The house lines' memory (quips.ts QuipMemory): how many said, the last one, the kinds of wall walked into. */
+  quips: t.u32(),
+  lastQuip: t.option(t.string()),
+  styles: t.array(t.string()),
+  /** Bumped by every move made on the map: a client shows `said` when it moves on. */
+  acts: t.u32(),
+  /** What the last move said, "" for nothing. */
+  said: t.string(),
+  /** The last five things said, newest last (the prototype's town log: observe's "Recently"). */
+  log: t.array(t.string()),
+});
+
 // ---------------------------------------------------------------------------------------------
 // Character creation and the rules engine (v1-design §3.1, §3.5).
 
@@ -584,8 +648,9 @@ const spacetimedb = schema(
     scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard,
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,
     job, jobDispatch, reaper,
-    campaign, sceneDef, placeDef,
+    campaign, sceneDef, placeDef, mapDef,
     creation, rulesState,
+    explore,
   },
   {
     /** Set at publish (`AI_URL=… spacetime publish …`, or --env-only). */
