@@ -1,3 +1,4 @@
+import { Timestamp } from "spacetimedb";
 import type { Markup } from "../shared/markup.ts";
 import { applyFix, tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild, Proposal } from "../shared/creation/types.ts";
@@ -265,13 +266,15 @@ class Demo implements Backend {
     if (!game) return "not_in_game";
     if (game.view) return "already_begun";
     game.view = this.opening(game.player.name, game.row.gameId);
-    game.row = { ...game.row, where: "in The Hanged Clerk", begun: true };
+    game.row = { ...game.row, where: "in The Hanged Clerk", begun: true, lastPlayedAt: Timestamp.now() };
     if (this.creation?.gameId === game.row.gameId) this.creation = undefined;
     return undefined;
   }
 
   continueGame({ game }: Moves["continueGame"]): RefusalCode | undefined {
-    if (!this.games.some(g => g.row.gameId === game)) return "unknown";
+    const theirs = this.games.find(g => g.row.gameId === game);
+    if (!theirs) return "unknown";
+    theirs.row = { ...theirs.row, lastPlayedAt: Timestamp.now() };
     this.sit(game);
     return undefined;
   }

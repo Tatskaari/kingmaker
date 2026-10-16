@@ -2,16 +2,17 @@ import { Timestamp } from "spacetimedb";
 import type { LoreIssue, OwnBuild, Proposal } from "../../shared/creation/types.ts";
 import type { BuildOption, Offer, SheetData, SrdLists } from "../../shared/rules/types.ts";
 import type { CreationRow, GameRow, SheetRow } from "../backend.ts";
-import fighter from "./fixtures/fighter-sheet.json" with { type: "json" };
-import lists from "./fixtures/lists.json" with { type: "json" };
-import offer from "./fixtures/offer.json" with { type: "json" };
-import own from "./fixtures/own.json" with { type: "json" };
-import wizard from "./fixtures/wizard-sheet.json" with { type: "json" };
+import offer from "./fixtures/offer-tamsin.json" with { type: "json" };
+import own from "./fixtures/own-option.json" with { type: "json" };
+import fighter from "./fixtures/sheet-fighter.json" with { type: "json" };
+import wizard from "./fixtures/sheet-wizard.json" with { type: "json" };
+import lists from "./fixtures/srd-lists.json" with { type: "json" };
 
 /**
  * Fixture rows for the title, character creation and the sheet, as the simulation would write them:
- * built from what the prototype's rules engine made (client/check/fixtures/, recorded at 44c6d4a),
- * for the screen check, the demo and the client's tests. No engine, no server.
+ * built from what the prototype's rules engine made (client/check/fixtures/, recorded at 44c6d4a by
+ * tools/v2/record-v1-golden.mts), for the screen check, the demo and the client's tests. No engine,
+ * no server.
  */
 
 /** The create screen's first example: the concept the fixtures' builds were made for. */

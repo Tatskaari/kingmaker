@@ -22,6 +22,7 @@ import { markupOf } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
+import { checkCreation } from "./creation.tsx";
 import { YARD } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -223,6 +224,9 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   checks.push([`${size}: the scene's end: a rule with its title, and the box says the scene is over`, /─ The Hanged Clerk ─/.test(frame) && /The scene is over\./.test(frame)]);
   await setup.dispose();
 }
+
+// The title, character creation and the sheet (V1's).
+await checkCreation(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {
