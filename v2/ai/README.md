@@ -54,9 +54,11 @@ The docs service and the model client are changed the same way, with the same ch
 The rest of the AI API is still the prototype's, and v2 builds it a vertical at a time:
 
 - **the GM pipeline:** the director's decisions before and after a reply, the GM's voice and its markup, the notes, the suggested lines, considered rolls, the co-GM, the stage manager, openings, scene boundaries and talks (today in src/runtime and src/world/stage.ts);
-- **the other model work:** a character's build from a sentence, and looks for names the look layer doesn't know (src/rules, src/game/look);
+- **the other model work:** the decider's reading of a line typed in a fight and the GM's line after it, with fight.md (src/game/combat); the world scribe's update script after a scene, with scribe.md (src/world/scribe.ts); a place's plan, compiled into a map (src/game/map/generate); a character's build from a sentence (src/rules); and looks for names the look layer doesn't know (src/game/look);
 - **the service itself:** the HTTP endpoints and their request and response types, usage in every answer, and stored answers by key;
 - **stores behind interfaces:** each game's documents and call logs are files today (see below).
+
+The evals call the model too (src/eval and evals/: the judge and the simulated players, with judge.md and player-sim.md from here). They check the AI API's work, and aren't part of it.
 
 When a part moves, it can come the way these did: one copy here, and an adapter at the prototype's old path.
 

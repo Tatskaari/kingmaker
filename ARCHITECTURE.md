@@ -82,10 +82,10 @@ The arrows drawn are the main ones. Every import between components that the gam
 1. the ways in: src/web, src/cli and the evals; then src/app;
 2. the game: src/game/zoo; then src/game and src/game/combat; then src/game/map and src/game/look;
 3. the scenes: src/runtime and scenes/;
-4. the services: src/rules; then src/world and src/lore (the docs service's adapters);
+4. the services: src/rules; then src/world and src/lore (the docs service's adapters); then src/llm (the model client's shims);
 5. v2/ai: the docs service, then the model client and the prompts; and the content.
 
-Imports of types only, and imports that only tests and dev tools make, are left out of the diagram and of that rule, and some of them go up: the map and the look import `src/game/types.ts`, and the rules' tests import combat's `pregen.ts`. This was checked against every import in the code at f5c6549, src/game/combat's again when fights took typed lines (it calls src/llm now, for the decider and the GM's line), and src/llm's, src/lore's and v2/ai's when the AI API's parts moved to v2/ai; the collapsed table at the end of this section lists them all.
+Imports of types only, and imports that only tests and dev tools make, are left out of the diagram and of that rule, and some of them go up: the map and the look import `src/game/types.ts`, and the rules' tests and src/lore's backstory test import combat's `pregen.ts`. This was checked against every import in the code at f5c6549, src/game/combat's again when fights took typed lines (it calls src/llm now, for the decider and the GM's line), and src/llm's, src/lore's and v2/ai's when the AI API's parts moved to v2/ai; the collapsed table at the end of this section lists them all.
 
 ### The components
 
@@ -146,7 +146,7 @@ How to write scenes, why the runtime does what it does, and how to test it are i
 | scenes/ | src/runtime, src/lore | src/world | |
 | src/rules | src/runtime, src/world, src/llm, vendor/dnd-srd-engine | | src/game/combat, scenes/ |
 | src/world | src/runtime, src/llm | | scenes/ |
-| src/lore | src/runtime, v2/ai/docs | src/llm | |
+| src/lore | src/runtime, v2/ai/docs | src/llm | src/game/combat, scenes/, src/rules |
 | src/llm | v2/ai/llm | | |
 | v2/ai/docs | v2/ai/llm, v2/ai/prompts | | |
 | v2/ai/llm, v2/ai/prompts | nothing | | |
