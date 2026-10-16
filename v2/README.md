@@ -10,7 +10,7 @@ It's built a vertical at a time ([docs/verticals.md](docs/verticals.md)): a slic
 
 ## What you can play
 
-V1, who you are ([docs/v1-design.md](docs/v1-design.md)), on V0, a line in a scene ([docs/v0-design.md](docs/v0-design.md)): the title, a character made from a sentence, and the hanged clerk's scene, end to end.
+V1, who you are ([docs/v1-design.md](docs/v1-design.md)), on V5, the reply as drawn ([docs/v5-design.md](docs/v5-design.md)), and V0, a line in a scene ([docs/v0-design.md](docs/v0-design.md)): the title, a character made from a sentence, and the hanged clerk's scene with its replies drawn as the prototype draws them, end to end.
 
 - **The title:** carry on one of your games (the three played last), start a new one, or delete one (x twice).
 - **A character from a sentence:** a name and who they are, and the GM offers three builds of three classes, each made legal by the rules engine and shown as a card; or make your own from the SRD's species, classes, subclasses and backgrounds.
@@ -19,7 +19,16 @@ V1, who you are ([docs/v1-design.md](docs/v1-design.md)), on V0, a line in a sce
 - **The scene, as V0 plays it:** talk with Kell, Cob and Moll; routes, checks, cues and endings work, and every check rolls through the rules engine on your sheet. The GM knows your backstory. A second terminal can watch the scene, row for row.
 - **The plumbing holds:** kill the AI service mid-turn, or SpacetimeDB, start it again, and the turn (or the character) finishes. A daily ceiling on what the models cost (`KM_AI_DAILY_USD`, $5) fails a move in the game's words once it's spent.
 
-Recorded runs with real models are in [docs/live/](docs/live/).
+
+The reply as drawn (V5), in every scene:
+
+- Each speaker's lines in their own colour as the reply is written (Kell, Cob and Moll each have theirs), your own words in yours, and a voice nobody can place in gold italics.
+- A note on up to three phrases a reply, underlined on its kind's tint: coral for why someone acts as they do, teal for something you'd know, lavender for something you did. Tab picks one out and Enter (or a click) opens it: the note, written only from what you know, and a card of what you know of who or what it's about. "The GM makes a note…" while they're written: the box stays open, and a line you say then waits for them. If the AI service is lost meanwhile, the status line says the GM has lost the thread; a minute on, the reply goes without its notes and the turn ends.
+- Three to five suggested lines over the box after each reply: things to say, a deed, a risky try in yellow, a way out near an ending. A number or a click puts one in the box, to send or change. `/suggestions off` and `/suggestions on`.
+- A spectator sees the same colours and notes, and no suggested lines: they're the lead's.
+- Headless: `ACTIONS:` lists the lines, `act --id say_2` says one, `suggestions on|off`; who says what, the notes and their cards print as `⟨…⟩` lines.
+
+Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines, V5's twelve, and V1's characters made from a sentence.
 
 ## The layout
 
@@ -32,7 +41,7 @@ Recorded runs with real models are in [docs/live/](docs/live/).
 | [campaigns/caerwyn/](campaigns/caerwyn/) | The campaign as data: campaign.json (with the world a backstory is written for), the hanged clerk's scene.json and its Markdown, the granary yard as a world, the ready-made characters (builds.json: a concept and a build each), the cast's looks, and the 154 lore docs |
 | [vendor/](vendor/) | Vendored code, as it is but for what its README says: the D&D rules engine made ready for a SpacetimeDB module, its content pack, and the SRD's spell texts |
 | [hosts/](hosts/) | The composition roots, the only code that reads env or argv: the AI service, the client and the headless client, the dev stack ([hosts/dev/README.md](hosts/dev/README.md)), the doctor, the campaign tool and its install, the local host, the e2e and the live run |
-| [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), the blueprints with how each was built ([v0-design.md](docs/v0-design.md), [v1-design.md](docs/v1-design.md)) and the recorded live runs ([live/](docs/live/)) |
+| [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), the blueprints with how each was built ([v0-design.md](docs/v0-design.md), [v5-design.md](docs/v5-design.md), [v1-design.md](docs/v1-design.md)) and the recorded live runs ([live/](docs/live/)) |
 | `runs/` | Run output, never committed: the stacks' data, keys and logs, the client's sessions, the live run's rehearsals, the CLI's config for building |
 
 v2 doesn't import the prototype: what it needs of it is copied, and each copy's first line names its source at the commit it came from and the edits made. v2/ai is the one place the two share, and there the prototype imports v2.
@@ -55,7 +64,7 @@ npm run dev              # SpacetimeDB, the module, the AI service and the campa
 npm run dev -- --fake    # the same on the fake model: no key, no cost
 ```
 
-The fake model's GM answers every line with the same stand-in words, written over four seconds as a model's are, and its decider takes the quietest choice, so nothing rolls. `KM_AI_FAKE` (JSON) changes that: with `KM_AI_FAKE='{"choices":{"attempt":"examine-body"}}' npm run dev -- --fake` the decider takes the examination of the body whenever it's on offer, so a line in the yard rolls the Medicine check. [hosts/dev/README.md](hosts/dev/README.md) has more.
+The fake model plays [hosts/dev/fake.json](hosts/dev/fake.json): the GM's four golden replies in turn (whatever you say, so they won't always answer it), each written over two seconds with Kell, Cob and Moll in their colours, the notes on their words a moment later, and twelve suggested lines, four offered after each reply (those offered last time, and the last three you said, are screened out). Its decider takes the quietest choice, so nothing rolls and no ending comes. `KM_AI_FAKE` (JSON) goes on top of the file: with `KM_AI_FAKE='{"choices":{"attempt":"examine-body"}}' npm run dev -- --fake` the decider takes the examination of the body whenever it's on offer, so a line in the yard rolls the Medicine check. [hosts/dev/README.md](hosts/dev/README.md) has more.
 
 It brings everything up, installs the campaign in both services, checks that each can reach the other, and prints where things are. Then it takes keys while you play:
 
@@ -64,7 +73,8 @@ It brings everything up, installs the campaign in both services, checks that eac
 | `k` | kill the AI service, as a crash would |
 | `s` | start it again: a turn waiting for it goes on at once |
 | `r` | restart it: what's in flight is finished and answered first |
-| `f` | make it exit right after it stores its next answer; `s` then starts it, and the turn is answered from the store |
+| `f` | make it exit right after it stores its next reply, before sending it; `s` then starts it, and the kept reply lands at once, from the store |
+| `n` | the same for the next notes on a reply: press it, then say a line; after `s` the notes come from the store |
 | `p` | build and republish the module (the data kept) |
 | `d` | run the doctor |
 | `q`, Ctrl+C | stop everything |
@@ -80,7 +90,7 @@ npm run client -- --session tamsin       # the title: New game makes a character
 npm run client -- --session wren --join 1     # watch game 1: the number in its player's side panel
 ```
 
-The session (`runs/play/<name>`) keeps one identity, so `--session tamsin` comes back to the same games. `--new "Name: concept"` goes straight to making that character; `--new "Name: concept" --build cleric|fighter|ranger|rogue|wizard` starts a ready-made one at once. `npm run client -- --demo` plays the title, a character and a scene on canned rows with no server at all. `/help` in a scene lists its commands; `/quit` goes to the title; Ctrl+C leaves.
+The session (`runs/play/<name>`) keeps one identity, so `--session tamsin` comes back to the same games. `--new "Name: concept"` goes straight to making that character; `--new "Name: concept" --build cleric|fighter|ranger|rogue|wizard` starts a ready-made one at once. `npm run client -- --demo` plays the title, a character and a scene on canned rows with no server at all. `/help` in a scene says how to play and lists its commands; `/quit` goes to the title; Ctrl+C leaves. The cards in the notes need room: at 80x24, with the lines over the box, a note shows without its card (the prototype's rule), so try 100x30 or more.
 
 Headless, for agents and QA (the prototype's QA verbs, one a process):
 
@@ -90,7 +100,9 @@ npm run play -- new --session t --as "Tamsin Vell: a disgraced palace auditor wi
   --build 2 --backstory "I'm the King's nephew. I owe Fat Jory three crowns." --accept-fixes
 npm run play -- sheet --session t
 npm run play -- say --session t "Sergeant, who found him?"
-npm run play -- --help      # builds, new, sheet, games, continue, delete, begin, join, observe, say, retry, transcript
+npm run play -- act --session t --id say_2         # say the second suggested line
+npm run play -- suggestions --session t off        # or on: asks for this moment's at once
+npm run play -- --help      # builds, new, sheet, games, continue, delete, begin, join, observe, say, act, suggestions, retry, transcript
 ```
 
 ### Host mode and namespace mode
@@ -114,10 +126,10 @@ For good, a dummy interface: `sudo nmcli connection add type dummy ifname km0 co
 
 | Command | What it checks | Takes |
 |---|---|---|
-| `npm run check` | The type check (v2's, and the module's under its own lib); the unit tests: shared, the simulation on its memory host, the AI service and its prompt parity with the prototype, the client, the hosts, and the hanged clerk's endings played on the local host; then the client's screen check | about 10 s |
-| `npm run e2e` | A line in a scene and a character made, end to end on a real SpacetimeDB (ports 3310 and 8797, `runs/e2e`): two clients, a spectator's refusals, the AI service killed mid-reply, restarted mid-reply and gone after it kept an answer, SpacetimeDB restarted mid-think, and an ending; then a concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted while the builds are made, a character made and checks rolled beside another game's stream, the daily ceiling, continue and delete | about 3 min |
+| `npm run check` | The type check (v2's, and the module's under its own lib); the unit tests: shared, the simulation on its memory host, the AI service and its prompt parity with the prototype, the client, the hosts, and the hanged clerk's endings, notes and suggested lines played on the local host; then the client's screen check | about 20 s |
+| `npm run e2e` | A line in a scene and a character made, end to end on a real SpacetimeDB (ports 3310 and 8797, `runs/e2e`): two clients, a spectator's refusals, the AI service killed mid-reply, restarted mid-reply and gone after it kept an answer, SpacetimeDB restarted mid-think, and an ending; the reply as drawn: who says each line as it streams, the notes the turn waits for, a line said while they're written, the suggested lines (a spectator gets none, `act` says one, a late set is dropped, off and on), and the notes kept by the AI service as it died; then a concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted while the builds are made, a character made and checks rolled beside another game's stream, the daily ceiling, continue and delete | about 5 min |
 | `npm run arc` | The prototype's whole-arc check on a stack of its own (3320 and 8807, `runs/arc`): the checks the verticals so far turn on (1 of 16: the character is built by the rules engine), the rest skipped with the unit that brings each | about 30 s |
-| `npm run live -- --creation` | Three concepts' builds, then a character made through the lore check to the opening and a line, against the running dev stack with real models, recorded in `docs/live/` (about $0.02; stops before $0.10). `npm run live -- --lines 4` is V0's: a new game and four lines. Neither writes over a record: a second run the same day goes beside the first (`v1-<date>-2.md`), and `--rehearse`, on the fake model, writes to `runs/live/` | about 1 min |
+| `npm run live -- --script v5` | A new game and V5's twelve lines against the running dev stack, with real models, recorded in `docs/live/` with each turn's speakers, notes, cards and lines (stops before $0.10); `--lines 4` without `--script` is V0's; `--creation` is V1's: three concepts' builds, then a character made through the lore check to the opening and a line (about $0.02). None writes over a record: a second run the same day goes beside the first (`v5-<date>-2.md`), and `--rehearse`, on the fake model, writes to `runs/live/` | about 90 s, $0.06 |
 | `npm run campaign -- check campaigns/caerwyn` | The campaign folder is fit to install | a second |
 | `npm run simulation:generate` | Regenerates `client/module_bindings` from the module: run it after any change to a table, reducer or view, and commit the result (CI checks) | seconds |
 

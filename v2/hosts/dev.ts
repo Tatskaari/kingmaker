@@ -5,6 +5,7 @@ import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import type { BuildsFile, CampaignFile } from "../shared/scene/files.ts";
 import { signalGroup } from "./dev/child.ts";
 import { reportLines, type DoctorReport } from "./dev/doctor.ts";
+import { fakeOptions } from "./dev/fake.ts";
 import { describeInstall } from "./dev/install.ts";
 import { AI_ADDRESS, type Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
@@ -21,8 +22,9 @@ import { startStack, type Stack } from "./dev/stack.ts";
  */
 
 const USAGE = `npm run dev [-- options]
-  --fake                the fake model (no key, no cost): each reply written over 4 s, as a model's
-                        is; KM_AI_FAKE (JSON) changes it: '{"streamMs":0}' answers at once,
+  --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, the GM's golden
+                        replies with notes and suggested lines, each written over 2 s as a model's is;
+                        KM_AI_FAKE (JSON) goes on top: '{"streamMs":0}' answers at once,
                         '{"choices":{"attempt":"examine-body"}}' rolls the Medicine check
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
@@ -38,12 +40,22 @@ set, 0 for none. Past it, a move that needs a model fails in the game's words un
 
 const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
-/** f's fault: the service exits (137) right after it stores its next answer, before it answers (v0-design §5.1). */
-const FAULT = "exit-after-store:any";
+/**
+ * f's fault: the service exits (137) right after it stores its next reply, before it sends it (v0-design
+ * §5.1). After s the kept reply lands at once. (Any answer would be a line's decide, which no one sees.)
+ */
+const FAULT = "exit-after-store:reply";
+/**
+ * n's: the same, after the next notes on a reply (v5-design §1.2, step 11): a job beside a turn kept
+ * and answered again. Pressed before a line, so the restart has nothing in flight to finish.
+ */
+const NOTES_FAULT = "exit-after-store:notes";
+/** What each key's fault has the service store before it exits, for the line that says it has. */
+const STORED: Record<string, string> = { f: "a reply", n: "the notes on a reply" };
 
 const flags = flagsOf(process.argv.slice(2));
-/** The fake model's options, with --fake. */
-const fake = flags.fake ? fakeOptions(process.env.KM_AI_FAKE) : undefined;
+/** The fake model's options, with --fake: fake.json's, KM_AI_FAKE's on top. */
+const fake = flags.fake ? fakeFor(process.env.KM_AI_FAKE) : undefined;
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN, "campaign.json"), "utf8")) as CampaignFile;
 const builds = Object.keys(JSON.parse(readFileSync(join(CAMPAIGN, "builds.json"), "utf8")) as BuildsFile);
 const campaignId = `${campaign.id}@${campaign.version}`;
@@ -58,8 +70,8 @@ let queue = Promise.resolve();
 let quitting = 0;
 /** Set while the dev host stops the AI service itself, so that exit isn't reported as a surprise. */
 let stopping = false;
-/** Set while the AI service runs with f's fault. */
-let faulted = false;
+/** The key whose fault the AI service runs with (f or n), if any. */
+let faulted: string | undefined;
 
 /** The keys (§1.1), each an action on the stack. */
 const ACTIONS: Record<string, () => Promise<void>> = {
@@ -79,9 +91,12 @@ const ACTIONS: Record<string, () => Promise<void>> = {
     note("the AI service is restarted");
   },
   async f() {
-    await stopAi("SIGTERM");
-    await startAi({ KM_AI_FAULTS: FAULT });
-    note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next answer, before answering`);
+    await restartWithFault("f", FAULT);
+    note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next reply, before sending it`);
+  },
+  async n() {
+    await restartWithFault("n", NOTES_FAULT);
+    note(`the AI service is restarted with KM_AI_FAULTS=${NOTES_FAULT}: it exits right after it stores the next notes on a reply, before answering (say a line now)`);
   },
   async p() {
     const published = await stack.publish();
@@ -122,18 +137,6 @@ async function start(): Promise<Stack> {
   }
 }
 
-/**
- * --fake's stand-in: each reply written over four seconds, about as long as a model takes, so a
- * reply is seen growing and k can land in it; KM_AI_FAKE's options (JSON) go on top.
- */
-function fakeOptions(own: string | undefined): FakeOptions {
-  try {
-    return { streamMs: 4_000, ...(own ? JSON.parse(own) as FakeOptions : {}) };
-  } catch {
-    return fail(`KM_AI_FAKE isn't JSON: ${own}`);
-  }
-}
-
 function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] {
   const file = s.file(), logs = relative(process.cwd(), join(file.root, "logs")) || ".";
   // The clients find runs/dev's stack by themselves; another folder they're told.
@@ -141,8 +144,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
   const modeLine = s.mode === "namespace"
     ? `namespace mode (SpacetimeDB in a pasta namespace; ${AI_ADDRESS} is this machine's loopback)`
     : `host mode (${AI_ADDRESS} is on this machine)`;
-  const replies = fake && file.ai.gm !== "canned" ? (fake.streamMs ? ` (each reply written over ${fake.streamMs / 1000} s)` : " (replies at once)") : "";
-  const model = `${file.ai.model}${replies}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
+  const model = `${file.ai.model}${fake && file.ai.gm !== "canned" ? ` (${fakeLine(fake)})` : ""}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
   // The two paths are the summary's, the budget has its own line; anything else wrong is listed under them.
   const failing = report.checks.filter(c => !c.ok && !c.name.includes("→") && c.name !== "Budget");
   const budget = report.checks.find(c => c.name === "Budget");
@@ -158,11 +160,26 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `       npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
-      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored answer", "       p republish the module · d doctor · q quit"]
+      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       n kill it after the next notes it stores · p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),
     ...(s.mode === "namespace" ? [`Tip:   sudo ip addr add ${AI_ADDRESS}/32 dev lo  runs the stack without a namespace (host mode)`] : []),
     "",
   ];
+}
+
+/** --fake's options (dev/fake.ts); a KM_AI_FAKE that isn't JSON is said plainly. */
+function fakeFor(own: string | undefined): FakeOptions {
+  try {
+    return fakeOptions(own);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** What the fake model plays, for the screen: "hosts/dev/fake.json, each reply written over 2 s". */
+function fakeLine(options: FakeOptions): string {
+  const from = process.env.KM_AI_FAKE ? "hosts/dev/fake.json with KM_AI_FAKE on top" : "hosts/dev/fake.json";
+  return `${from}, ${options.streamMs ? `each reply written over ${options.streamMs / 1000} s` : "replies at once"}`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -191,11 +208,17 @@ function listenForKeys(): void {
   });
 }
 
-async function startAi(env?: Record<string, string>): Promise<void> {
+async function startAi(env?: Record<string, string>, key?: string): Promise<void> {
   await stack.ai.start(env);
-  faulted = !!env?.KM_AI_FAULTS;
+  faulted = env?.KM_AI_FAULTS ? key : undefined;
   watchAi();
   await dispatchWaiting();
+}
+
+/** f's and n's: the AI service stopped (SIGTERM: what's in flight is answered first), then started with the key's fault. */
+async function restartWithFault(key: string, fault: string): Promise<void> {
+  await stopAi("SIGTERM");
+  await startAi({ KM_AI_FAULTS: fault }, key);
 }
 
 /** The AI service is back: a turn waiting to try it again goes on now, not when the module's backoff is up (up to 15 s away). */
@@ -212,13 +235,13 @@ async function stopAi(signal: NodeJS.Signals): Promise<void> {
   }
 }
 
-/** Says so when the AI service exits by itself: f's fault, or a crash. */
+/** Says so when the AI service exits by itself: f's or n's fault, or a crash. */
 function watchAi(): void {
   const fault = faulted;
   void stack.ai.exited().then(code => {
     if (stopping || quitting) return;
     note(fault
-      ? `the AI service exited (${code}) after storing an answer, as f asked: s starts it again, without the fault`
+      ? `the AI service exited (${code}) after storing ${STORED[fault] ?? "an answer"}, as ${fault} asked: s starts it again, without the fault`
       : `the AI service exited (${code}): s starts it again (its log says why)`);
   });
 }

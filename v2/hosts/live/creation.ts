@@ -7,8 +7,7 @@ import { cardText } from "../../shared/rules/index.ts";
 import type { Offer } from "../../shared/rules/types.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
-import { byOperation, cell, ledgerFrom, modelsOf, settled, writeRecord, type Call, type RecordAt } from "./common.ts";
-import { entryText } from "./scene.ts";
+import { byOperation, cell, entryText, ledgerFrom, modelsOf, settled, writeRecord, type Call, type RecordAt } from "./common.ts";
 
 /**
  * V1's live run (v1-design §4.6), as the prototype's src/app/smoke/creation-live.tsx is the

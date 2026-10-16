@@ -1,4 +1,4 @@
-// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE: and PHASE: output, as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves.
+// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves.
 import { tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild } from "../shared/creation/types.ts";
 import { refusal } from "../shared/protocol/refusals.ts";
@@ -7,20 +7,20 @@ import type { BuildOption, Offer } from "../shared/rules/types.ts";
 import { homeWhen, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
 import { timeWords } from "./creation/words.ts";
 import { jsonOf } from "./json.ts";
-import { phaseLine, render, viewText } from "./scene/text.ts";
+import { actionLines, phaseLine, render, viewText } from "./scene/text.ts";
 import type { SceneView } from "./scene/view.ts";
 import { sheetOf } from "./sheet/rows.ts";
 import { describe } from "./title/model.ts";
 
 /**
- * The game without a screen, for an agent or a QA run to play (v0-design §7, v1-design §3.10):
- * make a character (three builds, their own, or the GM's pick; a backstory checked against the
- * lore) or start one ready-made, set off, watch a game, observe it, say a line and see what came of
- * it, carry a failed turn on, read the whole transcript, the sheet, the player's games, carry one
- * on or delete it. Each verb prints from the same view model the screen draws, so what the agent
- * reads is what the player sees, and answers with the process's exit code: 0, or 1 when the move
- * was refused, the GM's part failed, or the turn did. hosts/play.ts reads the arguments and runs
- * one verb a process.
+ * The game without a screen, for an agent or a QA run to play (v0-design §7, v5-design §3.9,
+ * v1-design §3.10): make a character (three builds, their own, or the GM's pick; a backstory checked
+ * against the lore) or start one ready-made, set off, watch a game, observe it, say a line (or one
+ * of the lines suggested) and see what came of it, turn the suggested lines on or off, carry a failed
+ * turn on, read the whole transcript, the sheet, the player's games, carry one on or delete it. Each
+ * verb prints from the same view model the screen draws, so what the agent reads is what the player
+ * sees, and answers with the process's exit code: 0, or 1 when the move was refused, the GM's part
+ * failed, or the turn did. hosts/play.ts reads the arguments and runs one verb a process.
  */
 
 /** Where a verb's words go: the answer (stdout), and progress while it waits (stderr). */
@@ -33,8 +33,15 @@ export interface Out {
 export const TURN_MS = 180_000;
 /** How long it waits for the rows a move made (they come with its commit, in milliseconds). */
 const ROWS_MS = 10_000;
+/**
+ * How long it waits, once a reply is in, for the notes on its marks and the lines suggested after
+ * it: they come a few seconds later (2 to 4 in the prototype's runs). After that it prints what's
+ * there; observe shows the rest when it comes.
+ */
+export const AFTER_MS = 15_000;
 
-export interface Waiting { settled?: boolean; stream?: boolean; ms?: number }
+/** What a verb waits for: the world settled too (`settled`), the reply as it's written (`stream`); `ms` and `afterMs` bound the waits. */
+export interface Waiting { settled?: boolean; stream?: boolean; ms?: number; afterMs?: number }
 
 /** A new game: the opening played, then the scene as the player sees it. */
 export async function newGame(game: Backend, args: NewGame, out: Out, waiting: Waiting = {}): Promise<number> {
@@ -42,10 +49,12 @@ export async function newGame(game: Backend, args: NewGame, out: Out, waiting: W
   const refused = await game.newGame(args);
   if (refused) return said(out, refused);
 
-  // The new game's scene (a session already in a game moves to the new one), once its opening is over.
+  // The new game's scene (a session already in a game moves to the new one), once its opening is
+  // over, and its notes and the lines suggested after it are in.
   const stream = streamTo(out, waiting);
-  const opened = await viewWhen(game, v => v.game !== before && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(opened);
+  const opening = await viewWhen(game, v => v.game !== before && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
+  stream.end(opening);
+  const opened = await afterwards(game, opening, waiting);
   out.print(viewText(opened));
   out.print(`\nGame ${opened.game}. Another terminal can watch it: npm run play -- join --session <name> --game ${opened.game}`);
   return opened.phase === "failed" ? 1 : 0;
@@ -92,6 +101,52 @@ export async function say(game: Backend, text: string, out: Out, waiting: Waitin
   return await answered(game, out, waiting);
 }
 
+/**
+ * One of the lines suggested for this moment said, as if typed (`say_2` is the second, as ACTIONS:
+ * lists them): refused when there's no such line. What's said comes first, since the agent didn't
+ * type it; then what answered it, as for a line said.
+ */
+export async function act(game: Backend, id: string, out: Out, waiting: Waiting = {}): Promise<number> {
+  const view = game.view();
+  if (!view) return notInGame(out);
+  if (view.watching) return said(out, refusal("not_controller", { name: view.watching }));
+  const line = /^say_[1-9]\d*$/.test(id) ? view.suggestions[Number(id.slice(4)) - 1] : undefined;
+  if (!line) { out.print(noSuchLine(id, view)); return 1; }
+  const refused = await game.say(line.text);
+  if (refused) return said(out, refused);
+
+  out.print(`> ${line.text}\n`);
+  return await answered(game, out, waiting);
+}
+
+/** Why there's no such line to say, and what there is. */
+function noSuchLine(id: string, view: SceneView): string {
+  const n = view.suggestions.length;
+  const there = n > 1 ? `the choices are say_1 to say_${n}`
+    : n ? "the only choice is say_1"
+    : view.suggestionsOn ? "no lines are suggested just now, so say something instead"
+    : "the suggested lines are off (suggestions on brings them back)";
+  return `(There's no ${id} here: ${there}.)`;
+}
+
+/**
+ * The suggested lines: on (the default) or off, this player's own setting, or with neither, which
+ * it is. Turned on, this moment's lines are asked for at once: they're waited for, and listed.
+ */
+export async function suggestions(game: Backend, on: boolean | undefined, out: Out, waiting: Waiting = {}): Promise<number> {
+  if (!game.view()) return notInGame(out);
+  if (on !== undefined) {
+    const refused = await game.setSuggestions(on);
+    if (refused) return said(out, refused);
+  }
+
+  const view = on ? await linesIn(game, waiting) : game.view()!;
+  out.print(`Suggested lines: ${view.suggestionsOn ? "on" : "off"}.`);
+  const actions = actionLines(view);
+  if (actions.length) out.print(`\n${actions.join("\n")}`);
+  return 0;
+}
+
 /** A failed turn carried on from where it got to, and played out like a line said. */
 export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
   if (!game.view()) return notInGame(out);
@@ -101,23 +156,51 @@ export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Pro
   return await answered(game, out, waiting);
 }
 
-/** Waits for the turn in flight to answer, then prints what answered it (not the line itself) and the phase. */
+/**
+ * Waits for the turn in flight to answer, and for the notes on its reply and the lines suggested
+ * after it; then prints what answered it (not the line itself), the lines, and the phase.
+ */
 async function answered(game: Backend, out: Out, waiting: Waiting): Promise<number> {
   const turn = game.view()?.turn;
   const stream = streamTo(out, waiting);
-  const after = await viewWhen(game, v => finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(after);
+  const replied = await viewWhen(game, v => finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
+  stream.end(replied);
+  const after = await afterwards(game, replied, waiting);
   const answer = after.entries.filter(e => e.turn === turn && e.kind !== "player");
   if (answer.length) out.print(render(after, answer));
+  const actions = actionLines(after);
+  if (actions.length) out.print(`\n${actions.join("\n")}`);
   out.print(`\n${phaseLine(after)}`);
   return after.phase === "failed" ? 1 : 0;
 }
 
-/** The turn has answered: the reply is final (or, settled, the world too), it failed, or the scene ended (a reply that closed it, once the scene has ended). */
+/**
+ * The turn has answered: the reply is final (or, settled, the world too and the notes), it failed, or
+ * the scene ended (a reply that closed it, once the scene has ended).
+ */
 function finished(view: SceneView, settled: boolean): boolean {
   if (view.phase === "failed" || view.over) return true;
   if (view.ending) return false;
-  return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "done";
+  return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "noting" || view.phase === "done";
+}
+
+/**
+ * Once a reply is in: the notes on its marks and the lines suggested after it, waited for (at most
+ * `AFTER_MS`: then the view as it is). Nothing is waited for when the turn failed. A reply that
+ * ended the scene has its notes waited for too, which come after the end, as they do after any
+ * reply; no lines come after it.
+ */
+async function afterwards(game: Backend, view: SceneView, waiting: Waiting): Promise<SceneView> {
+  if (view.phase === "failed") return view;
+  return await within(game, v => !v.notesComing && !v.suggestionsComing, waiting, view);
+}
+
+/** The setting just turned on: the lines for this moment, waited for (at most `AFTER_MS`). */
+const linesIn = (game: Backend, waiting: Waiting) => within(game, v => v.suggestionsOn && !v.suggestionsComing, waiting, game.view()!);
+
+/** The view once it says so, or as it is when `AFTER_MS` (`waiting.afterMs`) has passed. */
+async function within(game: Backend, done: (view: SceneView) => boolean, waiting: Waiting, now: SceneView): Promise<SceneView> {
+  return await viewWhen(game, done, waiting.afterMs ?? AFTER_MS).catch(() => game.view() ?? now);
 }
 
 /** A move refused: its words, and exit code 1. A failed turn's words name the screen's /retry: this client's way is the retry verb. */
@@ -227,9 +310,11 @@ export async function begin(game: Backend, out: Out, waiting: Waiting = {}): Pro
   const refused = await game.act("begin", {});
   if (refused) return said(out, refused);
 
+  // Its opening over, and its notes and the lines suggested after it in, as for a new game.
   const stream = streamTo(out, waiting);
-  const opened = await viewWhen(game, v => v.game === String(seat?.gameId) && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(opened);
+  const opening = await viewWhen(game, v => v.game === String(seat?.gameId) && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
+  stream.end(opening);
+  const opened = await afterwards(game, opening, waiting);
   out.print(viewText(opened));
   out.print(`\nGame ${opened.game}. Another terminal can watch it: npm run play -- join --session <name> --game ${opened.game}`);
   return opened.phase === "failed" ? 1 : 0;

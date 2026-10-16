@@ -18,6 +18,7 @@ import { joinGameReducer } from "./moves/join-game.ts";
 import { newGameReducer } from "./moves/new-game.ts";
 import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
+import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
 import { loadRules } from "./rules/load.ts";
 import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
 import { streamReplyReducer } from "./stream.ts";
@@ -25,9 +26,9 @@ import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts
 
 /**
  * The module's entry: every reducer, procedure, view and lifecycle hook, registered (v0-design
- * §3.3, v1-design §3.2-3.3), and the few adapters that need SpacetimeDB at run time (txOf,
- * asReducer, the AI service's HTTP). Each body is a plain function over TxCtx in another file, so
- * the memory host runs the same code. The export names are the wire's, in snake_case (newGame is
+ * §3.3, v1-design §3.2-3.3, v5-design §3.3), and the few adapters that need SpacetimeDB at run time
+ * (txOf, asReducer, the AI service's HTTP). Each body is a plain function over TxCtx in another file,
+ * so the memory host runs the same code. The export names are the wire's, in snake_case (newGame is
  * new_game): the client's bindings are generated from them.
  */
 
@@ -43,6 +44,7 @@ export const newGame = spacetimedb.reducer({ campaign: t.string(), name: t.strin
 export const joinGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => joinGameReducer(tx, ctx.sender, args)));
 export const say = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => sayReducer(tx, ctx.sender, args)));
 export const retryTurn = spacetimedb.reducer({ turn: t.u64() }, (ctx, args) => asReducer(ctx, tx => retryTurnReducer(tx, ctx.sender, args)));
+export const setSuggestions = spacetimedb.reducer({ on: t.bool() }, (ctx, args) => asReducer(ctx, tx => setSuggestionsReducer(tx, ctx.sender, args)));
 
 // Character creation (v1-design §3.3): the caller's creation row, from a concept to the game made from it.
 export const startCreation = spacetimedb.reducer({ campaign: t.string(), name: t.string(), concept: t.string(), how: t.string(), afresh: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => startCreationReducer(tx, ctx.sender, args)));
@@ -113,6 +115,7 @@ function txOf(ctx: ReducerCtx<Schema>): TxCtx {
     db: ctx.db,
     now: ctx.timestamp,
     env: ctx.env,
+    database: () => ctx.databaseIdentity.toHexString(),
     uuid: () => ctx.newUuidV4().toString(),
     seed: () => ctx.random.integerInRange(0, 999_999_999),
     log: line => console.info(line),

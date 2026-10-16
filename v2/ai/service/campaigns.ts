@@ -1,9 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, normalize } from "node:path";
 import { configureDocs } from "../docs/config.ts";
+import { storyOf, VOCABULARY, vocabularyOf, type Story, type Vocabulary } from "../gm/story.ts";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
-import type { CampaignFile, SceneFile } from "../../shared/scene/files.ts";
+import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { Failure } from "./context.ts";
@@ -31,6 +32,8 @@ export interface Campaign {
   creation: CreationWorld;
   /** A scene as authored, with its words. Throws a 400 for a scene the campaign hasn't got. */
   scene(key: string): Scene;
+  /** The story its scenes belong to: those it installs, and its vocabulary.json for the rest (gm/story.ts). */
+  story: Story;
 }
 
 export interface Campaigns {
@@ -65,6 +68,7 @@ export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
       const file = campaignFileOf(files, campaign, version);
       checkCreation(file.creation);
       const scenes = file.scenes.map(key => sceneFrom(key, path => files[path]));
+      checkVocabulary(files);
       refuseOther(campaign, version);
 
       await store.put(campaign, version, files);
@@ -91,21 +95,56 @@ export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
   };
 }
 
-/** A version on disk: its campaign.json now, each scene when it's first asked for. */
+/** A version on disk: its campaign.json now, each scene when it's first asked for, the story when it's first read. */
 function campaignAt(root: string, campaign: string, version: string): Campaign {
   const file = JSON.parse(readFileSync(join(root, "campaign.json"), "utf8")) as CampaignFile;
   const scenes = new Map<string, Scene>();
   const words = (path: string) => (existsSync(join(root, path)) ? readFileSync(join(root, path), "utf8") : undefined);
+  const scene = (key: string): Scene => {
+    if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
+    const loaded = scenes.get(key) ?? sceneFrom(key, words);
+    scenes.set(key, loaded);
+    return loaded;
+  };
+  let story: Story | undefined;
   return {
-    id: campaign, version, title: file.title, creation: file.creation,
-    scene(key) {
-      if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
-      const scene = scenes.get(key) ?? sceneFrom(key, words);
-      scenes.set(key, scene);
-      return scene;
+    id: campaign, version, title: file.title, creation: file.creation, scene,
+    get story() {
+      return (story ??= storyOf(`${campaign}@${version}`, { keys: file.scenes, scene: key => ({ ...scene(key), ...placeOf(key, words) }) }, storedVocabulary(words)));
     },
   };
 }
+
+/** A scene's place as its world (what the story reads of a scene it doesn't play: its places' names), from the place the scene file names. */
+function placeOf(key: string, read: (path: string) => string | undefined): Pick<Scene, "world"> {
+  const place = (JSON.parse(read(`scenes/${key}/scene.json`) ?? "{}") as Partial<SceneFile>).place;
+  const text = place === undefined ? undefined : read(`places/${place}.json`);
+  if (text === undefined) return {};
+  const { key: _, ...world } = JSON.parse(text) as PlaceFile;
+  return { world };
+}
+
+/**
+ * vocabulary.json, or none (a campaign without one vets its lines against its own scenes alone). The
+ * PUT refused one that doesn't read, so this throws only for a folder written some other way.
+ */
+function storedVocabulary(read: (path: string) => string | undefined): Vocabulary {
+  const text = read(VOCABULARY);
+  if (text === undefined) return { source: "", scenes: [] };
+  const vocabulary = vocabularyOf(text);
+  if (Array.isArray(vocabulary)) throw new Error(`the installed ${VOCABULARY} doesn't read: ${briefly(vocabulary)}`);
+  return vocabulary;
+}
+
+/** The PUT's vocabulary.json, if it has one, reads as the story will read it: a 400 when it doesn't, as for a scene that doesn't load. */
+function checkVocabulary(files: Record<string, string>): void {
+  const text = files[VOCABULARY];
+  const vocabulary = text === undefined ? undefined : vocabularyOf(text);
+  if (Array.isArray(vocabulary)) throw new Failure(400, "bad_request", briefly(vocabulary));
+}
+
+/** A list of problems as one message: the first three, and how many more. */
+const briefly = (problems: string[]) => `${problems.slice(0, 3).join("; ")}${problems.length > 3 ? `; and ${problems.length - 3} more` : ""}`;
 
 /** A scene with its words, from its folder's files (by their paths in the campaign): a 400 when it doesn't load. */
 function sceneFrom(key: string, read: (path: string) => string | undefined): Scene {

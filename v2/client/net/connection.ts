@@ -10,10 +10,11 @@ import type { SceneView } from "../scene/view.ts";
  * The client's way into the simulation (v0-design §7, v1-design §3.10), and the e2e's: a
  * SpacetimeDB connection that follows the seat. It subscribes to the caller's own views (my_seat,
  * my_names, my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join,
- * a game continued) it subscribes to that game's, scene's and place's rows, and only then drops
- * the old set, so nothing blinks out. Each row change rebuilds the scene's rows from the client's
- * cache, once a tick; each row event also goes, in arrival order, to whoever listens. The moves
- * are the reducers: a refusal comes back as the simulation wrote it, in the game's words.
+ * a game continued) it subscribes to that game's, scene's and place's rows (the scene's suggested
+ * lines among them), and only then drops the old set, so nothing blinks out. Each row change
+ * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
+ * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
+ * simulation wrote it, in the game's words.
  */
 
 export interface ConnectOptions {
@@ -30,7 +31,7 @@ export interface ConnectOptions {
 /** The tables and views a client watches, by their SQL names. */
 export type Watched =
   | "my_seat" | "my_names" | "my_games" | "my_creation" | "campaign"
-  | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look";
+  | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion";
 export type RowOp = "insert" | "update" | "delete";
 export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
 
@@ -59,6 +60,10 @@ export class Connection implements Backend {
   private refused?: string;
   /** What's wrong with the connection, while something is: shown on the status line. */
   private trouble?: string;
+  /** The SDK has stopped trying to reconnect, for good: what's wrong, and what to do. Every move is refused with it. */
+  private cutOff?: string;
+  /** The client closed the connection itself: its end isn't trouble. */
+  private closing = false;
   /** my_seat is in: the seat (or that there's none) is known. */
   private seatKnown = false;
   private settled = false;
@@ -93,8 +98,10 @@ export class Connection implements Backend {
       onStage: of(this.db.db.onStage, s => s.sceneId === scene.id),
       names: [...this.db.db.myNames.iter()],
       looks: of(this.db.db.look, l => l.placeId === scene.placeId),
+      suggestions: of(this.db.db.sceneSuggestion, s => s.sceneId === scene.id),
       ...(this.refused ? { refusal: this.refused } : {}),
       ...(this.trouble ? { trouble: this.trouble } : {}),
+      ...(this.cutOff ? { cutOff: true } : {}),
     };
   }
 
@@ -148,6 +155,11 @@ export class Connection implements Backend {
     return this.move(() => this.db.reducers.say({ text }));
   }
 
+  /** This player's own setting: the suggested lines on or off (on, this moment's are asked for at once). */
+  setSuggestions(on: boolean): Promise<Rejection | undefined> {
+    return this.move(() => this.db.reducers.setSuggestions({ on }));
+  }
+
   /** Carries the failed turn on: the one holding the scene's lease. */
   retry(): Promise<Rejection | undefined> {
     const turn = this.rows()?.scene.turnId;
@@ -164,6 +176,7 @@ export class Connection implements Backend {
   }
 
   close(): void {
+    this.closing = true;
     this.db.disconnect();
   }
 
@@ -191,14 +204,32 @@ export class Connection implements Backend {
       .build();
   }
 
+  /** A reconnect failed: the SDK tries again (`next`), or, with no next attempt, has stopped for good. */
   private failedToConnect(options: ConnectOptions, error: Error, next: number | undefined): void {
     if (!this.settled) { void whyNot(options, error).then(why => this.rejectReady(new Error(why))); return; }
-    this.trouble = `(The game's server is out of reach: trying again${next ? ` (attempt ${next})` : ""}…)`;
+    if (this.closing) return;
+    if (next === undefined) { this.cut(TURNED_AWAY); return; }
+    this.trouble = `(The game's server is out of reach: trying again (attempt ${next})…)`;
     this.changed();
   }
 
-  private lost(error: Error | undefined, next: number | undefined): void {
-    this.trouble = next === undefined ? `(The connection to the game's server closed${error ? `: ${error.message}` : ""}.)` : "(Lost the game's server: reconnecting…)";
+  /** The connection dropped: the SDK reconnects (`next`), or, with no next attempt, won't. */
+  private lost(_error: Error | undefined, next: number | undefined): void {
+    if (this.closing) return;
+    if (next === undefined) { this.cut(CLOSED); return; }
+    this.trouble = "(Lost the game's server: reconnecting…)";
+    this.changed();
+  }
+
+  /**
+   * The SDK has stopped trying, and nothing brings this session back but starting again (a reconnect
+   * a server turned away with a 401 or 403: one signed by other keys, on the port). The status line
+   * says so and what to do, the box stays shut, and a move is refused with the same words: the SDK
+   * would answer each one "out of reach", as if it were still trying.
+   */
+  private cut(words: string): void {
+    this.cutOff = words;
+    this.trouble = words;
     this.changed();
   }
 
@@ -282,6 +313,7 @@ export class Connection implements Backend {
       ["my_seat", t.mySeat], ["my_names", t.myNames], ["my_games", t.myGames], ["my_creation", t.myCreation], ["campaign", t.campaign],
       ["game", t.game], ["player", t.player], ["sheet", t.sheet], ["scene", t.scene],
       ["transcript", t.transcript], ["reply_draft", t.replyDraft], ["turn", t.turn], ["on_stage", t.onStage], ["look", t.look],
+      ["scene_suggestion", t.sceneSuggestion],
     ];
     for (const [name, table] of tables) {
       table.onInsert((_ctx, row) => this.event(name, "insert", row));
@@ -306,10 +338,14 @@ export class Connection implements Backend {
     });
   }
 
-  /** A reducer called: undefined when it was made; else why not, and the words kept for the status line until the next move. */
+  /**
+   * A reducer called: undefined when it was made; else why not, and the words kept for the status
+   * line until the next move. Once the SDK has stopped trying, none is called: the words say why.
+   */
   private async move(call: () => Promise<void>): Promise<Rejection | undefined> {
-    this.refused = undefined;
+    this.refused = this.cutOff;
     this.changed();
+    if (this.cutOff) return { code: "error", text: this.cutOff };
     try {
       await call();
       return undefined;
@@ -322,6 +358,11 @@ export class Connection implements Backend {
   }
 }
 
+/** A reconnect the server refused, for good (a 401 or 403: a server signed by other keys, on the port), and what to do. */
+export const TURNED_AWAY = "(The game's server turned this session away: /quit, then start again.)";
+/** A connection the server closed that the SDK won't open again (a protocol error), and what to do. */
+export const CLOSED = "(The game's server closed this session: /quit, then start again.)";
+
 /** A table's row callbacks, as every watched table and view has them (onUpdate on those with a primary key). */
 interface Observable {
   onInsert(cb: (ctx: unknown, row: unknown) => void): void;
@@ -329,12 +370,12 @@ interface Observable {
   onUpdate?(cb: (ctx: unknown, old: unknown, row: unknown) => void): void;
 }
 
-/** The seat's subscription set (v0-design §7). */
+/** The seat's subscription set (v0-design §7, and v5-design §3.9's scene_suggestion). */
 function queriesFor({ game, scene, place }: WatchKey): string[] {
   return [
     `SELECT * FROM game WHERE id = ${game}`,
     ...["player", "sheet", "scene"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
-    ...(scene === undefined ? [] : ["transcript", "reply_draft", "turn", "on_stage"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
+    ...(scene === undefined ? [] : ["transcript", "reply_draft", "turn", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
     ...(place === undefined ? [] : [`SELECT * FROM look WHERE place_id = ${place}`]),
   ];
 }

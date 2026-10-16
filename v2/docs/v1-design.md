@@ -631,6 +631,27 @@ V1 keeps to this blueprint, but for these departures, each with its reason. The 
 | The dev host's `--delete-data=on-conflict` wipes a V0 database once, and says so (§3.1) | It also answers the CLI's prompt for it (`--yes=…,delete-data`, never `remote`), and reads the 2.12 CLI's words for a clear ("Proceeding with database clear…") | With no terminal to answer "this will DESTROY … ALL corresponding data", the publish was aborted, so a folder that had run V0 couldn't start V1; and the clear went unsaid |
 | `npm run live` writes `docs/live/<unit>-<date>.md` | Never over a record without `--force`: a second run that day goes beside the first, and a rehearsal to `runs/live/` | V0's review found a rehearsal could replace the committed record; V1's run takes the same rule |
 
+### Merged onto V5
+
+V1 was built from an earlier V0 head beside V5, and sits on V5 (and V0's final head, which V5 has). Where the two met, each keeps what it does:
+
+| Where | V1 on V5 | Why |
+|---|---|---|
+| The job loop's `Move` | V1's `owner` and V5's five (`applies`, `giveUp`, `giveUpMs`, `background`, `waitedOn`) side by side: a move without an owner is a turn's, and the turn's owner folds V5's in (`jobs.ts turnOwner`: its revision check is `applies` when there is one, a background job says it waits only while the turn waits on it and its answer leaves the note alone, and failing it is its move's give-up) | V5's notes and lines are a turn's jobs, charged to the turn, that never fail it; a creation's are a creation's. One loop: V1's order (whether the answer is still wanted first, before a retry or a failure, and the reaper and `dispatch_waiting` letting go of what nobody wants), V5's give-up time by move (60 s for the notes and the lines), V5's one row a turn and move for a turn's jobs (a creation's have no turn). A failed job is kept for `retry_turn` only when it's a turn's own step |
+| `job.turnId`'s index (V5, private) | None: the loop reads the job table whole to find a turn's job | V1's `turnId` is an option (a creation's job has none), and an option column can't take an index. The table holds only what's in flight |
+| A game's uid | `new_game`'s is V0's (`g<id>-<time>-<database>-<uuid>`, games/create.ts `gameUid`, unique by construction); a creation's is V1's (`newUid`: the transaction's time, then randomness), which the game made from it takes | A creation has no id of its own to fold in until its game is made, and its calls are under the uid its game keeps. Both are game ids as the AI service takes them (`isGameId`) |
+| The daily ceiling and the jobs beside a turn | A 402 gives the notes and the lines up at once (the reply unmarked, the moment without lines), and the turn ends; a turn's own step fails, as V1's does | The notes and the lines never fail a turn |
+| Deleting a game | The registry deletes its `scene_suggestion` rows too; the e2e counts them | A table V5 added to the game |
+| The client | The scene's model takes V5's `setSuggestions` from the AppModel; the title's and creation's models draw by the AppModel's change count, and the App's screen switch by `useSyncExternalStore` | V0's last fix draws a change made as a screen comes up (`useStore` over a version); V1's screens, and its switch, had the same gap |
+| The help, `/sheet`, `/suggestions` | V5's marks and lines, V1's `/sheet` (or `/c`) and `/quit` to the title, V0's deed for an example; `/s` is neither command, as in the prototype | The prototype's commands, as far as this client has them |
+| The demo | V1's title, creation and games, with V5's turn: a line queued behind a turn, noting, the notes with their cards, the lines a moment after, `/suggestions` | Both units' offline play |
+| `play new` and `begin` | Wait for the opening's notes and lines (15 s at most), as V5's `new` waits | The opening of a created character is printed whole, as a ready-made one's |
+| `--fake`'s `KM_AI_FAKE` | Its `byName` and `byNameDelayMs` go beside fake.json's, name by name | V1's recipe of the prototype's creation answers would otherwise take away the notes' answer |
+| `npm run live` | One entry: V5's scripts (`--script v0` is V0's run) and V1's `--creation`; one guard against writing over a record (live/common.ts) and one way to find the stack (live/stack.ts). V1's live/scene.ts, V0's run as it was, is gone | V5's v0 script plays V0's run; both split V0's live-run.ts, each its own way |
+| The e2e | V5's steps 1-14 (V0's among them, with V5's checks), V1's as 15-21, the times as 22; its fake the dev host's (fake.json) with creation's answers beside the notes' | V1's steps need a game that can still reply, after V0's ending |
+| Prompt parity | The recording with a backstory (in V0's golden format) plays through V5's pipeline, step by step | The prototype's notes and lines for a player with a backstory aren't recorded: the hanged clerk's recording, with no backstory, holds them |
+| The screen check | V0's and V5's scene checks draw the scene as `ScenePlay` (V1's App is the screen switch); V1's creation checks after them | One check, 427 cases |
+
 ### Known limits
 
 - **The fake model's lore check** answers by its schema's name, the same every time: given an issue (`KM_AI_FAKE`'s `byName.lore_check`), the check with the fixes in finds it again with its words gone, and Accept leads to Rewrite it myself. A limit of the stand-in, not the game; with real models the second check passes (the live run).

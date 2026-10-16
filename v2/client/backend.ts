@@ -21,6 +21,8 @@ export interface Backend {
   say(text: string): Promise<Rejection | undefined>;
   /** Carries the failed turn on: retry_turn on the scene's turn in flight. */
   retry(): Promise<Rejection | undefined>;
+  /** This player's own setting, the suggested lines over the box: on (this moment's are asked for at once) or off. */
+  setSuggestions(on: boolean): Promise<Rejection | undefined>;
   /** One of V1's moves (v1-design §3.3), by its reducer's name. The refusal's words are home()'s `refusal` too, until the next move. */
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined>;
   close(): void;

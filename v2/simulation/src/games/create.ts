@@ -1,4 +1,4 @@
-import type { Identity } from "spacetimedb";
+import type { Identity, Timestamp } from "spacetimedb";
 import type { Backstory } from "../../../shared/creation/types.ts";
 import { MAX_CONCEPT, MAX_NAME, refusal } from "../../../shared/protocol/refusals.ts";
 import { createCharacter } from "../../../shared/rules/index.ts";
@@ -17,8 +17,8 @@ import type { Start } from "../world/place.ts";
  * (creation/make.ts), and `begin` sets off later.
  */
 
-/** Who the host plays, and the game's uid (a new one, or the creation's). */
-export interface Who { uid: string; name: string; concept: string }
+/** Who the host plays, and the game's uid: a creation's, which its game takes; none for a ready-made game, whose uid is made from its id (gameUid). */
+export interface Who { uid?: string; name: string; concept: string }
 
 /** A character's name as a player gives it: trimmed, and no longer than a name may be (bad_name). */
 export function characterName(name: string): string {
@@ -35,16 +35,32 @@ export function characterConcept(concept: string): string {
 }
 
 /**
- * A new game's id, or a creation's (which its game takes): the transaction's time in microseconds,
- * then tx.uuid()'s randomness, as a UUID. It names the game's folder and every key at the AI
- * service, so it must never come round again; and the module's randomness does: its generator is
- * seeded from the transaction's timestamp through a 32-bit hash that gives far fewer seeds than
- * timestamps (new_game hit a taken game.uid 4 times in 50 when the id was tx.uuid() alone). No
- * two transactions share a time, so the time keeps every id apart.
+ * A creation's id, which the game made from it takes: the transaction's time in microseconds, then
+ * tx.uuid()'s randomness, as a UUID. It names the game's folder and every key at the AI service, so
+ * it must never come round again; and the module's randomness does: its generator is seeded from the
+ * transaction's timestamp through a 32-bit hash that gives far fewer seeds than timestamps (new_game
+ * hit a taken game.uid 4 times in 50 when the id was tx.uuid() alone). No two transactions share a
+ * time, so the time keeps every id apart. A creation has no id of its own to fold in, as a
+ * ready-made game's uid does (gameUid): its game is made later.
  */
 export function newUid(tx: TxCtx): string {
   const hex = tx.now.microsSinceUnixEpoch.toString(16).padStart(13, "0") + tx.uuid().replace(/-/g, "").slice(13);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * A ready-made game's uid. It's in every request, key and folder of the AI service's, so it must
+ * never repeat, and it's unique by construction, not by chance. The game's id makes it unique in its
+ * database. The transaction's time and the database's identity keep it apart from a game with the
+ * same id in another database, or in this one after its data was deleted (the AI service may still
+ * keep that game's answers under its uid). The uuid's first block only adds spread: SpacetimeDB's
+ * generator gives about 3% of transactions the same uuid (v0-design §14). Each part is letters and
+ * digits, so the uid is a folder's name and a key's first part as it stands (shared/protocol/keys.ts
+ * isGameId). `database` is the identity's hex: its first four digits are c200 in every identity, so
+ * twelve after them.
+ */
+export function gameUid(id: bigint, now: Timestamp, database: string, uuid: string): string {
+  return `g${id}-${now.microsSinceUnixEpoch.toString(36)}-${database.slice(4, 16)}-${uuid.slice(0, 8)}`;
 }
 
 /** How long the character took, in host milliseconds, for the module's log. */
@@ -53,13 +69,15 @@ export interface Made { createMs: number; sheetMs: number }
 /** The game and its host: the player (seated, in place of any game they were in) and the game's dice. */
 export function createGame(tx: TxCtx, campaign: CampaignRow, sender: Identity, who: Who): { game: GameRow; player: PlayerRow } {
   const file = campaignFile(campaign);
-  const game = tx.db.game.insert({
-    id: 0n, uid: who.uid, campaign: file.id, campaignVersion: file.version, title: file.title,
+  // A ready-made game's uid takes its id, which the insert gives: until then, one no game keeps past its transaction.
+  const made = tx.db.game.insert({
+    id: 0n, uid: who.uid ?? "new", campaign: file.id, campaignVersion: file.version, title: file.title,
     time: firstSceneTime(tx, campaign, file), day: file.start.day, hostId: 0n, status: "playing", createdAt: tx.now,
   });
+  const game = who.uid ? made : tx.db.game.id.update({ ...made, uid: gameUid(made.id, tx.now, tx.database(), tx.uuid()) });
   const player = tx.db.player.insert({
     id: 0n, identity: sender, gameId: game.id, name: who.name, concept: who.concept, role: "host",
-    characterId: undefined, placeId: undefined, sceneId: undefined, online: true, lastPlayedAt: tx.now,
+    characterId: undefined, placeId: undefined, sceneId: undefined, online: true, suggestions: true, lastPlayedAt: tx.now,
   });
 
   seatPlayer(tx, sender, player.id);

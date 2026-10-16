@@ -1,22 +1,30 @@
 import { keepOpened, disclose } from "../../docs/disclosure.ts";
 import { JEV_MODEL, JevDecider, LUNA_DECISIONS_MODEL } from "../../llm/decide.ts";
 import type { CallContext } from "../../llm/openrouter.ts";
-import { viewOf, type TurnView, type ViewSource } from "../../gm/view.ts";
+import type { Story } from "../../gm/story.ts";
+import { gameMarkup, keysOf, viewOf, type TurnView, type ViewSource } from "../../gm/view.ts";
 import { workingSet } from "../../gm/working-set.ts";
 import type { OpenedNote } from "../../../shared/gm/state.ts";
+import type { Markup } from "../../../shared/markup.ts";
 import { effectiveScene } from "../../../shared/scene/graph.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import type { AiContext } from "../context.ts";
 
 /**
  * What every think starts from: the scene the request plays, with its words, as play has it (its
- * patches: none in V0, so it's the authored scene with an ending of its own), and the request's view
- * of it, which the GM code reads as the prototype's session. The server has checked the request has
- * what this reads (requests.ts).
+ * patches: none in V0, so it's the authored scene with an ending of its own), the request's view of
+ * it, which the GM code reads as the prototype's session, and the way back from the view's names for
+ * people to the game's keys, for the markup an endpoint answers with (who says each line, whom a
+ * mark is about). The server has checked the request has what this reads (requests.ts).
+ *
+ * The story (the campaign's scenes and its vocabulary.json: gm/story.ts) is on the view only for the
+ * endpoints that read it, the notes and the lines, so a turn's own thinks never depend on the
+ * vocabulary. A think whose GM brief names earlier scenes (V3's history) will need it too.
  */
-export function sceneAndView(ctx: AiContext, key: string, source: ViewSource): { scene: Scene; view: TurnView } {
+export function sceneAndView(ctx: AiContext, key: string, source: ViewSource, story?: Story): { scene: Scene; view: TurnView; byKey(markup: Markup): Markup } {
   const scene = effectiveScene(ctx.campaign.scene(key), source.gm.patches);
-  return { scene, view: viewOf(source, scene) };
+  const view = viewOf(source, scene, story);
+  return { scene, view, byKey: markup => gameMarkup(markup, scene, view.world, keysOf(source)) };
 }
 
 /** The deciders the prototype's v2 approach uses: Luna's decision mode for the director, and Jev for disclosure (the docs service's own). */

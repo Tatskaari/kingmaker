@@ -1,5 +1,5 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay).
-import type { Backend } from "../backend.ts";
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay).
+import type { Backend, Rejection } from "../backend.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
@@ -19,8 +19,14 @@ export interface SceneActions {
   say(text: string): void;
   /** The `retryTurn` move, for a turn that failed. */
   retry(): void;
+  /** The `setSuggestions` move: this player's own setting. Answers why not, when it wasn't made (the view's refusal says so too). */
+  setSuggestions(on: boolean): Promise<Rejection | undefined>;
   quit(): void;
 }
+
+/** What /suggestions says it did (the prototype's words, less the Esc menu, which this client hasn't got). */
+export const SUGGESTIONS_ON = "Suggested lines on: a few things to say or do come up over the box after each reply.";
+export const SUGGESTIONS_OFF = "Suggested lines off. (/suggestions brings them back.)";
 
 export type Overlay =
   | { kind: "sheet" }
@@ -40,6 +46,12 @@ export class SceneModel {
   markPointed?: { line: number; mark: number };
   /** How big the screen draws the conversation's frame (a mark's popover stays inside it). */
   talkArea?: { w: number; h: number };
+  /**
+   * The screen row the conversation's last row is drawn on, as last laid out (a mark's popover finds
+   * its phrase by it): part way down a frame the conversation doesn't fill, at the foot of one it
+   * does (where it sticks), below the frame once PgUp has scrolled it up.
+   */
+  talkEnd?: () => number | undefined;
   /** A word of the client's own (an unknown command), until the next line. The simulation's refusals are the view's. */
   status?: string;
   /** Why the game this screen shows has gone from the server (its seat has: a stack started again with --fresh), until a view comes again. */
@@ -51,6 +63,7 @@ export class SceneModel {
   /** The seat's sheet, read when /sheet shows it: the rows have it, not the scene's view. */
   readonly sheet: () => SheetShown | undefined;
   private listeners = new Set<() => void>();
+  private changes = 0;
   private pending?: ReturnType<typeof setTimeout>;
   private busyLines = new BusyLines();
   private busyLine?: string;
@@ -69,8 +82,15 @@ export class SceneModel {
     return () => { this.listeners.delete(listener); };
   }
 
+  /**
+   * How many changes the screen has been told of. The screen draws by it (useStore), and looks at it
+   * again once it has subscribed, so a change told of before then (with no one listening) still shows.
+   */
+  get version(): number { return this.changes; }
+
   emit(): void {
     if (this.pending) { clearTimeout(this.pending); this.pending = undefined; }
+    this.changes++;
     for (const l of this.listeners) l();
   }
 
@@ -130,11 +150,11 @@ export class SceneModel {
    * Whether a plain line goes to the simulation now: when the box is open, and when the simulation
    * refuses it in words worth seeing (a spectator's line, a line once a reply has closed the scene
    * or after its end, or while a turn is failed: its /retry). While the GM has the floor it waits in
-   * the box; with the game gone from the server there's nothing to send it to.
+   * the box; with the game gone from the server, or the connection cut off, there's nothing to send it to.
    */
   sends(): boolean {
     const v = this.view;
-    return !this.gone && (v.mayType || !!v.watching || v.over || !!v.ending || v.phase === "failed");
+    return !this.gone && !v.cutOff && (v.mayType || !!v.watching || v.over || !!v.ending || v.phase === "failed");
   }
 
   lines(): Line[] { return linesOf(this.view); }
@@ -145,7 +165,8 @@ export class SceneModel {
     const { phase, draft } = this.view;
     if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
     if (phase === "replying") return draft?.kind === "dialogue" ? `${draft.name ?? draft.speaker} is speaking…` : "The GM is speaking…";
-    if (phase === "settling") return "The GM makes a note…";
+    // The world settling behind the reply, and the notes on its marks being written: the GM's bookkeeping, either way.
+    if (phase === "settling" || phase === "noting") return "The GM makes a note…";
     return undefined;
   }
 
@@ -166,7 +187,7 @@ export class SceneModel {
   }
 
   private command(command: string): void {
-    const [typed = ""] = command.trim().split(/\s+/);
+    const [typed = "", word] = command.trim().split(/\s+/);
     switch (commandNamed(typed)) {
       case "sheet": this.overlay = { kind: "sheet" }; break;
       case "help": this.overlay = { kind: "help" }; break;
@@ -174,12 +195,26 @@ export class SceneModel {
         if (this.view.phase === "failed") this.actions.retry();
         else this.status = "Nothing to retry: the last turn didn't fail.";
         break;
+      case "suggestions": void this.turnSuggestions(word); break;
       case "quit": this.actions.quit(); return;
       default:
         this.status = typed
           ? `There's no /${typed}. There's ${COMMANDS.filter(c => !c.testing).map(c => `/${c.name}`).join(", ").replace(/, ([^,]+)$/, " and $1")}.`
           : "A slash on its own says very little. Try /help.";
     }
+    this.emit();
+  }
+
+  /**
+   * /suggestions on or off, and with no word turned over: the player's own setting, which the
+   * simulation keeps (turned on, it asks for this moment's lines at once). It goes any time, with the
+   * GM mid-sentence or the scene over. Its words once it's made; a refusal's are the view's.
+   */
+  private async turnSuggestions(word: string | undefined): Promise<void> {
+    const on = word === undefined ? !this.view.suggestionsOn : /^(on|yes)$/i.test(word) ? true : /^(off|no)$/i.test(word) ? false : undefined;
+    if (on === undefined) { this.status = `/suggestions takes on or off (or nothing, to turn them over), not "${word}".`; this.emit(); return; }
+    if (await this.actions.setSuggestions(on)) return;
+    this.status = on ? SUGGESTIONS_ON : SUGGESTIONS_OFF;
     this.emit();
   }
 

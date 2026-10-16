@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box and the keys as written; the scene's place and its menu, the way on, talks' choices and glances go; it reads a SceneModel in place of the Game.
+// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340) and the keys as written; the scene's place and its menu, the way on, talks' choices and glances go; it reads a SceneModel in place of the Game.
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState } from "react";
@@ -222,15 +222,16 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   const typing = /^[/#]/.test(draft) ? draft.slice(1).split(/\s+/)[0]!.toLowerCase() : undefined;
   const commands = typing === undefined || draft.includes(" ") ? [] : COMMANDS.filter(c => c.name.startsWith(typing) || commandNamed(typing) === c.name);
   const room = Math.min(9, Math.max(3, height - 18));
-  /** The suggested lines have rows of their own while there are any, so the conversation doesn't move when they come. */
+  /** The suggested lines have rows of their own, kept for them while they're on their way, so the conversation doesn't move when they come. */
   const rows = height < 26 ? 4 : 5;
-  const choices = fitSuggestions(view.suggestions ?? [], rows);
+  const choices = fitSuggestions(view.suggestions, rows);
   /** Put a suggested line in the box (in place of nothing: they're shown only while it's empty). */
   const fill = (line: string) => { if (input.current) { input.current.value = line; input.current.focus(); } setDraft(line); };
   const toPick: Pick[] = typing !== undefined ? commands.slice(0, room).map(c => ({ key: `/${c.name}`, label: c.what, color: c.testing ? C.faint : C.dim, run: () => send(`/${c.name}`) }))
     : draft ? []
     : choices.map((s, i) => ({ key: String(i + 1), label: s.text, color: KIND_COLOR[s.kind], run: () => fill(choices[i]!.text) }));
-  const kept = toPick.length ? (typing !== undefined ? toPick.length : rows) : 0;
+  // The rows they take: a command's list, or nothing with words in the box; else the suggested lines' own, kept while they're coming.
+  const kept = typing !== undefined || draft ? toPick.length : (toPick.length || view.suggestionsComing) ? rows : 0;
 
   const side = sceneSide(width);
   const narrow = width < 100;
@@ -282,14 +283,15 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   };
   const inner = side - 4;
   const busy = scene.busy();
-  const open = view.mayType && !scene.gone;
+  const open = view.mayType && !scene.gone && !view.cutOff;
   // The game's word on the status line, in place of the spinner: the client's own, that the game has
   // gone from the server, that the box is full, the simulation's last refusal (until the scene moves
-  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach).
+  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach,
+  // or done with this session).
   const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
   const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note;
-  // The box, while it's shut: the game gone, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
-  const shut = scene.gone ? "The game is gone from the server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
+  // The box, while it's shut: the game gone, the connection cut off, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
+  const shut = scene.gone ? "The game is gone from the server." : view.cutOff ? "Cut off from the game's server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
     : view.watching ? `${view.watching} has the lead: you're watching.`
     : view.phase === "failed" ? "The GM lost the thread: /retry carries it on."
     : "The GM has the floor…";
@@ -320,6 +322,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   } : undefined;
   // The conversation's frame: everything but the status line, what's to pick, the box and the bottom line.
   scene.talkArea = { w: width - side, h: height - 5 - kept };
+  // Where the conversation ends on screen: the scroll box's content is the transcript alone.
+  scene.talkEnd = () => { const talk = scroll.current?.content.getChildren()[0]; return talk ? talk.screenY + talk.height - 1 : undefined; };
   const title = view.time ? ` ${view.title} · ${view.time} ` : ` ${view.title} `;
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>
     <box flexDirection="row" flexGrow={1} minHeight={0}>

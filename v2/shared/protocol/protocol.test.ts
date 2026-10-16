@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tooLong } from "../creation/story.ts";
 import { STEP_ENDPOINT, STEP_TIMEOUT_MS, streamReplyArgs } from "./ai.ts";
-import { creationKey, CREATION_STEPS, idempotencyKey, isTurnKey, keyParts } from "./keys.ts";
+import { creationKey, CREATION_STEPS, idempotencyKey, isTurnKey, keyParts, STEPS } from "./keys.ts";
 import { andList, refusal, refusalIn } from "./refusals.ts";
 
 test("refusals say what v0-design §3.4 says", () => {
@@ -31,6 +31,27 @@ test("a think's key holds its game, scene, turn and step", () => {
   assert.equal(keyParts("not a key"), undefined);
 });
 
+test("a reply's notes have a key of their own, and each ask for its lines another (v5-design §3.6)", () => {
+  assert.equal(idempotencyKey("5f0c-uid", 1n, 3, "notes"), "5f0c-uid:s1:t3:notes");
+  assert.deepEqual(keyParts("5f0c-uid:s1:t3:notes"), { game: "5f0c-uid", scene: "1", turn: 3, step: "notes" });
+
+  const asks = [1, 2, 3].map(ask => idempotencyKey("5f0c-uid", "1", 0, "suggest", ask));
+
+  assert.deepEqual(asks, ["5f0c-uid:s1:t0:suggest", "5f0c-uid:s1:t0:suggest-2", "5f0c-uid:s1:t0:suggest-3"]);
+  assert.deepEqual(asks.map(keyParts), [
+    { game: "5f0c-uid", scene: "1", turn: 0, step: "suggest" },
+    { game: "5f0c-uid", scene: "1", turn: 0, step: "suggest", ask: 2 },
+    { game: "5f0c-uid", scene: "1", turn: 0, step: "suggest", ask: 3 },
+  ]);
+  assert.equal(idempotencyKey("5f0c-uid", 1n, 3, "notes", 2), "5f0c-uid:s1:t3:notes", "only the suggest step is asked again");
+  for (const other of ["5f0c-uid:s1:t3:suggest-1", "5f0c-uid:s1:t3:suggest-02", "5f0c-uid:s1:t3:notes-2", "5f0c-uid:s1:t3:reply-2"]) assert.equal(keyParts(other), undefined, other);
+});
+
+test("every step has its endpoint and its timeout: the notes' and the lines' 30 s", () => {
+  assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), ["/v1/scenes/open", "/v1/turns/decide", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/notes", "/v1/turns/suggest"]);
+  assert.deepEqual([STEP_TIMEOUT_MS.notes, STEP_TIMEOUT_MS.suggest], [30_000, 30_000]);
+});
+
 test("stream_reply's arguments are named as the reducer's, the markup in SpacetimeDB's option", () => {
   const args = streamReplyArgs({ turn: "812", attempt: 2, seq: 5, speaker: "gm", text: "Kell looks up.", markup: { speech: [], marks: [] }, done: false });
 
@@ -47,7 +68,9 @@ test("a creation step's key holds its uid, rev and step; a turn's key is still a
   assert.equal(isTurnKey(parts), false);
   assert.equal(isTurnKey(keyParts(idempotencyKey("5f0c-uid", 1n, 3, "reply"))!), true);
   assert.equal(keyParts("5f0c-uid:c4:open"), undefined, "a turn's step isn't a creation's");
+  assert.equal(keyParts("5f0c-uid:c4:notes"), undefined, "nor a step beside a turn");
   assert.equal(keyParts("5f0c-uid:s1:t3:check"), undefined, "nor the other way");
+  assert.equal(isTurnKey(keyParts(idempotencyKey("5f0c-uid", 1n, 3, "suggest", 2))!), true, "a turn's later ask for its lines is a turn's");
 });
 
 test("each creation step goes to its endpoint, and waits as long as v1-design §3.5 says", () => {

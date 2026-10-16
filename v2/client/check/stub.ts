@@ -12,7 +12,7 @@ export class StubBackend implements Backend {
   /** Every move made, in order: its name and its arguments. */
   readonly moves: Array<{ name: string; args: unknown }> = [];
   /** What a move does, by name: a refusal to answer with, or nothing (after changing the rows, say). */
-  readonly answers: Partial<Record<MoveName | "say" | "retry" | "newGame" | "joinGame", (args: never) => Rejection | void>> = {};
+  readonly answers: Partial<Record<MoveName | "say" | "retry" | "setSuggestions" | "newGame" | "joinGame", (args: never) => Rejection | void>> = {};
   private readonly listeners = new Set<() => void>();
 
   constructor(rows: Partial<HomeRows> = {}, scene?: SceneView) {
@@ -46,6 +46,7 @@ export class StubBackend implements Backend {
   joinGame(game: bigint): Promise<Rejection | undefined> { return this.answer("joinGame", { game }); }
   say(text: string): Promise<Rejection | undefined> { return this.answer("say", { text }); }
   retry(): Promise<Rejection | undefined> { return this.answer("retry", {}); }
+  setSuggestions(on: boolean): Promise<Rejection | undefined> { return this.answer("setSuggestions", { on }); }
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined> { return this.answer(move, args); }
   close(): void {}
 

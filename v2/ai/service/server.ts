@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
-import { isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { isGameId, isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
 import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
@@ -12,8 +12,9 @@ import type { Stores } from "./stores.ts";
 import { streamSink, type StreamTarget } from "./stream.ts";
 
 /**
- * The AI service's HTTP API (v0-design §5.1, v1-design §3.7): the thinks (a scene's four, and
- * character creation's builds and backstories), a campaign's words, and its health.
+ * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7): the thinks (the
+ * opening, a turn's three, its notes and its suggested lines, and character creation's builds and
+ * backstories), a campaign's words, and its health.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
  * - A think is answered by its idempotency key, which names its step (a creation's endpoints serve
@@ -64,6 +65,7 @@ export interface AiService {
 /** The thinks, by endpoint: the handler that serves each (STEP_ENDPOINT says which steps are whose). */
 const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
+  "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
 /** The steps that never call a model: the ceiling doesn't stop them. */
@@ -243,7 +245,7 @@ function checkedKey(body: ThinkBody, endpoint: Endpoint, header: string | undefi
   if (STEP_ENDPOINT[parts.step] !== endpoint) throw new Failure(400, "bad_request", `${body.key} is for the ${parts.step} step, which ${endpoint} doesn't serve`);
   const game = body.game;
   if (!game || typeof game.campaign !== "string" || typeof game.version !== "string") throw new Failure(400, "bad_request", "the body has no game { id, campaign, version }");
-  if (game.id !== parts.game || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
+  if (game.id !== parts.game || !isGameId(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
   return { key: body.key, parts };
 }
 

@@ -16,6 +16,7 @@ import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
 import { sayReducer } from "../moves/say.ts";
+import { setSuggestionsReducer } from "../moves/set-suggestions.ts";
 import { loadRules } from "../rules/load.ts";
 import { streamReplyReducer } from "../stream.ts";
 import { TABLES } from "../tables.ts";
@@ -40,6 +41,10 @@ export interface MemoryHostOptions {
   ai: AiPost;
   /** The game's randomness: dice seeds and uuids. */
   seed?: number;
+  /** Where tx.uuid() comes from, in place of the seeded sequence: a source that repeats, as SpacetimeDB's generator does for about 3% of transactions. */
+  uuid?: () => string;
+  /** The database's own identity (tx.database()): another host may stand for another database. */
+  database?: Identity;
   /** AI_URL, AI_TOKEN, AI_IDENTITY: the defaults reach `ai` as the service below. */
   env?: Env;
   /** The rules engine: the module's (simulation/src/rules/load.ts) unless a test hands in its own. */
@@ -69,6 +74,7 @@ export type Caller = { [M in keyof typeof MOVES]: Made<(typeof MOVES)[M]> } & {
   joinGame(args: Parameters<typeof joinGameReducer>[2]): Refusal | undefined;
   say(args: Parameters<typeof sayReducer>[2]): Refusal | undefined;
   retryTurn(args: Parameters<typeof retryTurnReducer>[2]): Refusal | undefined;
+  setSuggestions(args: Parameters<typeof setSuggestionsReducer>[2]): Refusal | undefined;
   installCampaign(args: InstallArgs): Refusal | undefined;
   dispatchWaiting(): Refusal | undefined;
 };
@@ -104,11 +110,13 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
   const clock = { now: new Timestamp(BigInt(START) * 1000n) };
   const logs: string[] = [];
   const random = randomness(options.seed ?? 1);
+  const uuid = options.uuid ?? random.uuid;
+  const database = (options.database ?? new Identity(0xdbn)).toHexString();
 
   const rules = options.rules ?? loadRules;
   const txNow = (): TxCtx => {
     const began = performance.now();
-    return { db: store.db, now: clock.now, env, uuid: random.uuid, seed: random.seed, log: line => logs.push(line), rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
+    return { db: store.db, now: clock.now, env, database: () => database, uuid, seed: random.seed, log: line => logs.push(line), rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
   };
   const transact = <T>(body: (tx: TxCtx) => T): T => inTransaction(store, () => body(txNow()));
   const call = (body: (tx: TxCtx) => void): Refusal | undefined => refusalOf(() => transact(body));
@@ -144,6 +152,7 @@ function callerAs(identity: Identity, call: (body: (tx: TxCtx) => void) => Refus
     joinGame: args => call(tx => joinGameReducer(tx, identity, args)),
     say: args => call(tx => sayReducer(tx, identity, args)),
     retryTurn: args => call(tx => retryTurnReducer(tx, identity, args)),
+    setSuggestions: args => call(tx => setSuggestionsReducer(tx, identity, args)),
     installCampaign: args => call(tx => installCampaignReducer(tx, identity, args)),
     dispatchWaiting: () => call(tx => dispatchWaitingReducer(tx, identity)),
   };

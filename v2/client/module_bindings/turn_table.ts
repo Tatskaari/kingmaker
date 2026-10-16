@@ -24,4 +24,7 @@ export default __t.row({
   endedAt: __t.option(__t.timestamp()).name("ended_at"),
   calls: __t.u32(),
   costMicros: __t.u64().name("cost_micros"),
+  notes: __t.string(),
+  suggest: __t.string(),
+  suggestAsks: __t.u32().name("suggest_asks"),
 });

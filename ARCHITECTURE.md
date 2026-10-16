@@ -109,7 +109,7 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | Model calls | `v2/ai/llm`, through shims in `src/llm` | OpenRouter's Responses and Decisions APIs: streaming, retries, the deciders, the tool loop, the call log and the cost ledger. | [v2/ai/llm](v2/ai/llm/README.md) |
 | The lore | `lore/` | Caerwyn and its people in 154 Markdown docs, each with frontmatter that says who may read it. | [lore](lore/README.md) |
 | The prompts | `v2/ai/prompts` | The models' standing instructions, one Markdown file each, and their loader (src/runtime/brief.ts re-exports it). | [v2/ai/prompts](v2/ai/prompts/README.md) |
-| The AI API, as far as it's built | `v2/ai` | The production build's AI API: the docs service, the model calls and the prompts above, one copy that this prototype and v2 share; and v2's alone so far, the AI service's HTTP server and stores and V0's GM pipeline, a copy of the prototype's held to it by recorded prompts. It imports nothing outside itself but v2/shared, the code it shares with v2's simulation, which imports nothing outside itself either. | [v2/ai](v2/ai/README.md) |
+| The AI API, as far as it's built | `v2/ai` | The production build's AI API: the docs service, the model calls and the prompts above, one copy that this prototype and v2 share; and v2's alone so far, the AI service's HTTP server and stores and its GM pipeline as V0 and V5 have it (a turn's thinks, who says each line, the notes on a reply's marks, the lines suggested after it), a copy of the prototype's held to it by recorded prompts. It imports nothing outside itself but v2/shared, the code it shares with v2's simulation, which imports nothing outside itself either. | [v2/ai](v2/ai/README.md) |
 | The rules engine | `vendor/dnd-srd-engine` | dnd-srd-engine's bundled build, its starter pack, our typings and our patches. | [vendor/dnd-srd-engine](vendor/dnd-srd-engine/README.md) |
 | The SRD's spell text | `vendor/srd-spells` | Every spell's description in the SRD's own words, for the sheet. | [vendor/srd-spells](vendor/srd-spells/README.md) |
 | The glyph font | `tools/glyphs`, `assets/` | Kingmaker Glyphs, our font of pixel-art sprites, built from hand-drawn bitmaps. | [tools/glyphs](tools/glyphs/README.md) |
@@ -311,7 +311,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (690) | `npm test` (src's and v2/ai's), or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
+| The unit tests alone (789) | `npm test` (src's and v2/ai's), or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Identity } from "spacetimedb";
 import type { RollResult } from "../../../shared/dice.ts";
 import type { Backstory } from "../../../shared/creation/types.ts";
-import type { BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, DecideResponse, OpenResponse, ReplyResponse, SettleResponse, Usage } from "../../../shared/protocol/ai.ts";
+import type { BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, DecideResponse, NotesResponse, OpenResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
 import { CREATION_STEPS, type CreationStep } from "../../../shared/protocol/keys.ts";
 import { gmFromRow } from "../../../shared/gm/state.ts";
 import { rollFor } from "../../../shared/rules/index.ts";
@@ -43,8 +43,8 @@ export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 // ---------------------------------------------------------------------------------------------
 // A scripted AI service.
 
-/** A turn's steps, and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
-export type Step = "open" | "decide" | "reply" | "settle" | CreationStep;
+/** A turn's steps (its own, and the notes and the lines beside it), and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
+export type Step = "open" | "decide" | "reply" | "settle" | "notes" | "suggest" | CreationStep;
 
 /** What an endpoint answers: the answer itself (200, as JSON), another HTTP reply, a thrown error (a refused connection), or a function of the request that gives one of those. */
 export type Scripted = unknown | { http: AiReply } | ((request: any, headers: Record<string, string>) => unknown);
@@ -53,15 +53,30 @@ export interface Sent { step: Step; key: string; attempt: string; body: any }
 
 const usage = (calls: number, costUsd: number): Usage => ({ calls, costUsd, byOperation: {} });
 
-/** The answers each endpoint gives when the script has nothing queued for it. */
-export const DEFAULTS: { open: OpenResponse; decide: DecideResponse; reply: ReplyResponse; settle: SettleResponse } = {
+/**
+ * The answers each endpoint gives when the script has nothing queued for it. The opening and the
+ * reply carry no markup, so nothing is noted unless a test says what's said; the lines are four.
+ */
+export const DEFAULTS: { open: OpenResponse; decide: DecideResponse; reply: ReplyResponse; settle: SettleResponse; notes: NotesResponse; suggest: SuggestResponse } = {
   open: { present: ["kell", "cob", "moll"], entries: [{ speaker: "gm", kind: "narration", text: "Sergeant Kell looks up from her notebook as you come through the gate. \"You'll be the King's investigator.\"" }], opened: [], usage: usage(2, 0.002) },
   decide: { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: usage(1, 0.0005) },
   reply: { entries: [{ speaker: "gm", kind: "narration", text: "Kell taps her pencil on the notebook. \"Noted.\"" }], gm: { repeated: null }, firstTextMs: 3, usage: usage(1, 0.001) },
   settle: { ops: [], after: { landed: [], hinted: [], unanswered: false, theirs: false }, usage: usage(2, 0.0007) },
+  notes: { marks: [], usage: usage(1, 0.0002) },
+  suggest: {
+    lines: [
+      { kind: "say", text: "Who found him, Sergeant?" },
+      { kind: "say", text: "Did anyone see him go up to the loft?" },
+      { kind: "do", text: "(I look up at the hoist)" },
+      { kind: "try", text: "(I try to get the boy talking with a penny)" },
+    ],
+    dropped: [], usage: usage(2, 0.0008),
+  },
 };
 
-const STEPS: Record<string, Step> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
+const STEPS: Record<string, Step> = {
+  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest",
+};
 
 /** A creation request's step: the builds asked for, or what's asked of the backstory. */
 function creationStepOf(endpoint: string, request: { ask?: { kind?: string }; op?: string }): Step | undefined {
@@ -135,7 +150,7 @@ export const down = () => () => {
 
 export function scriptedAi() {
   const sent: Sent[] = [];
-  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reply: [], settle: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
+  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reply: [], settle: [], notes: [], suggest: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
 
   const ai: AiPost = async (endpoint, body, headers) => {
     const request = JSON.parse(body) as { key: string; ask?: { kind?: string }; op?: string };
@@ -161,6 +176,16 @@ export function scriptedAi() {
 }
 
 const isHttp = (answer: unknown): answer is { http: AiReply } => typeof answer === "object" && answer !== null && "http" in answer;
+
+/** A promise the test settles when it likes: a POST still in flight. */
+export function held<T>() {
+  let settle!: (value: T) => void;
+  const promise = new Promise<T>(resolve => { settle = resolve; });
+  return { promise, settle };
+}
+
+/** Lets a drain run until it waits on a POST that's held. */
+export const tick = () => new Promise(resolve => setImmediate(resolve));
 
 // ---------------------------------------------------------------------------------------------
 // Games.

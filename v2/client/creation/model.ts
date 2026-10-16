@@ -40,6 +40,9 @@ export class CreationModel {
     return this.app.subscribe(listener);
   }
 
+  /** The app's count of changes, which its screens draw by (useStore). */
+  get version(): number { return this.app.version; }
+
   get screen(): string { return this.app.screen; }
 
   /** The character being made, as the screens read it; none for a new one until its concept goes in (New game starts afresh: one made, or half made, before isn't this one). */

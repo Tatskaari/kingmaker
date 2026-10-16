@@ -2,13 +2,13 @@ import { Timestamp } from "spacetimedb";
 import { schema, t, table } from "spacetimedb/server";
 
 /**
- * Every table of the module, and its env (v0-design §3.1, v1-design §3.1). Columns are the
- * TypeScript names; SQL, HTTP and subscription queries use snake_case (sceneId is scene_id). Ids are
- * u64 (bigint); an autoInc id is inserted as 0n. Every row belongs to one game, but a creation's,
- * which belongs to an identity until the game is made. Public tables are subscribed to by clients;
- * private ones are the module's (and the owner's, through SQL); the public ones are the client's
- * contract (client/module_bindings). A column added to a table that has rows has a default, so a dev
- * database migrates (spacetime.md §4.10).
+ * Every table of the module, and its env (v0-design §3.1, v1-design §3.1, v5-design §3.1). Columns
+ * are the TypeScript names; SQL, HTTP and subscription queries use snake_case (sceneId is scene_id).
+ * Ids are u64 (bigint); an autoInc id is inserted as 0n. Every row belongs to one game, but a
+ * creation's, which belongs to an identity until the game is made. Public tables are subscribed to by
+ * clients; private ones are the module's (and the owner's, through SQL); the public ones are the
+ * client's contract (client/module_bindings). A column added after V0 goes at its table's end with a
+ * default, so a database keeps its rows across the publish (spacetime.md §4.10).
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -16,7 +16,12 @@ import { schema, t, table } from "spacetimedb/server";
 
 export const game = table({ name: "game", public: true }, {
   id: t.u64().primaryKey().autoInc(),
-  /** newUid (games/create.ts: the transaction's time, then tx.uuid()'s randomness): the game's id in every AI request, key and folder. */
+  /**
+   * The game's id in every AI request, key and folder, never one another game had: a ready-made
+   * game's is unique by construction (games/create.ts gameUid: g<id>-<time>-<database>-<uuid's first
+   * block>); a made character's game takes its creation's (games/create.ts newUid: the transaction's
+   * time, then tx.uuid()'s randomness).
+   */
   uid: t.string().unique(),
   campaign: t.string(),
   campaignVersion: t.string(),
@@ -42,7 +47,9 @@ export const player = table({ name: "player", public: true }, {
   placeId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   online: t.bool(),
-  /** When they last played it (made it, began it, continued it): the title's "(5 min ago)". */
+  /** Whether lines to say are suggested to them over the box (/suggestions): their own setting. */
+  suggestions: t.bool().default(true),
+  /** When they last played it (made it, began it, continued it, said a line in it): the title's "(5 min ago)". */
   lastPlayedAt: t.timestamp().default(new Timestamp(0n)),
 });
 
@@ -189,7 +196,7 @@ export const turn = table({ name: "turn", public: true }, {
   /** 0 is the opening. */
   n: t.u32(),
   playerId: t.u64(),
-  /** queued, deciding, replying, settling, done, failed. */
+  /** queued, deciding, replying, settling, noting (all in but its reply's notes), done, failed. */
   phase: t.string(),
   /** While it waits on the AI service. */
   note: t.option(t.string()),
@@ -200,6 +207,12 @@ export const turn = table({ name: "turn", public: true }, {
   endedAt: t.option(t.timestamp()),
   calls: t.u32(),
   costMicros: t.u64(),
+  /** Its reply's notes: none (nothing to note), writing, written, lost (the job gave up). */
+  notes: t.string().default("none"),
+  /** The lines suggested after its reply: none, coming, landed, dropped (overtaken, ended or turned off), lost. */
+  suggest: t.string().default("none"),
+  /** How often its lines have been asked for: the latest ask's key is suggest, suggest-2, … */
+  suggestAsks: t.u32().default(0),
 });
 
 export const transcript = table({ name: "transcript", public: true }, {
@@ -230,6 +243,25 @@ export const replyDraft = table({ name: "reply_draft", public: true }, {
   attempt: t.u32(),
   seq: t.u32(),
   done: t.bool(),
+});
+
+/**
+ * The lines suggested to a scene's controller after a reply: one set a scene, replaced when a new
+ * one lands. The client shows the latest turn's to the controller only.
+ */
+export const sceneSuggestion = table({ name: "scene_suggestion", public: true }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64(),
+  sceneId: t.u64().index("btree"),
+  /** The controller they're for. */
+  playerId: t.u64(),
+  /** The turn whose reply they follow (0: the opening). */
+  turn: t.u32(),
+  /** Its place in the set, from 1 (say_1 in the headless client). */
+  ord: t.u32(),
+  /** say, do, try, leave. */
+  kind: t.string(),
+  text: t.string(),
 });
 
 /** Whose names each player has heard: read through my_names. */
@@ -353,13 +385,13 @@ export const job = table({ name: "job" }, {
   id: t.u64().primaryKey().autoInc(),
   /** The current step's idempotency key. */
   key: t.string().unique(),
-  /** The game, scene and turn a turn's job is for; none for a creation's (its plan names the creation). */
+  /** The game, scene and turn a turn's job is for; none for a creation's (its plan names the creation). An option can't take an index, so the job loop reads a turn's jobs from the whole table (jobs.ts jobOf). */
   gameId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   turnId: t.option(t.u64()),
-  /** say, openScene, creation. */
+  /** say, openScene, creation; and beside a turn, notes and suggest (one row a turn and move). */
   move: t.string(),
-  /** open, decide, reply, settle; a creation's offer, pick, own, draft, work, check, traits. */
+  /** open, decide, reply, settle, notes, suggest; a creation's offer, pick, own, draft, work, check, traits. */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),
@@ -549,7 +581,7 @@ export const GameSummary = t.row("GameSummary", {
 const spacetimedb = schema(
   {
     game, player, seat, sheet, dice, admin,
-    scene, gmState, onStage, turn, transcript, replyDraft, heard,
+    scene, gmState, onStage, turn, transcript, replyDraft, sceneSuggestion, heard,
     place, entity, position, area, material, health, stack, surface, creature, playerCharacter, gear, narrative, gmNote, worldLog, look,
     job, jobDispatch, reaper,
     campaign, sceneDef, placeDef,

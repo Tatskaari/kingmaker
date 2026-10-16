@@ -86,6 +86,8 @@ export interface AppPart {
   go(intent: Intent): void;
   act: Backend["act"];
   subscribe(listener: () => void): () => void;
+  /** How many changes have been told of: the screens draw by it (useStore), and look again once subscribed. */
+  readonly version: number;
   emit(): void;
   quit(): void;
 }
@@ -110,6 +112,7 @@ export class AppModel implements AppPart {
   private readonly backend: Backend;
   private readonly onQuit: () => void;
   private readonly listeners = new Set<() => void>();
+  private changes = 0;
   private shown: Screen;
   /** The creation's step at the last change: one that turns made takes the player on to its sheet. */
   private stepWas: string | undefined;
@@ -157,7 +160,14 @@ export class AppModel implements AppPart {
     return () => { this.listeners.delete(listener); };
   }
 
+  /**
+   * How many changes the screens have been told of. They draw by it (useStore, useScreen), and look
+   * at it again once they've subscribed, so a change told of as the screen comes up still shows.
+   */
+  get version(): number { return this.changes; }
+
   emit(): void {
+    this.changes++;
     for (const listener of this.listeners) listener();
   }
 
@@ -217,6 +227,7 @@ export class AppModel implements AppPart {
     this.scene = new SceneModel(view, {
       say: text => void this.backend.say(text),
       retry: () => void this.backend.retry(),
+      setSuggestions: on => this.backend.setSuggestions(on),
       quit: () => this.go("title"),
     }, () => this.sheetShown());
   }

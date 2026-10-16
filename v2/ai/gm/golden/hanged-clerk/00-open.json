@@ -1,8 +1,44 @@
 {
  "step": "open",
- "replies": [
-  "Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. [Sergeant Agnes Kell] “You'll be the King's investigator. The Captain calls it suicide.” A stone clangs off the hoist hook."
- ],
+ "fake": {
+  "replies": [
+   "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. [Sergeant Kell] “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook."
+  ],
+  "choices": {
+   "line_2": "gives_away"
+  },
+  "byName": {
+   "notes": {
+    "notes": [
+     {
+      "on": "L1",
+      "words": "Cob’s warming up",
+      "kind": "why",
+      "note": "Moll has been jeering at him from the wall, so he throws harder.",
+      "turn": 0,
+      "lore": ""
+     },
+     {
+      "on": "",
+      "words": "Behind the King’s Granary",
+      "kind": "know",
+      "note": "The granary yard is where the city's grain is counted before the palace takes its share.",
+      "turn": 0,
+      "lore": "D1"
+     },
+     {
+      "on": "L2",
+      "words": "I haven’t written that down",
+      "kind": "you",
+      "note": "You were too late to see him cut down.",
+      "turn": 0,
+      "lore": ""
+     }
+    ]
+   }
+  },
+  "suggestions": "say: Is Hobb the one who found him?\nleave: (I leave Kell to her notebook and walk off)\nsay: [you] “Who found him?”\nsay: Sergeant, who found him?\ndo: (I look up at the shut loft door)\ntry: (I try to coax the boy down off his stones with a penny)"
+ },
  "session": {
   "id": "golden-hanged-clerk",
   "sceneId": "hanged-clerk",
@@ -47,7 +83,7 @@
   "transcript": [],
   "history": [],
   "rules": {
-   "pc": "01M518HX9J2WXAKV4MADG9MPEP",
+   "pc": "01M51G95ADF5J2PQ3B19KT60G5",
    "npcs": {},
    "prefer": [
     "arcana",
@@ -128,28 +164,28 @@
    ],
    "weapons": [
     {
-     "id": "01M518HX9N2PK9WY731H6FJ64Q",
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
      "name": "Quarterstaff"
     },
     {
-     "id": "01M518HX9PN1PT9HZMT9ZSP4ES",
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
      "name": "Dagger"
     },
     {
-     "id": "01M518HX9PPMM1TFFPKRKAJKAJ",
+     "id": "01M51G95AHTFAG3FGEHSAZJRE8",
      "name": "Unarmed Strike"
     }
    ],
    "features": [],
    "gear": [
     {
-     "id": "01M518HX9N2PK9WY731H6FJ64Q",
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
      "name": "Quarterstaff",
      "kind": "weapon",
      "slot": "mainHand"
     },
     {
-     "id": "01M518HX9PN1PT9HZMT9ZSP4ES",
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
      "name": "Dagger",
      "kind": "weapon"
     }
@@ -869,7 +905,7 @@
       "in hand"
      ],
      "notes": [],
-     "gear": "01M518HX9N2PK9WY731H6FJ64Q"
+     "gear": "01M51G95AHBNJ8AV8ZWZMK2BBM"
     },
     "wren-dagger": {
      "id": "wren-dagger",
@@ -881,7 +917,7 @@
      ],
      "states": [],
      "notes": [],
-     "gear": "01M518HX9PN1PT9HZMT9ZSP4ES"
+     "gear": "01M51G95AHJNGCSFWKHB6FGCY6"
     }
    },
    "log": [
@@ -1292,5 +1328,890 @@
     "max_output_tokens": 700
    }
   }
- ]
+ ],
+ "speakers": {
+  "streamed": [
+   {
+    "text": "Behind ",
+    "speech": []
+   },
+   {
+    "text": "Behind the ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. ",
+    "speech": []
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 246,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 251,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 257,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 265,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\n",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 451,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 457,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 463,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 467,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 475,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 481,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 484,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 493,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 495,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 503,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 511,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 516,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist ",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   },
+   {
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
+    "speech": [
+     {
+      "start": 239,
+      "end": 270,
+      "speaker": "cob"
+     },
+     {
+      "start": 442,
+      "end": 523,
+      "tag": "Sergeant Kell",
+      "speaker": "kell"
+     }
+    ]
+   }
+  ],
+  "whole": {
+   "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
+   "speech": [
+    {
+     "start": 239,
+     "end": 270,
+     "speaker": "cob"
+    },
+    {
+     "start": 442,
+     "end": 523,
+     "tag": "Sergeant Kell",
+     "speaker": "kell"
+    }
+   ],
+   "drafted": []
+  }
+ }
 }

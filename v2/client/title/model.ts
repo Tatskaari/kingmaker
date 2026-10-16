@@ -19,6 +19,9 @@ export class TitleModel {
     return this.app.subscribe(listener);
   }
 
+  /** The app's count of changes, which its screens draw by (useStore). */
+  get version(): number { return this.app.version; }
+
   get screen(): string { return this.app.screen; }
 
   /** The player's games (my_games), the one played last first. */

@@ -1,6 +1,6 @@
 // Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six and the scene; the map, the fight and the End come with their verticals), with what's open over the scene; Ctrl+C or Ctrl+D leaves.
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import type { AppModel } from "./app/model.ts";
 import type { SceneModel } from "./scene/model.ts";
 import { C } from "./theme.ts";
@@ -44,15 +44,12 @@ export function ScenePlay({ scene }: { scene: SceneModel }) {
   </>;
 }
 
-/** Redraw when the screen changes, or the scene does (another game's): not at every row. */
+/**
+ * Redraw when the screen changes, or the scene does (another game's): not at every row. It's React's
+ * useSyncExternalStore over which screen is up (the scene's model, on the scene), which looks again
+ * once it has subscribed: a screen changed as the App comes up is drawn, not lost (as useStore).
+ */
 function useScreen(app: AppModel): void {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    let shown = [app.screen, app.scene] as const;
-    return app.subscribe(() => {
-      if (app.screen === shown[0] && app.scene === shown[1]) return;
-      shown = [app.screen, app.scene];
-      setTick(t => t + 1);
-    });
-  }, [app]);
+  const subscribe = useCallback((listener: () => void) => app.subscribe(listener), [app]);
+  useSyncExternalStore(subscribe, () => (app.screen === "scene" ? app.scene ?? app.screen : app.screen));
 }

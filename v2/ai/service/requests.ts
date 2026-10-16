@@ -60,13 +60,14 @@ const viewNeeds = (base: string): Need[] => [
   [`${base}pc (the controller's character's key)`, r => /^pc:/.test(String(at(r, `${base}pc`)))],
 ];
 
+const SCENE_AT: Need = ["turn.scene { key, turn }", r => isText(r, "turn.scene.key") && isNumber(r, "turn.scene.turn")];
+const TRANSCRIPT: Need = ["turn.transcript", r => isList(r, "turn.transcript")];
+
 /** Every think on a turn reads its context: the scene, the line, the transcript, and what the view is built from. */
-const TURN: Need[] = [
-  ["turn.scene { key, turn }", r => isText(r, "turn.scene.key") && isNumber(r, "turn.scene.turn")],
-  ["turn.line { text }", r => isText(r, "turn.line.text")],
-  ["turn.transcript", r => isList(r, "turn.transcript")],
-  ...viewNeeds("turn."),
-];
+const TURN: Need[] = [SCENE_AT, ["turn.line { text }", r => isText(r, "turn.line.text")], TRANSCRIPT, ...viewNeeds("turn.")];
+
+/** A job beside a turn (its notes, its suggested lines) reads the scene's context, which has no line (v5-design §3.6). */
+const SCENE: Need[] = [SCENE_AT, TRANSCRIPT, ...viewNeeds("turn.")];
 
 const STREAM: Need = ["stream { turn } (the draft it streams to)", r => isText(r, "stream.turn")];
 
@@ -75,6 +76,8 @@ const NEEDS: Record<Step, Need[]> = {
   decide: TURN,
   reply: [...TURN, ["decision", r => isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM],
   settle: [...TURN, ["reply (the reply's text)", r => isText(r, "reply")], ["lines (the turn's dice lines)", r => isList(r, "lines")], ["settled (what was settled before it)", r => isList(r, "settled")]],
+  notes: [...SCENE, ["reply { seq, text, speech, drafted }", r => isNumber(r, "reply.seq") && isText(r, "reply.text") && isList(r, "reply.speech") && isList(r, "reply.drafted")]],
+  suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
 };
 
 /** The value at a dotted path of the parsed JSON ("turn.party.0.name"), or undefined where the path breaks. */

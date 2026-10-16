@@ -10,14 +10,20 @@ import { moveNamed } from "./moves/registry.ts";
 import { turnRow, updateTurn, type JobRow } from "./rows.ts";
 
 /**
- * The job loop (v0-design §3.5, v1-design §3.5). One `job` row per move in flight holds its plan and
- * the request to POST next, keyed by the step's idempotency key; each `job_dispatch` row runs run_job
- * once (claim, POST with nothing locked, commit). A POST that can be tried again leaves the job
- * waiting, and the reaper dispatches it at its time; one that can't fails it. A job whose procedure
- * died (the server stopped mid-think) is dispatched again after its deadline. Whose job it is (a
- * turn's, or a creation's) is its move's owner: whether the answer is still wanted, where the note
- * goes while it waits, what it cost, and what failing means. Every function here is a pure function
- * of the rows, the claim and the answer: withTx may run one twice.
+ * The job loop (v0-design §3.5, v1-design §3.5, v5-design §3.4). One `job` row per move in flight
+ * (for a turn, one a turn and move) holds its plan and the request to POST next, keyed by the step's
+ * idempotency key; each `job_dispatch` row runs run_job once (claim, POST with nothing locked,
+ * commit). A POST that can be tried again leaves the job waiting, and the reaper dispatches it at its
+ * time; one that can't fails it. A job whose procedure died (the server stopped mid-think) is
+ * dispatched again after its deadline. Whose job it is (a turn's, or a creation's) is its move's
+ * owner: whether the answer is still wanted, where the note goes while it waits, what it cost, and
+ * what failing means. Every function here is a pure function of the rows, the claim and the answer:
+ * withTx may run one twice.
+ *
+ * A job beside a turn's own steps (the notes, the lines: v5-design §3.4) runs on the same loop, and
+ * its move says how it differs: whether an answer still applies, what giving up on it does and when,
+ * and that it's in the background, so it never fails the turn, and its retries say nothing on it
+ * unless the turn is waiting on it alone (its notes, once all else is in).
  */
 
 /**
@@ -33,14 +39,20 @@ const RETRY_SECONDS = [1, 2, 4, 8, 15];
 const GRACE_MS = 10_000;
 /** A queued job with no dispatch for this long (its procedure died before claiming it) gets another. */
 const FORGOTTEN_MS = 10_000;
-/** Failing for this long, a job fails rather than trying on. */
+/** Failing for this long, a job fails rather than trying on (unless its move says otherwise). */
 const GIVE_UP_MS = 10 * 60_000;
 /** The note while a job waits to try again. */
 export const LOST_THREAD = "The GM has lost the thread for a moment: trying again.";
 
-/** A new move's think: its job row (the plan, and the request built from the rows this transaction sees) and a dispatch now. */
+/**
+ * A new move's think: its job row (the plan, and the request built from the rows this transaction
+ * sees) and a dispatch now. A turn's are one row a turn and move: one the move already has for the
+ * turn is written over, and an answer to what it held is dropped as stale.
+ */
 export function queueThink<P extends JobPlan>(tx: TxCtx, move: Move<unknown, P>, plan: P): void {
-  const job = tx.db.job.insert({ id: 0n, ...thinkOf(tx, move, plan), ...freshState(tx) });
+  const think = { ...thinkOf(tx, move, plan), ...freshState(tx) };
+  const old = plan.turn === undefined ? undefined : jobOf(tx, idOf(plan.turn), move.name);
+  const job = old ? tx.db.job.id.update({ ...old, ...think }) : tx.db.job.insert({ id: 0n, ...think });
   dispatch(tx, job.id);
 }
 
@@ -58,7 +70,7 @@ export function claimJob(tx: TxCtx, jobId: bigint): Claim | undefined {
  * run_job's last transaction: what the POST came to. Dropped when the job has moved on since the
  * claim (the reaper dispatched it again), or when its owner no longer wants it (the scene no longer
  * waits on the turn; the player has moved the creation on); a retry waits; an answer is committed,
- * and the move goes on to its next think or ends; anything else fails the job.
+ * and the move goes on to its next think or ends; anything else can't finish.
  */
 export function finishJob(tx: TxCtx, claim: Claim, outcome: AiOutcome): void {
   const job = claimedJob(tx, claim);
@@ -66,15 +78,15 @@ export function finishJob(tx: TxCtx, claim: Claim, outcome: AiOutcome): void {
   if (!wanted(tx, job)) return dropJob(tx, job, label(claim));
 
   if (outcome.kind === "retry") return waitToRetry(tx, job, claim, outcome.reason);
-  if (outcome.kind === "fatal") return failJobRow(tx, job, label(claim), outcome.reason, outcome.words);
+  if (outcome.kind === "fatal") return cantFinish(tx, job, label(claim), outcome.reason, outcome.words);
   commitAnswer(tx, job, claim, outcome);
 }
 
-/** The job failed (a turn's keeps its lease, so the scene waits for retry_turn). run_job's last word when a commit throws. */
+/** run_job's last word when a commit throws: the job can't finish (a turn's own step fails the turn, the lease kept, so the scene waits for retry_turn). */
 export function failJob(tx: TxCtx, claim: Claim, reason: string): void {
   const job = tx.db.job.id.find(claim.jobId);
   if (!job || job.key !== claim.key || job.state === "failed") return;
-  failJobRow(tx, job, label(claim), reason);
+  cantFinish(tx, job, label(claim), reason);
 }
 
 /** reap_jobs, every 2 s: what has failed too long fails; what waited long enough, overran its deadline, or lost its dispatch, is dispatched. What nobody wants any more goes. */
@@ -87,8 +99,8 @@ export function reapJobs(tx: TxCtx): void {
 
 /**
  * dispatch_waiting, the owner's: every waiting job dispatched now, not at its time. The dev host
- * calls it once it has started the AI service again (s, r, f), so a turn the backoff would hold for
- * up to 15 s more goes on at once.
+ * calls it once it has started the AI service again (s, r, f, n), so a turn the backoff would hold
+ * for up to 15 s more goes on at once.
  */
 export function dispatchWaitingReducer(tx: TxCtx, sender: Identity): void {
   if (!isAdmin(tx, sender)) throw new Refused(refusal("not_admin", { what: "dispatch the waiting thinks" }));
@@ -102,38 +114,48 @@ export function retryJob(tx: TxCtx, job: JobRow): void {
   tx.log(`[job ${job.id} ${job.key}] queued again by retry_turn`);
 }
 
-/** The failed job of a turn, if it has one. */
+/** The failed job of a turn's own steps, if it has one: a background job is never the turn's to retry. */
 export function failedJobOf(tx: TxCtx, turnId: bigint): JobRow | undefined {
-  return [...tx.db.job.state.filter("failed")].find(j => j.turnId === turnId);
+  return [...tx.db.job.state.filter("failed")].find(j => j.turnId === turnId && !moveNamed(j.move).background);
 }
 
 // ---------------------------------------------------------------------------------------------
-// A turn's jobs (V0's, the default owner): the scene's lease is the guard, and the turn's row has the note, the usage and the failure.
+// A turn's jobs (V0's, the default owner): the scene's lease is the guard, and the turn's row has the
+// note, the usage and the failure. A job in the background (v5-design §3.4) is guarded by its move's
+// applies, says it waits only while the turn waits on it, and gives up as its move says, never
+// failing the turn.
 
-const TURN_OWNER: JobOwner<JobPlan> = {
-  wanted(tx, plan) {
-    const scene = tx.db.scene.id.find(idOf(needs(plan.scene, "scene")));
-    return !!scene && scene.turnId === idOf(needs(plan.turn, "turn")) && scene.status !== "ended";
-  },
-  waiting(tx, plan, note) {
-    updateTurn(tx, idOf(needs(plan.turn, "turn")), { note });
-  },
-  charge(tx, plan, usage) {
-    const turn = turnRow(tx, idOf(needs(plan.turn, "turn")));
-    tx.db.turn.id.update({ ...turn, calls: turn.calls + usage.calls, costMicros: turn.costMicros + micros(usage.costUsd) });
-  },
-  /** The turn fails, its draft deleted, the lease kept: the scene waits for retry_turn. */
-  failed(tx, plan, words) {
-    const turnId = idOf(needs(plan.turn, "turn"));
-    updateTurn(tx, turnId, { phase: "failed", error: words, note: undefined });
-    tx.db.replyDraft.turnId.delete(turnId);
-  },
-};
+function turnOwner(move: Move<unknown, JobPlan>): JobOwner<JobPlan> {
+  return {
+    wanted(tx, plan) {
+      if (move.applies) return move.applies(tx, plan);
+      const scene = tx.db.scene.id.find(idOf(needs(plan.scene, "scene")));
+      return !!scene && scene.turnId === idOf(needs(plan.turn, "turn")) && scene.status !== "ended";
+    },
+    /** A turn's own step says so on the turn, and its answer clears it; a background job only says so while the turn waits on it, and its answer leaves the note alone (its commit clears it when the turn was waiting on it). */
+    waiting(tx, plan, note) {
+      if (move.background && (note === undefined || !move.waitedOn?.(tx, plan))) return;
+      updateTurn(tx, idOf(needs(plan.turn, "turn")), { note });
+    },
+    /** Every answer's usage goes on its turn, the notes' and the lines' too. */
+    charge(tx, plan, usage) {
+      const turn = turnRow(tx, idOf(needs(plan.turn, "turn")));
+      tx.db.turn.id.update({ ...turn, calls: turn.calls + usage.calls, costMicros: turn.costMicros + micros(usage.costUsd) });
+    },
+    /** The move gives up on it (a background job's); else the turn fails, its draft deleted, the lease kept: the scene waits for retry_turn. */
+    failed(tx, plan, words) {
+      if (move.giveUp) return move.giveUp(tx, plan, words);
+      const turnId = idOf(needs(plan.turn, "turn"));
+      updateTurn(tx, turnId, { phase: "failed", error: words, note: undefined });
+      tx.db.replyDraft.turnId.delete(turnId);
+    },
+  };
+}
 
 /** A job's move, its owner, and its plan. */
 function ownerOf(job: JobRow): { move: Move<unknown, JobPlan>; owner: JobOwner<JobPlan>; plan: JobPlan } {
   const move = moveNamed(job.move);
-  return { move, owner: move.owner ?? TURN_OWNER, plan: JSON.parse(job.plan) as JobPlan };
+  return { move, owner: move.owner ?? turnOwner(move), plan: JSON.parse(job.plan) as JobPlan };
 }
 
 const wanted = (tx: TxCtx, job: JobRow) => {
@@ -184,7 +206,7 @@ function dropJob(tx: TxCtx, job: JobRow, who: string): void {
   tx.log(`${who} dropped: ${job.turnId === undefined ? "its creation has moved on" : `scene ${job.sceneId} no longer waits on turn ${job.turnId}`}`);
 }
 
-/** Try again later: waiting until retryAt (1, 2, 4, 8, then every 15 s), and the owner says so. */
+/** Try again later: waiting until retryAt (1, 2, 4, 8, then every 15 s), and the owner says so (a turn's job in the background only while the turn waits on it). */
 function waitToRetry(tx: TxCtx, job: JobRow, claim: Claim, reason: string): void {
   const seconds = RETRY_SECONDS[Math.min(claim.attempt, RETRY_SECONDS.length) - 1]!;
   const { owner, plan } = ownerOf(job);
@@ -194,16 +216,19 @@ function waitToRetry(tx: TxCtx, job: JobRow, claim: Claim, reason: string): void
 }
 
 /**
- * The job failed for good, and its owner with it, in the player's words: the AI service's own when it
- * gave them (over its daily budget), else that the GM couldn't answer. A turn's job is kept, failed,
- * for retry_turn; any other is done with (the player's next move asks again).
+ * A job that can't finish: a status trying again won't mend, a commit that threw, or failing too
+ * long. Its owner fails with it, in the player's words: the AI service's own when it gave them (over
+ * its daily budget), else that the GM couldn't answer. A turn's own step is kept, failed, for
+ * retry_turn; any other job is done with: a background one's move gives up on it, and a creation's
+ * next move asks again.
  */
-function failJobRow(tx: TxCtx, job: JobRow, who: string, reason: string, words = `The GM couldn't answer: ${shortly(reason)}`): void {
-  const { owner, plan } = ownerOf(job);
-  if (job.turnId === undefined) tx.db.job.id.delete(job.id);
-  else tx.db.job.id.update({ ...job, state: "failed", error: reason, deadline: undefined, retryAt: undefined, updatedAt: tx.now });
+function cantFinish(tx: TxCtx, job: JobRow, who: string, reason: string, words = `The GM couldn't answer: ${shortly(reason)}`): void {
+  const { move, owner, plan } = ownerOf(job);
+  const kept = job.turnId !== undefined && !move.giveUp;
+  if (kept) tx.db.job.id.update({ ...job, state: "failed", error: reason, deadline: undefined, retryAt: undefined, updatedAt: tx.now });
+  else tx.db.job.id.delete(job.id);
   owner.failed(tx, plan, words);
-  tx.log(`${who} failed: ${reason}`);
+  tx.log(`${who} ${move.giveUp ? "gave up" : "failed"}: ${reason}`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -211,10 +236,11 @@ function failJobRow(tx: TxCtx, job: JobRow, who: string, reason: string, words =
 
 function giveUpOnLongFailures(tx: TxCtx): void {
   for (const job of jobsIn(tx, "waiting", "running")) {
-    if (!job.failingSince || msBetween(job.failingSince, tx.now) < GIVE_UP_MS) continue;
+    const limit = moveNamed(job.move).giveUpMs ?? GIVE_UP_MS;
+    if (!job.failingSince || msBetween(job.failingSince, tx.now) < limit) continue;
     const who = `[reaper] job ${job.id} ${job.key}`;
     if (!wanted(tx, job)) dropJob(tx, job, who);
-    else failJobRow(tx, job, who, `no answer for ${GIVE_UP_MS / 60_000} minutes (last: ${job.error ?? "none"})`);
+    else cantFinish(tx, job, who, `no answer for ${spokenMs(limit)} (last: ${job.error ?? "none"})`);
   }
 }
 
@@ -280,6 +306,13 @@ function thinkOf<P extends JobPlan>(tx: TxCtx, move: Move<unknown, P>, plan: P) 
 /** A job ready for its first attempt. */
 const freshState = (tx: TxCtx) => ({ state: "queued", attempts: 0, deadline: undefined, retryAt: undefined, failingSince: undefined, error: undefined, updatedAt: tx.now });
 
+/**
+ * The move's job for a turn, if it has one in flight. The table holds only what's in flight (and a
+ * turn's failed step), so it's read whole: an option column (a creation's job has no turn) can't
+ * take an index.
+ */
+const jobOf = (tx: TxCtx, turnId: bigint, move: string): JobRow | undefined => [...tx.db.job.iter()].find(j => j.turnId === turnId && j.move === move);
+
 /** run_job for this job, about 3 ms after this transaction commits. */
 function dispatch(tx: TxCtx, jobId: bigint): void {
   tx.db.jobDispatch.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(tx.now.microsSinceUnixEpoch), jobId });
@@ -296,6 +329,9 @@ const micros = (usd: number) => BigInt(Math.round(usd * 1_000_000));
 const idIn = (id: string | undefined) => (id === undefined ? undefined : idOf(id));
 
 const label = (claim: Claim) => `[job ${claim.jobId} ${claim.key} attempt ${claim.attempt}]`;
+
+/** 600000 as "10 minutes", 60000 as "60 s". */
+const spokenMs = (ms: number) => (ms >= 120_000 && ms % 60_000 === 0 ? `${ms / 60_000} minutes` : `${Math.round(ms / 1000)} s`);
 
 function needs<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new Error(`a turn's plan has no ${what}`);

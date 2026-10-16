@@ -36,6 +36,7 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   turn: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   transcript: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   replyDraft: { primaryKey: "turnId", indexes: ["sceneId"] },
+  sceneSuggestion: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   heard: { primaryKey: "id", autoInc: true, indexes: ["playerId"] },
 
   place: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },

@@ -35,6 +35,7 @@ const BY_SCENE: Array<(tx: TxCtx, scene: SceneRow) => void> = [
   (tx, scene) => tx.db.replyDraft.sceneId.delete(scene.id),
   (tx, scene) => tx.db.turn.sceneId.delete(scene.id),
   (tx, scene) => tx.db.transcript.sceneId.delete(scene.id),
+  (tx, scene) => tx.db.sceneSuggestion.sceneId.delete(scene.id),
   (tx, scene) => tx.db.scene.id.delete(scene.id),
 ];
 

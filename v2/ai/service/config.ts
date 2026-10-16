@@ -13,10 +13,10 @@ import { CREATION_STEPS, STEPS, type CreationStep, type Step } from "../../share
  * | KM_STDB_URL, KM_STDB_DB, KM_STDB_TOKEN | http://127.0.0.1:3300, kingmaker, none | where stream_reply goes, as which identity |
  * | OPENROUTER_API_KEY | ~/secrets/kingmaker-dev-openrouter.txt (the host reads it) | the only key |
  * | KM_AI_MODEL, KM_AI_FAKE | openrouter, {} | fake: the stand-in for OpenRouter, with these options |
- * | KM_AI_GM | pipeline | canned: the four thinks with no model at all |
+ * | KM_AI_GM | pipeline | canned: the thinks with no model at all |
  * | KM_AI_STREAM_MS | 200 | the stream's period |
  * | KM_AI_DAILY_USD | 5 | the daily ceiling on what the models cost, in dollars, from the ledger (0: none) |
- * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, reply, settle, or a creation's offer, pick, own, draft, work, check, traits |
+ * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, reply, settle, notes, suggest, or a creation's offer, pick, own, draft, work, check, traits |
  */
 export interface AiConfig {
   listen: Array<{ host: string; port: number }>;

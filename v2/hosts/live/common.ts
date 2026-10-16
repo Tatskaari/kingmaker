@@ -1,20 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type { Connection } from "../../client/net/connection.ts";
-import { readStackFile, type StackFile } from "../dev/stack-file.ts";
 
 /**
- * What the live runs share (hosts/live-run.ts): the running dev stack, waiting on a turn, the model
- * calls as the AI service's ledger has them, and writing the record.
+ * What the live runs share (hosts/live-run.ts; the running dev stack is live/stack.ts's): waiting on
+ * a turn, the model calls as the AI service's ledger has them, a transcript's entries, and writing
+ * the record, never over one already there unless told to.
  */
-
-/** The dev stack stack.json describes, on real models unless this is a rehearsal. */
-export function runningStack(root: string, rehearse: boolean): StackFile {
-  const stack = readStackFile(root);
-  if (!stack?.pids.stdb || !stack.pids.ai) throw new Error(`there's no dev stack running from ${root}: start one with npm run dev`);
-  if (stack.ai.model !== "openrouter" && !rehearse) throw new Error("the dev stack runs the fake model: start it with real models (npm run dev), or pass --rehearse to try this run on the fake");
-  return stack;
-}
 
 /** Resolves once the seat's turn n is done; throws if it fails, or takes more than three minutes. */
 export function settled(conn: Connection, n: number): Promise<void> {
@@ -67,6 +59,14 @@ export function modelsOf(calls: Call[]): string[] {
 /** Text for a table's cell: its bars escaped, its lines run together. */
 export function cell(text: string): string {
   return text.replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " ");
+}
+
+/** A transcript's entry, as the records print it: the player's line with its turn, a roll in italics, a system line set apart. */
+export function entryText(e: { turn: number; kind: string; text: string }): string {
+  if (e.kind === "player") return `> **Turn ${e.turn}.** ${e.text}`;
+  if (e.kind === "roll") return `*${e.text}*`;
+  if (e.kind === "system") return `**— ${e.text} —**`;
+  return e.text;
 }
 
 /** A path as the reader typed it: relative to here when it's under here. */

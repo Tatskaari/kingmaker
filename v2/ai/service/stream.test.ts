@@ -23,6 +23,11 @@ async function standIn(status = 200): Promise<{ url: string; posts: Array<{ path
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/** Until `done` holds, a few milliseconds at a time (two seconds at most): what a loaded machine takes, whatever it is. */
+async function until(done: () => boolean): Promise<void> {
+  for (const end = performance.now() + 2_000; !done() && performance.now() < end;) await sleep(5);
+}
+
 test("a reply streams to stream_reply as the service: the first words at once, then at most one post a period, seq rising, the last done", async () => {
   const stdb = await standIn();
   const logged: string[] = [];
@@ -51,10 +56,11 @@ test("the draft may shrink (a reply restarted from the top), and every change is
   const stdb = await standIn();
   const sink = streamSink({ url: stdb.url, db: "kingmaker", token: "t", periodMs: 0, log: () => {} }, { turn: "7", attempt: 1, started: performance.now() });
 
+  // Each change once the one before it is in: a newer text replaces one still waiting, so on a busy machine "Second" could otherwise go unseen.
   sink.show("A long first try that");
-  await sleep(20);
+  await until(() => stdb.posts.length === 1);
   sink.show("Second");
-  await sleep(20);
+  await until(() => stdb.posts.length === 2);
   await sink.finish("Second try, whole.");
   await stdb.close();
 

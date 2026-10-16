@@ -40,6 +40,6 @@ function addSpectator(tx: TxCtx, identity: Identity, game: GameRow): PlayerRow {
   const host = playerRow(tx, game.hostId);
   return tx.db.player.insert({
     id: 0n, identity, gameId: game.id, name: "Spectator", concept: "", role: "spectator",
-    characterId: undefined, placeId: host.placeId, sceneId: host.sceneId, online: true, lastPlayedAt: tx.now,
+    characterId: undefined, placeId: host.placeId, sceneId: host.sceneId, online: true, suggestions: true, lastPlayedAt: tx.now,
   });
 }

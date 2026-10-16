@@ -23,7 +23,7 @@ function rowsByHand(first: SceneView) {
     onChange: listener => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     show(next) { view = next; for (const listener of listeners) listener(); },
     newGame: async () => { game.show(opening); return undefined; },
-    joinGame: async () => undefined, say: async () => undefined, retry: async () => undefined, close: () => {},
+    joinGame: async () => undefined, say: async () => undefined, retry: async () => undefined, setSuggestions: async () => undefined, close: () => {},
     // The rows a scene doesn't read (V1's title and creation's) are empty.
     home: () => ({ games: [], campaigns: [] }), act: async () => undefined,
   };
@@ -50,7 +50,7 @@ test("an opening that fails while the screen comes up shows as failed: the box t
   await screenComesUp();
 
   const asked: string[] = [];
-  const scene = new SceneModel(first, { say: text => asked.push(text), retry: () => asked.push("/retry"), quit: () => {} });
+  const scene = new SceneModel(first, { say: text => asked.push(text), retry: () => asked.push("/retry"), setSuggestions: async () => undefined, quit: () => {} });
   scene.follow(game, GONE);
 
   assert.equal(scene.view.phase, "failed");
@@ -67,12 +67,23 @@ test("a turn's note set while the screen comes up shows; and every change after 
   game.show({ ...opening, note: LOST });
   await screenComesUp();
 
-  const scene = new SceneModel(first, { say: () => {}, retry: () => {}, quit: () => {} });
+  const scene = new SceneModel(first, { say: () => {}, retry: () => {}, setSuggestions: async () => undefined, quit: () => {} });
   scene.follow(game, GONE);
   assert.equal(scene.view.note, LOST);
 
   game.show({ ...opening, entries: [{ turn: 0, speaker: "gm", kind: "narration", text: "Kell looks up." }], phase: "done", mayType: true });
   assert.deepEqual([scene.view.phase, scene.view.note, scene.view.mayType], ["done", undefined, true]);
+});
+
+test("a connection that has stopped trying sends no line (it waits in the box), and /quit still goes", () => {
+  const asked: string[] = [];
+  const scene = new SceneModel({ ...YARD, mayType: false, cutOff: true, note: "(The game's server turned this session away: /quit, then start again.)" },
+    { say: text => asked.push(text), retry: () => asked.push("/retry"), setSuggestions: async () => undefined, quit: () => asked.push("/quit") });
+
+  assert.equal(scene.sends(), false);
+  scene.input("Kell, are you there?");
+  scene.input("/quit");
+  assert.deepEqual(asked, ["/quit"]);
 });
 
 test("a game gone from the server while the screen comes up shows as gone", async () => {
@@ -81,7 +92,7 @@ test("a game gone from the server while the screen comes up shows as gone", asyn
   game.show(undefined);
   await screenComesUp();
 
-  const scene = new SceneModel(first, { say: () => {}, retry: () => {}, quit: () => {} });
+  const scene = new SceneModel(first, { say: () => {}, retry: () => {}, setSuggestions: async () => undefined, quit: () => {} });
   scene.follow(game, GONE);
   assert.equal(scene.gone, GONE);
   assert.equal(scene.sends(), false);

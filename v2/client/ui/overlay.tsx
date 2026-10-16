@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :124-127, :163-191): the sheet, the mark's popover and the help only, HELP.scene trimmed to this client's commands and to what it shows (no marks, no ⓘ lines, a deed for the example where it had a spell); the sheet is the seat's sheet row (SceneModel.sheet) in place of the session's.
+// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :124-127, :163-191): the sheet, the mark's popover and the help only, HELP.scene trimmed to this client's commands and to what it shows (marks, no ⓘ lines, a deed for the example where it had a spell), its suggested lines' paragraph (:45) less a talk's and the Esc menu's words; the sheet is the seat's sheet row (SceneModel.sheet) in place of the session's.
 import type { MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, type ReactNode } from "react";
@@ -11,14 +11,14 @@ import { SheetView, type SheetHandle } from "./sheet.tsx";
 
 /**
  * How to play a scene (the prototype's src/app/ui/overlay.tsx HELP.scene, with what this client has).
- * The GM's marks and the rules' ⓘ lines come back with the verticals that make them (V5, V7): the
- * replies have no marks yet, and the rules' only lines are the dice (a change of gear among them).
- * Its example of a deed is one the yard can play; the prototype's spell comes back with V7, which
- * brings spells into a scene.
+ * The rules' ⓘ lines come back with the vertical that makes them (V7): until then the rules' only
+ * lines are the dice (a change of gear among them). Its example of a deed is one a player can play in
+ * the yard; the prototype's spell comes back with V7, which brings spells into a scene.
  */
 const HELP = [
   "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I check his pockets). Talk and do in the same breath if you like.",
-  "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Rolls happen when the story needs them (🎲 lines).",
+  "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Underlined words are the GM's marks (on coral, why someone acts as they do; teal, something you'd know; lavender, something you did): click one, or Tab to it and press Enter, for a note from what you know. Rolls happen when the story needs them (🎲 lines).",
+  "After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. /suggestions off turns them off.",
   "/sheet (or /c) your character sheet · /help this · /retry carries on a turn the GM lost · /quit goes back to the title (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
 ];
 

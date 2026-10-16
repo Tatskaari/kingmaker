@@ -363,6 +363,7 @@ export const Player = __t.object("Player", {
   placeId: __t.option(__t.u64()),
   sceneId: __t.option(__t.u64()),
   online: __t.bool(),
+  suggestions: __t.bool(),
   lastPlayedAt: __t.timestamp(),
 });
 export type Player = __Infer<typeof Player>;
@@ -453,6 +454,18 @@ export const SceneDef = __t.object("SceneDef", {
   json: __t.string(),
 });
 export type SceneDef = __Infer<typeof SceneDef>;
+
+export const SceneSuggestion = __t.object("SceneSuggestion", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  sceneId: __t.u64(),
+  playerId: __t.u64(),
+  turn: __t.u32(),
+  ord: __t.u32(),
+  kind: __t.string(),
+  text: __t.string(),
+});
+export type SceneSuggestion = __Infer<typeof SceneSuggestion>;
 
 export const Seat = __t.object("Seat", {
   identity: __t.identity(),
@@ -555,6 +568,9 @@ export const Turn = __t.object("Turn", {
   endedAt: __t.option(__t.timestamp()),
   calls: __t.u32(),
   costMicros: __t.u64(),
+  notes: __t.string(),
+  suggest: __t.string(),
+  suggestAsks: __t.u32(),
 });
 export type Turn = __Infer<typeof Turn>;
 

@@ -1,7 +1,7 @@
-// Copied from the prototype's src/app/ui/common.tsx at 44c6d4a, less Lines (the map's): wayOnKey takes { typing } in place of the Game, and useGame is useStore, for any store with a subscribe.
+// Copied from the prototype's src/app/ui/common.tsx at 44c6d4a, less Lines (the map's): wayOnKey takes { typing } in place of the Game, and useGame is useStore, for any store with a subscribe and a version, through useSyncExternalStore.
 import { TextAttributes, type KeyEvent, type MouseEvent } from "@opentui/core";
 import type { BoxProps } from "@opentui/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { C } from "../theme.ts";
 
 /** The Enter key, however the terminal sends it. */
@@ -41,10 +41,15 @@ export const FPS = 12;
  */
 export const SCROLLBAR = { position: "absolute", right: 0, top: 0, bottom: 0, trackOptions: { foregroundColor: C.border, backgroundColor: C.bg } } as const;
 
-/** Redraw whenever the store changes (the prototype's useGame, for any store with a subscribe). */
-export function useStore<T extends { subscribe(listener: () => void): () => void }>(store: T): T {
-  const [, setTick] = useState(0);
-  useEffect(() => store.subscribe(() => setTick(t => t + 1)), [store]);
+/**
+ * Redraw whenever the store changes (the prototype's useGame, for any store with a subscribe and a
+ * version that moves on at each change). It's React's useSyncExternalStore over the version, which
+ * looks at the version again once it has subscribed. A change made between the first render and the
+ * subscription (rows that moved on as the screen came up) is drawn, not lost.
+ */
+export function useStore<T extends { subscribe(listener: () => void): () => void; readonly version: number }>(store: T): T {
+  const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
+  useSyncExternalStore(subscribe, () => store.version);
   return store;
 }
 
