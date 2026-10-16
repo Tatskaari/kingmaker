@@ -13,8 +13,9 @@ import type { WorkingSet } from "./types.ts";
 /**
  * The docs service on plain data, with no game behind it: a working set made by hand, a lore of
  * four docs and a folder for the game's own copy (configureDocs), and a decider that opens whatever
- * it's asked about. What the prompts say is held to the prototype's by the characterization, and
- * the prototype's tests play it through its adapters (src/lore).
+ * it's asked about. That the prompts are byte for byte the prototype's was checked once, at the
+ * move, by a characterization run kept outside the repo; nothing in the repo checks it again. The
+ * prototype's tests play the docs service through its adapters (src/lore).
  */
 
 const DIR = mkdtempSync(join(tmpdir(), "km-working-set-"));
