@@ -152,6 +152,25 @@ test("a campaign whose scene doesn't load, or whose paths climb out, is a 400 an
   assert.equal(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).campaigns.length, 0);
 });
 
+test("a campaign whose vocabulary.json doesn't read as the story reads it is a 400 and isn't installed", async () => {
+  const { ai } = service();
+  const vocabulary = JSON.parse(filesOf(CAERWYN)["vocabulary.json"]!) as { scenes: Array<Record<string, unknown>> };
+  const withVocabulary = (text: string) => put("0.1.0", { ...filesOf(CAERWYN), "vocabulary.json": text });
+  const answers = [
+    await ai.answer(withVocabulary("{")),
+    await ai.answer(withVocabulary("{}")),
+    await ai.answer(withVocabulary(JSON.stringify({ ...vocabulary, scenes: vocabulary.scenes.map((e, i) => (i === 1 ? { ...e, prep: undefined, next: "wharf-night" } : e)) }))),
+  ];
+
+  assert.deepEqual(answers.map(a => `${a.status} ${JSON.parse(a.body).error.code}`), Array(3).fill("400 bad_request"));
+  const [garbled, shapeless, entry] = answers.map(a => JSON.parse(a.body).error.message as string);
+  assert.match(garbled!, /^vocabulary\.json isn't JSON: /);
+  assert.equal(shapeless, "vocabulary.json: isn't { source, scenes: [...] }");
+  assert.match(entry!, /^vocabulary\.json: scenes\[1\] \([a-z-]+\): next isn't a list of scene ids; vocabulary\.json: scenes\[1\] \([a-z-]+\): no prep$/);
+  assert.equal(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).campaigns.length, 0);
+  assert.equal((await ai.answer(put())).status, 200, "the campaign as it is installs");
+});
+
 test("a think is answered once by its key: the same POST again comes from the store, with no model call", async () => {
   const { ai, ran } = service();
   await ai.answer(put());

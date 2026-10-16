@@ -1,6 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
@@ -337,6 +337,17 @@ test("suggest: a reply that ran out of tokens loses its last line, which may be 
 });
 
 // (Markup on a request's entries reaches the GM's history as written: the speaker's name as the player knows it.)
+test("the story is read by the notes and the lines alone: with a vocabulary.json that doesn't read (written past the PUT's check), a turn's own thinks answer and the lines are a failure", async () => {
+  const { campaign, contextFor, store } = await setUp({ choices: {} });
+  writeFileSync(join(store, "campaigns", "caerwyn", "0.1.0", "vocabulary.json"), "{}");
+  const gm = initialGm({ start: "yard" });
+  const decide: DecideRequest = { key: `${GAME}:s1:t1:decide`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign), [opening, said(1)]), landed: [] };
+  const lines = suggestRequest(campaign, []);
+
+  assert.ok((await pipeline.decide(decide, contextFor(decide.key))).decision);
+  await assert.rejects(pipeline.suggest(lines, contextFor(lines.key)), /the installed vocabulary\.json doesn't read: vocabulary\.json: isn't \{ source, scenes: \[\.\.\.\] \}/);
+});
+
 test("a GM entry's markup is written back into the history with the name the player knows", async () => {
   const { campaign, fake, contextFor } = await setUp();
   const gm = initialGm({ start: "yard" });

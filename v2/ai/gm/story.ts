@@ -28,6 +28,9 @@ export interface VocabularyEntry {
 /** vocabulary.json: the prototype's commit it was written from, and its scenes in order. */
 export interface Vocabulary { source: string; scenes: VocabularyEntry[] }
 
+/** Where a campaign keeps its vocabulary, in its folder. */
+export const VOCABULARY = "vocabulary.json";
+
 /** A scene of the story: one the campaign installs, or a stub of an entry, its prep as one text (suggest.ts's prepText reads it). */
 export type StoryScene = Scene & { prep?: string };
 
@@ -70,3 +73,50 @@ function stubOf(e: VocabularyEntry): StoryScene {
     prep: e.prep,
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Reading vocabulary.json: the AI service's PUT refuses one that doesn't read, and the campaign
+// check (hosts/dev/vocabulary.ts) reads it here too.
+
+/** The file as a vocabulary, or what's wrong with its JSON or its shape, each problem a line naming where. */
+export function vocabularyOf(text: string): Vocabulary | string[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch (e) {
+    return [`${VOCABULARY} isn't JSON: ${(e as Error).message}`];
+  }
+  const problems = shapeProblems(value);
+  return problems.length ? problems : (value as Vocabulary);
+}
+
+/** `{ source, scenes }`, each entry with the tool's fields and types. */
+function shapeProblems(v: unknown): string[] {
+  if (!isObject(v) || typeof v.source !== "string" || !v.source || !Array.isArray(v.scenes)) return [`${VOCABULARY}: isn't { source, scenes: [...] }`];
+  return v.scenes.flatMap((entry, i) => {
+    const at = `${VOCABULARY}: scenes[${i}]${isObject(entry) && typeof entry.id === "string" ? ` (${entry.id})` : ""}`;
+    return entryShapeProblems(entry).map(p => `${at}: ${p}`);
+  });
+}
+
+function entryShapeProblems(e: unknown): string[] {
+  if (!isObject(e)) return ["isn't an object"];
+  const problems: string[] = [];
+  if (typeof e.id !== "string" || !e.id) problems.push("no id");
+  if (typeof e.hook !== "string") problems.push("no hook");
+  if (!strings(e.next)) problems.push("next isn't a list of scene ids");
+  if (!Array.isArray(e.cast) || !e.cast.every(castShape)) problems.push("cast isn't a list of { id, name, called?, aka? }");
+  if (e.worldNames !== undefined && !strings(e.worldNames)) problems.push("worldNames isn't a list of names");
+  if (e.companion !== undefined && typeof e.companion !== "string") problems.push("companion isn't a cast id");
+  if (typeof e.prep !== "string" || !e.prep) problems.push("no prep");
+  return problems;
+}
+
+const castShape = (c: unknown) => isObject(c) && typeof c.id === "string" && typeof c.name === "string"
+  && (c.called === undefined || typeof c.called === "string") && (c.aka === undefined || strings(c.aka));
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+const strings = (v: unknown) => Array.isArray(v) && v.every(s => typeof s === "string");

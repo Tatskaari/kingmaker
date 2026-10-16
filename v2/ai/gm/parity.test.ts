@@ -187,7 +187,7 @@ async function sameLines(play: Game, moment: SuggestMoment): Promise<void> {
   const req = suggestRequest(moment);
   let vetted: Vetting | undefined;
   const asked = await play.run(moment.fake, async ctx => {
-    const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
+    const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req), ctx.campaign.story);
     view.suggestions = { scene: view.sceneId, turn: view.turn, lines: req.offered.map(text => ({ text })) };
     vetted = vetting(scene, view);
     return pipeline.suggest(req, ctx);

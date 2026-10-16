@@ -1,6 +1,7 @@
 import { keepOpened, disclose } from "../../docs/disclosure.ts";
 import { JEV_MODEL, JevDecider, LUNA_DECISIONS_MODEL } from "../../llm/decide.ts";
 import type { CallContext } from "../../llm/openrouter.ts";
+import type { Story } from "../../gm/story.ts";
 import { gameMarkup, keysOf, viewOf, type TurnView, type ViewSource } from "../../gm/view.ts";
 import { workingSet } from "../../gm/working-set.ts";
 import type { OpenedNote } from "../../../shared/gm/state.ts";
@@ -15,10 +16,14 @@ import type { AiContext } from "../context.ts";
  * it, which the GM code reads as the prototype's session, and the way back from the view's names for
  * people to the game's keys, for the markup an endpoint answers with (who says each line, whom a
  * mark is about). The server has checked the request has what this reads (requests.ts).
+ *
+ * The story (the campaign's scenes and its vocabulary.json: gm/story.ts) is on the view only for the
+ * endpoints that read it, the notes and the lines, so a turn's own thinks never depend on the
+ * vocabulary. A think whose GM brief names earlier scenes (V3's history) will need it too.
  */
-export function sceneAndView(ctx: AiContext, key: string, source: ViewSource): { scene: Scene; view: TurnView; byKey(markup: Markup): Markup } {
+export function sceneAndView(ctx: AiContext, key: string, source: ViewSource, story?: Story): { scene: Scene; view: TurnView; byKey(markup: Markup): Markup } {
   const scene = effectiveScene(ctx.campaign.scene(key), source.gm.patches);
-  const view = viewOf(source, scene, ctx.campaign.story);
+  const view = viewOf(source, scene, story);
   return { scene, view, byKey: markup => gameMarkup(markup, scene, view.world, keysOf(source)) };
 }
 

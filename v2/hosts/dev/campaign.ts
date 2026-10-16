@@ -3,7 +3,8 @@ import { join, relative, sep } from "node:path";
 import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { SKILLS, validateScene, type Scene } from "../../shared/scene/types.ts";
-import { VOCABULARY, vocabularyOf, vocabularyProblems } from "./vocabulary.ts";
+import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
+import { vocabularyProblems } from "./vocabulary.ts";
 
 /**
  * A campaign folder (v2/campaigns/<id>/) as the install sends it, and the check that it's fit to

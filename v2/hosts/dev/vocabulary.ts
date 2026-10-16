@@ -1,3 +1,4 @@
+import { VOCABULARY, vocabularyOf, type Vocabulary, type VocabularyEntry } from "../../ai/gm/story.ts";
 import { prepText } from "../../ai/gm/suggest.ts";
 import type { CampaignPack, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
@@ -11,26 +12,12 @@ import type { CampaignFiles } from "./campaign.ts";
  * only the scenes built so far, so tools/v2/export-vocabulary.mts records each of the prototype's
  * scenes once: its id, hook, ways on (`next`), cast, world names and prep.
  *
- * The check: the file's shape, one entry an id, every way on leading to an entry or an installed
- * scene, and each installed scene equal to its entry as the tool would write it from the scene loaded
- * with its words. That last checks the conversion too: the scene.json and Markdown give back the
- * prototype's prep, hook, ways on, cast and world names, which the AI service reads in their place.
+ * The check: the file's shape (read as the AI service reads it, whose PUT refuses one that doesn't
+ * read: ai/gm/story.ts), one entry an id, every way on leading to an entry or an installed scene, and
+ * each installed scene equal to its entry as the tool would write it from the scene loaded with its
+ * words. That last checks the conversion too: the scene.json and Markdown give back the prototype's
+ * prep, hook, ways on, cast and world names, which the AI service reads in their place.
  */
-
-export const VOCABULARY = "vocabulary.json";
-
-/** A scene as the vocabulary keeps it (the tool's Entry). */
-export interface VocabularyEntry {
-  id: string;
-  hook: string;
-  next: string[];
-  cast: Array<{ id: string; name: string; called?: string; aka?: string[] }>;
-  worldNames?: string[];
-  companion?: string;
-  prep: string;
-}
-
-export interface Vocabulary { source: string; scenes: VocabularyEntry[] }
 
 /** The fields an installed scene's entry must have as the scene gives them, in the entry's order. */
 const COMPARED = ["hook", "next", "cast", "worldNames", "prep"] as const;
@@ -77,31 +64,6 @@ function missingProblems(pack: CampaignPack): string[] {
   });
 }
 
-/** `{ source, scenes }`, each entry with the tool's fields and types. */
-function shapeProblems(v: unknown): string[] {
-  if (!isObject(v) || typeof v.source !== "string" || !v.source || !Array.isArray(v.scenes)) return [`${VOCABULARY}: isn't { source, scenes: [...] }`];
-  return v.scenes.flatMap((entry, i) => {
-    const at = `${VOCABULARY}: scenes[${i}]${isObject(entry) && typeof entry.id === "string" ? ` (${entry.id})` : ""}`;
-    return entryShapeProblems(entry).map(p => `${at}: ${p}`);
-  });
-}
-
-function entryShapeProblems(e: unknown): string[] {
-  if (!isObject(e)) return ["isn't an object"];
-  const problems: string[] = [];
-  if (typeof e.id !== "string" || !e.id) problems.push("no id");
-  if (typeof e.hook !== "string") problems.push("no hook");
-  if (!strings(e.next)) problems.push("next isn't a list of scene ids");
-  if (!Array.isArray(e.cast) || !e.cast.every(castShape)) problems.push("cast isn't a list of { id, name, called?, aka? }");
-  if (e.worldNames !== undefined && !strings(e.worldNames)) problems.push("worldNames isn't a list of names");
-  if (e.companion !== undefined && typeof e.companion !== "string") problems.push("companion isn't a cast id");
-  if (typeof e.prep !== "string" || !e.prep) problems.push("no prep");
-  return problems;
-}
-
-const castShape = (c: unknown) => isObject(c) && typeof c.id === "string" && typeof c.name === "string"
-  && (c.called === undefined || typeof c.called === "string") && (c.aka === undefined || strings(c.aka));
-
 function twiceProblems(v: Vocabulary): string[] {
   const ids = v.scenes.map(e => e.id);
   return [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))].map(id => `${VOCABULARY}: ${id} is there twice`);
@@ -146,24 +108,3 @@ function whereTheyPart(kept: unknown, scene: unknown): string {
 }
 
 const clip = (line: string | undefined) => (line === undefined ? "nothing" : JSON.stringify(line.length > 80 ? `${line.slice(0, 77)}…` : line));
-
-// ---------------------------------------------------------------------------------------------
-// Reading.
-
-/** The file as a vocabulary, or what's wrong with its JSON or its shape. */
-export function vocabularyOf(text: string): Vocabulary | string[] {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch (e) {
-    return [`${VOCABULARY} isn't JSON: ${(e as Error).message}`];
-  }
-  const problems = shapeProblems(value);
-  return problems.length ? problems : (value as Vocabulary);
-}
-
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-const strings = (v: unknown) => Array.isArray(v) && v.every(s => typeof s === "string");

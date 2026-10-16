@@ -16,7 +16,7 @@ import { sceneAndView } from "./turn.ts";
  */
 export const notes: Handler<NotesRequest, NotesResponse> = async (req, ctx) => {
   const source = turnSource(req);
-  const { scene, view, byKey } = sceneAndView(ctx, req.turn.scene.key, source);
+  const { scene, view, byKey } = sceneAndView(ctx, req.turn.scene.key, source, ctx.campaign.story);
   const reply = { text: req.reply.text, speech: localMarkup({ speech: req.reply.speech, marks: [] }, keysOf(source)).speech, drafted: req.reply.drafted };
   if (!reply.speech.length && !reply.drafted.length) return { marks: [], usage: ctx.usage() };
 

@@ -13,7 +13,7 @@ import { director, sceneAndView } from "./turn.ts";
  * prototype lands none (suggest.ts:91); a judge that fails leaves them unjudged (:118).
  */
 export const suggest: Handler<SuggestRequest, SuggestResponse> = async (req, ctx) => {
-  const { view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
+  const { view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req), ctx.campaign.story);
   view.suggestions = { scene: view.sceneId, turn: view.turn, lines: req.offered.map(text => ({ text })) };
 
   const made = await propose(view, { decider: director(ctx.calls), ask: request => respond({ ...request, calls: ctx.calls }) }).catch(() => undefined);

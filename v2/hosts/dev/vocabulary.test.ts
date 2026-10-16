@@ -5,7 +5,8 @@ import { sceneOf } from "../../shared/scene/load.ts";
 import type { SceneFile } from "../../shared/scene/files.ts";
 import { checkCampaign, packOf, readCampaignFiles, type CampaignFiles } from "./campaign.ts";
 import { prepText } from "../../ai/gm/suggest.ts";
-import { entryOf, vocabularyOf, vocabularyProblems, type Vocabulary } from "./vocabulary.ts";
+import { vocabularyOf, type Vocabulary } from "../../ai/gm/story.ts";
+import { entryOf, vocabularyProblems } from "./vocabulary.ts";
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const files = readCampaignFiles(CAERWYN);
