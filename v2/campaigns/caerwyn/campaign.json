@@ -1,0 +1,36 @@
+{
+  "id": "caerwyn",
+  "title": "Caerwyn",
+  "version": "0.1.0",
+  "firstScene": "hanged-clerk",
+  "startPlace": "granary-yard",
+  "start": {
+    "day": 1,
+    "time": "morning"
+  },
+  "level": 3,
+  "rulesPack": "starter-pack@0.1.0",
+  "scenes": [
+    "hanged-clerk"
+  ],
+  "places": [
+    "granary-yard"
+  ],
+  "startingPurse": [
+    {
+      "name": "silver crowns",
+      "quantity": 2,
+      "description": "Heavy silver with the King's face, a little worn."
+    },
+    {
+      "name": "shillings",
+      "quantity": 6,
+      "description": "Silver, five to the crown."
+    },
+    {
+      "name": "pennies",
+      "quantity": 12,
+      "description": "Copper, twelve to the shilling, and the currency of the Drowned Rat."
+    }
+  ]
+}

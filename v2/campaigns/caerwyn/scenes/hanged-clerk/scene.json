@@ -1,0 +1,728 @@
+{
+  "id": "hanged-clerk",
+  "title": "The Hanged Clerk",
+  "summary": "A palace clerk hanged behind the granary, two foul-mouthed kids who know more than they say, and a dry watch sergeant with until noon.",
+  "kind": "scene",
+  "time": "morning",
+  "place": "granary-yard",
+  "start": "yard",
+  "cast": [
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "card": "cast/kell.md",
+      "statblock": "guard",
+      "weapon": "club"
+    },
+    {
+      "id": "cob",
+      "name": "Cob",
+      "card": "cast/cob.md",
+      "called": "the boy in the too-big boots",
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "moll",
+      "name": "Moll",
+      "card": "cast/moll.md",
+      "called": "the girl in the shawl",
+      "statblock": "commoner",
+      "weapon": "unarmed-strike"
+    },
+    {
+      "id": "tull",
+      "name": "Corporal Abner Tull",
+      "card": "cast/tull.md",
+      "called": "the corporal",
+      "enters": "dead-cart",
+      "group": "Corporal Tull and two constables with the dead-cart",
+      "statblock": "guard",
+      "weapon": "club"
+    }
+  ],
+  "facts": {
+    "killed-not-suicide": "Prout didn't hang himself: what has been found shows he was killed and then hoisted up to look like a suicide.",
+    "page-read": "Sewn into the lining of Prout's left boot was a page razored from the Royal Granary Roll: a dozen grain wagons for the King's Road this past month marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled note beside each of what the same wagon weighed at the river warehouses two days later, and at the foot: 'Not goblins. Who pays the hedge-folk?'",
+    "cob-kindness": "Cob has had a kindness from the player with nothing asked back (something to eat, or a dinner stood him freely): it counts with him.",
+    "cob-taken": "Cob was taken in for Prout's murder.",
+    "moll-taken": "Moll was taken in for Prout's murder."
+  },
+  "beats": {
+    "yard": {
+      "title": "Stones at a hanged man",
+      "text": "beats/yard.md",
+      "routes": [
+        {
+          "id": "not-suicide",
+          "on": "outcome",
+          "when": "The player has found, been shown or worked out a specific sign that Prout didn't hang himself: for example the level cord mark or the blow to the head (up close), that he could only have dropped from a loft door that's barred on the inside, the scuffs or the docker's knot in the loft, the scraped heels of his boots, Moll's story falling apart, or Cob's account of the night.",
+          "to": "doubt",
+          "establishes": [
+            "killed-not-suicide"
+          ]
+        },
+        {
+          "id": "page-found",
+          "on": "outcome",
+          "when": "The folded page sewn into the lining of Prout's left boot has been found and read, or read out.",
+          "to": "motive",
+          "establishes": [
+            "page-read"
+          ]
+        },
+        {
+          "id": "examine-body",
+          "on": "attempt",
+          "when": "The player examines Prout's neck, head or hands up close (he's been got down, or they've climbed or been lifted up to him), where reading what they see takes some skill.",
+          "check": {
+            "skill": "medicine",
+            "dc": 12,
+            "reason": "to tell how Prout really died",
+            "success": "They see what the noose didn't make: a thin, level cord mark low round the neck beneath the rope's slanting burn, a swelling under the hair at the back of the skull, and clean palms with no rope burn. He was struck and strangled, then hung up.",
+            "failure": "They see rope burn, bruising and a dead clerk's face, and can't read more. Kell, at their shoulder, says 'Hm.' She has seen something; a second look, or asking her, will find it.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "win-cob",
+          "on": "attempt",
+          "when": "The player pushes past Cob's hostility to get him to trust them or tell what he knows, with an appeal or an argument, where it could go either way. (Not just asking him a question. Food or coin offered as the price of it gets boasts and bargaining, not this. A promise that truly answers what he's afraid of, his name kept out of it and the men from the loft kept off him, needs no dice: that's not this either.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 13,
+            "reason": "to get Cob to trust you with what he heard",
+            "success": "Cob's swagger cracks. He checks Moll can't hear, then tells it in a frightened rush: he sleeps in the loft, and last night he woke to a lantern and voices, a thump and a choking noise, then the hoist creaking with no sacks on it. He hid till morning.",
+            "failure": "Cob jeers, calls them a bum-faced palace pigeon and darts behind the water butt and through a gap into the granary. He's hiding, not gone: Moll knows where, and he can still be coaxed out.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "promise-cob",
+          "on": "outcome",
+          "when": "The player makes Cob a promise that truly answers what he's afraid of, and means it (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or asks him what he knows under a promise like that made before. No dice, whatever they ask with it: he believes it, near enough. He checks Moll can't hear, then tells it in a frightened rush: he sleeps in the loft, and last night he woke to a lantern and voices, Mister Prout arguing with two men; then a thump, a choking noise and the hoist creaking with no sacks on it. He hid in his sacks till morning. Asked for a look in his boot as well, he holds the left one out himself.",
+          "to": "doubt",
+          "establishes": [
+            "killed-not-suicide"
+          ],
+          "essential": "not-suicide"
+        },
+        {
+          "id": "catch-moll",
+          "on": "attempt",
+          "when": "The player presses on the holes in Moll's 'I saw him jump' story, or tries to read whether she's lying, where it could go either way. (Not just asking her to tell it.)",
+          "check": {
+            "skill": "insight",
+            "dc": 13,
+            "reason": "to see through Moll's story about the jump",
+            "success": "Moll's story wobbles and she knows it. Cornered, she admits through her teeth that a gentleman paid her a silver crown at first light to say she'd seen the clerk jump.",
+            "failure": "Moll tells it again, louder and with new details, and Cob loyally swears to every word. The holes are still there (the barred loft door, the drizzle, debts nobody knows of) for anyone who comes at it another way.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "scare-kids",
+          "on": "attempt",
+          "when": "The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father.",
+          "check": {
+            "skill": "intimidation",
+            "dc": 12,
+            "reason": "to scare the children into talking",
+            "success": "Cob's bravado collapses. White-faced, he blurts that he was in the loft last night and heard men do it, and starts to cry; Moll screams blue murder at the player from the wall. Kell's mouth goes thin.",
+            "failure": "Cob bolts behind the water butt and through a gap into the granary, and Moll lets fly in three languages. Kell says nothing, loudly. The kids will be harder to reach now, but they haven't gone.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "bribe-cob",
+          "on": "outcome",
+          "when": "The player offers Cob something as the price of a look in his boot, or at what's crackling in it (a coin held up, food, a trade: 'this is yours if I can see what's in there', 'a shilling for a look'), however politely it's asked and whatever they say about the boots staying his, and nothing that answers what he's afraid of. No dice: Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop): what's really wrong comes out instead, his way. They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)",
+          "to": "yard",
+          "towards": "page"
+        },
+        {
+          "id": "kind-to-cob",
+          "on": "outcome",
+          "when": "The player does Cob a kindness with nothing asked back: something to eat, or a dinner stood him freely, with no look at his boots (or anything else) as the price. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, the boots staying his, gets a yes.",
+          "to": "yard",
+          "establishes": [
+            "cob-kindness"
+          ],
+          "towards": "page"
+        },
+        {
+          "id": "coax-cob",
+          "on": "attempt",
+          "when": "Before Cob has any reason to trust them (no kindness with nothing asked back done him yet, no promise that answers what he's afraid of, no yes from him already) and with nothing offered for it, the player asks Cob to let them look in his left boot, or see or feel what's crackling in it, with the boots staying his (it's what's in them they're after, not the boots), or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Not with anything offered for the look (a coin, food, a trade): that's a bribe, and gets haggling. Not after a kindness, with a promise that answers his fear, or once he's said they can look: then the ask needs no dice.",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get Cob to let you look in his boot",
+            "success": "Cob scowls at them for a long moment, then sits on the edge of the water butt, unlaces the string and holds the left boot out at arm's length: 'Look, then. And Cob's having it straight back.' In the lining is something folded and stiff, held in with small neat stitches, and out comes a page, folded small and gone soft at the corners. Cob can't read it; anyone who can sees a dozen grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled weights beside them.",
+            "failure": "Cob won't, and it costs: he clamps a hand over the boot and backs off towards the water butt and his gap, and Moll drops off the wall between them, one more grown-up after Cob's boots. The boot isn't lost: a kindness with nothing asked back, a real promise, or someone saying aloud whose boots they are can still open it.",
+            "onSuccess": "motive",
+            "establishes": {
+              "success": [
+                "page-read"
+              ]
+            }
+          },
+          "essential": "page"
+        },
+        {
+          "id": "trust-cob",
+          "on": "outcome",
+          "when": "The player asks Cob for a look in his left boot (or a peek at what's crackling in it), the boots staying his, once he has real reason to trust them: they did him a kindness with nothing asked back earlier (something to eat, a dinner stood him freely), or they make him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or he has already told them they can look. No dice, however it's put: he unlaces the left boot, holds it out at arm's length and lets them pick the lining open: Prout's page is out.",
+          "to": "motive",
+          "establishes": [
+            "page-read"
+          ],
+          "essential": "page"
+        },
+        {
+          "id": "concede",
+          "on": "attempt",
+          "when": "The player tells Kell they accept the Captain's verdict of suicide and to let the dead-cart have him (not just wondering aloud whether it was suicide).",
+          "to": "closed-suicide"
+        },
+        {
+          "id": "walk-away",
+          "on": "attempt",
+          "when": "The player gives up and leaves the granary yard, or heads off elsewhere, before anything has troubled the suicide story, leaving Prout and Kell behind.",
+          "to": "walked-away"
+        },
+        {
+          "id": "cart-comes",
+          "on": "cue",
+          "when": "The player has been in the yard a long while (at least eight exchanges at this point) without breaking the suicide story, and is going round in circles, idling or waiting for something to happen: noon comes, and so does the dead-cart.",
+          "to": "dead-cart"
+        }
+      ]
+    },
+    "doubt": {
+      "title": "Not by his own hand",
+      "text": "beats/doubt.md",
+      "routes": [
+        {
+          "id": "page-found",
+          "on": "outcome",
+          "when": "The folded page sewn into the lining of Prout's left boot has been found and read, or read out.",
+          "to": "motive",
+          "establishes": [
+            "page-read"
+          ]
+        },
+        {
+          "id": "win-cob",
+          "on": "attempt",
+          "when": "The player pushes Cob to tell who was in the loft last night, or about the boots, with an appeal or an argument, while he's still holding out and it could go either way. (Not just asking. A promise that truly answers what he's afraid of, his name kept out of it and the men from the loft kept off him, needs no dice: that's not this.)",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get Cob to tell you what he saw",
+            "success": "Cob gives up what he's been holding: Silvertop, the posh cove with the silver-topped cane who comes with the Purveyor's wagons and has his own key to the big doors, and a big man with a bandaged hand. If asked, he owns up that the boots came off Mister Prout, and that he saw the clerk sewing something into one two nights ago.",
+            "failure": "Cob clams up and backs towards the water butt: Cob don't know nothing. He'll talk to someone who gives him a real reason to feel safe.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "promise-cob",
+          "on": "outcome",
+          "when": "The player makes Cob a promise that truly answers what he's afraid of, and means it (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or asks him what he knows under a promise like that made before. No dice, whatever they ask with it: he believes it, near enough. He gives up who, in a whisper: Silvertop, the posh cove with the silver-topped cane, the flower smell and a ring with a bit of wheat on it, who comes with the Purveyor's wagons and opens the big doors with his own key; and a big man with a bandaged hand, who said 'Yes, Master'. Asked for a look in his boot as well, he holds the left one out himself.",
+          "to": "doubt",
+          "essential": "silvertop"
+        },
+        {
+          "id": "catch-moll",
+          "on": "attempt",
+          "when": "The player presses on the holes in Moll's story, or tries to read what she's hiding, where it could go either way. (Not just asking her to tell it.)",
+          "check": {
+            "skill": "insight",
+            "dc": 13,
+            "reason": "to get the truth out of Moll",
+            "success": "Moll cracks: a gentleman with a silver-topped cane and a wheat-ear signet ring paid her a silver crown at first light to say she saw the clerk jump, and his big friend with the bandaged hand called him 'Master Sallow'. Pressed, she opens her fist on the coin.",
+            "failure": "Moll sticks to her story and turns up the abuse, but her eyes keep going to the yard gate, and the holes in her story are still there.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "scare-kids",
+          "on": "attempt",
+          "when": "The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father.",
+          "check": {
+            "skill": "intimidation",
+            "dc": 12,
+            "reason": "to force the children to reveal what they know",
+            "success": "They crack under it. Cob sobs out what he saw (Silvertop and the big man with the bandaged hand); Moll flings down her silver crown and calls the player every name she knows. Kell writes it down without looking at the player.",
+            "failure": "Cob bolts behind the water butt and into the granary, Moll goes back up the wall out of reach, swearing, and Kell sighs. They'll only come round for someone who stops looming.",
+            "onSuccess": "doubt"
+          }
+        },
+        {
+          "id": "bribe-cob",
+          "on": "outcome",
+          "when": "The player offers Cob something as the price of a look in his boot, or at what's crackling in it (a coin held up, food, a trade: 'this is yours if I can see what's in there', 'a shilling for a look'), however politely it's asked and whatever they say about the boots staying his, and nothing that answers what he's afraid of. No dice: Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop): what's really wrong comes out instead, his way. They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)",
+          "to": "doubt",
+          "towards": "page"
+        },
+        {
+          "id": "kind-to-cob",
+          "on": "outcome",
+          "when": "The player does Cob a kindness with nothing asked back: something to eat, or a dinner stood him freely, with no look at his boots (or anything else) as the price. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, the boots staying his, gets a yes.",
+          "to": "doubt",
+          "establishes": [
+            "cob-kindness"
+          ],
+          "towards": "page"
+        },
+        {
+          "id": "coax-cob",
+          "on": "attempt",
+          "when": "Before Cob has any reason to trust them (no kindness with nothing asked back done him yet, no promise that answers what he's afraid of, no yes from him already) and with nothing offered for it, the player asks Cob to let them look in his left boot, or see or feel what's crackling in it, with the boots staying his (it's what's in them they're after, not the boots), or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Not with anything offered for the look (a coin, food, a trade): that's a bribe, and gets haggling. Not after a kindness, with a promise that answers his fear, or once he's said they can look: then the ask needs no dice.",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to get Cob to let you look in his boot",
+            "success": "Cob scowls at them for a long moment, then sits on the edge of the water butt, unlaces the string and holds the left boot out at arm's length: 'Look, then. And Cob's having it straight back.' In the lining is something folded and stiff, held in with small neat stitches, and out comes a page, folded small and gone soft at the corners. Cob can't read it; anyone who can sees a dozen grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled weights beside them.",
+            "failure": "Cob won't, and it costs: he clamps a hand over the boot and backs off towards the water butt and his gap, and Moll drops off the wall between them, one more grown-up after Cob's boots. The boot isn't lost: a kindness with nothing asked back, a real promise, or someone saying aloud whose boots they are can still open it.",
+            "onSuccess": "motive",
+            "establishes": {
+              "success": [
+                "page-read"
+              ]
+            }
+          },
+          "essential": "page"
+        },
+        {
+          "id": "trust-cob",
+          "on": "outcome",
+          "when": "The player asks Cob for a look in his left boot (or a peek at what's crackling in it), the boots staying his, once he has real reason to trust them: they did him a kindness with nothing asked back earlier (something to eat, a dinner stood him freely), or they make him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or he has already told them they can look. No dice, however it's put: he unlaces the left boot, holds it out at arm's length and lets them pick the lining open: Prout's page is out.",
+          "to": "motive",
+          "establishes": [
+            "page-read"
+          ],
+          "essential": "page"
+        },
+        {
+          "id": "accuse-kid",
+          "on": "attempt",
+          "when": "The player accuses Cob or Moll of killing Prout (says plainly that they did it, not just asks) or tells Kell to arrest one of them for it.",
+          "to": "accused"
+        },
+        {
+          "id": "wrap-up",
+          "on": "attempt",
+          "when": "The player is done here without naming anyone for it: wrapping up, leaving the yard, or asking Kell to write Prout up as murdered by persons unknown or to take what they've found to the King as it stands.",
+          "to": "open-case"
+        },
+        {
+          "id": "cart-comes",
+          "on": "cue",
+          "when": "The scene has been at this point a good while (at least six exchanges) and the player isn't closing in on who or why, or is idling or waiting: noon comes, and so does the dead-cart.",
+          "to": "dead-cart"
+        }
+      ]
+    },
+    "motive": {
+      "title": "What Prout found",
+      "text": "beats/motive.md",
+      "routes": [
+        {
+          "id": "leave-with-page",
+          "on": "attempt",
+          "when": "The player is done here and leaves the yard (or sends Kell off) with the page in hand, without laying the case out in words: Kell has read it and will write it up herself.",
+          "to": "case-made"
+        },
+        {
+          "id": "cart-comes",
+          "on": "cue",
+          "when": "The player has had the page a while (at least three exchanges at this point) without making the case to Kell, or is dawdling: noon comes, and so does the dead-cart.",
+          "to": "dead-cart"
+        }
+      ]
+    },
+    "dead-cart": {
+      "title": "The dead-cart",
+      "text": "beats/dead-cart.md",
+      "routes": [
+        {
+          "id": "held-as-murder",
+          "on": "outcome",
+          "when": "Kell, given real evidence, has agreed to sign Prout in as a murder rather than a suicide, and Tull has accepted it, with nobody named for it.",
+          "to": "open-case"
+        },
+        {
+          "id": "persuade-tull",
+          "on": "attempt",
+          "when": "The player tries to talk Tull into waiting, or into taking Prout in as anything but a suicide, before Kell has a case she'll sign for.",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12,
+            "reason": "to convince Tull to wait before taking Prout away",
+            "success": "Tull sighs, folds the order away and sits on the edge of the cart: he'll wait for the sergeant's word, and take Prout in however she signs for him.",
+            "failure": "Tull is very sorry, but the Captain was very clear, and he nods his constables up the ladder. One more good reason might still stop him.",
+            "onSuccess": "dead-cart",
+            "onFailure": "closed-suicide"
+          }
+        },
+        {
+          "id": "accuse-kid",
+          "on": "attempt",
+          "when": "The player accuses Cob or Moll of killing Prout (says plainly that they did it, not just asks) or tells Kell or Tull to arrest one of them for it.",
+          "to": "accused"
+        },
+        {
+          "id": "carted-off",
+          "on": "cue",
+          "when": "Tull's patience has run out, or the player has told him to go ahead: he has waited at least two exchanges since he arrived (or since he last agreed to wait) without being given a reason he can take back to the Captain, and the constables load Prout onto the cart as a suicide.",
+          "to": "closed-suicide"
+        }
+      ]
+    },
+    "accused": {
+      "title": "On what evidence?",
+      "text": "beats/accused.md",
+      "routes": [
+        {
+          "id": "insist-cob",
+          "on": "attempt",
+          "when": "Having heard Kell's objection, the player insists that Cob be taken in for the murder anyway, or seizes him for it themselves.",
+          "to": "wrong-man",
+          "establishes": [
+            "cob-taken"
+          ]
+        },
+        {
+          "id": "insist-moll",
+          "on": "attempt",
+          "when": "Having heard Kell's objection, the player insists that Moll be taken in for the murder anyway, or seizes her for it themselves.",
+          "to": "wrong-man",
+          "establishes": [
+            "moll-taken"
+          ]
+        },
+        {
+          "id": "drop-it",
+          "on": "outcome",
+          "when": "The player has let the accusation drop for now (taken it back, or turned to the evidence, the body or someone else), and Corporal Tull's dead-cart hasn't come yet.",
+          "to": "doubt"
+        },
+        {
+          "id": "drop-it-cart",
+          "on": "outcome",
+          "when": "The player has let the accusation drop for now, and Corporal Tull and his dead-cart are already in the yard.",
+          "to": "dead-cart"
+        }
+      ]
+    }
+  },
+  "anytime": [
+    {
+      "id": "make-case",
+      "on": "outcome",
+      "when": "The case is on the record: the player has made it to Kell (out loud, or by handing her the page that names him) that Prout was killed and hung up to look like a suicide by or for the man calling himself Master Sallow of the Royal Purveyor's office (the kids' 'Silvertop', or just 'the Purveyor's man'), backed by something actually found here, and Kell has accepted it and is writing it down as murder.",
+      "to": "case-made"
+    }
+  ],
+  "exits": {
+    "case-made": {
+      "kind": "progress",
+      "title": "The case is made",
+      "next": "caerwyn-afternoon",
+      "text": "exits/case-made.md",
+      "effects": [
+        {
+          "op": "quest",
+          "quest": "hanged-clerk",
+          "do": "complete",
+          "text": "Proved Wendell Prout was murdered, and named Sallow of the Royal Purveyor's office as behind it."
+        },
+        {
+          "op": "quest",
+          "quest": "purveyors-man",
+          "do": "start",
+          "title": "The Purveyor's Man",
+          "text": "A man calling himself Master Sallow, of the Royal Purveyor's office, had the palace clerk Wendell Prout killed and hung up as a suicide. The case needs taking to the King, not the Watch Captain."
+        },
+        {
+          "op": "attitude",
+          "who": "kell",
+          "to": "friendly",
+          "text": "The King's investigator made Prout's case properly."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "The King's investigator proved Prout was murdered and named Sallow of the Purveyor's office."
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-read"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "prout_death",
+          "value": "murder, Sallow named"
+        },
+        {
+          "op": "journal",
+          "text": "Wendell Prout didn't hang himself. The trail leads to Master Sallow of the Royal Purveyor's office."
+        }
+      ]
+    },
+    "open-case": {
+      "kind": "progress",
+      "title": "Murder by persons unknown",
+      "next": "caerwyn-afternoon",
+      "text": "exits/open-case.md",
+      "effects": [
+        {
+          "op": "quest",
+          "quest": "hanged-clerk",
+          "do": "advance",
+          "stage": "murder_unnamed",
+          "text": "Prout's death is on the books as murder by persons unknown."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "Prout was murdered; nobody has been named for it yet, and the case is open."
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-read"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "prout_death",
+          "value": "murder, unnamed"
+        },
+        {
+          "op": "journal",
+          "text": "Prout was murdered. The watch has it down as persons unknown."
+        }
+      ]
+    },
+    "wrong-man": {
+      "kind": "other",
+      "title": "The wrong name in the book",
+      "next": "caerwyn-afternoon",
+      "text": "exits/wrong-man.md",
+      "effects": [
+        {
+          "op": "remove",
+          "what": "moll",
+          "text": "the watch-house cells",
+          "if": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "attitude",
+          "who": "moll",
+          "to": "hostile",
+          "text": "Taken in for a murder they didn't do, on the player's word.",
+          "if": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "attitude",
+          "who": "cob",
+          "to": "hostile",
+          "text": "The player had their friend taken in for murder.",
+          "if": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "remove",
+          "what": "cob",
+          "text": "gone to ground somewhere in the granary quarter",
+          "if": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "remove",
+          "what": "cob",
+          "text": "the watch-house cells",
+          "unless": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "attitude",
+          "who": "cob",
+          "to": "hostile",
+          "text": "Taken in for a murder they didn't do, on the player's word.",
+          "unless": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "attitude",
+          "who": "moll",
+          "to": "hostile",
+          "text": "The player had their friend taken in for murder.",
+          "unless": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "remove",
+          "what": "moll",
+          "text": "gone to ground somewhere in the granary quarter",
+          "unless": {
+            "established": "moll-taken"
+          }
+        },
+        {
+          "op": "attitude",
+          "who": "kell",
+          "to": "unfriendly",
+          "text": "Made to arrest a child for murder on no evidence."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "She arrested a child for Prout's murder at the investigator's insistence, and wrote down her objection."
+        },
+        {
+          "op": "quest",
+          "quest": "hanged-clerk",
+          "do": "fail",
+          "text": "A child was taken in for Prout's murder; whoever really killed him is in the clear."
+        },
+        {
+          "op": "flag",
+          "name": "prout_death",
+          "value": "murder, blamed on a granary child"
+        },
+        {
+          "op": "journal",
+          "text": "We had one of the granary kids taken in for the clerk's murder. The sergeant thinks we're wrong."
+        }
+      ]
+    },
+    "closed-suicide": {
+      "kind": "other",
+      "title": "Filed as a suicide",
+      "next": "caerwyn-afternoon",
+      "text": "exits/closed-suicide.md",
+      "effects": [
+        {
+          "op": "quest",
+          "quest": "hanged-clerk",
+          "do": "fail",
+          "text": "Prout was filed as a suicide."
+        },
+        {
+          "op": "attitude",
+          "who": "kell",
+          "to": "wary",
+          "text": "The King's investigator let Prout go down as a suicide."
+        },
+        {
+          "op": "flag",
+          "name": "prout_death",
+          "value": "suicide"
+        },
+        {
+          "op": "journal",
+          "text": "The clerk behind the granary was filed as a suicide."
+        }
+      ]
+    },
+    "walked-away": {
+      "kind": "leave",
+      "title": "Walked away",
+      "next": "caerwyn-afternoon",
+      "text": "exits/walked-away.md",
+      "effects": [
+        {
+          "op": "quest",
+          "quest": "hanged-clerk",
+          "do": "fail",
+          "text": "Walked away before the case was made; Prout was filed as a suicide."
+        },
+        {
+          "op": "attitude",
+          "who": "kell",
+          "to": "wary",
+          "text": "The King's investigator walked away from Prout's case."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "The King's investigator walked off and left Prout to the dead-cart."
+        },
+        {
+          "op": "flag",
+          "name": "prout_death",
+          "value": "suicide"
+        }
+      ]
+    }
+  },
+  "essentials": {
+    "not-suicide": {
+      "what": "Prout didn't hang himself: he was struck and strangled, then hoisted up for show.",
+      "placedWith": [
+        "the body (cord mark, the blow to the head)",
+        "Cob's account of the loft",
+        "the scraped heels of Prout's boots"
+      ],
+      "carriers": [
+        "cob"
+      ],
+      "unlocks": "Kell treating it as murder"
+    },
+    "page": {
+      "what": "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.",
+      "placedWith": [
+        "the page sewn into Prout's left boot (Cob is wearing the boots)",
+        "the tally book in the loft"
+      ],
+      "carriers": [],
+      "unlocks": "the motive, and the name Sallow",
+      "later": "the King's morning needs proof he can hold, and the page is Sallow's countersignature in writing on every 'lost' wagon",
+      "things": [
+        "ledger-page"
+      ]
+    },
+    "silvertop": {
+      "what": "A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night.",
+      "placedWith": [
+        "Cob ('Silvertop')",
+        "Moll, if she cracks"
+      ],
+      "carriers": [
+        "cob",
+        "moll"
+      ],
+      "unlocks": "naming Sallow as the man behind it"
+    }
+  },
+  "afterwards": [
+    {
+      "op": "remove",
+      "what": "prout",
+      "text": "taken away: to the watch house under a sheet, or on the dead-cart"
+    }
+  ],
+  "lore": [
+    "Places/Granary Yard.md",
+    "World/Caerwyn now.md"
+  ],
+  "fronts": "World/Fronts.md"
+}
