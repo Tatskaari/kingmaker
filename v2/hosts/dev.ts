@@ -35,8 +35,11 @@ const USAGE = `npm run dev [-- options]
 
 const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
-/** f's fault: the service exits (137) right after it stores its next answer, before it answers (v0-design §5.1). */
-const FAULT = "exit-after-store:any";
+/**
+ * f's fault: the service exits (137) right after it stores its next reply, before it sends it (v0-design
+ * §5.1). After s the kept reply lands at once. (Any answer would be a line's decide, which no one sees.)
+ */
+const FAULT = "exit-after-store:reply";
 
 const flags = flagsOf(process.argv.slice(2));
 /** The fake model's options, with --fake. */
@@ -78,7 +81,7 @@ const ACTIONS: Record<string, () => Promise<void>> = {
   async f() {
     await stopAi("SIGTERM");
     await startAi({ KM_AI_FAULTS: FAULT });
-    note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next answer, before answering`);
+    note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next reply, before sending it`);
   },
   async p() {
     const published = await stack.publish();
@@ -150,7 +153,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `Play:  npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
-      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored answer", "       p republish the module · d doctor · q quit"]
+      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),
     ...(s.mode === "namespace" ? [`Tip:   sudo ip addr add ${AI_ADDRESS}/32 dev lo  runs the stack without a namespace (host mode)`] : []),
     "",
@@ -210,7 +213,7 @@ function watchAi(): void {
   void stack.ai.exited().then(code => {
     if (stopping || quitting) return;
     note(fault
-      ? `the AI service exited (${code}) after storing an answer, as f asked: s starts it again, without the fault`
+      ? `the AI service exited (${code}) after storing a reply, as f asked: s starts it again, without the fault`
       : `the AI service exited (${code}): s starts it again (its log says why)`);
   });
 }
