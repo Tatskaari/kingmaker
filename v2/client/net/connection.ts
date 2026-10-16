@@ -1,3 +1,4 @@
+import { setGlobalLogLevel } from "spacetimedb";
 import { refusal, refusalIn } from "../../shared/protocol/refusals.ts";
 import type { Backend, NewGame, Rejection } from "../backend.ts";
 import { DbConnection, type SubscriptionHandle } from "../module_bindings/index.ts";
@@ -32,10 +33,14 @@ export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
 
 /** Connects, and resolves once the seat is known and, when there is one, its game's rows are in. */
 export async function connect(options: ConnectOptions): Promise<Connection> {
+  quietSdk();
   const connection = new Connection(options);
   await connection.ready;
   return connection;
 }
+
+/** The SDK's own news ("Connecting to SpacetimeDB WS...") goes to stdout, which is the screen, or the agent's answer: only its warnings and errors. */
+const quietSdk = () => setGlobalLogLevel("warn");
 
 /** What the seat's subscription set covers: the game, its scene, the place whose looks to read. */
 interface WatchKey { game: bigint; scene?: bigint; place?: bigint }
@@ -162,7 +167,7 @@ export class Connection implements Backend {
   }
 
   private failedToConnect(options: ConnectOptions, error: Error, next: number | undefined): void {
-    if (!this.settled) { this.rejectReady(new Error(`Can't reach the game's server at ${options.url} (database ${options.db}): ${error.message}`)); return; }
+    if (!this.settled) { void whyNot(options, error).then(why => this.rejectReady(new Error(why))); return; }
     this.trouble = `(The game's server is out of reach: trying again${next ? ` (attempt ${next})` : ""}…)`;
     this.changed();
   }
@@ -315,6 +320,18 @@ function drop(watching: Watching | undefined): void {
   if (!watching || watching.dropped || !watching.handle.isActive()) return;
   watching.dropped = true;
   watching.handle.unsubscribe();
+}
+
+/**
+ * Why the first connection failed, in words that say what to do: the SDK's own error says nothing
+ * (a bare TypeError), so ask the server whether it's there, and whether it has the database.
+ */
+async function whyNot({ url, db }: ConnectOptions, error: Error): Promise<string> {
+  const http = url.replace(/^ws/, "http").replace(/\/+$/, "");
+  const status = (path: string) => fetch(`${http}${path}`, { signal: AbortSignal.timeout(2000) }).then(r => r.status, () => 0);
+  if (await status("/v1/ping") !== 200) return `Nothing answers at ${url}: is the dev stack up (npm run dev)? Or play with --demo.`;
+  if (await status(`/v1/database/${db}`) === 404) return `The server at ${url} has no database called ${db}: is the module published (npm run dev does it)?`;
+  return `The server at ${url} wouldn't take the connection to ${db}${error.message ? `: ${error.message}` : ""}. If it's the session's identity it doesn't know, start another --session.`;
 }
 
 /** Why a reducer call failed: its refusal (a SenderError carrying it as JSON), else what went wrong, in words for the status line. */

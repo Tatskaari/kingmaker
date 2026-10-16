@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { newGameOf, type Backend } from "../client/backend.ts";
 import { demoBackend } from "../client/demo.ts";
@@ -26,8 +27,9 @@ const USAGE = `Kingmaker: headless play
   play transcript --session <name>              everything said in the scene
 
 Every verb also takes --demo (canned turns, no server), and --url and --db for the server (else
-KM_STDB_URL and KM_STDB_DB, else the running dev stack's, else ws://127.0.0.1:3300 and kingmaker).
-Sessions are kept in runs/play/ (KM_RUNS_DIR moves runs/). A refusal or a failed turn exits 1.
+KM_STDB_URL and KM_STDB_DB, else the running dev stack's, found in runs/dev/stack.json or the
+folder --stack names, else ws://127.0.0.1:3300 and kingmaker). Sessions are kept in runs/play/
+(KM_RUNS_DIR moves runs/). A refusal or a failed turn exits 1.
 
 Begin with observe; observe again after anything changes.`;
 
@@ -38,7 +40,8 @@ type Args = ReturnType<typeof argsOf>;
 
 async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
   const args = argsOf(argv);
-  if (!args.verb || args.values.help) { console.log(USAGE); return args.verb || args.values.help ? 0 : 1; }
+  if (args.values.help) { console.log(USAGE); return 0; }
+  if (!args.verb) { console.log(USAGE); return 1; }
 
   const game = await backendFor(args, env);
   try {
@@ -55,7 +58,7 @@ function argsOf(argv: string[]) {
     options: {
       session: { type: "string" }, as: { type: "string" }, build: { type: "string" }, campaign: { type: "string" },
       game: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
-      url: { type: "string" }, db: { type: "string" }, help: { type: "boolean", short: "h" },
+      url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
     },
   });
   const [verb, ...words] = positionals;
@@ -69,7 +72,7 @@ async function backendFor(args: Args, env: NodeJS.ProcessEnv): Promise<Backend> 
 
   const runs = env.KM_RUNS_DIR ?? "runs";
   const session = sessionAt(runs, args.values.session);
-  const server = serverFor({ ...defined({ url: args.values.url ?? env.KM_STDB_URL, db: args.values.db ?? env.KM_STDB_DB }) }, runs);
+  const server = serverFor(defined({ url: args.values.url ?? env.KM_STDB_URL, db: args.values.db ?? env.KM_STDB_DB }), args.values.stack ?? join(runs, "dev"));
   return await connect({ ...server, ...(session.token ? { token: session.token } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
 }
 

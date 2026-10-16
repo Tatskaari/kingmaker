@@ -5,8 +5,8 @@ import { dirname, join } from "node:path";
  * A session: the SpacetimeDB identity a terminal plays as, kept between runs (v0-design §7).
  * runs/play/<name>.json holds its token, so `--session wren` is the same player in every
  * process; the simulation keeps the game itself. And where the game's server is: what was asked
- * for, else the dev stack's (runs/dev/stack.json, written by npm run dev), else the dev stack's
- * own defaults. The hosts read the env and the arguments and hand them in.
+ * for, else the dev stack's (the stack.json npm run dev writes in its folder, runs/dev), else the
+ * dev stack's own defaults. The hosts read the env and the arguments and hand them in.
  */
 
 export interface Session {
@@ -37,10 +37,10 @@ export function keepToken(session: Session, identity: string, token: string): vo
   session.token = token;
 }
 
-/** Where the game's server is: what was asked for, else the dev stack's, else its defaults. */
-export function serverFor(asked: Partial<Server>, runs: string): Server {
-  const stack = devStack(join(runs, "dev", "stack.json"));
-  return { url: asked.url ?? stack.url ?? DEFAULT_SERVER.url, db: asked.db ?? stack.db ?? DEFAULT_SERVER.db };
+/** Where the game's server is: what was asked for, else the dev stack's (its folder, `stack`: runs/dev), else its defaults. */
+export function serverFor(asked: Partial<Server>, stack: string): Server {
+  const running = devStack(join(stack, "stack.json"));
+  return { url: asked.url ?? running.url ?? DEFAULT_SERVER.url, db: asked.db ?? running.db ?? DEFAULT_SERVER.db };
 }
 
 function tokenIn(path: string): string | undefined {

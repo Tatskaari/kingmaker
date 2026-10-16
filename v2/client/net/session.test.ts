@@ -29,18 +29,18 @@ test("a session's name is a file's name, never a path", () => {
 });
 
 test("the server: what was asked for, else the running dev stack's, else its defaults", () => {
-  const runs = runsIn();
+  const stack = runsIn();
   try {
-    assert.deepEqual(serverFor({}, runs), DEFAULT_SERVER);
+    assert.deepEqual(serverFor({}, stack), DEFAULT_SERVER);
 
-    mkdirSync(join(runs, "dev"), { recursive: true });
-    writeFileSync(join(runs, "dev", "stack.json"), JSON.stringify({ ws: "ws://127.0.0.1:3350", http: "http://127.0.0.1:3350", db: "kingmaker" }));
-    assert.deepEqual(serverFor({}, runs), { url: "ws://127.0.0.1:3350", db: "kingmaker" });
-    assert.deepEqual(serverFor({ url: "ws://127.0.0.1:3310", db: "e2e" }, runs), { url: "ws://127.0.0.1:3310", db: "e2e" });
+    mkdirSync(stack, { recursive: true });
+    writeFileSync(join(stack, "stack.json"), JSON.stringify({ ws: "ws://127.0.0.1:3350", http: "http://127.0.0.1:3350", db: "kingmaker" }));
+    assert.deepEqual(serverFor({}, stack), { url: "ws://127.0.0.1:3350", db: "kingmaker" });
+    assert.deepEqual(serverFor({ url: "ws://127.0.0.1:3310", db: "e2e" }, stack), { url: "ws://127.0.0.1:3310", db: "e2e" });
 
-    writeFileSync(join(runs, "dev", "stack.json"), JSON.stringify({ http: "http://127.0.0.1:3399" }));
-    assert.deepEqual(serverFor({}, runs), { url: "http://127.0.0.1:3399", db: "kingmaker" });
+    writeFileSync(join(stack, "stack.json"), JSON.stringify({ http: "http://127.0.0.1:3399" }));
+    assert.deepEqual(serverFor({}, stack), { url: "http://127.0.0.1:3399", db: "kingmaker" });
   } finally {
-    rmSync(runs, { recursive: true, force: true });
+    rmSync(stack, { recursive: true, force: true });
   }
 });

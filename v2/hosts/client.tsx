@@ -1,6 +1,7 @@
 // Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the renderer, the root and the shutdown; the look canvas, the browser overlay, reporting and the Game go, and the scene plays through the simulation (or the demo).
 import { createCliRenderer, type CliRenderer } from "@opentui/core";
 import { createRoot, type Root } from "@opentui/react";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { App } from "../client/app.tsx";
 import { newGameOf, viewWhen, type Backend } from "../client/backend.ts";
@@ -27,7 +28,8 @@ const USAGE = `Kingmaker: the client
   npm run client -- --demo               canned turns, no server
 
 --url and --db choose the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's,
-else ws://127.0.0.1:3300 and kingmaker). Sessions are kept in runs/play/ (KM_RUNS_DIR moves runs/).`;
+found in runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker).
+Sessions are kept in runs/play/ (KM_RUNS_DIR moves runs/).`;
 
 type Args = ReturnType<typeof argsOf>["values"];
 
@@ -57,7 +59,7 @@ function argsOf(argv: string[]) {
     args: argv,
     options: {
       session: { type: "string" }, new: { type: "string" }, build: { type: "string" }, campaign: { type: "string" },
-      join: { type: "string" }, demo: { type: "boolean" }, url: { type: "string" }, db: { type: "string" }, help: { type: "boolean", short: "h" },
+      join: { type: "string" }, demo: { type: "boolean" }, url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
     },
   });
 }
@@ -70,7 +72,7 @@ async function backendFor(args: Args, env: NodeJS.ProcessEnv): Promise<Backend> 
   const runs = env.KM_RUNS_DIR ?? "runs";
   const session = sessionAt(runs, args.session);
   const url = args.url ?? env.KM_STDB_URL, db = args.db ?? env.KM_STDB_DB;
-  const server = serverFor({ ...(url ? { url } : {}), ...(db ? { db } : {}) }, runs);
+  const server = serverFor({ ...(url ? { url } : {}), ...(db ? { db } : {}) }, args.stack ?? join(runs, "dev"));
   return await connect({ ...server, ...(session.token ? { token: session.token } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
 }
 
