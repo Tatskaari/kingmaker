@@ -14,7 +14,8 @@ import { director, sceneAndView } from "./turn.ts";
  * the scene read. The stage manager's operations (16 at most, by game key, best effort: none when it
  * fails) for the simulation to apply through its gate, beside the director's after-reply decision:
  * how it's going, an ending, what has landed or been hinted, an outcome route (its check for the
- * simulation to roll). No reading when this reply closed the scene.
+ * simulation to roll), and whether the player has walked out of the place (left: asked when their
+ * character is the rules engine's). No reading when this reply closed the scene.
  */
 export const settle: Handler<SettleRequest, SettleResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));

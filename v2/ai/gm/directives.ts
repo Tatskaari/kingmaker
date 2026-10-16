@@ -1,10 +1,10 @@
-// Copied from the prototype at 44c6d4a: the directives' words from src/runtime/director.ts:1021-1035, 1096-1097, 1190-1191, 1201-1207, 1387-1410 and src/runtime/engine.ts:225-228, 255-328, 586, 706, 728, 1329 (openingDirective without its after-a-boundary branch: V0 plays one scene). directivesFor is new: the list engine.ts's playerTurn builds step by step (:577-738), rebuilt from the decision and what the decide commit did.
+// Copied from the prototype at 44c6d4a: the directives' words from src/runtime/director.ts:1021-1035, 1096-1097, 1190-1191, 1201-1211, 1387-1410 and src/runtime/engine.ts:225-228, 255-328, 586, 706, 728, 1329 (openingDirective without its after-a-boundary branch: V0 plays one scene). directivesFor is new: the list engine.ts's playerTurn builds step by step (:577-738), rebuilt from the decision and what the decide commit (and on a considered turn, the consider commit) did.
 
 import type { RollResult } from "../../shared/dice.ts";
 import { describeRoll, titleCase } from "../../shared/dice.ts";
 import type { Decision, Outcome } from "../../shared/protocol/ai.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
-import type { Exit, Scene, Transition } from "../../shared/scene/types.ts";
+import type { Exit, Scene, Skill, Transition } from "../../shared/scene/types.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -27,11 +27,15 @@ export interface Move {
 
 /**
  * The reply's directives, in the prototype's order and with its overwrites (engine.ts:577-738): the
- * urgent memory, then a move's lines (which replace it) or the same push again, an ending near, the
- * bill, the payoff, out of character or the plain route, a limit, the loop broken, a held ending, and
- * a last chance before a close. `s` is the view after the decide commit; `o` what that commit did.
+ * urgent memory, then a move's lines (which replace it) or the same push again; on a considered turn
+ * the ruling's lines after it (or, with no ruling, the plain check's); an ending near, the bill, the
+ * payoff, out of character or the plain route, a limit, the loop broken (none of the five over a
+ * ruling: it decided the turn), a held ending, and a last chance before a close. `s` is the view
+ * after the decide commit (the consider commit, on a considered turn); `o` what they did. `ruled`:
+ * the ruling's lines as gm/consider.ts's ruledLines words them, when `o.ruled` is there; an ending
+ * the dice decided plays its moment now and closes on the next reply, as a route's does (moveTaken).
  */
-export function directivesFor(scene: Scene, s: TurnView, d: Decision, o: Outcome): string[] {
+export function directivesFor(scene: Scene, s: TurnView, d: Decision, o: Outcome, ruled: string[] = []): string[] {
   if (o.windDown) return windDownLines(scene, s, d, exitOf(scene, o.windDown.exit));
 
   let lines: string[] = d.remembered ? [rememberedLine(d.remembered)] : [];
@@ -42,15 +46,25 @@ export function directivesFor(scene: Scene, s: TurnView, d: Decision, o: Outcome
   } else if (d.sameAgain) {
     lines = [sameAgainDirective(routeOf(scene, s.beat, d.sameAgain.route), d.sameAgain.answer)];
   }
+  // A considered turn (engine.ts:656-701): the ruling, or the plain check rolled without one.
+  const r = o.ruled;
+  if (r) {
+    const exit = scene.exits.find(e => e.id === (r.exit ?? r.to));
+    const decided = !!exit && r.chosen && !!r.roll && exit.kind !== "combat";
+    lines.push(...(decided ? [...ruled.filter(l => !l.startsWith("This reply closes the scene")), diceDecided(exit)] : ruled));
+  } else if (o.freeform) {
+    lines.push(freeformDirective(o.freeform));
+  }
 
-  const lead = s.endingLead && !o.move && !s.closing && !d.outOfCharacter ? scene.exits.find(e => e.id === s.endingLead!.exitId) : undefined;
+  const lead = s.endingLead && !o.move && !r && !s.closing && !d.outOfCharacter ? scene.exits.find(e => e.id === s.endingLead!.exitId) : undefined;
   if (lead) lines.push(`The scene may be reaching its end (${lead.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
-  if (d.daft && !d.outOfCharacter && !o.move?.roll) lines.push(CONSEQUENCE_DIRECTIVE);
-  if (d.earned && !d.outOfCharacter && !o.move?.roll) lines.push(EARNED_DIRECTIVE);
+  // A ruling decided this turn's consequences, and its payoff: no bill or payoff on top of it.
+  if (d.daft && !d.outOfCharacter && !r && !o.move?.roll) lines.push(CONSEQUENCE_DIRECTIVE);
+  if (d.earned && !d.outOfCharacter && !o.move?.roll && !r) lines.push(EARNED_DIRECTIVE);
   if (d.outOfCharacter) lines.push(OOC_DIRECTIVE);
-  else if (d.plain && d.route?.id !== d.plain && !d.limit && !o.move) lines.push(plainDirective(routeOf(scene, s.beat, d.plain)));
+  else if (d.plain && d.route?.id !== d.plain && !d.considered && !d.limit && !o.move && !r) lines.push(plainDirective(routeOf(scene, s.beat, d.plain)));
   if (d.limit && !d.outOfCharacter) lines.push(limitDirective(d.limit));
-  if (o.wasStuck && !o.move && !d.outOfCharacter && !d.sameAgain) lines.push(STUCK);
+  if (o.wasStuck && !o.move && !r && !d.outOfCharacter && !d.sameAgain) lines.push(STUCK);
   if (o.held && o.pending) lines.push(heldLine(o.held, exitOf(scene, o.pending.exit)));
 
   const closes = o.closes ? exitOf(scene, o.closes) : undefined;
@@ -193,6 +207,14 @@ export const OOC_DIRECTIVE = "The player has stepped out of character to ask you
 /** "No, but": the world answers honestly and keeps the player's underlying idea alive. */
 export function limitDirective(limit: string): string {
   return `The player is reaching for something this scene can't offer: ${limit} Respect exactly what that says: what it rules out doesn't happen (not even halfway), and anything it allows (setting off, trying later) can. Answer in the fiction with a reason that fits this world (a consequence, or a character who would know), not a flat refusal, and give the player's underlying intent somewhere real to go with what is here.`;
+}
+
+/** A risky attempt none of the scene's routes cover: rolled, narrated, but it moves no beat (director.ts:22). */
+export interface FreeformCheck { skill: Skill; dc: number; roll: RollResult }
+
+/** The roll a considered turn made without a ruling (the review failed, or ran past its deadline): narrated as the dice have it. */
+export function freeformDirective(check: FreeformCheck): string {
+  return `The player's attempt called for a ${titleCase(check.skill)} check. ${describeRoll(check.roll)}. Narrate the result: on a success they get what they were going for, within this scene; on a failure it costs them or complicates things, without taking back anything already offered or agreed, and the story keeps going. This roll doesn't end the scene by itself.`;
 }
 
 /**
