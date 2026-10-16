@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/suggest.ts at 44c6d4a, all but the lines in flight (:53-93: one set a session, landed for its scene and turn, stopped when the scene ends or they're turned off), whose rules the simulation's suggest job and its rows keep (v5-design §3.5). It reads a TurnView (gm/view.ts) for the session; the scene it plays and the story's others are the view's story (gm/story.ts) for sceneById, SCENES and ZOO_SCENES, so its caches are kept by the story's campaign version (namesInPrep, everyday) and prepText takes a stub's prep as written; the judge (the session's decider) is handed in; storyScenes and everyday are exported for the tests.
+// Copied from the prototype's src/runtime/suggest.ts at 44c6d4a, all but the lines in flight (:53-93: one set a session, landed for its scene and turn, stopped when the scene ends or they're turned off), whose rules the simulation's suggest job and its rows keep (v5-design §3.5). It reads a TurnView (gm/view.ts) for the session; the scene it plays and the story's others are the view's story (gm/story.ts) for sceneById, SCENES and ZOO_SCENES, so its caches are kept by the story's campaign version (namesInPrep, everyday) and prepText takes a stub's prep as written; the judge (the session's decider) is handed in; storyScenes and everyday are exported for the tests, and prepText for the campaign check (hosts/dev/vocabulary.ts).
 
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
 import { respond, type RespondRequest } from "../llm/openrouter.ts";
@@ -703,7 +703,7 @@ function storyCast(scenes: Scene[]): Character[] {
 }
 
 /** All the scene's prep: the cards, the beats and their routes, the endings, what it needs, its limits. A scene of the vocabulary's has it as one text. */
-function prepText(scene: StoryScene): string {
+export function prepText(scene: StoryScene): string {
   if (scene.prep !== undefined) return scene.prep;
   return [
     scene.setting, scene.premise, ...(scene.background ?? []),

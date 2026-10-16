@@ -1,6 +1,7 @@
+import { prepText } from "../../ai/gm/suggest.ts";
 import type { CampaignPack, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
-import type { Scene, Transition } from "../../shared/scene/types.ts";
+import type { Scene } from "../../shared/scene/types.ts";
 import type { CampaignFiles } from "./campaign.ts";
 
 /**
@@ -60,23 +61,6 @@ export function entryOf(scene: Scene, place?: PlaceFile): VocabularyEntry {
     prep: prepText(scene),
   };
 }
-
-// Copied from the prototype's src/runtime/suggest.ts:728-741 at 44c6d4a, unchanged (v2's Scene has its fields), as tools/v2/export-vocabulary.mts has it.
-
-/** All the scene's prep: the cards, the beats and their routes, the endings, what it needs, its limits. */
-export function prepText(scene: Scene): string {
-  return [
-    scene.setting, scene.premise, ...(scene.background ?? []),
-    ...scene.cast.flatMap(c => [c.name, c.voice, c.wants, c.fears ?? "", ...c.knows, ...(c.secrets ?? []), c.attitude, c.group ?? ""]),
-    ...scene.beats.flatMap(b => [b.direction, ...Object.values(b.cast ?? {}), b.pressure ?? "", ...b.transitions.flatMap(routeText)]),
-    ...(scene.anytime ?? []).flatMap(routeText),
-    ...scene.exits.flatMap(e => [e.outcome, e.closing]),
-    ...(scene.essentials ?? []).flatMap(e => [e.what, ...e.placedWith, e.unlocks]),
-    ...(scene.limits ?? []),
-  ].join("\n");
-}
-
-const routeText = (t: Transition) => [t.when, ...(t.check ? [t.check.reason ?? "", t.check.success, t.check.failure] : []), ...(t.establishes ?? [])];
 
 // ---------------------------------------------------------------------------------------------
 // The checks.
