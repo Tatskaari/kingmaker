@@ -24,7 +24,8 @@ import { startStack, type Stack } from "./dev/stack.ts";
 const USAGE = `npm run dev [-- options]
   --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, the GM's golden
                         replies with notes and suggested lines, each written over 2 s as a model's is;
-                        KM_AI_FAKE (JSON) goes on top: '{"streamMs":0}' answers at once
+                        KM_AI_FAKE (JSON) goes on top: '{"streamMs":0}' answers at once,
+                        '{"choices":{"attempt":"examine-body"}}' rolls the Medicine check
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
   --mode host|namespace detected when absent: host when ${AI_ADDRESS} is on this machine
@@ -190,6 +191,12 @@ async function startAi(env?: Record<string, string>): Promise<void> {
   await stack.ai.start(env);
   faulted = !!env?.KM_AI_FAULTS;
   watchAi();
+  await dispatchWaiting();
+}
+
+/** The AI service is back: a turn waiting to try it again goes on now, not when the module's backoff is up (up to 15 s away). */
+async function dispatchWaiting(): Promise<void> {
+  await stack.call("dispatch_waiting", []).catch((e: Error) => note(`the module's waiting thinks weren't sent again (${e.message}): they go at their time`));
 }
 
 async function stopAi(signal: NodeJS.Signals): Promise<void> {

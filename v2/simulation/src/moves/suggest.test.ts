@@ -147,7 +147,7 @@ test("turned back on with no lines for this moment, they're asked for again: the
 test("set_suggestions asks for nothing when this moment has its lines, nor for a spectator, whose setting is their own; and refuses a caller with no seat", async () => {
   const { host, wren, scene } = await openedGame();
   const tamsin = identity(2);
-  assert.deepEqual(host.as(identity(9)).setSuggestions({ on: true }), { code: "not_in_game", text: "(You're not in a game: start one with --new, or watch one with --join.)" });
+  assert.deepEqual(host.as(identity(9)).setSuggestions({ on: true }), { code: "not_in_game", text: "(You're not in a game: start one, or watch someone's.)" });
 
   assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
   assert.equal(all(host.db.job).length, 0, "turn 0's lines are here");

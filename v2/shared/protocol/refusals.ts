@@ -25,7 +25,7 @@ const thousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
 /** The words for each refusal. The ones that name something take it from `vars`. */
 const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
-  not_in_game: () => "(You're not in a game: start one with --new, or watch one with --join.)",
+  not_in_game: () => "(You're not in a game: start one, or watch someone's.)",
   unknown: v => (v.what === "turn" ? "(There's no such turn.)" : "(There's no such game here.)"),
   no_campaign: v => `(There's no campaign called ${v.campaign ?? "that"} here.)`,
   no_build: v => `(There's no ready-made build called ${v.build ?? "that"}: there's ${v.builds ?? "none"}.)`,

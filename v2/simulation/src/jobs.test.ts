@@ -252,3 +252,20 @@ test("one job a turn and move: queued again, its row is written over, and an ans
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(scene.id)].map(s => s.text), DEFAULTS.suggest.lines.map(l => l.text));
   assert.match(host.logs.join("\n"), /:t1:suggest attempt 1\] dropped: the job has moved on since this dispatch/);
 });
+
+test("dispatch_waiting, the owner's: every waiting job goes again now, not at its time; anyone else is refused", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  script.then("decide", down(), down(), down(), down(), decision);
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  for (const ms of [1_000, 2_000, 4_000]) { host.advance(ms); await host.drain(); }
+  assert.deepEqual(sceneNow(host, scene.id).jobs.map(j => [j.state, j.attempts]), [["waiting", 4]], "the next try is 8 s away");
+
+  assert.deepEqual(host.as(wren).dispatchWaiting(), { code: "not_admin", text: "Only the database's owner may dispatch the waiting thinks." });
+  assert.equal(host.as(host.owner).dispatchWaiting(), undefined);
+  await host.drain();
+
+  assert.deepEqual(script.to("decide").map(d => d.attempt), ["1", "2", "3", "4", "5"], "the fifth try at once, the clock where it was");
+  assert.deepEqual(sceneNow(host, scene.id).turns.map(t => [t.phase, t.note]), [["done", undefined], ["done", undefined]]);
+  assert.match(host.logs.join("\n"), /\[dispatch_waiting\] job \d+ .+:t1:decide dispatched again \(attempt 5\)/);
+});

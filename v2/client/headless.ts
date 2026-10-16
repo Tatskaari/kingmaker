@@ -63,7 +63,7 @@ export async function joinGame(game: Backend, id: bigint, out: Out): Promise<num
 /** The scene as the player sees it, and whose turn it is. */
 export function observe(game: Backend, out: Out): number {
   const view = game.view();
-  if (!view) return said(out, refusal("not_in_game"));
+  if (!view) return notInGame(out);
   out.print(viewText(view));
   return 0;
 }
@@ -71,7 +71,7 @@ export function observe(game: Backend, out: Out): number {
 /** Everything said in the scene so far. */
 export function transcript(game: Backend, out: Out): number {
   const view = game.view();
-  if (!view) return said(out, refusal("not_in_game"));
+  if (!view) return notInGame(out);
   out.print(`MODE: transcript\n\n[${view.title}]\n\n${render(view, view.entries)}`);
   return 0;
 }
@@ -81,7 +81,7 @@ export function transcript(game: Backend, out: Out): number {
  * the world settles behind it) or, with `settled`, done; then what answered it and the phase.
  */
 export async function say(game: Backend, text: string, out: Out, waiting: Waiting = {}): Promise<number> {
-  if (!game.view()) return said(out, refusal("not_in_game"));
+  if (!game.view()) return notInGame(out);
   const refused = await game.say(text);
   if (refused) return said(out, refused);
 
@@ -95,7 +95,7 @@ export async function say(game: Backend, text: string, out: Out, waiting: Waitin
  */
 export async function act(game: Backend, id: string, out: Out, waiting: Waiting = {}): Promise<number> {
   const view = game.view();
-  if (!view) return said(out, refusal("not_in_game"));
+  if (!view) return notInGame(out);
   if (view.watching) return said(out, refusal("not_controller", { name: view.watching }));
   const line = /^say_[1-9]\d*$/.test(id) ? view.suggestions[Number(id.slice(4)) - 1] : undefined;
   if (!line) { out.print(noSuchLine(id, view)); return 1; }
@@ -121,7 +121,7 @@ function noSuchLine(id: string, view: SceneView): string {
  * it is. Turned on, this moment's lines are asked for at once: they're waited for, and listed.
  */
 export async function suggestions(game: Backend, on: boolean | undefined, out: Out, waiting: Waiting = {}): Promise<number> {
-  if (!game.view()) return said(out, refusal("not_in_game"));
+  if (!game.view()) return notInGame(out);
   if (on !== undefined) {
     const refused = await game.setSuggestions(on);
     if (refused) return said(out, refused);
@@ -136,7 +136,7 @@ export async function suggestions(game: Backend, on: boolean | undefined, out: O
 
 /** A failed turn carried on from where it got to, and played out like a line said. */
 export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
-  if (!game.view()) return said(out, refusal("not_in_game"));
+  if (!game.view()) return notInGame(out);
   const refused = await game.retry();
   if (refused) return said(out, refused);
 
@@ -187,6 +187,13 @@ async function within(game: Backend, done: (view: SceneView) => boolean, waiting
 /** A move refused: its words, and exit code 1. */
 function said(out: Out, why: Rejection): number {
   out.print(why.text);
+  return 1;
+}
+
+/** No game for this session: the simulation's words, then the verbs that start or watch one. */
+function notInGame(out: Out): number {
+  said(out, refusal("not_in_game"));
+  out.print('Start one: npm run play -- new --session <name> --as "Name: concept". Watch one: npm run play -- join --session <name> --game <n>.');
   return 1;
 }
 

@@ -6,6 +6,7 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import DispatchWaitingReducer from "../dispatch_waiting_reducer";
 import InstallCampaignReducer from "../install_campaign_reducer";
 import JoinGameReducer from "../join_game_reducer";
 import NewGameReducer from "../new_game_reducer";
@@ -15,6 +16,7 @@ import ServicePingReducer from "../service_ping_reducer";
 import SetSuggestionsReducer from "../set_suggestions_reducer";
 import StreamReplyReducer from "../stream_reply_reducer";
 
+export type DispatchWaitingParams = __Infer<typeof DispatchWaitingReducer>;
 export type InstallCampaignParams = __Infer<typeof InstallCampaignReducer>;
 export type JoinGameParams = __Infer<typeof JoinGameReducer>;
 export type NewGameParams = __Infer<typeof NewGameReducer>;

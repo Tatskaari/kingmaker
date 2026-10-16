@@ -7,7 +7,7 @@ import type { InstallArgs } from "../../../shared/scene/files.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type Claim } from "../ai-call.ts";
 import { Refused, type Db, type Env, type Schema, type TxCtx } from "../context.ts";
 import { installCampaignReducer } from "../install.ts";
-import { claimJob, failJob, finishJob, reapJobs } from "../jobs.ts";
+import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs } from "../jobs.ts";
 import { initDatabase } from "../lifecycle.ts";
 import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
@@ -50,6 +50,7 @@ export interface Caller {
   retryTurn(args: Parameters<typeof retryTurnReducer>[2]): Refusal | undefined;
   setSuggestions(args: Parameters<typeof setSuggestionsReducer>[2]): Refusal | undefined;
   installCampaign(args: InstallArgs): Refusal | undefined;
+  dispatchWaiting(): Refusal | undefined;
 }
 
 export interface MemoryHost {
@@ -119,6 +120,7 @@ function callerAs(identity: Identity, call: (body: (tx: TxCtx) => void) => Refus
     retryTurn: args => call(tx => retryTurnReducer(tx, identity, args)),
     setSuggestions: args => call(tx => setSuggestionsReducer(tx, identity, args)),
     installCampaign: args => call(tx => installCampaignReducer(tx, identity, args)),
+    dispatchWaiting: () => call(tx => dispatchWaitingReducer(tx, identity)),
   };
 }
 

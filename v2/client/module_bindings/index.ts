@@ -34,6 +34,7 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import DispatchWaitingReducer from "./dispatch_waiting_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
 import JoinGameReducer from "./join_game_reducer";
 import NewGameReducer from "./new_game_reducer";
@@ -437,6 +438,7 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("dispatch_waiting", DispatchWaitingReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),
   __reducerSchema("join_game", JoinGameReducer),
   __reducerSchema("new_game", NewGameReducer),
