@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the action menu (m, a right-click's "Do something…"), aiming, the zoo's keys and look, the town's effects (V10's), the notebook (j: V3's) and the report (b) are cut; a spectator's sidebar says whose map it is.
+// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the action menu (m, a right-click's "Do something…"), aiming, the zoo's keys and look, the town's effects (V10's), the notebook (j: V3's) and the report (b) are cut; the sidebar's title has the game's number to watch it by, and a spectator's sidebar says whose map it is.
 import { MouseButton, type KeyEvent, type MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -82,7 +82,7 @@ export function ExploreScreen({ explore: game }: { explore: ExploreModel }) {
   const when = wrap(TIME_WORDS[ex.story.time], inner);
   const fronts = front && !view.watching ? wrap(front.label, inner - 2) : [];
   // One row, however narrow: two would squeeze out who's about. A spectator's says whose map it is.
-  const walkingLines = view.watching ? [truncate(`Watching: ${view.watching} has the lead`, inner)]
+  const walkingLines = view.watching ? [truncate(`Watching ${view.watching}`, inner)]
     : game.walking ? [inner >= 33 ? "Walking… (any key or click stops)" : "Walking… (any key stops)"] : [];
   // The sidebar, a row at a time in the rows it has (a squeezed box draws its lines over each other):
   // first what's needed (where, when, you, the lead and the way, who's about, what e does), then
@@ -149,7 +149,8 @@ export function ExploreScreen({ explore: game }: { explore: ExploreModel }) {
           }}
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>
-      <box width={sideW} height={mapH} border borderColor={C.border} title=" The investigation " flexDirection="column" paddingX={1} overflow="hidden">
+      {/* Its title has the game's number: what a second terminal gives --join to watch it (v2's: the scene's side panel has it too). */}
+      <box width={sideW} height={mapH} border borderColor={C.border} title={` The investigation · Game ${view.game} `} flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
         <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
         {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}

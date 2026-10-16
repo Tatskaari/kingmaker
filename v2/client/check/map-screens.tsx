@@ -74,6 +74,7 @@ async function laneAt(checks: Array<[string, boolean]>, [w, h]: readonly [number
   checks.push([`${size}: Nearby: Kell waiting in the yard${h > 24 ? ", and the children" : ""}, nearest first`, /Nearby/.test(right) && /Sergeant Kell/.test(right) && (h <= 24 || /(Moll|Cob)/.test(right))]);
   checks.push([`${size}: What happens: the morning, and the scene's hook`, /What happens/.test(frame) && /Morning, on the eve of the Assembly\. This morning a palace clerk/.test(frame.replace(/\s+/g, " "))]);
   checks.push([`${size}: the keys: g for the lead, ? for help`, /g (the )?lead/.test(under(frame)) && /\? help/.test(under(frame))]);
+  checks.push([`${size}: the side panel gives the game's number, to watch it by`, /The investigation · Game 3/.test(frame)]);
 
   // A key's step: a walk, one tile (a move), and the @ goes with it.
   const at = { ...model.ex.at };
