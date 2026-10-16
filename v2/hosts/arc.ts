@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { newGameOf, type HomeRows } from "../client/backend.ts";
 import * as verbs from "../client/headless.ts";
+import { stageView } from "../client/look/stage-view.ts";
 import { connect, type Connection } from "../client/net/connection.ts";
 import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
@@ -43,7 +44,7 @@ const CHECKS: ArcCheck[] = [
   { what: "the story starts in the morning, heading for the granary", unit: "V2" },
   { what: "observe: the lane by the granary gate, Kell to talk to", unit: "V2" },
   { what: "the granary yard opens the hanged clerk", unit: "V2" },
-  { what: "the scene's place is drawn with the player in it", unit: "V9" },
+  { what: "the scene's place is drawn with the player in it", unit: "V9", run: seen(5) },
   { what: "on to the Drowned Rat at dusk", unit: "V3", run: seen(6) },
   { what: "Kell walks with the investigator", unit: "V3", run: seen(7) },
   { what: "down the river stairs and into the Rat", unit: "V3", run: seen(8) },
@@ -57,9 +58,21 @@ const CHECKS: ArcCheck[] = [
   { what: "observe says The End", unit: "V4", run: seen(16) },
 ];
 
-/** Checks 6 to 16 (flow.ts:41-73): what the story showed at that point of the flow, as theWayOn found it. */
+/** Checks 5 to 16 (flow.ts:40-73): what the story showed at that point of the flow, as theStory and theWayOn found it. */
 function seen(n: number): (arc: Arc) => string | undefined {
   return arc => arc.way.get(n);
+}
+
+/**
+ * Check 5 (flow.ts:40, the world bridge's drawing half of V9): the scene's place, the world rebuilt
+ * from the player's rows, drawn by the look layer's stage view, plain, at 80x24, has the player's @.
+ * Looked at in the yard, before the story moves on.
+ */
+function placeDrawn(conn: Connection): string | undefined {
+  const place = conn.view()?.place;
+  const drawn = place ? stageView(place.world, { w: 80, h: 24 }, { t: 0, time: place.time, glyphs: "plain" })?.toPlain() ?? "" : "";
+  const row = drawn.split("\n").findIndex(line => line.includes("@"));
+  return row >= 0 ? `${place!.world.entities[place!.world.root]?.name ?? "the place"} at 80x24, the @ on row ${row + 1}` : undefined;
 }
 
 /** Check 1 (flow.ts:32): the sheet's build line is the engine's ("<species> <class> 3 (<subclass>), <background> background"), and its status line its HP. */
@@ -110,7 +123,13 @@ async function theStory(stack: Stack): Promise<Arc> {
   const who = newGameOf(WHO, "", "caerwyn");
   const made = await played(`new --as "${WHO}"`, out => verbs.newCharacter(conn, { campaign: who.campaign, name: who.name, concept: who.concept }, out));
   if (made.code !== 0) throw new Error(`play new exited ${made.code}`);
-  return { conn, home: conn.home(), way: await theWayOn(conn) };
+  // The scene's place comes with its rows: wait for them (10 s at most), as the screen does, and look at it before the story moves on.
+  for (let waited = 0; !conn.view()?.place && waited < 10_000; waited += 100) await new Promise(r => setTimeout(r, 100));
+  const drawn = placeDrawn(conn);
+  const home = conn.home();
+  const way = await theWayOn(conn);
+  way.set(5, drawn);
+  return { conn, home, way };
 }
 
 /** A headless verb, printed as the QA console prints it: its exit code and what it said. */

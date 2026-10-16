@@ -10,12 +10,14 @@ import type { Handler } from "../context.ts";
 import { director, sceneAndView } from "./turn.ts";
 
 /**
- * POST /v1/turns/settle (v0-design §5.3, gm-port §9): after the reply, the world kept in step and
- * the scene read. The stage manager's operations (16 at most, by game key, best effort: none when it
- * fails) for the simulation to apply through its gate, beside the director's after-reply decision:
- * how it's going, an ending, what has landed or been hinted, an outcome route (its check for the
- * simulation to roll), and whether the player has walked out of the place (left: asked when their
- * character is the rules engine's). No reading when this reply closed the scene.
+ * POST /v1/turns/settle (v0-design §5.3, gm-port §9, world-bridge-design §3.1): after the reply, the
+ * world kept in step and the scene read. The stage manager's operations (16 at most, by game key,
+ * best effort: none when it fails) for the simulation to apply through its gate, beside the
+ * director's after-reply decision: how it's going, an ending, what has landed or been hinted, an
+ * outcome route (its check for the simulation to roll), and, when their character is the rules
+ * engine's, whether the player has walked out of the place (left) and what the reply left hanging
+ * over them (threat: someone's blow, or a danger and its severity, which lands as their next turn
+ * starts; threatRead, the question's raw choice). No reading when this reply closed the scene.
  */
 export const settle: Handler<SettleRequest, SettleResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));

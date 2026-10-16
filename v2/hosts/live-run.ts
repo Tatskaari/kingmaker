@@ -11,13 +11,15 @@ import { storyRun } from "./live/story.ts";
 import { modelOf, runningStack } from "./live/stack.ts";
 
 /**
- * The live runs (v0-design §1.4, §10.6; v5-design §4.6; v1-design §4.6; full-gm-design §1.5), against
+ * The live runs (v0-design §1.4, §10.6; v5-design §4.6; v1-design §4.6; full-gm-design §1.5;
+ * world-bridge-design §1.3), against
  * the running dev stack and its models, recorded as Markdown. A script's: a new game and its lines
  * (V0's six, V5's twelve, or the full GM's eight), each turn's timings (from the turn rows, and the
  * notes and lines as they reached this client), who said what, the notes with their cards, the lines
  * offered and those screened out, the model calls and their cost (the AI service's call log), the
  * measures against the prototype's, what the scene holds back from the player, and for the full
- * GM's the GM's side (each line's ruling, memory review and co-GM review: npm run status). V1's,
+ * GM's the GM's side (each line's ruling, memory review and co-GM review: npm run status), and for
+ * the world bridge's the world's (each line's dice, what the place showed after, who reacted). V1's,
  * with --creation: three concepts' builds and Tamsin Vell made from a sentence through the lore
  * check to her first line (live/creation.ts). The whole story's, --script story: one game from the
  * yard to The End, each scene ended as the owner, so each boundary and opening is the models'
@@ -26,6 +28,7 @@ import { modelOf, runningStack } from "./live/stack.ts";
  *   npm run dev                                # real models, in another terminal
  *   npm run live -- --script v5               # writes docs/live/v5-<date>.md
  *   npm run live -- --script gm               # writes docs/live/gm-<date>.md
+ *   npm run live -- --script world            # writes docs/live/world-<date>.md
  *   npm run live -- --script story            # writes docs/live/story-<date>.md
  *   npm run live -- --lines 4                 # V0's script: docs/live/v0-<date>.md
  *   npm run live -- --creation                # V1's run: docs/live/v1-<date>.md
@@ -39,11 +42,12 @@ import { modelOf, runningStack } from "./live/stack.ts";
 
 const USAGE = `npm run live [-- options]
   --creation         V1's run: three concepts' builds, then a character made through the lore check to a line
-  --script v0|v5|gm|story
+  --script v0|v5|gm|world|story
                      the lines to play (v0): V0's six, V5's twelve (two of them a suggested line picked),
-                     or the full GM's eight (two said once the memory review and the co-GM are done);
-                     story: no lines, the whole story from the yard to The End, each scene ended as the owner
-  --lines <n>        how many of the script's lines (v0: 4; v5: 12; gm: 8)
+                     the full GM's eight (two said once the memory review and the co-GM are done), or the
+                     world bridge's eight spells and blows, with what the world showed after each; story: no
+                     lines, the whole story from the yard to The End, each scene ended as the owner
+  --lines <n>        how many of the script's lines (v0: 4; v5: 12; gm: 8; world: 5)
   --as "Name: concept" --build <id>   the character (the script's own)
   --port <n>         the dev stack's SpacetimeDB port (3300)
   --ai-port <n>      its AI service's port (8787)

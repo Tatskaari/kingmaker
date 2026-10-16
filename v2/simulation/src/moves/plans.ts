@@ -1,6 +1,7 @@
 import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
 import type { Decision, Drafted, Outcome } from "../../../shared/protocol/ai.ts";
+import type { Act } from "../../../shared/rules/types.ts";
 import type { Transition } from "../../../shared/scene/types.ts";
 
 /**
@@ -20,10 +21,11 @@ export interface OpenPlan { step: "open"; game: string; scene: string; turn: str
 
 /**
  * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
- * the GM rules on (full-gm-design §4.2) has consider between decide and reply.
+ * whose act the rules resolved as violence (world-bridge-design §3.4) has reactions after decide; a
+ * turn the GM rules on (full-gm-design §4.2) has consider before the reply.
  */
 export interface SayPlan {
-  step: "decide" | "consider" | "reply" | "settle";
+  step: "decide" | "reactions" | "consider" | "reply" | "settle";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
   /** Who was on stage as the player spoke (presentCast): whyItWaits' arrivals. */
@@ -32,7 +34,18 @@ export interface SayPlan {
   settledBefore: string[];
   /** gm.closing was set when the turn started: this is the wind-down. */
   windDown: boolean;
+  /**
+   * What the rules did as the turn started, before the player acted (world-bridge-design §3.4: a
+   * timed spell running out, fire's tick, coming round, a blow left hanging): their directives, which
+   * lead the reply (Outcome.directives), and whether the blow put the player down (what they meant to
+   * do doesn't happen) or met their Shield (a Shield they cast this turn is already up).
+   */
+  rulesFirst?: { directives: string[]; down: boolean; shielded: boolean };
   decision?: Decision;
+  /** The decide commit's act, when the rules resolved it as violence people react to (scene-acts.ts violence): the reactions step's request. */
+  act?: Act;
+  /** Where a turn with reactions goes after them: the full GM's consider, or the reply. */
+  then?: "consider" | "reply";
   /**
    * A considered turn's: the ending held for the player's answer, which the decide commit took off
    * the bookkeeping (consider's `pending`, and the held ending the consider commit decides).

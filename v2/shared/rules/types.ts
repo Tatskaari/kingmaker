@@ -1,6 +1,7 @@
-// Copied from the prototype at 44c6d4a: Build (src/rules/dnd.ts:218-225), Uses and SheetData (:635-695), BuildCard, BuildOption and Offer (src/rules/builds.ts:15-51), Choice, SrdLists and OwnPicks (:300-336), SrdBlock, SrdSpell, SrdFile and SpellDetails (src/rules/spells.ts:15-20, 64-91), RulesState (src/runtime/session.ts:47-73); SrdFile exported, gear's slot and kind widened to the row's strings; the rest is v2's.
+// Copied from the prototype at 44c6d4a: Build (src/rules/dnd.ts:218-225), Uses and SheetData (:635-695), BuildCard, BuildOption and Offer (src/rules/builds.ts:15-51), Choice, SrdLists and OwnPicks (:300-336), SrdBlock, SrdSpell, SrdFile and SpellDetails (src/rules/spells.ts:15-20, 64-91), RulesState (src/runtime/session.ts:47-73); the world bridge's (world-bridge-design §3.2): Mechanic, Jumping and ActFrom (src/runtime/director.ts:409-430), Reaction and Act (:1136-1139), ThreatRead (:1230), Threat (src/runtime/session.ts:74-77), Brawl (the type of session.ts:306-311's brawl, named), SpellFacts (src/game/scene-menu.ts:54-59), as they are; SrdFile exported, gear's slot and kind widened to the row's strings; the rest is v2's.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import type { Backstory } from "../creation/types.ts";
+import type { GmState } from "../gm/state.ts";
 import type { Skill } from "../scene/types.ts";
 import type { Entity, SceneWorld } from "../world/scene-world.ts";
 
@@ -32,7 +33,8 @@ export interface Rules {
  * What the rules code reads of a game: the subset of the prototype's SessionState it touches, under
  * the same names, so the copied bodies read it unchanged. The simulation builds one from the rows
  * (dice, player, sheet, rules_state, and the place's world when there is one), and writes back what
- * changed: rollCount (dice.rolls), rules (rules_state's campaign and gone), and the sheet.
+ * changed: rollCount (dice.rolls), rules (rules_state's campaign, gone, npcs, timed and rage), and the
+ * sheet.
  */
 export interface RulesSession {
   /** The game's uid (the engine's campaign is named after it). */
@@ -41,6 +43,12 @@ export interface RulesSession {
   seed: number;
   /** dice.rolls: a check through the engine adds one. */
   rollCount: number;
+  /**
+   * The scene's turn (its n) while the rules act in one, as the copied code reads the prototype's
+   * state.turn: what the world's notes and log are stamped with, and when a hold caught the player.
+   * 0 outside a scene (creation, a sheet, the pockets).
+   */
+  turn: number;
   player: { name: string; concept: string; modifiers: Partial<Record<Skill, number>>; build?: string; backstory?: Backstory };
   /** The engine's character, once it's made. */
   rules?: RulesState;
@@ -50,7 +58,19 @@ export interface RulesSession {
   carried?: Entity[];
   /** Scenes played before this one (V3): only whether there are any is read (a purse before the story begins). */
   history?: readonly unknown[];
+  /** A blow or a danger the last reply left hanging over the player (gm_state.threat): it lands as their next turn starts (threats.ts landThreat), which takes it off. */
+  threat?: Threat;
+  /** The turn a hold caught the player (gm_state.held): it stands with no more saving throws until they break free or the story lets them go. */
+  held?: number;
 }
+
+/**
+ * A rules session in a scene (world-bridge-design §2.1): the RulesSession with the GM's bookkeeping
+ * that the copied scene acts read and write under the prototype's names. presentCast reads beat,
+ * path, entered and absent; react writes absent (the cast who fled), brawl and threat; a hold writes
+ * held. The simulation builds one from the rows and the scene's gm_state, and writes those back.
+ */
+export type SceneSession = RulesSession & Pick<GmState, "beat" | "path" | "entered" | "absent" | "brawl">;
 
 /** The engine's side of a character: its campaign (the event log), and what the rules keep ready from it. */
 export interface RulesState {
@@ -119,6 +139,12 @@ export interface SheetRows {
   data: string;
   /** JSON: the player's Backstory, when they have one (an option column: undefined, not absent). */
   backstory: string | undefined;
+  /**
+   * JSON: SpellFacts[], what the rules say of each spell in `spells` (its range, its effects' kinds,
+   * whether it fills an area): where the scene's menu offers it (world-bridge-design §3.3). "" while
+   * nothing has worked them out: the menu then offers every spell anywhere, by its name.
+   */
+  spellFacts: string;
 }
 
 /** What they carry that isn't gear: the coins in their purse, and anything else on them (sheet.pockets, as JSON). */
@@ -127,6 +153,61 @@ export interface Pockets {
   /** Anything else on them in the story's world (a letter, a key), and what it's in. */
   carrying: Array<{ name: string; quantity: number; in?: string }>;
 }
+
+// ---------------------------------------------------------------------------------------------
+// The world bridge (world-bridge-design §3.2): what the rules resolve in a scene, how people take it,
+// and what it leaves hanging over the player.
+
+/** What the player is doing that the D&D rules resolve, and with what. */
+export type Mechanic =
+  /** unclear: aimed at a thing, but at which wasn't clear (the rules ask, rather than hit the wrong one). */
+  | { kind: "cast"; spell: string; targets: string[]; from?: ActFrom; unclear?: boolean }
+  | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push"; from?: ActFrom }
+  | { kind: "attack"; target: string; weapon?: string; from?: ActFrom }
+  | { kind: "rest"; length: "short" | "long" }
+  | { kind: "feature"; feature: string; target?: string }
+  | Jumping;
+
+/**
+ * A jump (the same rule in a scene, on the map and in a fight): where to (an area, or by
+ * something), over what if they fall short, and how far, from the world when it knows.
+ */
+export interface Jumping { kind: "jump"; how: "long" | "high" | "down"; runUp: boolean; to?: ActFrom; over?: string; water?: boolean; feet?: number; drop: number }
+
+/**
+ * Where the player acts from, when they move first in the same turn ("I stride thirty feet down
+ * the lane and cast Fireball at the elm"): the world moves them there before the rules roll, or
+ * the spell goes off from where they were.
+ */
+export interface ActFrom { area?: string; near?: string; backOff?: number }
+
+/** How someone takes the player's violence, in the moment. */
+export type Reaction = "fight" | "flee" | "raise_alarm" | "cower" | "intervene" | "join_player" | "unmoved";
+
+/** What the player did that people react to: who it hurt or caught, what it burned or broke. */
+export interface Act { what: string; victims: string[]; property: string[] }
+
+/** What the read after a reply found hanging over the player: someone's blow, or a danger they save against (the hazard's kind is one of acts.ts's HAZARD_KINDS). */
+export type ThreatRead = { kind: "attack"; by: string } | { kind: "hazard"; hazard: string; severity: "glancing" | "serious" };
+
+/** Something the last reply left hanging over the player, resolved by the rules at the start of their next turn. */
+export type Threat =
+  | { kind: "attack"; by: string; turn: number }
+  | { kind: "hazard"; hazard: string; severity: "glancing" | "serious"; turn: number };
+
+/**
+ * A fight the player's violence started in the scene (decided reactions: some fight, some flee):
+ * who goes for the player and who's with them. The game plays it out on the map; elsewhere the
+ * first of them swings at the player next turn.
+ */
+export interface Brawl { turn: number; cause: string; against: string[]; allies: string[]; fled: string[] }
+
+/**
+ * One of the player's spells, with what the rules say of its reach when that's known: its range
+ * ("Self", "Touch", "120 feet", "Self (15-foot cone)"), its effects' kinds (attack, save, heal,
+ * buff...), and whether it fills an area.
+ */
+export interface SpellFacts { id: string; name: string; level: number; range?: string; effects?: string[]; area?: boolean }
 
 // ---------------------------------------------------------------------------------------------
 // Builds.

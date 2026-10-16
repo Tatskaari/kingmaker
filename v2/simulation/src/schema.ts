@@ -3,7 +3,7 @@ import { schema, t, table } from "spacetimedb/server";
 
 /**
  * Every table of the module, and its env (v0-design §3.1, v1-design §3.1, v5-design §3.1,
- * full-gm-design §4.2, story-design §4.1). Columns are the TypeScript names; SQL, HTTP and subscription queries use
+ * full-gm-design §4.2, world-bridge-design §3.3, story-design §4.1). Columns are the TypeScript names; SQL, HTTP and subscription queries use
  * snake_case (sceneId is scene_id). Ids are u64 (bigint); an autoInc id is inserted as 0n. Every row
  * belongs to one game, but a creation's, which belongs to an identity until the game is made. Public
  * tables are subscribed to by clients; private ones are the module's (and the owner's, through SQL);
@@ -106,6 +106,12 @@ export const sheet = table({ name: "sheet", public: true }, {
   pockets: t.string().default(""),
   /** JSON: the Backstory they wrote at creation, if they wrote one. */
   backstory: t.option(t.string()).default(undefined),
+  /**
+   * JSON: shared/rules SpellFacts[], what the rules say of each spell in `spells` (its range, its
+   * effects' kinds, whether it fills an area): where the scene's menu offers it. "" until the rules
+   * have worked them out (before the world bridge): the menu offers every spell, by its name.
+   */
+  spellFacts: t.string().default(""),
 });
 
 /** The game's only randomness after its creation (shared/dice.ts rollFrom). */
@@ -189,12 +195,18 @@ const RulingRow = t.object("RulingRow", {
   went: t.string(),
   changed: t.string(), costUsd: t.f64(), latencyMs: t.f64(),
 });
+/** What the last reply left hanging over the player, as shared/rules's Threat has it: kind attack (by), or hazard (hazard, severity: glancing, serious), the other kind's fields empty. */
+const Threat = t.object("Threat", { kind: t.string(), by: t.option(t.string()), hazard: t.option(t.string()), severity: t.option(t.string()), turn: t.u32() });
+/** A fight the player's violence started, as shared/rules's Brawl has it: who goes for the player, who's with them, who fled. */
+const Brawl = t.object("Brawl", { turn: t.u32(), cause: t.string(), against: t.array(t.string()), allies: t.array(t.string()), fled: t.array(t.string()) });
 
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
- * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what
- * the boundary handed on (story-design §4.1), each with a default, so a scene from before them reads
- * as one with none yet. `entered` has no column yet.
+ * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
+ * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
+ * handed on (story-design §4.1), each with a default, so a scene from before them reads as one with
+ * none yet; the world bridge's before the story's, as they stack, so a database of either migrates.
+ * `entered` has no column yet.
  */
 export const gmState = table({ name: "gm_state" }, {
   sceneId: t.u64().primaryKey(),
@@ -231,6 +243,14 @@ export const gmState = table({ name: "gm_state" }, {
   offGraphTurn: t.option(t.u32()).default(undefined),
   /** The GM's rulings on considered acts, in the order made. */
   rulings: t.array(RulingRow).default([]),
+  /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
+  threat: t.option(Threat).default(undefined),
+  /** The turn a hold caught the player: it stands with no more saving throws until they break free, or the reply lets them go. */
+  held: t.option(t.u32()).default(undefined),
+  /** A fight the player's violence started in the scene. */
+  brawl: t.option(Brawl).default(undefined),
+  /** Cast who are away: those who fled the player's violence or ran for help (off the stage for good), and those from earlier scenes that what happened keeps away (the boundary's presence). */
+  absent: t.array(t.string()).default([]),
   /** The boundary's: where the scene's prep no longer matches the story. */
   adjustments: t.array(t.string()).default([]),
   /** The boundary's: the opening, rewritten for where the story is. */
@@ -241,8 +261,6 @@ export const gmState = table({ name: "gm_state" }, {
   owed: t.array(OwedRow).default([]),
   /** The combat exits already fought (the stand-in's). */
   fought: t.array(t.string()).default([]),
-  /** Cast from earlier scenes that what happened keeps away (the boundary's presence). */
-  absent: t.array(t.string()).default([]),
 });
 
 /**
@@ -575,7 +593,7 @@ export const job = table({ name: "job" }, {
   turnId: t.option(t.u64()),
   /** say, openScene, creation; beside a turn, notes and suggest; after it, remember and repair (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn). */
   move: t.string(),
-  /** open, decide, consider, reply, settle, notes, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
+  /** open, decide, reactions, consider, reply, settle, notes, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),
@@ -723,6 +741,16 @@ export const rulesState = table({ name: "rules_state" }, {
   gear: t.array(GearRow),
   /** Gear the story has parted them from: off the sheet until they get it back. */
   gone: t.array(t.string()),
+  /**
+   * JSON: Record<cast id, { id; weapon }>, the cast the rules have touched as the engine's characters
+   * (its id for them, and the weapon instance they fight with), so someone hurt stays hurt from one
+   * turn to the next. "{}": nobody yet.
+   */
+  npcs: t.string().default("{}"),
+  /** A spell with a listed duration is running: story time passing can end it. */
+  timed: t.bool().default(false),
+  /** A barbarian's Rage: the minutes of story time it has left. */
+  rage: t.option(t.u32()).default(undefined),
 });
 
 // ---------------------------------------------------------------------------------------------

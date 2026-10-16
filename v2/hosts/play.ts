@@ -52,6 +52,7 @@ const USAGE = `Kingmaker: headless play
                                                 go_to_lead too), the fight, or a story that got stuck tried again
   play act --session <name> --id fight          the fight's stand-in: fought out, and the scene picks up from it
   play journal --session <name>                 the investigator's notebook, the quests, the flags, the attitudes
+  play map --session <name> [--w 100 --h 30]    the scene's place: as the player sees it, then from above with what's what
 
 new, begin, say, act, retry and go wait for the notes on the reply's marks (the opening's, for new,
 begin and go) and the lines suggested after it (15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
@@ -88,6 +89,7 @@ function argsOf(argv: string[]) {
       backstory: { type: "string" }, "backstory-file": { type: "string" }, "accept-fixes": { type: "boolean" },
       game: { type: "string" }, id: { type: "string" }, exit: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
+      w: { type: "string" }, h: { type: "string" },
     },
   });
   const [verb, ...words] = positionals;
@@ -131,6 +133,7 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "end": return await verbs.end(game, args.values.exit, out, waiting);
     case "go": return await verbs.go(game, out, waiting);
     case "journal": return verbs.journal(game, out);
+    case "map": return verbs.map(game, out, { w: cells(args.values.w, 100), h: cells(args.values.h, 30) });
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;
   }
 }
@@ -159,6 +162,13 @@ function setting(word: string): boolean | undefined {
 function gameId(game: string | undefined, verb: string): bigint {
   if (!game || !/^\d+$/.test(game)) throw new Error(`Which game? ${verb} takes --game <id>: ${verb === "join" ? "the number in the side panel of the game you'll watch" : "its number in play games"}.`);
   return BigInt(game);
+}
+
+/** map's --w or --h: a whole number of cells, from 10 to 400. */
+function cells(value: string | undefined, fallback: number): number {
+  if (value === undefined) return fallback;
+  if (!/^\d+$/.test(value) || Number(value) < 10 || Number(value) > 400) throw new Error(`map's --w and --h take a whole number of cells, 10 to 400, not "${value}".`);
+  return Number(value);
 }
 
 /** An object without its undefined values. */

@@ -34,6 +34,7 @@ import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
 import { checkCreation } from "./creation.tsx";
 import { checkStory } from "./story-screens.tsx";
+import { checkPlace } from "./place-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -694,6 +695,9 @@ for (const [w, h] of [[80, 24], [120, 40]] as const) {
   checks.push([`${size}: the ruling's dice line, then the reply as it's written, the GM speaking`, talk.includes("Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success") && talk.indexOf("vs DC 12") < talk.indexOf("Cob doesn't feel a thing.") && /The GM is speaking…/.test(frame) && !frame.includes(CONSIDERING)]);
   await setup.dispose();
 }
+
+// The scene's place (the world bridge's): drawn from its rows, pointed at, its menu.
+await checkPlace(checks, show);
 
 // The title, character creation and the sheet (V1's).
 await checkCreation(checks, show);

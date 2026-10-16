@@ -209,6 +209,37 @@ test("not in a game: say and transcript give the simulation's words, then how to
   assert.match(title.printed, /^MODE: title\n\nYou have no games yet\.\n/);
 });
 
+test("map: the scene's place as the player sees it, still, then the world from above with what's what; none until its rows come; refused outside a game", async () => {
+  const out = capture();
+  assert.equal(verbs.map(demoBackend({ ms: 1 }), out, { w: 60, h: 20 }), 0);
+  const [stage = "", sketch = ""] = out.printed.replace(/^MODE: map\n\n/, "").split("\nThe yard behind the King's Granary\n");
+  assert.equal(stage.split("\n").filter(r => r.trim()).length, 20, "the stage: 20 rows");
+  assert.match(stage, /@/);
+  assert.doesNotMatch(stage, /[^\x00-\x7f]/, "in seven-bit characters");
+  assert.match(sketch, /\n@ Pell Marrow\n/);
+  assert.match(sketch, /\n[A-Z] Sergeant Agnes Kell\n/);
+  assert.match(sketch, /\n[a-z] the loft door \(closed, barred\)\n/);
+
+  const none = capture();
+  assert.equal(verbs.map(stalled(), none), 1);
+  assert.equal(none.printed, "MODE: map\n\n(The scene's place hasn't come: its rows aren't in yet. Observe again in a moment.)\n");
+
+  const nowhere = capture();
+  assert.equal(verbs.map({ ...rowsAsTheyCome(), view: () => undefined }, nowhere), 1);
+  assert.match(nowhere.printed, /^\(You're not in a game/);
+});
+
+test("say: Magic Missile at the hoist rope, on the demo, prints the rules' lines before the reply: the cast, the darts, the rope destroyed, the slot gone", async () => {
+  const game = demoBackend({ ms: 1 });
+  const out = capture();
+  assert.equal(await verbs.say(game, "(I cast Magic Missile at the hoist rope)", out), 0);
+  assert.match(out.printed, /Cast Magic Missile \(1st-level slot\) on the hoist rope\n.*3 darts at the hoist rope: 9 force\n.*The hoist rope takes 9 force damage and is destroyed\n.*Pell Marrow: HP 20\/20, spell slots 1st 3\/4, 2nd 2\/2\n/s);
+  assert.ok(out.printed.indexOf("The hoist rope takes") < out.printed.indexOf("Sergeant Kell glances up"), "the dice before the GM's words");
+  const map = capture();
+  verbs.map(game, map);
+  assert.match(map.printed, /\n[a-z] Wendell Prout's body \(fallen\)\n/, "Prout fell with the rope, and lies in the yard");
+});
+
 test("observe and transcript: the scene, and everything said in it", () => {
   const game = demoBackend();
   const seen = capture();

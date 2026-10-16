@@ -3,6 +3,7 @@ import { refusal, refusalIn } from "../../shared/protocol/refusals.ts";
 import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
 import { DbConnection, type SubscriptionHandle } from "../module_bindings/index.ts";
 import type { SeatView } from "../module_bindings/types.ts";
+import type { PlaceTables } from "../scene/place-rows.ts";
 import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 import { endSceneAs, type Owner } from "./owner.ts";
@@ -12,8 +13,8 @@ import { endSceneAs, type Owner } from "./owner.ts";
  * SpacetimeDB connection that follows the seat. It subscribes to the caller's own views (my_seat,
  * my_names, my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join,
  * a game continued) it subscribes to that game's, scene's and place's rows (the scene's suggested
- * lines among them, and the story's tables: story-design §4.5), and only then drops the old set,
- * so nothing blinks out. Each row change
+ * lines among them, the story's tables: story-design §4.5, and the place's world, which the side
+ * panel draws), and only then drops the old set, so nothing blinks out. Each row change
  * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
  * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
  * simulation wrote it, in the game's words.
@@ -36,7 +37,12 @@ export interface ConnectOptions {
 export type Watched =
   | "my_seat" | "my_names" | "my_games" | "my_creation" | "campaign"
   | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion"
-  | "chapter" | "quest" | "flag" | "journal" | "attitude" | "follower";
+  | "chapter" | "quest" | "flag" | "journal" | "attitude" | "follower"
+  | "place" | PlaceTable;
+
+/** The tables of a place's world a client watches (all but gm_note, which is the module's), by their SQL names. */
+type PlaceTable = (typeof PLACE_TABLES)[number];
+const PLACE_TABLES = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "world_log"] as const;
 export type RowOp = "insert" | "update" | "delete";
 export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
 
@@ -112,6 +118,7 @@ export class Connection implements Backend {
         game, scenes: mine(this.db.db.scene), chapters: mine(this.db.db.chapter), quests: mine(this.db.db.quest), flags: mine(this.db.db.flag),
         journal: mine(this.db.db.journal), attitudes: mine(this.db.db.attitude), followers: mine(this.db.db.follower), turns: mine(this.db.db.turn),
       },
+      ...this.placeOf(scene),
       ...(this.refused ? { refusal: this.refused } : {}),
       ...(this.trouble ? { trouble: this.trouble } : {}),
       ...(this.cutOff ? { cutOff: true } : {}),
@@ -121,6 +128,22 @@ export class Connection implements Backend {
   view(): SceneView | undefined {
     const rows = this.rows();
     return rows && sceneViewOf(rows);
+  }
+
+  /** The scene's place and its world's rows, once its row has come (the world bridge's §3.5). */
+  private placeOf(scene: { placeId: bigint; sceneKey: string }): { place?: PlaceTables } {
+    const place = this.db.db.place.id.find(scene.placeId);
+    if (!place) return {};
+    const t = this.db.db;
+    const here = <T extends { placeId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.placeId === place.id);
+    return {
+      place: {
+        sceneKey: scene.sceneKey, place,
+        entity: here(t.entity), position: here(t.position), area: here(t.area), material: here(t.material), health: here(t.health),
+        stack: here(t.stack), surface: here(t.surface), creature: here(t.creature), playerCharacter: here(t.playerCharacter),
+        gear: here(t.gear), narrative: here(t.narrative), worldLog: here(t.worldLog),
+      },
+    };
   }
 
   /** The caller's seat (my_seat): its player, game, place and scene; undefined when it has none. */
@@ -330,6 +353,9 @@ export class Connection implements Backend {
       ["transcript", t.transcript], ["reply_draft", t.replyDraft], ["turn", t.turn], ["on_stage", t.onStage], ["look", t.look],
       ["scene_suggestion", t.sceneSuggestion],
       ["chapter", t.chapter], ["quest", t.quest], ["flag", t.flag], ["journal", t.journal], ["attitude", t.attitude], ["follower", t.follower],
+      ["place", t.place], ["entity", t.entity], ["position", t.position], ["area", t.area], ["material", t.material], ["health", t.health],
+      ["stack", t.stack], ["surface", t.surface], ["creature", t.creature], ["player_character", t.playerCharacter], ["gear", t.gear],
+      ["narrative", t.narrative], ["world_log", t.worldLog],
     ];
     for (const [name, table] of tables) {
       table.onInsert((_ctx, row) => this.event(name, "insert", row));
@@ -387,16 +413,20 @@ interface Observable {
 }
 
 /**
- * The seat's subscription set (v0-design §7, v5-design §3.9's scene_suggestion), and the story's
+ * The seat's subscription set (v0-design §7, v5-design §3.9's scene_suggestion), the story's
  * (story-design §4.5): its tables by game, and every turn of the game (their costs are the GM's bar
- * tab at The End), not only the scene's.
+ * tab at The End), not only the scene's; and the world bridge's (§3.5): the place and its world.
  */
 function queriesFor({ game, scene, place }: WatchKey): string[] {
   return [
     `SELECT * FROM game WHERE id = ${game}`,
     ...["player", "sheet", "scene", "chapter", "quest", "flag", "journal", "attitude", "follower", "turn"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
     ...(scene === undefined ? [] : ["transcript", "reply_draft", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
-    ...(place === undefined ? [] : [`SELECT * FROM look WHERE place_id = ${place}`]),
+    ...(place === undefined ? [] : [
+      `SELECT * FROM look WHERE place_id = ${place}`,
+      `SELECT * FROM place WHERE id = ${place}`,
+      ...PLACE_TABLES.map(table => `SELECT * FROM ${table} WHERE place_id = ${place}`),
+    ]),
   ];
 }
 

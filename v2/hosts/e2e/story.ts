@@ -37,12 +37,12 @@ function printed(): Printed {
 }
 
 /**
- * 26–29. The whole story. `lead` is a client with the dev stack's owner (it makes end_scene, as
+ * 31–34. The whole story. `lead` is a client with the dev stack's owner (it makes end_scene, as
  * /end does), and `b` watches its game. Each check reads the rows the clients hold or the owner's
  * SQL, and the AI service's call log under the step's key.
  */
 export async function theWholeStory(stack: Stack, root: string, lead: Player, b: Player, fake: FakeOptions): Promise<void> {
-  step("26. A scene's end crosses the boundary: the yard to the Drowned Rat, waiting");
+  step("31. A scene's end crosses the boundary: the yard to the Drowned Rat, waiting");
   // The recipe on fake.json's quiet answers, every call at once (no streaming: this step isn't about it).
   await restartAi(stack, onTop(fake, { choices: { ending: ENDINGS, own_exit: "theirs" }, streamMs: 0, byNameDelayMs: { notes: 0 }, suggestDelayMs: 0 }), RAISED);
   check(`${lead.name}'s new_game (${WREN.name}, ${WREN.build}) is made`, (await lead.conn.newGame(WREN)) === undefined);
@@ -73,7 +73,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   await until(b, "B to see the Rat as the lead", 10_000, r => r.story?.game.leadScene === "drowned-rat" && !r.story.game.onward);
   ok("B sees the story moved on, the yard still on screen");
 
-  step("27. On to the lead: the Rat opens where the story is, Kell and the spectator with the player");
+  step("32. On to the lead: the Rat opens where the story is, Kell and the spectator with the player");
   check("B's walk is refused: not_controller", (await b.conn.act("walk", { to: undefined, toward: "lead" }))?.code === "not_controller");
   const went = printed();
   check("the lead's go (walk toward the lead) opens the Rat", await verbs.go(lead.conn, went.out) === 0 && went.text.join("\n").includes("[The Drowned Rat, evening]"));
@@ -88,7 +88,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check(`Kell and the player's character are one entity each, in the Rat's place now: ${entities.map(e => `${String(e.key)} in place ${String(e.place_id)}`).join(", ")}`,
     entities.length === 2 && entities.every(e => String(e.place_id) === String(ratPlace?.id)));
 
-  step("28. The Rat ended as the owner (end_scene), on to the Heron; its fight, and the stand-in");
+  step("33. The Rat ended as the owner (end_scene), on to the Heron; its fight, and the stand-in");
   const ended = printed();
   check("the lead's end --exit hobb-talks (end_scene as the dev stack's owner) prints the way on", await verbs.end(lead.conn, "hobb-talks", ended.out) === 0);
   const between = ended.text.join("\n");
@@ -115,7 +115,7 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   check(`the fight is on the record: fought ${gm.fought.join()}, "${gm.established.find(e => e.startsWith("The fight is over"))?.slice(0, 40)}…", the notebook's line`,
     gm.fought.includes("fight") && gm.established.some(e => e.startsWith("The fight is over: ")) && after.story!.journal.some(j => j.text === "The fight wasn't played: it's told as won."));
 
-  step("29. A summons, then The End");
+  step("34. A summons, then The End");
   await twoLines(lead, "Sergeant, arrest him: he was caught with the King's grain.", "To the palace, then.", "Caught in the act", true);
   const king = await until(lead, "the King's morning to open by itself", 60_000, r => r.scene.title === "The King's Morning" && r.scene.status === "live" && r);
   check(`a summons: the King's morning opened in the boundary's commit with no walk (nothing waits), at ${String(king.game.time)}`, king.game.time === "next-morning" && !king.story!.scenes.some(s => s.status === "waiting"));

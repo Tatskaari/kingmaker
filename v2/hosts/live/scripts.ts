@@ -2,7 +2,8 @@
  * The live runs' scripts: what each says in the hanged clerk's scene, line by line, and as whom.
  * v0 is V0's (v0-design §10.6); v5 is v5-design §4.6's twelve, two of them a suggested line picked
  * as the headless client's `act` picks one; gm is full-gm-design §1.2's eight, two of them said once
- * the memory review and the co-GM are done, as a tester reading the reply would.
+ * the memory review and the co-GM are done, as a tester reading the reply would; world is
+ * world-bridge-design §1.2's spells and blows, with what the world showed after each.
  */
 
 /** A suggested line as `act` names it: say_N, or the first of a kind ("the try line"). */
@@ -30,6 +31,11 @@ export interface Script {
    * with the background jobs waited for once the last line is done, so its review is in.
    */
   gmSide?: boolean;
+  /**
+   * The world's side is recorded (world-bridge-design §1.3): after each turn, what the place's rows
+   * showed changed (destroyed, burning, fallen, wet, who left), and who reacted to the act and how.
+   */
+  worldSide?: boolean;
 }
 
 const say = (text: string): Step => ({ say: text });
@@ -101,6 +107,29 @@ export const SCRIPTS: Record<string, Script> = {
     ],
     lines: 8,
     gmSide: true,
+  },
+  world: {
+    name: "world",
+    title: "The world bridge live run",
+    about: "The world bridge (world-bridge-design §1.2): spells and blows resolved by the rules on the scene's world before the GM speaks, the people who saw them reacting, fire burning on at the next line, and a blow left hanging landing first",
+    who: "Wren Ashdown: an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+    build: "wizard",
+    // §1.2, rows 3 to 9: a spell at a thing (the rope breaks, Prout falls, the yard reacts), a cone of
+    // fire at the gate, the fire on the next line, a blow at Kell (the yard reacts; a fight may break
+    // out), hands up (a blow left hanging lands first), Fire Bolt at the old elm and the elm burning
+    // on, and a spell Wren hasn't got (the rules' own no).
+    steps: [
+      say("(I cast Magic Missile at the hoist rope)"),
+      say("(I cast Burning Hands at the yard gate)"),
+      say("(I watch the gate burn)"),
+      say("I take a swing at Sergeant Kell with my staff"),
+      say("(I put my hands up)"),
+      say("(I cast Fire Bolt at the old elm)"),
+      say("(I watch the elm burn)"),
+      say("I cast Fireball at the elm"),
+    ],
+    lines: 5,
+    worldSide: true,
   },
 };
 

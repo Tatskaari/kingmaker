@@ -10,7 +10,7 @@ import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, type Game
 import { campaignFile, campaignOfGame, graphOf, sceneDefOf, sceneFileOf, sceneGraph } from "../scenes.ts";
 import { noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
-import { comeToAtOpening } from "../rules/play.ts";
+import { betweenScenes } from "../rules/play.ts";
 import { refreshPockets } from "../rules/session.ts";
 import { rekeyOwed } from "../world/cross.ts";
 import { applyStage, joinPlace, openPlace, placeWorldOf, savePlaceWorld, type Start } from "../world/place.ts";
@@ -22,16 +22,18 @@ import { suggestAfter } from "./suggest.ts";
 
 /**
  * A scene opens (v0-design §4.3, v1-design §3.6): its place built, the scene row and its GM
- * bookkeeping, who's on stage, the controller come to if they were down (the rules engine's first
- * draw of the scene), turn 0 holding the lease; then one think, the opening, streamed into turn 0's
- * draft and committed as the transcript's first entry, and the scene goes live (its notes and first
- * lines asked for: v5-design §3.5). `start` is what the character starts the game with: only the
- * game's first scene hands it out. A scene waiting (map-design §3.5, story-design §4.3: the lead, its
- * place built when it became the lead, with what the boundary handed on) opens in its row: its GM
- * bookkeeping and its place kept, the controller's character joining the place with what they carry,
- * and the names heard anywhere in the story so far heard here too. A fight's aftermath (story-design
- * §4.3) is this move's think and commit again, on a turn of its own (`aftermath`): the reply is that
- * turn's, and what the stage manager says it did goes through the gate.
+ * bookkeeping, who's on stage, the time between scenes for the controller's character (a spell runs
+ * out, they come to if they were down: the rules engine's first draw of the scene; a milestone's
+ * level, the scene's rest: world-bridge-design §3.4), turn 0 holding the lease; then one think, the
+ * opening, streamed into turn 0's draft and committed as the transcript's first entry, and the scene
+ * goes live (its notes and first lines asked for: v5-design §3.5). `start` is what the character
+ * starts the game with: only the game's first scene hands it out. A scene waiting (map-design §3.5,
+ * story-design §4.3: the lead, its place built when it became the lead, with what the boundary
+ * handed on) opens in its row: its GM bookkeeping and its place kept, the controller's character
+ * joining the place with what they carry, and the names heard anywhere in the story so far heard
+ * here too. A fight's aftermath (story-design §4.3) is this move's think and commit again, on a turn
+ * of its own (`aftermath`): the reply is that turn's, and what the stage manager says it did goes
+ * through the gate.
  */
 export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
   name: "openScene",
@@ -49,7 +51,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     syncStage(tx, scene, graph, gm);
     if (waiting) noteHeardInStory(tx, scene, graph);
     else noteHeard(tx, scene, graph);
-    comeToAtOpening(tx, scene);
+    betweenScenes(tx, scene, graph);
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });

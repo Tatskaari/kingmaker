@@ -1,4 +1,5 @@
 import type { RollResult } from "../dice.ts";
+import type { Brawl, Threat } from "../rules/types.ts";
 import type { Beat, Essential, Scene, Skill, Transition } from "../scene/types.ts";
 import type { RulingRecord } from "./consider.ts";
 
@@ -65,7 +66,15 @@ export interface GmState {
   owed: OwedRow[];
   /** The combat exits already fought: the scene picked up after the fight (the stand-in's, until fights land). */
   fought: string[];
-  /** Cast from earlier scenes that what happened keeps away (the boundary's presence). */
+  // The rules in a scene (world-bridge-design §3.3): what the player's violence and the last reply
+  // left hanging, under the prototype's names (src/runtime/session.ts:300-311).
+  /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
+  threat?: Threat;
+  /** The turn a hold caught the player: it stands with no more saving throws until they break free or the story lets them go. */
+  held?: number;
+  /** A fight the player's violence started: who goes for the player, who's with them, who fled. */
+  brawl?: Brawl;
+  /** Cast who are away: those from earlier scenes that what happened keeps away (the boundary's presence), and those who fled the player's violence or ran for help (the world bridge's). */
   absent: string[];
   /** Cast who came on by a route (V0's copied code reads it): no column yet, so always empty. */
   entered: string[];
@@ -116,7 +125,8 @@ export function initialGm(scene: Pick<Scene, "start">): GmState {
 // ---------------------------------------------------------------------------------------------
 // The gm_state row: a column a field (simulation/src/schema.ts), but `entered`. An option column is
 // undefined when empty; a roll's `critical` null is an empty option; the patches are JSON, a piece
-// of the scene graph in the campaign format's own shape.
+// of the scene graph in the campaign format's own shape; a threat is one object with the fields of
+// both its kinds, those of the other kind empty.
 
 export interface GmRow {
   sceneId: bigint;
@@ -150,8 +160,14 @@ export interface GmRow {
   /** OwedRow's, where it is an empty option when it isn't known. */
   owed: Array<{ from: string; id: string; hinted: boolean; things: string[]; holders: string[]; where: string | undefined }>;
   fought: string[];
+  threat: ThreatRow | undefined;
+  held: number | undefined;
+  brawl: Brawl | undefined;
   absent: string[];
 }
+
+/** kind: attack (by), hazard (hazard and severity: glancing, serious). */
+export interface ThreatRow { kind: string; by: string | undefined; hazard: string | undefined; severity: string | undefined; turn: number }
 
 export interface PathRow { turn: number; from: string; to: string; via: string; roll: RollRow | undefined; source: string; known: number | undefined }
 export interface RollRow { skill: string; dc: number; die: number; modifier: number; total: number; success: boolean; critical: string | undefined; advantage: string | undefined }
@@ -160,7 +176,7 @@ export interface RulingRow {
   went: string; changed: string; costUsd: number; latencyMs: number;
 }
 
-/** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty: it has no column to go in yet. */
+/** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty (V3's entered): it has no column to go in yet. */
 export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
   refuseLaterFields(gm);
   return {
@@ -188,6 +204,9 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     lead: gm.lead,
     owed: gm.owed.map(o => ({ from: o.from, id: o.id, hinted: o.hinted, things: [...o.things], holders: [...o.holders], where: o.where })),
     fought: [...gm.fought],
+    threat: gm.threat ? threatRowOf(gm.threat) : undefined,
+    held: gm.held,
+    brawl: gm.brawl ? brawlOf(gm.brawl) : undefined,
     absent: [...gm.absent],
   };
 }
@@ -220,6 +239,9 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.lead !== undefined ? { lead: row.lead } : {}),
     owed: row.owed.map(o => ({ from: o.from, id: o.id, hinted: o.hinted, things: [...o.things], holders: [...o.holders], ...(o.where !== undefined ? { where: o.where } : {}) })),
     fought: [...row.fought],
+    ...(row.threat ? { threat: threatOf(row.threat) } : {}),
+    ...(row.held !== undefined ? { held: row.held } : {}),
+    ...(row.brawl ? { brawl: brawlOf(row.brawl) } : {}),
     absent: [...row.absent],
   };
 }
@@ -275,3 +297,18 @@ function rulingOf(r: RulingRow): RulingRecord {
     went: r.went as RulingRecord["went"], changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
   };
 }
+
+function threatRowOf(t: Threat): ThreatRow {
+  return t.kind === "attack"
+    ? { kind: t.kind, by: t.by, hazard: undefined, severity: undefined, turn: t.turn }
+    : { kind: t.kind, by: undefined, hazard: t.hazard, severity: t.severity, turn: t.turn };
+}
+
+/** A threat as the prototype's session has it (its fields in that order). */
+function threatOf(r: ThreatRow): Threat {
+  return r.kind === "attack"
+    ? { kind: "attack", by: r.by ?? "", turn: r.turn }
+    : { kind: "hazard", hazard: r.hazard ?? "", severity: r.severity === "serious" ? "serious" : "glancing", turn: r.turn };
+}
+
+const brawlOf = (b: Brawl): Brawl => ({ turn: b.turn, cause: b.cause, against: [...b.against], allies: [...b.allies], fled: [...b.fled] });

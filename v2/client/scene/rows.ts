@@ -3,6 +3,7 @@ import type { Game, Look, NameView, OnStage, Player, ReplyDraft, Scene, SceneSug
 import { colorOf } from "../theme.ts";
 import { TIME_WORDS } from "../creation/words.ts";
 import { storyViewOf, type StoryRows } from "../story/rows.ts";
+import { placeViewOf, type LeadSheet, type PlaceTables } from "./place-rows.ts";
 import type { Draft, Entry, EntryKind, Person, Phase, SceneView, Suggestion } from "./view.ts";
 
 /**
@@ -20,7 +21,8 @@ export interface SceneRows {
   game: Pick<Game, "id" | "time">;
   scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns"> & Partial<Pick<Scene, "time">>;
   players: Array<Pick<Player, "id" | "name" | "suggestions">>;
-  sheets: Array<Pick<Sheet, "playerId" | "statusLine">>;
+  /** Each player's sheet: its status line; the lead's spells too, and what the rules say of them, for the place's menu. */
+  sheets: Array<Pick<Sheet, "playerId" | "statusLine"> & LeadSheet>;
   transcript: Array<Pick<Transcript, "seq" | "turn" | "speaker" | "kind" | "text" | "markup">>;
   drafts: Array<Pick<ReplyDraft, "turnId" | "speaker" | "text" | "markup" | "attempt" | "seq">>;
   turns: Array<Pick<Turn, "id" | "n" | "phase" | "note" | "error" | "notes" | "suggest">>;
@@ -31,6 +33,8 @@ export interface SceneRows {
   suggestions: Array<Pick<SceneSuggestion, "sceneId" | "turn" | "ord" | "kind" | "text">>;
   /** The game's story around the scene (story-design §4.5): the boundary, the lead, the notebook's tables, the costs. None until they've come. */
   story?: StoryRows;
+  /** The scene's place and its world's rows (the world bridge's §3.5): what the side panel draws. None until they've come. */
+  place?: PlaceTables;
   /** The words of the last move the simulation refused, until the next move. */
   refusal?: string;
   /** What's wrong with the connection to the server, while something is (it's reconnecting). */
@@ -87,7 +91,17 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...suggestionsOf(rows, lease),
     notesComing: shown?.notes === "writing",
     ...(rows.story ? { story: storyViewOf(rows.story, rows.scene.controllerId, name) } : {}),
+    ...placeOf(rows),
   };
+}
+
+/** The scene's place, its world rebuilt from its rows (scene/place-rows.ts), when they've come and make one. */
+function placeOf(rows: SceneRows): Pick<SceneView, "place"> {
+  if (!rows.place) return {};
+  const lead = rows.scene.controllerId;
+  // The scene's own time (story-design §4.1: an ended scene held on screen keeps its light as the story moves on), else the game's.
+  const place = placeViewOf({ tables: rows.place, time: rows.scene.time ?? rows.game.time, lead, names: rows.names, sheet: rows.sheets.find(s => s.playerId === lead) });
+  return place ? { place } : {};
 }
 
 /**

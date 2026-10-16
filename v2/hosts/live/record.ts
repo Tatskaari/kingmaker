@@ -9,7 +9,7 @@ import { readCampaignFiles } from "../dev/campaign.ts";
 import { backgroundOf, statusOf, statusRows } from "../dev/gm-status.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
-import type { Offered, Played, Run } from "./play.ts";
+import type { Offered, Played, Run, WorldThing } from "./play.ts";
 import type { Script } from "./scripts.ts";
 
 /**
@@ -50,6 +50,10 @@ export interface TurnRecord {
   /** The lines offered after it, and what the AI service screened out of them, and why. */
   lines: Offered[];
   dropped: Array<{ text: string; why: string }>;
+  /** The world's side (a script that records it): what the place's rows showed changed once the turn was done, the rules' act on the path, and who reacted to it and how. */
+  world?: string[];
+  act?: string;
+  reactions?: string;
 }
 
 /** What the scene keeps from the player: its people's secrets, and what it needs them to come across that they haven't. */
@@ -93,22 +97,46 @@ export async function recordOf(stack: StackFile, run: Run, setup: RecordSetup): 
   const scene = installedScene(String(rows.scene.scene_key));
   const calls = callsOf(stack.root, game.uid);
   const said = new Map(run.played.filter(p => p.n !== undefined).map(p => [p.n!, p]));
+  const gm = setup.script.gmSide || setup.script.worldSide ? await gmSideOf(stack, game, rows.scene) : undefined;
+  const path = (gm?.path as string[] | undefined) ?? [];
 
   return {
     ...setup, mode: stack.mode, game: game.uid,
     who: `${rows.player.name}: ${rows.player.concept}`, build: String(rows.sheet.build),
-    turns: rows.turns.map(t => turnRecord(t, {
-      entries: rows.entries, scene, run, calls, step: said.get(Number(t.n)),
-      dropped: droppedOf(stack.root, idempotencyKey(game.uid, game.sceneId, Number(t.n), "suggest", Math.max(1, Number(t.suggest_asks)))),
+    turns: rows.turns.map(t => ({
+      ...turnRecord(t, {
+        entries: rows.entries, scene, run, calls, step: said.get(Number(t.n)),
+        dropped: droppedOf(stack.root, idempotencyKey(game.uid, game.sceneId, Number(t.n), "suggest", Math.max(1, Number(t.suggest_asks)))),
+      }),
+      ...(setup.script.worldSide ? worldSideOf(Number(t.n), run.worlds, path) : {}),
     })),
     skipped: run.played.filter(p => p.skipped),
     ...(run.stopped ? { stopped: run.stopped } : {}),
     ...(rows.scene.exit_key ? { ending: String(rows.scene.exit_key) } : {}),
-    ...(setup.script.gmSide ? { gm: await gmSideOf(stack, game, rows.scene), ...(run.settledMs !== undefined ? { settledMs: run.settledMs } : {}) } : {}),
+    ...(setup.script.gmSide && gm ? { gm, ...(run.settledMs !== undefined ? { settledMs: run.settledMs } : {}) } : {}),
     calls,
     cost: calls.reduce((sum, c) => sum + c.costUsd, 0),
     held: heldFrom(scene, (rows.gm?.landed as string[] | undefined) ?? []),
   };
+}
+
+/**
+ * A turn's world side: what changed in the place from the turn before, as this client's rows had it
+ * once each was done ("the hoist rope: destroyed", "Cob: gone"), the rules' act the path has for the
+ * turn ("rules:cast:magic-missile"), and the reactions to it ("kell=intervene, cob=flee").
+ */
+export function worldSideOf(n: number, worlds: Map<number, WorldThing[]>, path: string[]): Pick<TurnRecord, "world" | "act" | "reactions"> {
+  const now = worlds.get(n), before = new Map((worlds.get(n - 1) ?? []).map(e => [e.id, e]));
+  const world = n === 0 || !now ? [] : now.flatMap(e => {
+    if (!before.has(e.id)) return [`${e.name}: appeared${e.states.length ? ` (${e.states.join(", ")})` : ""}`];
+    const was = before.get(e.id)!.states;
+    if (was.join() === e.states.join()) return [];
+    const gained = e.states.filter(x => !was.includes(x)), lost = was.filter(x => !e.states.includes(x));
+    return [`${e.name}: ${[...gained, ...lost.map(x => `no longer ${x}`)].join(", ")}`];
+  });
+  const via = (kind: string) => path.flatMap(p => { const m = new RegExp(`^${n}: .* via (${kind}:\\S+)`).exec(p); return m ? [m[1]!] : []; });
+  const act = via("rules")[0], reactions = via("reactions")[0];
+  return { world, ...(act ? { act: act.slice("rules:".length) } : {}), ...(reactions ? { reactions: reactions.slice("reactions:".length).split(",").join(", ") } : {}) };
 }
 
 /** The game's spend so far, and its dearest turn, in dollars: from the call log, so the notes' and lines' calls count as they're made. */

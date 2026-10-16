@@ -18,3 +18,4 @@ Record again only when a case is added: the prototype's code these come from is 
 | own-option.json | `ownBuild` (orc, rogue, thief, criminal) for Tamsin Vell |
 | sheet-wizard.json | the ready-made wizard's `SheetData` (Pell Marrow, seed 7), the starting purse in it |
 | sheet-fighter.json | the ready-made fighter's (Wren Ashdown, seed 7) |
+| spell-facts-wizard.json | what the rules engine says of the wizard's ready spells (range, effects' kinds, area), as the prototype's scene menu reads them: the sheet's `spellFacts` as the rules' `sheetRows` writes it (the same JSON). Recorded by `tools/v2/record-spell-facts.mts` (same flags) |

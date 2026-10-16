@@ -109,7 +109,7 @@ test("a model's build made legal: unknown ids fall back, another class's spells 
 
 test("a card's numbers are the sheet's: what's offered is what's made", () => {
   for (const o of offline("Tamsin Vell", CONCEPTS[1]!)) {
-    const session: RulesSession = { id: "card", seed: 5, rollCount: 0, player: { name: "Tamsin Vell", concept: CONCEPTS[1]!, modifiers: {} } };
+    const session: RulesSession = { id: "card", seed: 5, rollCount: 0, turn: 0, player: { name: "Tamsin Vell", concept: CONCEPTS[1]!, modifiers: {} } };
     createCharacter(rules, session, 3, o.build);
     const sheet = sheetData(rules, session)!;
     assert.equal(sheet.hp.max, o.card.hp, `${o.line}: HP`);
@@ -182,7 +182,7 @@ test("a card says the damage the dice roll: Dueling's +2 with one melee weapon a
   // A shield in the other hand is no weapon: still Dueling.
   assert.equal(throughEngine(rules, { classId: "paladin", speciesId: "human", backgroundId: "soldier", weapons: ["longsword"], armor: "chain-mail", shield: true, style: "dueling" }, 3).card.attack!.damage, "1d8+5");
   // The rolls agree: the engine's own damage for the same character, on the sheet and the QA console's.
-  const session: RulesSession = { id: "dueling", seed: 5, rollCount: 0, player: { name: "Lucan", concept: "a duellist", modifiers: {} } };
+  const session: RulesSession = { id: "dueling", seed: 5, rollCount: 0, turn: 0, player: { name: "Lucan", concept: "a duellist", modifiers: {} } };
   createCharacter(rules, session, 3, duelling.build);
   const sheet = sheetData(rules, session)!;
   assert.equal(sheet.attacks.find(a => a.held)!.damage, "1d8+5");

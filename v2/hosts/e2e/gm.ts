@@ -20,7 +20,7 @@ import { callLog, check, doneTurn, Failed, nextTurn, note, ok, restartAi, second
  */
 
 /** Step 20 left $10 in today's ledger, so the AI service keeps its ceiling raised from here on. */
-const RAISED = { KM_AI_DAILY_USD: "100" };
+export const RAISED = { KM_AI_DAILY_USD: "100" };
 const WREN = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" };
 
 /**
@@ -185,7 +185,7 @@ export async function walkingOut(stack: Stack, a: Player, b: Player, game: Game,
 // What the steps share.
 
 /** A's new game with a ready-made wizard: its opening done. */
-async function aNewGame(stack: Stack, a: Player): Promise<Game> {
+export async function aNewGame(stack: Stack, a: Player): Promise<Game> {
   const before = a.conn.rows()?.game.id;
   check(`A's new_game (${WREN.name}, ${WREN.build}) is made`, (await a.conn.newGame(WREN)) === undefined);
   const rows = await until(a, "the new game's scene to go live", 60_000, r => r.game.id !== before && r.scene.status === "live" && r);
@@ -196,7 +196,7 @@ async function aNewGame(stack: Stack, a: Player): Promise<Game> {
 }
 
 /** Polls `test` (every 100 ms) until it finds something; a Failed after `ms`. */
-async function eventually<T>(what: string, ms: number, test: () => T | undefined | Promise<T | undefined>): Promise<T> {
+export async function eventually<T>(what: string, ms: number, test: () => T | undefined | Promise<T | undefined>): Promise<T> {
   const began = performance.now();
   for (;;) {
     const found = await test();
@@ -210,7 +210,7 @@ async function eventually<T>(what: string, ms: number, test: () => T | undefined
 }
 
 /** The scene's bookkeeping, as the module keeps it. */
-async function gmOf(stack: Stack, game: Game): Promise<GmState> {
+export async function gmOf(stack: Stack, game: Game): Promise<GmState> {
   const [row] = await stack.sql(`SELECT * FROM gm_state WHERE scene_id = ${game.scene}`);
   return gmFromRow(camel(row) as GmRow);
 }
@@ -225,17 +225,17 @@ function reviewsOf(root: string, game: Game): Array<{ turn: number; flags: strin
 }
 
 /** The phases a player saw turn n of the game go through, from its events since `from`. */
-function phasesOf(p: Player, from: number, game: Game, n: number): string[] {
+export function phasesOf(p: Player, from: number, game: Game, n: number): string[] {
   const phases = p.events.slice(from).filter(e => e.table === "turn" && e.row.n === n && String(e.row.sceneId) === String(game.scene)).map(e => String(e.row.phase));
   return phases.filter((phase, i) => phase !== phases[i - 1]);
 }
 
 /** Turn n's entries, in order. */
-function linesOf(rows: SceneRows, n: number): SceneRows["transcript"] {
+export function linesOf(rows: SceneRows, n: number): SceneRows["transcript"] {
   return rows.transcript.filter(t => t.turn === n).sort((x, y) => x.seq - y.seq);
 }
 
-function keyOf(game: Game, n: number, step: Step): string {
+export function keyOf(game: Game, n: number, step: Step): string {
   return idempotencyKey(game.uid, game.scene, n, step);
 }
 

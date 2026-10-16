@@ -58,8 +58,9 @@ test("KM_AI_FAKE's answers, delays and choices by name go beside fake.json's: cr
 
 test("the full GM's quiet defaults (full-gm-design §4.4): only witnessed flagged, Kell's one memory, the co-GM on track without moving the tracker, the ruling a contest with Cob at DC 12", () => {
   // Every attention category (ai/docs/reviews.ts) has a choice, and only witnessed is flagged.
-  assert.deepEqual(Object.keys(fake.choices!).sort(), Object.keys(CATEGORIES).sort());
-  assert.deepEqual(Object.entries(fake.choices!).filter(([, c]) => c === "flagged").map(([k]) => k), ["witnessed"]);
+  const attention = Object.fromEntries(Object.entries(fake.choices!).filter(([k]) => !k.startsWith("react_")));
+  assert.deepEqual(Object.keys(attention).sort(), Object.keys(CATEGORIES).sort());
+  assert.deepEqual(Object.entries(attention).filter(([, c]) => c === "flagged").map(([k]) => k), ["witnessed"]);
   const memories = (fake as { toolCalls?: Record<string, Array<{ name: string; args: Record<string, string> }>> }).toolCalls!.save_memory!;
   assert.deepEqual(memories.map(c => [c.name, c.args.characterId, c.args.title]), [["save_memory", "kell", "What the investigator did"]]);
   assert.ok(memories.every(c => ["characterId", "title", "context", "content"].every(k => c.args[k]?.trim())));
@@ -87,4 +88,10 @@ test("a choice that's a list goes in as it is, beside the quiet ones (the whole 
   const options = fakeOptions('{"choices":{"ending":["open-case","hobb-talks","fight","caught-in-the-act","justice"],"own_exit":"theirs"}}');
 
   assert.deepEqual(options.choices, { ...fake.choices, ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" });
+});
+
+test("the world bridge's quiet reactions (world-bridge-design §1.4): in the granary yard nobody fights the player's violence", () => {
+  const reactions = Object.fromEntries(Object.entries(fake.choices!).filter(([k]) => k.startsWith("react_")));
+
+  assert.deepEqual(reactions, { react_kell: "intervene", react_cob: "flee", react_moll: "cower", react_tull: "unmoved" });
 });

@@ -25,6 +25,10 @@ function standIn(t: TestContext) {
     myNames: rows(), player: rows(), sheet: rows(), transcript: rows(), replyDraft: rows(), turn: rows(), onStage: rows(), look: rows(), sceneSuggestion: rows(),
     myGames: rows(), myCreation: rows(), campaign: rows(),
     chapter: rows(), quest: rows(), flag: rows(), journal: rows(), attitude: rows(), follower: rows(),
+    // The place's world (the world bridge): watched, and none of it in yet.
+    place: { ...rows(), id: { find: () => undefined } },
+    entity: rows(), position: rows(), area: rows(), material: rows(), health: rows(), stack: rows(), surface: rows(), creature: rows(),
+    playerCharacter: rows(), gear: rows(), narrative: rows(), worldLog: rows(),
     game: { ...rows(), id: { find: (id: bigint) => (id === 3n ? { id: 3n, time: "morning" } : undefined) } },
     scene: { ...rows(), id: { find: (id: bigint) => (id === 7n ? { id: 7n, title: "The Hanged Clerk", hook: "", status: "live", controllerId: 1n, turnId: undefined, placeId: 9n } : undefined) } },
   };

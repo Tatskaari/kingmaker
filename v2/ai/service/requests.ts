@@ -5,11 +5,11 @@ import { Failure } from "./context.ts";
 
 /**
  * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7, full-gm-design
- * §4.1, story-design §4.4), checked before any model is asked, whichever GM answers, and before a
- * kept answer or the day's ceiling is looked at. A request without it is the sender's mistake: 400
- * bad_request, which the module doesn't retry, rather than the endpoint's TypeError, a 500 the
- * module would retry for ten minutes (or an answer made from undefined, kept by its key). It checks
- * what the code reads, by the path it reads it at, not every field of the types.
+ * §4.1, world-bridge-design §3.1, story-design §4.4), checked before any model is asked, whichever
+ * GM answers, and before a kept answer or the day's ceiling is looked at. A request without it is
+ * the sender's mistake: 400 bad_request, which the module doesn't retry, rather than the endpoint's
+ * TypeError, a 500 the module would retry for ten minutes (or an answer made from undefined, kept by
+ * its key). It checks what the code reads, by the path it reads it at, not every field of the types.
  */
 export function checkRequest(step: Step | CreationStep, body: unknown): void {
   const endpoint = STEP_ENDPOINT[step];
@@ -83,6 +83,7 @@ const BOUNDARY: Need[] = [
 const NEEDS: Record<Step, Need[]> = {
   open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM],
   decide: TURN,
+  reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
   consider: [
     ...TURN,
     ["read { probability, routes } (the decider's, when it's sent)", r => at(r, "read") === undefined || (isNumber(r, "read.probability") && isList(r, "read.routes"))],

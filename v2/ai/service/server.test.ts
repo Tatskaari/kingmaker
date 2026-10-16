@@ -6,12 +6,13 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type {
-  BackstoriesRequest, BackstoryOp, BoundaryRequest, BoundaryResponse, CharactersRequest, DecideRequest, Entry, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse,
+  BackstoriesRequest, BackstoryOp, BoundaryRequest, BoundaryResponse, CharactersRequest, DecideRequest, Entry, NotesRequest, NotesResponse, OpenRequest, ReactionsRequest, ReplyRequest, ReplyResponse,
   SettleRequest, SuggestRequest, SuggestResponse,
 } from "../../shared/protocol/ai.ts";
 import { creationKey } from "../../shared/protocol/keys.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
+import { readConfig } from "./config.ts";
 import { Failure, type Endpoints } from "./context.ts";
 import { canned } from "./endpoints/canned.ts";
 import { pipeline } from "./endpoints/pipeline.ts";
@@ -83,6 +84,12 @@ function openRequest(): OpenRequest {
 function replyRequest(n = 1): ReplyRequest {
   const { game, player, turn } = decideRequest(n);
   return { key: `${GAME}:s1:t${n}:reply`, game, player, turn, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "2" } };
+}
+
+/** The reactions to what the rules decided the player did (world-bridge-design §3.1). */
+function reactionsRequest(n = 1): ReactionsRequest {
+  const { game, player, turn } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:reactions`, game, player, turn, act: { what: "cast Burning Hands at Sergeant Agnes Kell, setting the yard gate burning or breaking it", victims: ["kell"], property: ["gate"] } };
 }
 
 function settleRequest(n = 1): SettleRequest {
@@ -378,6 +385,21 @@ test("exit-after-store: the process exits (137) with the answer stored and not s
   assert.deepEqual(exits, [137]);
   assert.ok(await stores.answers.get(decideRequest().key));
   assert.ok(lines.some(l => /exit-after-store/.test(l)));
+});
+
+test("the reactions to the player's violence (world-bridge-design §3.1): without the act it's a 400; the canned GM has nobody react, kept by the key; exit-after-store names the step", async () => {
+  const { ai, stores, exits } = service({ faults: { exitAfterStore: "reactions" } });
+  await ai.answer(put());
+  const missing = await ai.answer(post("/v1/turns/reactions", without(reactionsRequest(), "act")));
+  const answer = await ai.answer(post("/v1/turns/reactions", reactionsRequest()));
+
+  assert.equal(missing.status, 400);
+  assert.match(JSON.parse(missing.body).error.message, /act \{ what, victims, property \}/);
+  assert.equal(answer.status, 200);
+  assert.deepEqual(JSON.parse(answer.body), { reactions: {}, usage: { calls: 0, costUsd: 0, byOperation: {} } });
+  assert.deepEqual(exits, [137]);
+  assert.ok(await stores.answers.get(reactionsRequest().key));
+  assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:reactions" }).faults, { exitAfterStore: "reactions" });
 });
 
 test("shutting down, it takes nothing new: 503 not_ready", async () => {

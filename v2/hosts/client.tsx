@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the renderer, the root and the shutdown; the look canvas, the browser overlay and reporting go, the Game is the AppModel over the simulation (or the demo).
+// Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the look canvas (the scene's place paints itself), the renderer, the root and the shutdown; the browser overlay and reporting go, the Game is the AppModel over the simulation (or the demo).
 import { createCliRenderer, type CliRenderer } from "@opentui/core";
 import { createRoot, type Root } from "@opentui/react";
 import { join } from "node:path";
@@ -7,6 +7,7 @@ import { App } from "../client/app.tsx";
 import { AppModel, type Intent } from "../client/app/model.ts";
 import { newGameOf, type Backend } from "../client/backend.ts";
 import { demoBackend } from "../client/demo.ts";
+import { registerLookCanvas } from "../client/look/opentui.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
@@ -103,6 +104,8 @@ async function started(game: Backend, args: Args, campaign: string): Promise<Int
 
 /** The screens, over the game: the app's model follows the rows and makes the moves, until the player quits. */
 async function play(game: Backend, intent: Intent, campaign: string): Promise<void> {
+  // The scene's place paints itself, live (<lookCanvas>).
+  registerLookCanvas();
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
   const root = createRoot(renderer);
   const quit = leaving(root, renderer, game);

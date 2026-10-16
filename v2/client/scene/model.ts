@@ -1,10 +1,12 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5).
 import type { Backend, Rejection } from "../backend.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines, CONSIDERING } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { betweenOf, epilogueOf, fightOf, wayOnOf, type BetweenView, type EndView, type FightView, type StoryView, type WayOn } from "../story/view.ts";
 import { C } from "../theme.ts";
+import { thingActions, type SceneContext, type SceneTarget, type ThingActions } from "./menu.ts";
+import { PlaceModel } from "./place.ts";
 import { isPlayer, linesOf, liveOf, type Line, type SceneView } from "./view.ts";
 
 /**
@@ -53,6 +55,20 @@ export type Overlay =
 /** The character sheet over the scene: the seat's sheet row as the engine made it (none until it's in), and who they are. */
 export interface SheetShown { data?: SheetData | undefined; who: { name: string; concept: string } }
 
+/** The place's right-click menu, open: what was clicked and its actions, where on screen it was asked for, the highlighted choice, and the menu it was chosen from. */
+export interface SceneMenu extends ThingActions {
+  target: SceneTarget;
+  x: number;
+  y: number;
+  index: number;
+  /** The menu this one was chosen from (what to give, which spell, something else that's there). */
+  parent?: SceneMenu;
+}
+
+/** What a deed from the menu gets when it can't go: the prototype's words. */
+export const DEED_WAITS = "The GM has the floor: that will have to wait until they've finished.";
+export const ONLY_LOOKING = "The scene is over: there's only looking now.";
+
 export class SceneModel {
   view: SceneView;
   overlay?: Overlay;
@@ -82,6 +98,10 @@ export class SceneModel {
   page: Page = "scene";
   /** Enter was pressed before the story had moved on (the prototype's queued): it goes on as soon as it has. */
   queued = false;
+  /** The scene's place: the world its rows rebuild, and the effects that play what changes in it. */
+  readonly place: PlaceModel;
+  /** The place's right-click menu, while it's open. */
+  sceneMenu?: SceneMenu;
 
   private readonly actions: SceneActions;
   /** The seat's sheet, read when /sheet shows it: the rows have it, not the scene's view. */
@@ -93,13 +113,17 @@ export class SceneModel {
   private busyLine?: string;
   /** Where the scene stood (momentOf) when the view's refusal came: it's shown until the scene moves on. */
   private refusedAt?: string;
+  /** Glances at the place (the menu's Look): the screen's own quiet notes, each after the entries there were when it was taken. */
+  private glances: Array<{ at: number; text: string }> = [];
 
-  constructor(view: SceneView, actions: SceneActions, sheet: () => SheetShown | undefined = () => undefined) {
+  constructor(view: SceneView, actions: SceneActions, sheet: () => SheetShown | undefined = () => undefined, place = new PlaceModel()) {
     this.view = view;
     if (view.story) this.story = view.story;
     this.actions = actions;
     this.sheet = sheet;
+    this.place = place;
     this.noteRefusal(view);
+    place.update(view);
   }
 
   subscribe(listener: () => void): () => void {
@@ -155,6 +179,7 @@ export class SceneModel {
     }
     this.view = view;
     this.noteRefusal(view);
+    this.place.update(view);
     if (onlyGrew(was, view)) this.emitSoon();
     else this.emit();
   }
@@ -301,7 +326,18 @@ export class SceneModel {
     return !this.gone && !v.cutOff && (v.mayType || !!v.watching || v.over || !!v.ending || v.phase === "failed");
   }
 
-  lines(): Line[] { return linesOf(this.view); }
+  /** The transcript's lines, with the glances at the place where they were taken (a glance while the GM is mid-reply sits under the turn, which goes on growing above it). */
+  lines(): Line[] {
+    const lines = linesOf(this.view);
+    if (!this.glances.length) return lines;
+    const n = this.view.entries.length;
+    const glance = (text: string): Line => ({ kind: "look", speaker: "player", text });
+    const entries = lines.slice(1, 1 + n);
+    const out: Line[] = [lines[0]!];
+    entries.forEach((line, i) => { out.push(...this.glances.filter(g => g.at === i).map(g => glance(g.text)), line); });
+    out.push(...this.glances.filter(g => g.at >= n).map(g => glance(g.text)), ...lines.slice(1 + n));
+    return out;
+  }
   live(): Line | undefined { return liveOf(this.view); }
 
   /**
@@ -402,17 +438,79 @@ export class SceneModel {
     this.refusedAt = view.refusal === undefined ? undefined : this.refusedAt ?? momentOf(view);
   }
 
-  /** The transcript's lines are new (another scene): what was picked out of them goes. */
+  /** The transcript's lines are new (another scene): what was picked out of them goes, and so do the glances and the place's menu. */
   private forgetMarks(): void {
     this.markFocus = undefined;
     this.markPointed = undefined;
     if (this.overlay?.kind === "mark") this.overlay = undefined;
+    this.glances = [];
+    this.sceneMenu = undefined;
   }
 
   /** Open a marked phrase: the note on it (where it was clicked, if it was). */
   openMark(line: number, mark: number, x?: number, y?: number): void {
     if (!this.lines()[line]?.marked?.marks[mark]) return;
+    this.sceneMenu = undefined;
     this.overlay = { kind: "mark", line, mark, ...(x !== undefined ? { x } : {}), ...(y !== undefined ? { y } : {}) };
+    this.emit();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // The scene's place: pointing, looking, and the right-click menu (scene/menu.ts).
+
+  /**
+   * What the place's menu needs to word things as the lead knows them (what to call the cast whose
+   * names they haven't heard, their spells), and what it offers: deeds wait while the GM has the
+   * floor; there's only looking once the scene's over or ending, for a spectator (the lead's deeds
+   * are the lead's), and with nothing to send them to.
+   */
+  sceneContext(): SceneContext {
+    const v = this.view, p = this.place.shown;
+    const looking = v.over || !!v.ending || !!v.watching || !!v.cutOff || !!this.gone;
+    return { ...(p ? { unnamed: p.unnamed, spells: p.spells } : {}), ...(looking ? { over: true } : !v.mayType ? { busy: true } : {}) };
+  }
+
+  /** Right-click on the place, or a line of the list under it (or Enter on what Tab picked out): what can be done with it. */
+  openSceneMenu(target: SceneTarget, x: number, y: number): void {
+    const world = this.place.world;
+    if (!world) return;
+    const menu = thingActions(world, target, this.sceneContext());
+    if (!menu.actions.length) { this.closeSceneMenu(); return; }
+    this.sceneMenu = { ...menu, target, x, y, index: 0 };
+    this.emit();
+  }
+
+  closeSceneMenu(): void {
+    if (!this.sceneMenu) return;
+    this.sceneMenu = undefined;
+    this.emit();
+  }
+
+  /**
+   * A glance at something in the place (the menu's Look, worded by lookText: what anyone could
+   * see, never the world's descriptions, which are the GM's): at once, as a quiet note in the
+   * transcript. It isn't a turn, and the GM never hears it. The same look twice running is noted once.
+   */
+  lookNote(text: string): void {
+    if (!text) return;
+    const n = this.view.entries.length, last = this.glances[this.glances.length - 1];
+    if (!(last && last.at === n && last.text === text)) this.glances.push({ at: n, text });
+    this.emit();
+  }
+
+  /**
+   * A deed from the place's menu ("(I pick up Prout's satchel)"): the lead's turn, as if typed, for
+   * the rules and the GM to take as they take typed deeds. It isn't typed, so it can't wait in the
+   * box while the GM has the floor: it's refused in the prototype's words then, and once the scene's
+   * over. Anything else goes as a typed line does (a spectator's, a failed turn's, refused in the
+   * game's words).
+   */
+  deed(line: string): void {
+    const v = this.view;
+    if (v.mayType) { this.input(line); return; }
+    if (v.over || v.ending) this.status = ONLY_LOOKING;
+    else if (!v.watching && (v.phase === "queued" || v.phase === "deciding" || v.phase === "replying")) this.status = DEED_WAITS;
+    else { this.input(line); return; }
     this.emit();
   }
 

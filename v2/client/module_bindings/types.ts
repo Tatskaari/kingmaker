@@ -37,6 +37,15 @@ export const Attitude = __t.object("Attitude", {
 });
 export type Attitude = __Infer<typeof Attitude>;
 
+export const Brawl = __t.object("Brawl", {
+  turn: __t.u32(),
+  cause: __t.string(),
+  against: __t.array(__t.string()),
+  allies: __t.array(__t.string()),
+  fled: __t.array(__t.string()),
+});
+export type Brawl = __Infer<typeof Brawl>;
+
 export const Campaign = __t.object("Campaign", {
   id: __t.string(),
   key: __t.string(),
@@ -275,6 +284,14 @@ export const GmState = __t.object("GmState", {
   get rulings() {
     return __t.array(RulingRow);
   },
+  get threat() {
+    return __t.option(Threat);
+  },
+  held: __t.option(__t.u32()),
+  get brawl() {
+    return __t.option(Brawl);
+  },
+  absent: __t.array(__t.string()),
   adjustments: __t.array(__t.string()),
   opening: __t.option(__t.string()),
   lead: __t.option(__t.string()),
@@ -282,7 +299,6 @@ export const GmState = __t.object("GmState", {
     return __t.array(OwedRow);
   },
   fought: __t.array(__t.string()),
-  absent: __t.array(__t.string()),
 });
 export type GmState = __Infer<typeof GmState>;
 
@@ -541,6 +557,9 @@ export const RulesState = __t.object("RulesState", {
     return __t.array(GearRow);
   },
   gone: __t.array(__t.string()),
+  npcs: __t.string(),
+  timed: __t.bool(),
+  rage: __t.option(__t.u32()),
 });
 export type RulesState = __Infer<typeof RulesState>;
 
@@ -645,6 +664,7 @@ export const Sheet = __t.object("Sheet", {
   data: __t.string(),
   pockets: __t.string(),
   backstory: __t.option(__t.string()),
+  spellFacts: __t.string(),
 });
 export type Sheet = __Infer<typeof Sheet>;
 
@@ -682,6 +702,15 @@ export const Surface = __t.object("Surface", {
   roundsLeft: __t.option(__t.i32()),
 });
 export type Surface = __Infer<typeof Surface>;
+
+export const Threat = __t.object("Threat", {
+  kind: __t.string(),
+  by: __t.option(__t.string()),
+  hazard: __t.option(__t.string()),
+  severity: __t.option(__t.string()),
+  turn: __t.u32(),
+});
+export type Threat = __Infer<typeof Threat>;
 
 export const Tile2 = __t.object("Tile2", {
   x: __t.i32(),

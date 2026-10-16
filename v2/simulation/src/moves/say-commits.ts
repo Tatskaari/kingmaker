@@ -1,8 +1,12 @@
 import { describeRoll } from "../../../shared/dice.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { After, ConsiderResponse, Decision, DecideResponse, Outcome, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { After, ConsiderResponse, Decision, DecideResponse, Outcome, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
-import { IMPROVISED_EXIT_ID } from "../../../shared/scene/graph.ts";
+import { attack, castSpell, dispelConjured, markConjured, rest, useFeature, wrestle, type RulesOutcome } from "../../../shared/rules/acts.ts";
+import { leap, moveToAct, react, violence } from "../../../shared/rules/scene-acts.ts";
+import { holdAfterReply } from "../../../shared/rules/threats.ts";
+import type { Act, Mechanic, Reaction, Rules } from "../../../shared/rules/types.ts";
+import { IMPROVISED_EXIT_ID, presentCast } from "../../../shared/scene/graph.ts";
 import { unnamed } from "../../../shared/scene/names.ts";
 import type { Exit, Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
@@ -12,8 +16,8 @@ import { applyMove, holdEnding, keepOpened, moveOnAfterReply, movedOn, resolveMo
 import { landRuling, settleRuling } from "../gm/consider.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
-import { carryGearAfter } from "../rules/play.ts";
-import { refreshPockets } from "../rules/session.ts";
+import { carryGearAfter, inPlay, playedOut } from "../rules/play.ts";
+import { engineCall, refreshPockets } from "../rules/session.ts";
 import { exitOf, sceneGraph } from "../scenes.ts";
 import { closeScene } from "../story/end.ts";
 import { addEntry, entriesOf, noteHeard, writeReply } from "../transcript.ts";
@@ -26,11 +30,12 @@ import type { SayPlan } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
 
 /**
- * A say turn's commits (v0-design §6.2; gm-port §6, §8, §9; full-gm-design §4.2), each one
- * transaction, a pure function of the rows, the plan and the answer (the dice are a row), so withTx
- * can run one twice. Each ends with the next step's plan, or with the turn finished (turns.ts: done,
- * or noting while its reply's notes are written, which v5-design §3.5 has the turn wait for). The
- * turn's last commit queues the jobs that go over it once it's over (gm/background.ts afterTurn).
+ * A say turn's commits (v0-design §6.2; gm-port §6, §8, §9; full-gm-design §4.2; world-bridge-design
+ * §3.4), each one transaction, a pure function of the rows, the plan and the answer (the dice are a
+ * row, and the rules engine is pinned to it), so withTx can run one twice. Each ends with the next
+ * step's plan, or with the turn finished (turns.ts: done, or noting while its reply's notes are
+ * written, which v5-design §3.5 has the turn wait for). The turn's last commit queues the jobs that
+ * go over it once it's over (gm/background.ts afterTurn).
  */
 
 /** A queued line's turn, when the scene ends before it starts. */
@@ -42,8 +47,10 @@ interface At { scene: SceneRow; graph: Scene; gm: GmState }
 /**
  * After decide: the notes disclosure opened kept; then, on the wind-down, only whether the player
  * spoke out of character. Otherwise the route taken (its check rolled, the dice line written, the
- * beat moved on) and where that leaves the endings. On to the reply; or, when the GM is to rule on
- * the act first (wantsReview), to consider, the turn considering.
+ * beat moved on), the rules' act resolved on the world (its dice lines written), and where that
+ * leaves the endings. On to the reply; or, when the act was violence, to the reactions to it first,
+ * the turn still deciding (what comes after them kept in `then`); or, when the GM is to rule on the
+ * act first (wantsReview), to consider, the turn considering.
  */
 export function afterDecide(tx: TxCtx, plan: SayPlan, answer: DecideResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
@@ -52,14 +59,47 @@ export function afterDecide(tx: TxCtx, plan: SayPlan, answer: DecideResponse): N
 
   const decided = plan.windDown ? { outcome: windDownOutcome(at, plan, decision) } : decideOutcome(tx, at, plan, decision);
   const { outcome } = decided;
+  const pending = "pending" in decided && decided.pending ? { pendingExit: decided.pending } : {};
 
   putGm(tx, at.scene.id, at.gm);
+  if ("act" in decided && decided.act) {
+    return { done: false, plan: { ...plan, step: "reactions", decision, outcome, lines: outcome.lines, act: decided.act, then: decided.considers ? "consider" : "reply", ...pending } };
+  }
   if ("considers" in decided && decided.considers) {
     updateTurn(tx, idOf(plan.turn), { phase: "considering" });
-    return { done: false, plan: { ...plan, step: "consider", decision, outcome, lines: outcome.lines, ...(decided.pending ? { pendingExit: decided.pending } : {}) } };
+    return { done: false, plan: { ...plan, step: "consider", decision, outcome, lines: outcome.lines, ...pending } };
   }
   updateTurn(tx, idOf(plan.turn), { phase: "replying" });
   return { done: false, plan: { ...plan, step: "reply", decision, outcome, lines: outcome.lines } };
+}
+
+/**
+ * After reactions (engine.ts:637-656): everyone who saw the player's violence reacts as the AI
+ * service decided (scene-acts.ts react): the fleeing leave the place (gone, absent, off the stage),
+ * the cowering cower, and a fight starts if anyone wants one, its first fighter's blow left hanging
+ * over the player. Their directive follows the act's, and their step goes on the path. A fight that
+ * broke out is the turn's answer: an ending the move reached this turn is undone, and the GM's
+ * ruling is skipped. Then what the decide commit left for after them: the ruling, or the reply with
+ * the tail it held back (an ending held for the player's answer, what this reply closes on).
+ */
+export function afterReactions(tx: TxCtx, plan: SayPlan, answer: ReactionsResponse): Next<SayPlan> {
+  const at = atTurn(tx, plan);
+  const decision = needs(plan.decision, "decision");
+  const outcome: Outcome = { ...needs(plan.outcome, "outcome"), lines: [...plan.lines] };
+  const reactions = answer.reactions ?? {};
+
+  if (Object.keys(reactions).length) reactionsTakeEffect(tx, at, plan, needs(plan.act, "act"), reactions, answer.directive, outcome);
+  const brawl = at.gm.brawl?.turn === plan.n;
+  if (brawl) breakOut(at.gm, plan.n, outcome);
+  const then = brawl ? "reply" : (plan.then ?? "reply");
+  if (then === "reply") {
+    if (decision.offGraph) at.gm.offGraphTurn = plan.n;
+    closesOrHolds(at.gm, plan.n, decision, outcome, plan.pendingExit, !!outcome.move, false);
+  }
+
+  putGm(tx, at.scene.id, at.gm);
+  updateTurn(tx, idOf(plan.turn), { phase: then === "consider" ? "considering" : "replying" });
+  return { done: false, plan: { ...plan, step: then, outcome, lines: outcome.lines } };
 }
 
 /**
@@ -119,13 +159,14 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
 
 /**
  * After settle: the read after the reply, unless this reply closed the scene: how it's going, and
- * (unless the player spoke out of character) where the story stands (an outcome route, an ending
- * reached, held or wound down), what landed (on a ruled turn, not what the dice kept back), and
- * whether the player walked out of the place. Then the stage manager's operations through the gate;
- * the player's sheet without the gear the story took from them (or with what it gave back); anyone
- * new joined; the beat's clock ticked; the world written back, and their pockets read from it. The
- * scene ends here if the reply closed it, a fight broke out, or the player left. The jobs that go
- * over the turn are queued, and the turn is done.
+ * (unless the player spoke out of character) what it left hanging over the player, where the story
+ * stands (an outcome route, an ending reached, held or wound down), what landed (on a ruled turn, not
+ * what the dice kept back), and whether the player walked out of the place. Then the stage manager's
+ * operations through the gate, and what this turn's spell conjured marked as the spell's; the
+ * player's sheet without the gear the story took from them (or with what it gave back); anyone new
+ * joined; the beat's clock ticked; the world written back, and their pockets read from it. The scene
+ * ends here if the reply closed it, a fight broke out, or the player left. The jobs that go over the
+ * turn are queued, and the turn is done.
  */
 export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
@@ -133,6 +174,9 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
 
   const read = at.gm.ended ? {} : moveOn(tx, at, plan, answer.after);
   const stage = applyStage(place, answer.ops ?? [], plan.n, read.left === true);
+  // What the turn's spell conjured into the world is the spell's: it goes when the spell does (engine.ts:919).
+  const m = plan.decision?.mechanic;
+  if (m?.kind === "cast") markConjured(place.world, m.spell, plan.n);
   const left = leftThePlace(at, read, plan.n);
   carryGearAfter(tx, at.scene, place.world, plan.n);
   joinArrivals(place.world, at.graph, at.gm, plan.n);
@@ -154,17 +198,27 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
 }
 
 /**
- * The scene ends on an exit: its system line, the scene's status and exit, and a line still waiting
+ * The scene ends on an exit: what a spell conjured goes with it (engine.ts:984: its lights and hands
+ * don't outlast the scene), its system line, the scene's status and exit, and a line still waiting
  * cancelled; then the story's end of it (story/end.ts closeScene: a fight, or its effects and the
  * way on). `how`: played to it, or forced by the owner's end_scene.
  */
 export function endScene(tx: TxCtx, sceneId: bigint, exit: Exit, n: number, how: "played" | "forced" = "played"): void {
+  dispelAtTheEnd(tx, sceneRow(tx, sceneId), n);
   addEntry(tx, sceneRow(tx, sceneId), { turn: n, speaker: "system", kind: "system", text: `Scene ends: ${exit.title}` });
   updateScene(tx, sceneId, { status: "ended", exitKey: exit.id, endedAt: tx.now });
   for (const t of [...tx.db.turn.sceneId.filter(sceneId)].filter(t => t.phase === "queued")) {
     updateTurn(tx, t.id, { phase: "done", endedAt: tx.now, error: SCENE_ENDED_FIRST });
   }
   closeScene(tx, sceneRow(tx, sceneId), exit, how);
+}
+
+/** engine.ts:984: what the scene's spells conjured fades as it ends; the world written back only when something did. */
+function dispelAtTheEnd(tx: TxCtx, scene: SceneRow, n: number): void {
+  const place = placeWorldOf(tx, scene);
+  const logged = place.world.log.length;
+  dispelConjured(place.world, undefined, n);
+  if (place.world.log.length > logged) savePlaceWorld(tx, scene, place, sceneGraph(tx, scene, getGm(tx, scene.id)));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -184,23 +238,29 @@ function windDownOutcome(at: At, plan: SayPlan, decision: Decision): Outcome {
 }
 
 /**
- * engine.ts:593-617, 703, 723-738: the pending ending taken off; the route's move, or the same push
- * again; out of character; then, for a turn the GM is to rule on (wantsReview), nothing more until
- * the ruling (`considers`, with the ending held for the player's answer: `pending`). Otherwise a
- * plan off the graph noted for the co-GM, the held ending, and what this reply closes on.
+ * engine.ts:593-638, 703, 723-738: the pending ending taken off; the route's move, or the same push
+ * again; the rules' act (takeAct); out of character; then, for an act that was violence, nothing
+ * more until the reactions to it (`act`, with whether the GM is to rule on it after them:
+ * `considers`), and for a turn the GM is to rule on (wantsReview), nothing more until the ruling
+ * (`considers`, with the ending held for the player's answer: `pending`). Otherwise a plan off the
+ * graph noted for the co-GM, the held ending, and what this reply closes on. The turn's dice lines
+ * start with the rules first's, and its directives are theirs.
  */
-function decideOutcome(tx: TxCtx, at: At, plan: SayPlan, decision: Decision): { outcome: Outcome; considers: boolean; pending: GmState["pendingExit"] } {
+function decideOutcome(tx: TxCtx, at: At, plan: SayPlan, decision: Decision): { outcome: Outcome; considers: boolean; pending: GmState["pendingExit"]; act?: Act } {
   const { gm } = at;
-  const outcome: Outcome = { lines: [], directives: [], wasStuck: gm.sceneStatus === "stuck" };
+  const outcome: Outcome = { lines: [...plan.lines], directives: [...(plan.rulesFirst?.directives ?? [])], wasStuck: gm.sceneStatus === "stuck" };
   const pending = gm.pendingExit;
   delete gm.pendingExit;
 
   const move = decision.route ? routeMove(tx, at, plan, decision.route) : undefined;
   if (move) takeRoute(tx, at, plan, move, pending, outcome);
   else if (decision.sameAgain) gm.path.push({ turn: plan.n, from: gm.beat, to: gm.beat, via: `same-again:${decision.sameAgain.route}`, source: "pre" });
+  const act = decision.mechanic ? takeAct(tx, at, plan, decision.mechanic, move, outcome) : undefined;
 
   if (decision.outOfCharacter) gm.oocTurns.push(plan.n);
-  if (wantsReview(gm, decision, move)) return { outcome, considers: true, pending };
+  const considers = wantsReview(gm, decision, move);
+  if (act) return { outcome, considers, pending, act };
+  if (considers) return { outcome, considers: true, pending };
   if (decision.offGraph) gm.offGraphTurn = plan.n;
   closesOrHolds(gm, plan.n, decision, outcome, pending, !!move, false);
   return { outcome, considers: false, pending };
@@ -251,6 +311,80 @@ function diceLine(tx: TxCtx, scene: SceneRow, n: number, move: Move): string {
 function diceEntry(tx: TxCtx, scene: SceneRow, n: number, text: string): string {
   addEntry(tx, scene, { turn: n, speaker: "dice", kind: "roll", text });
   return text;
+}
+
+/**
+ * engine.ts:618-636 (but 632, the opening blow: V12's): the rules resolve the player's act on the
+ * scene's world, from where they moved to first: a spell, a blow, a grab or a shove, a jump, a class
+ * feature, a rest. Its dice lines, its directive (Outcome.acts), its step on the path; the world, the
+ * character, the sheet and the pockets written. Then whether it was violence people would react to
+ * (not while a fight is on already, nor on a route into one, which answers it on its own): the
+ * reactions step's act. Not when the blow before their turn put them down (it doesn't happen), nor a
+ * Shield already raised against it.
+ */
+function takeAct(tx: TxCtx, at: At, plan: SayPlan, m: Mechanic, move: Move | undefined, outcome: Outcome): Act | undefined {
+  const first = plan.rulesFirst;
+  const forestalled = !!first?.down || (!!first?.shielded && m.kind === "cast" && m.spell === "shield");
+  if (forestalled && first?.down) outcome.lines.push(diceEntry(tx, at.scene, plan.n, "(Knocked down before you could act: it doesn't happen)"));
+  if (forestalled) return undefined;
+  const played = inPlay(tx, at.scene, at.graph, at.gm, plan.n);
+  const { session } = played, world = played.place.world, input = plan.input;
+  if (!session.rules) return undefined;
+  const started = tx.elapsedMs();
+  const engine = <T>(fn: (rules: Rules) => T): T => engineCall(tx, at.scene.gameId, fn);
+  const present = presentCast(at.graph, at.gm);
+
+  // Moved first, in the same turn: the spell or blow comes from where they ended up.
+  if ((m.kind === "cast" || m.kind === "attack" || m.kind === "wrestle") && m.from) moveToAct(session, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
+  const before = Object.fromEntries(Object.values(world.entities).map(e => [e.id, [...e.states]]));
+  const result = engine((rules): RulesOutcome => {
+    try {
+      return m.kind === "cast" ? castSpell(rules, session, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input), said: input, ...(m.unclear ? { unclear: true } : {}) })
+        : m.kind === "attack" ? attack(rules, session, present, m.target, m.weapon)
+        : m.kind === "wrestle" ? wrestle(rules, session, present, m.target, m.how)
+        : m.kind === "jump" ? leap(rules, session, m)
+        : m.kind === "feature" ? useFeature(rules, session, present, m.feature, m.target)
+        : rest(rules, session, m.length);
+    } catch (error) {
+      return { lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" };
+    }
+  });
+  for (const text of result.lines) outcome.lines.push(diceEntry(tx, at.scene, plan.n, text));
+  if (result.directive) outcome.acts = [...(outcome.acts ?? []), result.directive];
+  at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : m.kind === "jump" ? `:${m.how}` : m.kind === "feature" ? `:${m.feature}` : `:${m.length}`}`, source: "pre" });
+  // Violence draws a reaction from everyone present: some fight, some flee, some run for help. An authored fight answers it on its own.
+  const act = move?.exit?.kind !== "combat" && !at.gm.brawl ? engine(rules => violence(rules, at.graph, session, m, before)) : undefined;
+
+  playedOut(tx, at.scene, at.graph, at.gm, played);
+  tx.log(`[rules] act ${m.kind} ${Math.round(tx.elapsedMs() - started)} ms: ${result.lines.length} dice lines${act ? `; violence: ${act.what}` : ""}`);
+  return act;
+}
+
+// ---------------------------------------------------------------------------------------------
+// afterReactions' parts.
+
+/** engine.ts:641-650: the reactions take effect on the world and the GM's bookkeeping (who left the stage), their directive after the act's, their step on the path. */
+function reactionsTakeEffect(tx: TxCtx, at: At, plan: SayPlan, act: Act, reactions: Record<string, Reaction>, directive: string | undefined, outcome: Outcome): void {
+  const played = inPlay(tx, at.scene, at.graph, at.gm, plan.n);
+  react(at.graph, played.session, act, reactions);
+  playedOut(tx, at.scene, at.graph, at.gm, played);
+  if (directive) outcome.acts = [...(outcome.acts ?? []), directive];
+  const read = Object.entries(reactions).map(([id, r]) => `${id}=${r}`).join(",");
+  at.gm.path.push({ turn: plan.n, from: at.gm.beat, to: at.gm.beat, via: `reactions:${read}`, source: "pre" });
+  syncStage(tx, at.scene, at.graph, at.gm);
+  tx.log(`[scene ${at.scene.id} turn ${plan.n}] reactions to "${act.what}": ${read}`);
+}
+
+/**
+ * engine.ts:643-648: a fight broke out this turn, and it's the turn's answer: an ending the move
+ * reached this turn is undone (the reply isn't told it, and nothing closes on it), and the reply
+ * ends on the fight breaking out (Outcome.brawl: the move's closing lines are dropped).
+ */
+function breakOut(gm: GmState, n: number, outcome: Outcome): void {
+  delete outcome.taken;
+  if (gm.closing?.turn === n) delete gm.closing;
+  if (gm.pendingExit?.turn === n) delete gm.pendingExit;
+  outcome.brawl = true;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -337,16 +471,21 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan): Next<SayPlan> {
 interface Read { fight?: Exit; left?: boolean }
 
 /**
- * engine.ts:887-913: how the scene is going; and, unless the player spoke out of character, the
- * essentials hinted, the outcome route or ending the read found, what came across (on a ruled turn,
- * less what the ruling's dice kept back: landRuling), and whether the player walked out of the place
- * (not while an ending is closing, nor when an outcome took the scene to one).
+ * engine.ts:887-913: how the scene is going; and, unless the player spoke out of character, what the
+ * reply left hanging over the player (someone's blow, a danger: not while an ending is closing) and
+ * whether a hold still has them, the essentials hinted, the outcome route or ending the read found,
+ * what came across (on a ruled turn, less what the ruling's dice kept back: landRuling), and whether
+ * the player walked out of the place (not while an ending is closing, nor when an outcome took the
+ * scene to one).
  */
 function moveOn(tx: TxCtx, at: At, plan: SayPlan, after: After | undefined): Read {
   if (!after) return {};
   if (after.status) at.gm.sceneStatus = after.status;
   if (plan.decision?.outOfCharacter) return {};
 
+  // What the reply left hanging over the player lands as their next turn starts (engine.ts:896-897), and a hold the reply no longer has them in lets them go.
+  if (after.threat && !at.gm.closing) at.gm.threat = { ...after.threat, turn: plan.n };
+  holdAfterReply(at.gm, after.threatRead);
   const leaving = !!after.left && !at.gm.closing;
   if (after.hinted?.length) at.gm.hinted = [...new Set([...at.gm.hinted, ...after.hinted])];
   const moved = moveOnAfterReply(at.graph, at.gm, after, plan.onStage, plan.n, rollerFor(tx, at.scene));
