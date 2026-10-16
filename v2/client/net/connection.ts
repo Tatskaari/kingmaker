@@ -161,16 +161,27 @@ export class Connection implements Backend {
     };
   }
 
-  /** The map between scenes, made from the rows: made again only when they (or the words beside it) have changed. */
+  /**
+   * The map between scenes, made from the rows: made again only when they (or the words beside it)
+   * have changed. While the set naming the game's places on maps is still coming (a game just begun,
+   * a map just reached), the map as it was, or none yet: a place's row comes with the game's, but
+   * its world's rows only with that set, and a waiting yard without them has nobody in it.
+   */
   explore(): ExploreView | undefined {
     const seat = this.seat();
     const key = { rev: this.mapRev, refused: this.refused, trouble: this.trouble, seat: seat ? `${seat.playerId}:${seat.gameId}` : "" };
     const was = this.explored;
+    if (!this.placesIn()) return was?.seat === key.seat ? was.view : undefined;
     if (was && was.rev === key.rev && was.refused === key.refused && was.trouble === key.trouble && was.seat === key.seat) return was.view;
     const rows = this.exploreRows();
     const view = rows && exploreViewOf(rows);
     this.explored = { ...key, view };
     return view;
+  }
+
+  /** The set in place is the one the seat's rows ask for, and it's in: every place of the game on a map has its rows. */
+  private placesIn(): boolean {
+    return !!this.watching && this.watching.handle.isActive() && sameKey(this.wanted(), this.watching.key);
   }
 
   /** The scene's place and its world's rows, once its row has come (the world bridge's §3.5). */
