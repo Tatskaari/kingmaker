@@ -3,12 +3,17 @@ import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
 import { noUsage } from "../calls.ts";
 import type { Endpoints } from "../context.ts";
 import type { StreamSink } from "../stream.ts";
+import { backstories } from "./backstories.ts";
+import { characters } from "./characters.ts";
 
 /**
- * The four thinks with no model at all (KM_AI_GM=canned): for bringing a stack up and playing it end
- * to end before, or without, the GM, and for telling the plumbing's faults from the GM's. The opening
+ * The thinks with no model at all (KM_AI_GM=canned): for bringing a stack up and playing it end to
+ * end before, or without, the GM, and for telling the plumbing's faults from the GM's. The opening
  * and each reply stream a word at a time, as a model's would, so the draft grows on every screen.
- * Nothing moves the scene: no route is taken, nothing lands, no ending comes.
+ * Nothing moves the scene: no route is taken, nothing lands, no ending comes. Character creation
+ * gets the prototype's offline answers (its endpoints with no model to ask): three builds from the
+ * class defaults, the player's own made legal, no draft, the backstory unchecked, its traits from
+ * the player's own words.
  */
 export const canned: Endpoints = {
   async open(req, ctx) {
@@ -40,6 +45,10 @@ export const canned: Endpoints = {
     const closed = !!req.turn.gm.ended;
     return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), usage: noUsage() };
   },
+
+  characters: characters(() => null),
+
+  backstories: backstories(() => null),
 };
 
 const narration = (text: string): Reply => ({ speaker: "gm", kind: "narration", text });

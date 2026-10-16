@@ -1,5 +1,5 @@
 import type { FakeOptions } from "../llm/fake-openrouter.ts";
-import { STEPS, type Step } from "../../shared/protocol/keys.ts";
+import { CREATION_STEPS, STEPS, type CreationStep, type Step } from "../../shared/protocol/keys.ts";
 
 /**
  * The AI service's configuration (v0-design §5.7), from its environment. Only hosts/ai.ts reads the
@@ -15,7 +15,7 @@ import { STEPS, type Step } from "../../shared/protocol/keys.ts";
  * | KM_AI_MODEL, KM_AI_FAKE | openrouter, {} | fake: the stand-in for OpenRouter, with these options |
  * | KM_AI_GM | pipeline | canned: the four thinks with no model at all |
  * | KM_AI_STREAM_MS | 200 | the stream's period |
- * | KM_AI_FAULTS | none | exit-after-store:<open, decide, reply, settle or any> (tests only) |
+ * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, reply, settle, or a creation's offer, pick, own, draft, work, check, traits |
  */
 export interface AiConfig {
   listen: Array<{ host: string; port: number }>;
@@ -31,8 +31,8 @@ export interface AiConfig {
   faults: Faults;
 }
 
-/** What the tests ask the process to do wrong on purpose: exit (code 137) right after storing an answer, before sending it. */
-export interface Faults { exitAfterStore?: Step | "any" }
+/** What the tests ask the process to do wrong on purpose: exit (code 137) right after storing an answer of this step, before sending it. */
+export interface Faults { exitAfterStore?: Step | CreationStep | "any" }
 
 export function readConfig(env: Record<string, string | undefined>): AiConfig {
   const token = env.KM_AI_TOKEN?.trim();
@@ -77,10 +77,13 @@ function fakeOf(text: string | undefined): FakeOptions {
   try { return JSON.parse(text) as FakeOptions; } catch { throw new Error(`KM_AI_FAKE isn't JSON: ${text.slice(0, 80)}`); }
 }
 
+/** Every step a fault can name: a turn's think, or a creation's. */
+const FAULT_STEPS: readonly string[] = [...STEPS, ...CREATION_STEPS];
+
 function faultsOf(text: string | undefined): Faults {
   if (!text) return {};
   const m = /^exit-after-store:(\w+)$/.exec(text.trim());
   const step = m?.[1];
-  if (!step || !(step === "any" || (STEPS as readonly string[]).includes(step))) throw new Error(`KM_AI_FAULTS: "${text}" isn't exit-after-store:<${STEPS.join("|")}|any>`);
-  return { exitAfterStore: step as Step | "any" };
+  if (!step || !(step === "any" || FAULT_STEPS.includes(step))) throw new Error(`KM_AI_FAULTS: "${text}" isn't exit-after-store:<${FAULT_STEPS.join("|")}|any>`);
+  return { exitAfterStore: step as Faults["exitAfterStore"] };
 }

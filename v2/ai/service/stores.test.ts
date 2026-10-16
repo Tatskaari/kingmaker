@@ -85,3 +85,8 @@ test("the config: the bearer required, the defaults, and the values checked", ()
   assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:lunch" }), /KM_AI_FAULTS/);
   assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_LISTEN: "8787" }), /KM_AI_LISTEN/);
 });
+
+test("the config: a creation's steps as faults", () => {
+  assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:check" }).faults, { exitAfterStore: "check" });
+  assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:offer" }).faults, { exitAfterStore: "offer" });
+});

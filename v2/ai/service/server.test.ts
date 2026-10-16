@@ -5,7 +5,8 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { DecideRequest, OpenRequest } from "../../shared/protocol/ai.ts";
+import type { BackstoriesRequest, BackstoryOp, DecideRequest, OpenRequest } from "../../shared/protocol/ai.ts";
+import { creationKey } from "../../shared/protocol/keys.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
 import { Failure, type Endpoints } from "./context.ts";
@@ -67,6 +68,12 @@ function decideRequest(n = 1, text = "Sergeant, who found him?"): DecideRequest 
   };
 }
 
+/** A creation's backstory step, as the simulation sends it (a creation's uid is its game's id). */
+const UID = "6a1b2c3d-0000-4000-8000-0000000000c1";
+function backstoriesRequest(op: BackstoryOp = "draft", rev = 1): BackstoriesRequest {
+  return { key: creationKey(UID, rev, op), game: { id: UID, campaign: "caerwyn", version: "0.1.0" }, op, who: { name: "Tamsin Vell", concept: "a disgraced palace auditor", build: "halfling rogue 3 (Thief), criminal background" }, text: op === "draft" ? "" : "I owe Fat Jory three crowns." };
+}
+
 function post(path: string, body: { key: string }, headers: Record<string, string> = {}): AiHttpRequest {
   return { method: "POST", path, headers: { authorization: `Bearer ${TOKEN}`, "idempotency-key": body.key, "x-km-attempt": "1", ...headers }, body: JSON.stringify(body) };
 }
@@ -112,6 +119,18 @@ test("a campaign whose scene doesn't load, or whose paths climb out, is a 400 an
   assert.match(JSON.parse(missing.body).error.message, /hanged-clerk doesn't load: .*cast\/kell\.md/);
   assert.equal(climbing.status, 400);
   assert.equal(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).campaigns.length, 0);
+});
+
+test("a campaign without the world a backstory is written for, or whose places' words don't compile, is a 400", async () => {
+  const { ai } = service();
+  const files = filesOf(CAERWYN);
+  const file = JSON.parse(files["campaign.json"]!) as { creation: { places: unknown[] } };
+  const unwritten = await ai.answer(put("0.1.0", { ...files, "campaign.json": JSON.stringify({ ...file, creation: undefined }) }));
+  const broken = await ai.answer(put("0.1.0", { ...files, "campaign.json": JSON.stringify({ ...file, creation: { ...file.creation, places: [{ doc: "Places/Granary Yard.md", words: "\\b(granary" }] } }) }));
+
+  assert.equal(unwritten.status, 400);
+  assert.match(JSON.parse(unwritten.body).error.message, /campaign\.json's creation isn't/);
+  assert.equal(broken.status, 400);
 });
 
 test("a think is answered once by its key: the same POST again comes from the store, with no model call", async () => {
@@ -165,6 +184,43 @@ test("what can't be answered is a 400: unreadable, a key that isn't the header's
   assert.equal(await code(post("/v1/turns/reply", decideRequest())), "400 bad_request");
   assert.equal(await code(post("/v1/scenes/open", open)), "400 bad_request");
   assert.equal(await code({ method: "GET", path: "/v1/nowhere", headers: {}, body: "" }), "404 bad_request");
+});
+
+test("a creation's step is a think too, answered by its key: the same POST again comes from the store", async () => {
+  const { ai, ran, lines } = service();
+  await ai.answer(put());
+  const first = await ai.answer(post("/v1/backstories", backstoriesRequest("check")));
+  const again = await ai.answer(post("/v1/backstories", backstoriesRequest("check"), { "x-km-attempt": "2" }));
+
+  assert.equal(first.status, 200);
+  assert.deepEqual(JSON.parse(first.body).checked, { ok: false, why: "The GM is offline, so nobody has checked it against the world: it goes in as you wrote it.", reason: "the GM is offline" });
+  assert.equal(again.headers["x-km-replayed"], "1");
+  assert.equal(again.body, first.body);
+  assert.deepEqual(ran, ["backstories"]);
+  assert.ok(lines.some(l => l.startsWith(`[ai] check ${UID}:c1:check attempt 1: 200`)), "logged by its step");
+});
+
+test("a key is for its step's endpoint: a creation's step at a scene's endpoint, or at the other creation endpoint, is a 400, and so is an op that isn't the key's", async () => {
+  const { ai, ran } = service();
+  await ai.answer(put());
+  const code = async (request: AiHttpRequest) => { const r = await ai.answer(request); return `${r.status} ${JSON.parse(r.body).error?.code ?? "answered"}`; };
+
+  assert.equal(await code(post("/v1/characters", backstoriesRequest("draft"))), "400 bad_request");
+  assert.equal(await code(post("/v1/turns/decide", backstoriesRequest("draft"))), "400 bad_request");
+  assert.equal(await code(post("/v1/backstories", decideRequest())), "400 bad_request");
+  assert.equal(await code(post("/v1/backstories", { ...backstoriesRequest("check"), op: "draft" } as BackstoriesRequest)), "400 bad_request");
+  assert.equal(await code(post("/v1/backstories", { ...backstoriesRequest("work"), who: { concept: "nobody" } } as unknown as BackstoriesRequest)), "400 bad_request");
+  assert.deepEqual(ran, ["backstories", "backstories"], "the op and who are the endpoint's to check: the key's step was the server's");
+});
+
+test("exit-after-store names a creation's step too", async () => {
+  const { ai, stores, exits } = service({ faults: { exitAfterStore: "traits" } });
+  await ai.answer(put());
+  await ai.answer(post("/v1/backstories", backstoriesRequest("check")));
+  await ai.answer(post("/v1/backstories", backstoriesRequest("traits")));
+
+  assert.deepEqual(exits, [137]);
+  assert.ok(await stores.answers.get(backstoriesRequest("traits").key));
 });
 
 test("a version other than the one served is 409 other_campaign: the docs service has one lore root", async () => {
