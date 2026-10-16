@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/voices.ts:1-156 at 44c6d4a (the GM's voice, not the narrator's or the actors'): it reads a TurnView, the v2 approach's settings are constants (VOICE), its calls go through the request's call context, and a reply is the protocol's Reply (replyOf, for entryOf).
+// Copied from the prototype's src/runtime/voices.ts:1-156 at 44c6d4a (the GM's voice, not the narrator's or the actors'): it reads a TurnView, the v2 approach's settings are constants (VOICE), its calls go through the request's call context, and a reply is the protocol's Reply (replyOf, for entryOf: its people by the game's keys, with the marks the GM drafted).
 
 import { memoryBrief } from "../docs/disclosure.ts";
 import { respond, type CallContext, type Message, type RespondResult } from "../llm/openrouter.ts";
@@ -7,15 +7,13 @@ import type { Reply } from "../../shared/protocol/ai.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { nowNote, sceneBrief, sceneEntries, speakerName } from "./brief.ts";
 import { knowledgeBrief, nameAsKnown, speakersOf } from "./knowledge.ts";
-import { markupOf, parseMarkup, speechIn, withSpeakers, type Mark, type Markup, type MarkupStats } from "./markup.ts";
+import { markupOf, parseMarkup, speechIn, withSpeakers, type Markup, type MarkupStats } from "./markup.ts";
+import type { Drafted } from "./notes.ts";
 import type { TurnView, ViewEntry } from "./view.ts";
 import { workingSet } from "./working-set.ts";
 
 /** The GM's voice as the prototype's v2 approach has it (approaches.ts:79): the docs service's memory, the comic house style, no reasoning, the essentials in its prep. */
 const VOICE = { memory: true, tone: "comic", effort: "none", hideEssentials: false } as const;
-
-/** A mark the GM made as it wrote: where, and what kind (its own note on it is never kept). */
-export type Drafted = Pick<Mark, "start" | "end" | "kind">;
 
 export interface Spoken {
   speaker: string; kind: "narration" | "dialogue";
@@ -74,8 +72,16 @@ async function withoutRepeats(state: TurnView, draft: Spoken, regenerate: (note:
   return { ...second, result: { ...second.result, costUsd: second.result.costUsd + draft.result.costUsd } };
 }
 
-/** What's said, as the protocol's reply: the words the player reads, with the markup beside them when there's any (as entryOf puts it on an entry). */
-export const replyOf = (s: Spoken): Reply => ({ speaker: "gm", kind: "narration", text: s.text, ...(s.marked && (s.marked.speech.length || s.marked.marks.length || s.drafted?.length) ? { markup: { speech: s.marked.speech, marks: [...s.marked.marks] } } : {}) });
+/**
+ * What's said, as the protocol's reply (entryOf): the words the player reads, with the markup beside
+ * them when there's any, its people by the game's keys (`byKey`), and the marks the GM made, for the
+ * notes to be written on.
+ */
+export const replyOf = (s: Spoken, byKey: (markup: Markup) => Markup = m => m): Reply => ({
+  speaker: "gm", kind: "narration", text: s.text,
+  ...(s.marked && (s.marked.speech.length || s.marked.marks.length || s.drafted?.length) ? { markup: byKey({ speech: s.marked.speech, marks: [...s.marked.marks] }) } : {}),
+  ...(s.drafted?.length ? { drafted: s.drafted } : {}),
+});
 
 /**
  * A reply as the GM wrote it, its markup put back: a model writes as its last few replies were

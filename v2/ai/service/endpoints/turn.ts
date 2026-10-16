@@ -1,22 +1,26 @@
 import { keepOpened, disclose } from "../../docs/disclosure.ts";
 import { JEV_MODEL, JevDecider, LUNA_DECISIONS_MODEL } from "../../llm/decide.ts";
 import type { CallContext } from "../../llm/openrouter.ts";
-import { viewOf, type TurnView, type ViewSource } from "../../gm/view.ts";
+import { gameMarkup, keysOf, viewOf, type TurnView, type ViewSource } from "../../gm/view.ts";
 import { workingSet } from "../../gm/working-set.ts";
 import type { OpenedNote } from "../../../shared/gm/state.ts";
+import type { Markup } from "../../../shared/markup.ts";
 import { effectiveScene } from "../../../shared/scene/graph.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import { Failure, type AiContext } from "../context.ts";
 
 /**
  * What every think starts from: the scene the request plays, with its words, as play has it (its
- * patches: none in V0, so it's the authored scene with an ending of its own), and the request's view
- * of it, which the GM code reads as the prototype's session.
+ * patches: none in V0, so it's the authored scene with an ending of its own), the request's view of
+ * it, which the GM code reads as the prototype's session, and the way back from the view's names for
+ * people to the game's keys, for the markup an endpoint answers with (who says each line, whom a
+ * mark is about).
  */
-export function sceneAndView(ctx: AiContext, key: string, source: ViewSource): { scene: Scene; view: TurnView } {
+export function sceneAndView(ctx: AiContext, key: string, source: ViewSource): { scene: Scene; view: TurnView; byKey(markup: Markup): Markup } {
   checkShape(source);
   const scene = effectiveScene(ctx.campaign.scene(key), source.gm.patches);
-  return { scene, view: viewOf(source, scene) };
+  const view = viewOf(source, scene, ctx.campaign.story);
+  return { scene, view, byKey: markup => gameMarkup(markup, scene, view.world, keysOf(source)) };
 }
 
 /** A request missing what every think reads is the sender's mistake (400, which the module doesn't retry), not the model's. */

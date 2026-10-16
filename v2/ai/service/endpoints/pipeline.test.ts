@@ -7,7 +7,7 @@ import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openro
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { Markup } from "../../../shared/markup.ts";
-import type { DecideRequest, Entry, OpenRequest, Outcome, ReplyRequest, SettleRequest, StreamReplyArgs } from "../../../shared/protocol/ai.ts";
+import type { DecideRequest, Entry, NotesRequest, OpenRequest, Outcome, ReplyRequest, SettleRequest, StreamReplyArgs } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -47,12 +47,13 @@ async function setUp(options: FakeOptions = {}) {
   return { store, campaign, fake, posts, contextFor };
 }
 
-/** The opening world as the simulation builds it (buildWorld, joinWorld) and sends it, as rows. */
-function openingRows(gm: GmState, campaign: Awaited<ReturnType<typeof setUp>>["campaign"]): PlaceRows {
+/** The opening world as the simulation builds it (buildWorld, joinWorld) and sends it, as rows; with `others`, people of the place's own (not the cast), by their local ids. */
+function openingRows(gm: GmState, campaign: Awaited<ReturnType<typeof setUp>>["campaign"], others: Record<string, string> = {}): PlaceRows {
   const place = JSON.parse(readFileSync(join(CAERWYN, "places", "granary-yard.json"), "utf8")) as PlaceFile;
   const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
   const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
   joinWorld(world, people, 0);
+  for (const [id, name] of Object.entries(others)) world.entities[id] = { id, name, kind: "person", parent: "lane", tags: [], states: [], notes: [] };
   return worldToRows(world, keysFor("granary-yard", "hanged-clerk", "pc:1"));
 }
 
@@ -180,6 +181,89 @@ test("settle when the reply closed the scene: the world kept in step, no reading
 
   assert.equal(answer.after, undefined);
   assert.deepEqual(fake.asked, ["/api/v1/responses"]);
+});
+
+test("who says each line goes by the game's keys, as the reply streams and once it's whole: the place's own people under the place", async () => {
+  const { campaign, posts, contextFor } = await setUp({ replies: ["[the porter] “Mind your feet.” He shoulders a sack. [Kell] “Out.” (The rope)[why: it's frayed] creaks."], streamMs: 40 });
+  const gm = initialGm({ start: "yard" });
+  const rows = openingRows(gm, campaign, { porter: "the porter" });
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, rows, [opening, said(1)]), decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  const answer = await pipeline.reply(req, contextFor(req.key));
+  const entry = answer.entries[0]!;
+  const speakersOf = (markup: Markup | undefined) => markup?.speech.map(s => s.speaker);
+
+  assert.deepEqual(speakersOf(entry.markup), ["granary-yard/porter", "kell"]);
+  assert.deepEqual(entry.markup!.marks, [], "the GM's own note never reaches the screen");
+  assert.deepEqual(entry.drafted, [{ start: entry.text.indexOf("The rope"), end: entry.text.indexOf("The rope") + 8, kind: "why" }], "where it marked, for the notes");
+  const streamed = posts.filter(p => "some" in p.markup).map(p => speakersOf(JSON.parse((p.markup as { some: string }).some) as Markup));
+  assert.ok(streamed.length >= 2, "the draft is posted as it grows, with its speakers");
+  assert.deepEqual(streamed[0], ["granary-yard/porter"], "coloured before the reply is whole");
+  assert.deepEqual(streamed.at(-1), ["granary-yard/porter", "kell"]);
+});
+
+test("a request's markup by game key is the world's again in the GM's history: the porter is the porter", async () => {
+  const { campaign, fake, contextFor } = await setUp();
+  const gm = initialGm({ start: "yard" });
+  const text = "“Mind your feet.” He glares.";
+  const markup: Markup = { speech: [{ start: 0, end: text.indexOf(" He"), speaker: "granary-yard/porter" }], marks: [{ start: text.indexOf("glare"), end: text.indexOf("glare") + 5, kind: "why", note: "you trod on his sack.", link: { kind: "person", id: "granary-yard/porter" }, card: { title: "The porter", lines: [] } }] };
+  const entries: Entry[] = [{ turn: 0, speaker: "gm", kind: "narration", text, markup }, said(1)];
+  const req: ReplyRequest = { key: `${GAME}:s1:t1:reply`, game, player: { id: "1", name: "Wren Ashdown" }, turn: turnOf(1, gm, openingRows(gm, campaign, { porter: "the porter" }), entries), decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "9" } };
+  await pipeline.reply(req, contextFor(req.key));
+
+  assert.deepEqual(fake.sent[0]!.input!.filter(m => m.role === "assistant").map(m => m.content), ["[the porter] “Mind your feet.” He (glare)[why: you trod on his sack.]s."]);
+});
+
+// --- The notes on a reply's marks.
+
+/** A reply on the transcript after the player's first line: the porter's line (the place's own man), and Kell's; the GM marked the porter's scowl. */
+const NOTED = "The porter scowls. “Not for the watch,” he says. Kell sighs. “He found him at first light.”";
+const at = (words: string) => ({ start: NOTED.indexOf(words), end: NOTED.indexOf(words) + words.length });
+const notedReply: NotesRequest["reply"] = {
+  seq: 3, text: NOTED,
+  speech: [{ ...at("“Not for the watch,”"), speaker: "granary-yard/porter" }, { ...at("“He found him at first light.”"), speaker: "kell" }],
+  drafted: [{ ...at("scowls"), kind: "why" }],
+};
+function notesRequest(campaign: Awaited<ReturnType<typeof setUp>>["campaign"], reply = notedReply): NotesRequest {
+  const gm = initialGm({ start: "yard" });
+  const { line: _, ...turn } = turnOf(1, gm, openingRows(gm, campaign, { porter: "the porter" }), [opening, said(1), { turn: 1, speaker: "gm", kind: "narration", text: reply.text, markup: { speech: reply.speech, marks: [] } }]);
+  return { key: `${GAME}:s1:t1:notes`, game, player: { id: "1", name: "Wren Ashdown" }, turn, reply };
+}
+
+test("notes: written from what the player knows, placed on the reply's words, linked by the game's keys, each link with its card", async () => {
+  const notes = [
+    { on: "M1", words: "scowls", kind: "why", note: "The porter doesn't want the watch in his yard.", turn: 0, lore: "" },
+    { on: "", words: "Kell sighs", kind: "why", note: "Kell has had a long, wet morning of it.", turn: 0, lore: "" },
+  ];
+  const { campaign, fake, contextFor } = await setUp({ byName: { notes: { notes } } });
+  const req = notesRequest(campaign);
+  const answer = await pipeline.notes(req, contextFor(req.key));
+  const asked = fake.sent.find(b => b.text?.format?.name === "notes")!;
+
+  assert.equal(asked.instructions, prompt("notes"));
+  assert.match(asked.input![1]!.content, /Its spoken lines:\nL1 \(the porter\): “Not for the watch,”\nL2 \(Sergeant Agnes Kell\): “He found him at first light\.”/);
+  assert.match(asked.input![1]!.content, /The game master's marks:\nM1 \(why\) on «scowls»/);
+  assert.deepEqual(answer.marks.map(m => [NOTED.slice(m.start, m.end), m.kind, m.note, m.link]), [
+    ["scowls", "why", "The porter doesn't want the watch in his yard.", { kind: "person", id: "granary-yard/porter" }],
+    ["Kell sighs", "why", "Kell has had a long, wet morning of it.", { kind: "person", id: "kell" }],
+  ]);
+  assert.deepEqual(answer.marks[0]!.card, { title: "The porter", lines: ["You met them in this scene.", "Last said to you (turn 1): “Not for the watch,”"] });
+  assert.equal(answer.marks[1]!.card!.title, "Sergeant Agnes Kell");
+  assert.equal(answer.marks[1]!.card!.lines[0], "A sergeant of the Caerwyn city watch, out of the watch house by the granary quarter.", "her public lore's first words, once her name's been heard");
+  assert.equal(answer.marks[1]!.card!.lines.at(-1), "Last said to you (turn 1): “He found him at first light.”");
+  assert.equal(answer.usage.byOperation.notes?.calls, 1);
+});
+
+test("notes: a reply with nothing to note (no spoken line, no mark of the GM's) makes no call, and a model that fails gives none", async () => {
+  const { campaign, fake, contextFor, store } = await setUp();
+  const quiet = notesRequest(campaign, { seq: 3, text: "Rain drips from the hoist.", speech: [], drafted: [] });
+  assert.deepEqual((await pipeline.notes(quiet, contextFor(quiet.key))).marks, []);
+  assert.equal(fake.sent.length, 0);
+
+  const req = notesRequest(campaign);
+  const refusing: typeof fetch = async () => new Response(JSON.stringify({ error: { message: "the model is unwell" } }), { status: 400 });
+  const { calls, usage } = callContext({ fetch: refusing, apiKey: "test" }, folderStores(store), { game: GAME, key: req.key, attempt: 1 });
+  const failed = await pipeline.notes(req, { ...contextFor(req.key), calls, usage });
+  assert.deepEqual(failed.marks, []);
 });
 
 // (Markup on a request's entries reaches the GM's history as written: the speaker's name as the player knows it.)

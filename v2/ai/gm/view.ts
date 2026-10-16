@@ -1,12 +1,13 @@
 import type { Backstory } from "../docs/types.ts";
 import type { RollResult } from "../../shared/dice.ts";
 import type { GmState, OpenedNote, PathStep, ScenePatch, SceneStatus } from "../../shared/gm/state.ts";
-import type { Markup } from "../../shared/markup.ts";
-import type { DecideRequest, Entry, OpenRequest, ReplyRequest, SettleRequest, SheetRow } from "../../shared/protocol/ai.ts";
+import type { MarkLink, Markup } from "../../shared/markup.ts";
+import type { Entry, OpenRequest, SceneContext, SheetRow } from "../../shared/protocol/ai.ts";
 import { unnamed } from "../../shared/scene/names.ts";
 import type { Scene, Skill } from "../../shared/scene/types.ts";
-import { keysFor, rowsToWorld, type PlaceRows } from "../../shared/world/rows.ts";
+import { fullKey, keysFor, localKey, rowsToWorld, type Keys, type PlaceRows } from "../../shared/world/rows.ts";
 import type { SceneWorld } from "../../shared/world/scene-world.ts";
+import type { Story } from "./story.ts";
 
 /**
  * The request as the GM code copied from the prototype reads it (gm-port §3): a TurnView has the
@@ -14,6 +15,11 @@ import type { SceneWorld } from "../../shared/world/scene-world.ts";
  * their bodies and only their inputs change. It's built afresh from each request and thrown away
  * with it; where a copied body writes to it (the repeat guard, disclosure's notes), the endpoint
  * sends back what changed.
+ *
+ * People are named by the world's local ids in a view, as the copied code names them (the scene's
+ * cast by their ids, the place's other people by theirs: "porter"), and by the game's keys in a
+ * request and an answer ("granary-yard/porter"): the markup on a request's entries is mapped in
+ * (localMarkup), and the markup an endpoint answers is mapped back (gameMarkup).
  */
 export interface TurnView {
   /** The game's uid: whose copy of the lore the docs service reads and writes. */
@@ -24,8 +30,10 @@ export interface TurnView {
   turn: number;
   /** The controller's character, from their sheet. */
   player: { name: string; concept: string; modifiers: Partial<Record<Skill, number>>; build?: string; backstory?: Backstory };
-  /** Present when the sheet is a ready-made build: then the table rules are D&D's (sceneBrief), and the GM hears the character's state. */
-  rules?: { status?: string; aliases?: Record<string, string> };
+  /** Present when the sheet is a ready-made build: then the table rules are D&D's (sceneBrief), and the GM hears the character's state. Spells: V7's. */
+  rules?: { status?: string; aliases?: Record<string, string>; spells?: Array<{ name: string }> };
+  /** The story the scene belongs to: the scenes the copied code reads besides this one (gm/story.ts, in place of the prototype's SCENES and sceneById). */
+  story?: Story;
 
   // The GM's bookkeeping (GmState), as the simulation keeps it.
   beat: string;
@@ -57,6 +65,12 @@ export interface TurnView {
   history: Array<{ sceneId: string; exitId: string; summary: string; facts?: string[]; lastMoments?: string[]; journal?: string[] }>;
   adjustments?: string[];
   owed?: Array<{ from: string; id: string; essential: { things?: string[] } }>;
+  /** How the story led into this scene (V3's). */
+  lead?: string;
+  /** What companions have told the player of themselves in talks (V11's). */
+  talks?: Record<string, { count: number; told: Array<{ note: string; topic: string; turn: number }> }>;
+  /** The lines offered last in this scene (only their words are read: none of them again). */
+  suggestions?: { scene: string; turn: number; lines: Array<{ text: string }> };
 
   /** The scene's entries as the prototype has them: the player's lines are "player"'s, the markup is `marked`. */
   transcript: ViewEntry[];
@@ -80,12 +94,17 @@ export interface ViewSource {
 
 export const openSource = (req: OpenRequest): ViewSource => ({ game: req.game.id, scene: { key: req.scene.key, turn: 0 }, pc: req.pc, gm: req.gm, transcript: [], world: req.world, party: req.party });
 
-export const turnSource = (req: DecideRequest | ReplyRequest | SettleRequest): ViewSource => ({ game: req.game.id, scene: req.turn.scene, pc: req.turn.pc, gm: req.turn.gm, transcript: req.turn.transcript, world: req.turn.world, party: req.turn.party });
+/** A turn's think (its TurnContext), or a job beside a turn (the notes, the suggested lines: a SceneContext). */
+export const turnSource = (req: { game: { id: string }; turn: SceneContext }): ViewSource => ({ game: req.game.id, scene: req.turn.scene, pc: req.turn.pc, gm: req.turn.gm, transcript: req.turn.transcript, world: req.turn.world, party: req.turn.party });
 
-/** The view of a request: its bookkeeping copied (the view may be written to), its world rebuilt, its first sheet the player. */
-export function viewOf(source: ViewSource, scene: Scene): TurnView {
+/** How a request's people are named in the game, and in its world: by its place, its scene and its controller's character. */
+export const keysOf = (source: ViewSource): Keys => keysFor(source.world.place.key, source.scene.key, source.pc);
+
+/** The view of a request: its bookkeeping copied (the view may be written to), its world rebuilt, its first sheet the player, the scene's story beside it. */
+export function viewOf(source: ViewSource, scene: Scene, story?: Story): TurnView {
   const sheet = source.party[0]!;
   const gm = structuredClone(source.gm);
+  const keys = keysOf(source);
   const view: TurnView = {
     id: source.game, sceneId: source.scene.key, turn: source.scene.turn,
     player: { name: sheet.name, concept: sheet.concept, modifiers: { ...sheet.skills }, ...(sheet.build ? { build: sheet.build } : {}) },
@@ -96,15 +115,39 @@ export function viewOf(source: ViewSource, scene: Scene): TurnView {
     oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered, ...(gm.repeated !== undefined ? { repeated: gm.repeated } : {}),
     canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered, absent: gm.absent,
     rulings: [], fought: [], history: [],
-    transcript: source.transcript.map(entryOf),
-    world: rowsToWorld(source.world, keysFor(source.world.place.key, source.scene.key, source.pc)),
+    transcript: source.transcript.map(e => entryOf(e, keys)),
+    world: rowsToWorld(source.world, keys),
+    ...(story ? { story } : {}),
   };
   // As the prototype sets them at each turn's start (engine.ts:470): what the player calls those whose names they haven't heard.
   if (sheet.build) view.rules = { ...(sheet.status ? { status: sheet.status } : {}), aliases: unnamed(scene, view) };
   return view;
 }
 
-/** A request's entry as the prototype's: the player's lines are "player"'s (V0 has one), the markup is `marked`. */
-function entryOf(e: Entry): ViewEntry {
-  return { turn: e.turn, speaker: e.speaker.startsWith("player:") ? "player" : e.speaker, kind: e.kind, text: e.text, ...(e.markup ? { marked: e.markup } : {}) };
+/** A request's entry as the prototype's: the player's lines are "player"'s (V0 has one), the markup is `marked`, by the world's ids. */
+function entryOf(e: Entry, keys: Keys): ViewEntry {
+  return { turn: e.turn, speaker: e.speaker.startsWith("player:") ? "player" : e.speaker, kind: e.kind, text: e.text, ...(e.markup ? { marked: localMarkup(e.markup, keys) } : {}) };
+}
+
+/** Markup by the game's keys as the copied code reads it: speakers and the people marks link to by the world's ids. Cards are dropped: nothing in the copied code reads one. */
+export function localMarkup(markup: Markup, keys: Keys): Markup {
+  const local = (key: string) => (key === "you" ? key : localKey(key, keys));
+  return {
+    speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: local(s.speaker) } : s)),
+    marks: markup.marks.map(({ card: _, ...m }) => (m.link?.kind === "person" ? { ...m, link: { kind: "person" as const, id: local(m.link.id) } } : m)),
+  };
+}
+
+/**
+ * Markup by the world's ids, as the game keeps it: the scene's cast by their ids, the place's other
+ * people under the place ("granary-yard/porter"), the player's own words "you". Someone the world
+ * hasn't got (one of the cast away) keeps the id they have.
+ */
+export function gameMarkup(markup: Markup, scene: Scene, world: SceneWorld | undefined, keys: Keys): Markup {
+  const game = (id: string) => (id === "you" || scene.cast.some(c => c.id === id) || !world?.entities[id] ? id : fullKey(id, world.entities[id], keys));
+  const link = (l: MarkLink): MarkLink => (l.kind === "person" ? { kind: "person", id: game(l.id) } : l);
+  return {
+    speech: markup.speech.map(s => (s.speaker ? { ...s, speaker: game(s.speaker) } : s)),
+    marks: markup.marks.map(m => (m.link ? { ...m, link: link(m.link) } : m)),
+  };
 }
