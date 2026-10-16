@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/town.ts at 44c6d4a, all but 465-490 (the action menu's: V10). The seams: the game and the session become the ExploreState (made from rows: rows.ts exploreOf) and the names the player hasn't heard (`unheard`, asHeard's pairs: the prototype's unheardNames); the `town` explorer's actions and act are functions over them, and its observe is the client's (it draws: townText). What a move says is the simulation's to keep (the explore row's said and log: the prototype's note and town log). Cut: talks with someone walking with you (talkable: V11), the action menu (V10), fights on the map (afterFight: V12), townOf and exploreState (exploreOf builds the state), and the explorer's enterScene, leaveScene and afterScene (the simulation's: explore.ts's enterScene and leaveScene, and the log cleared after a scene); pickUp says what to take (Done.take) for the simulation to move into the character's pockets; an id not on offer throws Unavailable. Kept from K's stub: Action, Unheard, Done, Unavailable. leadWords is exported (the client's observe uses it). ES2021: the probes are JSON copies.
+// Copied from the prototype's src/game/town.ts at 44c6d4a, all but 465-490 (the action menu's: V10). The seams: the game and the session become the ExploreState (made from rows: rows.ts exploreOf) and the names the player hasn't heard (`unheard`, asHeard's pairs: the prototype's unheardNames); the `town` explorer's actions and act are functions over them, and its observe is the client's (it draws: townText). What a move says is the simulation's to keep (the explore row's said and log: the prototype's note and town log). Cut: talks with someone walking with you (talkable: V11), the action menu (V10), fights on the map (afterFight: V12), townOf and exploreState (exploreOf builds the state), and the explorer's enterScene, leaveScene and afterScene (the simulation's: explore.ts's enterScene and leaveScene, and the log cleared after a scene); pickUp says what to take (Done.take) for the simulation to move into the character's pockets; an id not on offer throws Unavailable. One fix: a way out shut at this hour (the Rat's door before dusk, the palace gate) says so to travel_<way> and the e key as it does to a step into it, where the prototype's went through (use: shutWay). Kept from K's stub: Action, Unheard, Done, Unavailable. leadWords is exported (the client's observe uses it). ES2021: the probes are JSON copies.
 import { asHeard } from "../scene/names.ts";
 import {
   actorsAt, actorsHere, exitLabel, interact, look, lookAt, move, pathTo, travel, tileName, walkPlan, type ExploreState,
@@ -6,6 +6,7 @@ import {
 import { getMap } from "./maps.ts";
 import { PLACES, regionForScene } from "./places.ts";
 import { isLive, leadMarker, regionOpen } from "./presence.ts";
+import { bumpLine } from "./quips.ts";
 import { direction, inRect, isDoorway, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
 
@@ -283,12 +284,23 @@ function use(ex: ExploreState, i: Interaction, actor?: MapActor): Done {
     return { text: near ? `${i.text} ${capital(leadWords(lead, ex.at))}: that's where the story's heading.` : i.text };
   }
   if (i.kind === "travel") {
+    // v2: a way out shut at this hour (the Rat's door before dusk, the palace gate) says so, as a step into it does (the prototype's went through).
+    const shut = shutWay(ex, i);
+    if (shut) return { text: bumpLine(ex, { kind: "shut", line: shut }) };
     const r = travel(ex, i.to, i.label);
     return { text: r.message ?? "", ...(sceneOpens(ex, r.trigger) ? { scene: true } : {}) };
   }
   // "Talk to Sergeant Kell" is what the player chose; what happens is "You go over to Sergeant Kell."
   if (sceneOpens(ex, i)) return { text: i.verb === "talk" && actor ? `You go over to ${actor.name}.` : `You ${i.label.charAt(0).toLowerCase()}${i.label.slice(1)}.`, scene: true };
   return { text: `${actor ? capital(actor.name) : "That"} will keep. The story is heading elsewhere for now.` };
+}
+
+/** v2: what a way out on this map says when it's shut at this hour (the region whose time opens it, as move() finds it), if it is. */
+function shutWay(ex: ExploreState, i: Extract<Interaction, { kind: "travel" }>): string | undefined {
+  const map = getMap(ex.map);
+  const exit = map.exits.find(e => e.label === i.label && e.to.map === i.to.map && e.to.at.x === i.to.at.x && e.to.at.y === i.to.at.y);
+  const gate = exit ? (map.regions as PlaceRegion[]).filter(r => r.shut && inRect(r.rect, exit.at)).sort((a, b) => a.rect.w * a.rect.h - b.rect.w * b.rect.h)[0] : undefined;
+  return gate && !regionOpen(ex.story, gate) ? gate.shut : undefined;
 }
 
 /** Walk up to a target (beside it, or onto it), then use it if asked. */

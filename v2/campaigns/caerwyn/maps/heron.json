@@ -1,0 +1,61 @@
+{
+  "id": "heron",
+  "name": "The Heron Warehouse",
+  "grid": [
+    "KKKKKKKKKKKKKKKKKKKKKKK",
+    "_______________________",
+    "________NNNNNNNNNNNNwww",
+    "________NFFFFFFgcccNwww",
+    "________NFFFFFFgcccNwww",
+    "________DFFFFFFgcccNwww",
+    "________DFFFFFFgsggNwww",
+    "________NFFFFFFFFFFNwww",
+    "________NFFFFFFFFFFNwww",
+    "________NFFFFFFFFFFNwww",
+    "~~~~~~~=NFFFFFFFFFFN~~~",
+    "~wwwwww=NFFFFFFFFFFNwww",
+    "~wwwwww=NFFFFFFFFFFNwww",
+    "~wwwwww=NNNNNrNNNNNNwww",
+    "~wwwwww========wwwwwwww",
+    "~wwwwwwwwuu=uuuuuuuwwww",
+    "~wwwwwwwwubbobbobbuwwww",
+    "~wwwwwwwwuuuuuuuuuuwwww",
+    "~wwwwwwwwwwwwwwwwwwwwww"
+  ],
+  "legend": {
+    "_": { "terrain": "boards" },
+    "~": { "terrain": "water" },
+    "w": { "terrain": "deep-water" },
+    "=": { "terrain": "bridge" },
+    "K": { "terrain": "wall", "style": "bank", "height": 2 },
+    "N": { "terrain": "wall", "style": "tar", "height": 4 },
+    "D": { "terrain": "door", "style": "tar", "height": 4, "blocks": true },
+    "r": { "terrain": "door", "style": "tar", "height": 4, "blocks": true },
+    "F": { "terrain": "boards", "roof": "tar", "roofHeight": 4 },
+    "g": { "terrain": "window", "style": "panel", "height": 2 },
+    "s": { "terrain": "door", "style": "panel", "height": 2 },
+    "c": { "terrain": "floor", "roof": "panel", "roofHeight": 2 },
+    "u": { "terrain": "fence", "style": "hull", "height": 1 },
+    "b": { "terrain": "boards" },
+    "o": { "terrain": "boards", "decor": { "name": "an open hatch", "glyph": "▦", "color": "#3a2a1a", "text": "An open hatch into the barge's hold, half full of sacks with herons on." } }
+  },
+  "regions": [
+    { "id": "heron", "name": "the Heron", "rect": { "x": 0, "y": 0, "w": 23, "h": 19 }, "sceneId": "heron-warehouse", "worldOrigin": { "x": 2, "y": 1 }, "trigger": "enter", "label": "Creep along the wharf to the Heron", "description": "A tall, tarred timber warehouse standing half on the wharf and half on piles over the river, with a painted heron on its signboard." },
+    { "id": "heron-wharf-end", "name": "the wharf outside the Heron", "rect": { "x": 0, "y": 1, "w": 8, "h": 9 }, "description": "The end of the wharf, where the lamps give out: the watchman's sentry box and brazier by the land door, and the dark." },
+    { "id": "heron-floor", "name": "the re-sacking floor", "rect": { "x": 9, "y": 3, "w": 10, "h": 10 }, "description": "One long floor lit by lanterns and thick with grain dust, which hangs in the light like fog." },
+    { "id": "counting-box", "name": "the counting-box", "rect": { "x": 16, "y": 3, "w": 3, "h": 3 }, "description": "A glass-sided box up a short stair, over the floor: a desk, a lamp, and the true book under a clerk's hand." },
+    { "id": "plank-walk", "name": "the plank walk", "rect": { "x": 7, "y": 10, "w": 8, "h": 5 }, "description": "A slippery plank walk on the piles, round to the river door. The river runs fast and black underneath." },
+    { "id": "patience", "name": "the barge Patience", "rect": { "x": 9, "y": 15, "w": 10, "h": 3 }, "description": "The Saltmere barge Patience, broad and low, hatches open, waiting for the ebb. She waits for no one." }
+  ],
+  "exits": [
+    { "at": { "x": 0, "y": 1 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 2 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 3 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 4 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 5 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 6 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 7 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 8 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" },
+    { "at": { "x": 0, "y": 9 }, "to": { "map": "caerwyn", "at": { "x": 50, "y": 38 } }, "label": "Back along the wharves" }
+  ]
+}
