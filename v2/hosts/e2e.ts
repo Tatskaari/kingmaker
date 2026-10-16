@@ -1,22 +1,27 @@
-import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
-import { connect, type Connection, type RowOp, type Watched } from "../client/net/connection.ts";
 import type { SceneRows } from "../client/scene/rows.ts";
 import { idempotencyKey, type Step } from "../shared/protocol/keys.ts";
-import { run } from "./dev/child.ts";
 import { reportLines } from "./dev/doctor.ts";
 import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
+import { aConceptToTheOpening, checksBesideAStream, continueAndDelete, creationFake, restartedMidBuilds, theCeiling, type Game } from "./e2e/creation.ts";
+import {
+  aiLog, check, doneTurn, elapsed, escaped, Failed, millis, modelCalls, moduleLog, nextTurn, ok, pause, player, restartAi, seconds, step,
+  turnOf, until, type Player,
+} from "./e2e/kit.ts";
 
 /**
- * The end to end test (v0-design §10.4): a line in a scene through every part. A real SpacetimeDB
- * with the module, the AI service as a node process on the fake model, and two clients on the
- * client's own connection, recording every row event they see; then the AI service killed mid-reply
- * and restarted mid-reply (as the dev host's k and r), the AI service gone after it kept an answer,
- * and SpacetimeDB restarted mid-think. Host mode in CI; namespace mode where 11.0.0.1 isn't this
- * machine's.
+ * The end to end test (v0-design §10.4, v1-design §4.3): a line in a scene, and a character made
+ * from a concept, through every part. A real SpacetimeDB with the module, the AI service as a node
+ * process on the fake model, and clients on the client's own connection, recording every row event
+ * they see. V0's steps: the AI service killed mid-reply and restarted mid-reply (as the dev host's
+ * k and r), the AI service gone after it kept an answer, SpacetimeDB restarted mid-think, an
+ * ending. V1's (e2e/creation.ts): a concept to the opening, the AI service gone after it kept the
+ * lore check, SpacetimeDB restarted while the builds are made, a character made and checks rolled
+ * beside another game's stream, the daily ceiling, continue and delete. Host mode in CI; namespace
+ * mode where 11.0.0.1 isn't this machine's.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -43,22 +48,13 @@ const FAKE: FakeOptions = {
 const NEW_GAME = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" };
 const NOTE = "The GM has lost the thread for a moment: trying again.";
 
-/** A client and every row event it has seen, in the order it saw them. */
-interface Player { name: string; conn: Connection; events: Array<{ table: Watched; op: RowOp; row: any }> }
-
-/** The game the steps play: its row id, its uid (in every key and the AI service's folders) and its scene. */
-interface Game { id: bigint; uid: string; scene: bigint }
-
-/** A check that didn't pass, in the words of what it looked for. */
-class Failed extends Error {}
-
 const flags = flagsOf(process.argv.slice(2));
-const began = performance.now();
 
-console.log(`The e2e: a line in a scene, end to end (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
+console.log(`The e2e: a line in a scene and a character made, end to end (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
 const stack = await startStack({
   root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
-  model: "fake", fake: FAKE, fresh: true, log: line => console.log(`  … ${line}`),
+  // The ceiling pinned at its default, whatever this shell says: step 14 spends past it.
+  model: "fake", fake: FAKE, fresh: true, aiEnv: { KM_AI_DAILY_USD: "5" }, log: line => console.log(`  … ${line}`),
 }).catch((error: unknown) => {
   console.error(`\n✗ the stack didn't start: ${error instanceof Error ? error.message : String(error)}\nFAIL`);
   process.exit(1);
@@ -76,6 +72,13 @@ try {
   await keptAnswer(stack, a, game);
   await spacetimeRestarted(stack, a, game);
   await anEnding(stack, a, b, game);
+
+  const fake = creationFake(FAKE);
+  const made = await aConceptToTheOpening(stack, flags.root, a, b, fake);
+  await restartedMidBuilds(stack, flags.root, a, fake);
+  await checksBesideAStream(stack, a, fake);
+  await theCeiling(stack, flags.root, a, fake);
+  await continueAndDelete(stack, a, b, game.id, made);
   await latencies(stack);
 
   a.conn.close();
@@ -88,7 +91,7 @@ try {
   await stack.down();
 }
 
-console.log(passed ? `\nPASS: every step, in ${seconds(performance.now() - began)}` : "\nFAIL");
+console.log(passed ? `\nPASS: every step, in ${elapsed()}` : "\nFAIL");
 process.exit(passed ? 0 : 1);
 
 // ---------------------------------------------------------------------------------------------
@@ -155,7 +158,7 @@ async function killedMidReply(stack: Stack, a: Player, game: Game): Promise<void
   const attempts = [...new Set(a.events.filter(e => e.table === "reply_draft" && e.op !== "delete" && e.row.turnId === turn).map(e => e.row.attempt as number))];
   check(`the draft started again as a later attempt (attempts ${attempts.join(", ")})`, Math.max(...attempts) >= 2);
   check("the turn has one GM entry", rows.transcript.filter(t => t.turn === n && t.speaker === "gm").length === 1);
-  const replies = modelCalls(game, "gm.reply", keyOf(game, n, "reply"));
+  const replies = callsFor(game, "gm.reply", keyOf(game, n, "reply"));
   check(`gm.reply was asked ${replies} times for the reply's key: the killed one, and the one that finished`, replies === 2);
 }
 
@@ -183,8 +186,8 @@ async function restartedMidReply(stack: Stack, a: Player, game: Game): Promise<v
   check(`the reply came from its first attempt (draft attempts ${attempts.join(", ")})`, attempts.length === 1 && attempts[0] === 1);
   check("the turn had no note while the reply was written", !seen.some(e => e.row.phase === "replying" && e.row.note));
   const key = keyOf(game, n, "reply");
-  check("the AI service sent the reply it finished: attempt 1 answered 200, and no other", new RegExp(`reply ${escaped(key)} attempt 1: 200 in`).test(aiLog()) && !new RegExp(`reply ${escaped(key)} attempt [2-9]`).test(aiLog()));
-  check("gm.reply was asked once for the reply's key", modelCalls(game, "gm.reply", key) === 1);
+  check("the AI service sent the reply it finished: attempt 1 answered 200, and no other", new RegExp(`reply ${escaped(key)} attempt 1: 200 in`).test(aiLog(flags.root)) && !new RegExp(`reply ${escaped(key)} attempt [2-9]`).test(aiLog(flags.root)));
+  check("gm.reply was asked once for the reply's key", callsFor(game, "gm.reply", key) === 1);
 }
 
 /** 6. The AI service exits right after it stores the settle's answer: started again, it answers from the store. */
@@ -200,8 +203,8 @@ async function keptAnswer(stack: Stack, a: Player, game: Game): Promise<void> {
 
   await doneTurn(a, n);
   const key = keyOf(game, n, "settle");
-  check("the AI service answered the settle from its store", new RegExp(`settle ${escaped(key)} attempt \\d+: 200 from the store`).test(aiLog()));
-  const staged = modelCalls(game, "world.stage", key);
+  check("the AI service answered the settle from its store", new RegExp(`settle ${escaped(key)} attempt \\d+: 200 from the store`).test(aiLog(flags.root)));
+  const staged = callsFor(game, "world.stage", key);
   check(`world.stage was asked ${staged} time for the settle's key`, staged === 1);
 }
 
@@ -221,7 +224,7 @@ async function spacetimeRestarted(stack: Stack, a: Player, game: Game): Promise<
   await doneTurn(a, n, 60_000 - (performance.now() - said));
   ok(`${seconds(performance.now() - said)} from the line to the turn's end, A's connection back by itself`);
 
-  const asked = modelCalls(game, "director.before", keyOf(game, n, "decide"));
+  const asked = callsFor(game, "director.before", keyOf(game, n, "decide"));
   check(`director.before was asked ${asked} time for the decide's key`, asked === 1);
   check("the module logged the decide re-dispatched after its deadline", /re-dispatched after its deadline/.test(await moduleLog(stack)));
 }
@@ -239,70 +242,26 @@ async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise
   const rows = await until(a, "the scene to end", 60_000, r => r.scene.status === "ended" && r);
   const last = [...rows.transcript].sort((x, y) => x.seq - y.seq).at(-1)!;
   check(`"${last.text}" closes the transcript`, last.kind === "system" && last.text === "Scene ends: The case is made");
-  check("the GM closed it with gm.closing", modelCalls(game, "gm.closing", keyOf(game, n, "reply")) === 1);
+  check("the GM closed it with gm.closing", callsFor(game, "gm.closing", keyOf(game, n, "reply")) === 1);
   check("a further line is refused: scene_over", (await a.conn.say("Wait!"))?.code === "scene_over");
   await until(b, "B to see the scene end", 10_000, r => r.scene.status === "ended");
   ok("B saw it end too");
 }
 
-/** 9. Each turn's first words and its end, from the turn rows. */
+/** 16. Each turn's first words and its end, from the turn rows, game by game. */
 async function latencies(stack: Stack): Promise<void> {
-  step("9. Each turn's first words, from the turn rows");
-  const turns = (await stack.sql("SELECT * FROM turn")).sort((x, y) => Number(x.n) - Number(y.n));
+  step("16. Each turn's first words, from the turn rows");
+  const turns = (await stack.sql("SELECT * FROM turn")).sort((x, y) => Number(x.game_id) - Number(y.game_id) || Number(x.n) - Number(y.n));
   for (const t of turns) {
     const from = Number(t.started_at);
     const first = t.first_text_at === null ? "no text" : `first words ${millis(Number(t.first_text_at) - from)}`;
     const done = t.ended_at === null ? "" : `, done ${millis(Number(t.ended_at) - from)}`;
-    console.log(`  turn ${t.n}: ${first}${done} (${t.phase}, ${t.calls} model calls)`);
+    console.log(`  game ${t.game_id} turn ${t.n}: ${first}${done} (${t.phase}, ${t.calls} model calls)`);
   }
 }
 
 // ---------------------------------------------------------------------------------------------
-// Players, and waiting on their rows.
-
-async function player(stack: Stack, name: string): Promise<Player> {
-  const conn = await connect({ url: stack.ws, db: stack.db });
-  const events: Player["events"] = [];
-  conn.onEvent((table, op, row) => events.push({ table, op, row }));
-  return { name, conn, events };
-}
-
-/** Resolves with what `test` finds in the player's rows, once it finds it; a Failed after `ms`. */
-function until<T>(p: Player, what: string, ms: number, test: (rows: SceneRows) => T | undefined | null | false | 0): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const look = () => {
-      const rows = p.conn.rows();
-      const found = rows && test(rows);
-      if (!found) return;
-      clearTimeout(timer);
-      stop();
-      resolve(found);
-    };
-    const timer = setTimeout(() => { stop(); reject(new Failed(`${p.name} waited ${seconds(ms)} for ${what}; its last turn: ${JSON.stringify(lastTurn(p), bigints)}`)); }, Math.max(ms, 0));
-    const stop = p.conn.onChange(look);
-    look();
-  });
-}
-
-/** Turn n done: its rows once it is; a Failed at once if it fails instead. */
-async function doneTurn(p: Player, n: number, ms = 60_000): Promise<SceneRows> {
-  const rows = await until(p, `turn ${n} to finish`, ms, r => ["done", "failed"].includes(turnOf(r, n)?.phase ?? "") && r);
-  const turn = turnOf(rows, n)!;
-  check(`turn ${n} done`, turn.phase === "done");
-  return rows;
-}
-
-function turnOf(rows: SceneRows, n: number) {
-  return rows.turns.find(t => t.n === n);
-}
-
-function lastTurn(p: Player) {
-  return p.conn.rows()?.turns.reduce<SceneRows["turns"][number] | undefined>((a, t) => (!a || t.n > a.n ? t : a), undefined);
-}
-
-function nextTurn(p: Player): number {
-  return (lastTurn(p)?.n ?? 0) + 1;
-}
+// What the steps read.
 
 /** A turn's row events as both clients should see them, in order: its phases, the draft's posts, its entries. */
 function turnEvents(events: Player["events"], n: number): string[] {
@@ -315,15 +274,6 @@ function turnEvents(events: Player["events"], n: number): string[] {
   });
 }
 
-// ---------------------------------------------------------------------------------------------
-// The stack: the AI service restarted with other options, the logs, the call log.
-
-/** The AI service stopped (SIGTERM: what's in flight finishes) and started with the fake model's options and anything else. */
-async function restartAi(stack: Stack, fake: FakeOptions, env: Record<string, string> = {}): Promise<void> {
-  await stack.ai.stop();
-  await stack.ai.start({ KM_AI_FAKE: JSON.stringify(fake), ...env });
-}
-
 /** The game's uid and scene, which every idempotency key names. */
 async function gameOf(stack: Stack, rows: SceneRows): Promise<Game> {
   const [game] = await stack.sql(`SELECT uid FROM game WHERE id = ${rows.game.id}`);
@@ -334,61 +284,13 @@ function keyOf(game: Game, n: number, step: Step): string {
   return idempotencyKey(game.uid, game.scene, n, step);
 }
 
-/** How many times the AI service asked the model for `operation` under a key: the call log's lines as each call went out. */
-function modelCalls(game: Game, operation: string, key: string): number {
-  const path = join(flags.root, "ai", "games", game.uid, "calls.jsonl");
-  if (!existsSync(path)) return 0;
-  return readFileSync(path, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as { key?: string; operation?: string; started?: string })
-    .filter(c => c.started && c.operation === operation && c.key === key).length;
-}
-
-function aiLog(): string {
-  return readFileSync(join(flags.root, "logs", "ai.log"), "utf8");
-}
-
-/** The module's own log (console.info in the module), through the stack's CLI config. */
-async function moduleLog(stack: Stack): Promise<string> {
-  const { cli, db } = stack.file();
-  const { stdout, stderr } = await run(cli.bin, ["--config-path", cli.config, "logs", db, "-s", cli.server, "--no-config"]);
-  return `${stdout}${stderr}`;
+/** How many times the AI service asked the model for `operation` under a key of the game's. */
+function callsFor(game: Game, operation: string, key: string): number {
+  return modelCalls(flags.root, game.uid, operation, key);
 }
 
 // ---------------------------------------------------------------------------------------------
-// Saying how it went.
-
-function step(title: string): void {
-  console.log(`\n${title} (${seconds(performance.now() - began)})`);
-}
-
-function ok(what: string): void {
-  console.log(`  ✓ ${what}`);
-}
-
-function check(what: string, passes: boolean): void {
-  if (!passes) throw new Failed(what);
-  ok(what);
-}
-
-function pause(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-function seconds(ms: number): string {
-  return `${(ms / 1000).toFixed(1)} s`;
-}
-
-function millis(micros: number): string {
-  return `${Math.round(micros / 1000)} ms`;
-}
-
-function escaped(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** JSON.stringify's replacer for rows: a u64 as its digits. */
-function bigints(_key: string, value: unknown): unknown {
-  return typeof value === "bigint" ? String(value) : value;
-}
+// Flags.
 
 function flagsOf(argv: string[]): { port: number; aiPort: number; root: string; mode?: Mode } {
   const { values } = parseArgs({ args: argv, options: { port: { type: "string" }, "ai-port": { type: "string" }, root: { type: "string" }, mode: { type: "string" }, help: { type: "boolean" } } });
