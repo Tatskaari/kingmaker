@@ -1,6 +1,6 @@
 # The dev stack
 
-`npm run dev` runs v2 on one machine: SpacetimeDB with the module published, the AI service, and the campaign installed in both. Then it checks that each service can reach the other, and gives you keys to break and mend the AI service while you play. The blueprint is `v0-design` §1.1 and §9.
+`npm run dev` runs v2 on one machine: SpacetimeDB with the module published, the AI service, and the campaign installed in both. Then it checks that each service can reach the other, and gives you keys to break and mend the AI service while you play. The blueprint is `v0-design` §1.1 and §9, and for the fake model `v5-design` §3.10.
 
 ```sh
 cd v2 && npm ci
@@ -44,7 +44,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 - **The suggested lines** come 2.8 s after each reply, as the prototype's did live: nine lines, of which four are offered each time (two to say, a deed, a risky try), since the lines offered last time are screened out, and so is one you've just said. A way out joins them after four lines. A line said before a reply's lines come leaves them behind: the next set is offered against the one before.
 - **Every model call streams** over 2 s: the reply, so you see it written, and the stage manager, the notes and the lines too. The notes wait 1.5 s more, and the lines 0.8 s.
 
-`KM_AI_FAKE`'s options go on top of the file's, key by key: `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines. The e2e passes its own options.
+`KM_AI_FAKE`'s options go on top of the file's, key by key: `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines. The e2e plays the file too, with its own holds on top where a step needs the notes or the lines late.
 
 ## Host mode and namespace mode
 
