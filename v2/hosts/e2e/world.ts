@@ -21,8 +21,8 @@ const casting = (fake: FakeOptions, spell: string, at: string): FakeOptions => o
 /** The place's tables, as the client watches them (net/connection.ts): the world's rows. */
 const PLACE = new Set(["place", "entity", "position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "world_log"]);
 
-/** What the world bridge's steps share: the wizard's game, and where both players' events stood when B joined it. */
-export interface WorldGame { game: Game; from: { a: number; b: number } }
+/** What the world bridge's steps share: the wizard's game, its place, and where both players' events stood when B joined it. */
+export interface WorldGame { game: Game; place: bigint; from: { a: number; b: number } }
 
 /**
  * 26. Before the GM speaks: Magic Missile at the hoist rope. The dice rows (the cast, the darts, the
@@ -37,6 +37,7 @@ export async function beforeTheGmSpeaks(stack: Stack, root: string, a: Player, b
   check("B's join_game is made", (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the scene and its place", 10_000, r => r.game.id === game.id && r.scene.status === "live" && !!r.place && !!b.conn.view()?.place);
   check("A's view has the yard from its rows: Prout's body hanging from the hoist rope", worldOf(a).entities.prout?.states.includes("hanging") === true);
+  const place = a.conn.rows()!.place!.place.id;
   const from = { a: a.events.length, b: b.events.length };
 
   const n = nextTurn(a);
@@ -70,7 +71,7 @@ export async function beforeTheGmSpeaks(stack: Stack, root: string, a: Player, b
   const view = a.conn.view()!;
   check(`Cob is gone from the place and off the stage (on stage: ${view.present.map(p => p.key).join(", ")}); Moll ${world.entities.moll?.states.join(", ")}`,
     !!world.entities.cob?.states.includes("gone") && !view.present.some(p => p.key === "cob") && !!world.entities.moll?.states.includes("cowering"));
-  return { game, from };
+  return { game, place, from };
 }
 
 /**
@@ -147,17 +148,20 @@ export async function keptReactions(stack: Stack, root: string, a: Player, { gam
 }
 
 /**
- * 30. Row for row: every event on the place's tables that B, the spectator, saw since joining is the
- * lead's, in the same order (V0's comparison, over the world's rows). Then the module's times for the
- * rules' work, as it logged them.
+ * 30. Row for row: every event on the place's tables, for this scene's place, that B, the spectator,
+ * saw since joining is the lead's, in the same order (V0's comparison, over the world's rows; B's
+ * own subscriptions coming and going, a place it watched before, aren't the place's). Then the
+ * module's times for the rules' work, as it logged them.
  */
-export async function rowForRow(stack: Stack, a: Player, b: Player, { from }: WorldGame): Promise<void> {
+export async function rowForRow(stack: Stack, a: Player, b: Player, { place, from }: WorldGame): Promise<void> {
   step("30. The spectator's world, row for row the lead's");
   const n = nextTurn(a) - 1;
   await until(b, `B to see turn ${n} done`, 10_000, r => turnOf(r, n)?.phase === "done");
-  const world = (p: Player, i: number) => p.events.slice(i).filter(e => PLACE.has(e.table)).map(e => `${e.table} ${e.op} ${JSON.stringify(e.row, bigints)}`);
+  const here = (table: string, row: any) => (table === "place" ? row.id : row.placeId) === place;
+  const world = (p: Player, i: number) => p.events.slice(i).filter(e => PLACE.has(e.table) && here(e.table, e.row)).map(e => `${e.table} ${e.op} ${JSON.stringify(e.row, bigints)}`);
   const seenA = world(a, from.a), seenB = world(b, from.b);
-  check(`A and B saw the same ${seenA.length} row events on the place's tables`, seenA.length > 20 && JSON.stringify(seenA) === JSON.stringify(seenB));
+  const first = seenA.findIndex((e, i) => e !== seenB[i]);
+  check(`A and B saw the same ${seenA.length} row events on the place's tables${first >= 0 ? ` (they part at ${first}: A ${seenA[first]?.slice(0, 160)}; B ${seenB[first]?.slice(0, 160)})` : ""}`, seenA.length > 20 && first < 0 && seenA.length === seenB.length);
   const log = (await moduleLog(stack)).split("\n").filter(l => /\[rules\] (act|first)/.test(l)).map(l => l.replace(/^.*?\[rules\]/, "[rules]"));
   for (const line of log) note(line);
 }
