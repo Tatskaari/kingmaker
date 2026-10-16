@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { After, Decision, DecideResponse, SettleResponse, Suggestion, SuggestRequest, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
 import { idText, keyParts } from "../../../shared/protocol/keys.ts";
 import type { MemoryHost } from "../host/memory.ts";
-import { all, DEFAULTS, down, held, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
+import { all, DEFAULTS, down, held, http, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
 import { queueThink } from "../jobs.ts";
 import { suggest } from "./suggest.ts";
 
@@ -161,6 +161,34 @@ test("set_suggestions asks for nothing when this moment has its lines, nor for a
   const players = all(host.db.player).map(p => [p.role, p.suggestions]);
   assert.deepEqual(players, [["host", true], ["spectator", true]]);
   assert.equal(all(host.db.job).length, 0, "a spectator leads nothing: no lines asked for");
+});
+
+test("turned on while a turn waits for /retry after its settle failed, this moment's lines are asked for at once (its reply is in); not for a turn that failed before its reply", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const turn = (n: number) => sceneNow(host, scene.id).turns[n]!;
+  const asks = () => all(host.db.job).filter(j => j.move === "suggest").length;
+  host.as(wren).setSuggestions({ on: false });
+  script.then("settle", http(400));
+  host.as(wren).say({ text: "Sergeant." });
+  await host.drain();
+  assert.deepEqual([turn(1).phase, turn(1).suggest], ["failed", "none"], "off at the reply: none asked for");
+
+  assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
+  assert.deepEqual([turn(1).suggest, turn(1).suggestAsks, asks()], ["coming", 1, 1]);
+  await host.drain();
+  assert.deepEqual(setOf(host, scene.id), asSet(1, DEFAULTS.suggest.lines), "they land while the turn waits, as lines asked for at the reply would");
+
+  assert.equal(host.as(wren).retryTurn({ turn: turn(1).id }), undefined);
+  await host.drain();
+  assert.deepEqual([turn(1).phase, turn(1).suggest, script.to("suggest").length], ["done", "landed", 2], "the retried settle asks for none again");
+  assert.deepEqual(setOf(host, scene.id), asSet(1, DEFAULTS.suggest.lines));
+
+  host.as(wren).setSuggestions({ on: false });
+  script.then("decide", http(400));
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
+  assert.deepEqual([turn(2).phase, turn(2).suggest, asks()], ["failed", "none", 0], "no reply yet: no lines to follow it, until its retry's reply asks");
 });
 
 test("lines that can't be had are given up after 60 s: the moment has none, and nothing is said on the turn", async () => {

@@ -1,7 +1,8 @@
 import type { Identity } from "spacetimedb";
 import { refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, Refused, type TxCtx } from "../context.ts";
-import { playerRow, sceneOfPlayer, type PlayerRow } from "../rows.ts";
+import { failedJobOf } from "../jobs.ts";
+import { playerRow, sceneOfPlayer, type PlayerRow, type TurnRow } from "../rows.ts";
 import { latestTurnOf } from "../turns.ts";
 import { askForLines, hasLinesFor, sceneOver } from "./suggest.ts";
 
@@ -29,8 +30,8 @@ function seatedPlayer(tx: TxCtx, sender: Identity): PlayerRow {
 
 /**
  * The turn whose lines to ask for now, if any: the latest of a live or closing scene the player
- * leads, its reply in (settling, noting or done), none of its lines coming or landed, and the scene
- * not ending on it (the reply's commit asked for none).
+ * leads, its reply in, none of its lines coming or landed, and the scene not ending on it (the
+ * reply's commit asked for none).
  */
 function turnWantingLines(tx: TxCtx, player: PlayerRow): bigint | undefined {
   const scene = sceneOfPlayer(tx, player.id);
@@ -38,9 +39,18 @@ function turnWantingLines(tx: TxCtx, player: PlayerRow): bigint | undefined {
   if (sceneOver(tx, scene)) return undefined;
 
   const turn = latestTurnOf(tx, scene);
-  if (!turn || !REPLIED.has(turn.phase) || turn.suggest === "coming" || hasLinesFor(tx, scene.id, turn.n)) return undefined;
+  if (!turn || !replied(tx, turn) || turn.suggest === "coming" || hasLinesFor(tx, scene.id, turn.n)) return undefined;
   return turn.id;
 }
 
-/** The phases of a turn whose reply is in. */
+/**
+ * The turn's reply is in: it's settling, noting or done, or its settle failed and it waits for
+ * /retry. Lines asked for then land as they would had they been asked for at the reply (the
+ * prototype's suggestNow asks whenever the moment has none); the retried settle asks for none.
+ */
+function replied(tx: TxCtx, turn: TurnRow): boolean {
+  return REPLIED.has(turn.phase) || (turn.phase === "failed" && failedJobOf(tx, turn.id)?.step === "settle");
+}
+
+/** The phases of a turn whose reply is in, on its way to done. */
 const REPLIED = new Set(["settling", "noting", "done"]);
