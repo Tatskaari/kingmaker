@@ -31,6 +31,8 @@ export interface SceneRows {
   suggestions: Array<Pick<SceneSuggestion, "sceneId" | "turn" | "ord" | "kind" | "text">>;
   /** The scene's place and its world's rows (the world bridge's §3.5): what the side panel draws. None until they've come. */
   place?: PlaceTables;
+  /** The game is walked on a map (the host has an explore row, map-design §3.1): a scene that's over goes back to it. */
+  onMap?: boolean;
   /** The words of the last move the simulation refused, until the next move. */
   refusal?: string;
   /** What's wrong with the connection to the server, while something is (it's reconnecting). */
@@ -82,6 +84,7 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...suggestionsOf(rows, lease),
     notesComing: shown?.notes === "writing",
     ...placeOf(rows),
+    ...(rows.onMap ? { onMap: true } : {}),
   };
 }
 

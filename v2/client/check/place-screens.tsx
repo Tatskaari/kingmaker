@@ -51,7 +51,7 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   const size = `place ${w}x${h}`;
   const side = sceneSide(w);
   const sent: string[] = [];
-  const actions: SceneActions = { say: text => sent.push(text), retry: () => sent.push("/retry"), setSuggestions: async () => undefined, quit: () => {} };
+  const actions: SceneActions = { say: text => sent.push(text), retry: () => sent.push("/retry"), setSuggestions: async () => undefined, out: () => sent.push("(out)"), quit: () => {} };
   const yard = sceneViewOf(yardPlaceRows());
   const scene = new SceneModel(yard, actions);
   const set = (view: SceneView) => act(() => scene.update(view));

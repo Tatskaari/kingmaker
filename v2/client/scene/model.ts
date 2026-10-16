@@ -23,6 +23,8 @@ export interface SceneActions {
   retry(): void;
   /** The `setSuggestions` move: this player's own setting. Answers why not, when it wasn't made (the view's refusal says so too). */
   setSuggestions(on: boolean): Promise<Rejection | undefined>;
+  /** Back to the map from a scene that's over (map-design §3.3: walk out). */
+  out(): void;
   quit(): void;
 }
 
@@ -363,6 +365,19 @@ export class SceneModel {
   closeOverlay(): void {
     this.overlay = undefined;
     this.emit();
+  }
+
+  /** The way on from a scene that's over, played on a map: back to it, where the scene left the player (the lead's to take; a spectator's seat follows). */
+  wayOn(): string | undefined {
+    const v = this.view;
+    return v.over && v.onMap && !v.watching && !this.gone && !v.cutOff ? "Back to the map" : undefined;
+  }
+
+  /** Go on from a scene that's over: back to the map (walk out). */
+  onward(): void {
+    if (!this.wayOn()) return;
+    this.typing = false;
+    this.actions.out();
   }
 }
 

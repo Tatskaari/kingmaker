@@ -55,7 +55,7 @@ const SIZES = [[80, 24], [100, 30], [130, 42], [160, 45]] as const;
 /** The moves the screen makes, kept to read back (none of them changes anything: the checks change the views). */
 function recorder(): { sent: string[]; actions: SceneActions } {
   const sent: string[] = [];
-  return { sent, actions: { say: text => sent.push(text), retry: () => sent.push("/retry"), setSuggestions: on => { sent.push(`/suggestions ${on ? "on" : "off"}`); return Promise.resolve(undefined); }, quit: () => {} } };
+  return { sent, actions: { say: text => sent.push(text), retry: () => sent.push("/retry"), setSuggestions: on => { sent.push(`/suggestions ${on ? "on" : "off"}`); return Promise.resolve(undefined); }, out: () => sent.push("(out)"), quit: () => {} } };
 }
 
 for (const [w, h] of SIZES) {

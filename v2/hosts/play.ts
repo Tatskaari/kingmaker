@@ -18,7 +18,8 @@ const USAGE = `Kingmaker: headless play
   play builds --session <name> --as "Name: concept"
                                                 three builds that fit, as the game offers them (play new --build takes one)
   play new --session <name> --as "Name: concept" [--campaign caerwyn]
-                                                make a character, and set off; waits for the opening. With no --build the GM picks one
+                                                make a character, and set off: on the map (MODE: explore), or with no
+                                                map, it waits for the opening. With no --build the GM picks one
       [--build 1|2|3]                           one of the three builds (play builds' offer, or a new one)
       [--build own:<species>,<class>,<subclass>,<background>]
                                                 one of your own making, from the SRD's ids
@@ -32,14 +33,19 @@ const USAGE = `Kingmaker: headless play
   play continue --session <name> --game <id>    carry one of your games on
   play delete --session <name> --game <id>      delete one of your games, for good
   play begin --session <name>                   set off, from the sheet of a character just made
-  play join --session <name> --game <id>        watch someone's game (you see it as they do; you can't speak)
-  play observe --session <name>                 what you see: your games, your sheet before you set off, or the scene and whose turn it is
+  play join --session <name> --game <id>        watch someone's game (you see it as they do; you can't speak or walk)
+  play observe --session <name>                 what you see: your games, your sheet before you set off, the map between
+                                                scenes (the town as text, who's about, the lead, ACTIONS), or the scene
+                                                and whose turn it is
   play say --session <name> <what you say or do>
                                                 plain words are said; *asterisks* or (brackets) are done
       [--wait settled]                          wait for the world to settle too, not just the reply
       [--stream]                                the reply as it's written, on stderr
   play act --session <name> --id say_2 [--wait settled] [--stream]
                                                 say one of the lines suggested (ACTIONS: lists them)
+  play act --session <name> --id talk_kell      on the map, any of its ACTIONS: walk_north, go_to_lead, talk_kell,
+                                                walk@30,22, travel_<way>…; a scene it opens waits for its opening.
+                                                From a scene that's over, --id out goes back to the map
   play suggestions --session <name> [on|off]    the suggested lines: on (the default) or off; on asks
                                                 for this moment's at once, and lists them
   play retry --session <name> [--wait settled] [--stream]
@@ -133,9 +139,9 @@ function characterOf(args: Args): verbs.NewCharacter {
   return { campaign, name, concept, build: args.values.build, backstory, acceptFixes: args.values["accept-fixes"] ?? false, session: args.values.session };
 }
 
-/** act's line: say_1, say_2… */
+/** act's id: a line, say_1, say_2…; or on the map, any of its actions (talk_kell, go_to_lead, walk@30,22…). */
 function lineId(id: string | undefined): string {
-  if (!id) throw new Error("Which line? act takes --id say_1, say_2… as ACTIONS: lists them (observe shows them).");
+  if (!id) throw new Error("Which one? act takes --id as ACTIONS: lists them (observe shows them): say_1, say_2… in a scene, talk_kell, go_to_lead… on the map.");
   return id;
 }
 

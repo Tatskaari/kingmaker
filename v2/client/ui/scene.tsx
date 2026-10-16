@@ -12,7 +12,7 @@ import { pointedAt, pointOrder, sameTarget, thingActions, type SceneAction, type
 import type { SceneMenu, SceneModel } from "../scene/model.ts";
 import type { Line, Suggestion } from "../scene/view.ts";
 import { C, MARK_LABEL, MARK_TINT } from "../theme.ts";
-import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, SCROLLBAR, Spinner, useStore, wrap, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, SCROLLBAR, Spinner, useStore, wayOnKey, wrap, type KeyHint } from "./common.tsx";
 import { MenuBox } from "./menu.tsx";
 import { Place, type PlacePointing } from "./place.tsx";
 import { Reply } from "./reply.tsx";
@@ -244,6 +244,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   const hit = useRef<((x: number, y: number) => SceneTarget | undefined) | undefined>(undefined);
   /** The name the box was last started with (talking to someone), so talking to someone else starts it with theirs instead. */
   const started = useRef<string | undefined>(undefined);
+  /** The scene's end has been seen by the keys (the way back to the map): what was in the box then goes unsaid. */
+  const overSeen = useRef(false);
   // An overlay coming up (a click on /sheet) puts the menu away.
   useEffect(() => { if (scene.overlay && scene.sceneMenu) scene.closeSceneMenu(); });
   const view = scene.view;
@@ -401,6 +403,14 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       // With nothing in the box, the arrows go through the place too.
       key.preventDefault();
       step(key.name === "up" ? -1 : 1);
+    } else if (scene.wayOn()) {
+      // Over, on a map: an Enter of its own goes back to it (or a click). A line was in the box as it ended? Its Enter only ends it.
+      if (!overSeen.current) { overSeen.current = true; if (typed().trim()) scene.typing = true; }
+      const what = wayOnKey(scene, key);
+      if (!what) return;
+      key.preventDefault();
+      if (what === "go") { clear(); scene.onward(); }
+      else if (what === "line") { clear(); scene.status = "The scene was over, so that went unsaid. Enter goes on."; scene.emit(); }
     } else if (isEnter(key) && !typed() && pointer?.from === "keys" && world) {
       // Enter with nothing in the box, on what Tab picked out: its menu. (Not what the mouse merely rests on; nothing for a spectator on the lead.)
       key.preventDefault();
@@ -546,13 +556,14 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       {busy && !said ? <Spinner label={busy} /> : <text fg={said ? C.warn : C.faint}>{said ?? " "}</text>}
     </box>
     {kept ? <Picks picks={toPick} rows={kept} width={width - 2} /> : null}
-    <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
+    {/* Once the scene is over, the way on in place of the box: back to the map it was opened from. */}
+    {scene.wayOn() ? <Continue go={scene.wayOn()!} onGo={() => { clear(); scene.onward(); }} /> : <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
       {/* As much as a turn takes (the simulation's limit): OpenTUI's own is 1,000, and it cut a longer line without a word. */}
       <input ref={input} scrollMargin={0.05} maxLength={MAX_LINE} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!scene.overlay}
         placeholder={!open ? shut : width - 4 >= HINT.length ? HINT : HINT_SHORT} />
-    </box>
+    </box>}
     <box height={1} paddingX={1} flexShrink={0}>
       {markLine ? <PointerLine title={markLine.title} detail={markLine.detail} width={width - 2} hint={markLine.hint} />
         : pointed ? <PointerLine title={pointed.title} detail={pointed.detail} width={width - 2} hint={hint} />
@@ -563,6 +574,20 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       onChoose={choose} onHover={i => { menu.index = i; scene.emit(); }}
       onRight={(x, y) => { const under = hit.current?.(x, y); if (under && !theLead(under)) openFor(under, { x, y }); else scene.closeSceneMenu(); }} /> : null}
   </box>;
+}
+
+/**
+ * In place of the box once the scene is over (the prototype's src/app/ui/scene.tsx:249-262 Continue,
+ * with its one way on V2 has: back to the map): to press or click when the player has finished reading.
+ */
+function Continue({ go, onGo }: { go: string; onGo: () => void }) {
+  return <Clickable height={3} flexShrink={0} border borderColor={C.borderHot} title=" The scene is over " titleAlignment="left" titleColor={C.title} paddingX={1} onClick={onGo}>
+    <text>
+      <span fg={C.lead}>{"▶ "}</span>
+      <span fg={C.lead} attributes={BOLD}>{go}</span>
+      <span fg={C.faint}>{"   Enter, or click here"}</span>
+    </text>
+  </Clickable>;
 }
 
 /**

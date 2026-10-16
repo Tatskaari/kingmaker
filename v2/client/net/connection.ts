@@ -116,6 +116,7 @@ export class Connection implements Backend {
       looks: of(this.db.db.look, l => l.placeId === scene.placeId),
       suggestions: of(this.db.db.sceneSuggestion, s => s.sceneId === scene.id),
       ...this.placeOf(scene),
+      ...(this.db.db.explore.playerId.find(game.hostId) ? { onMap: true } : {}),
       ...(this.refused ? { refusal: this.refused } : {}),
       ...(this.trouble ? { trouble: this.trouble } : {}),
       ...(this.cutOff ? { cutOff: true } : {}),
