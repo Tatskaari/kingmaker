@@ -20,7 +20,8 @@ import { turnRow, updateTurn, type JobRow } from "./rows.ts";
  *
  * A job beside a turn's own steps (the notes, the lines: v5-design §3.4) runs on the same loop, and
  * its move says how it differs: whether an answer still applies, what giving up on it does and when,
- * and that it's in the background, so its retries say nothing on the turn and it never fails it.
+ * and that it's in the background, so it never fails the turn, and its retries say nothing on it
+ * unless the turn is waiting on it alone (its notes, once all else is in).
  */
 
 /** What every move's plan carries for its job row: the game, scene and turn (ids as strings) and the step it thinks next. */
@@ -266,9 +267,13 @@ const jobOf = (tx: TxCtx, turnId: bigint, move: string): JobRow | undefined => [
 const moveOf = (job: JobRow) => moveNamed(job.move);
 const planOf = (job: JobRow) => JSON.parse(job.plan) as JobPlan;
 
-/** The turn says it's waiting on the AI service: for its own steps only, never for a job in the background. */
+/**
+ * The turn says it's waiting on the AI service: for its own steps, and for a job in the background
+ * only while the turn waits on it (its notes, once all else is in: a line said meanwhile waits too).
+ */
 function sayWaiting(tx: TxCtx, job: JobRow): void {
-  if (!moveOf(job).background) updateTurn(tx, job.turnId, { note: LOST_THREAD });
+  const move = moveOf(job);
+  if (!move.background || move.waitedOn?.(tx, planOf(job))) updateTurn(tx, job.turnId, { note: LOST_THREAD });
 }
 
 /** run_job for this job, about 3 ms after this transaction commits. */

@@ -171,7 +171,7 @@ export interface Move<Args, Plan> {
 Both are `background`, are queued by commits (their `resolve` is unused), and build their request in the queueing transaction, as V0's thinks do. The loop's changes (B, `jobs.ts`):
 1. **One job row per turn and move.** `queueThink` finds the row by `turnId` and `move` (V0 has one move in flight per turn).
 2. **The revision check** is `move.applies`, or V0's.
-3. **A retry** sets `turn.note` only for a move that isn't background.
+3. **A retry** sets `turn.note` only for a move that isn't background. (As built, also for the notes once the turn is `noting`: a turn noting through an outage says so, waits up to 60 s, then loses its notes and ends. §8 says why.)
 4. **Fatal, a commit that threw, or failing past `move.giveUpMs ?? 600_000`:** `move.giveUp`, or `failJob`. The row is deleted after a give-up.
 5. **Usage:** every answer's usage goes to its turn's `calls` and `costMicros`, the notes' and suggestions' too.
 6. **`retry_turn`** picks the turn's failed job that isn't background.
@@ -497,6 +497,7 @@ V5 keeps to this blueprint but for these, each with its reason. The packages' re
 | A lines give-up clears the set when the turn is still the latest and the scene hasn't ended (§3.4) | Also only while the setting is on | As the commit's drop: the prototype's aborted proposal lands nothing |
 | `/suggestions off`: "no rows are kept" (§1.2, step 8) | The move deletes no rows; the screen keeps no blank rows for them, and shows none while the setting is off. Turned back on with lines for the moment, nothing is asked | The setting is the player's (§3.3); the rows are the scene's one set. The prototype's `suggestNow` asks only when there are none |
 | A notes or lines answer the commit can't use | Thrown in the commit and given up: `lost` | As V0's `needs`; the turn goes on |
+| A background job's retries leave `turn.note` alone (§3.4) | The notes' retries set it once the turn is `noting` (the move's `waitedOn`), and the notes landing or given up clear it | Then the turn, and a line queued behind it, wait on the notes alone. Through an outage the screen says "The GM has lost the thread for a moment: trying again." as V0's turns do, not "The GM makes a note…" for a minute. After 60 s the notes are lost and the turn ends |
 
 ### The AI service (C)
 

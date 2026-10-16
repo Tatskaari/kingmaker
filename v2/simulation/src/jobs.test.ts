@@ -184,7 +184,7 @@ const kellSays: ReplyResponse = {
 };
 const noted: NotesResponse = { marks: [{ start: 15, end: TEXT.length, kind: "why", note: "She saw who found him.", link: { kind: "person", id: "kell" } }], usage: { calls: 1, costUsd: 0.0002, byOperation: {} } };
 
-test("a job in the background says nothing on the turn as it tries again; the turn's own step's note stays when its answer lands, and its usage counts", async () => {
+test("a job in the background says nothing on the turn as it tries again while the turn has its own steps; the turn's own step's note stays when its answer lands, and its usage counts", async () => {
   const { host, script, wren, scene } = await openedGame();
   const notes = held<NotesResponse>();
   script.then("reply", kellSays, kellSays);
@@ -208,7 +208,7 @@ test("a job in the background says nothing on the turn as it tries again; the tu
   host.as(wren).say({ text: "When?" });
   await host.drain();
   const noting = sceneNow(host, scene.id).turns[2]!;
-  assert.deepEqual([noting.phase, noting.note], ["noting", undefined], "a 503 on the notes: waiting to try again, and nothing said");
+  assert.deepEqual([noting.phase, noting.note], ["noting", undefined], "a 503 on the notes while the turn settled: waiting to try again, and nothing said");
   assert.equal(all(host.db.job).find(j => j.move === "notes")?.state, "waiting");
   host.advance(1000);
   await host.drain();

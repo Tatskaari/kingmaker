@@ -245,7 +245,11 @@ test("noting: the reply's in, the GM writing its notes; the box is open, and a l
   rows.scene = { ...rows.scene, turns: 2 };
   rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "noting", { notes: "writing" }), turn(6n, 2, "queued")];
   view = sceneViewOf(rows);
-  assert.deepEqual([view.phase, view.turn, view.mayType], ["queued", 2, false]);
+  assert.deepEqual([view.phase, view.turn, view.mayType, view.note], ["queued", 2, false, undefined]);
+
+  // The AI service lost while the notes are written: the line waiting behind them says so, as the noting turn holds the lease.
+  rows.turns[1] = turn(5n, 1, "noting", { notes: "writing", note: "The GM has lost the thread for a moment: trying again." });
+  assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
 });
 
 test("a mark keeps its card when it reads as one: a title and lines of words", () => {

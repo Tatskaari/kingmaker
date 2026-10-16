@@ -10,7 +10,7 @@ import type { Actor, TxCtx } from "../context.ts";
  * host.
  *
  * A job queued beside a turn's own steps (the notes on a reply's marks, the lines suggested after
- * it: v5-design §3.4) changes how the job loop treats it with the last four, each optional: without
+ * it: v5-design §3.4) changes how the job loop treats it with the last five, each optional: without
  * them a job is treated as V0 treats every one.
  */
 export interface Move<Args, Plan> {
@@ -29,8 +29,10 @@ export interface Move<Args, Plan> {
   giveUp?(tx: TxCtx, plan: Plan, why: string): void;
   /** How long a failing job keeps trying. Default: 10 minutes. */
   giveUpMs?: number;
-  /** A background job (the notes, the lines): its retries leave turn.note alone, and it never fails the turn. */
+  /** A background job (the notes, the lines): its retries leave turn.note alone (unless the turn waits on it: waitedOn), and it never fails the turn. */
   background?: boolean;
+  /** A background job the turn is waiting on now (its notes, once all else is in): its retries say so on the turn, as its own steps' do. */
+  waitedOn?(tx: TxCtx, plan: Plan): boolean;
 }
 
 export type Next<Plan> = { done: true } | { done: false; plan: Plan };

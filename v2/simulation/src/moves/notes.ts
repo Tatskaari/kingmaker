@@ -4,7 +4,7 @@ import { idOf, idText } from "../../../shared/protocol/keys.ts";
 import type { TxCtx } from "../context.ts";
 import { notesCall } from "../gm/requests.ts";
 import { queueThink } from "../jobs.ts";
-import { updateTurn } from "../rows.ts";
+import { turnRow, updateTurn } from "../rows.ts";
 import { entryAt, markupOf, putMarks, type Written } from "../transcript.ts";
 import { finishTurn } from "../turns.ts";
 import type { Move } from "./move.ts";
@@ -16,7 +16,8 @@ import type { NotesPlan } from "./plans.ts";
  * for them; the AI service writes them from what the player knows, placed on the reply's words,
  * linked and carded; they land on the reply's transcript row as its marks. A job in the background:
  * the turn waits for it to end (noting), and nothing else does. One that can't be written leaves the
- * reply with no marks, and the turn ends all the same.
+ * reply with no marks, and the turn ends all the same: after 60 s of an outage, which the turn says
+ * it's waiting through once it's noting.
  */
 export const notes: Move<void, NotesPlan> = {
   name: "notes",
@@ -31,6 +32,9 @@ export const notes: Move<void, NotesPlan> = {
 
   /** Always: the notes belong on their row whatever has happened since, and the turn may be waiting for them. */
   applies: () => true,
+
+  /** Once all else is in, the turn waits on its notes alone (noting): through an outage it says so, as on its own steps, until they land or are given up. */
+  waitedOn: (tx, plan) => turnRow(tx, idOf(plan.turn)).phase === "noting",
 
   commit(tx, plan, answer) {
     const marks = (answer as Partial<NotesResponse>).marks;

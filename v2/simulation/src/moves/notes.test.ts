@@ -4,6 +4,7 @@ import type { Mark } from "../../../shared/markup.ts";
 import type { DecideRequest, DecideResponse, NotesRequest, NotesResponse, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SuggestRequest, Usage } from "../../../shared/protocol/ai.ts";
 import { keyParts } from "../../../shared/protocol/keys.ts";
 import { all, down, held, hostWithCampaign, http, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
+import { LOST_THREAD } from "../jobs.ts";
 
 /**
  * The notes on a reply's marks (v5-design §3.4, §3.5), on the memory host: asked for by the commit
@@ -130,21 +131,23 @@ test("the settle before the notes: the turn waits for them, noting, the lease ke
   assert.deepEqual(history.markup?.marks, [why], "the next reply's history has the last reply's notes");
 });
 
-test("notes that can't be written are given up after 60 s: the turn ends with no marks, and says nothing meanwhile", async () => {
+test("notes that can't be written are given up after 60 s: the turn ends with no marks; noting meanwhile, it says it's waiting on the AI service", async () => {
   const { host, script, wren, scene } = await openedGame();
   script.then("reply", kellSays());
   for (let i = 0; i < 20; i++) script.then("notes", down());
 
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
+  host.advance(1000);
+  await host.drain();
   const waiting = sceneNow(host, scene.id);
-  assert.deepEqual([waiting.turns[1]!.phase, waiting.turns[1]!.note], ["noting", undefined]);
+  assert.deepEqual([waiting.turns[1]!.phase, waiting.turns[1]!.note], ["noting", LOST_THREAD], "all else in, the turn waits on its notes alone: their retries say so, as its own steps' do");
 
-  for (let ms = 0; ms < 58_000; ms += 1000) {
+  for (let ms = 1000; ms < 58_000; ms += 1000) {
     host.advance(1000);
     await host.drain();
   }
-  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "noting", "still trying at 58 s");
+  assert.deepEqual([sceneNow(host, scene.id).turns[1]!.phase, sceneNow(host, scene.id).turns[1]!.note], ["noting", LOST_THREAD], "still trying at 58 s");
   host.advance(2000);
   await host.drain();
 
@@ -155,6 +158,31 @@ test("notes that can't be written are given up after 60 s: the turn ends with no
   assert.equal(now.scene.turnId, undefined);
   assert.deepEqual(all(host.db.job), []);
   assert.match(host.logs.join("\n"), /\[reaper\] job \d+ .+:t1:notes gave up: no answer for 60 s \(last: HttpError/);
+});
+
+test("an outage once the turn is noting: it says so at once, a line said meanwhile waiting behind it; the notes landing end the turn and its note", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const outage = held<void>();
+  script.then("reply", kellSays());
+  script.then("notes", async () => { await outage.promise; down()(); }, noted());
+
+  host.as(wren).say({ text: "Who found him?" });
+  const first = host.drain();
+  await tick();
+  await host.drain();
+  assert.deepEqual([sceneNow(host, scene.id).turns[1]!.phase, sceneNow(host, scene.id).turns[1]!.note], ["noting", undefined]);
+  assert.equal(host.as(wren).say({ text: "And when?" }), undefined, "a line said now waits for the notes");
+
+  outage.settle();
+  await first;
+  const waiting = sceneNow(host, scene.id);
+  assert.deepEqual(waiting.turns.map(t => [t.n, t.phase, t.note]), [[0, "done", undefined], [1, "noting", LOST_THREAD], [2, "queued", undefined]], "the turn holding the lease says what the scene waits on");
+
+  host.advance(1000);
+  await host.drain();
+  const now = sceneNow(host, scene.id);
+  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.notes, t.note]), [[0, "done", "none", undefined], [1, "done", "written", undefined], [2, "done", "none", undefined]]);
+  assert.deepEqual(JSON.parse(now.lines.find(l => l.turn === 1 && l.speaker === "gm")!.markup!).marks, [why]);
 });
 
 test("notes the AI service won't write (a 400), or an answer the commit can't use, are given up at once: the turn ends all the same", async () => {
