@@ -1,4 +1,5 @@
 // The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay).
+import type { Backend } from "../backend.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
@@ -94,6 +95,20 @@ export class SceneModel {
     else this.emit();
   }
 
+  /**
+   * Kept to the game's rows: told of every change from now on, and first brought to the rows as they
+   * are now. The view the model was made from can be old by then (the screen reads its first view,
+   * then comes up), and a change in between (an opening that failed at once, a turn's note) would
+   * otherwise not show until another row changed. `gone` is what the status line says when the game
+   * has gone from the server. Returns the unsubscribe.
+   */
+  follow(game: Pick<Backend, "view" | "onChange">, gone: string): () => void {
+    const now = () => { const view = game.view(); if (view) this.update(view); else this.lose(gone); };
+    const stop = game.onChange(now);
+    now();
+    return stop;
+  }
+
   /** No view: the game this screen showed has gone from the server. Its last view stays, its box shut, and `words` say why. */
   lose(words: string): void {
     if (this.gone === words) return;
@@ -113,13 +128,13 @@ export class SceneModel {
 
   /**
    * Whether a plain line goes to the simulation now: when the box is open, and when the simulation
-   * refuses it in words worth seeing (a spectator's line, a line after the scene's end, or while a
-   * turn is failed: its /retry). While the GM has the floor it waits in the box; with the game gone
-   * from the server there's nothing to send it to.
+   * refuses it in words worth seeing (a spectator's line, a line once a reply has closed the scene
+   * or after its end, or while a turn is failed: its /retry). While the GM has the floor it waits in
+   * the box; with the game gone from the server there's nothing to send it to.
    */
   sends(): boolean {
     const v = this.view;
-    return !this.gone && (v.mayType || !!v.watching || v.over || v.phase === "failed");
+    return !this.gone && (v.mayType || !!v.watching || v.over || !!v.ending || v.phase === "failed");
   }
 
   lines(): Line[] { return linesOf(this.view); }

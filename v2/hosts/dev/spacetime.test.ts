@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { poolSizeIn, publishedHow, rowsOf, startArgs, withPoolSize } from "./spacetime.ts";
+import { cliConfigProblem, poolSizeIn, publishedHow, rowsOf, startArgs, withPoolSize } from "./spacetime.ts";
 
 /** The part of the config.toml SpacetimeDB 2.12 writes at its first start that matters here. */
 const DEFAULT = `[logs]
@@ -37,6 +37,35 @@ test("spacetime start keeps its data and keys in the stack's folders", () => {
     "/b/spacetime", "--config-path", "/r/cli.toml", "start", "--listen-addr", "0.0.0.0:3300", "--data-dir", "/r/stdb",
     "--jwt-pub-key-path", "/r/keys/id_ecdsa.pub", "--jwt-priv-key-path", "/r/keys/id_ecdsa", "--non-interactive",
   ]);
+});
+
+/** A cli.toml as SpacetimeDB 2.12 writes it once the stack's server is added: Maincloud the default, as the CLI has it. */
+const ADDED = `default_server = "maincloud"
+
+[[server_configs]]
+nickname = "maincloud"
+host = "maincloud.spacetimedb.com"
+protocol = "https"
+
+[[server_configs]]
+nickname = "local"
+host = "127.0.0.1:3000"
+protocol = "http"
+
+[[server_configs]]
+nickname = "kingmaker-dev"
+host = "127.0.0.1:3300"
+protocol = "http"
+`;
+
+test("the stack's cli.toml is fit for the owner's token only with its own server the default and nothing off this machine in it", () => {
+  const maincloud = /\[\[server_configs\]\]\nnickname = "maincloud"\nhost = "maincloud.spacetimedb.com"\nprotocol = "https"\n\n/;
+  const ours = ADDED.replace('default_server = "maincloud"', 'default_server = "kingmaker-dev"');
+
+  assert.equal(cliConfigProblem(ADDED, "kingmaker-dev"), "has maincloud as its default, not kingmaker-dev");
+  assert.equal(cliConfigProblem(ours, "kingmaker-dev"), "names maincloud.spacetimedb.com");
+  assert.equal(cliConfigProblem(ours.replace(maincloud, ""), "kingmaker-dev"), undefined);
+  assert.equal(cliConfigProblem(ours.replace(maincloud, "").replace(/^default_server.*\n/, ""), "kingmaker-dev"), "has no server as its default, not kingmaker-dev");
 });
 
 test("SQL rows come back as objects: identities as hex, times as microseconds, options as a value or null", () => {

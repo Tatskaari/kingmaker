@@ -118,7 +118,7 @@ export const scene = table({ name: "scene", public: true }, {
   /** scene. */
   kind: t.string(),
   placeId: t.u64(),
-  /** opening, live, closing, ended. */
+  /** opening, live, closing (its ending's wind-down to play), ending (a reply closed it: its settle ends it), ended. */
   status: t.string(),
   /** The player who has the lead. */
   controllerId: t.u64(),

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { describeRoll, rollFrom } from "../../../shared/dice.ts";
 import type { After, Decision, DecideResponse, ReplyRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
-import { all, openedGame, sceneNow } from "../host/testing.ts";
+import { all, http, identity, openedGame, sceneNow, type Scripted } from "../host/testing.ts";
 
 /**
  * The GM's bookkeeping as the commits run it (gm-port §6, §9, §10), on the memory host with the AI
@@ -18,7 +18,7 @@ const closed: SettleResponse = { ops: [], usage: none };
 
 async function game() {
   const opened = await openedGame();
-  const line = async (text: string, decide: DecideResponse = decided(), settle?: SettleResponse) => {
+  const line = async (text: string, decide: DecideResponse = decided(), settle?: Scripted) => {
     opened.script.then("decide", decide);
     if (settle) opened.script.then("settle", settle);
     assert.equal(opened.host.as(opened.wren).say({ text }), undefined, `"${text}" was refused`);
@@ -105,6 +105,37 @@ test("a route the player chose into an ending closes the scene in this reply", a
   assert.deepEqual(ended.gm.path, [{ turn: 1, from: "yard", to: "walked-away", via: "walk-away", source: "pre", known: 0 }]);
   assert.equal(ended.gm.beat, "yard", "an exit isn't a beat");
   assert.deepEqual([ended.scene.status, ended.lines.at(-1)!.text], ["ended", "Scene ends: Walked away"]);
+});
+
+test("while a reply that closed the scene settles, the scene is ending: a line is refused, scene_over, and nothing waits behind it", async () => {
+  const { host, scene, wren, line } = await game();
+  const tamsin = identity(2);
+  host.as(tamsin).joinGame({ game: scene.gameId });
+  const during: unknown[] = [];
+  const settle = () => {
+    const now = sceneNow(host, scene.id);
+    during.push(now.scene.status, now.turns[1]!.phase);
+    during.push(host.as(wren).say({ text: "Wait. Sergeant, one more thing: who cut him down?" }), host.as(tamsin).say({ text: "Me too!" })?.code);
+    return closed;
+  };
+  const ended = await line("*I give up and walk out of the yard.*", decided({ route: { id: "walk-away", phase: "attempt" } }), settle);
+
+  assert.deepEqual(during, ["ending", "settling", { code: "scene_over", text: "(The scene is over.)" }, "scene_over"]);
+  assert.deepEqual(ended.turns.map(t => [t.n, t.phase, t.error]), [[0, "done", undefined], [1, "done", undefined]], "no turn queued");
+  assert.deepEqual(ended.lines.filter(l => l.kind === "player").map(l => l.text), ["*I give up and walk out of the yard.*"]);
+  assert.deepEqual([ended.scene.status, ended.lines.at(-1)!.text], ["ended", "Scene ends: Walked away"]);
+});
+
+test("a reply that closed the scene whose settle failed: a line is told to /retry, and the retry ends the scene", async () => {
+  const { host, scene, wren, line } = await game();
+  const failed = await line("*I turn and walk out of the gate.*", decided({ route: { id: "walk-away", phase: "attempt" } }), http(400));
+  assert.deepEqual([failed.scene.status, failed.turns[1]!.phase], ["ending", "failed"]);
+
+  assert.equal(host.as(wren).say({ text: "Hello?" })?.code, "turn_failed");
+  assert.equal(host.as(wren).retryTurn({ turn: failed.turns[1]!.id }), undefined);
+  await host.drain();
+  const ended = sceneNow(host, scene.id);
+  assert.deepEqual([ended.scene.status, ended.turns[1]!.phase, ended.lines.at(-1)!.text], ["ended", "done", "Scene ends: Walked away"]);
 });
 
 test("a cue brings the corporal on: he joins the world and the stage after the reply, and an ending found as he comes in waits", async () => {

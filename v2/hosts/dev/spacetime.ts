@@ -33,9 +33,11 @@ export function startArgs(cli: Pick<SpacetimeCli, "bin" | "config">, at: { liste
 }
 
 /**
- * A fresh cli.toml for the stack: the server under its nickname and the CLI logged in as the owner,
- * so `spacetime --config-path <root>/cli.toml logs kingmaker -s <server>` works by hand. Rewritten at
- * every start, as the port may have changed.
+ * A fresh cli.toml for the stack: the server under its nickname, made the default, with Maincloud's
+ * entry gone; only then is the CLI logged in as the owner. So `spacetime --config-path
+ * <root>/cli.toml logs kingmaker` works by hand, and a command typed without -s goes to the stack's
+ * own server, never to Maincloud with the owner's token. Rewritten at every start, as the port may
+ * have changed.
  */
 export async function configureCli(cli: SpacetimeCli, url: string, owner: Identity): Promise<void> {
   rmSync(cli.config, { force: true });
@@ -44,7 +46,20 @@ export async function configureCli(cli: SpacetimeCli, url: string, owner: Identi
   // The CLI's default config has "local" at 127.0.0.1:3000 and allows one nickname a host.
   if (added.code !== 0 && /already configured for host/.test(added.stderr)) await must(cli.bin, ["--config-path", cli.config, "server", "edit", host, "--new-name", cli.server, "--no-fingerprint", "--yes"]);
   else if (added.code !== 0) throw new Error(`spacetime server add failed: ${added.stderr.trim()}`);
+  // The CLI's own default is Maincloud.
+  await must(cli.bin, ["--config-path", cli.config, "server", "set-default", cli.server]);
+  await run(cli.bin, ["--config-path", cli.config, "server", "remove", "maincloud", "--yes"]);
+  const problem = cliConfigProblem(readFileSync(cli.config, "utf8"), cli.server);
+  if (problem) throw new Error(`the stack's CLI config ${cli.config} ${problem}, so the owner's token isn't written to it`);
   await must(cli.bin, ["--config-path", cli.config, "login", "--token", owner.token]);
+}
+
+/** Why a stack's cli.toml could send a command elsewhere: its default isn't the stack's server, or it names a server off this machine. */
+export function cliConfigProblem(toml: string, server: string): string | undefined {
+  const fallback = /^default_server\s*=\s*"([^"]*)"/m.exec(toml)?.[1];
+  if (fallback !== server) return `has ${fallback ?? "no server"} as its default, not ${server}`;
+  const away = [...toml.matchAll(/^host\s*=\s*"([^"]*)"/gm)].map(m => m[1]!).find(h => !/^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(h));
+  return away ? `names ${away}` : undefined;
 }
 
 /** A CLI command that must work ("spacetime login failed: …" when it doesn't; the token in its arguments is never shown). */
