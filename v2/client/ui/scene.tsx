@@ -313,6 +313,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   } : undefined;
   // The conversation's frame: everything but the status line, what's to pick, the box and the bottom line.
   scene.talkArea = { w: width - side, h: height - 5 - kept };
+  // Where the conversation ends on screen: the scroll box's content is the transcript alone.
+  scene.talkEnd = () => { const talk = scroll.current?.content.getChildren()[0]; return talk ? talk.screenY + talk.height - 1 : undefined; };
   const title = view.time ? ` ${view.title} · ${view.time} ` : ` ${view.title} `;
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>
     <box flexDirection="row" flexGrow={1} minHeight={0}>

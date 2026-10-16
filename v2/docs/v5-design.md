@@ -525,6 +525,7 @@ V5 keeps to this blueprint but for these, each with its reason. The packages' re
 | The status words of §1.2, step 8 | Shown once the move is made, a refusal's words instead | So the screen never claims a setting the simulation refused |
 | The `⟨…⟩` lines as the prototype's `markupLines` | Plus a `⟨card: …⟩` line under each mark with a card | So a headless tester can read the cards for leaks (§1.2, step 12) |
 | Rows kept while lines come | None for a line queued behind a failed turn | Nothing is on its way until the retry |
+| The popover is the prototype's (§2.3), which finds a Tab-picked phrase by taking the reply to end at the frame's foot | It finds it where the screen drew the conversation's end (`SceneModel.talkEnd`) | Over a conversation shorter than its frame (the opening, as a game starts) the prototype's rule opened the popover rows below its phrase, or over it, and could drop the card, at 120x36 and taller. The prototype's own screen does the same |
 
 ### The campaign check, the dev host's fake and the live run (E)
 

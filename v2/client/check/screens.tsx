@@ -543,6 +543,38 @@ for (const [w, h] of SIZES) {
   await setup.dispose();
 }
 
+// ---------------------------------------------------------------------------------------------
+// A mark's popover by its phrase over a conversation shorter than its frame (the opening alone, as
+// a game starts), at the sizes a tester uses: Tab and Enter open it just below the phrase (or just
+// above), never over it, with its card when there's room. The prototype took the reply to end at
+// the frame's foot, so here it opened rows below the phrase, or over it, and dropped the card.
+
+const OPENING = { ...YARD.entries[0]!, markup: { ...YARD.entries[0]!.markup!, marks: YARD.entries[0]!.markup!.marks.map(m => ({ ...m, card: { title: "The granary yard", lines: ["The yard behind the King's Granary, where the palace's grain comes in by cart and goes up by hoist.", "What anyone in Caerwyn could tell you."] } })) } };
+
+for (const [w, h] of [[100, 30], [120, 36], [120, 40], [160, 50]] as const) {
+  const size = `${w}x${h}`;
+  const { actions } = recorder();
+  const scene = new SceneModel({ ...YARD, entries: [OPENING], turn: 0, suggestions: LINES.slice(0, 4) }, actions);
+  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+  await draw();
+  await draw();
+  act(() => setup.mockInput.pressTab());
+  const phrase = (await draw()).split("\n").findIndex(r => r.includes("behind the King's Granary"));
+  act(() => setup.mockInput.pressEnter());
+  const frame = await draw();
+  if (show) console.log(`${size}, the opening's mark opened\n${frame}`);
+  const rows = frame.split("\n");
+  const top = rows.findIndex(r => r.includes("╭─ You'd know"));
+  const column = top < 0 ? -1 : [...rows[top]!].indexOf("╭");
+  const bottom = rows.findIndex((r, i) => i > top && [...r][column] === "╰");
+  const beside = bottom === phrase - 1 || top === phrase + 1;
+  checks.push([`${size}: the opening alone, a mark opened by Tab and Enter: the popover by its phrase (row ${phrase}; popover rows ${top}-${bottom}), never over it`, phrase > 0 && top > 0 && beside]);
+  if (h >= 36) checks.push([`${size}: the opening alone: with room by its phrase, the card is there`, frame.includes("The granary yard") && frame.includes("What anyone in Caerwyn could tell you.")]);
+  await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+  await setup.dispose();
+}
+
 let failed = 0;
 for (const [what, ok] of checks) {
   console.log(`${ok ? "ok" : "FAIL"}: ${what}`);

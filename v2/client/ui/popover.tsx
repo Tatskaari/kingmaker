@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/popover.tsx at 44c6d4a: it reads a SceneModel in place of the Game, and the knowledge card from the mark (the AI service writes it with the note) in place of knowledgeCard.
+// Copied from the prototype's src/app/ui/popover.tsx at 44c6d4a: it reads a SceneModel in place of the Game, and the knowledge card from the mark (the AI service writes it with the note) in place of knowledgeCard; a mark Tab picked out is found where the screen drew its reply (SceneModel.talkEnd), where the prototype took the reply to end at the frame's foot, so over a conversation shorter than the frame it opened rows off its phrase, or over it.
 import type { MouseEvent } from "@opentui/core";
 import { replyRows } from "../reply.ts";
 import type { SceneModel } from "../scene/model.ts";
@@ -33,8 +33,8 @@ export function MarkPopover({ scene, at, width, height }: { scene: SceneModel; a
   const card = mark.card;
   const told = card?.lines.length ? [...wrap(card.title, inner).map(text => ({ text, fg: C.title, bold: true })), ...card.lines.flatMap(l => wrap(l, inner).map(text => ({ text, fg: C.dim })))] : [];
   // Where the phrase is drawn: where it was clicked; else (Tab picked it out of the last reply, at
-  // the conversation's end) worked out from the reply's rows, the last of them just above the frame.
-  const y = at.y ?? drawnAt(scene, at, width - side - 9, room.bottom - 1);
+  // the conversation's end) worked out from the reply's rows, the last of them where it was drawn.
+  const y = at.y ?? drawnAt(scene, at, width - side - 9, lastRow(scene, room), room);
   const below = y === undefined ? 0 : room.bottom - y;
   const above = y === undefined ? room.bottom - room.top + 1 : y - room.top;
   // Its rows, as many as there's room for on the roomier side: the card goes first, then the note's end.
@@ -63,11 +63,10 @@ export function MarkPopover({ scene, at, width, height }: { scene: SceneModel; a
 }
 
 /**
- * The row a mark of the conversation's last reply is drawn on, with the conversation at its end
- * (where it sticks): the reply's last row is `lastRow`, and its rows wrap at `columns`. Undefined
- * for a mark of an earlier line, or one above the frame.
+ * The row a mark of the conversation's last reply is drawn on: the reply's last row is `lastRow`,
+ * and its rows wrap at `columns`. Undefined for a mark of an earlier line, or one out of the frame.
  */
-function drawnAt(scene: SceneModel, at: { line: number; mark: number }, columns: number, lastRow: number): number | undefined {
+function drawnAt(scene: SceneModel, at: { line: number; mark: number }, columns: number, lastRow: number, room: { top: number; bottom: number }): number | undefined {
   const lines = scene.lines();
   const line = lines[at.line];
   if (!line?.marked || at.line !== lines.length - 1) return undefined;
@@ -75,5 +74,14 @@ function drawnAt(scene: SceneModel, at: { line: number; mark: number }, columns:
   const row = rows.findIndex(r => r.some(run => run.mark === at.mark));
   if (row < 0) return undefined;
   const y = lastRow - (rows.length - 1 - row);
-  return y >= 1 ? y : undefined;
+  return y >= room.top && y <= room.bottom ? y : undefined;
+}
+
+/**
+ * The row the conversation's last reply ends on: just above the last turn's lower edge, which is the
+ * conversation's last row, wherever the screen drew it (SceneModel.talkEnd). Until it's drawn, the
+ * frame's foot, where a conversation that fills the frame sticks (the prototype's only case).
+ */
+function lastRow(scene: SceneModel, room: { bottom: number }): number {
+  return (scene.talkEnd?.() ?? room.bottom) - 1;
 }

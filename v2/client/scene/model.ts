@@ -41,6 +41,12 @@ export class SceneModel {
   markPointed?: { line: number; mark: number };
   /** How big the screen draws the conversation's frame (a mark's popover stays inside it). */
   talkArea?: { w: number; h: number };
+  /**
+   * The screen row the conversation's last row is drawn on, as last laid out (a mark's popover finds
+   * its phrase by it): part way down a frame the conversation doesn't fill, at the foot of one it
+   * does (where it sticks), below the frame once PgUp has scrolled it up.
+   */
+  talkEnd?: () => number | undefined;
   /** A word of the client's own (an unknown command), until the next line. The simulation's refusals are the view's. */
   status?: string;
   /** Why the game this screen shows has gone from the server (its seat has: a stack started again with --fresh), until a view comes again. */
