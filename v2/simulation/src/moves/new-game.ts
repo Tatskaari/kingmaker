@@ -1,5 +1,5 @@
 import type { Identity } from "spacetimedb";
-import { andList, MAX_NAME, refusal } from "../../../shared/protocol/refusals.ts";
+import { andList, MAX_CONCEPT, MAX_NAME, refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, Refused, runMove, type TxCtx } from "../context.ts";
 import { seatPlayer, type CampaignRow, type GameRow } from "../rows.ts";
 import { buildOf, buildsOf, campaignFile } from "../scenes.ts";
@@ -18,8 +18,9 @@ export function newGameReducer(tx: TxCtx, sender: Identity, args: NewGameArgs): 
   const campaign = campaignNamed(tx, args.campaign);
   const build = buildNamed(campaign, args.build);
   const name = characterName(args.name);
+  const concept = characterConcept(args.concept);
 
-  const game = createGame(tx, campaign, sender, { name, concept: args.concept.trim(), build });
+  const game = createGame(tx, campaign, sender, { name, concept, build });
 
   const file = campaignFile(campaign);
   runMove(tx, openScene, actorOf(tx, sender), { game: game.id, sceneKey: file.firstScene, start: { purse: file.startingPurse, gear: build.gear } });
@@ -44,6 +45,13 @@ function buildNamed(campaign: CampaignRow, id: string): ReadyMade {
 function characterName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > MAX_NAME) throw new Refused(refusal("bad_name"));
+  return trimmed;
+}
+
+/** The concept may be empty ("--new Wren" has none), but not long: it's in every request the game sends. */
+function characterConcept(concept: string): string {
+  const trimmed = concept.trim();
+  if (trimmed.length > MAX_CONCEPT) throw new Refused(refusal("bad_concept"));
   return trimmed;
 }
 

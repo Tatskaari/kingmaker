@@ -61,7 +61,7 @@ test("character creation's refusals say what v1-design §3.4 says; a story too l
   assert.equal(refusal("not_offered").text, "(That isn't one of the builds on offer.)");
   assert.equal(refusal("still_making").text, "(The rules engine is still making it.)");
   assert.equal(refusal("not_now").text, "(That doesn't apply just now.)");
-  assert.equal(refusal("bad_concept").text, "(Who they are needs saying in a sentence or two: 500 characters at most.)");
+  assert.equal(refusal("bad_concept").text, "(Your character's concept needs to be 300 characters or fewer.)", "new_game's (V0's review) and start_creation's alike");
   assert.equal(refusal("bad_how").text, "(That isn't a way to make a character: three, model, or own:<species>,<class>,<subclass>,<background>.)");
   assert.equal(refusal("nothing_to_work_in").text, "There's nothing in the box to work in yet: write a few notes first, or Draft one.");
   assert.equal(refusal("story_too_long", { words: "2345" }).text, "It's 2,345 words, and the GM reads all of it every turn: cut it to 2,000 or fewer.");
