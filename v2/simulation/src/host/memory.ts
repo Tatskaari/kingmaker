@@ -13,6 +13,7 @@ import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
 import { sayReducer } from "../moves/say.ts";
+import { setSuggestionsReducer } from "../moves/set-suggestions.ts";
 import { streamReplyReducer } from "../stream.ts";
 import { TABLES } from "../tables.ts";
 import { myNamesView, mySeatView } from "../views.ts";
@@ -47,6 +48,7 @@ export interface Caller {
   joinGame(args: Parameters<typeof joinGameReducer>[2]): Refusal | undefined;
   say(args: Parameters<typeof sayReducer>[2]): Refusal | undefined;
   retryTurn(args: Parameters<typeof retryTurnReducer>[2]): Refusal | undefined;
+  setSuggestions(args: Parameters<typeof setSuggestionsReducer>[2]): Refusal | undefined;
   installCampaign(args: InstallArgs): Refusal | undefined;
 }
 
@@ -115,6 +117,7 @@ function callerAs(identity: Identity, call: (body: (tx: TxCtx) => void) => Refus
     joinGame: args => call(tx => joinGameReducer(tx, identity, args)),
     say: args => call(tx => sayReducer(tx, identity, args)),
     retryTurn: args => call(tx => retryTurnReducer(tx, identity, args)),
+    setSuggestions: args => call(tx => setSuggestionsReducer(tx, identity, args)),
     installCampaign: args => call(tx => installCampaignReducer(tx, identity, args)),
   };
 }
