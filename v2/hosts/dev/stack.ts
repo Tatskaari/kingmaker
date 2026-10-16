@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, readlinkSync, rmSync } from "node:fs";
 import { connect } from "node:net";
-import { basename, join, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 import { apiKey } from "../../ai/llm/openrouter.ts";
 import { refusalIn } from "../../shared/protocol/refusals.ts";
 import { aiProcess, containerName, type AiProcess } from "./ai-process.ts";
@@ -100,11 +100,11 @@ export async function startStack(options: StackOptions): Promise<Stack> {
   const log = stackLog(paths.devLog, options.log), say = log.say;
   const previous = readStackFile(root);
 
+  const key = options.model === "openrouter" ? openRouterKey() : undefined;
   const mode = options.mode ?? detectMode(localAddresses());
   const problem = modeProblem(mode, localAddresses(), !!which("pasta"));
   if (problem) throw new Error(problem);
   const bin = await checkTools({ mode, container: !!options.container, config: paths.cliConfig });
-  const key = options.model === "openrouter" ? openRouterKey() : undefined;
 
   await clearLeftovers(previous, root, say);
   prepareFolders(paths, options, say);
@@ -245,8 +245,9 @@ function isOurHost(pid: number): boolean {
 /** The folders, emptied by --fresh, with the procedure pool sized before SpacetimeDB first reads its config. */
 function prepareFolders(paths: Paths, options: StackOptions, say: (line: string) => void): void {
   if (options.fresh) {
-    say(`fresh: deleting ${[paths.stdb, paths.ai, ...(options.sessions ? [resolve(options.sessions)] : [])].join(", ")} (the keys stay)`);
-    for (const dir of [paths.stdb, paths.ai, ...(options.sessions ? [resolve(options.sessions)] : [])]) rmSync(dir, { recursive: true, force: true });
+    const gone = [paths.stdb, paths.ai, ...(options.sessions ? [resolve(options.sessions)] : [])];
+    say(`fresh: deleting ${gone.map(d => relative(process.cwd(), d) || d).join(", ")} (the keys stay)`);
+    for (const dir of gone) rmSync(dir, { recursive: true, force: true });
   }
   for (const dir of [paths.keys, paths.ai]) mkdirSync(dir, { recursive: true });
   stdb.ensurePoolSize(paths.stdb);
