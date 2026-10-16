@@ -21,12 +21,13 @@ export interface Claim {
 /**
  * What a POST came to: an answer to commit; something to try again (429, 5xx, a refused or reset
  * connection, a timeout, an answer that isn't JSON); or something trying again won't mend (another
- * status, no AI_URL), which fails the turn.
+ * status, no AI_URL), which fails the job. `words`: what the player is told, when the AI service
+ * said it for them (over its daily budget, v1-design §3.7).
  */
 export type AiOutcome =
   | { kind: "answer"; status: 200; answer: unknown; replayed: boolean }
   | { kind: "retry"; status?: number; reason: string }
-  | { kind: "fatal"; status?: number; reason: string };
+  | { kind: "fatal"; status?: number; reason: string; words?: string };
 
 /** What came back: a status and body (and whether the service answered from its store), or the error the request threw. */
 export type AiResponse = { status: number; body: string; replayed?: boolean } | { error: string };
@@ -37,8 +38,10 @@ export function outcomeOf(response: AiResponse): AiOutcome {
   const { status, body } = response;
   if (status === 200) return answerOf(body, response.replayed ?? false);
 
-  const reason = `${status} ${errorIn(body)}`;
-  return status === 429 || status >= 500 ? { kind: "retry", status, reason } : { kind: "fatal", status, reason };
+  const error = errorOf(body);
+  const reason = `${status} ${error ? `${error.code}: ${error.message}`.trim() : body.slice(0, 200)}`;
+  if (status === 429 || status >= 500) return { kind: "retry", status, reason };
+  return { kind: "fatal", status, reason, ...(error?.code === "over_budget" && error.message ? { words: error.message } : {}) };
 }
 
 /** No AI_URL: nothing to POST to, and trying again won't change that. */
@@ -52,13 +55,13 @@ function answerOf(body: string, replayed: boolean): AiOutcome {
   }
 }
 
-/** The AI service's error ({ error: { code, message } }) in a few words, or the body's start. */
-function errorIn(body: string): string {
+/** The AI service's error ({ error: { code, message } }), or undefined when the body isn't one. */
+function errorOf(body: string): { code: string; message: string } | undefined {
   try {
-    const { error } = JSON.parse(body) as { error?: { code?: string; message?: string } };
-    if (error?.code) return `${error.code}: ${error.message ?? ""}`.trim();
+    const { error } = JSON.parse(body) as { error?: { code?: unknown; message?: unknown } };
+    if (typeof error?.code === "string") return { code: error.code, message: typeof error.message === "string" ? error.message : "" };
   } catch {
     // not the service's JSON: a proxy's page, or nothing
   }
-  return body.slice(0, 200);
+  return undefined;
 }

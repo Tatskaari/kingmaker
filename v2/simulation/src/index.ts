@@ -18,6 +18,7 @@ import { joinGameReducer } from "./moves/join-game.ts";
 import { newGameReducer } from "./moves/new-game.ts";
 import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
+import { loadRules } from "./rules/load.ts";
 import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
@@ -106,6 +107,7 @@ export const myGames = spacetimedb.view({ name: "my_games", public: true }, t.ar
 
 /** A body's TxCtx from a reducer's context, or a procedure's transaction. */
 function txOf(ctx: ReducerCtx<Schema>): TxCtx {
+  const began = hostMs();
   return {
     db: ctx.db,
     now: ctx.timestamp,
@@ -113,8 +115,18 @@ function txOf(ctx: ReducerCtx<Schema>): TxCtx {
     uuid: () => ctx.newUuidV4().toString(),
     seed: () => ctx.random.integerInRange(0, 999_999_999),
     log: line => console.info(line),
+    rules: loadRules,
+    engineCalls: 0,
+    elapsedMs: () => hostMs() - began,
   };
 }
+
+/**
+ * The platform's clock, for TxCtx.elapsedMs: the timing log lines' only clock (the module's other
+ * time is the transaction's). In a reducer it starts at ctx.timestamp and runs on in real time
+ * (spacetime.md §4.9).
+ */
+const hostMs = () => Date.now();
 
 /** Runs a body as a reducer: a refusal reaches the caller as a SenderError carrying it as JSON; anything else thrown is a bug (a panic). */
 function asReducer(ctx: ReducerCtx<Schema>, body: (tx: TxCtx) => void): void {

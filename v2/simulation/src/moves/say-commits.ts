@@ -9,6 +9,8 @@ import { applyMove, holdEnding, keepOpened, moveOnAfterReply, movedOn, resolveMo
 import { getGm, putGm } from "../gm/rows.ts";
 import { queueThink } from "../jobs.ts";
 import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
+import { carryGearAfter } from "../rules/play.ts";
+import { refreshPockets } from "../rules/session.ts";
 import { exitOf, sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard, playerLine } from "../transcript.ts";
 import { queuedTurnOf } from "../turns.ts";
@@ -71,9 +73,10 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
 
 /**
  * After settle: the stage manager's operations through the gate; then, unless this reply closed the
- * scene, where the story stands (an outcome route, an ending reached, held or wound down); anyone
- * new joined; the beat's clock ticked; the world written back. The scene ends here if the reply
- * closed it (or a fight broke out). The turn is done.
+ * scene, where the story stands (an outcome route, an ending reached, held or wound down); the
+ * player's sheet without the gear the story took from them (or with what it gave back); anyone new
+ * joined; the beat's clock ticked; the world written back, and their pockets read from it. The scene
+ * ends here if the reply closed it (or a fight broke out). The turn is done.
  */
 export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
@@ -81,9 +84,11 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
   const stage = applyStage(place, answer.ops ?? [], plan.n);
 
   const fight = at.gm.ended ? undefined : moveOn(tx, at, plan, answer.after);
+  carryGearAfter(tx, at.scene, place.world, plan.n);
   joinArrivals(place.world, at.graph, at.gm, plan.n);
   if (!plan.decision?.outOfCharacter && !movedOn(at.gm, plan.n)) at.gm.turnsInBeat++;
   savePlaceWorld(tx, at.scene, place, at.graph);
+  refreshPockets(tx, at.scene.controllerId, place.world);
   syncStage(tx, at.scene, at.graph, at.gm);
 
   const ending = endingOf(at, fight, plan.n);
