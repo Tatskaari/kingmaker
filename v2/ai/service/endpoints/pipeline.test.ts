@@ -150,7 +150,7 @@ test("reply on the wind-down closes the scene with gm.closing, unless the player
   await pipeline.reply(ooc, contextFor(ooc.key));
 
   const logged = readFileSync(join(store, "games", GAME, "calls.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.deepEqual(logged.map(e => e.operation), ["gm.closing", "gm.reply"]);
+  assert.deepEqual(logged.filter(e => !e.started).map(e => e.operation), ["gm.closing", "gm.reply"]);
   assert.match(noteOf(fake.sent[0]!), /## For this reply\nThe scene is ending: /);
   assert.match(noteOf(fake.sent[1]!), /Nothing in the story moves on while you answer: the scene has come to Walked away/);
 });

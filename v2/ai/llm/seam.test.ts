@@ -31,7 +31,7 @@ test("a call with a context goes through its fetch, its log and its cost, and to
   assert.equal(reply.text, "Kell looks up.");
   assert.equal(decision.answers.ooc?.choice, "in_character");
   assert.deepEqual(fake.asked, ["/api/v1/responses", "/api/alpha/decisions"]);
-  assert.deepEqual(logged.map(e => e.operation), ["gm.reply", "director.ooc"]);
+  assert.deepEqual(logged.map(e => [e.operation, e.started ?? "done"]), [["gm.reply", "/api/v1/responses"], ["gm.reply", "done"], ["director.ooc", "/api/alpha/decisions"], ["director.ooc", "done"]]);
   assert.deepEqual(costs.map(c => c.operation), ["gm.reply", "director.ooc"]);
   assert.equal(sessionSpend(), spentBefore);
   assert.equal(existsSync(process.env.KM_COST_LEDGER!), false);

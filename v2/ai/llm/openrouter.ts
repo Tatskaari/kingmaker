@@ -62,7 +62,7 @@ export interface CallContext {
   /** OpenRouter, or a stand-in for it (fakeFetch). */
   fetch?: typeof fetch;
   apiKey?: string;
-  /** Each call, retry and failure in full: the game's call log. */
+  /** Each call as it starts (`started`), then in full with its answer, retry or failure: the game's call log. */
   log?(entry: Record<string, unknown>): void;
   /** What each call cost: the request's usage, and the ledger. */
   cost?(line: { provider: string; operation: string; model: string; costUsd: number; latencyMs: number }): void;
@@ -129,6 +129,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function fetchWithRetry(url: string, init: RequestInit, label: string, calls?: CallContext): Promise<Response> {
   const send = calls?.fetch ?? fetch;
+  // A request's own log hears a call as it goes out too, so a call cut off (its process killed) is still counted.
+  calls?.log?.({ operation: label, started: new URL(url).pathname });
   for (let attempt = 0; ; attempt++) {
     let response: Response;
     try {

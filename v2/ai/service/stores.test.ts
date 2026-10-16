@@ -48,7 +48,7 @@ test("a campaign version is the whole folder as PUT, replaced whole when it's PU
   assert.equal(campaigns.root("caerwyn", "0.2.0"), undefined);
 });
 
-test("a request's calls go to its game's call log with its key and attempt, and its costs to the ledger and its usage", async () => {
+test("a request's calls go to its game's call log with its key and attempt (as each starts, and when it's done), and its costs to the ledger and its usage", async () => {
   const root = fresh();
   const stores = folderStores(root);
   const { calls, usage } = callContext({ fetch: fakeFetch().fetch, apiKey: "k" }, stores, { game: "g1", key: "g1:s1:t2:reply", attempt: 2 });
@@ -57,7 +57,7 @@ test("a request's calls go to its game's call log with its key and attempt, and 
 
   const logged = readFileSync(join(root, "games", "g1", "calls.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
   const ledger = readFileSync(join(root, "ledger.jsonl"), "utf8").trim().split("\n").map(l => JSON.parse(l));
-  assert.deepEqual(logged.map(e => [e.key, e.attempt, e.operation]), [["g1:s1:t2:reply", 2, "gm.reply"], ["g1:s1:t2:reply", 2, "gm.reply"]]);
+  assert.deepEqual(logged.map(e => [e.key, e.attempt, e.operation, e.started ?? "done"]), [["g1:s1:t2:reply", 2, "gm.reply", "/api/v1/responses"], ["g1:s1:t2:reply", 2, "gm.reply", "done"], ["g1:s1:t2:reply", 2, "gm.reply", "/api/v1/responses"], ["g1:s1:t2:reply", 2, "gm.reply", "done"]]);
   assert.deepEqual(ledger.map(l => [l.game, l.key, l.operation, l.costUsd]), [["g1", "g1:s1:t2:reply", "gm.reply", 0.0002], ["g1", "g1:s1:t2:reply", "gm.reply", 0.0002]]);
   assert.equal(usage().calls, 2);
   assert.equal(usage().byOperation["gm.reply"]?.calls, 2);
