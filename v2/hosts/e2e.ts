@@ -58,6 +58,9 @@ console.log(`The e2e: a line in a scene, end to end (ports ${flags.port} and ${f
 const stack = await startStack({
   root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
   model: "fake", fake: FAKE, fresh: true, log: line => console.log(`  … ${line}`),
+}).catch((error: unknown) => {
+  console.error(`\n✗ the stack didn't start: ${error instanceof Error ? error.message : String(error)}\nFAIL`);
+  process.exit(1);
 });
 
 let passed = false;
@@ -66,7 +69,7 @@ try {
 
   const a = await player(stack, "A"), b = await player(stack, "B");
   const game = await theOpening(stack, a);
-  await aTurnBothSee(a, b);
+  await aTurnBothSee(a, b, game);
   await killedMidReply(stack, a, game);
   await keptAnswer(stack, a, game);
   await spacetimeRestarted(stack, a, game);
@@ -112,10 +115,9 @@ async function theOpening(stack: Stack, a: Player): Promise<Game> {
 }
 
 /** 3. B watches: A's line, A's second at once refused, B's refused; both clients see the turn's rows alike. */
-async function aTurnBothSee(a: Player, b: Player): Promise<void> {
+async function aTurnBothSee(a: Player, b: Player, game: Game): Promise<void> {
   step("3. A spectator joins; a turn both clients see alike");
-  const game = a.conn.rows()!.game.id;
-  check("B's join_game is made", (await b.conn.joinGame(game)) === undefined);
+  check("B's join_game is made", (await b.conn.joinGame(game.id)) === undefined);
   await until(b, "B to see the scene", 10_000, r => r.scene.status === "live" && r.transcript.length > 0);
   const from = { a: a.events.length, b: b.events.length };
 

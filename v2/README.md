@@ -106,7 +106,7 @@ For good, a dummy interface: `sudo nmcli connection add type dummy ifname km0 co
 
 | Command | What it checks | Takes |
 |---|---|---|
-| `npm run check` | The type check (v2's, and the module's under its own lib); the unit tests: shared, the simulation on its memory host, the AI service and its prompt parity with the prototype, the client, the hosts, and the hanged clerk's endings played on the local host; then the client's screen check | about a minute |
+| `npm run check` | The type check (v2's, and the module's under its own lib); the unit tests: shared, the simulation on its memory host, the AI service and its prompt parity with the prototype, the client, the hosts, and the hanged clerk's endings played on the local host; then the client's screen check | about 5 s |
 | `npm run e2e` | A line in a scene end to end on a real SpacetimeDB (ports 3310 and 8797, `runs/e2e`): two clients, a spectator's refusals, the AI service killed mid-reply and after it kept an answer, SpacetimeDB restarted mid-think, and an ending | about 70 s |
 | `npm run live -- --lines 4` | A new game and four lines against the running dev stack, with real models, recorded in `docs/live/` (stops before $0.10) | about 40 s |
 | `npm run campaign -- check campaigns/caerwyn` | The campaign folder is fit to install | a second |
