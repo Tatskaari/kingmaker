@@ -30,7 +30,7 @@ A recorded run with real models is in [docs/live/](docs/live/).
 | [campaigns/caerwyn/](campaigns/caerwyn/) | The campaign as data: campaign.json, the hanged clerk's scene.json and its Markdown, the granary yard as a world, the ready-made characters (builds.json), the cast's looks, and the 154 lore docs |
 | [hosts/](hosts/) | The composition roots, the only code that reads env or argv: the AI service, the client and the headless client, the dev stack ([hosts/dev/README.md](hosts/dev/README.md)), the doctor, the campaign tool and its install, the local host, the e2e and the live run |
 | [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), V0's blueprint ([v0-design.md](docs/v0-design.md)) and the recorded live runs ([live/](docs/live/)) |
-| `runs/` | Run output, never committed: the stacks' data, keys and logs, the client's sessions, the CLI's config for building |
+| `runs/` | Run output, never committed: the stacks' data, keys and logs, the client's sessions, the live run's rehearsals, the CLI's config for building |
 
 v2 doesn't import the prototype: what it needs of it is copied, and each copy's first line names its source at the commit it came from and the edits made. v2/ai is the one place the two share, and there the prototype imports v2.
 
@@ -110,7 +110,7 @@ For good, a dummy interface: `sudo nmcli connection add type dummy ifname km0 co
 |---|---|---|
 | `npm run check` | The type check (v2's, and the module's under its own lib); the unit tests: shared, the simulation on its memory host, the AI service and its prompt parity with the prototype, the client, the hosts, and the hanged clerk's endings played on the local host; then the client's screen check | about 5 s |
 | `npm run e2e` | A line in a scene end to end on a real SpacetimeDB (ports 3310 and 8797, `runs/e2e`): two clients, a spectator's refusals, the AI service killed mid-reply, restarted mid-reply and gone after it kept an answer, SpacetimeDB restarted mid-think, and an ending | about 75 s |
-| `npm run live -- --lines 4` | A new game and four lines against the running dev stack, with real models, recorded in `docs/live/` (stops before $0.10) | about 40 s |
+| `npm run live -- --lines 4` | A new game and four lines against the running dev stack, with real models, recorded in `docs/live/` (stops before $0.10). It never writes over a record: a second run the same day goes beside the first (`v0-<date>-2.md`), and `--rehearse`, on the fake model, writes to `runs/live/` | about 40 s |
 | `npm run campaign -- check campaigns/caerwyn` | The campaign folder is fit to install | a second |
 | `npm run simulation:generate` | Regenerates `client/module_bindings` from the module: run it after any change to a table, reducer or view, and commit the result (CI checks) | seconds |
 

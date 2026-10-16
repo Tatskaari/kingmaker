@@ -17,7 +17,10 @@ import { readStackFile, type StackFile } from "./dev/stack-file.ts";
  *   npm run live -- --lines 4         # writes docs/live/v0-<date>.md
  *
  * It stops before a line that would take the run past its budget (--budget, $0.10), judging a turn
- * by the dearest so far.
+ * by the dearest so far. It never writes over a record without being told to (--force): a second
+ * run on the same day is recorded beside the first (v0-<date>-2.md), an --out already there is
+ * refused before anything is played, and a rehearsal on the fake model goes to runs/live/, which
+ * isn't committed.
  */
 
 /** The lines, in order: a question, two checks (medicine, insight), a promise that wins Cob over, what it all means, and the boot. */
@@ -34,7 +37,9 @@ const USAGE = `npm run live [-- options]
   --lines <n>        how many of the scripted lines to say (4; at most ${LINES.length})
   --as "Name: concept" --build <id>   the character (Wren Ashdown, a hedge wizard from the fens; wizard)
   --stack <dir>      the running dev stack's folder (runs/dev)
-  --out <file>       where the record goes (docs/live/v0-<date>.md)
+  --out <file>       where the record goes (docs/live/v0-<date>.md, or beside it if that's there;
+                     a rehearsal's runs/live/v0-<date>-rehearsal.md)
+  --force            write over a record already there
   --budget <usd>     stop before a line that would spend past this (0.10)
   --rehearse         run against a stack on the fake model (the record says so)`;
 
@@ -44,6 +49,7 @@ main(flagsOf(process.argv.slice(2))).then(() => process.exit(0), (error: unknown
 });
 
 async function main(flags: Flags): Promise<void> {
+  if (flags.outGiven && !flags.force && existsSync(flags.out)) throw new Error(`${shown(flags.out)} is already there: pass --force to write over it, or another --out`);
   const stack = runningStack(flags.stack, flags.rehearse);
   const conn = await connect({ url: stack.ws, db: stack.db });
   const said: string[] = [];
@@ -57,8 +63,11 @@ async function main(flags: Flags): Promise<void> {
   }
 
   const record = await recordOf(stack, conn, said);
-  writeRecord(flags.out, markdownOf(record, flags));
-  console.log(`\nRecorded ${shown(flags.out)}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
+  const out = flags.outGiven || flags.force ? flags.out : besideAny(flags.out);
+  const over = flags.force && existsSync(out);
+  writeRecord(out, markdownOf(record, flags), flags.force);
+  const beside = out !== flags.out ? ` (${shown(flags.out)} is already there: this is beside it)` : over ? " (over the record that was there)" : "";
+  console.log(`\nRecorded ${shown(out)}${beside}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
   conn.close();
 }
 
@@ -247,28 +256,40 @@ function shown(path: string): string {
   return rel.startsWith("..") ? path : rel;
 }
 
-function writeRecord(path: string, text: string): void {
+/** The record written: never over one already there unless `force` says so. */
+function writeRecord(path: string, text: string, force: boolean): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text);
+  writeFileSync(path, text, { flag: force ? "w" : "wx" });
+}
+
+/** The path, or the first free one beside it: v0-<date>-2.md, -3, … */
+function besideAny(path: string): string {
+  const free = (n: number): string => {
+    const next = n === 1 ? path : path.replace(/(\.md)?$/, `-${n}$1`);
+    return existsSync(next) ? free(n + 1) : next;
+  };
+  return free(1);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Flags.
 
-interface Flags { lines: number; who: string; build: string; stack: string; out: string; budget: number; rehearse: boolean; date: string }
+interface Flags { lines: number; who: string; build: string; stack: string; out: string; outGiven: boolean; force: boolean; budget: number; rehearse: boolean; date: string }
 
 function flagsOf(argv: string[]): Flags {
   const { values } = parseArgs({
     args: argv,
-    options: { lines: { type: "string" }, as: { type: "string" }, build: { type: "string" }, stack: { type: "string" }, out: { type: "string" }, budget: { type: "string" }, rehearse: { type: "boolean" }, help: { type: "boolean" } },
+    options: { lines: { type: "string" }, as: { type: "string" }, build: { type: "string" }, stack: { type: "string" }, out: { type: "string" }, force: { type: "boolean" }, budget: { type: "string" }, rehearse: { type: "boolean" }, help: { type: "boolean" } },
   });
   if (values.help) { console.log(USAGE); process.exit(0); }
   const date = new Date().toISOString().slice(0, 10);
   const lines = Number(values.lines ?? 4);
   if (!Number.isInteger(lines) || lines < 1 || lines > LINES.length) throw new Error(`--lines takes 1 to ${LINES.length}`);
+  // A rehearsal's record isn't one to commit: it goes with the rest of the run output.
+  const record = values.rehearse ? join("runs", "live", `v0-${date}-rehearsal.md`) : join("docs", "live", `v0-${date}.md`);
   return {
     lines, who: values.as ?? "Wren Ashdown: a hedge wizard from the fens", build: values.build ?? "wizard",
-    stack: resolve(values.stack ?? join("runs", "dev")), out: resolve(values.out ?? join("docs", "live", `v0-${date}.md`)),
+    stack: resolve(values.stack ?? join("runs", "dev")), out: resolve(values.out ?? record), outGiven: values.out !== undefined, force: !!values.force,
     budget: Number(values.budget ?? 0.1), rehearse: !!values.rehearse, date,
   };
 }
