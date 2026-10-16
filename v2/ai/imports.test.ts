@@ -14,17 +14,36 @@ import { dirname, join, resolve, sep } from "node:path";
 const ROOT = import.meta.dirname;
 const SHARED = resolve(ROOT, "..", "shared");
 
+/**
+ * Every way a file names a module, the name in the second group: an import or export with a from
+ * (over lines, and spaced or not), an import for its side effects, and a call to import or require,
+ * in code or a type, with the name in any quotes. Comments are read as code, so an example in one
+ * keeps to the rule too.
+ */
+const NAMED = [
+  /\b(?:import|export)\b[^;]*?\bfrom\s*(["'`])(.*?)\1/g,
+  /\bimport\s*(["'`])(.*?)\1/g,
+  /\b(?:import|require)\s*\(\s*(["'`])(.*?)\1/g,
+];
+
+/** Never allowed, since where they lead can't be read here: an import of a name made as it runs, and the require functions node:module makes. */
+const UNCHECKED = /\bimport\s*\(\s*(?![\s"'`])|\bcreateRequire\b/g;
+
+/** A node: built-in, or a file of this folder's own or of v2/shared, by a name written out in full. */
+const allowed = (file: string, name: string) => {
+  if (name.startsWith("node:")) return true;
+  if (!name.startsWith(".") || name.includes("${")) return false;
+  const target = resolve(dirname(join(ROOT, file)), name);
+  return target.startsWith(ROOT + sep) || target.startsWith(SHARED + sep);
+};
+
 test("v2/ai imports nothing but node:, itself and v2/shared", () => {
-  const files = readdirSync(ROOT, { recursive: true, encoding: "utf8" }).filter(f => /\.(ts|tsx|mts|js|mjs)$/.test(f));
+  const files = readdirSync(ROOT, { recursive: true, encoding: "utf8" }).filter(f => /\.[cm]?[jt]sx?$/.test(f));
   const outside: string[] = [];
   for (const file of files) {
     const source = readFileSync(join(ROOT, file), "utf8");
-    for (const m of source.matchAll(/(?:^|\s)(?:import|export)\s[^;]*?\sfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)|^import\s*["']([^"']+)["']/gm)) {
-      const spec = (m[1] ?? m[2] ?? m[3])!;
-      if (spec.startsWith("node:")) continue;
-      const target = resolve(dirname(join(ROOT, file)), spec);
-      if (!spec.startsWith(".") || !(target.startsWith(ROOT + sep) || target.startsWith(SHARED + sep))) outside.push(`${file}: ${spec}`);
-    }
+    for (const pattern of NAMED) for (const m of source.matchAll(pattern)) if (!allowed(file, m[2]!)) outside.push(`${file}: ${m[2]}`);
+    for (const m of source.matchAll(UNCHECKED)) outside.push(`${file}: ${m[0]}…`);
   }
   assert.ok(files.length > 10, "the scan found the folder's code");
   assert.deepEqual(outside, []);
