@@ -1,7 +1,8 @@
+import type { OwnBuild } from "../../../shared/creation/types.ts";
 import type { CreationStep } from "../../../shared/protocol/keys.ts";
 import { LOST_THREAD } from "../jobs.ts";
 import type { JobOwner } from "../moves/move.ts";
-import { moveOn, rowAt, touch, type CreationPlan, type CreationRow } from "./rows.ts";
+import { json, moveOn, ownOf, rowAt, touch, type CreationPlan, type CreationRow } from "./rows.ts";
 
 /**
  * Whose a creation step's job is (v1-design §3.5): the creation row's, while it's still at the rev
@@ -32,9 +33,21 @@ export const creationOwner: JobOwner<CreationPlan> = {
   },
 };
 
-/** Where a failed step leaves the player: the builds that never came, or the model's pick that never did, send them back to the concept; anything else stays where it was. */
+/**
+ * Where a failed step leaves the player: the builds that never came, or the model's pick that never
+ * did, send them back to the concept; their own pick that was never made leaves no card to take (the
+ * last one was made from other picks: game.ts:584 deletes it); anything else stays where it was.
+ */
 function fallBack(row: CreationRow, step: CreationStep): Partial<CreationRow> {
   if (step === "offer" && row.offer === undefined) return { step: "concept" };
   if (step === "pick" && row.chosen === undefined) return { step: "concept" };
+  if (step === "own") return { own: json(withoutCard(ownOf(row))) };
   return {};
+}
+
+/** Their own build without its card: the picks and the lists stay. */
+function withoutCard(own: OwnBuild | undefined): OwnBuild | undefined {
+  if (!own) return undefined;
+  const { option: _made, ...rest } = own;
+  return rest;
 }

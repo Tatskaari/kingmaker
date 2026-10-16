@@ -68,6 +68,28 @@ test("a step that fails where there's something to show stays there: a draft tha
   assert.match(row.note!, /^The GM couldn't answer: 400 bad_request: scripted/);
 });
 
+test("their own pick that fails for good leaves no card to take: the last one was made from other picks", async () => {
+  const { host, script } = hostWithCampaign();
+  const pell = identity(2);
+  host.as(pell).startCreation({ ...TAMSIN, name: "Pell Marrow", how: "own:human,wizard,evoker,sage" });
+  await host.drain();
+  assert.equal(JSON.parse(host.view(pell).myCreation()!.own!).option.build.classId, "wizard");
+
+  script.then("own", http(400));
+  host.as(pell).pickOwn({ speciesId: "orc", classId: "fighter", subclassId: "champion", backgroundId: "soldier" });
+  await host.drain();
+
+  const row = host.view(pell).myCreation()!, own = JSON.parse(row.own!);
+  assert.deepEqual([row.step, row.busy, own.option, own.picks.classId, !!own.lists], ["custom", undefined, undefined, "fighter", true]);
+  assert.match(row.note!, /^The GM couldn't answer: 400 bad_request: scripted/);
+  assert.deepEqual(host.as(pell).takeOwn(), { code: "not_now", text: "(That doesn't apply just now.)" });
+
+  host.as(pell).pickOwn({ speciesId: "orc", classId: "fighter", subclassId: "champion", backgroundId: "soldier" });
+  await host.drain();
+  assert.equal(host.as(pell).takeOwn(), undefined, "the same picks made: that card's to take");
+  assert.equal(JSON.parse(host.view(pell).myCreation()!.chosen!).build.classId, "fighter");
+});
+
 test("failing for ten minutes, a step gives up; but one the player has moved on from is let go at once, asking nothing more", async () => {
   const { host, script } = hostWithCampaign();
   const tamsin = identity(1), pell = identity(2);
