@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import { rowsToWorld } from "../../../shared/world/rows.ts";
 import { worldView, type SceneWorld, type WorldOp } from "../../../shared/world/scene-world.ts";
 import { all, openedGame } from "../host/testing.ts";
+import { getGm } from "../gm/rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { applyStage, placeWorldOf, savePlaceWorld } from "./place.ts";
 import { LOG_TAIL, placeRows } from "./rows-io.ts";
@@ -41,7 +42,7 @@ test("each turn's operations, applied to the world rebuilt from rows and written
     const throughRows = host.transact(tx => {
       const place = placeWorldOf(tx, scene);
       const done = applyStage(place, ops, turn);
-      savePlaceWorld(tx, scene, place, sceneGraph(tx, scene));
+      savePlaceWorld(tx, scene, place, sceneGraph(tx, scene, getGm(tx, scene.id)));
       return done;
     });
     const rows = host.transact(tx => placeRows(tx, scene.placeId));

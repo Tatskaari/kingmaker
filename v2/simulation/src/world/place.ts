@@ -67,13 +67,14 @@ export function joinArrivals(world: SceneWorld, graph: Scene, gm: GmState, turn:
 /**
  * The stage manager's operations through the gate (applyOps, the prototype's own): at most 16, by
  * the world's local keys, each problem kept in the log as "(not done) …"; and a removal of the
- * player undone, since only walking out takes them out (engine.ts:917, 924-928).
+ * player undone, since only walking out takes them out (engine.ts:917, 924-928): unless they did
+ * (`left`, the read after the reply), when it stands.
  */
-export function applyStage(place: PlaceWorld, ops: WorldOp[], turn: number): { changes: string[]; problems: string[] } {
+export function applyStage(place: PlaceWorld, ops: WorldOp[], turn: number, left = false): { changes: string[]; problems: string[] } {
   const local = ops.slice(0, MAX_OPS).map(op => opToLocal(completeOp(op), place.keys));
   const done = applyOps(place.world, local, turn, "stage");
   for (const problem of done.problems) place.world.log.push({ turn, text: `(not done) ${problem}`, by: "stage" });
-  keepPlayer(place.world, turn);
+  if (!left) keepPlayer(place.world, turn);
   return done;
 }
 

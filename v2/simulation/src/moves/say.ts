@@ -1,12 +1,13 @@
 import type { Identity } from "spacetimedb";
-import type { DecideResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ConsiderResponse, DecideResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { actorOf, runMove, type Actor, type TxCtx } from "../context.ts";
+import { mergeReviews } from "../gm/background.ts";
 import { settledFacts } from "../gm/bookkeeping.ts";
 import { sayCall } from "../gm/requests.ts";
-import { getGm } from "../gm/rows.ts";
+import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, playerRow, sceneOfPlayer, sceneRow, updateScene, type SceneRow, type TurnRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard } from "../transcript.ts";
@@ -14,14 +15,15 @@ import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterDecide, afterReply, afterSettle } from "./say-commits.ts";
+import { afterConsider, afterDecide, afterReply, afterSettle } from "./say-commits.ts";
 
 /**
  * say (v0-design §4.2): the controller's line, recorded at once with its turn, and the game played
  * now; then three thinks, each committed in turn: decide (the route, and its check rolled here),
- * reply (streamed, then the GM's entry), settle (the world and where the story stands). A line said
- * while the last turn settles, or waits for its reply's notes, waits as queued, and starts when that
- * one is done. On the wind-down, decide and reply close the scene.
+ * reply (streamed, then the GM's entry), settle (the world and where the story stands). A turn the GM
+ * rules on (full-gm-design §4.2) has a fourth between decide and reply: consider (the ruling, rolled
+ * here). A line said while the last turn settles, or waits for its reply's notes, waits as queued,
+ * and starts when that one is done. On the wind-down, decide and reply close the scene.
  */
 export const say: Move<{ text: string }, SayPlan> = {
   name: "say",
@@ -38,7 +40,7 @@ export const say: Move<{ text: string }, SayPlan> = {
 
     const turn = newTurn(tx, scene, actor.id!, n, waits ? "queued" : "deciding");
     addEntry(tx, scene, { turn: n, speaker: playerSpeaker(actor.id!), kind: "player", text: line });
-    noteHeard(tx, scene, sceneGraph(tx, scene));
+    noteHeard(tx, scene, sceneGraph(tx, scene, getGm(tx, scene.id)));
     updateScene(tx, scene.id, waits ? { turns: n } : { turns: n, turnId: turn.id });
     playedNow(tx, scene.gameId);
 
@@ -49,6 +51,7 @@ export const say: Move<{ text: string }, SayPlan> = {
 
   commit(tx, plan, answer) {
     if (plan.step === "decide") return afterDecide(tx, plan, answer as DecideResponse);
+    if (plan.step === "consider") return afterConsider(tx, plan, answer as ConsiderResponse);
     if (plan.step === "reply") return afterReply(tx, plan, answer as ReplyResponse);
     return afterSettle(tx, plan, answer as SettleResponse);
   },
@@ -58,14 +61,23 @@ export function sayReducer(tx: TxCtx, sender: Identity, args: { text: string }):
   runMove(tx, say, actorOf(tx, sender), args);
 }
 
-/** A turn's plan as it starts: who's on stage and what's settled as the player speaks, and whether this is the wind-down. */
+/**
+ * A turn's plan as it starts, in the prototype's order (engine.ts:449-467): who's on stage as the
+ * player speaks; the co-GM's reviews that have come in since merged, and the notes and whispers
+ * that have run their course lapsed (full-gm-design §4.2: on both paths a turn starts, a line said
+ * now or one that waited); then what's settled, and whether this is the wind-down. The decide
+ * request is built after, so it carries what the merge brought.
+ */
 export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: string): SayPlan {
   const scene = sceneRow(tx, sceneId);
   const gm = getGm(tx, sceneId);
+  const onStage = presentCast(sceneGraph(tx, scene, gm), gm).map(c => c.id);
+  mergeReviews(tx, scene, gm, turn.n);
+  putGm(tx, sceneId, gm);
   return {
     step: "decide", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: turn.n, player: idText(turn.playerId),
     input: line,
-    onStage: presentCast(sceneGraph(tx, scene), gm).map(c => c.id),
+    onStage,
     settledBefore: settledFacts(gm),
     windDown: !!gm.closing,
     lines: [],
