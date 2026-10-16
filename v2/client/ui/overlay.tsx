@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :124-127, :163-191): the sheet, the mark's popover and the help only, HELP.scene trimmed to this client's commands and to what it shows (no marks, no ⓘ lines); the sheet is the seat's sheet row (SceneModel.sheet) in place of the session's.
+// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :124-127, :163-191): the sheet, the mark's popover and the help only, HELP.scene trimmed to this client's commands and to what it shows (no marks, no ⓘ lines, a deed for the example where it had a spell); the sheet is the seat's sheet row (SceneModel.sheet) in place of the session's.
 import type { MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, type ReactNode } from "react";
@@ -13,9 +13,11 @@ import { SheetView, type SheetHandle } from "./sheet.tsx";
  * How to play a scene (the prototype's src/app/ui/overlay.tsx HELP.scene, with what this client has).
  * The GM's marks and the rules' ⓘ lines come back with the verticals that make them (V5, V7): the
  * replies have no marks yet, and the rules' only lines are the dice (a change of gear among them).
+ * Its example of a deed is one the yard can play; the prototype's spell comes back with V7, which
+ * brings spells into a scene.
  */
 const HELP = [
-  "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
+  "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I check his pockets). Talk and do in the same breath if you like.",
   "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Rolls happen when the story needs them (🎲 lines).",
   "/sheet (or /c) your character sheet · /help this · /retry carries on a turn the GM lost · /quit goes back to the title (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
 ];

@@ -75,7 +75,31 @@ export function shown(path: string): string {
   return rel.startsWith("..") ? path : rel;
 }
 
-export function writeRecord(path: string, text: string): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text);
+/** Where a run's record goes: the path, whether --out gave it, and whether --force may write over one there. */
+export interface RecordAt { out: string; outGiven: boolean; force: boolean }
+
+/** An --out already there is refused before anything is played (or spent), unless --force. */
+export function refuseTakenOut(at: RecordAt): void {
+  if (at.outGiven && !at.force && existsSync(at.out)) throw new Error(`${shown(at.out)} is already there: pass --force to write over it, or another --out`);
+}
+
+/**
+ * The record written, never over one already there unless --force says so: the day's record, if
+ * it's there, gets one beside it (v1-<date>-2.md, -3, …). Says where it went, and why there.
+ */
+export function writeRecord(at: RecordAt, text: string): string {
+  const out = at.outGiven || at.force ? at.out : besideAny(at.out);
+  const over = at.force && existsSync(out);
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, text, { flag: at.force ? "w" : "wx" });
+  return `${shown(out)}${out !== at.out ? ` (${shown(at.out)} is already there: this is beside it)` : over ? " (over the record that was there)" : ""}`;
+}
+
+/** The path, or the first free one beside it: v1-<date>-2.md, -3, … */
+function besideAny(path: string): string {
+  const free = (n: number): string => {
+    const next = n === 1 ? path : path.replace(/(\.md)?$/, `-${n}$1`);
+    return existsSync(next) ? free(n + 1) : next;
+  };
+  return free(1);
 }

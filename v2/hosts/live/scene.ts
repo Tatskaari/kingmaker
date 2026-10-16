@@ -5,7 +5,7 @@ import { connect, type Connection } from "../../client/net/connection.ts";
 import type { SceneRows } from "../../client/scene/rows.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
-import { byOperation, cell, modelsOf, settled, shown, writeRecord, type Call } from "./common.ts";
+import { byOperation, cell, modelsOf, settled, writeRecord, type Call, type RecordAt } from "./common.ts";
 
 /**
  * V0's live run (v0-design §1.4, §10.6): a new game and a few scripted lines against the running dev
@@ -25,7 +25,7 @@ export const LINES = [
   "Cob, may I see what's crackling in your left boot? It stays yours.",
 ];
 
-export interface SceneFlags { lines: number; who: string; build: string; out: string; budget: number; rehearse: boolean; date: string }
+export interface SceneFlags extends RecordAt { lines: number; who: string; build: string; budget: number; rehearse: boolean; date: string }
 
 export async function sceneRun(stack: StackFile, flags: SceneFlags): Promise<void> {
   const conn = await connect({ url: stack.ws, db: stack.db });
@@ -40,8 +40,8 @@ export async function sceneRun(stack: StackFile, flags: SceneFlags): Promise<voi
   }
 
   const record = await recordOf(stack, conn, said);
-  writeRecord(flags.out, markdownOf(record, flags));
-  console.log(`\nRecorded ${shown(flags.out)}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
+  const where = writeRecord(flags, markdownOf(record, flags));
+  console.log(`\nRecorded ${where}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
   conn.close();
 }
 

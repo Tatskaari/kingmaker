@@ -7,7 +7,7 @@ import { cardText } from "../../shared/rules/index.ts";
 import type { Offer } from "../../shared/rules/types.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
-import { byOperation, cell, ledgerFrom, modelsOf, settled, shown, writeRecord, type Call } from "./common.ts";
+import { byOperation, cell, ledgerFrom, modelsOf, settled, writeRecord, type Call, type RecordAt } from "./common.ts";
 import { entryText } from "./scene.ts";
 
 /**
@@ -20,7 +20,7 @@ import { entryText } from "./scene.ts";
  * before a step that would take the run past its budget, judging a step by the dearest so far.
  */
 
-export interface CreationFlags { out: string; budget: number; rehearse: boolean; date: string }
+export interface CreationFlags extends RecordAt { budget: number; rehearse: boolean; date: string }
 
 /** The create screen's examples (client/ui/create.tsx), Tamsin last: hers goes on into the game. */
 const CONCEPTS = [
@@ -66,8 +66,8 @@ export async function creationRun(stack: StackFile, flags: CreationFlags): Promi
   }
 
   const calls = ledger.calls();
-  writeRecord(flags.out, markdownOf(run, calls, stack, flags));
-  console.log(`\nRecorded ${shown(flags.out)}: ${calls.length} model calls, $${ledger.spent().toFixed(4)}`);
+  const where = writeRecord(flags, markdownOf(run, calls, stack, flags));
+  console.log(`\nRecorded ${where}: ${calls.length} model calls, $${ledger.spent().toFixed(4)}`);
   conn.close();
   if (run.stopped) throw new Error(run.stopped);
 }
