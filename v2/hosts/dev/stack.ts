@@ -94,50 +94,66 @@ export class CallError extends Error {
 const V2 = resolve(import.meta.dirname, "..", "..");
 
 export async function startStack(options: StackOptions): Promise<Stack> {
-  const root = resolve(options.root);
-  const paths = pathsOf(root);
-  mkdirSync(paths.logs, { recursive: true });
-  const log = stackLog(paths.devLog, options.log), say = log.say;
-  const previous = readStackFile(root);
+  const paths = pathsOf(resolve(options.root));
+  const log = stackLog(paths, options.log);
+  const previous = readStackFile(paths.root);
 
+  const ready = await readyToStart(options, paths);
+
+  await clearLeftovers(previous, paths.root, log.say);
+  prepareFolders(paths, options, log.say);
+  await portsFree(options);
+
+  const server = spacetimeServer(ready, options.stdbPort, paths, log.say);
+  await server.start();
+
+  try {
+    return await startOnServer(options, ready, server, previous, paths, log);
+  } catch (e) {
+    await server.stop();
+    throw e;
+  }
+}
+
+/** What a start needs settled before it touches anything: the key (for real models), a mode that can run here, the CLI. */
+interface Ready { key?: string; mode: Mode; http: string; cli: stdb.SpacetimeCli; urls: { fromHost: string; fromSimulation: string } }
+
+async function readyToStart(options: StackOptions, paths: Paths): Promise<Ready> {
   const key = options.model === "openrouter" ? openRouterKey() : undefined;
   const mode = options.mode ?? detectMode(localAddresses());
   const problem = modeProblem(mode, localAddresses(), !!which("pasta"));
   if (problem) throw new Error(problem);
   const bin = await checkTools({ mode, container: !!options.container, config: paths.cliConfig });
 
-  await clearLeftovers(previous, root, say);
-  prepareFolders(paths, options, say);
-  await portsFree(options);
+  return {
+    ...(key ? { key } : {}), mode, http: `http://127.0.0.1:${options.stdbPort}`,
+    cli: { bin, config: paths.cliConfig, server: `kingmaker-${basename(paths.root)}` }, urls: aiUrls(options.aiPort),
+  };
+}
 
-  const http = `http://127.0.0.1:${options.stdbPort}`;
-  const cli: stdb.SpacetimeCli = { bin, config: paths.cliConfig, server: `kingmaker-${basename(root)}` };
-  const server = spacetimeServer({ mode, port: options.stdbPort, http, cli, paths, say });
-  await server.start();
+/** With SpacetimeDB up: the identities, the CLI logged in as the owner, the module published with its env, the AI service started. */
+async function startOnServer(options: StackOptions, ready: Ready, server: SpacetimeServer, previous: StackFile | undefined, paths: Paths, log: StackLog): Promise<Stack> {
+  const ids = await identities(ready.http, previous, log.say);
+  await stdb.configureCli(ready.cli, ready.http, ids.owner);
 
-  let ai: AiProcess | undefined;
-  try {
-    const ids = await identities(http, previous, say);
-    await stdb.configureCli(cli, http, ids.owner);
-    const urls = aiUrls(options.aiPort);
-    const moduleEnv = { AI_URL: urls.fromSimulation, AI_TOKEN: ids.bearer, AI_IDENTITY: ids.ai.identity };
-    await publishModule(cli, moduleEnv, log);
+  const moduleEnv = { AI_URL: ready.urls.fromSimulation, AI_TOKEN: ids.bearer, AI_IDENTITY: ids.ai.identity };
+  await publishModule(ready.cli, moduleEnv, log);
 
-    ai = aiProcess({ v2: V2, root, container: !!options.container, url: urls.fromHost, env: aiEnvOf(options, mode, http, ids, key, paths), log: paths.aiLog });
-    say(`starting the AI service (${options.container ? "podman" : "node hosts/ai.ts"}, ${options.model} model)`);
-    await ai.start();
+  // A start that fails stops its own process, so nothing of the AI service's is left to clean up here.
+  const ai = aiProcess({ v2: V2, root: paths.root, container: !!options.container, url: ready.urls.fromHost, env: aiEnvOf(options, ready, ids, paths), log: paths.aiLog });
+  log.say(`starting the AI service (${options.container ? "podman" : "node hosts/ai.ts"}, ${options.model} model)`);
+  await ai.start();
 
-    const file: StackFile = {
-      root, mode, http, ws: http.replace(/^http/, "ws"), db: stdb.DB, aiFromHost: urls.fromHost, aiFromSimulation: urls.fromSimulation,
-      owner: ids.owner, ai: { ...ids.ai, bearer: ids.bearer, model: options.model, ...(options.gm ? { gm: options.gm } : {}), container: !!options.container },
-      cli, ports: { stdb: options.stdbPort, ai: options.aiPort }, pids: {},
-    };
-    return stackOf(file, server, ai, moduleEnv, log);
-  } catch (e) {
-    await ai?.stop();
-    await server.stop();
-    throw e;
-  }
+  return stackOf(stackFileOf(options, ready, ids, paths.root), server, ai, moduleEnv, log);
+}
+
+/** stack.json's contents, the pids aside (they're the running stack's). */
+function stackFileOf(options: StackOptions, ready: Ready, ids: Identities, root: string): StackFile {
+  return {
+    root, mode: ready.mode, http: ready.http, ws: ready.http.replace(/^http/, "ws"), db: stdb.DB, aiFromHost: ready.urls.fromHost, aiFromSimulation: ready.urls.fromSimulation,
+    owner: ids.owner, ai: { ...ids.ai, bearer: ids.bearer, model: options.model, ...(options.gm ? { gm: options.gm } : {}), container: !!options.container },
+    cli: ready.cli, ports: { stdb: options.stdbPort, ai: options.aiPort }, pids: {},
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -197,7 +213,9 @@ function pathsOf(root: string): Paths {
 /** The stack's log (logs/dev.log): each step, also to the caller's log; and a command's output, to the file alone. */
 interface StackLog { say(line: string): void; raw(text: string): void }
 
-function stackLog(path: string, print?: (line: string) => void): StackLog {
+function stackLog(paths: Paths, print?: (line: string) => void): StackLog {
+  mkdirSync(paths.logs, { recursive: true });
+  const path = paths.devLog;
   return {
     say(line) {
       appendFileSync(path, `${new Date().toISOString()} ${line}\n`);
@@ -272,19 +290,19 @@ function listening(port: number): Promise<boolean> {
 interface SpacetimeServer { start(): Promise<void>; stop(): Promise<void>; pid(): number | undefined }
 
 /** SpacetimeDB on the stack's port: on the host, or inside pasta in namespace mode, listening on every address there. */
-function spacetimeServer(at: { mode: Mode; port: number; http: string; cli: stdb.SpacetimeCli; paths: Paths; say: (line: string) => void }): SpacetimeServer {
+function spacetimeServer(ready: Ready, port: number, paths: Paths, say: (line: string) => void): SpacetimeServer {
   let child: Child | undefined;
-  const command = stdb.startArgs(at.cli, { listen: stdbListen(at.mode, at.port), dataDir: at.paths.stdb, keysDir: at.paths.keys });
-  const [bin, args] = at.mode === "namespace" ? ["pasta", pastaArgs(at.port, command)] : [command[0]!, command.slice(1)];
+  const command = stdb.startArgs(ready.cli, { listen: stdbListen(ready.mode, port), dataDir: paths.stdb, keysDir: paths.keys });
+  const [bin, args] = ready.mode === "namespace" ? ["pasta", pastaArgs(port, command)] : [command[0]!, command.slice(1)];
 
   return {
     async start() {
-      at.say(`starting SpacetimeDB on 127.0.0.1:${at.port}${at.mode === "namespace" ? " inside pasta" : ""}`);
-      child = spawnLogged(bin, args, { cwd: at.paths.root, env: process.env, log: at.paths.stdbLog });
-      const up = await waitFor(() => stdb.ping(at.http), { timeoutMs: 30_000, gaveUp: () => !child!.running() });
+      say(`starting SpacetimeDB on 127.0.0.1:${port}${ready.mode === "namespace" ? " inside pasta" : ""}`);
+      child = spawnLogged(bin, args, { cwd: paths.root, env: process.env, log: paths.stdbLog });
+      const up = await waitFor(() => stdb.ping(ready.http), { timeoutMs: 30_000, gaveUp: () => !child!.running() });
       if (!up) {
         await child.stop("SIGKILL");
-        throw new Error(`SpacetimeDB didn't answer on ${at.http}. Its log (${at.paths.stdbLog}):\n${tail(at.paths.stdbLog)}`);
+        throw new Error(`SpacetimeDB didn't answer on ${ready.http}. Its log (${paths.stdbLog}):\n${tail(paths.stdbLog)}`);
       }
     },
     // SIGINT, which it handles by shutting down cleanly: in namespace mode it's PID 1 of pasta's PID
@@ -296,8 +314,11 @@ function spacetimeServer(at: { mode: Mode; port: number; http: string; cli: stdb
   };
 }
 
-/** The owner and the AI service as identities on this server, kept from the last run while the keys still sign them; the bearer made once. */
-async function identities(http: string, previous: StackFile | undefined, say: (line: string) => void) {
+/** The owner and the AI service as identities on this server, and the bearer the module sends the AI service. */
+interface Identities { owner: stdb.Identity; ai: stdb.Identity; bearer: string }
+
+/** Each identity kept from the last run while the keys still sign it, else a new one; the bearer made once. */
+async function identities(http: string, previous: StackFile | undefined, say: (line: string) => void): Promise<Identities> {
   const keep = async (id: stdb.Identity | undefined, who: string) => {
     if (id && (await stdb.stillValid(http, id))) return { identity: id.identity, token: id.token };
     say(`a new identity for ${who}`);
@@ -326,18 +347,18 @@ async function publishModule(cli: stdb.SpacetimeCli, env: Record<string, string>
 }
 
 /** The AI service's env (v0-design §5.7): where it listens, its bearer, its store, SpacetimeDB as its own identity, the model. */
-function aiEnvOf(options: StackOptions, mode: Mode, http: string, ids: Awaited<ReturnType<typeof identities>>, key: string | undefined, paths: Paths): Record<string, string> {
+function aiEnvOf(options: StackOptions, ready: Ready, ids: Identities, paths: Paths): Record<string, string> {
   return {
-    KM_AI_LISTEN: aiListen(mode, options.aiPort),
+    KM_AI_LISTEN: aiListen(ready.mode, options.aiPort),
     KM_AI_TOKEN: ids.bearer,
     KM_AI_STORE: paths.ai,
-    KM_STDB_URL: http,
+    KM_STDB_URL: ready.http,
     KM_STDB_DB: stdb.DB,
     KM_STDB_TOKEN: ids.ai.token,
     KM_AI_MODEL: options.model,
     ...(options.gm ? { KM_AI_GM: options.gm } : {}),
     ...(options.model === "fake" && options.fake ? { KM_AI_FAKE: JSON.stringify(options.fake) } : {}),
-    ...(key ? { OPENROUTER_API_KEY: key } : {}),
+    ...(ready.key ? { OPENROUTER_API_KEY: ready.key } : {}),
     ...options.aiEnv,
   };
 }
