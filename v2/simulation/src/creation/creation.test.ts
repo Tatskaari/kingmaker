@@ -121,6 +121,22 @@ test("model: the GM picks a build for the concept, and nothing written goes stra
   assert.deepEqual([script.to("check").length, script.to("traits").length], [0, 0]);
 });
 
+test("Done with nothing written is skipping: the game made at once, no check, no traits, nothing unchecked", async () => {
+  const { host, script, tamsin } = await atBackstory();
+  script.then("check", { checked: { ok: false, why: "offline", reason: "the GM is offline" }, usage: { calls: 0, costUsd: 0, byOperation: {} } });
+  host.as(tamsin).finishBackstory({ text: NEPHEW });
+  await host.drain();
+  host.as(tamsin).chooseAgain();
+  assert.match(creationOf(host).unchecked!, /without the lore check: the GM is offline/);
+
+  host.as(tamsin).chooseBuild({ index: 0 });
+  assert.equal(host.as(tamsin).finishBackstory({ text: " \n " }), undefined);
+  const made = creationOf(host);
+  assert.deepEqual([made.step, made.busy, made.unchecked, made.backstory], ["made", undefined, undefined, undefined]);
+  assert.deepEqual([script.to("check").length, script.to("traits").length], [1, 1], "only the first time's");
+  assert.equal(host.db.sheet.playerId.find(host.db.game.id.find(made.gameId!)!.hostId)!.backstory, undefined);
+});
+
 test("own: their picks made by the engine; a pick overtaken by the next is dropped; a refusal noted, the lists kept", async () => {
   const { host, script } = hostWithCampaign();
   const pell = identity(2);
