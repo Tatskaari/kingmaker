@@ -42,7 +42,8 @@ const campaignId = `${campaign.id}@${campaign.version}`;
 
 /** Each key's action runs after the one before it has finished. */
 let queue = Promise.resolve();
-let quitting = false;
+/** When the stack was asked to stop (0: it wasn't). */
+let quitting = 0;
 /** Set while the dev host stops the AI service itself, so that exit isn't reported as a surprise. */
 let stopping = false;
 /** Set while the AI service runs with f's fault. */
@@ -187,10 +188,15 @@ async function doctorNow(): Promise<void> {
   print(`Doctor: ${report.ok ? "all well" : "something's wrong"}`, ...reportLines(report));
 }
 
-/** Waits for the action in hand, then stops the AI service and SpacetimeDB. Asked twice, it kills them both at once. */
+/**
+ * Waits for the action in hand, then stops the AI service and SpacetimeDB. Asked again, it kills them
+ * both at once; but not within a second, as one Ctrl+C reaches the dev host twice under npm (from the
+ * terminal, and passed on by npm).
+ */
 async function quit(): Promise<void> {
-  if (quitting) return killNow();
-  quitting = true;
+  if (quitting && Date.now() - quitting > 1_000) return killNow();
+  if (quitting) return;
+  quitting = Date.now();
   note("stopping the stack (q or Ctrl+C again kills it at once)");
   await queue.catch(() => undefined);
   await stack.down();
