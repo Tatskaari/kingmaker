@@ -38,26 +38,29 @@ const USAGE = `npm run live [-- options]
   --budget <usd>     stop before a line that would spend past this (0.10)
   --rehearse         run against a stack on the fake model (the record says so)`;
 
-const flags = flagsOf(process.argv.slice(2));
+main(flagsOf(process.argv.slice(2))).then(() => process.exit(0), (error: unknown) => {
+  console.error(`The live run stopped: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+});
 
-const stack = runningStack(flags.stack, flags.rehearse);
-const conn = await connect({ url: stack.ws, db: stack.db });
-const said: string[] = [];
+async function main(flags: Flags): Promise<void> {
+  const stack = runningStack(flags.stack, flags.rehearse);
+  const conn = await connect({ url: stack.ws, db: stack.db });
+  const said: string[] = [];
 
-console.log(`The live run: ${flags.lines} lines against ${stack.http} (${stack.ai.model} model)`);
-await opening(conn, flags.who, flags.build);
-for (const line of LINES.slice(0, flags.lines)) {
-  const left = flags.budget - spent(conn);
-  if (dearestTurn(conn) > left) { console.log(`  stopping: the dearest turn so far ($${dearestTurn(conn).toFixed(4)}) is more than the $${left.toFixed(4)} left`); break; }
-  await turn(conn, line);
-  said.push(line);
+  console.log(`The live run: ${flags.lines} lines against ${stack.http} (${stack.ai.model} model)`);
+  await opening(conn, flags.who, flags.build);
+  for (const line of LINES.slice(0, flags.lines)) {
+    if (!affordable(conn, flags.budget)) break;
+    await turn(conn, line);
+    said.push(line);
+  }
+
+  const record = await recordOf(stack, conn, said);
+  writeRecord(flags.out, markdownOf(record, flags));
+  console.log(`\nRecorded ${shown(flags.out)}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
+  conn.close();
 }
-
-const record = await recordOf(stack, conn, said);
-writeRecord(flags.out, markdownOf(record, flags));
-console.log(`\nRecorded ${shown(flags.out)}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
-conn.close();
-process.exit(0);
 
 // ---------------------------------------------------------------------------------------------
 // Playing.
@@ -108,8 +111,13 @@ function spent(conn: Connection): number {
   return turnsOf(conn).reduce((sum, t) => sum + Number(t.costMicros) / 1e6, 0);
 }
 
-function dearestTurn(conn: Connection): number {
-  return Math.max(0, ...turnsOf(conn).map(t => Number(t.costMicros) / 1e6));
+/** Whether another line fits the budget, judging it by the dearest turn so far; says why not when it doesn't. */
+function affordable(conn: Connection, budget: number): boolean {
+  const left = budget - spent(conn);
+  const dearest = Math.max(0, ...turnsOf(conn).map(t => Number(t.costMicros) / 1e6));
+  if (dearest <= left) return true;
+  console.log(`  stopping: the dearest turn so far ($${dearest.toFixed(4)}) is more than the $${left.toFixed(4)} left`);
+  return false;
 }
 
 /** The turn rows as the client holds them: every column, though the view's type picks only some. */
