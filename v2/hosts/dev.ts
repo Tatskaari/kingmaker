@@ -37,13 +37,18 @@ const USAGE = `npm run dev [-- options]
 
 const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
-/** f's fault: the service exits (137) right after it stores its next answer, before it answers (v0-design §5.1). */
-const FAULT = "exit-after-store:any";
+/**
+ * f's fault: the service exits (137) right after it stores its next reply, before it sends it (v0-design
+ * §5.1). After s the kept reply lands at once. (Any answer would be a line's decide, which no one sees.)
+ */
+const FAULT = "exit-after-store:reply";
 /**
  * n's: the same, after the next notes on a reply (v5-design §1.2, step 11): a job beside a turn kept
  * and answered again. Pressed before a line, so the restart has nothing in flight to finish.
  */
 const NOTES_FAULT = "exit-after-store:notes";
+/** What each key's fault has the service store before it exits, for the line that says it has. */
+const STORED: Record<string, string> = { f: "a reply", n: "the notes on a reply" };
 
 const flags = flagsOf(process.argv.slice(2));
 /** The fake model's options, with --fake: fake.json's, KM_AI_FAKE's on top. */
@@ -84,7 +89,7 @@ const ACTIONS: Record<string, () => Promise<void>> = {
   },
   async f() {
     await restartWithFault("f", FAULT);
-    note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next answer, before answering`);
+    note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next reply, before sending it`);
   },
   async n() {
     await restartWithFault("n", NOTES_FAULT);
@@ -147,7 +152,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `Play:  npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
-      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored answer", "       n kill it after the next notes it stores · p republish the module · d doctor · q quit"]
+      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       n kill it after the next notes it stores · p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),
     ...(s.mode === "namespace" ? [`Tip:   sudo ip addr add ${AI_ADDRESS}/32 dev lo  runs the stack without a namespace (host mode)`] : []),
     "",
@@ -228,7 +233,7 @@ function watchAi(): void {
   void stack.ai.exited().then(code => {
     if (stopping || quitting) return;
     note(fault
-      ? `the AI service exited (${code}) after storing an answer, as ${fault} asked: s starts it again, without the fault`
+      ? `the AI service exited (${code}) after storing ${STORED[fault] ?? "an answer"}, as ${fault} asked: s starts it again, without the fault`
       : `the AI service exited (${code}): s starts it again (its log says why)`);
   });
 }

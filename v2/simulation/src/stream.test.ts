@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ReplyRequest } from "../../shared/protocol/ai.ts";
-import { all, DEFAULTS, http, openedGame, sceneNow } from "./host/testing.ts";
+import type { OpenRequest, ReplyRequest } from "../../shared/protocol/ai.ts";
+import { all, DEFAULTS, hostWithCampaign, http, identity, openedGame, sceneNow } from "./host/testing.ts";
 import { LOST_THREAD } from "./jobs.ts";
 
 /** stream_reply's rules (v0-design §3.3, §5.8): the AI service only; while the turn replies; each post after the draft's. */
@@ -72,16 +72,14 @@ test("a post for a turn that isn't replying is dropped: deciding, or no such tur
   assert.equal(script.to("decide").length, 1);
 });
 
-test("a new attempt's first words clear the turn's note that the reply was lost; the lost attempt's words leave it", async () => {
+test("while the reply waits to be asked again, the lost attempt's late words leave the turn's note; the new attempt's first words clear it", async () => {
   const { host, script, wren, scene } = await openedGame();
   const notes: unknown[] = [];
   const note = () => notes.push(sceneNow(host, scene.id).turns[1]!.note);
+  let turnId = 0n;
   script.then("reply",
-    (request: ReplyRequest) => { host.streamReply(post(BigInt(request.stream.turn), 1, 1, "Kell")); return http(503); },
-    (request: ReplyRequest) => {
-      const turnId = BigInt(request.stream.turn);
-      note();
-      host.streamReply(post(turnId, 1, 2, "Kell looks"));
+    (request: ReplyRequest) => { turnId = BigInt(request.stream.turn); host.streamReply(post(turnId, 1, 1, "Kell")); return http(503); },
+    () => {
       note();
       host.streamReply(post(turnId, 2, 1, "Sergeant"));
       note();
@@ -89,9 +87,39 @@ test("a new attempt's first words clear the turn's note that the reply was lost;
     });
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
+  assert.equal(sceneNow(host, scene.id).jobs[0]!.state, "waiting");
+  host.streamReply(post(turnId, 1, 2, "Kell looks"));
+  note();
+  assert.equal(host.db.replyDraft.turnId.find(turnId)!.text, "Kell looks", "the late words are still the draft's");
   host.advance(1_000);
   await host.drain();
 
   assert.deepEqual(notes, [LOST_THREAD, LOST_THREAD, undefined]);
   assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "done");
+});
+
+test("a re-dispatch the AI service joined to the request still in flight: its words carry the first attempt's number, and clear the note", async () => {
+  const { host, script } = hostWithCampaign();
+  const wren = identity(1);
+  const notes: unknown[] = [];
+  let turnId = 0n;
+  const note = () => notes.push(host.db.turn.id.find(turnId)!.note);
+  script.then("open",
+    (request: OpenRequest) => { turnId = BigInt(request.stream.turn); host.streamReply(post(turnId, 1, 1, "Kell")); return http(503); },
+    () => {
+      note();
+      for (const [seq, text] of [[2, "Kell looks up"], [3, "Kell looks up from her notebook."]] as const) {
+        host.streamReply(post(turnId, 1, seq, text));
+        note();
+      }
+      return DEFAULTS.open;
+    });
+  host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "", build: "ranger" });
+  await host.drain();
+  host.advance(1_000);
+  await host.drain();
+
+  assert.deepEqual(notes, [LOST_THREAD, undefined, undefined]);
+  assert.deepEqual(script.to("open").map(s => s.attempt), ["1", "2"]);
+  assert.equal(host.db.turn.id.find(turnId)!.phase, "done");
 });

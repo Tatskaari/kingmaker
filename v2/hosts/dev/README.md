@@ -30,7 +30,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 | `k` | kill the AI service (SIGKILL), as a crash would |
 | `s` | start it; a turn waiting to try it again goes on at once (`dispatch_waiting`), not when the module's backoff is up |
 | `r` | restart it (SIGTERM: what's in flight is finished and answered first) |
-| `f` | restart it so it exits right after it stores its next answer, before answering (`KM_AI_FAULTS=exit-after-store:any`); `s` starts it again without the fault, and the retried request is answered from the store |
+| `f` | restart it so it exits right after it stores its next reply, before sending it (`KM_AI_FAULTS=exit-after-store:reply`); `s` starts it again without the fault, and the reply, asked for again, is answered from the store at once (the world then settles behind it, as after any reply) |
 | `n` | the same, but it exits after the next notes on a reply it stores (`KM_AI_FAULTS=exit-after-store:notes`): press it, then say a line. The turn waits, noting ("The GM has lost the thread…"), until `s`, and then the notes come from the store |
 | `p` | build and republish the module, then install the campaign again |
 | `d` | run the doctor |
@@ -65,7 +65,7 @@ For host mode, once per boot: `sudo ip addr add 11.0.0.1/32 dev lo`. For good: `
 | `stack.json` | the URLs, the mode, the identities' tokens, the bearer and the pids. Local dev credentials: private to you, and gitignored with `runs/` |
 | `stdb/` | SpacetimeDB's data. `config.toml` sets the procedure pool to 16 |
 | `keys/` | the keys that sign this server's tokens |
-| `cli.toml` | the CLI's config for this stack, logged in as the owner (never `~/.config/spacetime`) |
+| `cli.toml` | the CLI's config for this stack (never `~/.config/spacetime`): the stack's server is its default and Maincloud isn't in it, so a command without `-s` stays on this machine. Logged in as the owner |
 | `ai/` | the AI service's store: kept answers, call logs, the ledger, installed campaigns |
 | `logs/` | `spacetime.log`, `ai.log`, and `dev.log` (each step, and the CLI's output) |
 

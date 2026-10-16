@@ -1,5 +1,5 @@
 // The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2341-2344 (closeOverlay).
-import type { Rejection } from "../backend.ts";
+import type { Backend, Rejection } from "../backend.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { C } from "../theme.ts";
@@ -56,6 +56,7 @@ export class SceneModel {
 
   private readonly actions: SceneActions;
   private listeners = new Set<() => void>();
+  private changes = 0;
   private pending?: ReturnType<typeof setTimeout>;
   private busyLines = new BusyLines();
   private busyLine?: string;
@@ -73,8 +74,15 @@ export class SceneModel {
     return () => { this.listeners.delete(listener); };
   }
 
+  /**
+   * How many changes the screen has been told of. The screen draws by it (useStore), and looks at it
+   * again once it has subscribed, so a change told of before then (with no one listening) still shows.
+   */
+  get version(): number { return this.changes; }
+
   emit(): void {
     if (this.pending) { clearTimeout(this.pending); this.pending = undefined; }
+    this.changes++;
     for (const l of this.listeners) l();
   }
 
@@ -99,6 +107,20 @@ export class SceneModel {
     else this.emit();
   }
 
+  /**
+   * Kept to the game's rows: told of every change from now on, and first brought to the rows as they
+   * are now. The view the model was made from can be old by then (the screen reads its first view,
+   * then comes up), and a change in between (an opening that failed at once, a turn's note) would
+   * otherwise not show until another row changed. `gone` is what the status line says when the game
+   * has gone from the server. Returns the unsubscribe.
+   */
+  follow(game: Pick<Backend, "view" | "onChange">, gone: string): () => void {
+    const now = () => { const view = game.view(); if (view) this.update(view); else this.lose(gone); };
+    const stop = game.onChange(now);
+    now();
+    return stop;
+  }
+
   /** No view: the game this screen showed has gone from the server. Its last view stays, its box shut, and `words` say why. */
   lose(words: string): void {
     if (this.gone === words) return;
@@ -118,13 +140,13 @@ export class SceneModel {
 
   /**
    * Whether a plain line goes to the simulation now: when the box is open, and when the simulation
-   * refuses it in words worth seeing (a spectator's line, a line after the scene's end, or while a
-   * turn is failed: its /retry). While the GM has the floor it waits in the box; with the game gone
-   * from the server there's nothing to send it to.
+   * refuses it in words worth seeing (a spectator's line, a line once a reply has closed the scene
+   * or after its end, or while a turn is failed: its /retry). While the GM has the floor it waits in
+   * the box; with the game gone from the server, or the connection cut off, there's nothing to send it to.
    */
   sends(): boolean {
     const v = this.view;
-    return !this.gone && (v.mayType || !!v.watching || v.over || v.phase === "failed");
+    return !this.gone && !v.cutOff && (v.mayType || !!v.watching || v.over || !!v.ending || v.phase === "failed");
   }
 
   lines(): Line[] { return linesOf(this.view); }

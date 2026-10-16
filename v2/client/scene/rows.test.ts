@@ -111,6 +111,18 @@ test("a turn waiting on the AI service shows its note, until it fails; a lost co
   assert.equal(view.failed, "The GM couldn't answer: 500 model_failed");
 });
 
+test("a connection that has stopped trying says why and what to do, in place of the turn's note, and shuts the box for good", () => {
+  const rows = base();
+  const turnedAway = "(The game's server turned this session away: /quit, then start again.)";
+  assert.equal(sceneViewOf(rows).mayType, true);
+
+  const view = sceneViewOf({ ...rows, trouble: turnedAway, cutOff: true });
+  assert.deepEqual([view.note, view.cutOff, view.mayType], [turnedAway, true, false]);
+  rows.scene.turnId = 5n;
+  rows.turns = [turn(5n, 1, "replying", { note: "The GM has lost the thread for a moment: trying again." })];
+  assert.equal(sceneViewOf({ ...rows, trouble: turnedAway, cutOff: true }).note, turnedAway);
+});
+
 test("a failed turn says why and shuts the box; a spectator is told who can retry it", () => {
   const rows = base();
   rows.scene.turnId = 5n;
@@ -140,12 +152,30 @@ test("a line said while the last turn settles waits, queued, and shuts the box; 
   assert.equal(view.failed, "the settle commit failed");
 });
 
-test("the box opens while the scene winds down, and not while it opens or after it ends", () => {
+test("the box opens while the scene winds down, and not while it opens, once a reply has closed it, or after it ends", () => {
   const rows = base();
   const mayType = (status: string) => sceneViewOf({ ...rows, scene: { ...rows.scene, status } }).mayType;
 
-  assert.deepEqual(["opening", "live", "closing", "ended"].map(mayType), [false, true, true, false]);
+  assert.deepEqual(["opening", "live", "closing", "ending", "ended"].map(mayType), [false, true, true, false, false]);
   assert.equal(sceneViewOf({ ...rows, scene: { ...rows.scene, status: "ended" } }).over, true);
+});
+
+test("a reply that closed the scene: the scene is ending while the world settles behind it, until it ends; its settle failed is a failed turn", () => {
+  const rows = base();
+  rows.scene = { ...rows.scene, status: "ending", turnId: 5n };
+  rows.turns = [turn(5n, 1, "settling")];
+
+  let view = sceneViewOf(rows);
+  assert.deepEqual([view.phase, view.ending, view.over, view.mayType], ["settling", true, false, false]);
+
+  rows.turns = [turn(5n, 1, "failed", { error: "The GM couldn't answer: 400 bad_request" })];
+  view = sceneViewOf(rows);
+  assert.deepEqual([view.phase, view.ending, view.failed], ["failed", undefined, "The GM couldn't answer: 400 bad_request"]);
+
+  rows.scene = { ...rows.scene, status: "ended", turnId: undefined };
+  rows.turns = [turn(5n, 1, "done")];
+  view = sceneViewOf(rows);
+  assert.deepEqual([view.phase, view.ending, view.over], ["done", undefined, true]);
 });
 
 test("a mark is kept only with a note to show; unreadable markup is no markup", () => {

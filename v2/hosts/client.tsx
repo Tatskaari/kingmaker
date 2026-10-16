@@ -105,7 +105,8 @@ async function play(game: Backend, view: SceneView): Promise<void> {
   const quit = leaving(root, renderer, game);
 
   const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), setSuggestions: on => game.setSuggestions(on), quit: () => quit(0) });
-  game.onChange(() => { const next = game.view(); if (next) scene.update(next); else scene.lose(GONE); });
+  // From the rows as they are now, not as the first view had them: they may have moved on while the screen came up.
+  scene.follow(game, GONE);
 
   process.on("SIGTERM", () => quit(0));
   process.on("SIGHUP", () => quit(0));

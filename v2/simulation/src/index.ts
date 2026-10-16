@@ -82,6 +82,7 @@ function txOf(ctx: ReducerCtx<Schema>): TxCtx {
     db: ctx.db,
     now: ctx.timestamp,
     env: ctx.env,
+    database: () => ctx.databaseIdentity.toHexString(),
     uuid: () => ctx.newUuidV4().toString(),
     seed: () => ctx.random.integerInRange(0, 999_999_999),
     log: line => console.info(line),

@@ -75,6 +75,10 @@ export interface SceneView {
   mayType: boolean;
   /** The scene has ended: there's nothing more to say in it. */
   over: boolean;
+  /** A reply has closed the scene, which ends once the world has settled behind it: nothing more is said in it meanwhile. */
+  ending?: boolean;
+  /** The connection to the server has stopped trying, for good (the note says why, and what to do): the box stays shut. */
+  cutOff?: boolean;
   /** The words of the last move the simulation refused (a SenderError's Refusal text), until the next move. */
   refusal?: string;
   /** What the game is waiting on: the AI service, which hasn't answered and is being asked again (`turn.note`), or the server itself, while the connection's down. */

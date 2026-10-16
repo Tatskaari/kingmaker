@@ -144,6 +144,14 @@ function Entry({ line, live, gap, shown }: { line: Line; live?: boolean; gap: nu
   }
 }
 
+/**
+ * The open box's hint: plain words are said, asterisks and brackets are done, with a deed V0 can
+ * play in the yard (a spell waits for V7, which brings spells into a scene). The short one where the
+ * long won't fit whole.
+ */
+const HINT = "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I check his pockets)";
+const HINT_SHORT = "Say it out loud; *asterisks* or (brackets) to do things";
+
 /** The side panel's width beside the conversation: a narrow one at 80 columns, none narrower. */
 export const sceneSide = (width: number) => (width >= 100 ? Math.min(62, Math.floor(width * 0.42)) : width >= 80 ? 26 + Math.floor((width - 80) / 4) : 0);
 
@@ -275,14 +283,15 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   };
   const inner = side - 4;
   const busy = scene.busy();
-  const open = view.mayType && !scene.gone;
+  const open = view.mayType && !scene.gone && !view.cutOff;
   // The game's word on the status line, in place of the spinner: the client's own, that the game has
   // gone from the server, that the box is full, the simulation's last refusal (until the scene moves
-  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach).
+  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach,
+  // or done with this session).
   const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
   const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note;
-  // The box, while it's shut: the game gone, the scene over, who has the lead, a failed turn's /retry, or the GM has the floor.
-  const shut = scene.gone ? "The game is gone from the server." : view.over ? "The scene is over."
+  // The box, while it's shut: the game gone, the connection cut off, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
+  const shut = scene.gone ? "The game is gone from the server." : view.cutOff ? "Cut off from the game's server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
     : view.watching ? `${view.watching} has the lead: you're watching.`
     : view.phase === "failed" ? "The GM lost the thread: /retry carries it on."
     : "The GM has the floor…";
@@ -293,7 +302,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
     { text: "  Who paid you, then?", color: C.player },
     ...wrap("*Asterisks* or (brackets) are what you do:", inner).map(text => ({ text, color: C.faint })),
     { text: "  *looks over my shoulder*", color: C.player },
-    { text: "  (I cast Fireball)", color: C.player },
+    { text: "  (I check his pockets)", color: C.player },
   ];
   const keys: KeyHint[] = [
     ...(toPick.length && typing === undefined ? [[`1–${toPick.length}`, "into the box"] as KeyHint] : []),
@@ -353,9 +362,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
       {/* As much as a turn takes (the simulation's limit): OpenTUI's own is 1,000, and it cut a longer line without a word. */}
       <input ref={input} scrollMargin={0.05} maxLength={MAX_LINE} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!scene.overlay}
-        placeholder={!open ? shut : width >= 100
-          ? "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I cast Fireball)"
-          : "Say it out loud; *asterisks* or (brackets) to do things"} />
+        placeholder={!open ? shut : width - 4 >= HINT.length ? HINT : HINT_SHORT} />
     </box>
     <box height={1} paddingX={1} flexShrink={0}>
       {markLine ? <PointerLine title={markLine.title} detail={markLine.detail} width={width - 2} hint={markLine.hint} />

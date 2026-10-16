@@ -14,7 +14,7 @@ import { schema, t, table } from "spacetimedb/server";
 
 export const game = table({ name: "game", public: true }, {
   id: t.u64().primaryKey().autoInc(),
-  /** tx.uuid(): the game's id in every AI request, key and folder. */
+  /** The game's id in every AI request, key and folder: unique by construction (new-game.ts gameUid), as g<id>-<time>-<database>-<uuid's first block>. */
   uid: t.string().unique(),
   campaign: t.string(),
   campaignVersion: t.string(),
@@ -87,7 +87,7 @@ export const scene = table({ name: "scene", public: true }, {
   /** scene. */
   kind: t.string(),
   placeId: t.u64(),
-  /** opening, live, closing, ended. */
+  /** opening, live, closing (its ending's wind-down to play), ending (a reply closed it: its settle ends it), ended. */
   status: t.string(),
   /** The player who has the lead. */
   controllerId: t.u64(),

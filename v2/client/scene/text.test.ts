@@ -28,12 +28,14 @@ test("a turn waiting on the AI service says so; a failed one says why and what t
   assert.match(failed, /PHASE: failed \(The GM couldn't answer: 500 model_failed\)\. Use: retry$/);
 });
 
-test("a spectator is told who has the lead; a scene that's over says so", () => {
+test("a spectator is told who has the lead; a scene that's over says so, and one a reply has closed", () => {
   const watching = viewText({ ...YARD, mayType: false, watching: "Pell Marrow" });
   const over = viewText({ ...YARD, mayType: false, over: true });
+  const ending = viewText({ ...YARD, phase: "settling", mayType: false, ending: true });
 
   assert.match(watching, /PHASE: done \(you're watching: Pell Marrow has the lead\)$/);
   assert.match(over, /PHASE: over \(the scene has ended: there's nothing more to say in it\)$/);
+  assert.match(ending, /PHASE: settling \(the scene is ending: there's nothing more to say in it\)$/);
 });
 
 test("the lines suggested, as the agent picks them: ACTIONS: before the phase, an id each; none, no ACTIONS:", () => {

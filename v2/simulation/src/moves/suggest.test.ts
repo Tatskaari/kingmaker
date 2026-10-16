@@ -233,7 +233,7 @@ test("a reply that ends the scene asks for no lines; a wind-down out of characte
   assert.deepEqual(script2.to("suggest").map(s => keyParts(s.key)!.turn), [0], "a route into an ending closes the scene in its reply");
 });
 
-test("a reply that ends the scene gets no lines while it settles, the scene still live: set_suggestions asks for none, and a set for it that comes is dropped", async () => {
+test("a reply that ends the scene gets no lines while it settles, the scene ending: set_suggestions asks for none, and a set for it that comes is dropped", async () => {
   const { host, script, wren, scene } = await openedGame();
   const settle = held<SettleResponse>();
   script.then("decide", decided({ route: { id: "walk-away", phase: "attempt" } }));
@@ -244,7 +244,7 @@ test("a reply that ends the scene gets no lines while it settles, the scene stil
   await host.drain();
 
   const settling = sceneNow(host, scene.id);
-  assert.deepEqual([settling.scene.status, settling.turns[1]!.phase, settling.gm.ended?.exitId], ["live", "settling", "walked-away"]);
+  assert.deepEqual([settling.scene.status, settling.turns[1]!.phase, settling.gm.ended?.exitId], ["ending", "settling", "walked-away"]);
   assert.equal(host.as(wren).setSuggestions({ on: true }), undefined);
   assert.deepEqual([all(host.db.job).filter(j => j.move === "suggest").length, sceneNow(host, scene.id).turns[1]!.suggest], [0, "none"], "nothing asked for the closing reply");
 

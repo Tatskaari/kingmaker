@@ -76,13 +76,16 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
 // The check's parts.
 
 /**
- * In a scene, which is open, and theirs to lead. An opening that failed is a turn like any other
- * (turn 0, holding the lease): the line gets turnRefusal's /retry, not a wait that never ends.
+ * In a scene, which is open, and theirs to lead. A scene ending (a reply closed it, and its settle
+ * ends it) is over already. A failed turn holding the lease gets turnRefusal's /retry instead: an
+ * opening that failed (turn 0), or the settle of a reply that closed the scene, is a turn like any
+ * other, and only /retry brings the scene on, or to its end.
  */
 function sceneRefusal(tx: TxCtx, actor: Actor, scene: SceneRow | undefined): Refusal | undefined {
   if (!scene) return refusal("not_in_game");
-  if (scene.status === "opening" && leaseOf(tx, scene)?.phase !== "failed") return refusal("not_ready");
-  if (scene.status === "ended") return refusal("scene_over");
+  const failed = leaseOf(tx, scene)?.phase === "failed";
+  if (scene.status === "opening" && !failed) return refusal("not_ready");
+  if (scene.status === "ended" || (scene.status === "ending" && !failed)) return refusal("scene_over");
   if (scene.controllerId !== actor.id) return refusal("not_controller", { name: playerRow(tx, scene.controllerId).name });
   return undefined;
 }

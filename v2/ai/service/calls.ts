@@ -54,7 +54,11 @@ export function callContext(transport: Transport, logs: { calls: CallLog; ledger
   return { calls, usage: () => structuredClone(usage) };
 }
 
-/** No calls at all: the canned endpoints' usage, and a stored answer's. */
+/**
+ * No calls at all: the canned endpoints' usage. (A stored answer is sent again as it was kept, with
+ * the usage of the run that made it, and the module counts that once: the run's own answer never
+ * reached a commit.)
+ */
 export const noUsage = (): Usage => ({ calls: 0, costUsd: 0, byOperation: {} });
 
 function count(usage: Usage, operation: string, costUsd: number, ms: number): void {

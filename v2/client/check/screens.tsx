@@ -8,17 +8,19 @@
  * a failed turn's word, the commands over the box and the help, a mark opened by a click and by
  * Tab and Enter. And V0's: the game's number, a turn waiting on the AI service (its note), the
  * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
- * spectator's shut box and their line refused (the refusal giving way when the turn moves on), the
- * scene's end, a failed turn's box and a line sent to be refused with its /retry, a long paste kept
- * to a turn's 2,000 characters, and a game gone from the server. And V5's: the suggested lines,
- * from rows (their rows kept while they come, numbered over the box, a number or a click into the
- * box, typing puts them away, /suggestions off, none for a spectator), each speaker's colour as the
- * draft grows, and the popover's card, dropped first when there's no room. (The prototype's
+ * spectator's shut box and their line refused (the refusal giving way when the turn moves on), a
+ * scene a reply has closed and its end, a failed turn's box and a line sent to be refused with its
+ * /retry, a long paste kept to a turn's 2,000 characters, a game gone from the server, and a session
+ * the server turned away. And V5's: the suggested lines, from rows (their rows kept while they come,
+ * numbered over the box, a number or a click into the box, typing puts them away, /suggestions off,
+ * none for a spectator), each speaker's colour as the draft grows, and the popover's card, dropped
+ * first when there's no room. Last, the screen coming up as the rows move on: a change between its
+ * first render and its subscription to the model is drawn. (The prototype's
  * src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { App } from "../app.tsx";
 import { GM_BUSY } from "../busy.ts";
@@ -89,6 +91,7 @@ for (const [w, h] of SIZES) {
   const you = style("asking");
   checks.push([`${size}: a "you" mark underlined on its tint, in Kell's colour (${you?.fg} on ${you?.bg})`, !!you && you.underline && you.bg === MARK_TINT.you && you.fg === "#6d9eeb"]);
   checks.push([`${size}: the box is open, with its hint`, /What do you say\?/.test(frame) && /Say it out loud/.test(frame)]);
+  checks.push([`${size}: the hints offer a deed V0 can play (the box's whole, the side panel's where there's room), never a spell`, !/Fireball|I cast/.test(frame) && (w < 100 || /\(I check his pockets\)/.test(frame)) && /Say it out loud[^│]*(things|pockets\)) *│/.test(frame)]);
 
   // A line said: sent as the move, the box emptied.
   await act(async () => { await setup.mockInput.typeText("Sergeant, who found him?"); });
@@ -284,6 +287,34 @@ for (const [w, h] of SIZES) {
   frame = await draw();
   checks.push([`${size}: a view coming again takes it back`, !/no longer has this game/.test(frame) && style("What do you say?")?.fg === C.borderHot]);
 
+  // The connection cut off for good (a reconnect the server turned away: one signed by other keys, on
+  // the port): the last view stays, the status line says so and what to do, the box is shut and says
+  // why, and a line typed waits in it, unsent.
+  view = { ...YARD, mayType: false, cutOff: true, note: "(The game's server turned this session away: /quit, then start again.)" };
+  set({});
+  frame = await draw();
+  if (show) console.log(`${size}, cut off\n${frame}`);
+  checks.push([`${size}: a session the server turned away: the status line says so and what to do, the box is shut and says why`, style("(The game's server turned this session away")?.fg === C.warn && /Cut off from the game's server\./.test(frame) && style("What do you say?")?.fg === C.border]);
+  const unsent = sent.length;
+  await act(async () => { await setup.mockInput.typeText("Kell, are you there?"); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line typed then stays in the box, unsent`, sent.length === unsent && /Kell, are you there\?/.test(frame)]);
+  for (let i = 0; i < "Kell, are you there?".length; i++) act(() => setup.mockInput.pressBackspace());
+
+  // A reply that closed the scene: while the world settles behind it the scene is ending, the box shut
+  // and saying so, the GM making a note. A line typed goes to the simulation, which refuses it.
+  view = { ...YARD, phase: "settling", mayType: false, ending: true };
+  set({});
+  frame = await draw();
+  checks.push([`${size}: a reply that closed the scene: the box is shut and says the scene is ending, the GM making a note`, /The scene is ending…/.test(frame) && /The GM makes a note…/.test(frame) && style("What do you say?")?.fg === C.border]);
+  await act(async () => { await setup.mockInput.typeText("Wait, Sergeant."); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line then goes to the simulation, and the box empties`, sent.at(-1) === "Wait, Sergeant." && !/Wait, Sergeant\./.test(frame)]);
+
   // The scene's end: a rule across with its title, and a box that says it's over. A line typed after
   // it goes to the simulation, which refuses it in the game's words.
   view = { ...YARD, entries: [...YARD.entries, { turn: 3, speaker: "system", kind: "system", text: "Scene ends: The Hanged Clerk" }], mayType: false, over: true };
@@ -469,6 +500,7 @@ for (const [w, h] of SIZES) {
   frame = await draw();
   checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. /suggestions off turns them off.")]);
   checks.push([`${size}: the help says how the marks work, and nothing of ⓘ lines (V1's)`, doubled(frame).includes("Underlined words are the GM's marks") && doubled(frame).includes("for a note from what you know.") && !/ⓘ/.test(frame)]);
+  checks.push([`${size}: the help's example of a deed is one to do in the yard, never a spell`, doubled(frame).includes("*looks over my shoulder*, (I check his pockets).") && doubled(frame).includes("(🎲 lines)") && !/Fireball|I cast/.test(doubled(frame))]);
   await esc();
 
   // A spectator: the same rows, the turn's lines in; none for them, and no rows kept.
@@ -572,6 +604,39 @@ for (const [w, h] of [[100, 30], [120, 36], [120, 40], [160, 50]] as const) {
   checks.push([`${size}: the opening alone, a mark opened by Tab and Enter: the popover by its phrase (row ${phrase}; popover rows ${top}-${bottom}), never over it`, phrase > 0 && top > 0 && beside]);
   if (h >= 36) checks.push([`${size}: the opening alone: with room by its phrase, the card is there`, frame.includes("The granary yard") && frame.includes("What anyone in Caerwyn could tell you.")]);
   await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); });
+  await setup.dispose();
+}
+
+// The screen coming up as the rows move on. The TUI host keeps the model to the rows (follow), then
+// renders the App, whose parts subscribe to the model in their effects. A change between the first
+// render and those effects (a layout effect runs there) must still be drawn: the opening that failed
+// at once, the turn's note, the game gone. With no second look once subscribed, all three were lost.
+const OPENING_VIEW: SceneView = { ...YARD, game: "2", entries: [], phase: "replying", turn: 0, mayType: false };
+const comingUp: Array<[what: string, rows: SceneView | undefined, shows: (frame: string) => boolean]> = [
+  ["an opening that failed: its box says /retry carries it on, and no spinner", { ...OPENING_VIEW, phase: "failed", failed: "400 bad_request: campaign caerwyn@0.1.0 isn't installed here" },
+    frame => /The GM lost the thread: \/retry carries it on\./.test(frame) && !/The GM is speaking…/.test(frame) && !/The GM has the floor/.test(frame)],
+  ["the turn's note, in place of the spinner", { ...OPENING_VIEW, note: "The GM has lost the thread for a moment: trying again." },
+    frame => /The GM has lost the thread for a moment: trying again\./.test(frame) && !/The GM is speaking…/.test(frame)],
+  ["the game gone from the server: the status line says so, the box is shut", undefined,
+    frame => /no longer has this game/.test(frame) && /The game is gone from the server\./.test(frame)],
+];
+for (const [what, next, shows] of comingUp) {
+  let rows: SceneView | undefined = OPENING_VIEW;
+  const listeners = new Set<() => void>();
+  const game = { view: () => rows, onChange: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; } };
+  const scene = new SceneModel(OPENING_VIEW, recorder().actions);
+  scene.follow(game, "(The game's server no longer has this game: /quit, then start one with --new, or watch one with --join.)");
+  /** The App, and the rows moving on after its first render, before its effects run. */
+  function ComingUp() {
+    useLayoutEffect(() => { rows = next; for (const listener of listeners) listener(); }, []);
+    return <App scene={scene} onQuit={() => {}} />;
+  }
+  const setup = await testRender(<ComingUp />, { width: 100, height: 30 });
+  await setup.renderOnce();
+  await setup.renderOnce();
+  const frame = setup.captureCharFrame();
+  if (show) console.log(`coming up: ${what}\n${frame}`);
+  checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
   await setup.dispose();
 }
 

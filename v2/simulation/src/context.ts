@@ -25,7 +25,13 @@ export interface TxCtx {
   /** The transaction's time. */
   now: Timestamp;
   env: Env;
-  /** A new UUID (a game's uid). */
+  /** The database's own identity, as hex. Another database has another; this one keeps its own when its data is deleted and published again. */
+  database(): string;
+  /**
+   * A new v4 UUID, from SpacetimeDB's generator. That's seeded by the transaction's time alone, and
+   * gives about 3% of transactions the same uuid (v0-design §14): never use one alone where an id
+   * must be unique. A game's uid folds in its own id (new-game.ts gameUid).
+   */
   uuid(): string;
   /** A new game's dice seed, 0 to 999,999,999. */
   seed(): number;

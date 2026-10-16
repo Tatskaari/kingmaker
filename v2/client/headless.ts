@@ -161,18 +161,24 @@ async function answered(game: Backend, out: Out, waiting: Waiting): Promise<numb
   return after.phase === "failed" ? 1 : 0;
 }
 
-/** The turn has answered: the reply is final (or, settled, the world too and the notes), it failed, or the scene ended. */
+/**
+ * The turn has answered: the reply is final (or, settled, the world too and the notes), it failed, or
+ * the scene ended (a reply that closed it, once the scene has ended).
+ */
 function finished(view: SceneView, settled: boolean): boolean {
   if (view.phase === "failed" || view.over) return true;
+  if (view.ending) return false;
   return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "noting" || view.phase === "done";
 }
 
 /**
  * Once a reply is in: the notes on its marks and the lines suggested after it, waited for (at most
- * `AFTER_MS`: then the view as it is). Nothing is waited for when the turn failed or the scene ended.
+ * `AFTER_MS`: then the view as it is). Nothing is waited for when the turn failed. A reply that
+ * ended the scene has its notes waited for too, which come after the end, as they do after any
+ * reply; no lines come after it.
  */
 async function afterwards(game: Backend, view: SceneView, waiting: Waiting): Promise<SceneView> {
-  if (view.phase === "failed" || view.over) return view;
+  if (view.phase === "failed") return view;
   return await within(game, v => !v.notesComing && !v.suggestionsComing, waiting, view);
 }
 
