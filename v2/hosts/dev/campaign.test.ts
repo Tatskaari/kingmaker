@@ -80,45 +80,6 @@ test("the place's people are the cast, its things are somewhere, and its lore ex
   assert.deepEqual(checkCampaign(noLore), ["scenes/hanged-clerk: lore Places/Atlantis.md isn't in lore/"]);
 });
 
-test("a build has a concept and every field the engine makes one from, and a look names the cast in one glyph and a colour", () => {
-  const noClass = changed("builds.json", b => { delete b.rogue.concept; delete b.rogue.build.classId; b.wizard.build.spells = "fireball"; });
-  const badLooks = changed("looks.json", l => { l.duchess = { role: "creature", glyph: "d", fg: "#c08a5a" }; l.kell.fg = "blue"; });
-
-  assert.deepEqual(checkCampaign(noClass), ["builds.json: rogue: no concept", "builds.json: rogue: the build has no classId", "builds.json: wizard: the build's spells isn't a list of ids"]);
-  assert.deepEqual(checkCampaign(badLooks), ['looks.json: kell\'s colour "blue" isn\'t #rrggbb', "looks.json: duchess isn't in any scene's cast"]);
-});
-
-test("a build names what the rules engine's pack has: its class, species, background, and a subclass of its class", () => {
-  const offPack = changed("builds.json", b => { b.rogue.build.speciesId = "kobold"; b.wizard.build.subclassId = "thief"; b.fighter.build.backgroundId = "noble"; });
-
-  assert.deepEqual(checkCampaign(offPack), [
-    "builds.json: fighter: its background noble isn't in starter-pack@0.1.0",
-    "builds.json: rogue: its species kobold isn't in starter-pack@0.1.0",
-    "builds.json: wizard: its subclass thief is the rogue's, not the wizard's",
-  ]);
-});
-
-test("the rules pack is the vendored one, and creation's world has its docs in lore/ and its places' words as regular expressions", () => {
-  const otherPack = changed("campaign.json", c => { c.rulesPack = "starter-pack@0.2.0"; });
-  const lostDocs = changed("campaign.json", c => { c.creation.primer = "World/Atlantis.md"; c.creation.places[0].words = "\\b(granary"; });
-
-  assert.deepEqual(checkCampaign(otherPack), ["campaign.json: its rulesPack starter-pack@0.2.0 isn't the rules engine's pack, starter-pack@0.1.0"]);
-  assert.deepEqual(checkCampaign(lostDocs).map(p => p.replace(/ \(.*\)$/, "")), [
-    "campaign.json: creation: World/Atlantis.md isn't in lore/",
-    "campaign.json: creation: Places/Granary Yard.md's words aren't a regular expression",
-  ]);
-});
-
-test("campaign.json names its first scene and place, and a file that isn't JSON says so", () => {
-  const lost = changed("campaign.json", c => { c.firstScene = "the-heron"; });
-  const garbled = changed("looks.json", "{ kell: ");
-
-  assert.deepEqual(checkCampaign(lost), ["campaign.json: the first scene the-heron isn't one of its scenes"]);
-  assert.equal(checkCampaign(garbled).length, 1);
-  assert.match(checkCampaign(garbled)[0]!, /^looks\.json isn't JSON/);
-  assert.deepEqual(checkCampaign(changed("builds.json", undefined)), ["builds.json is missing"]);
-});
-
 const RAT = "scenes/drowned-rat/scene.json", HERON = "scenes/heron-warehouse/scene.json";
 /** The campaign's problems but the vocabulary's (which sees a changed next too: vocabulary.test.ts has those). */
 const storyChecks = (f: CampaignFiles) => checkCampaign(f).filter(p => !p.startsWith("vocabulary.json"));
@@ -172,4 +133,43 @@ test("the Rat may give the player Prout's page, which isn't its own but is owed 
   assert.equal(rat.essentials["prouts-page"]!.missed, "hanged-clerk:page");
   const unowed = changed(RAT, s => { delete s.essentials["prouts-page"].missed; });
   assert.ok(checkCampaign(unowed).includes("scenes/drowned-rat: exit hobb-talks: give names unknown ledger-page"));
+});
+
+test("a build has a concept and every field the engine makes one from, and a look names the cast in one glyph and a colour", () => {
+  const noClass = changed("builds.json", b => { delete b.rogue.concept; delete b.rogue.build.classId; b.wizard.build.spells = "fireball"; });
+  const badLooks = changed("looks.json", l => { l.duchess = { role: "creature", glyph: "d", fg: "#c08a5a" }; l.kell.fg = "blue"; });
+
+  assert.deepEqual(checkCampaign(noClass), ["builds.json: rogue: no concept", "builds.json: rogue: the build has no classId", "builds.json: wizard: the build's spells isn't a list of ids"]);
+  assert.deepEqual(checkCampaign(badLooks), ['looks.json: kell\'s colour "blue" isn\'t #rrggbb', "looks.json: duchess isn't in any scene's cast"]);
+});
+
+test("a build names what the rules engine's pack has: its class, species, background, and a subclass of its class", () => {
+  const offPack = changed("builds.json", b => { b.rogue.build.speciesId = "kobold"; b.wizard.build.subclassId = "thief"; b.fighter.build.backgroundId = "noble"; });
+
+  assert.deepEqual(checkCampaign(offPack), [
+    "builds.json: fighter: its background noble isn't in starter-pack@0.1.0",
+    "builds.json: rogue: its species kobold isn't in starter-pack@0.1.0",
+    "builds.json: wizard: its subclass thief is the rogue's, not the wizard's",
+  ]);
+});
+
+test("the rules pack is the vendored one, and creation's world has its docs in lore/ and its places' words as regular expressions", () => {
+  const otherPack = changed("campaign.json", c => { c.rulesPack = "starter-pack@0.2.0"; });
+  const lostDocs = changed("campaign.json", c => { c.creation.primer = "World/Atlantis.md"; c.creation.places[0].words = "\\b(granary"; });
+
+  assert.deepEqual(checkCampaign(otherPack), ["campaign.json: its rulesPack starter-pack@0.2.0 isn't the rules engine's pack, starter-pack@0.1.0"]);
+  assert.deepEqual(checkCampaign(lostDocs).map(p => p.replace(/ \(.*\)$/, "")), [
+    "campaign.json: creation: World/Atlantis.md isn't in lore/",
+    "campaign.json: creation: Places/Granary Yard.md's words aren't a regular expression",
+  ]);
+});
+
+test("campaign.json names its first scene and place, and a file that isn't JSON says so", () => {
+  const lost = changed("campaign.json", c => { c.firstScene = "the-heron"; });
+  const garbled = changed("looks.json", "{ kell: ");
+
+  assert.deepEqual(checkCampaign(lost), ["campaign.json: the first scene the-heron isn't one of its scenes"]);
+  assert.equal(checkCampaign(garbled).length, 1);
+  assert.match(checkCampaign(garbled)[0]!, /^looks\.json isn't JSON/);
+  assert.deepEqual(checkCampaign(changed("builds.json", undefined)), ["builds.json is missing"]);
 });
