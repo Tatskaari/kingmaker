@@ -536,6 +536,7 @@ V5 keeps to this blueprint but for these, each with its reason. The packages' re
 | The check compares prep, hook and cast (§4.1) | Also the ways on and the world's names | The story's walk reads `next`, and `places` reads the world names |
 | The notes 2.2 s after the reply on the fake | 3.5 s | 2.2 s lands before the fake's 2 s settle, so "The GM makes a note…" would never show |
 | `npm run live -- --script v5 --lines 2` against the fake | Needs `--rehearse` | V0's guard against recording a fake run as a live one |
+| `f` just after a reply, then `s`, shows the notes answered from the store (§1.2, step 11) | A key of its own, `n`: the AI service restarted to exit once it has stored the next notes (`exit-after-store:notes`), pressed before the line | `f` restarts the service with SIGTERM, which finishes what's in flight, and the settle, the notes and the lines all go at the reply's commit: pressed after a reply, `f`'s fault caught the next line's decide instead; pressed while the reply streamed, the settle. With `n` the turn waits, noting, through the outage, and after `s` its notes come from the store |
 
 ### The integration (F)
 

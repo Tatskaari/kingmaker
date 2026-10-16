@@ -39,6 +39,11 @@ const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
 /** f's fault: the service exits (137) right after it stores its next answer, before it answers (v0-design §5.1). */
 const FAULT = "exit-after-store:any";
+/**
+ * n's: the same, after the next notes on a reply (v5-design §1.2, step 11): a job beside a turn kept
+ * and answered again. Pressed before a line, so the restart has nothing in flight to finish.
+ */
+const NOTES_FAULT = "exit-after-store:notes";
 
 const flags = flagsOf(process.argv.slice(2));
 /** The fake model's options, with --fake: fake.json's, KM_AI_FAKE's on top. */
@@ -57,8 +62,8 @@ let queue = Promise.resolve();
 let quitting = 0;
 /** Set while the dev host stops the AI service itself, so that exit isn't reported as a surprise. */
 let stopping = false;
-/** Set while the AI service runs with f's fault. */
-let faulted = false;
+/** The key whose fault the AI service runs with (f or n), if any. */
+let faulted: string | undefined;
 
 /** The keys (§1.1), each an action on the stack. */
 const ACTIONS: Record<string, () => Promise<void>> = {
@@ -78,9 +83,12 @@ const ACTIONS: Record<string, () => Promise<void>> = {
     note("the AI service is restarted");
   },
   async f() {
-    await stopAi("SIGTERM");
-    await startAi({ KM_AI_FAULTS: FAULT });
+    await restartWithFault("f", FAULT);
     note(`the AI service is restarted with KM_AI_FAULTS=${FAULT}: it exits right after it stores its next answer, before answering`);
+  },
+  async n() {
+    await restartWithFault("n", NOTES_FAULT);
+    note(`the AI service is restarted with KM_AI_FAULTS=${NOTES_FAULT}: it exits right after it stores the next notes on a reply, before answering (say a line now)`);
   },
   async p() {
     const published = await stack.publish();
@@ -139,7 +147,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     `Play:  npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
-      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored answer", "       p republish the module · d doctor · q quit"]
+      ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored answer", "       n kill it after the next notes it stores · p republish the module · d doctor · q quit"]
       : ["Keys:  off (--no-keys): SIGTERM or Ctrl+C stops the stack"]),
     ...(s.mode === "namespace" ? [`Tip:   sudo ip addr add ${AI_ADDRESS}/32 dev lo  runs the stack without a namespace (host mode)`] : []),
     "",
@@ -187,11 +195,17 @@ function listenForKeys(): void {
   });
 }
 
-async function startAi(env?: Record<string, string>): Promise<void> {
+async function startAi(env?: Record<string, string>, key?: string): Promise<void> {
   await stack.ai.start(env);
-  faulted = !!env?.KM_AI_FAULTS;
+  faulted = env?.KM_AI_FAULTS ? key : undefined;
   watchAi();
   await dispatchWaiting();
+}
+
+/** f's and n's: the AI service stopped (SIGTERM: what's in flight is answered first), then started with the key's fault. */
+async function restartWithFault(key: string, fault: string): Promise<void> {
+  await stopAi("SIGTERM");
+  await startAi({ KM_AI_FAULTS: fault }, key);
 }
 
 /** The AI service is back: a turn waiting to try it again goes on now, not when the module's backoff is up (up to 15 s away). */
@@ -208,13 +222,13 @@ async function stopAi(signal: NodeJS.Signals): Promise<void> {
   }
 }
 
-/** Says so when the AI service exits by itself: f's fault, or a crash. */
+/** Says so when the AI service exits by itself: f's or n's fault, or a crash. */
 function watchAi(): void {
   const fault = faulted;
   void stack.ai.exited().then(code => {
     if (stopping || quitting) return;
     note(fault
-      ? `the AI service exited (${code}) after storing an answer, as f asked: s starts it again, without the fault`
+      ? `the AI service exited (${code}) after storing an answer, as ${fault} asked: s starts it again, without the fault`
       : `the AI service exited (${code}): s starts it again (its log says why)`);
   });
 }

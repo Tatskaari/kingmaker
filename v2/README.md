@@ -70,6 +70,7 @@ It brings everything up, installs the campaign in both services, checks that eac
 | `s` | start it again: a turn waiting for it goes on at once |
 | `r` | restart it: what's in flight is finished and answered first |
 | `f` | make it exit right after it stores its next answer; `s` then starts it, and the turn is answered from the store |
+| `n` | the same for the next notes on a reply: press it, then say a line; after `s` the notes come from the store |
 | `p` | build and republish the module (the data kept) |
 | `d` | run the doctor |
 | `q`, Ctrl+C | stop everything |

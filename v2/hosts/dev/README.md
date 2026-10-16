@@ -31,6 +31,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 | `s` | start it; a turn waiting to try it again goes on at once (`dispatch_waiting`), not when the module's backoff is up |
 | `r` | restart it (SIGTERM: what's in flight is finished and answered first) |
 | `f` | restart it so it exits right after it stores its next answer, before answering (`KM_AI_FAULTS=exit-after-store:any`); `s` starts it again without the fault, and the retried request is answered from the store |
+| `n` | the same, but it exits after the next notes on a reply it stores (`KM_AI_FAULTS=exit-after-store:notes`): press it, then say a line. The turn waits, noting ("The GM has lost the thread…"), until `s`, and then the notes come from the store |
 | `p` | build and republish the module, then install the campaign again |
 | `d` | run the doctor |
 | `q`, Ctrl+C | stop the AI service, then SpacetimeDB. Press again to kill both at once. While the stack is still starting, Ctrl+C stops what has started |
