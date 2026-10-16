@@ -1,4 +1,4 @@
-import { AX, AY, OVERLAY_OSC, paintDoor, toHex, type DoorShape, type OverlayFrame, type WallCell } from "../../game/look/door-art.ts";
+import { AX, AY, DOOR_DETAILS, type DoorDetail, OVERLAY_OSC, paintDoor, toHex, type DoorShape, type OverlayFrame, type WallCell } from "../../game/look/door-art.ts";
 import { drawLamps } from "./lamps.ts";
 
 /**
@@ -70,6 +70,8 @@ export function doorOverlay(term: Term): DoorOverlay | undefined {
   const ctx = canvas.getContext("2d");
   if (!ctx) return undefined;
 
+  const selected = new URLSearchParams(location.search).get("doorDetail");
+  const detail = DOOR_DETAILS.includes(selected as DoorDetail) ? selected as DoorDetail : "planks";
   let frame: OverlayFrame | undefined, drawnFrame: OverlayFrame | undefined;
   let drawn = 0, received = 0, draws = 0;
   let lampsDrawn = 0;
@@ -160,7 +162,7 @@ export function doorOverlay(term: Term): DoorOverlay | undefined {
 
   /** A door: the wall it took given back (glyphs and all, as xterm draws them), then its picture's pixels. */
   function drawDoor(door: DoorShape, d: Dimensions): boolean {
-    const painted = paintDoor(door);
+    const painted = paintDoor(door.view === "map" ? { ...door, detail } : door);
     if (!painted.pixels.length) return false;
     for (const cell of painted.wall) drawCell(cell, d);
     // An art pixel's device pixels: its cell's, cut in sevenths across and fifteenths down.
