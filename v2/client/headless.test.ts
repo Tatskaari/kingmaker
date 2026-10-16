@@ -138,6 +138,7 @@ function rowsAsTheyCome(closes?: "closes", notes?: Markup): Backend {
     onChange: listener => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     say: async () => { show(said); void play(); return undefined; },
     newGame: async () => undefined, joinGame: async () => undefined, retry: async () => undefined, setSuggestions: async () => undefined, close: () => {},
+    explore: () => undefined, walk: async () => undefined, interact: async () => undefined, travel: async () => undefined,
     // The scene's rows are all these verbs read; the title's are empty.
     home: () => ({ games: [], campaigns: [] }), act: async () => undefined,
   };
@@ -270,6 +271,7 @@ function stalled(): Backend {
     // The scene's rows are all these verbs read; the title's are empty.
     home: () => ({ games: [], campaigns: [] }),
     act: () => Promise.resolve(undefined),
+    explore: () => undefined, walk: () => Promise.resolve(undefined), interact: () => Promise.resolve(undefined), travel: () => Promise.resolve(undefined),
     close() {},
   };
 }
