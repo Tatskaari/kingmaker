@@ -11,8 +11,10 @@ import type { ToolCall } from "./tools.ts";
  * - The Responses API: JSON made to fit the schema asked for (the stage manager's operations, the
  *   quick co-GM), or one of `byName`'s by the schema's name; the lines a scene or a talk suggests
  *   (asked for in instructions that begin "You suggest what the player might": v2/ai/prompts/suggest.md,
- *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given; otherwise the GM's
- *   next line from `replies`, streamed as OpenRouter streams it.
+ *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given; the hand-off between
+ *   two scenes (instructions that begin "You write the hand-off between two scenes": v2/ai/gm/boundary.ts)
+ *   from `handoff`, when it's given; otherwise the GM's next line from `replies`, streamed as
+ *   OpenRouter streams it.
  *
  * - `stall`: structured calls (by the schema's name) that never answer, until the caller gives up.
  * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
@@ -48,6 +50,7 @@ export interface FakeOptions {
   choices?: Record<string, string | string[]>;
   odds?: Record<string, number>;
   suggestions?: string | string[];
+  handoff?: string;
   stall?: string[];
   capped?: Record<string, number>;
   phased?: string[];
@@ -100,12 +103,14 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
     const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
+    const handing = options.handoff !== undefined && !!body.instructions?.startsWith("You write the hand-off between two scenes");
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
     const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
     if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
     const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
       : suggesting ? suggestions[suggested++ % suggestions.length]!
+      : handing ? options.handoff!
       : replies[next++ % replies.length]!;
     if (format && options.phased?.includes(format.name)) return phased(`${text.slice(0, 40)}"} \n\n the response is not valid json`, text);
     if (!body.stream) return json(completed(text));
