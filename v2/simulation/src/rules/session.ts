@@ -17,8 +17,6 @@ import { campaignFile, campaignOfGame } from "../scenes.ts";
  * engine's campaign and what's gone, the sheet.
  */
 
-export type RulesStateRow = RowOf<"rulesState">;
-
 /**
  * How far apart each roll's pins are: a call's ids come from the dice's seed and count, never from
  * the rolls themselves (the engine's dice are seed + 7919 × count), and never advance the count.
