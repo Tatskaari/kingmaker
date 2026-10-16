@@ -1029,9 +1029,14 @@ export function sameAgainDirective(t: Transition, answer?: string): string {
   return `No dice: the player is pushing for the same thing that already failed (${t.when.replace(/\.$/, "")}), with nothing new on the table, and it gets the same answer${then || "."} Play that answer again, in this moment's own words: whoever they're pushing reacts to being pushed again (patience wearing thin, a sharper no), but nothing more comes of it than that answer: nothing changes hands, nobody gives way or decides anything new, and nothing already said is taken back.`;
 }
 
-/** Say yes: no roll needed, so what the player is doing simply works. */
+/**
+ * Say yes: no roll needed, and the route the decider matched says what comes of it. The route's
+ * text is the GM's prep for a move like this, not a record of the player's words: given as "what
+ * the player is doing", the bribe route's "a shilling for a look" put a request in the mouth of a
+ * player who had offered a shilling to make the kids talk.
+ */
 export function plainDirective(t: Transition): string {
-  return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
+  return `No dice needed: the player's turn is a move your prep has an answer for, and it goes the way the prep says. Your prep for it: ${t.when.replace(/\.$/, "")}. Answer what the player actually said and did, in their own words: if they didn't mention something the prep does (an object, a price, a reason), nobody acts as if they had. Let it land in this reply, in a way that fits the people involved.`;
 }
 
 const RESIST: Record<string, number> = { guarded: 1, dangerous: 2, ruinous: 3 };

@@ -119,9 +119,12 @@ export function memoryBrief(scene: Scene, state: SessionState, part: "stable" | 
       ? entries.map(d => d.body)
       : [
         ...indexes.map(d => d.path === STORY_INDEX ? `Earlier scenes (index):\n${d.body.replace(/^# .*\n?/, "").trim()}` : `What ${scope.label} remembers (index; notes open below when they matter):\n${d.body.replace(/^# .*\n?/, "").trim() || "(nothing yet)"}`),
-        ...notes.map(d => `#### ${titleOf(d)}${d.meta.context ? ` (${d.meta.context})` : ""}\n${d.body}`),
+        ...notes.map(d => `#### ${scope.character ? `${scope.label}'s: ` : ""}${titleOf(d)}${d.meta.context ? ` (${d.meta.context})` : ""}\n${d.body}`),
       ];
-    if (parts.length) blocks.push(`### ${scope.character ? `${scope.label}: their own ${part === "stable" ? "lore" : "memories"}` : `The GM's ${part === "stable" ? "own notes (the player character, this place)" : "notes"}`}\n${parts.join("\n\n")}`);
+    // One GM voices everyone, and each person's notes call them "you" (or "I"): said whose they
+    // are, so that what only Cob heard ("Silvertop wanted the page") doesn't come out of Kell.
+    const whose = scope.character ? `Everything in this block is ${scope.label}'s alone ("you" and "I" in it are ${scope.label}): nobody else here knows any of it unless they were there too, or ${scope.label} says it in their hearing.\n` : "";
+    if (parts.length) blocks.push(`### ${scope.character ? `${scope.label}: their own ${part === "stable" ? "lore" : "memories"}` : `The GM's ${part === "stable" ? "own notes (the player character, this place)" : "notes"}`}\n${whose}${parts.join("\n\n")}`);
   }
   if (!blocks.length) return undefined;
   return [
