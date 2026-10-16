@@ -70,7 +70,7 @@ The requests and answers are [v2/shared/protocol/ai.ts](../shared/protocol/ai.ts
 - **The GM** is the pipeline ([service/endpoints/](service/endpoints/)), or with `KM_AI_GM=canned` four answers with no model at all ([canned.ts](service/endpoints/canned.ts)): the opening and each reply streamed a word at a time, and nothing moving the scene. For bringing a stack up, and for telling the plumbing's faults from the GM's.
 - **Stateless.** Nothing of a game outlives its request in memory. Kept between requests, in the stores ([service/stores.ts](service/stores.ts), a folder for V0, [service/folder-stores.ts](service/folder-stores.ts), `KM_AI_STORE`): the answers by key (swept after a week), each game's call log and copy of the lore, the ledger, and the campaigns as PUT. In memory: an installed version's scenes (they never change), the prompts, the docs service's registries, and the requests in flight.
 - **Faults, for the tests:** `KM_AI_FAULTS=exit-after-store:<open|decide|reply|settle|any>` ends the process (137) right after it stores such an answer and before it sends it.
-- **Shutting down** (SIGTERM, SIGINT): it takes nothing new (503 `not_ready`), gives what's running ten seconds to finish and be sent, and exits 0. So the dev host's `r`, or a host scaling in, loses no answer.
+- **Shutting down** (SIGTERM, SIGINT): it takes nothing new (503 `not_ready`), gives what's running ten seconds to finish and be sent, and exits 0. So the dev host's `r`, or a host scaling in, loses no answer. Another signal meanwhile changes nothing: under `npm run ai`, one Ctrl+C reaches the service twice (from the terminal, and passed on by npm).
 
 ### The container
 
