@@ -10,6 +10,7 @@ import { registerLookCanvas } from "../look/opentui.ts";
 import { SceneModel } from "../scene/model.ts";
 import { afterRows, mapView, useCaerwyn } from "./map.ts";
 import { YARD } from "./fixture.ts";
+import { ratWaiting, yardOver } from "./story.ts";
 
 /**
  * The map between scenes (map-design §1, §3.6) at 80x24, 100x30 and 130x42. The lane in the
@@ -135,24 +136,33 @@ async function afterAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   await setup.dispose();
 }
 
-/** A scene played on the map, over: the way back to it in place of the box; Enter takes it (walk out); a spectator's is the shut box. */
+/**
+ * A scene played on the map, over, the story moved on (story-design §4.5): the story's way on in
+ * place of the box; Enter goes to the moment between scenes, and on from the lead's card back to the
+ * map (walk out), where the lead is walked to, not straight in (the prototype's continueFromCard); a
+ * spectator's is the lead's to take.
+ */
 async function overAt(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
   const sent: string[] = [];
-  const scene = new SceneModel({ ...YARD, over: true, mayType: false, onMap: true }, { say: t => sent.push(t), retry: () => {}, setSuggestions: async () => undefined, out: () => sent.push("(out)"), quit: () => {} });
+  const actions = { say: (t: string) => { sent.push(t); }, retry: () => {}, setSuggestions: async () => undefined, out: () => { sent.push("(out)"); }, walk: async () => { sent.push("(walk)"); return undefined; }, quit: () => {} };
+  const scene = new SceneModel({ ...yardOver(ratWaiting()), onMap: true }, actions);
   const setup = await testRender(<ScenePlay scene={scene} />, { width: 100, height: 30 });
   await setup.renderOnce();
   let frame = setup.captureCharFrame();
   if (show) console.log(`a scene over, on the map\n${frame}`);
-  checks.push(["a scene over, played on the map: the way back to it in place of the box", /The scene is over/.test(frame) && /▶ Back to the map +Enter, or click here/.test(frame) && !/What do you say\?/.test(frame)]);
+  checks.push(["a scene over, played on the map: the story's way on in place of the box", /▶ On, with Sergeant Agnes Kell/.test(frame) && !/What do you say\?/.test(frame)]);
   act(() => setup.mockInput.pressEnter());
   await setup.renderOnce();
-  checks.push(["Enter goes back to the map (walk out)", sent.join() === "(out)"]);
+  checks.push(["Enter goes on to the moment between scenes", scene.page === "between"]);
+  act(() => scene.toLead());
+  await setup.renderOnce();
+  checks.push(["on from the lead's card: back to the map (walk out), the lead to walk to", sent.join() === "(out)"]);
   await setup.dispose();
 
-  const watching = new SceneModel({ ...YARD, over: true, mayType: false, onMap: true, watching: "Pell Marrow" }, { say: () => {}, retry: () => {}, setSuggestions: async () => undefined, out: () => sent.push("(out!)"), quit: () => {} });
+  const watching = new SceneModel({ ...yardOver(ratWaiting(), { watching: "Pell Marrow" }), onMap: true }, actions);
   const spectator = await testRender(<ScenePlay scene={watching} />, { width: 100, height: 30 });
   await spectator.renderOnce();
   frame = spectator.captureCharFrame();
-  checks.push(["a spectator's scene over: no way back of their own (their seat follows the lead's)", !/Back to the map/.test(frame) && /The scene is over\./.test(frame)]);
+  checks.push(["a spectator's scene over: no way on of their own (their seat follows the lead's)", !/Back to the map/.test(frame) && /Watching: Pell Marrow goes on when ready/.test(frame)]);
   await spectator.dispose();
 }
