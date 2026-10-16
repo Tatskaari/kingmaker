@@ -1,4 +1,4 @@
-import { apiKey, fetchWithRetry, logCall, recordCost, respondJson, LUNA, type Effort } from "./openrouter.ts";
+import { apiKey, fetchWithRetry, logCall, recordCost, respondJson, LUNA, type CallContext, type Effort } from "./openrouter.ts";
 
 /**
  * A "decision mode" call: choose one named criterion per question.
@@ -22,9 +22,12 @@ export const LUNA_DECISIONS_MODEL = "openai/gpt-6-luna-decisions";
 export class JevDecider implements Decider {
   readonly name: string;
   private readonly model: string;
-  constructor(model = JEV_MODEL, name = "jev") {
+  /** Whose calls these are, when they're kept apart from the process's (the AI service's requests). */
+  private readonly calls: CallContext | undefined;
+  constructor(model = JEV_MODEL, name = "jev", calls?: CallContext) {
     this.model = model;
     this.name = name;
+    this.calls = calls;
   }
   async decide(state: unknown, questions: Record<string, ChoiceQuestion>, operation: string): Promise<Decision> {
     // A question with one option has one answer (the Decisions API wants at least two: a fighter's
@@ -34,7 +37,7 @@ export class JevDecider implements Decider {
     const asked = Object.fromEntries(Object.entries(questions).filter(([id]) => !settled[id]));
     if (!Object.keys(asked).length) return { answers: settled, latencyMs: 0, costUsd: 0, decider: this.name };
     if (Object.keys(settled).length) return this.decide(state, asked, operation).then(d => ({ ...d, answers: { ...settled, ...d.answers } }));
-    const key = apiKey();
+    const key = this.calls?.apiKey ?? apiKey();
     const request = {
       model: this.model,
       state,
@@ -46,11 +49,11 @@ export class JevDecider implements Decider {
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Kingmaker V2 PoC" },
       body: JSON.stringify(request),
       signal: AbortSignal.timeout(60_000),
-    }, operation);
+    }, operation, this.calls);
     const latencyMs = performance.now() - started;
     const body = await response.json() as { answers?: Record<string, ChoiceAnswer & { type?: string }>; usage?: { cost?: number }; error?: { message?: string } };
     if (!response.ok || !body.answers) {
-      logCall({ provider: this.name, operation, request, error: body.error?.message ?? `HTTP ${response.status}` });
+      logCall({ provider: this.name, operation, request, error: body.error?.message ?? `HTTP ${response.status}` }, this.calls);
       throw new Error(`${this.name} ${operation} failed: ${body.error?.message ?? `HTTP ${response.status}`}`);
     }
     const answers: Record<string, ChoiceAnswer> = {};
@@ -60,8 +63,8 @@ export class JevDecider implements Decider {
       answers[id] = { choice: answer.choice, probabilities: answer.probabilities, ...(answer.confidence === undefined ? {} : { confidence: answer.confidence }) };
     }
     const costUsd = body.usage?.cost ?? 0;
-    recordCost(this.name, operation, this.model, costUsd, latencyMs);
-    logCall({ provider: this.name, operation, request, answers, latencyMs: Math.round(latencyMs), costUsd });
+    recordCost(this.name, operation, this.model, costUsd, latencyMs, this.calls);
+    logCall({ provider: this.name, operation, request, answers, latencyMs: Math.round(latencyMs), costUsd }, this.calls);
     return { answers, latencyMs, costUsd, decider: this.name };
   }
 }
