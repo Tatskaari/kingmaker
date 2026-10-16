@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/walk.test.ts at 44c6d4a, whole. The maps are the campaign's files (useMaps); the lead's place waits as the prototype's presence built it, from its place file (ExploreState.waiting: the simulation keeps it as rows); `.at(-1)` as in the copies.
+// Copied from the prototype's src/game/map/walk.test.ts at 44c6d4a, whole. The maps are the campaign's files (useMaps); the lead's place waits as the prototype's presence built it, from its place file (ExploreState.waiting: the simulation keeps it as rows).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -44,7 +44,7 @@ function walk(ex: ExploreState, target: Tile2): { plan: NonNullable<ReturnType<t
     assert.ok(r.moved || r.trigger, `each step is taken (${r.message ?? ""})`);
     if (r.trigger || r.travelled) break;
   }
-  return { plan, results, ...(results.length ? { last: results[results.length - 1]! } : {}) };
+  return { plan, results, ...(results.length ? { last: results.at(-1)! } : {}) };
 }
 
 test("a click on a far tile walks there, the shortest way round what's in the way", () => {
