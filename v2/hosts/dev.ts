@@ -178,11 +178,12 @@ function watchAi(): void {
   });
 }
 
+/** The campaign into both services: "caerwyn 0.1.0 installed in both", or which didn't take it and why. */
 async function installCampaign(): Promise<string> {
   try {
     return describeInstall(await stack.install(CAMPAIGN));
   } catch (e) {
-    return `not installed: ${(e as Error).message}`;
+    return (e as Error).message;
   }
 }
 

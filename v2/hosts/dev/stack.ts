@@ -8,7 +8,7 @@ import { aiProcess, containerName, type AiProcess } from "./ai-process.ts";
 import { alive, groupMembers, processText, run, spawnLogged, stopGroup, tail, type Child } from "./child.ts";
 import { doctor, type DoctorOptions, type DoctorReport } from "./doctor.ts";
 import { waitFor } from "./http.ts";
-import { installCampaign, type Installed } from "./install.ts";
+import { describeInstall, installCampaign, type Installed } from "./install.ts";
 import { aiListen, aiUrls, detectMode, localAddresses, modeProblem, pastaArgs, stdbListen, type Mode } from "./mode.ts";
 import * as stdb from "./spacetime.ts";
 import { readStackFile, writeStackFile, type StackFile } from "./stack-file.ts";
@@ -73,7 +73,7 @@ export interface Stack {
   sql(query: string): Promise<Array<Record<string, unknown>>>;
   /** Builds and publishes the module again with the stack's env; the data stays unless the schema change needs it gone. */
   publish(): Promise<stdb.Published>;
-  /** A campaign folder into both services. */
+  /** A campaign folder into both services; throws, saying which didn't take it and why, unless both did. */
   install(campaignDir: string): Promise<Installed>;
   doctor(options?: DoctorOptions): Promise<DoctorReport>;
   /** The AI service, then SpacetimeDB (pasta ends with its child). */
@@ -186,7 +186,11 @@ function stackOf(file: StackFile, server: SpacetimeServer, ai: AiProcess, module
     },
     sql: query => stdb.sql(file.http, query, file.owner.token),
     publish: () => publishModule(file.cli, moduleEnv, log),
-    install: dir => installCampaign(resolve(dir), file),
+    async install(dir) {
+      const installed = await installCampaign(resolve(dir), file);
+      if (!installed.words.ok || !installed.structure.ok) throw new Error(describeInstall(installed));
+      return installed;
+    },
     doctor: options => doctor(file, options),
     async down() {
       log.say("stopping the AI service, then SpacetimeDB");
