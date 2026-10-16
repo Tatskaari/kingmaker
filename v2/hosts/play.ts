@@ -22,14 +22,19 @@ const USAGE = `Kingmaker: headless play
                                                 plain words are said; *asterisks* or (brackets) are done
       [--wait settled]                          wait for the world to settle too, not just the reply
       [--stream]                                the reply as it's written, on stderr
+  play act --session <name> --id say_2 [--wait settled] [--stream]
+                                                say one of the lines suggested (ACTIONS: lists them)
+  play suggestions --session <name> [on|off]    the suggested lines: on (the default) or off; on asks
+                                                for this moment's at once, and lists them
   play retry --session <name> [--wait settled] [--stream]
                                                 carry a turn the GM lost on from where it got to
   play transcript --session <name>              everything said in the scene
 
-Every verb also takes --demo (canned turns, no server), and --url and --db for the server (else
-KM_STDB_URL and KM_STDB_DB, else the running dev stack's, found in runs/dev/stack.json or the
-folder --stack names, else ws://127.0.0.1:3300 and kingmaker). Sessions are kept in runs/play/
-(KM_RUNS_DIR moves runs/). A refusal or a failed turn exits 1.
+new, say, act and retry wait for the notes on the reply's marks and the lines suggested after it
+(15 s at most), and print them. Every verb also takes --demo (canned turns, no server), and --url
+and --db for the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's, found in
+runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker). Sessions
+are kept in runs/play/ (KM_RUNS_DIR moves runs/). A refusal or a failed turn exits 1.
 
 Begin with observe; observe again after anything changes.`;
 
@@ -57,7 +62,7 @@ function argsOf(argv: string[]) {
     allowPositionals: true,
     options: {
       session: { type: "string" }, as: { type: "string" }, build: { type: "string" }, campaign: { type: "string" },
-      game: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
+      game: { type: "string" }, id: { type: "string" }, wait: { type: "string" }, stream: { type: "boolean" }, demo: { type: "boolean" },
       url: { type: "string" }, db: { type: "string" }, stack: { type: "string" }, help: { type: "boolean", short: "h" },
     },
   });
@@ -86,10 +91,25 @@ async function run(game: Backend, args: Args): Promise<number> {
     case "join": return await verbs.joinGame(game, gameId(args.values.game), out);
     case "observe": return verbs.observe(game, out);
     case "say": return await verbs.say(game, args.text, out, waiting);
+    case "act": return await verbs.act(game, lineId(args.values.id), out, waiting);
+    case "suggestions": return await verbs.suggestions(game, setting(args.text), out);
     case "retry": return await verbs.retry(game, out, waiting);
     case "transcript": return verbs.transcript(game, out);
     default: console.log(`There's no "${args.verb}" to play.\n\n${USAGE}`); return 1;
   }
+}
+
+/** act's line: say_1, say_2… */
+function lineId(id: string | undefined): string {
+  if (!id) throw new Error("Which line? act takes --id say_1, say_2… as ACTIONS: lists them (observe shows them).");
+  return id;
+}
+
+/** suggestions on, off, or neither (which it is now). */
+function setting(word: string): boolean | undefined {
+  if (!word) return undefined;
+  if (/^(on|off)$/i.test(word)) return word.toLowerCase() === "on";
+  throw new Error(`suggestions takes on or off (or neither, to say which it is), not "${word}".`);
 }
 
 function gameId(game: string | undefined): bigint {

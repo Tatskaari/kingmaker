@@ -101,7 +101,7 @@ async function play(game: Backend, view: SceneView): Promise<void> {
   const root = createRoot(renderer);
   const quit = leaving(root, renderer, game);
 
-  const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), quit: () => quit(0) });
+  const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), setSuggestions: on => game.setSuggestions(on), quit: () => quit(0) });
   game.onChange(() => { const next = game.view(); if (next) scene.update(next); });
 
   process.on("SIGTERM", () => quit(0));

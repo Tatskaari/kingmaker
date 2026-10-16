@@ -1,15 +1,22 @@
 // New, with the prototype's src/app/game.ts:98-114 (Line, less look and scene), :163-170 (isRoll) and :1330-1339 (lineOf and header, as linesOf and liveOf) at 44c6d4a.
 import type { Markup } from "../../shared/markup.ts";
+import type { Suggestion } from "../../shared/protocol/ai.ts";
+
+export type { Suggestion };
 
 /**
  * The scene screen's view model: everything it draws, made from the rows the client subscribes to
  * (the scene's `transcript` entries, the `reply_draft` the GM's text grows in, the `turn` row's
- * phase and note) and the names and looks of who's there. The screen and the headless client hold
- * nothing else about the game.
+ * phase and note, the lines suggested after a reply) and the names and looks of who's there. The
+ * screen and the headless client hold nothing else about the game.
  */
 
-/** A turn's phase, as the `turn` row has it; "idle" before the scene's first line. */
-export type Phase = "idle" | "queued" | "deciding" | "replying" | "settling" | "done" | "failed";
+/**
+ * A turn's phase, as the `turn` row has it; "idle" before the scene's first line. "noting": all in
+ * but the notes on the reply's marks, which the GM is still writing. The turn ends when they're in,
+ * so a line said meanwhile waits for them; the player may type, as while the world settles.
+ */
+export type Phase = "idle" | "queued" | "deciding" | "replying" | "settling" | "noting" | "done" | "failed";
 
 /** What kind of entry a transcript row is (the simulation's `transcript.kind`). */
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
@@ -46,9 +53,6 @@ export interface Draft {
 /** Someone in the scene, as the player knows them: by the name they've heard (or what they're called), in their look's colour. */
 export interface Person { key: string; name: string; color?: string }
 
-/** One of a scene's suggested lines: to say, to do, a risky try, a way out (they're coloured by kind). */
-export interface Suggestion { kind: "say" | "do" | "try" | "leave"; text: string }
-
 export interface SceneView {
   /** The scene's title, the time of day in a word, and the line under the title (the hook, or the lead that brought them). */
   title: string;
@@ -77,7 +81,17 @@ export interface SceneView {
   note?: string;
   /** Why the turn failed (`turn.error`), when it has: a retry is offered. */
   failed?: string;
-  suggestions?: Suggestion[];
+  /**
+   * The lines suggested for this moment (to say, to do, a risky try, a way out), in order: only for
+   * the one who has the lead, with them on, and only the latest turn's. None otherwise.
+   */
+  suggestions: Suggestion[];
+  /** Lines for this moment are on their way (asked for, or the reply they follow is): the screen keeps their rows meanwhile. */
+  suggestionsComing: boolean;
+  /** This player's own setting: the suggested lines on (the default) or off. */
+  suggestionsOn: boolean;
+  /** The GM is still writing the notes on the shown turn's reply: its marks come with them. */
+  notesComing: boolean;
 }
 
 // -------------------------------------------------------------------------------------------------
