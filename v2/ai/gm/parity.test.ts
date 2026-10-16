@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type Request } from "../llm/fake-openrouter.ts";
@@ -127,8 +127,12 @@ function firstDifference(theirs: Request, ours: Request[]): string {
 // ---------------------------------------------------------------------------------------------
 // A game on V0's service: one store, the campaign installed, a step at a time on the stand-in.
 
+/** Every game's store is a folder in this one, removed once the file's tests are done (a store holds a whole campaign: left behind, a run's worth fills a tmpfs's inodes in a few hundred runs). */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-parity-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
+
 async function game() {
-  const stores = folderStores(mkdtempSync(join(tmpdir(), "km-parity-")));
+  const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const installed = campaigns(stores.campaigns, stores.docsRoot);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const campaign = installed.use("caerwyn", "0.1.0");
