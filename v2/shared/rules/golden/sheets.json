@@ -1,0 +1,5706 @@
+{
+ "about": "The prototype's sheet code for builds.json's five and the three builds Tamsin Vell is offered, made at seed 7 (the engine's ids masked in order)",
+ "sheets": [
+  {
+   "case": "cleric",
+   "name": "Wren Ashdown",
+   "concept": "a cheerful priest of the river god who blesses barges for a living and hits harder than you'd think",
+   "build": {
+    "classId": "cleric",
+    "subclassId": "life-domain",
+    "speciesId": "dwarf",
+    "backgroundId": "acolyte",
+    "abilities": [
+     "WIS",
+     "CON",
+     "STR",
+     "DEX",
+     "CHA",
+     "INT"
+    ],
+    "skills": [
+     "insight",
+     "medicine",
+     "religion"
+    ],
+    "feat": "alert",
+    "cantrips": [
+     "sacred-flame",
+     "guidance",
+     "thaumaturgy"
+    ],
+    "spells": [
+     "cure-wounds",
+     "healing-word",
+     "guiding-bolt",
+     "bless",
+     "shield-of-faith",
+     "spiritual-weapon"
+    ],
+    "weapons": [
+     "mace"
+    ],
+    "armor": "chain-shirt",
+    "shield": true
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Wren Ashdown: dwarf cleric 3 (Life Domain), acolyte background. AC 16, HP 24/27.",
+   "buildLine": "dwarf cleric 3 (Life Domain), acolyte background",
+   "modifiers": {
+    "persuasion": 0,
+    "deception": 0,
+    "intimidation": 0,
+    "insight": 5,
+    "performance": 0,
+    "perception": 3,
+    "investigation": -1,
+    "sleight_of_hand": 1,
+    "stealth": 1,
+    "athletics": 1,
+    "acrobatics": 1,
+    "animal_handling": 3,
+    "arcana": -1,
+    "history": 1,
+    "nature": -1,
+    "religion": 1,
+    "medicine": 5,
+    "survival": 3
+   },
+   "status": "HP 24/27, spell slots 1st 4/4, 2nd 2/2",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "insight",
+     "medicine",
+     "religion",
+     "alert",
+     "life-domain",
+     "sacred-flame",
+     "guidance",
+     "thaumaturgy",
+     "cure-wounds",
+     "healing-word",
+     "guiding-bolt",
+     "bless",
+     "shield-of-faith",
+     "spiritual-weapon",
+     "medium",
+     "ability-score-improvement",
+     "wis",
+     "wisdom",
+     "con",
+     "constitution",
+     "str",
+     "strength",
+     "dex",
+     "dexterity",
+     "cha",
+     "charisma",
+     "int",
+     "intelligence"
+    ],
+    "spells": [
+     {
+      "id": "guidance",
+      "name": "Guidance",
+      "level": 0
+     },
+     {
+      "id": "sacred-flame",
+      "name": "Sacred Flame",
+      "level": 0
+     },
+     {
+      "id": "thaumaturgy",
+      "name": "Thaumaturgy",
+      "level": 0
+     },
+     {
+      "id": "bless",
+      "name": "Bless",
+      "level": 1
+     },
+     {
+      "id": "cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1
+     },
+     {
+      "id": "guiding-bolt",
+      "name": "Guiding Bolt",
+      "level": 1
+     },
+     {
+      "id": "healing-word",
+      "name": "Healing Word",
+      "level": 1
+     },
+     {
+      "id": "shield-of-faith",
+      "name": "Shield of Faith",
+      "level": 1
+     },
+     {
+      "id": "aid",
+      "name": "Aid",
+      "level": 2
+     },
+     {
+      "id": "lesser-restoration",
+      "name": "Lesser Restoration",
+      "level": 2
+     },
+     {
+      "id": "spiritual-weapon",
+      "name": "Spiritual Weapon",
+      "level": 2
+     }
+    ],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Mace"
+     },
+     {
+      "id": "#3",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [
+     {
+      "id": "divine-spark",
+      "name": "Divine Spark",
+      "target": "creature"
+     },
+     {
+      "id": "preserve-life",
+      "name": "Preserve Life",
+      "target": "self"
+     }
+    ],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Mace",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#4",
+      "name": "Chain Shirt",
+      "kind": "armor",
+      "slot": "armor"
+     },
+     {
+      "id": "#5",
+      "name": "Shield",
+      "kind": "shield",
+      "slot": "shield"
+     }
+    ],
+    "status": "HP 24/27, spell slots 1st 4/4, 2nd 2/2"
+   },
+   "sheet": {
+    "name": "Wren Ashdown",
+    "concept": "a cheerful priest of the river god who blesses barges for a living and hits harder than you'd think",
+    "species": "Dwarf",
+    "background": "Acolyte",
+    "classes": [
+     {
+      "id": "cleric",
+      "name": "Cleric",
+      "level": 3,
+      "subclass": "Life Domain"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 24,
+     "max": 27,
+     "temp": 0
+    },
+    "ac": 16,
+    "speeds": {
+     "walk": 30
+    },
+    "initiative": 1,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 8,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 13,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 12,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 14,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 17,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 11,
+      "modifier": 0,
+      "save": 2,
+      "proficient": true
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 13,
+     "investigation": 9,
+     "insight": 15
+    },
+    "attacks": [
+     {
+      "name": "Mace",
+      "kind": "melee",
+      "bonus": 3,
+      "damage": "1d6+1",
+      "type": "bludgeoning",
+      "properties": [],
+      "mastery": "Sap",
+      "held": true
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 3,
+      "damage": "1d4+1",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "spellcasting": {
+     "className": "Cleric",
+     "ability": "WIS",
+     "saveDC": 13,
+     "attackBonus": 5,
+     "slots": [
+      {
+       "level": 1,
+       "max": 4,
+       "used": 0
+      },
+      {
+       "level": 2,
+       "max": 2,
+       "used": 0
+      }
+     ],
+     "spells": [
+      {
+       "level": 0,
+       "spells": [
+        {
+         "id": "guidance",
+         "name": "Guidance",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "guidance",
+          "name": "Guidance",
+          "level": 0,
+          "school": "divination",
+          "levelLine": "Divination Cantrip (Cleric, Druid)",
+          "castingTime": "Action",
+          "range": "Touch",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Concentration, up to 1 minute",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "On the target: Guided"
+          ],
+          "scaling": [],
+          "inFights": true,
+          "text": [
+           "You touch a willing creature and choose a skill. Until the spell ends, the creature adds 1d4 to any ability check using the chosen skill."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "sacred-flame",
+         "name": "Sacred Flame",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "sacred-flame",
+          "name": "Sacred Flame",
+          "level": 0,
+          "school": "evocation",
+          "levelLine": "Evocation Cantrip (Cleric)",
+          "castingTime": "Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Dexterity save, DC 13: 1d8 radiant on a failure"
+          ],
+          "scaling": [
+           "Grows with you: 2d8 at level 5, 3d8 at 11, 4d8 at 17"
+          ],
+          "inFights": true,
+          "text": [
+           "Flame-like radiance descends on a creature that you can see within range. The target must succeed on a Dexterity saving throw or take 1d8 Radiant damage. The target gains no benefit from Half Cover or Three-Quarters Cover for this save.",
+           "_Cantrip Upgrade._ The damage increases by 1d8 when you reach levels 5 (2d8), 11 (3d8), and 17 (4d8)."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "thaumaturgy",
+         "name": "Thaumaturgy",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "thaumaturgy",
+          "name": "Thaumaturgy",
+          "level": 0,
+          "school": "transmutation",
+          "levelLine": "Transmutation Cantrip (Cleric)",
+          "castingTime": "Action",
+          "range": "30 feet",
+          "components": {
+           "verbal": true,
+           "somatic": false
+          },
+          "duration": "Up to 1 minute",
+          "concentration": false,
+          "ritual": false,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "You manifest a minor wonder within range. You create one of the effects below within range. If you cast this spell multiple times, you can have up to three of its 1-minute effects active at a time.",
+           "_Altered Eyes._ You alter the appearance of your eyes for 1 minute.",
+           "_Booming Voice._ Your voice booms up to three times as loud as normal for 1 minute. For the duration, you have Advantage on Charisma (Intimidation) checks.",
+           "_Fire Play._ You cause flames to flicker, brighten, dim, or change color for 1 minute.",
+           "_Invisible Hand._ You instantaneously cause an unlocked door or window to fly open or slam shut.",
+           "_Phantom Sound._ You create an instantaneous sound that originates from a point of your choice within range, such as a rumble of thunder, the cry of a raven, or ominous whispers.",
+           "_Tremors._ You cause harmless tremors in the ground for 1 minute."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 1,
+       "spells": [
+        {
+         "id": "bless",
+         "name": "Bless",
+         "ready": true,
+         "always": true,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "bless",
+          "name": "Bless",
+          "level": 1,
+          "school": "enchantment",
+          "levelLine": "Level 1 Enchantment (Cleric, Paladin)",
+          "castingTime": "Action",
+          "range": "30 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a Holy Symbol worth 5+ GP"
+          },
+          "duration": "Concentration, up to 1 minute",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "On the target: Blessed"
+          ],
+          "scaling": [
+           "With a higher slot: nothing more in this game"
+          ],
+          "inFights": true,
+          "text": [
+           "You bless up to three creatures within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target adds 1d4 to the attack roll or save.",
+           "_Using a Higher-Level Spell Slot._ You can target one additional creature for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "cure-wounds",
+         "name": "Cure Wounds",
+         "ready": true,
+         "always": true,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "cure-wounds",
+          "name": "Cure Wounds",
+          "level": 1,
+          "school": "abjuration",
+          "levelLine": "Level 1 Abjuration (Bard, Cleric, Druid, Paladin, Ranger)",
+          "castingTime": "Action",
+          "range": "Touch",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Heals 2d8 + 6 hit points (+3 your Wisdom modifier, +3 Disciple of Life)"
+          ],
+          "scaling": [
+           "With a higher slot: +2d8 healing and +1 from Disciple of Life for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "A creature you touch regains a number of Hit Points equal to 2d8 plus your spellcasting ability modifier.",
+           "_Using a Higher-Level Spell Slot._ The healing increases by 2d8 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "guiding-bolt",
+         "name": "Guiding Bolt",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "guiding-bolt",
+          "name": "Guiding Bolt",
+          "level": 1,
+          "school": "evocation",
+          "levelLine": "Level 1 Evocation (Cleric)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "1 round",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Ranged spell attack, +5 to hit: 4d6 radiant on a hit"
+          ],
+          "scaling": [
+           "With a higher slot: +1d6 radiant for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "You hurl a bolt of light toward a creature within range. Make a ranged spell attack against the target. On a hit, it takes 4d6 Radiant damage, and the next attack roll made against it before the end of your next turn has Advantage.",
+           "_Using a Higher-Level Spell Slot._ The damage increases by 1d6 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "healing-word",
+         "name": "Healing Word",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "healing-word",
+          "name": "Healing Word",
+          "level": 1,
+          "school": "abjuration",
+          "levelLine": "Level 1 Abjuration (Bard, Cleric, Druid)",
+          "castingTime": "Bonus Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": false
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Heals 2d4 + 6 hit points (+3 your Wisdom modifier, +3 Disciple of Life)"
+          ],
+          "scaling": [
+           "With a higher slot: +2d4 healing and +1 from Disciple of Life for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "A creature of your choice that you can see within range regains Hit Points equal to 2d4 plus your spellcasting ability modifier.",
+           "_Using a Higher-Level Spell Slot._ The healing increases by 2d4 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "shield-of-faith",
+         "name": "Shield of Faith",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "shield-of-faith",
+          "name": "Shield of Faith",
+          "level": 1,
+          "school": "abjuration",
+          "levelLine": "Level 1 Abjuration (Cleric, Paladin)",
+          "castingTime": "Bonus Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a prayer scroll"
+          },
+          "duration": "Concentration, up to 10 minutes",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "On the target: Shielded by Faith"
+          ],
+          "scaling": [],
+          "inFights": true,
+          "text": [
+           "A shimmering field surrounds a creature of your choice within range, granting it a +2 bonus to AC for the duration."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 2,
+       "spells": [
+        {
+         "id": "aid",
+         "name": "Aid",
+         "ready": true,
+         "always": true,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "aid",
+          "name": "Aid",
+          "level": 2,
+          "school": "abjuration",
+          "levelLine": "Level 2 Abjuration (Bard, Cleric, Druid, Paladin, Ranger)",
+          "castingTime": "Action",
+          "range": "30 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a strip of white cloth"
+          },
+          "duration": "8 hours",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Heals 5 + 4 hit points (+4 Disciple of Life)",
+           "On the target: Aided"
+          ],
+          "scaling": [
+           "With a higher slot: +1 from Disciple of Life for each level above 2nd"
+          ],
+          "inFights": true,
+          "text": [
+           "Choose up to three creatures within range. Each target's Hit Point maximum and current Hit Points increase by 5 for the duration.",
+           "_Using a Higher-Level Spell Slot._ Each target's Hit Points increase by 5 for each spell slot level above 2."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "lesser-restoration",
+         "name": "Lesser Restoration",
+         "ready": true,
+         "always": true,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "lesser-restoration",
+          "name": "Lesser Restoration",
+          "level": 2,
+          "school": "abjuration",
+          "levelLine": "Level 2 Abjuration (Bard, Cleric, Druid, Paladin, Ranger)",
+          "castingTime": "Bonus Action",
+          "range": "Touch",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Ends one condition: Blinded, Deafened, Paralyzed or Poisoned"
+          ],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "You touch a creature and end one condition on it: Blinded, Deafened, Paralyzed, or Poisoned."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "spiritual-weapon",
+         "name": "Spiritual Weapon",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "spiritual-weapon",
+          "name": "Spiritual Weapon",
+          "level": 2,
+          "school": "evocation",
+          "levelLine": "Level 2 Evocation (Cleric)",
+          "castingTime": "Bonus Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Concentration, up to 1 minute",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "Melee spell attack, +5 to hit: 1d8 force on a hit"
+          ],
+          "scaling": [
+           "With a higher slot: +1d8 force for each level above 2nd"
+          ],
+          "inFights": true,
+          "text": [
+           "You create a floating, spectral force that resembles a weapon of your choice and lasts for the duration. The force appears within range in a space of your choice, and you can immediately make one melee spell attack against one creature within 5 feet of the force. On a hit, the target takes Force damage equal to 1d8 plus your spellcasting ability modifier.",
+           "As a Bonus Action on your later turns, you can move the force up to 20 feet and repeat the attack against a creature within 5 feet of it.",
+           "_Using a Higher-Level Spell Slot._ The damage increases by 1d8 for every slot level above 2."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "features": [
+     {
+      "name": "Divine Order",
+      "from": "Cleric",
+      "level": 1,
+      "choice": "Protector"
+     },
+     {
+      "name": "Channel Divinity",
+      "from": "Cleric",
+      "level": 2,
+      "uses": {
+       "current": 2,
+       "max": 2,
+       "recharge": "one back per short rest"
+      }
+     },
+     {
+      "name": "Channel Divinity: Divine Spark",
+      "from": "Cleric",
+      "level": 2
+     },
+     {
+      "name": "Channel Divinity: Turn Undead",
+      "from": "Cleric",
+      "level": 2
+     },
+     {
+      "name": "Life Domain Armor Training",
+      "from": "Life Domain",
+      "level": 3
+     },
+     {
+      "name": "Disciple of Life",
+      "from": "Life Domain",
+      "level": 3
+     },
+     {
+      "name": "Life Domain Spells",
+      "from": "Life Domain",
+      "level": 3
+     },
+     {
+      "name": "Channel Divinity: Preserve Life",
+      "from": "Life Domain",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Magic Initiate (Cleric)"
+    ],
+    "traits": [
+     "Darkvision 120 ft",
+     "Poison resistance",
+     "Stonecunning"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Mace",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Chain Shirt",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     },
+     {
+      "name": "Shield",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common",
+     "Dwarvish"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light",
+      "Medium",
+      "Heavy",
+      "Shields"
+     ],
+     "weapons": [
+      "Simple",
+      "Martial"
+     ],
+     "tools": [
+      "Calligrapher's Supplies"
+     ]
+    }
+   },
+   "text": "Wren Ashdown: dwarf cleric 3 (Life Domain), acolyte background\nAC 16 · HP 24/27 · Speed 30 ft · Initiative +1 · Proficiency +2 · Hit Dice 3/3 d8\nSTR 13 (+1)  DEX 12 (+1)  CON 14 (+2)  INT 8 (-1)  WIS 17 (+3)  CHA 11 (+0)\nSaving throws: STR +1, DEX +1, CON +2, INT -1, WIS +5, CHA +2\nSkills: History +1, Insight +5, Medicine +5, Religion +1\nOther skills: Acrobatics +1, Animal Handling +3, Arcana -1, Athletics +1, Deception +0, Intimidation +0, Investigation -1, Nature -1, Perception +3, Performance +0, Persuasion +0, Sleight of Hand +1, Stealth +1, Survival +3\nPassive: Perception 13, Investigation 9, Insight 15\nAttacks: Mace +3 (1d6+1 bludgeoning); Unarmed Strike +3 (1d4+1 bludgeoning)\nSpellcasting (Cleric, Wisdom): save DC 13, spell attack +5; slots 1st 4/4, 2nd 2/2\n  Cantrips: Guidance, Sacred Flame, Thaumaturgy\n  1st level: Bless, Cure Wounds, Guiding Bolt, Healing Word, Shield of Faith\n  2nd level: Aid, Lesser Restoration, Spiritual Weapon\nConditions: none\nEquipment: Mace (in hand), Chain Shirt (worn), Shield (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common, Dwarvish"
+  },
+  {
+   "case": "fighter",
+   "name": "Wren Ashdown",
+   "concept": "a broken-nosed ex-sergeant of the river watch who solves most problems with a longsword and the rest with a longer one",
+   "build": {
+    "classId": "fighter",
+    "subclassId": "champion",
+    "speciesId": "human",
+    "backgroundId": "soldier",
+    "abilities": [
+     "STR",
+     "CON",
+     "DEX",
+     "WIS",
+     "CHA",
+     "INT"
+    ],
+    "skills": [
+     "athletics",
+     "intimidation",
+     "perception"
+    ],
+    "feat": "savage-attacker",
+    "cantrips": [],
+    "spells": [],
+    "weapons": [
+     "longsword",
+     "longbow"
+    ],
+    "armor": "chain-mail",
+    "shield": true
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Wren Ashdown: human fighter 3 (Champion), soldier background. AC 18, HP 28/28.",
+   "buildLine": "human fighter 3 (Champion), soldier background",
+   "modifiers": {
+    "persuasion": 0,
+    "deception": 0,
+    "intimidation": 2,
+    "insight": 1,
+    "performance": 0,
+    "perception": 3,
+    "investigation": -1,
+    "sleight_of_hand": 1,
+    "stealth": 1,
+    "athletics": 5,
+    "acrobatics": 3,
+    "animal_handling": 1,
+    "arcana": -1,
+    "history": -1,
+    "nature": -1,
+    "religion": -1,
+    "medicine": 1,
+    "survival": 1
+   },
+   "status": "HP 28/28",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "athletics",
+     "intimidation",
+     "perception",
+     "savage-attacker",
+     "champion",
+     "medium",
+     "ability-score-improvement",
+     "str",
+     "strength",
+     "con",
+     "constitution",
+     "dex",
+     "dexterity",
+     "wis",
+     "wisdom",
+     "cha",
+     "charisma",
+     "int",
+     "intelligence"
+    ],
+    "spells": [],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Longsword"
+     },
+     {
+      "id": "#3",
+      "name": "Longbow"
+     },
+     {
+      "id": "#4",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [
+     {
+      "id": "second-wind",
+      "name": "Second Wind",
+      "target": "self"
+     }
+    ],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Longsword",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#3",
+      "name": "Longbow",
+      "kind": "weapon"
+     },
+     {
+      "id": "#5",
+      "name": "Chain Mail",
+      "kind": "armor",
+      "slot": "armor"
+     },
+     {
+      "id": "#6",
+      "name": "Shield",
+      "kind": "shield",
+      "slot": "shield"
+     }
+    ],
+    "status": "HP 28/28"
+   },
+   "sheet": {
+    "name": "Wren Ashdown",
+    "concept": "a broken-nosed ex-sergeant of the river watch who solves most problems with a longsword and the rest with a longer one",
+    "species": "Human",
+    "background": "Soldier",
+    "classes": [
+     {
+      "id": "fighter",
+      "name": "Fighter",
+      "level": 3,
+      "subclass": "Champion"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 28,
+     "max": 28,
+     "temp": 0
+    },
+    "ac": 18,
+    "speeds": {
+     "walk": 35
+    },
+    "initiative": 1,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 10,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 17,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 13,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 15,
+      "modifier": 2,
+      "save": 4,
+      "proficient": true
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 12,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 10,
+      "modifier": 0,
+      "save": 0,
+      "proficient": false
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 2,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 13,
+     "investigation": 9,
+     "insight": 11
+    },
+    "attacks": [
+     {
+      "name": "Longsword",
+      "kind": "melee",
+      "bonus": 5,
+      "damage": "1d8+3",
+      "type": "slashing",
+      "versatile": "1d10+3",
+      "properties": [
+       "versatile"
+      ],
+      "mastery": "Sap",
+      "held": true
+     },
+     {
+      "name": "Longbow",
+      "kind": "ranged",
+      "bonus": 5,
+      "damage": "1d8+1",
+      "type": "piercing",
+      "range": {
+       "normal": 150,
+       "long": 600
+      },
+      "properties": [
+       "ammunition",
+       "heavy",
+       "two-handed"
+      ],
+      "mastery": "Slow",
+      "held": false
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 5,
+      "damage": "1d4+3",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "features": [
+     {
+      "name": "Second Wind",
+      "from": "Fighter",
+      "level": 1,
+      "uses": {
+       "current": 2,
+       "max": 2,
+       "recharge": "short rest"
+      }
+     },
+     {
+      "name": "Fighting Style",
+      "from": "Fighter",
+      "level": 1,
+      "choice": "Archery"
+     },
+     {
+      "name": "Weapon Mastery",
+      "from": "Fighter",
+      "level": 1
+     },
+     {
+      "name": "Action Surge",
+      "from": "Fighter",
+      "level": 2,
+      "uses": {
+       "current": 1,
+       "max": 1,
+       "recharge": "short rest"
+      }
+     },
+     {
+      "name": "Tactical Mind",
+      "from": "Fighter",
+      "level": 2
+     },
+     {
+      "name": "Improved Critical",
+      "from": "Champion",
+      "level": 3
+     },
+     {
+      "name": "Remarkable Athlete",
+      "from": "Champion",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Savage Attacker"
+    ],
+    "traits": [
+     "Skillful: Athletics",
+     "Resourceful"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Longsword",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Longbow",
+      "kind": "weapon",
+      "quantity": 1
+     },
+     {
+      "name": "Chain Mail",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     },
+     {
+      "name": "Shield",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light",
+      "Medium",
+      "Heavy",
+      "Shields"
+     ],
+     "weapons": [
+      "Simple",
+      "Martial"
+     ],
+     "tools": [
+      "A gaming set"
+     ]
+    }
+   },
+   "text": "Wren Ashdown: human fighter 3 (Champion), soldier background\nAC 18 · HP 28/28 · Speed 35 ft · Initiative +1 · Proficiency +2 · Hit Dice 3/3 d10\nSTR 17 (+3)  DEX 13 (+1)  CON 15 (+2)  INT 8 (-1)  WIS 12 (+1)  CHA 10 (+0)\nSaving throws: STR +5, DEX +1, CON +4, INT -1, WIS +1, CHA +0\nSkills: Acrobatics +3, Athletics +5, Intimidation +2, Perception +3\nOther skills: Animal Handling +1, Arcana -1, Deception +0, History -1, Insight +1, Investigation -1, Medicine +1, Nature -1, Performance +0, Persuasion +0, Religion -1, Sleight of Hand +1, Stealth +1, Survival +1\nPassive: Perception 13, Investigation 9, Insight 11\nAttacks: Longsword +5 (1d8+3 slashing); Longbow +5 (1d8+1 piercing); Unarmed Strike +5 (1d4+3 bludgeoning)\nConditions: none\nEquipment: Longsword (in hand), Longbow, Chain Mail (worn), Shield (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common"
+  },
+  {
+   "case": "ranger",
+   "name": "Wren Ashdown",
+   "concept": "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs",
+   "build": {
+    "classId": "ranger",
+    "subclassId": "hunter",
+    "speciesId": "elf",
+    "backgroundId": "soldier",
+    "abilities": [
+     "DEX",
+     "WIS",
+     "CON",
+     "STR",
+     "INT",
+     "CHA"
+    ],
+    "skills": [
+     "survival",
+     "perception",
+     "stealth",
+     "investigation",
+     "nature"
+    ],
+    "feat": "alert",
+    "cantrips": [],
+    "spells": [
+     "hunters-mark",
+     "goodberry",
+     "ensnaring-strike",
+     "cure-wounds",
+     "pass-without-trace",
+     "spike-growth",
+     "longstrider",
+     "alarm"
+    ],
+    "weapons": [
+     "longbow",
+     "shortsword"
+    ],
+    "armor": "studded-leather",
+    "shield": false
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Wren Ashdown: elf ranger 3 (Hunter), soldier background. AC 15, HP 28/28.",
+   "buildLine": "elf ranger 3 (Hunter), soldier background",
+   "modifiers": {
+    "persuasion": -1,
+    "deception": -1,
+    "intimidation": 1,
+    "insight": 2,
+    "performance": -1,
+    "perception": 4,
+    "investigation": 0,
+    "sleight_of_hand": 3,
+    "stealth": 5,
+    "athletics": 3,
+    "acrobatics": 3,
+    "animal_handling": 2,
+    "arcana": 0,
+    "history": 0,
+    "nature": 0,
+    "religion": 0,
+    "medicine": 2,
+    "survival": 6
+   },
+   "status": "HP 28/28, spell slots 1st 3/3",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "survival",
+     "perception",
+     "stealth",
+     "investigation",
+     "nature",
+     "alert",
+     "hunter",
+     "hunters-mark",
+     "goodberry",
+     "ensnaring-strike",
+     "cure-wounds",
+     "medium",
+     "ability-score-improvement",
+     "dex",
+     "dexterity",
+     "wis",
+     "wisdom",
+     "con",
+     "constitution",
+     "str",
+     "strength",
+     "int",
+     "intelligence",
+     "cha",
+     "charisma"
+    ],
+    "spells": [
+     {
+      "id": "dancing-lights",
+      "name": "Dancing Lights",
+      "level": 0
+     },
+     {
+      "id": "cure-wounds",
+      "name": "Cure Wounds",
+      "level": 1
+     },
+     {
+      "id": "ensnaring-strike",
+      "name": "Ensnaring Strike",
+      "level": 1
+     },
+     {
+      "id": "goodberry",
+      "name": "Goodberry",
+      "level": 1
+     },
+     {
+      "id": "hunters-mark",
+      "name": "Hunter's Mark",
+      "level": 1
+     }
+    ],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Longbow"
+     },
+     {
+      "id": "#3",
+      "name": "Shortsword"
+     },
+     {
+      "id": "#4",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Longbow",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#3",
+      "name": "Shortsword",
+      "kind": "weapon"
+     },
+     {
+      "id": "#5",
+      "name": "Studded Leather",
+      "kind": "armor",
+      "slot": "armor"
+     }
+    ],
+    "status": "HP 28/28, spell slots 1st 3/3"
+   },
+   "sheet": {
+    "name": "Wren Ashdown",
+    "concept": "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs",
+    "species": "Elf",
+    "background": "Soldier",
+    "classes": [
+     {
+      "id": "ranger",
+      "name": "Ranger",
+      "level": 3,
+      "subclass": "Hunter"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 28,
+     "max": 28,
+     "temp": 0
+    },
+    "ac": 15,
+    "speeds": {
+     "walk": 30
+    },
+    "initiative": 3,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 10,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 12,
+      "modifier": 1,
+      "save": 3,
+      "proficient": true
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 17,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 14,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 10,
+      "modifier": 0,
+      "save": 0,
+      "proficient": false
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 14,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 1,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 4,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 6,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 14,
+     "investigation": 10,
+     "insight": 12
+    },
+    "attacks": [
+     {
+      "name": "Longbow",
+      "kind": "ranged",
+      "bonus": 7,
+      "damage": "1d8+3",
+      "type": "piercing",
+      "range": {
+       "normal": 150,
+       "long": 600
+      },
+      "properties": [
+       "ammunition",
+       "heavy",
+       "two-handed"
+      ],
+      "mastery": "Slow",
+      "held": true
+     },
+     {
+      "name": "Shortsword",
+      "kind": "melee",
+      "bonus": 5,
+      "damage": "1d6+3",
+      "type": "piercing",
+      "properties": [
+       "finesse",
+       "light"
+      ],
+      "mastery": "Vex",
+      "held": false
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 3,
+      "damage": "1d4+1",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "spellcasting": {
+     "className": "Ranger",
+     "ability": "WIS",
+     "saveDC": 12,
+     "attackBonus": 4,
+     "slots": [
+      {
+       "level": 1,
+       "max": 3,
+       "used": 0
+      }
+     ],
+     "spells": [
+      {
+       "level": 0,
+       "spells": [
+        {
+         "id": "dancing-lights",
+         "name": "Dancing Lights",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "dancing-lights",
+          "name": "Dancing Lights",
+          "level": 0,
+          "school": "illusion",
+          "levelLine": "Illusion Cantrip (Bard, Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a bit of phosphorus"
+          },
+          "duration": "Concentration, up to 1 minute",
+          "concentration": true,
+          "ritual": false,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "You create up to four torch-size lights within range, making them appear as torches, lanterns, or glowing orbs that hover for the duration. Alternatively, you combine the four lights into one glowing Medium form that is vaguely humanlike. Whichever form you choose, each light sheds Dim Light in a 10-foot radius.",
+           "As a Bonus Action, you can move the lights up to 60 feet to a space within range. A light must be within 20 feet of another light created by this spell, and a light vanishes if it exceeds the spell's range."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 1,
+       "spells": [
+        {
+         "id": "cure-wounds",
+         "name": "Cure Wounds",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "cure-wounds",
+          "name": "Cure Wounds",
+          "level": 1,
+          "school": "abjuration",
+          "levelLine": "Level 1 Abjuration (Bard, Cleric, Druid, Paladin, Ranger)",
+          "castingTime": "Action",
+          "range": "Touch",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Heals 2d8 + 2 hit points (+2 your Wisdom modifier)"
+          ],
+          "scaling": [
+           "With a higher slot: +2d8 healing for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "A creature you touch regains a number of Hit Points equal to 2d8 plus your spellcasting ability modifier.",
+           "_Using a Higher-Level Spell Slot._ The healing increases by 2d8 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "ensnaring-strike",
+         "name": "Ensnaring Strike",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "ensnaring-strike",
+          "name": "Ensnaring Strike",
+          "level": 1,
+          "school": "conjuration",
+          "levelLine": "Level 1 Conjuration (Ranger)",
+          "castingTime": "Bonus Action, which you take immediately after hitting a creature with a weapon",
+          "range": "Self",
+          "components": {
+           "verbal": true,
+           "somatic": false
+          },
+          "duration": "Concentration, up to 1 minute",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "Strength save, DC 12, or Restrained (a Large or bigger creature has Advantage)",
+           "At the start of each of its turns: 1d6 piercing"
+          ],
+          "scaling": [
+           "With a higher slot: +1d6 each turn for each level above 1st"
+          ],
+          "inFights": false,
+          "text": [
+           "As you hit the target, grasping vines appear on it, and it makes a Strength saving throw. A Large or larger creature has Advantage on this save. On a failed save, the target has the Restrained condition until the spell ends. On a successful save, the vines shrivel away, and the spell ends.",
+           "While Restrained, the target takes 1d6 Piercing damage at the start of each of its turns. The target or a creature within reach of it can take an action to make a Strength (Athletics) check against your spell save DC. On a success, the spell ends.",
+           "_Using a Higher-Level Spell Slot._ The damage increases by 1d6 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "goodberry",
+         "name": "Goodberry",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "goodberry",
+          "name": "Goodberry",
+          "level": 1,
+          "school": "conjuration",
+          "levelLine": "Level 1 Conjuration (Druid, Ranger)",
+          "castingTime": "Action",
+          "range": "Self",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a sprig of mistletoe"
+          },
+          "duration": "24 hours",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Makes Goodberry ×10"
+          ],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "Ten berries appear in your hand and are infused with magic for the duration. A creature can take a Bonus Action to eat one berry. Eating a berry restores 1 Hit Point, and the berry provides enough nourishment to sustain a creature for one day.",
+           "Uneaten berries disappear when the spell ends."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "hunters-mark",
+         "name": "Hunter's Mark",
+         "ready": true,
+         "always": true,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "hunters-mark",
+          "name": "Hunter's Mark",
+          "level": 1,
+          "school": "divination",
+          "levelLine": "Level 1 Divination (Ranger)",
+          "castingTime": "Bonus Action",
+          "range": "90 feet",
+          "components": {
+           "verbal": true,
+           "somatic": false
+          },
+          "duration": "Concentration, up to 1 hour",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "On the target: Hunter's Mark"
+          ],
+          "scaling": [
+           "With a higher slot: nothing more in this game"
+          ],
+          "inFights": true,
+          "text": [
+           "You magically mark one creature you can see within range as your quarry. Until the spell ends, you deal an extra 1d6 Force damage to the target whenever you hit it with an attack roll. You also have Advantage on any Wisdom (Perception or Survival) check you make to find it.",
+           "If the target drops to 0 Hit Points before this spell ends, you can take a Bonus Action to move the mark to a new creature you can see within range.",
+           "_Using a Higher-Level Spell Slot._ Your Concentration can last longer with a spell slot of level 3–4 (up to 8 hours) or 5+ (up to 24 hours)."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "features": [
+     {
+      "name": "Favored Enemy",
+      "from": "Ranger",
+      "level": 1,
+      "uses": {
+       "current": 2,
+       "max": 2,
+       "recharge": "long rest"
+      }
+     },
+     {
+      "name": "Weapon Mastery",
+      "from": "Ranger",
+      "level": 1
+     },
+     {
+      "name": "Deft Explorer (Expertise)",
+      "from": "Ranger",
+      "level": 2,
+      "choice": "Survival"
+     },
+     {
+      "name": "Fighting Style",
+      "from": "Ranger",
+      "level": 2,
+      "choice": "Archery"
+     },
+     {
+      "name": "Hunter's Lore",
+      "from": "Hunter",
+      "level": 3
+     },
+     {
+      "name": "Hunter's Prey",
+      "from": "Hunter",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Savage Attacker"
+    ],
+    "traits": [
+     "Darkvision 60 ft",
+     "Keen Senses: Survival",
+     "Elven Lineage: Drow"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Longbow",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Shortsword",
+      "kind": "weapon",
+      "quantity": 1
+     },
+     {
+      "name": "Studded Leather",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common",
+     "Elvish"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light",
+      "Medium",
+      "Shields"
+     ],
+     "weapons": [
+      "Simple",
+      "Martial"
+     ],
+     "tools": [
+      "A gaming set"
+     ]
+    }
+   },
+   "text": "Wren Ashdown: elf ranger 3 (Hunter), soldier background\nAC 15 · HP 28/28 · Speed 30 ft · Initiative +3 · Proficiency +2 · Hit Dice 3/3 d10\nSTR 12 (+1)  DEX 17 (+3)  CON 14 (+2)  INT 10 (+0)  WIS 14 (+2)  CHA 8 (-1)\nSaving throws: STR +3, DEX +5, CON +2, INT +0, WIS +2, CHA -1\nSkills: Athletics +3, Intimidation +1, Perception +4, Stealth +5, Survival +6 (expertise)\nOther skills: Acrobatics +3, Animal Handling +2, Arcana +0, Deception -1, History +0, Insight +2, Investigation +0, Medicine +2, Nature +0, Performance -1, Persuasion -1, Religion +0, Sleight of Hand +3\nPassive: Perception 14, Investigation 10, Insight 12\nAttacks: Longbow +7 (1d8+3 piercing); Shortsword +5 (1d6+3 piercing); Unarmed Strike +3 (1d4+1 bludgeoning)\nSpellcasting (Ranger, Wisdom): save DC 12, spell attack +4; slots 1st 3/3\n  Cantrips: Dancing Lights\n  1st level: Cure Wounds, Ensnaring Strike, Goodberry, Hunter's Mark\nConditions: none\nEquipment: Longbow (in hand), Shortsword, Studded Leather (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common, Elvish"
+  },
+  {
+   "case": "rogue",
+   "name": "Wren Ashdown",
+   "concept": "a palace inspector with soft shoes, a rapier and a notebook, who reads people better than ledgers",
+   "build": {
+    "classId": "rogue",
+    "subclassId": "thief",
+    "speciesId": "halfling",
+    "backgroundId": "criminal",
+    "abilities": [
+     "DEX",
+     "CON",
+     "INT",
+     "WIS",
+     "CHA",
+     "STR"
+    ],
+    "skills": [
+     "investigation",
+     "insight",
+     "stealth",
+     "perception",
+     "sleight-of-hand"
+    ],
+    "feat": "alert",
+    "cantrips": [],
+    "spells": [],
+    "weapons": [
+     "rapier",
+     "shortbow",
+     "dagger"
+    ],
+    "armor": "leather-armor",
+    "shield": false
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Wren Ashdown: halfling rogue 3 (Thief), criminal background. AC 14, HP 24/24.",
+   "buildLine": "halfling rogue 3 (Thief), criminal background",
+   "modifiers": {
+    "persuasion": 0,
+    "deception": 0,
+    "intimidation": 0,
+    "insight": 5,
+    "performance": 0,
+    "perception": 3,
+    "investigation": 5,
+    "sleight_of_hand": 5,
+    "stealth": 5,
+    "athletics": -1,
+    "acrobatics": 5,
+    "animal_handling": 1,
+    "arcana": 1,
+    "history": 1,
+    "nature": 1,
+    "religion": 1,
+    "medicine": 1,
+    "survival": 1
+   },
+   "status": "HP 24/24",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "investigation",
+     "insight",
+     "stealth",
+     "perception",
+     "sleight-of-hand",
+     "alert",
+     "thief",
+     "medium",
+     "ability-score-improvement",
+     "dex",
+     "dexterity",
+     "con",
+     "constitution",
+     "int",
+     "intelligence",
+     "wis",
+     "wisdom",
+     "cha",
+     "charisma",
+     "str",
+     "strength"
+    ],
+    "spells": [],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Rapier"
+     },
+     {
+      "id": "#3",
+      "name": "Shortbow"
+     },
+     {
+      "id": "#4",
+      "name": "Dagger"
+     },
+     {
+      "id": "#5",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#3",
+      "name": "Shortbow",
+      "kind": "weapon"
+     },
+     {
+      "id": "#4",
+      "name": "Dagger",
+      "kind": "weapon"
+     },
+     {
+      "id": "#6",
+      "name": "Leather Armor",
+      "kind": "armor",
+      "slot": "armor"
+     }
+    ],
+    "status": "HP 24/24"
+   },
+   "sheet": {
+    "name": "Wren Ashdown",
+    "concept": "a palace inspector with soft shoes, a rapier and a notebook, who reads people better than ledgers",
+    "species": "Halfling",
+    "background": "Criminal",
+    "classes": [
+     {
+      "id": "rogue",
+      "name": "Rogue",
+      "level": 3,
+      "subclass": "Thief"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 24,
+     "max": 24,
+     "temp": 0
+    },
+    "ac": 14,
+    "speeds": {
+     "walk": 30,
+     "climb": 30
+    },
+    "initiative": 5,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 8,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 17,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 15,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 13,
+      "modifier": 1,
+      "save": 3,
+      "proficient": true
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 12,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 10,
+      "modifier": 0,
+      "save": 0,
+      "proficient": false
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 5,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": 5,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 13,
+     "investigation": 15,
+     "insight": 15
+    },
+    "attacks": [
+     {
+      "name": "Rapier",
+      "kind": "melee",
+      "bonus": 5,
+      "damage": "1d8+3",
+      "type": "piercing",
+      "properties": [
+       "finesse"
+      ],
+      "mastery": "Vex",
+      "held": true
+     },
+     {
+      "name": "Shortbow",
+      "kind": "ranged",
+      "bonus": 5,
+      "damage": "1d6+3",
+      "type": "piercing",
+      "range": {
+       "normal": 80,
+       "long": 320
+      },
+      "properties": [
+       "ammunition",
+       "two-handed"
+      ],
+      "mastery": "Vex",
+      "held": false
+     },
+     {
+      "name": "Dagger",
+      "kind": "melee",
+      "bonus": 5,
+      "damage": "1d4+3",
+      "type": "piercing",
+      "properties": [
+       "finesse",
+       "light",
+       "thrown"
+      ],
+      "mastery": "Nick",
+      "held": false
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 1,
+      "damage": "1d4-1",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "features": [
+     {
+      "name": "Sneak Attack (2d6)",
+      "from": "Rogue",
+      "level": 3
+     },
+     {
+      "name": "Expertise",
+      "from": "Rogue",
+      "level": 1,
+      "choice": "Insight, Investigation"
+     },
+     {
+      "name": "Weapon Mastery",
+      "from": "Rogue",
+      "level": 1
+     },
+     {
+      "name": "Thieves' Cant",
+      "from": "Rogue",
+      "level": 1
+     },
+     {
+      "name": "Cunning Action",
+      "from": "Rogue",
+      "level": 2
+     },
+     {
+      "name": "Steady Aim",
+      "from": "Rogue",
+      "level": 3
+     },
+     {
+      "name": "Fast Hands",
+      "from": "Thief",
+      "level": 3
+     },
+     {
+      "name": "Second-Story Work",
+      "from": "Thief",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Alert"
+    ],
+    "traits": [
+     "Luck"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Shortbow",
+      "kind": "weapon",
+      "quantity": 1
+     },
+     {
+      "name": "Dagger",
+      "kind": "weapon",
+      "quantity": 1
+     },
+     {
+      "name": "Leather Armor",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common",
+     "Halfling",
+     "Thieves' Cant"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light"
+     ],
+     "weapons": [
+      "Simple",
+      "Martial (finesse)",
+      "Martial (light)"
+     ],
+     "tools": [
+      "Thieves' Tools"
+     ]
+    }
+   },
+   "text": "Wren Ashdown: halfling rogue 3 (Thief), criminal background\nAC 14 · HP 24/24 · Speed 30 ft · Initiative +5 · Proficiency +2 · Hit Dice 3/3 d8\nSTR 8 (-1)  DEX 17 (+3)  CON 15 (+2)  INT 13 (+1)  WIS 12 (+1)  CHA 10 (+0)\nSaving throws: STR -1, DEX +5, CON +2, INT +3, WIS +1, CHA +0\nSkills: Acrobatics +5, Insight +5 (expertise), Investigation +5 (expertise), Perception +3, Sleight of Hand +5, Stealth +5\nOther skills: Animal Handling +1, Arcana +1, Athletics -1, Deception +0, History +1, Intimidation +0, Medicine +1, Nature +1, Performance +0, Persuasion +0, Religion +1, Survival +1\nPassive: Perception 13, Investigation 15, Insight 15\nAttacks: Rapier +5 (1d8+3 piercing); Shortbow +5 (1d6+3 piercing); Dagger +5 (1d4+3 piercing); Unarmed Strike +1 (1d4-1 bludgeoning)\nConditions: none\nEquipment: Rapier (in hand), Shortbow, Dagger, Leather Armor (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common, Halfling, Thieves-cant"
+  },
+  {
+   "case": "wizard",
+   "name": "Wren Ashdown",
+   "concept": "an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+   "build": {
+    "classId": "wizard",
+    "subclassId": "evoker",
+    "speciesId": "human",
+    "backgroundId": "sage",
+    "abilities": [
+     "INT",
+     "DEX",
+     "CON",
+     "WIS",
+     "CHA",
+     "STR"
+    ],
+    "skills": [
+     "arcana",
+     "investigation",
+     "history"
+    ],
+    "feat": "alert",
+    "cantrips": [
+     "fire-bolt",
+     "ray-of-frost",
+     "light"
+    ],
+    "spells": [
+     "burning-hands",
+     "magic-missile",
+     "shield",
+     "thunderwave",
+     "sleep",
+     "scorching-ray",
+     "fireball",
+     "misty-step"
+    ],
+    "weapons": [
+     "quarterstaff",
+     "dagger"
+    ],
+    "armor": "none",
+    "shield": false
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Wren Ashdown: human wizard 3 (Evoker), sage background. AC 12, HP 20/20.",
+   "buildLine": "human wizard 3 (Evoker), sage background",
+   "modifiers": {
+    "persuasion": 0,
+    "deception": 0,
+    "intimidation": 0,
+    "insight": 1,
+    "performance": 0,
+    "perception": 1,
+    "investigation": 5,
+    "sleight_of_hand": 2,
+    "stealth": 2,
+    "athletics": -1,
+    "acrobatics": 2,
+    "animal_handling": 1,
+    "arcana": 5,
+    "history": 5,
+    "nature": 3,
+    "religion": 3,
+    "medicine": 3,
+    "survival": 1
+   },
+   "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "arcana",
+     "investigation",
+     "history",
+     "alert",
+     "evoker",
+     "fire-bolt",
+     "ray-of-frost",
+     "light",
+     "burning-hands",
+     "magic-missile",
+     "shield",
+     "thunderwave",
+     "sleep",
+     "scorching-ray",
+     "medium",
+     "ability-score-improvement",
+     "int",
+     "intelligence",
+     "dex",
+     "dexterity",
+     "con",
+     "constitution",
+     "wis",
+     "wisdom",
+     "cha",
+     "charisma",
+     "str",
+     "strength"
+    ],
+    "spells": [
+     {
+      "id": "fire-bolt",
+      "name": "Fire Bolt",
+      "level": 0
+     },
+     {
+      "id": "light",
+      "name": "Light",
+      "level": 0
+     },
+     {
+      "id": "ray-of-frost",
+      "name": "Ray of Frost",
+      "level": 0
+     },
+     {
+      "id": "burning-hands",
+      "name": "Burning Hands",
+      "level": 1
+     },
+     {
+      "id": "magic-missile",
+      "name": "Magic Missile",
+      "level": 1
+     },
+     {
+      "id": "shield",
+      "name": "Shield",
+      "level": 1
+     },
+     {
+      "id": "sleep",
+      "name": "Sleep",
+      "level": 1
+     },
+     {
+      "id": "thunderwave",
+      "name": "Thunderwave",
+      "level": 1
+     },
+     {
+      "id": "scorching-ray",
+      "name": "Scorching Ray",
+      "level": 2
+     }
+    ],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Quarterstaff"
+     },
+     {
+      "id": "#3",
+      "name": "Dagger"
+     },
+     {
+      "id": "#4",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Quarterstaff",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#3",
+      "name": "Dagger",
+      "kind": "weapon"
+     }
+    ],
+    "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2"
+   },
+   "sheet": {
+    "name": "Wren Ashdown",
+    "concept": "an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+    "species": "Human",
+    "background": "Sage",
+    "classes": [
+     {
+      "id": "wizard",
+      "name": "Wizard",
+      "level": 3,
+      "subclass": "Evoker"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 20,
+     "max": 20,
+     "temp": 0
+    },
+    "ac": 12,
+    "speeds": {
+     "walk": 30
+    },
+    "initiative": 4,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 6,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 14,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 14,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 17,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 12,
+      "modifier": 1,
+      "save": 3,
+      "proficient": true
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 10,
+      "modifier": 0,
+      "save": 0,
+      "proficient": false
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 11,
+     "investigation": 15,
+     "insight": 11
+    },
+    "attacks": [
+     {
+      "name": "Quarterstaff",
+      "kind": "melee",
+      "bonus": 1,
+      "damage": "1d6-1",
+      "type": "bludgeoning",
+      "versatile": "1d8-1",
+      "properties": [
+       "versatile"
+      ],
+      "mastery": "Topple",
+      "held": true
+     },
+     {
+      "name": "Dagger",
+      "kind": "melee",
+      "bonus": 4,
+      "damage": "1d4+2",
+      "type": "piercing",
+      "properties": [
+       "finesse",
+       "light",
+       "thrown"
+      ],
+      "mastery": "Nick",
+      "held": false
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 1,
+      "damage": "1d4-1",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "spellcasting": {
+     "className": "Wizard",
+     "ability": "INT",
+     "saveDC": 13,
+     "attackBonus": 5,
+     "slots": [
+      {
+       "level": 1,
+       "max": 4,
+       "used": 0
+      },
+      {
+       "level": 2,
+       "max": 2,
+       "used": 0
+      }
+     ],
+     "spells": [
+      {
+       "level": 0,
+       "spells": [
+        {
+         "id": "fire-bolt",
+         "name": "Fire Bolt",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "fire-bolt",
+          "name": "Fire Bolt",
+          "level": 0,
+          "school": "evocation",
+          "levelLine": "Evocation Cantrip (Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Ranged spell attack, +5 to hit: 1d10 fire on a hit"
+          ],
+          "scaling": [
+           "Grows with you: 2d10 at level 5, 3d10 at 11, 4d10 at 17"
+          ],
+          "inFights": true,
+          "text": [
+           "You hurl a mote of fire at a creature or an object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 Fire damage. A flammable object hit by this spell starts burning if it isn't being worn or carried.",
+           "_Cantrip Upgrade._ The damage increases by 1d10 when you reach levels 5 (2d10), 11 (3d10), and 17 (4d10)."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "light",
+         "name": "Light",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "light",
+          "name": "Light",
+          "level": 0,
+          "school": "evocation",
+          "levelLine": "Evocation Cantrip (Bard, Cleric, Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "Touch",
+          "components": {
+           "verbal": true,
+           "somatic": false,
+           "material": "a firefly or phosphorescent moss"
+          },
+          "duration": "1 hour",
+          "concentration": false,
+          "ritual": false,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "You touch one Large or smaller object that isn't being worn or carried by someone else. Until the spell ends, the object sheds Bright Light in a 20-foot radius and Dim Light for an additional 20 feet. The light can be colored as you like.",
+           "Covering the object with something opaque blocks the light. The spell ends if you cast it again."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "ray-of-frost",
+         "name": "Ray of Frost",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "ray-of-frost",
+          "name": "Ray of Frost",
+          "level": 0,
+          "school": "evocation",
+          "levelLine": "Evocation Cantrip (Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Ranged spell attack, +5 to hit: 1d8 cold on a hit"
+          ],
+          "scaling": [
+           "Grows with you: 2d8 at level 5, 3d8 at 11, 4d8 at 17"
+          ],
+          "inFights": true,
+          "text": [
+           "A frigid beam of blue-white light streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, it takes 1d8 Cold damage, and its Speed is reduced by 10 feet until the start of your next turn.",
+           "_Cantrip Upgrade._ The damage increases by 1d8 when you reach levels 5 (2d8), 11 (3d8), and 17 (4d8)."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 1,
+       "spells": [
+        {
+         "id": "burning-hands",
+         "name": "Burning Hands",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "burning-hands",
+          "name": "Burning Hands",
+          "level": 1,
+          "school": "evocation",
+          "levelLine": "Level 1 Evocation (Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "Self (15-foot cone)",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Dexterity save, DC 13: 3d6 fire, half as much on a success"
+          ],
+          "area": "a 15-foot cone from you",
+          "scaling": [
+           "With a higher slot: +1d6 fire for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "A thin sheet of flames shoots forth from you. Each creature in a 15-foot Cone makes a Dexterity saving throw, taking 3d6 Fire damage on a failed save or half as much damage on a successful one.",
+           "Flammable objects in the Cone that aren't being worn or carried start burning.",
+           "_Using a Higher-Level Spell Slot._ The damage increases by 1d6 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "magic-missile",
+         "name": "Magic Missile",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "magic-missile",
+          "name": "Magic Missile",
+          "level": 1,
+          "school": "evocation",
+          "levelLine": "Level 1 Evocation (Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Three darts of 1d4+1 force, each a sure hit"
+          ],
+          "scaling": [
+           "With a higher slot: one more dart for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "You create three glowing darts of magical force. Each dart strikes a creature of your choice that you can see within range. A dart deals 1d4 + 1 Force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
+           "_Using a Higher-Level Spell Slot._ The spell creates one more dart for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "shield",
+         "name": "Shield",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "shield",
+          "name": "Shield",
+          "level": 1,
+          "school": "abjuration",
+          "levelLine": "Level 1 Abjuration (Sorcerer, Wizard)",
+          "castingTime": "Reaction, which you take when you are hit by an attack roll or targeted by the Magic Missile spell",
+          "range": "Self",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "1 round",
+          "concentration": false,
+          "ritual": false,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "An imperceptible barrier of magical force protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from _Magic Missile_."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "sleep",
+         "name": "Sleep",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": false,
+         "details": {
+          "id": "sleep",
+          "name": "Sleep",
+          "level": 1,
+          "school": "enchantment",
+          "levelLine": "Level 1 Enchantment (Bard, Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a pinch of sand or rose petals"
+          },
+          "duration": "Concentration, up to 1 minute",
+          "concentration": true,
+          "ritual": false,
+          "does": [
+           "Rolls 5d8: that many hit points of creatures, the weakest first, are Unconscious"
+          ],
+          "area": "a 5-foot-radius sphere",
+          "scaling": [
+           "With a higher slot: +2d8 to the roll for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "Each creature of your choice in a 5-foot-radius Sphere centered on a point within range must succeed on a Wisdom saving throw or have the Incapacitated condition until the end of its next turn, at which point it must repeat the save. If the target fails the second save, the target has the Unconscious condition for the duration. The spell ends on a target if it takes damage or someone within 5 feet of it takes an action to shake it out of the spell's effect.",
+           "Creatures that don't sleep, such as elves, or that have Immunity to the Exhaustion condition automatically succeed on saves against this spell."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "thunderwave",
+         "name": "Thunderwave",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "thunderwave",
+          "name": "Thunderwave",
+          "level": 1,
+          "school": "evocation",
+          "levelLine": "Level 1 Evocation (Bard, Druid, Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "Self (15-foot cube)",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Constitution save, DC 13: 2d8 thunder and pushed 10 feet away on a failure, half the damage on a success"
+          ],
+          "area": "a 15-foot cube from you",
+          "scaling": [
+           "With a higher slot: +1d8 thunder for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "You unleash a wave of thunderous energy. Each creature in a 15-foot Cube originating from you makes a Constitution saving throw. On a failed save, a creature takes 2d8 Thunder damage and is pushed 10 feet away from you. On a successful save, a creature takes half as much damage only.",
+           "In addition, unsecured objects that are entirely within the Cube are pushed 10 feet away from you, and a thunderous boom is audible within 300 feet.",
+           "_Using a Higher-Level Spell Slot._ The damage increases by 1d8 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 2,
+       "spells": [
+        {
+         "id": "scorching-ray",
+         "name": "Scorching Ray",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "scorching-ray",
+          "name": "Scorching Ray",
+          "level": 2,
+          "school": "evocation",
+          "levelLine": "Level 2 Evocation (Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Ranged spell attack, +5 to hit: 2d6 fire on a hit",
+           "Three rays, each its own attack"
+          ],
+          "scaling": [
+           "With a higher slot: one more ray for each level above 2nd"
+          ],
+          "inFights": true,
+          "text": [
+           "You hurl three fiery rays. You can hurl them at one target within range or at several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 Fire damage.",
+           "_Using a Higher-Level Spell Slot._ You create one additional ray for each spell slot level above 2."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "features": [
+     {
+      "name": "Arcane Recovery",
+      "from": "Wizard",
+      "level": 1,
+      "uses": {
+       "current": 2,
+       "max": 2,
+       "recharge": "long rest"
+      }
+     },
+     {
+      "name": "Ritual Adept",
+      "from": "Wizard",
+      "level": 1
+     },
+     {
+      "name": "Scholar",
+      "from": "Wizard",
+      "level": 2,
+      "choice": "Arcana, Investigation"
+     },
+     {
+      "name": "Evocation Savant",
+      "from": "Evoker",
+      "level": 3
+     },
+     {
+      "name": "Potent Cantrip",
+      "from": "Evoker",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Magic Initiate (Wizard)",
+     "Alert"
+    ],
+    "traits": [
+     "Skillful: Arcana",
+     "Resourceful"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Quarterstaff",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Dagger",
+      "kind": "weapon",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common"
+    ],
+    "proficiencies": {
+     "armor": [],
+     "weapons": [
+      "Simple"
+     ],
+     "tools": [
+      "Calligrapher's Supplies"
+     ]
+    }
+   },
+   "text": "Wren Ashdown: human wizard 3 (Evoker), sage background\nAC 12 · HP 20/20 · Speed 30 ft · Initiative +4 · Proficiency +2 · Hit Dice 3/3 d6\nSTR 8 (-1)  DEX 14 (+2)  CON 14 (+2)  INT 17 (+3)  WIS 12 (+1)  CHA 10 (+0)\nSaving throws: STR -1, DEX +2, CON +2, INT +5, WIS +3, CHA +0\nSkills: Arcana +5, History +5, Investigation +5, Medicine +3\nOther skills: Acrobatics +2, Animal Handling +1, Athletics -1, Deception +0, Insight +1, Intimidation +0, Nature +3, Perception +1, Performance +0, Persuasion +0, Religion +3, Sleight of Hand +2, Stealth +2, Survival +1\nPassive: Perception 11, Investigation 15, Insight 11\nAttacks: Quarterstaff +1 (1d6-1 bludgeoning); Dagger +4 (1d4+2 piercing); Unarmed Strike +1 (1d4-1 bludgeoning)\nSpellcasting (Wizard, Intelligence): save DC 13, spell attack +5; slots 1st 4/4, 2nd 2/2\n  Cantrips: Fire Bolt, Light, Ray of Frost\n  1st level: Burning Hands, Magic Missile, Shield, Sleep, Thunderwave\n  2nd level: Scorching Ray\nConditions: none\nEquipment: Quarterstaff (in hand), Dagger\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common"
+  },
+  {
+   "case": "tamsin-1",
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "build": {
+    "classId": "rogue",
+    "subclassId": "thief",
+    "speciesId": "human",
+    "backgroundId": "sage",
+    "abilities": [
+     "DEX",
+     "INT",
+     "CHA",
+     "WIS",
+     "CON",
+     "STR"
+    ],
+    "skills": [
+     "investigation",
+     "insight",
+     "deception",
+     "sleight-of-hand"
+    ],
+    "feat": "skilled",
+    "cantrips": [],
+    "spells": [],
+    "weapons": [
+     "rapier",
+     "dagger"
+    ],
+    "armor": "leather-armor",
+    "shield": false
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Tamsin Vell: human rogue 3 (Thief), sage background. AC 13, HP 18/18.",
+   "buildLine": "human rogue 3 (Thief), sage background",
+   "modifiers": {
+    "persuasion": 1,
+    "deception": 3,
+    "intimidation": 1,
+    "insight": 5,
+    "performance": 1,
+    "perception": 1,
+    "investigation": 7,
+    "sleight_of_hand": 4,
+    "stealth": 2,
+    "athletics": -1,
+    "acrobatics": 2,
+    "animal_handling": 1,
+    "arcana": 5,
+    "history": 5,
+    "nature": 3,
+    "religion": 3,
+    "medicine": 1,
+    "survival": 1
+   },
+   "status": "HP 18/18",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "investigation",
+     "insight",
+     "deception",
+     "sleight-of-hand",
+     "skilled",
+     "thief",
+     "medium",
+     "ability-score-improvement",
+     "dex",
+     "dexterity",
+     "int",
+     "intelligence",
+     "cha",
+     "charisma",
+     "wis",
+     "wisdom",
+     "con",
+     "constitution",
+     "str",
+     "strength"
+    ],
+    "spells": [
+     {
+      "id": "fire-bolt",
+      "name": "Fire Bolt",
+      "level": 0
+     },
+     {
+      "id": "ray-of-frost",
+      "name": "Ray of Frost",
+      "level": 0
+     }
+    ],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Rapier"
+     },
+     {
+      "id": "#3",
+      "name": "Dagger"
+     },
+     {
+      "id": "#4",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#3",
+      "name": "Dagger",
+      "kind": "weapon"
+     },
+     {
+      "id": "#5",
+      "name": "Leather Armor",
+      "kind": "armor",
+      "slot": "armor"
+     }
+    ],
+    "status": "HP 18/18"
+   },
+   "sheet": {
+    "name": "Tamsin Vell",
+    "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+    "species": "Human",
+    "background": "Sage",
+    "classes": [
+     {
+      "id": "rogue",
+      "name": "Rogue",
+      "level": 3,
+      "subclass": "Thief"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 18,
+     "max": 18,
+     "temp": 0
+    },
+    "ac": 13,
+    "speeds": {
+     "walk": 30,
+     "climb": 30
+    },
+    "initiative": 2,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 8,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 15,
+      "modifier": 2,
+      "save": 4,
+      "proficient": true
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 10,
+      "modifier": 0,
+      "save": 0,
+      "proficient": false
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 16,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 13,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 13,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 5,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": 7,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 4,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 2,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 11,
+     "investigation": 17,
+     "insight": 15
+    },
+    "attacks": [
+     {
+      "name": "Rapier",
+      "kind": "melee",
+      "bonus": 4,
+      "damage": "1d8+2",
+      "type": "piercing",
+      "properties": [
+       "finesse"
+      ],
+      "mastery": "Vex",
+      "held": true
+     },
+     {
+      "name": "Dagger",
+      "kind": "melee",
+      "bonus": 4,
+      "damage": "1d4+2",
+      "type": "piercing",
+      "properties": [
+       "finesse",
+       "light",
+       "thrown"
+      ],
+      "mastery": "Nick",
+      "held": false
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 1,
+      "damage": "1d4-1",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "features": [
+     {
+      "name": "Sneak Attack (2d6)",
+      "from": "Rogue",
+      "level": 3
+     },
+     {
+      "name": "Expertise",
+      "from": "Rogue",
+      "level": 1,
+      "choice": "Insight, Investigation"
+     },
+     {
+      "name": "Weapon Mastery",
+      "from": "Rogue",
+      "level": 1
+     },
+     {
+      "name": "Thieves' Cant",
+      "from": "Rogue",
+      "level": 1
+     },
+     {
+      "name": "Cunning Action",
+      "from": "Rogue",
+      "level": 2
+     },
+     {
+      "name": "Steady Aim",
+      "from": "Rogue",
+      "level": 3
+     },
+     {
+      "name": "Fast Hands",
+      "from": "Thief",
+      "level": 3
+     },
+     {
+      "name": "Second-Story Work",
+      "from": "Thief",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Magic Initiate (Wizard)",
+     "Skilled"
+    ],
+    "traits": [
+     "Skillful: Investigation",
+     "Resourceful"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Dagger",
+      "kind": "weapon",
+      "quantity": 1
+     },
+     {
+      "name": "Leather Armor",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common",
+     "Thieves' Cant"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light"
+     ],
+     "weapons": [
+      "Simple",
+      "Martial (finesse)",
+      "Martial (light)"
+     ],
+     "tools": [
+      "Thieves' Tools",
+      "Calligrapher's Supplies"
+     ]
+    }
+   },
+   "text": "Tamsin Vell: human rogue 3 (Thief), sage background\nAC 13 · HP 18/18 · Speed 30 ft · Initiative +2 · Proficiency +2 · Hit Dice 3/3 d8\nSTR 8 (-1)  DEX 15 (+2)  CON 10 (+0)  INT 16 (+3)  WIS 13 (+1)  CHA 13 (+1)\nSaving throws: STR -1, DEX +4, CON +0, INT +5, WIS +1, CHA +1\nSkills: Arcana +5, Deception +3, History +5, Insight +5 (expertise), Investigation +7 (expertise), Sleight of Hand +4\nOther skills: Acrobatics +2, Animal Handling +1, Athletics -1, Intimidation +1, Medicine +1, Nature +3, Perception +1, Performance +1, Persuasion +1, Religion +3, Stealth +2, Survival +1\nPassive: Perception 11, Investigation 17, Insight 15\nAttacks: Rapier +4 (1d8+2 piercing); Dagger +4 (1d4+2 piercing); Unarmed Strike +1 (1d4-1 bludgeoning)\nConditions: none\nEquipment: Rapier (in hand), Dagger, Leather Armor (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common, Thieves-cant"
+  },
+  {
+   "case": "tamsin-2",
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "build": {
+    "classId": "bard",
+    "subclassId": "college-of-lore",
+    "speciesId": "human",
+    "backgroundId": "criminal",
+    "abilities": [
+     "CHA",
+     "DEX",
+     "INT",
+     "CON",
+     "WIS",
+     "STR"
+    ],
+    "skills": [
+     "persuasion",
+     "deception",
+     "insight",
+     "investigation"
+    ],
+    "feat": "alert",
+    "cantrips": [
+     "vicious-mockery",
+     "message"
+    ],
+    "spells": [
+     "dissonant-whispers",
+     "charm-person",
+     "detect-magic",
+     "comprehend-languages",
+     "silence",
+     "aid"
+    ],
+    "weapons": [
+     "rapier"
+    ],
+    "armor": "leather-armor",
+    "shield": false
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Tamsin Vell: human bard 3 (College of Lore), criminal background. AC 14, HP 21/21.",
+   "buildLine": "human bard 3 (College of Lore), criminal background",
+   "modifiers": {
+    "persuasion": 6,
+    "deception": 4,
+    "intimidation": 3,
+    "insight": 4,
+    "performance": 3,
+    "perception": 1,
+    "investigation": 4,
+    "sleight_of_hand": 5,
+    "stealth": 5,
+    "athletics": 0,
+    "acrobatics": 4,
+    "animal_handling": 1,
+    "arcana": 4,
+    "history": 4,
+    "nature": 3,
+    "religion": 3,
+    "medicine": 1,
+    "survival": 1
+   },
+   "status": "HP 21/21, spell slots 1st 4/4, 2nd 2/2",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "persuasion",
+     "deception",
+     "insight",
+     "investigation",
+     "alert",
+     "college-of-lore",
+     "vicious-mockery",
+     "message",
+     "dissonant-whispers",
+     "charm-person",
+     "detect-magic",
+     "comprehend-languages",
+     "silence",
+     "aid",
+     "medium",
+     "ability-score-improvement",
+     "cha",
+     "charisma",
+     "dex",
+     "dexterity",
+     "int",
+     "intelligence",
+     "con",
+     "constitution",
+     "wis",
+     "wisdom",
+     "str",
+     "strength"
+    ],
+    "spells": [
+     {
+      "id": "message",
+      "name": "Message",
+      "level": 0
+     },
+     {
+      "id": "vicious-mockery",
+      "name": "Vicious Mockery",
+      "level": 0
+     },
+     {
+      "id": "charm-person",
+      "name": "Charm Person",
+      "level": 1
+     },
+     {
+      "id": "comprehend-languages",
+      "name": "Comprehend Languages",
+      "level": 1
+     },
+     {
+      "id": "detect-magic",
+      "name": "Detect Magic",
+      "level": 1
+     },
+     {
+      "id": "dissonant-whispers",
+      "name": "Dissonant Whispers",
+      "level": 1
+     },
+     {
+      "id": "aid",
+      "name": "Aid",
+      "level": 2
+     },
+     {
+      "id": "silence",
+      "name": "Silence",
+      "level": 2
+     }
+    ],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Rapier"
+     },
+     {
+      "id": "#3",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [
+     {
+      "id": "bardic-inspiration",
+      "name": "Bardic Inspiration",
+      "target": "creature"
+     }
+    ],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#4",
+      "name": "Leather Armor",
+      "kind": "armor",
+      "slot": "armor"
+     }
+    ],
+    "status": "HP 21/21, spell slots 1st 4/4, 2nd 2/2"
+   },
+   "sheet": {
+    "name": "Tamsin Vell",
+    "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+    "species": "Human",
+    "background": "Criminal",
+    "classes": [
+     {
+      "id": "bard",
+      "name": "Bard",
+      "level": 3,
+      "subclass": "College of Lore"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 21,
+     "max": 21,
+     "temp": 0
+    },
+    "ac": 14,
+    "speeds": {
+     "walk": 30
+    },
+    "initiative": 7,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 8,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 16,
+      "modifier": 3,
+      "save": 5,
+      "proficient": true
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 12,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 14,
+      "modifier": 2,
+      "save": 2,
+      "proficient": false
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 10,
+      "modifier": 0,
+      "save": 0,
+      "proficient": false
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 15,
+      "modifier": 2,
+      "save": 4,
+      "proficient": true
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 4,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": 4,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": 0,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": 4,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 4,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 4,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": 4,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": 6,
+      "proficiency": "expertise",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 5,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 11,
+     "investigation": 14,
+     "insight": 14
+    },
+    "attacks": [
+     {
+      "name": "Rapier",
+      "kind": "melee",
+      "bonus": 3,
+      "damage": "1d8+3",
+      "type": "piercing",
+      "properties": [
+       "finesse"
+      ],
+      "mastery": "Vex",
+      "held": true
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 1,
+      "damage": "1d4-1",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "spellcasting": {
+     "className": "Bard",
+     "ability": "CHA",
+     "saveDC": 12,
+     "attackBonus": 4,
+     "slots": [
+      {
+       "level": 1,
+       "max": 4,
+       "used": 0
+      },
+      {
+       "level": 2,
+       "max": 2,
+       "used": 0
+      }
+     ],
+     "spells": [
+      {
+       "level": 0,
+       "spells": [
+        {
+         "id": "message",
+         "name": "Message",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "message",
+          "name": "Message",
+          "level": 0,
+          "school": "transmutation",
+          "levelLine": "Transmutation Cantrip (Bard, Druid, Sorcerer, Wizard)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": false,
+           "somatic": true,
+           "material": "a copper wire"
+          },
+          "duration": "1 round",
+          "concentration": false,
+          "ritual": false,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "You point toward a creature within range and whisper a message. The target (and only the target) hears the message and can reply in a whisper that only you can hear.",
+           "You can cast this spell through solid objects if you are familiar with the target and know it is beyond the barrier. Magical silence; 1 foot of stone, metal, or wood; or a thin sheet of lead blocks the spell."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "vicious-mockery",
+         "name": "Vicious Mockery",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "vicious-mockery",
+          "name": "Vicious Mockery",
+          "level": 0,
+          "school": "enchantment",
+          "levelLine": "Enchantment Cantrip (Bard)",
+          "castingTime": "Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": false
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Wisdom save, DC 12: 1d6 psychic and Viciously Mocked on a failure"
+          ],
+          "scaling": [
+           "Grows with you: 2d6 at level 5, 3d6 at 11, 4d6 at 17"
+          ],
+          "inFights": true,
+          "text": [
+           "You unleash a string of insults laced with subtle enchantments at one creature you can see or hear within range. The target must succeed on a Wisdom saving throw or take 1d6 Psychic damage and have Disadvantage on the next attack roll it makes before the end of its next turn.",
+           "_Cantrip Upgrade._ The damage increases by 1d6 when you reach levels 5 (2d6), 11 (3d6), and 17 (4d6)."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 1,
+       "spells": [
+        {
+         "id": "charm-person",
+         "name": "Charm Person",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "charm-person",
+          "name": "Charm Person",
+          "level": 1,
+          "school": "enchantment",
+          "levelLine": "Level 1 Enchantment (Bard, Druid, Sorcerer, Warlock, Wizard)",
+          "castingTime": "Action",
+          "range": "30 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "1 hour",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Wisdom save, DC 12, or Charmed"
+          ],
+          "scaling": [
+           "With a higher slot: nothing more in this game"
+          ],
+          "inFights": true,
+          "text": [
+           "One Humanoid you can see within range makes a Wisdom saving throw. It does so with Advantage if you or your allies are fighting it. On a failed save, the target has the Charmed condition until the spell ends or until you or your allies damage it. The Charmed creature is Friendly to you. When the spell ends, the target knows it was Charmed by you.",
+           "_Using a Higher-Level Spell Slot._ You can target one additional creature for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "comprehend-languages",
+         "name": "Comprehend Languages",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": true,
+         "details": {
+          "id": "comprehend-languages",
+          "name": "Comprehend Languages",
+          "level": 1,
+          "school": "divination",
+          "levelLine": "Level 1 Divination (Bard, Sorcerer, Warlock, Wizard)",
+          "castingTime": "Action",
+          "range": "Self",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a pinch of soot and salt"
+          },
+          "duration": "1 hour",
+          "concentration": false,
+          "ritual": true,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "For the duration, you understand the literal meaning of any language that you hear or see signed. You also understand any written language that you see, but you must be touching the surface on which the words are written. It takes about 1 minute to read one page of text. This spell doesn't decode symbols or secret messages."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "detect-magic",
+         "name": "Detect Magic",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": true,
+         "details": {
+          "id": "detect-magic",
+          "name": "Detect Magic",
+          "level": 1,
+          "school": "divination",
+          "levelLine": "Level 1 Divination (Bard, Cleric, Druid, Paladin, Ranger, Sorcerer, Warlock, Wizard)",
+          "castingTime": "Action",
+          "range": "Self",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Concentration, up to 10 minutes",
+          "concentration": true,
+          "ritual": true,
+          "does": [],
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "For the duration, you sense the presence of magical effects within 30 feet of yourself. If you sense such effects, you can take the Magic action to see a faint aura around any visible creature or object in the area that bears the magic, and if an effect was created by a spell, you learn the spell's school of magic.",
+           "The spell is blocked by 1 foot of stone, dirt, or wood; 1 inch of metal; or a thin sheet of lead."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "dissonant-whispers",
+         "name": "Dissonant Whispers",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "dissonant-whispers",
+          "name": "Dissonant Whispers",
+          "level": 1,
+          "school": "enchantment",
+          "levelLine": "Level 1 Enchantment (Bard)",
+          "castingTime": "Action",
+          "range": "60 feet",
+          "components": {
+           "verbal": true,
+           "somatic": false
+          },
+          "duration": "Instantaneous",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Wisdom save, DC 12: 3d6 psychic, half as much on a success"
+          ],
+          "scaling": [
+           "With a higher slot: +1d6 psychic for each level above 1st"
+          ],
+          "inFights": true,
+          "text": [
+           "One creature of your choice that you can see within range hears a discordant melody in its mind. The target makes a Wisdom saving throw. On a failed save, it takes 3d6 Psychic damage and must immediately use its Reaction, if available, to move as far away from you as it can, using the safest route. On a successful save, the target takes half as much damage only.",
+           "_Using a Higher-Level Spell Slot._ The damage increases by 1d6 for each spell slot level above 1."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      },
+      {
+       "level": 2,
+       "spells": [
+        {
+         "id": "aid",
+         "name": "Aid",
+         "ready": true,
+         "always": false,
+         "concentration": false,
+         "ritual": false,
+         "details": {
+          "id": "aid",
+          "name": "Aid",
+          "level": 2,
+          "school": "abjuration",
+          "levelLine": "Level 2 Abjuration (Bard, Cleric, Druid, Paladin, Ranger)",
+          "castingTime": "Action",
+          "range": "30 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true,
+           "material": "a strip of white cloth"
+          },
+          "duration": "8 hours",
+          "concentration": false,
+          "ritual": false,
+          "does": [
+           "Heals 5 hit points",
+           "On the target: Aided"
+          ],
+          "scaling": [
+           "With a higher slot: nothing more in this game"
+          ],
+          "inFights": true,
+          "text": [
+           "Choose up to three creatures within range. Each target's Hit Point maximum and current Hit Points increase by 5 for the duration.",
+           "_Using a Higher-Level Spell Slot._ Each target's Hit Points increase by 5 for each spell slot level above 2."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        },
+        {
+         "id": "silence",
+         "name": "Silence",
+         "ready": true,
+         "always": false,
+         "concentration": true,
+         "ritual": true,
+         "details": {
+          "id": "silence",
+          "name": "Silence",
+          "level": 2,
+          "school": "illusion",
+          "levelLine": "Level 2 Illusion (Bard, Cleric, Ranger)",
+          "castingTime": "Action",
+          "range": "120 feet",
+          "components": {
+           "verbal": true,
+           "somatic": true
+          },
+          "duration": "Concentration, up to 10 minutes",
+          "concentration": true,
+          "ritual": true,
+          "does": [
+           "Makes a zone where it's cast, which the rules keep track of"
+          ],
+          "area": "a 20-foot-radius sphere",
+          "scaling": [],
+          "inFights": false,
+          "text": [
+           "For the duration, no sound can be created within or pass through a 20-foot-radius Sphere centered on a point you choose within range. Any creature or object entirely inside the Sphere has Immunity to Thunder damage, and creatures have the Deafened condition while entirely inside it. Casting a spell that includes a Verbal component is impossible there."
+          ],
+          "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "features": [
+     {
+      "name": "Bardic Inspiration",
+      "from": "Bard",
+      "level": 1,
+      "uses": {
+       "current": 2,
+       "max": 2,
+       "recharge": "long rest"
+      }
+     },
+     {
+      "name": "Jack of All Trades",
+      "from": "Bard",
+      "level": 2
+     },
+     {
+      "name": "Expertise",
+      "from": "Bard",
+      "level": 2
+     },
+     {
+      "name": "Bonus Proficiencies (College of Lore)",
+      "from": "College of Lore",
+      "level": 3
+     },
+     {
+      "name": "Cutting Words",
+      "from": "College of Lore",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Alert"
+    ],
+    "traits": [
+     "Skillful: Persuasion",
+     "Resourceful"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Leather Armor",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light"
+     ],
+     "weapons": [
+      "Simple"
+     ],
+     "tools": [
+      "A musical instrument",
+      "Thieves' Tools"
+     ]
+    }
+   },
+   "text": "Tamsin Vell: human bard 3 (College of Lore), criminal background\nAC 14 · HP 21/21 · Speed 30 ft · Initiative +7 · Proficiency +2 · Hit Dice 3/3 d8\nSTR 8 (-1)  DEX 16 (+3)  CON 12 (+1)  INT 14 (+2)  WIS 10 (+0)  CHA 15 (+2)\nSaving throws: STR -1, DEX +5, CON +1, INT +2, WIS +0, CHA +4\nSkills: Arcana +4, Deception +4, History +4, Insight +4 (expertise), Investigation +4, Persuasion +6 (expertise), Sleight of Hand +5, Stealth +5\nOther skills: Acrobatics +4, Animal Handling +1, Athletics +0, Intimidation +3, Medicine +1, Nature +3, Perception +1, Performance +3, Religion +3, Survival +1\nPassive: Perception 11, Investigation 14, Insight 14\nAttacks: Rapier +3 (1d8+3 piercing); Unarmed Strike +1 (1d4-1 bludgeoning)\nSpellcasting (Bard, Charisma): save DC 12, spell attack +4; slots 1st 4/4, 2nd 2/2\n  Cantrips: Message, Vicious Mockery\n  1st level: Charm Person, Comprehend Languages, Detect Magic, Dissonant Whispers\n  2nd level: Aid, Silence\nConditions: none\nEquipment: Rapier (in hand), Leather Armor (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common"
+  },
+  {
+   "case": "tamsin-3",
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "build": {
+    "classId": "fighter",
+    "subclassId": "champion",
+    "speciesId": "elf",
+    "backgroundId": "soldier",
+    "abilities": [
+     "DEX",
+     "CON",
+     "INT",
+     "WIS",
+     "STR",
+     "CHA"
+    ],
+    "skills": [
+     "insight",
+     "perception"
+    ],
+    "feat": "alert",
+    "cantrips": [],
+    "spells": [],
+    "weapons": [
+     "rapier",
+     "shortbow"
+    ],
+    "armor": "studded-leather",
+    "shield": false,
+    "style": "dueling"
+   },
+   "seed": 7,
+   "level": 3,
+   "line": "Tamsin Vell: elf fighter 3 (Champion), soldier background. AC 15, HP 28/28.",
+   "buildLine": "elf fighter 3 (Champion), soldier background",
+   "modifiers": {
+    "persuasion": -1,
+    "deception": -1,
+    "intimidation": 1,
+    "insight": 3,
+    "performance": -1,
+    "perception": 3,
+    "investigation": 1,
+    "sleight_of_hand": 3,
+    "stealth": 3,
+    "athletics": 2,
+    "acrobatics": 3,
+    "animal_handling": 1,
+    "arcana": 1,
+    "history": 1,
+    "nature": 1,
+    "religion": 1,
+    "medicine": 1,
+    "survival": 1
+   },
+   "status": "HP 28/28",
+   "rules": {
+    "pc": "#1",
+    "prefer": [
+     "insight",
+     "perception",
+     "alert",
+     "champion",
+     "dueling",
+     "medium",
+     "ability-score-improvement",
+     "dex",
+     "dexterity",
+     "con",
+     "constitution",
+     "int",
+     "intelligence",
+     "wis",
+     "wisdom",
+     "str",
+     "strength",
+     "cha",
+     "charisma"
+    ],
+    "spells": [
+     {
+      "id": "dancing-lights",
+      "name": "Dancing Lights",
+      "level": 0
+     }
+    ],
+    "weapons": [
+     {
+      "id": "#2",
+      "name": "Rapier"
+     },
+     {
+      "id": "#3",
+      "name": "Shortbow"
+     },
+     {
+      "id": "#4",
+      "name": "Unarmed Strike"
+     }
+    ],
+    "features": [
+     {
+      "id": "second-wind",
+      "name": "Second Wind",
+      "target": "self"
+     }
+    ],
+    "gear": [
+     {
+      "id": "#2",
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "mainHand"
+     },
+     {
+      "id": "#3",
+      "name": "Shortbow",
+      "kind": "weapon"
+     },
+     {
+      "id": "#5",
+      "name": "Studded Leather",
+      "kind": "armor",
+      "slot": "armor"
+     }
+    ],
+    "status": "HP 28/28"
+   },
+   "sheet": {
+    "name": "Tamsin Vell",
+    "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+    "species": "Elf",
+    "background": "Soldier",
+    "classes": [
+     {
+      "id": "fighter",
+      "name": "Fighter",
+      "level": 3,
+      "subclass": "Champion"
+     }
+    ],
+    "level": 3,
+    "hp": {
+     "current": 28,
+     "max": 28,
+     "temp": 0
+    },
+    "ac": 15,
+    "speeds": {
+     "walk": 35
+    },
+    "initiative": 3,
+    "proficiency": 2,
+    "hitDice": [
+     {
+      "die": 10,
+      "left": 3,
+      "total": 3
+     }
+    ],
+    "inspiration": false,
+    "abilities": [
+     {
+      "id": "STR",
+      "name": "Strength",
+      "score": 10,
+      "modifier": 0,
+      "save": 2,
+      "proficient": true
+     },
+     {
+      "id": "DEX",
+      "name": "Dexterity",
+      "score": 17,
+      "modifier": 3,
+      "save": 3,
+      "proficient": false
+     },
+     {
+      "id": "CON",
+      "name": "Constitution",
+      "score": 15,
+      "modifier": 2,
+      "save": 4,
+      "proficient": true
+     },
+     {
+      "id": "INT",
+      "name": "Intelligence",
+      "score": 13,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "WIS",
+      "name": "Wisdom",
+      "score": 12,
+      "modifier": 1,
+      "save": 1,
+      "proficient": false
+     },
+     {
+      "id": "CHA",
+      "name": "Charisma",
+      "score": 8,
+      "modifier": -1,
+      "save": -1,
+      "proficient": false
+     }
+    ],
+    "skills": [
+     {
+      "id": "acrobatics",
+      "name": "Acrobatics",
+      "ability": "DEX",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "animal-handling",
+      "name": "Animal Handling",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "arcana",
+      "name": "Arcana",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "athletics",
+      "name": "Athletics",
+      "ability": "STR",
+      "modifier": 2,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "deception",
+      "name": "Deception",
+      "ability": "CHA",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "history",
+      "name": "History",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "insight",
+      "name": "Insight",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "intimidation",
+      "name": "Intimidation",
+      "ability": "CHA",
+      "modifier": 1,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "investigation",
+      "name": "Investigation",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "medicine",
+      "name": "Medicine",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "nature",
+      "name": "Nature",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "perception",
+      "name": "Perception",
+      "ability": "WIS",
+      "modifier": 3,
+      "proficiency": "proficient",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "performance",
+      "name": "Performance",
+      "ability": "CHA",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "persuasion",
+      "name": "Persuasion",
+      "ability": "CHA",
+      "modifier": -1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "religion",
+      "name": "Religion",
+      "ability": "INT",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "sleight-of-hand",
+      "name": "Sleight of Hand",
+      "ability": "DEX",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "stealth",
+      "name": "Stealth",
+      "ability": "DEX",
+      "modifier": 3,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     },
+     {
+      "id": "survival",
+      "name": "Survival",
+      "ability": "WIS",
+      "modifier": 1,
+      "proficiency": "none",
+      "advantage": false,
+      "disadvantage": false
+     }
+    ],
+    "passive": {
+     "perception": 13,
+     "investigation": 11,
+     "insight": 13
+    },
+    "attacks": [
+     {
+      "name": "Rapier",
+      "kind": "melee",
+      "bonus": 5,
+      "damage": "1d8+5",
+      "type": "piercing",
+      "properties": [
+       "finesse"
+      ],
+      "mastery": "Vex",
+      "held": true
+     },
+     {
+      "name": "Shortbow",
+      "kind": "ranged",
+      "bonus": 5,
+      "damage": "1d6+3",
+      "type": "piercing",
+      "range": {
+       "normal": 80,
+       "long": 320
+      },
+      "properties": [
+       "ammunition",
+       "two-handed"
+      ],
+      "mastery": "Vex",
+      "held": false
+     },
+     {
+      "name": "Unarmed Strike",
+      "kind": "melee",
+      "bonus": 2,
+      "damage": "1d4+2",
+      "type": "bludgeoning",
+      "properties": [
+       "light"
+      ],
+      "held": false
+     }
+    ],
+    "features": [
+     {
+      "name": "Second Wind",
+      "from": "Fighter",
+      "level": 1,
+      "uses": {
+       "current": 2,
+       "max": 2,
+       "recharge": "short rest"
+      }
+     },
+     {
+      "name": "Fighting Style",
+      "from": "Fighter",
+      "level": 1,
+      "choice": "Dueling"
+     },
+     {
+      "name": "Weapon Mastery",
+      "from": "Fighter",
+      "level": 1
+     },
+     {
+      "name": "Action Surge",
+      "from": "Fighter",
+      "level": 2,
+      "uses": {
+       "current": 1,
+       "max": 1,
+       "recharge": "short rest"
+      }
+     },
+     {
+      "name": "Tactical Mind",
+      "from": "Fighter",
+      "level": 2
+     },
+     {
+      "name": "Improved Critical",
+      "from": "Champion",
+      "level": 3
+     },
+     {
+      "name": "Remarkable Athlete",
+      "from": "Champion",
+      "level": 3
+     }
+    ],
+    "feats": [
+     "Savage Attacker"
+    ],
+    "traits": [
+     "Darkvision 60 ft",
+     "Keen Senses: Insight",
+     "Elven Lineage: Drow"
+    ],
+    "conditions": [],
+    "equipment": [
+     {
+      "name": "Rapier",
+      "kind": "weapon",
+      "slot": "in hand",
+      "quantity": 1
+     },
+     {
+      "name": "Shortbow",
+      "kind": "weapon",
+      "quantity": 1
+     },
+     {
+      "name": "Studded Leather",
+      "kind": "armor",
+      "slot": "worn",
+      "quantity": 1
+     }
+    ],
+    "carrying": [],
+    "purse": [
+     {
+      "name": "silver crowns",
+      "quantity": 2
+     },
+     {
+      "name": "shillings",
+      "quantity": 6
+     },
+     {
+      "name": "pennies",
+      "quantity": 12
+     }
+    ],
+    "languages": [
+     "Common",
+     "Elvish"
+    ],
+    "proficiencies": {
+     "armor": [
+      "Light",
+      "Medium",
+      "Heavy",
+      "Shields"
+     ],
+     "weapons": [
+      "Simple",
+      "Martial"
+     ],
+     "tools": [
+      "A gaming set"
+     ]
+    }
+   },
+   "text": "Tamsin Vell: elf fighter 3 (Champion), soldier background\nAC 15 · HP 28/28 · Speed 35 ft · Initiative +3 · Proficiency +2 · Hit Dice 3/3 d10\nSTR 10 (+0)  DEX 17 (+3)  CON 15 (+2)  INT 13 (+1)  WIS 12 (+1)  CHA 8 (-1)\nSaving throws: STR +2, DEX +3, CON +4, INT +1, WIS +1, CHA -1\nSkills: Athletics +2, Insight +3, Intimidation +1, Perception +3\nOther skills: Acrobatics +3, Animal Handling +1, Arcana +1, Deception -1, History +1, Investigation +1, Medicine +1, Nature +1, Performance -1, Persuasion -1, Religion +1, Sleight of Hand +3, Stealth +3, Survival +1\nPassive: Perception 13, Investigation 11, Insight 13\nAttacks: Rapier +5 (1d8+5 piercing); Shortbow +5 (1d6+3 piercing); Unarmed Strike +2 (1d4+2 bludgeoning)\nConditions: none\nEquipment: Rapier (in hand), Shortbow, Studded Leather (worn)\nPurse: 2 silver crowns, 6 shillings, 12 pennies\nLanguages: Common, Elvish"
+  }
+ ]
+}
