@@ -9,7 +9,8 @@ import { request, waitFor } from "./http.ts";
  * the stack; `start` can add to them for one run (a fault, a slower fake model).
  */
 export interface AiProcess {
-  start(extra?: Record<string, string>): Promise<void>;
+  /** Starts it with its env and `extra` on top, and waits for its health; `abort` stops a start under way (the image's build, the wait). */
+  start(extra?: Record<string, string>, abort?: AbortSignal): Promise<void>;
   /** Signals it and waits for it to go: SIGTERM finishes what's in flight; SIGKILL is a crash. Resolves with its exit code. */
   stop(signal?: NodeJS.Signals): Promise<number>;
   /** The current run's exit code, once it has exited. */
@@ -43,15 +44,16 @@ export function aiProcess(options: AiProcessOptions): AiProcess {
   let child: Child | undefined;
 
   return {
-    async start(extra = {}) {
+    async start(extra = {}, abort) {
       if (child?.running()) throw new Error("the AI service is already running");
       const env = { ...options.env, ...extra };
 
-      child = options.container ? await startContainer(options, env) : startNode(options, env);
-      const up = await waitFor(() => healthy(options.url), { timeoutMs: 30_000, gaveUp: () => !child!.running() });
+      child = options.container ? await startContainer(options, env, abort) : startNode(options, env);
+      const up = await waitFor(() => healthy(options.url), { timeoutMs: 30_000, gaveUp: () => !child!.running() || !!abort?.aborted });
 
       if (!up) {
         await child.stop("SIGKILL");
+        abort?.throwIfAborted();
         throw new Error(`the AI service didn't answer at ${options.url}/v1/health. Its log (${options.log}):\n${tail(options.log)}`);
       }
     },
@@ -79,13 +81,14 @@ function startNode(options: AiProcessOptions, env: Record<string, string>): Chil
  * user, so what it writes there is this user's. Values are passed by name (-e NAME), never on podman's
  * command line, where ps would show the key.
  */
-async function startContainer(options: AiProcessOptions, env: Record<string, string>): Promise<Child> {
+async function startContainer(options: AiProcessOptions, env: Record<string, string>, abort?: AbortSignal): Promise<Child> {
   const image = options.image ?? IMAGE, name = containerName(options.root);
   const store = env.KM_AI_STORE ?? join(options.root, "ai");
   mkdirSync(store, { recursive: true });
 
-  const built = await run("podman", ["build", "-f", "ai/Containerfile", "-t", image, "."], { cwd: options.v2, timeoutMs: 600_000 });
+  const built = await run("podman", ["build", "-f", "ai/Containerfile", "-t", image, "."], { cwd: options.v2, timeoutMs: 600_000, ...(abort ? { abort } : {}) });
   appendFileSync(options.log, `--- podman build -f ai/Containerfile -t ${image} .\n${built.stdout}${built.stderr}`);
+  abort?.throwIfAborted();
   if (built.code !== 0) throw new Error(`podman build -f ai/Containerfile failed:\n${tail(options.log)}`);
   await run("podman", ["rm", "--force", name]);
 

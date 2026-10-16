@@ -121,10 +121,10 @@ export function tail(path: string, lines = 15): string {
   return readFileSync(path, "utf8").trimEnd().split("\n").slice(-lines).join("\n");
 }
 
-/** Runs a command to its end, its output gathered: never a throw (a command that won't start is code 127). */
-export function run(bin: string, args: string[], options: { env?: NodeJS.ProcessEnv; cwd?: string; timeoutMs?: number } = {}): Promise<{ code: number; stdout: string; stderr: string }> {
+/** Runs a command to its end, its output gathered: never a throw (a command that won't start, or is aborted, is code 127). */
+export function run(bin: string, args: string[], options: { env?: NodeJS.ProcessEnv; cwd?: string; timeoutMs?: number; abort?: AbortSignal } = {}): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise(resolve => {
-    const child = spawn(bin, args, { env: options.env ?? process.env, cwd: options.cwd, stdio: ["ignore", "pipe", "pipe"], timeout: options.timeoutMs ?? 60_000 });
+    const child = spawn(bin, args, { env: options.env ?? process.env, cwd: options.cwd, stdio: ["ignore", "pipe", "pipe"], timeout: options.timeoutMs ?? 60_000, ...(options.abort ? { signal: options.abort } : {}) });
     let stdout = "", stderr = "";
     child.stdout.on("data", d => (stdout += d));
     child.stderr.on("data", d => (stderr += d));

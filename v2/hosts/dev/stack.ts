@@ -42,6 +42,8 @@ export interface StackOptions {
   sessions?: string;
   /** Each step as it happens (the dev host prints them); the stack's log (logs/dev.log) has them either way. */
   log?(line: string): void;
+  /** Aborts the start (a Ctrl+C while it runs): what's started is stopped, and startStack throws the abort. */
+  signal?: AbortSignal;
 }
 
 export interface Stack {
@@ -103,6 +105,7 @@ export async function startStack(options: StackOptions): Promise<Stack> {
   await clearLeftovers(previous, paths.root, log.say);
   prepareFolders(paths, options, log.say);
   await portsFree(options);
+  options.signal?.throwIfAborted();
 
   const server = spacetimeServer(ready, options.stdbPort, paths, log.say);
   await server.start();
@@ -133,16 +136,19 @@ async function readyToStart(options: StackOptions, paths: Paths): Promise<Ready>
 
 /** With SpacetimeDB up: the identities, the CLI logged in as the owner, the module published with its env, the AI service started. */
 async function startOnServer(options: StackOptions, ready: Ready, server: SpacetimeServer, previous: StackFile | undefined, paths: Paths, log: StackLog): Promise<Stack> {
+  options.signal?.throwIfAborted();
   const ids = await identities(ready.http, previous, log.say);
   await stdb.configureCli(ready.cli, ready.http, ids.owner);
 
   const moduleEnv = { AI_URL: ready.urls.fromSimulation, AI_TOKEN: ids.bearer, AI_IDENTITY: ids.ai.identity };
-  await publishModule(ready.cli, moduleEnv, log);
+  await publishModule(ready.cli, moduleEnv, log, options.signal);
 
-  // A start that fails stops its own process, so nothing of the AI service's is left to clean up here.
+  // A start that fails or is aborted stops its own process; one aborted just after it's up is stopped here.
   const ai = aiProcess({ v2: V2, root: paths.root, container: !!options.container, url: ready.urls.fromHost, env: aiEnvOf(options, ready, ids, paths), log: paths.aiLog });
   log.say(`starting the AI service (${options.container ? "podman" : "node hosts/ai.ts"}, ${options.model} model)`);
-  await ai.start();
+  await ai.start({}, options.signal);
+  if (options.signal?.aborted) await ai.stop();
+  options.signal?.throwIfAborted();
 
   return stackOf(stackFileOf(options, ready, ids, paths.root), server, ai, moduleEnv, log);
 }
@@ -336,11 +342,12 @@ async function identities(http: string, previous: StackFile | undefined, say: (l
 }
 
 /** The module built and published with its env (v0-design §3.6), loudly when the schema change deleted the data. */
-async function publishModule(cli: stdb.SpacetimeCli, env: Record<string, string>, log: StackLog): Promise<stdb.Published> {
+async function publishModule(cli: stdb.SpacetimeCli, env: Record<string, string>, log: StackLog, abort?: AbortSignal): Promise<stdb.Published> {
   const say = log.say;
   say("building and publishing the module");
-  const published = await stdb.publish(cli, join(V2, "simulation"), env);
+  const published = await stdb.publish(cli, join(V2, "simulation"), env, abort);
   log.raw(published.output);
+  abort?.throwIfAborted();
   if (!published.ok) {
     const owned = /not authorized|permission/i.test(published.output) ? " (the database belongs to another identity: start with --fresh)" : "";
     throw new Error(`spacetime publish failed${owned}:\n${published.output.trim().split("\n").slice(-12).join("\n")}`);

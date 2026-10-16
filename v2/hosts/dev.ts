@@ -40,6 +40,10 @@ const campaign = JSON.parse(readFileSync(join(CAMPAIGN, "campaign.json"), "utf8"
 const builds = Object.keys(JSON.parse(readFileSync(join(CAMPAIGN, "builds.json"), "utf8")) as BuildsFile);
 const campaignId = `${campaign.id}@${campaign.version}`;
 
+/** Aborted by a signal while the stack starts: what's started is stopped. */
+const starting = new AbortController();
+/** Set once the stack is up: a signal then stops it. */
+let up = false;
 /** Each key's action runs after the one before it has finished. */
 let queue = Promise.resolve();
 /** When the stack was asked to stop (0: it wasn't). */
@@ -80,12 +84,15 @@ const ACTIONS: Record<string, () => Promise<void>> = {
   d: doctorNow,
 };
 
+listenForSignals();
 const stack = await start();
+up = true;
+
 const installed = await installCampaign();
 const report = await stack.doctor({ campaign: campaignId });
 print("", ...screen(stack, installed, report));
 watchAi();
-listen();
+listenForKeys();
 
 // ---------------------------------------------------------------------------------------------
 // Starting, and the screen.
@@ -95,9 +102,10 @@ async function start(): Promise<Stack> {
     return await startStack({
       root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
       model: flags.fake ? "fake" : "openrouter", ...(flags.gm ? { gm: flags.gm } : {}), container: flags.container, fresh: flags.fresh,
-      sessions: join(V2, "runs", "play"), log: line => print(`  … ${line}`),
+      sessions: join(V2, "runs", "play"), log: line => print(`  … ${line}`), signal: starting.signal,
     });
   } catch (e) {
+    if (starting.signal.aborted) return done(130, "stopped before the stack was up");
     console.error(`\nThe dev stack didn't start: ${(e as Error).message}`);
     process.exit(1);
   }
@@ -133,10 +141,14 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
 // ---------------------------------------------------------------------------------------------
 // The keys.
 
-function listen(): void {
-  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => void quit());
+/** SIGINT, SIGTERM and SIGHUP stop the stack; while it starts, they stop what's started. */
+function listenForSignals(): void {
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) process.on(signal, () => (up ? void quit() : starting.abort()));
   // A closed terminal (SIGHUP) fails every write: stopping the stack matters more than saying so.
   process.stdout.on("error", () => undefined);
+}
+
+function listenForKeys(): void {
   process.on("uncaughtException", e => void crash(e));
   if (!flags.keys) return;
   // A terminal gives keys one at a time; a pipe (an agent's) gives them as they're written.
@@ -221,9 +233,9 @@ function killNow(): void {
   done(1);
 }
 
-function done(code: number): never {
+function done(code: number, why = "stopped"): never {
   if (process.stdin.isTTY && flags.keys) process.stdin.setRawMode(false);
-  note("stopped");
+  note(why);
   process.exit(code);
 }
 

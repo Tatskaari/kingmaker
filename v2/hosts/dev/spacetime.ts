@@ -57,11 +57,11 @@ async function must(bin: string, args: string[]): Promise<void> {
 export interface Published { ok: boolean; created: boolean; wiped: boolean; output: string }
 
 /** Builds and publishes the module with its env (AI_URL, AI_TOKEN, AI_IDENTITY), as the logged-in owner (v0-design §3.6). */
-export async function publish(cli: SpacetimeCli, modulePath: string, env: Record<string, string>): Promise<Published> {
+export async function publish(cli: SpacetimeCli, modulePath: string, env: Record<string, string>, abort?: AbortSignal): Promise<Published> {
   const { code, stdout, stderr } = await run(cli.bin, [
     "--config-path", cli.config, "publish", DB, "-s", cli.server, "-p", modulePath, "--no-config",
     "--yes=migrate,break-clients,skip-login", "--delete-data=on-conflict",
-  ], { env: { ...process.env, ...env }, cwd: modulePath, timeoutMs: 300_000 });
+  ], { env: { ...process.env, ...env }, cwd: modulePath, timeoutMs: 300_000, ...(abort ? { abort } : {}) });
   const output = `${stdout}${stderr}`;
   return { ok: code === 0, created: /Created new database/.test(output), wiped: /Deleting the database|Deleted database/.test(output), output };
 }
