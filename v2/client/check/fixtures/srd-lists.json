@@ -1,0 +1,234 @@
+{
+ "species": [
+  {
+   "id": "human",
+   "name": "Human",
+   "about": "medium, 30 ft"
+  },
+  {
+   "id": "elf",
+   "name": "Elf",
+   "about": "medium, 30 ft, darkvision 60 ft"
+  },
+  {
+   "id": "dwarf",
+   "name": "Dwarf",
+   "about": "medium, 30 ft, darkvision 120 ft, poison resistance"
+  },
+  {
+   "id": "halfling",
+   "name": "Halfling",
+   "about": "small, 30 ft"
+  },
+  {
+   "id": "tiefling",
+   "name": "Tiefling",
+   "about": "medium, 30 ft, darkvision 60 ft"
+  },
+  {
+   "id": "dragonborn",
+   "name": "Dragonborn",
+   "about": "medium, 30 ft, darkvision 60 ft"
+  },
+  {
+   "id": "gnome",
+   "name": "Gnome",
+   "about": "small, 30 ft, darkvision 60 ft"
+  },
+  {
+   "id": "goliath",
+   "name": "Goliath",
+   "about": "medium, 35 ft"
+  },
+  {
+   "id": "orc",
+   "name": "Orc",
+   "about": "medium, 30 ft, darkvision 120 ft"
+  }
+ ],
+ "classes": [
+  {
+   "id": "fighter",
+   "name": "Fighter",
+   "about": "d10 hit die, STR/DEX, light, medium, heavy, shield armour"
+  },
+  {
+   "id": "wizard",
+   "name": "Wizard",
+   "about": "d6 hit die, INT, no armour"
+  },
+  {
+   "id": "rogue",
+   "name": "Rogue",
+   "about": "d8 hit die, DEX, light armour"
+  },
+  {
+   "id": "warlock",
+   "name": "Warlock",
+   "about": "d8 hit die, CHA, light armour"
+  },
+  {
+   "id": "paladin",
+   "name": "Paladin",
+   "about": "d10 hit die, STR/CHA, light, medium, heavy, shield armour"
+  },
+  {
+   "id": "barbarian",
+   "name": "Barbarian",
+   "about": "d12 hit die, STR, light, medium, shield armour"
+  },
+  {
+   "id": "bard",
+   "name": "Bard",
+   "about": "d8 hit die, CHA, light armour"
+  },
+  {
+   "id": "cleric",
+   "name": "Cleric",
+   "about": "d8 hit die, WIS, light, medium, shield armour"
+  },
+  {
+   "id": "druid",
+   "name": "Druid",
+   "about": "d8 hit die, WIS, light, medium, shield armour"
+  },
+  {
+   "id": "monk",
+   "name": "Monk",
+   "about": "d8 hit die, DEX/WIS, no armour"
+  },
+  {
+   "id": "ranger",
+   "name": "Ranger",
+   "about": "d10 hit die, DEX/WIS, light, medium, shield armour"
+  },
+  {
+   "id": "sorcerer",
+   "name": "Sorcerer",
+   "about": "d6 hit die, CHA, no armour"
+  }
+ ],
+ "subclasses": {
+  "barbarian": [
+   {
+    "id": "path-of-the-berserker",
+    "name": "Path of the Berserker",
+    "about": "a barbarian's path"
+   }
+  ],
+  "bard": [
+   {
+    "id": "college-of-lore",
+    "name": "College of Lore",
+    "about": "a bard's path"
+   }
+  ],
+  "cleric": [
+   {
+    "id": "life-domain",
+    "name": "Life Domain",
+    "about": "a cleric's path"
+   }
+  ],
+  "druid": [
+   {
+    "id": "circle-of-the-land",
+    "name": "Circle of the Land",
+    "about": "a druid's path"
+   }
+  ],
+  "fighter": [
+   {
+    "id": "champion",
+    "name": "Champion",
+    "about": "a fighter's path"
+   }
+  ],
+  "monk": [
+   {
+    "id": "warrior-of-the-open-hand",
+    "name": "Warrior of the Open Hand",
+    "about": "a monk's path"
+   }
+  ],
+  "paladin": [
+   {
+    "id": "oath-of-devotion",
+    "name": "Oath of Devotion",
+    "about": "a paladin's path"
+   }
+  ],
+  "ranger": [
+   {
+    "id": "hunter",
+    "name": "Hunter",
+    "about": "a ranger's path"
+   }
+  ],
+  "rogue": [
+   {
+    "id": "thief",
+    "name": "Thief",
+    "about": "a rogue's path"
+   }
+  ],
+  "sorcerer": [
+   {
+    "id": "draconic-sorcery",
+    "name": "Draconic Sorcery",
+    "about": "a sorcerer's path"
+   }
+  ],
+  "warlock": [
+   {
+    "id": "fiend-patron",
+    "name": "Fiend Patron",
+    "about": "a warlock's path"
+   }
+  ],
+  "wizard": [
+   {
+    "id": "evoker",
+    "name": "Evoker",
+    "about": "a wizard's path"
+   }
+  ]
+ },
+ "backgrounds": [
+  {
+   "id": "soldier",
+   "name": "Soldier",
+   "about": "Athletics, Intimidation · Savage Attacker"
+  },
+  {
+   "id": "sage",
+   "name": "Sage",
+   "about": "Arcana, History · Magic Initiate (Wizard)"
+  },
+  {
+   "id": "criminal",
+   "name": "Criminal",
+   "about": "Sleight Of Hand, Stealth · Alert"
+  },
+  {
+   "id": "acolyte",
+   "name": "Acolyte",
+   "about": "Insight, Religion · Magic Initiate (Cleric)"
+  }
+ ],
+ "level": 3,
+ "subclassLevel": {
+  "fighter": 3,
+  "wizard": 3,
+  "rogue": 3,
+  "warlock": 3,
+  "paladin": 3,
+  "barbarian": 3,
+  "bard": 3,
+  "cleric": 3,
+  "druid": 3,
+  "monk": 3,
+  "ranger": 3,
+  "sorcerer": 3
+ }
+}

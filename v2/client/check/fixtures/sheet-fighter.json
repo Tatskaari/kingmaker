@@ -1,0 +1,411 @@
+{
+ "name": "Wren Ashdown",
+ "concept": "a broken-nosed ex-sergeant of the river watch who solves most problems with a longsword and the rest with a longer one",
+ "species": "Human",
+ "background": "Soldier",
+ "classes": [
+  {
+   "id": "fighter",
+   "name": "Fighter",
+   "level": 3,
+   "subclass": "Champion"
+  }
+ ],
+ "level": 3,
+ "hp": {
+  "current": 28,
+  "max": 28,
+  "temp": 0
+ },
+ "ac": 18,
+ "speeds": {
+  "walk": 35
+ },
+ "initiative": 1,
+ "proficiency": 2,
+ "hitDice": [
+  {
+   "die": 10,
+   "left": 3,
+   "total": 3
+  }
+ ],
+ "inspiration": false,
+ "abilities": [
+  {
+   "id": "STR",
+   "name": "Strength",
+   "score": 17,
+   "modifier": 3,
+   "save": 5,
+   "proficient": true
+  },
+  {
+   "id": "DEX",
+   "name": "Dexterity",
+   "score": 13,
+   "modifier": 1,
+   "save": 1,
+   "proficient": false
+  },
+  {
+   "id": "CON",
+   "name": "Constitution",
+   "score": 15,
+   "modifier": 2,
+   "save": 4,
+   "proficient": true
+  },
+  {
+   "id": "INT",
+   "name": "Intelligence",
+   "score": 8,
+   "modifier": -1,
+   "save": -1,
+   "proficient": false
+  },
+  {
+   "id": "WIS",
+   "name": "Wisdom",
+   "score": 12,
+   "modifier": 1,
+   "save": 1,
+   "proficient": false
+  },
+  {
+   "id": "CHA",
+   "name": "Charisma",
+   "score": 10,
+   "modifier": 0,
+   "save": 0,
+   "proficient": false
+  }
+ ],
+ "skills": [
+  {
+   "id": "acrobatics",
+   "name": "Acrobatics",
+   "ability": "DEX",
+   "modifier": 3,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "animal-handling",
+   "name": "Animal Handling",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "arcana",
+   "name": "Arcana",
+   "ability": "INT",
+   "modifier": -1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "athletics",
+   "name": "Athletics",
+   "ability": "STR",
+   "modifier": 5,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "deception",
+   "name": "Deception",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "history",
+   "name": "History",
+   "ability": "INT",
+   "modifier": -1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "insight",
+   "name": "Insight",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "intimidation",
+   "name": "Intimidation",
+   "ability": "CHA",
+   "modifier": 2,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "investigation",
+   "name": "Investigation",
+   "ability": "INT",
+   "modifier": -1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "medicine",
+   "name": "Medicine",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "nature",
+   "name": "Nature",
+   "ability": "INT",
+   "modifier": -1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "perception",
+   "name": "Perception",
+   "ability": "WIS",
+   "modifier": 3,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "performance",
+   "name": "Performance",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "persuasion",
+   "name": "Persuasion",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "religion",
+   "name": "Religion",
+   "ability": "INT",
+   "modifier": -1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "sleight-of-hand",
+   "name": "Sleight of Hand",
+   "ability": "DEX",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "stealth",
+   "name": "Stealth",
+   "ability": "DEX",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "survival",
+   "name": "Survival",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  }
+ ],
+ "passive": {
+  "perception": 13,
+  "investigation": 9,
+  "insight": 11
+ },
+ "attacks": [
+  {
+   "name": "Longsword",
+   "kind": "melee",
+   "bonus": 5,
+   "damage": "1d8+3",
+   "type": "slashing",
+   "versatile": "1d10+3",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "Sap",
+   "held": true
+  },
+  {
+   "name": "Longbow",
+   "kind": "ranged",
+   "bonus": 5,
+   "damage": "1d8+1",
+   "type": "piercing",
+   "range": {
+    "normal": 150,
+    "long": 600
+   },
+   "properties": [
+    "ammunition",
+    "heavy",
+    "two-handed"
+   ],
+   "mastery": "Slow",
+   "held": false
+  },
+  {
+   "name": "Unarmed Strike",
+   "kind": "melee",
+   "bonus": 5,
+   "damage": "1d4+3",
+   "type": "bludgeoning",
+   "properties": [
+    "light"
+   ],
+   "held": false
+  }
+ ],
+ "features": [
+  {
+   "name": "Second Wind",
+   "from": "Fighter",
+   "level": 1,
+   "uses": {
+    "current": 2,
+    "max": 2,
+    "recharge": "short rest"
+   }
+  },
+  {
+   "name": "Fighting Style",
+   "from": "Fighter",
+   "level": 1,
+   "choice": "Archery"
+  },
+  {
+   "name": "Weapon Mastery",
+   "from": "Fighter",
+   "level": 1
+  },
+  {
+   "name": "Action Surge",
+   "from": "Fighter",
+   "level": 2,
+   "uses": {
+    "current": 1,
+    "max": 1,
+    "recharge": "short rest"
+   }
+  },
+  {
+   "name": "Tactical Mind",
+   "from": "Fighter",
+   "level": 2
+  },
+  {
+   "name": "Improved Critical",
+   "from": "Champion",
+   "level": 3
+  },
+  {
+   "name": "Remarkable Athlete",
+   "from": "Champion",
+   "level": 3
+  }
+ ],
+ "feats": [
+  "Savage Attacker"
+ ],
+ "traits": [
+  "Skillful: Athletics",
+  "Resourceful"
+ ],
+ "conditions": [],
+ "equipment": [
+  {
+   "name": "Longsword",
+   "kind": "weapon",
+   "slot": "in hand",
+   "quantity": 1
+  },
+  {
+   "name": "Longbow",
+   "kind": "weapon",
+   "quantity": 1
+  },
+  {
+   "name": "Chain Mail",
+   "kind": "armor",
+   "slot": "worn",
+   "quantity": 1
+  },
+  {
+   "name": "Shield",
+   "kind": "armor",
+   "slot": "worn",
+   "quantity": 1
+  }
+ ],
+ "carrying": [],
+ "purse": [
+  {
+   "name": "silver crowns",
+   "quantity": 2
+  },
+  {
+   "name": "shillings",
+   "quantity": 6
+  },
+  {
+   "name": "pennies",
+   "quantity": 12
+  }
+ ],
+ "languages": [
+  "Common"
+ ],
+ "proficiencies": {
+  "armor": [
+   "Light",
+   "Medium",
+   "Heavy",
+   "Shields"
+  ],
+  "weapons": [
+   "Simple",
+   "Martial"
+  ],
+  "tools": [
+   "A gaming set"
+  ]
+ }
+}
