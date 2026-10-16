@@ -105,9 +105,10 @@ function finished(view: SceneView, settled: boolean): boolean {
   return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "done";
 }
 
-/** A move refused: its words, and exit code 1. */
+/** A move refused: its words, and exit code 1. A failed turn's words name the screen's /retry: this client's way is the retry verb. */
 function said(out: Out, why: Rejection): number {
   out.print(why.text);
+  if (why.code === "turn_failed") out.print("Carry it on: npm run play -- retry --session <name>.");
   return 1;
 }
 

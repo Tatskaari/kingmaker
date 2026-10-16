@@ -75,10 +75,13 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
 // ---------------------------------------------------------------------------------------------
 // The check's parts.
 
-/** In a scene, which is open, and theirs to lead. */
+/**
+ * In a scene, which is open, and theirs to lead. An opening that failed is a turn like any other
+ * (turn 0, holding the lease): the line gets turnRefusal's /retry, not a wait that never ends.
+ */
 function sceneRefusal(tx: TxCtx, actor: Actor, scene: SceneRow | undefined): Refusal | undefined {
   if (!scene) return refusal("not_in_game");
-  if (scene.status === "opening") return refusal("not_ready");
+  if (scene.status === "opening" && leaseOf(tx, scene)?.phase !== "failed") return refusal("not_ready");
   if (scene.status === "ended") return refusal("scene_over");
   if (scene.controllerId !== actor.id) return refusal("not_controller", { name: playerRow(tx, scene.controllerId).name });
   return undefined;
@@ -93,8 +96,13 @@ function lineRefusal(text: string): Refusal | undefined {
 
 /** The turn in flight: a failed one waits for /retry; one deciding or replying, or settling with a line already waiting, can't take another. */
 function turnRefusal(tx: TxCtx, scene: SceneRow): Refusal | undefined {
-  const inFlight = scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId);
+  const inFlight = leaseOf(tx, scene);
   if (inFlight?.phase === "failed") return refusal("turn_failed");
   if (inFlight && (inFlight.phase !== "settling" || queuedTurnOf(tx, scene.id))) return refusal("turn_in_flight");
   return undefined;
+}
+
+/** The turn holding the scene's lease: in flight, or failed and waiting for /retry. */
+function leaseOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {
+  return scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId);
 }
