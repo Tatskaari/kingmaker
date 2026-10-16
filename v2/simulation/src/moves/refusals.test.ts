@@ -29,7 +29,7 @@ test("say: not in a game; while the scene opens; a spectator's line; nothing sai
   const { host } = hostWithCampaign();
   const wren = identity(1), stranger = identity(9), tamsin = identity(2);
 
-  assert.deepEqual(host.as(stranger).say({ text: "Hello" }), { code: "not_in_game", text: "(You're not in a game: start one with --new, or watch one with --join.)" });
+  assert.deepEqual(host.as(stranger).say({ text: "Hello" }), { code: "not_in_game", text: "(You're not in a game: start one, or watch someone's.)" });
   host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "", build: "ranger" });
   assert.deepEqual(host.as(wren).say({ text: "Hello" }), { code: "not_ready", text: "(The scene is still opening.)" });
   await host.drain();

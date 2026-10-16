@@ -93,6 +93,15 @@ test("new: the opening, then the game's number to watch it by; join: the game as
   assert.match(watched.printed, /\(Pell Marrow has the lead here: you're watching\.\)\n$/);
 });
 
+test("not in a game: the simulation's words, then how to start or watch one with these verbs; exit 1", async () => {
+  const nowhere: Backend = { ...rowsAsTheyCome(), view: () => undefined };
+  const out = capture();
+
+  assert.equal(verbs.observe(nowhere, out), 1);
+  assert.equal(await verbs.say(nowhere, "Hello?", out), 1);
+  assert.equal(out.printed, `${"(You're not in a game: start one, or watch someone's.)\nStart one: npm run play -- new --session <name> --as \"Name: concept\". Watch one: npm run play -- join --session <name> --game <n>.\n".repeat(2)}`);
+});
+
 test("observe and transcript: the scene, and everything said in it", () => {
   const game = demoBackend();
   const seen = capture();
