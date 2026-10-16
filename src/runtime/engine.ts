@@ -561,7 +561,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const considers = approach.considered === true && approach.voice === "gm";
   // An ending held for the player's answer: the decision asks whether they're answering it.
   const brink = state.pendingExit ? scene.exits.find(e => e.id === state.pendingExit!.exitId) : undefined;
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off" || considers, relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, considered: considers, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}), ...(brink ? { brink } : {}) });
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off" || considers, relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, considered: considers, notice: approach.noticeChecks === true, ...(rules ? { rules } : {}), ...(rules && options.mechanic ? { forced: options.mechanic } : {}), ...(brink ? { brink } : {}) });
   // A failed roll stands: don't have something else hand over what the dice just withheld.
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
   const preDecisionMs = performance.now() - started;

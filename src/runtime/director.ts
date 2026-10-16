@@ -258,16 +258,21 @@ export const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "perf
  * roll, and is it what one of the scene's routes with a roll is for? Its "yes" is split in two (a
  * route's, or none's), and the two count together for whether a roll is wanted at all.
  */
-function rollCallQuestion(checks: Transition[]): ChoiceQuestion {
+function rollCallQuestion(checks: Transition[], notice = false): ChoiceQuestion {
   const routes = checks.map(t => `[${t.id}] ${titleCase(t.check!.skill)} ${t.check!.reason ? t.check!.reason.trim().replace(/\.$/, "") : `(${t.when.replace(/\.$/, "")})`}`);
+  // With notice checks, studying someone or somewhere is a roll when there's something there to
+  // find: a table GM's Insight or Perception roll is how the player comes across a sign.
+  const noticing = notice ? " Or studying someone (their face, their manner, whether they're lying or hiding something: Insight), or watching, listening or searching for what's easy to miss (Perception, Investigation), where the scene has something there to find that a glance wouldn't show." : "";
   return {
-    instructions: `A good tabletop GM calls for a roll when what the player attempts could go either way and failing would cost something or change things, and otherwise just says yes or no. In the player's latest turn (${READ_TURN}), are they attempting something like that? Either working on someone for something that matters to that person (their safety, what they own or hold, what they know or hide, their loyalty, their pride), by whatever means: persuading, bargaining, bribing, threatening, lying, bluffing, forging, reading them, performing. Or a physical or sneaky feat that could fail (climbing, forcing, palming, sneaking past someone), or dredging up something obscure. Judge what they actually do and ask for, and what giving it would cost the other person, not how boldly or kindly it's put.`,
+    instructions: `A good tabletop GM calls for a roll when what the player attempts could go either way and failing would cost something or change things, and otherwise just says yes or no. In the player's latest turn (${READ_TURN}), are they attempting something like that? Either working on someone for something that matters to that person (their safety, what they own or hold, what they know or hide, their loyalty, their pride), by whatever means: persuading, bargaining, bribing, threatening, lying, bluffing, forging, reading them, performing. Or a physical or sneaky feat that could fail (climbing, forcing, palming, sneaking past someone), or dredging up something obscure.${noticing} Judge what they actually do and ask for, and what giving it would cost the other person, not how boldly or kindly it's put.`,
     criteria: {
       ...(routes.length ? { route: `Yes, and it's squarely what one of these is for: the same person, the same thing asked or tried, and its payoff is what the player is after: ${routes.join("; ")}.` } : {}),
       new: routes.length
         ? "Yes, but none of those is for it: someone else, a different ask, a different payoff, or another kind of attempt."
         : "Yes: an attempt like that, whose outcome is genuinely uncertain.",
-      none: "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking properly, searching or working out what's in front of them, something that simply works, or something that plainly can't.",
+      none: notice
+        ? "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking at what anyone can plainly see, something that simply works, or something that plainly can't."
+        : "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking properly, searching or working out what's in front of them, something that simply works, or something that plainly can't.",
     },
   };
 }
@@ -715,7 +720,7 @@ function rulingOf(m: Mechanic): string {
  * rules resolve? `forced`: what the rules resolve this turn, chosen already (the map's action menu),
  * in place of asking.
  */
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; considered?: boolean; rules?: RulesOptions; forced?: Mechanic; brink?: Exit }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; considered?: boolean; notice?: boolean; rules?: RulesOptions; forced?: Mechanic; brink?: Exit }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -746,7 +751,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   }
   if (cues.length) questions.cue = cueQuestion(cues, state.turnsInBeat);
   // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
-  if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
+  if (options.considered) questions.roll_call = rollCallQuestion(attempts.filter(t => t.check), options.notice === true);
   // The same push that already failed here, again: asked only once something has failed.
   const tried = attempts.some(t => t.check) ? failedPushes(scene, state) : [];
   if (tried.length) questions.same_again = sameAgainQuestion(tried);

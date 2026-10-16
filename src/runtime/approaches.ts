@@ -65,6 +65,19 @@ export interface Approach {
   staging?: boolean;
   /** House style for the GM voice: "comic" adds prompts/tone-comic.md (Pratchett / Monty Python). */
   tone?: "comic";
+  /**
+   * Guidance for improvising from sparse prep: "improv" adds prompts/gm-improv.md to the GM's
+   * instructions (the person before the purpose, hints before answers, where each thing someone says
+   * comes from, the player's words as theirs, moving the story on) and prompts/gm-improv-remind.md
+   * just before each reply's directives.
+   */
+  guide?: "improv";
+  /**
+   * Considered rolls also call for Insight, Perception or Investigation when the player studies
+   * someone, or watches or searches somewhere, that has something there to find: the way a table GM
+   * steers with what a roll lets the player notice. Without it, looking properly needs no roll.
+   */
+  noticeChecks?: boolean;
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
   effort?: "none" | "low" | "medium" | "high";
 }
@@ -77,6 +90,11 @@ export const APPROACHES: Record<string, Approach> = {
   // take longer. The full co-GM reviews in the background between turns. No speculative replies:
   // one started before the decision was sometimes shown and then taken back.
   v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), considered rolls (an act a roll should settle that no route covers is ruled on by the GM before the reply: the roll, the DC, what success and failure change), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true },
+  // The GM improvising more of the scene (2026-10-16 experiments): v2 with the improvisation guide,
+  // and rolls to notice and read that hand the player signs, for scenes with more beats and fewer routes.
+  "v2-improv": { id: "v2-improv", description: "v2 plus guidance for improvising from sparse prep (the person before the purpose, hints before answers, where what someone says comes from, the player's words as theirs) and Insight, Perception and Investigation rolls that let the player notice what's there to find.", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true, guide: "improv", noticeChecks: true },
+  "v2-guide": { id: "v2-guide", description: "v2 plus the improvisation guide alone (no rolls to notice).", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true, guide: "improv" },
+  "v2-notice": { id: "v2-notice", description: "v2 plus rolls to notice and read alone (no improvisation guide).", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true, noticeChecks: true },
   // v2 as it was before considered rolls, to compare against: off-graph turns wait up to 3 s for the
   // quick co-GM (routes with rolls), and a risky attempt no route covers gets a freeform roll.
   "v2-quick": { id: "v2-quick", description: "v2 before considered rolls: quick co-GM on off-graph turns (3 s), freeform rolls for risky attempts no route covers, background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs", freeformChecks: true },
