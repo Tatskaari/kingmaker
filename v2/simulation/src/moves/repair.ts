@@ -1,4 +1,5 @@
 import type { RepairResult } from "../../../shared/gm/repair.ts";
+import type { ScenePatch } from "../../../shared/gm/state.ts";
 import type { RepairResponse } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import { repairCall } from "../gm/requests.ts";
@@ -50,7 +51,16 @@ export const repair: Move<void, RepairPlan> = {
 /** The answer's review, checked enough that the merge at a turn's start can't throw on it (and so refuse a line). */
 function reviewOf(review: RepairResult | undefined): RepairResult {
   const ok = !!review && typeof review === "object" && typeof review.status === "string" && typeof review.notes === "string" && typeof review.assessment === "string"
-    && Array.isArray(review.canon) && review.canon.every(c => typeof c === "string") && Array.isArray(review.patches) && (review.whispers === undefined || Array.isArray(review.whispers));
+    && Array.isArray(review.canon) && review.canon.every(c => typeof c === "string")
+    && Array.isArray(review.patches) && review.patches.every(patchOk)
+    && (review.whispers === undefined || (Array.isArray(review.whispers) && review.whispers.every(w => typeof w?.to === "string" && typeof w.note === "string")));
   if (!ok) throw new Error("the answer has no review");
   return review;
+}
+
+/** A patch the scene's graph can take (shared/scene/graph.ts effectiveScene): a route with its beat and id, a beat with its id and routes. */
+function patchOk(patch: ScenePatch): boolean {
+  if (!patch || typeof patch !== "object" || typeof patch.turn !== "number" || typeof patch.why !== "string") return false;
+  if (patch.transition && (typeof patch.transition.beat !== "string" || typeof patch.transition.transition?.id !== "string")) return false;
+  return !patch.beat || (typeof patch.beat.id === "string" && Array.isArray(patch.beat.transitions));
 }
