@@ -31,6 +31,7 @@ import type { SceneView, Suggestion } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
 import { checkCreation } from "./creation.tsx";
+import { checkPlace } from "./place-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -641,6 +642,9 @@ for (const [what, next, shows] of comingUp) {
   checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
   await setup.dispose();
 }
+
+// The scene's place (the world bridge's): drawn from its rows, pointed at, its menu.
+await checkPlace(checks, show);
 
 // The title, character creation and the sheet (V1's).
 await checkCreation(checks, show);

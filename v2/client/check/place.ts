@@ -7,6 +7,8 @@ import { keysFor, pcKey, worldToRows, type Keys, type PlaceRows } from "../../sh
 import { buildWorld, joinWorld, type SceneWorld } from "../../shared/world/scene-world.ts";
 import type { SpellFacts } from "../scene/menu.ts";
 import { placeRowsOf, type PlaceTables } from "../scene/place-rows.ts";
+import type { SceneRows } from "../scene/rows.ts";
+import { YARD, yardRows } from "./fixture.ts";
 import spellFacts from "./fixtures/spell-facts-wizard.json" with { type: "json" };
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
@@ -75,4 +77,25 @@ export function yardTables(world: SceneWorld, prev?: PlaceRows, lead = 1n): { ta
 export function yardNames(tables: PlaceTables): Array<{ entityId: bigint; key: string; name: string }> {
   const called: Record<string, string> = { cob: "the boy in the too-big boots", moll: "the girl in the shawl" };
   return tables.entity.filter(e => ["kell", "cob", "moll"].includes(e.key)).map(e => ({ entityId: e.id, key: e.key, name: called[e.key] ?? e.name }));
+}
+
+/**
+ * The yard a few turns in (check/fixture.ts's rows: Pell Marrow, player 1, has the lead) with its
+ * place: Pell's character and the cast on stage as the place's entities, by the names Pell knows
+ * and in their looks' colours; Pell's sheet with the rules' word on the wizard's spells; `more`
+ * entries after the transcript's.
+ */
+export function yardPlaceRows(tables: PlaceTables = yardTables(yardWorld()).tables, more: SceneRows["transcript"] = [], sheet?: SceneRows["sheets"][number]): SceneRows {
+  const base = yardRows();
+  const names = yardNames(tables);
+  const lead = tables.entity.find(e => e.key === "pc:1")!;
+  return {
+    ...base,
+    sheets: [sheet ?? { playerId: 1n, statusLine: YARD.player.status!, spellFacts: JSON.stringify(WIZARD_SPELLS) }],
+    onStage: [{ entityId: lead.id, role: "controller" }, ...names.map(n => ({ entityId: n.entityId, role: "cast" }))],
+    names,
+    looks: names.flatMap(n => { const color = YARD.present.find(p => p.key === n.key)?.color; return color ? [{ entityId: n.entityId, fg: color }] : []; }),
+    transcript: [...base.transcript, ...more.map((e, i) => ({ ...e, seq: base.transcript.length + i + 1 }))],
+    place: tables,
+  };
 }

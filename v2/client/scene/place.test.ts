@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { rowsToWorld, type PlaceRows } from "../../shared/world/rows.ts";
 import { damageThing, type SceneWorld } from "../../shared/world/scene-world.ts";
-import { yardRows } from "../check/fixture.ts";
-import { WIZARD_SPELLS, yardKeys, yardNames, yardTables, yardWorld } from "../check/place.ts";
+import { WIZARD_SPELLS, yardKeys, yardPlaceRows, yardTables, yardWorld } from "../check/place.ts";
 import { DEED_WAITS, SceneModel } from "./model.ts";
 import { PlaceModel } from "./place.ts";
 import type { PlaceTables } from "./place-rows.ts";
@@ -21,20 +20,8 @@ import type { SceneView } from "./view.ts";
 
 type Entry = SceneRows["transcript"][number];
 
-/** The yard's rows (check/fixture.ts) with its place: Pell Marrow (player 1) has the lead; Kell, Cob and Moll on stage by the names Pell knows. */
-function rowsWith(tables: PlaceTables, more: Entry[] = [], sheet: SceneRows["sheets"][number] = { playerId: 1n, statusLine: "HP 20/20", spellFacts: JSON.stringify(WIZARD_SPELLS) }): SceneRows {
-  const base = yardRows();
-  const names = yardNames(tables);
-  const lead = tables.entity.find(e => e.key === "pc:1")!;
-  return {
-    ...base,
-    sheets: [sheet],
-    onStage: [{ entityId: lead.id, role: "controller" }, ...names.map(n => ({ entityId: n.entityId, role: "cast" }))],
-    names, looks: [],
-    transcript: [...base.transcript, ...more.map((e, i) => ({ ...e, seq: base.transcript.length + i + 1 }))],
-    place: tables,
-  };
-}
+/** The yard's rows with its place (check/place.ts): Pell Marrow (player 1) has the lead; Kell, Cob and Moll on stage by the names Pell knows. */
+const rowsWith = (tables: PlaceTables, more: Entry[] = [], sheet?: SceneRows["sheets"][number]) => yardPlaceRows(tables, more, sheet);
 
 const roll = (turn: number, text: string): Entry => ({ seq: 0, turn, speaker: "dice", kind: "roll", text, markup: undefined });
 
