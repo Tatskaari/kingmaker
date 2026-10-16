@@ -163,6 +163,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
   checks.push([`${size}: /help opens the help`, scene.overlay?.kind === "help" && /How to play/.test(frame)]);
+  checks.push([`${size}: the help says nothing of marks or ⓘ lines, which V0 never shows`, /🎲 lines/.test(frame) && !/Underlined|marks|ⓘ/.test(frame)]);
   await esc();
   frame = await draw();
   checks.push([`${size}: Esc closes it`, !scene.overlay && !/How to play/.test(frame)]);
