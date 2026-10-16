@@ -1,6 +1,7 @@
 import type { Timestamp } from "spacetimedb";
 import type { Backstory } from "../../../shared/creation/types.ts";
-import { pocketsOf, sheetRows, withEngine } from "../../../shared/rules/index.ts";
+import { pocketsOf, sheetRows } from "../../../shared/rules/index.ts";
+import { withEngine } from "../../../shared/rules/pin.ts";
 import type { Pockets, Rules, RulesSession } from "../../../shared/rules/types.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import type { SceneWorld } from "../../../shared/world/scene-world.ts";
