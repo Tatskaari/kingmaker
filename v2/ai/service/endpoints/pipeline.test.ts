@@ -7,7 +7,7 @@ import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openro
 import { prompt } from "../../prompts/index.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { Markup } from "../../../shared/markup.ts";
-import type { DecideRequest, Entry, NotesRequest, OpenRequest, Outcome, ReplyRequest, SettleRequest, StreamReplyArgs } from "../../../shared/protocol/ai.ts";
+import type { DecideRequest, Entry, NotesRequest, OpenRequest, Outcome, ReplyRequest, SettleRequest, StreamReplyArgs, SuggestRequest } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -264,6 +264,72 @@ test("notes: a reply with nothing to note (no spoken line, no mark of the GM's) 
   const { calls, usage } = callContext({ fetch: refusing, apiKey: "test" }, folderStores(store), { game: GAME, key: req.key, attempt: 1 });
   const failed = await pipeline.notes(req, { ...contextFor(req.key), calls, usage });
   assert.deepEqual(failed.marks, []);
+});
+
+// --- The lines suggested after a reply.
+
+const LINES = ["say: Sergeant, who saw it happen?", "say: Moll, who paid you to say he jumped?", "say: Lovely morning for it.", "do: (I look up at the body)", "try: (I try to coax the boy down with a pie)", "say: Nice boots, boy.", "say: Who found him, Sergeant?"].join("\n");
+
+function suggestRequest(campaign: Awaited<ReturnType<typeof setUp>>["campaign"], offered: string[]): SuggestRequest {
+  const gm = initialGm({ start: "yard" });
+  const reply: Entry = { turn: 1, speaker: "gm", kind: "narration", text: "Kell flips her notebook open. “The porters, at first light.”" };
+  const { line: _, ...turn } = turnOf(1, gm, openingRows(gm, campaign), [opening, said(1), reply]);
+  return { key: `${GAME}:s1:t1:suggest`, game, player: { id: "1", name: "Wren Ashdown" }, turn, offered };
+}
+
+/** The stand-in's fetch, but each call `fails` picks answered 400. */
+const failing = (fake: { fetch: typeof fetch }, fails: (url: string, body: Request) => boolean): typeof fetch => async (input, init) => {
+  const url = String(input);
+  return fails(url, JSON.parse(String(init?.body ?? "{}")) as Request) ? new Response(JSON.stringify({ error: { message: "no" } }), { status: 400 }) : fake.fetch(input, init);
+};
+
+test("suggest: lines from what the player knows, screened, judged and mixed, none of the scene's last set again", async () => {
+  const { campaign, fake, contextFor } = await setUp({ suggestions: LINES, choices: { line_4: "gives_away" } });
+  const req = suggestRequest(campaign, ["Lovely morning for it."]);
+  const answer = await pipeline.suggest(req, contextFor(req.key));
+  const asked = fake.sent.find(b => b.instructions?.startsWith("You suggest what the player might"))!;
+  const judged = fake.sent.find(b => b.questions?.line_1)!;
+
+  assert.equal(asked.instructions, prompt("suggest"));
+  assert.equal(asked.max_output_tokens, 150);
+  assert.match(asked.input![0]!.content, /# Not again\nThe player just said: Sergeant, who found him\?\nOffered last time \(none of these again, not even in other words: the player has seen them\):\n- Lovely morning for it\./);
+  assert.deepEqual(Object.keys(judged.questions!), ["line_1", "line_2", "line_3", "roll_3", "line_4"]);
+  assert.deepEqual(answer.lines, [{ kind: "say", text: "Sergeant, who saw it happen?" }, { kind: "do", text: "(I look up at the body)" }, { kind: "try", text: "(I try to coax the boy down with a pie)" }]);
+  assert.deepEqual(Object.fromEntries(answer.dropped.map(d => [d.text, d.why])), {
+    "Moll, who paid you to say he jumped?": "a name not heard: Moll",
+    "Lovely morning for it.": "offered last time",
+    "Who found him, Sergeant?": "just said",
+    "Nice boots, boy.": "the judge: gives away what's held",
+  });
+  assert.deepEqual(Object.keys(answer.usage.byOperation).sort(), ["scene.suggest", "scene.suggest.judge"]);
+});
+
+test("suggest: a judge that fails leaves the lines unjudged; a model that fails gives none", async () => {
+  const { campaign, fake, contextFor, store } = await setUp({ suggestions: LINES, choices: { line_4: "gives_away" } });
+  const req = suggestRequest(campaign, []);
+  const using = (answering: typeof fetch) => ({ ...contextFor(req.key), ...callContext({ fetch: answering, apiKey: "test" }, folderStores(store), { game: GAME, key: req.key, attempt: 1 }) });
+
+  const unjudged = await pipeline.suggest(req, using(failing(fake, url => url.endsWith("/decisions"))));
+  assert.deepEqual(unjudged.lines.map(l => l.text), ["Sergeant, who saw it happen?", "Lovely morning for it.", "(I look up at the body)", "(I try to coax the boy down with a pie)"]);
+  assert.deepEqual(unjudged.dropped.map(d => [d.text, d.why]), [["Moll, who paid you to say he jumped?", "a name not heard: Moll"], ["Who found him, Sergeant?", "just said"], ["Nice boots, boy.", "enough of its kind"]]);
+
+  const none = await pipeline.suggest(req, using(failing(fake, url => url.endsWith("/responses"))));
+  assert.deepEqual([none.lines, none.dropped], [[], []]);
+});
+
+test("suggest: a reply that ran out of tokens loses its last line, which may be half a line", async () => {
+  const { campaign, fake, contextFor, store } = await setUp({ choices: {} });
+  const req = suggestRequest(campaign, []);
+  const cut = "say: Sergeant, who saw it happen?\ndo: (I look up at the body)\nsay: And what did the por";
+  const incomplete: typeof fetch = async (input, init) => {
+    const body = JSON.parse(String(init?.body ?? "{}")) as Request;
+    if (!body.instructions?.startsWith("You suggest what the player might")) return fake.fetch(input, init);
+    const response = { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [{ type: "message", content: [{ type: "output_text", text: cut }] }], usage: { input_tokens: 900, output_tokens: 150, cost: 0.0001 } };
+    const events = [{ type: "response.output_text.delta", delta: cut }, { type: "response.incomplete", response }];
+    return new Response(`${events.map(e => `data: ${JSON.stringify(e)}\n\n`).join("")}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } });
+  };
+  const answer = await pipeline.suggest(req, { ...contextFor(req.key), ...callContext({ fetch: incomplete, apiKey: "test" }, folderStores(store), { game: GAME, key: req.key, attempt: 1 }) });
+  assert.deepEqual(answer.lines.map(l => l.text), ["Sergeant, who saw it happen?", "(I look up at the body)"]);
 });
 
 // (Markup on a request's entries reaches the GM's history as written: the speaker's name as the player knows it.)

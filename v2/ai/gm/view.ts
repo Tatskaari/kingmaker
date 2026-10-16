@@ -70,7 +70,7 @@ export interface TurnView {
   /** What companions have told the player of themselves in talks (V11's). */
   talks?: Record<string, { count: number; told: Array<{ note: string; topic: string; turn: number }> }>;
   /** The lines offered last in this scene (only their words are read: none of them again). */
-  suggestions?: { scene: string; turn: number; lines: Array<{ text: string }> };
+  suggestions?: { scene: string; turn: number; lines: Array<{ kind?: string; text: string }> };
 
   /** The scene's entries as the prototype has them: the player's lines are "player"'s, the markup is `marked`. */
   transcript: ViewEntry[];
