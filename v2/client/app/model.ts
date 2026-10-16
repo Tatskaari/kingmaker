@@ -113,8 +113,8 @@ export class AppModel implements AppPart {
   private shown: Screen;
   /** The creation's step at the last change: one that turns made takes the player on to its sheet. */
   private stepWas: string | undefined;
-  /** The screen the last refusal came on: a line refused in a scene isn't the title's to say after /quit. */
-  private refusedOn?: { words: string; screen: Screen };
+  /** The screen the last refusal came on (none once the player has gone to another): a line refused in a scene isn't the title's to say after /quit, nor a name refused on the create screen New game's next time. */
+  private refusedOn?: { words: string; screen?: Screen };
 
   constructor(backend: Backend, options: { campaign: string; intent?: Intent; onQuit?: () => void; saveMs?: number }) {
     this.backend = backend;
@@ -138,8 +138,10 @@ export class AppModel implements AppPart {
     return this.refusedOn?.screen === this.shown ? this.refusedOn.words : undefined;
   }
 
+  /** A move: what went wrong before it, and the last refusal, are behind it (a refusal of this one is new, whatever its words). */
   act: Backend["act"] = (move, args) => {
     this.problem = undefined;
+    this.refusedOn = undefined;
     return this.backend.act(move, args);
   };
 
@@ -163,6 +165,7 @@ export class AppModel implements AppPart {
     this.intent = intent;
     this.problem = undefined;
     this.shown = this.screenNow(this.backend.view());
+    this.leaveRefusal();
     this.emit();
   }
 
@@ -186,6 +189,11 @@ export class AppModel implements AppPart {
     this.shown = this.screenNow(view);
     if (this.intent === "game" && was !== "title" && this.shown === "title") this.problem = GONE;
     this.emit();
+  }
+
+  /** The player went elsewhere: the last refusal was said where it came, and isn't said again (its words stay the rows' until the next move, so it isn't new). */
+  private leaveRefusal(): void {
+    if (this.refusedOn) this.refusedOn = { words: this.refusedOn.words };
   }
 
   /** A refusal that's new: said on the screen it came on (a refused move changes no rows, so the screen hasn't moved). */

@@ -179,6 +179,10 @@ async function create(checks: Array<[string, boolean]>, size: Size, show: boolea
   // A refusal says why, on the screen.
   const r = await open({ refusal: "(Your character's concept needs to be 300 characters or fewer.)" }, "new", size);
   checks.push([`the create screen ${label(size)}: a refused concept says why`, r.frame.includes("(Your character's concept needs to be 300 characters or fewer.)")]);
+  // Esc to the title, and n: the form is fresh, the refusal the last one's.
+  await r.esc();
+  const again = await r.press(() => r.setup.mockInput.pressKey("n"));
+  checks.push([`the create screen ${label(size)}: Esc, then New game: the refusal isn't said again`, r.app.screen === "create" && again.includes("Who are you?") && !again.includes("needs to be 300 characters")]);
   await r.setup.dispose();
 }
 

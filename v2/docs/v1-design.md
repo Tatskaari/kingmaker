@@ -612,7 +612,7 @@ V1 keeps to this blueprint, but for these departures, each with its reason. The 
 | The create screen before `start_creation`, or at step concept | Also at step `choose` with no offer, or `backstory` with no build chosen | A failed offer or pick: the row's note says why there, as the prototype went back to its create screen with the error |
 | r on the created screen chooses again | Only when this creation made the seat's game, and it says "Start again" when there was no offer | `choose_again` without an offer goes back to the concept now |
 | Their own build's lists are the engine's | The screen waits for them ("The rules engine lays out the SRD's…") | They come with the first `own` answer: the client never loads the engine |
-| A refusal goes to the note line | On the cards, in the offer note's lines; and only on the screen it came on | The choose screen had no note line; a line refused in a scene isn't the title's to say after `/quit` |
+| A refusal goes to the note line | On the cards, in the offer note's lines; and only on the screen it came on, until the player goes elsewhere | The choose screen had no note line; a line refused in a scene isn't the title's to say after `/quit`, nor a name refused on the create screen the next New game's |
 | The title's Esc | Quits | The prototype's browser check went (the browser is V14's) |
 | V0's TUI says when its game has gone from the server, on the status line | The title, which says why: "(The game's server no longer has that game: carry on another, or start a new one.)" | V1's client is a screen switch: a game whose seat goes falls back to the title |
 

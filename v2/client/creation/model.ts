@@ -279,8 +279,10 @@ export class CreationModel {
     void this.move("begin", {});
   }
 
+  /** To the title: a word of the model's own goes with the screen it was said on. */
   toTitle(): void {
     this.stopSaving();
+    this.said = undefined;
     this.app.go("title");
   }
 

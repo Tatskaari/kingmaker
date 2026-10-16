@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { refusal } from "../../shared/protocol/refusals.ts";
 import { creationRow, FIGHTER, gameRow, OFFER, sheetRow } from "../check/rows.ts";
 import { StubBackend } from "../check/stub.ts";
 import { YARD } from "../check/fixture.ts";
@@ -94,6 +95,30 @@ test("a refusal is said on the screen it came on: a line refused in a scene isn'
   backend.answers.continueGame = () => ({ code: "not_yours", text: "(That isn't one of your games.)" });
   await app.title.resume(gameRow(5n, "Wren Ashdown", "in The Hanged Clerk", 5));
   assert.equal(app.title.error, "(That isn't one of your games.)");
+});
+
+test("a refusal on the create screen isn't said again when New game comes back to it, but the same words for a new move are; nor is a word of the model's own", async () => {
+  const backend = new StubBackend();
+  backend.answers.startCreation = () => refusal("bad_name");
+  const app = new AppModel(backend, { campaign: "caerwyn", intent: "new" });
+  const long = "Tamsin Vell of the Exchequer, Auditor Extraordinary to the Crown";
+  await app.creation.offerBuilds(long, "a disgraced palace auditor");
+  assert.equal(app.creation.error, refusal("bad_name").text);
+
+  app.creation.toTitle();
+  assert.equal(app.title.error, undefined);
+  app.title.newCharacter();
+  assert.deepEqual([app.screen, app.creation.error], ["create", undefined], "a fresh form: the refusal was the last one's");
+  await app.creation.offerBuilds(long, "a disgraced palace auditor");
+  assert.equal(app.creation.error, refusal("bad_name").text, "refused again, in the same words: said again");
+
+  backend.set({ creation: creationRow({ step: "backstory", chosen: OFFER.options[0]! }), refusal: undefined });
+  app.go("creation");
+  app.creation.workInStory("");
+  assert.equal(app.creation.error, refusal("nothing_to_work_in").text);
+  app.creation.toTitle();
+  app.title.newCharacter();
+  assert.equal(app.creation.error, undefined, "the model's own word went with its screen");
 });
 
 test("a game gone from under the player (deleted by its host, or the server started again with no data) falls back to the title, which says why", () => {
