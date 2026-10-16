@@ -161,4 +161,62 @@ K lands first; M, S and C build from K's commit on `claude/v2-map-m`, `-s` and `
 
 ## 6. As built
 
-K (contracts): the commit that adds this brief.
+The map keeps to this brief, but for these departures, each with its reason. The packages' reports (K, M, S, C and I, in the author's scratchpad) and the PR give the full account. Every copied file's first line names its source at `44c6d4a` and its edits. The plan's section is [verticals.md](verticals.md) §3, V2.
+
+### The shared map and the campaign (K, M)
+
+| The brief says | The build does | Why |
+|---|---|---|
+| `maps/caerwyn.txt` and `caerwyn.json` (the plan) | One file a map, `campaigns/caerwyn/maps/<key>.json`: K's `MapFile`, the grid as rows inside it | Each map is one `map_def` row, read whole |
+| The town's people in `presence.ts`'s code (§3.3) | In the map's file: `MapFile.people` (who, where, at which hours: 30 on Caerwyn's), which `presence()` reads through `peopleOf` | Who's about and when is data (the plan's `places/caerwyn.json` line). At every hour of the arc, on every map, the copy's `presence()` deep-equals the prototype's |
+| `town.ts` copied but 465-490 | And one fix: a way out that's shut at this hour (the Rat's door before dusk, the palace gate) says so to `travel_<way>`, `travel@x,y` and the `e` key, as it does to a step into it | At `44c6d4a` those three went through: `travel_drowned_rats_door` in the morning took you into the Rat |
+| The places of the scenes to come | `PLACES` keys them by their regions' ids (`drowned-rat`, `heron`, `dressing-room`) | V3's and V4's place files should take those keys, or change `places.ts` |
+| The converter in `tools/v2/` | `tools/v2/map-files.mts`, whose check (on every write, or `--check`) builds each map from its file (`mapOf`) and deep-equals it with the prototype's `MapDef`, map and decor | Outside v2: it imports the prototype |
+
+### The simulation (S)
+
+| The brief says | The build does | Why |
+|---|---|---|
+| `openLead(tx, actor, game)` | A fourth argument, `walked`: the state the move walked, which the move then writes | One write of the explore row a move. V3's Go on calls it with three, and the row is read and written for it |
+| The lead's place built with its cast and no player (§3.3) | Built as `openPlace` builds it, with the character, so every spot is where the opening will find it, then the character taken out (`waitingPlace`). At the opening `joinPlace` puts the character, the purse and the kit back and numbers the entities in V1's order | The opening's request is V1's: a test opens a V1 game beside a walked one and finds the two requests deep-equal |
+| The map's own place, `map:caerwyn` | Has no world (`rootId` 0, no entities) | The town's people and things come from `presence.ts` and the map's legend, on both sides |
+| `walk out` from an ended scene | Any map move from an ended scene walks out first. Walk out on the map is `unavailable`, from a scene still being played `scene_on`. The log is cleared, as the prototype's `afterScene` cleared the town's | So headless `act --id go_to_lead` after an ending works without Enter |
+| (not in the brief) | Every move logs `[map] game <id> <action id> <ms> ms` | The e2e prints them (§5's risk) |
+| (for V3) | The character's entity stays in the yard after the scene (`pc:<player id>`, with its kit and pockets) | An entity key is unique in a game: V3's next opening must move or remove it before it adds the character to the next place |
+
+### The client (C)
+
+| The brief says | The build does | Why |
+|---|---|---|
+| Merge `claude/v2-world-d` at 39abd6b | At `c8273bf`, its head | D rewrote the branch: 39abd6b is `83782a9` now |
+| `setup.ts:196-215` (`areaHazards`) | Its dust from the battlefield's dust lines (`setup.ts:91-103`), run on the place's own map | The battlefield is the fights' (V12) |
+| `view-check.tsx` and `view.tsx` (MapView) | Not copied | The explore screen paints on the look layer's canvas, as the prototype's does, and the screen check draws it |
+| `g` | With no lead to walk to, it sends `go_to_lead`, so the simulation's "Nowhere to walk to: the story comes to you from here." is said | The prototype's app said "The story will come to you from here." itself |
+| The copied pick and x-ray tests | The Rat's world becomes the yard's, and the yard's frames are compared with `renderExplore` only outside whoever's hidden | The Rat comes with V3; the yard isn't an open room |
+| (not in the brief) | `act --id out` walks out of a scene that's over | Walk out has no prototype id |
+| The map's rows (§3.6) | Read as the simulation reads them, with two differences, both the same in V2: a place's scene time is the game's time of day (the simulation reads the scene file's), and an entity on another map counts as unheard | The client has no scene files, and nobody is on another map yet |
+| (not in the brief) | Talking to Kell after the scene is offered ("e Talk to Sergeant Kell"), the copied code's label | Talks are V11's; the town code keeps the label |
+
+### The integration (I)
+
+| The brief says | The build does | Why |
+|---|---|---|
+| The client's subscriptions (§3.6) | The map waits for its places' rows: `Connection.explore()` gives the map as it was, or none yet, until the set naming the places is in | Set off from a character just made, the lane was drawn before the yard's world came: nobody in the yard, and no `talk_kell` (the arc's check 3 failed on it) |
+| The e2e's new scenarios (§4) | In the steps where they happen. Step 2 talks to Kell (a line on the map refused first). 14a, after the ending: back to the map where the scene left A, both seats on the town's place, the lead nowhere, the yard locked once you're out, the Rat shut in the morning with nothing moving, and B's explore events the same as A's. Step 17: B joins on the map and watches A's walk from the lane into the yard, both clients' explore events the same, move by move. C walks in at 19. Step 22 prints the map moves' times, and the delete check counts `explore` | The steps before stay as they were, and V1's numbering with them |
+| The live run (§4) | Every script's game opens its scene by talking to Kell, and the record says how it came in. `--script map` plays V0's first three lines after it, and V1's creation run walks to the lead after `begin` | The campaign starts on its map now |
+
+### What the live run showed
+
+[docs/live/map-2026-10-16.md](live/map-2026-10-16.md), with real models: a game in the lane, `talk_kell` ("You walk 1 step south-east. You go over to Sergeant Kell.", the scene open 85 ms after the move), the opening and three lines, $0.0175. The prototype's QA console then played the same character and lines ($0.0143; $0.0318 in all). In the lane, observe drew the same map as text, byte for byte, with the same words under it and the same 26 ids (the prototype's action menu after them is V10's). Talking to Kell said the same words and opened the same scene, with the same prompt: 17,606 tokens in both. The three lines took the same routes and rolled the same checks: Medicine against DC 12 (19 and 18, both successes), then Insight against Moll's DC 13 (8 and 5, both failures). The replies told the same facts in different words: the porters at first light; a thin, level cord mark under the noose's burn, a swelling at the back of the skull, clean palms; Moll holding to her midnight story. First words came in 1.6 to 2.6 s (the prototype's 1.4 to 1.8 s). The costs differ mostly by the provider's cache: the prototype asked second.
+
+### The checks
+
+`npm run check`: the type checks (v2's, and the module's ES2021 one), 645 tests and the screen check (PASS: 583). `npm run campaign -- check campaigns/caerwyn`: 4 maps, no problems. `npm run e2e` on 3910 and 9410, namespace mode: PASS, every step, in 292.9 s; the map's moves took 1 to 55 ms in the module, but for the creation game's first opening (`go_to_lead`, 373 ms with the scene opening). `npm run arc`: PASS, 4 of 16 checks on. At the repo root, `npm run typecheck` and `npm test` (789). A playthrough of §1 on the fake model with two TUIs at 100x30 and the headless verbs, and the live run above.
+
+### Left for later
+
+- **V3, the story carries on:** the next lead (the Rat at dusk). `buildLead` builds a lead's place waiting, and `openLead` opens it; the character's entity in the yard must move first. Until then the lead stays the hanged clerk, played: "Nowhere to walk to".
+- **The world bridge:** its look layer and the scene's place beside the talk are in (`claude/v2-world-d`, merged with the client); its own unit turns on the arc's check 5.
+- **V10:** the action menu on the map (spells, blows, leaps, hiding, throwing), and the town's people and things as rows.
+- **V11:** a talk with Kell between scenes.
+- **V12:** fights in the street.
