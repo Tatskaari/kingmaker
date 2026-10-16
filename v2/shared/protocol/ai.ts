@@ -173,7 +173,7 @@ export interface Health {
   /** With ?deep=1: "ok", or why service_ping failed. */
   stdb?: string;
   /** The daily ceiling in dollars (0: none) and what today's (UTC) calls have cost so far. */
-  budget?: { dailyUsd: number; spentToday: number };
+  budget: { dailyUsd: number; spentToday: number };
 }
 
 /** PUT /v1/campaigns/{campaign}/{version}: the whole campaign folder, by path ("scenes/hanged-clerk/setting.md"). */

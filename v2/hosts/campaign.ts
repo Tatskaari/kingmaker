@@ -7,8 +7,10 @@ import { checkCampaign, describePack, packOf, readCampaignFiles } from "./dev/ca
  *   npm run campaign -- check campaigns/caerwyn
  *
  * check: the campaign loads as both services will load it, and every id it names exists (the
- * converter's checks that need no prototype). It prints what's there, or each problem, and exits 1
- * on any. A path is relative to v2/, where npm runs it.
+ * converter's checks that need no prototype): its ready-made builds on the rules engine's pack, which
+ * is the one campaign.json names, and the docs character creation's world reads in lore/ (v1-design
+ * §3.9). It prints what's there, or each problem, and exits 1 on any. A path is relative to v2/,
+ * where npm runs it.
  */
 
 const USAGE = "usage: npm run campaign -- check <campaign folder>   (e.g. campaigns/caerwyn)";

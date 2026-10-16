@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { validateScene, type Scene } from "../../shared/scene/types.ts";
@@ -39,8 +40,29 @@ export function packOf(files: CampaignFiles): CampaignPack {
   };
 }
 
-/** What's wrong with a campaign, each problem a line naming where: [] when it's fit to install. */
-export function checkCampaign(files: CampaignFiles): string[] {
+/**
+ * The rules engine's content pack as a campaign is checked against (v1-design §3.9): its id@version,
+ * and the ids its builds may name (each subclass with its class).
+ */
+export interface RulesPack { id: string; classes: string[]; species: string[]; backgrounds: string[]; subclasses: Record<string, string> }
+
+/** The vendored pack's (vendor/dnd-srd-engine/starter-pack.json), as the engine reads it. */
+export function rulesPackOf(json: string): RulesPack {
+  const pack = JSON.parse(json) as { id: string; version: string; classes: Array<{ id: string }>; species: Array<{ id: string }>; backgrounds: Array<{ id: string }>; subclasses: Array<{ id: string; parentClassId: string }> };
+  const ids = (list: Array<{ id: string }>) => list.map(x => x.id);
+  return {
+    id: `${pack.id}@${pack.version}`, classes: ids(pack.classes), species: ids(pack.species), backgrounds: ids(pack.backgrounds),
+    subclasses: Object.fromEntries(pack.subclasses.map(s => [s.id, s.parentClassId])),
+  };
+}
+
+/** The vendored pack, read from v2/vendor: what the module and the AI service load. */
+export function vendoredPack(): RulesPack {
+  return rulesPackOf(readFileSync(join(import.meta.dirname, "..", "..", "vendor", "dnd-srd-engine", "starter-pack.json"), "utf8"));
+}
+
+/** What's wrong with a campaign, each problem a line naming where: [] when it's fit to install. The builds are held to the rules engine's pack. */
+export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredPack()): string[] {
   let pack: CampaignPack;
   try {
     pack = packOf(files);
@@ -49,10 +71,11 @@ export function checkCampaign(files: CampaignFiles): string[] {
   }
 
   return [
-    ...campaignProblems(pack),
+    ...campaignProblems(pack, rules),
+    ...creationProblems(pack.campaign.creation, files),
     ...pack.scenes.flatMap(({ scene }) => sceneProblems(scene, files, pack)),
     ...pack.places.flatMap((place, i) => placeProblems(place, pack.campaign.places[i]!)),
-    ...buildProblems(pack.builds),
+    ...buildProblems(pack.builds, rules),
     ...lookProblems(pack.looks, pack.scenes.flatMap(s => s.scene.cast.map(c => c.id))),
   ];
 }
@@ -70,12 +93,31 @@ export function describePack(pack: CampaignPack, files: CampaignFiles): string {
 // ---------------------------------------------------------------------------------------------
 // The checks, a part of the pack each.
 
-function campaignProblems(pack: CampaignPack): string[] {
+function campaignProblems(pack: CampaignPack, rules: RulesPack): string[] {
   const c = pack.campaign, problems: string[] = [];
   for (const field of ["id", "title", "version", "firstScene", "startPlace"] as const) if (typeof c[field] !== "string" || !c[field]) problems.push(`campaign.json: no ${field}`);
   if (!c.scenes.includes(c.firstScene)) problems.push(`campaign.json: the first scene ${c.firstScene} isn't one of its scenes`);
   if (!c.places.includes(c.startPlace)) problems.push(`campaign.json: the start place ${c.startPlace} isn't one of its places`);
   if (!Number.isInteger(c.level) || c.level < 1) problems.push(`campaign.json: level ${c.level} isn't a level`);
+  if (c.rulesPack !== rules.id) problems.push(`campaign.json: its rulesPack ${c.rulesPack} isn't the rules engine's pack, ${rules.id}`);
+  return problems;
+}
+
+/**
+ * The world a backstory is written for and checked against (campaign.json's creation): its primer,
+ * the docs the lore check leaves out and each place's doc are in lore/, and each place's words (when
+ * the check reads its doc) are a regular expression.
+ */
+function creationProblems(world: CreationWorld | undefined, files: CampaignFiles): string[] {
+  const at = "campaign.json: creation";
+  if (!world || typeof world !== "object") return [`${at} is missing`];
+  const problems: string[] = [];
+  for (const field of ["name", "premise", "primer"] as const) if (typeof world[field] !== "string" || !world[field].trim()) problems.push(`${at} has no ${field}`);
+  const docs = [world.primer, ...(world.notCanon ?? []), ...(world.places ?? []).map(p => p.doc)];
+  for (const doc of docs) if (typeof doc === "string" && files[`lore/${doc}`] === undefined) problems.push(`${at}: ${doc} isn't in lore/`);
+  for (const place of world.places ?? []) {
+    try { new RegExp(place.words, "i"); } catch (e) { problems.push(`${at}: ${place.doc}'s words aren't a regular expression (${(e as Error).message})`); }
+  }
   return problems;
 }
 
@@ -131,8 +173,11 @@ function placeProblems(place: PlaceFile, key: string): string[] {
   return problems;
 }
 
-/** The ready-made characters (v1-design §3.9): each a concept, and a build for the rules engine to make, with every field of one. */
-function buildProblems(builds: BuildsFile): string[] {
+/**
+ * The ready-made characters (v1-design §3.9): each a concept, and a build for the rules engine to
+ * make, with every field of one, its class, species, background and subclass on the pack's lists.
+ */
+function buildProblems(builds: BuildsFile, rules: RulesPack): string[] {
   const problems: string[] = [];
   if (!Object.keys(builds).length) problems.push("builds.json: no builds");
   for (const [id, { concept, build }] of Object.entries(builds)) {
@@ -142,8 +187,20 @@ function buildProblems(builds: BuildsFile): string[] {
     for (const field of BUILD_IDS) if (typeof build[field] !== "string") problems.push(`${at}: the build has no ${field}`);
     for (const field of BUILD_LISTS) if (!Array.isArray(build[field]) || build[field].some(x => typeof x !== "string")) problems.push(`${at}: the build's ${field} isn't a list of ids`);
     if (typeof build.shield !== "boolean") problems.push(`${at}: the build's shield isn't true or false`);
+    problems.push(...packProblems(build, rules).map(p => `${at}: ${p}`));
   }
   return problems;
+}
+
+/** A build's ids the rules engine's pack hasn't got (install_campaign refuses them: bad_pack), and a subclass of another class. */
+function packProblems(build: BuildsFile[string]["build"], rules: RulesPack): string[] {
+  const missing = ([["class", build.classId, rules.classes], ["species", build.speciesId, rules.species], ["background", build.backgroundId, rules.backgrounds]] as const)
+    .filter(([, id, list]) => typeof id === "string" && !list.includes(id))
+    .map(([what, id]) => `its ${what} ${id} isn't in ${rules.id}`);
+  const parent = typeof build.subclassId === "string" ? rules.subclasses[build.subclassId] : undefined;
+  if (typeof build.subclassId === "string" && !parent) missing.push(`its subclass ${build.subclassId} isn't in ${rules.id}`);
+  else if (parent && typeof build.classId === "string" && parent !== build.classId) missing.push(`its subclass ${build.subclassId} is the ${parent}'s, not the ${build.classId}'s`);
+  return missing;
 }
 
 const BUILD_IDS = ["classId", "subclassId", "speciesId", "backgroundId", "feat", "armor"] as const;
