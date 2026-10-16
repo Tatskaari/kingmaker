@@ -1,7 +1,7 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); and the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); and the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts).
 import type { Backend, Rejection } from "../backend.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
-import { BusyLines } from "../busy.ts";
+import { BusyLines, CONSIDERING } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { C } from "../theme.ts";
 import { thingActions, type SceneContext, type SceneTarget, type ThingActions } from "./menu.ts";
@@ -198,10 +198,15 @@ export class SceneModel {
   }
   live(): Line | undefined { return liveOf(this.view); }
 
-  /** The spinner's line while the GM has the floor, by the turn's phase; nothing when it hasn't. */
+  /**
+   * The spinner's line while the GM has the floor, by the turn's phase; nothing when it hasn't. A
+   * considered turn (the GM ruling on a risky act before the reply) says so for the whole step, as
+   * the prototype's status line opens on it.
+   */
   busy(): string | undefined {
     const { phase, draft } = this.view;
     if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
+    if (phase === "considering") return CONSIDERING;
     if (phase === "replying") return draft?.kind === "dialogue" ? `${draft.name ?? draft.speaker} is speaking…` : "The GM is speaking…";
     // The world settling behind the reply, and the notes on its marks being written: the GM's bookkeeping, either way.
     if (phase === "settling" || phase === "noting") return "The GM makes a note…";

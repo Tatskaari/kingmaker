@@ -86,3 +86,22 @@ test("percentiles by nearest rank", () => {
   assert.equal(percentile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.9), 9);
   assert.equal(percentile([], 0.5), 0);
 });
+
+test("a script that records the GM's side: each turn's ruling, memory review and co-GM review, and where the co-GM left the scene", () => {
+  const ruledTurn = turn(3, { said: "(I try to lift the folded paper out of the boy's boot)", waited: 12_300 });
+  const gm = {
+    beat: "yard", sceneStatus: "drifting", notes: "Pull the talk back to Prout.", notesTurn: 6, offGraphTurn: 5, lastRepairTurn: 6,
+    rulings: ["3: lift the paper -> sleight_of_hand DC 12 (19) [guarded to lose, plausible cover, wary: they could notice]: success: The investigator has the paper."],
+    memoryReviews: ["0: nothing flagged", "3: witnessed — memory kell: What the investigator did"],
+    repairs: ["3: on_track — The yard is moving. [merged at t4]"],
+    whispers: ["6: moll: She wants to be asked about the songs."], canon: [], patches: ["yard + The player waits in the loft."], established: [],
+  };
+  const text = markdownOf({ ...record, script: SCRIPTS.gm!, turns: [opening, ruledTurn], gm, settledMs: 4_000 }, "npm run live -- --script gm --rehearse");
+
+  assert.match(text, /## The GM's side\n\nWhat `npm run status` showed once the run was over \(the background jobs waited for: 4\.0 s\)/);
+  assert.match(text, /\| 0 \| \(the opening\) \| no \| nothing flagged \|  \|/);
+  assert.match(text, /\| 3 \| \(I try to lift the folded paper out of the boy's boot\) \(after 12\.3 s waiting for the background jobs\) \| lift the paper -> sleight_of_hand DC 12 \(19\) \[guarded to lose, plausible cover, wary: they could notice\]: success: The investigator has the paper\. \| witnessed — memory kell: What the investigator did \| on_track — The yard is moving\. \[merged at t4\] \|/);
+  assert.match(text, /Where it was left: beat yard; the scene drifting; the co-GM's notes: Pull the talk back to Prout\. \(from turn 6\); the last turn off the graph with nothing ruled on it: 5; the turn the co-GM last reviewed \(merged\): 6\./);
+  assert.match(text, /\*\*Whispers\*\*\n\n- 6: moll: She wants to be asked about the songs\.\n\n\*\*Canon\*\*: none\.\n\n\*\*Patches\*\*\n\n- yard \+ The player waits in the loft\.\n/);
+  assert.doesNotMatch(md, /## The GM's side/);
+});

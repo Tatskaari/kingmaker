@@ -14,11 +14,13 @@ export type { Suggestion };
  */
 
 /**
- * A turn's phase, as the `turn` row has it; "idle" before the scene's first line. "noting": all in
- * but the notes on the reply's marks, which the GM is still writing. The turn ends when they're in,
- * so a line said meanwhile waits for them; the player may type, as while the world settles.
+ * A turn's phase, as the `turn` row has it; "idle" before the scene's first line. "considering": the
+ * GM is ruling on a risky act no route covers, before the reply (full-gm-design §4.3); the box stays
+ * shut, as while deciding. "noting": all in but the notes on the reply's marks, which the GM is
+ * still writing. The turn ends when they're in, so a line said meanwhile waits for them; the player
+ * may type, as while the world settles.
  */
-export type Phase = "idle" | "queued" | "deciding" | "replying" | "settling" | "noting" | "done" | "failed";
+export type Phase = "idle" | "queued" | "deciding" | "considering" | "replying" | "settling" | "noting" | "done" | "failed";
 
 /** What kind of entry a transcript row is (the simulation's `transcript.kind`). */
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
@@ -73,7 +75,7 @@ export interface SceneView {
   phase: Phase;
   /** The turn the phase is of (its n: 0 is the opening); none before the first. */
   turn?: number;
-  /** The player may say a line now: they have the lead, the scene is live (or winding down), and no turn is queued, deciding or replying. */
+  /** The player may say a line now: they have the lead, the scene is live (or winding down), and no turn is queued, deciding, considering or replying. */
   mayType: boolean;
   /** The scene has ended: there's nothing more to say in it. */
   over: boolean;

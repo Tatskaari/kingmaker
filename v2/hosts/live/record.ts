@@ -6,9 +6,10 @@ import type { SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { readCampaignFiles } from "../dev/campaign.ts";
+import { backgroundOf, statusOf, statusRows } from "../dev/gm-status.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
-import type { Offered, Played, Run, WalkedIn } from "./play.ts";
+import type { Offered, Played, Run, WalkedIn, WorldThing } from "./play.ts";
 import type { Script } from "./scripts.ts";
 
 /**
@@ -31,6 +32,8 @@ export interface TurnRecord {
   /** The script's step, and the line said (for an act, the line it picked). */
   step?: string;
   said?: string;
+  /** How long the line waited for the background jobs (the memory review, the co-GM) before it was said. */
+  waited?: number;
   /** Server times in microseconds: the turn's start, its first words, its reply's entry, its end. */
   saidAt: number;
   firstAt?: number;
@@ -47,6 +50,10 @@ export interface TurnRecord {
   /** The lines offered after it, and what the AI service screened out of them, and why. */
   lines: Offered[];
   dropped: Array<{ text: string; why: string }>;
+  /** The world's side (a script that records it): what the place's rows showed changed once the turn was done, the rules' act on the path, and who reacted to it and how. */
+  world?: string[];
+  act?: string;
+  reactions?: string;
 }
 
 /** What the scene keeps from the player: its people's secrets, and what it needs them to come across that they haven't. */
@@ -74,6 +81,10 @@ export interface LiveRecord {
   calls: Call[];
   cost: number;
   held: Held;
+  /** The GM's side once the run was over, as npm run status prints it (a script that records it: full-gm-design §4.4). */
+  gm?: Record<string, unknown>;
+  /** How long the run waited after its last line for the background jobs. */
+  settledMs?: number;
 }
 
 export interface RecordSetup { script: Script; date: string; rehearse: boolean; lines: number; model: string }
@@ -88,22 +99,47 @@ export async function recordOf(stack: StackFile, run: Run, setup: RecordSetup): 
   const scene = installedScene(String(rows.scene.scene_key));
   const calls = callsOf(stack.root, game.uid);
   const said = new Map(run.played.filter(p => p.n !== undefined).map(p => [p.n!, p]));
+  const gm = setup.script.gmSide || setup.script.worldSide ? await gmSideOf(stack, game, rows.scene) : undefined;
+  const path = (gm?.path as string[] | undefined) ?? [];
 
   return {
     ...setup, mode: stack.mode, game: game.uid,
     who: `${rows.player.name}: ${rows.player.concept}`, build: String(rows.sheet.build),
-    turns: rows.turns.map(t => turnRecord(t, {
-      entries: rows.entries, scene, run, calls, step: said.get(Number(t.n)),
-      dropped: droppedOf(stack.root, idempotencyKey(game.uid, game.sceneId, Number(t.n), "suggest", Math.max(1, Number(t.suggest_asks)))),
+    turns: rows.turns.map(t => ({
+      ...turnRecord(t, {
+        entries: rows.entries, scene, run, calls, step: said.get(Number(t.n)),
+        dropped: droppedOf(stack.root, idempotencyKey(game.uid, game.sceneId, Number(t.n), "suggest", Math.max(1, Number(t.suggest_asks)))),
+      }),
+      ...(setup.script.worldSide ? worldSideOf(Number(t.n), run.worlds, path) : {}),
     })),
     skipped: run.played.filter(p => p.skipped),
     ...(run.stopped ? { stopped: run.stopped } : {}),
     ...(rows.scene.exit_key ? { ending: String(rows.scene.exit_key) } : {}),
     ...(run.walkedIn ? { walkedIn: run.walkedIn } : {}),
+    ...(setup.script.gmSide && gm ? { gm, ...(run.settledMs !== undefined ? { settledMs: run.settledMs } : {}) } : {}),
     calls,
     cost: calls.reduce((sum, c) => sum + c.costUsd, 0),
     held: heldFrom(scene, (rows.gm?.landed as string[] | undefined) ?? []),
   };
+}
+
+/**
+ * A turn's world side: what changed in the place from the turn before, as this client's rows had it
+ * once each was done ("the hoist rope: destroyed", "Cob: gone"), the rules' act the path has for the
+ * turn ("rules:cast:magic-missile"), and the reactions to it ("kell=intervene, cob=flee").
+ */
+export function worldSideOf(n: number, worlds: Map<number, WorldThing[]>, path: string[]): Pick<TurnRecord, "world" | "act" | "reactions"> {
+  const now = worlds.get(n), before = new Map((worlds.get(n - 1) ?? []).map(e => [e.id, e]));
+  const world = n === 0 || !now ? [] : now.flatMap(e => {
+    if (!before.has(e.id)) return [`${e.name}: appeared${e.states.length ? ` (${e.states.join(", ")})` : ""}`];
+    const was = before.get(e.id)!.states;
+    if (was.join() === e.states.join()) return [];
+    const gained = e.states.filter(x => !was.includes(x)), lost = was.filter(x => !e.states.includes(x));
+    return [`${e.name}: ${[...gained, ...lost.map(x => `no longer ${x}`)].join(", ")}`];
+  });
+  const via = (kind: string) => path.flatMap(p => { const m = new RegExp(`^${n}: .* via (${kind}:\\S+)`).exec(p); return m ? [m[1]!] : []; });
+  const act = via("rules")[0], reactions = via("reactions")[0];
+  return { world, ...(act ? { act: act.slice("rules:".length) } : {}), ...(reactions ? { reactions: reactions.slice("reactions:".length).split(",").join(", ") } : {}) };
 }
 
 /** The game's spend so far, and its dearest turn, in dollars: from the call log, so the notes' and lines' calls count as they're made. */
@@ -111,6 +147,17 @@ export function spentOf(root: string, uid: string): { total: number; dearest: nu
   const byTurn = new Map<number, number>();
   for (const c of callsOf(root, uid)) byTurn.set(c.turn ?? -1, (byTurn.get(c.turn ?? -1) ?? 0) + c.costUsd);
   return { total: [...byTurn.values()].reduce((a, b) => a + b, 0), dearest: Math.max(0, ...byTurn.values()) };
+}
+
+/** The GM's side of the game's scene, as npm run status prints it: its rows read as the owner, and the AI service's lines on its memory reviews. */
+async function gmSideOf(stack: StackFile, game: NonNullable<Run["game"]>, scene: Row): Promise<Record<string, unknown>> {
+  const query = (q: string) => sql(stack.http, q, stack.owner.token);
+  return statusOf(await statusRows(query, join(stack.root, "ai", "games", game.uid), { id: String(game.id), uid: game.uid }, scene));
+}
+
+/** The scene's background jobs in flight (the memory reviews, the co-GM), as "remember t3". */
+export async function backgroundIn(stack: StackFile, sceneId: bigint): Promise<string[]> {
+  return backgroundOf(await sql(stack.http, "SELECT * FROM job", stack.owner.token), String(sceneId));
 }
 
 /** The scene's suggested lines now, as its rows have them. */
@@ -148,7 +195,7 @@ function turnRecord(t: Row, from: TurnSources): TurnRecord {
   const seen = from.run.seen.get(n) ?? {};
   const after = (at: number | undefined) => (at !== undefined && seen.final !== undefined ? at - seen.final : undefined);
   return {
-    n, ...(from.step ? { step: from.step.step, ...(from.step.said ? { said: from.step.said } : {}) } : {}),
+    n, ...(from.step ? { step: from.step.step, ...(from.step.said ? { said: from.step.said } : {}), ...(from.step.waitedMs !== undefined ? { waited: from.step.waitedMs } : {}) } : {}),
     saidAt: Number(t.started_at),
     ...(t.first_text_at !== null ? { firstAt: Number(t.first_text_at) } : {}),
     ...(reply ? { finalAt: Number(reply.at) } : {}),

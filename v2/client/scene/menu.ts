@@ -1,6 +1,7 @@
-// Copied from the prototype's src/game/scene-menu.ts at 44c6d4a, whole; the world from v2/shared/world, StagePick from client/look, and Action (src/game/play.ts:29-39) a local type.
+// Copied from the prototype's src/game/scene-menu.ts at 44c6d4a, whole; the world from v2/shared/world, StagePick from client/look, SpellFacts from shared/rules/types.ts (the same lines, copied there for the sheet's column), and Action (src/game/play.ts:29-39) a local type.
 import { ownerOf } from "../../shared/world/inventory.ts";
 import { areaOf, distance, heldBy, positionOf, type Entity, type Point, type SceneWorld } from "../../shared/world/scene-world.ts";
+import type { SpellFacts } from "../../shared/rules/types.ts";
 import type { StagePick } from "../look/stage.ts";
 
 /** One of the map menu's kind of actions (the prototype's src/game/play.ts:29-39 Action, a local type: v2 has no map's menu yet). */
@@ -67,9 +68,9 @@ export interface ThingActions {
 /**
  * One of the player's spells, with what the rules say of its reach when that's known: its range
  * ("Self", "Touch", "120 feet", "Self (15-foot cone)"), its effects' kinds (attack, save, heal,
- * buff...), and whether it fills an area.
+ * buff...), and whether it fills an area. The sheet's spellFacts column carries them (shared/rules/types.ts).
  */
-export interface SpellFacts { id: string; name: string; level: number; range?: string; effects?: string[]; area?: boolean }
+export type { SpellFacts };
 
 export interface SceneContext {
   /** What to call the cast whose names the player hasn't heard yet, by cast id ("the boy in the too-big boots"). */

@@ -64,7 +64,7 @@ test("the place's rows make the world the simulation rebuilds: the lead's charac
   assert.deepEqual(view.place!.spells.map(s => s.id), WIZARD_SPELLS.map(s => s.id));
   assert.equal(view.place!.spells.find(s => s.id === "burning-hands")?.area, true, "with the sheet's spellFacts, what the rules say of each");
 
-  // Before the world bridge's spellFacts column, the sheet's spells by name alone.
+  // A sheet without the rules' facts (spellFacts "", as on a sheet from before the column): the spells by name alone.
   const bare = sceneViewOf(rowsWith(tables, [], { playerId: 1n, statusLine: "HP 20/20", spells: [{ id: "fire-bolt", name: "Fire Bolt", level: 0 }] }));
   assert.deepEqual(bare.place!.spells, [{ id: "fire-bolt", name: "Fire Bolt", level: 0 }]);
   // No place rows (they haven't come): no place, and the side panel lists who's here instead.

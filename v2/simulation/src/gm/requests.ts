@@ -1,12 +1,15 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
-import { STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type DecideRequest, type NotesRequest, type OpenRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext } from "../../../shared/protocol/ai.ts";
+import {
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type ConsiderRequest, type DecideRequest, type NotesRequest, type OpenRequest, type ReactionsRequest, type RememberRequest, type RepairRequest, type ReplyRequest,
+  type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext,
+} from "../../../shared/protocol/ai.ts";
 import { idempotencyKey, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { NotesPlan, OpenPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import type { NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, type GameRow, type PlayerRow, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { entriesOf, entryAt, markupOf } from "../transcript.ts";
@@ -14,9 +17,11 @@ import { placeRows } from "../world/rows-io.ts";
 import { getGm } from "./rows.ts";
 
 /**
- * think's bodies (v0-design §5.2, §6.2; v5-design §3.6): each step's request, built from the rows
- * the transaction that queues it sees, so the request is exactly the state the commit's checks
- * compare against, and a stored request can be POSTed again unchanged after any crash.
+ * think's bodies (v0-design §5.2, §6.2; v5-design §3.6; full-gm-design §4.2; world-bridge-design
+ * §3.1): each step's request,
+ * built from the rows the transaction that queues it sees, so the request is exactly the state the
+ * commit's checks compare against, and a stored request can be POSTed again unchanged after any
+ * crash.
  */
 
 /** The opening's call: POST /v1/scenes/open, key <uid>:s<scene>:t0:open. */
@@ -32,7 +37,7 @@ export function openCall(tx: TxCtx, plan: OpenPlan): AiCall {
   return { endpoint: STEP_ENDPOINT.open, key, timeoutMs: STEP_TIMEOUT_MS.open, request };
 }
 
-/** A say turn's call for its step: decide, reply or settle, each with the turn's working set. */
+/** A say turn's call for its step: decide, reactions, consider, reply or settle, each with the turn's working set. */
 export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const at = whereOf(tx, plan.scene);
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
@@ -67,6 +72,25 @@ export function suggestCall(tx: TxCtx, plan: SuggestPlan): AiCall {
   return { endpoint: STEP_ENDPOINT.suggest, key, timeoutMs: STEP_TIMEOUT_MS.suggest, request };
 }
 
+/**
+ * The memory reviews' call: POST /v1/turns/remember, key <uid>:s<scene>:t<n>:remember. The scene as
+ * turn n left it (the prototype's rememberJob reviewed the turn's snapshot), and the turn reviewed.
+ */
+export function rememberCall(tx: TxCtx, plan: RememberPlan): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "remember");
+  const request: RememberRequest = { ...aiRequest(key, at), turn: reviewedContext(tx, at, plan.n), reviewed: plan.n };
+  return { endpoint: STEP_ENDPOINT.remember, key, timeoutMs: STEP_TIMEOUT_MS.remember, request };
+}
+
+/** The co-GM's call: POST /v1/turns/repair, key <uid>:s<scene>:t<n>:repair. The scene as turn n left it, and the turn reviewed. */
+export function repairCall(tx: TxCtx, plan: RepairPlan): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "repair");
+  const request: RepairRequest = { ...aiRequest(key, at), turn: reviewedContext(tx, at, plan.n), reviewed: plan.n };
+  return { endpoint: STEP_ENDPOINT.repair, key, timeoutMs: STEP_TIMEOUT_MS.repair, request };
+}
+
 /** A turn's working set: everything the GM may need, as this transaction sees it, with the player's line. */
 export function turnContext(tx: TxCtx, plan: SayPlan, at: Where): TurnContext {
   return { ...sceneContext(tx, at, plan.n), line: { speaker: playerSpeaker(plan.player), text: plan.input } };
@@ -82,9 +106,18 @@ export function sceneContext(tx: TxCtx, at: Where, n: number): SceneContext {
     transcript: entriesOf(tx, at.scene.id),
     world: placeRows(tx, at.scene.placeId),
     party: partyOf(tx, at.controller),
-    present: presentCast(sceneGraph(tx, at.scene), gm).map(c => ({ key: c.id, name: c.name, ...(c.called ? { called: c.called } : {}) })),
+    present: presentCast(sceneGraph(tx, at.scene, gm), gm).map(c => ({ key: c.id, name: c.name, ...(c.called ? { called: c.called } : {}) })),
     story: storyOf(at.game),
   };
+}
+
+/**
+ * The scene's working set as turn n left it, for the jobs after a turn: a line said meanwhile (queued
+ * for the next turn) is already in the transcript, and the prototype's jobs never saw it.
+ */
+function reviewedContext(tx: TxCtx, at: Where, n: number): SceneContext {
+  const context = sceneContext(tx, at, n);
+  return { ...context, transcript: context.transcript.filter(e => e.turn <= n) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -101,18 +134,32 @@ function aiRequest(key: string, at: Where): AiRequest {
   return { key, game: { id: at.game.uid, campaign: at.game.campaign, version: at.game.campaignVersion }, player: { id: idText(at.controller.id), name: at.controller.name } };
 }
 
-function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): DecideRequest | ReplyRequest | SettleRequest {
+/**
+ * reactions: what the decide commit's act did, which everyone who saw it reacts to (the turn's working
+ * set is the world after it). consider: the decider's read that asked for the ruling, and the ending
+ * held for the player's answer (the decide commit took it off the bookkeeping).
+ */
+function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
   if (plan.step === "decide") return { ...base, landed: [] };
-  if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision"), outcome: needs(plan.outcome, "outcome"), stream: { turn: plan.turn } };
+  if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
+  if (plan.step === "consider") return { ...base, ...(plan.decision?.considered ? { read: plan.decision.considered } : {}), ...(plan.pendingExit ? { pending: plan.pendingExit } : {}) };
+  if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision", "reply"), outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };
   return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore };
 }
 
-/** The party: the controller's character, by their sheet, with the backstory they wrote at creation (the GM's brief and the player's doc read it). */
+/**
+ * The party: the controller's character, by their sheet, with the backstory they wrote at creation
+ * (the GM's brief and the player's doc read it), and what the rules' act can be done with: the
+ * spells ready, the weapons carried, the class features with uses (world-bridge-design §3.1).
+ */
 function partyOf(tx: TxCtx, controller: PlayerRow): SheetRow[] {
   const sheet = sheetRow(tx, controller.id);
   return [{
     name: controller.name, concept: controller.concept, build: sheet.build, skills: JSON.parse(sheet.skills) as Partial<Record<Skill, number>>, status: sheet.statusLine,
     ...(sheet.backstory ? { backstory: JSON.parse(sheet.backstory) as Backstory } : {}),
+    spells: sheet.spells.map(s => ({ id: s.id, name: s.name, level: s.level })),
+    weapons: sheet.weapons.map(w => ({ id: w.id, name: w.name })),
+    features: sheet.features.map(f => ({ id: f.id, name: f.name, target: f.target === "creature" ? "creature" : "self" })),
   }];
 }
 
@@ -124,7 +171,7 @@ function offeredIn(tx: TxCtx, sceneId: bigint): string[] {
 /** The story's clock (no flags until the boundary vertical). */
 const storyOf = (game: GameRow): Story => ({ time: game.time, day: game.day, flags: {} });
 
-function needs<T>(value: T | undefined, what: string): T {
-  if (value === undefined) throw new Error(`the plan has no ${what} for its reply`);
+function needs<T>(value: T | undefined, what: string, step: SayPlan["step"]): T {
+  if (value === undefined) throw new Error(`the plan has no ${what} for its ${step}`);
   return value;
 }

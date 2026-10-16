@@ -3,14 +3,20 @@
  * v0 is V0's (v0-design §10.6); v5 is v5-design §4.6's twelve, two of them a suggested line picked
  * as the headless client's `act` picks one; map is the map's (map-design §4): the scene opened by
  * talking to Kell in the lane (as every script's is, now the campaign starts on its map), then V0's
- * first three lines, played beside the prototype's QA console on the same lines.
+ * first three lines, played beside the prototype's QA console on the same lines; gm is
+ * full-gm-design §1.2's eight, two of them said once the memory review and the co-GM are done, as a
+ * tester reading the reply would; world is world-bridge-design §1.2's spells and blows, with what
+ * the world showed after each.
  */
 
 /** A suggested line as `act` names it: say_N, or the first of a kind ("the try line"). */
 export type Pick = { id: `say_${number}` } | { kind: "say" | "do" | "try" | "leave" };
 
-/** A line of a script: words to say, or a suggested line to pick, the first of the picks that's there. */
-export type Step = { say: string } | { act: Pick[] };
+/**
+ * A line of a script: words to say, or a suggested line to pick, the first of the picks that's there.
+ * `wait: "background"`: said once the scene's background jobs (the memory review, the co-GM) are done.
+ */
+export type Step = { say: string; wait?: "background" } | { act: Pick[] };
 
 export interface Script {
   name: string;
@@ -23,10 +29,22 @@ export interface Script {
   steps: Step[];
   /** How many of its steps a run plays unless told (--lines). */
   lines: number;
+  /**
+   * The GM's side is recorded (npm run status): each line's ruling, memory review and co-GM review,
+   * with the background jobs waited for once the last line is done, so its review is in.
+   */
+  gmSide?: boolean;
+  /**
+   * The world's side is recorded (world-bridge-design §1.3): after each turn, what the place's rows
+   * showed changed (destroyed, burning, fallen, wet, who left), and who reacted to the act and how.
+   */
+  worldSide?: boolean;
 }
 
 const say = (text: string): Step => ({ say: text });
 const act = (...picks: Pick[]): Step => ({ act: picks });
+/** Words said once the memory review and the co-GM have done with the lines before. */
+const later = (text: string): Step => ({ say: text, wait: "background" });
 
 export const SCRIPTS: Record<string, Script> = {
   v0: {
@@ -82,6 +100,52 @@ export const SCRIPTS: Record<string, Script> = {
       say("Moll, you never saw him jump, did you? Who paid you to say it?"),
     ],
     lines: 3,
+  },
+  gm: {
+    name: "gm",
+    title: "The full GM live run",
+    about: "The full GM (full-gm-design §1.2): people remember what the player did, the co-GM steers a scene that drifts or leaves the graph, the GM rules on a risky act before the reply, and walking out is an ending of the player's own",
+    who: "Wren Ashdown: a hedge wizard from the fens",
+    build: "wizard",
+    // full-gm-design §1.2, rows 2 to 8: a coin for Cob (someone remembers it), a question at once (the
+    // review doesn't hold the turn), a lift from his boot (considered: a ruling and a roll), what Kell
+    // remembers (once the reviews are in), a plan off the graph, two lines that drift (the co-GM), and
+    // walking out (left: an ending of their own), once the co-GM has had its say.
+    steps: [
+      say("(I crouch and press a silver crown into the boy's hand) Get yourself something hot, lad. No questions."),
+      say("Sergeant, who found him?"),
+      say("(I try to lift the folded paper out of the boy's boot while he watches the sergeant)"),
+      later("Sergeant, you saw what I gave the boy. Think me soft?"),
+      say("Sergeant, what if we leave him up there and watch who comes back for those boots? I'll wait in the loft."),
+      say("I ask the girl what songs the granary kids sing."),
+      say("And the one about the miller's cat?"),
+      later("(I nod to the sergeant and walk out of the yard, back towards the palace)"),
+    ],
+    lines: 8,
+    gmSide: true,
+  },
+  world: {
+    name: "world",
+    title: "The world bridge live run",
+    about: "The world bridge (world-bridge-design §1.2): spells and blows resolved by the rules on the scene's world before the GM speaks, the people who saw them reacting, fire burning on at the next line, and a blow left hanging landing first",
+    who: "Wren Ashdown: an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+    build: "wizard",
+    // §1.2, rows 3 to 9: a spell at a thing (the rope breaks, Prout falls, the yard reacts), a cone of
+    // fire at the gate, the fire on the next line, a blow at Kell (the yard reacts; a fight may break
+    // out), hands up (a blow left hanging lands first), Fire Bolt at the old elm and the elm burning
+    // on, and a spell Wren hasn't got (the rules' own no).
+    steps: [
+      say("(I cast Magic Missile at the hoist rope)"),
+      say("(I cast Burning Hands at the yard gate)"),
+      say("(I watch the gate burn)"),
+      say("I take a swing at Sergeant Kell with my staff"),
+      say("(I put my hands up)"),
+      say("(I cast Fire Bolt at the old elm)"),
+      say("(I watch the elm burn)"),
+      say("I cast Fireball at the elm"),
+    ],
+    lines: 5,
+    worldSide: true,
   },
 };
 

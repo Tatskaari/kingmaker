@@ -143,7 +143,7 @@ export function defaultBuilds(concept: string): Array<{ build: Build; plays: str
 
 /** A session with nothing in it but the player's name: the engine makes a character on it to see what a build comes to. */
 function scratch(name: string): RulesSession {
-  return { id: "creation", seed: 1, rollCount: 0, player: { name, concept: "", modifiers: {} } };
+  return { id: "creation", seed: 1, rollCount: 0, turn: 0, player: { name, concept: "", modifiers: {} } };
 }
 
 /** The features a card names, in this order of interest, when the character has them. */

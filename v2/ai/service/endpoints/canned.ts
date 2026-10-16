@@ -1,3 +1,4 @@
+import type { RepairResult } from "../../../shared/gm/repair.ts";
 import type { Mark, Speech } from "../../../shared/markup.ts";
 import type { NotesRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
 import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
@@ -14,11 +15,14 @@ import { characters } from "./characters.ts";
  * end before, or without, the GM, and for telling the plumbing's faults from the GM's. The opening
  * and each reply stream a word at a time, as a model's would, so the draft grows on every screen, and
  * someone of the cast says a line in each, so the screen has a speaker to colour and the notes a line
- * to go on. Nothing moves the scene: no route is taken, nothing lands, no ending comes. The notes put
- * one why on the first line someone of the cast says, linked to them, with their card; the suggested
- * lines are the same four every time. Character creation gets the prototype's offline answers (its
- * endpoints with no model to ask): three builds from the class defaults, the player's own made legal,
- * no draft, the backstory unchecked, its traits from the player's own words.
+ * to go on. Nothing moves the scene: no route is taken, nothing lands, no ending comes, the rules
+ * resolve no act (so nobody reacts: reactions asked for anyway come back with none), and the GM rules
+ * on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
+ * The notes put one why on the first line someone of the cast says, linked to them, with their card;
+ * the suggested lines are the same four every time. After a turn, nobody remembers anything, and the
+ * co-GM finds the scene on track, with no notes. Character creation gets the prototype's offline
+ * answers (its endpoints with no model to ask): three builds from the class defaults, the player's
+ * own made legal, no draft, the backstory unchecked, its traits from the player's own words.
  */
 export const canned: Endpoints = {
   async open(req, ctx) {
@@ -30,6 +34,12 @@ export const canned: Endpoints = {
   },
   async decide() {
     return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: noUsage() };
+  },
+  async reactions() {
+    return { reactions: {}, usage: noUsage() };
+  },
+  async consider() {
+    return { error: "the canned GM rules on nothing (no model was asked)", ms: 0, usage: noUsage() };
   },
   async reply(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
@@ -54,11 +64,22 @@ export const canned: Endpoints = {
   async suggest() {
     return { lines: LINES, dropped: [], usage: noUsage() };
   },
+  async remember() {
+    return { flags: [], reviews: [], usage: noUsage() };
+  },
+  async repair(req) {
+    return { review: onTrack(req.reviewed), usage: noUsage() };
+  },
 
   characters: characters(() => null),
 
   backstories: backstories(() => null),
 };
+
+/** The co-GM's review of a turn, with no model: on track, nothing to steer, nothing to add. */
+const onTrack = (turn: number): RepairResult => ({
+  turn, assessment: "Canned: no model was asked.", status: "on_track", notes: "", whispers: [], relocations: [], canon: [], patches: [], costUsd: 0, latencyMs: 0,
+});
 
 /** The same four lines after every reply: two to say, a deed, a risky try. */
 const LINES: Suggestion[] = [

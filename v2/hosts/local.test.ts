@@ -7,7 +7,7 @@ import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import type { Markup } from "../shared/markup.ts";
 import { rollFrom } from "../shared/dice.ts";
 import { all, sceneNow } from "../simulation/src/host/testing.ts";
-import { devFake } from "./dev/fake.ts";
+import { devFake, onTop, quietGm } from "./dev/fake.ts";
 import { localHost, type LocalHost } from "./local.ts";
 
 /**
@@ -23,7 +23,9 @@ const REPLY = "Kell looks at you a long moment. “Go on.”";
 
 /**
  * A new game on the local host, its opening played as `opening` says; `say` says the next line with
- * the model answering as `fake` says, and `line` does and runs the jobs it makes.
+ * the model answering as `fake` says, and `line` does and runs the jobs it makes. A line's fake goes
+ * on the full GM's quiet answers (full-gm-design §4.4): each turn's memory review flags only what was
+ * witnessed, and the co-GM, every third turn, finds the scene on track.
  */
 async function game(seed = 7, opening: FakeOptions = {}) {
   let next = opening;
@@ -36,7 +38,7 @@ async function game(seed = 7, opening: FakeOptions = {}) {
   const now = () => sceneNow(local.sim, scene.id);
 
   const say = (text: string, fake: FakeOptions = {}) => {
-    next = { replies: [REPLY], ...fake };
+    next = onTop(quietGm(), { replies: [REPLY], ...fake });
     const refused = local.sim.as(WREN).say({ text });
     assert.equal(refused, undefined, `"${text}" was refused: ${refused?.text}`);
   };
@@ -72,7 +74,7 @@ test("a line on the local host: the opening and the reply streamed into their dr
   assert.ok(turn.calls > 0 && turn.costMicros > 0n, "the answers' usage is on the turn");
   assert.deepEqual(after.lines.slice(-2).map(l => [l.kind, l.text]), [["player", "Sergeant, who found him?"], ["narration", REPLY]]);
   assert.equal(all(local.sim.db.replyDraft).length, 0, "the reply's commit deleted its draft");
-  assert.deepEqual(local.aiLogs.filter(l => /: 200 in/.test(l)).map(l => l.split(" ")[1]), ["open", "notes", "suggest", "decide", "reply", "notes", "suggest", "settle"]);
+  assert.deepEqual(local.aiLogs.filter(l => /: 200 in/.test(l)).map(l => l.split(" ")[1]), ["open", "notes", "suggest", "decide", "reply", "notes", "suggest", "settle", "remember"]);
   local.close();
 });
 

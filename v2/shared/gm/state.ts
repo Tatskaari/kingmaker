@@ -1,11 +1,14 @@
 import type { RollResult } from "../dice.ts";
-import type { Beat, Essential, Scene, Transition } from "../scene/types.ts";
+import type { Brawl, Threat } from "../rules/types.ts";
+import type { Beat, Essential, Scene, Skill, Transition } from "../scene/types.ts";
+import type { RulingRecord } from "./consider.ts";
 
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
- * open, the endings coming. The simulation keeps it in the private `gm_state` table, a column a
- * field, and sends it whole in every request to the AI service. The field names are the
- * prototype's (src/runtime/session.ts), so the code copied from it reads this unchanged.
+ * open, the endings coming, the co-GM's steering and the GM's rulings. The simulation keeps it in
+ * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
+ * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
+ * reads this unchanged.
  */
 export interface GmState {
   beat: string;
@@ -34,14 +37,35 @@ export interface GmState {
   pressureOffered: string[];
   /** A sentence the last reply repeated word for word: the next reply is told not to. */
   repeated?: string;
-  // Later verticals' (the co-GM, presence): always empty in V0, but read by the copied code. They
-  // have no columns yet; the vertical that writes one adds its column.
+  // The co-GM's (full-gm-design §4.2): merged from its reviews at a turn's start.
+  /** New details improvised in play that must stay true. */
   canon: string[];
+  /** The scene's prep as play has changed it: the co-GM's routes and bridging beats, the ways of trying a ruling shut. */
   patches: ScenePatch[];
+  /** The co-GM's notes to the GM: for the two replies after the turn it reviewed (notesTurn), then they lapse. */
+  notes: string | null;
+  notesTurn: number | null;
+  /** What one of the cast wants or should try next (turn: the one reviewed): for the reply after it, then it lapses. */
+  whispers: Array<{ to: string; note: string; turn: number }>;
+  /** The turn the co-GM last reviewed (its result merged): the backstop runs every third turn from it. */
+  lastRepairTurn?: number;
+  /** The last turn the player went off the graph with nothing ruled on it: the co-GM reviews it. */
+  offGraphTurn?: number;
+  /** The GM's rulings on considered acts, in the order made. */
+  rulings: RulingRecord[];
+  // The rules in a scene (world-bridge-design §3.3): what the player's violence and the last reply
+  // left hanging, under the prototype's names (src/runtime/session.ts:300-311).
+  /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
+  threat?: Threat;
+  /** The turn a hold caught the player: it stands with no more saving throws until they break free or the story lets them go. */
+  held?: number;
+  /** A fight the player's violence started: who goes for the player, who's with them, who fled. */
+  brawl?: Brawl;
+  // Presence: who came on beyond the scene's own cues (V3's: empty until then, but read by the
+  // copied code; the row refuses it until V3 gives it a column), and the cast who left: they fled
+  // the player's violence or ran for help (the world bridge's).
   entered: string[];
   absent: string[];
-  notes: string | null;
-  whispers: Array<{ to: string; note: string; turn: number }>;
 }
 
 /**
@@ -72,13 +96,16 @@ export function initialGm(scene: Pick<Scene, "start">): GmState {
   return {
     beat: scene.start, turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
     oocTurns: [], pressureOffered: [],
-    canon: [], patches: [], entered: [], absent: [], notes: null, whispers: [],
+    canon: [], patches: [], notes: null, notesTurn: null, whispers: [], rulings: [],
+    entered: [], absent: [],
   };
 }
 
 // ---------------------------------------------------------------------------------------------
-// The gm_state row: a column a field V0 uses (simulation/src/schema.ts). An option column is
-// undefined when empty; a roll's `critical` null is an empty option.
+// The gm_state row: a column a field (simulation/src/schema.ts), but `entered` (V3's). An option
+// column is undefined when empty; a roll's `critical` null is an empty option; the patches are
+// JSON, a piece of the scene graph in the campaign format's own shape; a threat is one object with
+// the fields of both its kinds, those of the other kind empty.
 
 export interface GmRow {
   sceneId: bigint;
@@ -97,12 +124,32 @@ export interface GmRow {
   oocTurns: number[];
   pressureOffered: string[];
   repeated: string | undefined;
+  canon: string[];
+  /** JSON: ScenePatch[]. */
+  patches: string;
+  notes: string | undefined;
+  notesTurn: number | undefined;
+  whispers: Array<{ to: string; note: string; turn: number }>;
+  lastRepairTurn: number | undefined;
+  offGraphTurn: number | undefined;
+  rulings: RulingRow[];
+  threat: ThreatRow | undefined;
+  held: number | undefined;
+  brawl: Brawl | undefined;
+  absent: string[];
 }
+
+/** kind: attack (by), hazard (hazard and severity: glancing, serious). */
+export interface ThreatRow { kind: string; by: string | undefined; hazard: string | undefined; severity: string | undefined; turn: number }
 
 export interface PathRow { turn: number; from: string; to: string; via: string; roll: RollRow | undefined; source: string; known: number | undefined }
 export interface RollRow { skill: string; dc: number; die: number; modifier: number; total: number; success: boolean; critical: string | undefined; advantage: string | undefined }
+export interface RulingRow {
+  turn: number; act: string; target: string; skill: string; kind: string; dc: number | undefined; why: string; roll: RollRow | undefined;
+  went: string; changed: string; costUsd: number; latencyMs: number;
+}
 
-/** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty: it has no column to go in yet. */
+/** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty (V3's entered): it has no column to go in yet. */
 export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
   refuseLaterFields(gm);
   return {
@@ -117,10 +164,22 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     sceneStatus: gm.sceneStatus,
     oocTurns: [...gm.oocTurns], pressureOffered: [...gm.pressureOffered],
     repeated: gm.repeated,
+    canon: [...gm.canon],
+    patches: JSON.stringify(gm.patches),
+    notes: gm.notes ?? undefined,
+    notesTurn: gm.notesTurn ?? undefined,
+    whispers: gm.whispers.map(({ to, note, turn }) => ({ to, note, turn })),
+    lastRepairTurn: gm.lastRepairTurn,
+    offGraphTurn: gm.offGraphTurn,
+    rulings: gm.rulings.map(rulingRowOf),
+    threat: gm.threat ? threatRowOf(gm.threat) : undefined,
+    held: gm.held,
+    brawl: gm.brawl ? brawlOf(gm.brawl) : undefined,
+    absent: [...gm.absent],
   };
 }
 
-/** A scene's bookkeeping from its row, the later verticals' fields empty. */
+/** A scene's bookkeeping from its row, V3's entered empty. */
 export function gmFromRow(row: GmRow): GmState {
   return {
     ...initialGm({ start: row.beat }),
@@ -135,12 +194,23 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.sceneStatus ? { sceneStatus: row.sceneStatus as SceneStatus } : {}),
     oocTurns: [...row.oocTurns], pressureOffered: [...row.pressureOffered],
     ...(row.repeated !== undefined ? { repeated: row.repeated } : {}),
+    canon: [...row.canon],
+    patches: row.patches ? JSON.parse(row.patches) as ScenePatch[] : [],
+    notes: row.notes ?? null,
+    notesTurn: row.notesTurn ?? null,
+    whispers: row.whispers.map(w => ({ ...w })),
+    ...(row.lastRepairTurn !== undefined ? { lastRepairTurn: row.lastRepairTurn } : {}),
+    ...(row.offGraphTurn !== undefined ? { offGraphTurn: row.offGraphTurn } : {}),
+    rulings: row.rulings.map(rulingOf),
+    ...(row.threat ? { threat: threatOf(row.threat) } : {}),
+    ...(row.held !== undefined ? { held: row.held } : {}),
+    ...(row.brawl ? { brawl: brawlOf(row.brawl) } : {}),
+    absent: [...row.absent],
   };
 }
 
 function refuseLaterFields(gm: GmState): void {
-  const full = Object.entries({ canon: gm.canon, patches: gm.patches, entered: gm.entered, absent: gm.absent, whispers: gm.whispers }).filter(([, v]) => v.length).map(([k]) => k);
-  if (gm.notes !== null) full.push("notes");
+  const full = Object.entries({ entered: gm.entered }).filter(([, v]) => v.length).map(([k]) => k);
   if (full.length) throw new Error(`gm_state has no column for ${full.join(", ")} yet: the vertical that writes it adds one`);
 }
 
@@ -173,3 +243,35 @@ function rollOf(r: RollRow): RollResult {
 function pendingOf(p: NonNullable<GmRow["pendingExit"]>): NonNullable<GmState["pendingExit"]> {
   return { exitId: p.exitId, turn: p.turn, via: p.via, extended: p.extended, ...(p.waits !== undefined ? { waits: p.waits } : {}) };
 }
+
+function rulingRowOf(r: RulingRecord): RulingRow {
+  return {
+    turn: r.turn, act: r.act, target: r.target, skill: r.skill, kind: r.kind, dc: r.dc, why: r.why, roll: r.roll ? rollRowOf(r.roll) : undefined,
+    went: r.went, changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
+  };
+}
+
+/** A ruling as settleRuling records it (its fields in that order). */
+function rulingOf(r: RulingRow): RulingRecord {
+  return {
+    turn: r.turn, act: r.act, target: r.target, skill: r.skill as Skill, kind: r.kind as RulingRecord["kind"],
+    ...(r.dc !== undefined ? { dc: r.dc } : {}), why: r.why,
+    ...(r.roll ? { roll: rollOf(r.roll) } : {}),
+    went: r.went as RulingRecord["went"], changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
+  };
+}
+
+function threatRowOf(t: Threat): ThreatRow {
+  return t.kind === "attack"
+    ? { kind: t.kind, by: t.by, hazard: undefined, severity: undefined, turn: t.turn }
+    : { kind: t.kind, by: undefined, hazard: t.hazard, severity: t.severity, turn: t.turn };
+}
+
+/** A threat as the prototype's session has it (its fields in that order). */
+function threatOf(r: ThreatRow): Threat {
+  return r.kind === "attack"
+    ? { kind: "attack", by: r.by ?? "", turn: r.turn }
+    : { kind: "hazard", hazard: r.hazard ?? "", severity: r.severity === "serious" ? "serious" : "glancing", turn: r.turn };
+}
+
+const brawlOf = (b: Brawl): Brawl => ({ turn: b.turn, cause: b.cause, against: [...b.against], allies: [...b.allies], fled: [...b.fled] });

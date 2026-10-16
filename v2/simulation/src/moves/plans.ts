@@ -1,4 +1,8 @@
+import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
+import type { GmState } from "../../../shared/gm/state.ts";
 import type { Decision, Drafted, Outcome } from "../../../shared/protocol/ai.ts";
+import type { Act } from "../../../shared/rules/types.ts";
+import type { Transition } from "../../../shared/scene/types.ts";
 
 /**
  * The plans a move keeps in its job row between thinks (v0-design §4.3, §6.1): plain JSON, ids as
@@ -11,9 +15,13 @@ export interface Seen { scene: number; place: number }
 /** The opening's plan: one think, POST /v1/scenes/open. */
 export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen }
 
-/** A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). */
+/**
+ * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
+ * whose act the rules resolved as violence (world-bridge-design §3.4) has reactions after decide; a
+ * turn the GM rules on (full-gm-design §4.2) has consider before the reply.
+ */
 export interface SayPlan {
-  step: "decide" | "reply" | "settle";
+  step: "decide" | "reactions" | "consider" | "reply" | "settle";
   game: string; scene: string; turn: string; n: number; player: string;
   input: string;
   /** Who was on stage as the player spoke (presentCast): whyItWaits' arrivals. */
@@ -22,7 +30,29 @@ export interface SayPlan {
   settledBefore: string[];
   /** gm.closing was set when the turn started: this is the wind-down. */
   windDown: boolean;
+  /**
+   * What the rules did as the turn started, before the player acted (world-bridge-design §3.4: a
+   * timed spell running out, fire's tick, coming round, a blow left hanging): their directives, which
+   * lead the reply (Outcome.directives), and whether the blow put the player down (what they meant to
+   * do doesn't happen) or met their Shield (a Shield they cast this turn is already up).
+   */
+  rulesFirst?: { directives: string[]; down: boolean; shielded: boolean };
   decision?: Decision;
+  /** The decide commit's act, when the rules resolved it as violence people react to (scene-acts.ts violence): the reactions step's request. */
+  act?: Act;
+  /** Where a turn with reactions goes after them: the full GM's consider, or the reply. */
+  then?: "consider" | "reply";
+  /**
+   * A considered turn's: the ending held for the player's answer, which the decide commit took off
+   * the bookkeeping (consider's `pending`, and the held ending the consider commit decides).
+   */
+  pendingExit?: GmState["pendingExit"];
+  /** A considered turn's, from the consider answer: the GM's ruling, its verdict and its route. */
+  ruling?: Ruling;
+  verdict?: Verdict;
+  route?: Transition;
+  /** What the ruling's outcome not played would have brought out: it doesn't land this turn, whatever the reply let slip (landRuling, at the settle). */
+  withheld?: string[];
   outcome?: Outcome;
   /** The reply's plain text, for settle. */
   reply?: string;
@@ -40,3 +70,15 @@ export interface NotesPlan { step: "notes"; game: string; scene: string; turn: s
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }
+
+/**
+ * The memory reviews of a turn once it's over (full-gm-design §4.2): one think in the background,
+ * POST /v1/turns/remember. `n` is the turn reviewed: the request's transcript is cut there.
+ */
+export interface RememberPlan { step: "remember"; game: string; scene: string; turn: string; n: number }
+
+/**
+ * The background co-GM's review of a turn once it's over (full-gm-design §4.2): one think, POST
+ * /v1/turns/repair, its answer a co_gm_result row the next turn's start merges. `n` as remember's.
+ */
+export interface RepairPlan { step: "repair"; game: string; scene: string; turn: string; n: number }

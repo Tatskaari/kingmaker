@@ -35,8 +35,10 @@ import { gameMarkup, turnSource } from "./view.ts";
  *
  * - byte for byte: the GM's (gm.opening, gm.reply: the speakers' names and the notes in its
  *   history), the stage manager's, disclosure's, the notes' writer's (instructions, input, schema)
- *   and the suggester's (instructions, input, token cap); the director's and the judge's state;
- * - question by question: the director's (it asks fewer: pinned below) and the judge's;
+ *   and the suggester's (instructions, input, token cap: the spells in "who they are" too); the
+ *   director's and the judge's state;
+ * - question by question: the director's (every one the prototype's v2 approach asks, the rules'
+ *   mechanic, threat and threat_severity included) and the judge's;
  * - equal: who says each line as each reply streams in a word at a time and once it's whole; the
  *   notes placed (offsets, kinds, notes, links by the game's keys) and their cards; every field of
  *   the vetting; the lines and what was dropped, with why.
@@ -57,7 +59,7 @@ interface Session {
   pendingExit?: GmState["pendingExit"]; closing?: GmState["closing"]; sceneStatus?: GmState["sceneStatus"]; oocTurns?: number[]; pressureOffered?: string[];
   repeated?: string; entered?: string[]; absent?: string[]; whispers?: GmState["whispers"]; rulings?: unknown[];
   player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string; backstory?: Backstory };
-  rules?: { status?: string; spells?: Array<{ name: string }> };
+  rules?: { status?: string; spells?: SheetRow["spells"]; weapons?: SheetRow["weapons"]; features?: SheetRow["features"] };
   transcript: Array<{ turn: number; speaker: string; kind: Entry["kind"]; text: string; marked?: Markup }>;
   world: SceneWorld;
 }
@@ -72,21 +74,19 @@ interface NotesMoment { moment: string; fake: FakeOptions; session: Session; rep
 interface SuggestMoment { moment: string; fake: FakeOptions; session: Session; offered: string[]; bodies: { suggest: Request; judge?: Request & { state?: Record<string, string> } }; vetting: Vetting; lines: Suggestion[]; dropped: Array<{ text: string; why: string }> }
 
 /**
- * What the AI service doesn't ask the director that the prototype's v2 approach does: considered
- * rolls' roll_call (and the means, which they ask in every beat, where V0 asks it only of a social
- * route's check), the co-GM's off_graph and the rules' mechanic before the reply, and the rules'
- * left, threat and threat_severity after it. gm-port §6, §9.
+ * What the AI service doesn't ask the director that the prototype's v2 approach does: nothing. The
+ * rules' mechanic before the reply, and their threat and threat_severity after it, are asked since
+ * the world bridge (world-bridge-design §3.1), as considered rolls' roll_call and the means in every
+ * beat, the co-GM's off_graph and the rules' left are since the full GM (full-gm-design §4.1): each
+ * the prototype's to the letter (the recordings' wizard and rogue have builds, so their sessions are
+ * rules sessions). gm-port §6, §9.
  */
-const NOT_ASKED = { before: ["roll_call", "attempt_means", "off_graph", "mechanic"], after: ["left", "threat", "threat_severity"] };
+const NOT_ASKED: { before: string[]; after: string[] } = { before: [], after: [] };
 
 /** Questions asked in both whose words differ, and why. None: each it asks is the prototype's to the letter. */
 const WORDED_OTHERWISE: string[] = [];
 
-/**
- * The player's spells, which the prototype's suggester and judge are told of (suggest.ts's who()),
- * and the AI service isn't until the rules reach v2 (V7): the sentence is the one difference in what
- * they're sent.
- */
+/** The player's spells, which the suggester and the judge are told of (suggest.ts's who()): from the sheet's spells, in both since the world bridge. */
 const SPELLS = / Spells: [^.]*\./;
 
 const read = <T>(file: string, recording = "hanged-clerk") => JSON.parse(readFileSync(join(GOLDEN, recording, file), "utf8")) as T;
@@ -110,6 +110,10 @@ test("the golden recording is there: the opening and three turns, each step's ca
   assert.deepEqual([...new Set(marks.map(m => m.kind))].sort(), ["know", "why", "you"]);
   const why = ["open", "t1", "t2", "t3"].flatMap(m => linesOf(m).dropped.map(d => d.why.replace(/:.*/, "")));
   for (const reason of ["a name not heard", "no way out yet", "the GM's markup", "the judge", "offered last time"]) assert.ok(why.includes(reason), reason);
+  // A rules session (the wizard's build): the director's rules questions are in the recording, for the AI service to ask too.
+  const asked = (step: string, operation: string) => Object.keys(steps.find(s => s.step === step)!.calls.find(c => c.operation === operation)!.body.questions ?? {});
+  for (const step of ["t1-decide", "t2-decide", "t3-decide"]) assert.ok(asked(step, "director.before").includes("mechanic"), `${step}: the mechanic`);
+  for (const step of ["t1-settle", "t2-settle", "t3-settle"]) assert.ok(["left", "threat", "threat_severity"].every(id => asked(step, "director.after").includes(id)), `${step}: left, the threat and its severity`);
 });
 
 test("the AI service asks what the prototype's asks, step by step through the opening and three turns, with the notes and the lines after each reply", async () => {
@@ -212,9 +216,9 @@ async function sameNotes(play: Game, moment: NotesMoment): Promise<void> {
 }
 
 /**
- * A moment's lines: the suggester and the judge told what the prototype's were, byte for byte but
- * for the spells (SPELLS); every field of the vetting the same; and the same lines, and the same
- * dropped, with why.
+ * A moment's lines: the suggester and the judge told what the prototype's were, byte for byte, the
+ * player's spells included (SPELLS); every field of the vetting the same; and the same lines, and the
+ * same dropped, with why.
  */
 async function sameLines(play: Game, moment: SuggestMoment): Promise<void> {
   const req = suggestRequest(moment);
@@ -231,13 +235,11 @@ async function sameLines(play: Game, moment: SuggestMoment): Promise<void> {
   const theirs = moment.bodies;
 
   assert.match(theirs.suggest.input![0]!.content, SPELLS, `${moment.moment}: the prototype's suggester hears the spells`);
-  assert.doesNotMatch(suggest.input![0]!.content, /Spells:/, `${moment.moment}: the AI service's doesn't, until V7`);
-  const spellless = { ...theirs.suggest, input: [{ ...theirs.suggest.input![0]!, content: theirs.suggest.input![0]!.content.replace(SPELLS, "") }] };
-  assert.equal(JSON.stringify(suggest), JSON.stringify(spellless), `${moment.moment} scene.suggest:\n${firstDifference(spellless, [suggest])}`);
+  assert.match(suggest.input![0]!.content, SPELLS, `${moment.moment}: and the AI service's, from the sheet's`);
+  assert.equal(JSON.stringify(suggest), JSON.stringify(theirs.suggest), `${moment.moment} scene.suggest:\n${firstDifference(theirs.suggest, [suggest])}`);
   assert.equal(!!judge, !!theirs.judge, `${moment.moment}: the judge asked in both, or neither`);
   if (judge && theirs.judge) {
-    const state = { ...theirs.judge.state!, what_the_player_knows: theirs.judge.state!.what_the_player_knows!.replace(SPELLS, "") };
-    assert.equal(JSON.stringify(judge.state), JSON.stringify(state), `${moment.moment} scene.suggest.judge: the state`);
+    assert.equal(JSON.stringify(judge.state), JSON.stringify(theirs.judge.state), `${moment.moment} scene.suggest.judge: the state`);
     assert.equal(JSON.stringify(judge.questions), JSON.stringify(theirs.judge.questions), `${moment.moment} scene.suggest.judge: the questions`);
   }
   assert.deepEqual(vetted, moment.vetting, `${moment.moment}: the vetting`);
@@ -362,15 +364,20 @@ function gmOf(s: Session): GmState {
     ...(s.endingLead ? { endingLead: s.endingLead } : {}), ...(s.pendingExit ? { pendingExit: s.pendingExit } : {}), ...(s.closing ? { closing: s.closing } : {}),
     ...(s.sceneStatus ? { sceneStatus: s.sceneStatus } : {}), oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [], ...(s.repeated ? { repeated: s.repeated } : {}),
     canon: s.canon, patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], notes: s.notes, whispers: s.whispers ?? [],
+    notesTurn: null, rulings: [],
   };
 }
 
 const worldOf = (s: Session) => s.world;
 const rowsOf = (s: Session) => worldToRows(s.world, KEYS);
-/** The sheet as the simulation sends it: the player's, the rules' status line, and the backstory they wrote at character creation. */
+/**
+ * The sheet as the simulation sends it: the player's, the rules' status line, the backstory they
+ * wrote at character creation, and the spells, weapons and features the rules keep ready.
+ */
 const partyOf = (s: Session): SheetRow[] => [{
   name: s.player.name, concept: s.player.concept, ...(s.player.build ? { build: s.player.build } : {}), skills: s.player.modifiers,
   ...(s.rules?.status ? { status: s.rules.status } : {}), ...(s.player.backstory ? { backstory: s.player.backstory } : {}),
+  ...(s.rules?.spells ? { spells: s.rules.spells } : {}), ...(s.rules?.weapons ? { weapons: s.rules.weapons } : {}), ...(s.rules?.features ? { features: s.rules.features } : {}),
 }];
 
 /** An entry as the simulation keeps it: the player's lines as player:1, the markup by the game's keys (the place's own people under the place). */

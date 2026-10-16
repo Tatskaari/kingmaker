@@ -1,7 +1,7 @@
 // New (the world bridge's §3.5): the scene's place from the rows the client holds, as the simulation's world/rows-io.ts reads them and its world/place.ts rebuilds them (placeWorldOf), and what the place's menu needs of the other rows.
 import { keysFor, pcKey, rowsToWorld, type PlaceRows, type WorldNote } from "../../shared/world/rows.ts";
-import type { Area, Creature, Entity, Gear, Health, Material, Narrative, Place, PlayerCharacter, Position, SpellRef, Stack, Surface, WorldLog } from "../module_bindings/types.ts";
-import type { SpellFacts } from "./menu.ts";
+import type { Area, Creature, Entity, Gear, Health, Material, Narrative, Place, PlayerCharacter, Position, Sheet, Stack, Surface, WorldLog } from "../module_bindings/types.ts";
+import type { SpellFacts } from "../../shared/rules/types.ts";
 import type { PlaceView, TimeOfDay } from "./view.ts";
 
 /**
@@ -42,11 +42,12 @@ export interface PlaceSources {
 
 /**
  * The lead's sheet as the menu reads it: its spells (sheet.spells), and what the rules say of each
- * one's reach, `spellFacts` (JSON SpellFacts[]): a column the world bridge's contracts add (§3.3),
- * not in the bindings yet. Until it is, the spells go with their names alone, and the menu offers
- * each anywhere (the rules have the last word).
+ * one's reach, `spellFacts` (JSON SpellFacts[], written by the rules' sheetRows). On a sheet from
+ * before the column, or one the rules haven't written yet, it's "": then the spells go with their
+ * names alone, and the menu offers each anywhere (the rules have the last word), as the prototype's
+ * does before its facts load.
  */
-export interface LeadSheet { spells?: SpellRef[] | undefined; spellFacts?: string | undefined }
+export type LeadSheet = Partial<Pick<Sheet, "spells" | "spellFacts">>;
 
 /** The bindings' rows as shared/world's PlaceRows: ids as strings, the log in order, no GM's notes. */
 export function placeRowsOf(t: PlaceTables): PlaceRows {
@@ -102,7 +103,7 @@ function unnamedOf(t: PlaceTables, names: PlaceSources["names"]): Record<string,
   return out;
 }
 
-/** The lead's spells for the menu: what the rules say of each (spellFacts, once the sheet has it), else their names and levels alone. */
+/** The lead's spells for the menu: what the rules say of each (spellFacts), else ("") their names and levels alone. */
 export function spellsOf(sheet: LeadSheet | undefined): SpellFacts[] {
   const facts = parsed(sheet?.spellFacts);
   if (Array.isArray(facts)) return facts.filter(isSpell);

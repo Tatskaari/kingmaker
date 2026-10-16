@@ -18,7 +18,7 @@ const read = <T>(path: string): T => JSON.parse(readFileSync(join(CAERWYN, path)
 export const YARD_SCENE = "hanged-clerk";
 export const YARD_PLACE = 9n;
 
-/** What the rules engine says of the ready-made wizard's spells (fixtures/spell-facts-wizard.json): the sheet's spellFacts, as the world bridge will carry it. */
+/** What the rules engine says of the ready-made wizard's spells (fixtures/spell-facts-wizard.json): the sheet's spellFacts as the rules' sheetRows writes it (the same JSON). */
 export const WIZARD_SPELLS = spellFacts as SpellFacts[];
 
 /**

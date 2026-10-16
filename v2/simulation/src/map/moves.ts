@@ -6,6 +6,7 @@ import { act, Unavailable, type Done } from "../../../shared/map/town.ts";
 import { refusal } from "../../../shared/protocol/refusals.ts";
 import { inventory, InventoryError } from "../../../shared/world/inventory.ts";
 import { actorOf, Refused, type Actor, type TxCtx } from "../context.ts";
+import { getGm } from "../gm/rows.ts";
 import { gameRow, playerRow, type GameRow, type PlayerRow, type SceneRow } from "../rows.ts";
 import { refreshPockets } from "../rules/session.ts";
 import { sceneGraph } from "../scenes.ts";
@@ -123,6 +124,6 @@ function take(tx: TxCtx, game: GameRow, thing: NonNullable<Done["take"]>): void 
     if (e instanceof InventoryError) throw new Refused(refusal("unavailable"));
     throw e;
   }
-  savePlaceWorld(tx, scene, place, sceneGraph(tx, scene));
+  savePlaceWorld(tx, scene, place, sceneGraph(tx, scene, getGm(tx, scene.id)));
   refreshPockets(tx, scene.controllerId, place.world);
 }

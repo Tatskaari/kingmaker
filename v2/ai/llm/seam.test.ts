@@ -13,6 +13,7 @@ delete process.env.KM_CALL_LOG;
 const { respond, respondJson, sessionSpend } = await import("./openrouter.ts");
 const { JevDecider } = await import("./decide.ts");
 const { fakeFetch, fakeOpenRouter } = await import("./fake-openrouter.ts");
+const { runTools } = await import("./tools.ts");
 
 /** A call context that keeps what it's told, as the AI service's does. */
 function keeping(fetch: typeof globalThis.fetch) {
@@ -104,4 +105,37 @@ test("suggestDelayMs holds the suggested lines, and not the GM's reply", async (
   assert.equal(lines.text, "- say: Who found him?");
   assert.deepEqual(done, ["reply", "lines"]);
   assert.ok(performance.now() - started >= 110);
+});
+
+test("a tool loop with a context goes through its fetch, its log and its cost; without one, as it always has", async () => {
+  const told = { toolCalls: { save_memory: [{ name: "save_memory", args: { characterId: "kell", title: "The coin" } }] } };
+  const loop = (calls?: Parameters<typeof runTools>[0]["calls"]) => {
+    const saved: string[] = [];
+    const tools = [{ name: "save_memory", description: "Save a memory.", parameters: { type: "object" } }, { name: "read_doc", description: "Read a doc.", parameters: { type: "object" } }];
+    const run = runTools({ operation: "memory.review.memories", instructions: "Review the moment.", input: [{ role: "user", content: "The moment." }], tools, ...(calls ? { calls } : {}) }, async (name, args) => { saved.push(`${name}: ${String(args.characterId)}, ${String(args.title)}`); return { ok: true }; });
+    return run.then(result => ({ result, saved }));
+  };
+  const fake = fakeFetch(told);
+  const { logged, costs, calls } = keeping(fake.fetch);
+  const spentBefore = sessionSpend();
+
+  const { result, saved } = await loop(calls);
+  assert.deepEqual(saved, ["save_memory: kell, The coin"], "the first round's call, handled");
+  assert.equal(result.text, "Done.", "the round that sent its output back");
+  assert.deepEqual(fake.asked, ["/api/v1/responses", "/api/v1/responses"]);
+  assert.deepEqual(logged.map(e => [e.operation, e.started ?? "done"]), [["memory.review.memories", "/api/v1/responses"], ["memory.review.memories", "/api/v1/responses"], ["memory.review.memories", "done"]]);
+  assert.deepEqual(costs.map(c => c.operation), ["memory.review.memories", "memory.review.memories"]);
+  assert.equal(sessionSpend(), spentBefore, "nothing of the process's");
+
+  process.env.OPENROUTER_API_KEY ??= "offline";
+  const global = fakeOpenRouter(told);
+  try {
+    const without = await loop();
+    assert.equal(without.result.text, "Done.");
+    assert.deepEqual(global.asked, ["/api/v1/responses", "/api/v1/responses"], "through the process's fetch");
+    assert.ok(sessionSpend() > spentBefore, "the process's spend");
+    assert.equal(logged.length, 3, "and none of it in the context's log");
+  } finally {
+    global.restore();
+  }
 });

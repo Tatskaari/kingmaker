@@ -16,6 +16,12 @@ export interface AnswerStore {
 /** Each game's model calls in full (its calls.jsonl). Synchronous, as the model client's log is. */
 export interface CallLog { append(game: string, entry: Record<string, unknown>): void }
 
+/**
+ * Each game's memory reviews (its memory-reviews.jsonl, the prototype's file): a line a reviewed
+ * turn, with what the attention filter flagged and what each review it fired changed, or why it failed.
+ */
+export interface ReviewLog { append(game: string, line: Record<string, unknown>): void }
+
 /** A line per model call, with what it cost (costUsd) and when (at), across every game. */
 export interface Ledger {
   append(line: Record<string, unknown>): void;
@@ -35,6 +41,7 @@ export interface CampaignStore {
 export interface Stores {
   answers: AnswerStore;
   calls: CallLog;
+  reviews: ReviewLog;
   ledger: Ledger;
   campaigns: CampaignStore;
   /** Where each game's copy of the lore is (the docs service's overlay): <docsRoot>/<game uid>/docs. */

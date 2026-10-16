@@ -30,7 +30,7 @@ type Rolled = RollResult & { seed: number };
 const checks = read("./golden/checks.json") as { case: string; skills: Skill[]; dcs: number[]; fresh: Rolled[]; chained: Rolled[] };
 
 /** A game's session before anything has happened, as the prototype's recorder made it. */
-const fresh = (name: string, concept: string, seed: number): RulesSession => ({ id: "golden", seed, rollCount: 0, player: { name, concept, modifiers: {} } });
+const fresh = (name: string, concept: string, seed: number): RulesSession => ({ id: "golden", seed, rollCount: 0, turn: 0, player: { name, concept, modifiers: {} } });
 
 
 test("eight characters: the sheet, lines, modifiers and refresh's lists are the prototype's", () => {

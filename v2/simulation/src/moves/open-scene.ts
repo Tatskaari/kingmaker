@@ -10,7 +10,7 @@ import { gameRow, placeRow, playerRow, sceneRow, updateScene, type GameRow, type
 import { campaignFile, campaignOfGame, graphOf, sceneDefOf, sceneFileOf, sceneGraph } from "../scenes.ts";
 import { noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
-import { comeToAtOpening } from "../rules/play.ts";
+import { betweenScenes } from "../rules/play.ts";
 import { refreshPockets } from "../rules/session.ts";
 import { joinPlace, openPlace, type Start } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
@@ -21,13 +21,14 @@ import { suggestAfter } from "./suggest.ts";
 
 /**
  * A scene opens (v0-design §4.3, v1-design §3.6): its place built, the scene row and its GM
- * bookkeeping, who's on stage, the controller come to if they were down (the rules engine's first
- * draw of the scene), turn 0 holding the lease; then one think, the opening, streamed into turn 0's
- * draft and committed as the transcript's first entry, and the scene goes live (its notes and first
- * lines asked for: v5-design §3.5). `start` is what the character starts the game with: only the
- * game's first scene hands it out. A scene waiting on the map (map-design §3.5: the lead, its place
- * built when it became the lead) opens in its row: its GM bookkeeping and its place kept, the
- * controller's character joining the place.
+ * bookkeeping, who's on stage, the time between scenes for the controller's character (a spell runs
+ * out, they come to if they were down: the rules engine's first draw of the scene; a milestone's
+ * level, the scene's rest: world-bridge-design §3.4), turn 0 holding the lease; then one think, the
+ * opening, streamed into turn 0's draft and committed as the transcript's first entry, and the scene
+ * goes live (its notes and first lines asked for: v5-design §3.5). `start` is what the character
+ * starts the game with: only the game's first scene hands it out. A scene waiting on the map
+ * (map-design §3.5: the lead, its place built when it became the lead) opens in its row: its GM
+ * bookkeeping and its place kept, the controller's character joining the place.
  */
 export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
   name: "openScene",
@@ -44,7 +45,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     putGm(tx, scene.id, gm);
     syncStage(tx, scene, graph, gm);
     noteHeard(tx, scene, graph);
-    comeToAtOpening(tx, scene);
+    betweenScenes(tx, scene, graph);
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });
@@ -68,7 +69,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     const opening = writeReply(tx, scene, 0, turnId, opened.entries);
     if (opening) askForNotes(tx, turnId, opening);
     suggestAfter(tx, scene, turnId);
-    noteHeard(tx, scene, sceneGraph(tx, scene));
+    noteHeard(tx, scene, sceneGraph(tx, scene, gm));
 
     updateScene(tx, scene.id, { status: "live" });
     finishTurn(tx, scene.id, turnId);

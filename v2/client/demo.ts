@@ -31,9 +31,9 @@ import type { Entry, PlaceView, SceneView, Suggestion } from "./scene/view.ts";
  * /suggestions turns the lines off, and on (asked for at once). A move the simulation would refuse
  * is refused in its words. `ms` paces it; the player starts seated in Pell Marrow's game, a few
  * turns in. The yard is drawn beside the talk from its place's rows (the world bridge's client), and
- * one line plays the rules' part as the bridge will: Magic Missile at the hoist rope breaks it (the
- * world's own damageThing), Prout falls, and the dice lines come before the reply. A game set off
- * (a new one, or one just made) begins on the town's map in the lane (map-design §3.3): the demo
+ * one line plays the rules' part as the world bridge does: Magic Missile at the hoist rope breaks it
+ * (the world's own damageThing), Prout falls, and the dice lines come before the reply. A game set
+ * off (a new one, or one just made) begins on the town's map in the lane (map-design §3.3): the demo
  * plays the simulation's part of a move with the same shared map code (exploreOf, act), the yard
  * built on the map and its scene waiting; walking or talking into it opens its canned scene.
  */
@@ -603,7 +603,7 @@ function placed(game: DemoGame, lead: string, wizard: boolean): PlaceView | unde
 }
 
 /**
- * The rules' part of a turn, canned as the world bridge will play it: Magic Missile at the hoist rope
+ * The rules' part of a turn, canned as the world bridge plays it: Magic Missile at the hoist rope
  * (three darts, 9 force) breaks it with the world's own damageThing, and what hung from it falls; the
  * slot goes from the status line. Anything else rolls nothing.
  */

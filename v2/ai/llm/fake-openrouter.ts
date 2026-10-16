@@ -1,3 +1,5 @@
+import type { ToolCall } from "./tools.ts";
+
 /**
  * A stand-in for OpenRouter, for tests that play real turns with no network (src/report/report.test.ts):
  * the game's own calls, through its own code, answered here.
@@ -17,6 +19,10 @@
  * - `streamMs` and `decisionDelayMs`: a GM's reply written a word at a time, and a slow decider.
  * - `byNameDelayMs` and `suggestDelayMs`: slow structured calls (by the schema's name: the notes on
  *   a reply's marks), and slow suggested lines.
+ * - `toolCalls`: a tool loop's calls (runTools: the memory reviews), by the loop's first tool
+ *   (`save_memory`: the memories agent; `search_lore`: the lore agent). Its first round answers with
+ *   them; a round that sends their outputs back answers "Done.". A loop without any answers as a
+ *   reply does.
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident. Two ways
  * in: `fakeOpenRouter` puts it in place of the process's fetch (the prototype's tests), and
@@ -31,7 +37,8 @@ const QUIET = ["none", "not_yet", "on_track", "in_character", "covered", "harmle
  * this long (at once otherwise), as a model's does. `decisionDelayMs`: every decision waits this long
  * before it answers (a slow decider, for a test that needs a think in flight). `byNameDelayMs`: a
  * structured call waits this long, by its schema's name, before it answers; `suggestDelayMs`: so do
- * the suggested lines (for a test that needs the notes or the lines still on their way).
+ * the suggested lines (for a test that needs the notes or the lines still on their way). `toolCalls`:
+ * the calls a tool loop makes, by its first tool's name (each a tool's name and its arguments).
  */
 export interface FakeOptions {
   replies?: string[];
@@ -46,6 +53,7 @@ export interface FakeOptions {
   decisionDelayMs?: number;
   byNameDelayMs?: Record<string, number>;
   suggestDelayMs?: number;
+  toolCalls?: Record<string, Array<Pick<ToolCall, "name" | "args">>>;
 }
 
 /** The stand-in as a fetch of its own, with what it was asked and sent, in order. */
@@ -86,6 +94,8 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
       return json({ answers: answer(body.questions ?? {}, options.choices, options.odds), usage: { cost: 0.0001 } });
     }
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
+    const looped = body.tools?.[0] && options.toolCalls?.[body.tools[0].name];
+    if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
     const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
@@ -117,6 +127,18 @@ export interface Request {
   stream?: boolean;
   max_output_tokens?: number;
   input?: Array<{ role: string; content: string }>;
+  /** A tool loop's tools (runTools). */
+  tools?: Array<{ name: string }>;
+}
+
+/**
+ * A tool loop's round: its calls, each with a call id, the first time; once their outputs have come
+ * back (an input item of type function_call_output), the agent's last word.
+ */
+function toolRound(calls: Array<Pick<ToolCall, "name" | "args">>, input: NonNullable<Request["input"]>): unknown {
+  if (input.some(item => (item as { type?: string }).type === "function_call_output")) return completed("Done.");
+  const output = calls.map((c, i) => ({ type: "function_call", call_id: `call_${i + 1}`, name: c.name, arguments: JSON.stringify(c.args ?? {}) }));
+  return { status: "completed", output, usage: { input_tokens: 120, output_tokens: 30, cost: 0.0002 } };
 }
 
 /** A call that never answers: it fails only when the caller gives up on it (its signal). */

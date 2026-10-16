@@ -24,7 +24,7 @@ const T = Date.UTC(2026, 9, 16, 9, 30);
 const PURSE = [{ name: "silver crowns", quantity: 2 }, { name: "shillings", quantity: 6 }, { name: "pennies", quantity: 12 }];
 
 /** A game's session before anything has happened: the simulation's makeCharacter gives createCharacter one of these. */
-const fresh = (seed = 7): RulesSession => ({ id: "01JGAME0000000000000000000", seed, rollCount: 0, player: { name: "Tamsin Vell", concept: "a palace inspector", modifiers: {} } });
+const fresh = (seed = 7): RulesSession => ({ id: "01JGAME0000000000000000000", seed, rollCount: 0, turn: 0, player: { name: "Tamsin Vell", concept: "a palace inspector", modifiers: {} } });
 /** The ready-made build made, pinned as the simulation pins it. */
 const made = (id: string, seed = 7, pin = 1): RulesSession => {
   const session = fresh(seed);

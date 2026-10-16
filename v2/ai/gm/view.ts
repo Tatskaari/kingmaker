@@ -1,8 +1,9 @@
 import type { Backstory } from "../docs/types.ts";
-import type { RollResult } from "../../shared/dice.ts";
+import type { RulingRecord } from "../../shared/gm/consider.ts";
 import type { GmState, OpenedNote, PathStep, ScenePatch, SceneStatus } from "../../shared/gm/state.ts";
 import type { MarkLink, Markup } from "../../shared/markup.ts";
 import type { Entry, OpenRequest, SceneContext, SheetRow } from "../../shared/protocol/ai.ts";
+import type { SpellRef, WeaponRef } from "../../shared/rules/types.ts";
 import { unnamed } from "../../shared/scene/names.ts";
 import type { Scene, Skill } from "../../shared/scene/types.ts";
 import { fullKey, keysFor, localKey, rowsToWorld, type Keys, type PlaceRows } from "../../shared/world/rows.ts";
@@ -30,8 +31,13 @@ export interface TurnView {
   turn: number;
   /** The controller's character, from their sheet. */
   player: { name: string; concept: string; modifiers: Partial<Record<Skill, number>>; build?: string; backstory?: Backstory };
-  /** Present when the sheet is a ready-made build: then the table rules are D&D's (sceneBrief), and the GM hears the character's state. Spells: V7's. */
-  rules?: { status?: string; aliases?: Record<string, string>; spells?: Array<{ name: string }> };
+  /**
+   * Present when the sheet is a ready-made build: then the table rules are D&D's (sceneBrief), the GM
+   * hears the character's state, and the decider is asked what the rules resolve, offered the spells
+   * ready, the weapons carried and the class features with uses (the sheet row's: world-bridge-design
+   * §3.1), which the suggested lines hear of too.
+   */
+  rules?: { status?: string; aliases?: Record<string, string>; spells?: SpellRef[]; weapons?: WeaponRef[]; features?: Array<{ id: string; name: string; target: "self" | "creature" }> };
   /** The story the scene belongs to: the scenes the copied code reads besides this one (gm/story.ts, in place of the prototype's SCENES and sceneById). */
   story?: Story;
 
@@ -52,14 +58,16 @@ export interface TurnView {
   pressureOffered: string[];
   repeated?: string;
 
-  // Later verticals': always empty in V0, read by the copied code.
+  // The co-GM's steering and the GM's rulings (full-gm-design §4.2), as the simulation keeps them.
   canon: string[];
   notes: string | null;
   whispers: GmState["whispers"];
   patches: ScenePatch[];
+  rulings: RulingRecord[];
+
+  // Later verticals': always empty until then, read by the copied code (but absent: the cast who fled the player's violence, the world bridge's).
   entered: string[];
   absent: string[];
-  rulings: Array<{ turn: number; act: string; went: "success" | "failure"; roll?: RollResult; changed: string }>;
   fought: string[];
   guard?: Record<string, { stage: string; turn: number }>;
   history: Array<{ sceneId: string; exitId: string; summary: string; facts?: string[]; lastMoments?: string[]; journal?: string[] }>;
@@ -118,13 +126,20 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story): TurnVie
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}), ...(gm.sceneStatus ? { sceneStatus: gm.sceneStatus } : {}),
     oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered, ...(gm.repeated !== undefined ? { repeated: gm.repeated } : {}),
     canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered, absent: gm.absent,
-    rulings: [], fought: [], history: [],
+    // (A request a job stored before the rulings had a column has none.)
+    rulings: gm.rulings ?? [], fought: [], history: [],
     transcript: source.transcript.map(e => entryOf(e, keys)),
     world: rowsToWorld(source.world, keys),
     ...(story ? { story } : {}),
   };
-  // As the prototype sets them at each turn's start (engine.ts:470): what the player calls those whose names they haven't heard.
-  if (sheet.build) view.rules = { ...(sheet.status ? { status: sheet.status } : {}), aliases: unnamed(scene, view) };
+  // As the prototype sets them at each turn's start (engine.ts:470): what the player calls those whose
+  // names they haven't heard; and what the rules keep ready, the sheet's spells, weapons and features.
+  if (sheet.build) {
+    view.rules = {
+      ...(sheet.status ? { status: sheet.status } : {}), aliases: unnamed(scene, view),
+      ...(sheet.spells ? { spells: sheet.spells } : {}), ...(sheet.weapons ? { weapons: sheet.weapons } : {}), ...(sheet.features ? { features: sheet.features } : {}),
+    };
+  }
   return view;
 }
 
