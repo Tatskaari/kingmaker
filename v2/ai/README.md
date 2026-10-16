@@ -99,7 +99,7 @@ The prototype's GM, a step a request (gm-port §5, §6, §8, §9). The copied fu
 
 V0 leaves out (gm-port §11) considered rolls, mechanics and spells, threats, the co-GM, memory reviews, suggested lines, notes on marks, staged secrets, talks, boundaries and exit effects: on a plain turn none of them puts a word in the prompt.
 
-**Prompt parity** ([gm/parity.test.ts](gm/parity.test.ts)) is the acceptance test: on the prototype's own calls, recorded once ([gm/golden/README.md](gm/golden/README.md)), V0's GM asks what the prototype's asks, byte for byte for the GM's, the stage manager's and disclosure's calls, and question by question for the director's.
+**Prompt parity** ([gm/parity.test.ts](gm/parity.test.ts)) is the acceptance test: on the prototype's own calls, recorded once ([gm/golden/README.md](gm/golden/README.md)), V0's GM asks what the prototype's asks, byte for byte for the GM's, the stage manager's and disclosure's calls, and question by question for the director's. A second recording has a player with a backstory from character creation ([gm/golden/hanged-clerk-backstory](gm/golden/hanged-clerk-backstory/README.md)): the player's doc and the brief's "who they are" come out as the prototype's.
 
 ## Character creation
 
@@ -115,6 +115,7 @@ V1's two endpoints (v1-design §3.7): each step of making a character is a think
 - **The engine** ([rules/load.ts](rules/load.ts)): the module-ready bundle under plain node, after [the shim](../shared/rules/shim.ts), with its pack and the SRD's spells, handed to v2/shared/rules, which holds the one copy of the rules code the simulation runs too. It loads on the first `/v1/characters` and stays for the process. Nothing is pinned: a card's ids come from the platform's crypto and its clock is real, since the card is shown, not kept (the simulation makes the real character from the build).
 - **The model** is asked through the request's own calls, as every think's are, with the prototype's prompts. When it fails, or there's none (`KM_AI_GM=canned`), the answers are the prototype's offline ones, as 200s: the class defaults and a note saying why, settleBuild's fallbacks for the model's one, no draft ("The GM is offline…"), the backstory unchecked with the reason, its traits from the player's own sentences. Only the engine failing is a 500.
 - **The backstory reaches the GM**: the sheet the simulation sends has it (`SheetRow.backstory`), the opening writes it into the player's doc before disclosure reads that, and every think's view has it on the player, so the brief says who they are from it.
+- **Prompt parity** ([rules/parity.test.ts](rules/parity.test.ts)): each of the prototype's creation calls, recorded once from `44c6d4a` ([rules/golden/README.md](rules/golden/README.md), `tools/v2/record-v1-golden.mts`), asked again through the endpoint as the simulation would ask it, on a stand-in told the same answers. Every request body is the prototype's, byte for byte, and what's made of the answers is what the prototype made.
 
 ## Changing it, and checking both
 
