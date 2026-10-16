@@ -1,12 +1,41 @@
-// Copied from the prototype's src/runtime/brief.ts:169-343 and 391-473 at 44c6d4a: the GM's prep and its per-turn note, reading a TurnView (gm/view.ts) for the session. The rest of the file is v2/shared/scene/graph.ts and names.ts (not offstageCast, strangers or asHeard, which V0 doesn't use).
+// Copied from the prototype's src/runtime/brief.ts:114-129 (asHeard), 141-151 (strangers), 169-343 and 391-473 at 44c6d4a: what the player would call people whose names they haven't heard, the GM's prep and its per-turn note, reading a TurnView (gm/view.ts) for the session; asHeard and strangers read names.ts's TITLES, heardIn, namedIn and nameTokens. The rest of the file is v2/shared/scene/graph.ts and names.ts (not offstageCast, which nothing in v2 uses).
 
 import { currentBeat, openRoutes, presentCast, targetTitle } from "../../shared/scene/graph.ts";
-import { unnamed } from "../../shared/scene/names.ts";
+import { heardIn, namedIn, nameTokens, TITLES, unnamed } from "../../shared/scene/names.ts";
 import type { Character, Exit, Scene, Transition } from "../../shared/scene/types.ts";
 import { titleCase } from "../../shared/dice.ts";
 import { PHYSICS } from "../../shared/world/systems.ts";
 import { worldView, type Entity } from "../../shared/world/scene-world.ts";
 import type { TurnView, ViewEntry } from "./view.ts";
+
+/**
+ * Text the player will read (a dice line), with everyone whose name they haven't heard called what
+ * they'd call them: "Master Sallow" is "the gentleman with the silver-topped cane" until someone says it.
+ */
+export function asHeard(text: string, unheard: Array<{ name: string; called: string; aka?: string[] }>): string {
+  // Names as they're written (capitalised: "Will" is a name, "will" isn't), with any titles in front ("Master Sallow", "big Hobb").
+  const titles = [...TITLES].flatMap(t => [t, t[0]!.toUpperCase() + t.slice(1)]).join("|");
+  let out = text;
+  for (const s of unheard) {
+    // The whole name first, then any part of it.
+    for (const part of [s.name, ...nameTokens(s)]) {
+      out = out.replace(new RegExp(`\\b(?:(?:${titles})\\s+)*${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}('s)?\\b`, "g"), (_, own?: string) => `${s.called}${own ?? ""}`);
+    }
+  }
+  return out;
+}
+
+/**
+ * Across several scenes (a boundary's: the one just played and those the story may go to next),
+ * the people whose names the player hasn't heard, with what the player would call them: as the
+ * first of the scenes to card them has it. `hooks`: what the player was shown of the scenes played.
+ */
+export function strangers(scenes: Scene[], state: TurnView, hooks: string[]): Array<{ name: string; called: string }> {
+  const heard = heardIn(state, hooks);
+  const first = new Map<string, Character>();
+  for (const c of scenes.flatMap(s => s.cast)) if (!first.has(c.id)) first.set(c.id, c);
+  return [...first.values()].filter(c => c.called && !namedIn(c, heard)).map(c => ({ name: c.name, called: c.called! }));
+}
 
 const bullets = (items: readonly string[] | undefined, none = "- (nothing in particular)") => items?.length ? items.map(i => `- ${i}`).join("\n") : none;
 

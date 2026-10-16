@@ -10,12 +10,14 @@ import type { Handler } from "../context.ts";
 import { director, disclosed, sceneAndView } from "./turn.ts";
 
 /**
- * POST /v1/turns/decide (v0-design §5.3, gm-port §6): what the player's turn is. Disclosure opens
- * what bears on it, beside the director's one decision, which is read for the route the turn takes
- * (its check for the simulation to roll), a cue, the same push again, earned, daft, out of
- * character, a limit, an answer to an ending on the brink; and whose memory bears on the moment.
- * On the wind-down turn (an ending reached, the scene closing on this reply) it asks only whether
- * the player is out of character.
+ * POST /v1/turns/decide (v0-design §5.3, gm-port §6, full-gm-design §4.1): what the player's turn
+ * is. Disclosure opens what bears on it, beside the director's one decision, which is read for the
+ * route the turn takes (its check for the simulation to roll), a cue, a roll wanted that nothing the
+ * author wrote settles (considered: the GM rules on it at /v1/turns/consider, and no route is taken),
+ * the same push again, earned, daft, out of character, a limit, an answer to an ending on the brink,
+ * a plan off the graph (the co-GM reviews it, unless a ruling answers it), a plain route the prep's
+ * own answer (byPrep); and whose memory bears on the moment. On the wind-down turn (an ending
+ * reached, the scene closing on this reply) it asks only whether the player is out of character.
  */
 export const decide: Handler<DecideRequest, DecideResponse> = async (req, ctx) => {
   const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
