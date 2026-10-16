@@ -5,12 +5,13 @@
  */
 
 /**
- * The steps of a think: the opening, then a turn's three, in a move's order; and the two that run
- * beside a turn once its reply is in (v5-design §3.4): the notes on its marks, and the lines
- * suggested after it.
+ * The steps of a think: the opening, then a turn's own, in a move's order (decide; consider, on a
+ * turn the GM rules on before replying; reply; settle); the two that run beside a turn once its
+ * reply is in (v5-design §3.4): the notes on its marks, and the lines suggested after it; and the two
+ * in the background once the turn is over (full-gm-design §4.2): the memory reviews, and the co-GM.
  */
-export type Step = "open" | "decide" | "reply" | "settle" | "notes" | "suggest";
-export const STEPS: readonly Step[] = ["open", "decide", "reply", "settle", "notes", "suggest"];
+export type Step = "open" | "decide" | "consider" | "reply" | "settle" | "notes" | "suggest" | "remember" | "repair";
+export const STEPS: readonly Step[] = ["open", "decide", "consider", "reply", "settle", "notes", "suggest", "remember", "repair"];
 
 /**
  * Character creation's steps (v1-design §3.5), each an AI call of its own: the three builds offered,
@@ -50,7 +51,7 @@ export interface CreationKeyParts { game: string; rev: number; step: CreationSte
 
 /** A key's parts (a turn's think has a turn, a creation's step a rev), or undefined when it isn't one. */
 export function keyParts(key: string): TurnKeyParts | CreationKeyParts | undefined {
-  const turn = /^(.+):s(\d+):t(\d+):(?:(open|decide|reply|settle|notes)|suggest(?:-([1-9]\d*))?)$/.exec(key);
+  const turn = /^(.+):s(\d+):t(\d+):(?:(open|decide|consider|reply|settle|notes|remember|repair)|suggest(?:-([1-9]\d*))?)$/.exec(key);
   if (turn) {
     if (turn[5] === "1") return undefined;
     const parts = { game: turn[1]!, scene: turn[2]!, turn: Number(turn[3]) };

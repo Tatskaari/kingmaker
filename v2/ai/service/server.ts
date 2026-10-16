@@ -5,16 +5,17 @@ import { isGameId, isTurnKey, keyParts, type CreationKeyParts, type CreationStep
 import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
-import type { Faults } from "./config.ts";
+import { CONSIDER_DEADLINE_MS, type Faults } from "./config.ts";
 import { Failure, type AiContext, type Endpoints } from "./context.ts";
 import { checkRequest } from "./requests.ts";
 import type { Stores } from "./stores.ts";
 import { streamSink, type StreamTarget } from "./stream.ts";
 
 /**
- * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7): the thinks (the
- * opening, a turn's three, its notes and its suggested lines, and character creation's builds and
- * backstories), a campaign's words, and its health.
+ * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7, full-gm-design §4.1):
+ * the thinks (the opening, a turn's own, its notes and its suggested lines, the memory reviews and
+ * the co-GM after it, and character creation's builds and backstories), a campaign's words, and its
+ * health.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
  * - A think is answered by its idempotency key, which names its step (a creation's endpoints serve
@@ -44,6 +45,8 @@ export interface ServiceOptions {
   serves: Pick<Health, "model" | "gm">;
   /** The daily ceiling on what the models cost, in dollars (KM_AI_DAILY_USD); 0 or absent: none. */
   dailyUsd?: number;
+  /** How long a considered turn's review may take (KM_CONSIDER_DEADLINE_MS); absent: 12 s. */
+  considerDeadlineMs?: number;
   faults: Faults;
   log(line: string): void;
   /** How a fault ends the process (process.exit; a test's stand-in). */
@@ -64,8 +67,8 @@ export interface AiService {
 
 /** The thinks, by endpoint: the handler that serves each (STEP_ENDPOINT says which steps are whose). */
 const THINKS: Record<Endpoint, keyof Endpoints> = {
-  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
-  "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest",
+  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
+  "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember", "/v1/turns/repair": "repair",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
 /** The steps that never call a model: the ceiling doesn't stop them. */
@@ -148,7 +151,10 @@ export function aiService(options: ServiceOptions): AiService {
   async function run(handler: keyof Endpoints, parts: KeyParts, body: ThinkBody, campaign: Campaign, attempt: number, started: number) {
     await withinCeiling(parts.step);
     const { calls, usage } = callContext(options.transport(transportTurn(parts)), options.stores, { game: body.game.id, key: body.key, attempt });
-    const ctx: AiContext = { campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }) };
+    const ctx: AiContext = {
+      campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }),
+      considerDeadlineMs: options.considerDeadlineMs ?? CONSIDER_DEADLINE_MS,
+    };
     try {
       return await (options.endpoints[handler] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);
     } catch (error) {

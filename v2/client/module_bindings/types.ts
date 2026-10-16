@@ -38,6 +38,17 @@ export const Campaign = __t.object("Campaign", {
 });
 export type Campaign = __Infer<typeof Campaign>;
 
+export const CoGmResult = __t.object("CoGmResult", {
+  id: __t.u64(),
+  sceneId: __t.u64(),
+  turn: __t.u32(),
+  review: __t.string(),
+  mergedTurn: __t.option(__t.u32()),
+  note: __t.option(__t.string()),
+  at: __t.timestamp(),
+});
+export type CoGmResult = __Infer<typeof CoGmResult>;
+
 export const Creation = __t.object("Creation", {
   identity: __t.identity(),
   uid: __t.string(),
@@ -197,6 +208,18 @@ export const GmState = __t.object("GmState", {
   oocTurns: __t.array(__t.u32()),
   pressureOffered: __t.array(__t.string()),
   repeated: __t.option(__t.string()),
+  canon: __t.array(__t.string()),
+  patches: __t.string(),
+  notes: __t.option(__t.string()),
+  notesTurn: __t.option(__t.u32()),
+  get whispers() {
+    return __t.array(Whisper);
+  },
+  lastRepairTurn: __t.option(__t.u32()),
+  offGraphTurn: __t.option(__t.u32()),
+  get rulings() {
+    return __t.array(RulingRow);
+  },
 });
 export type GmState = __Infer<typeof GmState>;
 
@@ -426,6 +449,24 @@ export const RulesState = __t.object("RulesState", {
 });
 export type RulesState = __Infer<typeof RulesState>;
 
+export const RulingRow = __t.object("RulingRow", {
+  turn: __t.u32(),
+  act: __t.string(),
+  target: __t.string(),
+  skill: __t.string(),
+  kind: __t.string(),
+  dc: __t.option(__t.i32()),
+  why: __t.string(),
+  get roll() {
+    return __t.option(Roll);
+  },
+  went: __t.string(),
+  changed: __t.string(),
+  costUsd: __t.f64(),
+  latencyMs: __t.f64(),
+});
+export type RulingRow = __Infer<typeof RulingRow>;
+
 export const Scene = __t.object("Scene", {
   id: __t.u64(),
   gameId: __t.u64(),
@@ -579,6 +620,13 @@ export const WeaponRef = __t.object("WeaponRef", {
   name: __t.string(),
 });
 export type WeaponRef = __Infer<typeof WeaponRef>;
+
+export const Whisper = __t.object("Whisper", {
+  to: __t.string(),
+  note: __t.string(),
+  turn: __t.u32(),
+});
+export type Whisper = __Infer<typeof Whisper>;
 
 export const WorldLog = __t.object("WorldLog", {
   id: __t.u64(),

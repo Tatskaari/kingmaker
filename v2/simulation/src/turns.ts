@@ -10,8 +10,11 @@ import { playerLine } from "./transcript.ts";
  * that one is done.
  */
 
-/** queued, deciding, replying, settling, noting (everything in but its reply's notes), done, failed. */
-export type Phase = "queued" | "deciding" | "replying" | "settling" | "noting" | "done" | "failed";
+/**
+ * queued, deciding, considering (the GM rules on the act before replying: full-gm-design §4.2),
+ * replying, settling, noting (everything in but its reply's notes), done, failed.
+ */
+export type Phase = "queued" | "deciding" | "considering" | "replying" | "settling" | "noting" | "done" | "failed";
 
 export function newTurn(tx: TxCtx, scene: SceneRow, playerId: bigint, n: number, phase: Phase): TurnRow {
   return tx.db.turn.insert({

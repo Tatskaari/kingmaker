@@ -1,5 +1,5 @@
 import type { Backstory } from "../docs/types.ts";
-import type { RollResult } from "../../shared/dice.ts";
+import type { RulingRecord } from "../../shared/gm/consider.ts";
 import type { GmState, OpenedNote, PathStep, ScenePatch, SceneStatus } from "../../shared/gm/state.ts";
 import type { MarkLink, Markup } from "../../shared/markup.ts";
 import type { Entry, OpenRequest, SceneContext, SheetRow } from "../../shared/protocol/ai.ts";
@@ -52,14 +52,16 @@ export interface TurnView {
   pressureOffered: string[];
   repeated?: string;
 
-  // Later verticals': always empty in V0, read by the copied code.
+  // The co-GM's steering and the GM's rulings (full-gm-design §4.2), as the simulation keeps them.
   canon: string[];
   notes: string | null;
   whispers: GmState["whispers"];
   patches: ScenePatch[];
+  rulings: RulingRecord[];
+
+  // Later verticals': always empty until then, read by the copied code.
   entered: string[];
   absent: string[];
-  rulings: Array<{ turn: number; act: string; went: "success" | "failure"; roll?: RollResult; changed: string }>;
   fought: string[];
   guard?: Record<string, { stage: string; turn: number }>;
   history: Array<{ sceneId: string; exitId: string; summary: string; facts?: string[]; lastMoments?: string[]; journal?: string[] }>;
@@ -118,7 +120,8 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story): TurnVie
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}), ...(gm.sceneStatus ? { sceneStatus: gm.sceneStatus } : {}),
     oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered, ...(gm.repeated !== undefined ? { repeated: gm.repeated } : {}),
     canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered, absent: gm.absent,
-    rulings: [], fought: [], history: [],
+    // (A request a job stored before the rulings had a column has none.)
+    rulings: gm.rulings ?? [], fought: [], history: [],
     transcript: source.transcript.map(e => entryOf(e, keys)),
     world: rowsToWorld(source.world, keys),
     ...(story ? { story } : {}),
