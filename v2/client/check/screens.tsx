@@ -402,6 +402,7 @@ for (const [w, h] of SIZES) {
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
   checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. /suggestions off turns them off.")]);
+  checks.push([`${size}: the help says how the marks work, and nothing of ⓘ lines (V1's)`, doubled(frame).includes("Underlined words are the GM's marks") && doubled(frame).includes("for a note from what you know.") && !/ⓘ/.test(frame)]);
   await esc();
 
   // A spectator: the same rows, the turn's lines in; none for them, and no rows kept.
