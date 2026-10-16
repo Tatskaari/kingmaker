@@ -5,11 +5,12 @@
  * campaign installs only the scenes built so far, so this records each scene's part of that, from the
  * prototype, once:
  *
- *   node --no-warnings tools/v2/export-vocabulary.mts --prototype <checkout> [--out <file>] [--check]
+ *   node --no-warnings tools/v2/export-vocabulary.mts [--prototype <checkout>] [--out <file>] [--check]
  *
- * --prototype: the prototype's checkout to read (this repo's own when left out); the file's `source`
- * is its commit. --out: where to write (v2/campaigns/caerwyn/vocabulary.json). --check: write
- * nothing, and exit 1 if the file's scenes aren't what the checkout's give.
+ * --prototype: the prototype's checkout to read, this repo's own when left out; the file's `source`
+ * is its commit, so write it from a checkout of the commit it should name (44c6d4a was a worktree of
+ * its own). --out: where to write (v2/campaigns/caerwyn/vocabulary.json). --check: write nothing,
+ * and exit 1 if the file's scenes aren't what the checkout's give (its source isn't compared).
  *
  * Each of the prototype's scenes, SCENES then ZOO_SCENES in their order: its id, hook, the scenes its
  * ways on lead to (`next`, in exit order, each once), its cast as the story's names read them (id,
