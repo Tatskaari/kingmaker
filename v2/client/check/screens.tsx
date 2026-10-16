@@ -15,13 +15,14 @@
  */
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
-import { App } from "../app.tsx";
+import { ScenePlay } from "../app.tsx";
 import { GM_BUSY } from "../busy.ts";
 import { SceneModel } from "../scene/model.ts";
 import { markupOf } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
+import { checkCreation } from "./creation.tsx";
 import { YARD } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -46,7 +47,7 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   let view: SceneView = YARD;
   const scene = new SceneModel(view, { say: text => sent.push(text), retry: () => sent.push("/retry"), quit: () => {} });
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; act(() => scene.update(view)); };
-  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   /** A lone Esc is held a moment by the key parser (it might start a sequence): wait it out, as the prototype's checks do. */
   const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); };
@@ -233,6 +234,9 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   checks.push([`${size}: its refusal, on the status line`, style("(The scene is over.)")?.fg === C.warn]);
   await setup.dispose();
 }
+
+// The title, character creation and the sheet (V1's).
+await checkCreation(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

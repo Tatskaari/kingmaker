@@ -1,4 +1,5 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1897-1935 (speechColor and the marks), :2341-2344 (closeOverlay).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay).
+import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { C } from "../theme.ts";
@@ -21,9 +22,13 @@ export interface SceneActions {
 }
 
 export type Overlay =
+  | { kind: "sheet" }
   | { kind: "help" }
   /** A marked phrase opened: by its line (an index into lines()) and its place in that line's marks; where it was clicked, when it was. */
   | { kind: "mark"; line: number; mark: number; x?: number; y?: number };
+
+/** The character sheet over the scene: the seat's sheet row as the engine made it (none until it's in), and who they are. */
+export interface SheetShown { data?: SheetData | undefined; who: { name: string; concept: string } }
 
 export class SceneModel {
   view: SceneView;
@@ -40,14 +45,17 @@ export class SceneModel {
   typing = false;
 
   private readonly actions: SceneActions;
+  /** The seat's sheet, read when /sheet shows it: the rows have it, not the scene's view. */
+  readonly sheet: () => SheetShown | undefined;
   private listeners = new Set<() => void>();
   private pending?: ReturnType<typeof setTimeout>;
   private busyLines = new BusyLines();
   private busyLine?: string;
 
-  constructor(view: SceneView, actions: SceneActions) {
+  constructor(view: SceneView, actions: SceneActions, sheet: () => SheetShown | undefined = () => undefined) {
     this.view = view;
     this.actions = actions;
+    this.sheet = sheet;
   }
 
   subscribe(listener: () => void): () => void {
@@ -110,6 +118,7 @@ export class SceneModel {
   private command(command: string): void {
     const [typed = ""] = command.trim().split(/\s+/);
     switch (commandNamed(typed)) {
+      case "sheet": this.overlay = { kind: "sheet" }; break;
       case "help": this.overlay = { kind: "help" }; break;
       case "retry":
         if (this.view.phase === "failed") this.actions.retry();

@@ -1,31 +1,31 @@
-// Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the renderer, the root and the shutdown; the look canvas, the browser overlay, reporting and the Game go, and the scene plays through the simulation (or the demo).
+// Cut from the prototype's src/app/main.tsx at 44c6d4a: the terminal check, the renderer, the root and the shutdown; the look canvas, the browser overlay and reporting go, the Game is the AppModel over the simulation (or the demo).
 import { createCliRenderer, type CliRenderer } from "@opentui/core";
 import { createRoot, type Root } from "@opentui/react";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { App } from "../client/app.tsx";
-import { newGameOf, viewWhen, type Backend } from "../client/backend.ts";
+import { AppModel, type Intent } from "../client/app/model.ts";
+import { newGameOf, type Backend } from "../client/backend.ts";
 import { demoBackend } from "../client/demo.ts";
 import { connect } from "../client/net/connection.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
-import { refusal } from "../shared/protocol/refusals.ts";
-import { SceneModel } from "../client/scene/model.ts";
-import type { SceneView } from "../client/scene/view.ts";
 
 /**
- * The game's client in a terminal (v0-design §1.1, §7): the scene screen on OpenTUI's native
- * renderer. It plays through the simulation as the session's identity: a new game, someone's game
- * watched, or the game the session is in; or through the demo's canned turns, with no server.
+ * The game's client in a terminal (v0-design §1.1, §7, v1-design §3.10): the title, character
+ * creation and the scene on OpenTUI's native renderer. It plays through the simulation as the
+ * session's identity, whose games the title lists; or through the demo's canned rows, with no server.
  */
 
 const USAGE = `Kingmaker: the client
 
-  npm run client -- --session <name> --new "Name: concept" [--build ranger|rogue|wizard] [--campaign caerwyn]
+  npm run client -- --session <name>     the title: carry on one of the session's games, or make a character
+  npm run client -- --session <name> --new "Name: concept"
+                                         make a character from a sentence: three builds that fit, then your backstory
+  npm run client -- --session <name> --new "Name: concept" --build cleric|fighter|ranger|rogue|wizard [--campaign caerwyn]
                                          start a game as a ready-made character, and play it
   npm run client -- --session <name> --join <game>
                                          watch someone's game (the number in their side panel)
-  npm run client -- --session <name>     back to the game the session is in
-  npm run client -- --demo               canned turns, no server
+  npm run client -- --demo               the title, a character made and a scene, canned: no server
 
 --url and --db choose the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's,
 found in runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker).
@@ -33,18 +33,16 @@ Sessions are kept in runs/play/ (KM_RUNS_DIR moves runs/).`;
 
 type Args = ReturnType<typeof argsOf>["values"];
 
-/** How long the move's own rows take to come: they come with its commit, in milliseconds. */
-const ROWS_MS = 10_000;
-
 async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<void> {
   needTerminal();
   const args = argsOf(argv).values;
   if (args.help) { console.log(USAGE); return; }
 
+  const campaign = args.campaign ?? "caerwyn";
   const game = await backendFor(args, env);
-  const view = await seated(game, args).catch((error: unknown) => { game.close(); throw error; });
+  const intent = await started(game, args, campaign).catch((error: unknown) => { game.close(); throw error; });
 
-  await play(game, view);
+  await play(game, intent, campaign);
 }
 
 /** Refuses without a terminal on both ends: the headless client is for that. */
@@ -76,42 +74,43 @@ async function backendFor(args: Args, env: NodeJS.ProcessEnv): Promise<Backend> 
   return await connect({ ...server, ...(session.token ? { token: session.token } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
 }
 
-/** The move asked for (a new game, or a game to watch) made, and its scene's rows in; or the scene the session is already in. */
-async function seated(game: Backend, args: Args): Promise<SceneView> {
+/**
+ * The move asked for made, and where the client opens: a ready-made character's game, or a game to
+ * watch (the game); a character from a sentence (its creation: three builds that fit); else the title.
+ */
+async function started(game: Backend, args: Args, campaign: string): Promise<Intent> {
   if (args.new !== undefined) {
-    const before = game.view()?.game;
-    const refused = await game.newGame(newGameOf(args.new, args.build ?? "ranger", args.campaign ?? "caerwyn"));
+    const who = newGameOf(args.new, args.build ?? "", campaign);
+    const refused = args.build
+      ? await game.newGame(who)
+      : await game.act("startCreation", { campaign, name: who.name, concept: who.concept, how: "three" });
     if (refused) throw new Error(refused.text);
-    return await viewWhen(game, v => v.game !== before, ROWS_MS);
+    return args.build ? "game" : "creation";
   }
   if (args.join !== undefined) {
     if (!/^\d+$/.test(args.join)) throw new Error("--join takes a game's number: the one in its side panel.");
     const refused = await game.joinGame(BigInt(args.join));
     if (refused) throw new Error(refused.text);
-    return await viewWhen(game, v => v.game === args.join, ROWS_MS);
+    return "game";
   }
-  const view = game.view();
-  if (!view) throw new Error(`${refusal("not_in_game").text} Start one with --new "Name: concept", or watch one with --join <game>.`);
-  return view;
+  return "title";
 }
 
-/** The screen, over the game: its moves the model's actions, its views the model's updates, until the player quits. */
-async function play(game: Backend, view: SceneView): Promise<void> {
+/** The screens, over the game: the app's model follows the rows and makes the moves, until the player quits. */
+async function play(game: Backend, intent: Intent, campaign: string): Promise<void> {
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
   const root = createRoot(renderer);
   const quit = leaving(root, renderer, game);
-
-  const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), quit: () => quit(0) });
-  game.onChange(() => { const next = game.view(); if (next) scene.update(next); });
+  const app = new AppModel(game, { campaign, intent, onQuit: () => quit(0) });
 
   process.on("SIGTERM", () => quit(0));
   process.on("SIGHUP", () => quit(0));
-  // What goes wrong goes on the status line, not over the screen.
-  const say = (e: unknown) => { scene.status = `(Something went wrong: ${e instanceof Error ? e.message : String(e)})`; scene.emit(); };
+  // What goes wrong goes on the screen's own line, not over the screen.
+  const say = (e: unknown) => app.trouble(`(Something went wrong: ${e instanceof Error ? e.message : String(e)})`);
   process.on("unhandledRejection", say);
   process.on("uncaughtException", say);
 
-  root.render(<App scene={scene} onQuit={() => quit(0)} />);
+  root.render(<App app={app} />);
 }
 
 /** Leaving: the screen taken down, the connection closed, the terminal given back. */
