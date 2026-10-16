@@ -133,7 +133,7 @@ export const scene = table({ name: "scene", public: true }, {
   hook: t.string(),
   /** scene. */
   kind: t.string(),
-  /** The place it's played in; 0 while it waits (its place is built as it opens). */
+  /** The place it's played in: a waiting scene's is built as it becomes the lead, with no one playing in it yet (story-design §4.3; the map unit's buildLead). */
   placeId: t.u64(),
   /**
    * waiting (handed on by the boundary, not yet opened: the lead), opening, live, closing (its
