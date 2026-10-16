@@ -15,7 +15,8 @@ import { localHost, type LocalHost } from "./local.ts";
  * one process, on the fake model, every body through JSON. The scene's endings as the prototype
  * plays them (gm-port §16.4: its endings.test.ts and gates.test.ts), each turn said, decided, replied
  * and settled by the real code on both sides, the model's decisions scripted a turn at a time; then
- * the reply as drawn: the notes the turn waits for, and the lines suggested after it.
+ * the reply as drawn: the notes the turn waits for, and the lines suggested after it; and the story
+ * crossing a boundary (story-design §5): the simulation's job asking the pipeline's boundary.
  */
 
 const WREN = new Identity(0x1001n);
@@ -286,6 +287,28 @@ test("notes the model can't write leave the reply with no marks, and its turn en
   assert.deepEqual([after.turns[1]!.phase, after.turns[1]!.notes, after.turns[1]!.error], ["done", "written", undefined]);
   assert.deepEqual(marksOf(replyOf(after, 1)), []);
   assert.ok(markupOf(replyOf(after, 1)).speech.length > 0, "who says what is kept");
+  local.close();
+});
+
+test("the story on the local host: a scene ended by its owner crosses the boundary through the pipeline, the Rat waits with what was handed on, and walk opens it with the story so far (story-design §5)", async () => {
+  const { local, scene } = await game();
+  const id = all(local.sim.db.game)[0]!.id;
+  assert.equal(local.sim.as(local.sim.owner).endScene({ game: id, exit: "open-case" }), undefined);
+  await local.sim.drain();
+
+  const chapter = local.sim.db.chapter.sceneId.find(scene.id)!;
+  assert.match(chapter.summary, /^Previous scene, "The Hanged Clerk", ended: Murder by persons unknown \(hanged-clerk: open-case\)\.\n/);
+  const key = `${all(local.sim.db.game)[0]!.uid}:s${scene.id}:t0:boundary`;
+  assert.deepEqual(["handoff", "boundary", "fronts"].map(op => calls(local).filter(c => c.key === key && c.operation === op).length), [1, 1, 1], "the hand-off, the verdict and the fronts, once each under the ended scene's last turn");
+  const rat = all(local.sim.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+  assert.deepEqual([rat.status, rat.time, all(local.sim.db.game)[0]!.leadScene], ["waiting", "evening", "drowned-rat"]);
+  assert.ok(local.sim.db.gmState.sceneId.find(rat.id)!.owed.some(o => o.id === "page"), "the page is owed into the Rat");
+
+  assert.equal(local.sim.as(WREN).walk({ toward: "lead" }), undefined);
+  await local.sim.drain();
+  assert.equal(local.sim.db.scene.id.find(rat.id)!.status, "live");
+  const opening = calls(local).find(c => c.key.endsWith(`:s${rat.id}:t0:open`) && c.operation === "gm.opening")!.request.input!.map(m => m.content).join("\n");
+  assert.match(opening, /What happened just before this scene[\s\S]*Previous scene, "The Hanged Clerk", ended/);
   local.close();
 });
 
