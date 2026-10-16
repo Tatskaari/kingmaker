@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/brief.ts:108-162 at 44c6d4a (not asHeard or strangers); they read the transcript they're handed (the scene's), and TITLES and namedIn are exported.
+// Copied from the prototype's src/runtime/brief.ts:108-162 at 44c6d4a; they read the transcript they're handed (the scene's), and TITLES and namedIn are exported. asHeard and strangers (118-129, 146-151) came with the map (map-design §2): the map's people go by what the player would call them.
 
 import type { Character, Scene } from "./types.ts";
 
@@ -17,6 +17,23 @@ export const heardIn = (state: Heard, hooks: string[]) => [...hooks, ...state.tr
 export const namedIn = (c: Pick<Character, "name" | "aka">, heard: string) => nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard));
 
 /**
+ * Text the player will read (a dice line), with everyone whose name they haven't heard called what
+ * they'd call them: "Master Sallow" is "the gentleman with the silver-topped cane" until someone says it.
+ */
+export function asHeard(text: string, unheard: Array<{ name: string; called: string; aka?: string[] }>): string {
+  // Names as they're written (capitalised: "Will" is a name, "will" isn't), with any titles in front ("Master Sallow", "big Hobb").
+  const titles = [...TITLES].flatMap(t => [t, t[0]!.toUpperCase() + t.slice(1)]).join("|");
+  let out = text;
+  for (const s of unheard) {
+    // The whole name first, then any part of it.
+    for (const part of [s.name, ...nameTokens(s)]) {
+      out = out.replace(new RegExp(`\\b(?:(?:${titles})\\s+)*${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}('s)?\\b`, "g"), (_, own?: string) => `${s.called}${own ?? ""}`);
+    }
+  }
+  return out;
+}
+
+/**
  * The cast the player has heard named: in anything said or shown so far (the hook, every reply,
  * their own turns), by any part of the name that isn't a title. People without a `called` aren't
  * tracked: they count as known.
@@ -24,6 +41,18 @@ export const namedIn = (c: Pick<Character, "name" | "aka">, heard: string) => na
 export function knownCast(scene: Scene, state: Heard): Set<string> {
   const heard = heardIn(state, [scene.hook]);
   return new Set(scene.cast.filter(c => !c.called || namedIn(c, heard)).map(c => c.id));
+}
+
+/**
+ * Across several scenes (a boundary's: the one just played and those the story may go to next),
+ * the people whose names the player hasn't heard, with what the player would call them: as the
+ * first of the scenes to card them has it. `hooks`: what the player was shown of the scenes played.
+ */
+export function strangers(scenes: Scene[], state: Heard, hooks: string[]): Array<{ name: string; called: string }> {
+  const heard = heardIn(state, hooks);
+  const first = new Map<string, Character>();
+  for (const c of scenes.flatMap(s => s.cast)) if (!first.has(c.id)) first.set(c.id, c);
+  return [...first.values()].filter(c => c.called && !namedIn(c, heard)).map(c => ({ name: c.name, called: c.called! }));
 }
 
 /** The parts of someone's names that mean them in text ("Kell", "Agnes"; not "Sergeant"). */
