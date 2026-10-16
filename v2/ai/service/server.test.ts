@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { DecideRequest, OpenRequest } from "../../shared/protocol/ai.ts";
+import type { DecideRequest, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse, SuggestRequest, SuggestResponse } from "../../shared/protocol/ai.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
 import { Failure, type Endpoints } from "./context.ts";
@@ -236,6 +236,38 @@ test("over HTTP on node's server (port 0): the same answers, and a body over its
   } finally {
     server.close();
   }
+});
+
+test("canned: someone of the cast says a line in each reply, the notes put a why on it with its card, and the same four lines are suggested", async () => {
+  const { ai } = service();
+  await ai.answer(put());
+  const { line: _, ...scene } = decideRequest(1).turn;
+  const reply: ReplyRequest = { ...decideRequest(1), key: `${GAME}:s1:t1:reply`, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "4" } };
+  const said = (JSON.parse((await ai.answer(post("/v1/turns/reply", reply))).body) as ReplyResponse).entries[0]!;
+  const notes: NotesRequest = { key: `${GAME}:s1:t1:notes`, game: reply.game, player: reply.player, turn: { ...scene, transcript: [...scene.transcript, { turn: 1, ...said }] }, reply: { seq: 2, text: said.text, speech: said.markup!.speech, drafted: [] } };
+  const noted = JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse;
+  const suggest: SuggestRequest = { key: `${GAME}:s1:t1:suggest`, game: reply.game, player: reply.player, turn: notes.turn, offered: [] };
+  const suggested = JSON.parse((await ai.answer(post("/v1/turns/suggest", suggest))).body) as SuggestResponse;
+  const again = await ai.answer(post("/v1/turns/suggest", { ...suggest, key: `${GAME}:s1:t1:suggest-2` }));
+
+  assert.equal(said.text, "You said: “Sergeant, who found him?” “Go on, then,” says the boy in the too-big boots. (Canned: no model was asked.)");
+  assert.deepEqual(said.markup!.speech.map(s => [said.text.slice(s.start, s.end), s.speaker]), [["“Sergeant, who found him?”", "you"], ["“Go on, then,”", "cob"]]);
+  assert.deepEqual(noted.marks, [{
+    start: said.markup!.speech[1]!.start, end: said.markup!.speech[1]!.end, kind: "why", note: "The boy in the too-big boots wants to hear more. (Canned: no model was asked.)",
+    link: { kind: "person", id: "cob" }, card: { title: "The boy in the too-big boots", lines: ["You met them in this scene.", "Last said to you (turn 1): “Go on, then,”"] },
+  }]);
+  assert.deepEqual(suggested.lines.map(l => l.kind), ["say", "say", "do", "try"]);
+  assert.equal(again.status, 200, "a second ask of the same turn has a key of its own");
+});
+
+test("canned: a reply with nobody of the cast speaking gets no notes", async () => {
+  const { ai } = service();
+  await ai.answer(put());
+  const { line: _, ...scene } = decideRequest(1).turn;
+  const text = "The rain comes on. “Hm,” you say.";
+  const notes: NotesRequest = { key: `${GAME}:s1:t1:notes`, game: decideRequest().game, player: decideRequest().player, turn: scene, reply: { seq: 2, text, speech: [{ start: 19, end: 23, speaker: "you" }], drafted: [] } };
+
+  assert.deepEqual((JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse).marks, []);
 });
 
 test("on the pipeline, a think missing what every think reads is a 400 (the module doesn't retry it), not the model's 500", async () => {
