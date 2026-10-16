@@ -1,10 +1,45 @@
 {
  "step": "t1-settle",
  "line": "Sergeant, who found him?",
- "choices": {},
- "replies": [
-  "Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body."
- ],
+ "fake": {
+  "replies": [
+   "Kell gives a small nod. [Sergeant Kell] “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. [Cob] “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”[why: You’re beside Sergeant Kell, the watch officer who has caught him twice before.]\n\nThe girl on the wall drums her heels. [the girl in the shawl] “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle."
+  ],
+  "choices": {
+   "line_2": "gives_away"
+  },
+  "byName": {
+   "notes": {
+    "notes": [
+     {
+      "on": "M1",
+      "words": "",
+      "kind": "why",
+      "note": "He calls the watch bluebottles, and Sergeant Kell is the watch.",
+      "turn": 0,
+      "lore": ""
+     },
+     {
+      "on": "L5",
+      "words": "",
+      "kind": "why",
+      "note": "Moll wants it to be a jump, and says so before anyone asks her.",
+      "turn": 0,
+      "lore": ""
+     },
+     {
+      "on": "",
+      "words": "The sky is still a flat grey",
+      "kind": "know",
+      "note": "It rained all night.",
+      "turn": 0,
+      "lore": ""
+     }
+    ]
+   }
+  },
+  "suggestions": "say: Hobb, was it you who carried him up?\nleave: (I tip my hat and leave the yard)\ndo: (I wave the boy over) [Cob]\nsay: Who was on the wall last night?\ndo: (I look closely at the hoist)\ntry: (I try to read the girl's face while she talks)"
+ },
  "session": {
   "id": "golden-hanged-clerk",
   "sceneId": "hanged-clerk",
@@ -52,17 +87,43 @@
     "scene": "hanged-clerk",
     "speaker": "gm",
     "kind": "narration",
-    "text": "Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's investigator. The Captain calls it suicide.” A stone clangs off the hoist hook.",
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
     "marked": {
      "speech": [
       {
-       "start": 189,
-       "end": 255,
-       "tag": "Sergeant Agnes Kell",
+       "start": 239,
+       "end": 270,
+       "speaker": "cob"
+      },
+      {
+       "start": 442,
+       "end": 523,
+       "tag": "Sergeant Kell",
        "speaker": "kell"
       }
      ],
-     "marks": []
+     "marks": [
+      {
+       "start": 0,
+       "end": 25,
+       "kind": "know",
+       "note": "The granary yard is where the city's grain is counted before the palace takes its share.",
+       "link": {
+        "kind": "lore",
+        "path": "Places/Granary Yard.md"
+       }
+      },
+      {
+       "start": 252,
+       "end": 268,
+       "kind": "why",
+       "note": "The girl in the shawl has been jeering at him from the wall, so he throws harder.",
+       "link": {
+        "kind": "person",
+        "id": "cob"
+       }
+      }
+     ]
     }
    },
    {
@@ -77,18 +138,35 @@
     "scene": "hanged-clerk",
     "speaker": "gm",
     "kind": "narration",
-    "text": "Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body.",
+    "text": "Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
     "marked": {
      "speech": [
       {
-       "start": 30,
-       "end": 65,
+       "start": 24,
+       "end": 197,
+       "tag": "Sergeant Kell",
        "speaker": "kell"
       },
       {
-       "start": 76,
-       "end": 126,
+       "start": 240,
+       "end": 300,
        "speaker": "kell"
+      },
+      {
+       "start": 357,
+       "end": 406,
+       "tag": "Cob",
+       "speaker": "cob"
+      },
+      {
+       "start": 454,
+       "end": 490
+      },
+      {
+       "start": 530,
+       "end": 579,
+       "tag": "the girl in the shawl",
+       "speaker": "moll"
       }
      ],
      "marks": []
@@ -98,7 +176,7 @@
   "metrics": [],
   "history": [],
   "rules": {
-   "pc": "01M518HX9J2WXAKV4MADG9MPEP",
+   "pc": "01M51G95ADF5J2PQ3B19KT60G5",
    "npcs": {},
    "prefer": [
     "arcana",
@@ -179,35 +257,34 @@
    ],
    "weapons": [
     {
-     "id": "01M518HX9N2PK9WY731H6FJ64Q",
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
      "name": "Quarterstaff"
     },
     {
-     "id": "01M518HX9PN1PT9HZMT9ZSP4ES",
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
      "name": "Dagger"
     },
     {
-     "id": "01M518HX9PPMM1TFFPKRKAJKAJ",
+     "id": "01M51G95AHTFAG3FGEHSAZJRE8",
      "name": "Unarmed Strike"
     }
    ],
    "features": [],
    "gear": [
     {
-     "id": "01M518HX9N2PK9WY731H6FJ64Q",
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
      "name": "Quarterstaff",
      "kind": "weapon",
      "slot": "mainHand"
     },
     {
-     "id": "01M518HX9PN1PT9HZMT9ZSP4ES",
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
      "name": "Dagger",
      "kind": "weapon"
     }
    ],
    "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
    "aliases": {
-    "cob": "the boy in the too-big boots",
     "moll": "the girl in the shawl",
     "tull": "the corporal"
    }
@@ -925,7 +1002,7 @@
       "in hand"
      ],
      "notes": [],
-     "gear": "01M518HX9N2PK9WY731H6FJ64Q"
+     "gear": "01M51G95AHBNJ8AV8ZWZMK2BBM"
     },
     "wren-dagger": {
      "id": "wren-dagger",
@@ -937,7 +1014,7 @@
      ],
      "states": [],
      "notes": [],
-     "gear": "01M518HX9PN1PT9HZMT9ZSP4ES"
+     "gear": "01M51G95AHJNGCSFWKHB6FGCY6"
     }
    },
    "log": [
@@ -1105,6 +1182,22 @@
      "turn": 1
     }
    ]
+  },
+  "suggestions": {
+   "scene": "hanged-clerk",
+   "turn": 0,
+   "lines": [
+    {
+     "kind": "say",
+     "text": "Sergeant, who found him?"
+    },
+    {
+     "kind": "try",
+     "text": "(I try to coax the boy down off his stones with a penny)"
+    }
+   ],
+   "ms": 47,
+   "costUsd": 0.00030000000000000003
   }
  },
  "calls": [
@@ -1116,7 +1209,7 @@
     "input": [
      {
       "role": "user",
-      "content": "## The world before this exchange\nThe yard behind the King's Granary: the player is in the yard.\nThe player carries: 2 silver crowns [silver-crowns], 6 shillings [shillings], 12 pennies [pennies], Wren's quarterstaff [wren-quarterstaff], Wren's dagger [wren-dagger].\nThe player is by Sergeant Agnes Kell, the yard gate, Prout's satchel.\n\nthe lane [lane] (4 ft away):\n- the old elm [elm] (22 ft away)\n\nthe yard [yard] (the player is here):\n- Sergeant Agnes Kell [kell] (2 ft away): just inside the gate, notebook out\n- Cob [cob] (20 ft away): under the body, lobbing gutter stones at it\n  - Prout's good black boots [boots]\n    - a folded page sewn into the left boot's lining [ledger-page]\n  - a fistful of gutter stones [gutter-stones]\n- Moll [moll] (10 ft away): sitting on top of the yard wall\n  - a silver crown stamped with a wheat-ear [wheat-crown]\n- the yard wall [yard-wall] (7 ft away)\n- the yard gate [gate] (open; 4 ft away)\n- Prout's satchel [satchel] (open, empty; 2 ft away)\n- Prout's spectacles [spectacles] (bent; 4 ft away)\n- the granary's back wall [granary-wall] (26 ft away)\n- the hoist beam [hoist-beam] (22 ft away)\n  - the hoist rope [hoist-rope]\n    - Wendell Prout's body [prout] (hanging)\n- the loft door [loft-door] (closed, barred; 22 ft away)\n- the granary's yard doors [yard-doors] (closed, locked; 30 ft away)\n- the water butt [water-butt] (full; 26 ft away)\n- a loose board behind the water butt [loose-board] (29 ft away)\n\nthe tally loft (above the yard, inside the granary) [loft] (24 ft away):\n- the rope cleat [cleat] (27 ft away)\n- the tally desk [tally-desk] (33 ft away)\n  - the Royal Granary Roll [granary-roll] (chained)\n- a smashed lantern [smashed-lantern] (broken; 32 ft away)\n- a nest of sacking in the loft [cobs-nest] (42 ft away)\n- the grain stacks [grain-stacks] (dusty; 38 ft away)\n\nLately: Wren Ashdown now has 2 silver crowns; Wren Ashdown now has 6 shillings; Wren Ashdown now has 12 pennies.\n\nWho's who (the story may describe them without naming them):\n- Sergeant Agnes Kell [kell]: Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife;\n- Cob [cob]: A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string.\n- Moll [moll]: A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.\n\nThe player character is Wren Ashdown (id \"player\").\n\n## The latest exchange\nPlayer: Sergeant, who found him?\n\nGM: Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body."
+      "content": "## The world before this exchange\nThe yard behind the King's Granary: the player is in the yard.\nThe player carries: 2 silver crowns [silver-crowns], 6 shillings [shillings], 12 pennies [pennies], Wren's quarterstaff [wren-quarterstaff], Wren's dagger [wren-dagger].\nThe player is by Sergeant Agnes Kell, the yard gate, Prout's satchel.\n\nthe lane [lane] (4 ft away):\n- the old elm [elm] (22 ft away)\n\nthe yard [yard] (the player is here):\n- Sergeant Agnes Kell [kell] (2 ft away): just inside the gate, notebook out\n- Cob [cob] (20 ft away): under the body, lobbing gutter stones at it\n  - Prout's good black boots [boots]\n    - a folded page sewn into the left boot's lining [ledger-page]\n  - a fistful of gutter stones [gutter-stones]\n- Moll [moll] (10 ft away): sitting on top of the yard wall\n  - a silver crown stamped with a wheat-ear [wheat-crown]\n- the yard wall [yard-wall] (7 ft away)\n- the yard gate [gate] (open; 4 ft away)\n- Prout's satchel [satchel] (open, empty; 2 ft away)\n- Prout's spectacles [spectacles] (bent; 4 ft away)\n- the granary's back wall [granary-wall] (26 ft away)\n- the hoist beam [hoist-beam] (22 ft away)\n  - the hoist rope [hoist-rope]\n    - Wendell Prout's body [prout] (hanging)\n- the loft door [loft-door] (closed, barred; 22 ft away)\n- the granary's yard doors [yard-doors] (closed, locked; 30 ft away)\n- the water butt [water-butt] (full; 26 ft away)\n- a loose board behind the water butt [loose-board] (29 ft away)\n\nthe tally loft (above the yard, inside the granary) [loft] (24 ft away):\n- the rope cleat [cleat] (27 ft away)\n- the tally desk [tally-desk] (33 ft away)\n  - the Royal Granary Roll [granary-roll] (chained)\n- a smashed lantern [smashed-lantern] (broken; 32 ft away)\n- a nest of sacking in the loft [cobs-nest] (42 ft away)\n- the grain stacks [grain-stacks] (dusty; 38 ft away)\n\nLately: Wren Ashdown now has 2 silver crowns; Wren Ashdown now has 6 shillings; Wren Ashdown now has 12 pennies.\n\nWho's who (the story may describe them without naming them):\n- Sergeant Agnes Kell [kell]: Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife;\n- Cob [cob]: A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string.\n- Moll [moll]: A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.\n\nThe player character is Wren Ashdown (id \"player\").\n\n## The latest exchange\nPlayer: Sergeant, who found him?\n\nGM: Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle."
      }
     ],
     "reasoning": {
@@ -1329,9 +1422,9 @@
       "Cob",
       "Moll"
      ],
-     "recent_transcript": "GM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's investigator. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nWren Ashdown (player): Sergeant, who found him?\n\nGM: Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body.",
+     "recent_transcript": "GM: Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.\n\nWren Ashdown (player): Sergeant, who found him?\n\nGM: Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
      "latest_player_turn": "Sergeant, who found him?",
-     "latest_gm_reply": "Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body."
+     "latest_gm_reply": "Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle."
     },
     "questions": {
      "status": {

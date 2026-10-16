@@ -1,12 +1,46 @@
 {
  "step": "t2-settle",
  "line": "Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?",
- "choices": {
-  "attempt": "catch-moll"
+ "fake": {
+  "replies": [
+   "(Moll’s smirk thins at your question)[you: You told her that from the wall she’d have had her back to the hoist.]. [Moll] “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. [Sergeant Agnes Kell] “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses."
+  ],
+  "choices": {
+   "attempt": "catch-moll",
+   "line_2": "gives_away"
+  },
+  "byName": {
+   "notes": {
+    "notes": [
+     {
+      "on": "M1",
+      "words": "Moll’s smirk thins at your question",
+      "kind": "you",
+      "note": "You told her that from the wall she’d have had her back to the hoist.",
+      "turn": 2,
+      "lore": ""
+     },
+     {
+      "on": "L2",
+      "words": "The rest is not yet stated",
+      "kind": "why",
+      "note": "Kell writes down only what a witness says, word for word.",
+      "turn": 0,
+      "lore": ""
+     },
+     {
+      "on": "",
+      "words": "Her pencil pauses",
+      "kind": "you",
+      "note": "You once broke a pencil of hers.",
+      "turn": 0,
+      "lore": ""
+     }
+    ]
+   }
+  },
+  "suggestions": "say: Does Hobb owe you money, Moll?\nleave: (I leave the yard to the pigeons)\nsay: [Moll] “Fine.”\nsay: Moll, what did you see at midnight?\ndo: (I look up at the hoist beam)\ntry: (I try to catch the boy's eye without Moll seeing)"
  },
- "replies": [
-  "Moll's heels stop drumming on the bricks. [Moll] “All right. I didn't see him jump. Nobody did.” Her fist stays closed."
- ],
  "session": {
   "id": "golden-hanged-clerk",
   "sceneId": "hanged-clerk",
@@ -72,17 +106,43 @@
     "scene": "hanged-clerk",
     "speaker": "gm",
     "kind": "narration",
-    "text": "Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's investigator. The Captain calls it suicide.” A stone clangs off the hoist hook.",
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
     "marked": {
      "speech": [
       {
-       "start": 189,
-       "end": 255,
-       "tag": "Sergeant Agnes Kell",
+       "start": 239,
+       "end": 270,
+       "speaker": "cob"
+      },
+      {
+       "start": 442,
+       "end": 523,
+       "tag": "Sergeant Kell",
        "speaker": "kell"
       }
      ],
-     "marks": []
+     "marks": [
+      {
+       "start": 0,
+       "end": 25,
+       "kind": "know",
+       "note": "The granary yard is where the city's grain is counted before the palace takes its share.",
+       "link": {
+        "kind": "lore",
+        "path": "Places/Granary Yard.md"
+       }
+      },
+      {
+       "start": 252,
+       "end": 268,
+       "kind": "why",
+       "note": "The girl in the shawl has been jeering at him from the wall, so he throws harder.",
+       "link": {
+        "kind": "person",
+        "id": "cob"
+       }
+      }
+     ]
     }
    },
    {
@@ -97,21 +157,59 @@
     "scene": "hanged-clerk",
     "speaker": "gm",
     "kind": "narration",
-    "text": "Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body.",
+    "text": "Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
     "marked": {
      "speech": [
       {
-       "start": 30,
-       "end": 65,
+       "start": 24,
+       "end": 197,
+       "tag": "Sergeant Kell",
        "speaker": "kell"
       },
       {
-       "start": 76,
-       "end": 126,
+       "start": 240,
+       "end": 300,
        "speaker": "kell"
+      },
+      {
+       "start": 357,
+       "end": 406,
+       "tag": "Cob",
+       "speaker": "cob"
+      },
+      {
+       "start": 454,
+       "end": 490
+      },
+      {
+       "start": 530,
+       "end": 579,
+       "tag": "the girl in the shawl",
+       "speaker": "moll"
       }
      ],
-     "marks": []
+     "marks": [
+      {
+       "start": 454,
+       "end": 490,
+       "kind": "why",
+       "note": "He calls the watch bluebottles, and Sergeant Kell is the watch.",
+       "link": {
+        "kind": "person",
+        "id": "cob"
+       }
+      },
+      {
+       "start": 530,
+       "end": 579,
+       "kind": "why",
+       "note": "The girl in the shawl wants it to be a jump, and says so before anyone asks her.",
+       "link": {
+        "kind": "person",
+        "id": "moll"
+       }
+      }
+     ]
     }
    },
    {
@@ -133,14 +231,20 @@
     "scene": "hanged-clerk",
     "speaker": "gm",
     "kind": "narration",
-    "text": "Moll's heels stop drumming on the bricks. “All right. I didn't see him jump. Nobody did.” Her fist stays closed.",
+    "text": "Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.",
     "marked": {
      "speech": [
       {
-       "start": 42,
-       "end": 89,
+       "start": 37,
+       "end": 112,
        "tag": "Moll",
        "speaker": "moll"
+      },
+      {
+       "start": 146,
+       "end": 217,
+       "tag": "Sergeant Agnes Kell",
+       "speaker": "kell"
       }
      ],
      "marks": []
@@ -151,20 +255,20 @@
    {
     "turn": 1,
     "repairMs": 0,
-    "preDecisionMs": 17.78332899999998,
-    "firstTextMs": 33.431225999999924,
+    "preDecisionMs": 8.948553000000004,
+    "firstTextMs": 21.83432399999998,
     "followUpMs": null,
-    "resolvingTextMs": 33.431225999999924,
-    "replyMs": 21.323263999999995,
-    "postDecisionMs": 1.3086309999999912,
+    "resolvingTextMs": 21.83432399999998,
+    "replyMs": 16.29555400000004,
+    "postDecisionMs": 1.235420999999974,
     "costUsd": 0.0012000000000000001,
     "calls": 6,
     "markup": {
-     "quotes": 2,
-     "tagged": 0,
-     "marks": 0,
+     "quotes": 5,
+     "tagged": 3,
+     "marks": 1,
      "kinds": {
-      "why": 0,
+      "why": 1,
       "know": 0,
       "you": 0
      },
@@ -173,17 +277,17 @@
      "malformed": 0
     },
     "notes": {
-     "drafted": 0,
-     "written": 0,
-     "added": 0,
+     "drafted": 1,
+     "written": 2,
+     "added": 1,
      "costUsd": 0.0002,
-     "ms": 2.6911910000000034
+     "ms": 5.331116999999949
     }
    }
   ],
   "history": [],
   "rules": {
-   "pc": "01M518HX9J2WXAKV4MADG9MPEP",
+   "pc": "01M51G95ADF5J2PQ3B19KT60G5",
    "npcs": {},
    "prefer": [
     "arcana",
@@ -264,35 +368,34 @@
    ],
    "weapons": [
     {
-     "id": "01M518HX9N2PK9WY731H6FJ64Q",
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
      "name": "Quarterstaff"
     },
     {
-     "id": "01M518HX9PN1PT9HZMT9ZSP4ES",
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
      "name": "Dagger"
     },
     {
-     "id": "01M518HX9PPMM1TFFPKRKAJKAJ",
+     "id": "01M51G95AHTFAG3FGEHSAZJRE8",
      "name": "Unarmed Strike"
     }
    ],
    "features": [],
    "gear": [
     {
-     "id": "01M518HX9N2PK9WY731H6FJ64Q",
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
      "name": "Quarterstaff",
      "kind": "weapon",
      "slot": "mainHand"
     },
     {
-     "id": "01M518HX9PN1PT9HZMT9ZSP4ES",
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
      "name": "Dagger",
      "kind": "weapon"
     }
    ],
    "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
    "aliases": {
-    "cob": "the boy in the too-big boots",
     "tull": "the corporal"
    }
   },
@@ -1009,7 +1112,7 @@
       "in hand"
      ],
      "notes": [],
-     "gear": "01M518HX9N2PK9WY731H6FJ64Q"
+     "gear": "01M51G95AHBNJ8AV8ZWZMK2BBM"
     },
     "wren-dagger": {
      "id": "wren-dagger",
@@ -1021,7 +1124,7 @@
      ],
      "states": [],
      "notes": [],
-     "gear": "01M518HX9PN1PT9HZMT9ZSP4ES"
+     "gear": "01M51G95AHJNGCSFWKHB6FGCY6"
     }
    },
    "log": [
@@ -1190,6 +1293,26 @@
     }
    ]
   },
+  "suggestions": {
+   "scene": "hanged-clerk",
+   "turn": 1,
+   "lines": [
+    {
+     "kind": "do",
+     "text": "(I wave the boy over)"
+    },
+    {
+     "kind": "do",
+     "text": "(I look closely at the hoist)"
+    },
+    {
+     "kind": "try",
+     "text": "(I try to read the girl's face while she talks)"
+    }
+   ],
+   "ms": 10,
+   "costUsd": 0.00030000000000000003
+  },
   "sceneStatus": "on_track"
  },
  "calls": [
@@ -1201,7 +1324,7 @@
     "input": [
      {
       "role": "user",
-      "content": "## The world before this exchange\nThe yard behind the King's Granary: the player is in the yard.\nThe player carries: 2 silver crowns [silver-crowns], 6 shillings [shillings], 12 pennies [pennies], Wren's quarterstaff [wren-quarterstaff], Wren's dagger [wren-dagger].\nThe player is by Sergeant Agnes Kell, the yard gate, Prout's satchel.\n\nthe lane [lane] (4 ft away):\n- the old elm [elm] (22 ft away)\n\nthe yard [yard] (the player is here):\n- Sergeant Agnes Kell [kell] (2 ft away): just inside the gate, notebook out\n- Cob [cob] (20 ft away): under the body, lobbing gutter stones at it\n  - Prout's good black boots [boots]\n    - a folded page sewn into the left boot's lining [ledger-page]\n  - a fistful of gutter stones [gutter-stones]\n- Moll [moll] (10 ft away): sitting on top of the yard wall\n  - a silver crown stamped with a wheat-ear [wheat-crown]\n- the yard wall [yard-wall] (7 ft away)\n- the yard gate [gate] (open; 4 ft away)\n- Prout's satchel [satchel] (open, empty; 2 ft away)\n- Prout's spectacles [spectacles] (bent; 4 ft away)\n- the granary's back wall [granary-wall] (26 ft away)\n- the hoist beam [hoist-beam] (22 ft away)\n  - the hoist rope [hoist-rope]\n    - Wendell Prout's body [prout] (hanging)\n- the loft door [loft-door] (closed, barred; 22 ft away)\n- the granary's yard doors [yard-doors] (closed, locked; 30 ft away)\n- the water butt [water-butt] (full; 26 ft away)\n- a loose board behind the water butt [loose-board] (29 ft away)\n\nthe tally loft (above the yard, inside the granary) [loft] (24 ft away):\n- the rope cleat [cleat] (27 ft away)\n- the tally desk [tally-desk] (33 ft away)\n  - the Royal Granary Roll [granary-roll] (chained)\n- a smashed lantern [smashed-lantern] (broken; 32 ft away)\n- a nest of sacking in the loft [cobs-nest] (42 ft away)\n- the grain stacks [grain-stacks] (dusty; 38 ft away)\n\nLately: Wren Ashdown now has 2 silver crowns; Wren Ashdown now has 6 shillings; Wren Ashdown now has 12 pennies.\n\nWho's who (the story may describe them without naming them):\n- Sergeant Agnes Kell [kell]: Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife;\n- Cob [cob]: A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string.\n- Moll [moll]: A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.\n\nThe player character is Wren Ashdown (id \"player\").\n\n## The latest exchange\nPlayer: Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?\n\nRules (dice already rolled and applied to the world): Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure\n\nGM: Moll's heels stop drumming on the bricks. “All right. I didn't see him jump. Nobody did.” Her fist stays closed."
+      "content": "## The world before this exchange\nThe yard behind the King's Granary: the player is in the yard.\nThe player carries: 2 silver crowns [silver-crowns], 6 shillings [shillings], 12 pennies [pennies], Wren's quarterstaff [wren-quarterstaff], Wren's dagger [wren-dagger].\nThe player is by Sergeant Agnes Kell, the yard gate, Prout's satchel.\n\nthe lane [lane] (4 ft away):\n- the old elm [elm] (22 ft away)\n\nthe yard [yard] (the player is here):\n- Sergeant Agnes Kell [kell] (2 ft away): just inside the gate, notebook out\n- Cob [cob] (20 ft away): under the body, lobbing gutter stones at it\n  - Prout's good black boots [boots]\n    - a folded page sewn into the left boot's lining [ledger-page]\n  - a fistful of gutter stones [gutter-stones]\n- Moll [moll] (10 ft away): sitting on top of the yard wall\n  - a silver crown stamped with a wheat-ear [wheat-crown]\n- the yard wall [yard-wall] (7 ft away)\n- the yard gate [gate] (open; 4 ft away)\n- Prout's satchel [satchel] (open, empty; 2 ft away)\n- Prout's spectacles [spectacles] (bent; 4 ft away)\n- the granary's back wall [granary-wall] (26 ft away)\n- the hoist beam [hoist-beam] (22 ft away)\n  - the hoist rope [hoist-rope]\n    - Wendell Prout's body [prout] (hanging)\n- the loft door [loft-door] (closed, barred; 22 ft away)\n- the granary's yard doors [yard-doors] (closed, locked; 30 ft away)\n- the water butt [water-butt] (full; 26 ft away)\n- a loose board behind the water butt [loose-board] (29 ft away)\n\nthe tally loft (above the yard, inside the granary) [loft] (24 ft away):\n- the rope cleat [cleat] (27 ft away)\n- the tally desk [tally-desk] (33 ft away)\n  - the Royal Granary Roll [granary-roll] (chained)\n- a smashed lantern [smashed-lantern] (broken; 32 ft away)\n- a nest of sacking in the loft [cobs-nest] (42 ft away)\n- the grain stacks [grain-stacks] (dusty; 38 ft away)\n\nLately: Wren Ashdown now has 2 silver crowns; Wren Ashdown now has 6 shillings; Wren Ashdown now has 12 pennies.\n\nWho's who (the story may describe them without naming them):\n- Sergeant Agnes Kell [kell]: Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife;\n- Cob [cob]: A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string.\n- Moll [moll]: A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.\n\nThe player character is Wren Ashdown (id \"player\").\n\n## The latest exchange\nPlayer: Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?\n\nRules (dice already rolled and applied to the world): Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure\n\nGM: Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses."
      }
     ],
     "reasoning": {
@@ -1414,9 +1537,9 @@
       "Cob",
       "Moll"
      ],
-     "recent_transcript": "GM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's investigator. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nWren Ashdown (player): Sergeant, who found him?\n\nGM: Kell flips her notebook open. “The carter's lad, at first light,” she says. “Then those two turned up to throw stones at him.” She nods at the boy under the body.\n\nWren Ashdown (player): Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?\n\n[Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure]\n\nGM: Moll's heels stop drumming on the bricks. “All right. I didn't see him jump. Nobody did.” Her fist stays closed.",
+     "recent_transcript": "GM: Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.\n\nWren Ashdown (player): Sergeant, who found him?\n\nGM: Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.\n\nWren Ashdown (player): Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?\n\n[Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure]\n\nGM: Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.",
      "latest_player_turn": "Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?",
-     "latest_gm_reply": "Moll's heels stop drumming on the bricks. “All right. I didn't see him jump. Nobody did.” Her fist stays closed."
+     "latest_gm_reply": "Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses."
     },
     "questions": {
      "status": {
