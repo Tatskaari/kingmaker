@@ -126,7 +126,8 @@ test("observe and transcript: the scene, and everything said in it", () => {
   assert.equal(verbs.observe(game, seen), 0);
   assert.equal(verbs.transcript(game, all), 0);
   assert.match(seen.printed, /^MODE: scene\n\n\[The Hanged Clerk, morning\] Here: /);
-  assert.match(all.printed, /^MODE: transcript\n\n\[The Hanged Clerk\]\n\nThe yard behind the King's Granary/);
+  assert.match(seen.printed, /\n\nThis morning a palace clerk, Wendell Prout, was found hanged/);
+  assert.match(all.printed, /^MODE: transcript\n\n\[The Hanged Clerk\]\n\nThis morning a palace clerk, Wendell Prout, .* are some children\.\n\nThe yard behind the King's Granary/);
 });
 
 // ---------------------------------------------------------------------------------------------

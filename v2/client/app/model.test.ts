@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { creationRow, FIGHTER, gameRow, OFFER, sheetRow } from "../check/rows.ts";
 import { StubBackend } from "../check/stub.ts";
 import { YARD } from "../check/fixture.ts";
-import { AppModel, screenOf, type ScreenRows } from "./model.ts";
+import { AppModel, GONE, screenOf, type ScreenRows } from "./model.ts";
 
 /** No creation, no seat, nothing in. */
 const none: ScreenRows = { sheet: false, scene: false };
@@ -92,4 +92,15 @@ test("a refusal is said on the screen it came on: a line refused in a scene isn'
   backend.answers.continueGame = () => ({ code: "not_yours", text: "(That isn't one of your games.)" });
   await app.title.resume(gameRow(5n, "Wren Ashdown", "in The Hanged Clerk", 5));
   assert.equal(app.title.error, "(That isn't one of your games.)");
+});
+
+test("a game gone from under the player (deleted by its host, or the server started again with no data) falls back to the title, which says why", () => {
+  const backend = new StubBackend({ seat: { playerId: 9n, gameId: 4n, sceneId: 7n }, sheet: sheetRow(FIGHTER) }, YARD);
+  const app = new AppModel(backend, { campaign: "caerwyn", intent: "game" });
+  assert.equal(app.screen, "scene");
+
+  backend.set({ seat: undefined, sheet: undefined }, null);
+  assert.deepEqual([app.screen, app.title.error], ["title", GONE]);
+  app.go("new");
+  assert.equal(app.title.error, undefined);
 });

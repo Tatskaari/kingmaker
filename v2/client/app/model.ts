@@ -19,6 +19,9 @@ export type Intent = "title" | "new" | "creation" | "game";
 
 export type Screen = "title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene";
 
+/** What the title says when the game the player was in has gone from the server. */
+export const GONE = "(The game's server no longer has that game: carry on another, or start a new one.)";
+
 /** What the screen depends on, of the rows. */
 export interface ScreenRows {
   /** my_creation: where the character being made is, what the GM is working on, and whether the builds and the chosen one have come. */
@@ -158,6 +161,7 @@ export class AppModel implements AppPart {
 
   go(intent: Intent): void {
     this.intent = intent;
+    this.problem = undefined;
     this.shown = this.screenNow(this.backend.view());
     this.emit();
   }
@@ -167,14 +171,20 @@ export class AppModel implements AppPart {
     this.onQuit();
   }
 
-  /** The rows changed: the screens' models read them afresh, a character just made goes on to its sheet, and the scene follows. */
+  /**
+   * The rows changed: the screens' models read them afresh, a character just made goes on to its
+   * sheet, and the scene follows. A game whose seat goes from under the player (deleted by its host,
+   * or the server started again with no data) falls back to the title, which says why.
+   */
   private update(): void {
     this.rows = this.backend.home();
     const view = this.backend.view();
+    const was = this.shown;
     this.noteRefusal();
     this.onToTheSheet();
     this.followScene(view);
     this.shown = this.screenNow(view);
+    if (this.intent === "game" && was !== "title" && this.shown === "title") this.problem = GONE;
     this.emit();
   }
 
