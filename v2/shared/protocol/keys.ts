@@ -15,6 +15,12 @@ export const STEPS: readonly Step[] = ["open", "decide", "reply", "settle"];
  */
 export const idempotencyKey = (game: string, scene: bigint | string, turn: number, step: Step) => `${game}:s${scene}:t${turn}:${step}`;
 
+/**
+ * Whether a text is a game's id as the AI service takes one: a key's first part and a folder's name
+ * in its store. A letter or a digit, then letters, digits, dots, dashes and underscores: 100 at most.
+ */
+export const isGameId = (id: string) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(id);
+
 /** A key's parts, or undefined when it isn't one. */
 export function keyParts(key: string): { game: string; scene: string; turn: number; step: Step } | undefined {
   const m = /^(.+):s(\d+):t(\d+):(open|decide|reply|settle)$/.exec(key);

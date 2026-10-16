@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
-import { keyParts, type Step } from "../../shared/protocol/keys.ts";
+import { isGameId, keyParts, type Step } from "../../shared/protocol/keys.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
 import type { Faults } from "./config.ts";
@@ -211,7 +211,7 @@ function checkedKey(body: ThinkBody, step: Step, header: string | undefined): st
   if (parts.step !== step) throw new Failure(400, "bad_request", `${body.key} is a ${parts.step} key, not ${step}'s`);
   const game = body.game;
   if (!game || typeof game.campaign !== "string" || typeof game.version !== "string") throw new Failure(400, "bad_request", "the body has no game { id, campaign, version }");
-  if (game.id !== parts.game || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
+  if (game.id !== parts.game || !isGameId(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
   return body.key;
 }
 

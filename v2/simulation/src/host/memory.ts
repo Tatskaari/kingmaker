@@ -35,6 +35,10 @@ export interface MemoryHostOptions {
   ai: AiPost;
   /** The game's randomness: dice seeds and uuids. */
   seed?: number;
+  /** Where tx.uuid() comes from, in place of the seeded sequence: a source that repeats, as SpacetimeDB's generator does for about 3% of transactions. */
+  uuid?: () => string;
+  /** The database's own identity (tx.database()): another host may stand for another database. */
+  database?: Identity;
   /** AI_URL, AI_TOKEN, AI_IDENTITY: the defaults reach `ai` as the service below. */
   env?: Env;
 }
@@ -82,8 +86,10 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
   const clock = { now: new Timestamp(BigInt(START) * 1000n) };
   const logs: string[] = [];
   const random = randomness(options.seed ?? 1);
+  const uuid = options.uuid ?? random.uuid;
+  const database = (options.database ?? new Identity(0xdbn)).toHexString();
 
-  const txNow = (): TxCtx => ({ db: store.db, now: clock.now, env, uuid: random.uuid, seed: random.seed, log: line => logs.push(line) });
+  const txNow = (): TxCtx => ({ db: store.db, now: clock.now, env, database: () => database, uuid, seed: random.seed, log: line => logs.push(line) });
   const transact = <T>(body: (tx: TxCtx) => T): T => inTransaction(store, () => body(txNow()));
   const call = (body: (tx: TxCtx) => void): Refusal | undefined => refusalOf(() => transact(body));
 

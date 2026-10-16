@@ -13,7 +13,7 @@ import { schema, t, table } from "spacetimedb/server";
 
 export const game = table({ name: "game", public: true }, {
   id: t.u64().primaryKey().autoInc(),
-  /** tx.uuid(): the game's id in every AI request, key and folder. */
+  /** The game's id in every AI request, key and folder: unique by construction (new-game.ts gameUid), as g<id>-<time>-<database>-<uuid's first block>. */
   uid: t.string().unique(),
   campaign: t.string(),
   campaignVersion: t.string(),
