@@ -49,10 +49,10 @@ const V2 = resolve(import.meta.dirname, "..", "..", "v2");
 const TABLES: SceneTable[] = [hangedClerk, caerwynAfternoon, drownedRat, wharfNight, heronWarehouse, kingsMorning];
 
 /**
- * The story's quests by key, each with its title: the titles the scripts start them with
- * (hanged-clerk.ts:418, drowned-rat.ts:60), and the hanged clerk's, which nothing starts (the
- * prototype's quest log, src/world/quests.ts, titles a quest first advanced by its id): an exit may
- * advance one before any starts it.
+ * The story's quests by key, each with its title (campaign.json's quests): the titles the scripts
+ * start them with (hanged-clerk.ts:403, drowned-rat.ts:60), and for the hanged clerk's, which no
+ * script starts (its exits advance, complete or fail it), its scene's title. The prototype records
+ * quests and shows none; v2 shows them, so a quest an exit moves before any starts it needs a title.
  */
 const QUESTS: Record<string, string> = { "hanged-clerk": "The Hanged Clerk", "purveyors-man": "The Purveyor's Man", "heron-ledger": "The Heron Ledger" };
 

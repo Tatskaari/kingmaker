@@ -434,42 +434,432 @@
       "title": "Out with the true book",
       "next": "kings-morning",
       "text": "exits/proof-taken.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "give",
+          "what": "true-book",
+          "to": "$player"
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "taken"
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "complete",
+          "text": "Came out of the Heron warehouse with its true book."
+        },
+        {
+          "op": "quest",
+          "quest": "purveyors-man",
+          "do": "advance",
+          "stage": "proof",
+          "text": "The Heron's true book, initialled 'J.S.' on every page, ties Master Sallow to the King's 'lost' grain. The case can go to the King."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "The investigator came out of the Heron with the true book: every 'lost' wagon, initialled J.S."
+        },
+        {
+          "op": "remember",
+          "who": "sallow",
+          "text": "The King's investigator walked out of the Heron with the true book.",
+          "if": {
+            "established": "master-here"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "We have the Heron's true book. Every page is initialled J.S."
+        }
+      ]
     },
     "caught-in-the-act": {
       "kind": "progress",
       "title": "Caught in the act",
       "next": "kings-morning",
       "text": "exits/caught-in-the-act.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "remove",
+          "what": "sallow",
+          "text": "watch-house"
+        },
+        {
+          "op": "attitude",
+          "who": "sallow",
+          "to": "hostile",
+          "text": "Caught at the Heron with the King's grain by the King's investigator and a sergeant of the watch."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "She arrested Master Josiah Sallow at the Heron warehouse, caught with the King's grain."
+        },
+        {
+          "op": "give",
+          "what": "true-book",
+          "to": "$player",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "burned",
+          "if": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "taken",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "seen",
+          "if": {
+            "established": "book-seen"
+          },
+          "unless": {
+            "established": [
+              "book-gone",
+              "book-in-hand"
+            ]
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "purveyors-man",
+          "do": "advance",
+          "stage": "sallow_arrested",
+          "text": "Master Sallow was caught at the Heron warehouse with the King's grain, and Sergeant Kell arrested him."
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "complete",
+          "text": "Caught Master Sallow at the Heron with the King's grain."
+        },
+        {
+          "op": "journal",
+          "text": "We caught Sallow at the Heron with the King's grain, and Kell arrested him."
+        }
+      ]
     },
     "caught": {
       "kind": "other",
       "title": "The wharves are dangerous at night",
       "next": "kings-morning",
       "text": "exits/caught.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "attitude",
+          "who": "sallow",
+          "to": "hostile",
+          "text": "The King's investigator got into the Heron and saw too much."
+        },
+        {
+          "op": "remember",
+          "who": "sallow",
+          "text": "He had the King's investigator thrown out of the Heron the hard way."
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "burned",
+          "if": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "seen",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "seen",
+          "if": {
+            "established": "book-seen"
+          },
+          "unless": {
+            "established": [
+              "book-gone",
+              "book-in-hand"
+            ]
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "advance",
+          "stage": "caught",
+          "text": "Caught at the Heron by Master Sallow's men and got rid of the hard way."
+        },
+        {
+          "op": "journal",
+          "text": "Caught at the Heron. We're alive, which is something."
+        }
+      ]
     },
     "up-in-smoke": {
       "kind": "other",
       "title": "Up in smoke",
       "next": "kings-morning",
       "text": "exits/up-in-smoke.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "create",
+          "name": "Plume of smoke",
+          "kind": "feature",
+          "to": "floor",
+          "if": {
+            "established": "heron-ablaze"
+          }
+        },
+        {
+          "op": "note",
+          "what": "floor",
+          "text": "The Heron warehouse burned down on the eve of the Assembly, with the King's grain in it.",
+          "if": {
+            "established": "heron-ablaze"
+          }
+        },
+        {
+          "op": "note",
+          "what": "barge",
+          "text": "The Saltmere barge Patience sank at the Heron's wharf with the King's grain in her.",
+          "if": {
+            "established": "barge-sunk"
+          }
+        },
+        {
+          "op": "give",
+          "what": "true-book",
+          "to": "$player",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "taken",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "burned",
+          "if": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "burned",
+          "unless": {
+            "established": [
+              "book-in-hand",
+              "book-gone"
+            ]
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "The Heron went up in smoke (or its barge went down) on the eve of the Assembly, with the investigator in the middle of it. She'll have to write it up."
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "advance",
+          "stage": "up_in_smoke",
+          "text": "The Heron's grain is gone, but the true book came out with us.",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "fail",
+          "text": "The Heron's grain and its true book went up in smoke or down in the river.",
+          "if": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "fail",
+          "text": "The Heron's grain and its true book went up in smoke or down in the river.",
+          "unless": {
+            "established": [
+              "book-in-hand",
+              "book-gone"
+            ]
+          }
+        },
+        {
+          "op": "journal",
+          "text": "The Heron's night ended in fire and water, and all Caerwyn saw it."
+        }
+      ]
     },
     "barge-sails": {
       "kind": "leave",
       "title": "The barge sails",
       "next": "kings-morning",
       "text": "exits/barge-sails.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "give",
+          "what": "true-book",
+          "to": "$player",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "burned",
+          "if": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "taken",
+          "if": {
+            "established": "book-in-hand"
+          },
+          "unless": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "true_book",
+          "value": "seen",
+          "if": {
+            "established": "book-seen"
+          },
+          "unless": {
+            "established": [
+              "book-gone",
+              "book-in-hand"
+            ]
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "fail",
+          "text": "The Patience sailed with the King's grain before we could stop her.",
+          "if": {
+            "established": "book-gone"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "fail",
+          "text": "The Patience sailed with the King's grain before we could stop her.",
+          "unless": {
+            "established": [
+              "book-in-hand",
+              "book-gone"
+            ]
+          }
+        },
+        {
+          "op": "journal",
+          "text": "The Patience sailed on the ebb with the King's grain aboard."
+        }
+      ]
     },
     "fight": {
       "kind": "combat",
       "title": "Roll for initiative",
       "next": "kings-morning",
       "text": "exits/fight.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "startFight",
+          "enemies": [
+            {
+              "asset": "bandit",
+              "count": 2,
+              "leader": "sallow"
+            }
+          ],
+          "allies": [
+            "kell"
+          ],
+          "at": "floor",
+          "if": {
+            "established": "master-here"
+          }
+        },
+        {
+          "op": "startFight",
+          "enemies": [
+            {
+              "asset": "bandit",
+              "count": 6,
+              "leader": "hep"
+            }
+          ],
+          "allies": [
+            "kell"
+          ],
+          "at": "floor",
+          "unless": {
+            "established": "master-here"
+          }
+        }
+      ]
     }
   },
   "essentials": {

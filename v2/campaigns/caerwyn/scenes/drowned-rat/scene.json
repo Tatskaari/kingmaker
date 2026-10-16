@@ -749,35 +749,685 @@
       "title": "What Big Hobb knows",
       "next": "wharf-night",
       "text": "exits/hobb-talks.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "remove",
+          "what": "hobb",
+          "text": "heron-warehouse"
+        },
+        {
+          "op": "remember",
+          "who": "hobb",
+          "text": "He told the King's investigator what happened in the tally loft, and who his master is.",
+          "if": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "remember",
+          "who": "hobb",
+          "text": "He told the King's investigator what he did in the tally loft. He didn't say his master's name.",
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "promise",
+          "by": "hobb",
+          "to": "$player",
+          "text": "Open the Heron's river door to the player tonight and keep the gang off them.",
+          "if": {
+            "established": "hobb-inside"
+          }
+        },
+        {
+          "op": "create",
+          "name": "Hobb's river-door token",
+          "kind": "item",
+          "to": "$player",
+          "text": "A worn brass token on a greasy string, stamped with a heron. Shown at the grille of the Heron warehouse's river door, it lets the night gang in.",
+          "if": {
+            "established": "token-handed"
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while Master Sallow killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while his master (he wouldn't say the name) killed him, and hauled the rope. It's in her notebook as he said it.",
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "hobb_identified",
+          "value": "true"
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true"
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there."
+        },
+        {
+          "op": "quest",
+          "quest": "purveyors-man",
+          "do": "advance",
+          "stage": "hobb_talked",
+          "text": "Big Hobb Mallory says Master Sallow killed Prout in the tally loft while Hobb held his arms, and had Hobb hoist him; the stolen grain goes through the Heron warehouse.",
+          "if": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "purveyors-man",
+          "do": "advance",
+          "stage": "hobb_talked",
+          "text": "Big Hobb Mallory says his master killed Prout in the tally loft while Hobb held his arms, and had Hobb hoist him; the stolen grain goes through the Heron warehouse.",
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Big Hobb talked: he held Prout in the loft while Master Sallow killed him. The grain goes through the Heron warehouse, and tonight a barge is loading there.",
+          "if": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Big Hobb owned to the loft: he held Prout while his master killed him, and hauled the rope. The grain goes through the Heron warehouse, and tonight a barge is loading there.",
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "promise",
+          "by": "$player",
+          "to": "hobb",
+          "text": "See his mum taken in somewhere safe tonight, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Hobb's mum is to be fetched from the Shambles tonight and kept somewhere safe, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-out"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Prout's page was in Cob's boot all along: every 'lost' wagon countersigned 'J. Sallow, for the Royal Purveyor'.",
+          "if": {
+            "established": "page-out"
+          }
+        }
+      ]
     },
     "taken-in": {
       "kind": "progress",
       "title": "Taken in",
       "next": "wharf-night",
       "text": "exits/taken-in.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "remove",
+          "what": "hobb",
+          "text": "watch-house"
+        },
+        {
+          "op": "remember",
+          "who": "hobb",
+          "text": "Sergeant Kell arrested him outside the Drowned Rat for the clerk's death, with the King's investigator there."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "She arrested Big Hobb Mallory for Prout's murder outside the Drowned Rat and took him to the watch-house cells."
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while Master Sallow killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": [
+              "hobb-talked",
+              "master-named"
+            ]
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while his master (he wouldn't say the name) killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "create",
+          "name": "Hobb's river-door token",
+          "kind": "item",
+          "to": "$player",
+          "text": "A worn brass token on a greasy string, stamped with a heron. Shown at the grille of the Heron warehouse's river door, it lets the night gang in.",
+          "if": {
+            "established": "token-handed"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "hobb_identified",
+          "value": "true"
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "purveyors-man",
+          "do": "advance",
+          "stage": "hobb_arrested",
+          "text": "Big Hobb Mallory, the big man with the bandaged hand, is in the watch-house cells."
+        },
+        {
+          "op": "journal",
+          "text": "Kell took Big Hobb in. He's in the watch-house cells tonight."
+        },
+        {
+          "op": "promise",
+          "by": "$player",
+          "to": "hobb",
+          "text": "See his mum taken in somewhere safe tonight, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Hobb's mum is to be fetched from the Shambles tonight and kept somewhere safe, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-out"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Prout's page was in Cob's boot all along: every 'lost' wagon countersigned 'J. Sallow, for the Royal Purveyor'.",
+          "if": {
+            "established": "page-out"
+          }
+        }
+      ]
     },
     "hobb-fled": {
       "kind": "other",
       "title": "Hobb runs",
       "next": "wharf-night",
       "text": "exits/hobb-fled.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "remove",
+          "what": "hobb",
+          "text": "ran off up the river stairs into the city, to warn his master"
+        },
+        {
+          "op": "attitude",
+          "who": "hobb",
+          "to": "unfriendly",
+          "text": "The King's investigator frightened him out of the Drowned Rat."
+        },
+        {
+          "op": "remember",
+          "who": "hobb",
+          "text": "He ran from the Drowned Rat to warn Master Sallow that the King's investigator and a watch sergeant are asking about the loft."
+        },
+        {
+          "op": "flag",
+          "name": "hobb_identified",
+          "value": "true"
+        },
+        {
+          "op": "flag",
+          "name": "sallow_warned",
+          "value": "true"
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while Master Sallow killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": [
+              "hobb-talked",
+              "master-named"
+            ]
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while his master (he wouldn't say the name) killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Big Hobb ran from the Drowned Rat, and he'll have gone straight to his master."
+        },
+        {
+          "op": "promise",
+          "by": "$player",
+          "to": "hobb",
+          "text": "See his mum taken in somewhere safe tonight, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Hobb's mum is to be fetched from the Shambles tonight and kept somewhere safe, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-out"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Prout's page was in Cob's boot all along: every 'lost' wagon countersigned 'J. Sallow, for the Royal Purveyor'.",
+          "if": {
+            "established": "page-out"
+          }
+        }
+      ]
     },
     "thrown-out": {
       "kind": "other",
       "title": "Manners",
       "next": "wharf-night",
       "text": "exits/thrown-out.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "attitude",
+          "who": "nan-quill",
+          "to": "unfriendly",
+          "text": "Broke the house rules in the Drowned Rat."
+        },
+        {
+          "op": "remember",
+          "who": "nan-quill",
+          "text": "She threw the King's investigator out of the Rat with Manners, and barred them."
+        },
+        {
+          "op": "remove",
+          "what": "hobb",
+          "text": "heron-warehouse"
+        },
+        {
+          "op": "flag",
+          "name": "hobb_identified",
+          "value": "true",
+          "if": {
+            "established": "hobb-picked-out"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "hobb_identified",
+          "value": "true",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "hobb-picked-out"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while Master Sallow killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": [
+              "hobb-talked",
+              "master-named"
+            ]
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while his master (he wouldn't say the name) killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Thrown out of the Drowned Rat by Nan Quill and her cudgel, Manners."
+        },
+        {
+          "op": "promise",
+          "by": "$player",
+          "to": "hobb",
+          "text": "See his mum taken in somewhere safe tonight, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Hobb's mum is to be fetched from the Shambles tonight and kept somewhere safe, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-out"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Prout's page was in Cob's boot all along: every 'lost' wagon countersigned 'J. Sallow, for the Royal Purveyor'.",
+          "if": {
+            "established": "page-out"
+          }
+        }
+      ]
     },
     "gone-to-work": {
       "kind": "leave",
       "title": "Hobb goes to work",
       "next": "wharf-night",
       "text": "exits/gone-to-work.md",
-      "effects": []
+      "effects": [
+        {
+          "op": "remove",
+          "what": "hobb",
+          "text": "heron-warehouse"
+        },
+        {
+          "op": "flag",
+          "name": "hobb_identified",
+          "value": "true",
+          "if": {
+            "established": "hobb-picked-out"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "flag",
+          "name": "heron_known",
+          "value": "true",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "quest",
+          "quest": "heron-ledger",
+          "do": "start",
+          "title": "The Heron Ledger",
+          "text": "Big Hobb Mallory works nights for a gentleman at the Heron warehouse, at the downriver end of the wharves. If the King's 'lost' grain goes anywhere, it goes through there.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "knows-heron"
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while Master Sallow killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": [
+              "hobb-talked",
+              "master-named"
+            ]
+          }
+        },
+        {
+          "op": "remember",
+          "who": "kell",
+          "text": "In the Drowned Rat, Big Hobb Mallory owned that he held Prout's arms in the tally loft while his master (he wouldn't say the name) killed him, and hauled the rope. It's in her notebook as he said it.",
+          "if": {
+            "established": "hobb-talked"
+          },
+          "unless": {
+            "established": "master-named"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Big Hobb went off to his night's work at the bell without telling us what he knows."
+        },
+        {
+          "op": "promise",
+          "by": "$player",
+          "to": "hobb",
+          "text": "See his mum taken in somewhere safe tonight, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Hobb's mum is to be fetched from the Shambles tonight and kept somewhere safe, out of the Master's reach.",
+          "if": {
+            "established": "mum-safe"
+          }
+        },
+        {
+          "op": "give",
+          "what": "ledger-page",
+          "to": "$player",
+          "if": {
+            "established": "page-out"
+          }
+        },
+        {
+          "op": "journal",
+          "text": "Prout's page was in Cob's boot all along: every 'lost' wagon countersigned 'J. Sallow, for the Royal Purveyor'.",
+          "if": {
+            "established": "page-out"
+          }
+        }
+      ]
     }
   },
   "essentials": {
