@@ -4,6 +4,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { apiKey } from "../ai/llm/openrouter.ts";
+import { dollars } from "../ai/service/budget.ts";
 import { transports } from "../ai/service/calls.ts";
 import { campaigns } from "../ai/service/campaigns.ts";
 import { readConfig, type AiConfig } from "../ai/service/config.ts";
@@ -57,7 +58,8 @@ function configured(): AiConfig {
 
 const endpointsFor = (config: AiConfig): Endpoints => (config.gm === "canned" ? canned : pipeline);
 
-const ceilingOf = (config: AiConfig) => (config.dailyUsd > 0 ? `ceiling $${config.dailyUsd.toFixed(2)} a day` : "no ceiling");
+/** The ceiling as the 402's words and the dev screen say it (below a cent, to the hundredth of one). */
+const ceilingOf = (config: AiConfig) => (config.dailyUsd > 0 ? `ceiling ${dollars(config.dailyUsd)} a day` : "no ceiling");
 
 function listening(service: AiService, address: { host: string; port: number }): Promise<Server> {
   const server = createServer((req, res) => service.handle(req, res));
