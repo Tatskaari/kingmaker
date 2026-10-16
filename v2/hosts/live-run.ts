@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { connect } from "../client/net/connection.ts";
@@ -20,7 +20,10 @@ import { modelOf, runningStack } from "./live/stack.ts";
  *   npm run live -- --lines 4                 # V0's script: docs/live/v0-<date>.md
  *
  * It finds the stack by its ports (the dev host's unless told) and stops before a line that would
- * take the run past its budget (--budget, $0.10), judging a turn by the dearest so far.
+ * take the run past its budget (--budget, $0.10), judging a turn by the dearest so far. It never
+ * writes over a record without being told to (--force): a second run on the same day is recorded
+ * beside the first (v5-<date>-2.md), an --out already there is refused before anything is played,
+ * and a rehearsal on the fake model goes to runs/live/, which isn't committed.
  */
 
 const USAGE = `npm run live [-- options]
@@ -30,7 +33,9 @@ const USAGE = `npm run live [-- options]
   --port <n>         the dev stack's SpacetimeDB port (3300)
   --ai-port <n>      its AI service's port (8787)
   --stack <dir>      the dev stack's folder (else the one under runs/ on those ports)
-  --out <file>       where the record goes (docs/live/<script>-<date>.md)
+  --out <file>       where the record goes (docs/live/<script>-<date>.md, or beside it if that's there;
+                     a rehearsal's runs/live/<script>-<date>-rehearsal.md)
+  --force            write over a record already there
   --budget <usd>     stop before a line that would spend past this (0.10)
   --rehearse         run against a stack on the fake model (the record says so)`;
 
@@ -42,6 +47,7 @@ main(flagsOf(process.argv.slice(2))).then(() => process.exit(0), (error: unknown
 });
 
 async function main(flags: Flags): Promise<void> {
+  if (flags.outGiven && !flags.force && existsSync(flags.out)) throw new Error(`${shown(flags.out)} is already there: pass --force to write over it, or another --out`);
   const stack = runningStack(join(V2, "runs"), flags);
   const model = await modelOf(stack, flags.rehearse);
   const conn = await connect({ url: stack.ws, db: stack.db });
@@ -55,8 +61,11 @@ async function main(flags: Flags): Promise<void> {
   if (!run.game) throw new Error(run.stopped ?? "the game didn't open");
 
   const record = await recordOf(stack, run, { script: flags.script, date: flags.date, rehearse: flags.rehearse, lines: flags.lines, model });
-  writeRecord(flags.out, markdownOf(record, commandOf(flags)));
-  console.log(`\nRecorded ${shown(flags.out)}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
+  const out = flags.outGiven || flags.force ? flags.out : besideAny(flags.out);
+  const over = flags.force && existsSync(out);
+  writeRecord(out, markdownOf(record, commandOf(flags)), flags.force);
+  const beside = out !== flags.out ? ` (${shown(flags.out)} is already there: this is beside it)` : over ? " (over the record that was there)" : "";
+  console.log(`\nRecorded ${shown(out)}${beside}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
   conn.close();
 }
 
@@ -74,9 +83,19 @@ function shown(path: string): string {
   return rel.startsWith("..") ? path : rel;
 }
 
-function writeRecord(path: string, text: string): void {
+/** The record written: never over one already there unless `force` says so. */
+function writeRecord(path: string, text: string, force: boolean): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text);
+  writeFileSync(path, text, { flag: force ? "w" : "wx" });
+}
+
+/** The path, or the first free one beside it: v5-<date>-2.md, -3, … */
+function besideAny(path: string): string {
+  const free = (n: number): string => {
+    const next = n === 1 ? path : path.replace(/(\.md)?$/, `-${n}$1`);
+    return existsSync(next) ? free(n + 1) : next;
+  };
+  return free(1);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -85,7 +104,7 @@ function writeRecord(path: string, text: string): void {
 interface Flags {
   script: Script; lines: number; who: string; build: string;
   port: number; aiPort: number; portsGiven: boolean; stack?: string;
-  out: string; budget: number; rehearse: boolean; date: string;
+  out: string; outGiven: boolean; force: boolean; budget: number; rehearse: boolean; date: string;
 }
 
 function flagsOf(argv: string[]): Flags {
@@ -96,11 +115,13 @@ function flagsOf(argv: string[]): Flags {
   const lines = Number(values.lines ?? script.lines);
   if (!Number.isInteger(lines) || lines < 1 || lines > script.steps.length) usage(`--lines takes 1 to ${script.steps.length} for ${script.name}`);
   const date = new Date().toISOString().slice(0, 10);
+  // A rehearsal's record isn't one to commit: it goes with the rest of the run output.
+  const record = values.rehearse ? join(V2, "runs", "live", `${script.name}-${date}-rehearsal.md`) : join(V2, "docs", "live", `${script.name}-${date}.md`);
   return {
     script, lines, who: values.as ?? script.who, build: values.build ?? script.build,
     port: portOf(values.port, 3300, "--port"), aiPort: portOf(values["ai-port"], 8787, "--ai-port"), portsGiven: values.port !== undefined || values["ai-port"] !== undefined,
     ...(values.stack ? { stack: resolve(values.stack) } : {}),
-    out: resolve(values.out ?? join(V2, "docs", "live", `${script.name}-${date}.md`)),
+    out: resolve(values.out ?? record), outGiven: values.out !== undefined, force: !!values.force,
     budget: Number(values.budget ?? 0.1), rehearse: !!values.rehearse, date,
   };
 }
@@ -112,7 +133,7 @@ function valuesOf(argv: string[]) {
       options: {
         script: { type: "string" }, lines: { type: "string" }, as: { type: "string" }, build: { type: "string" },
         port: { type: "string" }, "ai-port": { type: "string" }, stack: { type: "string" },
-        out: { type: "string" }, budget: { type: "string" }, rehearse: { type: "boolean" }, help: { type: "boolean" },
+        out: { type: "string" }, force: { type: "boolean" }, budget: { type: "string" }, rehearse: { type: "boolean" }, help: { type: "boolean" },
       },
     }).values;
   } catch (e) {
