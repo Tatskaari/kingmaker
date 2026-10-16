@@ -1,4 +1,5 @@
-// Copied from the prototype's src/rules/builds.ts:246-295 (askThree, threeBuilds) and src/rules/dnd.ts:289-297 (chooseBuild) with createCharacter's choosing, settling and style (:393-398) as pickBuild, at 44c6d4a: the engine handed in (rules), ask required (null is offline), DEFAULTS[id].plays read through classDefault, the engine's half from v2/shared/rules.
+// Copied from the prototype's src/rules/builds.ts:246-295 (askThree, threeBuilds) and src/rules/dnd.ts:289-297 (chooseBuild) with createCharacter's choosing, settling and style (:393-398) as pickBuild, at 44c6d4a: the engine handed in (rules), ask required (null is offline), DEFAULTS[id].plays read through classDefault, the three made one at a time with a turn of the event loop between (the engine is synchronous here), the engine's half from v2/shared/rules.
+import { setImmediate as nextTurn } from "node:timers/promises";
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { BUILD_FIELDS, BUILD_GUIDE, BUILD_SCHEMA, buildMenu, classDefault, classesFor, srdId, throughEngine, type Build, type BuildOption, type Offer, type Rules } from "../../shared/rules/index.ts";
 import type { Ask } from "../llm/openrouter.ts";
@@ -58,8 +59,22 @@ export async function threeBuilds(rules: Rules, name: string, concept: string, l
     if (picked.length >= 3) break;
     if (!picked.some(p => p.raw.classId === d)) { const made = classDefault(d, concept); picked.push({ raw: made.build, plays: made.plays, from: "defaults" }); }
   }
-  const options3 = picked.map(p => ({ ...throughEngine(rules, p.raw, level, name), plays: p.plays, from: p.from }));
+  const options3 = await madeOneByOne(rules, picked, level, name);
   return { options: options3, ...(note ? { note } : {}) };
+}
+
+/**
+ * Each build made by the engine in a turn of the event loop of its own: a build takes up to 160 ms
+ * the first time its class is made, all of it synchronous, and the service is streaming other
+ * games' replies meanwhile (the prototype's engine calls were async, so its three gave way too).
+ */
+async function madeOneByOne(rules: Rules, picked: Array<{ raw: Partial<Build>; plays: string; from: BuildOption["from"] }>, level: number, name: string): Promise<BuildOption[]> {
+  const made: BuildOption[] = [];
+  for (const p of picked) {
+    await nextTurn();
+    made.push({ ...throughEngine(rules, p.raw, level, name), plays: p.plays, from: p.from });
+  }
+  return made;
 }
 
 // ---------------------------------------------------------------------------------------------
