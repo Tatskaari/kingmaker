@@ -9,7 +9,7 @@ const scratch = mkdtempSync(join(tmpdir(), "km-seam-"));
 process.env.KM_COST_LEDGER = join(scratch, "ledger.jsonl");
 delete process.env.KM_CALL_LOG;
 
-const { respond, sessionSpend } = await import("./openrouter.ts");
+const { respond, respondJson, sessionSpend } = await import("./openrouter.ts");
 const { JevDecider } = await import("./decide.ts");
 const { fakeFetch, fakeOpenRouter } = await import("./fake-openrouter.ts");
 
@@ -72,5 +72,35 @@ test("decisionDelayMs holds every decision that long", async () => {
   const fake = fakeFetch({ decisionDelayMs: 120 });
   const started = performance.now();
   await new JevDecider("typesafe/jev-1.13", "jev", { fetch: fake.fetch, apiKey: "k", cost: () => {} }).decide({}, { ooc: { instructions: "?", criteria: { in_character: "in", out_of_character: "out" } } }, "director.ooc");
+  assert.ok(performance.now() - started >= 110);
+});
+
+test("byNameDelayMs holds a structured call by its schema's name, and no other", async () => {
+  const fake = fakeFetch({ byName: { notes: { notes: [] } }, byNameDelayMs: { notes: 120 } });
+  const calls = { fetch: fake.fetch, apiKey: "k", cost: () => {} };
+  const ask = (name: string) => respondJson<{ notes: unknown[] }>({ operation: name, input: [{ role: "user", content: "?" }], json: { name, schema: { type: "object", properties: { notes: { type: "array" } }, required: ["notes"] } }, calls });
+  const done: string[] = [];
+  const started = performance.now();
+
+  const [notes] = await Promise.all([ask("notes").then(n => { done.push("notes"); return n; }), ask("world_ops").then(() => done.push("world_ops"))]);
+
+  assert.deepEqual(notes.notes, []);
+  assert.deepEqual(done, ["world_ops", "notes"]);
+  assert.ok(performance.now() - started >= 110);
+});
+
+test("suggestDelayMs holds the suggested lines, and not the GM's reply", async () => {
+  const fake = fakeFetch({ replies: ["Kell looks up."], suggestions: "- say: Who found him?", suggestDelayMs: 120 });
+  const calls = { fetch: fake.fetch, apiKey: "k", cost: () => {} };
+  const done: string[] = [];
+  const started = performance.now();
+
+  const [lines] = await Promise.all([
+    respond({ operation: "scene.suggest", instructions: "You suggest what the player might say or do next.", input: [{ role: "user", content: "?" }], calls }).then(r => { done.push("lines"); return r; }),
+    respond({ operation: "gm.reply", input: [{ role: "user", content: "Hello" }], calls }).then(() => done.push("reply")),
+  ]);
+
+  assert.equal(lines.text, "- say: Who found him?");
+  assert.deepEqual(done, ["reply", "lines"]);
   assert.ok(performance.now() - started >= 110);
 });

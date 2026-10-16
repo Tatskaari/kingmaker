@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/markup.ts:29-65 at 44c6d4a: the types only (the parser is the AI service's, ai/gm/markup.ts).
+// Copied from the prototype's src/runtime/markup.ts:29-65 and knowledge.ts:274 at 44c6d4a: the types only (the parser is the AI service's, ai/gm/markup.ts); a mark carries its card.
 
 /**
  * The GM's markup as the screen reads it: who says each line of a reply, and the notes on its
@@ -19,6 +19,9 @@ export type MarkLink =
   /** Something the player did: their own turn. */
   | { kind: "deed"; scene: string; turn: number };
 
+/** What a mark's popover shows of its link, under the note: only ever what the player knows. */
+export interface Card { title: string; lines: string[] }
+
 /** A note on a phrase of the reply: [start, end) in its text. */
 export interface Mark {
   start: number;
@@ -27,6 +30,11 @@ export interface Mark {
   /** The note, said to the player. What parseMarkup reads is the GM's own, which never reaches the screen: the one shown is written from what the player knows (src/runtime/notes.ts). */
   note: string;
   link?: MarkLink;
+  /**
+   * The link's card, written by the AI service with the note (the client has no docs), so it says
+   * what the player knew then. The prototype's popover reads it afresh each time it opens.
+   */
+  card?: Card;
 }
 
 /** A spoken line: [start, end) in the reply's text, its quote marks included. */

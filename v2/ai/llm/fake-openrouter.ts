@@ -15,6 +15,8 @@
  * - `phased`: structured calls answered in two phases, as Luna sometimes does: a "commentary" message
  *   of junk, then the answer as a "final_answer".
  * - `streamMs` and `decisionDelayMs`: a GM's reply written a word at a time, and a slow decider.
+ * - `byNameDelayMs` and `suggestDelayMs`: slow structured calls (by the schema's name: the notes on
+ *   a reply's marks), and slow suggested lines.
  *
  * Anything else asked of it is refused, so a test can't reach the real thing by accident. Two ways
  * in: `fakeOpenRouter` puts it in place of the process's fetch (the prototype's tests), and
@@ -27,7 +29,9 @@ const QUIET = ["none", "not_yet", "on_track", "in_character", "covered", "harmle
  * What the stand-in is told to answer. `odds`: how sure the decider is of a question's choice (0.97
  * otherwise), the rest shared among the others. `streamMs`: a streamed reply comes word by word over
  * this long (at once otherwise), as a model's does. `decisionDelayMs`: every decision waits this long
- * before it answers (a slow decider, for a test that needs a think in flight).
+ * before it answers (a slow decider, for a test that needs a think in flight). `byNameDelayMs`: a
+ * structured call waits this long, by its schema's name, before it answers; `suggestDelayMs`: so do
+ * the suggested lines (for a test that needs the notes or the lines still on their way).
  */
 export interface FakeOptions {
   replies?: string[];
@@ -40,6 +44,8 @@ export interface FakeOptions {
   phased?: string[];
   streamMs?: number;
   decisionDelayMs?: number;
+  byNameDelayMs?: Record<string, number>;
+  suggestDelayMs?: number;
 }
 
 /** The stand-in as a fetch of its own, with what it was asked and sent, in order. */
@@ -81,10 +87,13 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     }
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     const format = body.text?.format;
+    const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
+    const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
+    if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
     const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
-      : body.instructions?.startsWith("You suggest what the player might") ? suggestions[suggested++ % suggestions.length]!
+      : suggesting ? suggestions[suggested++ % suggestions.length]!
       : replies[next++ % replies.length]!;
     if (format && options.phased?.includes(format.name)) return phased(`${text.slice(0, 40)}"} \n\n the response is not valid json`, text);
     if (!body.stream) return json(completed(text));

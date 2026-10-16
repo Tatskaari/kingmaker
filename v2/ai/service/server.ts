@@ -52,7 +52,8 @@ export interface AiService {
   shutdown(graceMs?: number): Promise<void>;
 }
 
-const THINKS: Record<Endpoint, Step & keyof Endpoints> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
+/** Partial while the notes and suggest endpoints wait for their handlers (v5-design §3.6). */
+const THINKS: Partial<Record<Endpoint, Step & keyof Endpoints>> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */
