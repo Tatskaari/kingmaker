@@ -28,6 +28,8 @@ test("caerwyn is fit to install: its pack is the structure, its files every file
   assert.deepEqual(pack.scenes.map(s => s.scene.id), ["hanged-clerk"]);
   assert.match(pack.scenes[0]!.hook, /^This morning a palace clerk, Wendell Prout/);
   assert.deepEqual(pack.places.map(p => p.key), ["granary-yard"]);
+  assert.deepEqual(pack.maps.map(m => m.id), ["caerwyn", "drowned-rat", "heron", "palace"]);
+  assert.deepEqual([pack.campaign.start.map, pack.campaign.start.at], ["caerwyn", [42, 9]]);
   assert.deepEqual(Object.keys(pack.builds), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
   assert.equal(pack.looks.kell?.fg, "#6d9eeb");
   assert.equal(Object.keys(files).filter(p => p.startsWith("lore/")).length, 154);
@@ -116,4 +118,32 @@ test("campaign.json names its first scene and place, and a file that isn't JSON 
   assert.equal(checkCampaign(garbled).length, 1);
   assert.match(checkCampaign(garbled)[0]!, /^looks\.json isn't JSON/);
   assert.deepEqual(checkCampaign(changed("builds.json", undefined)), ["builds.json is missing"]);
+});
+
+test("the maps: each builds as the simulation builds it, its ways out land where a person can stand, and the story starts on one", () => {
+  const MAP = "maps/caerwyn.json";
+  const broken = changed(MAP, m => { m.grid[0] = `${m.grid[0]}Z`; });
+  const misnamed = changed("maps/palace.json", m => { m.id = "castle"; });
+  const nowhere = changed(MAP, m => { m.exits[0].to.map = "atlantis"; m.exits[1].to.at = { x: 2, y: 1 }; });
+  const strays = changed(MAP, m => { m.regions[0].rect.x = 63; m.regions[1].id = "granary-yard"; m.people[0].at = { x: 99, y: 0 }; m.people[1].times = ["teatime"]; });
+  const offStart = changed("campaign.json", c => { c.start.at = [2, 2]; });
+  const lostStart = changed("campaign.json", c => { c.start.map = "atlantis"; });
+
+  assert.deepEqual(checkCampaign(broken), ['maps/caerwyn.json: it doesn\'t build (caerwyn: no legend entry for "Z" at (64, 0))']);
+  assert.deepEqual(checkCampaign(misnamed), [
+    "maps/palace.json: its id castle isn't its file's name",
+    'maps/caerwyn.json: "Through the palace gate" goes to palace, which isn\'t one of the campaign\'s maps',
+  ]);
+  assert.deepEqual(checkCampaign(nowhere), [
+    'maps/caerwyn.json: "Through the palace gate" goes to atlantis, which isn\'t one of the campaign\'s maps',
+    'maps/caerwyn.json: "The Drowned Rat\'s door" lands on (2, 1) in drowned-rat, where nobody can stand',
+  ]);
+  assert.deepEqual(checkCampaign(strays), [
+    "maps/caerwyn.json: a palace guard at (99, 0) is off the map",
+    'maps/caerwyn.json: a palace guard\'s times ["teatime"] aren\'t times of day',
+    "maps/caerwyn.json: region granary-yard isn't inside the map",
+    "maps/caerwyn.json: region granary-yard is caerwyn's too",
+  ]);
+  assert.deepEqual(checkCampaign(offStart), ["campaign.json: it starts at (2, 2) on caerwyn, where nobody can stand"]);
+  assert.deepEqual(checkCampaign(lostStart), ["campaign.json: it starts on the map atlantis, which isn't one of its maps"]);
 });
