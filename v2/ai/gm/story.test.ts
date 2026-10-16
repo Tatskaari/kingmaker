@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { campaigns } from "../service/campaigns.ts";
@@ -25,9 +25,13 @@ function filesOf(dir: string): Record<string, string> {
   return files;
 }
 
+/** Where the tests' stores go, removed when they're done. */
+const scratch = mkdtempSync(join(tmpdir(), "km-story-"));
+after(() => rmSync(scratch, { recursive: true, force: true }));
+
 /** The campaign as the AI service has it once the install tool has PUT it. */
 async function installed() {
-  const stores = folderStores(mkdtempSync(join(tmpdir(), "km-story-")));
+  const stores = folderStores(mkdtempSync(join(scratch, "store-")));
   const all = campaigns(stores.campaigns, stores.docsRoot);
   await all.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   return all.use("caerwyn", "0.1.0");

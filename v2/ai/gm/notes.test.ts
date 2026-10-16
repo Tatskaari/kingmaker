@@ -1,7 +1,7 @@
 // Copied from the prototype's src/runtime/notes.test.ts at 44c6d4a, whole: the scenes come from the test story (fixtures.ts), the lore is the campaign's, and a session is a TurnView.
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
@@ -14,6 +14,7 @@ import { forReaders, notesInput, placeNotes, storyWords, type Drafted, type Writ
 import type { TurnView, ViewEntry } from "./view.ts";
 
 const overlays = mkdtempSync(join(tmpdir(), "km-notes-"));
+after(() => rmSync(overlays, { recursive: true, force: true }));
 configureDocs({ loreRoot: join(CAERWYN, "lore"), overlay: game => join(overlays, game) });
 
 /** A session some way into a scene: the player's turns and the GM's replies as they were shown. */
