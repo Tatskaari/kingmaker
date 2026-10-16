@@ -131,7 +131,7 @@ interface Timings { made: string[]; begins: number[]; checks: Array<{ what: stri
  * in a game of their own, while A talks in its game, each reply written over 3 s: A's drafts keep
  * arriving, no gap over 600 ms. The module's times for the engine (makeCharacter, begin, each
  * check) are printed, not held to v1-design §3.6's 100 ms: on an isolate that hasn't the
- * character's campaign loaded, begin or a check loads it first, 50-310 ms by its size (as built).
+ * character's campaign loaded, begin or a check loads it first, 36-330 ms by its size (as built).
  */
 export async function checksBesideAStream(stack: Stack, a: Player, fake: FakeOptions): Promise<void> {
   step("13. A character made and checks rolled beside another game's stream");
