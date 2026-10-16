@@ -1,0 +1,69 @@
+{
+  "about": "What npm run dev -- --fake plays when KM_AI_FAKE isn’t set (v5-design §3.10): the fake model’s options (ai/llm/fake-openrouter.ts), this field aside. The replies are the GM’s four golden ones (tools/v2/golden-replies.json), one a turn from the opening and round again after the fourth. The notes are the writer’s answer at every call, each on words only one reply has: a know and a why on the opening, two whys on the first reply, a you and a why on the second, a know on the third. Nine suggested lines, so that four are left after every reply once those offered last time are screened out, and a way out joins them after four lines. Every model call streams over 2 s (the reply, the stage manager, the notes, the lines); the notes wait 1.5 s more and the lines 0.8 s, so the lines come 2.8 s after the reply, as the prototype’s did live, and the notes 3.5 s after it, once the world has settled: “The GM makes a note…” shows for a moment, and a line can be typed through it.",
+  "replies": [
+    "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. [Sergeant Kell] “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
+    "Kell gives a small nod. [Sergeant Kell] “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. [Cob] “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”[why: You’re beside Sergeant Kell, the watch officer who has caught him twice before.]\n\nThe girl on the wall drums her heels. [the girl in the shawl] “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
+    "(Moll’s smirk thins at your question)[you: You told her that from the wall she’d have had her back to the hoist.]. [Moll] “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. [Sergeant Agnes Kell] “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.",
+    "(Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of (the Royal Purveyor’s office)[know: The office buys everything the palace eats and burns, by the King’s old right; its wheat-ear is on every palace wagon in the street.] rumbles past the gate."
+  ],
+  "byName": {
+    "notes": {
+      "notes": [
+        {
+          "on": "",
+          "words": "King’s Granary",
+          "kind": "know",
+          "note": "Where the palace’s grain is stored and counted, in the granary quarter.",
+          "turn": 0,
+          "lore": "D1"
+        },
+        {
+          "on": "",
+          "words": "I haven’t written that down.",
+          "kind": "why",
+          "note": "Kell won’t put the Captain’s verdict in her book until she has seen for herself.",
+          "turn": 0,
+          "lore": ""
+        },
+        {
+          "on": "",
+          "words": "And Cob don’t talk to bluebottles.",
+          "kind": "why",
+          "note": "On the street a bluebottle is the watch, and Sergeant Kell is the watch.",
+          "turn": 0,
+          "lore": ""
+        },
+        {
+          "on": "",
+          "words": "Moll’s smirk thins at your question",
+          "kind": "you",
+          "note": "You asked whether she really saw him jump from up on that wall.",
+          "turn": 2,
+          "lore": ""
+        },
+        {
+          "on": "",
+          "words": "The rest is not yet stated.",
+          "kind": "why",
+          "note": "Kell writes down only what has been said, not what anyone guesses.",
+          "turn": 0,
+          "lore": ""
+        },
+        {
+          "on": "",
+          "words": "the Royal Purveyor’s office",
+          "kind": "know",
+          "note": "It buys everything the palace eats and burns, by the King’s old right; its wheat-ear is on every palace wagon.",
+          "turn": 0,
+          "lore": "D18"
+        }
+      ]
+    }
+  },
+  "suggestions": "say: Sergeant, who found him, and when?\nsay: Cob, that's a good arm. Were you about here last night?\ndo: (I look up at the loft door above the hoist)\ntry: (I try to win the boy over with a friendly word and a coin, to hear what he saw)\nsay: Who's the girl on the wall?\nsay: Was the loft door shut like that when he was found?\ndo: (I walk once round the yard, looking at the ground under the hoist)\ntry: (I try to read the girl while Cob throws, to see if she's hiding something)\nleave: (I tell Kell I've seen enough for now and head back to the palace)",
+  "streamMs": 2000,
+  "byNameDelayMs": {
+    "notes": 1500
+  },
+  "suggestDelayMs": 800
+}

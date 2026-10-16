@@ -20,7 +20,7 @@ import { startStack, type Stack } from "./dev/stack.ts";
  */
 
 const USAGE = `npm run dev [-- options]
-  --fake                the fake model (no key, no cost)
+  --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, or KM_AI_FAKE when set
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
   --mode host|namespace detected when absent: host when ${AI_ADDRESS} is on this machine
@@ -118,7 +118,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
   const modeLine = s.mode === "namespace"
     ? `namespace mode (SpacetimeDB in a pasta namespace; ${AI_ADDRESS} is this machine's loopback)`
     : `host mode (${AI_ADDRESS} is on this machine)`;
-  const model = `${file.ai.model}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
+  const model = `${file.ai.model}${file.ai.model === "fake" ? ` (${fakeFrom()})` : ""}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
   // The two paths are the summary's; anything else wrong is listed under it.
   const failing = report.checks.filter(c => !c.ok && !c.name.includes("→"));
   return [
@@ -136,6 +136,11 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     ...(s.mode === "namespace" ? [`Tip:   sudo ip addr add ${AI_ADDRESS}/32 dev lo  runs the stack without a namespace (host mode)`] : []),
     "",
   ];
+}
+
+/** What the fake model plays, as startStack chooses it: the user's KM_AI_FAKE, else hosts/dev/fake.json. */
+function fakeFrom(): string {
+  return process.env.KM_AI_FAKE === undefined ? "hosts/dev/fake.json" : "KM_AI_FAKE";
 }
 
 // ---------------------------------------------------------------------------------------------
