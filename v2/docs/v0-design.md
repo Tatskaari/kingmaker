@@ -1053,6 +1053,6 @@ A re-check of V0 found it. `new_game` panicked with "Value with given unique ide
 
 V0 doesn't rely on it now. A game's uid is unique by construction (the table above). `tx.uuid()` stays the SDK's, for spread only: `context.ts` says never to use one alone where an id must be unique. `simulation/src/moves/new-game.test.ts` makes three games in one microsecond with a UUID that repeats, and game 1 in three databases. On a dev stack, 200 new games in a row made 200 uids and no panic. Six of them drew the 0xffffffff UUID, and three other UUIDs came twice each.
 
-`tx.uuid()` has no other use. The dice seed (`tx.seed()`, §6.4) comes from the same generator, so 3.1% of new games get the seed 147,483,648. Nothing needs a seed to be unique, so it stays: two such games roll the same dice, in the same order.
+`tx.uuid()` has no other use. The dice seed (`tx.seed()`, §6.4) comes from the same generator, drawn after the uid's UUID, so 3.1% of new games get the seed 321,894,031: on a dev stack, the one game in 150 that drew the 0xffffffff UUID had it. Nothing needs a seed to be unique, so it stays: two such games roll the same dice, in the same order.
 
 It's worth reporting upstream, to clockworklabs/SpacetimeDB: pcg32 should rotate with `>>>`, and one 32-bit seed a transaction is thin for a v4 UUID. It hasn't been reported from here.
