@@ -17,7 +17,7 @@ test("the stage manager is told what's settled, and that a reply recalling it is
   const world = viewAt(scene).world!;
   const fake = fakeFetch({ byName: { world_ops: { ops: [] } } });
   const settled = ["Moll traded the wheat-ear crown to the player for two silver crowns: it worked."];
-  await stageManage(world, { name: "Maud Harrow" }, "Who did he say this morning?", "Moll's eyes go to the hand that held the wheat-ear crown; now it holds two plain silver pieces.", { settled }, { fetch: fake.fetch, apiKey: "k" });
+  await stageManage(world, { name: "Maud Harrow" }, "Who did he say this morning?", "Moll's eyes go to the hand that held the wheat-ear crown; now it holds two plain silver pieces.", { settled }, { fetch: fake.fetch, apiKey: "k", log: () => {}, cost: () => {} });
 
   const body = fake.sent.find(b => b.text?.format?.name === "world_ops")!;
   const said = body.input!.map(m => m.content).join("\n");
@@ -30,7 +30,7 @@ test("the operations may name only the world's ids, and come back as written, si
   const op = { op: "move", what: "kell", to: "player", how: "", feet: 0, name: "", kind: "", text: "", add: [], remove: [], quantity: 0 };
   const fake = fakeFetch({ byName: { world_ops: { ops: Array.from({ length: 20 }, () => op) } } });
   const before = structuredClone(world);
-  const staged = await stageManage(world, { name: "Maud Harrow" }, "Over here, Sergeant.", "Kell comes over.", {}, { fetch: fake.fetch, apiKey: "k" });
+  const staged = await stageManage(world, { name: "Maud Harrow" }, "Over here, Sergeant.", "Kell comes over.", {}, { fetch: fake.fetch, apiKey: "k", log: () => {}, cost: () => {} });
 
   const schema = fake.sent[0]!.text!.format!.schema as { properties: { ops: { items: { properties: { what: { enum: string[] } } } } } };
   assert.deepEqual(schema.properties.ops.items.properties.what.enum, ["", ...Object.keys(world.entities).filter(id => id !== world.root)]);

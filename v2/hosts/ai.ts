@@ -35,18 +35,18 @@ async function main(): Promise<void> {
     log,
     exit: code => process.exit(code),
   });
-  const servers = await Promise.all(config.listen.map(address => listening(service, address)));
+  const servers = await Promise.all(config.listen.map(address => listening(service, address))).catch(cantListen);
 
   for (const server of servers) log(`[ai] listening on http://${hostPort(server)} (model ${config.model}, gm ${config.gm}, store ${config.store}${swept ? `, ${swept} old answers swept` : ""})`);
   if (!config.stdb.token) log("[ai] no KM_STDB_TOKEN: replies aren't streamed, and health?deep=1 can't call the module (the answers still work)");
   stopOnSignals(servers, service);
 }
 
-/** The config from the environment, with the key from its file when the environment has none; or the process ends saying what's wrong. */
+/** The config from the environment, with the key from its file when the environment has none (and a model will be asked); or the process ends saying what's wrong. */
 function configured(): AiConfig {
   try {
     const config = readConfig(process.env);
-    if (config.model === "openrouter" && !config.apiKey) config.apiKey = apiKey();
+    if (config.model === "openrouter" && config.gm === "pipeline" && !config.apiKey) config.apiKey = apiKey();
     return config;
   } catch (error) {
     console.error(`[ai] can't start: ${error instanceof Error ? error.message : String(error)}${/OPENROUTER_API_KEY/.test(String(error)) ? " (or run on the stand-in: KM_AI_MODEL=fake)" : ""}`);
@@ -62,6 +62,12 @@ function listening(service: AiService, address: { host: string; port: number }):
     server.once("error", reject);
     server.listen(address.port, address.host, () => resolve(server));
   });
+}
+
+/** A port taken, or an address that isn't this machine's (11.0.0.1 in host mode, before it's set up): the process ends saying which. */
+function cantListen(error: NodeJS.ErrnoException): never {
+  console.error(`[ai] can't listen: ${error.code ?? ""} ${error.message}`);
+  process.exit(1);
 }
 
 function hostPort(server: Server): string {

@@ -65,7 +65,7 @@ test("a request's calls go to its game's call log with its key and attempt, and 
 
 test("on the stand-in, each turn hears its own reply first, and the same turn always the same", async () => {
   const transport = transports("fake", { fake: { replies: ["Zero.", "One.", "Two."] } });
-  const first = async (turn: number) => (await respond({ operation: "gm.reply", input: [{ role: "user", content: "Hi" }], calls: transport(turn) })).text;
+  const first = async (turn: number) => (await respond({ operation: "gm.reply", input: [{ role: "user", content: "Hi" }], calls: { ...transport(turn), log: () => {}, cost: () => {} } })).text;
 
   assert.deepEqual([await first(0), await first(1), await first(2), await first(3), await first(1)], ["Zero.", "One.", "Two.", "Zero.", "One."]);
   assert.deepEqual(transports("openrouter", { apiKey: "sk-or-x", fake: {} })(4), { apiKey: "sk-or-x" });

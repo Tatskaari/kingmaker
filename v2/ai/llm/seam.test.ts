@@ -61,7 +61,7 @@ test("streamMs writes a reply a word at a time, over about that long", async () 
   const fake = fakeFetch({ replies: ["The boy glares at you from under the body."], streamMs: 160 });
   const shown: string[] = [];
   const started = performance.now();
-  const reply = await respond({ operation: "gm.reply", input: [{ role: "user", content: "Hello" }], onText: t => shown.push(t), calls: { fetch: fake.fetch, apiKey: "k" } });
+  const reply = await respond({ operation: "gm.reply", input: [{ role: "user", content: "Hello" }], onText: t => shown.push(t), calls: { fetch: fake.fetch, apiKey: "k", cost: () => {} } });
   assert.equal(reply.text, "The boy glares at you from under the body.");
   assert.equal(shown.length, 9);
   assert.ok(shown.every((t, i) => i === 0 || t.startsWith(shown[i - 1]!)), "the text only grows");
@@ -71,6 +71,6 @@ test("streamMs writes a reply a word at a time, over about that long", async () 
 test("decisionDelayMs holds every decision that long", async () => {
   const fake = fakeFetch({ decisionDelayMs: 120 });
   const started = performance.now();
-  await new JevDecider("typesafe/jev-1.13", "jev", { fetch: fake.fetch, apiKey: "k" }).decide({}, { ooc: { instructions: "?", criteria: { in_character: "in", out_of_character: "out" } } }, "director.ooc");
+  await new JevDecider("typesafe/jev-1.13", "jev", { fetch: fake.fetch, apiKey: "k", cost: () => {} }).decide({}, { ooc: { instructions: "?", criteria: { in_character: "in", out_of_character: "out" } } }, "director.ooc");
   assert.ok(performance.now() - started >= 110);
 });
