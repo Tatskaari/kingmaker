@@ -78,7 +78,7 @@ The Caerwyn arc. Solid arrows are the exits' `next`; a dotted arrow skips a scen
 
 ## How it fits
 
-`sceneById` ([index.ts:32](index.ts#L32)) is the only way in: it finds the scene in `SCENES` or `ZOO_SCENES`, or builds a talk from a companion's lore, and adds "an ending of their own" (`withImprovisedEnding`, [src/runtime/brief.ts](../src/runtime/brief.ts)). Everything that plays a scene goes through it: the runtime, the game core, the zoo, the evals and the scene harness. The scenes import the runtime's types and `withImprovisedEnding`, the world's script types ([src/world/dsl.ts](../src/world/dsl.ts)) and, for talks, the docs store ([src/lore/docs.ts](../src/lore/docs.ts)); the runtime imports `sceneById`. So scenes/ and src/runtime depend on each other.
+`sceneById` ([index.ts:40](index.ts#L40)) is the only way in: it finds the scene in `SCENES` or `ZOO_SCENES`, or builds a talk from a companion's lore, and adds "an ending of their own" (`withImprovisedEnding`, [src/runtime/brief.ts](../src/runtime/brief.ts)). Everything that plays a scene goes through it: the runtime, the game core, the zoo, the evals and the scene harness. The scenes import the runtime's types and `withImprovisedEnding`, the world's script types ([src/world/dsl.ts](../src/world/dsl.ts)) and, for talks, the docs store ([src/lore/docs.ts](../src/lore/docs.ts)); the runtime imports `sceneById`. So scenes/ and src/runtime depend on each other.
 
 Where a story scene sits on the map, and how its fight is set out, is the game's business: [src/game/map/places.ts](../src/game/map/places.ts), [src/game/town.ts](../src/game/town.ts) and [src/game/combat/](../src/game/combat/).
 
