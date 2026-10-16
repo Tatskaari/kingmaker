@@ -18,8 +18,10 @@ import { ask } from "./steps.ts";
  * (src/app/game.ts:487-823), each on the caller's own `creation` row: from a name and a concept,
  * through the builds and the backstory, to the game made from them. A move bumps the row's rev (but
  * set_backstory, the box's text as it's typed), so an answer asked for before it no longer lands;
- * the GM's part is a job of the creation's (creation/steps.ts). No move works on a creation that's
- * made but choose_again, which puts the made game away.
+ * the GM's part is a job of the creation's (creation/steps.ts). So a move made while the GM works
+ * either lets go of what it was doing (back, a new concept, another pick of their own) or waits for
+ * it (creation_busy): an answer dropped leaves nothing to clear busy but the move that dropped it.
+ * No move works on a creation that's made but choose_again, which puts the made game away.
  */
 
 /** "own:<species>,<class>,<subclass>,<background>": the QA console's own build (src/cli/qa.ts:123), the subclass optional. */
@@ -37,6 +39,9 @@ const TAKEN = "It's yours now: change anything you like.";
 
 /** Off to the backstory screen: whatever the last one showed is gone (toBackstory, game.ts:600). */
 const TO_BACKSTORY = { step: "backstory", proposal: undefined, issues: undefined, issue: 0, note: undefined, rewriting: undefined } as const;
+
+/** The GM asked for a story or its check: what was shown over the box (a draft, the check's issues) goes, so nothing is on show to take while it works. */
+const OVER_THE_BOX = { proposal: undefined, issues: undefined, issue: 0, note: undefined } as const;
 
 /**
  * A name and a concept to make a character from (offerBuilds, game.ts:500), in place of any the
@@ -120,7 +125,7 @@ export function setBackstoryReducer(tx: TxCtx, sender: Identity, { text }: { tex
 export function draftBackstoryReducer(tx: TxCtx, sender: Identity, { text }: { text: string }): void {
   const row = idle(creating(tx, sender));
   fitsTheBox(text);
-  ask(tx, row, "draft", { story: text, note: undefined });
+  ask(tx, row, "draft", { story: text, ...OVER_THE_BOX });
 }
 
 /** "Work it in" (workInStory, game.ts:638): the box's notes as a story in their voice, shown to take or leave. */
@@ -129,12 +134,12 @@ export function workInBackstoryReducer(tx: TxCtx, sender: Identity, { text }: { 
   fitsTheBox(text);
   if (!text.trim()) throw new Refused(refusal("nothing_to_work_in"));
   notTooLong(text);
-  ask(tx, row, "work", { story: text, note: undefined });
+  ask(tx, row, "work", { story: text, ...OVER_THE_BOX });
 }
 
 /** The draft (or the notes worked in) taken: the box has it now (takeProposal, game.ts:670). */
 export function takeProposalReducer(tx: TxCtx, sender: Identity, _args: Record<string, never>): void {
-  const row = creating(tx, sender);
+  const row = idle(creating(tx, sender));
   const proposal = proposalOf(row);
   if (!proposal) throw new Refused(refusal("not_now"));
   moveOn(tx, row, { story: proposal.text, version: row.version + 1, proposal: undefined, note: TAKEN });
@@ -142,7 +147,7 @@ export function takeProposalReducer(tx: TxCtx, sender: Identity, _args: Record<s
 
 /** The draft left: the box as it was (leaveProposal, game.ts:680). */
 export function leaveProposalReducer(tx: TxCtx, sender: Identity, _args: Record<string, never>): void {
-  const row = creating(tx, sender);
+  const row = idle(creating(tx, sender));
   if (!row.proposal) throw new Refused(refusal("not_now"));
   moveOn(tx, row, { proposal: undefined });
 }
@@ -157,7 +162,7 @@ export function finishBackstoryReducer(tx: TxCtx, sender: Identity, { text }: { 
   notTooLong(text);
   built(row);
 
-  const settled = { story: text, rewriting: undefined, again: false, issues: undefined, issue: 0, note: undefined };
+  const settled = { story: text, rewriting: undefined, again: false, ...OVER_THE_BOX };
   if (!text.trim()) return makeCharacter(tx, moveOn(tx, row, { ...settled, unchecked: undefined }));
   ask(tx, row, "check", settled);
 }
@@ -181,7 +186,7 @@ export function acceptFixReducer(tx: TxCtx, sender: Identity, _args: Record<stri
 
 /** The issue on show, to rewrite themselves: it stays over the box while they do, and Done checks it again (rewriteIssue, game.ts:747). */
 export function rewriteIssueReducer(tx: TxCtx, sender: Identity, _args: Record<string, never>): void {
-  const row = creating(tx, sender);
+  const row = idle(creating(tx, sender));
   const issue = issuesOf(row)?.[row.issue];
   if (!issue) throw new Refused(refusal("not_now"));
   rewrite(tx, row, issue);
@@ -247,7 +252,7 @@ function backFrom(row: CreationRow): CreationStage {
   return "concept";
 }
 
-/** The GM isn't working on it: a move that would start or end something else waits (creation_busy). */
+/** The GM isn't working on it: a move that would start or end something else waits (creation_busy), as moving the row on would drop the answer and leave busy set. */
 function idle(row: CreationRow): CreationRow {
   if (row.busy) throw new Refused(refusal("creation_busy"));
   return row;

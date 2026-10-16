@@ -290,6 +290,33 @@ test("rewriting an issue: it stays over the box, and Done checks the new words; 
   assert.deepEqual([JSON.parse(creationOf(host).rewriting!), creationOf(host).story], [nephew, "I'm the King's long-lost cousin."], "the quote isn't in the story now");
 });
 
+test("while the GM works on the backstory, nothing shown over the box is left to take or rewrite: its answer lands, and the GM is free again", async () => {
+  const busy = { code: "creation_busy", text: "(The GM is still working on it.)" };
+  const { host, script, tamsin } = await atBackstory();
+  host.as(tamsin).draftBackstory({ text: "" });
+  await host.drain();
+  assert.ok(creationOf(host).proposal);
+
+  host.as(tamsin).finishBackstory({ text: NEPHEW });
+  assert.deepEqual([creationOf(host).busy, creationOf(host).proposal], ["check", undefined], "Done takes the draft off the box");
+  assert.deepEqual([host.as(tamsin).takeProposal(), host.as(tamsin).leaveProposal(), host.as(tamsin).rewriteIssue()], [busy, busy, busy]);
+  await host.drain();
+  assert.deepEqual([creationOf(host).step, creationOf(host).busy, all(host.db.job)], ["made", undefined, []], "the check went on to the traits and the game");
+
+  const issues = await atBackstory();
+  issues.script.then("check", { checked: { ok: true, value: [{ quote: "nephew", problem: "No.", fix: "godson" }] }, usage: { calls: 1, costUsd: 0, byOperation: {} } });
+  issues.host.as(issues.tamsin).finishBackstory({ text: NEPHEW });
+  await issues.host.drain();
+  issues.host.as(issues.tamsin).draftBackstory({ text: NEPHEW });
+  assert.deepEqual([creationOf(issues.host).busy, creationOf(issues.host).issues], ["draft", undefined], "a draft asked for takes the issue off the box");
+  assert.deepEqual(issues.host.as(issues.tamsin).rewriteIssue(), busy);
+  await issues.host.drain();
+  assert.deepEqual([creationOf(issues.host).busy, !!creationOf(issues.host).proposal, all(issues.host.db.job)], [undefined, true, []]);
+  assert.equal(issues.host.as(issues.tamsin).leaveProposal(), undefined);
+  assert.equal(issues.host.as(issues.tamsin).finishBackstory({ text: NEPHEW }), undefined, "the GM is free for the next move");
+  assert.equal(script.to("check").length, 1);
+});
+
 test("a lore check nobody could make: the backstory goes in, and the sheet says why (as written, or with the fixes unchecked)", async () => {
   const unreachable = { checked: { ok: false, why: "The GM couldn't be reached to check it.", reason: "the GM couldn't be reached" }, usage: { calls: 0, costUsd: 0, byOperation: {} } };
 
