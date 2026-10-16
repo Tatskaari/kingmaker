@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
-import type { MapFile } from "../../shared/map/tiles.ts";
+import { inBounds, isStructure, mapOf, tileAt, type MapDef, type MapFile } from "../../shared/map/tiles.ts";
+import type { TileMap } from "../../shared/map/types.ts";
 import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { validateScene, type Scene } from "../../shared/scene/types.ts";
@@ -82,13 +83,14 @@ export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredP
     ...pack.places.flatMap((place, i) => placeProblems(place, pack.campaign.places[i]!)),
     ...buildProblems(pack.builds, rules),
     ...lookProblems(pack.looks, pack.scenes.flatMap(s => s.scene.cast.map(c => c.id))),
+    ...mapProblems(pack),
     ...vocabularyProblems(files, pack),
   ];
 }
 
 /**
- * A short account of a pack: "caerwyn 0.1.0: 1 scene (5 beats, 37 routes, 5 exits), 1 place, 154 lore
- * docs, 3 builds, 4 looks, the vocabulary of 25 scenes (44c6d4a)".
+ * A short account of a pack: "caerwyn 0.1.0: 1 scene (5 beats, 37 routes, 5 exits), 1 place, 4 maps,
+ * 154 lore docs, 3 builds, 4 looks, the vocabulary of 25 scenes (44c6d4a)".
  */
 export function describePack(pack: CampaignPack, files: CampaignFiles): string {
   const scenes = pack.scenes.map(({ scene }) => sceneOf(scene));
@@ -97,7 +99,7 @@ export function describePack(pack: CampaignPack, files: CampaignFiles): string {
   const lore = Object.keys(files).filter(p => p.startsWith("lore/")).length;
   const vocabulary = files[VOCABULARY] === undefined ? undefined : vocabularyOf(files[VOCABULARY]);
   return `${pack.campaign.id} ${pack.campaign.version}: ${count(scenes.length, "scene")} (${count(beats, "beat")}, ${count(routes, "route")}, ${count(exits, "exit")}), `
-    + `${count(pack.places.length, "place")}, ${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`
+    + `${count(pack.places.length, "place")}, ${pack.maps.length ? `${count(pack.maps.length, "map")}, ` : ""}${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`
     + (vocabulary && !Array.isArray(vocabulary) ? `, the vocabulary of ${count(vocabulary.scenes.length, "scene")} (${vocabulary.source})` : "");
 }
 
@@ -225,6 +227,72 @@ function lookProblems(looks: LooksFile, castIds: string[]): string[] {
     ...([...(look.glyph ?? "")].length === 1 ? [] : [`looks.json: ${id}'s glyph ${JSON.stringify(look.glyph)} isn't one character`]),
     ...(/^#[0-9a-f]{6}$/i.test(look.fg ?? "") ? [] : [`looks.json: ${id}'s colour ${JSON.stringify(look.fg)} isn't #rrggbb`]),
   ]);
+}
+
+/**
+ * The maps (map-design §3.1): each listed map's file named for its id, building as the simulation
+ * builds it (mapOf); its regions inside it, their ids unique across the maps (a scene's place is
+ * found by its region's id); its ways out to maps the campaign has, onto tiles there a person can
+ * stand on; its people somewhere on it, about at times of day. And the start on a map: one of
+ * them, on a tile a person can stand on.
+ */
+function mapProblems(pack: CampaignPack): string[] {
+  const problems: string[] = [];
+  // The campaign's maps by id, and those that build (a way out to one that doesn't is that map's problem, not the way's).
+  const ids = new Set(pack.maps.map(m => m.id));
+  const built = new Map<string, TileMap>();
+  pack.maps.forEach((file, i) => {
+    const key = pack.campaign.maps?.[i] ?? file.id;
+    const at = `maps/${key}.json`;
+    if (file.id !== key) problems.push(`${at}: its id ${file.id} isn't its file's name`);
+    let def: MapDef;
+    try {
+      def = mapOf(file);
+    } catch (e) {
+      problems.push(`${at}: it doesn't build (${(e as Error).message})`);
+      return;
+    }
+    built.set(file.id, def.map);
+    for (const p of file.people ?? []) {
+      if (!inBounds(def.map, p.at)) problems.push(`${at}: ${p.name} at (${p.at.x}, ${p.at.y}) is off the map`);
+      const odd = (p.times ?? []).filter(t => !TIMES.includes(t));
+      if (!p.times?.length || odd.length) problems.push(`${at}: ${p.name}'s times ${JSON.stringify(p.times)} aren't times of day`);
+    }
+  });
+  const regions = new Map<string, string>();
+  for (const [id, map] of built) {
+    const at = `maps/${id}.json`;
+    for (const r of map.regions) {
+      const inside = r.rect.x >= 0 && r.rect.y >= 0 && r.rect.w > 0 && r.rect.h > 0 && r.rect.x + r.rect.w <= map.width && r.rect.y + r.rect.h <= map.height;
+      if (!inside) problems.push(`${at}: region ${r.id} isn't inside the map`);
+      if (regions.has(r.id)) problems.push(`${at}: region ${r.id} is ${regions.get(r.id)}'s too`);
+      else regions.set(r.id, id);
+    }
+    for (const e of map.exits) {
+      const to = built.get(e.to.map);
+      if (!inBounds(map, e.at)) problems.push(`${at}: "${e.label}" at (${e.at.x}, ${e.at.y}) is off the map`);
+      if (!ids.has(e.to.map)) problems.push(`${at}: "${e.label}" goes to ${e.to.map}, which isn't one of the campaign's maps`);
+      else if (to && !standable(to, e.to.at)) problems.push(`${at}: "${e.label}" lands on (${e.to.at.x}, ${e.to.at.y}) in ${e.to.map}, where nobody can stand`);
+    }
+  }
+  const start = pack.campaign.start;
+  if (start.map !== undefined) {
+    const map = built.get(start.map);
+    const tile = start.at ? { x: start.at[0], y: start.at[1] } : undefined;
+    if (!ids.has(start.map)) problems.push(`campaign.json: it starts on the map ${start.map}, which isn't one of its maps`);
+    else if (!tile) problems.push(`campaign.json: it starts on ${start.map} but doesn't say where (start.at)`);
+    else if (map && !standable(map, tile)) problems.push(`campaign.json: it starts at (${tile.x}, ${tile.y}) on ${start.map}, where nobody can stand`);
+  } else if (start.at) problems.push("campaign.json: it says where to start (start.at) but not on which map");
+  return problems;
+}
+
+const TIMES: string[] = ["morning", "afternoon", "evening", "night", "next-morning"];
+
+/** Somewhere a person can stand: open ground, or a doorway that isn't locked (explore.ts's walkable). */
+function standable(map: TileMap, p: { x: number; y: number }): boolean {
+  if (!inBounds(map, p)) return false;
+  const t = tileAt(map, p);
+  return !t.blocks && (!isStructure(t) || t.terrain === "door");
 }
 
 // ---------------------------------------------------------------------------------------------

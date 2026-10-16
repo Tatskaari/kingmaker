@@ -1,11 +1,13 @@
-// New (K): where the copied map code meets the rows (v2/docs/map-design.md §3.4). Both sides build the prototype's ExploreState from the same rows with exploreOf (package M's), run the copied code on it, and write back what a move changed with exploreRowOf.
+// New (K, exploreOf M's): where the copied map code meets the rows (v2/docs/map-design.md §3.4). Both sides build the prototype's ExploreState from the same rows with exploreOf, run the copied code on it, and write back what a move changed with exploreRowOf.
 import type { TimeOfDay } from "../scene/files.ts";
-import type { PlaceRows } from "../world/rows.ts";
-import type { ExploreState, Follower } from "./explore.ts";
-import { notBuilt } from "./stub.ts";
+import { keysFor, pcKey, rowsToWorld, type PlaceRows } from "../world/rows.ts";
+import type { SceneWorld } from "../world/scene-world.ts";
+import { setStory, type ExploreState, type Follower } from "./explore.ts";
+import { getMap, useMaps } from "./maps.ts";
+import { captureScene, emptyOverlay } from "./reconcile.ts";
 import type { MapFile } from "./tiles.ts";
 import type { Unheard } from "./town.ts";
-import type { Tile2 } from "./types.ts";
+import type { StoryState, Tile2 } from "./types.ts";
 
 /** A player's `explore` row (schema.ts), its ids as strings: the prototype's ExploreState but the story, and what the last move said. */
 export interface ExploreRow {
@@ -65,9 +67,37 @@ export interface MapRows {
  * The prototype's ExploreState from rows: the maps in use (useMaps), the explore row's fields, the
  * story, the waiting places' worlds (ExploreState.waiting), the overlay made from the played places'
  * worlds with the copied captureScene, and the followers synced as setStory syncs them.
+ *
+ * Every place's world is rebuilt as the walker's (their character is `player` in it) and without
+ * the GM's notes, whatever the caller passed: the simulation and a client then build the same state
+ * from the same rows, and offer the same action ids.
  */
 export function exploreOf(rows: MapRows): ExploreState {
-  return notBuilt(`exploreOf (${rows.explore.map})`);
+  useMaps(rows.maps);
+  const e = rows.explore;
+  const story: StoryState = { time: rows.story.time, played: [...rows.story.played], ...(rows.story.lead ? { lead: rows.story.lead } : {}), flags: {} };
+  const pc = pcKey(e.playerId);
+  const worldOf = (p: MapPlace, scene: string): SceneWorld => rowsToWorld({ ...p.rows, gmNote: [] }, keysFor(p.key, scene, pc));
+  const waiting: Record<string, SceneWorld> = {};
+  let overlay = emptyOverlay();
+  for (const place of rows.places) {
+    if (!place.scene) continue;
+    if (place.scene.status === "waiting") waiting[place.scene.key] = worldOf(place, place.scene.key);
+    else if (place.scene.status === "ended" && place.region) {
+      const region = getMap(place.mapKey).regions.find(r => r.id === place.region);
+      if (region) overlay = captureScene(overlay, region, worldOf(place, place.scene.key), place.scene.time);
+    }
+  }
+  const ex: ExploreState = {
+    map: e.map, at: { ...e.at }, facing: { ...e.facing }, story, overlay,
+    followers: e.followers.map(f => ({ ...f, at: { ...f.at } })), steps: e.steps,
+    ...(e.scene ? { scene: e.scene } : {}), ...(e.hidden ? { hidden: true } : {}),
+    quips: e.quips, ...(e.lastQuip !== undefined ? { lastQuip: e.lastQuip } : {}), styles: [...e.styles],
+    ...(Object.keys(waiting).length ? { waiting } : {}),
+  };
+  // Who walks with the player follows the story (Kell, once the granary's done), as setStory has it.
+  setStory(ex, story);
+  return ex;
 }
 
 /** The most lines the explore row's log keeps (the prototype's town log: town.ts note). */

@@ -6,7 +6,12 @@
   "startPlace": "granary-yard",
   "start": {
     "day": 1,
-    "time": "morning"
+    "time": "morning",
+    "map": "caerwyn",
+    "at": [
+      42,
+      9
+    ]
   },
   "level": 3,
   "rulesPack": "starter-pack@0.1.0",
@@ -15,6 +20,12 @@
   ],
   "places": [
     "granary-yard"
+  ],
+  "maps": [
+    "caerwyn",
+    "drowned-rat",
+    "heron",
+    "palace"
   ],
   "startingPurse": [
     {
