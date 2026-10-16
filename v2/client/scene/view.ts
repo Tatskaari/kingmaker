@@ -1,6 +1,7 @@
 // New, with the prototype's src/app/game.ts:98-114 (Line, less look and scene), :163-170 (isRoll) and :1330-1339 (lineOf and header, as linesOf and liveOf) at 44c6d4a.
 import type { Markup } from "../../shared/markup.ts";
 import type { Suggestion } from "../../shared/protocol/ai.ts";
+import type { StoryView } from "../story/view.ts";
 
 export type { Suggestion };
 
@@ -56,6 +57,8 @@ export interface Draft {
 export interface Person { key: string; name: string; color?: string }
 
 export interface SceneView {
+  /** The scene's id (its row's): a summons, or a spectator following the lead, moves the seat on to another while this one is on screen. */
+  sceneId?: string;
   /** The scene's title, the time of day in a word, and the line under the title (the hook, or the lead that brought them). */
   title: string;
   time?: string;
@@ -77,6 +80,8 @@ export interface SceneView {
   mayType: boolean;
   /** The scene has ended: there's nothing more to say in it. */
   over: boolean;
+  /** Its combat exit is reached: the fight's stand-in is next, then the scene picks up from it (story-design §4.3). */
+  fighting?: boolean;
   /** A reply has closed the scene, which ends once the world has settled behind it: nothing more is said in it meanwhile. */
   ending?: boolean;
   /** The connection to the server has stopped trying, for good (the note says why, and what to do): the box stays shut. */
@@ -98,6 +103,8 @@ export interface SceneView {
   suggestionsOn: boolean;
   /** The GM is still writing the notes on the shown turn's reply: its marks come with them. */
   notesComing: boolean;
+  /** The story around the scene (story-design §4.5): the way on once it's over, the lead, the notebook, the quests, The End. None until the game's rows have come. */
+  story?: StoryView;
 }
 
 // -------------------------------------------------------------------------------------------------

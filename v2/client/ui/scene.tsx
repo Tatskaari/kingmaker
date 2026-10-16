@@ -1,15 +1,16 @@
-// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340) and the keys as written; the scene's place and its menu, the way on, talks' choices and glances go; it reads a SceneModel in place of the Game.
+// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340), the keys as written, transcriptRows (:116-127, less the look's notes), and once the scene is over its way on in place of the box (:230-256, onward and Continue, with the over-key handling at :459-466); the scene's place and its menu, talks' choices and glances go; it reads a SceneModel in place of the Game.
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState } from "react";
 import type { Markup } from "../../shared/markup.ts";
 import { MAX_LINE } from "../../shared/protocol/refusals.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
-import type { Style } from "../reply.ts";
+import { replyRows, type Style } from "../reply.ts";
 import type { SceneModel } from "../scene/model.ts";
-import type { Line, Suggestion } from "../scene/view.ts";
+import type { Line, SceneView, Suggestion } from "../scene/view.ts";
+import type { WayOn } from "../story/view.ts";
 import { C, MARK_LABEL, MARK_TINT } from "../theme.ts";
-import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, SCROLLBAR, Spinner, useStore, wrap, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, SCROLLBAR, Spinner, useStore, wayOnKey, wrap, type KeyHint } from "./common.tsx";
 import { Reply } from "./reply.tsx";
 
 /** The edge of a turn gone by; the latest has the panels' own. */
@@ -88,6 +89,18 @@ function Rule({ line }: { line: Line }) {
     <span fg={C.border}>{"──────── "}</span><span fg={C.system} attributes={ITALIC}>{ending}</span><span fg={C.border}>{" ────────"}</span>
   </text>;
   return <text marginBottom={1} wrapMode="word" flexShrink={0} fg={C.system}>{`— ${line.text} —`}</text>;
+}
+
+/** About how many rows a conversation takes at a width (for a panel sized to fit it): its turns, their borders, the gaps. */
+export function transcriptRows(lines: Line[], width: number): number {
+  const inner = width - 4;
+  const style: Style = { narration: "", speech: () => "", mark: () => "" };
+  return partsOf(lines).reduce((n, part) => {
+    if (part.kind !== "turn") return n + 1 + (part.kind === "header" ? 1 + wrap(part.line.text, width).length : 0);
+    const rows = part.lines.map((l, i) => (i ? 1 : 0) + (l.kind === "narration" && l.marked ? replyRows(l.text, l.marked, inner, style).length
+      : wrap(l.kind === "dialogue" ? `${l.name ?? l.speaker}: ${l.text}` : l.text, l.kind === "player" || isMarked(l) ? inner - 3 : inner).length));
+    return n + 2 + rows.reduce((a, b) => a + b, 0);
+  }, 0);
 }
 
 /** One exchange: the player's line (under their name, with a bar down its side), then all that answered it. */
@@ -187,12 +200,31 @@ function Picks({ picks, rows, width }: { picks: Pick[]; rows: number; width: num
 }
 
 /**
+ * In place of the box once the scene is over: the way on, to press or click when the player has
+ * finished reading (the prototype's Continue). Its hint in short where the whole won't fit (80 columns).
+ */
+function Continue({ way, onGo, width }: { way: WayOn; onGo: () => void; width: number }) {
+  const { title, go, ready, fight } = way;
+  const wait = `   (take your time: the last word stays put)`;
+  const hint = ready ? "   Enter, or click here" : go.length + wait.length + 6 <= width ? wait : "   (take your time)";
+  return <Clickable height={3} flexShrink={0} border borderColor={!ready ? C.border : fight ? C.danger : C.borderHot}
+    title={` ${title} `} titleAlignment="left" titleColor={fight ? C.danger : C.title} paddingX={1} onClick={onGo}>
+    <text>
+      <span fg={ready ? C.lead : C.faint}>{"▶ "}</span>
+      <span fg={!ready ? C.dim : fight ? C.danger : C.lead} attributes={ready ? BOLD : 0}>{go}</span>
+      <span fg={C.faint}>{hint}</span>
+    </text>
+  </Clickable>;
+}
+
+/**
  * A scene: the conversation on the left, with the box to type in; on the right, the character
  * whose scene it is, who's there and the game's number (a narrow panel at 80 columns, none below
  * it). The line under the conversation says what the GM is doing while it has the floor, or the
  * game's word (a refusal, or what the turn is waiting on). A spectator's box never opens: it says
  * who has the lead. Tab goes through the last reply's marked phrases, Enter opens the one picked
- * out, a click opens any.
+ * out, a click opens any. Once the scene is over (or its fight is next), the way on takes the box's
+ * place (story-design §4.5): an Enter of its own goes on, or a click.
  */
 export function SceneScreen({ scene }: { scene: SceneModel }) {
   useStore(scene);
@@ -200,7 +232,10 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   const [draft, setDraft] = useState("");
   const scroll = useRef<ScrollBoxRenderable>(null);
   const input = useRef<InputRenderable>(null);
+  /** The scene that's over whose keys have been looked at (to see what was in the box as it ended). */
+  const seen = useRef<SceneView | undefined>(undefined);
   const view = scene.view;
+  const way = scene.wayOn();
   /**
    * What's in the box now. The draft is as of the last render: keys that came in the same read as
    * this one (a paste, a fast typist, a browser's terminal) are in the input but not the draft yet.
@@ -247,9 +282,17 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   };
 
   useKeyboard(key => {
-    if (scene.overlay || key.defaultPrevented) return;
+    if (scene.overlay || scene.page !== "scene" || key.defaultPrevented) return;
     if (key.name === "pageup" || key.name === "pagedown") {
       scroll.current?.scrollBy((key.name === "pageup" ? -1 : 1) * Math.max(3, height - 12));
+    } else if (way && !(key.name === "tab" && scene.lastMarks().length) && !(scene.markFocus && (isEnter(key) || key.name === "escape"))) {
+      // Over: an Enter of its own goes on (or a click). A line was in the box as it ended? Its Enter only ends it.
+      if (seen.current !== view) { seen.current = view; if (typed().trim()) scene.typing = true; }
+      const what = wayOnKey(scene, key);
+      if (!what) return;
+      key.preventDefault();
+      if (what === "go") { clear(); scene.goOn(); }
+      else if (what === "line") { clear(); scene.status = "The scene was over, so that went unsaid. Enter goes on."; scene.emit(); }
     } else if (key.name === "escape") {
       // Esc lets go of what Tab picked out.
       if (scene.markFocus) { key.preventDefault(); scene.markFocus = undefined; scene.emit(); }
@@ -289,7 +332,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach,
   // or done with this session).
   const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
-  const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note;
+  // Once it's over, what the story's way on waits on (the GM lost, and asked again), or why it got stuck.
+  const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note ?? (way ? scene.story?.note : undefined);
   // The box, while it's shut: the game gone, the connection cut off, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
   const shut = scene.gone ? "The game is gone from the server." : view.cutOff ? "Cut off from the game's server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
     : view.watching ? `${view.watching} has the lead: you're watching.`
@@ -305,8 +349,9 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
     { text: "  (I check his pockets)", color: C.player },
   ];
   const keys: KeyHint[] = [
-    ...(toPick.length && typing === undefined ? [[`1–${toPick.length}`, "into the box"] as KeyHint] : []),
+    ...(way ? [["Enter", "go on", () => { clear(); scene.goOn(); }] as KeyHint] : toPick.length && typing === undefined ? [[`1–${toPick.length}`, "into the box"] as KeyHint] : []),
     ["/help", "", () => { scene.input("/help"); }],
+    ...(scene.story ? [["/journal", "", () => { scene.input("/journal"); }] as KeyHint] : []),
     ...(scene.lastMarks().length ? [["Tab", "marks"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],
     ["/quit", "", () => { scene.input("/quit"); }],
   ];
@@ -356,14 +401,14 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
     <box height={1} paddingX={1} flexShrink={0}>
       {busy && !said ? <Spinner label={busy} /> : <text fg={said ? C.warn : C.faint}>{said ?? " "}</text>}
     </box>
-    {kept ? <Picks picks={toPick} rows={kept} width={width - 2} /> : null}
-    <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
+    {kept && !way ? <Picks picks={toPick} rows={kept} width={width - 2} /> : null}
+    {way ? <Continue way={way} width={width} onGo={() => { clear(); scene.goOn(); }} /> : <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
       {/* As much as a turn takes (the simulation's limit): OpenTUI's own is 1,000, and it cut a longer line without a word. */}
       <input ref={input} scrollMargin={0.05} maxLength={MAX_LINE} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!scene.overlay}
         placeholder={!open ? shut : width - 4 >= HINT.length ? HINT : HINT_SHORT} />
-    </box>
+    </box>}
     <box height={1} paddingX={1} flexShrink={0}>
       {markLine ? <PointerLine title={markLine.title} detail={markLine.detail} width={width - 2} hint={markLine.hint} />
         : <Keys items={fit(keys, width - 2, width < 100 ? 3 : 5)} gap={width < 100 ? " · " : "  ·  "} />}

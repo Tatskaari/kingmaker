@@ -1,0 +1,141 @@
+[
+ {
+  "what": "kell, a notebook line, the boundary's lead, the Rat",
+  "friend": {
+   "id": "kell",
+   "name": "Sergeant Agnes Kell"
+  },
+  "args": {
+   "notebook": [
+    "Prout was murdered. The watch has it down as persons unknown."
+   ],
+   "lead": "The afternoon goes in statements; by dusk Kell has a name from the porters: Big Hobb, who drinks at the Drowned Rat.",
+   "next": {
+    "id": "drowned-rat",
+    "title": "The Drowned Rat"
+   },
+   "time": "evening"
+  },
+  "lines": [
+   {
+    "kind": "dialogue",
+    "speaker": "kell",
+    "name": "Sergeant Agnes Kell",
+    "text": "“For the record.” She reads the entry back to you, in the words of the record: “Prout was murdered. The watch has it down as persons unknown.” She looks at it a moment longer. “Noted.”"
+   },
+   {
+    "kind": "narration",
+    "speaker": "gm",
+    "text": "The afternoon goes in statements; by dusk Kell has a name from the porters: Big Hobb, who drinks at the Drowned Rat."
+   },
+   {
+    "kind": "dialogue",
+    "speaker": "kell",
+    "name": "Sergeant Agnes Kell",
+    "text": "“The Drowned Rat, then.” She writes it down. “I’ll walk with you: somebody has to write it down.”"
+   }
+  ]
+ },
+ {
+  "what": "kell, two notebook lines, no lead (PASSING), the Heron",
+  "friend": {
+   "id": "kell",
+   "name": "Sergeant Agnes Kell"
+  },
+  "args": {
+   "notebook": [
+    "Big Hobb named the Purveyor's man.",
+    "Hobb's mum is safe."
+   ],
+   "next": {
+    "id": "heron-warehouse",
+    "title": "The Heron Warehouse"
+   },
+   "time": "night"
+  },
+  "lines": [
+   {
+    "kind": "dialogue",
+    "speaker": "kell",
+    "name": "Sergeant Agnes Kell",
+    "text": "“For the record.” She reads the entry back to you, in the words of the record: “Big Hobb named the Purveyor's man. Hobb's mum is safe.” She looks at it a moment longer. “Noted.”"
+   },
+   {
+    "kind": "narration",
+    "speaker": "gm",
+    "text": "Evening turns into night the way it does in Caerwyn: without asking anyone."
+   },
+   {
+    "kind": "dialogue",
+    "speaker": "kell",
+    "name": "Sergeant Agnes Kell",
+    "text": "“The Heron Warehouse, then.” She writes it down. “If that barge sails on the ebb, so does the evidence. I’d rather it didn’t.”"
+   }
+  ]
+ },
+ {
+  "what": "kell, nothing in the notebook, no lead, somewhere she has no word for",
+  "friend": {
+   "id": "kell",
+   "name": "Sergeant Agnes Kell"
+  },
+  "args": {
+   "notebook": [],
+   "next": {
+    "id": "kings-morning",
+    "title": "The King's Morning"
+   },
+   "time": "next-morning"
+  },
+  "lines": [
+   {
+    "kind": "narration",
+    "speaker": "gm",
+    "text": "The night passes. Some of it is even spent asleep."
+   },
+   {
+    "kind": "dialogue",
+    "speaker": "kell",
+    "name": "Sergeant Agnes Kell",
+    "text": "“The King's Morning, then.” She writes it down. “After you, investigator. I’ll be writing.”"
+   }
+  ]
+ },
+ {
+  "what": "someone else, a line and a lead",
+  "friend": {
+   "id": "cob",
+   "name": "Cob"
+  },
+  "args": {
+   "notebook": [
+    "Cob kept the page."
+   ],
+   "lead": "Night falls on the wharf.",
+   "next": {
+    "id": "heron-warehouse",
+    "title": "The Heron Warehouse"
+   },
+   "time": "night"
+  },
+  "lines": [
+   {
+    "kind": "dialogue",
+    "speaker": "cob",
+    "name": "Cob",
+    "text": "“So,” says Cob. “Cob kept the page.”"
+   },
+   {
+    "kind": "narration",
+    "speaker": "gm",
+    "text": "Night falls on the wharf."
+   },
+   {
+    "kind": "dialogue",
+    "speaker": "cob",
+    "name": "Cob",
+    "text": "“The Heron Warehouse next.”"
+   }
+  ]
+ }
+]
