@@ -1,4 +1,5 @@
 // The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1897-1935 (speechColor and the marks), :2341-2344 (closeOverlay).
+import type { Backend } from "../backend.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { C } from "../theme.ts";
@@ -84,6 +85,20 @@ export class SceneModel {
     this.noteRefusal(view);
     if (onlyGrew(was, view)) this.emitSoon();
     else this.emit();
+  }
+
+  /**
+   * Kept to the game's rows: told of every change from now on, and first brought to the rows as they
+   * are now. The view the model was made from can be old by then (the screen reads its first view,
+   * then comes up), and a change in between (an opening that failed at once, a turn's note) would
+   * otherwise not show until another row changed. `gone` is what the status line says when the game
+   * has gone from the server. Returns the unsubscribe.
+   */
+  follow(game: Pick<Backend, "view" | "onChange">, gone: string): () => void {
+    const now = () => { const view = game.view(); if (view) this.update(view); else this.lose(gone); };
+    const stop = game.onChange(now);
+    now();
+    return stop;
   }
 
   /** No view: the game this screen showed has gone from the server. Its last view stays, its box shut, and `words` say why. */
