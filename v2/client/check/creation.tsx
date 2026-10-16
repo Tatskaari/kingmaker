@@ -184,7 +184,18 @@ async function create(checks: Array<[string, boolean]>, size: Size, show: boolea
   const again = await r.press(() => r.setup.mockInput.pressKey("n"));
   checks.push([`the create screen ${label(size)}: Esc, then New game: the refusal isn't said again`, r.app.screen === "create" && again.includes("Who are you?") && !again.includes("needs to be 300 characters")]);
   await r.setup.dispose();
+
+  // Back here when the builds didn't come: the fields as they were typed, and the row's note saying why, whole (what to do included).
+  const f = await open({ creation: creationRow({ step: "concept", note: CEILING }) }, "creation", size);
+  const failed = await f.settle();
+  if (show) console.log(`create, the builds failed ${label(size)}\n${failed}`);
+  checks.push([`the create screen ${label(size)}: back from builds that didn't come, the fields kept and the note saying why, whole`,
+    f.app.screen === "create" && flat(failed).includes(CEILING) && !failed.includes(`${DEFAULT_NAME} (Enter for the default)`) && failed.includes("Esc back")]);
+  await f.setup.dispose();
 }
+
+/** The ceiling's words, as a creation step past it fails in them (the PR's KM_AI_DAILY_USD=0.001). */
+const CEILING = "The GM has spent today's budget ($0.0010): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.";
 
 async function creating(checks: Array<[string, boolean]>, size: Size): Promise<void> {
   for (const [busy, line] of [["builds", "Three tailors take your measurements…"], ["pick", "Consulting the Standard Array…"], ["traits", "Writing you into the story…"]] as const) {
@@ -193,6 +204,12 @@ async function creating(checks: Array<[string, boolean]>, size: Size): Promise<v
     checks.push([`the creating screen ${label(size)}: busy ${busy}, who's being made and "${line}"`, s.app.screen === "creating" && frame.includes(NAME) && frame.includes("a disgraced palace auditor") && frame.includes(line)]);
     await s.setup.dispose();
   }
+  // The AI service out of reach: what the GM waits on, under the spinner, which goes on.
+  const lost = "The GM has lost the thread for a moment: trying again.";
+  const s = await open({ creation: creationRow({ busy: "builds", note: lost }) }, "creation", size);
+  const frame = await s.settle();
+  checks.push([`the creating screen ${label(size)}: the GM out of reach, the job's note under the spinner`, s.app.screen === "creating" && frame.includes(lost) && frame.includes("Three tailors take your measurements…")]);
+  await s.setup.dispose();
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/create.tsx at 44c6d4a: the screens read a CreationModel in place of the Game (the flow is the simulation's: client/creation/model.ts), LEVEL is the model's (the campaign's), and nothing is drawn over them (no overlay to wait for). Edits: the creating screen's WRITING lines are busy "traits"; the backstory's "(GM offline)" labels go (the answer says when the GM is offline) and a refusal comes before the row's note; the cards and their own build show a refusal in their note line; their own build waits for the engine's lists with a spinner; the sheet's r is there only when this creation made the game, and says "Start again" when there were no builds to choose from.
+// Copied from the prototype's src/app/ui/create.tsx at 44c6d4a: the screens read a CreationModel in place of the Game (the flow is the simulation's: client/creation/model.ts), LEVEL is the model's (the campaign's), and nothing is drawn over them (no overlay to wait for). Edits: the creating screen's WRITING lines are busy "traits"; the backstory's "(GM offline)" labels go (the answer says when the GM is offline) and a refusal comes before the row's note; the cards and their own build show a refusal in their note line; the create screen says why the GM's part came to nothing (the row's note, as the prototype's error did), and the creating screen what it waits on, each in two lines; their own build waits for the engine's lists with a spinner; the sheet's r is there only when this creation made the game, and says "Start again" when there were no builds to choose from.
 import type { KeyEvent, MouseEvent, TextareaRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
@@ -88,6 +88,8 @@ export function CreateScreen({ game }: { game: CreationModel }) {
   });
   const w = Math.min(width - 4, 100);
   const tall = height >= 30;
+  // A move's refusal; or, back here when the GM's part came to nothing (the builds, or its pick), the row's note saying why, as the prototype's error did.
+  const note = twoLines(game.error ?? game.creation?.note, w);
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     <text fg={C.title} attributes={BOLD}>Who are you?</text>
     <text fg={C.dim} attributes={ITALIC}>The King has lent you to a small matter of a hanged clerk. He didn't say who you were. You'd better.</text>
@@ -101,7 +103,7 @@ export function CreateScreen({ game }: { game: CreationModel }) {
       <text fg={C.dim}>{`Next: three level ${game.level} D&D builds that fit (SRD 5.2.1), or one of your own, then your backstory. For example:`}</text>
       {EXAMPLES.map((e, i) => <text key={i} fg={C.faint}>{`  · ${e}`}</text>)}
     </box>
-    <box width={w} height={1} marginTop={1} flexShrink={0} alignItems="center"><text fg={C.danger}>{game.error ?? ""}</text></box>
+    <box width={w} height={2} marginTop={1} flexShrink={0} flexDirection="column" alignItems="center">{note.map((l, i) => <text key={i} height={1} flexShrink={0} fg={C.danger}>{l}</text>)}</box>
     <box marginTop={tall ? 1 : 0}><Keys items={[["Tab", "switch field"], ["Enter", field === "name" ? "next" : "see three builds"], ["Esc", "back"]]} /></box>
   </box>;
 }
@@ -115,12 +117,16 @@ export function CreatingScreen({ game }: { game: CreationModel }) {
     const timer = setInterval(() => setLine(l => l + 1), 1800);
     return () => clearInterval(timer);
   }, []);
-  const lines = game.creation?.busy === "builds" ? MEASURING : game.creation?.busy === "traits" ? WRITING : ROLLING;
+  const c = game.creation;
+  const lines = c?.busy === "builds" ? MEASURING : c?.busy === "traits" ? WRITING : ROLLING;
   const concept = wrap(game.creating?.concept || DEFAULT_CONCEPT, Math.min(width - 4, 100)).slice(0, 3);
+  // What the GM's part waits on (the AI service out of reach, and asked again), under the spinner: it goes on.
+  const waiting = twoLines(c?.busy ? c.note : undefined, Math.min(width - 4, 100));
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     <text fg={C.title} attributes={BOLD}>{game.creating?.name || DEFAULT_NAME}</text>
     {concept.map((l, i) => <text key={i} fg={C.dim} attributes={ITALIC}>{l}</text>)}
     <box marginTop={2}><Spinner label={lines[line % lines.length]!} /></box>
+    <box height={2} marginTop={1} flexShrink={0} flexDirection="column" alignItems="center">{waiting.map((l, i) => <text key={i} height={1} flexShrink={0} fg={C.warn}>{l}</text>)}</box>
   </box>;
 }
 
@@ -147,11 +153,15 @@ export function cardSize(c: Creation, width: number, height: number, refused?: s
 
 const conceptLines = (c: Creation, width: number) => wrap(`${c.name}: ${c.concept}`, Math.min(width - 4, 120)).slice(0, 2);
 
-/** Why the three are the class defaults, when they are (or why a move wasn't made), in two lines at most (what it means comes first: the error after it gives way). */
+/** A note in two lines at most, the second cut short when there's more (what it means comes first: the detail after it gives way). */
+function twoLines(note: string | undefined, width: number): string[] {
+  const lines = note ? wrap(note, width) : [];
+  return lines.length > 2 ? [lines[0]!, `${lines[1]!.slice(0, width - 1)}…`] : lines;
+}
+
+/** Why the three are the class defaults, when they are (or why a move wasn't made), in two lines at most. */
 function offerNote(c: Creation, width: number, refused?: string): string[] {
-  const note = refused ?? c.offer?.note;
-  const lines = note ? wrap(note, Math.min(width - 4, 120)) : [];
-  return lines.length > 2 ? [lines[0]!, `${lines[1]!.slice(0, Math.min(width - 4, 120) - 1)}…`] : lines;
+  return twoLines(refused ?? c.offer?.note, Math.min(width - 4, 120));
 }
 
 /** Three builds that fit the concept, as cards: click one (or ←→ and Enter, or 1-3); or make their own; or back to the concept. */
