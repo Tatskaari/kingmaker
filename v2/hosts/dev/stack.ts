@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
+import { appendFileSync, mkdirSync, readlinkSync, rmSync } from "node:fs";
 import { connect } from "node:net";
 import { basename, join, relative, resolve } from "node:path";
 import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
@@ -30,7 +30,7 @@ export interface StackOptions {
   /** Detected when absent: host when 11.0.0.1 is this machine's. */
   mode?: Mode;
   model: "openrouter" | "fake";
-  /** The fake model's options (KM_AI_FAKE). Absent: the user's own KM_AI_FAKE, else hosts/dev/fake.json's. */
+  /** The fake model's options (KM_AI_FAKE). */
   fake?: FakeOptions;
   gm?: "pipeline" | "canned";
   /** The AI service in its podman image rather than as a node process. */
@@ -369,23 +369,8 @@ function aiEnvOf(options: StackOptions, ready: Ready, ids: Identities, paths: Pa
     KM_STDB_TOKEN: ids.ai.token,
     KM_AI_MODEL: options.model,
     ...(options.gm ? { KM_AI_GM: options.gm } : {}),
-    ...(options.model === "fake" ? { KM_AI_FAKE: fakeOf(options) } : {}),
+    ...(options.model === "fake" && options.fake ? { KM_AI_FAKE: JSON.stringify(options.fake) } : {}),
     ...(ready.key ? { OPENROUTER_API_KEY: ready.key } : {}),
     ...options.aiEnv,
   };
-}
-
-/**
- * The fake model's options, as KM_AI_FAKE: the caller's (the e2e scripts its own), else the user's
- * KM_AI_FAKE ('{}' is the bare stand-in), else what npm run dev -- --fake plays (devFake).
- */
-export function fakeOf(options: Pick<StackOptions, "fake">, env: NodeJS.ProcessEnv = process.env): string {
-  if (options.fake) return JSON.stringify(options.fake);
-  return env.KM_AI_FAKE ?? JSON.stringify(devFake());
-}
-
-/** hosts/dev/fake.json without its `about` (v5-design §3.10): the golden replies, with notes and suggested lines. */
-export function devFake(): FakeOptions {
-  const { about: _about, ...fake } = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8")) as FakeOptions & { about?: string };
-  return fake;
 }

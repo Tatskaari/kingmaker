@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import type { BuildsFile, CampaignFile } from "../shared/scene/files.ts";
 import { signalGroup } from "./dev/child.ts";
 import { reportLines, type DoctorReport } from "./dev/doctor.ts";
+import { fakeOptions } from "./dev/fake.ts";
 import { describeInstall } from "./dev/install.ts";
 import { AI_ADDRESS, type Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
@@ -20,7 +22,9 @@ import { startStack, type Stack } from "./dev/stack.ts";
  */
 
 const USAGE = `npm run dev [-- options]
-  --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, or KM_AI_FAKE when set
+  --fake                the fake model (no key, no cost): it plays hosts/dev/fake.json, the GM's golden
+                        replies with notes and suggested lines, each written over 2 s as a model's is;
+                        KM_AI_FAKE (JSON) goes on top: '{"streamMs":0}' answers at once
   --container           the AI service in its podman image (built from ai/Containerfile)
   --fresh               no data: SpacetimeDB's, the AI service's store, runs/play (the keys stay)
   --mode host|namespace detected when absent: host when ${AI_ADDRESS} is on this machine
@@ -36,6 +40,8 @@ const CAMPAIGN = join(V2, "campaigns", "caerwyn");
 const FAULT = "exit-after-store:any";
 
 const flags = flagsOf(process.argv.slice(2));
+/** The fake model's options, with --fake: fake.json's, KM_AI_FAKE's on top. */
+const fake = flags.fake ? fakeFor(process.env.KM_AI_FAKE) : undefined;
 const campaign = JSON.parse(readFileSync(join(CAMPAIGN, "campaign.json"), "utf8")) as CampaignFile;
 const builds = Object.keys(JSON.parse(readFileSync(join(CAMPAIGN, "builds.json"), "utf8")) as BuildsFile);
 const campaignId = `${campaign.id}@${campaign.version}`;
@@ -101,7 +107,8 @@ async function start(): Promise<Stack> {
   try {
     return await startStack({
       root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
-      model: flags.fake ? "fake" : "openrouter", ...(flags.gm ? { gm: flags.gm } : {}), container: flags.container, fresh: flags.fresh,
+      model: fake ? "fake" : "openrouter", ...(fake ? { fake } : {}),
+      ...(flags.gm ? { gm: flags.gm } : {}), container: flags.container, fresh: flags.fresh,
       sessions: join(V2, "runs", "play"), log: line => print(`  … ${line}`), signal: starting.signal,
     });
   } catch (e) {
@@ -118,7 +125,7 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
   const modeLine = s.mode === "namespace"
     ? `namespace mode (SpacetimeDB in a pasta namespace; ${AI_ADDRESS} is this machine's loopback)`
     : `host mode (${AI_ADDRESS} is on this machine)`;
-  const model = `${file.ai.model}${file.ai.model === "fake" ? ` (${fakeFrom()})` : ""}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
+  const model = `${file.ai.model}${fake && file.ai.gm !== "canned" ? ` (${fakeLine(fake)})` : ""}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
   // The two paths are the summary's; anything else wrong is listed under it.
   const failing = report.checks.filter(c => !c.ok && !c.name.includes("→"));
   return [
@@ -138,9 +145,19 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
   ];
 }
 
-/** What the fake model plays, as startStack chooses it: the user's KM_AI_FAKE, else hosts/dev/fake.json. */
-function fakeFrom(): string {
-  return process.env.KM_AI_FAKE === undefined ? "hosts/dev/fake.json" : "KM_AI_FAKE";
+/** --fake's options (dev/fake.ts); a KM_AI_FAKE that isn't JSON is said plainly. */
+function fakeFor(own: string | undefined): FakeOptions {
+  try {
+    return fakeOptions(own);
+  } catch (e) {
+    return fail((e as Error).message);
+  }
+}
+
+/** What the fake model plays, for the screen: "hosts/dev/fake.json, each reply written over 2 s". */
+function fakeLine(options: FakeOptions): string {
+  const from = process.env.KM_AI_FAKE ? "hosts/dev/fake.json with KM_AI_FAKE on top" : "hosts/dev/fake.json";
+  return `${from}, ${options.streamMs ? `each reply written over ${options.streamMs / 1000} s` : "replies at once"}`;
 }
 
 // ---------------------------------------------------------------------------------------------

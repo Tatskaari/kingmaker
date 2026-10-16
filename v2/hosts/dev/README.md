@@ -14,7 +14,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 
 | Flag | What |
 |---|---|
-| `--fake` | the fake model (`KM_AI_MODEL=fake`), playing `fake.json` (below) |
+| `--fake` | the fake model (`KM_AI_MODEL=fake`), playing [fake.json](fake.json) (below): the GM's golden replies with notes and suggested lines, each written over two seconds, as a model takes about that long, so you see it grow and `k` can land in it. `KM_AI_FAKE`'s options, JSON, go on top: `'{"streamMs":0}'` answers at once, `'{"replies":["…"]}'` gives the GM other words |
 | `--gm canned` | the AI service's canned GM: no model at all, for checking the plumbing |
 | `--container` | the AI service in its podman image, built from `ai/Containerfile` at every start |
 | `--fresh` | start with no data: deletes `runs/dev/stdb`, `runs/dev/ai` and `runs/play`. The keys stay, so the identities do |
@@ -44,7 +44,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 - **The suggested lines** come 2.8 s after each reply, as the prototype's did live: nine lines, of which four are offered each time (two to say, a deed, a risky try), since the lines offered last time are screened out. A way out joins them after four lines.
 - **Every model call streams** over 2 s: the reply, so you see it written, and the stage manager, the notes and the lines too. The notes wait 1.5 s more, and the lines 0.8 s.
 
-`KM_AI_FAKE` overrides the file when it's set: `KM_AI_FAKE='{}'` is the bare stand-in ("The GM nods. “Go on.”"), and `KM_AI_FAKE='{"streamMs":6000}'` a slow one. The e2e passes its own options.
+`KM_AI_FAKE`'s options go on top of the file's, key by key: `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines. The e2e passes its own options.
 
 ## Host mode and namespace mode
 

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { devFake, fakeOf } from "./stack.ts";
+import { devFake, fakeOptions } from "./fake.ts";
 
 const file = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8"));
 const fake = devFake();
@@ -37,8 +37,9 @@ test("each note is on free words of its own reply, so the same answer gives each
   assert.deepEqual(notes.filter(n => n.kind === "know").map(n => n.lore), ["D1", "D18"]);
 });
 
-test("KM_AI_FAKE is the caller's options, else the user's own, else fake.json's", () => {
-  assert.equal(fakeOf({ fake: { streamMs: 3000 } }, { KM_AI_FAKE: "{}" }), '{"streamMs":3000}');
-  assert.equal(fakeOf({}, { KM_AI_FAKE: "{}" }), "{}");
-  assert.deepEqual(JSON.parse(fakeOf({}, {})), fake);
+test("--fake plays fake.json's options, KM_AI_FAKE's on top, and says so when KM_AI_FAKE isn't JSON", () => {
+  assert.deepEqual(fakeOptions(undefined), fake);
+  assert.deepEqual(fakeOptions("{}"), fake);
+  assert.deepEqual(fakeOptions('{"streamMs":0,"suggestions":""}'), { ...fake, streamMs: 0, suggestions: "" });
+  assert.throws(() => fakeOptions("{ streamMs: 0"), /^Error: KM_AI_FAKE isn't JSON: \{ streamMs: 0$/);
 });
