@@ -33,7 +33,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 | `f` | restart it so it exits right after it stores its next answer, before answering (`KM_AI_FAULTS=exit-after-store:any`); `s` starts it again without the fault, and the retried request is answered from the store |
 | `p` | build and republish the module, then install the campaign again |
 | `d` | run the doctor |
-| `q`, Ctrl+C | stop the AI service, then SpacetimeDB. Press again to kill both at once |
+| `q`, Ctrl+C | stop the AI service, then SpacetimeDB. Press again to kill both at once. While the stack is still starting, Ctrl+C stops what has started |
 
 ## Host mode and namespace mode
 
@@ -92,4 +92,4 @@ await stack.stdb.stop(); await stack.stdb.start();
 await stack.down();
 ```
 
-`call` and `sql` work as the owner or the AI service. A refusal throws a `CallError` with the status (530) and the refusal's JSON.
+`call` and `sql` work as the owner or the AI service. A refusal throws a `CallError` with the status (530) and the refusal's JSON. `install` throws unless both services took the campaign. `StackOptions.signal` (an `AbortSignal`) stops a start under way and whatever it has started.
