@@ -159,7 +159,7 @@ test("the same push again: no dice, and a step on the path that the reply is tol
   const now = await line("You were never up that wall, Moll!", decided({ sameAgain: { route: "catch-moll", answer: "Moll sticks to her story." } }));
 
   assert.deepEqual(now.gm.path, [{ turn: 1, from: "yard", to: "yard", via: "same-again:catch-moll", source: "pre" }]);
-  assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, 0);
+  assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, 1, "the opening's coming to, and no roll since");
   assert.equal(now.lines.filter(l => l.kind === "roll").length, 0);
   assert.deepEqual((script.to("reply")[0]!.body as ReplyRequest).decision.sameAgain, { route: "catch-moll", answer: "Moll sticks to her story." });
 });

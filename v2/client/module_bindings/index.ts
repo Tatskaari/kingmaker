@@ -41,6 +41,7 @@ import ChooseBuildReducer from "./choose_build_reducer";
 import ContinueGameReducer from "./continue_game_reducer";
 import CreationBackReducer from "./creation_back_reducer";
 import DeleteGameReducer from "./delete_game_reducer";
+import DispatchWaitingReducer from "./dispatch_waiting_reducer";
 import DraftBackstoryReducer from "./draft_backstory_reducer";
 import FinishBackstoryReducer from "./finish_backstory_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
@@ -463,6 +464,7 @@ const reducersSchema = __reducers(
   __reducerSchema("continue_game", ContinueGameReducer),
   __reducerSchema("creation_back", CreationBackReducer),
   __reducerSchema("delete_game", DeleteGameReducer),
+  __reducerSchema("dispatch_waiting", DispatchWaitingReducer),
   __reducerSchema("draft_backstory", DraftBackstoryReducer),
   __reducerSchema("finish_backstory", FinishBackstoryReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),

@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_CONCEPT, MAX_LINE, MAX_NAME } from "../../../shared/protocol/refusals.ts";
-import { all, hostWithCampaign, http, identity, openedGame, sceneNow } from "../host/testing.ts";
+import { MAX_CONCEPT, MAX_LINE, MAX_NAME, MAX_STORY } from "../../../shared/protocol/refusals.ts";
+import { all, hostWithCampaign, http, identity, madeCharacter, openedGame, sceneNow } from "../host/testing.ts";
 
 /**
- * Every refusal a move makes (v0-design §3.4), in the game's words, and that a refused move writes
- * nothing.
+ * Every refusal a move makes (v0-design §3.4, v1-design §3.4), in the game's words, and that a
+ * refused move writes nothing.
  */
 
 const code = (refusal: { code: string } | undefined) => refusal?.code;
@@ -29,7 +29,7 @@ test("say: not in a game; while the scene opens; a spectator's line; nothing sai
   const { host } = hostWithCampaign();
   const wren = identity(1), stranger = identity(9), tamsin = identity(2);
 
-  assert.deepEqual(host.as(stranger).say({ text: "Hello" }), { code: "not_in_game", text: "(You're not in a game: start one with --new, or watch one with --join.)" });
+  assert.deepEqual(host.as(stranger).say({ text: "Hello" }), { code: "not_in_game", text: "(You're not in a game: start one, or watch someone's.)" });
   host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "", build: "ranger" });
   assert.deepEqual(host.as(wren).say({ text: "Hello" }), { code: "not_ready", text: "(The scene is still opening.)" });
   await host.drain();
@@ -95,4 +95,77 @@ test("stream_reply and install_campaign: only their callers", async () => {
   const { host, wren } = await openedGame();
   assert.equal(code(host.streamReply({ turnId: 1n, attempt: 1, seq: 1, speaker: "gm", text: "x", done: false }, wren)), "not_service");
   assert.deepEqual(host.as(wren).installCampaign({ id: "x@1", campaign: "{}", scenes: "[]", places: "[]", builds: "{}", looks: "{}" }), { code: "not_admin", text: "Only the database's owner may install a campaign." });
+});
+
+test("start_creation: no such campaign, a name missing or too long, a concept too long, no such way to choose a build", () => {
+  const { host } = hostWithCampaign();
+  const tamsin = identity(2);
+  const start = (args: Partial<{ campaign: string; name: string; concept: string; how: string }>) => host.as(tamsin).startCreation({ campaign: "caerwyn", name: "Tamsin", concept: "an auditor", how: "three", ...args });
+
+  assert.equal(code(start({ campaign: "nowhere" })), "no_campaign");
+  assert.equal(code(start({ name: " " })), "bad_name");
+  assert.equal(code(start({ name: "x".repeat(MAX_NAME + 1) })), "bad_name");
+  assert.deepEqual(start({ concept: "x".repeat(MAX_CONCEPT + 1) }), { code: "bad_concept", text: "(Your character's concept needs to be 300 characters or fewer.)" });
+  assert.deepEqual(start({ how: "four" }), { code: "bad_how", text: "(That isn't a way to make a character: three, model, or own:<species>,<class>,<subclass>,<background>.)" });
+  assert.equal(code(start({ how: "own:orc,rogue" })), "bad_how");
+  assert.deepEqual([all(host.db.creation).length, all(host.db.job).length], [0, 0], "nothing written");
+});
+
+test("the creation's moves: not making one, the GM still at work, nothing to choose from or take, a story too big or too long, nothing to work in", async () => {
+  const { host } = hostWithCampaign();
+  const tamsin = identity(2);
+  const as = host.as(tamsin);
+
+  assert.deepEqual(as.chooseBuild({ index: 0 }), { code: "not_creating", text: "(You're not making a character: New game starts one.)" });
+  assert.equal(code(as.setBackstory({ text: "x" })), "not_creating");
+  assert.equal(code(as.chooseAgain()), "not_creating");
+
+  as.startCreation({ campaign: "caerwyn", name: "Tamsin", concept: "an auditor", how: "three" });
+  assert.deepEqual(as.chooseBuild({ index: 0 }), { code: "creation_busy", text: "(The GM is still working on it.)" });
+  assert.equal(code(as.makeOwn({ from: 0 })), "creation_busy");
+  await host.drain();
+
+  assert.deepEqual(as.chooseBuild({ index: 3 }), { code: "not_offered", text: "(That isn't one of the builds on offer.)" });
+  assert.deepEqual(as.takeProposal(), { code: "not_now", text: "(That doesn't apply just now.)" });
+  for (const move of [as.leaveProposal, as.acceptFix, as.rewriteIssue, as.chooseAgain, as.takeOwn, as.skipBackstory]) assert.equal(code(move()), "not_now");
+  assert.equal(code(as.finishBackstory({ text: "A story." })), "not_now", "no build chosen to make it from");
+  assert.equal(code(as.pickOwn({ speciesId: "orc", classId: "rogue", backgroundId: "criminal" })), "not_now", "not making their own");
+
+  as.chooseBuild({ index: 0 });
+  const rev = host.view(tamsin).myCreation()!.rev;
+  assert.deepEqual(as.setBackstory({ text: "x".repeat(MAX_STORY + 1) }), { code: "story_too_big", text: "(That's more than the box can keep.)" });
+  assert.deepEqual(as.workInBackstory({ text: " \n " }), { code: "nothing_to_work_in", text: "There's nothing in the box to work in yet: write a few notes first, or Draft one." });
+  const long = "word ".repeat(2001);
+  assert.deepEqual(as.workInBackstory({ text: long }), { code: "story_too_long", text: "It's 2,001 words, and the GM reads all of it every turn: cut it to 2,000 or fewer." });
+  assert.equal(code(as.finishBackstory({ text: long })), "story_too_long");
+  assert.deepEqual([host.view(tamsin).myCreation()!.rev, host.view(tamsin).myCreation()!.story, all(host.db.job).length], [rev, "", 0], "nothing written");
+
+  as.draftBackstory({ text: "" });
+  assert.equal(code(as.finishBackstory({ text: "A story." })), "creation_busy");
+  assert.equal(code(as.skipBackstory()), "creation_busy");
+});
+
+test("own: taking it while the engine is still making it", () => {
+  const { host } = hostWithCampaign();
+  const pell = identity(3);
+  host.as(pell).startCreation({ campaign: "caerwyn", name: "Pell", concept: "a hedge-wizard", how: "own:gnome,wizard,evoker,sage" });
+  assert.deepEqual(host.as(pell).takeOwn(), { code: "still_making", text: "(The rules engine is still making it.)" });
+  assert.equal(code(host.as(pell).makeOwn({ from: 0 })), "creation_busy");
+});
+
+test("the games' moves: begin with no game or one already begun, a game that isn't theirs or doesn't exist, watching a game that hasn't begun", async () => {
+  const { host } = hostWithCampaign();
+  const tamsin = identity(2), stranger = identity(9);
+  assert.deepEqual(host.as(tamsin).begin(), { code: "not_in_game", text: "(You're not in a game: start one, or watch someone's.)" });
+
+  const { game } = await madeCharacter(host, tamsin);
+  assert.deepEqual(host.as(stranger).joinGame({ game: game.id }), { code: "not_begun", text: "(That game hasn't begun: its player is still making their character.)" });
+  assert.equal(code(host.as(tamsin).makeOwn({ from: 0 })), "not_creating", "made: only choose_again applies");
+  assert.deepEqual(host.as(stranger).continueGame({ game: game.id }), { code: "not_yours", text: "(That isn't one of your games.)" });
+  assert.equal(code(host.as(stranger).deleteGame({ game: game.id })), "not_yours");
+  assert.equal(code(host.as(stranger).continueGame({ game: 404n })), "unknown");
+
+  assert.equal(host.as(tamsin).begin(), undefined);
+  assert.deepEqual(host.as(tamsin).begin(), { code: "already_begun", text: "(The story has already begun.)" });
+  assert.equal(host.as(stranger).joinGame({ game: game.id }), undefined, "begun: there's something to watch");
 });

@@ -33,10 +33,14 @@ test("the module imports shared, vendor, spacetimedb and itself; only index.ts a
   assert.deepEqual(wrong, []);
 });
 
-test("the module's code reads no clock and no outside randomness", () => {
+/** The one clock the module reads: index.ts's for TxCtx.elapsedMs, the timing log lines' (v1-design §3.6), never written to a row. */
+const LOG_CLOCK = { file: "index.ts", line: "const hostMs = () => Date.now();" };
+
+test("the module's code reads no clock and no outside randomness (but the timing log lines' clock)", () => {
   const banned = /\bMath\.random\b|\bDate\b|\bperformance\.now\b|\bprocess\./;
   const found = moduleCode.flatMap(file => readFileSync(join(SRC, file), "utf8").split("\n")
-    .map((line, i) => ({ line: line.replace(/\/\/.*$/, "").replace(/^\s*\*.*$/, ""), at: `${relative(SRC, join(SRC, file))}:${i + 1}` }))
-    .filter(({ line }) => banned.test(line)).map(({ at, line }) => `${at}: ${line.trim()}`));
+    .map((line, i) => ({ line: line.replace(/\/\/.*$/, "").replace(/^\s*\*.*$/, ""), at: `${relative(SRC, join(SRC, file))}:${i + 1}`, file }))
+    .filter(({ line, file }) => banned.test(line) && !(file === LOG_CLOCK.file && line.trim() === LOG_CLOCK.line))
+    .map(({ at, line }) => `${at}: ${line.trim()}`));
   assert.deepEqual(found, []);
 });

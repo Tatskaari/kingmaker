@@ -22,7 +22,7 @@ import { placeRows, writePlace } from "./rows-io.ts";
 /** The most operations the gate takes from one settle (the stage manager's own cut, stage.ts:93). */
 const MAX_OPS = 16;
 
-/** What a character starts the game with: the campaign's purse, their build's gear (engine item instances, v1-design §3.6). Only the game's first scene hands it out. */
+/** What a character starts the game with: the campaign's purse, and their gear as rules_state has it, but what's gone (engine item instances, v1-design §3.6). Only the game's first scene hands it out. */
 export interface Start { purse: CampaignFile["startingPurse"]; gear: GearRow[] }
 
 /** A place's world as a commit works on it: the rows it was rebuilt from, and the keys that map the two. */
@@ -31,9 +31,10 @@ export interface PlaceWorld { rows: PlaceRows; world: SceneWorld; keys: Keys }
 /**
  * The place a scene opens in, written as rows: its world built from the place's file with the cast
  * present placed as it says, the controller's character in it, and what they start with in their
- * hands. Returns the place and the character's entity.
+ * hands. Returns the place, the character's entity, and the world as built (their pockets are read
+ * from it).
  */
-export function openPlace(tx: TxCtx, game: GameRow, placeKey: string, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined): { placeId: bigint; characterId: bigint } {
+export function openPlace(tx: TxCtx, game: GameRow, placeKey: string, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined): { placeId: bigint; characterId: bigint; world: SceneWorld } {
   const file = placeFileOf(tx, game, placeKey);
   const present = presentCast(graph, gm);
   const world = buildWorld(graph.id, file, present.map(c => ({ id: c.id, name: c.name })), { name: controller.name });
@@ -43,7 +44,7 @@ export function openPlace(tx: TxCtx, game: GameRow, placeKey: string, graph: Sce
 
   const keys = keysFor(file.key, graph.id, pcKey(controller.id));
   const written = writePlace(tx, worldToRows(world, keys), { gameId: game.id, called: calledIn(graph) });
-  return { placeId: written.placeId, characterId: written.idOf(keys.controller) };
+  return { placeId: written.placeId, characterId: written.idOf(keys.controller), world };
 }
 
 /** A scene's place, read: its rows and the world rebuilt from them, the controller's character as "player". */

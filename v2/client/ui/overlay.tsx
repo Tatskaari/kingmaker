@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :163-172, :190-191): the mark's popover and the help only, HELP.scene trimmed to this client's commands.
+// Cut from the prototype's src/app/ui/overlay.tsx at 44c6d4a (:40-48, :83, :110-116, :163-172, :190-191): the mark's popover and the help only, HELP.scene trimmed to this client's commands and to what V0 shows (no marks, no ⓘ lines).
 import type { MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { ReactNode } from "react";
@@ -7,10 +7,14 @@ import { C } from "../theme.ts";
 import { Keys, useStore, type KeyHint } from "./common.tsx";
 import { MarkPopover } from "./popover.tsx";
 
-/** How to play a scene (the prototype's src/app/ui/overlay.tsx HELP.scene, with what this client has). */
+/**
+ * How to play a scene (the prototype's src/app/ui/overlay.tsx HELP.scene, with what this client has).
+ * The GM's marks and the rules' ⓘ lines come back with the verticals that make them (V5, V1): V0's
+ * replies have no marks, and its only rules' lines are the dice.
+ */
 const HELP = [
   "Type and press Enter. Plain words are what you say, out loud, to whoever's there: Who paid you, then? *Asterisks* or (brackets) are what you do: *looks over my shoulder*, (I cast Fireball). Talk and do in the same breath if you like.",
-  "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Underlined words are the GM's marks (on coral, why someone acts as they do; teal, something you'd know; lavender, something you did): click one, or Tab to it and press Enter, for a note from what you know. Rolls happen when the story needs them (🎲 lines); ⓘ lines are things changing: what you carry, what's on fire, what you are now.",
+  "The GM narrates and plays everyone else, each person's lines in their colour (gold italics for anyone not here). Rolls happen when the story needs them (🎲 lines).",
   "/help this · /retry carries on a turn the GM lost · /quit leaves (the game is kept). PgUp/PgDn (or the mouse wheel) scroll the conversation.",
 ];
 

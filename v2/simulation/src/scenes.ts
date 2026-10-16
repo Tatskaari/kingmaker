@@ -2,7 +2,8 @@ import { campaignId, type BuildFile, type BuildsFile, type CampaignFile, type Lo
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
-import type { TxCtx } from "./context.ts";
+import { refusal } from "../../shared/protocol/refusals.ts";
+import { Refused, type TxCtx } from "./context.ts";
 import { gameRow, type CampaignRow, type GameRow, type SceneDefRow, type SceneRow } from "./rows.ts";
 
 /**
@@ -18,6 +19,21 @@ export const gameCampaignId = (game: GameRow) => campaignId({ id: game.campaign,
 export function campaignOfGame(tx: TxCtx, game: GameRow): CampaignRow {
   const row = tx.db.campaign.id.find(gameCampaignId(game));
   if (!row) throw new Error(`game ${game.id}'s campaign ${gameCampaignId(game)} isn't installed`);
+  return row;
+}
+
+/** A campaign a player names: by its name ("caerwyn", its newest version installed) or a version's id ("caerwyn@0.1.0"); no_campaign when there's none. */
+export function campaignNamed(tx: TxCtx, name: string): CampaignRow {
+  const versions = [...tx.db.campaign.iter()].filter(c => c.key === name || c.id === name);
+  const newest = versions.sort((a, b) => byVersion(b.version, a.version))[0];
+  if (!newest) throw new Refused(refusal("no_campaign", { campaign: name }));
+  return newest;
+}
+
+/** A campaign version by its parts: what a creation or a game keeps. */
+export function campaignVersion(tx: TxCtx, id: string, version: string): CampaignRow {
+  const row = tx.db.campaign.id.find(campaignId({ id, version }));
+  if (!row) throw new Error(`campaign ${campaignId({ id, version })} isn't installed`);
   return row;
 }
 
@@ -62,4 +78,15 @@ export function exitOf(graph: Scene, id: string): Exit {
   const exit = graph.exits.find(e => e.id === id);
   if (!exit) throw new Error(`${graph.id} has no exit ${id}`);
   return exit;
+}
+
+/** Version strings compared part by part, numbers as numbers ("0.10.0" after "0.9.0"). */
+function byVersion(a: string, b: string): number {
+  const x = a.split("."), y = b.split(".");
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const p = x[i] ?? "0", q = y[i] ?? "0";
+    const diff = /^\d+$/.test(p) && /^\d+$/.test(q) ? Number(p) - Number(q) : p < q ? -1 : p > q ? 1 : 0;
+    if (diff) return diff;
+  }
+  return 0;
 }

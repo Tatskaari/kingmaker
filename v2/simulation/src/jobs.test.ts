@@ -176,3 +176,36 @@ test("with no AI_URL, the opening fails at once: nothing to POST to", async () =
   const turn0 = sceneNow(host, scene.id).turns[0]!;
   assert.deepEqual([scene.status, turn0.phase, turn0.error], ["opening", "failed", "The GM couldn't answer: the AI service isn't configured (no AI_URL)"]);
 });
+
+test("over the AI service's daily budget, the turn fails at once in its words; retry_turn, once there's budget again, finishes it", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const message = "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.";
+  script.then("decide", http(402, { error: { code: "over_budget", message } }));
+
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  const failed = sceneNow(host, scene.id).turns[1]!;
+  assert.deepEqual([failed.phase, failed.error], ["failed", message]);
+  assert.equal(script.to("decide").length, 1, "not tried again");
+
+  assert.equal(host.as(wren).retryTurn({ turn: failed.id }), undefined);
+  await host.drain();
+  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "done");
+});
+
+test("dispatch_waiting, the owner's: every waiting job goes again now, not at its time; anyone else is refused", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  script.then("decide", down(), down(), down(), down(), decision);
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  for (const ms of [1_000, 2_000, 4_000]) { host.advance(ms); await host.drain(); }
+  assert.deepEqual(sceneNow(host, scene.id).jobs.map(j => [j.state, j.attempts]), [["waiting", 4]], "the next try is 8 s away");
+
+  assert.deepEqual(host.as(wren).dispatchWaiting(), { code: "not_admin", text: "Only the database's owner may dispatch the waiting thinks." });
+  assert.equal(host.as(host.owner).dispatchWaiting(), undefined);
+  await host.drain();
+
+  assert.deepEqual(script.to("decide").map(d => d.attempt), ["1", "2", "3", "4", "5"], "the fifth try at once, the clock where it was");
+  assert.deepEqual(sceneNow(host, scene.id).turns.map(t => [t.phase, t.note]), [["done", undefined], ["done", undefined]]);
+  assert.match(host.logs.join("\n"), /\[dispatch_waiting\] job \d+ .+:t1:decide dispatched again \(attempt 5\)/);
+});

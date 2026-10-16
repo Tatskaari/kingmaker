@@ -12,12 +12,13 @@ import {
   takeProposalReducer, workInBackstoryReducer,
 } from "./creation/moves.ts";
 import { beginReducer, continueGameReducer, deleteGameReducer } from "./games/moves.ts";
-import { claimJob, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
+import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
 import { initDatabase, markOnline } from "./lifecycle.ts";
 import { joinGameReducer } from "./moves/join-game.ts";
 import { newGameReducer } from "./moves/new-game.ts";
 import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
+import { loadRules } from "./rules/load.ts";
 import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
@@ -73,12 +74,13 @@ export const streamReply = spacetimedb.reducer(
 );
 export const servicePing = spacetimedb.reducer(ctx => asReducer(ctx, tx => servicePingBody(tx, ctx.sender)));
 
-// The owner's: a campaign's structure, and whether the module reaches the AI service.
+// The owner's: a campaign's structure, whether the module reaches the AI service, and the waiting thinks sent now that it's back.
 export const installCampaign = spacetimedb.reducer(
   { id: t.string(), campaign: t.string(), scenes: t.string(), places: t.string(), builds: t.string(), looks: t.string() },
   (ctx, args) => asReducer(ctx, tx => installCampaignReducer(tx, ctx.sender, args)),
 );
 export const pingAi = spacetimedb.procedure(t.string(), ctx => pingAiBody(ctx));
+export const dispatchWaiting = spacetimedb.reducer(ctx => asReducer(ctx, tx => dispatchWaitingReducer(tx, ctx.sender)));
 
 // The job loop (§3.5): one think per dispatch (claim, POST with nothing locked, commit), and the reaper.
 export const runJob = spacetimedb.procedure({ onSchedule: jobDispatch }, { arg: jobDispatch.rowType }, t.unit(), (ctx, { arg }) => {
@@ -106,6 +108,7 @@ export const myGames = spacetimedb.view({ name: "my_games", public: true }, t.ar
 
 /** A body's TxCtx from a reducer's context, or a procedure's transaction. */
 function txOf(ctx: ReducerCtx<Schema>): TxCtx {
+  const began = hostMs();
   return {
     db: ctx.db,
     now: ctx.timestamp,
@@ -113,8 +116,18 @@ function txOf(ctx: ReducerCtx<Schema>): TxCtx {
     uuid: () => ctx.newUuidV4().toString(),
     seed: () => ctx.random.integerInRange(0, 999_999_999),
     log: line => console.info(line),
+    rules: loadRules,
+    engineCalls: 0,
+    elapsedMs: () => hostMs() - began,
   };
 }
+
+/**
+ * The platform's clock, for TxCtx.elapsedMs: the timing log lines' only clock (the module's other
+ * time is the transaction's). In a reducer it starts at ctx.timestamp and runs on in real time
+ * (spacetime.md §4.9).
+ */
+const hostMs = () => Date.now();
 
 /** Runs a body as a reducer: a refusal reaches the caller as a SenderError carrying it as JSON; anything else thrown is a bug (a panic). */
 function asReducer(ctx: ReducerCtx<Schema>, body: (tx: TxCtx) => void): void {

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ReplyRequest } from "../../shared/protocol/ai.ts";
-import { all, DEFAULTS, openedGame, sceneNow } from "./host/testing.ts";
+import { all, DEFAULTS, http, openedGame, sceneNow } from "./host/testing.ts";
+import { LOST_THREAD } from "./jobs.ts";
 
 /** stream_reply's rules (v0-design §3.3, §5.8): the AI service only; while the turn replies; each post after the draft's. */
 
@@ -69,4 +70,28 @@ test("a post for a turn that isn't replying is dropped: deciding, or no such tur
   host.as(wren).say({ text: "Who found him?" });
   await host.drain();
   assert.equal(script.to("decide").length, 1);
+});
+
+test("a new attempt's first words clear the turn's note that the reply was lost; the lost attempt's words leave it", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const notes: unknown[] = [];
+  const note = () => notes.push(sceneNow(host, scene.id).turns[1]!.note);
+  script.then("reply",
+    (request: ReplyRequest) => { host.streamReply(post(BigInt(request.stream.turn), 1, 1, "Kell")); return http(503); },
+    (request: ReplyRequest) => {
+      const turnId = BigInt(request.stream.turn);
+      note();
+      host.streamReply(post(turnId, 1, 2, "Kell looks"));
+      note();
+      host.streamReply(post(turnId, 2, 1, "Sergeant"));
+      note();
+      return DEFAULTS.reply;
+    });
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  host.advance(1_000);
+  await host.drain();
+
+  assert.deepEqual(notes, [LOST_THREAD, LOST_THREAD, undefined]);
+  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "done");
 });
