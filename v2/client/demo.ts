@@ -4,11 +4,15 @@ import { applyFix, tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild, Proposal } from "../shared/creation/types.ts";
 import { MAX_CONCEPT, MAX_NAME, MAX_STORY, refusal, type RefusalCode } from "../shared/protocol/refusals.ts";
 import type { BuildOption, Offer, OwnPicks, SheetData } from "../shared/rules/types.ts";
+import { rowsToWorld, type PlaceRows } from "../shared/world/rows.ts";
+import { damageThing } from "../shared/world/scene-world.ts";
 import type { Backend, CreationRow, GameRow, HomeRows, MoveName, Moves, NewGame, PlayerRow, Rejection, SheetRow } from "./backend.ts";
 import { YARD } from "./check/fixture.ts";
+import { WIZARD_SPELLS, yardKeys, yardNames, yardTables, yardWorld } from "./check/place.ts";
 import { DRAFT, FIGHTER, gameRow, LISTS, NEPHEW_ISSUE, OFFER, OWN, sheetRow, WIZARD, WORKED } from "./check/rows.ts";
 import { withSubclass } from "./creation/model.ts";
-import type { Entry, SceneView, Suggestion } from "./scene/view.ts";
+import { placeViewOf } from "./scene/place-rows.ts";
+import type { Entry, PlaceView, SceneView, Suggestion } from "./scene/view.ts";
 
 /**
  * The game with no server (--demo): the title with two games to carry on, a character made from a
@@ -20,7 +24,9 @@ import type { Entry, SceneView, Suggestion } from "./scene/view.ts";
  * moment after. A line said before the last turn is done waits, queued, as the simulation holds it;
  * /suggestions turns the lines off, and on (asked for at once). A move the simulation would refuse
  * is refused in its words. `ms` paces it; the player starts seated in Pell Marrow's game, a few
- * turns in.
+ * turns in. The yard is drawn beside the talk from its place's rows (the world bridge's client), and
+ * one line plays the rules' part as the world bridge does: Magic Missile at the hoist rope breaks it (the
+ * world's own damageThing), Prout falls, and the dice lines come before the reply.
  */
 export function demoBackend(options: { ms?: number } = {}): Backend {
   return new Demo(options.ms ?? 40);
@@ -31,7 +37,7 @@ export function demoBackend(options: { ms?: number } = {}): Backend {
  * latest turn's n (a turn's late news, its notes and its lines, is only the view's while it's still
  * the latest), and the turn being played, until it's done (a line said meanwhile waits for it).
  */
-interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void> }
+interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void>; place?: PlaceRows }
 
 class Demo implements Backend {
   private readonly ms: number;
@@ -47,8 +53,10 @@ class Demo implements Backend {
 
   constructor(ms: number) {
     this.ms = ms;
+    const pell: DemoGame = { row: gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), player: { name: "Pell Marrow", concept: WIZARD.concept }, sheet: sheetRow(WIZARD), latest: YARD.turn ?? 0 };
+    pell.view = { ...YARD, entries: [...YARD.entries], suggestions: [...LINES], place: placed(pell, pell.player.name, true) };
     this.games = [
-      { row: gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5), player: { name: "Pell Marrow", concept: WIZARD.concept }, sheet: sheetRow(WIZARD), view: { ...YARD, entries: [...YARD.entries], suggestions: [...LINES] }, latest: YARD.turn ?? 0 },
+      pell,
       { row: gameRow(2n, "Wren Ashdown", "heading for The Hanged Clerk", 60 * 50, Date.now(), false), player: { name: "Wren Ashdown", concept: FIGHTER.concept }, sheet: sheetRow(FIGHTER) },
     ];
     this.seat = 1n;
@@ -94,8 +102,8 @@ class Demo implements Backend {
   joinGame(game: bigint): Promise<Rejection | undefined> {
     const theirs = this.games.find(g => g.row.gameId === game);
     if (theirs && !theirs.view) return this.refuse("not_begun");
-    const view: SceneView = { ...YARD, game: String(game), watching: YARD.player.name, mayType: false };
-    this.watched = { row: { ...gameRow(game, YARD.player.name, "in The Hanged Clerk", 0) }, player: { name: "", concept: "" }, sheet: { data: "", pockets: "", build: "", statusLine: "" }, view };
+    this.watched = { row: { ...gameRow(game, YARD.player.name, "in The Hanged Clerk", 0) }, player: { name: "", concept: "" }, sheet: { data: "", pockets: "", build: "", statusLine: "" } };
+    this.watched.view = { ...YARD, game: String(game), watching: YARD.player.name, mayType: false, place: placed(this.watched, YARD.player.name, true) };
     return this.done();
   }
 
@@ -438,6 +446,7 @@ class Demo implements Backend {
     game.latest = 0;
     game.view = {
       ...YARD, game: String(game.row.gameId), player: { name: game.player.name, status: "HP 28/28" }, entries: YARD.entries.slice(0, 1), phase: "done", turn: 0, mayType: true,
+      place: placed(game, game.player.name, /wizard/i.test(game.sheet.build)),
       suggestionsOn: true, suggestions: [...LINES], suggestionsComing: false, notesComing: false,
     };
   }
@@ -457,6 +466,9 @@ class Demo implements Backend {
     set({ entries: [...game.view!.entries, said], phase: behind ? "queued" : "deciding", turn, mayType: false, suggestions: [], suggestionsComing: game.view!.suggestionsOn, notesComing: false }, ["refusal"]);
     if (behind) { await behind; set({ phase: "deciding" }); }
     await sleep(15);
+    // The rules' part, before a word from the GM: the dice lines and the world they changed, together, as the decide commit writes them.
+    const ruled = rulesFor(game, text, turn);
+    if (ruled) { set({ entries: [...game.view!.entries, ...ruled.entries], place: ruled.place, player: { ...game.view!.player, status: ruled.status } }); await sleep(20); }
 
     const words = REPLY.split(/(?<= )/);
     for (let seq = 1; seq <= words.length; seq++) {
@@ -484,6 +496,37 @@ class Demo implements Backend {
       this.tell();
     });
   }
+}
+
+/**
+ * The yard's place for a game (check/place.ts: the world openPlace builds, as its rows), its lead
+ * the game's character; a wizard's sheet has the rules' word on its spells for the place's menu.
+ * The rows are kept on the game, for the rules' part to change.
+ */
+function placed(game: DemoGame, lead: string, wizard: boolean): PlaceView | undefined {
+  const { tables, rows } = yardTables(yardWorld(lead));
+  game.place = rows;
+  return placeViewOf({ tables, time: "morning", lead: 1n, names: yardNames(tables), sheet: wizard ? { spellFacts: JSON.stringify(WIZARD_SPELLS) } : {} });
+}
+
+/**
+ * The rules' part of a turn, canned as the world bridge plays it: Magic Missile at the hoist rope
+ * (three darts, 9 force) breaks it with the world's own damageThing, and what hung from it falls; the
+ * slot goes from the status line. Anything else rolls nothing.
+ */
+function rulesFor(game: DemoGame, text: string, turn: number): { entries: Entry[]; place: PlaceView; status: string } | undefined {
+  const view = game.view;
+  if (!game.place || !view?.place || !/magic missile/i.test(text) || !/rope/i.test(text)) return undefined;
+  const world = rowsToWorld(game.place, yardKeys());
+  const rope = world.entities["hoist-rope"];
+  if (!rope || rope.states.includes("destroyed")) return undefined;
+  const broke = damageThing(world, rope, 9, "force", turn);
+  const { tables, rows } = yardTables(world, game.place);
+  game.place = rows;
+  const status = (view.player.status ?? "").replace(/1st (\d+)\//, (_, n: string) => `1st ${Math.max(0, Number(n) - 1)}/`);
+  const lines = ["Cast Magic Missile (1st-level slot) on the hoist rope", "3 darts at the hoist rope: 9 force", ...broke, `${view.player.name}: ${status}`];
+  const place = placeViewOf({ tables, time: "morning", lead: 1n, names: yardNames(tables), sheet: { spellFacts: JSON.stringify(WIZARD_SPELLS) } });
+  return place ? { entries: lines.map(line => ({ turn, speaker: "dice", kind: "roll" as const, text: line })), place, status } : undefined;
 }
 
 /** What their own picks come to, canned: the fixture's orc rogue, or the card of the class nearest the picks, named for them. */
