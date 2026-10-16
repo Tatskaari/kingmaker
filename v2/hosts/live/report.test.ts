@@ -51,7 +51,7 @@ test("the record opens with the run at a glance, and its turns' moments", () => 
   assert.match(md, /\| Stopped early \| the dearest turn so far/);
   assert.match(md, /\| Skipped \| act the try line, else say_2: no suggested line to pick after turn 1 \|/);
   assert.match(md, /\| 0 \| \(the opening\) \| 1\.5 s \| 3\.0 s \| 2\.0 s \| 2\.8 s \| 6\.0 s \| 4 \| \$0\.0032 \|/);
-  assert.match(md, /\| 1 \| Sergeant, who found him\? \| 1\.5 s \| 3\.0 s \| 4\.0 s \| lost \| 6\.0 s \| 2 \| \$0\.0032 \|/);
+  assert.match(md, /\| 1 \| act say_1 → Sergeant, who found him\? \| 1\.5 s \| 3\.0 s \| 4\.0 s \| lost \| 6\.0 s \| 2 \| \$0\.0032 \|/);
 });
 
 test("the measures against the prototype's: the notes' and lines' times, speakers, notes a reply, cost by kind of call", () => {

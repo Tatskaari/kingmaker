@@ -65,7 +65,7 @@ function turnsTable(r: LiveRecord): string[] {
     "",
     "| Turn | Line | First words | Reply final | Notes | Lines | Done | Calls | Cost |",
     "|---|---|---|---|---|---|---|---|---|",
-    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : cell(t.said ?? "")} | ${since(t, t.firstAt)} | ${since(t, t.finalAt)} | ${extra(t.notes, t.notesMs)} | ${extra(t.suggest, t.linesMs)} | ${since(t, t.doneAt)} | ${t.calls.length} | $${costOf(t.calls).toFixed(4)} |`),
+    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : cell(lineOf(t))} | ${since(t, t.firstAt)} | ${since(t, t.finalAt)} | ${extra(t.notes, t.notesMs)} | ${extra(t.suggest, t.linesMs)} | ${since(t, t.doneAt)} | ${t.calls.length} | $${costOf(t.calls).toFixed(4)} |`),
     "",
   ];
 }
@@ -117,7 +117,7 @@ function models(calls: Call[]): string[] {
 function turnSection(t: TurnRecord): string[] {
   const reply = t.entries.filter(e => e.speaker === "gm");
   return [
-    `### ${t.n === 0 ? "The opening" : `Turn ${t.n}: ${t.step && t.step !== t.said ? `${t.step} → ` : ""}${t.said ?? ""}`}`,
+    `### ${t.n === 0 ? "The opening" : `Turn ${t.n}: ${lineOf(t)}`}`,
     "",
     ...t.entries.flatMap(e => [entryText(e), ""]),
     ...reply.flatMap(spokenLines),
@@ -179,6 +179,9 @@ const LINES: Record<string, string> = {
   none: "none asked for: suggestions off, or the scene ending", coming: "still coming after 15 s", landed: "landed",
   dropped: "dropped: the scene had moved on", lost: "lost: the job gave up",
 };
+
+/** The line said, after the step that picked it when it was a suggested line ("act say_1 → …"). */
+const lineOf = (t: TurnRecord) => `${t.step && t.step !== t.said ? `${t.step} → ` : ""}${t.said ?? ""}`;
 
 function entryText(e: EntryRecord): string {
   if (e.kind === "player") return `> ${e.text}`;
