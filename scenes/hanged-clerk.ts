@@ -59,7 +59,16 @@ export const pageItem = {
 // don't bring it, and go with it.
 const bribeCob = (beat: string): Transition => ({
   id: "bribe-cob", towards: "page",
-  when: "The player offers Cob something as the price of a look in his boot, or at what's crackling in it (a coin held up, food, a trade: 'this is yours if I can see what's in there', 'a shilling for a look'), however politely it's asked and whatever they say about the boots staying his, and nothing that answers what he's afraid of. No dice: Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop): what's really wrong comes out instead, his way. They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)",
+  when: "The player offers Cob something as the price of a look in his boot, or at what's crackling in it (a coin held up, food, a trade: 'this is yours if I can see what's in there', 'a shilling for a look'), however politely it's asked and whatever they say about the boots staying his, and nothing that answers what he's afraid of. Their own words make it about the boot or what's in it: a coin offered to make him talk, with nothing said of the boots, is not this. No dice: Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop). They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)",
+  to: beat,
+});
+
+// A coin or a bite offered to make Cob talk (the user's "Perhaps a shilling would change your
+// mind?"): with no route of its own it matched the bribe for a look, and Cob answered "A shilling?
+// For a look at Cob's boot?". It buys boasts and a scrap that costs him nothing, never the loft.
+const payCobToTalk = (beat: "yard" | "doubt"): Transition => ({
+  id: "pay-cob-to-talk", towards: beat === "yard" ? "not-suicide" : "silvertop",
+  when: `The player offers Cob coin, food or a trade to talk: to tell what he saw or heard, or what he knows about Mister Prout or last night, with nothing that answers what he's afraid of. (The boots aren't part of it unless the player's own words make them so: that's the bribe for a look.) No dice: Cob takes anything going, boasts and bargains ('Cob's not cheap'), and gives something that costs him nothing (where he sleeps is his business; the porters found the clerk; Cob ain't scared of no dead man), but ${beat === "yard" ? "what he heard in the loft" : "who was in the loft"} stays his: bought attention isn't trust. Moll tells him to shut it.`,
   to: beat,
 });
 
@@ -130,7 +139,7 @@ export const hangedClerk: Scene = {
         "The Watch Captain called it suicide before anyone had looked and wants it closed quietly before the Assembly: the dead-cart comes at noon to cut him down. Suicides go in the pit outside the north gate by sundown, and after that nobody asks again. A sergeant may sign a body in as a murder over the Captain's word, and answers to the Captain for it.",
         "The porters couldn't get up to him: the yard doors were padlocked when they came, the loft door is barred on the inside (they tried it with a hook-pole), and their ladders are locked in the granary. The warden keeps the key and is at the palace counting Assembly provisions; her runner came back with 'After the Assembly.'",
         "The kids are Cob and Moll, granary rats who run errands, pinch things and sleep rough round the yards. Cob's father is a porter here with a thirst and heavy hands; Moll looks out for Cob. They won't tell the watch anything: she's tried.",
-        "Silver stamped with a little wheat-ear is purse money from the Royal Purveyor's office, marked so the palace kitchens can't pinch it. 'J. Sallow, for the Royal Purveyor' is a signature she has seen on the Assembly delivery notices pinned up in the watch house: one of the under-purveyors. A name, not a face.",
+        "Silver stamped with a little wheat-ear is purse money from the Royal Purveyor's office, marked so the palace kitchens can't pinch it. 'J. Sallow, for the Royal Purveyor' is a signature she has seen on the Assembly delivery notices pinned up in the watch house: one of the under-purveyors. A name, not a face, and she won't put it to a man she's never seen on a child's description: the office has several gentlemen with wheat-ear rings, and she'd want his name said, or his hand on something found, before it goes in her notebook.",
         "Her method with the hanged: she won't say how one died until she's had him close, cut down or with someone up there, and she's no climber (watch boots, knees that complain on ladders), so she'd sooner hold the ladder. Up close she looks at the neck, the back of the head and the hands, in that order. Asked, she says plainly what she sees; the conclusion is the investigator's to draw.",
         "Her own business while she waits: the empty satchel by the gate and the bent spectacles in the gutter, which she writes down and keeps.",
       ],
@@ -155,7 +164,7 @@ export const hangedClerk: Scene = {
         "Mister Prout was all right: he gave Cob the crusts off his dinner and once showed him how to write a C. Cob would sooner die than admit he's upset.",
       ],
       secrets: [
-        "Shows: the boots are three sizes too big and he won't take them off, and the left one crackles when he stamps; he stops throwing stones when anyone says 'the loft', and goes white at the hoist creaking. Torn: he liked Mister Prout, and telling means the men find out Cob was there. Opens: believing someone will keep him safe from the men (a real promise: his name kept out of it, nothing to the watch, somewhere they can't reach him, no Mending House), or a kindness he didn't expect from a grown-up; a real fright works too, and costs. First: 'Cob sleeps where Cob likes.'",
+        "Shows: the boots are three sizes too big and he won't take them off, and the left one crackles when he stamps (once is enough: after that, only when someone presses on the boot or he's pushed about it); he stops throwing stones when anyone says 'the loft', and goes white at the hoist creaking. Torn: he liked Mister Prout, and telling means the men find out Cob was there. Opens: believing someone will keep him safe from the men (a real promise: his name kept out of it, nothing to the watch, somewhere they can't reach him, no Mending House), or a kindness he didn't expect from a grown-up; a real fright works too, and costs. First: 'Cob sleeps where Cob likes.'",
         "The boots are Prout's. He and Moll pulled them off the body at first light, before the porters came (he stood on her shoulders). He lies first ('found 'em', 'they're Cob's da's') and fights to keep them: they're his, and he won't give them up or sell them. A look is another matter. Coin or food offered as the price of a look gets haggling and boasts, never the look (grown-ups who pay to look at his boots want them off him); a kindness with nothing asked back counts with him; asked politely, the boots staying his, he might let someone look (it could go either way); and for someone he trusts, or a promise that answers his fear (his name kept out of it, nothing to the watch, the men from the loft kept off him), he holds the left one out himself. A yes he's given is a yes: he doesn't take it back.",
         "He was in the loft last night: he sleeps up there, in his 'castle', a nest of sacks and candle-ends behind the stacks, reached through a loose board behind the water butt (child-sized; a grown-up could squeeze through with effort). That's all he'll own to at first, and he goes white saying it.",
         "What he heard, in a frightened rush: a little after the midnight bells a lantern and voices woke him, Mister Prout arguing with two men; then a thump, a choking noise, and the hoist creaking though there were no sacks on it. He hid in his sacks till dawn and has told no one but Moll.",
@@ -250,6 +259,7 @@ export const hangedClerk: Scene = {
           },
         },
         promiseCob("yard"),
+        payCobToTalk("yard"),
         {
           id: "catch-moll", on: "attempt",
           when: "The player presses on the holes in Moll's 'I saw him jump' story, or tries to read whether she's lying, where it could go either way. (Not just asking her to tell it.)",
@@ -299,6 +309,7 @@ export const hangedClerk: Scene = {
           },
         },
         promiseCob("doubt"),
+        payCobToTalk("doubt"),
         {
           id: "catch-moll", on: "attempt",
           when: "The player presses on the holes in Moll's story, or tries to read what she's hiding, where it could go either way. (Not just asking her to tell it.)",

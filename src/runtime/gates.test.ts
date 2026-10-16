@@ -61,7 +61,7 @@ test("a route the author gave no dice, read with an attempt's confidence, settle
     await playerTurn(state, CROWN);
     assert.equal(reviewed(fake), false, "no ruling asked for");
     assert.equal(state.rulings, undefined);
-    assert.match(told(fake), /No dice needed: the player's turn is a move your prep has an answer for, .* Your prep for it: The player offers Cob something as the price of a look in his boot/);
+    assert.match(told(fake), /No dice needed: the player's turn is a move your prep has an answer for, .* Your prep for it: The player offers Cob something as the price of a look in his boot[\s\S]*a coin offered to make him talk, with nothing said of the boots, is not this/);
     assert.match(told(fake), /Answer what the player actually said and did, in their own words/);
     assert.doesNotMatch(told(fake), /Decided, and it stands/);
   } finally {
