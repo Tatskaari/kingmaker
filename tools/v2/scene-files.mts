@@ -2,7 +2,8 @@
  * Writes the campaign's scenes from the prototype (v2/docs/story-design.md §4.6): every scene of the
  * arc (the hanged clerk, the afternoon interlude, the Drowned Rat, the wharf at night, the Heron
  * warehouse and the King's morning) as scenes/<id>/ (scene.json and its Markdown), each scene's
- * world as places/<key>.json, and campaign.json's scenes, places and quests. Generalised from the
+ * world as places/<key>.json, campaign.json's scenes, places and quests, and looks.json (the
+ * prototype's CAST letter and colour for each of the scenes' cast). Generalised from the
  * scratchpad's convert-hanged-clerk.mts, whose shapes and Markdown it keeps (the hanged clerk comes
  * out as it did, with its onEnd); what it can't infer (the facts' ids, the exits' scripts as effects,
  * the place's key) is in a table per scene, tools/v2/scenes/<scene>.mts.
@@ -60,6 +61,7 @@ const proto = (path: string) => import(pathToFileURL(join(PROTO, path)).href);
 const v2 = (path: string) => import(pathToFileURL(join(V2, path)).href);
 
 const { recordingWorld } = await proto("src/world/dsl.ts");
+const { CAST } = await proto("src/game/map/looks.ts") as { CAST: Record<string, { glyph: string; color: string }> };
 const { ASSETS } = await proto("src/world/assets.ts") as { ASSETS: Array<{ id: string; kind: string; name: string; tags: string[] }> };
 const { sceneOf } = await v2("shared/scene/load.ts");
 const { validateScene } = await v2("shared/scene/types.ts");
@@ -211,6 +213,16 @@ function withScenes(campaign: Record<string, unknown>, converted: Converted[]): 
   if (!("scenes" in out) || !("places" in out)) throw new Error("campaign.json has no scenes or places to replace");
   if (!("quests" in out)) out.quests = QUESTS;
   return out;
+}
+
+/** looks.json: each of the scenes' cast, in the order the story meets them, drawn as the prototype's CAST draws them (src/game/map/looks.ts). */
+function looksOf(converted: Converted[]): Record<string, { role: string; glyph: string; fg: string }> {
+  const ids = [...new Set(converted.flatMap(c => c.file.cast.map(x => x.id)))];
+  return Object.fromEntries(ids.map(id => {
+    const look = CAST[id];
+    if (!look) throw new Error(`${id} is in a scene's cast but not the prototype's CAST`);
+    return [id, { role: "person", glyph: look.glyph, fg: look.color }];
+  }));
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -368,6 +380,7 @@ const problems = [
   ...converted.flatMap(c => sceneCheck(c, converted, lore)),
 ];
 const outputs = new Map(converted.flatMap(c => [...c.files]));
+outputs.set("looks.json", `${JSON.stringify(looksOf(converted), null, 2)}\n`);
 
 if (CHECK_ONLY) {
   const stale = [
