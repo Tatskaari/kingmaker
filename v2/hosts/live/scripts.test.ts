@@ -35,3 +35,12 @@ test("gm's script is full-gm-design §1.2's eight lines as Wren the hedge wizard
   assert.equal(stepName(gm.steps[7]!), "(I nod to the sergeant and walk out of the yard, back towards the palace)");
   assert.ok(gm.steps.every(s => "say" in s));
 });
+
+test("world's script is world-bridge-design §1.2's spells and blows as the hedge-wizard keen on fire, the world's side recorded", () => {
+  const world = SCRIPTS.world!;
+
+  assert.deepEqual([world.steps.length, world.lines, world.build, world.worldSide], [8, 5, "wizard", true]);
+  assert.equal(stepName(world.steps[0]!), "(I cast Magic Missile at the hoist rope)");
+  assert.equal(stepName(world.steps[5]!), "(I cast Fire Bolt at the old elm)");
+  assert.ok(world.steps.every(s => "say" in s && !s.wait));
+});

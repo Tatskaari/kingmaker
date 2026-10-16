@@ -46,8 +46,13 @@ export interface Run {
   settledMs?: number;
   seen: Map<number, Seen>;
   sets: Map<number, Offered[]>;
+  /** The place as this client's rows had it once each turn was done (a script that records the world's side): each thing and person, and its states. */
+  worlds: Map<number, WorldThing[]>;
   stopped?: string;
 }
+
+/** A thing or person in the place, as the client's world rebuilt from the rows has it. */
+export interface WorldThing { id: string; name: string; states: string[] }
 
 /** How long a turn may take to be done, and then its lines to come. */
 const TURN_MS = 180_000, EXTRAS_MS = 15_000;
@@ -58,7 +63,7 @@ const BACKGROUND_MS = 180_000;
 const NOTES_IN = ["written", "lost"], LINES_IN = ["landed", "dropped", "lost"];
 
 export async function playScript(conn: Connection, script: Script, options: PlayOptions): Promise<Run> {
-  const run: Run = { played: [], seen: new Map(), sets: new Map() };
+  const run: Run = { played: [], seen: new Map(), sets: new Map(), worlds: new Map() };
   const unwatch = watch(conn, run.seen);
   try {
     await opening(conn, run, options);
@@ -133,6 +138,8 @@ async function afterTurn(conn: Connection, n: number, run: Run, options: PlayOpt
   await until(conn, () => turnDone(conn, n), TURN_MS, `turn ${n} wasn't done in three minutes`);
   await until(conn, () => extrasIn(turn(conn, n)), EXTRAS_MS).catch(() => undefined);
   if (turn(conn, n)?.suggest === "landed") run.sets.set(n, await setOf(conn, n, options));
+  const world = conn.view()?.place?.world;
+  if (world) run.worlds.set(n, Object.values(world.entities).filter(e => e.kind !== "area" && e.kind !== "place").map(e => ({ id: e.id, name: e.name, states: [...e.states] })));
 }
 
 /** The lines offered after turn n, in order (say_1 first). */
