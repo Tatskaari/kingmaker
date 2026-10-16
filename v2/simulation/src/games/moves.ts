@@ -2,6 +2,7 @@ import type { Identity } from "spacetimedb";
 import { refusal } from "../../../shared/protocol/refusals.ts";
 import { actorOf, Refused, runMove, type TxCtx } from "../context.ts";
 import { creationOf } from "../creation/rows.ts";
+import { startOnMap } from "../map/start.ts";
 import { openScene } from "../moves/open-scene.ts";
 import { playerRow, seatPlayer, type GameRow, type PlayerRow } from "../rows.ts";
 import { campaignFile, campaignOfGame } from "../scenes.ts";
@@ -10,17 +11,21 @@ import { deleteGameRows } from "./delete.ts";
 
 /**
  * The games' moves (v1-design §3.3): setting off in the game a creation made (the prototype's begin,
- * game.ts:949, straight into the first scene until the map comes), carrying on with one of the
- * caller's games, and deleting one with every row of it.
+ * game.ts:949: onto the map, or straight into the first scene for a campaign without one), carrying
+ * on with one of the caller's games, and deleting one with every row of it.
  */
 
-/** Set off: the first scene opens, with what the character starts with and coming to as the prototype's opening does; the creation that made the game is done with. */
+/**
+ * Set off: onto the campaign's start map, the first scene the lead, waiting (map-design §3.3); or,
+ * with no map, the first scene opens, with what the character starts with and coming to as the
+ * prototype's opening does. The creation that made the game is done with.
+ */
 export function beginReducer(tx: TxCtx, sender: Identity, _args: Record<string, never>): void {
   const started = tx.elapsedMs();
   const { game, player } = notYetBegun(tx, sender);
   const campaign = campaignOfGame(tx, game);
 
-  runMove(tx, openScene, actorOf(tx, sender), { game: game.id, sceneKey: campaignFile(campaign).firstScene, start: startOf(tx, campaign, player.id) });
+  if (!startOnMap(tx, game, campaign)) runMove(tx, openScene, actorOf(tx, sender), { game: game.id, sceneKey: campaignFile(campaign).firstScene, start: startOf(tx, campaign, player.id) });
 
   doneCreating(tx, sender, game);
   played(tx, player.id);

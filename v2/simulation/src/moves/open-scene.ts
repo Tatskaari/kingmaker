@@ -12,7 +12,7 @@ import { noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
 import { comeToAtOpening } from "../rules/play.ts";
 import { refreshPockets } from "../rules/session.ts";
-import { openPlace, type Start } from "../world/place.ts";
+import { joinPlace, openPlace, type Start } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Move } from "./move.ts";
 import { askForNotes } from "./notes.ts";
@@ -25,7 +25,9 @@ import { suggestAfter } from "./suggest.ts";
  * draw of the scene), turn 0 holding the lease; then one think, the opening, streamed into turn 0's
  * draft and committed as the transcript's first entry, and the scene goes live (its notes and first
  * lines asked for: v5-design §3.5). `start` is what the character starts the game with: only the
- * game's first scene hands it out.
+ * game's first scene hands it out. A scene waiting on the map (map-design §3.5: the lead, its place
+ * built when it became the lead) opens in its row: its GM bookkeeping and its place kept, the
+ * controller's character joining the place.
  */
 export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
   name: "openScene",
@@ -34,10 +36,11 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     const game = gameRow(tx, gameId);
     const def = sceneDefOf(tx, game, sceneKey);
     const graph = graphOf(def);
-    const gm = initialGm(graph);
     const controller = playerRow(tx, actor.id!);
+    const waiting = waitingScene(tx, game.id, sceneKey);
+    const gm = waiting ? getGm(tx, waiting.id) : initialGm(graph);
 
-    const scene = insertScene(tx, game, def, graph, gm, controller, start);
+    const scene = waiting ? openWaiting(tx, game, def, graph, gm, controller, start, waiting) : insertScene(tx, game, def, graph, gm, controller, start);
     putGm(tx, scene.id, gm);
     syncStage(tx, scene, graph, gm);
     noteHeard(tx, scene, graph);
@@ -75,8 +78,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
 
 /** The scene's row, in its place (built now), with the controller and their character placed in both. */
 function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined): SceneRow {
-  const placeKey = sceneFileOf(def).place ?? campaignFile(campaignOfGame(tx, game)).startPlace;
-  const place = openPlace(tx, game, placeKey, graph, gm, controller, start);
+  const place = openPlace(tx, game, placeKeyOf(tx, game, def), graph, gm, controller, start);
   refreshPockets(tx, controller.id, place.world);
   const scene = tx.db.scene.insert({
     id: 0n, gameId: game.id, sceneKey: def.key, title: def.title, hook: def.hook, kind: "scene", placeId: place.placeId,
@@ -86,6 +88,26 @@ function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, g
   tx.db.place.id.update({ ...placeRow(tx, place.placeId), sceneId: scene.id });
   tx.db.player.id.update({ ...playerRow(tx, controller.id), characterId: place.characterId, placeId: place.placeId, sceneId: scene.id });
   return scene;
+}
+
+/** A waiting scene's row, opening, in its place (built when it became the lead), the controller's character joining it, and the controller placed in both. */
+function openWaiting(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined, waiting: SceneRow): SceneRow {
+  const place = joinPlace(tx, game, placeKeyOf(tx, game, def), graph, gm, controller, start, waiting.placeId);
+  refreshPockets(tx, controller.id, place.world);
+  const scene = updateScene(tx, waiting.id, { status: "opening", controllerId: controller.id, openedAt: tx.now });
+
+  tx.db.player.id.update({ ...playerRow(tx, controller.id), characterId: place.characterId, placeId: place.placeId, sceneId: scene.id });
+  return scene;
+}
+
+/** A game's scene of that key waiting to be opened (the lead on the map), if there is one. */
+export function waitingScene(tx: TxCtx, gameId: bigint, sceneKey: string): SceneRow | undefined {
+  return [...tx.db.scene.gameId.filter(gameId)].find(s => s.sceneKey === sceneKey && s.status === "waiting");
+}
+
+/** The place a scene is played in: its own, or the campaign's start place. */
+export function placeKeyOf(tx: TxCtx, game: GameRow, def: SceneDefRow): string {
+  return sceneFileOf(def).place ?? campaignFile(campaignOfGame(tx, game)).startPlace;
 }
 
 /** The scene's and its place's revs now: a plan's record of what it saw. */
