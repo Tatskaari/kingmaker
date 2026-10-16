@@ -40,7 +40,10 @@ export function fakeOptions(own: string | undefined): FakeOptions {
 /**
  * Options on top of others, as KM_AI_FAKE goes on fake.json's: key by key, but the answers, delays,
  * choices and tool calls by name go beside the ones under them, name by name. A test's recipe goes on
- * fake.json's (or on quietGm's) this way, so a choice of its own keeps the full GM's quiet ones.
+ * fake.json's (or on quietGm's) this way, so a choice of its own keeps the full GM's quiet ones. A
+ * choice that's a list goes in as it is (the whole story's recipe, story-design §1.1: the endings
+ * "open-case", "hobb-talks", "fight", "caught-in-the-act" and "justice", each scene ending at the
+ * first of them it has).
  */
 export function onTop(under: FakeOptions, over: FakeOptions): FakeOptions {
   const below = under as Record<string, unknown>, above = over as Record<string, unknown>;

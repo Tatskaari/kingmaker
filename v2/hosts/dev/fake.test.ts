@@ -82,3 +82,9 @@ test("a test's recipe on the quiet full GM: its choices beside the attention fil
   assert.deepEqual(options.byName, { co_gm_notes: fake.byName!.co_gm_notes, ruling: { act: "mine" } });
   assert.deepEqual((options as { toolCalls?: unknown }).toolCalls, (fake as { toolCalls?: unknown }).toolCalls);
 });
+
+test("a choice that's a list goes in as it is, beside the quiet ones (the whole story's recipe, story-design §1.1)", () => {
+  const options = fakeOptions('{"choices":{"ending":["open-case","hobb-talks","fight","caught-in-the-act","justice"],"own_exit":"theirs"}}');
+
+  assert.deepEqual(options.choices, { ...fake.choices, ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" });
+});

@@ -7,7 +7,7 @@ import { workingSet } from "../../gm/working-set.ts";
 import type { OpenedNote } from "../../../shared/gm/state.ts";
 import type { Markup } from "../../../shared/markup.ts";
 import { effectiveScene } from "../../../shared/scene/graph.ts";
-import type { Scene } from "../../../shared/scene/types.ts";
+import type { Essential, Scene } from "../../../shared/scene/types.ts";
 import type { AiContext } from "../context.ts";
 
 /**
@@ -17,14 +17,26 @@ import type { AiContext } from "../context.ts";
  * people to the game's keys, for the markup an endpoint answers with (who says each line, whom a
  * mark is about). The server has checked the request has what this reads (requests.ts).
  *
- * The story (the campaign's scenes and its vocabulary.json: gm/story.ts) is on the view only for the
- * endpoints that read it, the notes and the lines, so a turn's own thinks never depend on the
- * vocabulary. A think whose GM brief names earlier scenes (V3's history) will need it too.
+ * The story (the campaign's scenes and its vocabulary.json: gm/story.ts) is on the view for the
+ * endpoints that read it, the notes and the lines, and for any think once the story has scenes
+ * played before this one (story-design §4.4: the GM's note of what the player knows names them by
+ * their titles and endings); so a first scene's own thinks never depend on the vocabulary. What the
+ * story still owes the player has its essential from the scene it was placed in.
  */
 export function sceneAndView(ctx: AiContext, key: string, source: ViewSource, story?: Story): { scene: Scene; view: TurnView; byKey(markup: Markup): Markup } {
   const scene = effectiveScene(ctx.campaign.scene(key), source.gm.patches);
-  const view = viewOf(source, scene, story);
+  const told = story ?? (source.told?.history?.length ? ctx.campaign.story : undefined);
+  const view = viewOf(source, scene, told, (from, id) => essentialOf(ctx, from, id));
   return { scene, view, byKey: markup => gameMarkup(markup, scene, view.world, keysOf(source)) };
+}
+
+/** An essential of a scene of the campaign's (none when it hasn't got the scene). */
+function essentialOf(ctx: AiContext, from: string, id: string): Essential | undefined {
+  try {
+    return ctx.campaign.scene(from).essentials?.find(e => e.id === id);
+  } catch {
+    return undefined;
+  }
 }
 
 /** The deciders the prototype's v2 approach uses: Luna's decision mode for the director, and Jev for disclosure (the docs service's own). */
