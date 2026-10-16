@@ -282,14 +282,15 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   };
   const inner = side - 4;
   const busy = scene.busy();
-  const open = view.mayType && !scene.gone;
+  const open = view.mayType && !scene.gone && !view.cutOff;
   // The game's word on the status line, in place of the spinner: the client's own, that the game has
   // gone from the server, that the box is full, the simulation's last refusal (until the scene moves
-  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach).
+  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach,
+  // or done with this session).
   const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
   const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note;
-  // The box, while it's shut: the game gone, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
-  const shut = scene.gone ? "The game is gone from the server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
+  // The box, while it's shut: the game gone, the connection cut off, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
+  const shut = scene.gone ? "The game is gone from the server." : view.cutOff ? "Cut off from the game's server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
     : view.watching ? `${view.watching} has the lead: you're watching.`
     : view.phase === "failed" ? "The GM lost the thread: /retry carries it on."
     : "The GM has the floor…";

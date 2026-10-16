@@ -108,6 +108,18 @@ test("a turn waiting on the AI service shows its note, until it fails; a lost co
   assert.equal(view.failed, "The GM couldn't answer: 500 model_failed");
 });
 
+test("a connection that has stopped trying says why and what to do, in place of the turn's note, and shuts the box for good", () => {
+  const rows = base();
+  const turnedAway = "(The game's server turned this session away: /quit, then start again.)";
+  assert.equal(sceneViewOf(rows).mayType, true);
+
+  const view = sceneViewOf({ ...rows, trouble: turnedAway, cutOff: true });
+  assert.deepEqual([view.note, view.cutOff, view.mayType], [turnedAway, true, false]);
+  rows.scene.turnId = 5n;
+  rows.turns = [turn(5n, 1, "replying", { note: "The GM has lost the thread for a moment: trying again." })];
+  assert.equal(sceneViewOf({ ...rows, trouble: turnedAway, cutOff: true }).note, turnedAway);
+});
+
 test("a failed turn says why and shuts the box; a spectator is told who can retry it", () => {
   const rows = base();
   rows.scene.turnId = 5n;

@@ -73,6 +73,17 @@ test("a turn's note set while the screen comes up shows; and every change after 
   assert.deepEqual([scene.view.phase, scene.view.note, scene.view.mayType], ["done", undefined, true]);
 });
 
+test("a connection that has stopped trying sends no line (it waits in the box), and /quit still goes", () => {
+  const asked: string[] = [];
+  const scene = new SceneModel({ ...YARD, mayType: false, cutOff: true, note: "(The game's server turned this session away: /quit, then start again.)" },
+    { say: text => asked.push(text), retry: () => asked.push("/retry"), quit: () => asked.push("/quit") });
+
+  assert.equal(scene.sends(), false);
+  scene.input("Kell, are you there?");
+  scene.input("/quit");
+  assert.deepEqual(asked, ["/quit"]);
+});
+
 test("a game gone from the server while the screen comes up shows as gone", async () => {
   const game = rowsByHand(YARD);
   const first = await seated(game);

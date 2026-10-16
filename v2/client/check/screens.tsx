@@ -10,8 +10,8 @@
  * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
  * spectator's shut box and their line refused (the refusal giving way when the turn moves on), a
  * scene a reply has closed and its end, a failed turn's box and a line sent to be refused with its
- * /retry, a long paste kept to a turn's 2,000 characters, and a game gone from the server. Last, the
- * screen coming up as the rows move on: a change between its first render and its subscription to the
+ * /retry, a long paste kept to a turn's 2,000 characters, a game gone from the server, and a session
+ * the server turned away. Last, the screen coming up as the rows move on: a change between its first render and its subscription to the
  * model is drawn. (The prototype's src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
@@ -275,6 +275,22 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   set({});
   frame = await draw();
   checks.push([`${size}: a view coming again takes it back`, !/no longer has this game/.test(frame) && style("What do you say?")?.fg === C.borderHot]);
+
+  // The connection cut off for good (a reconnect the server turned away: one signed by other keys, on
+  // the port): the last view stays, the status line says so and what to do, the box is shut and says
+  // why, and a line typed waits in it, unsent.
+  view = { ...YARD, mayType: false, cutOff: true, note: "(The game's server turned this session away: /quit, then start again.)" };
+  set({});
+  frame = await draw();
+  if (show) console.log(`${size}, cut off\n${frame}`);
+  checks.push([`${size}: a session the server turned away: the status line says so and what to do, the box is shut and says why`, style("(The game's server turned this session away")?.fg === C.warn && /Cut off from the game's server\./.test(frame) && style("What do you say?")?.fg === C.border]);
+  const unsent = sent.length;
+  await act(async () => { await setup.mockInput.typeText("Kell, are you there?"); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line typed then stays in the box, unsent`, sent.length === unsent && /Kell, are you there\?/.test(frame)]);
+  for (let i = 0; i < "Kell, are you there?".length; i++) act(() => setup.mockInput.pressBackspace());
 
   // A reply that closed the scene: while the world settles behind it the scene is ending, the box shut
   // and saying so, the GM making a note. A line typed goes to the simulation, which refuses it.

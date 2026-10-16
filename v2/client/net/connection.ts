@@ -56,6 +56,10 @@ export class Connection implements Backend {
   private refused?: string;
   /** What's wrong with the connection, while something is: shown on the status line. */
   private trouble?: string;
+  /** The SDK has stopped trying to reconnect, for good: what's wrong, and what to do. Every move is refused with it. */
+  private cutOff?: string;
+  /** The client closed the connection itself: its end isn't trouble. */
+  private closing = false;
   /** my_seat is in: the seat (or that there's none) is known. */
   private seatKnown = false;
   private settled = false;
@@ -92,6 +96,7 @@ export class Connection implements Backend {
       looks: of(this.db.db.look, l => l.placeId === scene.placeId),
       ...(this.refused ? { refusal: this.refused } : {}),
       ...(this.trouble ? { trouble: this.trouble } : {}),
+      ...(this.cutOff ? { cutOff: true } : {}),
     };
   }
 
@@ -139,6 +144,7 @@ export class Connection implements Backend {
   }
 
   close(): void {
+    this.closing = true;
     this.db.disconnect();
   }
 
@@ -166,14 +172,32 @@ export class Connection implements Backend {
       .build();
   }
 
+  /** A reconnect failed: the SDK tries again (`next`), or, with no next attempt, has stopped for good. */
   private failedToConnect(options: ConnectOptions, error: Error, next: number | undefined): void {
     if (!this.settled) { void whyNot(options, error).then(why => this.rejectReady(new Error(why))); return; }
-    this.trouble = `(The game's server is out of reach: trying again${next ? ` (attempt ${next})` : ""}…)`;
+    if (this.closing) return;
+    if (next === undefined) { this.cut(TURNED_AWAY); return; }
+    this.trouble = `(The game's server is out of reach: trying again (attempt ${next})…)`;
     this.changed();
   }
 
-  private lost(error: Error | undefined, next: number | undefined): void {
-    this.trouble = next === undefined ? `(The connection to the game's server closed${error ? `: ${error.message}` : ""}.)` : "(Lost the game's server: reconnecting…)";
+  /** The connection dropped: the SDK reconnects (`next`), or, with no next attempt, won't. */
+  private lost(_error: Error | undefined, next: number | undefined): void {
+    if (this.closing) return;
+    if (next === undefined) { this.cut(CLOSED); return; }
+    this.trouble = "(Lost the game's server: reconnecting…)";
+    this.changed();
+  }
+
+  /**
+   * The SDK has stopped trying, and nothing brings this session back but starting again (a reconnect
+   * a server turned away with a 401 or 403: one signed by other keys, on the port). The status line
+   * says so and what to do, the box stays shut, and a move is refused with the same words: the SDK
+   * would answer each one "out of reach", as if it were still trying.
+   */
+  private cut(words: string): void {
+    this.cutOff = words;
+    this.trouble = words;
     this.changed();
   }
 
@@ -280,10 +304,14 @@ export class Connection implements Backend {
     });
   }
 
-  /** A reducer called: undefined when it was made; else why not, and the words kept for the status line until the next move. */
+  /**
+   * A reducer called: undefined when it was made; else why not, and the words kept for the status
+   * line until the next move. Once the SDK has stopped trying, none is called: the words say why.
+   */
   private async move(call: () => Promise<void>): Promise<Rejection | undefined> {
-    this.refused = undefined;
+    this.refused = this.cutOff;
     this.changed();
+    if (this.cutOff) return { code: "error", text: this.cutOff };
     try {
       await call();
       return undefined;
@@ -295,6 +323,11 @@ export class Connection implements Backend {
     }
   }
 }
+
+/** A reconnect the server refused, for good (a 401 or 403: a server signed by other keys, on the port), and what to do. */
+export const TURNED_AWAY = "(The game's server turned this session away: /quit, then start again.)";
+/** A connection the server closed that the SDK won't open again (a protocol error), and what to do. */
+export const CLOSED = "(The game's server closed this session: /quit, then start again.)";
 
 /** A table's row callbacks, as every watched table and view has them (onUpdate on those with a primary key). */
 interface Observable {
