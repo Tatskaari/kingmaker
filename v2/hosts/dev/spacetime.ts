@@ -60,10 +60,17 @@ export interface Published { ok: boolean; created: boolean; wiped: boolean; outp
 export async function publish(cli: SpacetimeCli, modulePath: string, env: Record<string, string>, abort?: AbortSignal): Promise<Published> {
   const { code, stdout, stderr } = await run(cli.bin, [
     "--config-path", cli.config, "publish", DB, "-s", cli.server, "-p", modulePath, "--no-config",
-    "--yes=migrate,break-clients,skip-login", "--delete-data=on-conflict",
+    // delete-data answers the CLI's "this will DESTROY … ALL corresponding data" for --delete-data=on-conflict, which a schema
+    // change that can't migrate asks (V1's job columns did): with no terminal to ask, the publish was aborted. Never remote.
+    "--yes=migrate,break-clients,skip-login,delete-data", "--delete-data=on-conflict",
   ], { env: { ...process.env, ...env }, cwd: modulePath, timeoutMs: 300_000, ...(abort ? { abort } : {}) });
   const output = `${stdout}${stderr}`;
-  return { ok: code === 0, created: /Created new database/.test(output), wiped: /Deleting the database|Deleted database/.test(output), output };
+  return { ok: code === 0, ...publishedHow(output), output };
+}
+
+/** What a publish's output says it did: made the database, or cleared it first ("Proceeding with database clear due to --delete-data=on-conflict", as the 2.12 CLI says it). */
+export function publishedHow(output: string): Pick<Published, "created" | "wiped"> {
+  return { created: /Created new database/.test(output), wiped: /Proceeding with database clear|Deleting the database|Deleted database/.test(output) };
 }
 
 /** One of the published module's env values, or undefined when it isn't set. */
