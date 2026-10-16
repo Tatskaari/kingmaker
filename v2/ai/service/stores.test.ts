@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, utimesSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fakeFetch } from "../llm/fake-openrouter.ts";
@@ -9,7 +9,10 @@ import { callContext, transports } from "./calls.ts";
 import { readConfig } from "./config.ts";
 import { folderStores } from "./folder-stores.ts";
 
-const fresh = () => mkdtempSync(join(tmpdir(), "km-store-"));
+/** Every test's store is a folder in this one, removed once the file's tests are done. */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-store-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
+const fresh = () => mkdtempSync(join(SCRATCH, "store-"));
 
 test("answers are kept by key, a key's characters safe in a file's name", async () => {
   const root = fresh();

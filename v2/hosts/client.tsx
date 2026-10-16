@@ -36,6 +36,9 @@ type Args = ReturnType<typeof argsOf>["values"];
 /** How long the move's own rows take to come: they come with its commit, in milliseconds. */
 const ROWS_MS = 10_000;
 
+/** What the status line says when the session's game has gone from the server (a stack started again with --fresh): the last view stays. */
+const GONE = "(The game's server no longer has this game: /quit, then start one with --new, or watch one with --join.)";
+
 async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<void> {
   needTerminal();
   const args = argsOf(argv).values;
@@ -102,7 +105,7 @@ async function play(game: Backend, view: SceneView): Promise<void> {
   const quit = leaving(root, renderer, game);
 
   const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), setSuggestions: on => game.setSuggestions(on), quit: () => quit(0) });
-  game.onChange(() => { const next = game.view(); if (next) scene.update(next); });
+  game.onChange(() => { const next = game.view(); if (next) scene.update(next); else scene.lose(GONE); });
 
   process.on("SIGTERM", () => quit(0));
   process.on("SIGHUP", () => quit(0));

@@ -52,21 +52,24 @@ export function phaseLine(view: SceneView): string {
   return `PHASE: ${view.phase} (the GM has the floor)`;
 }
 
-/** The scene as the player sees it: where and when, who's here, the last `last` entries, the draft, a refusal or what the turn waits on, the lines suggested, the phase. */
+/**
+ * The scene as the player sees it: where and when, who's here, the scene's hook (the screen heads
+ * its transcript with it, and the prototype's QA console printed it first), the last `last` entries,
+ * the draft, a refusal or what the turn waits on, the lines suggested, the phase.
+ */
 export function viewText(view: SceneView, last = 8): string {
   const here = view.present.length ? `Here: ${view.present.map(p => p.name).join(", ")}.` : "Nobody else is here.";
-  const word = view.refusal ?? view.note;
   const actions = actionLines(view);
-  return [
+  const blocks = [
     `MODE: scene`,
-    ``,
     `[${view.title}${view.time ? `, ${view.time.toLowerCase()}` : ""}] ${here}`,
-    ``,
+    view.hook,
     render(view, view.entries.slice(-last)),
-    ...(view.draft ? [``, `(${view.draft.name ?? "The GM"} is still speaking: ${view.draft.text}…)`] : []),
-    ...(word ? [``, word] : []),
-    ...(actions.length ? [``, ...actions] : []),
-    ``,
+    view.draft ? `(${view.draft.name ?? "The GM"} is still speaking: ${view.draft.text}…)` : undefined,
+    view.refusal ?? view.note,
+    actions.length ? actions.join("\n") : undefined,
     phaseLine(view),
-  ].join("\n");
+  ];
+  // A block a paragraph; one with nothing in it (no entries yet: an opening that failed) leaves no gap.
+  return blocks.filter(block => block).join("\n\n");
 }

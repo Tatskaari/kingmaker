@@ -43,6 +43,8 @@ export class SceneModel {
   talkArea?: { w: number; h: number };
   /** A word of the client's own (an unknown command), until the next line. The simulation's refusals are the view's. */
   status?: string;
+  /** Why the game this screen shows has gone from the server (its seat has: a stack started again with --fresh), until a view comes again. */
+  gone?: string;
   /** A way on is being typed at (see wayOnKey): kept for the scene-over vertical. */
   typing = false;
 
@@ -51,10 +53,13 @@ export class SceneModel {
   private pending?: ReturnType<typeof setTimeout>;
   private busyLines = new BusyLines();
   private busyLine?: string;
+  /** Where the scene stood (momentOf) when the view's refusal came: it's shown until the scene moves on. */
+  private refusedAt?: string;
 
   constructor(view: SceneView, actions: SceneActions) {
     this.view = view;
     this.actions = actions;
+    this.noteRefusal(view);
   }
 
   subscribe(listener: () => void): () => void {
@@ -82,8 +87,38 @@ export class SceneModel {
     if (thinking(view) && !thinking(was)) this.busyLine = this.busyLines.next(this.busyLine);
     if (view.title !== was.title) this.forgetMarks();
     this.view = view;
+    this.gone = undefined;
+    this.noteRefusal(view);
     if (onlyGrew(was, view)) this.emitSoon();
     else this.emit();
+  }
+
+  /** No view: the game this screen showed has gone from the server. Its last view stays, its box shut, and `words` say why. */
+  lose(words: string): void {
+    if (this.gone === words) return;
+    this.gone = words;
+    this.emit();
+  }
+
+  /**
+   * The simulation's last refusal, while the scene is where it was when the refusal came. A turn
+   * moving on, a note, or the scene's end puts it away: a spectator's every line is refused, and
+   * the refusal would otherwise hide the spinner and the turn's note for good.
+   */
+  refusal(): string | undefined {
+    const { refusal } = this.view;
+    return refusal !== undefined && this.refusedAt === momentOf(this.view) ? refusal : undefined;
+  }
+
+  /**
+   * Whether a plain line goes to the simulation now: when the box is open, and when the simulation
+   * refuses it in words worth seeing (a spectator's line, a line after the scene's end, or while a
+   * turn is failed: its /retry). While the GM has the floor it waits in the box; with the game gone
+   * from the server there's nothing to send it to.
+   */
+  sends(): boolean {
+    const v = this.view;
+    return !this.gone && (v.mayType || !!v.watching || v.over || v.phase === "failed");
   }
 
   lines(): Line[] { return linesOf(this.view); }
@@ -100,17 +135,17 @@ export class SceneModel {
   }
 
   /**
-   * The player's line: a /command (the old #command too), or what they say and do. A spectator's
-   * line goes to the simulation too, as does one after the scene's end, and it refuses them in the
-   * game's words.
+   * The player's line: a /command (the old #command too), or what they say and do, when it goes to
+   * the simulation (sends): a line it refuses is answered in the game's words.
    */
   input(raw: string): void {
     const text = raw.trim();
     if (!text) return;
     this.status = undefined;
     if (text.startsWith("/") || text.startsWith("#")) { this.command(text.slice(1)); return; }
-    if (!this.view.mayType && !this.view.watching && !this.view.over) return;
+    if (!this.sends()) return;
     this.markFocus = undefined;
+    this.refusedAt = undefined;
     this.actions.say(text);
     this.emit();
   }
@@ -160,6 +195,11 @@ export class SceneModel {
     return marks.map((_, mark) => ({ line: i, mark }));
   }
 
+  /** A refusal new on the view (or the same words again, after a line) is shown from where the scene stands now. */
+  private noteRefusal(view: SceneView): void {
+    this.refusedAt = view.refusal === undefined ? undefined : this.refusedAt ?? momentOf(view);
+  }
+
   /** The transcript's lines are new (another scene): what was picked out of them goes. */
   private forgetMarks(): void {
     this.markFocus = undefined;
@@ -193,6 +233,9 @@ export class SceneModel {
 
 /** The GM has a line to think about: said and waiting, or being decided. */
 const thinking = (view: SceneView) => view.phase === "queued" || view.phase === "deciding";
+
+/** Where the scene stands, for a refusal to lapse by: the turn shown and its phase, what it waits on, how much has been said, whether it's over. A draft growing doesn't move it on. */
+const momentOf = (view: SceneView) => JSON.stringify([view.turn, view.phase, view.note, view.entries.length, view.over]);
 
 /**
  * Only the draft grew (the same try at the reply, further on): it's redrawn at most ~30 times a

@@ -24,7 +24,7 @@ It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOp
 
 At each moment the stand-in is told the notes the notes' writer writes (`byName.notes`) and the lines the suggester suggests (`suggestions`), and the judge finds the second line it's asked about gives away what's held (`line_2: gives_away`). Between them the notes land on a mark of the GM's, on spoken lines and on words of the reply, linked to someone (Cob, Kell, the girl in the shawl by what the player calls her), to a lore doc (a know written with its doc's D id in that call) and to the player's own turn (a you); a you on nothing the player did and a know with no doc don't land. Each set of lines has a name from the Rat (Hobb: unheard, from the campaign's vocabulary), a way out (too early), a line in the GM's markup, and lines that fit; at t2 one is a line offered last time.
 
-It wraps the stand-in's fetch to keep every call's body with a copy of the session as it stood (the rules engine's serialised campaign left out) and names each call by its operation from the prototype's call log. It writes:
+It wraps the stand-in's fetch to keep every call's body with a copy of the session as it stood (the rules engine's serialised campaign left out, and the timings: the turns' `metrics`, and how long the last lines took) and names each call by its operation from the prototype's call log. It writes:
 
 | File | What's in it |
 |---|---|
@@ -36,7 +36,7 @@ The notes and the lines are written again on the frozen copy by the prototype's 
 
 It also writes the prototype's own scenes that the copied tests play, as authored, to [../testdata/scenes](../testdata/scenes): the Rat, the Heron, the King's morning, the ferry and the pie stall.
 
-Re-recording gives the same calls, notes and lines; the files differ only in the sessions: the rules engine's random ids for the character and their gear, and the turns' timings in its metrics, which no prompt shows. Checked on 16 Oct from the prototype at `44c6d4a` and from this branch's: every file the same but for its session, the scenes byte for byte.
+Re-recording gives the same calls, notes and lines; the files differ only in the rules engine's random ids for the character and their gear, which no prompt shows. (The timings would differ every time too: they aren't kept.) Checked on 16 Oct from the prototype at `44c6d4a` and from this branch's: every file the same but for those ids, the scenes byte for byte.
 
 ## What the test compares
 

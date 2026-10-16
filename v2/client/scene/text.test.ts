@@ -6,7 +6,7 @@ import { viewText } from "./text.ts";
 test("the scene as text: the player's lines quoted, a reply's markup under it, the phase", () => {
   const text = viewText(YARD);
 
-  assert.match(text, /^MODE: scene\n\n\[The Hanged Clerk, morning\] Here: Sergeant Agnes Kell, the boy in the too-big boots, the girl in the shawl\./);
+  assert.match(text, /^MODE: scene\n\n\[The Hanged Clerk, morning\] Here: Sergeant Agnes Kell, the boy in the too-big boots, the girl in the shawl\.\n\nThis morning a palace clerk, Wendell Prout, was found hanged .* So, by the sound of it, are some children\.\n\n/);
   assert.match(text, /^> \*I put my hands up\* I'm not the watch\./m);
   assert.match(text, /⟨who says what: Sergeant Agnes Kell “You told the boy to show r…”⟩/);
   assert.match(text, /⟨you on “you're asking him for help”: You barked at him to stop throwing stones a minute ago\./);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { refusal } from "../shared/protocol/refusals.ts";
 import type { Backend } from "./backend.ts";
 import { YARD } from "./check/fixture.ts";
 import { demoBackend } from "./demo.ts";
@@ -143,6 +144,14 @@ test("a refused move prints the simulation's words and exits 1", async () => {
   assert.match(out.printed, /\(That turn hasn't failed: there's nothing to retry\.\)\n$/);
 });
 
+test("a line while a turn is failed: the simulation's words, then the verb that carries it on; exit 1", async () => {
+  const failed: Backend = { ...demoBackend({ ms: 1 }), say: async () => refusal("turn_failed") };
+  const out = capture();
+
+  assert.equal(await verbs.say(failed, "Hello?", out), 1);
+  assert.equal(out.printed, "(The GM lost the thread: /retry to carry on.)\nCarry it on: npm run play -- retry --session <name>.\n");
+});
+
 test("new: the opening, then the game's number to watch it by; join: the game as its player sees it, and who has the lead", async () => {
   const game = demoBackend({ ms: 1 });
   const made = capture();
@@ -174,7 +183,8 @@ test("observe and transcript: the scene, and everything said in it", () => {
   assert.equal(verbs.observe(game, seen), 0);
   assert.equal(verbs.transcript(game, all), 0);
   assert.match(seen.printed, /^MODE: scene\n\n\[The Hanged Clerk, morning\] Here: /);
-  assert.match(all.printed, /^MODE: transcript\n\n\[The Hanged Clerk\]\n\nThe yard behind the King's Granary/);
+  assert.match(seen.printed, /\n\nThis morning a palace clerk, Wendell Prout, was found hanged/);
+  assert.match(all.printed, /^MODE: transcript\n\n\[The Hanged Clerk\]\n\nThis morning a palace clerk, Wendell Prout, .* are some children\.\n\nThe yard behind the King's Granary/);
 });
 
 /** A game whose reply comes at once, and whose notes and lines never do: what the waits give up on. */

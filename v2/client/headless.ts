@@ -68,11 +68,11 @@ export function observe(game: Backend, out: Out): number {
   return 0;
 }
 
-/** Everything said in the scene so far. */
+/** Everything said in the scene so far, under its title and hook. */
 export function transcript(game: Backend, out: Out): number {
   const view = game.view();
   if (!view) return notInGame(out);
-  out.print(`MODE: transcript\n\n[${view.title}]\n\n${render(view, view.entries)}`);
+  out.print(`MODE: transcript\n\n[${view.title}]\n\n${view.hook ? `${view.hook}\n\n` : ""}${render(view, view.entries)}`);
   return 0;
 }
 
@@ -184,9 +184,10 @@ async function within(game: Backend, done: (view: SceneView) => boolean, waiting
   return await viewWhen(game, done, waiting.afterMs ?? AFTER_MS).catch(() => game.view() ?? now);
 }
 
-/** A move refused: its words, and exit code 1. */
+/** A move refused: its words, and exit code 1. A failed turn's words name the screen's /retry: this client's way is the retry verb. */
 function said(out: Out, why: Rejection): number {
   out.print(why.text);
+  if (why.code === "turn_failed") out.print("Carry it on: npm run play -- retry --session <name>.");
   return 1;
 }
 

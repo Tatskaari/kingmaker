@@ -8,7 +8,9 @@
  * a failed turn's word, the commands over the box and the help, a mark opened by a click and by
  * Tab and Enter. And V0's: the game's number, a turn waiting on the AI service (its note), the
  * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
- * spectator's shut box and their line refused, and the scene's end. And V5's: the suggested lines,
+ * spectator's shut box and their line refused (the refusal giving way when the turn moves on), the
+ * scene's end, a failed turn's box and a line sent to be refused with its /retry, a long paste kept
+ * to a turn's 2,000 characters, and a game gone from the server. And V5's: the suggested lines,
  * from rows (their rows kept while they come, numbered over the box, a number or a click into the
  * box, typing puts them away, /suggestions off, none for a spectator), each speaker's colour as the
  * draft grows, and the popover's card, dropped first when there's no room. (The prototype's
@@ -152,17 +154,39 @@ for (const [w, h] of SIZES) {
   view = clean;
   set({});
 
-  // A failed turn: its word in red, and /retry.
-  set({ phase: "failed", failed: "the AI API timed out" });
+  // A long paste: the box takes as much as a turn does (2,000 characters), says so when it's full, and sends it whole.
+  const pasted = "word ".repeat(420);
+  await act(async () => { await setup.mockInput.pasteBracketedText(pasted); });
+  frame = await draw();
+  checks.push([`${size}: a long paste fills the box to 2,000 characters, and the status line says it's full`, /\(The box is full: a turn takes 2,000 characters at most\.\)/.test(frame) && style("(The box is full")?.fg === C.warn]);
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: its Enter sends the first 2,000 (${sent.at(-1)?.length}, trimmed)`, sent.at(-1) === pasted.slice(0, 2000).trim() && !/The box is full/.test(frame)]);
+
+  // A failed turn: its word in red, and /retry. (Its box is shut, as the rows make it.)
+  set({ phase: "failed", failed: "the AI API timed out", mayType: false });
   frame = await draw();
   checks.push([`${size}: a failed turn says why and what to do, in red`, said(frame).includes("The AI API timed out. /retry carries the turn on from where it got to.") && style("The AI API timed out")?.fg === C.danger]);
+  // Its box says what to do, and a line typed goes to the simulation, which refuses it with the /retry.
+  checks.push([`${size}: a failed turn's box says /retry carries it on`, /The GM lost the thread: \/retry carries it on\./.test(frame) && !/The GM has the floor/.test(frame)]);
+  await act(async () => { await setup.mockInput.typeText("Hello? Kell?"); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line while the turn is failed goes to the simulation, and the box empties`, sent.at(-1) === "Hello? Kell?" && !/Hello\? Kell\?/.test(frame)]);
+  set({ refusal: "(The GM lost the thread: /retry to carry on.)" });
+  frame = await draw();
+  checks.push([`${size}: its refusal, on the status line`, style("(The GM lost the thread: /retry to carry on.)")?.fg === C.warn]);
+  const { refusal: _turnFailed, ...unrefused } = view;
+  view = unrefused;
+  set({});
   await act(async () => { await setup.mockInput.typeText("/retry"); });
   await draw();
   act(() => setup.mockInput.pressEnter());
   await draw();
   checks.push([`${size}: /retry calls retryTurn`, sent.at(-1) === "/retry"]);
   const { failed: _f, ...ok } = view;
-  view = { ...ok, phase: "done" };
+  view = { ...ok, phase: "done", mayType: true };
   set({});
 
   // The commands over the box as one's typed, and the help.
@@ -226,6 +250,39 @@ for (const [w, h] of SIZES) {
   set({ refusal: "(Pell Marrow has the lead here: you're watching.)" });
   frame = await draw();
   checks.push([`${size}: the simulation's refusal, on the status line`, style("(Pell Marrow has the lead here")?.fg === C.warn]);
+  // The lead says a line: the refusal (still on the view, as the connection keeps it until the next
+  // move) gives way to the spinner, and then to the turn's note.
+  const next = YARD.entries.at(-1)!.turn + 1;
+  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "deciding", turn: next });
+  frame = await draw();
+  const spinning = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
+  checks.push([`${size}: when the lead's next line comes, the spectator's refusal gives way to the spinner (${spinning ?? "none"})`, !!spinning && !/has the lead here: you're watching\.\)/.test(frame)]);
+  set({ phase: "replying", note: "The GM has lost the thread for a moment: trying again." });
+  frame = await draw();
+  checks.push([`${size}: and to the turn's note`, style("The GM has lost the thread for a moment")?.fg === C.warn]);
+  // The scene's end: a spectator's box says so, as the lead's does.
+  view = { ...YARD, entries: [...YARD.entries, { turn: 3, speaker: "system", kind: "system", text: "Scene ends: The Hanged Clerk" }], mayType: false, watching: "Pell Marrow", over: true };
+  set({});
+  frame = await draw();
+  checks.push([`${size}: after the end, a spectator's box says the scene is over`, /The scene is over\./.test(frame) && !/Pell Marrow has the lead: you're watching\./.test(frame)]);
+
+  // The game gone from the server (a stack started again with --fresh): the last view stays, the
+  // status line says so, the box is shut, and a line typed waits in it, unsent.
+  view = YARD;
+  set({});
+  act(() => scene.lose("(The game's server no longer has this game: /quit, then start one with --new, or watch one with --join.)"));
+  frame = await draw();
+  checks.push([`${size}: a game gone from the server: the status line says so, the box is shut`, style("(The game's server no longer has this game")?.fg === C.warn && /The game is gone from the server\./.test(frame) && style("What do you say?")?.fg === C.border]);
+  const before = sent.length;
+  await act(async () => { await setup.mockInput.typeText("Is anyone here?"); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line typed then stays in the box, unsent`, sent.length === before && /Is anyone here\?/.test(frame)]);
+  for (let i = 0; i < "Is anyone here?".length; i++) act(() => setup.mockInput.pressBackspace());
+  set({});
+  frame = await draw();
+  checks.push([`${size}: a view coming again takes it back`, !/no longer has this game/.test(frame) && style("What do you say?")?.fg === C.borderHot]);
 
   // The scene's end: a rule across with its title, and a box that says it's over. A line typed after
   // it goes to the simulation, which refuses it in the game's words.

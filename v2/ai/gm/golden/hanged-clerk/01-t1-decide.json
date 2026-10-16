@@ -134,7 +134,6 @@
     "text": "Sergeant, who found him?"
    }
   ],
-  "metrics": [],
   "history": [],
   "rules": {
    "pc": "01M51G95ADF5J2PQ3B19KT60G5",
@@ -1133,7 +1132,6 @@
      "text": "(I try to coax the boy down off his stones with a penny)"
     }
    ],
-   "ms": 47,
    "costUsd": 0.00030000000000000003
   }
  },

@@ -75,16 +75,23 @@ function hostPort(server: Server): string {
   return address.includes(":") ? `[${address}]:${port}` : `${address}:${port}`;
 }
 
-/** SIGTERM or SIGINT: take nothing new, give what's running ten seconds to finish and be sent, then exit. */
+/**
+ * SIGTERM or SIGINT: take nothing new, give what's running ten seconds to finish and be sent, then
+ * exit. A signal while that goes on changes nothing: under npm a terminal's Ctrl+C comes twice (from
+ * the terminal, and passed on by npm), and with no listener for it node would die mid-drain.
+ */
 function stopOnSignals(servers: Server[], service: AiService): void {
+  let stopping = false;
   const stop = async (signal: string) => {
+    if (stopping) return;
+    stopping = true;
     log(`[ai] ${signal}: finishing what's in flight`);
     for (const server of servers) { server.close(); server.closeIdleConnections(); }
     await service.shutdown(10_000);
     process.exit(0);
   };
-  process.once("SIGTERM", () => void stop("SIGTERM"));
-  process.once("SIGINT", () => void stop("SIGINT"));
+  process.on("SIGTERM", () => void stop("SIGTERM"));
+  process.on("SIGINT", () => void stop("SIGINT"));
 }
 
 await main();

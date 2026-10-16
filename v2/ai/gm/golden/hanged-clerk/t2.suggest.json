@@ -250,40 +250,6 @@
     }
    }
   ],
-  "metrics": [
-   {
-    "turn": 1,
-    "repairMs": 0,
-    "preDecisionMs": 8.948553000000004,
-    "firstTextMs": 21.83432399999998,
-    "followUpMs": null,
-    "resolvingTextMs": 21.83432399999998,
-    "replyMs": 16.29555400000004,
-    "postDecisionMs": 1.235420999999974,
-    "costUsd": 0.0012000000000000001,
-    "calls": 6,
-    "markup": {
-     "quotes": 5,
-     "tagged": 3,
-     "marks": 1,
-     "kinds": {
-      "why": 1,
-      "know": 0,
-      "you": 0
-     },
-     "unlabelled": 0,
-     "dropped": 0,
-     "malformed": 0
-    },
-    "notes": {
-     "drafted": 1,
-     "written": 2,
-     "added": 1,
-     "costUsd": 0.0002,
-     "ms": 5.331116999999949
-    }
-   }
-  ],
   "history": [],
   "rules": {
    "pc": "01M51G95ADF5J2PQ3B19KT60G5",
@@ -1309,7 +1275,6 @@
      "text": "(I try to read the girl's face while she talks)"
     }
    ],
-   "ms": 10,
    "costUsd": 0.00030000000000000003
   },
   "sceneStatus": "on_track"

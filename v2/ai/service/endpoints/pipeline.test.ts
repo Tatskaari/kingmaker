@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../../llm/fake-openrouter.ts";
@@ -23,6 +23,10 @@ const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwy
 const GAME = "0d1e2f3a-0000-4000-8000-0000000000aa";
 const LINE = "Sergeant, who found him?";
 
+/** Every test's store is a folder in this one, removed once the file's tests are done (a store holds a whole campaign: left behind, a run's worth fills a tmpfs's inodes in a few hundred runs). */
+const SCRATCH = mkdtempSync(join(tmpdir(), "km-pipeline-"));
+after(() => rmSync(SCRATCH, { recursive: true, force: true }));
+
 function filesOf(dir: string): Record<string, string> {
   const files: Record<string, string> = {};
   const walk = (at: string) => { for (const name of readdirSync(at)) { const p = join(at, name); if (statSync(p).isDirectory()) walk(p); else files[relative(dir, p)] = readFileSync(p, "utf8"); } };
@@ -32,7 +36,7 @@ function filesOf(dir: string): Record<string, string> {
 
 /** The campaign installed in a fresh store, and a request's context on the stand-in, its stream posts and its calls kept. */
 async function setUp(options: FakeOptions = {}) {
-  const store = mkdtempSync(join(tmpdir(), "km-pipeline-"));
+  const store = mkdtempSync(join(SCRATCH, "store-"));
   const stores = folderStores(store);
   const installed = campaigns(stores.campaigns, stores.docsRoot);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));

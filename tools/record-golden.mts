@@ -151,10 +151,16 @@ function standIn(options: Fake): () => void {
 
 const suggesting = (body: { instructions?: string }) => !!body.instructions?.startsWith("You suggest what the player might");
 
-/** The session now, as the parity test reads it: the rules engine's own state (a serialised campaign, 10 KB) left out. */
+/**
+ * The session now, as the parity test reads it: the rules engine's own state (a serialised campaign,
+ * 10 KB) left out, and the timings no prompt shows and every recording changes: the turns'
+ * (metrics), and how long the last lines took to suggest.
+ */
 function snapshot(of: unknown = session): unknown {
-  const copy = structuredClone(of) as { rules?: Record<string, unknown> };
+  const copy = structuredClone(of) as { rules?: Record<string, unknown>; metrics?: unknown; suggestions?: { ms?: number } };
   if (copy.rules) delete copy.rules.campaign;
+  delete copy.metrics;
+  delete copy.suggestions?.ms;
   return copy;
 }
 

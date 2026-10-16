@@ -3,6 +3,7 @@ import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState } from "react";
 import type { Markup } from "../../shared/markup.ts";
+import { MAX_LINE } from "../../shared/protocol/refusals.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import type { Style } from "../reply.ts";
 import type { SceneModel } from "../scene/model.ts";
@@ -202,9 +203,9 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   const send = (value: string) => {
     if (!value.trim()) return;
     const command = /^[/#]/.test(value.trim());
-    // A line waits in the box while the GM has the floor; a command goes any time. A spectator's
-    // line goes too, and so does one after the scene's end: the simulation refuses it, in the game's words.
-    if (!command && !view.mayType && !view.watching && !view.over) return;
+    // A line waits in the box while the GM has the floor; a command goes any time. A line the
+    // simulation refuses in words worth seeing goes too (a spectator's, after the end, while a turn is failed).
+    if (!command && !scene.sends()) return;
     clear();
     scene.input(value);
   };
@@ -274,11 +275,17 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   };
   const inner = side - 4;
   const busy = scene.busy();
-  // The game's word on the status line: the client's own, the simulation's last refusal, or what the
-  // turn is waiting on (the AI service lost, and asked again), in place of the spinner.
-  const said = scene.status ?? view.refusal ?? view.note;
-  // The box, while it's shut: who has the lead, that the scene's over, or that the GM has the floor.
-  const shut = view.watching ? `${view.watching} has the lead: you're watching.` : view.over ? "The scene is over." : "The GM has the floor…";
+  const open = view.mayType && !scene.gone;
+  // The game's word on the status line, in place of the spinner: the client's own, that the game has
+  // gone from the server, that the box is full, the simulation's last refusal (until the scene moves
+  // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach).
+  const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
+  const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note;
+  // The box, while it's shut: the game gone, the scene over, who has the lead, a failed turn's /retry, or the GM has the floor.
+  const shut = scene.gone ? "The game is gone from the server." : view.over ? "The scene is over."
+    : view.watching ? `${view.watching} has the lead: you're watching.`
+    : view.phase === "failed" ? "The GM lost the thread: /retry carries it on."
+    : "The GM has the floor…";
   const status = view.player.status ?? "";
   // How to talk: plain words are speech; asterisks and brackets are deeds. (A narrow panel leaves it to the box's own hint.)
   const talk = narrow ? [] : [
@@ -339,11 +346,12 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       {busy && !said ? <Spinner label={busy} /> : <text fg={said ? C.warn : C.faint}>{said ?? " "}</text>}
     </box>
     {kept ? <Picks picks={toPick} rows={kept} width={width - 2} /> : null}
-    <box height={3} flexShrink={0} border borderColor={view.mayType ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
+    <box height={3} flexShrink={0} border borderColor={open ? C.borderHot : C.border} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
       {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
-      <input ref={input} scrollMargin={0.05} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!scene.overlay}
-        placeholder={!view.mayType ? shut : width >= 100
+      {/* As much as a turn takes (the simulation's limit): OpenTUI's own is 1,000, and it cut a longer line without a word. */}
+      <input ref={input} scrollMargin={0.05} maxLength={MAX_LINE} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!scene.overlay}
+        placeholder={!open ? shut : width >= 100
           ? "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I cast Fireball)"
           : "Say it out loud; *asterisks* or (brackets) to do things"} />
     </box>
