@@ -14,7 +14,7 @@ Each is a thin layer over OpenRouter or the lore's files, and production code as
 
 ## The one rule
 
-**v2/ai imports nothing outside v2/ai,** only `node:` built-ins and its own files. The prototype reaches in, and nothing here reaches out. [imports.test.ts](imports.test.ts) holds it to that, since the prototype's type check wouldn't notice. So:
+**v2/ai imports only `node:` built-ins, its own files and [v2/shared](../shared/),** never the prototype. v2/shared is the plain TypeScript the AI service shares with the simulation (the requests and answers between them, the scene graph, the world), and it imports nothing outside itself, so nothing the prototype imports from here reaches the rest of v2. The prototype reaches in, and nothing here reaches out to it. [imports.test.ts](imports.test.ts) holds v2/ai to that, since the prototype's type check wouldn't notice, and [v2/shared's own test](../shared/imports.test.ts) holds v2/shared. A change to either runs the prototype's checks too (moon.yml's sources), since the prototype's type check and tests reach them. So:
 
 - **What a function needs of the game, it's handed.** The docs service takes a view of the game's working set ([docs/types.ts](docs/types.ts)), never the prototype's session, and what disclosure keeps comes back as a value for the game to keep.
 - **Where the files are is found or configured, never imported.** The prompts are beside their loader. The lore, and each game's copy of it, are where [docs/config.ts](docs/config.ts) says: by default the repo's `lore/` and `runs/sessions/<game>/docs/`, where the prototype keeps them.
