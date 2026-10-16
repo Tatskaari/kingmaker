@@ -3,7 +3,7 @@ import { idOf, idText } from "../../../shared/protocol/keys.ts";
 import type { TxCtx } from "../context.ts";
 import { suggestCall } from "../gm/requests.ts";
 import { queueThink } from "../jobs.ts";
-import { playerRow, sceneRow, updateTurn, type SceneRow, type TurnRow } from "../rows.ts";
+import { playerRow, sceneRow, turnRow, updateTurn, type SceneRow, type TurnRow } from "../rows.ts";
 import type { Move } from "./move.ts";
 import type { SuggestPlan } from "./plans.ts";
 
@@ -62,23 +62,22 @@ export function hasLinesFor(tx: TxCtx, sceneId: bigint, n: number): boolean {
 // ---------------------------------------------------------------------------------------------
 
 function updateTurnAsk(tx: TxCtx, turnId: bigint): TurnRow {
-  const turn = tx.db.turn.id.find(turnId)!;
-  return updateTurn(tx, turnId, { suggest: "coming", suggestAsks: turn.suggestAsks + 1 });
+  return updateTurn(tx, turnId, { suggest: "coming", suggestAsks: turnRow(tx, turnId).suggestAsks + 1 });
 }
 
 /**
- * A set come (or, with none, the moment left with none): the scene's set replaced, in order, for its
- * controller; or, when its moment has passed, dropped and the rows left as they are (`land`,
- * suggest.ts:85-90; `stopSuggesting`, :69). With no lines, the set is cleared, so the next ask
- * offers nothing as already offered.
+ * A set come (or lost, landing as none): the scene's set replaced, in order, for its controller; or,
+ * when its moment has passed, the rows left as they are (`land`, suggest.ts:85-90; `stopSuggesting`,
+ * :69). With no lines, the set is cleared, so the next ask offers nothing as already offered.
  */
-function landLines(tx: TxCtx, plan: SuggestPlan, lines: Suggestion[], state: "landed" | "lost"): void {
+function landLines(tx: TxCtx, plan: SuggestPlan, lines: Suggestion[], came: "landed" | "lost"): void {
   const scene = sceneRow(tx, idOf(plan.scene));
   const passed = momentPassed(tx, scene, plan.n);
 
   if (!passed) replaceSet(tx, scene, plan.n, lines);
-  updateTurn(tx, idOf(plan.turn), { suggest: passed ? "dropped" : state });
-  tx.log(`[scene ${plan.scene} turn ${plan.n}] lines ${passed ? `dropped (${passed})` : `${state}: ${lines.length}`}`);
+  const state = came === "landed" && passed ? "dropped" : came;
+  updateTurn(tx, idOf(plan.turn), { suggest: state });
+  tx.log(`[scene ${plan.scene} turn ${plan.n}] lines ${state}${passed ? ` (${passed})` : came === "landed" ? `: ${lines.length}` : ": the set cleared"}`);
 }
 
 /** Why a set for turn n no longer lands, if it doesn't: a later line was said, the scene is over, or its controller turned them off. */

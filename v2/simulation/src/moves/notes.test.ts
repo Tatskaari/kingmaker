@@ -231,3 +231,27 @@ test("the notes and the lines are asked for on the world as the reply left it: b
   assert.ok(!keys(notes.turn.world).includes("tull") && !keys(lines.turn.world).includes("tull"), "and not yet in the world");
   assert.ok(keys(settle.turn.world).includes("tull"), "the settle sees him joined");
 });
+
+test("the reply that closes the scene has its notes too: its turn waits for them with the scene over, then ends", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const notes = held<NotesResponse>();
+  const decided = (route?: string): DecideResponse => ({ decision: { ...(route ? { route: { id: route, phase: "attempt" as const } } : {}), earned: false, daft: false, outOfCharacter: false }, opened: [], usage: usage(1) });
+  script.then("decide", decided("walk-away"));
+  script.then("reply", kellSays());
+  script.then("notes", () => notes.promise);
+
+  host.as(wren).say({ text: "*I turn and walk out of the gate.*" });
+  const first = host.drain();
+  await tick();
+  await host.drain();
+
+  const ended = sceneNow(host, scene.id);
+  assert.deepEqual([ended.scene.status, ended.turns[1]!.phase, ended.scene.turnId], ["ended", "noting", ended.turns[1]!.id]);
+  assert.equal(host.as(wren).say({ text: "Wait!" })?.code, "scene_over");
+
+  notes.settle(noted());
+  await first;
+  const now = sceneNow(host, scene.id);
+  assert.deepEqual([now.turns[1]!.phase, now.turns[1]!.notes, now.scene.turnId], ["done", "written", undefined]);
+  assert.deepEqual(JSON.parse(now.lines.find(l => l.turn === 1 && l.speaker === "gm")!.markup!).marks, [why]);
+});

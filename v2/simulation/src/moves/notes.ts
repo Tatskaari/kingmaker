@@ -58,6 +58,6 @@ export function askForNotes(tx: TxCtx, turnId: bigint, reply: Written): void {
 /** The notes are in (or lost): the turn says so, and ends now if they were all it waited for. */
 function notesIn(tx: TxCtx, plan: NotesPlan, state: "written" | "lost", marks: Mark[]): void {
   const turn = updateTurn(tx, idOf(plan.turn), { notes: state });
-  tx.log(`[scene ${plan.scene} turn ${plan.n}] notes ${state}: ${marks.length} on entry ${plan.seq}`);
+  tx.log(`[scene ${plan.scene} turn ${plan.n}] notes ${state}${state === "written" ? `: ${marks.length}` : ""} on entry ${plan.seq}`);
   if (turn.phase === "noting") finishTurn(tx, turn.sceneId, turn.id);
 }

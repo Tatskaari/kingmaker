@@ -176,6 +176,7 @@ test("lines that can't be had are given up after 60 s: the moment has none, and 
   assert.deepEqual([sceneNow(host, scene.id).turns[1]!.suggest, sceneNow(host, scene.id).turns[1]!.note], ["lost", undefined]);
   assert.deepEqual(setOf(host, scene.id), [], "the last set cleared, as an empty one would be");
   assert.match(host.logs.join("\n"), /:t1:suggest gave up: no answer for 60 s/);
+  assert.match(host.logs.join("\n"), /\[scene \d+ turn 1\] lines lost: the set cleared/);
 });
 
 test("a reply that ends the scene asks for no lines; a wind-down out of character does", async () => {
@@ -200,4 +201,25 @@ test("a reply that ends the scene asks for no lines; a wind-down out of characte
   again.as(wren2).say({ text: "*I walk out of the gate.*" });
   await again.drain();
   assert.deepEqual(script2.to("suggest").map(s => keyParts(s.key)!.turn), [0], "a route into an ending closes the scene in its reply");
+});
+
+test("lines given up once their moment has passed are lost, and leave the set that's there", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const refused = down();
+  const turnOne = (request: SuggestRequest) => (keyParts(request.key)!.turn === 1 ? refused() : lines("Turn 2's line"));
+  for (let i = 0; i < 20; i++) script.then("suggest", turnOne);
+
+  host.as(wren).say({ text: "Sergeant." });
+  await host.drain();
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  assert.deepEqual(setOf(host, scene.id), asSet(2, lines("Turn 2's line").lines));
+
+  for (let s = 0; s < 60; s += 15) {
+    host.advance(15_000);
+    await host.drain();
+  }
+  assert.deepEqual(sceneNow(host, scene.id).turns.map(t => t.suggest), ["landed", "lost", "landed"]);
+  assert.deepEqual(setOf(host, scene.id), asSet(2, lines("Turn 2's line").lines));
+  assert.match(host.logs.join("\n"), /\[scene \d+ turn 1\] lines lost \(turn 2 has been said\)/);
 });
