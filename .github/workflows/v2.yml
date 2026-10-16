@@ -57,11 +57,13 @@ jobs:
           fi
 
   e2e:
-    # A line in a scene end to end (v0-design §10.4): SpacetimeDB with the module, the AI service on
-    # the fake model, two clients, and the kills. Host mode: the module calls the AI service at
-    # 11.0.0.1, which SpacetimeDB allows (it refuses loopback and the private ranges).
+    # A line in a scene and a character made, end to end (v0-design §10.4, v1-design §4.3):
+    # SpacetimeDB with the module, the AI service on the fake model, three clients, the kills, the
+    # ceiling, continue and delete; then the arc's checks that are on (v1-design §4.5), on a stack of
+    # their own. Host mode: the module calls the AI service at 11.0.0.1, which SpacetimeDB allows (it
+    # refuses loopback and the private ranges).
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
@@ -79,8 +81,9 @@ jobs:
       - name: Host mode's address
         run: sudo ip addr add 11.0.0.1/32 dev lo
       - run: npm run e2e
-      - name: The stack's logs, when it failed
-        # Its logs and the AI service's call logs; not stack.json or keys/ (this run's tokens).
+      - run: npm run arc
+      - name: The stacks' logs, when it failed
+        # Their logs and the AI service's call logs; not stack.json or keys/ (this run's tokens).
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -88,11 +91,14 @@ jobs:
           path: |
             v2/runs/e2e/logs/
             v2/runs/e2e/ai/games/*/calls.jsonl
+            v2/runs/arc/logs/
+            v2/runs/arc/ai/games/*/calls.jsonl
           if-no-files-found: ignore
 
   container:
     # The AI service's image (v0-design §5.7): it builds from v2/ with no npm install, and the service
-    # starts in it on the fake model and answers its health with the bearer it was given.
+    # starts in it on the fake model and answers its health with the bearer it was given, and the daily
+    # ceiling it keeps (v1-design §3.7).
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -105,7 +111,7 @@ jobs:
           for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8787/v1/health > /dev/null && break; sleep 1; done
           health=$(curl -sf -H "authorization: Bearer ci" http://127.0.0.1:8787/v1/health)
           echo "$health"
-          echo "$health" | grep -q '"ok":true' && echo "$health" | grep -q '"model":"fake"' && echo "$health" | grep -q '"token":"accepted"'
+          echo "$health" | grep -q '"ok":true' && echo "$health" | grep -q '"model":"fake"' && echo "$health" | grep -q '"token":"accepted"' && echo "$health" | grep -q '"budget":{"dailyUsd":5,''
       - name: The service's log
         if: always()
         run: podman logs kingmaker-ai || true
