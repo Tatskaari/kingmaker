@@ -1,11 +1,11 @@
-// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 110-125 (close, refresh), 140-447 but chooseBuild, 449-560, 562-632, 635-878, 884-909, 1108-1183, 1454, 1459-1512, 1765-1772, 1870-1883, 1951-1992. SessionState is RulesSession, under the same names; each function takes the Rules its host loaded, and none awaits; createCharacter requires a build (its model half is the AI service's, ai/rules/builds.ts); sheetText reads the sheet's data, not the engine; pocketsOf takes the campaign's starting purse, and sheetData leaves it to it; sheetData takes no fight's campaign (V12); sheetRows is v2's; close takes the Rules, and keeps the campaign in the isolate's cache when it's as loaded (engine.ts Ctx.asLoaded); withTopSpell's .at(-1) made ES2021. The engine plumbing (open, the loader, event) is engine.ts's.
+// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 110-125 (close, refresh), 140-447 but chooseBuild, 449-560, 562-632, 635-878, 884-909, 1108-1183, 1454, 1459-1512, 1765-1772, 1870-1883, 1951-1992. SessionState is RulesSession, under the same names; each function takes the Rules its host loaded, and none awaits; createCharacter requires a build (its model half is the AI service's, ai/rules/builds.ts); sheetText reads the sheet's data, not the engine; pocketsOf takes the campaign's starting purse, and sheetData leaves it to it; sheetData takes no fight's campaign (V12); sheetRows is v2's; close takes the Rules, and keeps the campaign in the isolate's cache when it's as loaded (engine.ts Ctx.asLoaded); withTopSpell's .at(-1) made ES2021. The engine plumbing (open, the loader, event) is engine.ts's. The world bridge's acts (acts.ts) share moreSpells, resolveChoices, grantResources, sheetOf, status, readySpells, endRage, FEATURES, close and refresh, which are exported for them; spellFactsOf is src/app/game.ts:1840-1851 (loadSpellFacts' body, on the engine's spell definitions), and sheetRows writes it as the sheet's spellFacts.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { rng, rollCheck, type RollResult } from "../dice.ts";
 import { SKILLS, type Skill } from "../scene/types.ts";
 import type { Entity } from "../world/scene-world.ts";
 import { ABILITIES, ABILITY_NAME, changing, engineSkill, event, keep, loadWellFormed, opened, ordinal, reading, signed, SKILL_ABILITY, type Ctx } from "./engine.ts";
 import { spellDetails, type Caster, type Extras, type Names } from "./spells.ts";
-import type { Build, FeatureRef, GearRow, Pockets, Rules, RulesSession, SheetData, SheetRows, SlotRow, SpellRef, Uses, WeaponRef } from "./types.ts";
+import type { Build, FeatureRef, GearRow, Pockets, Rules, RulesSession, SheetData, SheetRows, SlotRow, SpellFacts, SpellRef, Uses, WeaponRef } from "./types.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) for the player's character, from the vendored dnd-srd-engine its
@@ -60,7 +60,7 @@ const SUBCLASS_SCHOOL: Record<string, string> = { evoker: "evocation" };
  * order; then the highest level first, in the subclass's school (or the one the spells they have
  * mostly are), in the SRD's own order (its staples first: Fireball, then Counterspell).
  */
-function moreSpells(content: Dnd.Content, classId: string, have: string[], wanted: string[], levels: (l: number) => boolean, count: number, subclass = ""): string[] {
+export function moreSpells(content: Dnd.Content, classId: string, have: string[], wanted: string[], levels: (l: number) => boolean, count: number, subclass = ""): string[] {
   const onList = (id: string) => { const sp = content.spells.get(id); return !!sp && sp.classes.includes(classId) && levels(sp.level); };
   const chosen = [...new Set(wanted.filter(id => onList(id) && !have.includes(id)))].slice(0, count);
   const schools = have.map(id => content.spells.get(id)?.school).filter((x): x is string => !!x);
@@ -211,7 +211,7 @@ export function settleBuild(raw: Partial<Build>, level: number, content: Dnd.Con
 }
 
 /** Resolve the engine's pending choices for a character, preferring (in order) what the build asked for. */
-function resolveChoices(ctx: Ctx, characterId: string, prefer: string[]): string[] {
+export function resolveChoices(ctx: Ctx, characterId: string, prefer: string[]): string[] {
   const rank = (o: Dnd.ChoiceOption) => {
     const i = Math.min(...[o.id, o.label].map(k => prefer.indexOf(k.toLowerCase())).map(i => (i < 0 ? Infinity : i)));
     return i;
@@ -337,7 +337,7 @@ function formula(f: Formula, levels: Record<string, number>, scores: Record<Dnd.
  * snapshot, worked out from the class and subclass tables at the levels they have now (on creation
  * and on every level-up). What was spent since still counts.
  */
-function grantResources(ctx: Ctx, pcId: string): void {
+export function grantResources(ctx: Ctx, pcId: string): void {
   const c = ctx.campaign.state.characters[pcId]!;
   const content = ctx.engine.content as unknown as { classes: Map<string, { levelTable?: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> }>; subclasses: Map<string, { levelTable?: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> }> };
   const levels = Object.fromEntries(c.classes.map(k => [k.classId, k.level]));
@@ -387,7 +387,7 @@ function damageAdded(ctx: Ctx, c: Dnd.EngineCharacter, s: Dnd.CharacterSheet): (
   };
 }
 
-function sheetOf(ctx: Ctx, id: string): Dnd.CharacterSheet {
+export function sheetOf(ctx: Ctx, id: string): Dnd.CharacterSheet {
   const s = ctx.campaign.state;
   return ctx.E.buildCharacterSheet({ character: s.characters[id]!, itemInstances: s.itemInstances, content: ctx.engine.content, characters: s.characters, pendingChoices: s.pendingChoices });
 }
@@ -410,7 +410,7 @@ function slotsLine(sheet: Dnd.CharacterSheet, c: Dnd.EngineCharacter): string {
   return sheet.spellSlots.slotsByLevel.map((max, i) => max ? `${ordinal(i + 1)} ${max - (c.spellSlotsUsed[String(i + 1)] ?? 0)}/${max}` : "").filter(Boolean).join(", ");
 }
 
-function status(ctx: Ctx, id: string): string {
+export function status(ctx: Ctx, id: string): string {
   const c = ctx.campaign.state.characters[id]!;
   const sheet = sheetOf(ctx, id);
   const slots = slotsLine(sheet, c);
@@ -446,8 +446,8 @@ export function sheetRows(rules: Rules, state: RulesSession): SheetRows {
     features: featuresOf(ctx, id),
     data: JSON.stringify(data),
     backstory: storyOf(state).story ? JSON.stringify(state.player.backstory) : undefined,
-    // The world bridge's rules work out what each spell reaches (acts.ts spellFactsOf); until then, none.
-    spellFacts: "",
+    // What each spell reaches, for the scene's menu.
+    spellFacts: JSON.stringify(spellFactsOf(rules, readySpells(sheet))),
   };
 }
 
@@ -754,8 +754,22 @@ export function rollFor(rules: Rules, state: RulesSession, skill: Skill, dc: num
 // Spells.
 
 /** Cantrips plus prepared spells (class, feat and always-prepared), from the derived sheet. */
-function readySpells(sheet: Dnd.CharacterSheet): SpellRef[] {
+export function readySpells(sheet: Dnd.CharacterSheet): SpellRef[] {
   return (sheet.spellcasting?.spellsByLevel ?? []).flatMap(g => g.spells.filter(sp => g.level === 0 || sp.prepared || sp.alwaysPrepared)).map(sp => ({ id: sp.spellId, name: sp.name, level: sp.level }));
+}
+
+/**
+ * What the rules say of each spell ready, from the engine's spell definitions (the prototype's
+ * loadSpellFacts, src/app/game.ts:1840-1851, synchronous): its range, its effects' kinds and whether
+ * it fills an area. sheetRows writes it as the sheet's spellFacts, which the scene's menu reads; a
+ * spell the engine doesn't know stays as it is.
+ */
+export function spellFactsOf(rules: Rules, spells: SpellRef[]): SpellFacts[] {
+  return spells.map(s => {
+    const def = rules.content.spells.get(s.id);
+    const targeting = def ? (def as unknown as { targeting?: { shape?: string } }).targeting : undefined;
+    return def ? { ...s, range: def.range, effects: (def.mechanicalEffects ?? []).map(m => String(m.kind)), ...(targeting?.shape ? { area: true } : {}) } : s;
+  });
 }
 
 /** What the mechanics name by id, by the engine's names for them. */
@@ -888,7 +902,7 @@ function weaponsOf(ctx: Ctx, id: string): WeaponRef[] {
 }
 
 /** The player's Rage ends (knocked out, rested, or its time up). True if they were raging. */
-function endRage(ctx: Ctx, state: RulesSession): boolean {
+export function endRage(ctx: Ctx, state: RulesSession): boolean {
   const pcId = state.rules!.pc;
   const raging = ctx.campaign.state.characters[pcId]!.appliedConditions.filter(a => a.conditionId === "raging");
   if (raging.length) ctx.apply(raging.map(() => event(ctx.E, "ConditionRemoved", { targetId: pcId, conditionId: "raging" })));
@@ -934,7 +948,7 @@ interface FeatureRule {
 const missingHp = (state: Dnd.CampaignState, id: string) => { const c = state.characters[id]; return c ? Math.max(0, c.hp.max - Math.max(0, c.hp.current)) : 0; };
 const resourceLeft = (state: Dnd.CampaignState, id: string, resource: string) => (state.characters[id] as unknown as { resources?: Resource[] } | undefined)?.resources?.find(r => r.resourceId === resource)?.current ?? 0;
 
-const FEATURES: FeatureRule[] = [
+export const FEATURES: FeatureRule[] = [
   { id: "second-wind", name: "Second Wind", classId: "fighter", resource: "second-wind", target: "self", intent: (E, me) => E.bonusActionIntent("second-wind", me) },
   { id: "rage", name: "Rage", classId: "barbarian", resource: "rage", target: "self", intent: (E, me) => E.bonusActionIntent("rage", me) },
   { id: "bardic-inspiration", name: "Bardic Inspiration", classId: "bard", resource: "bardic-inspiration", target: "creature", intent: (_E, me, to) => ({ type: "BardicInspiration", bardId: me, recipientId: to }) },
@@ -966,14 +980,14 @@ export function featureRule(id: string): Omit<FeatureRule, "intent"> | undefined
 // What the rules keep on the session as the engine changes the character.
 
 /** The campaign as it now is, and the status line from it, back on the session; kept in the isolate's cache when it's as a load of that string would give it. */
-function close(rules: Rules, state: RulesSession, ctx: Ctx): void {
+export function close(rules: Rules, state: RulesSession, ctx: Ctx): void {
   state.rules!.campaign = ctx.E.serializeCampaign(ctx.campaign);
   state.rules!.status = status(ctx, state.rules!.pc);
   if (ctx.asLoaded) keep(rules, state.rules!.campaign, ctx.campaign);
 }
 
 /** What a turn's decision needs from the sheet, cached on the session: spells, weapons, skills, the build line. */
-function refresh(ctx: Ctx, state: RulesSession): void {
+export function refresh(ctx: Ctx, state: RulesSession): void {
   const id = state.rules!.pc;
   const sheet = sheetOf(ctx, id);
   state.rules!.spells = readySpells(sheet);
