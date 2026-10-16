@@ -338,6 +338,8 @@ class Demo implements Backend {
     const made = build?.card.casting ? WIZARD : FIGHTER;
     const story = backstory ? { story: { backstory: backstory.text, personality: backstory.personality, ideals: backstory.ideals, bonds: backstory.bonds, flaws: backstory.flaws } } : {};
     const game = this.addGame(c.name, c.concept, { ...made, name: c.name, concept: c.concept, ...story });
+    // The sheet is the nearest the fixtures have (the wizard's for a caster, else the fighter's); its build line is the one chosen.
+    if (build) game.sheet = { ...game.sheet, build: build.line };
     this.change({ step: "made", busy: undefined, gameId: game.row.gameId });
   }
 
