@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-61, 95-254, 284-327 and 1360-1369 as they are (reading a TurnView), and decideBefore (:718-1019) and decideAfter (:1234-1358) trimmed to V0's questions and split in two each: the questions (beforeQuestions, afterQuestions) and their reading (readBefore, readAfter). V0 leaves out considered rolls, the co-GM's off_graph, relocation, pressure rolls, the rules' mechanic, the speaker, and staged secrets; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation. The directives' words are gm/directives.ts.
+// Copied from the prototype's src/runtime/director.ts at 44c6d4a: lines 24-52, 60-93, 95-327, 625-637, 1231-1232 and 1360-1369 as they are (reading a TurnView), freeformCheck (:639-650) as its questions and their reading (freeformQuestions, readFreeform: the roll is the simulation's), and decideBefore (:718-1019) and decideAfter (:1234-1358) trimmed to the v2 approach's questions and split in two each: the questions (beforeQuestions, afterQuestions) and their reading (readBefore, readAfter). With the full GM (full-gm-design §3.1): considered rolls' roll_call and the means in every beat, the co-GM's off_graph, the considered read (:878-880, :896, :902-932), offGraph and byPrep (:987, :1010-1016), and after the reply the rules' left (:1279-1283, :1350). Left out: relocation, pressure rolls, the rules' mechanic, threat and their acts (actSettles, forced: the world bridge's), the speaker, and staged secrets; and the dice: a route's check is picked here (its skill the player's means where both are social) and rolled by the simulation. The directives' words are gm/directives.ts.
 
 import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision as Answers } from "../llm/decide.ts";
 import { describeRoll, titleCase } from "../../shared/dice.ts";
@@ -42,6 +42,38 @@ const QUESTION_TEXT = {
 
 /** The bar for a mistake scales with its cost: ending the scene needs a committed attempt. */
 const SCENE_ENDING_CONFIDENCE = 0.6;
+
+/**
+ * A considered turn costs the player seconds, so the flag wants a clear read: on the QA runs' turns
+ * every act a table would roll for read 0.84 or more ("route" and "new" together), and small honest
+ * asks and making a case 0.62 to 0.64.
+ */
+const CONSIDER_CONFIDENCE = 0.7;
+
+/**
+ * In a beat with no route with a roll the flag can only say "new" or "none", and reads lower: big
+ * asks of Moll in the motive beat read 0.57 to 0.63 and went unflagged. There the bar is lower,
+ * set where the controls (plain questions, making the case) still stay under it.
+ */
+export const CONSIDER_CONFIDENCE_OPEN = 0.5;
+
+/**
+ * A route with a roll the decider chose this surely is the author's answer to the turn: rolled as
+ * written, with its outcomes, whatever the roll call's split between it and another act. On the QA
+ * pass's turns where the two disagreed, at 0.74 to 0.91 the route was what the player was doing in
+ * all eight (Hobb's mum asked of Nan at 0.81 and of Dilly at 0.85, ruled on instead, and the success
+ * lost the route's payoff, Hobb opening up; the holes in Moll's story picked at 0.74; a bluff on the
+ * floor at 0.78); at 0.63 to 0.66 the other act was, in all three (a second shilling for Cob's trust,
+ * Scrope asked to name the Master with the book already in hand, Hobb asked to block the Crake).
+ */
+export const ROUTE_CONFIDENCE = 0.7;
+
+/**
+ * Unless the roll call is this sure that the roll is for something none of the routes is for: then the
+ * player is plainly doing something else risky as well (or instead), and the GM rules on it. (No QA
+ * turn had a route read that surely and this beside it.)
+ */
+const PLAINLY_ANOTHER = 0.8;
 
 /**
  * A pacing cue moves the scene on without the player's say, so it fires only on a clear read, as a
@@ -204,6 +236,34 @@ function transitionsFor(scene: Scene, state: TurnView, phase: "attempt" | "cue" 
 /** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
 export const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
 
+/**
+ * Considered rolls' flag (asked in the decision the turn makes anyway): would a good GM call for a
+ * roll, and is it what one of the scene's routes with a roll is for? Its "yes" is split in two (a
+ * route's, or none's), and the two count together for whether a roll is wanted at all.
+ */
+function rollCallQuestion(checks: Transition[]): ChoiceQuestion {
+  const routes = checks.map(t => `[${t.id}] ${titleCase(t.check!.skill)} ${t.check!.reason ? t.check!.reason.trim().replace(/\.$/, "") : `(${t.when.replace(/\.$/, "")})`}`);
+  return {
+    instructions: `A good tabletop GM calls for a roll when what the player attempts could go either way and failing would cost something or change things, and otherwise just says yes or no. In the player's latest turn (${READ_TURN}), are they attempting something like that? Either working on someone for something that matters to that person (their safety, what they own or hold, what they know or hide, their loyalty, their pride), by whatever means: persuading, bargaining, bribing, threatening, lying, bluffing, forging, reading them, performing. Or a physical or sneaky feat that could fail (climbing, forcing, palming, sneaking past someone), or dredging up something obscure. Judge what they actually do and ask for, and what giving it would cost the other person, not how boldly or kindly it's put.`,
+    criteria: {
+      ...(routes.length ? { route: `Yes, and it's squarely what one of these is for: the same person, the same thing asked or tried, and its payoff is what the player is after: ${routes.join("; ")}.` } : {}),
+      new: routes.length
+        ? "Yes, but none of those is for it: someone else, a different ask, a different payoff, or another kind of attempt."
+        : "Yes: an attempt like that, whose outcome is genuinely uncertain.",
+      none: "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking properly, searching or working out what's in front of them, something that simply works, or something that plainly can't.",
+    },
+  };
+}
+
+/**
+ * The tries that failed in this scene, in a line each: the routes' rolls that went against the
+ * player, and (`rulings`) the GM's considered rulings that did, or said no without dice. The same
+ * push again gets the same answer, however it's rolled.
+ */
+export function failedTries(scene: Scene, state: TurnView, options: { rulings?: boolean } = {}): string[] {
+  return failedPushes(scene, state, options).map(p => p.line);
+}
+
 /** A try that failed in this scene: a route's roll (`route`) or one of the GM's rulings, in a line, and the answer it got. */
 interface FailedPush { route?: string; line: string; answer: string }
 
@@ -249,6 +309,40 @@ function pushedAgain(tried: FailedPush[], answer: ChoiceAnswer | undefined, rout
   return { p: same.reduce((sum, { p }) => sum + p, 0), ...(best && best.p > 0 ? { answer: best.t.answer } : {}) };
 }
 
+const SKILL_TEXT: Record<Skill, string> = {
+  persuasion: "Persuasion: winning someone over honestly, appeals, bargaining", deception: "Deception: lying, bluffing, disguises, tricks",
+  intimidation: "Intimidation: threats and shows of force", insight: "Insight: reading someone's intentions or lies",
+  performance: "Performance: music, poetry, acting, entertaining a crowd", perception: "Perception: noticing, spotting, listening",
+  investigation: "Investigation: searching, deducing, examining clues", sleight_of_hand: "Sleight of hand: pickpocketing, palming, planting objects",
+  stealth: "Stealth: sneaking, hiding", athletics: "Athletics: climbing, jumping, grappling, shoving, lifting",
+  acrobatics: "Acrobatics: balance, tumbling, nimble escapes", animal_handling: "Animal handling: calming or controlling animals",
+  arcana: "Arcana: magical lore, spells, enchanted objects", history: "History: knowledge of past events, peoples and places",
+  nature: "Nature: plants, animals, weather, the land", religion: "Religion: gods, rites, holy objects",
+  medicine: "Medicine: treating wounds, diagnosing", survival: "Survival: tracking, foraging, finding a way",
+};
+const DIFFICULTY = { easy: 10, moderate: 13, hard: 16 } as const;
+
+/**
+ * A risky attempt no route covers, as freeformCheck (director.ts:639-650) asks it, on
+ * decisionState and as director.freeform: which skill decides it, and how hard (the fallback for a
+ * considered turn whose review failed). The roll is the simulation's.
+ */
+export function freeformQuestions(): Record<string, ChoiceQuestion> {
+  return {
+    skill: { instructions: "The player is attempting something risky in a tabletop roleplaying scene (latest_player_turn). Which skill best decides whether it works?", criteria: SKILL_TEXT },
+    difficulty: { instructions: "How hard is what the player is attempting, given the situation and the people involved?", criteria: {
+      easy: "Easy: most people could manage it; only bad luck stops it.", moderate: "Moderate: a real chance of failure for most people.", hard: "Hard: it would take skill and luck.",
+    } },
+  };
+}
+
+/** freeformQuestions' answers as freeformCheck reads them: the skill, and the DC its difficulty sets (persuasion at 13 when it doesn't say). */
+export function readFreeform(decision: Answers): { skill: Skill; dc: number } {
+  const skill = (decision.answers.skill?.choice ?? "persuasion") as Skill;
+  const dc = DIFFICULTY[(decision.answers.difficulty?.choice ?? "moderate") as keyof typeof DIFFICULTY] ?? 13;
+  return { skill, dc };
+}
+
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */
 const STATUS_QUESTION: ChoiceQuestion = {
   instructions: "How is this tabletop roleplaying scene going right now, judging by the recent transcript and the latest exchange?",
@@ -276,10 +370,10 @@ export interface BeforeAsked {
 
 /**
  * Before the reply, the turn's one decision: is the player attempting a route (or doing something
- * that simply happens), should a pacing cue fire, the same push again, earned, daft, out of
+ * that simply happens), by what means, should a pacing cue fire, would a good GM call for a roll
+ * (considered rolls), the same push again, a plan off the graph (the co-GM's), earned, daft, out of
  * character, answering an ending on the brink, reaching for a limit. As the prototype's v2 approach
- * asks them, but for considered rolls, the co-GM and the rules: no roll_call, off_graph or mechanic,
- * and the means asked only when a route's check is social (the only reading of it V0 has).
+ * asks them, in its order, but for the rules' mechanic (the world bridge's).
  */
 export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit): BeforeAsked {
   const attempts = transitionsFor(scene, state, "attempt");
@@ -302,17 +396,24 @@ export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit): Be
       },
     };
   }
-  // The method, for a route written for one social means.
-  if (attempts.some(t => t.check && SOCIAL.includes(t.check.skill))) {
-    questions.attempt_means = {
-      instructions: "If the player is working on someone in their latest turn, by what means?",
-      criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
-    };
-  }
+  // The method: for a route written for one social means, and (considered rolls) in every beat, so
+  // the GM's review hears a lie read as a lie wherever it's told.
+  questions.attempt_means = {
+    instructions: "If the player is working on someone in their latest turn, by what means?",
+    criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
+  };
   if (cues.length) questions.cue = cueQuestion(cues, state.turnsInBeat);
+  // Considered rolls: whether a roll is wanted, and whether a route's roll is for it, in this call.
+  questions.roll_call = rollCallQuestion(attempts.filter(t => t.check));
   // The same push that already failed here, again: asked only once something has failed.
   const tried = attempts.some(t => t.check) ? failedPushes(scene, state) : [];
   if (tried.length) questions.same_again = sameAgainQuestion(tried);
+  // The co-GM's: a way through the scene that none of its routes describes (the routes as the beat has them, every one).
+  const routes = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].map(t => t.when);
+  questions.off_graph = {
+    instructions: `Is the player, in their latest turn, proposing or pursuing a way to deal with the scene's central situation that none of the scene's routes describes? A plan put as a question ("could we...?", "what if we...?") counts. The routes: ${routes.map(r => `"${r}"`).join("; ")}. Ordinary conversation, questions about the situation and small actions don't.`,
+    criteria: { off_graph: "Yes: a real attempt or proposal to resolve or change the situation by a means none of the routes describes.", covered: "No: it matches a route, or it's ordinary play." },
+  };
   // Holding back after the player has done the work is the commonest pacing failure we've seen.
   questions.earned = {
     instructions: "Has the player, in their latest turn, done what it takes to get something they've been working towards from someone in this scene: met that person's own terms, shown them the proof, made their case in full, or given the help or leverage that person was waiting for? Judge by what the story so far has established that person needs, not by how hard the player is pushing.",
@@ -323,9 +424,8 @@ export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit): Be
   // An ending held for the player's answer: are they answering it, or letting it happen?
   if (brink) questions.brink = brinkQuestion(brink);
   if (scene.limits?.length) {
-    // As the v2 approach asks it, pretending and all: a forged paper or a lie that they have one is
-    // a trick on someone, not a reach for the impossible. With no considered rolls to rule on it,
-    // V0's GM plays the trick (and the bill may answer it) rather than refusing it as a limit.
+    // (Considered rolls: a forged warrant is a lie to be judged, not the real warrant the scene can't
+    // offer; it has an answer of its own, so faking one isn't read as reaching for it.)
     questions.limit = {
       instructions: "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on getting it. Faking one isn't reaching for it: a forged paper, a fake badge or a lie that they have one of these is a trick the player is attempting on someone (choose pretending), unless what they're after by it is itself one of these.",
       criteria: {
@@ -341,9 +441,12 @@ export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit): Be
 /**
  * The decision read as the prototype reads it, its bars and all: the attempt (a route with a check
  * or an ending needs 0.6, anything else 0.45), the plain outcome, a cue (never over a real attempt,
- * an earned payoff, a word out of character, or the player's own way out), the same push again (no
- * dice), daft, earned, out of character, a limit, an answer on the brink. What it picks is the route
- * the turn takes, its check as the simulation will roll it: no die is cast here.
+ * an earned payoff, a word out of character, or the player's own way out), a roll wanted that
+ * nothing the author wrote settles (considered: then no route is taken and no cue fires, the GM rules
+ * on it before the reply), the same push again (no dice), daft, earned, out of character, a limit,
+ * an answer on the brink, a plan off the graph, and a plain route the prep's own answer (byPrep).
+ * What it picks is the route the turn takes, its check as the simulation will roll it: no die is
+ * cast here.
  */
 export function readBefore(scene: Scene, state: TurnView, decision: Answers, asked: BeforeAsked): Decision {
   const { attempts, cues, outcomes, tried, brink } = asked;
@@ -386,22 +489,53 @@ export function readBefore(scene: Scene, state: TurnView, decision: Answers, ask
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
+  // A route the author gave no dice, read with an attempt's confidence, is the prep's own answer to
+  // the turn (a bribe gets haggling, trust needs no roll): no ruling of the GM's overrides it.
+  const plainSettles = !!plainOutcome && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= (endsScene(scene, plainOutcome) ? SCENE_ENDING_CONFIDENCE : 0.45);
   const means = decision.answers.attempt_means?.choice;
   const sureMeans = means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
   // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
   const limitChoice = decision.answers.limit?.choice;
   const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
-  // The same push that already failed here isn't rolled again on a route's dice: it gets the same
-  // answer. (Only a push that already failed on this route: a first press on the King isn't the
-  // catch-out that failed before it.)
+  // No dice for the impossible: if the player is reaching for something the scene can't offer,
+  // the "no, but" answers it and nothing is rolled.
+  const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  // Considered rolls: a roll is wanted (a route's "yes" and none's count together), and nothing the
+  // author wrote settles it: a route's roll the decider chose surely (unless the roll is plainly for
+  // something else), or chose and didn't call the act another's, a route the author gave no dice, or
+  // an ending the player simply reaches. Then no route is rolled here, and no cue fires: the GM rules
+  // on it before the reply.
+  // (A player who has just met someone's terms has earned the payoff: that lands, as ever, without dice.)
+  const call = decision.answers.roll_call;
+  const yes = (option: string) => call ? call.probabilities?.[option] ?? (call.choice === option ? 1 : 0) : 0;
+  const routeSure = !!attempt?.check && probability >= ROUTE_CONFIDENCE && yes("new") < PLAINLY_ANOTHER;
+  const settledByPrep = attempt ? !attempt.check || routeSure || yes("route") >= yes("new") : !!plainEnding || plainSettles;
+  const earnedRead = decision.answers.earned?.probabilities?.earned ?? (decision.answers.earned?.choice === "earned" ? 1 : 0);
+  // (A beat with no route with a roll has a lower bar: there the flag can only say "new" or "none".)
+  const bar = attempts.some(t => t.check) ? CONSIDER_CONFIDENCE : CONSIDER_CONFIDENCE_OPEN;
+  const considered = yes("route") + yes("new") >= bar && earnedRead < SCENE_ENDING_CONFIDENCE && !settledByPrep && !limitBlocks && !ooc
+    ? {
+      probability: yes("route") + yes("new"),
+      routes: attempts.filter(t => t.check).map(t => ({ id: t.id, p: decision.answers.attempt?.probabilities?.[t.id] ?? 0 })).filter(r => r.p >= 0.05).sort((a, b) => b.p - a.p),
+      ...(sureMeans ? { means: sureMeans } : {}),
+      ...(earnedRead >= 0.3 ? { earned: earnedRead } : {}),
+    }
+    : undefined;
+  // The same push that already failed here isn't rolled again on a route's dice (the GM's ruling
+  // says no to it without them too): it gets the same answer.
+  // (Only a push that already failed on this route, or a ruling's same objective: a first press on
+  // the King isn't the catch-out that failed before it.)
   const again = attempt?.check ? pushedAgain(tried, decision.answers.same_again, attempt) : { p: 0 };
-  const sameAgain = attempt?.check && again.p >= SCENE_ENDING_CONFIDENCE ? attempt : undefined;
-  const chosen = sameAgain ? undefined : attempt ?? plainEnding ?? cue;
+  const sameAgain = attempt?.check && !considered && again.p >= SCENE_ENDING_CONFIDENCE ? attempt : undefined;
+  const chosen = considered || sameAgain ? undefined : attempt ?? plainEnding ?? cue;
   // (a plain action alongside a cue: the cue's beat change carries the reply)
   const method = attempt ? sureMeans : undefined;
   const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= DAFT_CONFIDENCE;
   const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  // The plain route the reply is told of (the prototype's plainTransition): not one that ends the scene now, nor over a roll to rule on.
+  const plainTransition = plainOutcome && !plainEnding && !considered ? plainOutcome : undefined;
   return {
     // (The cue's ending is the one the player is leaving by: their choice, as their own route's would be.)
     ...(chosen ? { route: pick(chosen, attempt || plainEnding ? "attempt" : "cue", method, chosen === cue && theirsToo) } : {}),
@@ -410,6 +544,9 @@ export function readBefore(scene: Scene, state: TurnView, decision: Answers, ask
     earned, daft, outOfCharacter: ooc,
     ...(limit ? { limit } : {}),
     ...(decision.answers.brink?.choice === "answers" ? { answering: true } : {}),
+    ...(considered ? { considered } : {}),
+    ...(offGraph ? { offGraph } : {}),
+    ...(plainTransition && plainSettles ? { byPrep: true } : {}),
   };
 }
 
@@ -435,12 +572,17 @@ export interface AfterAsked {
   pending: Essential[];
 }
 
+/** The player has left the scene's place altogether (asked after each reply in rules sessions). */
+export const LEFT_CONFIDENCE = 0.7;
+
 /**
  * After the reply, the turn's second decision: how the scene is going, which ending (if any) the
- * story is at, which essentials the player has come across or been pointed to, which outcome route
- * has happened, whether they asked something left unanswered, and whether an ending would be their
- * own doing. Not asked: staged secrets (off in v2) and the rules' left, threat and severity.
- * `hold`: an ending held back this turn for the player's answer, which this reply can't confirm.
+ * story is at, which essentials the player has come across or been pointed to, whether the player
+ * has walked out of the place (asked when their character is the rules engine's: their sheet has a
+ * build), which outcome route has happened, whether they asked something left unanswered, and
+ * whether an ending would be their own doing. Not asked: staged secrets (off in v2) and the rules'
+ * threat and severity (the world bridge's). `hold`: an ending held back this turn for the player's
+ * answer, which this reply can't confirm.
  */
 export function afterQuestions(scene: Scene, state: TurnView, hold?: string): AfterAsked {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
@@ -471,6 +613,15 @@ export function afterQuestions(scene: Scene, state: TurnView, hold?: string): Af
       },
     };
   }
+  // The rules: has the player walked out of the place altogether? (Its name is the scene's world's,
+  // which the AI service has as the world's root: a campaign's scene keeps its place apart.)
+  if (state.rules) {
+    const place = scene.world?.name ?? (state.world ? state.world.entities[state.world.root]?.name : undefined);
+    questions.left = {
+      instructions: `Where is the player character at the end of the latest GM reply? This scene is set in ${scene.title}${place ? ` (${place})` : ""}.`,
+      criteria: { here: `Still in or around ${scene.title}.`, gone: "Gone somewhere else altogether: another building, across town, down the river, or on their way there." },
+    };
+  }
   if (outcomes.length) {
     // A cue's text describes its trigger ("they set off..."); after the reply, ask about its effect.
     const effect = (t: Transition) => {
@@ -494,7 +645,8 @@ export function afterQuestions(scene: Scene, state: TurnView, hold?: string): Af
  * The after-reply decision read as the prototype reads it: the improvised ending gives way to an
  * authored one read at 0.2 or more; ending on an outcome needs 0.6 (the improvised ending's share
  * added to an authored one's); an outcome route is returned with its check for the simulation to
- * roll; landed and hinted; a question left unanswered; and the player's own exit at 0.6.
+ * roll; landed and hinted; a question left unanswered; the player's own exit at 0.6; and the
+ * player gone from the place at 0.7.
  */
 export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): After {
   const { outcomes, endings, pending } = asked;
@@ -522,10 +674,12 @@ export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): A
   }
   const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
   const hinted = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "hinted").map(e => e.id);
+  const left = decision.answers.left?.choice === "gone" && (decision.answers.left?.probabilities?.gone ?? 1) >= LEFT_CONFIDENCE;
   // (Unsure reads wait: a question left hanging on an even read, and only a clear read is the player's own exit.)
   const unanswered = decision.answers.ask?.choice === "unanswered";
   const theirs = decision.answers.own_exit?.choice === "theirs" && (decision.answers.own_exit?.probabilities?.theirs ?? 1) >= SCENE_ENDING_CONFIDENCE;
   return {
+    ...(left ? { left } : {}),
     ...(chosen ? { outcome: { route: chosen.id, ...(chosen.check ? { check: { skill: chosen.check.skill, dc: chosen.check.dc, ...(chosen.check.reason ? { reason: chosen.check.reason } : {}) } } : {}), ...(instead && instead.p >= 0.2 ? { exit: instead.e.id } : {}) } } : {}),
     ...(ending ? { ending } : {}), ...(status ? { status } : {}),
     landed, hinted, unanswered, theirs,

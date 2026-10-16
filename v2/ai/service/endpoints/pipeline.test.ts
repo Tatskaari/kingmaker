@@ -151,7 +151,7 @@ test("decide: the route the turn takes with its check (rolled by the simulation)
   const before = fake.sent.find(b => b.questions?.earned)!;
   assert.deepEqual(answer.decision.route, { id: "catch-moll", phase: "attempt", check: { skill: "insight", dc: 13, reason: "to see through Moll's story about the jump" } });
   assert.deepEqual([answer.decision.earned, answer.decision.daft, answer.decision.outOfCharacter], [false, false, false]);
-  assert.deepEqual(questionsOf(before), ["attempt", "attempt_means", "cue", "earned", "daft", "ooc", "limit"]);
+  assert.deepEqual(questionsOf(before), ["attempt", "attempt_means", "cue", "roll_call", "off_graph", "earned", "daft", "ooc", "limit"]);
   assert.ok(Object.keys(before.questions!.attempt!.criteria).some(k => k.startsWith("plain:")), "the outcomes that simply happen are options");
   assert.ok(answer.opened.length > 0);
   assert.deepEqual(answer.decision.remembered, ["Sergeant Agnes Kell", "Cob", "Moll"]);
@@ -215,7 +215,7 @@ test("settle: the stage manager's operations by game key, beside the after-reply
   assert.deepEqual(answer.ops.map(o => [o.op, o.what, o.to]), [["move", "pc:1", "granary-yard/loft"], ["move", "kell", "pc:1"]]);
   assert.match(stage.input![0]!.content, /## The latest exchange\nPlayer: Sergeant, who found him\?\n\nGM: Kell points at the boy\./);
   assert.deepEqual(answer.after, { status: "drifting", landed: [], hinted: [], unanswered: true, theirs: false });
-  assert.deepEqual(questionsOf(fake.sent.find(b => b.questions)!), ["status", "ending", "landed_not-suicide", "landed_page", "landed_silvertop", "outcome", "ask", "own_exit"]);
+  assert.deepEqual(questionsOf(fake.sent.find(b => b.questions)!), ["status", "ending", "landed_not-suicide", "landed_page", "landed_silvertop", "left", "outcome", "ask", "own_exit"]);
 });
 
 test("settle when the reply closed the scene: the world kept in step, no reading", async () => {
