@@ -51,7 +51,9 @@ export function afterDecide(tx: TxCtx, plan: SayPlan, answer: DecideResponse): N
 /**
  * After reply: the GM's entry, the draft gone, what the reply offered or repeated noted, whoever a
  * cue brought on joined to the world and the stage. The wind-down's reply closes the scene (unless
- * the player spoke out of character); any other goes on to the settle, the box open again.
+ * the player spoke out of character); any other goes on to the settle, the box open again. One
+ * that closed the scene in its own right (the decide's gm.ended) leaves it ending: the settle ends
+ * it, and nothing more is said in it meanwhile.
  */
 export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
@@ -66,6 +68,7 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
 
   putGm(tx, at.scene.id, at.gm);
   updateTurn(tx, turnId, { phase: "settling" });
+  if (at.gm.ended) updateScene(tx, at.scene.id, { status: "ending" });
   return { done: false, plan: { ...plan, step: "settle", reply: (answer.entries ?? []).map(e => e.text).join("\n\n") } };
 }
 

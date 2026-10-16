@@ -44,14 +44,17 @@ test("say --stream: words the reply's entry brought that the last draft seen had
 /**
  * A game whose rows, once a line is said (its turn at once, as the move's own rows come with its
  * commit), come as they can: the reply's draft seen part-way, then the reply's entry with the draft
- * gone, its last words never seen in a draft.
+ * gone, its last words never seen in a draft. One whose reply `closes` the scene is ending while
+ * it settles, then ends.
  */
-function rowsAsTheyCome(): Backend {
+function rowsAsTheyCome(closes?: "closes"): Backend {
   const n = (YARD.entries.at(-1)?.turn ?? 0) + 1;
   const said: SceneView = { ...YARD, entries: [...YARD.entries, { turn: n, speaker: "player:1", kind: "player", text: "Who found him?" }], phase: "deciding", turn: n, mayType: false };
+  const replied: SceneView = { ...said, entries: [...said.entries, { turn: n, speaker: "gm", kind: "narration", text: "Kell looks up from her notebook. “The porters.”" }], phase: "settling", mayType: !closes };
   const later: SceneView[] = [
     { ...said, phase: "replying", draft: { speaker: "gm", kind: "narration", text: "Kell looks up from her", attempt: 1, seq: 1 } },
-    { ...said, entries: [...said.entries, { turn: n, speaker: "gm", kind: "narration", text: "Kell looks up from her notebook. “The porters.”" }], phase: "settling", mayType: true },
+    closes ? { ...replied, ending: true } : replied,
+    ...(closes ? [{ ...replied, entries: [...replied.entries, { turn: n, speaker: "system", kind: "system" as const, text: "Scene ends: Walked away" }], phase: "done" as const, over: true }] : []),
   ];
   let view = YARD;
   const listeners = new Set<() => void>();
@@ -69,6 +72,13 @@ function rowsAsTheyCome(): Backend {
     newGame: async () => undefined, joinGame: async () => undefined, retry: async () => undefined, close: () => {},
   };
 }
+
+test("say: a line whose reply closes the scene waits for the scene's end, and prints it", async () => {
+  const out = capture();
+  assert.equal(await verbs.say(rowsAsTheyCome("closes"), "*I give up and walk out of the yard.*", out), 0);
+
+  assert.equal(out.printed, "Kell looks up from her notebook. “The porters.”\n\n— Scene ends: Walked away —\n\nPHASE: over (the scene has ended: there's nothing more to say in it)\n");
+});
 
 test("a refused move prints the simulation's words and exits 1", async () => {
   const game = demoBackend({ ms: 1 });

@@ -120,13 +120,13 @@ export class SceneModel {
 
   /**
    * Whether a plain line goes to the simulation now: when the box is open, and when the simulation
-   * refuses it in words worth seeing (a spectator's line, a line after the scene's end, or while a
-   * turn is failed: its /retry). While the GM has the floor it waits in the box; with the game gone
-   * from the server there's nothing to send it to.
+   * refuses it in words worth seeing (a spectator's line, a line once a reply has closed the scene
+   * or after its end, or while a turn is failed: its /retry). While the GM has the floor it waits in
+   * the box; with the game gone from the server there's nothing to send it to.
    */
   sends(): boolean {
     const v = this.view;
-    return !this.gone && (v.mayType || !!v.watching || v.over || v.phase === "failed");
+    return !this.gone && (v.mayType || !!v.watching || v.over || !!v.ending || v.phase === "failed");
   }
 
   lines(): Line[] { return linesOf(this.view); }

@@ -280,8 +280,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   // on), or what the turn is waiting on (the AI service lost, and asked again; the server out of reach).
   const full = draft.length >= MAX_LINE ? `(The box is full: a turn takes ${MAX_LINE.toLocaleString("en-GB")} characters at most.)` : undefined;
   const said = scene.status ?? scene.gone ?? full ?? scene.refusal() ?? view.note;
-  // The box, while it's shut: the game gone, the scene over, who has the lead, a failed turn's /retry, or the GM has the floor.
-  const shut = scene.gone ? "The game is gone from the server." : view.over ? "The scene is over."
+  // The box, while it's shut: the game gone, the scene over or ending, who has the lead, a failed turn's /retry, or the GM has the floor.
+  const shut = scene.gone ? "The game is gone from the server." : view.over ? "The scene is over." : view.ending ? "The scene is ending…"
     : view.watching ? `${view.watching} has the lead: you're watching.`
     : view.phase === "failed" ? "The GM lost the thread: /retry carries it on."
     : "The GM has the floor…";

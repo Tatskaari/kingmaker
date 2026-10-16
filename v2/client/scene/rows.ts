@@ -49,6 +49,8 @@ export function sceneViewOf(rows: SceneRows): SceneView {
 
   const playing = rows.scene.status === "live" || rows.scene.status === "closing";
   const mayType = !watching && playing && OPEN.includes(phase);
+  // A reply closed the scene: it ends once its settle is done (or, if that fails, once /retry has done it).
+  const ending = rows.scene.status === "ending" && phase !== "failed";
 
   return {
     title: rows.scene.title, ...(rows.game.time ? { time: capitalised(rows.game.time) } : {}), ...(rows.scene.hook ? { hook: rows.scene.hook } : {}),
@@ -60,6 +62,7 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...(draft ? { draft } : {}),
     phase, ...(shown ? { turn: shown.n } : {}), mayType,
     over: rows.scene.status === "ended",
+    ...(ending ? { ending } : {}),
     ...(rows.refusal ? { refusal: rows.refusal } : {}),
     ...noteOf(rows, lease, phase),
     ...(phase === "failed" ? { failed: lease?.error ?? "" } : {}),

@@ -99,9 +99,10 @@ async function answered(game: Backend, out: Out, waiting: Waiting): Promise<numb
   return after.phase === "failed" ? 1 : 0;
 }
 
-/** The turn has answered: the reply is final (or, settled, the world too), it failed, or the scene ended. */
+/** The turn has answered: the reply is final (or, settled, the world too), it failed, or the scene ended (a reply that closed it, once the scene has ended). */
 function finished(view: SceneView, settled: boolean): boolean {
   if (view.phase === "failed" || view.over) return true;
+  if (view.ending) return false;
   return settled ? view.phase === "done" : view.phase === "settling" || view.phase === "done";
 }
 

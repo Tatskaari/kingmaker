@@ -34,6 +34,7 @@ export function render(view: SceneView, entries: Entry[]): string {
 export function phaseLine(view: SceneView): string {
   if (view.over) return "PHASE: over (the scene has ended: there's nothing more to say in it)";
   if (view.failed !== undefined) return view.watching ? `PHASE: failed (${view.failed}). ${view.watching} can retry it` : `PHASE: failed (${view.failed}). Use: retry`;
+  if (view.ending) return `PHASE: ${view.phase} (the scene is ending: there's nothing more to say in it)`;
   if (view.watching) return `PHASE: ${view.phase} (you're watching: ${view.watching} has the lead)`;
   if (view.mayType) return `PHASE: ${view.phase} (your turn: say what your character says or does)`;
   return `PHASE: ${view.phase} (the GM has the floor)`;

@@ -8,9 +8,9 @@
  * a failed turn's word, the commands over the box and the help, a mark opened by a click and by
  * Tab and Enter. And V0's: the game's number, a turn waiting on the AI service (its note), the
  * reply written again from the start (attempt 2), a mark with no note drawn as plain words, a
- * spectator's shut box and their line refused (the refusal giving way when the turn moves on), the
- * scene's end, a failed turn's box and a line sent to be refused with its /retry, a long paste kept
- * to a turn's 2,000 characters, and a game gone from the server. (The prototype's
+ * spectator's shut box and their line refused (the refusal giving way when the turn moves on), a
+ * scene a reply has closed and its end, a failed turn's box and a line sent to be refused with its
+ * /retry, a long paste kept to a turn's 2,000 characters, and a game gone from the server. (The prototype's
  * src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
@@ -273,6 +273,18 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   set({});
   frame = await draw();
   checks.push([`${size}: a view coming again takes it back`, !/no longer has this game/.test(frame) && style("What do you say?")?.fg === C.borderHot]);
+
+  // A reply that closed the scene: while the world settles behind it the scene is ending, the box shut
+  // and saying so, the GM making a note. A line typed goes to the simulation, which refuses it.
+  view = { ...YARD, phase: "settling", mayType: false, ending: true };
+  set({});
+  frame = await draw();
+  checks.push([`${size}: a reply that closed the scene: the box is shut and says the scene is ending, the GM making a note`, /The scene is ending…/.test(frame) && /The GM makes a note…/.test(frame) && style("What do you say?")?.fg === C.border]);
+  await act(async () => { await setup.mockInput.typeText("Wait, Sergeant."); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line then goes to the simulation, and the box empties`, sent.at(-1) === "Wait, Sergeant." && !/Wait, Sergeant\./.test(frame)]);
 
   // The scene's end: a rule across with its title, and a box that says it's over. A line typed after
   // it goes to the simulation, which refuses it in the game's words.
