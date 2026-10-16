@@ -7,6 +7,7 @@ import { playScript } from "./live/play.ts";
 import { backgroundIn, offeredOf, recordOf, spentOf } from "./live/record.ts";
 import { markdownOf } from "./live/report.ts";
 import { SCRIPTS, type Script } from "./live/scripts.ts";
+import { storyRun } from "./live/story.ts";
 import { modelOf, runningStack } from "./live/stack.ts";
 
 /**
@@ -18,11 +19,14 @@ import { modelOf, runningStack } from "./live/stack.ts";
  * measures against the prototype's, what the scene holds back from the player, and for the full
  * GM's the GM's side (each line's ruling, memory review and co-GM review: npm run status). V1's,
  * with --creation: three concepts' builds and Tamsin Vell made from a sentence through the lore
- * check to her first line (live/creation.ts).
+ * check to her first line (live/creation.ts). The whole story's, --script story: one game from the
+ * yard to The End, each scene ended as the owner, so each boundary and opening is the models'
+ * (live/story.ts).
  *
  *   npm run dev                                # real models, in another terminal
  *   npm run live -- --script v5               # writes docs/live/v5-<date>.md
  *   npm run live -- --script gm               # writes docs/live/gm-<date>.md
+ *   npm run live -- --script story            # writes docs/live/story-<date>.md
  *   npm run live -- --lines 4                 # V0's script: docs/live/v0-<date>.md
  *   npm run live -- --creation                # V1's run: docs/live/v1-<date>.md
  *
@@ -35,8 +39,10 @@ import { modelOf, runningStack } from "./live/stack.ts";
 
 const USAGE = `npm run live [-- options]
   --creation         V1's run: three concepts' builds, then a character made through the lore check to a line
-  --script v0|v5|gm  the lines to play (v0): V0's six, V5's twelve (two of them a suggested line picked),
-                     or the full GM's eight (two said once the memory review and the co-GM are done)
+  --script v0|v5|gm|story
+                     the lines to play (v0): V0's six, V5's twelve (two of them a suggested line picked),
+                     or the full GM's eight (two said once the memory review and the co-GM are done);
+                     story: no lines, the whole story from the yard to The End, each scene ended as the owner
   --lines <n>        how many of the script's lines (v0: 4; v5: 12; gm: 8)
   --as "Name: concept" --build <id>   the character (the script's own)
   --port <n>         the dev stack's SpacetimeDB port (3300)
@@ -60,6 +66,7 @@ async function main(flags: Flags): Promise<void> {
   const stack = runningStack(join(V2, "runs"), flags);
   const model = await modelOf(stack, flags.rehearse);
   if (flags.creation) return await creationRun(stack, flags);
+  if (flags.story) return await storyRun(stack, flags);
   const conn = await connect({ url: stack.ws, db: stack.db });
 
   console.log(`The live run: ${flags.script.name}, ${flags.lines} lines against ${stack.http} (${model} model)`);
@@ -91,6 +98,8 @@ function commandOf(flags: Flags): string {
 interface Flags {
   /** V1's run (--creation) in place of a script's. */
   creation: boolean;
+  /** The whole story's run (--script story) in place of a scene's script. */
+  story: boolean;
   script: Script; lines: number; who: string; build: string;
   port: number; aiPort: number; portsGiven: boolean; stack?: string;
   out: string; outGiven: boolean; force: boolean; budget: number; rehearse: boolean; date: string;
@@ -99,16 +108,18 @@ interface Flags {
 function flagsOf(argv: string[]): Flags {
   const values = valuesOf(argv);
   if (values.help) { console.log(USAGE); process.exit(0); }
-  const script = SCRIPTS[values.script ?? "v0"];
-  if (!script) usage(`--script is ${Object.keys(SCRIPTS).join(" or ")}, not ${values.script}`);
+  const story = values.script === "story";
+  // The story's run plays no scene's lines: its game and steps are its own (live/story.ts), as the gm script's character.
+  const script = story ? { ...SCRIPTS.gm!, name: "story" } : SCRIPTS[values.script ?? "v0"];
+  if (!script) usage(`--script is ${[...Object.keys(SCRIPTS), "story"].join(" or ")}, not ${values.script}`);
   const lines = Number(values.lines ?? script.lines);
-  if (!Number.isInteger(lines) || lines < 1 || lines > script.steps.length) usage(`--lines takes 1 to ${script.steps.length} for ${script.name}`);
+  if (!story && (!Number.isInteger(lines) || lines < 1 || lines > script.steps.length)) usage(`--lines takes 1 to ${script.steps.length} for ${script.name}`);
   const date = new Date().toISOString().slice(0, 10);
   // A rehearsal's record isn't one to commit: it goes with the rest of the run output.
   const unit = values.creation ? "v1" : script.name;
   const record = values.rehearse ? join(V2, "runs", "live", `${unit}-${date}-rehearsal.md`) : join(V2, "docs", "live", `${unit}-${date}.md`);
   return {
-    creation: !!values.creation, script, lines, who: values.as ?? script.who, build: values.build ?? script.build,
+    creation: !!values.creation, story, script, lines, who: values.as ?? script.who, build: values.build ?? script.build,
     port: portOf(values.port, 3300, "--port"), aiPort: portOf(values["ai-port"], 8787, "--ai-port"), portsGiven: values.port !== undefined || values["ai-port"] !== undefined,
     ...(values.stack ? { stack: resolve(values.stack) } : {}),
     out: resolve(values.out ?? record), outGiven: values.out !== undefined, force: !!values.force,
