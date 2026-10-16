@@ -11,7 +11,7 @@ export type Phase = "queued" | "deciding" | "replying" | "settling" | "done" | "
 export function newTurn(tx: TxCtx, scene: SceneRow, playerId: bigint, n: number, phase: Phase): TurnRow {
   return tx.db.turn.insert({
     id: 0n, gameId: scene.gameId, sceneId: scene.id, n, playerId, phase, note: undefined, error: undefined,
-    startedAt: tx.now, firstTextAt: undefined, endedAt: undefined, calls: 0, costMicros: 0n,
+    startedAt: tx.now, firstTextAt: undefined, endedAt: undefined, calls: 0, costMicros: 0n, notes: "none", suggest: "none", suggestAsks: 0,
   });
 }
 

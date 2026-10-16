@@ -54,7 +54,7 @@ function createGame(tx: TxCtx, campaign: CampaignRow, sender: Identity, characte
   });
   const player = tx.db.player.insert({
     id: 0n, identity: sender, gameId: game.id, name: character.name, concept: character.concept, role: "host",
-    characterId: undefined, placeId: undefined, sceneId: undefined, online: true,
+    characterId: undefined, placeId: undefined, sceneId: undefined, online: true, suggestions: true,
   });
 
   seatPlayer(tx, sender, player.id);

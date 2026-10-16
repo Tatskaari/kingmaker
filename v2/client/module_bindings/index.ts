@@ -40,6 +40,7 @@ import NewGameReducer from "./new_game_reducer";
 import RetryTurnReducer from "./retry_turn_reducer";
 import SayReducer from "./say_reducer";
 import ServicePingReducer from "./service_ping_reducer";
+import SetSuggestionsReducer from "./set_suggestions_reducer";
 import StreamReplyReducer from "./stream_reply_reducer";
 
 // Import all procedure arg schemas
@@ -65,6 +66,7 @@ import PlayerCharacterRow from "./player_character_table";
 import PositionRow from "./position_table";
 import ReplyDraftRow from "./reply_draft_table";
 import SceneRow from "./scene_table";
+import SceneSuggestionRow from "./scene_suggestion_table";
 import SheetRow from "./sheet_table";
 import StackRow from "./stack_table";
 import SurfaceRow from "./surface_table";
@@ -319,6 +321,20 @@ const tablesSchema = __schema({
       { name: 'scene_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, SceneRow),
+  sceneSuggestion: __table({
+    name: 'scene_suggestion',
+    indexes: [
+      { accessor: 'id', name: 'scene_suggestion_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'sceneId', name: 'scene_suggestion_scene_id_idx_btree', algorithm: 'btree', columns: [
+        'sceneId',
+      ] },
+    ],
+    constraints: [
+      { name: 'scene_suggestion_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, SceneSuggestionRow),
   sheet: __table({
     name: 'sheet',
     indexes: [
@@ -427,6 +443,7 @@ const reducersSchema = __reducers(
   __reducerSchema("retry_turn", RetryTurnReducer),
   __reducerSchema("say", SayReducer),
   __reducerSchema("service_ping", ServicePingReducer),
+  __reducerSchema("set_suggestions", SetSuggestionsReducer),
   __reducerSchema("stream_reply", StreamReplyReducer),
 );
 
