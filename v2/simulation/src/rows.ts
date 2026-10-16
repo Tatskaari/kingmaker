@@ -49,8 +49,12 @@ export function updateTurn(tx: TxCtx, id: bigint, changes: Partial<TurnRow>): Tu
   return tx.db.turn.id.update({ ...turnRow(tx, id), ...changes });
 }
 
-/** A connection's seat: the player it plays as now, in place of any it had. */
+/** A connection's seat: the player it plays as now, in place of any it had (that player is no longer online: nobody plays it). */
 export function seatPlayer(tx: TxCtx, identity: Identity, playerId: bigint): void {
-  if (tx.db.seat.identity.find(identity)) tx.db.seat.identity.update({ identity, playerId });
+  const seat = tx.db.seat.identity.find(identity);
+  const before = seat && seat.playerId !== playerId ? tx.db.player.id.find(seat.playerId) : undefined;
+  if (before?.online) tx.db.player.id.update({ ...before, online: false });
+
+  if (seat) tx.db.seat.identity.update({ identity, playerId });
   else tx.db.seat.insert({ identity, playerId });
 }

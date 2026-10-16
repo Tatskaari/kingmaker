@@ -84,6 +84,9 @@ test("join_game: no such game; a spectator watches the host's scene with no char
   assert.equal(all(host.db.player).length, 2, "joining again seats the same spectator");
   assert.equal(host.as(wren).joinGame({ game: scene.gameId }), undefined);
   assert.equal(host.view(wren).mySeat()!.playerId, player.id);
+
+  assert.equal(host.as(tamsin).newGame({ campaign: "caerwyn", name: "Tamsin Vell", concept: "", build: "rogue" }), undefined);
+  assert.deepEqual(all(host.db.player).filter(p => p.identity.isEqual(tamsin)).map(p => [p.role, p.online]), [["spectator", false], ["host", true]], "a seat taken elsewhere leaves the old player offline");
 });
 
 test("stream_reply and install_campaign: only their callers", async () => {

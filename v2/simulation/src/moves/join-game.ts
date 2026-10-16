@@ -15,6 +15,13 @@ export function joinGameReducer(tx: TxCtx, sender: Identity, { game: gameId }: {
   const player = playerIn(tx, sender, game) ?? addSpectator(tx, sender, game);
 
   seatPlayer(tx, sender, player.id);
+  markPresent(tx, player.id);
+}
+
+/** The caller is connected now, as whoever they're seated as. */
+function markPresent(tx: TxCtx, playerId: bigint): void {
+  const player = playerRow(tx, playerId);
+  if (!player.online) tx.db.player.id.update({ ...player, online: true });
 }
 
 function playerIn(tx: TxCtx, identity: Identity, game: GameRow): PlayerRow | undefined {
