@@ -2,7 +2,7 @@ import type { Identity } from "spacetimedb";
 import { andList, refusal } from "../../../shared/protocol/refusals.ts";
 import type { BuildFile } from "../../../shared/scene/files.ts";
 import { actorOf, Refused, runMove, type TxCtx } from "../context.ts";
-import { characterConcept, characterName, createGame, makeCharacterRows, startOf } from "../games/create.ts";
+import { characterConcept, characterName, createGame, makeCharacterRows, newUid, startOf } from "../games/create.ts";
 import type { CampaignRow } from "../rows.ts";
 import { buildOf, buildsOf, campaignFile, campaignNamed } from "../scenes.ts";
 import { openScene } from "./open-scene.ts";
@@ -23,7 +23,7 @@ export function newGameReducer(tx: TxCtx, sender: Identity, args: NewGameArgs): 
   const name = characterName(args.name);
   const concept = characterConcept(args.concept);
 
-  const { game, player } = createGame(tx, campaign, sender, { uid: tx.uuid(), name, concept });
+  const { game, player } = createGame(tx, campaign, sender, { uid: newUid(tx), name, concept });
   const made = makeCharacterRows(tx, player, build.build, campaignFile(campaign).level);
 
   runMove(tx, openScene, actorOf(tx, sender), { game: game.id, sceneKey: campaignFile(campaign).firstScene, start: startOf(tx, campaign, player.id) });

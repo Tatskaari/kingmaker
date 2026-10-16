@@ -34,6 +34,19 @@ export function characterConcept(concept: string): string {
   return trimmed;
 }
 
+/**
+ * A new game's id, or a creation's (which its game takes): the transaction's time in microseconds,
+ * then tx.uuid()'s randomness, as a UUID. It names the game's folder and every key at the AI
+ * service, so it must never come round again; and the module's randomness does: its generator is
+ * seeded from the transaction's timestamp through a 32-bit hash that gives far fewer seeds than
+ * timestamps (new_game hit a taken game.uid 4 times in 50 when the id was tx.uuid() alone). No
+ * two transactions share a time, so the time keeps every id apart.
+ */
+export function newUid(tx: TxCtx): string {
+  const hex = tx.now.microsSinceUnixEpoch.toString(16).padStart(13, "0") + tx.uuid().replace(/-/g, "").slice(13);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
 /** How long the character took, in host milliseconds, for the module's log. */
 export interface Made { createMs: number; sheetMs: number }
 

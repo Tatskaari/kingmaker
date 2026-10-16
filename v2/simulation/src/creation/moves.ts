@@ -6,7 +6,7 @@ import { picksOf } from "../../../shared/rules/index.ts";
 import type { BuildOption, OwnPicks, SrdLists } from "../../../shared/rules/types.ts";
 import { Refused, type TxCtx } from "../context.ts";
 import { deleteGameRows } from "../games/delete.ts";
-import { characterConcept, characterName } from "../games/create.ts";
+import { characterConcept, characterName, newUid } from "../games/create.ts";
 import type { CampaignRow } from "../rows.ts";
 import { campaignFile, campaignNamed, campaignVersion } from "../scenes.ts";
 import { makeCharacter } from "./make.ts";
@@ -229,7 +229,7 @@ const sameOffer = (was: CreationRow, campaign: CampaignRow, name: string, concep
 function newCreation(tx: TxCtx, sender: Identity, campaign: CampaignRow, who: { name: string; concept: string }, how: How, was: CreationRow | undefined): CreationRow {
   const file = campaignFile(campaign);
   const row: CreationRow = {
-    identity: sender, uid: tx.uuid(), campaign: file.id, campaignVersion: file.version, name: who.name, concept: who.concept,
+    identity: sender, uid: newUid(tx), campaign: file.id, campaignVersion: file.version, name: who.name, concept: who.concept,
     how: how.kind, step: START[how.kind].step, busy: undefined, rev: (was?.rev ?? 0) + 1,
     offer: undefined, own: how.kind === "own" ? json({ picks: how.picks }) : undefined, chosen: undefined,
     story: was?.story ?? "", version: (was?.version ?? 0) + 1, proposal: undefined, issues: undefined, issue: 0, rewriting: undefined,
