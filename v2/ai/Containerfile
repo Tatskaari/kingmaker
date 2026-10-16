@@ -1,0 +1,19 @@
+# The AI service as an image (v0-design §5.7): plain node, no npm install (the service has no
+# dependencies: node: built-ins, v2/ai and v2/shared), its stores on a volume. Built from v2/:
+#
+#   podman build -f ai/Containerfile -t kingmaker-ai .
+#   podman run --rm --network=host -v ./runs/dev/ai:/data:Z --userns=keep-id \
+#     -e KM_AI_LISTEN=127.0.0.1:8787 -e KM_AI_TOKEN -e KM_STDB_URL -e KM_STDB_DB -e KM_STDB_TOKEN -e OPENROUTER_API_KEY kingmaker-ai
+#
+# package.json is copied for its "type": "module"; the rest is the service's own code and the
+# shared code it imports. The env is hosts/ai.ts's (ai/service/config.ts).
+FROM docker.io/library/node:26.9.0-slim
+WORKDIR /srv/kingmaker
+COPY package.json ./
+COPY ai/ ./ai/
+COPY shared/ ./shared/
+COPY hosts/ai.ts ./hosts/ai.ts
+ENV KM_AI_STORE=/data KM_AI_LISTEN=0.0.0.0:8787
+VOLUME /data
+USER node
+CMD ["node", "--no-warnings", "hosts/ai.ts"]
