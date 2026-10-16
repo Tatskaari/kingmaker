@@ -1,0 +1,2 @@
+- Going anywhere else tonight (the palace, home, the watch house): the barge sails on the ebb after midnight, and whatever is in the Heron goes with it.
+- More help: the whole watch is lining the Assembly route through the night, the river watch with it, and Kell's whistle brings nobody but Kell.
