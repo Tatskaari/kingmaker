@@ -46,7 +46,7 @@ const CHECKS: ArcCheck[] = [
   { what: "the character is built by the rules engine", unit: "V1", run: builtByTheEngine },
   { what: "the story starts in the morning, heading for the granary", unit: "V2", run: theMorning },
   { what: "observe: the lane by the granary gate, Kell to talk to", unit: "V2", run: theLane },
-  { what: "the granary yard opens the hanged clerk", unit: "V2", run: theYard },
+  { what: "the granary yard opens the hanged clerk", unit: "V2", run: seen(4) },
   { what: "the scene's place is drawn with the player in it", unit: "V9", run: seen(5) },
   { what: "on to the Drowned Rat at dusk", unit: "V3", run: seen(6) },
   { what: "Kell walks with the investigator", unit: "V3", run: seen(7) },
@@ -98,7 +98,8 @@ function theLane({ observed }: Arc): string | undefined {
 }
 
 /** Check 4 (flow.ts:37-38): go_to_lead walks into the yard, and the hanged clerk opens: the scene played, and the seat in it. */
-function theYard({ walked, conn }: Arc): string | undefined {
+/** Check 4 (flow.ts:37-38), as the walk in left it (the story goes on from there): go_to_lead from the lane into the yard, the hanged clerk open with the seat in it. */
+function theYard(walked: Arc["walked"], conn: Connection): string | undefined {
   const ex = walked?.view?.ex;
   const scene = conn.rows()?.scene;
   const ok = walked?.code === 0 && ex?.scene === "hanged-clerk" && scene?.title === "The Hanged Clerk" && conn.home().seat?.sceneId === scene.id;
@@ -161,8 +162,10 @@ async function theStory(stack: Stack): Promise<Arc> {
   // The scene's place comes with its rows: wait for them (10 s at most), as the screen does, and look at it before the story moves on.
   for (let waited = 0; !conn.view()?.place && waited < 10_000; waited += 100) await new Promise(r => setTimeout(r, 100));
   const drawn = placeDrawn(conn);
+  const yard = theYard(walking.walked, conn);
   const home = conn.home();
   const way = await theWayOn(conn);
+  way.set(4, yard);
   way.set(5, drawn);
   return { conn, home, ...walking, way };
 }
