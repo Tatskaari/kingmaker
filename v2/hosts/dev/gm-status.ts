@@ -1,0 +1,168 @@
+// After the prototype's src/cli/scene.ts at 44c6d4a: its status command (:250-268, the fields and the summaries of path, patches and rulings) and its memories command (:182-190, a doc's heading and body), read from a game's rows and the AI service's store.
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseDoc } from "../../ai/docs/docs.ts";
+import type { RepairResult } from "../../shared/gm/repair.ts";
+import { gmFromRow, type GmRow, type GmState, type ScenePatch } from "../../shared/gm/state.ts";
+
+/**
+ * The GM's side of a game, as `npm run status` prints it (full-gm-design §4.4): the prototype's
+ * `scene status` fields from the scene's gm_state row (beat, path, notes, canon, patches, rulings),
+ * its co-GM reviews from co_gm_result (`repairs`), and what the prototype kept in files: the memory
+ * reviews (the AI service's memory-reviews.jsonl) and the notes they wrote (`--memories`, as
+ * `scene memories` prints them). Pure: hosts/status.ts reads the rows and the files.
+ */
+
+/** A row as the owner's SQL gives it: snake_case columns, an empty option null, a time in microseconds. */
+export type Row = Record<string, unknown>;
+
+/** What the status is made from: the game's rows, and the AI service's lines on its memory reviews. */
+export interface StatusRows {
+  game: Row;
+  scene: Row;
+  gm?: Row;
+  turns: Row[];
+  repairs: Row[];
+  jobs: Row[];
+  /** memory-reviews.jsonl's lines, as JSON. */
+  reviews: unknown[];
+}
+
+/**
+ * What statusOf reads for a game's scene: its gm_state, turns, co-GM reviews and jobs by owner SQL
+ * (`query`), and the memory reviews' lines from the game's folder in the AI service's store.
+ */
+export async function statusRows(query: (q: string) => Promise<Row[]>, store: string, game: Row, scene: Row): Promise<StatusRows> {
+  const id = String(scene.id);
+  const [[gm], turns, repairs, jobs] = await Promise.all([
+    query(`SELECT * FROM gm_state WHERE scene_id = ${id}`), query(`SELECT * FROM turn WHERE scene_id = ${id}`),
+    query(`SELECT * FROM co_gm_result WHERE scene_id = ${id}`),
+    // A job's scene is an option column: the whole table, read for this scene's (statusOf).
+    query("SELECT * FROM job"),
+  ]);
+  return { game, scene, ...(gm ? { gm } : {}), turns, repairs, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")) };
+}
+
+/** The background moves (full-gm-design §4.2): a memory review and a co-GM review run after a turn, holding nothing. */
+const BACKGROUND = ["remember", "repair"];
+
+/** The scene's background jobs in flight, as "remember t3" (by the turn they're for: its key's). */
+export function backgroundOf(jobs: Row[], sceneId: string): string[] {
+  return jobs.filter(j => String(j.scene_id) === sceneId && BACKGROUND.includes(String(j.move)))
+    .map(j => `${String(j.move)} ${/:(t\d+):/.exec(String(j.key))?.[1] ?? "?"}`);
+}
+
+/** One memory review's line: the turn it reviewed, what the attention filter flagged, and what each agent did. */
+interface ReviewLine { turn?: number; reviewed?: number; flags?: string[]; reviews?: Array<{ kind?: string; changes?: string[]; error?: string }> }
+
+/** The GM's side of the game's scene, as JSON prints it: every field there, empty or not. */
+export function statusOf(rows: StatusRows): Record<string, unknown> {
+  const gm = rows.gm ? gmFromRow(camel(rows.gm) as GmRow) : undefined;
+  const ended = String(rows.scene.status) === "ended";
+  const players = rows.turns.filter(t => Number(t.n) > 0).sort((a, b) => Number(a.n) - Number(b.n));
+  const firstText = players.flatMap(t => (t.first_text_at !== null && t.first_text_at !== undefined ? [(Number(t.first_text_at) - Number(t.started_at)) / 1000] : []));
+  return {
+    game: Number(rows.game.id), uid: String(rows.game.uid), scene: String(rows.scene.scene_key), status: String(rows.scene.status), turn: Number(rows.scene.turns),
+    ...(gm ? gmFields(gm) : { gm: "(no gm_state row for this scene)" }),
+    repairs: [...rows.repairs].sort((a, b) => Number(a.turn) - Number(b.turn) || Number(a.id) - Number(b.id)).map(r => repairLine(r, ended)),
+    memoryReviews: rows.reviews.map(r => reviewLine(r as ReviewLine)),
+    jobs: rows.jobs.filter(j => String(j.scene_id) === String(rows.scene.id)).sort((a, b) => Number(a.id) - Number(b.id)).map(jobLine),
+    latency: {
+      avgFirstTextMs: average(firstText),
+      consideredTurns: new Set(gm?.rulings.map(r => r.turn) ?? []).size,
+      avgConsiderMs: average(gm?.rulings.map(r => r.latencyMs) ?? []),
+    },
+    costUsd: (rows.turns.reduce((sum, t) => sum + Number(t.cost_micros ?? 0), 0) / 1e6).toFixed(5),
+  };
+}
+
+/** The bookkeeping's fields, the prototype's first and the co-GM's beside them, an empty one as null. */
+function gmFields(gm: GmState): Record<string, unknown> {
+  return {
+    beat: gm.beat, turnsInBeat: gm.turnsInBeat,
+    path: gm.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via} (${p.source})${p.roll ? ` [${p.roll.skill} ${p.roll.total}/${p.roll.dc}]` : ""}`),
+    ended: gm.ended?.exitId ?? null,
+    notes: gm.notes, notesTurn: gm.notesTurn,
+    whispers: gm.whispers.map(w => `${w.turn}: ${w.to}: ${w.note}`),
+    canon: gm.canon, established: gm.established,
+    patches: gm.patches.map(patchLine),
+    rulings: gm.rulings.map(r => `${r.turn}: ${r.act} -> ${r.kind === "roll" ? `${r.skill} DC ${r.dc}${r.roll ? ` (${r.roll.total})` : ""}` : `${r.kind}, no roll`} [${r.why}]: ${r.went}: ${r.changed}`),
+    landed: gm.landed, hinted: gm.hinted,
+    sceneStatus: gm.sceneStatus ?? null, offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
+    opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),
+  };
+}
+
+/** A patch as the prototype's status summarises it. */
+function patchLine(p: ScenePatch): string {
+  return p.beat ? `beat ${p.beat.id}` : p.transition ? `${p.transition.beat} + ${p.transition.transition.when}` : p.close ? `${p.close.beat} - ${p.close.id}`
+    : p.essential ? `essential ${p.essential.id}, brought over (${p.essential.missed}): ${p.essential.placedWith.join("; ")}` : `${p.cast?.id} keeps back: ${p.cast?.secrets.join(" ")}`;
+}
+
+/** A co-GM review: "<turn>: <status> — <assessment> [pending | merged at t<k>]", and why its move was refused, if it was. An ended scene's is never merged. */
+function repairLine(row: Row, ended: boolean): string {
+  let review: Partial<RepairResult> = {};
+  try { review = JSON.parse(String(row.review)) as RepairResult; } catch { /* an unreadable review shows as such */ }
+  const merged = row.merged_turn !== null && row.merged_turn !== undefined ? `merged at t${Number(row.merged_turn)}` : ended ? "never merged: the scene ended" : "pending";
+  const note = row.note !== null && row.note !== undefined ? ` (${String(row.note)})` : "";
+  return `${Number(row.turn)}: ${review.status ?? "?"} — ${review.assessment ?? "(unreadable review)"} [${merged}]${note}`;
+}
+
+/** A memory review: "<turn>: <flags> — <what the agents did>", and an agent's failure. */
+function reviewLine(line: ReviewLine): string {
+  const changes = (line.reviews ?? []).flatMap(r => r.changes ?? []);
+  const errors = (line.reviews ?? []).flatMap(r => (r.error ? [`${r.kind ?? "review"} failed: ${r.error}`] : []));
+  return `${line.turn ?? line.reviewed ?? "?"}: ${line.flags?.length ? line.flags.join(", ") : "nothing flagged"}${changes.length ? ` — ${changes.join("; ")}` : ""}${errors.length ? ` [${errors.join("; ")}]` : ""}`;
+}
+
+/** A job of the scene's, in flight or failed: its move and step, its state, its tries and its error. */
+function jobLine(row: Row): string {
+  const attempts = Number(row.attempts ?? 0);
+  return `${String(row.move)}/${String(row.step)}: ${String(row.state)}${attempts > 1 ? `, attempt ${attempts}` : ""}${row.error !== null && row.error !== undefined ? ` (${String(row.error)})` : ""}`;
+}
+
+const average = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
+
+/**
+ * A row in the module's own names: snake_case columns (and the fields of a column's objects, if the
+ * SQL gives them so) as camelCase, and an empty option (null) as undefined, as the bindings have them.
+ */
+export function camel(value: unknown): unknown {
+  if (value === null) return undefined;
+  if (Array.isArray(value)) return value.map(camel);
+  if (typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase()), camel(v)]));
+  return value;
+}
+
+/** memory-reviews.jsonl's lines (none when it isn't there); a line that isn't JSON is skipped. */
+export function reviewLines(file: string): unknown[] {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8").split("\n").flatMap(line => {
+    if (!line.trim()) return [];
+    try { return [JSON.parse(line) as unknown]; } catch { return []; }
+  });
+}
+
+/**
+ * Every memory the reviews wrote in a game's docs (its copy of the lore): each person's index and
+ * notes, under Cast/<name>/memories/ (or characters/<id>/memories/ for someone without lore), in
+ * full, as the prototype's `scene memories` prints a doc. Says so when there are none.
+ */
+export function memoriesText(docs: string, game: string): string {
+  const paths = walk(docs).filter(p => /^(Cast|characters)\/.+\/memories\/[^/]+\.md$/.test(p)).sort();
+  if (!paths.length) return `(No memories yet: the reviews have written none in game ${game}.)`;
+  return paths.map(path => {
+    const doc = parseDoc(path, readFileSync(join(docs, path), "utf8"));
+    return `## ${path}  [${doc.meta.visibility}${doc.meta.readers ? ` ${doc.meta.readers.join(",")}` : ""}]\n${doc.meta.context ? `(${doc.meta.context})\n` : ""}${doc.body}\n`;
+  }).join("\n");
+}
+
+/** The Markdown files under a folder, by their paths in it ("/" between parts). */
+function walk(root: string, dir = ""): string[] {
+  const base = join(root, dir);
+  if (!existsSync(base)) return [];
+  return readdirSync(base, { withFileTypes: true }).flatMap(e => {
+    const path = dir ? `${dir}/${e.name}` : e.name;
+    return e.isDirectory() ? walk(root, path) : e.name.endsWith(".md") ? [path] : [];
+  });
+}

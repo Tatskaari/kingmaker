@@ -15,10 +15,16 @@ export function devFake(): FakeOptions {
 }
 
 /**
- * --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once). The
- * answers and delays by a call's name are put beside fake.json's, name by name, so answers given for
- * character creation's calls (v1's recipe of the prototype's own) keep the notes' answer. Throws,
- * saying so, when KM_AI_FAKE isn't JSON.
+ * What KM_AI_FAKE adds to rather than replaces, name by name: the answers and delays by a call's name,
+ * the decider's choices by question, and the tool loops' calls by their first tool.
+ */
+const BY_NAME = ["byName", "byNameDelayMs", "choices", "toolCalls"] as const;
+
+/**
+ * --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once), as
+ * onTop puts them: so answers given for character creation's calls (v1's recipe of the prototype's
+ * own) keep the notes' answer, and '{"choices":{"roll_call":"new"}}' keeps the full GM's quiet
+ * defaults (full-gm-design §4.4). Throws, saying so, when KM_AI_FAKE isn't JSON.
  */
 export function fakeOptions(own: string | undefined): FakeOptions {
   if (!own) return devFake();
@@ -28,10 +34,28 @@ export function fakeOptions(own: string | undefined): FakeOptions {
   } catch {
     throw new Error(`KM_AI_FAKE isn't JSON: ${own}`);
   }
-  const fake = devFake();
-  return {
-    ...fake, ...options,
-    ...(options.byName ? { byName: { ...fake.byName, ...options.byName } } : {}),
-    ...(options.byNameDelayMs ? { byNameDelayMs: { ...fake.byNameDelayMs, ...options.byNameDelayMs } } : {}),
-  };
+  return onTop(devFake(), options);
+}
+
+/**
+ * Options on top of others, as KM_AI_FAKE goes on fake.json's: key by key, but the answers, delays,
+ * choices and tool calls by name go beside the ones under them, name by name. A test's recipe goes on
+ * fake.json's (or on quietGm's) this way, so a choice of its own keeps the full GM's quiet ones.
+ */
+export function onTop(under: FakeOptions, over: FakeOptions): FakeOptions {
+  const below = under as Record<string, unknown>, above = over as Record<string, unknown>;
+  const merged = { ...below, ...above };
+  for (const key of BY_NAME) if (above[key]) merged[key] = { ...below[key] as object, ...above[key] as object };
+  return merged as FakeOptions;
+}
+
+/**
+ * fake.json's quiet answers for the full GM alone (full-gm-design §4.4, §6): the attention filter's
+ * choices, the memories agent's call, the co-GM's answer and the ruling. A test that plays three
+ * turns or more on a fake of its own puts them under it (onTop), or every line fires both memory
+ * reviews and the co-GM moves the scene back to its first beat.
+ */
+export function quietGm(): FakeOptions {
+  const fake = devFake() as FakeOptions & { toolCalls?: unknown };
+  return { choices: fake.choices!, byName: { co_gm_notes: fake.byName!.co_gm_notes, ruling: fake.byName!.ruling }, ...(fake.toolCalls ? { toolCalls: fake.toolCalls } : {}) } as FakeOptions;
 }

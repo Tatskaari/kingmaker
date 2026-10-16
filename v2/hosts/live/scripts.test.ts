@@ -25,3 +25,13 @@ test("act picks say_N by its place, or the first of a kind, else its next pick",
   assert.equal(picked([{ id: "say_4" }], offered), undefined);
   assert.equal(picked([{ id: "say_1" }], []), undefined);
 });
+
+test("gm's script is full-gm-design §1.2's eight lines as Wren the hedge wizard: the fourth and the eighth said once the background jobs are done, and the GM's side recorded", () => {
+  const gm = SCRIPTS.gm!;
+
+  assert.deepEqual([gm.steps.length, gm.lines, gm.who, gm.build, gm.gmSide], [8, 8, "Wren Ashdown: a hedge wizard from the fens", "wizard", true]);
+  assert.deepEqual(gm.steps.map((s, i) => ("say" in s && s.wait === "background" ? i + 1 : 0)).filter(Boolean), [4, 8]);
+  assert.equal(stepName(gm.steps[2]!), "(I try to lift the folded paper out of the boy's boot while he watches the sergeant)");
+  assert.equal(stepName(gm.steps[7]!), "(I nod to the sergeant and walk out of the yard, back towards the palace)");
+  assert.ok(gm.steps.every(s => "say" in s));
+});
