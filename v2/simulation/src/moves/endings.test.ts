@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rollFrom } from "../../../shared/dice.ts";
+import { describeRoll, rollFrom } from "../../../shared/dice.ts";
 import type { After, Decision, DecideResponse, ReplyRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { all, openedGame, sceneNow } from "../host/testing.ts";
 
@@ -125,13 +125,14 @@ test("a failed check into an ending the player didn't choose holds it for their 
   const { host, scene, line } = await game();
   await line("*I wait by the gate.*", decided({ route: { id: "cart-comes", phase: "cue" } }));
   const dice = host.db.dice.gameId.find(scene.gameId)!;
-  const roll = rollFrom(dice, "persuasion", 30, 1).roll;
+  const persuasion = (JSON.parse(all(host.db.sheet)[0]!.skills) as Record<string, number>).persuasion!;
+  const roll = rollFrom(dice, "persuasion", 30, persuasion).roll;
   assert.notEqual(roll.die, 20, "this seed's next roll must fail at DC 30");
 
   const held = await line("Corporal, give me till noon.", decided({ route: { id: "persuade-tull", phase: "attempt", check: { skill: "persuasion", dc: 30 } } }));
   assert.deepEqual(held.gm.pendingExit, { exitId: "closed-suicide", turn: 2, via: "persuade-tull", extended: false });
   assert.deepEqual(held.gm.path.at(-1), { turn: 2, from: "dead-cart", to: "closed-suicide", via: "persuade-tull", source: "pre", roll, known: 0 });
-  assert.match(held.lines.find(l => l.kind === "roll")!.text, /^Persuasion check to convince Tull to wait before taking Prout away: \d+ \+ 1 = \d+ vs DC 30: failure/);
+  assert.equal(held.lines.find(l => l.kind === "roll")!.text, `Persuasion check to convince Tull to wait before taking Prout away: ${describeRoll(roll).replace(/^Persuasion check: /, "")}`);
 });
 
 test("an ending that leads twice running is reached, though neither read was sure of it", async () => {

@@ -490,16 +490,13 @@ export function afterQuestions(scene: Scene, state: TurnView, hold?: string): Af
   return { questions, outcomes, endings, pending };
 }
 
-/** What readAfter reads, and one thing the protocol's After can't yet say: the ending an improvised outcome gave way to. */
-export type AfterRead = After & { outcome?: After["outcome"] & { exit?: string } };
-
 /**
  * The after-reply decision read as the prototype reads it: the improvised ending gives way to an
  * authored one read at 0.2 or more; ending on an outcome needs 0.6 (the improvised ending's share
  * added to an authored one's); an outcome route is returned with its check for the simulation to
  * roll; landed and hinted; a question left unanswered; and the player's own exit at 0.6.
  */
-export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): AfterRead {
+export function readAfter(scene: Scene, decision: Answers, asked: AfterAsked): After {
   const { outcomes, endings, pending } = asked;
   const probabilities = decision.answers.outcome?.probabilities ?? {};
   let picked = outcomes.find(t => t.id === decision.answers.outcome?.choice);

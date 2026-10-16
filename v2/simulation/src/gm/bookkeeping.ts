@@ -102,7 +102,7 @@ export function holdEnding(gm: GmState, pending: NonNullable<GmState["pendingExi
  * the story stands. An ending reached there waits for the player's answer unless it's their own
  * doing with nothing left hanging; a fight ends the scene at once (`ended`).
  */
-export function moveOnAfterReply(scene: Scene, gm: GmState, after: AfterRead, onStage: string[], turn: number, roll: Roll): { move?: Move; ended?: Exit } {
+export function moveOnAfterReply(scene: Scene, gm: GmState, after: After, onStage: string[], turn: number, roll: Roll): { move?: Move; ended?: Exit } {
   const from = gm.beat;
   const move = outcomeMove(scene, gm, after, roll);
   if (move) applyMove(gm, move, "post", turn);
@@ -175,7 +175,7 @@ export function keepOpened(opened: OpenedNote[], notes: OpenedNote[]): OpenedNot
 export const movedOn = (gm: GmState, turn: number) => gm.path.some(p => p.turn === turn && p.to !== p.from);
 
 /** The outcome route the after-reply read says has happened, resolved (its check rolled); none when the read names no route open here. */
-function outcomeMove(scene: Scene, gm: GmState, after: AfterRead, roll: Roll): Move | undefined {
+function outcomeMove(scene: Scene, gm: GmState, after: After, roll: Roll): Move | undefined {
   const transition = after.outcome ? routeOf(scene, gm, after.outcome.route) : undefined;
   if (!transition) return undefined;
   const move = resolveMove(scene, gm, transition, { id: transition.id, phase: "outcome", ...(after.outcome?.check ? { check: after.outcome.check } : {}) }, roll);
@@ -184,13 +184,9 @@ function outcomeMove(scene: Scene, gm: GmState, after: AfterRead, roll: Roll): M
 
 /**
  * The improvised ending gives way to an authored one the after-reply read found plausible
- * (director.ts:1328-1331); the AI service names it in `outcome.exit`, which shared's After doesn't
- * have yet (AfterRead, below).
+ * (the prototype's director.ts:1330-1333): the AI service names it in `outcome.exit`.
  */
 function insteadOfImprovised(scene: Scene, move: Move, exitId: string | undefined): Move {
   const exit = exitId && move.exit?.id === IMPROVISED_EXIT_ID ? scene.exits.find(e => e.id === exitId) : undefined;
   return exit ? { ...move, to: exit.id, exit } : move;
 }
-
-/** The after-reply read as the AI service sends it: After, and the ending an improvised outcome gave way to (the AI service's own AfterRead; F folds it into shared/protocol/ai.ts). */
-export type AfterRead = After & { outcome?: After["outcome"] & { exit?: string } };

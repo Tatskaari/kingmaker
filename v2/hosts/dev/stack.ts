@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { appendFileSync, mkdirSync, readlinkSync, rmSync } from "node:fs";
 import { connect } from "node:net";
 import { basename, join, relative, resolve } from "node:path";
+import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
 import { apiKey } from "../../ai/llm/openrouter.ts";
 import { refusalIn } from "../../shared/protocol/refusals.ts";
 import { aiProcess, containerName, type AiProcess } from "./ai-process.ts";
@@ -29,8 +30,8 @@ export interface StackOptions {
   /** Detected when absent: host when 11.0.0.1 is this machine's. */
   mode?: Mode;
   model: "openrouter" | "fake";
-  /** The fake model's options (KM_AI_FAKE): fakeFetch's, from v2/ai/llm/fake-openrouter.ts. */
-  fake?: Record<string, unknown>;
+  /** The fake model's options (KM_AI_FAKE). */
+  fake?: FakeOptions;
   gm?: "pipeline" | "canned";
   /** The AI service in its podman image rather than as a node process. */
   container?: boolean;

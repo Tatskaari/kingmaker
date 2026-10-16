@@ -1,8 +1,8 @@
 import type { CallContext } from "../../llm/openrouter.ts";
-import { afterQuestions, decisionState, readAfter, type AfterRead } from "../../gm/director.ts";
+import { afterQuestions, decisionState, readAfter } from "../../gm/director.ts";
 import { stageManage } from "../../gm/stage.ts";
 import { turnSource, type TurnView } from "../../gm/view.ts";
-import type { SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { After, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import { keysFor, opToGame } from "../../../shared/world/rows.ts";
@@ -31,7 +31,7 @@ export const settle: Handler<SettleRequest, SettleResponse> = async (req, ctx) =
 };
 
 /** The after-reply decision, an ending held back this turn left out of it (it can't be confirmed by the reply that held it). */
-async function afterReply(scene: Scene, view: TurnView, line: string, reply: string, calls: CallContext): Promise<AfterRead> {
+async function afterReply(scene: Scene, view: TurnView, line: string, reply: string, calls: CallContext): Promise<After> {
   const hold = view.pendingExit?.turn === view.turn ? view.pendingExit.exitId : undefined;
   const asked = afterQuestions(scene, view, hold);
   const answers = await director(calls).decide(decisionState(scene, view, line, reply), asked.questions, "director.after");

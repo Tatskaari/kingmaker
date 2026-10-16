@@ -88,7 +88,7 @@ test("the opening's request: its key, the working set as the transaction saw it,
   assert.equal(request.stream.turn, String(turn0.id));
   assert.equal(request.gm.beat, "yard");
   assert.equal(request.party[0]!.status, "HP 28/28, spell slots 1st 3/3");
-  assert.equal(request.party[0]!.skills.perception, 6);
+  assert.equal(request.party[0]!.skills.perception, 4);
   assert.deepEqual(request.story, { time: "morning", day: 1, flags: {} });
   assert.equal(request.world.place.key, "granary-yard");
   assert.equal(request.world.entity.length, [...host.db.entity.placeId.filter(scene.placeId)].length);

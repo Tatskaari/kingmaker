@@ -8,40 +8,12 @@ import { memoryHost, type AiPost, type AiReply, type MemoryHost } from "./memory
 
 /**
  * Test support for the memory host: the hanged clerk's campaign as install_campaign takes it (the
- * campaign's own files; the builds and looks are this file's, E's builds.json and looks.json not
- * being here), players' identities, and a scripted AI service that answers each endpoint from a
- * queue (or a default) and keeps every request it was sent.
+ * campaign folder's own files), players' identities, and a scripted AI service that answers each
+ * endpoint from a queue (or a default) and keeps every request it was sent.
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
 const read = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
-
-/** Three ready-made characters, each with all 18 skills. */
-export const BUILDS: BuildsFile = {
-  ranger: {
-    build: "elf ranger 3 (Hunter), soldier background", level: 3, status: "HP 28/28, spell slots 1st 3/3",
-    skills: { persuasion: 1, deception: 1, intimidation: 3, insight: 4, performance: 1, perception: 6, investigation: 2, sleight_of_hand: 3, stealth: 5, athletics: 4, acrobatics: 3, animal_handling: 4, arcana: 0, history: 0, nature: 2, religion: 0, medicine: 2, survival: 4 },
-    gear: [{ id: "longbow", name: "Longbow", kind: "weapon", slot: "mainHand" }, { id: "shortsword", name: "Shortsword", kind: "weapon" }, { id: "studded-leather", name: "Studded Leather", kind: "armor", slot: "armor" }],
-  },
-  rogue: {
-    build: "halfling rogue 3 (Thief), criminal background", level: 3, status: "HP 24/24",
-    skills: { persuasion: 3, deception: 5, intimidation: 1, insight: 3, performance: 1, perception: 5, investigation: 3, sleight_of_hand: 7, stealth: 7, athletics: -1, acrobatics: 5, animal_handling: 1, arcana: 0, history: 0, nature: 0, religion: 0, medicine: 1, survival: 1 },
-    gear: [{ id: "rapier", name: "Rapier", kind: "weapon", slot: "mainHand" }, { id: "dagger", name: "Dagger", kind: "weapon" }, { id: "leather-armor", name: "Leather Armor", kind: "armor", slot: "armor" }],
-  },
-  wizard: {
-    build: "human wizard 3 (Evoker), sage background", level: 3, status: "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
-    skills: { persuasion: 0, deception: 0, intimidation: 0, insight: 3, performance: 0, perception: 3, investigation: 5, sleight_of_hand: 1, stealth: 1, athletics: -1, acrobatics: 1, animal_handling: 1, arcana: 5, history: 5, nature: 3, religion: 3, medicine: 1, survival: 1 },
-    gear: [{ id: "quarterstaff", name: "Quarterstaff", kind: "weapon", slot: "mainHand" }, { id: "dagger", name: "Dagger", kind: "weapon" }],
-  },
-};
-
-/** The hanged clerk's cast as the screen draws them. */
-export const LOOKS: LooksFile = {
-  kell: { role: "person", glyph: "K", fg: "#6d9eeb" },
-  cob: { role: "person", glyph: "c", fg: "#e8b15a" },
-  moll: { role: "person", glyph: "m", fg: "#e07ab0" },
-  tull: { role: "person", glyph: "T", fg: "#6d9eeb" },
-};
 
 /** campaigns/caerwyn as install_campaign takes it: no Markdown but each scene's hook. */
 export function caerwynPack(): CampaignPack {
@@ -50,8 +22,8 @@ export function caerwynPack(): CampaignPack {
     campaign,
     scenes: campaign.scenes.map(key => ({ scene: JSON.parse(read(`scenes/${key}/scene.json`)) as SceneFile, hook: read(`scenes/${key}/hook.md`).trim() })),
     places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
-    builds: BUILDS,
-    looks: LOOKS,
+    builds: JSON.parse(read("builds.json")) as BuildsFile,
+    looks: JSON.parse(read("looks.json")) as LooksFile,
   };
 }
 

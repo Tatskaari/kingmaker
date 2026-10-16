@@ -106,7 +106,12 @@ export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repea
 /** reply: plain text. */
 export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[] }
 export interface After {
-  outcome?: { route: string; check?: Check };
+  /**
+   * An outcome route the reply achieved, with its check for the simulation to roll. `exit`: the
+   * authored ending an improvised outcome gives way to, read at 0.2 or more (the prototype's
+   * director.ts:1330-1333).
+   */
+  outcome?: { route: string; check?: Check; exit?: string };
   ending?: { exitId: string; probability: number };
   status?: SceneStatus;
   landed: string[]; hinted: string[]; unanswered: boolean; theirs: boolean;
