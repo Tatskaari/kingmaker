@@ -11,6 +11,7 @@ import type { SceneView } from "../scene/view.ts";
  * AI service writes them (kingmaker-scratch/v2/v5/tools/d-cards.mts dumped them).
  */
 export const YARD: SceneView = {
+  "sceneId": "7",
   "title": "The Hanged Clerk",
   "time": "Morning",
   "game": "1",

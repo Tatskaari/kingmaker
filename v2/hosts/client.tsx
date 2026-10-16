@@ -8,6 +8,7 @@ import { AppModel, type Intent } from "../client/app/model.ts";
 import { newGameOf, type Backend } from "../client/backend.ts";
 import { demoBackend } from "../client/demo.ts";
 import { connect } from "../client/net/connection.ts";
+import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
 
 /**
@@ -29,7 +30,8 @@ const USAGE = `Kingmaker: the client
 
 --url and --db choose the server (else KM_STDB_URL and KM_STDB_DB, else the running dev stack's,
 found in runs/dev/stack.json or the folder --stack names, else ws://127.0.0.1:3300 and kingmaker).
-Sessions are kept in runs/play/ (KM_RUNS_DIR moves runs/).`;
+Sessions are kept in runs/play/ (KM_RUNS_DIR moves runs/). In a scene, /end <exit> (testing) ends it as the
+dev stack's owner, read from the same stack.json.`;
 
 type Args = ReturnType<typeof argsOf>["values"];
 
@@ -70,8 +72,11 @@ async function backendFor(args: Args, env: NodeJS.ProcessEnv): Promise<Backend> 
   const runs = env.KM_RUNS_DIR ?? "runs";
   const session = sessionAt(runs, args.session);
   const url = args.url ?? env.KM_STDB_URL, db = args.db ?? env.KM_STDB_DB;
-  const server = serverFor({ ...(url ? { url } : {}), ...(db ? { db } : {}) }, args.stack ?? join(runs, "dev"));
-  return await connect({ ...server, ...(session.token ? { token: session.token } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
+  const stack = args.stack ?? join(runs, "dev");
+  const server = serverFor({ ...(url ? { url } : {}), ...(db ? { db } : {}) }, stack);
+  // The dev stack's owner, for /end (testing): only when it's the stack the client plays on.
+  const owner = ownerFor(ownerAt(stack), server);
+  return await connect({ ...server, ...(session.token ? { token: session.token } : {}), ...(owner ? { owner } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
 }
 
 /**

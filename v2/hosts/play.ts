@@ -5,6 +5,7 @@ import { newGameOf, type Backend } from "../client/backend.ts";
 import { demoBackend } from "../client/demo.ts";
 import * as verbs from "../client/headless.ts";
 import { connect } from "../client/net/connection.ts";
+import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
 
 /**
@@ -94,8 +95,11 @@ async function backendFor(args: Args, env: NodeJS.ProcessEnv): Promise<Backend> 
 
   const runs = env.KM_RUNS_DIR ?? "runs";
   const session = sessionAt(runs, args.values.session);
-  const server = serverFor(defined({ url: args.values.url ?? env.KM_STDB_URL, db: args.values.db ?? env.KM_STDB_DB }), args.values.stack ?? join(runs, "dev"));
-  return await connect({ ...server, ...(session.token ? { token: session.token } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
+  const stack = args.values.stack ?? join(runs, "dev");
+  const server = serverFor(defined({ url: args.values.url ?? env.KM_STDB_URL, db: args.values.db ?? env.KM_STDB_DB }), stack);
+  // The dev stack's owner, for end (testing): only when it's the stack being played on.
+  const owner = ownerFor(ownerAt(stack), server);
+  return await connect({ ...server, ...(session.token ? { token: session.token } : {}), ...(owner ? { owner } : {}), onIdentity: (identity, token) => keepToken(session, identity, token) });
 }
 
 /** One verb, its words on stdout (the reply's progress on stderr), its exit code back. */
