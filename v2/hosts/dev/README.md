@@ -45,7 +45,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 - **The suggested lines** come 2.8 s after each reply, as the prototype's did live: twelve lines (seven to say, two deeds, two risky tries, a way out), of which four are offered each time (two to say, a deed, a risky try), since the lines offered last time are screened out, and so are the last three you said. A way out joins them after four lines. A line said before a reply's lines come leaves them behind: the next set is offered against the one before.
 - **Every model call streams** over 2 s: the reply, so you see it written, and the stage manager, the notes and the lines too. The notes wait 1.5 s more, and the lines 0.8 s.
 
-`KM_AI_FAKE`'s options go on top of the file's, key by key: `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines. The e2e plays the file too, with its own holds on top where a step needs the notes or the lines late.
+`KM_AI_FAKE`'s options go on top of the file's, key by key: `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines, and `'{"byNameDelayMs":{"notes":12000}}'` writes the notes 14 s after each reply, time to type a line while they're written. The e2e plays the file too, with its own holds on top where a step needs the notes or the lines late.
 
 ## Host mode and namespace mode
 
