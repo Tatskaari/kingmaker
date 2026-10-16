@@ -15,6 +15,7 @@ import { CREATION_STEPS, STEPS, type CreationStep, type Step } from "../../share
  * | KM_AI_MODEL, KM_AI_FAKE | openrouter, {} | fake: the stand-in for OpenRouter, with these options |
  * | KM_AI_GM | pipeline | canned: the four thinks with no model at all |
  * | KM_AI_STREAM_MS | 200 | the stream's period |
+ * | KM_AI_DAILY_USD | 5 | the daily ceiling on what the models cost, in dollars, from the ledger (0: none) |
  * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, reply, settle, or a creation's offer, pick, own, draft, work, check, traits |
  */
 export interface AiConfig {
@@ -28,6 +29,8 @@ export interface AiConfig {
   apiKey?: string;
   gm: "pipeline" | "canned";
   streamMs: number;
+  /** The daily ceiling, in dollars (0: none). */
+  dailyUsd: number;
   faults: Faults;
 }
 
@@ -48,6 +51,7 @@ export function readConfig(env: Record<string, string | undefined>): AiConfig {
     ...(env.OPENROUTER_API_KEY?.trim() ? { apiKey: env.OPENROUTER_API_KEY.trim() } : {}),
     gm: oneOf("KM_AI_GM", env.KM_AI_GM || "pipeline", ["pipeline", "canned"] as const),
     streamMs: numberOf("KM_AI_STREAM_MS", env.KM_AI_STREAM_MS ?? "200"),
+    dailyUsd: dollarsOf("KM_AI_DAILY_USD", env.KM_AI_DAILY_USD || "5"),
     faults: faultsOf(env.KM_AI_FAULTS),
   };
 }
@@ -69,6 +73,12 @@ function oneOf<T extends string>(name: string, value: string, allowed: readonly 
 function numberOf(name: string, value: string): number {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) throw new Error(`${name}: "${value}" isn't a number of milliseconds`);
+  return n;
+}
+
+function dollarsOf(name: string, value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${name}: "${value}" isn't a number of dollars (0 for no ceiling)`);
   return n;
 }
 

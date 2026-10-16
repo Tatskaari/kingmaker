@@ -82,7 +82,7 @@ test("health needs no bearer, and says whether the one it got is accepted", asyn
   const { ai } = service();
   const ask = async (authorization?: string) => JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: { authorization }, body: "" })).body);
 
-  assert.deepEqual(await ask(), { ok: true, model: "fake", gm: "canned", campaigns: [], token: "absent" });
+  assert.deepEqual(await ask(), { ok: true, model: "fake", gm: "canned", campaigns: [], token: "absent", budget: { dailyUsd: 0, spentToday: 0 } });
   assert.equal((await ask("Bearer wrong")).token, "refused");
   assert.equal((await ask(`Bearer ${TOKEN}`)).token, "accepted");
 });
@@ -221,6 +221,52 @@ test("exit-after-store names a creation's step too", async () => {
 
   assert.deepEqual(exits, [137]);
   assert.ok(await stores.answers.get(backstoriesRequest("traits").key));
+});
+
+test("past the daily ceiling, a think that would call a model is 402 over_budget before it runs, in the words the game shows", async () => {
+  const { ai, stores, ran } = service({ serves: { model: "fake", gm: "pipeline" }, dailyUsd: 5 });
+  await ai.answer(put());
+  stores.ledger.append({ at: new Date().toISOString(), operation: "gm.reply", costUsd: 5 });
+  const decided = await ai.answer(post("/v1/turns/decide", decideRequest()));
+  const drafted = await ai.answer(post("/v1/backstories", backstoriesRequest("draft")));
+
+  assert.equal(decided.status, 402);
+  assert.deepEqual(JSON.parse(decided.body), { error: { code: "over_budget", message: "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD." } });
+  assert.equal(drafted.status, 402);
+  assert.deepEqual(ran, [], "no endpoint ran");
+  assert.equal(await stores.answers.get(decideRequest().key), undefined, "nothing kept: the move fails, and /retry asks again");
+});
+
+test("past the ceiling, a kept answer is still served, and what calls no model still runs: own's step, the canned GM", async () => {
+  const overSpent = async (overrides: Partial<ServiceOptions>) => {
+    const made = service({ dailyUsd: 1, ...overrides });
+    await made.ai.answer(put());
+    return { ...made, spend: () => made.stores.ledger.append({ at: new Date().toISOString(), costUsd: 3 }) };
+  };
+  const pipelined = await overSpent({ serves: { model: "fake", gm: "pipeline" } });
+  const first = await pipelined.ai.answer(post("/v1/turns/decide", decideRequest()));
+  pipelined.spend();
+  const kept = await pipelined.ai.answer(post("/v1/turns/decide", decideRequest(), { "x-km-attempt": "2" }));
+
+  const own = { key: creationKey(UID, 4, "own"), game: { id: UID, campaign: "caerwyn", version: "0.1.0" }, who: { name: "Pell Marrow", concept: "a hedge-wizard" }, level: 3, ask: { kind: "own", picks: { speciesId: "gnome", classId: "wizard", subclassId: "evoker", backgroundId: "sage" } } };
+  const owning = await overSpent({ serves: { model: "fake", gm: "pipeline" }, endpoints: { ...canned, characters: async () => ({ refusal: "a stand-in's", usage: { calls: 0, costUsd: 0, byOperation: {} } }) } });
+  owning.spend();
+  const cannedGm = await overSpent({});
+  cannedGm.spend();
+
+  assert.equal(first.status, 200);
+  assert.equal(kept.status, 200);
+  assert.equal(kept.headers["x-km-replayed"], "1");
+  assert.equal((await owning.ai.answer(post("/v1/characters", own))).status, 200);
+  assert.equal((await cannedGm.ai.answer(post("/v1/backstories", backstoriesRequest("traits")))).status, 200);
+});
+
+test("health says what the ceiling is and what today's calls have cost", async () => {
+  const { ai, stores } = service({ dailyUsd: 5 });
+  stores.ledger.append({ at: new Date().toISOString(), costUsd: 0.0123 });
+  stores.ledger.append({ at: new Date().toISOString(), costUsd: 0.0002 });
+
+  assert.deepEqual(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).budget, { dailyUsd: 5, spentToday: 0.0125 });
 });
 
 test("a version other than the one served is 409 other_campaign: the docs service has one lore root", async () => {

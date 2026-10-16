@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { AnswerStore, CallLog, CampaignStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
 
@@ -52,13 +52,71 @@ function callFolder(gamesDir: string): CallLog {
   };
 }
 
+/**
+ * The ledger file, and what today's lines in it cost: read on from where the last read ended, whole
+ * lines only (one being written is read next time), each counted for the UTC day of its `at`. Reads
+ * are one at a time, each from the last one's end.
+ */
 function ledgerFile(file: string): Ledger {
+  let read: Promise<LedgerRead> = Promise.resolve(UNREAD);
   return {
     append(line) {
       mkdirSync(dirname(file), { recursive: true });
       appendFileSync(file, JSON.stringify(line) + "\n");
     },
+    async spentToday() {
+      read = read.then(from => readOn(file, from));
+      const { day, spent } = await read;
+      return day === new Date().toISOString().slice(0, 10) ? spent : 0;
+    },
   };
+}
+
+/** How far the ledger has been read (bytes), and the latest day read with what its lines cost. */
+interface LedgerRead { offset: number; day: string; spent: number }
+const UNREAD: LedgerRead = { offset: 0, day: "", spent: 0 };
+
+/** The lines written since `from`, added in: a ledger that shrank (replaced) is read again from the start; one that can't be read stays as it was. */
+async function readOn(file: string, from: LedgerRead): Promise<LedgerRead> {
+  try {
+    const handle = await open(file, "r");
+    try {
+      const { size } = await handle.stat();
+      const start = size < from.offset ? UNREAD : from;
+      const bytes = Buffer.alloc(size - start.offset);
+      const { bytesRead } = await handle.read(bytes, 0, bytes.length, start.offset);
+      const whole = bytes.subarray(0, bytes.subarray(0, bytesRead).lastIndexOf(0x0a) + 1);
+      return { offset: start.offset + whole.length, ...daySpent(start, whole.toString("utf8")) };
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    return from;
+  }
+}
+
+/** The latest day's spend, with these lines added: a line of an earlier day than the latest read is past, and one that isn't JSON with a cost is skipped. */
+function daySpent(from: LedgerRead, lines: string): Pick<LedgerRead, "day" | "spent"> {
+  let { day, spent } = from;
+  for (const text of lines.split("\n")) {
+    const line = parsedLine(text);
+    if (!line || line.day < day) continue;
+    if (line.day > day) {
+      day = line.day;
+      spent = 0;
+    }
+    spent += line.costUsd;
+  }
+  return { day, spent };
+}
+
+function parsedLine(text: string): { day: string; costUsd: number } | undefined {
+  try {
+    const line = JSON.parse(text) as { at?: unknown; costUsd?: unknown };
+    return typeof line.at === "string" && typeof line.costUsd === "number" && Number.isFinite(line.costUsd) ? { day: line.at.slice(0, 10), costUsd: line.costUsd } : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** A version is installed when its campaign.json is there; re-installing replaces the whole folder. */

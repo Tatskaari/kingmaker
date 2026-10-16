@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
-import { isTurnKey, keyParts, type CreationKeyParts, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
 import type { Faults } from "./config.ts";
@@ -19,8 +20,11 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  *   duplicate that comes while the first is still running waits for its answer; otherwise the
  *   endpoint runs, and its answer is stored before it's sent, so a crash after the store loses
  *   nothing. The same key with another body is 409 key_reused.
- * - Errors are { error: { code, message } }: 400 bad_request, 401 unauthorised, 409 other_campaign
- *   or key_reused, 500 model_failed (after the model client's own retries), 503 not_ready.
+ * - The daily ceiling (budget.ts): past it, a think that may call a model is 402 over_budget before
+ *   it runs; a kept answer is served all the same.
+ * - Errors are { error: { code, message } }: 400 bad_request, 401 unauthorised, 402 over_budget,
+ *   409 other_campaign or key_reused, 500 model_failed (after the model client's own retries), 503
+ *   not_ready.
  * - Shutting down, it takes nothing new and gives what's running ten seconds to finish and be sent.
  */
 
@@ -34,8 +38,10 @@ export interface ServiceOptions {
   transport(turn: number): Transport;
   /** Where replies stream to (and service_ping goes), and as whom. */
   stream: Omit<StreamTarget, "log">;
-  /** For the health answer: which model, and which GM. */
+  /** For the health answer: which model, and which GM (the canned GM calls none, so the ceiling never stops it). */
   serves: Pick<Health, "model" | "gm">;
+  /** The daily ceiling on what the models cost, in dollars (KM_AI_DAILY_USD); 0 or absent: none. */
+  dailyUsd?: number;
   faults: Faults;
   log(line: string): void;
   /** How a fault ends the process (process.exit; a test's stand-in). */
@@ -59,6 +65,8 @@ const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
+/** The steps that never call a model: the ceiling doesn't stop them. */
+const NO_MODEL: ReadonlyArray<Step | CreationStep> = ["own"];
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */
@@ -67,6 +75,7 @@ interface Answered { body: string; how: "ran" | "kept" | "joined"; usage?: { cal
 const HOW = { kept: "from the store, no model call", joined: "joined the same request in flight, no model call of its own" };
 
 export function aiService(options: ServiceOptions): AiService {
+  const ceiling = budget(options.dailyUsd ?? 0, options.stores.ledger);
   const inFlight = new Map<string, { hash: string; answer: Promise<Answered> }>();
   /** handle's responses until they're sent (or their connection is gone): the process mustn't exit before an answer it ran is sent. */
   const unsent = new Set<Promise<void>>();
@@ -127,8 +136,12 @@ export function aiService(options: ServiceOptions): AiService {
     try { return await answer; } finally { inFlight.delete(key); }
   }
 
-  /** The endpoint, with this request's own model calls and stream; anything it throws but a Failure is the model's. */
+  /**
+   * The endpoint, under the ceiling, with this request's own model calls and stream; anything it
+   * throws but a Failure is the model's.
+   */
   async function run(handler: keyof Endpoints, parts: KeyParts, body: ThinkBody, campaign: Campaign, attempt: number, started: number) {
+    await withinCeiling(parts.step);
     const { calls, usage } = callContext(options.transport(transportTurn(parts)), options.stores, { game: body.game.id, key: body.key, attempt });
     const ctx: AiContext = { campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }) };
     try {
@@ -137,6 +150,12 @@ export function aiService(options: ServiceOptions): AiService {
       if (error instanceof Failure) throw error;
       throw new Failure(500, "model_failed", error instanceof Error ? error.message : String(error));
     }
+  }
+
+  /** Past the daily ceiling, a 402 for a think that may call a model (the canned GM and own's never do). */
+  async function withinCeiling(step: Step | CreationStep): Promise<void> {
+    if (options.serves.gm === "canned" || NO_MODEL.includes(step)) return;
+    await ceiling.check();
   }
 
   /** KM_AI_FAULTS=exit-after-store: the process ends with the answer stored and not sent (code 137, as a kill). */
@@ -159,6 +178,7 @@ export function aiService(options: ServiceOptions): AiService {
     return {
       ok: !closing, ...options.serves, campaigns: options.campaigns.list(), token: tokenOf(request, options.token),
       ...(deep ? { stdb: await servicePing(options.stream) } : {}),
+      budget: await ceiling.health(),
     };
   }
 

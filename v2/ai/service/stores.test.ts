@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, utimesSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fakeFetch } from "../llm/fake-openrouter.ts";
@@ -63,6 +63,41 @@ test("a request's calls go to its game's call log with its key and attempt (as e
   assert.equal(usage().byOperation["gm.reply"]?.calls, 2);
 });
 
+test("the ledger says what today's (UTC) lines cost: yesterday's don't count, and nor does a line not yet whole", async () => {
+  const root = fresh();
+  const { ledger } = folderStores(root);
+  const today = new Date().toISOString(), yesterday = new Date(Date.now() - 86_400_000).toISOString();
+
+  assert.equal(await ledger.spentToday(), 0, "no ledger yet");
+  ledger.append({ at: yesterday, operation: "gm.reply", costUsd: 4 });
+  ledger.append({ at: today, operation: "gm.reply", costUsd: 0.25 });
+  ledger.append({ at: today, operation: "rules.builds", costUsd: 0.5 });
+  assert.equal(await ledger.spentToday(), 0.75);
+
+  appendFileSync(join(root, "ledger.jsonl"), `{"at":"${today}","costUsd":1`);
+  assert.equal(await ledger.spentToday(), 0.75, "half a line is read when it's whole");
+  appendFileSync(join(root, "ledger.jsonl"), "}\nnot a line at all\n");
+  assert.equal(await ledger.spentToday(), 1.75);
+});
+
+test("the ledger is read on from where the last read ended: what was there already isn't read again", async () => {
+  const root = fresh();
+  const { ledger } = folderStores(root);
+  const today = new Date().toISOString();
+  ledger.append({ at: today, costUsd: 0.1 });
+  assert.equal(await ledger.spentToday(), 0.1);
+
+  // The line already read, changed in place (the same length): a reader from the start would see 0.9.
+  const file = join(root, "ledger.jsonl");
+  writeFileSync(file, readFileSync(file, "utf8").replace('"costUsd":0.1', '"costUsd":0.9'));
+  ledger.append({ at: today, costUsd: 0.2 });
+  assert.equal(Math.round((await ledger.spentToday()) * 100) / 100, 0.3);
+
+  // A ledger that shrank was replaced: read again from its start.
+  writeFileSync(file, `${JSON.stringify({ at: today, costUsd: 2 })}\n`);
+  assert.equal(await ledger.spentToday(), 2);
+});
+
 test("on the stand-in, each turn hears its own reply first, and the same turn always the same", async () => {
   const transport = transports("fake", { fake: { replies: ["Zero.", "One.", "Two."] } });
   const first = async (turn: number) => (await respond({ operation: "gm.reply", input: [{ role: "user", content: "Hi" }], calls: { ...transport(turn), log: () => {}, cost: () => {} } })).text;
@@ -75,7 +110,7 @@ test("the config: the bearer required, the defaults, and the values checked", ()
   assert.throws(() => readConfig({}), /KM_AI_TOKEN is required/);
   assert.deepEqual(readConfig({ KM_AI_TOKEN: "t" }), {
     listen: [{ host: "127.0.0.1", port: 8787 }], token: "t", store: "runs/ai", stdb: { url: "http://127.0.0.1:3300", db: "kingmaker" },
-    model: "openrouter", fake: {}, gm: "pipeline", streamMs: 200, faults: {},
+    model: "openrouter", fake: {}, gm: "pipeline", streamMs: 200, dailyUsd: 5, faults: {},
   });
   const set = readConfig({ KM_AI_TOKEN: "t", KM_AI_LISTEN: "11.0.0.1:8787, 127.0.0.1:8787,[::1]:0", KM_STDB_URL: "http://127.0.0.1:3310/", KM_STDB_TOKEN: "s", KM_AI_MODEL: "fake", KM_AI_FAKE: "{\"streamMs\":3000}", KM_AI_GM: "canned", KM_AI_STREAM_MS: "50", KM_AI_FAULTS: "exit-after-store:settle", OPENROUTER_API_KEY: " sk-or-1 " });
   assert.deepEqual(set.listen, [{ host: "11.0.0.1", port: 8787 }, { host: "127.0.0.1", port: 8787 }, { host: "::1", port: 0 }]);
@@ -86,7 +121,10 @@ test("the config: the bearer required, the defaults, and the values checked", ()
   assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_LISTEN: "8787" }), /KM_AI_LISTEN/);
 });
 
-test("the config: a creation's steps as faults", () => {
+test("the config: the daily ceiling in dollars (0 for none), and a creation's steps as faults", () => {
+  assert.deepEqual([readConfig({ KM_AI_TOKEN: "t", KM_AI_DAILY_USD: "0.25" }).dailyUsd, readConfig({ KM_AI_TOKEN: "t", KM_AI_DAILY_USD: "0" }).dailyUsd], [0.25, 0]);
+  assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_DAILY_USD: "five" }), /KM_AI_DAILY_USD: "five" isn't a number of dollars/);
+  assert.throws(() => readConfig({ KM_AI_TOKEN: "t", KM_AI_DAILY_USD: "-1" }), /KM_AI_DAILY_USD/);
   assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:check" }).faults, { exitAfterStore: "check" });
   assert.deepEqual(readConfig({ KM_AI_TOKEN: "t", KM_AI_FAULTS: "exit-after-store:offer" }).faults, { exitAfterStore: "offer" });
 });
