@@ -157,6 +157,24 @@ test("own: their picks made by the engine; a pick overtaken by the next is dropp
   assert.equal(host.db.sheet.playerId.find(host.db.game.id.find(creationOf(host, pell).gameId!)!.hostId)!.build, "gnome rogue 3 (Thief), sage background");
 });
 
+test("make my own from the card picked out: its picks made by the engine, kept when they go back and come again", async () => {
+  const { host, script, tamsin } = await started();
+  assert.equal(host.as(tamsin).makeOwn({ from: 1 }), undefined);
+  const making = creationOf(host);
+  assert.deepEqual([making.step, making.busy, ownOf(making)!.picks], ["custom", "own", { speciesId: "human", classId: "wizard", subclassId: "evoker", backgroundId: "sage" }]);
+  await host.drain();
+  assert.deepEqual([creationOf(host).busy, ownOf(creationOf(host))!.option!.from, ownOf(creationOf(host))!.lists], [undefined, "own", LISTS]);
+
+  host.as(tamsin).pickOwn({ speciesId: "orc", classId: "wizard", subclassId: "evoker", backgroundId: "sage" });
+  await host.drain();
+  host.as(tamsin).creationBack();
+  assert.equal(creationOf(host).step, "choose");
+  host.as(tamsin).makeOwn({ from: 3 });
+  assert.equal(ownOf(creationOf(host))!.picks.speciesId, "orc", "their own picks kept, not the card's");
+  await host.drain();
+  assert.deepEqual(script.to("own").map(s => (s.body as CharactersRequest).ask.kind), ["own", "own", "own"]);
+});
+
 test("a draft: asked with nothing to work from, shown, and left; then taken, the box starting again with it", async () => {
   const { host, script, tamsin } = await atBackstory();
   host.as(tamsin).setBackstory({ text: "notes" });

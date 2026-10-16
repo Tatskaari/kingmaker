@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { SettleResponse } from "../../../shared/protocol/ai.ts";
+import { readFileSync } from "node:fs";
+import type { DecideResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import type { SheetData } from "../../../shared/rules/types.ts";
 import type { WorldOp } from "../../../shared/world/scene-world.ts";
 import { all, hostWithCampaign, identity, madeCharacter, openedGame, sceneNow } from "../host/testing.ts";
@@ -51,6 +52,24 @@ test("a character made through creation is the ready-made one for the same build
 
 /** The engine's ids (each game's own, pinned to its dice) masked: what's left is the character. */
 const masked = (text: string) => text.replace(/\b[0-9A-HJKMNP-TV-Z]{26}\b/g, "<id>");
+
+test("the first check of a game rolls the prototype's dice for its seed: coming to at the opening is the first draw, the check the second", async () => {
+  const golden = JSON.parse(readFileSync(new URL("../../../ai/gm/golden/hanged-clerk-backstory/03-t1-settle.json", import.meta.url), "utf8")) as { session: { seed: number; transcript: Array<{ kind: string; text: string }> } };
+  const { host, script, wren, scene } = await openedGame(7, "rogue");
+  host.transact(tx => tx.db.dice.gameId.update({ ...tx.db.dice.gameId.find(scene.gameId)!, seed: golden.session.seed }));
+  const examine: DecideResponse = {
+    decision: { route: { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12, reason: "to tell how Prout really died" } }, earned: false, daft: false, outOfCharacter: false },
+    opened: [], usage: { calls: 1, costUsd: 0, byOperation: {} },
+  };
+  script.then("decide", examine);
+
+  host.as(wren).say({ text: "I look closely at the body." });
+  await host.drain();
+
+  const rolled = sceneNow(host, scene.id).lines.filter(l => l.kind === "roll").map(l => l.text);
+  assert.deepEqual(rolled, golden.session.transcript.filter(e => e.kind === "roll").map(e => e.text));
+  assert.deepEqual(rolled, ["Medicine check to tell how Prout really died: 14 + 1 = 15 vs DC 12: success"]);
+});
 
 test("the same seed and rows make the same campaign: the engine's ids and times are pinned to the dice and the transaction", async () => {
   const campaignOf = async () => {
