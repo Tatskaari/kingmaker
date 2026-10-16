@@ -1,0 +1,82 @@
+[
+  {
+    "id": "fire-bolt",
+    "name": "Fire Bolt",
+    "level": 0,
+    "range": "120 feet",
+    "effects": [
+      "attack"
+    ]
+  },
+  {
+    "id": "light",
+    "name": "Light",
+    "level": 0,
+    "range": "Touch",
+    "effects": []
+  },
+  {
+    "id": "ray-of-frost",
+    "name": "Ray of Frost",
+    "level": 0,
+    "range": "60 feet",
+    "effects": [
+      "attack"
+    ]
+  },
+  {
+    "id": "burning-hands",
+    "name": "Burning Hands",
+    "level": 1,
+    "range": "Self (15-foot cone)",
+    "effects": [
+      "save"
+    ],
+    "area": true
+  },
+  {
+    "id": "magic-missile",
+    "name": "Magic Missile",
+    "level": 1,
+    "range": "120 feet",
+    "effects": [
+      "auto-hit"
+    ]
+  },
+  {
+    "id": "shield",
+    "name": "Shield",
+    "level": 1,
+    "range": "Self",
+    "effects": []
+  },
+  {
+    "id": "sleep",
+    "name": "Sleep",
+    "level": 1,
+    "range": "60 feet",
+    "effects": [
+      "hp-pool-knockout"
+    ],
+    "area": true
+  },
+  {
+    "id": "thunderwave",
+    "name": "Thunderwave",
+    "level": 1,
+    "range": "Self (15-foot cube)",
+    "effects": [
+      "save"
+    ],
+    "area": true
+  },
+  {
+    "id": "scorching-ray",
+    "name": "Scorching Ray",
+    "level": 2,
+    "range": "120 feet",
+    "effects": [
+      "attack"
+    ]
+  }
+]
