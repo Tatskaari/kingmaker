@@ -216,11 +216,20 @@ for (const [w, h] of [[80, 24], [100, 30], [130, 42], [160, 45]] as const) {
   frame = await draw();
   checks.push([`${size}: the simulation's refusal, on the status line`, style("(Pell Marrow has the lead here")?.fg === C.warn]);
 
-  // The scene's end: a rule across with its title, and a box that says it's over.
+  // The scene's end: a rule across with its title, and a box that says it's over. A line typed after
+  // it goes to the simulation, which refuses it in the game's words.
   view = { ...YARD, entries: [...YARD.entries, { turn: 3, speaker: "system", kind: "system", text: "Scene ends: The Hanged Clerk" }], mayType: false, over: true };
   set({});
   frame = await draw();
   checks.push([`${size}: the scene's end: a rule with its title, and the box says the scene is over`, /─ The Hanged Clerk ─/.test(frame) && /The scene is over\./.test(frame)]);
+  await act(async () => { await setup.mockInput.typeText("Wait, one more thing."); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: a line after the scene's end goes to the simulation, and the box empties`, sent.at(-1) === "Wait, one more thing." && !/one more thing/.test(frame)]);
+  set({ refusal: "(The scene is over.)" });
+  frame = await draw();
+  checks.push([`${size}: its refusal, on the status line`, style("(The scene is over.)")?.fg === C.warn]);
   await setup.dispose();
 }
 

@@ -203,8 +203,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
     if (!value.trim()) return;
     const command = /^[/#]/.test(value.trim());
     // A line waits in the box while the GM has the floor; a command goes any time. A spectator's
-    // line goes too: the simulation refuses it, in the game's words.
-    if (!command && !view.mayType && !view.watching) return;
+    // line goes too, and so does one after the scene's end: the simulation refuses it, in the game's words.
+    if (!command && !view.mayType && !view.watching && !view.over) return;
     clear();
     scene.input(value);
   };
