@@ -13,9 +13,10 @@ import { startStack, type Stack } from "./dev/stack.ts";
 /**
  * The end to end test (v0-design §10.4): a line in a scene through every part. A real SpacetimeDB
  * with the module, the AI service as a node process on the fake model, and two clients on the
- * client's own connection, recording every row event they see; then the three kills: the AI service
- * mid-reply, the AI service after it kept an answer, and SpacetimeDB mid-think. Host mode in CI;
- * namespace mode where 11.0.0.1 isn't this machine's.
+ * client's own connection, recording every row event they see; then the AI service killed mid-reply
+ * and restarted mid-reply (as the dev host's k and r), the AI service gone after it kept an answer,
+ * and SpacetimeDB restarted mid-think. Host mode in CI; namespace mode where 11.0.0.1 isn't this
+ * machine's.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -71,6 +72,7 @@ try {
   const game = await theOpening(stack, a);
   await aTurnBothSee(a, b, game);
   await killedMidReply(stack, a, game);
+  await restartedMidReply(stack, a, game);
   await keptAnswer(stack, a, game);
   await spacetimeRestarted(stack, a, game);
   await anEnding(stack, a, b, game);
@@ -157,9 +159,37 @@ async function killedMidReply(stack: Stack, a: Player, game: Game): Promise<void
   check(`gm.reply was asked ${replies} times for the reply's key: the killed one, and the one that finished`, replies === 2);
 }
 
-/** 5. The AI service exits right after it stores the settle's answer: started again, it answers from the store. */
+/**
+ * 5. The AI service restarted mid-reply (SIGTERM, as the dev host's r): it finishes the reply and
+ * sends it before it exits, so the reply lands from its first attempt, with no note and one model call.
+ */
+async function restartedMidReply(stack: Stack, a: Player, game: Game): Promise<void> {
+  step("5. The AI service restarted mid-reply");
+  const slow = { ...FAKE, streamMs: 3_000 };
+  await restartAi(stack, slow);
+  const n = nextTurn(a);
+  const from = a.events.length;
+  check("A says a line", (await a.conn.say("Cob, let me see that boot.")) === undefined);
+  const turn = await until(a, "the reply's first draft", 30_000, r => { const t = turnOf(r, n); return t && r.drafts.some(d => d.turnId === t.id) && t.id; });
+
+  await stack.ai.stop("SIGTERM");
+  ok("the AI service is sent SIGTERM at the reply's first draft, and has exited");
+  await stack.ai.start({ KM_AI_FAKE: JSON.stringify(FAKE) });
+  ok("the AI service is started again");
+
+  await doneTurn(a, n);
+  const seen = a.events.slice(from).filter(e => e.table === "turn" && e.row.id === turn);
+  const attempts = [...new Set(a.events.slice(from).filter(e => e.table === "reply_draft" && e.op !== "delete" && e.row.turnId === turn).map(e => e.row.attempt as number))];
+  check(`the reply came from its first attempt (draft attempts ${attempts.join(", ")})`, attempts.length === 1 && attempts[0] === 1);
+  check("the turn had no note while the reply was written", !seen.some(e => e.row.phase === "replying" && e.row.note));
+  const key = keyOf(game, n, "reply");
+  check("the AI service sent the reply it finished: attempt 1 answered 200, and no other", new RegExp(`reply ${escaped(key)} attempt 1: 200 in`).test(aiLog()) && !new RegExp(`reply ${escaped(key)} attempt [2-9]`).test(aiLog()));
+  check("gm.reply was asked once for the reply's key", modelCalls(game, "gm.reply", key) === 1);
+}
+
+/** 6. The AI service exits right after it stores the settle's answer: started again, it answers from the store. */
 async function keptAnswer(stack: Stack, a: Player, game: Game): Promise<void> {
-  step("5. The AI service gone after it kept an answer");
+  step("6. The AI service gone after it kept an answer");
   await restartAi(stack, FAKE, { KM_AI_FAULTS: "exit-after-store:settle" });
   const n = nextTurn(a);
   check("A says a line", (await a.conn.say("Moll, come down off that wall and tell it again.")) === undefined);
@@ -175,9 +205,9 @@ async function keptAnswer(stack: Stack, a: Player, game: Game): Promise<void> {
   check(`world.stage was asked ${staged} time for the settle's key`, staged === 1);
 }
 
-/** 6. SpacetimeDB stopped and started a second into a slow decide: the reaper re-dispatches it, and the AI service's kept answer carries the turn on. */
+/** 7. SpacetimeDB stopped and started a second into a slow decide: the reaper re-dispatches it, and the AI service's kept answer carries the turn on. */
 async function spacetimeRestarted(stack: Stack, a: Player, game: Game): Promise<void> {
-  step("6. SpacetimeDB restarted mid-think");
+  step("7. SpacetimeDB restarted mid-think");
   await restartAi(stack, { ...FAKE, decisionDelayMs: 3_000 });
   const n = nextTurn(a);
   const said = performance.now();
@@ -196,9 +226,9 @@ async function spacetimeRestarted(stack: Stack, a: Player, game: Game): Promise<
   check("the module logged the decide re-dispatched after its deadline", /re-dispatched after its deadline/.test(await moduleLog(stack)));
 }
 
-/** 7. A line that makes the case: the ending is the player's own, the next line winds down, the scene ends, and a further line is refused. */
+/** 8. A line that makes the case: the ending is the player's own, the next line winds down, the scene ends, and a further line is refused. */
 async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise<void> {
-  step("7. An ending");
+  step("8. An ending");
   await restartAi(stack, { ...FAKE, choices: { outcome: "make-case", own_exit: "theirs" } });
   check("A says the line that makes the case", (await a.conn.say("The cord mark, the barred door and Cob's page: Prout was murdered for what he found. That's the case made. We take it to the King.")) === undefined);
   await until(a, "the scene to close", 60_000, r => r.scene.status === "closing");
@@ -215,9 +245,9 @@ async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise
   ok("B saw it end too");
 }
 
-/** 8. Each turn's first words and its end, from the turn rows. */
+/** 9. Each turn's first words and its end, from the turn rows. */
 async function latencies(stack: Stack): Promise<void> {
-  step("8. Each turn's first words, from the turn rows");
+  step("9. Each turn's first words, from the turn rows");
   const turns = (await stack.sql("SELECT * FROM turn")).sort((x, y) => Number(x.n) - Number(y.n));
   for (const t of turns) {
     const from = Number(t.started_at);

@@ -135,13 +135,22 @@ function sceneFrom(key: string, read: (path: string) => string | undefined): Sce
   }
 }
 
+/** The PUT's campaign.json, with what the service reads of it: its id and version (the PUT's), its title and its scenes' keys. */
 function campaignFileOf(files: Record<string, string>, campaign: string, version: string): CampaignFile {
   const text = files["campaign.json"];
   if (text === undefined) throw new Failure(400, "bad_request", "the files have no campaign.json");
   let file: CampaignFile;
   try { file = JSON.parse(text) as CampaignFile; } catch { throw new Failure(400, "bad_request", "campaign.json isn't JSON"); }
+  if (!isCampaignFile(file)) throw new Failure(400, "bad_request", "campaign.json isn't a campaign's: it needs an id, a version, a title and a list of its scenes");
   if (file.id !== campaign || file.version !== version) throw new Failure(400, "bad_request", `campaign.json is ${file.id}@${file.version}, not ${campaign}@${version}`);
   return file;
+}
+
+function isCampaignFile(file: unknown): file is CampaignFile {
+  const f = file as Partial<Record<keyof CampaignFile, unknown>> | null;
+  return !!f && typeof f === "object" && !Array.isArray(f)
+    && typeof f.id === "string" && typeof f.version === "string" && typeof f.title === "string"
+    && Array.isArray(f.scenes) && f.scenes.every(key => typeof key === "string");
 }
 
 /** A campaign's and a version's names make folders: letters, digits, dots, dashes and underscores. */

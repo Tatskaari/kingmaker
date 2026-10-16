@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { DecideRequest, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse, SuggestRequest, SuggestResponse } from "../../shared/protocol/ai.ts";
+import type { DecideRequest, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse, SettleRequest, SuggestRequest, SuggestResponse } from "../../shared/protocol/ai.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
 import { Failure, type Endpoints } from "./context.ts";
@@ -65,6 +65,40 @@ function decideRequest(n = 1, text = "Sergeant, who found him?"): DecideRequest 
     },
     landed: [],
   };
+}
+
+function openRequest(): OpenRequest {
+  const { turn } = decideRequest();
+  return { key: `${GAME}:s1:t0:open`, game: { id: GAME, campaign: "caerwyn", version: "0.1.0" }, player: { id: "1", name: "Wren" }, scene: { id: "1", key: "hanged-clerk", kind: "scene" }, pc: "pc:1", gm: turn.gm, world: turn.world, party: turn.party, story: turn.story, stream: { turn: "1" } };
+}
+
+function replyRequest(n = 1): ReplyRequest {
+  const { game, player, turn } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:reply`, game, player, turn, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "2" } };
+}
+
+function settleRequest(n = 1): SettleRequest {
+  const { game, player, turn } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:settle`, game, player, turn, reply: "Kell looks up.", lines: [], settled: [] };
+}
+
+function notesRequest(n = 1): NotesRequest {
+  const { game, player, turn: { line: _, ...turn } } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:notes`, game, player, turn, reply: { seq: 2, text: "Kell looks up.", speech: [], drafted: [{ start: 0, end: 4, kind: "why" }] } };
+}
+
+function suggestRequest(n = 1): SuggestRequest {
+  const { game, player, turn: { line: _, ...turn } } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:suggest`, game, player, turn, offered: [] };
+}
+
+/** A request with one part taken out (a dotted path, "turn.line"), as a sender with a bug might send it. */
+function without<T extends { key: string }>(request: T, path: string): T {
+  const copy = structuredClone(request) as unknown as Record<string, Record<string, unknown>>;
+  const parts = path.split(".");
+  const parent = parts.slice(0, -1).reduce<Record<string, unknown>>((at, part) => at[part] as Record<string, unknown>, copy);
+  delete parent[parts.at(-1)!];
+  return copy as unknown as T;
 }
 
 function post(path: string, body: { key: string }, headers: Record<string, string> = {}): AiHttpRequest {
@@ -217,6 +251,27 @@ test("shutting down, it takes nothing new: 503 not_ready", async () => {
   assert.equal(JSON.parse(answer.body).error.code, "not_ready");
 });
 
+test("shutting down over HTTP: a think in flight is answered before the shutdown is over, so a process that exits then has sent it", async () => {
+  const { ai, ran } = service({ slowMs: 300 });
+  await ai.answer(put());
+  const server = createServer((req, res) => ai.handle(req, res));
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const request = post("/v1/turns/decide", decideRequest());
+  try {
+    const asked = fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/v1/turns/decide`, { method: "POST", headers: request.headers as Record<string, string>, body: request.body });
+    while (!ran.length) await new Promise(resolve => setTimeout(resolve, 5));
+
+    await ai.shutdown(10_000);
+    server.closeAllConnections(); // what process.exit does to the sockets, at the moment hosts/ai.ts calls it
+
+    const answered = await asked;
+    assert.equal(answered.status, 200);
+    assert.deepEqual((await answered.json() as { decision: unknown }).decision, { earned: false, daft: false, outOfCharacter: false });
+  } finally {
+    server.close();
+  }
+});
+
 test("over HTTP on node's server (port 0): the same answers, and a body over its limit is a 413", async () => {
   const { ai } = service();
   const server = createServer((req, res) => ai.handle(req, res));
@@ -270,13 +325,48 @@ test("canned: a reply with nobody of the cast speaking gets no notes", async () 
   assert.deepEqual((JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse).marks, []);
 });
 
-test("on the pipeline, a think missing what every think reads is a 400 (the module doesn't retry it), not the model's 500", async () => {
-  const { ai } = service({ endpoints: pipeline });
+test("a think missing what its endpoint reads is a 400 before any model is asked (the module fails the turn rather than retry it), and nothing is kept", async () => {
+  const asked: string[] = [];
+  const { ai, stores } = service({ endpoints: pipeline, transport: () => ({ apiKey: "test", fetch: async input => { asked.push(String(input)); throw new Error("no model may be asked"); } }) });
   await ai.answer(put());
-  const request = decideRequest();
-  const noWorld = { ...request, turn: { ...request.turn, world: undefined } };
-  const answer = await ai.answer(post("/v1/turns/decide", noWorld as unknown as DecideRequest));
+  const malformed: Array<[string, { key: string }, RegExp]> = [
+    ["/v1/scenes/open", without(openRequest(), "scene"), /scene \{ key \}/],
+    ["/v1/scenes/open", without(openRequest(), "stream"), /stream \{ turn \}/],
+    ["/v1/turns/decide", without(decideRequest(), "turn"), /turn\.scene .*turn\.line .*turn\.gm/],
+    ["/v1/turns/decide", without(decideRequest(), "turn.line"), /turn\.line \{ text \}$/],
+    ["/v1/turns/decide", without(decideRequest(), "turn.world"), /turn\.world \(the place's rows\)$/],
+    ["/v1/turns/decide", without(decideRequest(), "turn.gm.path"), /turn\.gm \(the scene's bookkeeping\)$/],
+    ["/v1/turns/reply", without(replyRequest(), "outcome"), /outcome/],
+    ["/v1/turns/reply", without(replyRequest(), "decision"), /decision/],
+    ["/v1/turns/settle", without(settleRequest(), "reply"), /reply \(the reply's text\)$/],
+    ["/v1/turns/settle", without(settleRequest(), "settled"), /settled/],
+    ["/v1/turns/notes", without(notesRequest(), "reply"), /reply \{ seq, text, speech, drafted \}$/],
+    ["/v1/turns/notes", without(notesRequest(), "turn.world"), /turn\.world \(the place's rows\)$/],
+    ["/v1/turns/suggest", without(suggestRequest(), "offered"), /offered \(the scene's last set\)$/],
+    ["/v1/turns/suggest", without(suggestRequest(), "turn.transcript"), /turn\.transcript$/],
+  ];
 
-  assert.equal(answer.status, 400);
-  assert.match(JSON.parse(answer.body).error.message, /the request is missing the world's rows/);
+  for (const [path, body, says] of malformed) {
+    const answer = await ai.answer(post(path, body));
+    assert.equal(answer.status, 400, `${path} without a part: ${answer.body}`);
+    assert.match(JSON.parse(answer.body).error.message, says);
+    assert.equal(await stores.answers.get(body.key), undefined);
+  }
+  assert.deepEqual(asked, [], "no model was asked");
+});
+
+test("a campaign PUT the service can't read is a 400: a name that isn't one, a campaign.json that isn't a campaign's", async () => {
+  const { ai } = service();
+  const withCampaign = (text: string) => ({ ...put(), body: JSON.stringify({ files: { ...filesOf(CAERWYN), "campaign.json": text } }) });
+  const campaign = JSON.parse(filesOf(CAERWYN)["campaign.json"]!) as Record<string, unknown>;
+  const answers = [
+    await ai.answer({ ...put(), path: "/v1/campaigns/caerwyn/%E0%A4%A" }),
+    await ai.answer(withCampaign("null")),
+    await ai.answer(withCampaign("[]")),
+    await ai.answer(withCampaign(JSON.stringify({ ...campaign, scenes: undefined }))),
+    await ai.answer(withCampaign(JSON.stringify({ ...campaign, title: 7 }))),
+  ];
+
+  assert.deepEqual(answers.map(a => `${a.status} ${JSON.parse(a.body).error.code}`), Array(5).fill("400 bad_request"));
+  assert.match(JSON.parse(answers[3]!.body).error.message, /campaign\.json/);
 });

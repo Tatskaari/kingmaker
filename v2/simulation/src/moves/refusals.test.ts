@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_LINE, MAX_NAME } from "../../../shared/protocol/refusals.ts";
+import { MAX_CONCEPT, MAX_LINE, MAX_NAME } from "../../../shared/protocol/refusals.ts";
 import { all, hostWithCampaign, http, identity, openedGame, sceneNow } from "../host/testing.ts";
 
 /**
@@ -10,17 +10,19 @@ import { all, hostWithCampaign, http, identity, openedGame, sceneNow } from "../
 
 const code = (refusal: { code: string } | undefined) => refusal?.code;
 
-test("new_game: no such campaign, no such build (naming those there are), a name too long or missing", () => {
+test("new_game: no such campaign, no such build (naming those there are), a name too long or missing, a concept too long", () => {
   const { host } = hostWithCampaign();
   const tamsin = identity(2);
-  const game = (args: Partial<{ campaign: string; name: string; build: string }>) => host.as(tamsin).newGame({ campaign: "caerwyn", name: "Tamsin", concept: "", build: "rogue", ...args });
+  const game = (args: Partial<{ campaign: string; name: string; concept: string; build: string }>) => host.as(tamsin).newGame({ campaign: "caerwyn", name: "Tamsin", concept: "", build: "rogue", ...args });
 
   assert.deepEqual(game({ campaign: "nowhere" }), { code: "no_campaign", text: "(There's no campaign called nowhere here.)" });
   assert.deepEqual(game({ build: "bard" }), { code: "no_build", text: "(There's no ready-made build called bard: there's ranger, rogue and wizard.)" });
   assert.equal(code(game({ name: "   " })), "bad_name");
   assert.equal(code(game({ name: "x".repeat(MAX_NAME + 1) })), "bad_name");
+  assert.deepEqual(game({ concept: "a rogue ".repeat(MAX_CONCEPT) }), { code: "bad_concept", text: "(Your character's concept needs to be 300 characters or fewer.)" });
   assert.deepEqual([all(host.db.game).length, all(host.db.player).length, all(host.db.seat).length], [0, 0, 0], "nothing written");
-  assert.equal(game({ name: "x".repeat(MAX_NAME), campaign: "caerwyn@0.1.0" }), undefined);
+  assert.equal(game({ name: "x".repeat(MAX_NAME), concept: ` ${"x".repeat(MAX_CONCEPT)} `, campaign: "caerwyn@0.1.0" }), undefined, "300 characters of concept, trimmed, are fine");
+  assert.equal(all(host.db.player)[0]!.concept, "x".repeat(MAX_CONCEPT));
 });
 
 test("say: not in a game; while the scene opens; a spectator's line; nothing said; too much said", async () => {

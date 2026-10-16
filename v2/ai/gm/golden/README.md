@@ -4,11 +4,14 @@ The prototype's GM calls on the hanged clerk, recorded once, for V0's prompt par
 
 ## How they were recorded
 
-`kingmaker-scratch/v2/v2-research/tools/record-golden.mts`, a script outside the repo (v2 never imports the prototype), run on the prototype at `44c6d4a`:
+[tools/record-golden.mts](../../../../tools/record-golden.mts), with the prototype's tools (it imports the prototype, which v2 never does), run on the prototype at `44c6d4a`. From the repo's root:
 
 ```sh
-node --no-warnings record-golden.mts --proto <the prototype at 44c6d4a> --out v2/ai/gm/golden/hanged-clerk
+node --no-warnings tools/record-golden.mts                    # the prototype in this checkout, into v2/ai/gm/golden/hanged-clerk
+node --no-warnings tools/record-golden.mts --proto <a worktree at another commit> --out <a folder>
 ```
+
+Re-record when the prototype's GM changes and the change is copied into [gm/](..), then run the parity test.
 
 It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOpenRouter`: no model is asked, nothing leaves the machine), with the `v2` approach:
 
@@ -21,7 +24,7 @@ It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOp
 
 It wraps the stand-in's fetch to keep every call's body with a copy of the session as it stood (the rules engine's serialised campaign left out), names each call by its operation from the prototype's call log, and writes one file a step: the opening, then each turn's decide (disclosure and `director.before`), reply (`gm.reply`) and settle (`world.stage` and `director.after`). Each file has the step's line, the stand-in's scripted choices and replies, the session at the step's first call, and every call the step made. The notes on the GM's marks (`notes`) are a later vertical's and left out.
 
-Re-recording gives the same calls; the files differ only in the rules engine's random ids for the character and their gear, which no prompt shows.
+Re-recording gives the same calls; the files differ only in the rules engine's random ids for the character and their gear, which no prompt shows. Checked on 16 Oct from the prototype at `44c6d4a` and from this branch's: every step's calls byte for byte the committed ones.
 
 ## What the test compares
 

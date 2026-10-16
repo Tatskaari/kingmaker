@@ -6,6 +6,7 @@ import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
 import type { Faults } from "./config.ts";
 import { Failure, type AiContext, type Endpoints } from "./context.ts";
+import { checkRequest } from "./requests.ts";
 import type { Stores } from "./stores.ts";
 import { streamSink, type StreamTarget } from "./stream.ts";
 
@@ -18,9 +19,10 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  *   model call (X-Km-Replayed: 1); a duplicate that comes while the first is still running waits for
  *   its answer; otherwise the endpoint runs, and its answer is stored before it's sent, so a crash
  *   after the store loses nothing. The same key with another body is 409 key_reused.
- * - Errors are { error: { code, message } }: 400 bad_request, 401 unauthorised, 409 other_campaign
- *   or key_reused, 500 model_failed (after the model client's own retries), 503 not_ready.
- * - Shutting down, it takes nothing new and gives what's running ten seconds to finish.
+ * - Errors are { error: { code, message } }: 400 bad_request (a request it can't read, checked
+ *   before any model is asked), 401 unauthorised, 409 other_campaign or key_reused, 500 model_failed
+ *   (after the model client's own retries), 503 not_ready.
+ * - Shutting down, it takes nothing new and gives what's running ten seconds to finish and be sent.
  */
 
 export interface ServiceOptions {
@@ -49,7 +51,7 @@ export interface AiService {
   answer(request: AiHttpRequest): Promise<AiHttpResponse>;
   /** node:http's request handler. */
   handle(req: IncomingMessage, res: ServerResponse): void;
-  /** Take nothing new, and wait (at most `graceMs`) for what's running. */
+  /** Take nothing new, and wait (at most `graceMs`) for what's running, and for handle's answers to be sent. */
   shutdown(graceMs?: number): Promise<void>;
 }
 
@@ -66,6 +68,8 @@ const HOW = { kept: "from the store, no model call", joined: "joined the same re
 
 export function aiService(options: ServiceOptions): AiService {
   const inFlight = new Map<string, { hash: string; answer: Promise<Answered> }>();
+  /** handle's responses until they're sent (or their connection is gone): the process mustn't exit before an answer it ran is sent. */
+  const unsent = new Set<Promise<void>>();
   let closing = false;
 
   async function answer(request: AiHttpRequest): Promise<AiHttpResponse> {
@@ -78,7 +82,7 @@ export function aiService(options: ServiceOptions): AiService {
       if (closing) throw new Failure(503, "not_ready", "the AI service is shutting down");
       checkBearer(request, options.token);
       if (step) return await think(step, request);
-      return json(200, await install(decodeURIComponent(campaign![1]!), decodeURIComponent(campaign![2]!), request.body));
+      return json(200, await install(pathPart(campaign![1]!), pathPart(campaign![2]!), request.body));
     } catch (error) {
       return failed(error);
     }
@@ -88,6 +92,7 @@ export function aiService(options: ServiceOptions): AiService {
   async function think(step: Step & keyof Endpoints, request: AiHttpRequest): Promise<AiHttpResponse> {
     const body = parsed(request.body);
     const key = checkedKey(body, step, request.headers[HEADERS.idempotencyKey]);
+    checkRequest(step, body);
     const attempt = Number(request.headers[HEADERS.attempt]) || 1;
     const campaign = options.campaigns.use(body.game.campaign, body.game.version);
     const started = performance.now();
@@ -167,6 +172,7 @@ export function aiService(options: ServiceOptions): AiService {
   return {
     answer,
     handle(req, res) {
+      untilSent(res, unsent);
       const limit = req.method === "PUT" ? LIMIT.campaign : LIMIT.think;
       readBody(req, limit)
         .then(body => answer({ method: req.method ?? "GET", path: req.url ?? "/", headers: headersOf(req), body }), error => failed(error))
@@ -174,10 +180,17 @@ export function aiService(options: ServiceOptions): AiService {
     },
     async shutdown(graceMs = 10_000) {
       closing = true;
-      const running = Promise.allSettled([...inFlight.values()].map(r => r.answer));
+      const running = Promise.allSettled([...[...inFlight.values()].map(r => r.answer), ...unsent]);
       await Promise.race([running, new Promise(resolve => setTimeout(resolve, graceMs).unref())]);
     },
   };
+}
+
+/** The response in `unsent` until it's handed to the network ("finish") or its connection is gone ("close"). */
+function untilSent(res: ServerResponse, unsent: Set<Promise<void>>): void {
+  const sent = new Promise<void>(resolve => { res.once("finish", resolve); res.once("close", resolve); });
+  unsent.add(sent);
+  void sent.then(() => unsent.delete(sent));
 }
 
 /** A think's body as far as the server reads it: the key, and the game it's for. */
@@ -204,6 +217,15 @@ function checkedKey(body: ThinkBody, step: Step, header: string | undefined): st
   if (!game || typeof game.campaign !== "string" || typeof game.version !== "string") throw new Failure(400, "bad_request", "the body has no game { id, campaign, version }");
   if (game.id !== parts.game || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(game.id)) throw new Failure(400, "bad_request", `the game "${game.id}" isn't the key's, or isn't a game's id`);
   return body.key;
+}
+
+/** A campaign's or a version's name from the PUT's path, decoded: a 400 when it isn't a URI's encoding. */
+function pathPart(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    throw new Failure(400, "bad_request", `"${text}" in the path isn't a name`);
+  }
 }
 
 function checkBearer(request: AiHttpRequest, token: string): void {

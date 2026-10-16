@@ -5,15 +5,20 @@
  */
 
 export type RefusalCode =
-  | "not_in_game" | "unknown" | "no_campaign" | "no_build" | "bad_name" | "not_ready" | "scene_over"
+  | "not_in_game" | "unknown" | "no_campaign" | "no_build" | "bad_name" | "bad_concept" | "not_ready" | "scene_over"
   | "not_controller" | "turn_in_flight" | "turn_failed" | "empty_line" | "too_long" | "not_failed"
   | "not_service" | "not_admin" | "bad_pack" | "not_built";
 
 export interface Refusal { code: RefusalCode; text: string }
 
-/** The longest line a player may say, and the longest name a character may have (the words below quote both). */
+/**
+ * The longest line a player may say, and the longest name and concept a character may have (the
+ * words below quote them). The concept is in every request the game sends the AI service, and in
+ * several of the GM's prompts: a long one costs at every model call, and past 2 MB none is answered.
+ */
 export const MAX_LINE = 2000;
 export const MAX_NAME = 60;
+export const MAX_CONCEPT = 300;
 
 /** 2000 as "2,000" (no Intl: the module's runtime is lean). */
 const thousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -25,6 +30,7 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   no_campaign: v => `(There's no campaign called ${v.campaign ?? "that"} here.)`,
   no_build: v => `(There's no ready-made build called ${v.build ?? "that"}: there's ${v.builds ?? "none"}.)`,
   bad_name: () => `(Your character needs a name of ${MAX_NAME} characters or fewer.)`,
+  bad_concept: () => `(Your character's concept needs to be ${MAX_CONCEPT} characters or fewer.)`,
   not_ready: () => "(The scene is still opening.)",
   scene_over: () => "(The scene is over.)",
   not_controller: v => `(${v.name ?? "Someone else"} has the lead here: you're watching.)`,
