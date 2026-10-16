@@ -58,11 +58,11 @@ export function observe(game: Backend, out: Out): number {
   return 0;
 }
 
-/** Everything said in the scene so far. */
+/** Everything said in the scene so far, under its title and hook. */
 export function transcript(game: Backend, out: Out): number {
   const view = game.view();
   if (!view) return notInGame(out);
-  out.print(`MODE: transcript\n\n[${view.title}]\n\n${render(view, view.entries)}`);
+  out.print(`MODE: transcript\n\n[${view.title}]\n\n${view.hook ? `${view.hook}\n\n` : ""}${render(view, view.entries)}`);
   return 0;
 }
 
