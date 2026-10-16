@@ -8,6 +8,7 @@ import type { Skill } from "../scene/types.ts";
 import { createCharacter, pocketsOf, rollFor, sheetData, sheetRows, sheetText } from "./character.ts";
 import { rulesFrom } from "./engine.ts";
 import type { Build, RulesSession, SheetData, SrdFile } from "./types.ts";
+import { masked } from "./golden/masked.ts";
 
 /**
  * v2's rules code against the prototype's, on what tools/v2/record-v1-golden.mts recorded from it at
@@ -31,15 +32,6 @@ const checks = read("./golden/checks.json") as { case: string; skills: Skill[]; 
 /** A game's session before anything has happened, as the prototype's recorder made it. */
 const fresh = (name: string, concept: string, seed: number): RulesSession => ({ id: "golden", seed, rollCount: 0, player: { name, concept, modifiers: {} } });
 
-/** The engine's ids (random each time) as #1, #2… in the order they first appear, as the recorder masked them. */
-function masked<T>(value: T): T {
-  const ids = new Map<string, string>();
-  const walk = (x: unknown): unknown => typeof x === "string" ? (/^[0-9A-HJKMNP-TV-Z]{26}$/.test(x) ? (ids.get(x) ?? ids.set(x, `#${ids.size + 1}`).get(x)) : x)
-    : Array.isArray(x) ? x.map(walk)
-    : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, walk(v)]))
-    : x;
-  return walk(value) as T;
-}
 
 test("eight characters: the sheet, lines, modifiers and refresh's lists are the prototype's", () => {
   assert.equal(sheets.length, 8);

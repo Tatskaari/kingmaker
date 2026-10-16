@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { Build, SheetData } from "../../../shared/rules/types.ts";
 import { hostWithCampaign, identity, optionOf } from "../host/testing.ts";
+import { masked } from "../../../shared/rules/golden/masked.ts";
 
 /**
  * makeCharacter on the memory host (v1-design §3.5, §4.1): the game made from a creation takes its
@@ -35,12 +36,3 @@ test("each of the prototype's eight characters, made through creation, has its s
   }
 });
 
-/** The engine's ids as #1, #2… in the order they first appear, as the recorder masked them. */
-function masked<T>(value: T): T {
-  const ids = new Map<string, string>();
-  const walk = (x: unknown): unknown => typeof x === "string" ? (/^[0-9A-HJKMNP-TV-Z]{26}$/.test(x) ? (ids.get(x) ?? ids.set(x, `#${ids.size + 1}`).get(x)) : x)
-    : Array.isArray(x) ? x.map(walk)
-    : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, walk(v)]))
-    : x;
-  return walk(value) as T;
-}
