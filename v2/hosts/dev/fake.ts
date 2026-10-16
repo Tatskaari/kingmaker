@@ -15,23 +15,28 @@ export function devFake(): FakeOptions {
 }
 
 /**
+ * What KM_AI_FAKE adds to rather than replaces, name by name: the answers and delays by a call's name,
+ * the decider's choices by question, and the tool loops' calls by their first tool.
+ */
+const BY_NAME = ["byName", "byNameDelayMs", "choices", "toolCalls"] as const;
+
+/**
  * --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once). The
- * answers and delays by a call's name are put beside fake.json's, name by name, so answers given for
- * character creation's calls (v1's recipe of the prototype's own) keep the notes' answer. Throws,
- * saying so, when KM_AI_FAKE isn't JSON.
+ * answers, delays, choices and tool calls by name are put beside fake.json's, name by name, so answers
+ * given for character creation's calls (v1's recipe of the prototype's own) keep the notes' answer,
+ * and '{"choices":{"roll_call":"new"}}' keeps the full GM's quiet defaults (full-gm-design §4.4).
+ * Throws, saying so, when KM_AI_FAKE isn't JSON.
  */
 export function fakeOptions(own: string | undefined): FakeOptions {
   if (!own) return devFake();
-  let options: FakeOptions;
+  let options: Record<string, unknown>;
   try {
-    options = JSON.parse(own) as FakeOptions;
+    options = JSON.parse(own) as Record<string, unknown>;
   } catch {
     throw new Error(`KM_AI_FAKE isn't JSON: ${own}`);
   }
-  const fake = devFake();
-  return {
-    ...fake, ...options,
-    ...(options.byName ? { byName: { ...fake.byName, ...options.byName } } : {}),
-    ...(options.byNameDelayMs ? { byNameDelayMs: { ...fake.byNameDelayMs, ...options.byNameDelayMs } } : {}),
-  };
+  const fake = devFake() as Record<string, unknown>;
+  const merged = { ...fake, ...options };
+  for (const key of BY_NAME) if (options[key]) merged[key] = { ...fake[key] as object, ...options[key] as object };
+  return merged as FakeOptions;
 }

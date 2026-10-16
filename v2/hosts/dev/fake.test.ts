@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { CATEGORIES } from "../../ai/docs/reviews.ts";
 import { devFake, fakeOptions } from "./fake.ts";
 
 const file = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8"));
@@ -44,12 +45,29 @@ test("--fake plays fake.json's options, KM_AI_FAKE's on top, and says so when KM
   assert.throws(() => fakeOptions("{ streamMs: 0"), /^Error: KM_AI_FAKE isn't JSON: \{ streamMs: 0$/);
 });
 
-test("KM_AI_FAKE's answers and delays by name go beside fake.json's: creation's answers keep the notes'", () => {
-  const options = fakeOptions('{"byName":{"draft_backstory":{"backstory":"I kept the palace books."}},"byNameDelayMs":{"notes":12000},"choices":{"attempt":"examine-body"}}');
+test("KM_AI_FAKE's answers, delays and choices by name go beside fake.json's: creation's answers keep the notes', a choice keeps the quiet defaults", () => {
+  const options = fakeOptions('{"byName":{"draft_backstory":{"backstory":"I kept the palace books."}},"byNameDelayMs":{"notes":12000},"choices":{"attempt":"examine-body","witnessed":"not_flagged"},"toolCalls":{"search_lore":[]}}');
 
-  assert.deepEqual(Object.keys(options.byName!).sort(), ["draft_backstory", "notes"]);
+  assert.deepEqual(Object.keys(options.byName!).sort(), ["co_gm_notes", "draft_backstory", "notes", "ruling"]);
   assert.deepEqual(options.byName!.notes, fake.byName!.notes);
   assert.deepEqual(options.byNameDelayMs, { notes: 12000 });
-  assert.deepEqual(options.choices, { attempt: "examine-body" });
+  assert.deepEqual(options.choices, { ...fake.choices, attempt: "examine-body", witnessed: "not_flagged" });
+  assert.deepEqual(Object.keys((options as { toolCalls?: object }).toolCalls ?? {}), ["save_memory", "search_lore"]);
   assert.deepEqual(options.replies, fake.replies);
+});
+
+test("the full GM's quiet defaults (full-gm-design §4.4): only witnessed flagged, Kell's one memory, the co-GM on track without moving the tracker, the ruling a contest with Cob at DC 12", () => {
+  // Every attention category (ai/docs/reviews.ts) has a choice, and only witnessed is flagged.
+  assert.deepEqual(Object.keys(fake.choices!).sort(), Object.keys(CATEGORIES).sort());
+  assert.deepEqual(Object.entries(fake.choices!).filter(([, c]) => c === "flagged").map(([k]) => k), ["witnessed"]);
+  const memories = (fake as { toolCalls?: Record<string, Array<{ name: string; args: Record<string, string> }>> }).toolCalls!.save_memory!;
+  assert.deepEqual(memories.map(c => [c.name, c.args.characterId, c.args.title]), [["save_memory", "kell", "What the investigator did"]]);
+  assert.ok(memories.every(c => ["characterId", "title", "context", "content"].every(k => c.args[k]?.trim())));
+  const coGm = fake.byName!.co_gm_notes as Record<string, unknown>;
+  assert.deepEqual([coGm.status, coGm.move_to, coGm.add_beat, coGm.add_transitions, coGm.whispers, coGm.canon], ["on_track", null, null, [], [], []]);
+  assert.ok(String(coGm.notes).trim());
+  const ruling = fake.byName!.ruling as Record<string, unknown>;
+  assert.deepEqual([ruling.target, ruling.skill, ruling.stakes, ruling.approach, ruling.disposition, ruling.lie, ruling.same_again], ["cob", "sleight_of_hand", "guarded", "plausible", "wary", false, false]);
+  // A contest's DC by the prototype's verdict (src/runtime/consider.ts:157-167): 9 + 3 x (guarded 1 - plausible 0 - wary 0) = 12.
+  for (const went of ["success", "failure"] as const) assert.deepEqual((ruling[went] as Record<string, unknown>).to, "stay");
 });
