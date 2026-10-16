@@ -1,7 +1,9 @@
 import type { JobPlan } from "../jobs.ts";
 import type { Move } from "./move.ts";
+import { notes } from "./notes.ts";
 import { openScene } from "./open-scene.ts";
 import { say } from "./say.ts";
+import { suggest } from "./suggest.ts";
 
 /**
  * The moves a job can be for, by the name its row keeps (job.move): finishJob commits an answer with
@@ -9,7 +11,7 @@ import { say } from "./say.ts";
  * that imports this.
  */
 export function moveNamed(name: string): Move<unknown, JobPlan> {
-  const moves = [say, openScene] as Array<Move<unknown, JobPlan>>;
+  const moves = [say, openScene, notes, suggest] as Array<Move<unknown, JobPlan>>;
   const move = moves.find(m => m.name === name);
   if (!move) throw new Error(`no move called ${name}`);
   return move;

@@ -45,7 +45,7 @@ test("a line: said at once, then decided (a route with a check, rolled from the 
     [1, "gm", "narration", "You kneel by the body. The rope burn is wrong."],
   ]);
   assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, 1);
-  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls]), [[0, "done", 2], [1, "done", 5]]);
+  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls]), [[0, "done", 2 + 2], [1, "done", 5 + 2]], "each turn's own calls, and its lines' (nothing to note: no markup)");
   assert.equal(now.scene.turnId, undefined);
   assert.equal(now.scene.turns, 1);
   assert.deepEqual(all(host.db.job), []);

@@ -1,4 +1,4 @@
-import type { Decision, Outcome } from "../../../shared/protocol/ai.ts";
+import type { Decision, Drafted, Outcome } from "../../../shared/protocol/ai.ts";
 
 /**
  * The plans a move keeps in its job row between thinks (v0-design §4.3, §6.1): plain JSON, ids as
@@ -30,3 +30,13 @@ export interface SayPlan {
   lines: string[];
   seen: Seen;
 }
+
+/**
+ * The notes on a reply's marks (v5-design §3.4): one think, POST /v1/turns/notes. `seq` is the
+ * reply's transcript row; `drafted`, the marks the GM made as it wrote, which the row never keeps
+ * (only their notes, once written, reach it), so the request is built from the plan.
+ */
+export interface NotesPlan { step: "notes"; game: string; scene: string; turn: string; n: number; seq: number; drafted: Drafted[] }
+
+/** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
+export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }
