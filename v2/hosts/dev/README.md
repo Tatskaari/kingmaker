@@ -1,6 +1,6 @@
 # The dev stack
 
-`npm run dev` runs V0 on one machine: SpacetimeDB with the module published, the AI service, and the campaign installed in both. Then it checks that each service can reach the other, and gives you keys to break and mend the AI service while you play. The blueprint is `v0-design` §1.1 and §9.
+`npm run dev` runs the game on one machine: SpacetimeDB with the module published, the AI service, and the campaign installed in both. Then it checks that each service can reach the other, and gives you keys to break and mend the AI service while you play. The blueprints are `v0-design` §1.1 and §9, and `v1-design` §3.7 for the budget.
 
 ```sh
 cd v2 && npm ci
@@ -10,11 +10,22 @@ npm run dev                  # real models: OPENROUTER_API_KEY, or ~/secrets/kin
 
 Then play from other terminals with `npm run client` or `npm run play`. They find the stack through `runs/dev/stack.json`.
 
+## The budget
+
+The AI service keeps a daily ceiling on what the models cost: `KM_AI_DAILY_USD` ($5 unless it's set, 0 for none), held against today's (UTC) lines in its ledger (`runs/dev/ai/ledger.jsonl`). Past it, every move that needs a model fails in the game's words ("The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD."), and a kept answer is still served. The dev host passes the variable on, to the node process or the container, and its screen and the doctor say where today stands: `Budget  $0.12 of $5.00 today`.
+
+```sh
+KM_AI_DAILY_USD=0.001 npm run dev    # the ceiling, met at once: say a line and it fails in the ceiling's words
+KM_AI_DAILY_USD=5 npm run dev        # raised (without --fresh, so the game is kept): /retry finishes the turn
+```
+
+The ledger is the stack's folder's, so `--fresh` starts today's count again.
+
 ## Flags
 
 | Flag | What |
 |---|---|
-| `--fake` | the fake model (`KM_AI_MODEL=fake`): its GM writes each reply over four seconds, as a model takes about that long, so you see it grow and `k` can land in it. Its options are `KM_AI_FAKE`'s, JSON, on top: `'{"streamMs":0}'` answers at once, `'{"choices":{"attempt":"examine-body"}}'` makes the decider take the body's examination (a Medicine roll) where it can, `'{"replies":["…"]}'` gives the GM its words |
+| `--fake` | the fake model (`KM_AI_MODEL=fake`): its GM writes each reply over four seconds, as a model takes about that long, so you see it grow and `k` can land in it. Its options are `KM_AI_FAKE`'s, JSON, on top: `'{"streamMs":0}'` answers at once, `'{"choices":{"attempt":"examine-body"}}'` makes the decider take the body's examination (a Medicine roll) where it can, `'{"replies":["…"]}'` gives the GM its words, and `"byName"` answers a structured call by its schema's name (`builds`, `build`, `backstory`, `lore_check`, `traits` at character creation: otherwise the least JSON, so the builds are the class defaults, there's no draft, and the lore check finds nothing) |
 | `--gm canned` | the AI service's canned GM: no model at all, for checking the plumbing |
 | `--container` | the AI service in its podman image, built from `ai/Containerfile` at every start |
 | `--fresh` | start with no data: deletes `runs/dev/stdb`, `runs/dev/ai` and `runs/play`. The keys stay, so the identities do |
@@ -61,9 +72,9 @@ The module's own log: `spacetime --config-path runs/dev/cli.toml logs kingmaker 
 
 ## The other tools
 
-- **`npm run doctor`** checks a running stack and says how to fix what's wrong. It checks the versions, the mode, SpacetimeDB, the module and its env, the pool, the AI service's health and bearer, both paths between the services, and the campaign in both. It exits 1 if anything is wrong. `--root` picks another stack.
+- **`npm run doctor`** checks a running stack and says how to fix what's wrong. It checks the versions, the mode, SpacetimeDB, the module and its env, the pool, the AI service's health and bearer, its budget, both paths between the services, and the campaign in both. It exits 1 if anything is wrong. `--root` picks another stack.
 - **`npm run install-campaign -- campaigns/caerwyn`** checks the campaign, sends every file to the AI service, then the structure to the module. The dev host does this at every start.
-- **`npm run campaign -- check campaigns/caerwyn`** checks a campaign folder without a stack.
+- **`npm run campaign -- check campaigns/caerwyn`** checks a campaign folder without a stack: its scenes, places and looks, its ready-made builds against the rules engine's pack, and the lore character creation's world reads.
 
 ## When it doesn't start
 
