@@ -1,0 +1,1698 @@
+{
+ "moment": "t3",
+ "fake": {
+  "replies": [
+   "(Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of (the Royal Purveyor’s office)[know: The office buys everything the palace eats and burns, by the King’s old right; its wheat-ear is on every palace wagon in the street.] rumbles past the gate."
+  ],
+  "choices": {
+   "ooc": "out_of_character",
+   "line_2": "gives_away"
+  },
+  "byName": {
+   "notes": {
+    "notes": [
+     {
+      "on": "M1",
+      "words": "",
+      "kind": "know",
+      "note": "The office buys everything the palace eats and burns, by the King’s old right.",
+      "turn": 0,
+      "lore": "D18"
+     },
+     {
+      "on": "",
+      "words": "Kell waits, pencil poised",
+      "kind": "why",
+      "note": "She writes down whatever you decide to do next.",
+      "turn": 0,
+      "lore": ""
+     },
+     {
+      "on": "",
+      "words": "rumbles past the gate",
+      "kind": "know",
+      "note": "Wagons go past the granary all day.",
+      "turn": 0,
+      "lore": ""
+     }
+    ]
+   }
+  },
+  "suggestions": "say: Where does Hobb drink?\nleave: (I head out of the gate after the wagon)\nsay: [you] “Fine.”\nsay: Sergeant, whose wagon was that?\ndo: (I go and look at the barred loft door)\ntry: (I try to get up to the loft door without anyone stopping me)"
+ },
+ "session": {
+  "id": "golden-hanged-clerk",
+  "sceneId": "hanged-clerk",
+  "approach": "v2",
+  "seed": 1234,
+  "rollCount": 2,
+  "player": {
+   "name": "Wren Ashdown",
+   "concept": "a hedge wizard from the fens, with more questions than answers",
+   "modifiers": {
+    "persuasion": 0,
+    "deception": 0,
+    "intimidation": 0,
+    "insight": 1,
+    "performance": 0,
+    "perception": 1,
+    "investigation": 5,
+    "sleight_of_hand": 2,
+    "stealth": 2,
+    "athletics": -1,
+    "acrobatics": 2,
+    "animal_handling": 1,
+    "arcana": 5,
+    "history": 5,
+    "nature": 3,
+    "religion": 3,
+    "medicine": 3,
+    "survival": 1
+   },
+   "build": "human wizard 3 (Evoker), sage background"
+  },
+  "turn": 3,
+  "beat": "yard",
+  "turnsInBeat": 2,
+  "path": [
+   {
+    "turn": 2,
+    "from": "yard",
+    "to": "yard",
+    "via": "catch-moll",
+    "source": "pre",
+    "roll": {
+     "skill": "insight",
+     "dc": 13,
+     "die": 3,
+     "modifier": 1,
+     "total": 4,
+     "success": false,
+     "critical": null
+    },
+    "known": 0
+   }
+  ],
+  "established": [],
+  "canon": [],
+  "notes": null,
+  "notesTurn": null,
+  "patches": [],
+  "repairs": [],
+  "transcript": [
+   {
+    "turn": 0,
+    "scene": "hanged-clerk",
+    "speaker": "gm",
+    "kind": "narration",
+    "text": "Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.",
+    "marked": {
+     "speech": [
+      {
+       "start": 239,
+       "end": 270,
+       "speaker": "cob"
+      },
+      {
+       "start": 442,
+       "end": 523,
+       "tag": "Sergeant Kell",
+       "speaker": "kell"
+      }
+     ],
+     "marks": [
+      {
+       "start": 0,
+       "end": 25,
+       "kind": "know",
+       "note": "The granary yard is where the city's grain is counted before the palace takes its share.",
+       "link": {
+        "kind": "lore",
+        "path": "Places/Granary Yard.md"
+       }
+      },
+      {
+       "start": 252,
+       "end": 268,
+       "kind": "why",
+       "note": "The girl in the shawl has been jeering at him from the wall, so he throws harder.",
+       "link": {
+        "kind": "person",
+        "id": "cob"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "turn": 1,
+    "scene": "hanged-clerk",
+    "speaker": "player",
+    "kind": "player",
+    "text": "Sergeant, who found him?"
+   },
+   {
+    "turn": 1,
+    "scene": "hanged-clerk",
+    "speaker": "gm",
+    "kind": "narration",
+    "text": "Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.",
+    "marked": {
+     "speech": [
+      {
+       "start": 24,
+       "end": 197,
+       "tag": "Sergeant Kell",
+       "speaker": "kell"
+      },
+      {
+       "start": 240,
+       "end": 300,
+       "speaker": "kell"
+      },
+      {
+       "start": 357,
+       "end": 406,
+       "tag": "Cob",
+       "speaker": "cob"
+      },
+      {
+       "start": 454,
+       "end": 490
+      },
+      {
+       "start": 530,
+       "end": 579,
+       "tag": "the girl in the shawl",
+       "speaker": "moll"
+      }
+     ],
+     "marks": [
+      {
+       "start": 454,
+       "end": 490,
+       "kind": "why",
+       "note": "He calls the watch bluebottles, and Sergeant Kell is the watch.",
+       "link": {
+        "kind": "person",
+        "id": "cob"
+       }
+      },
+      {
+       "start": 530,
+       "end": 579,
+       "kind": "why",
+       "note": "The girl in the shawl wants it to be a jump, and says so before anyone asks her.",
+       "link": {
+        "kind": "person",
+        "id": "moll"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "turn": 2,
+    "scene": "hanged-clerk",
+    "speaker": "player",
+    "kind": "player",
+    "text": "Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?"
+   },
+   {
+    "turn": 2,
+    "scene": "hanged-clerk",
+    "speaker": "dice",
+    "kind": "roll",
+    "text": "Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure"
+   },
+   {
+    "turn": 2,
+    "scene": "hanged-clerk",
+    "speaker": "gm",
+    "kind": "narration",
+    "text": "Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.",
+    "marked": {
+     "speech": [
+      {
+       "start": 37,
+       "end": 112,
+       "tag": "Moll",
+       "speaker": "moll"
+      },
+      {
+       "start": 146,
+       "end": 217,
+       "tag": "Sergeant Agnes Kell",
+       "speaker": "kell"
+      }
+     ],
+     "marks": [
+      {
+       "start": 0,
+       "end": 35,
+       "kind": "you",
+       "note": "You told her that from the wall she’d have had her back to the hoist.",
+       "link": {
+        "kind": "deed",
+        "scene": "hanged-clerk",
+        "turn": 2
+       }
+      },
+      {
+       "start": 189,
+       "end": 215,
+       "kind": "why",
+       "note": "Kell writes down only what a witness says, word for word.",
+       "link": {
+        "kind": "person",
+        "id": "kell"
+       }
+      }
+     ]
+    }
+   },
+   {
+    "turn": 3,
+    "scene": "hanged-clerk",
+    "speaker": "player",
+    "kind": "player",
+    "text": "(Out of character: what can I actually do here?)"
+   },
+   {
+    "turn": 3,
+    "scene": "hanged-clerk",
+    "speaker": "gm",
+    "kind": "narration",
+    "text": "(Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of the Royal Purveyor’s office rumbles past the gate.",
+    "marked": {
+     "speech": [],
+     "marks": []
+    }
+   }
+  ],
+  "metrics": [
+   {
+    "turn": 1,
+    "repairMs": 0,
+    "preDecisionMs": 8.948553000000004,
+    "firstTextMs": 21.83432399999998,
+    "followUpMs": null,
+    "resolvingTextMs": 21.83432399999998,
+    "replyMs": 16.29555400000004,
+    "postDecisionMs": 1.235420999999974,
+    "costUsd": 0.0012000000000000001,
+    "calls": 6,
+    "markup": {
+     "quotes": 5,
+     "tagged": 3,
+     "marks": 1,
+     "kinds": {
+      "why": 1,
+      "know": 0,
+      "you": 0
+     },
+     "unlabelled": 0,
+     "dropped": 0,
+     "malformed": 0
+    },
+    "notes": {
+     "drafted": 1,
+     "written": 2,
+     "added": 1,
+     "costUsd": 0.0002,
+     "ms": 5.331116999999949
+    }
+   },
+   {
+    "turn": 2,
+    "repairMs": 0,
+    "preDecisionMs": 72.513237,
+    "firstTextMs": 76.984913,
+    "followUpMs": null,
+    "resolvingTextMs": 76.984913,
+    "replyMs": 7.115333999999962,
+    "postDecisionMs": 0.672649999999976,
+    "costUsd": 0.0013000000000000002,
+    "calls": 6,
+    "markup": {
+     "quotes": 2,
+     "tagged": 2,
+     "marks": 1,
+     "kinds": {
+      "why": 0,
+      "know": 0,
+      "you": 1
+     },
+     "unlabelled": 0,
+     "dropped": 0,
+     "malformed": 0
+    },
+    "notes": {
+     "drafted": 1,
+     "written": 2,
+     "added": 1,
+     "costUsd": 0.0002,
+     "ms": 3.918562999999949
+    }
+   }
+  ],
+  "history": [],
+  "rules": {
+   "pc": "01M51G95ADF5J2PQ3B19KT60G5",
+   "npcs": {},
+   "prefer": [
+    "arcana",
+    "investigation",
+    "history",
+    "alert",
+    "evoker",
+    "fire-bolt",
+    "ray-of-frost",
+    "light",
+    "burning-hands",
+    "magic-missile",
+    "shield",
+    "thunderwave",
+    "sleep",
+    "scorching-ray",
+    "medium",
+    "ability-score-improvement",
+    "int",
+    "intelligence",
+    "dex",
+    "dexterity",
+    "con",
+    "constitution",
+    "wis",
+    "wisdom",
+    "cha",
+    "charisma",
+    "str",
+    "strength"
+   ],
+   "spells": [
+    {
+     "id": "fire-bolt",
+     "name": "Fire Bolt",
+     "level": 0
+    },
+    {
+     "id": "light",
+     "name": "Light",
+     "level": 0
+    },
+    {
+     "id": "ray-of-frost",
+     "name": "Ray of Frost",
+     "level": 0
+    },
+    {
+     "id": "burning-hands",
+     "name": "Burning Hands",
+     "level": 1
+    },
+    {
+     "id": "magic-missile",
+     "name": "Magic Missile",
+     "level": 1
+    },
+    {
+     "id": "shield",
+     "name": "Shield",
+     "level": 1
+    },
+    {
+     "id": "sleep",
+     "name": "Sleep",
+     "level": 1
+    },
+    {
+     "id": "thunderwave",
+     "name": "Thunderwave",
+     "level": 1
+    },
+    {
+     "id": "scorching-ray",
+     "name": "Scorching Ray",
+     "level": 2
+    }
+   ],
+   "weapons": [
+    {
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
+     "name": "Quarterstaff"
+    },
+    {
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
+     "name": "Dagger"
+    },
+    {
+     "id": "01M51G95AHTFAG3FGEHSAZJRE8",
+     "name": "Unarmed Strike"
+    }
+   ],
+   "features": [],
+   "gear": [
+    {
+     "id": "01M51G95AHBNJ8AV8ZWZMK2BBM",
+     "name": "Quarterstaff",
+     "kind": "weapon",
+     "slot": "mainHand"
+    },
+    {
+     "id": "01M51G95AHJNGCSFWKHB6FGCY6",
+     "name": "Dagger",
+     "kind": "weapon"
+    }
+   ],
+   "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
+   "aliases": {
+    "tull": "the corporal"
+   }
+  },
+  "world": {
+   "scene": "hanged-clerk",
+   "root": "hanged-clerk:place",
+   "entities": {
+    "hanged-clerk:place": {
+     "id": "hanged-clerk:place",
+     "name": "The yard behind the King's Granary",
+     "kind": "place",
+     "parent": null,
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 52,
+      "h": 40
+     },
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "A cobbled yard behind the granary, swept bare for the Assembly, smelling of wet grain, pigeons and river mud. Over the wall the city is hanging bunting."
+    },
+    "lane": {
+     "id": "lane",
+     "name": "the lane",
+     "kind": "area",
+     "parent": "hanged-clerk:place",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 40,
+      "h": 8
+     },
+     "tags": [
+      "outside"
+     ],
+     "states": [],
+     "notes": [],
+     "description": "The lane beyond the yard wall, with an old elm leaning over it."
+    },
+    "yard": {
+     "id": "yard",
+     "name": "the yard",
+     "kind": "area",
+     "parent": "hanged-clerk:place",
+     "rect": {
+      "x": 0,
+      "y": 8,
+      "w": 38,
+      "h": 32
+     },
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Cobbles, a water butt, the padlocked yard doors and, on the granary's back wall, the hoist."
+    },
+    "loft": {
+     "id": "loft",
+     "name": "the tally loft (above the yard, inside the granary)",
+     "kind": "area",
+     "parent": "hanged-clerk:place",
+     "rect": {
+      "x": 38,
+      "y": 8,
+      "w": 14,
+      "h": 32
+     },
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Up under the granary roof: the tally desk, grain stacks, Cob's nest. Reached by the loft door (barred inside) or Cob's loose board behind the water butt."
+    },
+    "player": {
+     "id": "player",
+     "name": "Wren Ashdown",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "player": true,
+     "at": {
+      "x": 14,
+      "y": 12
+     }
+    },
+    "kell": {
+     "id": "kell",
+     "name": "Sergeant Agnes Kell",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [
+      {
+       "text": "just inside the gate, notebook out",
+       "turn": 0,
+       "by": "author"
+      }
+     ],
+     "cast": "kell",
+     "at": {
+      "x": 16,
+      "y": 13
+     }
+    },
+    "cob": {
+     "id": "cob",
+     "name": "Cob",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [
+      {
+       "text": "under the body, lobbing gutter stones at it",
+       "turn": 0,
+       "by": "author"
+      }
+     ],
+     "cast": "cob",
+     "at": {
+      "x": 30,
+      "y": 24
+     }
+    },
+    "moll": {
+     "id": "moll",
+     "name": "Moll",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [
+      {
+       "text": "sitting on top of the yard wall",
+       "turn": 0,
+       "by": "author"
+      }
+     ],
+     "cast": "moll",
+     "at": {
+      "x": 24,
+      "y": 9
+     }
+    },
+    "elm": {
+     "id": "elm",
+     "name": "the old elm",
+     "kind": "feature",
+     "parent": "lane",
+     "size": "huge",
+     "material": "wood",
+     "tags": [
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 50,
+      "max": 50
+     },
+     "description": "Old, dry and leaning over the wall into the yard; pigeons in it.",
+     "at": {
+      "x": 34,
+      "y": 3
+     }
+    },
+    "yard-wall": {
+     "id": "yard-wall",
+     "name": "the yard wall",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "huge",
+     "material": "stone",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 50,
+      "max": 50
+     },
+     "description": "Shoulder-high on the lane side.",
+     "at": {
+      "x": 20,
+      "y": 8
+     }
+    },
+    "gate": {
+     "id": "gate",
+     "name": "the yard gate",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "door",
+      "flammable"
+     ],
+     "states": [
+      "open"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "at": {
+      "x": 12,
+      "y": 8
+     }
+    },
+    "satchel": {
+     "id": "satchel",
+     "name": "Prout's satchel",
+     "kind": "item",
+     "parent": "yard",
+     "size": "small",
+     "material": "leather",
+     "tags": [
+      "flammable"
+     ],
+     "states": [
+      "open",
+      "empty"
+     ],
+     "notes": [],
+     "ac": 12,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Lying open and empty by the gate.",
+     "at": {
+      "x": 14,
+      "y": 10
+     }
+    },
+    "spectacles": {
+     "id": "spectacles",
+     "name": "Prout's spectacles",
+     "kind": "item",
+     "parent": "yard",
+     "size": "tiny",
+     "material": "glass",
+     "tags": [],
+     "states": [
+      "bent"
+     ],
+     "notes": [],
+     "ac": 13,
+     "hp": {
+      "current": 2,
+      "max": 2
+     },
+     "description": "Bent, in the gutter.",
+     "at": {
+      "x": 10,
+      "y": 11
+     }
+    },
+    "granary-wall": {
+     "id": "granary-wall",
+     "name": "the granary's back wall",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "gargantuan",
+     "material": "stone",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 100,
+      "max": 100
+     },
+     "at": {
+      "x": 37,
+      "y": 24
+     }
+    },
+    "hoist-beam": {
+     "id": "hoist-beam",
+     "name": "the hoist beam",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "description": "Juts out high above the loft door, with a pulley; the rope runs up over it and in through a slot to a cleat inside.",
+     "at": {
+      "x": 34,
+      "y": 20
+     }
+    },
+    "hoist-rope": {
+     "id": "hoist-rope",
+     "name": "the hoist rope",
+     "kind": "item",
+     "parent": "hoist-beam",
+     "size": "small",
+     "material": "rope",
+     "tags": [
+      "hanging",
+      "fixed",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 3,
+      "max": 3
+     },
+     "description": "Runs over the pulley and in through the slot above the loft door; the noose end holds Prout well out of reach of the cobbles."
+    },
+    "prout": {
+     "id": "prout",
+     "name": "Wendell Prout's body",
+     "kind": "object",
+     "parent": "hoist-rope",
+     "size": "medium",
+     "material": "flesh",
+     "tags": [
+      "body",
+      "evidence"
+     ],
+     "states": [
+      "hanging"
+     ],
+     "notes": [],
+     "ac": 10,
+     "hp": {
+      "current": 18,
+      "max": 18
+     },
+     "description": "A small grey-coated clerk with ink-stained fingers, in darned stockings, no boots; a swelling at the back of the skull, a level cord mark under the noose burn, clean palms."
+    },
+    "loft-door": {
+     "id": "loft-door",
+     "name": "the loft door",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "door",
+      "flammable"
+     ],
+     "states": [
+      "closed",
+      "barred"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "description": "High in the wall under the hoist beam; barred on the inside.",
+     "at": {
+      "x": 35,
+      "y": 18
+     }
+    },
+    "yard-doors": {
+     "id": "yard-doors",
+     "name": "the granary's yard doors",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "huge",
+     "material": "wood",
+     "tags": [
+      "door",
+      "flammable"
+     ],
+     "states": [
+      "closed",
+      "locked"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 50,
+      "max": 50
+     },
+     "description": "Big double doors, padlocked; the warden has the key, at the palace.",
+     "at": {
+      "x": 36,
+      "y": 32
+     }
+    },
+    "water-butt": {
+     "id": "water-butt",
+     "name": "the water butt",
+     "kind": "object",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "container",
+      "water",
+      "flammable"
+     ],
+     "states": [
+      "full"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "at": {
+      "x": 4,
+      "y": 36
+     }
+    },
+    "loose-board": {
+     "id": "loose-board",
+     "name": "a loose board behind the water butt",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "small",
+     "material": "wood",
+     "tags": [
+      "passage",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Cob's way into the loft: child-sized; a grown-up could squeeze through with effort.",
+     "at": {
+      "x": 2,
+      "y": 38
+     }
+    },
+    "cleat": {
+     "id": "cleat",
+     "name": "the rope cleat",
+     "kind": "feature",
+     "parent": "loft",
+     "size": "small",
+     "material": "iron",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 19,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Inside the loft door: the hoist rope tied off on it with a docker's knot.",
+     "at": {
+      "x": 40,
+      "y": 18
+     }
+    },
+    "tally-desk": {
+     "id": "tally-desk",
+     "name": "the tally desk",
+     "kind": "object",
+     "parent": "loft",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "furniture",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "description": "Ink spilled across it, a smashed lantern beside it, heel scuffs in the grain dust from here to the loft door.",
+     "at": {
+      "x": 45,
+      "y": 22
+     }
+    },
+    "granary-roll": {
+     "id": "granary-roll",
+     "name": "the Royal Granary Roll",
+     "kind": "item",
+     "parent": "tally-desk",
+     "size": "small",
+     "material": "paper",
+     "tags": [
+      "evidence",
+      "flammable"
+     ],
+     "states": [
+      "chained"
+     ],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 3,
+      "max": 3
+     },
+     "description": "The big book, chained to the desk, with a page razored out. The pages either side list King's Road grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'."
+    },
+    "smashed-lantern": {
+     "id": "smashed-lantern",
+     "name": "a smashed lantern",
+     "kind": "item",
+     "parent": "loft",
+     "size": "tiny",
+     "material": "glass",
+     "tags": [],
+     "states": [
+      "broken"
+     ],
+     "notes": [],
+     "ac": 13,
+     "hp": {
+      "current": 2,
+      "max": 2
+     },
+     "at": {
+      "x": 44,
+      "y": 24
+     }
+    },
+    "cobs-nest": {
+     "id": "cobs-nest",
+     "name": "a nest of sacking in the loft",
+     "kind": "object",
+     "parent": "loft",
+     "size": "medium",
+     "material": "cloth",
+     "tags": [
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 4,
+      "max": 4
+     },
+     "description": "Sacks and candle-ends behind the grain stacks: Cob's castle.",
+     "at": {
+      "x": 48,
+      "y": 36
+     }
+    },
+    "grain-stacks": {
+     "id": "grain-stacks",
+     "name": "the grain stacks",
+     "kind": "object",
+     "parent": "loft",
+     "size": "huge",
+     "material": "cloth",
+     "tags": [
+      "cover",
+      "flammable"
+     ],
+     "states": [
+      "dusty"
+     ],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "at": {
+      "x": 47,
+      "y": 30
+     }
+    },
+    "boots": {
+     "id": "boots",
+     "name": "Prout's good black boots",
+     "kind": "item",
+     "parent": "cob",
+     "size": "small",
+     "material": "leather",
+     "tags": [
+      "evidence",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 12,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Three sizes too big for Cob, laced on with string; the backs of both heels scraped raw, and the left one crackles when he stamps."
+    },
+    "ledger-page": {
+     "id": "ledger-page",
+     "name": "a folded page sewn into the left boot's lining",
+     "kind": "item",
+     "parent": "boots",
+     "size": "tiny",
+     "material": "paper",
+     "tags": [
+      "evidence",
+      "hidden",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 2,
+      "max": 2
+     },
+     "description": "A page razored from the Royal Granary Roll: wagons 'lost to goblins', countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and 'Not goblins. Who pays the hedge-folk?'"
+    },
+    "gutter-stones": {
+     "id": "gutter-stones",
+     "name": "a fistful of gutter stones",
+     "kind": "item",
+     "parent": "cob",
+     "size": "tiny",
+     "material": "stone",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 5,
+      "max": 5
+     }
+    },
+    "wheat-crown": {
+     "id": "wheat-crown",
+     "name": "a silver crown stamped with a wheat-ear",
+     "kind": "item",
+     "parent": "moll",
+     "size": "tiny",
+     "material": "silver",
+     "tags": [
+      "evidence"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 5,
+      "max": 5
+     },
+     "description": "What the gentleman paid her to say she saw the clerk jump."
+    },
+    "silver-crowns": {
+     "id": "silver-crowns",
+     "name": "silver crowns",
+     "kind": "item",
+     "parent": "player",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Heavy silver with the King's face, a little worn.",
+     "quantity": 2,
+     "created": 0
+    },
+    "shillings": {
+     "id": "shillings",
+     "name": "shillings",
+     "kind": "item",
+     "parent": "player",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Silver, five to the crown.",
+     "quantity": 6,
+     "created": 0
+    },
+    "pennies": {
+     "id": "pennies",
+     "name": "pennies",
+     "kind": "item",
+     "parent": "player",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Copper, twelve to the shilling, and the currency of the Drowned Rat.",
+     "quantity": 12,
+     "created": 0
+    },
+    "wren-quarterstaff": {
+     "id": "wren-quarterstaff",
+     "name": "Wren's quarterstaff",
+     "kind": "item",
+     "parent": "player",
+     "tags": [
+      "weapon"
+     ],
+     "states": [
+      "in hand"
+     ],
+     "notes": [],
+     "gear": "01M51G95AHBNJ8AV8ZWZMK2BBM"
+    },
+    "wren-dagger": {
+     "id": "wren-dagger",
+     "name": "Wren's dagger",
+     "kind": "item",
+     "parent": "player",
+     "tags": [
+      "weapon"
+     ],
+     "states": [],
+     "notes": [],
+     "gear": "01M51G95AHJNGCSFWKHB6FGCY6"
+    }
+   },
+   "log": [
+    {
+     "turn": 0,
+     "text": "Wren Ashdown now has 2 silver crowns",
+     "by": "rules"
+    },
+    {
+     "turn": 0,
+     "text": "Wren Ashdown now has 6 shillings",
+     "by": "rules"
+    },
+    {
+     "turn": 0,
+     "text": "Wren Ashdown now has 12 pennies",
+     "by": "rules"
+    }
+   ]
+  },
+  "memory": {
+   "opened": [
+    {
+     "path": "Cast/Moll/knowledge/The Watch.md",
+     "title": "The watch",
+     "scope": "character:moll",
+     "turn": 2
+    },
+    {
+     "path": "Cast/King Aldren/public.md",
+     "title": "King Aldren",
+     "scope": "character:moll",
+     "turn": 2
+    },
+    {
+     "path": "World/City Watch (truth).md",
+     "title": "The City Watch: the truth",
+     "scope": "gm",
+     "turn": 2
+    },
+    {
+     "path": "Cast/King Aldren/public.md",
+     "title": "King Aldren",
+     "scope": "gm",
+     "turn": 2
+    },
+    {
+     "path": "Places/Heron Warehouse (truth).md",
+     "title": "The Heron warehouse: the truth",
+     "scope": "gm",
+     "turn": 2
+    },
+    {
+     "path": "Places/The Drowned Rat (truth).md",
+     "title": "The Drowned Rat: the truth",
+     "scope": "gm",
+     "turn": 2
+    },
+    {
+     "path": "Cast/Big Hobb Mallory/gm.md",
+     "title": "Big Hobb Mallory: GM notes",
+     "scope": "gm",
+     "turn": 2
+    },
+    {
+     "path": "Cast/Nan Quill/gm.md",
+     "title": "Nan Quill: GM notes",
+     "scope": "gm",
+     "turn": 2
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/The Watch Captain.md",
+     "title": "The Captain",
+     "scope": "character:kell",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/The Docks.md",
+     "title": "The docks",
+     "scope": "character:kell",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/Wendell Prout.md",
+     "title": "Wendell Prout",
+     "scope": "character:kell",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/Corporal Tull.md",
+     "title": "Corporal Tull",
+     "scope": "character:kell",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Cob/knowledge/The Big Cove.md",
+     "title": "The big cove",
+     "scope": "character:cob",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Cob/knowledge/Kell.md",
+     "title": "Sergeant Kell",
+     "scope": "character:cob",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Cob/knowledge/Nan Quill.md",
+     "title": "Nan Quill",
+     "scope": "character:cob",
+     "turn": 3
+    },
+    {
+     "path": "Cast/King Aldren/public.md",
+     "title": "King Aldren",
+     "scope": "character:cob",
+     "turn": 3
+    },
+    {
+     "path": "World/Royal Purveyor's Office.md",
+     "title": "The Royal Purveyor's office",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "World/City Watch.md",
+     "title": "The City Watch",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "World/Grain Crisis.md",
+     "title": "The Grain Crisis",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "Places/Watch House.md",
+     "title": "The watch house",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "World/Royal Palace.md",
+     "title": "The Royal Palace",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "Places/Palace Kitchens.md",
+     "title": "The palace kitchens",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "Cast/Master Josiah Sallow/public.md",
+     "title": "Master Josiah Sallow",
+     "scope": "gm",
+     "turn": 3
+    },
+    {
+     "path": "World/Grain Crisis (truth).md",
+     "title": "The Grain Crisis: the truth",
+     "scope": "gm",
+     "turn": 3
+    }
+   ]
+  },
+  "suggestions": {
+   "scene": "hanged-clerk",
+   "turn": 2,
+   "lines": [
+    {
+     "kind": "say",
+     "text": "Moll, what did you see at midnight?"
+    }
+   ],
+   "ms": 9,
+   "costUsd": 0.00030000000000000003
+  },
+  "sceneStatus": "on_track",
+  "oocTurns": [
+   3
+  ]
+ },
+ "offered": [
+  "Moll, what did you see at midnight?"
+ ],
+ "bodies": {
+  "suggest": {
+   "model": "openai/gpt-6-luna",
+   "instructions": "You suggest what the player might say or do next in a scene of a tabletop roleplaying game, the way a good cRPG offers its dialogue choices: a few short lines in the player character's own voice, for a player who'd like a nudge. They can always type anything instead. These are the lines a sharp player at this table might reach for right now.\n\nWrite four to six lines, one per line, each starting with its kind and a colon, and nothing else: no heading, no notes, nothing after the last line.\n- say: something to say out loud to someone here, as plain speech without quotes. One or two of these.\n- do: something to do, in round brackets and the first person, like (I look up at the hoist). One or two.\n- try: a risky try or two that would call for a roll, in round brackets, starting (I try to ...), saying how (talking someone round, frightening them, a bluff, sneaking, climbing, a quick hand) and what for. Something that could go wrong, and would cost them if it did.\n- leave: a way out of the scene, in round brackets, only when the brief says one can fit and the moment's right.\n\nWhat makes a good set:\n- Each pulls a different open thread: what was just said or shown, someone here and what they're after as far as the player can tell, something they've seen that doesn't add up, a question nobody has answered yet.\n- The brief is everything the player knows, and the lines know no more. The question, never the answer: a line can look at, ask about or try something the player has seen or heard (\"Is there anyone he's afraid for?\"), but never names a person, place or thing the scene hasn't shown them, or supplies what nobody has told them (where someone was, what they saw, what something hides, who someone's family are, what happens next).\n- Only the player character's own words and deeds, as \"I\": never a line for anyone else here to say, never what anyone else does or feels, and never how it turns out.\n- What's true now: the people in the brief are the ones here, and what the player carries is theirs already. Nothing for someone who isn't here, nothing they already have, nothing already done or settled.\n- Nothing the scene can't offer, nothing the player has just said, and none of the lines offered last time.\n- This character's lines: their manner, their strengths and spells, their quirks and their past give one or two lines a colour no one else's would have.\n- In the character's own voice, and the table's: dry and wry, in a world that takes itself entirely seriously.\n- Short: under twelve words where it can be, since they're read at a glance.",
+   "input": [
+    {
+     "role": "user",
+     "content": "# Who they are\nWren Ashdown: a hedge wizard from the fens, with more questions than answers. In game terms: human wizard 3 (Evoker), sage background. Good at: Investigation, Arcana, History, Nature. Spells: Fire Bolt, Light, Ray of Frost, Burning Hands, Magic Missile, Shield, Sleep, Thunderwave, Scorching Ray. Carrying: 2 silver crowns, 6 shillings, 12 pennies, quarterstaff, dagger.\n\n# What they came in knowing\nThis morning a palace clerk, Wendell Prout, was found hanged behind the Caerwyn granary, and the Watch Captain has already called it suicide. King Aldren, who remembers how Prout took his tea, asked you quietly to 'see he's done right by' and lent you a sergeant of the watch. She's waiting for you in the granary yard. So, by the sound of it, are some children.\n\n# What this scene can't offer (never suggest reaching for these)\n- Getting someone to talk to the dead (a séance, a priest who can call up Prout's ghost)\n- Fetching more help (other watchmen, the watch surgeon, a coroner, a wizard, a tracking dog, the granary warden)\n- A ladder, the granary key or a grown-up's way into the granary\n- A royal warrant, or anything in writing from the King\n- Reaching anyone at the palace (the Captain, the warden, the King, any official)\n- Coming back later (tonight, tomorrow)\n- Prout's own notes and papers\n- Following anyone's trail out of the yard (footprints, a scent, tracks)\n- Answers that would need someone who isn't here (what goes on at court, anyone's business at the palace, anything about the goblin raids on the King's Road)\n\n# The scene as they've seen it (this is all they know of it)\n\n## Who's here now\n- Sergeant Agnes Kell\n- Cob\n- Moll\n\n## The scene so far (the latest last)\nGM: Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.\n\nWren Ashdown (player): Sergeant, who found him?\n\nGM: Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.\n\nWren Ashdown (player): Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?\n\n[Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure]\n\nGM: Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.\n\nWren Ashdown (player): (Out of character: what can I actually do here?)\n\nGM: (Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of the Royal Purveyor’s office rumbles past the gate.\n\n# A way out\nNo leave line yet: the scene is still young.\n\n# Not again\nThe player just said: (Out of character: what can I actually do here?)\nOffered last time (none of these again, not even in other words: the player has seen them):\n- Moll, what did you see at midnight?"
+    }
+   ],
+   "reasoning": {
+    "effort": "none"
+   },
+   "store": false,
+   "stream": true,
+   "max_output_tokens": 150
+  },
+  "judge": {
+   "model": "openai/gpt-6-luna-decisions",
+   "state": {
+    "held_from_the_player": "How the GM pictures Sergeant Agnes Kell (the player knows only what the scene so far has described): Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands, and taps her pencil on the notebook when time is being wasted.\nSergeant Agnes Kell is after: To see Prout off that hook as anything but a suicide before the dead-cart comes at noon, without putting a word in her notebook she couldn't swear to; the nearer noon gets, the harder those two pull against each other. To find out whether the King's investigator is worth her notebook. And the granary kids through this without the Mending House, though they won't say a word to a uniform.\nSergeant Agnes Kell fears: A wrong name in her notebook. Prout in the pit by sundown with nobody having looked. The King's investigator turning out to be a bully or a fool.\nSergeant Agnes Kell hides: Shows: she knew Prout by sight, and goes very still at 'false entries' or the Purveyor's office. Torn: she sent him away, by the book. Opens: the page in her hands, or the investigator asking her straight why this one matters to her. First: 'I'd met him.'\nSergeant Agnes Kell hides: Three days ago Prout came to the watch house and asked her, very politely, how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace, and forgot him until this morning. She tells it once, in her own words, ending 'I should have listened.' Told is told: she doesn't tell it again.\nHow the GM pictures Cob (the player knows only what the scene so far has described): A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string. Gutter stones in both fists, scabbed knuckles, a yellowing bruise on one cheek.\nCob is after: To keep the boots, the first good thing he's ever owned, off anyone who'd take them, the watch included. To see the men who did for Mister Prout get what's coming to them, without them ever finding out Cob was in the loft: he can't have both, and it's eating him. And something to eat.\nCob fears: The men from the loft finding out Cob was there and coming back for him, which they will if his name gets about: in the watch's book (the bluebottles write everything down) or anybody's. Being taken up by the watch and sent to the Mending House. His father. Being called a liar.\nCob hides: Shows: the boots are three sizes too big and he won't take them off, and the left one crackles when he stamps; he stops throwing stones when anyone says 'the loft', and goes white at the hoist creaking. Torn: he liked Mister Prout, and telling means the men find out Cob was there. Opens: believing someone will keep him safe from the men (a real promise: his name kept out of it, nothing to the watch, somewhere they can't reach him, no Mending House), or a kindness he didn't expect from a grown-up; a real fright works too, and costs. First: 'Cob sleeps where Cob likes.'\nCob hides: The boots are Prout's. He and Moll pulled them off the body at first light, before the porters came (he stood on her shoulders). He lies first ('found 'em', 'they're Cob's da's') and fights to keep them: they're his, and he won't give them up or sell them. A look is another matter. Coin or food offered as the price of a look gets haggling and boasts, never the look (grown-ups who pay to look at his boots want them off him); a kindness with nothing asked back counts with him; asked politely, the boots staying his, he might let someone look (it could go either way); and for someone he trusts, or a promise that answers his fear (his name kept out of it, nothing to the watch, the men from the loft kept off him), he holds the left one out himself. A yes he's given is a yes: he doesn't take it back.\nCob hides: He was in the loft last night: he sleeps up there, in his 'castle', a nest of sacks and candle-ends behind the stacks, reached through a loose board behind the water butt (child-sized; a grown-up could squeeze through with effort). That's all he'll own to at first, and he goes white saying it.\nCob hides: What he heard, in a frightened rush: a little after the midnight bells a lantern and voices woke him, Mister Prout arguing with two men; then a thump, a choking noise, and the hoist creaking though there were no sacks on it. He hid in his sacks till dawn and has told no one but Moll.\nCob hides: Who, only to someone he trusts: Silvertop, the posh cove with the silver-topped cane, the flower smell and a ring with a bit of wheat on it, who comes with the Purveyor's wagons and opens the big doors with his own key; and a big man with a bandaged hand, who said 'Yes, Master'. Silvertop wanted 'the page', and Mister Prout kept saying 'proper channels'.\nCob hides: Two nights ago he watched Mister Prout, by candle, cut a page out of the big chained book on the tally desk and sew something into his boot 'like a sailor', and thought him a cheapskate. He hasn't put that together with the boots on his own feet.\nCob hides: Since then the loft is wrong, and he knows it by heart: a smashed lantern and spilled ink by the tally desk, heel scuffs in the grain dust from the desk to the loft door, the loft door barred, the hoist rope tied off on its cleat with a docker's knot. The big book is still chained to the desk with its page cut out. Cob can't read it, but to anyone who can, the pages either side list grain wagons for the King's Road marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'.\nCob hides: He doesn't know it, but the stiff bit in the lining of the left boot, which crackles when he stamps, is a folded page; and the backs of both heels are scraped raw, as if their owner had been dragged.\nHow the GM pictures Moll (the player knows only what the scene so far has described): A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.\nMoll is after: To keep Cob: he's all she's got. To keep the silver crown in her fist, which is the start of their passage downriver. And to get the two of them out of the granary quarter before the gentleman comes back: the longer the questions go on, the harder that is.\nMoll fears: Being left on her own. The gentleman who paid her. The watch taking Cob away.\nMoll hides: Shows: one fist kept tightly closed; her eyes keep going to the yard gate; she shuts Cob up whenever he gets near the night. Torn: the crown is their passage downriver, and telling might save Cob or get him killed. Opens: a believable way to keep Cob safe and out of the Mending House, or her lie caught out in front of him. First: 'A gentleman. Paid me to say it.'\nMoll hides: At first light a gentleman stopped at the yard gate, looked up at the body for a long moment, and gave her a silver crown to tell anyone who asked that she'd seen the clerk jump. The debts were his idea; the moonlight was hers.\nMoll hides: Who: a good coat, a silver-topped cane, a wheat-ear signet ring and enough lavender water to make your eyes run; the big man with him had a bandaged hand and called him 'Master Sallow'.\nMoll hides: The crown, stamped on one face with a little wheat-ear, is in her fist. She thinks the picture makes it worth more.\nMoll hides: When the gentleman had gone, she helped Cob get the boots off the body (he stood on her shoulders).\nMoll hides: She knows Cob was in the loft last night and heard it happen, and from what he heard (a silver-topped cane, a big man with a bad hand) she has guessed who did it. She's terrified for him.\nPeople whose names the player hasn't heard: Corporal Abner Tull (to the player, \"the corporal\"); Big Hobb Mallory (to the player, \"the big man with the bandaged hand\"); Nan Quill (to the player, \"the landlady\"); Arlo Quarry (to the player, \"the young lighterman with the black eye\"); Dilly Sparrow (to the player, \"the old bargewoman with the cards\"); Saul Tench (to the player, \"the old watchman\"); Hepzibah Grist (to the player, \"the forewoman with the sack-needle\"); Mister Lemuel Scrope (to the player, \"the clerk in the counting-box\"); Master Josiah Sallow (to the player, \"the gentleman with the silver-topped cane\"); Marshal Garran Holt (to the player, \"the Marshal\").\nNot yet come across: Prout didn't hang himself: he was struck and strangled, then hoisted up for show. (with: the body (cord mark, the blow to the head); Cob's account of the loft; the scraped heels of Prout's boots)\nNot yet come across: Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'. (with: the page sewn into Prout's left boot (Cob is wearing the boots); the tally book in the loft)\nNot yet come across: A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night. (with: Cob ('Silvertop'); Moll, if she cracks)\nOut of sight: Prout's good black boots\nOut of sight: a folded page sewn into the left boot's lining\nOut of sight: a fistful of gutter stones\nOut of sight: a silver crown stamped with a wheat-ear",
+    "what_is_true_now": "Here now, and met: Sergeant Agnes Kell; Cob; Moll.\nThe player carries: 2 silver crowns, 6 shillings, 12 pennies, quarterstaff, dagger.",
+    "what_the_scene_cannot_offer": "- Getting someone to talk to the dead (a séance, a priest who can call up Prout's ghost)\n- Fetching more help (other watchmen, the watch surgeon, a coroner, a wizard, a tracking dog, the granary warden)\n- A ladder, the granary key or a grown-up's way into the granary\n- A royal warrant, or anything in writing from the King\n- Reaching anyone at the palace (the Captain, the warden, the King, any official)\n- Coming back later (tonight, tomorrow)\n- Prout's own notes and papers\n- Following anyone's trail out of the yard (footprints, a scent, tracks)\n- Answers that would need someone who isn't here (what goes on at court, anyone's business at the palace, anything about the goblin raids on the King's Road)",
+    "rolls_the_scene_calls_for": "- The player examines Prout's neck, head or hands up close (he's been got down, or they've climbed or been lifted up to him), where reading what they see takes some skill. (Medicine)\n- The player pushes past Cob's hostility to get him to trust them or tell what he knows, with an appeal or an argument, where it could go either way. (Not just asking him a question. Food or coin offered as the price of it gets boasts and bargaining, not this. A promise that truly answers what he's afraid of, his name kept out of it and the men from the loft kept off him, needs no dice: that's not this either.) (Persuasion)\n- The player presses on the holes in Moll's 'I saw him jump' story, or tries to read whether she's lying, where it could go either way. (Not just asking her to tell it.) (Insight)\n- The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father. (Intimidation)\n- Before Cob has any reason to trust them (no kindness with nothing asked back done him yet, no promise that answers what he's afraid of, no yes from him already) and with nothing offered for it, the player asks Cob to let them look in his left boot, or see or feel what's crackling in it, with the boots staying his (it's what's in them they're after, not the boots), or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Not with anything offered for the look (a coin, food, a trade): that's a bribe, and gets haggling. Not after a kindness, with a promise that answers his fear, or once he's said they can look: then the ask needs no dice. (Persuasion)",
+    "what_the_player_knows": "Who they are: Wren Ashdown: a hedge wizard from the fens, with more questions than answers. In game terms: human wizard 3 (Evoker), sage background. Good at: Investigation, Arcana, History, Nature. Spells: Fire Bolt, Light, Ray of Frost, Burning Hands, Magic Missile, Shield, Sleep, Thunderwave, Scorching Ray. Carrying: 2 silver crowns, 6 shillings, 12 pennies, quarterstaff, dagger.\n\nThey came in knowing: This morning a palace clerk, Wendell Prout, was found hanged behind the Caerwyn granary, and the Watch Captain has already called it suicide. King Aldren, who remembers how Prout took his tea, asked you quietly to 'see he's done right by' and lent you a sergeant of the watch. She's waiting for you in the granary yard. So, by the sound of it, are some children.\n\nThe scene so far, as they read it:\nGM: Behind the King’s Granary, a small grey-coated clerk turns slowly from the hoist above the shut loft door. A pigeon watches from the beam. Beneath him, a scrawny boy in a man’s waistcoat and enormous black boots lobs gutter stones upward. “Missed him. Cob’s warming up.” On the wall, a sharp-faced girl swears at him and the morning in Common, then Saltmere dock cant.\n\nA woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” A stone clangs off the hoist hook.\n\nWren Ashdown (player): Sergeant, who found him?\n\nGM: Kell gives a small nod. “Morning, investigator. Wendell Prout, under-clerk of the Royal Granary Roll. The porters found him at first light. His satchel was empty; I’ve kept it, and his spectacles.” She glances at the stones, pencil poised. “The Captain calls it suicide. I haven’t written that down.”\n\nCob pauses just long enough to choose a smaller stone. “Cob’s helping the dead man spin. He don’t mind.” One stone strikes the cobbles near your boots. “And Cob don’t talk to bluebottles.”\n\nThe girl on the wall drums her heels. “He jumped. I saw him. Moonlight and everything.” The sky is still a flat grey after the drizzle.\n\nWren Ashdown (player): Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?\n\n[Insight check to see through Moll's story about the jump: 3 + 1 = 4 vs DC 13: failure]\n\nGM: Moll’s smirk thins at your question. “I saw him jump. Didn’t say I saw him climb. You want every bit of it now?”\n\nKell writes without looking up. “Moll says she saw Prout jump at midnight. The rest is not yet stated.” Her pencil pauses.\n\nWren Ashdown (player): (Out of character: what can I actually do here?)\n\nGM: (Out of character: You can question Kell, Cob or Moll, look closer at the body, the hoist or the barred loft door, or search the yard; if you press someone or try something risky, the dice decide how it goes.)\n\nKell waits, pencil poised. Out in the lane, a wagon under the wheat-ear canvas of the Royal Purveyor’s office rumbles past the gate."
+   },
+   "questions": {
+    "line_1": {
+     "type": "choice",
+     "instructions": "A line offered to the player as something they might say or do next: \"Sergeant, whose wagon was that?\". The player knows only what_the_player_knows; held_from_the_player is what they don't know unless the scene so far has shown it. Judge the line against those, what_is_true_now and what_the_scene_cannot_offer.",
+     "criteria": {
+      "fine": "Fit to offer: everything it names or takes for granted is in what_the_player_knows (or a fair guess from it), it fits what_is_true_now, it's the player's own words or deeds, and the scene can offer it.",
+      "asks_after": "Fit to offer: it asks about, presses on or looks into something the player hasn't been told (what someone's hiding, a name nobody has said, what happens next), without saying what it is. The question, not the answer.",
+      "gives_away": "It names or takes for granted something the player hasn't come across: anything in held_from_the_player that what_the_player_knows doesn't show them (a person, a name, a place, a thing, a detail of someone's looks the scene hasn't described, someone's family, fears or plans, where something is, what's going to happen). An answer they haven't been given, not a question.",
+      "out_of_date": "It's behind the story (what_is_true_now): it asks for something already done or settled, or something the player already has, or it reaches for someone who isn't here now.",
+      "ruled_out": "It reaches for something the scene can't offer (what_the_scene_cannot_offer).",
+      "not_theirs": "It says what someone else says, does or feels (a line for someone else to say, or one that speaks of the player by name), or how it turns out."
+     }
+    },
+    "line_2": {
+     "type": "choice",
+     "instructions": "A line offered to the player as something they might say or do next: \"(I go and look at the barred loft door)\". The player knows only what_the_player_knows; held_from_the_player is what they don't know unless the scene so far has shown it. Judge the line against those, what_is_true_now and what_the_scene_cannot_offer.",
+     "criteria": {
+      "fine": "Fit to offer: everything it names or takes for granted is in what_the_player_knows (or a fair guess from it), it fits what_is_true_now, it's the player's own words or deeds, and the scene can offer it.",
+      "asks_after": "Fit to offer: it asks about, presses on or looks into something the player hasn't been told (what someone's hiding, a name nobody has said, what happens next), without saying what it is. The question, not the answer.",
+      "gives_away": "It names or takes for granted something the player hasn't come across: anything in held_from_the_player that what_the_player_knows doesn't show them (a person, a name, a place, a thing, a detail of someone's looks the scene hasn't described, someone's family, fears or plans, where something is, what's going to happen). An answer they haven't been given, not a question.",
+      "out_of_date": "It's behind the story (what_is_true_now): it asks for something already done or settled, or something the player already has, or it reaches for someone who isn't here now.",
+      "ruled_out": "It reaches for something the scene can't offer (what_the_scene_cannot_offer).",
+      "not_theirs": "It says what someone else says, does or feels (a line for someone else to say, or one that speaks of the player by name), or how it turns out."
+     }
+    },
+    "line_3": {
+     "type": "choice",
+     "instructions": "A line offered to the player as something they might say or do next: \"(I try to get up to the loft door without anyone stopping me)\". The player knows only what_the_player_knows; held_from_the_player is what they don't know unless the scene so far has shown it. Judge the line against those, what_is_true_now and what_the_scene_cannot_offer.",
+     "criteria": {
+      "fine": "Fit to offer: everything it names or takes for granted is in what_the_player_knows (or a fair guess from it), it fits what_is_true_now, it's the player's own words or deeds, and the scene can offer it.",
+      "asks_after": "Fit to offer: it asks about, presses on or looks into something the player hasn't been told (what someone's hiding, a name nobody has said, what happens next), without saying what it is. The question, not the answer.",
+      "gives_away": "It names or takes for granted something the player hasn't come across: anything in held_from_the_player that what_the_player_knows doesn't show them (a person, a name, a place, a thing, a detail of someone's looks the scene hasn't described, someone's family, fears or plans, where something is, what's going to happen). An answer they haven't been given, not a question.",
+      "out_of_date": "It's behind the story (what_is_true_now): it asks for something already done or settled, or something the player already has, or it reaches for someone who isn't here now.",
+      "ruled_out": "It reaches for something the scene can't offer (what_the_scene_cannot_offer).",
+      "not_theirs": "It says what someone else says, does or feels (a line for someone else to say, or one that speaks of the player by name), or how it turns out."
+     }
+    },
+    "roll_3": {
+     "type": "choice",
+     "instructions": "Would the game call for a roll if the player did this: \"(I try to get up to the loft door without anyone stopping me)\"? (The scene's own rolls are in rolls_the_scene_calls_for; anything else risky is rolled too.)",
+     "criteria": {
+      "risky": "Yes: a risky attempt whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation.",
+      "safe": "No: ordinary talk or questions, looking around, or something where failing would only mean trying again."
+     }
+    }
+   }
+  }
+ },
+ "vetting": {
+  "said": [
+   "Sergeant, who found him?",
+   "Moll, you say you saw him jump. From that wall you'd have had your back to the hoist. What did you really see?",
+   "(Out of character: what can I actually do here?)"
+  ],
+  "offered": [
+   "Moll, what did you see at midnight?"
+  ],
+  "names": [
+   "Abner",
+   "Tull",
+   "Hobb",
+   "Mallory",
+   "Nan",
+   "Quill",
+   "Arlo",
+   "Quarry",
+   "Dilly",
+   "Sparrow",
+   "Saul",
+   "Tench",
+   "Hepzibah",
+   "Grist",
+   "Hep",
+   "Lemuel",
+   "Scrope",
+   "Josiah",
+   "Sallow",
+   "Garran",
+   "Holt"
+  ],
+  "hidden": [
+   "fright",
+   "stood",
+   "das",
+   "boast",
+   "castl",
+   "candle-end",
+   "child-siz",
+   "thump",
+   "chok",
+   "silvertop",
+   "posh",
+   "cove",
+   "silver-topp",
+   "cane",
+   "flower",
+   "wheat",
+   "bandag",
+   "candl",
+   "sew",
+   "sailor",
+   "cheapskat",
+   "ink",
+   "dust",
+   "docker",
+   "knot",
+   "countersign",
+   "sallow",
+   "scrap",
+   "raw",
+   "tightly",
+   "downriver",
+   "signet",
+   "strangl",
+   "laced",
+   "razor",
+   "pencill",
+   "river-warehous",
+   "hedge-folk",
+   "fistful"
+  ],
+  "proper": [
+   "Centennial",
+   "Assembly",
+   "Mending",
+   "Kläggenheim",
+   "Sallow",
+   "Abner",
+   "Tull",
+   "Sarge",
+   "Silvertop",
+   "Nine",
+   "Furrows",
+   "Corn",
+   "Exchange",
+   "Drowned",
+   "Rat",
+   "Quill",
+   "Heron",
+   "Marshal",
+   "Nan",
+   "DROWNED",
+   "RAT",
+   "Manners",
+   "Sparrow",
+   "Quarry",
+   "Hobb",
+   "Crake",
+   "Mallory",
+   "Arlo",
+   "Dilly",
+   "Crown",
+   "FOREIGN",
+   "Shambles",
+   "Assizes",
+   "I'd",
+   "Dabchick",
+   "Assembly-week",
+   "Cob'll",
+   "IOUs",
+   "Saul",
+   "Duchess",
+   "Patience",
+   "Hep",
+   "Grist",
+   "NAKED",
+   "LIGHTS",
+   "Scrope",
+   "Tench",
+   "Kit",
+   "Lemuel",
+   "Keeper",
+   "Sunday",
+   "Crakes",
+   "Josiah",
+   "Garran",
+   "Holt",
+   "Concord",
+   "Majesty"
+  ],
+  "limits": [
+   "séanc",
+   "priest",
+   "ghost",
+   "watchmen",
+   "surgeon",
+   "coroner",
+   "dog",
+   "warden",
+   "tonight",
+   "tomorrow",
+   "footprint",
+   "scent",
+   "track",
+   "court",
+   "goblin",
+   "raid",
+   "road"
+  ],
+  "leave": false,
+  "looks": [
+   "tightly"
+  ],
+  "places": [
+   "river stairs outside",
+   "fireside corner",
+   "rules board",
+   "skiff-hull bar",
+   "pewter measures",
+   "jar marked foreign",
+   "ale keg",
+   "long table",
+   "eel traps",
+   "blue driftwood fire",
+   "champion's chair",
+   "card table",
+   "corner table",
+   "stew pots",
+   "slop hatch",
+   "wet river steps",
+   "re-sacking floor",
+   "counting-box",
+   "plank walk",
+   "barge patience",
+   "land door",
+   "watchman's sentry box",
+   "watchman's brazier",
+   "heron's signboard",
+   "river door",
+   "palace's wheat-ear sacks",
+   "heron sacks",
+   "sign: no naked lights",
+   "lantern hung",
+   "re-sacking gang",
+   "short stair to the counting-box",
+   "clerk's desk",
+   "heron's true book",
+   "patience's open hatches",
+   "patience's tiller",
+   "long gallery",
+   "dressing room",
+   "dressing-room door",
+   "long mirror",
+   "tall windows",
+   "procession robes",
+   "side table",
+   "tea tray",
+   "dressing screen"
+  ],
+  "self": [
+   "Wren",
+   "Ashdown"
+  ],
+  "away": [
+   "Aldren"
+  ]
+ },
+ "lines": [
+  {
+   "kind": "say",
+   "text": "Sergeant, whose wagon was that?"
+  },
+  {
+   "kind": "try",
+   "text": "(I try to get up to the loft door without anyone stopping me)"
+  }
+ ],
+ "dropped": [
+  {
+   "text": "Where does Hobb drink?",
+   "why": "a name not heard: Hobb"
+  },
+  {
+   "text": "(I head out of the gate after the wagon)",
+   "why": "no way out yet"
+  },
+  {
+   "text": "[you] “Fine.",
+   "why": "the GM's markup"
+  },
+  {
+   "text": "(I go and look at the barred loft door)",
+   "why": "the judge: gives away what's held"
+  }
+ ]
+}

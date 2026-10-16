@@ -1,5 +1,5 @@
 import type { CallContext } from "../llm/openrouter.ts";
-import type { AiErrorCode, DecideRequest, DecideResponse, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, Usage } from "../../shared/protocol/ai.ts";
+import type { AiErrorCode, DecideRequest, DecideResponse, NotesRequest, NotesResponse, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
 import type { StreamSink } from "./stream.ts";
 
@@ -23,12 +23,18 @@ export interface AiContext {
 
 export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
-/** The four thinks: the pipeline's (endpoints/*.ts) or the canned ones (KM_AI_GM=canned). */
+/**
+ * The thinks: the opening, a turn's three, and the two beside a turn once its reply is in (the notes
+ * on its marks, the lines suggested after it). The pipeline's (endpoints/*.ts) or the canned ones
+ * (KM_AI_GM=canned).
+ */
 export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
   decide: Handler<DecideRequest, DecideResponse>;
   reply: Handler<ReplyRequest, ReplyResponse>;
   settle: Handler<SettleRequest, SettleResponse>;
+  notes: Handler<NotesRequest, NotesResponse>;
+  suggest: Handler<SuggestRequest, SuggestResponse>;
 }
 
 /** A request the service won't or can't answer, with its status and code ({ error: { code, message } }). */

@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, normalize } from "node:path";
 import { configureDocs } from "../docs/config.ts";
+import { storyOf, type Story, type Vocabulary } from "../gm/story.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
-import type { CampaignFile, SceneFile } from "../../shared/scene/files.ts";
+import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { Failure } from "./context.ts";
@@ -27,6 +28,8 @@ export interface Campaign {
   title: string;
   /** A scene as authored, with its words. Throws a 400 for a scene the campaign hasn't got. */
   scene(key: string): Scene;
+  /** The story its scenes belong to: those it installs, and its vocabulary.json for the rest (gm/story.ts). */
+  story: Story;
 }
 
 export interface Campaigns {
@@ -86,20 +89,39 @@ export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
   };
 }
 
-/** A version on disk: its campaign.json now, each scene when it's first asked for. */
+/** A version on disk: its campaign.json now, each scene when it's first asked for, the story when it's first read. */
 function campaignAt(root: string, campaign: string, version: string): Campaign {
   const file = JSON.parse(readFileSync(join(root, "campaign.json"), "utf8")) as CampaignFile;
   const scenes = new Map<string, Scene>();
   const words = (path: string) => (existsSync(join(root, path)) ? readFileSync(join(root, path), "utf8") : undefined);
+  const scene = (key: string): Scene => {
+    if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
+    const loaded = scenes.get(key) ?? sceneFrom(key, words);
+    scenes.set(key, loaded);
+    return loaded;
+  };
+  let story: Story | undefined;
   return {
-    id: campaign, version, title: file.title,
-    scene(key) {
-      if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
-      const scene = scenes.get(key) ?? sceneFrom(key, words);
-      scenes.set(key, scene);
-      return scene;
+    id: campaign, version, title: file.title, scene,
+    get story() {
+      return (story ??= storyOf(`${campaign}@${version}`, { keys: file.scenes, scene: key => ({ ...scene(key), ...placeOf(key, words) }) }, vocabularyOf(words)));
     },
   };
+}
+
+/** A scene's place as its world (what the story reads of a scene it doesn't play: its places' names), from the place the scene file names. */
+function placeOf(key: string, read: (path: string) => string | undefined): Pick<Scene, "world"> {
+  const place = (JSON.parse(read(`scenes/${key}/scene.json`) ?? "{}") as Partial<SceneFile>).place;
+  const text = place === undefined ? undefined : read(`places/${place}.json`);
+  if (text === undefined) return {};
+  const { key: _, ...world } = JSON.parse(text) as PlaceFile;
+  return { world };
+}
+
+/** vocabulary.json, or none (a campaign without one vets its lines against its own scenes alone). */
+function vocabularyOf(read: (path: string) => string | undefined): Vocabulary {
+  const text = read("vocabulary.json");
+  return text === undefined ? { source: "", scenes: [] } : JSON.parse(text) as Vocabulary;
 }
 
 /** A scene with its words, from its folder's files (by their paths in the campaign): a 400 when it doesn't load. */
@@ -113,13 +135,22 @@ function sceneFrom(key: string, read: (path: string) => string | undefined): Sce
   }
 }
 
+/** The PUT's campaign.json, with what the service reads of it: its id and version (the PUT's), its title and its scenes' keys. */
 function campaignFileOf(files: Record<string, string>, campaign: string, version: string): CampaignFile {
   const text = files["campaign.json"];
   if (text === undefined) throw new Failure(400, "bad_request", "the files have no campaign.json");
   let file: CampaignFile;
   try { file = JSON.parse(text) as CampaignFile; } catch { throw new Failure(400, "bad_request", "campaign.json isn't JSON"); }
+  if (!isCampaignFile(file)) throw new Failure(400, "bad_request", "campaign.json isn't a campaign's: it needs an id, a version, a title and a list of its scenes");
   if (file.id !== campaign || file.version !== version) throw new Failure(400, "bad_request", `campaign.json is ${file.id}@${file.version}, not ${campaign}@${version}`);
   return file;
+}
+
+function isCampaignFile(file: unknown): file is CampaignFile {
+  const f = file as Partial<Record<keyof CampaignFile, unknown>> | null;
+  return !!f && typeof f === "object" && !Array.isArray(f)
+    && typeof f.id === "string" && typeof f.version === "string" && typeof f.title === "string"
+    && Array.isArray(f.scenes) && f.scenes.every(key => typeof key === "string");
 }
 
 /** A campaign's and a version's names make folders: letters, digits, dots, dashes and underscores. */

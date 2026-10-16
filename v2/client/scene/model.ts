@@ -93,14 +93,15 @@ export class SceneModel {
 
   /**
    * The player's line: a /command (the old #command too), or what they say and do. A spectator's
-   * line goes to the simulation too, which refuses it in the game's words.
+   * line goes to the simulation too, as does one after the scene's end, and it refuses them in the
+   * game's words.
    */
   input(raw: string): void {
     const text = raw.trim();
     if (!text) return;
     this.status = undefined;
     if (text.startsWith("/") || text.startsWith("#")) { this.command(text.slice(1)); return; }
-    if (!this.view.mayType && !this.view.watching) return;
+    if (!this.view.mayType && !this.view.watching && !this.view.over) return;
     this.markFocus = undefined;
     this.actions.say(text);
     this.emit();

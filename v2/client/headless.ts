@@ -34,7 +34,7 @@ export async function newGame(game: Backend, args: NewGame, out: Out, waiting: W
   // The new game's scene (a session already in a game moves to the new one), once its opening is over.
   const stream = streamTo(out, waiting);
   const opened = await viewWhen(game, v => v.game !== before && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
-  stream.end();
+  stream.end(opened);
   out.print(viewText(opened));
   out.print(`\nGame ${opened.game}. Another terminal can watch it: npm run play -- join --session <name> --game ${opened.game}`);
   return opened.phase === "failed" ? 1 : 0;
@@ -92,7 +92,7 @@ async function answered(game: Backend, out: Out, waiting: Waiting): Promise<numb
   const turn = game.view()?.turn;
   const stream = streamTo(out, waiting);
   const after = await viewWhen(game, v => finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
-  stream.end();
+  stream.end(after);
   const answer = after.entries.filter(e => e.turn === turn && e.kind !== "player");
   if (answer.length) out.print(render(after, answer));
   out.print(`\n${phaseLine(after)}`);
@@ -113,13 +113,18 @@ function said(out: Out, why: Rejection): number {
 
 /**
  * With `stream`, the reply as it's written goes to stderr (`see` each view): the words as they
- * come, and a fresh start when a reply is written again after the AI service lost it; `end` ends
- * the line.
+ * come, and a fresh start when a reply is written again after the AI service lost it. `end` writes
+ * what the reply's entry has that no draft showed (the last draft can come with the entry, its
+ * words never seen in a draft), and ends the line.
  */
-function streamTo(out: Out, waiting: Waiting): { see?: (view: SceneView) => void; end(): void } {
+function streamTo(out: Out, waiting: Waiting): { see?: (view: SceneView) => void; end(view: SceneView): void } {
   if (!waiting.stream) return { end: () => {} };
   let shown = "";
   let attempt = 0;
+  const show = (text: string) => {
+    out.progress(text.startsWith(shown) ? text.slice(shown.length) : `\n${text}`);
+    shown = text;
+  };
   const see = (view: SceneView) => {
     const draft = view.draft;
     if (!draft) return;
@@ -128,8 +133,13 @@ function streamTo(out: Out, waiting: Waiting): { see?: (view: SceneView) => void
       attempt = draft.attempt;
       shown = "";
     }
-    out.progress(draft.text.startsWith(shown) ? draft.text.slice(shown.length) : `\n${draft.text}`);
-    shown = draft.text;
+    show(draft.text);
   };
-  return { see, end: () => { if (attempt) out.progress("\n\n"); } };
+  const end = (view: SceneView) => {
+    if (!attempt) return;
+    const reply = view.entries.findLast(e => e.turn === view.turn && (e.kind === "narration" || e.kind === "dialogue"));
+    if (reply) show(reply.text);
+    out.progress("\n\n");
+  };
+  return { see, end };
 }

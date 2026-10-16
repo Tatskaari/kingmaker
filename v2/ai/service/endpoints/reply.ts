@@ -10,17 +10,18 @@ import { sceneAndView } from "./turn.ts";
 /**
  * POST /v1/turns/reply (v0-design §5.3, gm-port §8): the GM's reply. Its directives are rebuilt from
  * the decision and what the decide commit did (the prototype's words, in its order), and the reply
- * is streamed to the turn's draft as it's written. The answer has the reply, the beat whose pressure
- * this reply was offered, and the sentence it repeated (or null, the last one's warning used up).
+ * is streamed to the turn's draft as it's written, with who says each line. The answer has the reply
+ * (who says each line by the game's keys, and the marks the GM made, for its notes), the beat whose
+ * pressure this reply was offered, and the sentence it repeated (or null, the last one's warning used up).
  */
 export const reply: Handler<ReplyRequest, ReplyResponse> = async (req, ctx) => {
-  const { scene, view } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
+  const { scene, view, byKey } = sceneAndView(ctx, req.turn.scene.key, turnSource(req));
   const directives = [...req.outcome.directives, ...directivesFor(scene, view, req.decision, req.outcome)];
   const offered = req.outcome.windDown ? undefined : pressureOffered(scene, view);
 
   const sink = ctx.stream(req.stream.turn);
-  const spoken = await gmReply(scene, view, directives, { operation: replyOperation(req.decision, req.outcome), calls: ctx.calls, setting: ctx.campaign.title, onText: sink.show });
-  const said = replyOf(spoken);
+  const spoken = await gmReply(scene, view, directives, { operation: replyOperation(req.decision, req.outcome), calls: ctx.calls, setting: ctx.campaign.title, onText: (text, markup) => sink.show(text, markup && byKey(markup)) });
+  const said = replyOf(spoken, byKey);
   await sink.finish(said.text, said.markup);
 
   return { entries: [said], gm: { ...(offered ? { offered } : {}), repeated: view.repeated ?? null }, firstTextMs: sink.firstTextMs(), usage: ctx.usage() };

@@ -29,7 +29,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 |---|---|
 | `k` | kill the AI service (SIGKILL), as a crash would |
 | `s` | start it |
-| `r` | restart it (SIGTERM: it finishes what's in flight first) |
+| `r` | restart it (SIGTERM: what's in flight is finished and answered first) |
 | `f` | restart it so it exits right after it stores its next answer, before answering (`KM_AI_FAULTS=exit-after-store:any`); `s` starts it again without the fault, and the retried request is answered from the store |
 | `p` | build and republish the module, then install the campaign again |
 | `d` | run the doctor |

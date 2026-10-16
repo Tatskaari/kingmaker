@@ -75,7 +75,7 @@ function hostPort(server: Server): string {
   return address.includes(":") ? `[${address}]:${port}` : `${address}:${port}`;
 }
 
-/** SIGTERM or SIGINT: take nothing new, give what's running ten seconds, then exit. */
+/** SIGTERM or SIGINT: take nothing new, give what's running ten seconds to finish and be sent, then exit. */
 function stopOnSignals(servers: Server[], service: AiService): void {
   const stop = async (signal: string) => {
     log(`[ai] ${signal}: finishing what's in flight`);
