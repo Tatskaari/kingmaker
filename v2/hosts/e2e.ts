@@ -38,7 +38,7 @@ const USAGE = `npm run e2e [-- options]
 
 /**
  * The fake model's options: the dev host's (hosts/dev/fake.json), so the replies are the GM's golden
- * ones, marked up with who says each line, with notes written on their words and nine lines to
+ * ones, marked up with who says each line, with notes written on their words and twelve lines to
  * suggest. Every call streams over 2 s, so a draft grows in several posts; the notes come 1.5 s
  * later, and the lines 0.8 s.
  */

@@ -531,7 +531,7 @@ V5 keeps to this blueprint but for these, each with its reason. The packages' re
 
 | The blueprint says | V5 does | Why |
 |---|---|---|
-| One set of six suggested lines in `fake.json` (§3.10) | Nine | The screen drops the lines offered last time: with six, four are offered after one reply and two after the next; with nine, four every time |
+| One set of six suggested lines in `fake.json` (§3.10) | Twelve: seven to say, two deeds, two risky tries, a way out | The vetting drops the lines offered last time and the last three the player said: with six, four are offered after one reply and two after the next; with nine, the second reply of the PR's walk-through had three, the third two; with seven to say, four every time |
 | The line that uses `fake.json` is in `hosts/dev/stack.ts` (§5 E) | In `hosts/dev.ts` and `hosts/dev/fake.ts` | V0's review moved the fake's options into the dev host |
 | The check compares prep, hook and cast (§4.1) | Also the ways on and the world's names | The story's walk reads `next`, and `places` reads the world names |
 | The notes 2.2 s after the reply on the fake | 3.5 s | 2.2 s lands before the fake's 2 s settle, so "The GM makes a note…" would never show |

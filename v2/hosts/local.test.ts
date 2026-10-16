@@ -212,7 +212,7 @@ function failingSeed(skill: "intimidation", dc: number, modifier: number): numbe
 // ---------------------------------------------------------------------------------------------
 // The reply as drawn (v5-design §4.3): the notes on a reply's marks, which its turn waits for, and
 // the lines suggested after it. The model plays the dev host's fake (hosts/dev/fake.json): the GM's
-// golden replies, a turn each from the opening, the notes written on their words, nine lines.
+// golden replies, a turn each from the opening, the notes written on their words, twelve lines.
 
 const LINES = ["Sergeant, who found him?", "Moll, did you really see him jump from up on that wall?", "(out of character: what can I do here?)"];
 

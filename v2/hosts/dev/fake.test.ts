@@ -8,7 +8,7 @@ const file = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "ut
 const fake = devFake();
 const notes = (fake.byName!.notes as { notes: Array<{ on: string; words: string; kind: string; turn: number; lore: string }> }).notes;
 
-test("the dev host's fake is fake.json's options: four replies, the notes' answer, nine lines, the delays", () => {
+test("the dev host's fake is fake.json's options: four replies, the notes' answer, twelve lines, the delays", () => {
   const { about, ...options } = file;
 
   assert.match(about, /^What npm run dev -- --fake plays/);
@@ -16,7 +16,7 @@ test("the dev host's fake is fake.json's options: four replies, the notes' answe
   assert.equal(fake.replies!.length, 4);
   assert.match(fake.replies![0]!, /^Behind the King’s Granary/);
   assert.deepEqual(notes.map(n => n.kind), ["know", "why", "why", "you", "why", "know"]);
-  assert.deepEqual(String(fake.suggestions).split("\n").map(l => l.split(":")[0]), ["say", "say", "do", "try", "say", "say", "do", "try", "leave"]);
+  assert.deepEqual(String(fake.suggestions).split("\n").map(l => l.split(":")[0]), ["say", "say", "do", "try", "say", "say", "do", "try", "leave", "say", "say", "say"]);
   assert.deepEqual([fake.streamMs, fake.byNameDelayMs, fake.suggestDelayMs], [2000, { notes: 1500 }, 800]);
 });
 
