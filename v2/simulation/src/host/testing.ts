@@ -87,7 +87,9 @@ export const http = (status: number, body: unknown = { error: { code: status ===
 
 /** The AI service unreachable: the POST throws, as SpacetimeDB's fetch does on a refused connection. */
 export const down = () => () => {
-  throw new Error("HttpError: error sending request: tcp connect error: Connection refused (os error 111)");
+  const refused = new Error("error sending request for url (http://11.0.0.1:8787/v1/turns/decide): tcp connect error: Connection refused (os error 111)");
+  refused.name = "HttpError";
+  throw refused;
 };
 
 export function scriptedAi() {
