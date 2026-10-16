@@ -1,0 +1,521 @@
+{
+ "about": "threeBuilds for Brother Odo, the model answering with the least JSON (no class it names: all three from the defaults)",
+ "fn": "threeBuilds",
+ "args": {
+  "name": "Brother Odo",
+  "concept": "a large, gentle hedge-priest who settles arguments by sitting on them",
+  "level": 3
+ },
+ "byName": {},
+ "calls": [
+  {
+   "operation": "rules.builds",
+   "body": {
+    "model": "openai/gpt-6-luna",
+    "instructions": "You turn a tabletop character concept into three D&D (2024 rules, SRD 5.2.1) builds for a level 3 character, for the player to choose one from. Each fits who they are, and the three are different ways to play them: three different classes. If the concept names a class, the first is that class, done as the concept says. Choose what fits who they are and how they'd go about things, not what's strongest: a palace inspector might be a rogue (Investigation, Insight), a hedge witch a druid, a brawling ex-soldier a fighter, a silver-tongued con artist a bard. Use only ids from the lists. Spells must be on the class's list (ids marked with the class): give cantrips and levelled spells that suit the concept, including some useful outside a fight. Weapons and armour are what they'd carry; armour \"none\" if they wouldn't wear any.",
+    "input": [
+     {
+      "role": "user",
+      "content": "Character concept: Brother Odo: a large, gentle hedge-priest who settles arguments by sitting on them\n\nClasses: fighter (Fighter), wizard (Wizard), rogue (Rogue), warlock (Warlock), paladin (Paladin), barbarian (Barbarian), bard (Bard), cleric (Cleric), druid (Druid), monk (Monk), ranger (Ranger), sorcerer (Sorcerer)\n\nSubclasses: path-of-the-berserker (Path of the Berserker), college-of-lore (College of Lore), life-domain (Life Domain), circle-of-the-land (Circle of the Land), champion (Champion), warrior-of-the-open-hand (Warrior of the Open Hand), oath-of-devotion (Oath of Devotion), hunter (Hunter), thief (Thief), draconic-sorcery (Draconic Sorcery), fiend-patron (Fiend Patron), evoker (Evoker)\n\nSpecies: human (Human), elf (Elf), dwarf (Dwarf), halfling (Halfling), tiefling (Tiefling), dragonborn (Dragonborn), gnome (Gnome), goliath (Goliath), orc (Orc)\n\nBackgrounds: soldier (Soldier), sage (Sage), criminal (Criminal), acolyte (Acolyte)\n\nOrigin feats: savage-attacker, alert, magic-initiate-cleric, magic-initiate-wizard, magic-initiate-druid, skilled\n\nSkills: persuasion, deception, intimidation, insight, performance, perception, investigation, sleight-of-hand, stealth, athletics, acrobatics, animal-handling, arcana, history, nature, religion, medicine, survival\n\nAbilities: STR, DEX, CON, INT, WIS, CHA\n\nWeapons: club, dagger, greatclub, handaxe, javelin, light-hammer, mace, quarterstaff, sickle, spear, dart, shortbow, sling, crossbow-light, battleaxe, flail, glaive, greataxe, greatsword, halberd, lance, longsword, maul, morningstar, pike, rapier, scimitar, shortsword, trident, war-pick, warhammer, whip, blowgun, crossbow-hand, crossbow-heavy, longbow\n\nArmour: none, padded-armor, leather-armor, studded-leather, hide-armor, chain-shirt, scale-mail, breastplate, half-plate, ring-mail, chain-mail, splint, plate\n\nSpells (id [level; classes]):\nacid-splash [cantrip; sorcerer wizard]\nchill-touch [cantrip; sorcerer warlock wizard]\ndancing-lights [cantrip; bard sorcerer wizard]\ndruidcraft [cantrip; druid]\neldritch-blast [cantrip; warlock]\nelementalism [cantrip; druid sorcerer wizard]\nfire-bolt [cantrip; wizard sorcerer]\nguidance [cantrip; cleric druid]\nlight [cantrip; bard cleric sorcerer wizard]\nmage-hand [cantrip; bard sorcerer warlock wizard]\nmending [cantrip; bard cleric druid sorcerer wizard]\nmessage [cantrip; bard druid sorcerer wizard]\nminor-illusion [cantrip; bard sorcerer warlock wizard]\npoison-spray [cantrip; druid sorcerer warlock wizard]\nprestidigitation [cantrip; bard sorcerer warlock wizard]\nproduce-flame [cantrip; druid]\nray-of-frost [cantrip; wizard sorcerer]\nresistance [cantrip; cleric druid]\nsacred-flame [cantrip; cleric]\nshillelagh [cantrip; druid]\nshocking-grasp [cantrip; wizard sorcerer]\nsorcerous-burst [cantrip; sorcerer]\nspare-the-dying [cantrip; cleric druid]\nstarry-wisp [cantrip; bard druid]\nthaumaturgy [cantrip; cleric]\ntrue-strike [cantrip; bard sorcerer warlock wizard]\nvicious-mockery [cantrip; bard]\nalarm [level 1; ranger wizard]\nanimal-friendship [level 1; bard druid ranger]\nbane [level 1; bard cleric warlock]\nbless [level 1; cleric paladin]\nburning-hands [level 1; sorcerer wizard]\ncharm-person [level 1; bard druid sorcerer warlock wizard]\nchromatic-orb [level 1; sorcerer wizard]\ncolor-spray [level 1; bard sorcerer wizard]\ncommand [level 1; bard cleric paladin]\ncomprehend-languages [level 1; bard sorcerer warlock wizard]\ncreate-or-destroy-water [level 1; cleric druid]\ncure-wounds [level 1; bard cleric druid paladin ranger]\ndetect-evil-and-good [level 1; cleric paladin]\ndetect-magic [level 1; bard cleric druid paladin ranger sorcerer warlock wizard]\ndetect-poison-and-disease [level 1; cleric druid paladin ranger]\ndisguise-self [level 1; bard sorcerer wizard]\ndissonant-whispers [level 1; bard]\ndivine-favor [level 1; paladin]\ndivine-smite [level 1; paladin]\nensnaring-strike [level 1; ranger]\nentangle [level 1; druid ranger]\nexpeditious-retreat [level 1; sorcerer warlock wizard]\nfaerie-fire [level 1; bard druid]\nfalse-life [level 1; sorcerer wizard]\nfeather-fall [level 1; bard sorcerer wizard]\nfind-familiar [level 1; wizard]\nfloating-disk [level 1; wizard]\nfog-cloud [level 1; druid ranger sorcerer wizard]\ngoodberry [level 1; druid ranger]\ngrease [level 1; sorcerer wizard]\nguiding-bolt [level 1; cleric]\nhealing-word [level 1; bard cleric druid]\nhellish-rebuke [level 1; warlock]\nheroism [level 1; bard paladin]\nhex [level 1; warlock]\nhideous-laughter [level 1; bard warlock wizard]\nhunters-mark [level 1; ranger]\nice-knife [level 1; druid sorcerer wizard]\nidentify [level 1; bard wizard]\nillusory-script [level 1; bard warlock wizard]\ninflict-wounds [level 1; cleric]\njump [level 1; druid ranger sorcerer wizard]\nlongstrider [level 1; bard druid ranger wizard]\nmage-armor [level 1; sorcerer wizard]\nmagic-missile [level 1; wizard sorcerer]\nprotection-from-evil-and-good [level 1; cleric druid paladin warlock wizard]\npurify-food-and-drink [level 1; cleric druid paladin]\nray-of-sickness [level 1; sorcerer wizard]\nsanctuary [level 1; cleric]\nsearing-smite [level 1; paladin]\nshield [level 1; sorcerer wizard]\nshield-of-faith [level 1; cleric paladin]\nsilent-image [level 1; bard sorcerer wizard]\nsleep [level 1; bard sorcerer wizard]\nspeak-with-animals [level 1; bard druid ranger warlock]\nthunderwave [level 1; bard druid sorcerer wizard]\nunseen-servant [level 1; bard warlock wizard]\nacid-arrow [level 2; wizard]\naid [level 2; bard cleric druid paladin ranger]\nalter-self [level 2; sorcerer wizard]\nanimal-messenger [level 2; bard druid ranger]\narcane-lock [level 2; wizard]\narcanists-magic-aura [level 2; wizard]\naugury [level 2; cleric druid wizard]\nbarkskin [level 2; druid ranger]\nblindness-deafness [level 2; bard cleric sorcerer wizard]\nblur [level 2; sorcerer wizard]\ncalm-emotions [level 2; bard cleric]\ncontinual-flame [level 2; cleric druid wizard]\ndarkness [level 2; sorcerer warlock wizard]\ndarkvision [level 2; druid ranger sorcerer wizard]\ndetect-thoughts [level 2; bard sorcerer wizard]\ndragons-breath [level 2; sorcerer wizard]\nenhance-ability [level 2; bard cleric druid ranger sorcerer wizard]\nenlarge-reduce [level 2; bard druid sorcerer wizard]\nenthrall [level 2; bard warlock]\nfind-steed [level 2; paladin]\nfind-traps [level 2; cleric druid ranger]\nflame-blade [level 2; druid sorcerer]\nflaming-sphere [level 2; druid sorcerer wizard]\ngentle-repose [level 2; cleric paladin wizard]\ngust-of-wind [level 2; druid ranger sorcerer wizard]\nheat-metal [level 2; bard druid]\nhold-person [level 2; bard cleric druid sorcerer warlock wizard]\ninvisibility [level 2; bard sorcerer warlock wizard]\nknock [level 2; bard sorcerer wizard]\nlesser-restoration [level 2; bard cleric druid paladin ranger]\nlevitate [level 2; sorcerer wizard]\nlocate-animals-or-plants [level 2; bard druid ranger]\nlocate-object [level 2; bard cleric druid paladin ranger wizard]\nmagic-mouth [level 2; bard wizard]\nmagic-weapon [level 2; paladin ranger sorcerer wizard]\nmind-spike [level 2; sorcerer warlock wizard]\nmirror-image [level 2; bard sorcerer warlock wizard]\nmisty-step [level 2; sorcerer warlock wizard]\nmoonbeam [level 2; druid]\npass-without-trace [level 2; druid ranger]\nphantasmal-force [level 2; bard sorcerer wizard]\nprayer-of-healing [level 2; cleric paladin]\nprotection-from-poison [level 2; cleric druid paladin ranger]\nray-of-enfeeblement [level 2; warlock wizard]\nrope-trick [level 2; wizard]\nscorching-ray [level 2; sorcerer wizard]\nsee-invisibility [level 2; bard sorcerer wizard]\nshatter [level 2; bard sorcerer wizard]\nshining-smite [level 2; paladin]\nsilence [level 2; bard cleric ranger]\nspider-climb [level 2; sorcerer warlock wizard]\nspike-growth [level 2; druid ranger]\nspiritual-weapon [level 2; cleric]\nsuggestion [level 2; bard sorcerer warlock wizard]\nwarding-bond [level 2; cleric paladin]\nweb [level 2; sorcerer wizard]\nzone-of-truth [level 2; bard cleric paladin]"
+     }
+    ],
+    "reasoning": {
+     "effort": "low"
+    },
+    "store": false,
+    "stream": true,
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "builds",
+      "schema": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "first",
+        "second",
+        "third"
+       ],
+       "properties": {
+        "first": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "classId",
+          "subclassId",
+          "speciesId",
+          "backgroundId",
+          "abilities",
+          "skills",
+          "feat",
+          "cantrips",
+          "spells",
+          "weapons",
+          "armor",
+          "shield",
+          "style",
+          "plays"
+         ],
+         "properties": {
+          "classId": {
+           "type": "string"
+          },
+          "subclassId": {
+           "type": "string"
+          },
+          "speciesId": {
+           "type": "string"
+          },
+          "backgroundId": {
+           "type": "string"
+          },
+          "abilities": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "All six abilities, most important first"
+          },
+          "skills": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "Skills they'd be trained in, most characteristic first (up to 6)"
+          },
+          "feat": {
+           "type": "string",
+           "description": "One origin feat"
+          },
+          "cantrips": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "spells": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "weapons": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "One to three weapons, main weapon first"
+          },
+          "armor": {
+           "type": "string"
+          },
+          "shield": {
+           "type": "boolean"
+          },
+          "style": {
+           "type": "string",
+           "description": "A fighter's, paladin's or ranger's Fighting Style, to fit how they fight: archery, defense, dueling, great-weapon, protection or two-weapon (a paladin has no archery or two-weapon, a ranger no great-weapon or protection). Anyone else: none"
+          },
+          "plays": {
+           "type": "string",
+           "description": "How they'd play, in one sentence for the player choosing: what they'd do first and what they're good at, in plain words (a feature's name is fine, no numbers)"
+          }
+         }
+        },
+        "second": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "classId",
+          "subclassId",
+          "speciesId",
+          "backgroundId",
+          "abilities",
+          "skills",
+          "feat",
+          "cantrips",
+          "spells",
+          "weapons",
+          "armor",
+          "shield",
+          "style",
+          "plays"
+         ],
+         "properties": {
+          "classId": {
+           "type": "string"
+          },
+          "subclassId": {
+           "type": "string"
+          },
+          "speciesId": {
+           "type": "string"
+          },
+          "backgroundId": {
+           "type": "string"
+          },
+          "abilities": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "All six abilities, most important first"
+          },
+          "skills": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "Skills they'd be trained in, most characteristic first (up to 6)"
+          },
+          "feat": {
+           "type": "string",
+           "description": "One origin feat"
+          },
+          "cantrips": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "spells": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "weapons": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "One to three weapons, main weapon first"
+          },
+          "armor": {
+           "type": "string"
+          },
+          "shield": {
+           "type": "boolean"
+          },
+          "style": {
+           "type": "string",
+           "description": "A fighter's, paladin's or ranger's Fighting Style, to fit how they fight: archery, defense, dueling, great-weapon, protection or two-weapon (a paladin has no archery or two-weapon, a ranger no great-weapon or protection). Anyone else: none"
+          },
+          "plays": {
+           "type": "string",
+           "description": "How they'd play, in one sentence for the player choosing: what they'd do first and what they're good at, in plain words (a feature's name is fine, no numbers)"
+          }
+         }
+        },
+        "third": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": [
+          "classId",
+          "subclassId",
+          "speciesId",
+          "backgroundId",
+          "abilities",
+          "skills",
+          "feat",
+          "cantrips",
+          "spells",
+          "weapons",
+          "armor",
+          "shield",
+          "style",
+          "plays"
+         ],
+         "properties": {
+          "classId": {
+           "type": "string"
+          },
+          "subclassId": {
+           "type": "string"
+          },
+          "speciesId": {
+           "type": "string"
+          },
+          "backgroundId": {
+           "type": "string"
+          },
+          "abilities": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "All six abilities, most important first"
+          },
+          "skills": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "Skills they'd be trained in, most characteristic first (up to 6)"
+          },
+          "feat": {
+           "type": "string",
+           "description": "One origin feat"
+          },
+          "cantrips": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "spells": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          },
+          "weapons": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           },
+           "description": "One to three weapons, main weapon first"
+          },
+          "armor": {
+           "type": "string"
+          },
+          "shield": {
+           "type": "boolean"
+          },
+          "style": {
+           "type": "string",
+           "description": "A fighter's, paladin's or ranger's Fighting Style, to fit how they fight: archery, defense, dueling, great-weapon, protection or two-weapon (a paladin has no archery or two-weapon, a ranger no great-weapon or protection). Anyone else: none"
+          },
+          "plays": {
+           "type": "string",
+           "description": "How they'd play, in one sentence for the player choosing: what they'd do first and what they're good at, in plain words (a feature's name is fine, no numbers)"
+          }
+         }
+        }
+       }
+      },
+      "strict": true
+     }
+    }
+   }
+  }
+ ],
+ "result": {
+  "options": [
+   {
+    "build": {
+     "classId": "cleric",
+     "subclassId": "life-domain",
+     "speciesId": "dwarf",
+     "backgroundId": "acolyte",
+     "abilities": [
+      "WIS",
+      "CON",
+      "STR",
+      "CHA",
+      "DEX",
+      "INT"
+     ],
+     "skills": [
+      "insight",
+      "medicine",
+      "religion",
+      "persuasion"
+     ],
+     "feat": "alert",
+     "cantrips": [
+      "sacred-flame",
+      "guidance",
+      "thaumaturgy"
+     ],
+     "spells": [
+      "cure-wounds",
+      "healing-word",
+      "bless",
+      "guiding-bolt",
+      "spiritual-weapon",
+      "lesser-restoration"
+     ],
+     "weapons": [
+      "mace"
+     ],
+     "armor": "chain-shirt",
+     "shield": true
+    },
+    "line": "dwarf cleric 3 (Life Domain), acolyte background",
+    "card": {
+     "species": "Dwarf",
+     "className": "Cleric",
+     "subclass": "Life Domain",
+     "background": "Acolyte",
+     "level": 3,
+     "hp": 27,
+     "ac": 15,
+     "speed": 30,
+     "attack": {
+      "name": "Mace",
+      "bonus": 3,
+      "damage": "1d6+1",
+      "type": "bludgeoning"
+     },
+     "casting": {
+      "ability": "WIS",
+      "saveDC": 13,
+      "attackBonus": 5,
+      "cantrips": [
+       "Guidance",
+       "Sacred Flame",
+       "Thaumaturgy"
+      ],
+      "spells": [
+       "Bless",
+       "Cure Wounds",
+       "Guiding Bolt",
+       "Healing Word",
+       "Aid",
+       "Lesser Restoration",
+       "Spiritual Weapon"
+      ]
+     },
+     "features": [
+      "Channel Divinity ×2"
+     ],
+     "skills": [
+      "Insight",
+      "Medicine",
+      "Religion",
+      "Persuasion"
+     ]
+    },
+    "plays": "The one who keeps everyone standing: healing, blessings, a god's ear, and a mace for the unrepentant.",
+    "from": "defaults"
+   },
+   {
+    "build": {
+     "classId": "barbarian",
+     "subclassId": "path-of-the-berserker",
+     "speciesId": "goliath",
+     "backgroundId": "acolyte",
+     "abilities": [
+      "STR",
+      "CON",
+      "DEX",
+      "WIS",
+      "CHA",
+      "INT"
+     ],
+     "skills": [
+      "athletics",
+      "intimidation",
+      "perception",
+      "survival"
+     ],
+     "feat": "alert",
+     "cantrips": [],
+     "spells": [],
+     "weapons": [
+      "greataxe",
+      "handaxe"
+     ],
+     "armor": "none",
+     "shield": false
+    },
+    "line": "goliath barbarian 3 (Path of the Berserker), acolyte background",
+    "card": {
+     "species": "Goliath",
+     "className": "Barbarian",
+     "subclass": "Path of the Berserker",
+     "background": "Acolyte",
+     "level": 3,
+     "hp": 32,
+     "ac": 13,
+     "speed": 35,
+     "attack": {
+      "name": "Greataxe",
+      "bonus": 4,
+      "damage": "1d12+2",
+      "type": "slashing"
+     },
+     "features": [
+      "Rage ×3",
+      "Unarmored Defense",
+      "Reckless Attack"
+     ],
+     "skills": [
+      "Athletics",
+      "Intimidation",
+      "Insight",
+      "Religion"
+     ]
+    },
+    "plays": "Rage first, reasons later: you hit the hardest, take the most, and treat doors as suggestions.",
+    "from": "defaults"
+   },
+   {
+    "build": {
+     "classId": "rogue",
+     "subclassId": "thief",
+     "speciesId": "halfling",
+     "backgroundId": "acolyte",
+     "abilities": [
+      "DEX",
+      "CON",
+      "INT",
+      "WIS",
+      "CHA",
+      "STR"
+     ],
+     "skills": [
+      "investigation",
+      "insight",
+      "stealth",
+      "perception",
+      "sleight-of-hand"
+     ],
+     "feat": "alert",
+     "cantrips": [],
+     "spells": [],
+     "weapons": [
+      "rapier",
+      "shortbow",
+      "dagger"
+     ],
+     "armor": "leather-armor",
+     "shield": false
+    },
+    "line": "halfling rogue 3 (Thief), acolyte background",
+    "card": {
+     "species": "Halfling",
+     "className": "Rogue",
+     "subclass": "Thief",
+     "background": "Acolyte",
+     "level": 3,
+     "hp": 24,
+     "ac": 13,
+     "speed": 30,
+     "attack": {
+      "name": "Rapier",
+      "bonus": 4,
+      "damage": "1d8+2",
+      "type": "piercing"
+     },
+     "features": [
+      "Sneak Attack (2d6)",
+      "Expertise (Insight, Investigation)",
+      "Cunning Action"
+     ],
+     "skills": [
+      "Investigation",
+      "Insight",
+      "Stealth",
+      "Perception",
+      "Sleight of Hand",
+      "Religion"
+     ]
+    },
+    "plays": "Soft shoes and a sharp eye: you notice what others miss, open what's locked, and Sneak Attack when it counts.",
+    "from": "defaults"
+   }
+  ]
+ }
+}

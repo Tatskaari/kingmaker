@@ -1,0 +1,223 @@
+{
+ "options": [
+  {
+   "build": {
+    "classId": "rogue",
+    "subclassId": "thief",
+    "speciesId": "halfling",
+    "backgroundId": "sage",
+    "abilities": [
+     "DEX",
+     "CON",
+     "INT",
+     "WIS",
+     "CHA",
+     "STR"
+    ],
+    "skills": [
+     "investigation",
+     "insight",
+     "stealth",
+     "perception",
+     "sleight-of-hand"
+    ],
+    "feat": "alert",
+    "cantrips": [],
+    "spells": [],
+    "weapons": [
+     "rapier",
+     "shortbow",
+     "dagger"
+    ],
+    "armor": "leather-armor",
+    "shield": false
+   },
+   "line": "halfling rogue 3 (Thief), sage background",
+   "card": {
+    "species": "Halfling",
+    "className": "Rogue",
+    "subclass": "Thief",
+    "background": "Sage",
+    "level": 3,
+    "hp": 27,
+    "ac": 13,
+    "speed": 30,
+    "attack": {
+     "name": "Rapier",
+     "bonus": 4,
+     "damage": "1d8+2",
+     "type": "piercing"
+    },
+    "features": [
+     "Sneak Attack (2d6)",
+     "Expertise (Insight, Investigation)",
+     "Cunning Action"
+    ],
+    "skills": [
+     "Investigation",
+     "Insight",
+     "Stealth",
+     "Perception",
+     "Arcana",
+     "History"
+    ]
+   },
+   "plays": "Soft shoes and a sharp eye: you notice what others miss, open what's locked, and Sneak Attack when it counts.",
+   "from": "defaults"
+  },
+  {
+   "build": {
+    "classId": "bard",
+    "subclassId": "college-of-lore",
+    "speciesId": "human",
+    "backgroundId": "sage",
+    "abilities": [
+     "CHA",
+     "DEX",
+     "CON",
+     "WIS",
+     "INT",
+     "STR"
+    ],
+    "skills": [
+     "performance",
+     "persuasion",
+     "deception",
+     "insight"
+    ],
+    "feat": "skilled",
+    "cantrips": [
+     "vicious-mockery",
+     "minor-illusion"
+    ],
+    "spells": [
+     "healing-word",
+     "dissonant-whispers",
+     "charm-person",
+     "suggestion",
+     "faerie-fire",
+     "shatter"
+    ],
+    "weapons": [
+     "rapier",
+     "dagger"
+    ],
+    "armor": "leather-armor",
+    "shield": false
+   },
+   "line": "human bard 3 (College of Lore), sage background",
+   "card": {
+    "species": "Human",
+    "className": "Bard",
+    "subclass": "College of Lore",
+    "background": "Sage",
+    "level": 3,
+    "hp": 24,
+    "ac": 13,
+    "speed": 30,
+    "attack": {
+     "name": "Rapier",
+     "bonus": 2,
+     "damage": "1d8+2",
+     "type": "piercing"
+    },
+    "casting": {
+     "ability": "CHA",
+     "saveDC": 12,
+     "attackBonus": 4,
+     "cantrips": [
+      "Fire Bolt",
+      "Minor Illusion",
+      "Vicious Mockery"
+     ],
+     "spells": [
+      "Charm Person",
+      "Dissonant Whispers",
+      "Faerie Fire",
+      "Healing Word",
+      "Shatter",
+      "Suggestion"
+     ]
+    },
+    "features": [
+     "Bardic Inspiration ×2",
+     "Expertise"
+    ],
+    "skills": [
+     "Performance",
+     "Persuasion",
+     "Deception",
+     "Insight",
+     "Arcana",
+     "History",
+     "Investigation"
+    ]
+   },
+   "plays": "Talk first, sing second, stab third: Bardic Inspiration for your friends and Vicious Mockery for everyone else.",
+   "from": "defaults"
+  },
+  {
+   "build": {
+    "classId": "fighter",
+    "subclassId": "champion",
+    "speciesId": "human",
+    "backgroundId": "sage",
+    "abilities": [
+     "STR",
+     "CON",
+     "DEX",
+     "WIS",
+     "CHA",
+     "INT"
+    ],
+    "skills": [
+     "athletics",
+     "intimidation",
+     "perception",
+     "insight"
+    ],
+    "feat": "alert",
+    "cantrips": [],
+    "spells": [],
+    "weapons": [
+     "longsword",
+     "longbow"
+    ],
+    "armor": "chain-mail",
+    "shield": true,
+    "style": "defense"
+   },
+   "line": "human fighter 3 (Champion), sage background",
+   "card": {
+    "species": "Human",
+    "className": "Fighter",
+    "subclass": "Champion",
+    "background": "Sage",
+    "level": 3,
+    "hp": 31,
+    "ac": 19,
+    "speed": 35,
+    "attack": {
+     "name": "Longsword",
+     "bonus": 4,
+     "damage": "1d8+2",
+     "type": "slashing"
+    },
+    "features": [
+     "Second Wind ×2",
+     "Action Surge ×1",
+     "Fighting Style (Defense)"
+    ],
+    "skills": [
+     "Athletics",
+     "Intimidation",
+     "Arcana",
+     "History"
+    ]
+   },
+   "plays": "Steady in a fight and stubborn out of one: the best armour, the most blows, and Second Wind when it goes wrong.",
+   "from": "defaults"
+  }
+ ],
+ "note": "The GM is offline: three from the class defaults that best match your words."
+}

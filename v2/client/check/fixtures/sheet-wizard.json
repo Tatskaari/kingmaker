@@ -1,0 +1,733 @@
+{
+ "name": "Pell Marrow",
+ "concept": "an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+ "species": "Human",
+ "background": "Sage",
+ "classes": [
+  {
+   "id": "wizard",
+   "name": "Wizard",
+   "level": 3,
+   "subclass": "Evoker"
+  }
+ ],
+ "level": 3,
+ "hp": {
+  "current": 20,
+  "max": 20,
+  "temp": 0
+ },
+ "ac": 12,
+ "speeds": {
+  "walk": 30
+ },
+ "initiative": 4,
+ "proficiency": 2,
+ "hitDice": [
+  {
+   "die": 6,
+   "left": 3,
+   "total": 3
+  }
+ ],
+ "inspiration": false,
+ "abilities": [
+  {
+   "id": "STR",
+   "name": "Strength",
+   "score": 8,
+   "modifier": -1,
+   "save": -1,
+   "proficient": false
+  },
+  {
+   "id": "DEX",
+   "name": "Dexterity",
+   "score": 14,
+   "modifier": 2,
+   "save": 2,
+   "proficient": false
+  },
+  {
+   "id": "CON",
+   "name": "Constitution",
+   "score": 14,
+   "modifier": 2,
+   "save": 2,
+   "proficient": false
+  },
+  {
+   "id": "INT",
+   "name": "Intelligence",
+   "score": 17,
+   "modifier": 3,
+   "save": 5,
+   "proficient": true
+  },
+  {
+   "id": "WIS",
+   "name": "Wisdom",
+   "score": 12,
+   "modifier": 1,
+   "save": 3,
+   "proficient": true
+  },
+  {
+   "id": "CHA",
+   "name": "Charisma",
+   "score": 10,
+   "modifier": 0,
+   "save": 0,
+   "proficient": false
+  }
+ ],
+ "skills": [
+  {
+   "id": "acrobatics",
+   "name": "Acrobatics",
+   "ability": "DEX",
+   "modifier": 2,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "animal-handling",
+   "name": "Animal Handling",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "arcana",
+   "name": "Arcana",
+   "ability": "INT",
+   "modifier": 5,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "athletics",
+   "name": "Athletics",
+   "ability": "STR",
+   "modifier": -1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "deception",
+   "name": "Deception",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "history",
+   "name": "History",
+   "ability": "INT",
+   "modifier": 5,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "insight",
+   "name": "Insight",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "intimidation",
+   "name": "Intimidation",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "investigation",
+   "name": "Investigation",
+   "ability": "INT",
+   "modifier": 5,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "medicine",
+   "name": "Medicine",
+   "ability": "WIS",
+   "modifier": 3,
+   "proficiency": "proficient",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "nature",
+   "name": "Nature",
+   "ability": "INT",
+   "modifier": 3,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "perception",
+   "name": "Perception",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "performance",
+   "name": "Performance",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "persuasion",
+   "name": "Persuasion",
+   "ability": "CHA",
+   "modifier": 0,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "religion",
+   "name": "Religion",
+   "ability": "INT",
+   "modifier": 3,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "sleight-of-hand",
+   "name": "Sleight of Hand",
+   "ability": "DEX",
+   "modifier": 2,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "stealth",
+   "name": "Stealth",
+   "ability": "DEX",
+   "modifier": 2,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  },
+  {
+   "id": "survival",
+   "name": "Survival",
+   "ability": "WIS",
+   "modifier": 1,
+   "proficiency": "none",
+   "advantage": false,
+   "disadvantage": false
+  }
+ ],
+ "passive": {
+  "perception": 11,
+  "investigation": 15,
+  "insight": 11
+ },
+ "attacks": [
+  {
+   "name": "Quarterstaff",
+   "kind": "melee",
+   "bonus": 1,
+   "damage": "1d6-1",
+   "type": "bludgeoning",
+   "versatile": "1d8-1",
+   "properties": [
+    "versatile"
+   ],
+   "mastery": "Topple",
+   "held": true
+  },
+  {
+   "name": "Dagger",
+   "kind": "melee",
+   "bonus": 4,
+   "damage": "1d4+2",
+   "type": "piercing",
+   "properties": [
+    "finesse",
+    "light",
+    "thrown"
+   ],
+   "mastery": "Nick",
+   "held": false
+  },
+  {
+   "name": "Unarmed Strike",
+   "kind": "melee",
+   "bonus": 1,
+   "damage": "1d4-1",
+   "type": "bludgeoning",
+   "properties": [
+    "light"
+   ],
+   "held": false
+  }
+ ],
+ "spellcasting": {
+  "className": "Wizard",
+  "ability": "INT",
+  "saveDC": 13,
+  "attackBonus": 5,
+  "slots": [
+   {
+    "level": 1,
+    "max": 4,
+    "used": 0
+   },
+   {
+    "level": 2,
+    "max": 2,
+    "used": 0
+   }
+  ],
+  "spells": [
+   {
+    "level": 0,
+    "spells": [
+     {
+      "id": "fire-bolt",
+      "name": "Fire Bolt",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "fire-bolt",
+       "name": "Fire Bolt",
+       "level": 0,
+       "school": "evocation",
+       "levelLine": "Evocation Cantrip (Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "120 feet",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "Instantaneous",
+       "concentration": false,
+       "ritual": false,
+       "does": [
+        "Ranged spell attack, +5 to hit: 1d10 fire on a hit"
+       ],
+       "scaling": [
+        "Grows with you: 2d10 at level 5, 3d10 at 11, 4d10 at 17"
+       ],
+       "inFights": true,
+       "text": [
+        "You hurl a mote of fire at a creature or an object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 Fire damage. A flammable object hit by this spell starts burning if it isn't being worn or carried.",
+        "_Cantrip Upgrade._ The damage increases by 1d10 when you reach levels 5 (2d10), 11 (3d10), and 17 (4d10)."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     },
+     {
+      "id": "light",
+      "name": "Light",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "light",
+       "name": "Light",
+       "level": 0,
+       "school": "evocation",
+       "levelLine": "Evocation Cantrip (Bard, Cleric, Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "Touch",
+       "components": {
+        "verbal": true,
+        "somatic": false,
+        "material": "a firefly or phosphorescent moss"
+       },
+       "duration": "1 hour",
+       "concentration": false,
+       "ritual": false,
+       "does": [],
+       "scaling": [],
+       "inFights": false,
+       "text": [
+        "You touch one Large or smaller object that isn't being worn or carried by someone else. Until the spell ends, the object sheds Bright Light in a 20-foot radius and Dim Light for an additional 20 feet. The light can be colored as you like.",
+        "Covering the object with something opaque blocks the light. The spell ends if you cast it again."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     },
+     {
+      "id": "ray-of-frost",
+      "name": "Ray of Frost",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "ray-of-frost",
+       "name": "Ray of Frost",
+       "level": 0,
+       "school": "evocation",
+       "levelLine": "Evocation Cantrip (Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "60 feet",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "Instantaneous",
+       "concentration": false,
+       "ritual": false,
+       "does": [
+        "Ranged spell attack, +5 to hit: 1d8 cold on a hit"
+       ],
+       "scaling": [
+        "Grows with you: 2d8 at level 5, 3d8 at 11, 4d8 at 17"
+       ],
+       "inFights": true,
+       "text": [
+        "A frigid beam of blue-white light streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, it takes 1d8 Cold damage, and its Speed is reduced by 10 feet until the start of your next turn.",
+        "_Cantrip Upgrade._ The damage increases by 1d8 when you reach levels 5 (2d8), 11 (3d8), and 17 (4d8)."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     }
+    ]
+   },
+   {
+    "level": 1,
+    "spells": [
+     {
+      "id": "burning-hands",
+      "name": "Burning Hands",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "burning-hands",
+       "name": "Burning Hands",
+       "level": 1,
+       "school": "evocation",
+       "levelLine": "Level 1 Evocation (Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "Self (15-foot cone)",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "Instantaneous",
+       "concentration": false,
+       "ritual": false,
+       "does": [
+        "Dexterity save, DC 13: 3d6 fire, half as much on a success"
+       ],
+       "area": "a 15-foot cone from you",
+       "scaling": [
+        "With a higher slot: +1d6 fire for each level above 1st"
+       ],
+       "inFights": true,
+       "text": [
+        "A thin sheet of flames shoots forth from you. Each creature in a 15-foot Cone makes a Dexterity saving throw, taking 3d6 Fire damage on a failed save or half as much damage on a successful one.",
+        "Flammable objects in the Cone that aren't being worn or carried start burning.",
+        "_Using a Higher-Level Spell Slot._ The damage increases by 1d6 for each spell slot level above 1."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     },
+     {
+      "id": "magic-missile",
+      "name": "Magic Missile",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "magic-missile",
+       "name": "Magic Missile",
+       "level": 1,
+       "school": "evocation",
+       "levelLine": "Level 1 Evocation (Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "120 feet",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "Instantaneous",
+       "concentration": false,
+       "ritual": false,
+       "does": [
+        "Three darts of 1d4+1 force, each a sure hit"
+       ],
+       "scaling": [
+        "With a higher slot: one more dart for each level above 1st"
+       ],
+       "inFights": true,
+       "text": [
+        "You create three glowing darts of magical force. Each dart strikes a creature of your choice that you can see within range. A dart deals 1d4 + 1 Force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
+        "_Using a Higher-Level Spell Slot._ The spell creates one more dart for each spell slot level above 1."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     },
+     {
+      "id": "shield",
+      "name": "Shield",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "shield",
+       "name": "Shield",
+       "level": 1,
+       "school": "abjuration",
+       "levelLine": "Level 1 Abjuration (Sorcerer, Wizard)",
+       "castingTime": "Reaction, which you take when you are hit by an attack roll or targeted by the Magic Missile spell",
+       "range": "Self",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "1 round",
+       "concentration": false,
+       "ritual": false,
+       "does": [],
+       "scaling": [],
+       "inFights": false,
+       "text": [
+        "An imperceptible barrier of magical force protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage from _Magic Missile_."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     },
+     {
+      "id": "sleep",
+      "name": "Sleep",
+      "ready": true,
+      "always": false,
+      "concentration": true,
+      "ritual": false,
+      "details": {
+       "id": "sleep",
+       "name": "Sleep",
+       "level": 1,
+       "school": "enchantment",
+       "levelLine": "Level 1 Enchantment (Bard, Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "60 feet",
+       "components": {
+        "verbal": true,
+        "somatic": true,
+        "material": "a pinch of sand or rose petals"
+       },
+       "duration": "Concentration, up to 1 minute",
+       "concentration": true,
+       "ritual": false,
+       "does": [
+        "Rolls 5d8: that many hit points of creatures, the weakest first, are Unconscious"
+       ],
+       "area": "a 5-foot-radius sphere",
+       "scaling": [
+        "With a higher slot: +2d8 to the roll for each level above 1st"
+       ],
+       "inFights": true,
+       "text": [
+        "Each creature of your choice in a 5-foot-radius Sphere centered on a point within range must succeed on a Wisdom saving throw or have the Incapacitated condition until the end of its next turn, at which point it must repeat the save. If the target fails the second save, the target has the Unconscious condition for the duration. The spell ends on a target if it takes damage or someone within 5 feet of it takes an action to shake it out of the spell's effect.",
+        "Creatures that don't sleep, such as elves, or that have Immunity to the Exhaustion condition automatically succeed on saves against this spell."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     },
+     {
+      "id": "thunderwave",
+      "name": "Thunderwave",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "thunderwave",
+       "name": "Thunderwave",
+       "level": 1,
+       "school": "evocation",
+       "levelLine": "Level 1 Evocation (Bard, Druid, Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "Self (15-foot cube)",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "Instantaneous",
+       "concentration": false,
+       "ritual": false,
+       "does": [
+        "Constitution save, DC 13: 2d8 thunder and pushed 10 feet away on a failure, half the damage on a success"
+       ],
+       "area": "a 15-foot cube from you",
+       "scaling": [
+        "With a higher slot: +1d8 thunder for each level above 1st"
+       ],
+       "inFights": true,
+       "text": [
+        "You unleash a wave of thunderous energy. Each creature in a 15-foot Cube originating from you makes a Constitution saving throw. On a failed save, a creature takes 2d8 Thunder damage and is pushed 10 feet away from you. On a successful save, a creature takes half as much damage only.",
+        "In addition, unsecured objects that are entirely within the Cube are pushed 10 feet away from you, and a thunderous boom is audible within 300 feet.",
+        "_Using a Higher-Level Spell Slot._ The damage increases by 1d8 for each spell slot level above 1."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     }
+    ]
+   },
+   {
+    "level": 2,
+    "spells": [
+     {
+      "id": "scorching-ray",
+      "name": "Scorching Ray",
+      "ready": true,
+      "always": false,
+      "concentration": false,
+      "ritual": false,
+      "details": {
+       "id": "scorching-ray",
+       "name": "Scorching Ray",
+       "level": 2,
+       "school": "evocation",
+       "levelLine": "Level 2 Evocation (Sorcerer, Wizard)",
+       "castingTime": "Action",
+       "range": "120 feet",
+       "components": {
+        "verbal": true,
+        "somatic": true
+       },
+       "duration": "Instantaneous",
+       "concentration": false,
+       "ritual": false,
+       "does": [
+        "Ranged spell attack, +5 to hit: 2d6 fire on a hit",
+        "Three rays, each its own attack"
+       ],
+       "scaling": [
+        "With a higher slot: one more ray for each level above 2nd"
+       ],
+       "inFights": true,
+       "text": [
+        "You hurl three fiery rays. You can hurl them at one target within range or at several. Make a ranged spell attack for each ray. On a hit, the target takes 2d6 Fire damage.",
+        "_Using a Higher-Level Spell Slot._ You create one additional ray for each spell slot level above 2."
+       ],
+       "credit": "This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode."
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "features": [
+  {
+   "name": "Arcane Recovery",
+   "from": "Wizard",
+   "level": 1,
+   "uses": {
+    "current": 2,
+    "max": 2,
+    "recharge": "long rest"
+   }
+  },
+  {
+   "name": "Ritual Adept",
+   "from": "Wizard",
+   "level": 1
+  },
+  {
+   "name": "Scholar",
+   "from": "Wizard",
+   "level": 2,
+   "choice": "Arcana, Investigation"
+  },
+  {
+   "name": "Evocation Savant",
+   "from": "Evoker",
+   "level": 3
+  },
+  {
+   "name": "Potent Cantrip",
+   "from": "Evoker",
+   "level": 3
+  }
+ ],
+ "feats": [
+  "Magic Initiate (Wizard)",
+  "Alert"
+ ],
+ "traits": [
+  "Skillful: Arcana",
+  "Resourceful"
+ ],
+ "conditions": [],
+ "equipment": [
+  {
+   "name": "Quarterstaff",
+   "kind": "weapon",
+   "slot": "in hand",
+   "quantity": 1
+  },
+  {
+   "name": "Dagger",
+   "kind": "weapon",
+   "quantity": 1
+  }
+ ],
+ "carrying": [],
+ "purse": [
+  {
+   "name": "silver crowns",
+   "quantity": 2
+  },
+  {
+   "name": "shillings",
+   "quantity": 6
+  },
+  {
+   "name": "pennies",
+   "quantity": 12
+  }
+ ],
+ "languages": [
+  "Common"
+ ],
+ "proficiencies": {
+  "armor": [],
+  "weapons": [
+   "Simple"
+  ],
+  "tools": [
+   "Calligrapher's Supplies"
+  ]
+ }
+}
