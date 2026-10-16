@@ -111,7 +111,7 @@ jobs:
           for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8787/v1/health > /dev/null && break; sleep 1; done
           health=$(curl -sf -H "authorization: Bearer ci" http://127.0.0.1:8787/v1/health)
           echo "$health"
-          echo "$health" | grep -q '"ok":true' && echo "$health" | grep -q '"model":"fake"' && echo "$health" | grep -q '"token":"accepted"' && echo "$health" | grep -q '"budget":{"dailyUsd":5,''
+          echo "$health" | grep -q '"ok":true' && echo "$health" | grep -q '"model":"fake"' && echo "$health" | grep -q '"token":"accepted"' && echo "$health" | grep -q '"budget":{"dailyUsd":5,'
       - name: The service's log
         if: always()
         run: podman logs kingmaker-ai || true
