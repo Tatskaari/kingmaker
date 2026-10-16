@@ -1,5 +1,5 @@
 import type { Identity } from "spacetimedb";
-import type { ConsiderResponse, DecideResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { ConsiderResponse, DecideResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
@@ -9,21 +9,25 @@ import { settledFacts } from "../gm/bookkeeping.ts";
 import { sayCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, playerRow, sceneOfPlayer, sceneRow, updateScene, type SceneRow, type TurnRow } from "../rows.ts";
+import { rulesFirst } from "../rules/play.ts";
 import { sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard } from "../transcript.ts";
 import { newTurn, queuedTurnOf } from "../turns.ts";
 import type { Move } from "./move.ts";
 import { seenOf } from "./open-scene.ts";
 import type { SayPlan } from "./plans.ts";
-import { afterConsider, afterDecide, afterReply, afterSettle } from "./say-commits.ts";
+import { afterConsider, afterDecide, afterReactions, afterReply, afterSettle } from "./say-commits.ts";
 
 /**
  * say (v0-design §4.2): the controller's line, recorded at once with its turn, and the game played
- * now; then three thinks, each committed in turn: decide (the route, and its check rolled here),
- * reply (streamed, then the GM's entry), settle (the world and where the story stands). A turn the GM
- * rules on (full-gm-design §4.2) has a fourth between decide and reply: consider (the ruling, rolled
- * here). A line said while the last turn settles, or waits for its reply's notes, waits as queued,
- * and starts when that one is done. On the wind-down, decide and reply close the scene.
+ * now (the rules first: what was left hanging lands before they act, world-bridge-design §3.4); then
+ * three thinks, each committed in turn: decide (the route, and its check rolled here; the rules' act,
+ * resolved here), reply (streamed, then the GM's entry), settle (the world and where the story
+ * stands). An act that was violence has the reactions to it between decide and what comes next
+ * (world-bridge-design §3.4); a turn the GM rules on (full-gm-design §4.2) has consider before the
+ * reply (the ruling, rolled here). A line said while the last turn settles, or waits for its reply's
+ * notes, waits as queued, and starts when that one is done. On the wind-down, decide and reply close
+ * the scene.
  */
 export const say: Move<{ text: string }, SayPlan> = {
   name: "say",
@@ -51,6 +55,7 @@ export const say: Move<{ text: string }, SayPlan> = {
 
   commit(tx, plan, answer) {
     if (plan.step === "decide") return afterDecide(tx, plan, answer as DecideResponse);
+    if (plan.step === "reactions") return afterReactions(tx, plan, answer as ReactionsResponse);
     if (plan.step === "consider") return afterConsider(tx, plan, answer as ConsiderResponse);
     if (plan.step === "reply") return afterReply(tx, plan, answer as ReplyResponse);
     return afterSettle(tx, plan, answer as SettleResponse);
@@ -62,17 +67,20 @@ export function sayReducer(tx: TxCtx, sender: Identity, args: { text: string }):
 }
 
 /**
- * A turn's plan as it starts, in the prototype's order (engine.ts:449-467): who's on stage as the
- * player speaks; the co-GM's reviews that have come in since merged, and the notes and whispers
- * that have run their course lapsed (full-gm-design §4.2: on both paths a turn starts, a line said
- * now or one that waited); then what's settled, and whether this is the wind-down. The decide
- * request is built after, so it carries what the merge brought.
+ * A turn's plan as it starts, in the prototype's order (engine.ts:449-467, 517-542): who's on stage
+ * as the player speaks; the co-GM's reviews that have come in since merged, and the notes and
+ * whispers that have run their course lapsed (full-gm-design §4.2: on both paths a turn starts, a
+ * line said now or one that waited); unless this is the wind-down, the rules first (rules/play.ts
+ * rulesFirst: a spell's time, fire's tick, coming round, a blow left hanging), their dice lines the
+ * turn's first; then what's settled, and whether this is the wind-down. The decide request is built
+ * after, so it carries what the merge and the rules brought.
  */
 export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: string): SayPlan {
   const scene = sceneRow(tx, sceneId);
   const gm = getGm(tx, sceneId);
   const onStage = presentCast(sceneGraph(tx, scene, gm), gm).map(c => c.id);
   mergeReviews(tx, scene, gm, turn.n);
+  const first = gm.closing ? undefined : rulesFirst(tx, scene, sceneGraph(tx, scene, gm), gm, turn.n, line);
   putGm(tx, sceneId, gm);
   return {
     step: "decide", game: idText(scene.gameId), scene: idText(scene.id), turn: idText(turn.id), n: turn.n, player: idText(turn.playerId),
@@ -80,7 +88,8 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
     onStage,
     settledBefore: settledFacts(gm),
     windDown: !!gm.closing,
-    lines: [],
+    ...(first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {}),
+    lines: first?.lines ?? [],
     seen: seenOf(tx, sceneId),
   };
 }
