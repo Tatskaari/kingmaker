@@ -464,8 +464,9 @@ test("canned: a reply with nobody of the cast speaking gets no notes", async () 
   assert.deepEqual((JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse).marks, []);
 });
 
-test("canned, and the pipeline until the boundary's copied: the story goes to the first scene it could, with the prototype's fallback hand-off and the scene's last moments (story-design §4.4)", async () => {
-  for (const endpoints of [canned, pipeline]) {
+test("canned: the story goes to the first scene it could, with the prototype's fallback hand-off and the scene's last moments (story-design §4.4)", async () => {
+  // (The pipeline's boundary asks models: its fallbacks are ai/service/endpoints/boundary.test.ts's.)
+  for (const endpoints of [canned]) {
     const { ai } = service({ endpoints });
     await ai.answer(put());
     const { line: _, ...scene } = decideRequest(3).turn;

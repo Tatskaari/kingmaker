@@ -1,12 +1,14 @@
 import type { Backstory } from "../docs/types.ts";
 import type { RulingRecord } from "../../shared/gm/consider.ts";
-import type { GmState, OpenedNote, PathStep, ScenePatch, SceneStatus } from "../../shared/gm/state.ts";
+import type { GmState, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus } from "../../shared/gm/state.ts";
 import type { MarkLink, Markup } from "../../shared/markup.ts";
-import type { Entry, OpenRequest, SceneContext, SheetRow } from "../../shared/protocol/ai.ts";
+import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
+import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
 import { unnamed } from "../../shared/scene/names.ts";
-import type { Scene, Skill } from "../../shared/scene/types.ts";
+import type { Essential, Scene, Skill } from "../../shared/scene/types.ts";
 import { fullKey, keysFor, localKey, rowsToWorld, type Keys, type PlaceRows } from "../../shared/world/rows.ts";
-import type { SceneWorld } from "../../shared/world/scene-world.ts";
+import type { Entity, SceneWorld } from "../../shared/world/scene-world.ts";
+import type { Owed } from "./owed.ts";
 import type { Story } from "./story.ts";
 
 /**
@@ -20,6 +22,11 @@ import type { Story } from "./story.ts";
  * cast by their ids, the place's other people by theirs: "porter"), and by the game's keys in a
  * request and an answer ("granary-yard/porter"): the markup on a request's entries is mapped in
  * (localMarkup), and the markup an endpoint answers is mapped back (gameMarkup).
+ *
+ * After a boundary (story-design §4.4) a view has the story so far, as the prototype's session had
+ * it: the scenes played (`history`, the request's chapters), every entry of theirs before this
+ * scene's on the transcript (each with its scene's key), and what the boundary handed on to this
+ * scene (the adjustments, the rewritten opening, the lead, who's absent, what's owed).
  */
 export interface TurnView {
   /** The game's uid: whose copy of the lore the docs service reads and writes. */
@@ -59,16 +66,25 @@ export interface TurnView {
   patches: ScenePatch[];
   rulings: RulingRecord[];
 
+  // What the boundary before the scene handed on, and the story so far (story-design §4.4).
+  /** Cast from earlier scenes that what happened keeps away. */
+  absent: string[];
+  /** The combat exits already fought: the scene picked up after the fight. */
+  fought: string[];
+  /** The scenes played before this one, oldest first (the prototype's session's history). */
+  history: Chapter[];
+  /** Where this scene's prep no longer matches the story: these override it. */
+  adjustments?: string[];
+  /** The scene's opening, rewritten at the boundary to start where the story is. */
+  opening?: string;
+  /** What the story still owes the player from scenes already over (gm/owed.ts), its essential and its things from the request's rows. */
+  owed?: Owed[];
+  /** How the story led into this scene, in second-person fiction. */
+  lead?: string;
+
   // Later verticals': always empty until then, read by the copied code.
   entered: string[];
-  absent: string[];
-  fought: string[];
   guard?: Record<string, { stage: string; turn: number }>;
-  history: Array<{ sceneId: string; exitId: string; summary: string; facts?: string[]; lastMoments?: string[]; journal?: string[] }>;
-  adjustments?: string[];
-  owed?: Array<{ from: string; id: string; essential: { things?: string[] } }>;
-  /** How the story led into this scene (V3's). */
-  lead?: string;
   /** What companions have told the player of themselves in talks (V11's). */
   talks?: Record<string, { count: number; told: Array<{ note: string; topic: string; turn: number }> }>;
   /** The lines offered last in this scene (only their words are read: none of them again). */
@@ -80,7 +96,7 @@ export interface TurnView {
   world?: SceneWorld;
 }
 
-/** An entry as the copied code reads it (the prototype's Entry). */
+/** An entry as the copied code reads it (the prototype's Entry): `scene`, an earlier scene's key, on that scene's entries. */
 export interface ViewEntry { turn: number; speaker: string; kind: Entry["kind"]; text: string; scene?: string; marked?: Markup }
 
 /** What every request carries that a view is built from: the open's, or a turn's TurnContext. */
@@ -89,15 +105,34 @@ export interface ViewSource {
   scene: { key: string; turn: number };
   pc: string;
   gm: GmState;
+  /** This scene's entries (an opening has none; an aftermath, the scene's so far). */
   transcript: Entry[];
   world: PlaceRows;
   party: SheetRow[];
+  /** The story so far as the request tells it (the scenes played, and their entries), when it does. */
+  told?: Told;
 }
 
-export const openSource = (req: OpenRequest): ViewSource => ({ game: req.game.id, scene: { key: req.scene.key, turn: 0 }, pc: req.pc, gm: req.gm, transcript: [], world: req.world, party: req.party });
+/**
+ * An open's: the opening (turn 0, no entries yet); or the scene picking up after a fight (its
+ * aftermath), on a turn of its own (the key's) with the scene's transcript so far.
+ */
+export const openSource = (req: OpenRequest): ViewSource => ({
+  game: req.game.id, scene: { key: req.scene.key, turn: req.aftermath ? turnOfKey(req.key) : 0 }, pc: req.pc, gm: req.gm,
+  transcript: req.aftermath ? req.transcript ?? [] : [], world: req.world, party: req.party, told: req.story,
+});
 
-/** A turn's think (its TurnContext), or a job beside a turn (the notes, the suggested lines: a SceneContext). */
-export const turnSource = (req: { game: { id: string }; turn: SceneContext }): ViewSource => ({ game: req.game.id, scene: req.turn.scene, pc: req.turn.pc, gm: req.turn.gm, transcript: req.turn.transcript, world: req.turn.world, party: req.turn.party });
+/** A turn's think (its TurnContext), or a job beside a turn (the notes, the suggested lines: a SceneContext), or after a scene (the boundary). */
+export const turnSource = (req: { game: { id: string }; turn: SceneContext }): ViewSource => ({ game: req.game.id, scene: req.turn.scene, pc: req.turn.pc, gm: req.turn.gm, transcript: req.turn.transcript, world: req.turn.world, party: req.turn.party, told: req.turn.story });
+
+/** The turn a key names (<uid>:s<scene>:t<n>:<step>), or 0. */
+function turnOfKey(key: string): number {
+  const parts = keyParts(key);
+  return parts && isTurnKey(parts) ? parts.turn : 0;
+}
+
+/** Where an essential of the story's is (the scene it was placed in, and its id there): the campaign's, for what's owed. */
+export type EssentialOf = (from: string, id: string) => Essential | undefined;
 
 /** How a request's people are named in the game, and in its world: by its place, its scene and its controller's character. */
 export const keysOf = (source: ViewSource): Keys => keysFor(source.world.place.key, source.scene.key, source.pc);
@@ -105,12 +140,15 @@ export const keysOf = (source: ViewSource): Keys => keysFor(source.world.place.k
 /**
  * The view of a request: its bookkeeping copied (the view may be written to), its world rebuilt, its
  * first sheet the player, with their backstory from character creation when they wrote one (the
- * brief's "who they are" and the player's doc read it), and the scene's story beside it.
+ * brief's "who they are" and the player's doc read it), and the scene's story beside it. After a
+ * boundary, the story so far: the chapters as its history, the earlier scenes' entries before this
+ * scene's, and what was handed on, what's owed with its essential (`essentialOf`: none without it).
  */
-export function viewOf(source: ViewSource, scene: Scene, story?: Story): TurnView {
+export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentialOf?: EssentialOf): TurnView {
   const sheet = source.party[0]!;
   const gm = structuredClone(source.gm);
   const keys = keysOf(source);
+  const world = rowsToWorld(source.world, keys);
   const view: TurnView = {
     id: source.game, sceneId: source.scene.key, turn: source.scene.turn,
     player: playerOf(sheet),
@@ -119,11 +157,14 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story): TurnVie
     ...(gm.endingLead ? { endingLead: gm.endingLead } : {}), ...(gm.pendingExit ? { pendingExit: gm.pendingExit } : {}),
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}), ...(gm.sceneStatus ? { sceneStatus: gm.sceneStatus } : {}),
     oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered, ...(gm.repeated !== undefined ? { repeated: gm.repeated } : {}),
-    canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered, absent: gm.absent,
-    // (A request a job stored before the rulings had a column has none.)
-    rulings: gm.rulings ?? [], fought: [], history: [],
-    transcript: source.transcript.map(e => entryOf(e, keys)),
-    world: rowsToWorld(source.world, keys),
+    canon: gm.canon, notes: gm.notes, whispers: gm.whispers, patches: gm.patches, entered: gm.entered,
+    // (A request a job stored before the rulings had a column has none, and one stored before the story unit none of what a boundary hands on.)
+    rulings: gm.rulings ?? [], absent: gm.absent ?? [], fought: gm.fought ?? [],
+    history: structuredClone(source.told?.history ?? []), adjustments: gm.adjustments ?? [],
+    ...(gm.opening !== undefined ? { opening: gm.opening } : {}), ...(gm.lead !== undefined ? { lead: gm.lead } : {}),
+    owed: owedOf(gm.owed ?? [], world, keys, essentialOf),
+    transcript: [...(source.told?.earlier ?? []), ...source.transcript].map(e => entryOf(e, keys)),
+    world,
     ...(story ? { story } : {}),
   };
   // As the prototype sets them at each turn's start (engine.ts:470): what the player calls those whose names they haven't heard.
@@ -139,9 +180,26 @@ function playerOf(sheet: SheetRow): TurnView["player"] {
   };
 }
 
-/** A request's entry as the prototype's: the player's lines are "player"'s (V0 has one), the markup is `marked`, by the world's ids. */
+/** A request's entry as the prototype's: the player's lines are "player"'s (V0 has one), the markup is `marked`, by the world's ids; an earlier scene's has its key. */
 function entryOf(e: Entry, keys: Keys): ViewEntry {
-  return { turn: e.turn, speaker: e.speaker.startsWith("player:") ? "player" : e.speaker, kind: e.kind, text: e.text, ...(e.markup ? { marked: localMarkup(e.markup, keys) } : {}) };
+  return { turn: e.turn, speaker: e.speaker.startsWith("player:") ? "player" : e.speaker, kind: e.kind, text: e.text, ...(e.scene ? { scene: e.scene } : {}), ...(e.markup ? { marked: localMarkup(e.markup, keys) } : {}) };
+}
+
+/**
+ * What the story still owes, as the copied code has it (the prototype's Owed): its essential, as the
+ * scene it was placed in wrote it, and its things, those of this place that its rows name (by their
+ * entity keys). One whose essential the campaign hasn't got is left out.
+ */
+function owedOf(rows: OwedRow[], world: SceneWorld, keys: Keys, essentialOf: EssentialOf | undefined): Owed[] {
+  return rows.flatMap(row => {
+    const essential = essentialOf?.(row.from, row.id);
+    if (!essential) return [];
+    const things = row.things.map(key => world.entities[localKey(key, keys)]).filter((e): e is Entity => !!e).map(e => structuredClone(e));
+    return [{
+      from: row.from, id: row.id, essential, ...(row.hinted ? { hinted: true } : {}), ...(things.length ? { things } : {}),
+      ...(row.holders.length ? { holders: [...row.holders] } : {}), ...(row.where !== undefined ? { where: row.where } : {}),
+    }];
+  });
 }
 
 /** Markup by the game's keys as the copied code reads it: speakers and the people marks link to by the world's ids. Cards are dropped: nothing in the copied code reads one. */
