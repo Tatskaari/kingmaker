@@ -15,7 +15,7 @@ Each file has `about` (the case), `fn` and `args` (what was called, with what), 
 
 | File | Call | Operation |
 |---|---|---|
-| builds-tamsin.json | `threeBuilds` for Tamsin Vell, three real suggestions (written as names, a fighter's style "Dueling") | `rules.builds` |
+| builds-tamsin.json | `threeBuilds` for Tamsin Vell, three real suggestions of three classes, in ids (the fighter's style written as a name, "Dueling"); a model answering in names is build-tamsin.json's case, and `ai/rules/builds.test.ts`'s | `rules.builds` |
 | builds-odo.json, builds-pell.json | `threeBuilds` for Brother Odo and Pell Marrow, the least JSON: all three from the class defaults | `rules.builds` |
 | build-tamsin.json | `createCharacter` with no build: the model's choice (`chooseBuild`, the prompt's concept is "Name: concept"); `result.build` is it settled and styled as the prototype does | `rules.build` |
 | backstory-draft.json | `draftBackstory` for her chosen build | `backstory.draft` |

@@ -1,5 +1,5 @@
 {
- "about": "threeBuilds for the first example concept, the model answering with three real suggestions (names where ids belong, a doubled-up style)",
+ "about": "threeBuilds for the first example concept, the model answering with three real suggestions of three classes, in ids (the fighter's style written as a name, \"Dueling\")",
  "fn": "threeBuilds",
  "args": {
   "name": "Tamsin Vell",

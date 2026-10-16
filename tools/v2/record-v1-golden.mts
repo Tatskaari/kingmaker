@@ -71,7 +71,7 @@ const EXAMPLES = [
   { slug: "pell", name: "Pell Marrow", concept: "a Nine Furrows weather-witch who is never wrong about rain and rarely right about people" },
 ];
 const TAMSIN = { name: EXAMPLES[0]!.name, concept: EXAMPLES[0]!.concept };
-/** What a model might suggest for Tamsin: three classes, written as a model writes them. */
+/** What a model might suggest for Tamsin: three classes, in the schema's ids but for the fighter's style, written as a name (a model answering in names is TAMSIN_BUILD's case). */
 const TAMSIN_BUILDS = {
   first: { classId: "rogue", subclassId: "thief", speciesId: "human", backgroundId: "sage", abilities: ["DEX", "INT", "CHA", "WIS", "CON", "STR"], skills: ["investigation", "insight", "deception", "sleight-of-hand"], feat: "skilled", cantrips: [], spells: [], weapons: ["rapier", "dagger"], armor: "leather-armor", shield: false, style: "none", plays: "Reads the books and the people who cook them: Sneak Attack for the ones who lie to your face." },
   second: { classId: "bard", subclassId: "college-of-lore", speciesId: "human", backgroundId: "criminal", abilities: ["CHA", "DEX", "INT", "CON", "WIS", "STR"], skills: ["persuasion", "deception", "insight", "investigation"], feat: "alert", cantrips: ["vicious-mockery", "message"], spells: ["dissonant-whispers", "charm-person", "detect-magic", "comprehend-languages", "silence"], weapons: ["rapier"], armor: "leather-armor", shield: false, style: "none", plays: "A sharp tongue made sharper: you talk your way in and mock your way out." },
@@ -102,7 +102,7 @@ async function recordCreation(): Promise<{ options: Array<{ build: Record<string
   const dir = join(OUT, "ai", "rules", "golden");
   mkdirSync(dir, { recursive: true });
   const cases: Array<{ file: string; about: string; fn: string; args: Record<string, unknown>; byName: Record<string, unknown>; run: () => Promise<unknown> }> = [
-    { file: "builds-tamsin", about: "threeBuilds for the first example concept, the model answering with three real suggestions (names where ids belong, a doubled-up style)", fn: "threeBuilds",
+    { file: "builds-tamsin", about: "threeBuilds for the first example concept, the model answering with three real suggestions of three classes, in ids (the fighter's style written as a name, \"Dueling\")", fn: "threeBuilds",
       args: { ...TAMSIN, level: LEVEL }, byName: { builds: TAMSIN_BUILDS }, run: () => threeBuilds(TAMSIN.name, TAMSIN.concept, LEVEL) },
     ...EXAMPLES.slice(1).map(e => ({ file: `builds-${e.slug}`, about: `threeBuilds for ${e.name}, the model answering with the least JSON (no class it names: all three from the defaults)`, fn: "threeBuilds",
       args: { name: e.name, concept: e.concept, level: LEVEL }, byName: {}, run: () => threeBuilds(e.name, e.concept, LEVEL) })),
@@ -347,7 +347,7 @@ Each file has \`about\` (the case), \`fn\` and \`args\` (what was called, with w
 
 | File | Call | Operation |
 |---|---|---|
-| builds-tamsin.json | \`threeBuilds\` for Tamsin Vell, three real suggestions (written as names, a fighter's style "Dueling") | \`rules.builds\` |
+| builds-tamsin.json | \`threeBuilds\` for Tamsin Vell, three real suggestions of three classes, in ids (the fighter's style written as a name, "Dueling"); a model answering in names is build-tamsin.json's case, and \`ai/rules/builds.test.ts\`'s | \`rules.builds\` |
 | builds-odo.json, builds-pell.json | \`threeBuilds\` for Brother Odo and Pell Marrow, the least JSON: all three from the class defaults | \`rules.builds\` |
 | build-tamsin.json | \`createCharacter\` with no build: the model's choice (\`chooseBuild\`, the prompt's concept is "Name: concept"); \`result.build\` is it settled and styled as the prototype does | \`rules.build\` |
 | backstory-draft.json | \`draftBackstory\` for her chosen build | \`backstory.draft\` |
