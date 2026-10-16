@@ -1,22 +1,32 @@
+import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { GmState, OpenedNote, SceneStatus } from "../gm/state.ts";
 import type { Markup } from "../markup.ts";
+import type { BuildOption, Offer, OwnPicks, SrdLists } from "../rules/types.ts";
 import type { Skill } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
-import type { Step } from "./keys.ts";
+import type { CreationStep, Step } from "./keys.ts";
 
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
- * back (v0-design §5.1-5.2, gm-port §13). Every request carries its working set, read in the
- * transaction that queued it, and its idempotency key; every answer is data the simulation commits.
+ * back (v0-design §5.1-5.2, gm-port §13; character creation's two, v1-design §3.7). Every request
+ * carries its working set, read in the transaction that queued it, and its idempotency key; every
+ * answer is data the simulation commits.
  */
 
-export type Endpoint = "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reply" | "/v1/turns/settle";
+export type Endpoint = "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/characters" | "/v1/backstories";
 
 /** Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap). */
-export const STEP_ENDPOINT: Record<Step, Endpoint> = { open: "/v1/scenes/open", decide: "/v1/turns/decide", reply: "/v1/turns/reply", settle: "/v1/turns/settle" };
-export const STEP_TIMEOUT_MS: Record<Step, number> = { open: 60_000, decide: 20_000, reply: 60_000, settle: 60_000 };
+export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
+  open: "/v1/scenes/open", decide: "/v1/turns/decide", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
+  offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
+  draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
+};
+export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
+  open: 60_000, decide: 20_000, reply: 60_000, settle: 60_000,
+  offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
+};
 
 /** The headers on a think's POST (and the answer's, when it was kept from before). Lower case, as HTTP/2 and fetch's Headers have them. */
 export const HEADERS = {
@@ -28,19 +38,24 @@ export const HEADERS = {
   replayed: "x-km-replayed",
 } as const;
 
-/** Every request: which game and content, who's playing, and the key that makes a retry safe. */
-export interface AiRequest {
-  /** <game uid>:s<scene>:t<n>:<step>, also the Idempotency-Key header. */
+/** What every request carries: which game and content, and the key that makes a retry safe. */
+export interface AiRequestBase {
+  /** <game uid>:s<scene>:t<n>:<step>, or a creation's <uid>:c<rev>:<step>; also the Idempotency-Key header. */
   key: string;
-  /** id: game.uid. */
+  /** id: game.uid (a creation's uid, which the game made from it takes). */
   game: { id: string; campaign: string; version: string };
+}
+
+/** A scene's request: the base, and who's playing (creation has nobody yet). */
+export interface AiRequest extends AiRequestBase {
   /** The scene's controller. */
   player: { id: string; name: string };
 }
 
 export interface Usage { calls: number; costUsd: number; byOperation: Record<string, { calls: number; costUsd: number; ms: number }> }
 export interface Entry { turn: number; speaker: string; kind: "player" | "narration" | "dialogue" | "roll" | "system"; text: string; markup?: Markup }
-export interface SheetRow { name: string; concept: string; build?: string; skills: Partial<Record<Skill, number>>; status?: string }
+/** A player's sheet as the GM is told it; backstory: theirs from character creation, when they wrote one (the brief and the player's doc read it). */
+export interface SheetRow { name: string; concept: string; build?: string; skills: Partial<Record<Skill, number>>; status?: string; backstory?: Backstory }
 export interface Story { time: string; day: number; flags: Record<string, string> }
 /** markup: speech with cast keys where they resolve. */
 export interface Reply { speaker: "gm"; kind: "narration"; text: string; markup?: Markup }
@@ -119,7 +134,30 @@ export interface After {
 /** ops: at most 16, by game key; after absent when the reply closed the scene. */
 export interface SettleResponse { ops: WorldOp[]; after?: After; usage: Usage }
 
-export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready";
+// ---------------------------------------------------------------------------------------------
+// Character creation (v1-design §3.7): before there's a game, so no player and no scene.
+
+/** What's asked of the builds: three to choose from, the model's one, or the player's own picks made legal. */
+export type CharactersAsk = { kind: "three" } | { kind: "one" } | { kind: "own"; picks: OwnPicks };
+/** POST /v1/characters: who they are, the level they start at, and what's asked. */
+export interface CharactersRequest extends AiRequestBase { who: { name: string; concept: string }; level: number; ask: CharactersAsk }
+/**
+ * The answer: three's `offer`; one's or own's `option`; or, for own picks that aren't on the SRD's
+ * lists, `refusal` (its words) with the `lists` to pick from.
+ */
+export interface CharactersResponse { offer?: Offer; option?: BuildOption; refusal?: string; lists?: SrdLists; usage: Usage }
+
+/** What's asked of the backstory: a draft, the player's notes worked in, the lore check, or what it says of them. */
+export type BackstoryOp = "draft" | "work" | "check" | "traits";
+/** POST /v1/backstories: who it's for (name, concept, the build's line), and the text (the box's; empty for a draft). */
+export interface BackstoriesRequest extends AiRequestBase { op: BackstoryOp; who: Who; text: string }
+/** The answer: draft's and work's `asked`, check's `checked`, traits' `backstory`. */
+export interface BackstoriesResponse { asked?: Asked<string>; checked?: Asked<LoreIssue[]>; backstory?: Backstory; usage: Usage }
+
+// ---------------------------------------------------------------------------------------------
+
+/** over_budget (402): today's spending is past the service's daily ceiling (KM_AI_DAILY_USD). */
+export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready" | "over_budget";
 export interface AiError { error: { code: AiErrorCode; message: string } }
 
 /** GET /v1/health (no bearer needed; `?deep=1` also calls service_ping as the service). */
@@ -133,6 +171,8 @@ export interface Health {
   token: "accepted" | "refused" | "absent";
   /** With ?deep=1: "ok", or why service_ping failed. */
   stdb?: string;
+  /** The daily ceiling in dollars (0: none) and what today's (UTC) calls have cost so far. */
+  budget?: { dailyUsd: number; spentToday: number };
 }
 
 /** PUT /v1/campaigns/{campaign}/{version}: the whole campaign folder, by path ("scenes/hanged-clerk/setting.md"). */

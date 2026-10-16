@@ -32,5 +32,45 @@
       "quantity": 12,
       "description": "Copper, twelve to the shilling, and the currency of the Drowned Rat."
     }
-  ]
+  ],
+  "creation": {
+    "name": "Caerwyn",
+    "premise": "This morning, the eve of the Centennial Assembly in Caerwyn, a palace clerk, Wendell Prout, was found hanged behind the King's Granary, and the Watch Captain has already called it suicide. When the news reached him, King Aldren, who remembers how Prout took his tea, asked the player character quietly to see Prout done right by (they're the King's investigator now), and lent them a sergeant of the watch, Agnes Kell, who has never met them. The game begins as they walk into the granary yard to meet her. The King asked for them, but none of the story's other named people know them yet.",
+    "primer": "World/Caerwyn.md",
+    "notCanon": [
+      "World/Caerwyn now.md",
+      "World/Fronts.md",
+      "World/index.md"
+    ],
+    "places": [
+      {
+        "doc": "Places/Granary Yard.md",
+        "words": "\\b(granary|prout|clerk|loft|hoist)\\b"
+      },
+      {
+        "doc": "Places/Heron Warehouse.md",
+        "words": "\\b(heron|warehouse|saltmere|wharf|wharves)\\b"
+      },
+      {
+        "doc": "Places/The Drowned Rat.md",
+        "words": "\\b(drowned rat|the rat|tavern|alehouse|inn)\\b"
+      },
+      {
+        "doc": "Places/Market Square.md",
+        "words": "\\b(market|corn exchange|square)\\b"
+      },
+      {
+        "doc": "Places/River Stairs.md",
+        "words": "\\b(river|stairs|docks?|wharf|wharves|barges?|bargee)\\b"
+      },
+      {
+        "doc": "Places/Palace Kitchens.md",
+        "words": "\\b(kitchens?|cook|scullery)\\b"
+      },
+      {
+        "doc": "Places/Watch House.md",
+        "words": "\\b(watch house|watch-house|cells?|gaol|jail)\\b"
+      }
+    ]
+  }
 }

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
-import { keyParts, type Step } from "../../shared/protocol/keys.ts";
+import { isTurnKey, keyParts, type Step } from "../../shared/protocol/keys.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
 import type { Faults } from "./config.ts";
@@ -52,7 +52,8 @@ export interface AiService {
   shutdown(graceMs?: number): Promise<void>;
 }
 
-const THINKS: Record<Endpoint, Step & keyof Endpoints> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
+/** The thinks served, by endpoint (character creation's two, v1-design §3.7, aren't yet). */
+const THINKS: Partial<Record<Endpoint, Step & keyof Endpoints>> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */
@@ -120,7 +121,9 @@ export function aiService(options: ServiceOptions): AiService {
 
   /** The endpoint, with this request's own model calls and stream; anything it throws but a Failure is the model's. */
   async function run(step: Step & keyof Endpoints, body: ThinkBody, campaign: Campaign, attempt: number, started: number) {
-    const { calls, usage } = callContext(options.transport(keyParts(body.key)!.turn), options.stores, { game: body.game.id, key: body.key, attempt });
+    const parts = keyParts(body.key)!;
+    // A creation's step has no turn: the stand-in's script starts at its first.
+    const { calls, usage } = callContext(options.transport(isTurnKey(parts) ? parts.turn : 0), options.stores, { game: body.game.id, key: body.key, attempt });
     const ctx: AiContext = { campaign, calls, usage, attempt, stream: turn => streamSink({ ...options.stream, log: options.log }, { turn, attempt, started }) };
     try {
       return await (options.endpoints[step] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);

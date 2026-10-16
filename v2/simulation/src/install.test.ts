@@ -14,7 +14,7 @@ test("the owner installs the hanged clerk: the campaign, its scene's def and hoo
 
   const [campaign] = all(host.db.campaign);
   assert.deepEqual([campaign!.id, campaign!.key, campaign!.version, campaign!.title], ["caerwyn@0.1.0", "caerwyn", "0.1.0", "Caerwyn"]);
-  assert.deepEqual(Object.keys(JSON.parse(campaign!.builds)), ["ranger", "rogue", "wizard"]);
+  assert.deepEqual(Object.keys(JSON.parse(campaign!.builds)), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
   const [def] = all(host.db.sceneDef);
   assert.deepEqual([def!.id, def!.campaignId, def!.key, def!.title], ["caerwyn@0.1.0/hanged-clerk", "caerwyn@0.1.0", "hanged-clerk", "The Hanged Clerk"]);
   assert.match(def!.hook, /^This morning a palace clerk, Wendell Prout/);

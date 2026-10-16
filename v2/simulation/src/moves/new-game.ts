@@ -1,10 +1,10 @@
 import type { Identity } from "spacetimedb";
 import { andList, MAX_NAME, refusal } from "../../../shared/protocol/refusals.ts";
-import type { BuildFile } from "../../../shared/scene/files.ts";
 import { actorOf, Refused, runMove, type TxCtx } from "../context.ts";
 import { seatPlayer, type CampaignRow, type GameRow } from "../rows.ts";
 import { buildOf, buildsOf, campaignFile } from "../scenes.ts";
 import { openScene } from "./open-scene.ts";
+import { READY_MADE, type ReadyMade } from "./ready-made.ts";
 
 /**
  * new_game (v0-design §3.3): a game of an installed campaign, its caller the host with a ready-made
@@ -33,10 +33,12 @@ function campaignNamed(tx: TxCtx, name: string): CampaignRow {
   return newest;
 }
 
-function buildNamed(campaign: CampaignRow, id: string): BuildFile {
-  const build = buildOf(campaign, id);
-  if (!build) throw new Refused(refusal("no_build", { build: id, builds: andList(Object.keys(buildsOf(campaign))) }));
-  return build;
+/** builds.json's build of that id, as V0 dumped its sheet (ready-made.ts, until the engine makes it: a build without one isn't built yet). */
+function buildNamed(campaign: CampaignRow, id: string): ReadyMade {
+  if (!buildOf(campaign, id)) throw new Refused(refusal("no_build", { build: id, builds: andList(Object.keys(buildsOf(campaign))) }));
+  const sheet = READY_MADE[id];
+  if (!sheet) throw new Refused(refusal("not_built"));
+  return sheet;
 }
 
 function characterName(name: string): string {
@@ -46,7 +48,7 @@ function characterName(name: string): string {
 }
 
 /** The game and its host: the player (seated, in place of any game they were in), their sheet, the game's dice. */
-function createGame(tx: TxCtx, campaign: CampaignRow, sender: Identity, character: { name: string; concept: string; build: BuildFile }): GameRow {
+function createGame(tx: TxCtx, campaign: CampaignRow, sender: Identity, character: { name: string; concept: string; build: ReadyMade }): GameRow {
   const file = campaignFile(campaign);
   const game = tx.db.game.insert({
     id: 0n, uid: tx.uuid(), campaign: file.id, campaignVersion: file.version, title: file.title,

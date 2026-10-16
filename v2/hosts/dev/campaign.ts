@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
-import { SKILLS, validateScene, type Scene } from "../../shared/scene/types.ts";
+import { validateScene, type Scene } from "../../shared/scene/types.ts";
 
 /**
  * A campaign folder (v2/campaigns/<id>/) as the install sends it, and the check that it's fit to
@@ -131,25 +131,23 @@ function placeProblems(place: PlaceFile, key: string): string[] {
   return problems;
 }
 
-/** The ready-made characters: a build line, a level, all 18 skills, a status line and the kit. */
+/** The ready-made characters (v1-design §3.9): each a concept, and a build for the rules engine to make, with every field of one. */
 function buildProblems(builds: BuildsFile): string[] {
   const problems: string[] = [];
   if (!Object.keys(builds).length) problems.push("builds.json: no builds");
-  for (const [id, b] of Object.entries(builds)) {
+  for (const [id, { concept, build }] of Object.entries(builds)) {
     const at = `builds.json: ${id}`;
-    if (typeof b.build !== "string" || !b.build) problems.push(`${at}: no build line`);
-    if (!Number.isInteger(b.level)) problems.push(`${at}: no level`);
-    if (typeof b.status !== "string") problems.push(`${at}: no status line`);
-    const missing = SKILLS.filter(s => typeof b.skills?.[s] !== "number");
-    if (missing.length) problems.push(`${at}: no ${missing.join(", ")} (a build has all 18 skills)`);
-    for (const s of Object.keys(b.skills ?? {})) if (!(SKILLS as readonly string[]).includes(s)) problems.push(`${at}: unknown skill ${s}`);
-    for (const g of b.gear ?? []) if (!g.id || !g.name || !GEAR_KINDS.includes(g.kind) || (g.slot && !SLOTS.includes(g.slot))) problems.push(`${at}: gear ${JSON.stringify(g)} isn't { id, name, kind, slot? }`);
+    if (typeof concept !== "string" || !concept.trim()) problems.push(`${at}: no concept`);
+    if (!build || typeof build !== "object") { problems.push(`${at}: no build`); continue; }
+    for (const field of BUILD_IDS) if (typeof build[field] !== "string") problems.push(`${at}: the build has no ${field}`);
+    for (const field of BUILD_LISTS) if (!Array.isArray(build[field]) || build[field].some(x => typeof x !== "string")) problems.push(`${at}: the build's ${field} isn't a list of ids`);
+    if (typeof build.shield !== "boolean") problems.push(`${at}: the build's shield isn't true or false`);
   }
   return problems;
 }
 
-const GEAR_KINDS: string[] = ["weapon", "armor", "shield", "item"];
-const SLOTS: string[] = ["mainHand", "offHand", "armor", "shield"];
+const BUILD_IDS = ["classId", "subclassId", "speciesId", "backgroundId", "feat", "armor"] as const;
+const BUILD_LISTS = ["abilities", "skills", "cantrips", "spells", "weapons"] as const;
 
 /** The cast's looks: each names someone in a scene's cast, with a role, one glyph and a colour. */
 function lookProblems(looks: LooksFile, castIds: string[]): string[] {

@@ -13,9 +13,9 @@ import {
 import { API } from "typescript/unstable/sync";
 
 /**
- * The one rule (README.md): v2/ai imports only node: built-ins, its own files and v2/shared (the
- * protocol, the scene graph and the world it shares with the simulation), so the prototype and v2
- * can share it. Never the prototype: the prototype reaches in (src/llm, src/lore,
+ * The one rule (README.md): v2/ai imports only node: built-ins, its own files, v2/shared (the
+ * protocol, the scene graph and the world it shares with the simulation) and v2/vendor (the rules
+ * engine, which it runs to make the build cards it offers), so the prototype and v2 can share it. Never the prototype: the prototype reaches in (src/llm, src/lore,
  * src/runtime/brief.ts), nothing here reaches out, and the prototype's type check wouldn't notice
  * if something did. v2/shared keeps to itself in turn (v2/shared/imports.test.ts).
  *
@@ -30,6 +30,7 @@ import { API } from "typescript/unstable/sync";
 const ROOT = import.meta.dirname;
 const SELF = import.meta.filename;
 const SHARED = resolve(ROOT, "..", "shared");
+const VENDOR = resolve(ROOT, "..", "vendor");
 
 /**
  * What in the code under root reaches outside it, a line each ("file:line: what"), with every
@@ -153,8 +154,8 @@ const real = (path: string): string => {
   }
 };
 
-test("v2/ai imports nothing but node:, itself and v2/shared", () => {
-  const { files, names, outside } = scan(ROOT, [SHARED]);
+test("v2/ai imports nothing but node:, itself, v2/shared and v2/vendor", () => {
+  const { files, names, outside } = scan(ROOT, [SHARED, VENDOR]);
   assert.ok(files.length > 10, "the scan found the folder's code");
   assert.ok(names.includes("imports.test.ts: node:test"), "the parser found this file's own imports");
   assert.deepEqual(outside, []);

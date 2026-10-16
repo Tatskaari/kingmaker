@@ -3,8 +3,8 @@
 toolchains:
   default: node
 fileGroups:
-  # v2/ai is the prototype's AI code too, and may import v2/shared: a change to either can break its type check or tests.
-  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'v2/ai/**/*', 'v2/shared/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+  # v2/ai is the prototype's AI code too, and may import v2/shared and v2/vendor (the rules engine): a change to any of them can break its type check or tests.
+  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'v2/ai/**/*', 'v2/shared/**/*', 'v2/vendor/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
 tasks:
   typecheck:
     command: npx --no-install tsc --noEmit -p .

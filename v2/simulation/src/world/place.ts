@@ -1,7 +1,8 @@
 // openPlace's world (givePurse, giveGear) is copied from the prototype's src/runtime/engine.ts:171-189 at 44c6d4a: no history, no carried things, nothing owed yet, the purse and gear handed in from the campaign and the build.
 
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { BuildFile, CampaignFile } from "../../../shared/scene/files.ts";
+import type { GearRow } from "../../../shared/rules/types.ts";
+import type { CampaignFile } from "../../../shared/scene/files.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Character, Scene } from "../../../shared/scene/types.ts";
 import { inventory } from "../../../shared/world/inventory.ts";
@@ -21,8 +22,8 @@ import { placeRows, writePlace } from "./rows-io.ts";
 /** The most operations the gate takes from one settle (the stage manager's own cut, stage.ts:93). */
 const MAX_OPS = 16;
 
-/** What a character starts the game with: the campaign's purse, their build's gear. Only the game's first scene hands it out. */
-export interface Start { purse: CampaignFile["startingPurse"]; gear: BuildFile["gear"] }
+/** What a character starts the game with: the campaign's purse, their build's gear (engine item instances, v1-design §3.6). Only the game's first scene hands it out. */
+export interface Start { purse: CampaignFile["startingPurse"]; gear: GearRow[] }
 
 /** A place's world as a commit works on it: the rows it was rebuilt from, and the keys that map the two. */
 export interface PlaceWorld { rows: PlaceRows; world: SceneWorld; keys: Keys }

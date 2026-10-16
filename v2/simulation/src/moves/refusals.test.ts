@@ -16,7 +16,7 @@ test("new_game: no such campaign, no such build (naming those there are), a name
   const game = (args: Partial<{ campaign: string; name: string; build: string }>) => host.as(tamsin).newGame({ campaign: "caerwyn", name: "Tamsin", concept: "", build: "rogue", ...args });
 
   assert.deepEqual(game({ campaign: "nowhere" }), { code: "no_campaign", text: "(There's no campaign called nowhere here.)" });
-  assert.deepEqual(game({ build: "bard" }), { code: "no_build", text: "(There's no ready-made build called bard: there's ranger, rogue and wizard.)" });
+  assert.deepEqual(game({ build: "bard" }), { code: "no_build", text: "(There's no ready-made build called bard: there's cleric, fighter, ranger, rogue and wizard.)" });
   assert.equal(code(game({ name: "   " })), "bad_name");
   assert.equal(code(game({ name: "x".repeat(MAX_NAME + 1) })), "bad_name");
   assert.deepEqual([all(host.db.game).length, all(host.db.player).length, all(host.db.seat).length], [0, 0, 0], "nothing written");

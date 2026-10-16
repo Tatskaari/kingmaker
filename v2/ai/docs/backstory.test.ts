@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { Ask } from "../llm/openrouter.ts";
 
 /**
@@ -11,13 +12,15 @@ import type { Ask } from "../llm/openrouter.ts";
  * or a character's own doc: what the check says goes to the player), what the lore check finds and
  * the fix it offers (accepted only where its words are), drafting and working notes in (nothing they
  * wrote left out, the premise's order of the morning kept), and what it says of them (from the model,
- * or offline from their own words). What reaches the GM in the prototype is tested there
- * (src/lore/backstory.test.ts).
+ * or offline from their own words); the world it's for, Caerwyn's unless another is given (the
+ * campaign's creation block). What reaches the GM in the prototype is tested there
+ * (src/lore/backstory.test.ts); where a quote is, a fix applied and the length, with their code, in
+ * v2/shared/creation/story.test.ts.
  */
 
 process.env.KM_RUNS_DIR = mkdtempSync(join(tmpdir(), "km-backstory-"));
 process.env.OPENROUTER_API_KEY = "offline";
-const { applyFix, canonFor, checkLore, draftBackstory, finishBackstory, keepWords, leftOut, locate, MOST_WORDS, numberWords, premiseSlips, tooLong, traitsFromWords, workIn } = await import("./backstory.ts");
+const { applyFix, CAERWYN, canonFor, checkLore, draftBackstory, finishBackstory, keepWords, leftOut, numberWords, premiseSlips, traitsFromWords, workIn } = await import("./backstory.ts");
 const { seedDoc, seedPaths } = await import("./docs.ts");
 
 const WHO = { name: "Tamsin Vell", concept: "a disgraced palace auditor with a borrowed rapier", build: "halfling rogue 3 (Thief), sage background" };
@@ -106,27 +109,6 @@ test("the lore check finds what contradicts canon, quotes it as written, and off
   assert.equal(lost!.quote, undefined, "words it can't find: rewrite, not accept");
   assert.equal(applyFix(story, nephew!), "I'm a cousin of a minor courtier, twice removed, though nobody at court will say so.\nI came to Caerwyn in the spring, owing Fat Jory three crowns.");
   assert.equal(applyFix(story, lost!), undefined, "nothing changed where the words aren't");
-  // A fix fitted to where it goes: no capital mid-sentence (a name keeps its own), one where a sentence starts, the full stop kept and not doubled.
-  const lucan = "I'm the King's nephew, and Sergeant Kell is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.";
-  const fix = (quote: string, with_: string, text = lucan) => applyFix(text, { quote, problem: "", fix: with_ });
-  assert.equal(fix("Sergeant Kell is my aunt: she taught me to fence.", "A retired watchman taught me to fence near the watch house"),
-    "I'm the King's nephew, and a retired watchman taught me to fence near the watch house. I owe Master Fenwick forty crowns.");
-  assert.equal(fix("Sergeant Kell is my aunt", "Master Fenwick's cousin is my aunt"), "I'm the King's nephew, and Master Fenwick's cousin is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.");
-  assert.equal(fix("I owe Master Fenwick forty crowns.", "my tailor is owed forty crowns."), "I'm the King's nephew, and Sergeant Kell is my aunt: she taught me to fence. My tailor is owed forty crowns.");
-  assert.equal(fix("I'm the King's nephew", "I hoped the King would notice me."), "I hoped the King would notice me, and Sergeant Kell is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.");
-  // A fix that runs on past its quote, or back before it, doesn't say those words twice.
-  const duel = "I left the palace after a duel over a card game and have lived on credit and charm since. I owe my tailor forty crowns.";
-  assert.equal(fix("I left the palace after a duel over a card game", "I left a grand house after a duel over a card game, and have lived on credit and charm since.", duel),
-    "I left a grand house after a duel over a card game and have lived on credit and charm since. I owe my tailor forty crowns.");
-  assert.equal(fix("Sergeant Kell is my aunt", "and a retired watchman is my aunt"), "I'm the King's nephew, and a retired watchman is my aunt: she taught me to fence. I owe Master Fenwick forty crowns.");
-  assert.equal(fix("Master Fenwick forty crowns.", "Master Fenwick, my tailor, forty crowns."), "I'm the King's nephew, and Sergeant Kell is my aunt: she taught me to fence. I owe Master Fenwick, my tailor, forty crowns.", "words of its own that happen to match aren't cut");
-  // A fix that runs on into the next sentence: no stop of its own, and that sentence goes on from it (a name keeps its capital).
-  const clerked = "I clerked under Master Sallow at the Royal Purveyor's office. He's a fussy man. Kell knows it.";
-  assert.equal(fix("I clerked under Master Sallow at the Royal Purveyor's office.", "I audited the Royal Purveyor's accounts from the outside, and", clerked), "I audited the Royal Purveyor's accounts from the outside, and he's a fussy man. Kell knows it.");
-  assert.equal(fix("He's a fussy man.", "I never met him, but", clerked), "I clerked under Master Sallow at the Royal Purveyor's office. I never met him, but Kell knows it.");
-  // A fix with a stop of its own where the quote stopped short of the sentence's: one stop.
-  const vouch = "I clerked under Master Sallow. He'd vouch for me to anyone. I left when my mother fell ill.";
-  assert.equal(fix("He'd vouch for me to anyone", "I'd vouch for myself to anyone.", vouch), "I clerked under Master Sallow. I'd vouch for myself to anyone. I left when my mother fell ill.");
   // The model was told the lore through the docs service, the King as anyone could know him (and nothing of the GM's), and the backstory word for word.
   assert.equal(asked.length, 1);
   assert.match(asked[0]!.input, /### Cast\/King Aldren\/public\.md\n/);
@@ -145,15 +127,6 @@ test("a backstory that fits comes back with nothing to fix; offline it isn't che
   const failing: Ask = async () => { throw new Error("HTTP 500"); };
   const failed = await checkLore("I mended nets.", WHO, { ask: failing });
   assert.match(failed.ok ? "" : failed.why, /couldn't be reached.*HTTP 500.*as you wrote it/);
-});
-
-test("finding a quote: exactly, or with case, spacing and quote marks aside", () => {
-  const text = "I'm the King's nephew,\n  though nobody says so.";
-  assert.deepEqual(locate(text, "the King's nephew"), { start: 4, end: 21 });
-  assert.deepEqual(locate(text, "“I’M THE KING’S NEPHEW.”"), { start: 0, end: 21 });
-  assert.deepEqual(locate(text, "nephew, though nobody"), { start: 15, end: 38 }, "across the line break, to the end of nobody");
-  assert.equal(locate(text, "the Queen's niece"), undefined);
-  assert.equal(locate(text, ""), undefined);
 });
 
 test("Draft one: a backstory from the concept and the build, shown before it's anyone's; offline, the GM is offline", async () => {
@@ -216,11 +189,6 @@ test("a number they wrote is kept when it's written out as a story would (3 as t
   assert.deepEqual(leftOut(["1", "89"], "Someone was done for in the flood of eighty nine."), ["1"], "a number's word is a word of its own, not part of another");
 });
 
-test("a backstory longer than the GM can be given every turn says so (the box keeps it), with its length", () => {
-  assert.equal(tooLong("word ".repeat(MOST_WORDS)), undefined);
-  assert.match(tooLong("word ".repeat(MOST_WORDS + 345)) ?? "", /^It's 2,345 words, and the GM reads all of it every turn: cut it to 2,000 or fewer\.$/);
-});
-
 test("what it says of them: from the model, short and to the point; offline, from their own sentences", async () => {
   const text = "I grew up on a turnip farm in the Nine Furrows. My mother drowned in the flood. I owe Fat Jory three crowns. I never could hold my drink. I believe the truth always comes out.";
   const { ask } = model({ "backstory.traits": { summary: "Tamsin Vell, a farm girl from the Nine Furrows who lost her mother to the flood and owes Fat Jory three crowns.", personality: ["Dogged"], ideals: ["The truth comes out"], bonds: ["Her drowned mother", "Fat Jory, owed three crowns"], flaws: ["Can't hold her drink"] } });
@@ -234,4 +202,27 @@ test("what it says of them: from the model, short and to the point; offline, fro
   assert.deepEqual(offline.flaws, ["I never could hold my drink."]);
   assert.deepEqual(offline.ideals, ["I believe the truth always comes out."]);
   assert.deepEqual(traitsFromWords("", WHO).summary, `Tamsin Vell: ${WHO.concept}.`);
+});
+
+test("the world is Caerwyn's unless another is given, and the campaign's creation block is Caerwyn's", async () => {
+  const campaign = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "campaign.json"), "utf8")) as { creation: CreationWorld };
+  assert.deepEqual(campaign.creation, CAERWYN);
+  const elsewhere: CreationWorld = { name: "Elsewhere", premise: "The game begins in a muddy field.", primer: "World/Nowhere.md", notCanon: [], places: [{ doc: "Places/Granary Yard.md", words: "\\bturnips?\\b" }] };
+  const { ask, asked } = model({ "backstory.draft": { story: "I grew turnips." }, "backstory.check": { issues: [] } });
+  await draftBackstory(WHO, { ask, world: elsewhere });
+  await checkLore("I grew turnips, never anything else.", WHO, { ask, world: elsewhere });
+  assert.match(asked[0]!.input, /## The world: Elsewhere\n\n\n## The story this backstory leads into\nThe game begins in a muddy field\.$/, "its primer (none in the lore: its name, and no words) and its premise");
+  assert.match(asked[1]!.input, /### Places\/Granary Yard\.md\n/, "its places, by its words");
+  assert.match(asked[1]!.input, /## The story's premise\nThe game begins in a muddy field\./);
+  assert.match(asked[1]!.input, /### World\/Caerwyn now\.md\n/, "what isn't canon is its to say: none here");
+  assert.ok(!canonFor("I mend nets.").some(d => d.path === "World/Caerwyn now.md"), "Caerwyn's leaves how the city stands now out");
+});
+
+test("ask: null is offline, whatever the environment says", async () => {
+  const offline = { ask: null };
+  assert.match((await draftBackstory(WHO, offline) as { why: string }).why, /offline/);
+  assert.match((await workIn("I mend nets.", WHO, offline) as { why: string }).why, /offline/);
+  assert.deepEqual(await checkLore("I mend nets.", WHO, offline), { ok: false, why: "The GM is offline, so nobody has checked it against the world: it goes in as you wrote it.", reason: "the GM is offline" });
+  assert.match((await finishBackstory("I mend nets. I owe Fat Jory three crowns.", WHO, offline)).summary, /in their own words/);
+  assert.equal(applyFix("I mend nets.", { quote: "nets", problem: "", fix: "sails" }), "I mend sails.", "and the moved helpers are still here");
 });

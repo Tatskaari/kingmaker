@@ -1,6 +1,12 @@
+import { locate, STARTERS } from "../../shared/creation/story.ts";
+import type { Asked, Backstory, CreationWorld, LoreIssue, Who } from "../../shared/creation/types.ts";
+import { canonPaths } from "../../shared/creation/world.ts";
 import { modelOffline, respondJson, type Ask } from "../llm/openrouter.ts";
 import { seedDoc, seedPaths, titleOf, type Doc } from "./docs.ts";
-import type { Backstory } from "./types.ts";
+
+// Moved to v2/shared/creation (the client and the simulation need them, and may not import v2/ai): re-exported, so the prototype's imports stay as they were.
+export { applyFix, locate, MOST_WORDS, tooLong, wordCount } from "../../shared/creation/story.ts";
+export type { Asked, LoreIssue, Who } from "../../shared/creation/types.ts";
 
 /**
  * The player's backstory at character creation: drafting one from the concept and the build,
@@ -10,45 +16,17 @@ import type { Backstory } from "./types.ts";
  * to the player) for what contradicts canon, with a fix that keeps its spirit, and drawing out what
  * it says of them (who they are, in a sentence or two for every GM brief; personality, ideals,
  * bonds and flaws for the sheet). The model's part goes through an Ask, so the checks can stand in
- * for it; offline there's no model to ask, and each says so (the traits are then drawn from the
- * player's own sentences).
+ * for it; offline there's no model to ask (or `ask: null` says so), and each says so (the traits are
+ * then drawn from the player's own sentences). The world is the campaign's (`world`, campaign.json's
+ * `creation`), Caerwyn's when none is given.
  */
-
-/** Who the backstory is for, as the model is told: their name, concept, and build in a line. */
-export interface Who { name: string; concept: string; build?: string }
-
-/** A part of a backstory that contradicts canon, and a fix that keeps its spirit. */
-export interface LoreIssue {
-  /** The backstory's own words that don't fit, as written; undefined when they couldn't be found in it (rewrite it, then). */
-  quote?: string;
-  /** What's wrong, in terms anyone in Caerwyn could know (the check is never told a secret of the GM's). */
-  problem: string;
-  /** Words to put in the quote's place: the same spirit, fitting the world. */
-  fix: string;
-}
-
-/**
- * What asking came to: the text, or why there's none (offline, or the GM couldn't be reached): in a
- * sentence for the player, and as a reason to go in one of the game's own ("the GM is offline").
- */
-export type Asked<T> = { ok: true; value: T } | { ok: false; why: string; reason?: string };
 
 const OFFLINE = "The GM is offline, so there's nobody to ask: write it yourself, or skip it.";
 const unreached = (error: unknown) => `the GM couldn't be reached (${error instanceof Error ? error.message.slice(0, 160) : String(error)})`;
 const failed = (error: unknown) => `${unreached(error).replace(/^t/, "T")}.`;
-const asker = (ask?: Ask): Ask | undefined => ask ?? (modelOffline() ? undefined : respondJson);
+/** The model to ask: the one given; none when it's null (offline, whatever the environment says); else OpenRouter, unless it's offline. */
+const asker = (ask?: Ask | null): Ask | undefined => (ask === null ? undefined : (ask ?? (modelOffline() ? undefined : respondJson)));
 const STYLE = "The house style is dry and a little comic (Pratchett): the world plays it straight, and the comedy is in the specifics.";
-
-/** The most a backstory can be, in words: the GM is given all of it every turn (the player's doc). */
-export const MOST_WORDS = 2000;
-export const wordCount = (text: string): number => (text.match(/\S+/g) ?? []).length;
-const thousands = (n: number) => n.toLocaleString("en-GB");
-
-/** Why a backstory (or notes to work in) can't go on as it is: longer than MOST_WORDS; else undefined. */
-export function tooLong(text: string): string | undefined {
-  const n = wordCount(text);
-  return n > MOST_WORDS ? `It's ${thousands(n)} words, and the GM reads all of it every turn: cut it to ${thousands(MOST_WORDS)} or fewer.` : undefined;
-}
 
 // ---------------------------------------------------------------------------------------------
 // The world, as the model's told it (the docs service's authored lore).
@@ -56,41 +34,47 @@ export function tooLong(text: string): string | undefined {
 /** The story the backstory leads into (why they took this case). */
 export const PREMISE = "This morning, the eve of the Centennial Assembly in Caerwyn, a palace clerk, Wendell Prout, was found hanged behind the King's Granary, and the Watch Captain has already called it suicide. When the news reached him, King Aldren, who remembers how Prout took his tea, asked the player character quietly to see Prout done right by (they're the King's investigator now), and lent them a sergeant of the watch, Agnes Kell, who has never met them. The game begins as they walk into the granary yard to meet her. The King asked for them, but none of the story's other named people know them yet.";
 
-/** The places' public docs, by the words that call them up. */
-const PLACE_WORDS: Array<[string, RegExp]> = [
-  ["Places/Granary Yard.md", /\b(granary|prout|clerk|loft|hoist)\b/i],
-  ["Places/Heron Warehouse.md", /\b(heron|warehouse|saltmere|wharf|wharves)\b/i],
-  ["Places/The Drowned Rat.md", /\b(drowned rat|the rat|tavern|alehouse|inn)\b/i],
-  ["Places/Market Square.md", /\b(market|corn exchange|square)\b/i],
-  ["Places/River Stairs.md", /\b(river|stairs|docks?|wharf|wharves|barges?|bargee)\b/i],
-  ["Places/Palace Kitchens.md", /\b(kitchens?|cook|scullery)\b/i],
-  ["Places/Watch House.md", /\b(watch house|watch-house|cells?|gaol|jail)\b/i],
-];
+/**
+ * Caerwyn, the world a backstory is written for when no other is given: the premise, the city's own
+ * doc, the World docs that aren't canon (how it stands now, its fronts, the index), and the places'
+ * public docs by the words that call them up. v2's campaign.json has the same as its `creation`.
+ */
+export const CAERWYN: CreationWorld = {
+  name: "Caerwyn",
+  premise: PREMISE,
+  primer: "World/Caerwyn.md",
+  notCanon: ["World/Caerwyn now.md", "World/Fronts.md", "World/index.md"],
+  places: [
+    { doc: "Places/Granary Yard.md", words: "\\b(granary|prout|clerk|loft|hoist)\\b" },
+    { doc: "Places/Heron Warehouse.md", words: "\\b(heron|warehouse|saltmere|wharf|wharves)\\b" },
+    { doc: "Places/The Drowned Rat.md", words: "\\b(drowned rat|the rat|tavern|alehouse|inn)\\b" },
+    { doc: "Places/Market Square.md", words: "\\b(market|corn exchange|square)\\b" },
+    { doc: "Places/River Stairs.md", words: "\\b(river|stairs|docks?|wharf|wharves|barges?|bargee)\\b" },
+    { doc: "Places/Palace Kitchens.md", words: "\\b(kitchens?|cook|scullery)\\b" },
+    { doc: "Places/Watch House.md", words: "\\b(watch house|watch-house|cells?|gaol|jail)\\b" },
+  ],
+};
 
 /**
  * The lore a backstory is checked against, through the docs service from the authored lore: what
- * anyone in Caerwyn could know, and only that (the World's public docs, the Cast's public faces, and
- * the public docs of the places it touches; no index, whose one-line summaries of where to read on
- * say more than the public faces do). Never a private or GM doc, whatever the story says: what the
- * check finds is shown to the player as it's written, and a model that's been told the murder gives
- * it away in a problem or a fix ("the tally loft is where Prout was killed, and Cob was hiding
- * there"), however it's told not to. A tie to the story's people or its case is the premise's to
- * rule out, which needs no secret.
+ * anyone in the world could know, and only that (the World's public docs, the Cast's public faces,
+ * and the public docs of the places it touches; no index, whose one-line summaries of where to read
+ * on say more than the public faces do: canonPaths chooses them). Never a private or GM doc, whatever
+ * the story says: what the check finds is shown to the player as it's written, and a model that's
+ * been told the murder gives it away in a problem or a fix ("the tally loft is where Prout was
+ * killed, and Cob was hiding there"), however it's told not to. A tie to the story's people or its
+ * case is the premise's to rule out, which needs no secret.
  */
-export function canonFor(story: string): Doc[] {
-  const paths = seedPaths();
-  const always = paths.filter(p => (/^World\/[^/]+\.md$/.test(p) && !/(Fronts|Caerwyn now|index)\.md$/.test(p)) || /^Cast\/[^/]+\/public\.md$/.test(p));
-  const touched = PLACE_WORDS.filter(([, rx]) => rx.test(story)).map(([p]) => p);
-  return [...new Set([...always, ...touched])].filter(p => paths.includes(p)).map(p => seedDoc(p))
-    .filter((d): d is Doc => !!d && d.meta.visibility === "public");
+export function canonFor(story: string, world: CreationWorld = CAERWYN): Doc[] {
+  return canonPaths(seedPaths(), story, world).map(p => seedDoc(p)).filter((d): d is Doc => !!d && d.meta.visibility === "public");
 }
 
 const lore = (docs: Doc[]) => docs.map(d => `### ${d.path}\n${d.body}`).join("\n\n");
 
-/** The world in brief, for drafting: the city, and the story's premise. */
-function primer(): string {
-  const city = seedDoc("World/Caerwyn.md");
-  return [`## The world: ${city ? titleOf(city) : "Caerwyn"}\n${city?.body ?? ""}`, `## The story this backstory leads into\n${PREMISE}`].join("\n\n");
+/** The world in brief, for drafting: its own doc, and the story's premise. */
+function primer(world: CreationWorld): string {
+  const doc = seedDoc(world.primer);
+  return [`## The world: ${doc ? titleOf(doc) : world.name}\n${doc?.body ?? ""}`, `## The story this backstory leads into\n${world.premise}`].join("\n\n");
 }
 
 const who = (w: Who) => `${w.name}: ${w.concept}.${w.build ? ` In game terms: ${w.build}.` : ""}`;
@@ -99,7 +83,7 @@ const who = (w: Who) => `${w.name}: ${w.concept}.${w.build ? ` In game terms: ${
 // Drafting one, and working one in.
 
 /** "Draft one": a backstory from the concept and the build, in the first person. Never put in the box until the player says so. */
-export async function draftBackstory(w: Who, options: { ask?: Ask } = {}): Promise<Asked<string>> {
+export async function draftBackstory(w: Who, options: { ask?: Ask | null; world?: CreationWorld } = {}): Promise<Asked<string>> {
   const ask = asker(options.ask);
   if (!ask) return { ok: false, why: OFFLINE };
   const once = async (also: string[] = []) => tidy((await ask<{ story: string }>({
@@ -112,7 +96,7 @@ export async function draftBackstory(w: Who, options: { ask?: Ask } = {}): Promi
       STYLE,
       ...(also.length ? [`Your first draft got the order of this morning wrong (${also.join("; ")}): keep to the story's premise this time.`] : []),
     ].join("\n"),
-    input: [{ role: "user", content: [`## The player character\n${who(w)}`, primer()].join("\n\n") }],
+    input: [{ role: "user", content: [`## The player character\n${who(w)}`, primer(options.world ?? CAERWYN)].join("\n\n") }],
     json: { name: "backstory", schema: { type: "object", additionalProperties: false, required: ["story"], properties: { story: { type: "string", description: "The backstory: paragraphs separated by a blank line" } } } },
   })).story);
   try {
@@ -137,12 +121,6 @@ export function premiseSlips(story: string): string[] {
   if (story.split(/(?<=[.!?])\s+|\n+/).some(s => another.test(s) && asked.test(s))) slips.push("the King asked them this morning");
   return slips;
 }
-
-/** Words that start sentences without being anyone's name. */
-const STARTERS = new Set(("i my me mine we our us you your he his him she her they their them it its this that these those there here then when while " +
-  "but and or so yet nor if as at in on to for of from by with without after before since until once now later still also even just only " +
-  "the a an no not never always sometimes some all every each one two three both because though although which who whom whose what where why how " +
-  "was were is are am be been had has have did do does will would could should might must can may shall let").split(" "));
 
 /** The words of the player's notes that a story made from them must keep: names, places, numbers. */
 export function keepWords(notes: string): string[] {
@@ -185,7 +163,7 @@ export const leftOut = (words: string[], story: string) => {
 };
 
 /** "Work it in": the player's rough notes as a story in their own voice, keeping everything they wrote. Never put in the box until they say so. */
-export async function workIn(notes: string, w: Who, options: { ask?: Ask } = {}): Promise<Asked<string>> {
+export async function workIn(notes: string, w: Who, options: { ask?: Ask | null } = {}): Promise<Asked<string>> {
   const ask = asker(options.ask);
   if (!ask) return { ok: false, why: OFFLINE };
   if (!notes.trim()) return { ok: false, why: "There's nothing written yet to work in: write a few notes first (or Draft one)." };
@@ -215,74 +193,7 @@ export async function workIn(notes: string, w: Who, options: { ask?: Ask } = {})
 const tidy = (text: string | undefined) => (text ?? "").replace(/\r/g, "").replace(/^#+\s.*$/gm, "").split(/\n\s*\n/).map(p => p.replace(/\s*\n\s*/g, " ").trim()).filter(Boolean).join("\n\n");
 
 // ---------------------------------------------------------------------------------------------
-// The lore check.
-
-/**
- * Where a quote is in the text: exactly, or with case, spacing and quote marks aside. Its start and
- * end in the text as written, or undefined.
- */
-export function locate(text: string, quote: string): { start: number; end: number } | undefined {
-  const q = quote.trim().replace(/^["“”'‘’]+|["“”'‘’]+$/g, "").trim();
-  if (!q) return undefined;
-  const exact = text.indexOf(q);
-  if (exact >= 0) return { start: exact, end: exact + q.length };
-  // Normalised, keeping a map back to the original's indices.
-  const norm = (c: string) => (/["“”]/.test(c) ? '"' : /['‘’]/.test(c) ? "'" : c.toLowerCase());
-  const chars: string[] = [], at: number[] = [];
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]!;
-    if (/\s/.test(c)) { if (chars.at(-1) !== " ") { chars.push(" "); at.push(i); } continue; }
-    chars.push(norm(c)); at.push(i);
-  }
-  const hay = chars.join("");
-  const needle = q.replace(/\s+/g, " ").split("").map(norm).join("").replace(/[.,;:!?]+$/, "");
-  const found = hay.indexOf(needle);
-  if (found < 0 || !needle) return undefined;
-  return { start: at[found]!, end: at[found + needle.length - 1]! + 1 };
-}
-
-/** A text's words, case and curly apostrophes aside, with where each starts. */
-const wordsOf = (t: string) => [...t.matchAll(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)].map(m => ({ w: m[0].toLowerCase().replace(/’/g, "'"), start: m.index }));
-
-/**
- * The text with a fix accepted: the quote's words replaced by the fix's, fitted to where they go (a
- * fix that runs on into the words after its quote, or back into those before, doesn't say them
- * twice; a capital only where a sentence starts, as in "..., and a retired watchman taught me"; the
- * sentence's own full stop, kept or not doubled). Undefined if the quote isn't there any more.
- */
-export function applyFix(text: string, issue: LoreIssue): string | undefined {
-  if (!issue.quote) return undefined;
-  const span = locate(text, issue.quote);
-  if (!span) return undefined;
-  const before = text.slice(0, span.start), quote = text.slice(span.start, span.end), after = text.slice(span.end);
-  let fix = issue.fix.trim();
-  // Words the fix repeats from before its quote ("and" after ", and"; two or more of anything else) come off its start.
-  const head = wordsOf(fix), prev = wordsOf(before);
-  for (let n = Math.min(head.length - 1, prev.length); n >= 1; n--) {
-    if (head.slice(0, n).every((h, i) => h.w === prev[prev.length - n + i]!.w) && (n >= 2 || STARTERS.has(head[0]!.w))) { fix = fix.slice(head[n]!.start); break; }
-  }
-  // Two or more words it runs on into, from after its quote, come off its end.
-  const tail = wordsOf(fix), next = wordsOf(after);
-  for (let n = Math.min(tail.length - 1, next.length); n >= 2; n--) {
-    if (tail.slice(-n).every((t, i) => t.w === next[i]!.w)) { fix = fix.slice(0, tail[tail.length - n]!.start).replace(/[\s,;:—–-]+$/, ""); break; }
-  }
-  const opens = !before.trim() || /([.!?…]["”’)]?\s+|\n\s*)$/.test(before);
-  const word = /^[A-Za-z]+/.exec(fix)?.[0] ?? "";
-  if (opens) fix = fix.charAt(0).toUpperCase() + fix.slice(1);
-  else if (word !== "I" && /^[A-Z][a-z]*$/.test(word) && STARTERS.has(word.toLowerCase())) fix = fix.charAt(0).toLowerCase() + fix.slice(1);
-  const stop = /[.!?]["”’]?$/;
-  // A fix that runs on into the sentence after its quote ("... from the outside, and"): no stop of its
-  // own, and that sentence goes on from it, its first word in lower case unless it's a name.
-  const next1 = /^(\s+)([A-Z][a-z]*)/.exec(after);
-  if (stop.test(quote) && next1 && /(,|\b(and|but|or|so|yet|while|whereas|because|though|although|since|until|when|as|where))$/i.test(fix)) {
-    const lower = next1[2] !== "I" && STARTERS.has(next1[2]!.toLowerCase());
-    return `${before}${fix}${lower ? `${next1[1]}${next1[2]!.charAt(0).toLowerCase()}${after.slice(next1[0].length - next1[2]!.length + 1)}` : after}`;
-  }
-  if (stop.test(quote) && !stop.test(fix)) fix += stop.exec(quote)![0];
-  // A fix with a stop of its own where the sentence goes on, or where the quote stopped short of the sentence's own stop: one stop, the sentence's.
-  else if (!stop.test(quote) && stop.test(fix) && /^(\s*([,;:]|[a-z])|[.!?])/.test(after)) fix = fix.replace(/[.!?]+$/, "");
-  return `${before}${fix}${after}`;
-}
+// The lore check (where a quote is, and a fix applied: shared/creation/story.ts).
 
 /**
  * Check a backstory against the world's lore: what contradicts canon (or claims a tie to its named
@@ -290,8 +201,8 @@ export function applyFix(text: string, issue: LoreIssue): string | undefined {
  * spirit. An empty list when it fits. Offline (or when the GM can't be reached) it isn't checked,
  * and says why: nothing is ever changed without the player seeing it.
  */
-export async function checkLore(story: string, w: Who, options: { ask?: Ask } = {}): Promise<Asked<LoreIssue[]>> {
-  const ask = asker(options.ask);
+export async function checkLore(story: string, w: Who, options: { ask?: Ask | null; world?: CreationWorld } = {}): Promise<Asked<LoreIssue[]>> {
+  const ask = asker(options.ask), world = options.world ?? CAERWYN;
   if (!ask) return { ok: false, why: "The GM is offline, so nobody has checked it against the world: it goes in as you wrote it.", reason: "the GM is offline" };
   if (!story.trim()) return { ok: true, value: [] };
   try {
@@ -308,8 +219,8 @@ export async function checkLore(story: string, w: Who, options: { ask?: Ask } = 
         "Most backstories fit: then there are no issues. Never more than four.",
       ].join("\n"),
       input: [{ role: "user", content: [
-        `## The lore (the docs service: the world, its places and its people, as anyone in Caerwyn could know them)\n${lore(canonFor(story))}`,
-        `## The story's premise\n${PREMISE}`,
+        `## The lore (the docs service: the world, its places and its people, as anyone in Caerwyn could know them)\n${lore(canonFor(story, world))}`,
+        `## The story's premise\n${world.premise}`,
         `## The player character\n${who(w)}`,
         `## Their backstory, word for word\n${story.trim()}`,
       ].join("\n\n") }],
@@ -352,7 +263,7 @@ export function traitsFromWords(text: string, w: Who): Omit<Backstory, "text"> {
  * and the sheet's personality, ideals, bonds and flaws. From the model; offline (or if it can't be
  * reached), from the player's own sentences.
  */
-export async function finishBackstory(text: string, w: Who, options: { ask?: Ask } = {}): Promise<Backstory> {
+export async function finishBackstory(text: string, w: Who, options: { ask?: Ask | null } = {}): Promise<Backstory> {
   const ask = asker(options.ask);
   const story = text.trim();
   if (ask) {
