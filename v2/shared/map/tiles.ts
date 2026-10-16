@@ -1,5 +1,5 @@
-// Copied from the prototype's src/game/map/tiles.ts at 44c6d4a, whole; its types from ./types.ts. Added at the end: MapFile and LegendEntry (a map as campaign data: maps/<key>.json) and mapOf, which builds one with buildMap.
-import type { Interaction, MapActor, Region, Terrain, Tile, Tile2, TileMap } from "./types.ts";
+// Copied from the prototype's src/game/map/tiles.ts at 44c6d4a, whole; its types from ./types.ts. Added at the end: MapFile and LegendEntry (a map as campaign data: maps/<key>.json) and mapOf, which builds one with buildMap; and MapPerson, who's about on a map by the hour (presence.ts's town, as data).
+import type { Interaction, MapActor, Region, StoryState, Terrain, Tile, Tile2, TileMap } from "./types.ts";
 
 /**
  * Maps are authored as ASCII grids with a legend (one character per tile), so a person can read and
@@ -183,6 +183,27 @@ export interface MapFile {
   legend: Record<string, LegendEntry>;
   regions: PlaceRegion[];
   exits: TileMap["exits"];
+  /** Who's about at each hour of the day (presence.ts's town: the prototype's were written in it), in the order they're met. */
+  people?: MapPerson[];
+}
+
+/** Someone (or something) about on a map at some hours of the day: a sweeper in the morning, a lamplighter at dusk. */
+export interface MapPerson {
+  name: string;
+  glyph: string;
+  /** The townsfolk's colour (looks.ts) when it's not given. */
+  color?: string;
+  /** A person unless it says otherwise (a goose is a creature, a brazier an object). */
+  kind?: MapActor["kind"];
+  /** Where they stand (the nearest free spot to it, if that's taken). */
+  at: Tile2;
+  /** What they say when they're talked to, or what it is when it's looked at. */
+  text: string;
+  states?: string[];
+  /** In the way unless it says not. */
+  blocks?: boolean;
+  /** The hours they're about. */
+  times: Array<StoryState["time"]>;
 }
 
 /** A map file built as the prototype builds its maps: the tile map and the decor standing on it. */
