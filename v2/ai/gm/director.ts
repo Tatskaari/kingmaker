@@ -279,7 +279,7 @@ export interface BeforeAsked {
  * that simply happens), should a pacing cue fire, the same push again, earned, daft, out of
  * character, answering an ending on the brink, reaching for a limit. As the prototype's v2 approach
  * asks them, but for considered rolls, the co-GM and the rules: no roll_call, off_graph or mechanic,
- * the means asked only when a route's check is social, the limit without considered rolls' pretending.
+ * and the means asked only when a route's check is social (the only reading of it V0 has).
  */
 export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit): BeforeAsked {
   const attempts = transitionsFor(scene, state, "attempt");
@@ -323,9 +323,16 @@ export function beforeQuestions(scene: Scene, state: TurnView, brink?: Exit): Be
   // An ending held for the player's answer: are they answering it, or letting it happen?
   if (brink) questions.brink = brinkQuestion(brink);
   if (scene.limits?.length) {
+    // As the v2 approach asks it, pretending and all: a forged paper or a lie that they have one is
+    // a trick on someone, not a reach for the impossible. With no considered rolls to rule on it,
+    // V0's GM plays the trick (and the bill may answer it) rather than refusing it as a limit.
     questions.limit = {
-      instructions: "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on getting it.",
-      criteria: { ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])), none: "No: the player's turn doesn't depend on any of these." },
+      instructions: "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on getting it. Faking one isn't reaching for it: a forged paper, a fake badge or a lie that they have one of these is a trick the player is attempting on someone (choose pretending), unless what they're after by it is itself one of these.",
+      criteria: {
+        ...Object.fromEntries(scene.limits.map((l, i) => [`limit_${i}`, l])),
+        pretending: "The player fakes or claims one of these as a trick on someone (a forgery, a fake, a lie that they have it), to get something else.",
+        none: "No: the player's turn doesn't depend on any of these.",
+      },
     };
   }
   return { questions, attempts, cues, outcomes, tried, ...(brink ? { brink } : {}) };
