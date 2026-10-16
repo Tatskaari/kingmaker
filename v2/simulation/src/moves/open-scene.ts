@@ -1,0 +1,86 @@
+import { initialGm, type GmState } from "../../../shared/gm/state.ts";
+import type { OpenResponse } from "../../../shared/protocol/ai.ts";
+import { idOf, idText } from "../../../shared/protocol/keys.ts";
+import type { Scene } from "../../../shared/scene/types.ts";
+import type { TxCtx } from "../context.ts";
+import { keepOpened } from "../gm/bookkeeping.ts";
+import { openCall } from "../gm/requests.ts";
+import { getGm, putGm } from "../gm/rows.ts";
+import { gameRow, placeRow, playerRow, sceneRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
+import { campaignFile, campaignOfGame, graphOf, sceneDefOf, sceneFileOf, sceneGraph } from "../scenes.ts";
+import { addEntry, noteHeard } from "../transcript.ts";
+import { newTurn } from "../turns.ts";
+import { openPlace, type Start } from "../world/place.ts";
+import { syncStage } from "../world/stage.ts";
+import type { Move } from "./move.ts";
+import type { OpenPlan, Seen } from "./plans.ts";
+
+/**
+ * A scene opens (v0-design §4.3): its place built, the scene row and its GM bookkeeping, who's on
+ * stage, turn 0 holding the lease; then one think, the opening, streamed into turn 0's draft and
+ * committed as the transcript's first entry, and the scene goes live. `start` is what the character
+ * starts the game with: only the game's first scene hands it out.
+ */
+export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
+  name: "openScene",
+
+  resolve(tx, actor, { game: gameId, sceneKey, start }) {
+    const game = gameRow(tx, gameId);
+    const def = sceneDefOf(tx, game, sceneKey);
+    const graph = graphOf(def);
+    const gm = initialGm(graph);
+    const controller = playerRow(tx, actor.id!);
+
+    const scene = insertScene(tx, game, def, graph, gm, controller, start);
+    putGm(tx, scene.id, gm);
+    syncStage(tx, scene, graph, gm);
+    noteHeard(tx, scene, graph);
+
+    const turn = newTurn(tx, scene, controller.id, 0, "replying");
+    updateScene(tx, scene.id, { turnId: turn.id });
+    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id) } };
+  },
+
+  think: (tx, plan) => openCall(tx, plan),
+
+  /** The opening as the transcript's first entry, the notes disclosure opened kept, the scene live and the lease released. */
+  commit(tx, plan, answer) {
+    const opened = answer as OpenResponse;
+    const scene = sceneRow(tx, idOf(plan.scene));
+    const gm = getGm(tx, scene.id);
+
+    putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []) });
+    writeOpening(tx, scene, idOf(plan.turn), opened);
+    noteHeard(tx, scene, sceneGraph(tx, scene));
+
+    updateScene(tx, scene.id, { status: "live", turnId: undefined });
+    updateTurn(tx, idOf(plan.turn), { phase: "done", endedAt: tx.now, note: undefined });
+    return { done: true };
+  },
+};
+
+/** The scene's row, in its place (built now), with the controller and their character placed in both. */
+function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined): SceneRow {
+  const placeKey = sceneFileOf(def).place ?? campaignFile(campaignOfGame(tx, game)).startPlace;
+  const place = openPlace(tx, game, placeKey, graph, gm, controller, start);
+  const scene = tx.db.scene.insert({
+    id: 0n, gameId: game.id, sceneKey: def.key, title: def.title, hook: def.hook, kind: "scene", placeId: place.placeId,
+    status: "opening", controllerId: controller.id, turnId: undefined, turns: 0, exitKey: undefined, rev: 0, openedAt: tx.now, endedAt: undefined,
+  });
+
+  tx.db.place.id.update({ ...placeRow(tx, place.placeId), sceneId: scene.id });
+  tx.db.player.id.update({ ...playerRow(tx, controller.id), characterId: place.characterId, placeId: place.placeId, sceneId: scene.id });
+  return scene;
+}
+
+/** The opening's entries (turn 0, the GM's narration with its markup), and its draft gone. */
+function writeOpening(tx: TxCtx, scene: SceneRow, turnId: bigint, opened: OpenResponse): void {
+  for (const e of opened.entries) addEntry(tx, scene, { turn: 0, speaker: e.speaker, kind: e.kind, text: e.text, ...(e.markup ? { markup: e.markup } : {}) });
+  tx.db.replyDraft.turnId.delete(turnId);
+}
+
+/** The scene's and its place's revs now: a plan's record of what it saw. */
+export function seenOf(tx: TxCtx, sceneId: bigint): Seen {
+  const scene = sceneRow(tx, sceneId);
+  return { scene: scene.rev, place: placeRow(tx, scene.placeId).rev };
+}
