@@ -263,23 +263,43 @@ export function journal(game: Backend, out: Out): number {
 
 /**
  * Waits for the turn in flight to answer, and for the notes on its reply and the lines suggested
- * after it; then prints what answered it (not the line itself), the lines, and the phase.
+ * after it; then prints what answered it (not the line itself), the lines, and the phase. A line
+ * that ended the scene in a summons (the next scene came for the player as this one ended, the seat
+ * with it) prints what answered it as the scene last stood, then the next scene once it's opened.
  */
 async function answered(game: Backend, out: Out, waiting: Waiting): Promise<number> {
-  const turn = game.view()?.turn;
-  const stream = streamTo(out, waiting);
-  const replied = await viewWhen(game, v => finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(replied);
-  const after = await afterwards(game, replied, waiting);
-  const answer = after.entries.filter(e => e.turn === turn && e.kind !== "player");
-  if (answer.length) out.print(render(after, answer));
-  // A line that brought the fight on (or the story to its end): what comes next, as observe says it, as the QA console's say does.
-  const next = storyText(after);
-  if (next) { out.print(`\n${next}`); return 0; }
-  const actions = actionLines(after);
-  if (actions.length) out.print(`\n${actions.join("\n")}`);
-  out.print(`\n${phaseLine(after)}`);
-  return after.phase === "failed" ? 1 : 0;
+  const said = game.view();
+  const turn = said?.turn, scene = said?.sceneId;
+  // The scene the line was said in, as last seen: its rows go once the seat has moved on.
+  let last = said;
+  const stop = game.onChange(() => { const v = game.view(); if (v && v.sceneId === scene) last = v; });
+  try {
+    const stream = streamTo(out, waiting);
+    const replied = await viewWhen(game, v => v.sceneId !== scene || finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
+    stream.end(replied);
+    const after = await afterwards(game, replied, waiting);
+    const own = after.sceneId === scene ? after : last ?? after;
+    const answer = own.entries.filter(e => e.turn === turn && e.kind !== "player");
+    if (answer.length) out.print(render(own, answer));
+    if (after.sceneId !== scene) return await summoned(game, out, waiting);
+    // A line that brought the fight on (or the story to its end): what comes next, as observe says it, as the QA console's say does.
+    const next = storyText(after);
+    if (next) { out.print(`\n${next}`); return 0; }
+    const actions = actionLines(after);
+    if (actions.length) out.print(`\n${actions.join("\n")}`);
+    out.print(`\n${phaseLine(after)}`);
+    return after.phase === "failed" ? 1 : 0;
+  } finally {
+    stop();
+  }
+}
+
+/** The next scene, come for the player as the last ended (a summons): its opening over, its notes and lines in, then the scene. */
+async function summoned(game: Backend, out: Out, waiting: Waiting): Promise<number> {
+  const opening = await viewWhen(game, v => v.phase === "failed" || v.mayType || v.over || (!!v.watching && v.phase === "done"), waiting.ms ?? TURN_MS);
+  const opened = await afterwards(game, opening, waiting);
+  out.print(`\n${viewText(opened)}`);
+  return opened.phase === "failed" ? 1 : 0;
 }
 
 /**

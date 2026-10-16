@@ -310,8 +310,10 @@ export class SceneModel {
    * the prototype's status line opens on it.
    */
   busy(): string | undefined {
-    // The scene's over and the story is moving on (the boundary in flight): the prototype's word for it.
-    if (this.wayOn()?.to === "wait" && this.story?.onward === "moving") return "The story moves on…";
+    // The scene's over (or its fight is next): the prototype's word for the story moving on while it does, and
+    // nothing else (the notes on its last reply may still be written, and a scene the seat has left never says they are).
+    const way = this.wayOn();
+    if (way) return way.to === "wait" && this.story?.onward === "moving" ? "The story moves on…" : undefined;
     const { phase, draft } = this.view;
     if (phase === "queued" || phase === "deciding") return this.busyLine ?? "The GM is thinking…";
     if (phase === "considering") return CONSIDERING;

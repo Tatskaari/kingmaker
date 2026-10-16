@@ -68,7 +68,7 @@ export function viewText(view: SceneView, last = 8): string {
   const actions = actionLines(view);
   const blocks = [
     `MODE: scene`,
-    `[${view.title}${view.time ? `, ${view.time.toLowerCase()}` : ""}] ${here}`,
+    `[${view.title}${view.time ? `, ${view.time[0]!.toLowerCase()}${view.time.slice(1)}` : ""}] ${here}`,
     view.hook,
     render(view, view.entries.slice(-last)),
     view.draft ? `(${view.draft.name ?? "The GM"} is still speaking: ${view.draft.text}…)` : undefined,
