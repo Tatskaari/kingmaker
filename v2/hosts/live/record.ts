@@ -121,16 +121,17 @@ export async function offeredOf(stack: StackFile, sceneId: bigint): Promise<Offe
 
 interface Rows { scene: Row; player: Row; sheet: Row; gm?: Row; turns: Row[]; entries: Row[] }
 
-/** The game's rows as the owner reads them (times in microseconds, options as values or null). */
+/** The game's rows as the owner reads them (times in microseconds, options as values or null): the player and sheet are the scene's controller's. */
 async function rowsOf(stack: StackFile, gameId: bigint, sceneId: bigint): Promise<Rows> {
   const query = (q: string) => sql(stack.http, q, stack.owner.token);
-  const [[scene], [player], [sheet], [gm], turns, entries] = await Promise.all([
+  const [[scene], players, sheets, [gm], turns, entries] = await Promise.all([
     query(`SELECT * FROM scene WHERE id = ${sceneId}`), query(`SELECT * FROM player WHERE game_id = ${gameId}`),
     query(`SELECT * FROM sheet WHERE game_id = ${gameId}`), query(`SELECT * FROM gm_state WHERE scene_id = ${sceneId}`),
     query(`SELECT * FROM turn WHERE scene_id = ${sceneId}`), query(`SELECT * FROM transcript WHERE scene_id = ${sceneId}`),
   ]);
+  const lead = String(scene!.controller_id);
   return {
-    scene: scene!, player: player!, sheet: sheet!, ...(gm ? { gm } : {}),
+    scene: scene!, player: players.find(p => String(p.id) === lead)!, sheet: sheets.find(s => String(s.player_id) === lead)!, ...(gm ? { gm } : {}),
     turns: turns.sort((a, b) => Number(a.n) - Number(b.n)), entries: entries.sort((a, b) => Number(a.seq) - Number(b.seq)),
   };
 }
