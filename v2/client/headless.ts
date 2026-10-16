@@ -308,26 +308,36 @@ async function checkStory(game: Backend, story: string, accept: boolean, out: Ou
   const refused = await game.act("finishBackstory", { text: story });
   if (refused) return said(out, refused);
 
-  // Two looks at most: the story as written, then with the fixes in; a second look's fixes go in unchecked.
+  // Two looks at most: the story as written, then with the fixes in; a second look's fixes go in unchecked, so a third finds none.
   for (let look = 0; ; look++) {
-    const c = await creationWhen(game, c => c.busy !== "check", waiting);
-    const issues = jsonOf<LoreIssue[]>(c?.issues) ?? [];
-    if (!issues.length) {
-      const checked = c?.busy === "traits" || c?.step === "made";
-      if (c?.unchecked) out.print(c.unchecked);
-      else if (checked && look < 2) out.print(look ? "Backstory: with the fixes in, it fits." : "Backstory: it fits the world's lore.");
-      return await madeFrom(game, out, waiting);
-    }
-    for (const issue of issues) {
-      out.print(`Backstory${look ? " (checked again)" : ""}: "${issue.quote ?? "(the GM couldn't point at the words)"}" doesn't fit: ${issue.problem}\n  A fix that keeps its spirit: "${issue.fix}"`);
-      if (!accept) { out.print("  (not changed: --accept-fixes takes the fixes)"); continue; }
-      const taken = await game.act("acceptFix", {});
-      if (taken) return said(out, taken);
-      if (game.home().creation?.rewriting) { out.print("  (its words aren't in the backstory: rewrite it yourself)"); return failedWith(out, "\n(The creation is kept: play new again with the backstory rewritten.)"); }
-      out.print("  (fixed: --accept-fixes)");
-    }
-    if (!accept) return failedWith(out, "\n(The lore check found what doesn't fit: --accept-fixes takes its fixes, or rewrite the backstory. The creation is kept.)");
+    const issues = await lookedAt(game, look, out, waiting);
+    if (!issues.length) return await madeFrom(game, out, waiting);
+    const stopped = await takeFixes(game, issues, look, accept, out);
+    if (stopped !== undefined) return stopped;
   }
+}
+
+/** What a look of the lore check found: its issues, or none (and then whether it fit, or why nobody checked it). */
+async function lookedAt(game: Backend, look: number, out: Out, waiting: Waiting): Promise<LoreIssue[]> {
+  const c = await creationWhen(game, c => c.busy !== "check", waiting);
+  const issues = jsonOf<LoreIssue[]>(c?.issues) ?? [];
+  const checked = !issues.length && (c?.busy === "traits" || c?.step === "made");
+  if (c?.unchecked) out.print(c.unchecked);
+  else if (checked && look < 2) out.print(look ? "Backstory: with the fixes in, it fits." : "Backstory: it fits the world's lore.");
+  return issues;
+}
+
+/** Each issue said, and its fix taken with --accept-fixes; the exit code when it stops here (an issue left, or a fix whose words have gone), else undefined. */
+async function takeFixes(game: Backend, issues: LoreIssue[], look: number, accept: boolean, out: Out): Promise<number | undefined> {
+  for (const issue of issues) {
+    out.print(`Backstory${look ? " (checked again)" : ""}: "${issue.quote ?? "(the GM couldn't point at the words)"}" doesn't fit: ${issue.problem}\n  A fix that keeps its spirit: "${issue.fix}"`);
+    if (!accept) { out.print("  (not changed: --accept-fixes takes the fixes)"); continue; }
+    const refused = await game.act("acceptFix", {});
+    if (refused) return said(out, refused);
+    if (game.home().creation?.rewriting) { out.print("  (its words aren't in the backstory: rewrite it yourself)"); return failedWith(out, "\n(The creation is kept: play new again with the backstory rewritten.)"); }
+    out.print("  (fixed: --accept-fixes)");
+  }
+  return accept ? undefined : failedWith(out, "\n(The lore check found what doesn't fit: --accept-fixes takes its fixes, or rewrite the backstory. The creation is kept.)");
 }
 
 /** No backstory: straight to the character made. */
