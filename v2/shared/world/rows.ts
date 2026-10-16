@@ -69,6 +69,15 @@ export interface Keys {
 /** A player's character's key in the game. */
 export const pcKey = (playerId: Id | bigint) => `pc:${playerId}`;
 
+/**
+ * The keys for a place's rows in a scene, its controller's character (`pc`, "pc:<player id>") as
+ * `player`: what the simulation and the AI service both build them from (PlaceRows.place.key, the
+ * scene's key, TurnContext.pc), so the two map keys alike.
+ */
+export function keysFor(placeKey: string, sceneKey: string, pc: string): Keys {
+  return { placeKey, sceneKey, players: { [pc]: pc.replace(/^pc:/, "") }, controller: pc };
+}
+
 /** Is this an id the simulation hasn't given out yet (an entity new since the rows were read)? */
 export const isNewId = (id: Id) => id.startsWith("new:");
 

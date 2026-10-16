@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { CampaignFile, PlaceFile, SceneFile } from "../scene/files.ts";
 import { inventory } from "./inventory.ts";
-import { fullKey, isNewId, localKey, opToGame, opToLocal, rowsToWorld, worldToRows, type Keys, type PlaceRows } from "./rows.ts";
+import { fullKey, isNewId, keysFor, localKey, opToGame, opToLocal, pcKey, rowsToWorld, worldToRows, type Keys, type PlaceRows } from "./rows.ts";
 import { applyOps, buildWorld, joinWorld, worldView, type SceneWorld, type WorldOp } from "./scene-world.ts";
 
 /**
@@ -17,7 +17,7 @@ import { applyOps, buildWorld, joinWorld, worldView, type SceneWorld, type World
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const read = <T>(path: string) => JSON.parse(readFileSync(join(CAERWYN, path), "utf8")) as T;
-const keys: Keys = { placeKey: "granary-yard", sceneKey: "hanged-clerk", players: { "pc:1": "1" }, controller: "pc:1" };
+const keys: Keys = keysFor("granary-yard", "hanged-clerk", pcKey(1n));
 
 /** The world as the simulation opens the scene: the place, the cast present, the purse, the gear. */
 function openingWorld(): SceneWorld {
@@ -101,6 +101,8 @@ test("entities keep their ids and order by key; new ones come after, with provis
 
 test("game keys and local ids convert both ways, and so do the stage manager's operations", () => {
   const world = openingWorld();
+
+  assert.deepEqual(keys, { placeKey: "granary-yard", sceneKey: "hanged-clerk", players: { "pc:1": "1" }, controller: "pc:1" });
 
   assert.deepEqual(["player", "hanged-clerk:place", "kell", "elm"].map(l => fullKey(l, world.entities[l], keys)), ["pc:1", "granary-yard", "kell", "granary-yard/elm"]);
   assert.deepEqual(["pc:1", "granary-yard", "kell", "granary-yard/elm"].map(k => localKey(k, keys)), ["player", "hanged-clerk:place", "kell", "elm"]);
