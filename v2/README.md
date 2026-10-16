@@ -2,7 +2,7 @@
 
 The production build of Kingmaker, as the design has it: a client, a simulation and a stateless AI service.
 
-- **The client** is the prototype's OpenTUI screens, in a terminal: the title, character creation, the sheet and the scene. It talks only to the simulation.
+- **The client** is the prototype's OpenTUI screens, in a terminal: the title, character creation, the sheet, the town's map and the scene. It talks only to the simulation.
 - **The simulation** is a SpacetimeDB module, the authority on everything that happens: the moves, the world, every die.
 - **The AI service** (`kingmaker-ai`) is an HTTP service that does all the model work and keeps the words: the prompts, the lore and each game's documents. It holds nothing between requests, since each one carries the working set it needs, so it runs as a local process or a container for now, and on Cloud Run or as a Lambda later. It's the only part that calls OpenRouter. The simulation calls it from a scheduled procedure, and it streams the GM's words back through a reducer only it may call.
 
@@ -10,14 +10,22 @@ It's built a vertical at a time ([docs/verticals.md](docs/verticals.md)): a slic
 
 ## What you can play
 
-V1, who you are ([docs/v1-design.md](docs/v1-design.md)), on V5, the reply as drawn ([docs/v5-design.md](docs/v5-design.md)), and V0, a line in a scene ([docs/v0-design.md](docs/v0-design.md)): the title, a character made from a sentence, and the hanged clerk's scene with its replies drawn as the prototype draws them, end to end.
+Walk Caerwyn, the town's map between scenes ([docs/map-design.md](docs/map-design.md)), on V1, who you are ([docs/v1-design.md](docs/v1-design.md)), V5, the reply as drawn ([docs/v5-design.md](docs/v5-design.md)), and V0, a line in a scene ([docs/v0-design.md](docs/v0-design.md)): the title, a character made from a sentence, the town on the prototype's isometric map, and the hanged clerk's scene with its replies drawn as the prototype draws them, end to end.
 
 - **The title:** carry on one of your games (the three played last), start a new one, or delete one (x twice).
 - **A character from a sentence:** a name and who they are, and the GM offers three builds of three classes, each made legal by the rules engine and shown as a card; or make your own from the SRD's species, classes, subclasses and backgrounds.
 - **A backstory:** write it, have the GM draft one or work your notes in, and the GM checks it against Caerwyn's lore: what doesn't fit comes with a fix to accept or rewrite. Or skip it.
-- **The sheet the engine made**, before you set off: choose again, or set off into the hanged clerk. `/sheet` (or `/c`) shows it over the scene; `/quit` goes back to the title, the game kept.
+- **The sheet the engine made**, before you set off: choose again, or set off into Caerwyn. `/sheet` (or `/c`) shows it over the scene; `/quit` goes back to the title, the game kept.
 - **The scene, as V0 plays it:** talk with Kell, Cob and Moll; routes, checks, cues and endings work, and every check rolls through the rules engine on your sheet. The GM knows your backstory. A second terminal can watch the scene, row for row.
 - **The plumbing holds:** kill the AI service mid-turn, or SpacetimeDB, start it again, and the turn (or the character) finishes. A daily ceiling on what the models cost (`KM_AI_DAILY_USD`, $5) fails a move in the game's words once it's spent.
+
+The town between scenes (Walk Caerwyn), the prototype's map code dropped in on both sides:
+
+- **A game begins in the granary lane in the morning,** on the isometric map, the side panel saying where you are, the hour, the lead ("The Hanged Clerk", just south) and who's about.
+- **Walk the town** with the arrows or WASD (up is up the screen, steered along the streets), a click (a step at a time: any key stops it), or `g` for the lead. Walk into a wall and the wall wins. The people about go by the hour (the pie-seller, the goose and the sweeper in the morning), talk when you talk to them, and go by what you'd call them. Doors keep their hours: the Drowned Rat's opens at dusk, and the palace guards cross their halberds.
+- **Talk to Kell, or walk into the yard,** and the hanged clerk opens, as V0 opens it. A second terminal watches the map and follows into the scene.
+- **After the scene,** Enter takes you back to the map, where the scene left you, Kell beside you. The yard stays as play left it, and once you're out it's locked. The next lead is the whole story's (V3): until then, "Nowhere to walk to: the story comes to you from here."
+- **Headless,** `observe` on the map is the QA console's (`MODE: explore`, the map as text, `ACTIONS:`), and `act --id` takes any of its ids: `talk_kell`, `go_to_lead`, `walk_north`, `walk@30,22`, and `out` from a scene that's over.
 
 
 The reply as drawn (V5), in every scene:
@@ -28,20 +36,20 @@ The reply as drawn (V5), in every scene:
 - A spectator sees the same colours and notes, and no suggested lines: they're the lead's.
 - Headless: `ACTIONS:` lists the lines, `act --id say_2` says one, `suggestions on|off`; who says what, the notes and their cards print as `⟨…⟩` lines.
 
-Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines, V5's twelve, and V1's characters made from a sentence.
+Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines, V5's twelve, V1's characters made from a sentence, and the map's opening started by talking to Kell, beside the prototype's.
 
 ## The layout
 
 | Folder | What it is |
 |---|---|
-| [shared/](shared/) | Plain TypeScript the other three run: the requests and answers between the simulation and the AI service ([protocol/ai.ts](shared/protocol/ai.ts)), the idempotency keys, the refusals in the game's words, the markup's types, the dice, the scene's types, loader and graph, the GM's bookkeeping (`GmState`) and its row, the world with its rows, the rules code its hosts hand the engine ([rules/](shared/rules/), with the shim the engine needs) and character creation's types and text helpers ([creation/](shared/creation/)) |
-| [simulation/](simulation/) | The SpacetimeDB module: [schema.ts](simulation/src/schema.ts) (every table), [index.ts](simulation/src/index.ts) (every reducer, procedure and view), the moves (a scene's, and character creation's) and the job loop, each a plain function over the tables, the rules engine loaded and pinned (rules/), and the memory host that runs them in the tests |
+| [shared/](shared/) | Plain TypeScript the other three run: the requests and answers between the simulation and the AI service ([protocol/ai.ts](shared/protocol/ai.ts)), the idempotency keys, the refusals in the game's words, the markup's types, the dice, the scene's types, loader and graph, the GM's bookkeeping (`GmState`) and its row, the world with its rows, the rules code its hosts hand the engine ([rules/](shared/rules/), with the shim the engine needs), character creation's types and text helpers ([creation/](shared/creation/)), and the prototype's map code ([map/](shared/map/): the tiles, the walking, who's about, the town's actions), which the simulation and the client both run on the same rows |
+| [simulation/](simulation/) | The SpacetimeDB module: [schema.ts](simulation/src/schema.ts) (every table), [index.ts](simulation/src/index.ts) (every reducer, procedure and view), the moves (a scene's, character creation's and the map's) and the job loop, each a plain function over the tables, the rules engine loaded and pinned (rules/), and the memory host that runs them in the tests |
 | [ai/](ai/README.md) | The AI service: its HTTP server and stores (service/), the GM pipeline ported from the prototype (gm/), and the model client, prompts and docs service it shares with the prototype |
-| [client/](client/) | The client: the screens (ui/: the title, character creation, the sheet, the scene), the models over the rows that pick and feed them (app/, title/, creation/, scene/, sheet/), the connection that follows the player's seat (net/), the demo, the headless verbs, and the bindings the CLI generates from the module ([module_bindings/](client/module_bindings/), committed) |
-| [campaigns/caerwyn/](campaigns/caerwyn/) | The campaign as data: campaign.json (with the world a backstory is written for), the hanged clerk's scene.json and its Markdown, the granary yard as a world, the ready-made characters (builds.json: a concept and a build each), the cast's looks, and the 154 lore docs |
+| [client/](client/) | The client: the screens (ui/: the title, character creation, the sheet, the map, the scene), the models over the rows that pick and feed them (app/, title/, creation/, explore/, scene/, sheet/), the prototype's look layer and map renderer (look/, map/), the connection that follows the player's seat (net/), the demo, the headless verbs, and the bindings the CLI generates from the module ([module_bindings/](client/module_bindings/), committed) |
+| [campaigns/caerwyn/](campaigns/caerwyn/) | The campaign as data: campaign.json (with the world a backstory is written for, and where a game starts on the map), the hanged clerk's scene.json and its Markdown, the granary yard as a world, the town's four maps (maps/: Caerwyn with who's about at each hour, the Drowned Rat, the Heron and the palace), the ready-made characters (builds.json: a concept and a build each), the cast's looks, and the 154 lore docs |
 | [vendor/](vendor/) | Vendored code, as it is but for what its README says: the D&D rules engine made ready for a SpacetimeDB module, its content pack, and the SRD's spell texts |
 | [hosts/](hosts/) | The composition roots, the only code that reads env or argv: the AI service, the client and the headless client, the dev stack ([hosts/dev/README.md](hosts/dev/README.md)), the doctor, the campaign tool and its install, the local host, the e2e and the live run |
-| [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), the blueprints with how each was built ([v0-design.md](docs/v0-design.md), [v5-design.md](docs/v5-design.md), [v1-design.md](docs/v1-design.md)) and the recorded live runs ([live/](docs/live/)) |
+| [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), the blueprints with how each was built ([v0-design.md](docs/v0-design.md), [v5-design.md](docs/v5-design.md), [v1-design.md](docs/v1-design.md), [map-design.md](docs/map-design.md)) and the recorded live runs ([live/](docs/live/)) |
 | `runs/` | Run output, never committed: the stacks' data, keys and logs, the client's sessions, the live run's rehearsals, the CLI's config for building |
 
 v2 doesn't import the prototype: what it needs of it is copied, and each copy's first line names its source at the commit it came from and the edits made. v2/ai is the one place the two share, and there the prototype imports v2.
@@ -90,7 +98,7 @@ npm run client -- --session tamsin       # the title: New game makes a character
 npm run client -- --session wren --join 1     # watch game 1: the number in its player's side panel
 ```
 
-The session (`runs/play/<name>`) keeps one identity, so `--session tamsin` comes back to the same games. `--new "Name: concept"` goes straight to making that character; `--new "Name: concept" --build cleric|fighter|ranger|rogue|wizard` starts a ready-made one at once. `npm run client -- --demo` plays the title, a character and a scene on canned rows with no server at all. `/help` in a scene says how to play and lists its commands; `/quit` goes to the title; Ctrl+C leaves. The cards in the notes need room: at 80x24, with the lines over the box, a note shows without its card (the prototype's rule), so try 100x30 or more.
+The session (`runs/play/<name>`) keeps one identity, so `--session tamsin` comes back to the same games. `--new "Name: concept"` goes straight to making that character; `--new "Name: concept" --build cleric|fighter|ranger|rogue|wizard` starts a ready-made one at once. `npm run client -- --demo` plays the title, a character, the map and a scene on canned rows with no server at all. `/help` in a scene says how to play and lists its commands; `/quit` goes to the title; Ctrl+C leaves. The cards in the notes need room: at 80x24, with the lines over the box, a note shows without its card (the prototype's rule), so try 100x30 or more.
 
 Headless, for agents and QA (the prototype's QA verbs, one a process):
 
@@ -99,10 +107,13 @@ npm run play -- builds --session t --as "Tamsin Vell: a disgraced palace auditor
 npm run play -- new --session t --as "Tamsin Vell: a disgraced palace auditor with a ledger-keeper's eye" \
   --build 2 --backstory "I'm the King's nephew. I owe Fat Jory three crowns." --accept-fixes
 npm run play -- sheet --session t
+npm run play -- observe --session t                # on the map: MODE: explore, the map as text, ACTIONS
+npm run play -- act --session t --id talk_kell     # over to Kell: the hanged clerk opens, and waits for the opening
 npm run play -- say --session t "Sergeant, who found him?"
 npm run play -- act --session t --id say_2         # say the second suggested line
 npm run play -- suggestions --session t off        # or on: asks for this moment's at once
-npm run play -- --help      # builds, new, sheet, games, continue, delete, begin, join, observe, say, act, suggestions, retry, transcript
+npm run play -- act --session t --id out           # once the scene is over: back to the map
+npm run play -- --help      # builds, new, sheet, games, continue, delete, begin, join, observe, say, act, suggestions, retry, transcript, map
 ```
 
 ### Host mode and namespace mode
@@ -127,9 +138,9 @@ For good, a dummy interface: `sudo nmcli connection add type dummy ifname km0 co
 | Command | What it checks | Takes |
 |---|---|---|
 | `npm run check` | The type check (v2's, and the module's under its own lib); the unit tests: shared, the simulation on its memory host, the AI service and its prompt parity with the prototype, the client, the hosts, and the hanged clerk's endings, notes and suggested lines played on the local host; then the client's screen check | about 20 s |
-| `npm run e2e` | A line in a scene and a character made, end to end on a real SpacetimeDB (ports 3310 and 8797, `runs/e2e`): two clients, a spectator's refusals, the AI service killed mid-reply, restarted mid-reply and gone after it kept an answer, SpacetimeDB restarted mid-think, and an ending; the reply as drawn: who says each line as it streams, the notes the turn waits for, a line said while they're written, the suggested lines (a spectator gets none, `act` says one, a late set is dropped, off and on), and the notes kept by the AI service as it died; then a concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted while the builds are made, a character made and checks rolled beside another game's stream, the daily ceiling, continue and delete | about 5 min |
-| `npm run arc` | The prototype's whole-arc check on a stack of its own (3320 and 8807, `runs/arc`): the checks the verticals so far turn on (1 of 16: the character is built by the rules engine), the rest skipped with the unit that brings each | about 30 s |
-| `npm run live -- --script v5` | A new game and V5's twelve lines against the running dev stack, with real models, recorded in `docs/live/` with each turn's speakers, notes, cards and lines (stops before $0.10); `--lines 4` without `--script` is V0's; `--creation` is V1's: three concepts' builds, then a character made through the lore check to the opening and a line (about $0.02). None writes over a record: a second run the same day goes beside the first (`v5-<date>-2.md`), and `--rehearse`, on the fake model, writes to `runs/live/` | about 90 s, $0.06 |
+| `npm run e2e` | A line in a scene and a character made, end to end on a real SpacetimeDB (ports 3310 and 8797, `runs/e2e`): two clients, a spectator's refusals, the AI service killed mid-reply, restarted mid-reply and gone after it kept an answer, SpacetimeDB restarted mid-think, and an ending; the reply as drawn: who says each line as it streams, the notes the turn waits for, a line said while they're written, the suggested lines (a spectator gets none, `act` says one, a late set is dropped, off and on), and the notes kept by the AI service as it died; then a concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted while the builds are made, a character made and checks rolled beside another game's stream, the daily ceiling, continue and delete; the map: each game starts in the granary lane and is talked or walked into its scene (a spectator seeing the same walk), back to the map after the ending, the yard locked once you're out, the Drowned Rat shut in the morning, and the map moves' times | about 5 min |
+| `npm run arc` | The prototype's whole-arc check on a stack of its own (3320 and 8807, `runs/arc`): the checks the verticals so far turn on (4 of 16: the character is built by the rules engine; the story starts in the morning, heading for the granary; observe in the lane, Kell to talk to; the granary yard opens the hanged clerk), the rest skipped with the unit that brings each | about 30 s |
+| `npm run live -- --script v5` | A new game and V5's twelve lines against the running dev stack, with real models, recorded in `docs/live/` with each turn's speakers, notes, cards and lines (stops before $0.10); `--lines 4` without `--script` is V0's; `--creation` is V1's: three concepts' builds, then a character made through the lore check to the opening and a line (about $0.02); `--script map` is the map's: the opening started by talking to Kell in the lane, then three lines. Every script now starts on the map and opens its scene by talking to Kell. None writes over a record: a second run the same day goes beside the first (`v5-<date>-2.md`), and `--rehearse`, on the fake model, writes to `runs/live/` | about 90 s, $0.06 |
 | `npm run campaign -- check campaigns/caerwyn` | The campaign folder is fit to install | a second |
 | `npm run simulation:generate` | Regenerates `client/module_bindings` from the module: run it after any change to a table, reducer or view, and commit the result (CI checks) | seconds |
 

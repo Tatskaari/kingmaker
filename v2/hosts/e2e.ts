@@ -14,6 +14,7 @@ import {
   aiLog as aiLogIn, callLog as callLogOf, check, doneTurn, elapsed, escaped, Failed, millis, modelCalls as modelCallsOf, moduleLog, nextTurn, ok, pause,
   player, restartAi, seconds, step, turnOf, until, type Player,
 } from "./e2e/kit.ts";
+import { backToTheMap, inTheLane, mapTimes } from "./e2e/map.ts";
 
 /**
  * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3): a line in a scene, and a
@@ -27,8 +28,11 @@ import {
  * kept by the AI service as it died, and the lines turned off and on. V1's (e2e/creation.ts): a
  * concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted
  * while the builds are made, a character made and checks rolled beside another game's stream, the
- * daily ceiling, continue and delete. Host mode in CI; namespace mode where 11.0.0.1 isn't this
- * machine's.
+ * daily ceiling, continue and delete. The map's (e2e/map.ts, map-design §4): each game starts on
+ * the campaign's map, in the granary lane, and is walked or talked into its scene (step 2 talks to
+ * Kell; step 17 walks in with a spectator seeing the same walk; C's game walks in), then back to the
+ * map after the ending, the yard locked once you're out and the Rat shut in the morning (14a), and
+ * the map moves' times (22). Host mode in CI; namespace mode where 11.0.0.1 isn't this machine's.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -92,6 +96,7 @@ try {
   await keptNotes(stack, a, game);
   await linesOffAndOn(stack, a, game);
   await anEnding(stack, a, b, game);
+  await backToTheMap(stack, a, b, game.id);
 
   const fake = creationFake(FAKE);
   const made = await aConceptToTheOpening(stack, flags.root, a, b, fake);
@@ -127,12 +132,21 @@ async function installedAndWell(stack: Stack): Promise<void> {
   check(`the doctor finds all well: ${report.summary}`, report.ok);
 }
 
-/** 2. A's new game: the opening streams into its draft, naming who says each line as it grows, before its entry lands; the scene goes live. */
+/**
+ * 2. A's new game begins on the map, in the granary lane (a line there is refused); a word with Kell
+ * opens the hanged clerk (map-design §4): the opening streams into its draft, naming who says each
+ * line as it grows, before its entry lands; the scene goes live.
+ */
 async function theOpening(stack: Stack, a: Player): Promise<Game> {
-  step("2. A new game, its opening streamed with who says each line");
+  step("2. A new game in the granary lane; talking to Kell opens the hanged clerk, its opening streamed with who says each line");
   await restartAi(stack, OPENING);
   check("A's new_game is made", (await a.conn.newGame(NEW_GAME)) === undefined);
+  await inTheLane(a);
+  check("a line said on the map is refused: not_in_scene", (await a.conn.say("Sergeant?"))?.code === "not_in_scene");
+  check("A talks to Kell (interact talk kell)", (await a.conn.interact({ verb: "talk", target: "kell" })) === undefined);
   const rows = await until(a, "the scene to go live", 60_000, r => r.scene.status === "live" && r);
+  const walked = a.conn.explore();
+  check(`A went over to Kell in the yard, and the hanged clerk opened: "${walked?.said}"`, walked?.ex.scene === "hanged-clerk" && /Kell/.test(walked.said) && rows.scene.title === "The Hanged Clerk");
   const entry = a.events.findIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === 0);
   const drafts = a.events.slice(0, entry).filter(e => e.table === "reply_draft" && e.op !== "delete");
   check(`A saw the opening's draft grow (${drafts.length} posts) before its entry landed`, entry >= 0 && drafts.length >= 2);
@@ -412,9 +426,9 @@ async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise
   ok("B saw it end too");
 }
 
-/** 22. Each turn's first words and its end, from the turn rows, game by game; its notes and lines after the reply, as A saw them come (A's games). */
+/** 22. Each turn's first words and its end, from the turn rows, game by game; its notes and lines after the reply, as A saw them come (A's games); the map moves' times. */
 async function latencies(stack: Stack, a: Player): Promise<void> {
-  step("22. Each turn's times: first words and its end (the turn rows), its notes and lines after the reply (as A saw them)");
+  step("22. Each turn's times: first words and its end (the turn rows), its notes and lines after the reply (as A saw them); the map moves' times");
   const turns = (await stack.sql("SELECT * FROM turn")).sort((x, y) => Number(x.game_id) - Number(y.game_id) || Number(x.n) - Number(y.n));
   for (const t of turns) {
     const from = Number(t.started_at);
@@ -422,6 +436,7 @@ async function latencies(stack: Stack, a: Player): Promise<void> {
     const done = t.ended_at === null ? "" : `, done ${millis(Number(t.ended_at) - from)}`;
     console.log(`  game ${t.game_id} turn ${t.n}: ${first}${done} (${t.phase}, ${t.calls} model calls)${afterTheReply(a, String(t.id), String(t.scene_id), Number(t.n))}; notes ${t.notes}, lines ${t.suggest}`);
   }
+  await mapTimes(stack);
 }
 
 // ---------------------------------------------------------------------------------------------

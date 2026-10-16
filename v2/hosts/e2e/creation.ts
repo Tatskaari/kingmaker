@@ -12,6 +12,7 @@ import {
   aiLog, callLog, check, doneTurn, escaped, homeUntil, modelCalls, moduleLog, nextTurn, note, ok, pause, player, restartAi, seconds,
   step, turnOf, until, type Player,
 } from "./kit.ts";
+import { aWalkBothSee, inTheLane } from "./map.ts";
 
 /**
  * The e2e's steps for character creation (v1-design §4.3, C1-C6), after V0's and V5's: a concept to
@@ -46,7 +47,9 @@ export function creationFake(fake: FakeOptions): FakeOptions {
  * 15. A's character from a concept: three cards of three classes, the first chosen, a draft taken,
  * Done with the AI service exiting right after it stored the lore check's answer (and started again,
  * the check answered from its store), traits, the game made with the card's numbers; B refused
- * before begin; begin, the opening streamed with the backstory in its brief; B watching.
+ * before begin; begin, on the map in the granary lane (map-design §3.3); B watching from there; A's
+ * walk from the lane into the yard, which both see alike, opens the scene (e2e/map.ts); the opening
+ * streamed with the backstory in its brief.
  */
 export async function aConceptToTheOpening(stack: Stack, root: string, a: Player, b: Player, fake: FakeOptions): Promise<Game> {
   step("15. A character from a concept, to the opening");
@@ -82,9 +85,13 @@ export async function aConceptToTheOpening(stack: Stack, root: string, a: Player
   check("the sheet's backstory is the draft, with what it says of her", jsonOf<{ text: string; summary: string }>(sheet.backstory)?.summary === SUMMARY);
   check("B's join_game before begin is refused: not_begun", (await b.conn.joinGame(game))?.code === "not_begun");
 
-  step("17. Set off: the opening, with who she is in its brief");
+  step("17. Set off: on the map, B watching; A walks from the lane into the yard; the opening, with who she is in its brief");
   const from = a.events.length;
   check("A's begin is made", (await a.conn.act("begin", {})) === undefined);
+  await inTheLane(a, game);
+  check("B's join_game is made, now it's begun: on the map", (await b.conn.joinGame(game)) === undefined);
+  await inTheLane(b, game);
+  await aWalkBothSee(a, b);
   const rows = await until(a, "the opening to go live", 60_000, r => r.game.id === game && r.scene.status === "live" && r);
   const seen = a.events.slice(from);
   const entry = seen.findIndex(e => e.table === "transcript" && e.op === "insert" && e.row.turn === 0);
@@ -93,7 +100,6 @@ export async function aConceptToTheOpening(stack: Stack, root: string, a: Player
   check("the creation is gone with begin", a.conn.home().creation === undefined);
   const opening = callLog(root, uid).find(c => c.operation === "gm.opening" && c.request);
   check("the gm.opening call's input has the backstory's summary", !!opening && JSON.stringify(opening.request).includes(SUMMARY));
-  check("B's join_game is made, now it's begun", (await b.conn.joinGame(game)) === undefined);
   await until(b, "B to see A's opening", 10_000, r => r.game.id === game && r.transcript.some(t => t.turn === 0));
   ok(`B watches game ${game}`);
   return { id: game, uid, scene: rows.scene.id };
@@ -168,6 +174,7 @@ async function cPlays(c: Player): Promise<void> {
   check("C takes card 2 and skips the backstory", (await c.conn.act("chooseBuild", { index: 1 })) === undefined && (await c.conn.act("skipBackstory", {})) === undefined);
   const game = await homeUntil(c, "C's game made", 10_000, r => r.creation?.step === "made" && r.creation.gameId);
   check(`C sets off in game ${game}`, (await c.conn.act("begin", {})) === undefined);
+  check("C walks from the lane to the lead (walk toward lead)", (await c.conn.walk({ toward: "lead" })) === undefined);
   await until(c, "C's opening", 60_000, r => r.game.id === game && r.scene.status === "live");
   for (const line of ["Moll, you never saw him jump, did you?", "Moll, who paid you to say it?"]) {
     const n = nextTurn(c);
@@ -262,7 +269,7 @@ export async function continueAndDelete(stack: Stack, a: Player, b: Player, firs
 /** The registry's tables (games/delete.ts), each with the column that ties a row to the game, a player, a scene, a place or a job. */
 const TABLES: Array<[table: string, column: string, by: keyof Ids]> = [
   ["game", "id", "game"], ["sheet", "game_id", "game"], ["rules_state", "game_id", "game"], ["dice", "game_id", "game"], ["job", "game_id", "game"],
-  ["creation", "game_id", "game"], ["player", "game_id", "game"], ["scene", "game_id", "game"], ["place", "game_id", "game"],
+  ["creation", "game_id", "game"], ["player", "game_id", "game"], ["scene", "game_id", "game"], ["place", "game_id", "game"], ["explore", "game_id", "game"],
   ["seat", "player_id", "players"], ["heard", "player_id", "players"],
   ["gm_state", "scene_id", "scenes"], ["on_stage", "scene_id", "scenes"], ["reply_draft", "scene_id", "scenes"], ["turn", "scene_id", "scenes"], ["transcript", "scene_id", "scenes"],
   ["scene_suggestion", "scene_id", "scenes"],

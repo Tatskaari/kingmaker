@@ -2,6 +2,7 @@
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { newGameOf, type HomeRows } from "../client/backend.ts";
+import type { ExploreView } from "../client/explore/rows.ts";
 import * as verbs from "../client/headless.ts";
 import { connect, type Connection } from "../client/net/connection.ts";
 import type { Mode } from "./dev/mode.ts";
@@ -11,9 +12,9 @@ import { startStack, type Stack } from "./dev/stack.ts";
  * The arc check (verticals.md §2, v1-design §4.5): the prototype's whole-arc check
  * (src/app/smoke/flow.ts at 44c6d4a) on the split. A stack of its own on the fake model, the
  * headless client's `play new` as the prototype's flow makes its character (a sentence, no build:
- * the model picks one), then the flow's sixteen checks in its order, each on once the vertical that
- * brings it has landed. The rest say which unit turns them on. Exits 0 when every check that's on
- * passes.
+ * the model picks one), then, on the map, observe and go_to_lead as the flow's walkToLead does
+ * (flow.ts:22-27), then the flow's sixteen checks in its order, each on once the vertical that brings
+ * it has landed. The rest say which unit turns them on. Exits 0 when every check that's on passes.
  *
  *   npm run arc [-- --port 3320] [--ai-port 8807] [--root runs/arc] [--mode host|namespace]
  */
@@ -27,8 +28,12 @@ const USAGE = `npm run arc [-- options]
 /** The prototype's flow's character (flow.ts:31). */
 const WHO = "Tamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
 
-/** What a check reads: the player's rows once the game is made and begun. */
-interface Arc { conn: Connection; home: HomeRows }
+/**
+ * What a check reads: the player's rows once the game is made and begun; on the map (V2), the map as
+ * the game began (`start`), observe's text there (`observed`), and where go_to_lead left the player
+ * (`walked`: the explore view, with what it said and the scene it opened, or why it didn't).
+ */
+interface Arc { conn: Connection; home: HomeRows; start?: ExploreView; observed?: string; walked?: { view?: ExploreView; printed: string; code: number } }
 
 /** One of the flow's checks: what it holds, the unit that turns it on, and, once on, what it found (or undefined when it doesn't hold). */
 interface ArcCheck { what: string; unit: string; run?(arc: Arc): string | undefined }
@@ -36,9 +41,9 @@ interface ArcCheck { what: string; unit: string; run?(arc: Arc): string | undefi
 /** The flow's sixteen, in its order (append-only: a vertical gives a check its `run`). */
 const CHECKS: ArcCheck[] = [
   { what: "the character is built by the rules engine", unit: "V1", run: builtByTheEngine },
-  { what: "the story starts in the morning, heading for the granary", unit: "V2" },
-  { what: "observe: the lane by the granary gate, Kell to talk to", unit: "V2" },
-  { what: "the granary yard opens the hanged clerk", unit: "V2" },
+  { what: "the story starts in the morning, heading for the granary", unit: "V2", run: theMorning },
+  { what: "observe: the lane by the granary gate, Kell to talk to", unit: "V2", run: theLane },
+  { what: "the granary yard opens the hanged clerk", unit: "V2", run: theYard },
   { what: "the scene's place is drawn with the player in it", unit: "V9" },
   { what: "on to the Drowned Rat at dusk", unit: "V3" },
   { what: "Kell walks with the investigator", unit: "V3" },
@@ -57,6 +62,27 @@ const CHECKS: ArcCheck[] = [
 function builtByTheEngine({ home }: Arc): string | undefined {
   const build = home.sheet?.build ?? "", status = home.sheet?.statusLine ?? "";
   return /^\S+ \S+ 3 \([^)]+\), .+ background$/.test(build) && status.startsWith("HP ") ? `${build}: ${status}` : undefined;
+}
+
+/** Check 2 (flow.ts:33): the story as the game begins on the map, its lead the hanged clerk, in the morning. */
+function theMorning({ start, home }: Arc): string | undefined {
+  const story = start?.ex.story;
+  const where = home.games.find(g => g.gameId === home.seat?.gameId)?.where;
+  return story?.lead === "hanged-clerk" && story.time === "morning" ? `${story.time}, the lead ${story.lead}; my_games: ${where}` : undefined;
+}
+
+/** Check 3 (flow.ts:34-35): observe on the map says where the player is, and offers Kell to talk to. */
+function theLane({ observed }: Arc): string | undefined {
+  const line = observed?.split("\n").find(l => l.startsWith("- talk_kell:"));
+  return observed && /Caerwyn: the granary lane, morning/.test(observed) && line ? `"Caerwyn: the granary lane, morning", ${line}` : undefined;
+}
+
+/** Check 4 (flow.ts:37-38): go_to_lead walks into the yard, and the hanged clerk opens: the scene played, and the seat in it. */
+function theYard({ walked, conn }: Arc): string | undefined {
+  const ex = walked?.view?.ex;
+  const scene = conn.rows()?.scene;
+  const ok = walked?.code === 0 && ex?.scene === "hanged-clerk" && scene?.title === "The Hanged Clerk" && conn.home().seat?.sceneId === scene.id;
+  return ok ? `${ex.map} (${ex.at.x},${ex.at.y}) in ${ex.scene}: "${walked.printed.split("\n")[0]}"` : undefined;
 }
 
 const flags = flagsOf(process.argv.slice(2));
@@ -89,16 +115,31 @@ process.exit(failed ? 1 : 0);
 
 // ---------------------------------------------------------------------------------------------
 
-/** The campaign installed, then play new as the flow makes its character: the game made and begun. */
+/**
+ * The campaign installed, then play new as the flow makes its character: the game made and begun.
+ * On the map, observe, then go_to_lead as the flow walks to its lead (flow.ts:22-27), each printed.
+ */
 async function theStory(stack: Stack): Promise<Arc> {
   await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
   const conn = await connect({ url: stack.ws, db: stack.db });
   const who = newGameOf(WHO, "", "caerwyn");
-  const printed: string[] = [];
-  const code = await verbs.newCharacter(conn, { campaign: who.campaign, name: who.name, concept: who.concept }, { print: text => printed.push(text), progress: () => {} });
-  console.log(`\nplay new --as "${WHO}"\n${printed.join("\n").replace(/^/gm, "  | ")}\n`);
-  if (code !== 0) throw new Error(`play new exited ${code}`);
-  return { conn, home: conn.home() };
+  const run = async (verb: string, play: (out: verbs.Out) => Promise<number> | number) => {
+    const printed: string[] = [];
+    const code = await play({ print: text => printed.push(text), progress: () => {} });
+    console.log(`\nplay ${verb}\n${printed.join("\n").replace(/^/gm, "  | ")}\n`);
+    return { code, printed: printed.join("\n") };
+  };
+  const made = await run(`new --as "${WHO}"`, out => verbs.newCharacter(conn, { campaign: who.campaign, name: who.name, concept: who.concept }, out));
+  if (made.code !== 0) throw new Error(`play new exited ${made.code}`);
+  const arc: Arc = { conn, home: conn.home() };
+  const start = conn.explore();
+  if (!start) return arc;
+  arc.start = start;
+  arc.observed = (await run("observe", out => verbs.observe(conn, out))).printed;
+  const walked = await run("act --id go_to_lead", out => verbs.act(conn, "go_to_lead", out));
+  const view = conn.explore();
+  arc.walked = { ...(view ? { view } : {}), printed: walked.printed, code: walked.code };
+  return arc;
 }
 
 /** Each check in turn: "ok" or "FAIL" for those on, "skip" with the unit for the rest. How many failed. */
