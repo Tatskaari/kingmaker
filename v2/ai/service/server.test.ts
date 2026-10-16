@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import type { DecideRequest, OpenRequest } from "../../shared/protocol/ai.ts";
@@ -8,6 +10,7 @@ import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
 import { Failure, type Endpoints } from "./context.ts";
 import { canned } from "./endpoints/canned.ts";
+import { pipeline } from "./endpoints/pipeline.ts";
 import { folderStores } from "./folder-stores.ts";
 import { aiService, type AiHttpRequest, type ServiceOptions } from "./server.ts";
 
@@ -212,4 +215,36 @@ test("shutting down, it takes nothing new: 503 not_ready", async () => {
 
   assert.equal(answer.status, 503);
   assert.equal(JSON.parse(answer.body).error.code, "not_ready");
+});
+
+test("over HTTP on node's server (port 0): the same answers, and a body over its limit is a 413", async () => {
+  const { ai } = service();
+  const server = createServer((req, res) => ai.handle(req, res));
+  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  try {
+    const health = await fetch(`${base}/v1/health`, { headers: { authorization: `Bearer ${TOKEN}` } });
+    const installed = await fetch(`${base}/v1/campaigns/caerwyn/0.1.0`, { method: "PUT", headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" }, body: put().body });
+    const decided = await fetch(`${base}/v1/turns/decide`, { method: "POST", headers: post("/v1/turns/decide", decideRequest()).headers as Record<string, string>, body: JSON.stringify(decideRequest()) });
+    const huge = await fetch(`${base}/v1/turns/decide`, { method: "POST", headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" }, body: "x".repeat(3 << 20) });
+
+    assert.deepEqual([health.status, (await health.json() as { token: string }).token], [200, "accepted"]);
+    assert.equal(installed.status, 200);
+    assert.equal(decided.status, 200);
+    assert.deepEqual((await decided.json() as { decision: unknown }).decision, { earned: false, daft: false, outOfCharacter: false });
+    assert.equal(huge.status, 413);
+  } finally {
+    server.close();
+  }
+});
+
+test("on the pipeline, a think missing what every think reads is a 400 (the module doesn't retry it), not the model's 500", async () => {
+  const { ai } = service({ endpoints: pipeline });
+  await ai.answer(put());
+  const request = decideRequest();
+  const noWorld = { ...request, turn: { ...request.turn, world: undefined } };
+  const answer = await ai.answer(post("/v1/turns/decide", noWorld as unknown as DecideRequest));
+
+  assert.equal(answer.status, 400);
+  assert.match(JSON.parse(answer.body).error.message, /the request is missing the world's rows/);
 });

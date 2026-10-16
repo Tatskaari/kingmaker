@@ -14,9 +14,21 @@ import { Failure, type AiContext } from "../context.ts";
  * of it, which the GM code reads as the prototype's session.
  */
 export function sceneAndView(ctx: AiContext, key: string, source: ViewSource): { scene: Scene; view: TurnView } {
-  if (!source.party[0]) throw new Failure(400, "bad_request", "the request's party has no character in it");
+  checkShape(source);
   const scene = effectiveScene(ctx.campaign.scene(key), source.gm.patches);
   return { scene, view: viewOf(source, scene) };
+}
+
+/** A request missing what every think reads is the sender's mistake (400, which the module doesn't retry), not the model's. */
+function checkShape(source: ViewSource): void {
+  const missing = [
+    !source.gm?.beat && "gm (the scene's bookkeeping)",
+    !Array.isArray(source.transcript) && "the transcript",
+    !source.world?.place?.key && "the world's rows",
+    !source.party?.[0]?.name && "a character in the party",
+    !/^pc:/.test(source.pc ?? "") && "pc (the controller's character's key)",
+  ].filter(Boolean);
+  if (missing.length) throw new Failure(400, "bad_request", `the request is missing ${missing.join(", ")}`);
 }
 
 /** The deciders the prototype's v2 approach uses: Luna's decision mode for the director, and Jev for disclosure (the docs service's own). */
