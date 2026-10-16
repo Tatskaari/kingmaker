@@ -255,3 +255,20 @@ The packages' reports (A to F, in the author's scratchpad) and the PR give the f
 - **The fake's hand-off.** On the fake, the hand-off was the yard's golden reply, markup and all, so the notebook's "how things stood" showed it raw. The fake now answers the hand-off's instructions with `handoff` when it's given, and `fake.json` gives a plain one that fits any boundary.
 - **`npm run status`** shows what the boundary handed on to the scene, and the story: the lead, each chapter, the quests, flags, followers and attitudes.
 - **The e2e's steps 26 to 29** play the whole story with a spectator (each turn's times are now step 30). **The arc** turns on checks 6 to 11 and 13 to 16: 11 ("Roll for initiative!") and 13 (back to the Heron for its aftermath) with the stand-in, 12 (Sallow and the Crakes in the fight) still V12's. **The local host** has one test of a boundary through the pipeline. **`npm run live -- --script story`** is the live run.
+
+### The live run, beside the prototype
+
+[docs/live/story-2026-10-16.md](live/story-2026-10-16.md): `npm run live -- --script story` on real models, the whole story from the yard to The End with each scene ended by the owner, **$0.0336** for 56 calls; beside it, the prototype's QA console on the same steps as far as the Heron's fight (its fight is the tactical one, V12's), **$0.0155**: $0.0491 in all.
+
+- **What matched:** the yard's and the Rat's hand-offs say the same things (the death recorded as murder by persons unknown and the case open; Hobb's admission, in Kell's hearing, neither arrested nor fled), the same fronts move on, the lead to the Rat is Kell's same reasoning (the big man by the Purveyor's wagons, the scraped hand, down the river stairs at dusk), the Rat's opening ends on the same line ("Rule four, my duck. Are you on duty?"), the Heron's rewritten opening is all but word for word the prototype's, and the page in Cob's boot is owed on in both.
+- **What differed:** presence left Hobb absent at the Heron's start in v2 and nobody in the prototype (one model reading each); v2's openings cost more (their notes, suggested lines and memory disclosure); the boundary took 10 to 16 s on both sides.
+
+### The checks
+
+| Check | Result |
+|---|---|
+| `npm run check` | PASS: the type checks, 690 tests, 495 screens |
+| `npm run e2e` (3810 and 9310, namespace mode), once | PASS, every step, in 372.4 s; the whole story's steps 26 to 29 took 3.2 s on the fake with every call at once |
+| `npm run arc` (3810 and 9310) | PASS: 11 of 16 checks on |
+| A playthrough on the fake (3800 and 9300, §1.1's recipe) | Headless, from the title to The End: the yard's two lines, Kell's talk, the notebook and quests, the Rat, the Heron's fight and its stand-in, the summons, the King's two lines, The End with four chapters; a spectator following. The TUI (110x34) through the yard's end, Kell's talk, the notebook (`j`) and into the Rat |
+| The repo root | `npm run typecheck` PASS; `npm test` PASS (838) |
