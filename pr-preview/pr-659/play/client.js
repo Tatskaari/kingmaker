@@ -1,8 +1,8 @@
-import { Terminal } from "./vendor/xterm.mjs?v=f26fc7d663e9";
-import { FitAddon } from "./vendor/addon-fit.mjs?v=f26fc7d663e9";
-import { WebglAddon } from "./vendor/addon-webgl.mjs?v=f26fc7d663e9";
-import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=f26fc7d663e9";
-import { doorOverlay } from "./doors.js?v=f26fc7d663e9";
+import { Terminal } from "./vendor/xterm.mjs?v=0bb0a73dbf1c";
+import { FitAddon } from "./vendor/addon-fit.mjs?v=0bb0a73dbf1c";
+import { WebglAddon } from "./vendor/addon-webgl.mjs?v=0bb0a73dbf1c";
+import { Unicode11Addon } from "./vendor/addon-unicode11.mjs?v=0bb0a73dbf1c";
+import { doorOverlay } from "./doors.js?v=0bb0a73dbf1c";
 
 // The page's half of Kingmaker in the browser (src/web/README.md): xterm.js draws the game, and
 // keystrokes and output go over a transport. Served by src/web/server.ts, the game runs in a pty
