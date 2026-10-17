@@ -16,6 +16,9 @@ import { exploreRowFrom, mapRowsOf, walkerOf, writeExplore } from "./rows.ts";
  * finds nobody there takes it out. A scene's place burns by its turns (rules/play.ts rulesFirst).
  */
 
+/** A tick's lines that are news on the map (the walker's log): fire caught or spread, a thing burned down or out, an explosion. */
+const NEWS = /catches fire|spreads to|burns? down|destroyed|explosion|goes up|stops? burning|burns out/i;
+
 /** A round of the world's clock: 6 s, as a fight's (the schedule's interval). */
 export const ROUND_MICROS = 6_000_000n;
 /** The most rounds a tick catches up on. */
@@ -72,9 +75,11 @@ function burnOn(tx: TxCtx, place: PlaceRow, rounds: number, tickedAt: bigint): v
   keepTown(ex, tw);
   const town = ex.overlay.town?.[place.mapKey!];
   tx.db.place.id.update({ ...place, town: town ? JSON.stringify(town) : "", round: place.round + rounds, tickedAt: new Timestamp(tickedAt), rev: place.rev + 1 });
-  if (lines.length) {
+  // What's news on the map (something catches, the fire spreads, a thing burns down): not every round's damage.
+  const news = lines.filter(l => NEWS.test(l));
+  if (news.length) {
     const row = exploreRowFrom(walker);
-    writeExplore(tx, { ...row, log: [...row.log, lines.join(". ")].slice(-LOG_LINES) });
+    writeExplore(tx, { ...row, log: [...row.log, news.join(". ")].slice(-LOG_LINES) });
   }
   tx.log(`[tick_place] place ${place.id}: ${rounds} round${rounds === 1 ? "" : "s"} ${Math.round(tx.elapsedMs() - started)} ms${lines.length ? `: ${lines.join("; ")}` : ""}`);
 }

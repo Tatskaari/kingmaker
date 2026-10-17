@@ -97,13 +97,21 @@ test("a Fire Bolt at the watch house door from the street: it catches, the town 
   const drawn = actorsHere(menuOf(host, explore().gameId).ex).find(a => a.id === "caerwyn:door@25,6");
   assert.ok(drawn?.states?.includes("burning"), JSON.stringify(drawn));
 
-  // Twelve seconds on: two rounds burn it on.
+  // Twelve seconds on: two rounds burn it on (the log on the map keeps only the news: nothing caught, spread or burned down yet).
   assert.equal(all(host.db.placeTick).length, 1, "the town ticks while she's on the map");
+  const hpOf = () => (JSON.parse(town().town) as { things: Record<string, { hp?: number }> }).things["caerwyn:door@25,6"]!.hp!;
+  const was = { hp: hpOf(), log: explore().log };
   host.advance(12_000);
   host.tickPlaces();
   assert.equal(town().round, 2);
   assert.match(host.logs.find(l => l.startsWith("[tick_place]"))!, /2 rounds .*The door of the watch house takes \d+ fire damage/);
-  assert.match(explore().log[explore().log.length - 1]!, /The door of the watch house takes \d+ fire damage/);
+  assert.ok(hpOf() < was.hp, `it burns on: ${hpOf()} hit points from ${was.hp}`);
+  assert.deepEqual(explore().log, was.log);
+  // A minute on, ten rounds at most: it burns down, which is news.
+  host.advance(60_000);
+  host.tickPlaces();
+  assert.equal(town().round, 12);
+  assert.match(explore().log[explore().log.length - 1]!, /The door of the watch house takes \d+ fire damage and is destroyed/);
 
   // Into a scene: the next tick finds nobody there, and the clock stops.
   assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
