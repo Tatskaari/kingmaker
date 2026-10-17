@@ -20,6 +20,7 @@ import { dirname, join, relative } from "node:path";
 import { gunzipSync } from "node:zlib";
 import type { SessionState } from "../../runtime/session.ts";
 import { sessionDir } from "../../runtime/session.ts";
+import { ROOT } from "./paths.ts";
 
 export type HarnessMode = "recorded" | "fresh" | "none";
 
@@ -138,15 +139,22 @@ const metaTurn = (text: string): number | undefined => {
   return m ? Number(m[1]) : undefined;
 };
 
+/** How a note with no turn was set back to the turn: its body as the turn's GM call had it, or the source lore's (the note left out). */
+export type Rewind = (d: Doc) => { text: string } | "source" | undefined;
+
 /**
  * The overlay as it stood when the turn began: notes written on or after it go, and so do index
  * lines that link to them. A note with no turn (the player's own page, a place edited in play) is
- * kept as the game left it: fixture READMEs say so.
+ * edited all game, so its last version can tell of later turns (r1-1017's yard note had turn 16 in a
+ * turn-7 case): `rewind` sets it back, from the turn's own GM call, or to the source lore. A note it
+ * can't set back is kept as the game left it, and the README says so.
  */
-export function docsBefore(docs: Doc[], turn: number): { kept: Doc[]; dropped: string[]; undated: string[] } {
+export function docsBefore(docs: Doc[], turn: number, rewind?: Rewind): { kept: Doc[]; dropped: string[]; undated: string[]; rewound: string[]; toSource: string[] } {
   const later = new Set(docs.filter(d => (metaTurn(d.text) ?? -1) >= turn).map(d => d.path));
   const kept: Doc[] = [];
   const undated: string[] = [];
+  const rewound: string[] = [];
+  const toSource: string[] = [];
   for (const d of docs) {
     if (later.has(d.path)) continue;
     if (/(^|\/)index\.md$/.test(d.path)) {
@@ -158,10 +166,40 @@ export function docsBefore(docs: Doc[], turn: number): { kept: Doc[]; dropped: s
       kept.push({ path: d.path, text });
       continue;
     }
-    if (metaTurn(d.text) === undefined) undated.push(d.path);
+    if (metaTurn(d.text) === undefined) {
+      const back = rewind?.(d);
+      if (back === "source") { toSource.push(d.path); continue; }
+      if (back) { rewound.push(d.path); kept.push({ path: d.path, text: back.text }); continue; }
+      undated.push(d.path);
+    }
     kept.push(d);
   }
-  return { kept, dropped: [...later].sort(), undated };
+  return { kept, dropped: [...later].sort(), undated, rewound, toSource };
+}
+
+const plain = (s: string): string => s.replace(/\[[^\]]*\]/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+
+/**
+ * Sets an undated note back to the turn: the GM's call on that turn (found by its reply) has every
+ * note's body as it stood then, each starting at its "# " title and running to the next note, the
+ * next block or the end of its message. Without that call, the note is left to the source lore.
+ */
+export function rewindFromCalls(calls: Array<Record<string, unknown>>, reply: string, lore: string): Rewind {
+  const head = plain(reply).slice(0, 60);
+  const call = head ? calls.find(c => c.operation === "gm.reply" && typeof c.text === "string" && plain(c.text).startsWith(head)) : undefined;
+  const request = call?.request as { instructions?: string; input?: Array<{ content?: unknown }>; messages?: Array<{ content?: unknown }> } | undefined;
+  const texts = request ? [request.instructions ?? "", ...(request.input ?? request.messages ?? []).map(m => typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? ""))] : [];
+  return d => {
+    const front = /^---\n[\s\S]*?\n---\n/.exec(d.text)?.[0] ?? "";
+    const title = d.text.slice(front.length).split("\n").find(l => l.startsWith("# "));
+    for (const t of title ? texts : []) {
+      const i = t.indexOf(`${title}\n`);
+      if (i < 0) continue;
+      const ends = ["\n\n# ", "\n\n### "].map(s => t.indexOf(s, i + 1)).filter(n => n > 0);
+      return { text: `${front}${t.slice(i, ends.length ? Math.min(...ends) : t.length).trim()}\n` };
+    }
+    return existsSync(join(lore, d.path)) ? "source" : undefined;
+  };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -207,14 +245,14 @@ export function extractFixture(source: GameSource, options: ExtractOptions): Loo
   if (before.world) write("world.json", before.world);
   writeFileSync(join(out, "transcript.json"), `[\n${before.transcript.map(e => JSON.stringify(e)).join(",\n")}\n]\n`);
 
-  const docs = docsBefore(source.docs(), turn);
+  const reply = replyOn(final, turn);
+  const docs = docsBefore(source.docs(), turn, rewindFromCalls(source.calls(), reply, join(ROOT, "lore")));
   for (const d of docs.kept) {
     const file = join(out, "lore", d.path);
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, d.text);
   }
 
-  const reply = replyOn(final, turn);
   const c: LoopCase = {
     id: options.id, scene: before.sceneId, turn, input,
     approach: options.approach ?? before.approach,
@@ -253,7 +291,7 @@ The scene (\`scenes/${c.scene}.ts\`), the prompts (\`prompts/\`) and the lore (\
 - \`transcript.json\`: ${before.transcript.length} entries, what the player had seen.
 - \`world.json\`: ${before.world ? "the scene's world as it stood" : "(none: the scene has no world)"}.
 - \`harness.json\`: the co-GM's notes${before.notes ? ` (written on turn ${before.notesTurn})` : " (none in force)"}, whispers, canon and patches${pending.length ? `, and its results waiting to land at the start of turn ${c.turn}: ${pending.join(", ")}` : ""}. \`"harness"\` in case.json: \`recorded\` uses them; \`fresh\` drops the notes, whispers and waiting results and runs today's co-GM on the fixture first; \`none\` drops them all.
-- \`lore/\`: the session's docs overlay as it stood: ${docs.kept.length} notes kept${docs.dropped.length ? `, ${docs.dropped.length} written on turn ${c.turn} or later left out (index lines linking to them too)` : ""}.${docs.undated.length ? ` These have no turn, so they're as the game left them (a later edit may be in them): ${docs.undated.map(p => `\`${p}\``).join(", ")}.` : ""}
+- \`lore/\`: the session's docs overlay as it stood: ${docs.kept.length} notes kept${docs.dropped.length ? `, ${docs.dropped.length} written on turn ${c.turn} or later left out (index lines linking to them too)` : ""}.${docs.rewound.length ? ` Notes with no turn are edited all game, so these are set back to the turn's own GM call: ${docs.rewound.map(p => `\`${p}\``).join(", ")}.` : ""}${docs.toSource.length ? ` Left to the source lore (no GM call on the turn to set them back from): ${docs.toSource.map(p => `\`${p}\``).join(", ")}.` : ""}${docs.undated.length ? ` These have no turn and couldn't be set back, so they're as the game left them (a later edit may be in them): ${docs.undated.map(p => `\`${p}\``).join(", ")}.` : ""}
 
 ## Reconstruction assumptions
 
