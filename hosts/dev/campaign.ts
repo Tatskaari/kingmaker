@@ -3,11 +3,10 @@ import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import { inBounds, isStructure, mapOf, tileAt, type MapDef } from "../../shared/map/tiles.ts";
 import type { TileMap } from "../../shared/map/types.ts";
-import { isBeat, isDiscovery, isEnding, shapeProblems, type BeatData, type SceneDocument, type SceneNode } from "../../shared/scene/document.ts";
-import type { BuildsFile, CampaignPack, Effect, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
-import { sceneOf } from "../../shared/scene/load.ts";
+import { isBeat, isDiscovery, isEnding, shapeProblems, type SceneDocument } from "../../shared/scene/document.ts";
+import type { BuildsFile, CampaignPack, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
+import { sceneRuleProblems, sceneStoryProblems, type SceneContext } from "../../shared/scene/rules.ts";
 import { TOLD } from "../../shared/scene/talk.ts";
-import { validateScene } from "../../shared/scene/types.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
 import { packOf, scenePath, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
@@ -130,169 +129,20 @@ function creationProblems(world: CreationWorld | undefined, files: CampaignFiles
 
 /**
  * A scene held to the format's rules (docs/scene-format.md, "Rules the campaign check enforces"), its
- * shape already whole: its ids, the prose it must have, its lore, its routes and what they require,
- * its discoveries' paths, that every node can be reached and it can end well, the evidence its good
- * endings need, the people and places it names, its effects, and that it loads as the game loads it.
+ * shape already whole: shared/scene/rules.ts has them (the Obsidian plugin runs the same rules as a
+ * scene is edited), and the campaign folder is what they need of the campaign around the scene (its
+ * lore, scenes, places and quests, and its other scenes for what the story carries between them).
  */
 function sceneProblems(key: string, doc: SceneDocument, files: CampaignFiles, pack: CampaignPack, all: SceneDocument[]): string[] {
-  const at = scenePath(key);
-  const talk = doc.id === pack.campaign.talk;
-  const problems: string[] = [];
-  const p = (problem: string) => problems.push(`${at}: ${problem}`);
-  const nodes = new Map(doc.nodes.map(n => [n.id, n]));
-  const castIds = new Set(doc.cast.map(c => c.id));
-  const discoveries = doc.nodes.filter(isDiscovery);
-
-  // Ids: slugs, the scene's its file's name (the cast's but the talk template's companion).
-  if (doc.id !== key) p(`its id ${doc.id} isn't its file's name`);
-  for (const [what, ids] of [["scene", [doc.id]], ["node", doc.nodes.map(n => n.id)], ["route", doc.edges.map(e => e.id)], ["cast", doc.cast.map(c => c.id)]] as const) {
-    for (const id of ids) if (!SLUG.test(id) && !(talk && what === "cast" && id === "{companion}")) p(`the ${what} id ${JSON.stringify(id)} isn't a slug ([a-z0-9][a-z0-9-]*)`);
-  }
-
-  // The prose it must have (an interlude needs no premise or truth), each person's, each node's.
-  for (const k of ["title", "description", "hook", "setting", "premise", "truth"] as const) if (!doc[k].trim() && !(doc.interlude && (k === "premise" || k === "truth"))) p(`it has no ${k}`);
-  for (const c of doc.cast) for (const k of ["name", "look", "voice", "wants", "whyHere", "attitude"] as const) if (!c[k].trim()) p(`${c.id} has no ${k}`);
-  for (const n of doc.nodes) {
-    if (!n.data.title.trim() || !n.data.description.trim()) p(`${n.id} has no ${n.data.title.trim() ? "description" : "title"}`);
-    if (isEnding(n) && !n.data.closing.trim()) p(`ending ${n.id} has no closing`);
-  }
-
-  // Its lore, its people's and its nodes' are in lore/.
-  const lore = [...doc.lore, ...(doc.fronts ? [doc.fronts] : []), ...doc.cast.flatMap(c => (c.lore ? [c.lore] : [])), ...doc.nodes.flatMap(n => n.data.lore)];
-  for (const path of new Set(lore)) if (files[`lore/${path}`] === undefined) p(`lore ${path} isn't in lore/`);
-
-  // The routes: none leaves an ending, what they require is a beat, an empty condition is only into a discovery.
-  for (const e of doc.edges) {
-    if (nodes.get(e.source)?.data.kind === "exit") p(`route ${e.id} leaves an ending (${e.source})`);
-    for (const r of e.data.requires ?? []) if (nodes.get(r)?.data.kind !== "beat") p(`route ${e.id} requires ${r}, which isn't a beat`);
-    if (!e.data.condition.trim() && !isDiscovery(nodes.get(e.target)!)) p(`route ${e.id} has no condition, and only a route into a discovery may go without`);
-  }
-
-  // The discoveries: a revelation and two paths, three for one that's required (one free of dice); a way in that's no roll.
-  for (const n of doc.nodes.filter(isBeat)) {
-    const paths = n.data.paths ?? [];
-    if (n.data.revelation === undefined) { if (paths.length) p(`beat ${n.id} has paths but no revelation`); continue; }
-    if (!n.data.revelation.trim()) p(`discovery ${n.id} has no revelation`);
-    if (paths.length < 2) p(`discovery ${n.id} has ${paths.length} path${paths.length === 1 ? "" : "s"}, not two or more`);
-    if (n.data.required && (paths.length < 3 || paths.every(path => path.check))) p(`discovery ${n.id} is required, but hasn't three paths with one that needs no dice`);
-    paths.forEach((path, i) => {
-      for (const k of ["via", "clue", "earn"] as const) if (!path[k].trim()) p(`discovery ${n.id}'s path ${i + 1} has no ${k}`);
-      if (!path.via.includes(" ") && !castIds.has(path.via)) p(`discovery ${n.id}'s path ${i + 1} is via ${path.via}, who isn't in the cast`);
-    });
-    if (!doc.edges.some(e => e.target === n.id && !e.data.skill)) p(`discovery ${n.id} is locked behind a roll: no route into it is free of dice`);
-  }
-
-  // Who comes on where, and whose notes the start and the events hold.
-  for (const c of doc.cast) {
-    const node = c.enters === undefined ? undefined : nodes.get(c.enters);
-    if (c.enters !== undefined && !(node && isBeat(node) && !isDiscovery(node))) p(`${c.id} enters at ${c.enters}, which isn't an event beat`);
-  }
-  for (const n of doc.nodes) for (const id of Object.keys(("cast" in n.data ? n.data.cast : undefined) ?? {})) if (!castIds.has(id)) p(`${n.id} has a note for ${id}, who isn't in the cast`);
-
-  // Every node can be reached from the start, and it can end well.
-  const reached = reachable(doc);
-  for (const n of doc.nodes) if (!reached.has(n.id)) p(`${n.id} can't be reached from the start`);
-  const good = doc.nodes.filter(isEnding).filter(n => n.data.result !== "bad");
-  if (!talk && !good.some(n => reached.has(n.id))) p("it has no good or mixed ending that can be reached");
-
-  // What its good endings need: in a scene with a required discovery, each way into one says what it needs, and each required discovery is needed by one.
-  const required = discoveries.filter(n => n.data.required);
-  if (required.length) {
-    const intoGood = doc.edges.filter(e => good.some(n => n.id === e.target && n.data.result === "good"));
-    for (const e of intoGood) if (!e.data.requires?.length) p(`route ${e.id} goes to a good ending (${e.target}) but requires nothing found`);
-    for (const n of required) if (!intoGood.some(e => e.data.requires?.includes(n.id))) p(`discovery ${n.id} is required, but no route into a good ending requires it`);
-  }
-
-  // Where the story goes, the place, and what the effects may name.
-  for (const n of doc.nodes.filter(isEnding)) if (n.data.next && !pack.campaign.scenes.includes(n.data.next)) p(`ending ${n.id} goes on to ${n.data.next}, which isn't one of the campaign's scenes`);
-  const place = doc.place ? pack.places.find(pl => pl.key === doc.place) : undefined;
-  if (doc.place && !place) p(`its place ${doc.place} isn't one of the campaign's places`);
-  const carried = carriedThings(all);
-  const carriedElsewhere = carriedThings(all.filter(other => other !== doc));
-  for (const n of doc.nodes.filter(isBeat)) for (const t of n.data.carry?.things ?? []) if (!place?.things.some(x => x.id === t) && !carriedElsewhere.has(t)) p(`beat ${n.id} carries ${t}, which isn't a thing of its place, nor carried from another scene`);
-  // What an effect may name: the cast, the place's areas and things, and the things the story carries between scenes (Prout's page, owed into the Rat in Cob's boot).
-  const keys = new Set([...castIds, ...(place ? [...place.areas.map(a => a.id), ...place.things.map(t => t.id)] : []), ...carried]);
-  const effects: Array<[string, Effect]> = [
-    ...(doc.onEnd ?? []).map(e => ["onEnd", e] as [string, Effect]),
-    ...doc.nodes.filter(isEnding).flatMap(n => (n.data.effects ?? []).map(e => [`ending ${n.id}`, e] as [string, Effect])),
-  ];
-  for (const [where, e] of effects) for (const problem of effectProblems(e, keys, castIds, doc.facts ?? {}, pack.campaign.quests ?? {})) p(`${where}: ${problem}`);
-  for (const op of doc.afterwards ?? []) for (const k of namedKeys(op).filter(k => !keys.has(k))) p(`afterwards: ${op.op} names unknown ${k}`);
-  for (const id of Object.keys(place?.people ?? {})) if (id !== "player" && !castIds.has(id)) p(`${doc.place}'s people: ${id} isn't in the cast`);
-
-  // And, held to all that, it loads as the game loads it.
-  if (!problems.length) {
-    try {
-      for (const problem of validateScene(sceneOf(doc))) p(problem);
-    } catch (e) {
-      p(`it doesn't load: ${(e as Error).message}`);
-    }
-  }
-  return problems;
-}
-
-/** A slug, as the format's ids are. */
-const SLUG = /^[a-z0-9][a-z0-9-]*$/;
-
-/** The nodes reachable from the start, a route opening once its source and everything it requires are reached (the play's open routes, as a fixed point). */
-function reachable(doc: SceneDocument): Set<string> {
-  const reached = new Set(doc.nodes.filter(n => n.data.kind === "start").map(n => n.id));
-  for (let grew = true; grew; ) {
-    grew = false;
-    for (const e of doc.edges) {
-      if (reached.has(e.source) && !reached.has(e.target) && (e.data.requires ?? []).every(r => reached.has(r))) { reached.add(e.target); grew = true; }
-      if (e.data.onFailure && reached.has(e.source) && !reached.has(e.data.onFailure) && (e.data.requires ?? []).every(r => reached.has(r))) { reached.add(e.data.onFailure); grew = true; }
-    }
-  }
-  return reached;
-}
-
-/** The things the story carries between scenes: those of every carried beat of these scenes (what it owes goes with whoever has them), a file of the wrong shape's too, as far as it has them. */
-function carriedThings(scenes: SceneDocument[]): Set<string> {
-  const things = (n: SceneNode<BeatData>) => (Array.isArray(n?.data?.carry?.things) ? n.data.carry.things.filter(t => typeof t === "string") : []);
-  return new Set(scenes.flatMap(doc => (Array.isArray(doc?.nodes) ? (doc.nodes as Array<SceneNode<BeatData>>).flatMap(things) : [])));
-}
-
-/**
- * An exit's effect (or onEnd's): an op the story knows, its condition on known facts, the cast or
- * things it names, and a quest campaign.json titles (story-design §4.6).
- */
-function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, facts: Record<string, string>, quests: Record<string, string>): string[] {
-  const problems: string[] = [];
-  const op: string = effect.op;
-  if (!(op in EFFECT_OPS) && op !== START_FIGHT) return [`${op} isn't an effect the story knows`];
-  for (const cond of [effect.if, effect.unless]) for (const fact of cond ? [cond.established].flat() : []) if (!(fact in facts)) problems.push(`condition on unknown fact ${fact}`);
-  if (op === START_FIGHT) {
-    // The fight's set-up (the Heron's combat exit), recorded for the fight to come: who's in it, where.
-    const fight = effect as unknown as { enemies?: Array<{ leader?: string }>; allies?: string[]; at?: string };
-    for (const who of [...(fight.allies ?? []), ...(fight.enemies ?? []).flatMap(e => e.leader ? [e.leader] : [])]) if (!cast.has(who)) problems.push(`startFight names unknown ${who}`);
-    if (fight.at !== undefined && !keys.has(fight.at)) problems.push(`startFight is at unknown ${fight.at}`);
-  } else if (effect.op === "attitude" || effect.op === "remember" || effect.op === "follow") {
-    if (!cast.has(effect.who)) problems.push(`${effect.op} names unknown ${effect.who}`);
-    if (effect.op === "attitude" && !ATTITUDES.includes(effect.to)) problems.push(`attitude ${String(effect.to)} isn't an attitude`);
-  } else if (effect.op === "promise") {
-    for (const who of [effect.by, effect.to]) if (who !== "$player" && !cast.has(who)) problems.push(`promise names unknown ${who}`);
-  } else if (effect.op === "quest") {
-    if (!(effect.quest in quests)) problems.push(`quest ${effect.quest} isn't one of campaign.json's quests`);
-  } else if (effect.op !== "flag" && effect.op !== "journal") {
-    for (const k of namedKeys(effect)) if (!keys.has(k)) problems.push(`${effect.op} names unknown ${k}`);
-  }
-  return problems;
-}
-
-/** Every op an effect may have (shared/scene/files.ts Effect): the story's, and the world's (WorldOp's). */
-const EFFECT_OPS: Record<Effect["op"], true> = {
-  quest: true, flag: true, attitude: true, remember: true, journal: true, follow: true, promise: true,
-  move: true, place: true, give: true, drop: true, create: true, state: true, note: true, forget: true, remove: true,
-  destroy: true, ignite: true, douse: true, spill: true, chill: true, bleed: true, break: true,
-};
-/** The fight's set-up, which the effects have no op for yet: recorded, as the prototype's startCombat was, for the fight to come (V12). */
-const START_FIGHT = "startFight";
-const ATTITUDES: string[] = ["hostile", "unfriendly", "wary", "neutral", "friendly", "devoted"];
-
-/** The keys a world operation names (what it acts on, where it goes); "$player" is the controller's character. */
-function namedKeys(op: { what?: string; to?: string }): string[] {
-  return [op.what, op.to].filter((k): k is string => !!k && k !== "$player");
+  const context: SceneContext = {
+    hasLore: path => files[`lore/${path}`] !== undefined,
+    scenes: pack.campaign.scenes,
+    ...(pack.campaign.talk === undefined ? {} : { talk: pack.campaign.talk }),
+    places: pack.places,
+    quests: pack.campaign.quests ?? {},
+    others: all.filter(other => other !== doc),
+  };
+  return sceneRuleProblems(key, doc, context).map(problem => `${scenePath(key)}: ${problem.message}`);
 }
 
 /**
@@ -335,14 +185,7 @@ const GOODBYE = "goodbye";
  */
 function storyProblems(pack: CampaignPack): string[] {
   const scenes = new Set(pack.scenes.map(scene => scene.id));
-  const problems: string[] = [];
-  for (const scene of pack.scenes) {
-    const at = scenePath(scene.id);
-    if (scene.overtaken && !scenes.has(scene.overtaken)) problems.push(`${at}: overtaken, the story goes to ${scene.overtaken}, which isn't one of the campaign's scenes`);
-    if (scene.assumes?.length && !scene.overtaken) problems.push(`${at}: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)`);
-    if (scene.overtaken && !scene.assumes?.length) problems.push(`${at}: it says where the story goes when it's overtaken, but assumes nothing that play could overtake`);
-    if (scene.interlude && !scene.nodes.filter(isEnding).some(n => n.data.next)) problems.push(`${at}: an interlude, but none of its endings goes on (the story skips it to where they go)`);
-  }
+  const problems = pack.scenes.flatMap(scene => sceneStoryProblems(scene, scenes).map(p => `${scenePath(scene.id)}: ${p.message}`));
   for (const [key, title] of Object.entries(pack.campaign.quests ?? {})) if (typeof title !== "string" || !title.trim()) problems.push(`campaign.json: quest ${key} has no title`);
   return problems;
 }
