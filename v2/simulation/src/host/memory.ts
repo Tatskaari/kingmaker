@@ -5,6 +5,7 @@ import { HEADERS } from "../../../shared/protocol/ai.ts";
 import type { Refusal } from "../../../shared/protocol/refusals.ts";
 import type { InstallArgs } from "../../../shared/scene/files.ts";
 import type { Rules } from "../../../shared/rules/types.ts";
+import { isService } from "../access.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type Claim } from "../ai-call.ts";
 import { Refused, type Db, type Env, type Schema, type TxCtx } from "../context.ts";
 import * as creation from "../creation/moves.ts";
@@ -21,7 +22,7 @@ import { setSuggestionsReducer } from "../moves/set-suggestions.ts";
 import { loadRules } from "../rules/load.ts";
 import * as story from "../story/moves.ts";
 import { streamReplyReducer } from "../stream.ts";
-import { TABLES } from "../tables.ts";
+import { TABLES, type TableName } from "../tables.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "../views.ts";
 
 /**
@@ -31,13 +32,23 @@ import { myCreationView, myGamesView, myNamesView, mySeatView } from "../views.t
  * from a fixed sequence, so a run replays; the rules engine is the module's own, loaded once in the
  * process; and run_job is drain(): each due dispatch claimed, POSTed through the injected `ai`, and
  * committed, exactly as index.ts does it.
+ *
+ * A host for real play (the page's, in a browser worker: browser-design §4.2) injects the rest of
+ * what SpacetimeDB would be: a real clock; a listener told each commit's net change to the rows, as
+ * SpacetimeDB tells a subscriber, to keep and to push; the rows a previous run committed, to start
+ * from; a log; and the AI service's identity. It runs the jobs as SpacetimeDB's scheduler does:
+ * dispatchDue() after a commit that dispatched, and reap() on the reaper's interval.
  */
 
 /** What a think's POST got back: a status and body, and the headers that matter (x-km-replayed). */
 export interface AiReply { status: number; body: string; headers?: Record<string, string> }
 
-/** The AI service as the memory host reaches it. Throwing stands for a refused or reset connection. */
-export type AiPost = (endpoint: string, body: string, headers: Record<string, string>) => Promise<AiReply>;
+/**
+ * The AI service as the memory host reaches it. Throwing stands for a refused or reset connection.
+ * `timeoutMs` is the claim's, which index.ts gives SpacetimeDB's fetch: a host that makes real POSTs
+ * gives up on one that takes longer (the memory host only passes it on).
+ */
+export type AiPost = (endpoint: string, body: string, headers: Record<string, string>, options?: { timeoutMs: number }) => Promise<AiReply>;
 
 export interface MemoryHostOptions {
   ai: AiPost;
@@ -51,6 +62,63 @@ export interface MemoryHostOptions {
   env?: Env;
   /** The rules engine: the module's (simulation/src/rules/load.ts) unless a test hands in its own. */
   rules?: () => Rules;
+  /** Each transaction's time, read as it begins (a real clock, for real play); else the manual clock, from a fixed start, that only advance() moves. */
+  clock?: () => Timestamp;
+  /**
+   * Told each committed transaction's net change, once the transaction has closed (so it may start
+   * another): init's too, as memoryHost() makes a new database, before it returns. A transaction
+   * that threw, or left every row and counter as it found them, tells it nothing. A throw from it is
+   * logged: the commit stands.
+   */
+  onCommit?: (changes: ChangeSet) => void;
+  /** The rows a previous run committed, to start from: put in before init runs (which then finds its owner and reaper there). */
+  restore?: Restore;
+  /** Where tx.log's lines go, in place of `logs` (which then stays empty), so a host that runs for hours keeps none. */
+  log?: (line: string) => void;
+  /** The AI service's identity (stream_reply's caller), in place of the memory host's own: the default env's AI_IDENTITY, and an env given with it must name it. */
+  service?: Identity;
+}
+
+/**
+ * A previous run's rows, by table: Identities and Timestamps as their classes (revived from a
+ * structured clone), in any order. They're kept in their primary keys' order (an autoInc table's is
+ * the order they were inserted in), and a column added since a row was saved takes its default
+ * (tables.ts), as a publish fills it. Each autoInc counter carries on from its saved value (a
+ * ChangeSet's sequences), or past the table's highest id when that's further on.
+ */
+export interface Restore {
+  rows: Partial<Record<TableName, Row[]>>;
+  sequences?: Partial<Record<TableName, bigint>>;
+}
+
+/** A row as the memory host keeps it: the columns by their TypeScript names. */
+export type Row = Record<string, unknown>;
+
+/**
+ * One row's net change in a committed transaction, as SpacetimeDB tells a subscriber of it: an
+ * insert; an update, when the key was there before and after (`old` is the row as it was); or a
+ * delete, with the row as it was. A row inserted and deleted in one transaction, or written back
+ * as it was, is no change; one deleted and inserted again with its key is an update.
+ */
+export interface RowChange {
+  /** The table's accessor (jobDispatch); its SQL name (job_dispatch) is the snake_case of it. */
+  table: TableName;
+  /** The row's primary key as the memory host keys it (keyOf): the same row's, whatever the change. */
+  key: string;
+  op: "insert" | "update" | "delete";
+  row: Row;
+  old?: Row;
+}
+
+/**
+ * A committed transaction's net change: each row's, in the order the transaction first wrote it
+ * (copies, as every row handed out is), and the next id of each autoInc table it inserted into,
+ * for a host that keeps them (its counter never goes back, so `changes` may be empty when a row was
+ * inserted and deleted again).
+ */
+export interface ChangeSet {
+  changes: RowChange[];
+  sequences: Partial<Record<TableName, bigint>>;
 }
 
 export type StreamArgs = Parameters<typeof streamReplyReducer>[2];
@@ -94,7 +162,16 @@ export interface MemoryHost {
   streamReply(args: StreamArgs, from?: Identity): Refusal | undefined;
   /** run_job for every dispatch that's due, until none is. Several drains may run at once. */
   drain(): Promise<void>;
-  /** The clock moves on, and the reaper runs. */
+  /**
+   * run_job for every dispatch that's due now, each started at once and none awaited, as
+   * SpacetimeDB's scheduler runs them: the claims commit in order, the POSTs overlap, and each
+   * answer commits as it lands. Each promise settles once its run is over; a run that throws (a bug)
+   * is logged, as a procedure's panic is, never rejected.
+   */
+  dispatchDue(): Array<Promise<void>>;
+  /** reap_jobs, once, at the clock's time: what a real-time host runs on the reaper row's interval. */
+  reap(): void;
+  /** The manual clock moves on, and the reaper runs (refused on an injected clock: its time isn't the host's to move). */
   advance(ms: number): void;
   view(identity: Identity): { mySeat(): ReturnType<typeof mySeatView>; myNames(): ReturnType<typeof myNamesView>; myCreation(): ReturnType<typeof myCreationView>; myGames(): ReturnType<typeof myGamesView> };
   /** A body in a transaction of its own: a test's way to read rows, or to change one. */
@@ -108,40 +185,48 @@ const START = Date.UTC(2026, 9, 16, 9, 0, 0);
 const MAX_DISPATCHES = 500;
 
 export function memoryHost(options: MemoryHostOptions): MemoryHost {
-  const store = newStore();
-  const owner = new Identity(0xa11cen), service = new Identity(0x5e7f1cen);
+  const owner = new Identity(0xa11cen), service = options.service ?? new Identity(0x5e7f1cen);
   const env: Env = options.env ?? { AI_URL: "http://ai.memory", AI_TOKEN: "memory-bearer", AI_IDENTITY: service.toHexString() };
-  const clock = { now: new Timestamp(BigInt(START) * 1000n) };
+  if (options.service && !isService(env, service)) throw new Error(`memoryHost: env.AI_IDENTITY (${env.AI_IDENTITY ?? "unset"}) isn't the service, ${service.toHexString()}: its stream_reply would be refused`);
+  const manual = { now: new Timestamp(BigInt(START) * 1000n) };
+  const now = options.clock ?? (() => manual.now);
   const logs: string[] = [];
+  const log = options.log ?? ((line: string) => { logs.push(line); });
   const random = randomness(options.seed ?? 1);
   const uuid = options.uuid ?? random.uuid;
   const database = (options.database ?? new Identity(0xdbn)).toHexString();
 
+  const store = newStore(options.onCommit, log);
+  if (options.restore) restoreRows(store, options.restore);
+
   const rules = options.rules ?? loadRules;
   const txNow = (): TxCtx => {
     const began = performance.now();
-    return { db: store.db, now: clock.now, env, database: () => database, uuid, seed: random.seed, log: line => logs.push(line), rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
+    return { db: store.db, now: now(), env, database: () => database, uuid, seed: random.seed, log, rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
   };
   const transact = <T>(body: (tx: TxCtx) => T): T => inTransaction(store, () => body(txNow()));
   const call = (body: (tx: TxCtx) => void): Refusal | undefined => refusalOf(() => transact(body));
+  const reap = () => transact(reapJobs);
 
   transact(tx => initDatabase(tx, owner));
 
-  const jobs = jobRunner(transact, () => clock.now, env, options.ai);
+  const jobs = jobRunner(transact, now, env, options.ai, log);
   return {
-    db: store.db, owner, service, logs, transact,
+    db: store.db, owner, service, logs, transact, reap,
     as: identity => callerAs(identity, call),
     streamReply: (args, from = service) => call(tx => streamReplyReducer(tx, from, args)),
     drain: jobs.drain,
+    dispatchDue: jobs.dispatchDue,
     advance(ms) {
-      clock.now = new Timestamp(clock.now.microsSinceUnixEpoch + BigInt(ms) * 1000n);
-      transact(reapJobs);
+      if (options.clock) throw new Error("advance: this memory host's time is its injected clock's");
+      manual.now = new Timestamp(manual.now.microsSinceUnixEpoch + BigInt(ms) * 1000n);
+      reap();
     },
     view: identity => {
       const ctx = { sender: identity, db: store.db, env } as unknown as ViewCtx<Schema>;
       return { mySeat: () => mySeatView(ctx), myNames: () => myNamesView(ctx), myCreation: () => myCreationView(ctx), myGames: () => myGamesView(ctx) };
     },
-    now: () => clock.now,
+    now,
   };
 }
 
@@ -174,7 +259,7 @@ function refusalOf(body: () => void): Refusal | undefined {
 }
 
 /** run_job as index.ts runs it: the dispatch consumed, the claim, the POST with nothing locked, then the commit, or the turn failed when the commit throws. */
-function jobRunner(transact: <T>(body: (tx: TxCtx) => T) => T, now: () => Timestamp, env: Env, ai: AiPost) {
+function jobRunner(transact: <T>(body: (tx: TxCtx) => T) => T, now: () => Timestamp, env: Env, ai: AiPost, log: (line: string) => void) {
   async function runJob(jobId: bigint): Promise<void> {
     const claim = transact(tx => claimJob(tx, jobId));
     if (!claim) return;
@@ -191,7 +276,7 @@ function jobRunner(transact: <T>(body: (tx: TxCtx) => T) => T, now: () => Timest
   async function post(claim: Claim): Promise<AiOutcome> {
     if (!env.AI_URL) return NOT_CONFIGURED;
     try {
-      const reply = await ai(claim.endpoint, claim.request, headersOf(env, claim));
+      const reply = await ai(claim.endpoint, claim.request, headersOf(env, claim), { timeoutMs: claim.timeoutMs });
       return outcomeOf({ status: reply.status, body: reply.body, replayed: reply.headers?.[HEADERS.replayed] === "1" });
     } catch (e) {
       return outcomeOf({ error: String(e) });
@@ -206,6 +291,9 @@ function jobRunner(transact: <T>(body: (tx: TxCtx) => T) => T, now: () => Timest
     return first;
   });
 
+  /** A run that throws is a bug: logged, as SpacetimeDB logs a procedure's panic, and the reaper sees to its job. */
+  const runLogged = (jobId: bigint) => runJob(jobId).catch((e: unknown) => log(`[run_job] job ${jobId} stopped: ${String(e)}`));
+
   return {
     async drain(): Promise<void> {
       for (let n = 0; n < MAX_DISPATCHES; n++) {
@@ -214,6 +302,11 @@ function jobRunner(transact: <T>(body: (tx: TxCtx) => T) => T, now: () => Timest
         await runJob(due.jobId);
       }
       throw new Error(`drain: still dispatching after ${MAX_DISPATCHES} jobs`);
+    },
+    dispatchDue(): Array<Promise<void>> {
+      const started: Array<Promise<void>> = [];
+      for (let due = takeDue(); due; due = takeDue()) started.push(runLogged(due.jobId));
+      return started;
     },
   };
 }
@@ -239,16 +332,28 @@ function randomness(seed: number) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The tables: Maps behind the accessors the moves use, with an undo journal per transaction.
+// The tables: Maps behind the accessors the moves use, with an undo journal per transaction, and,
+// for a commit listener, the transaction's writes, folded into its net change once it commits.
 
-type Row = Record<string, unknown>;
-type Meta = { primaryKey: string; autoInc?: boolean; unique?: string[]; indexes?: string[]; named?: Record<string, string[]> };
-interface Store { db: Db; journal?: Array<() => void> }
+type Meta = { primaryKey: string; autoInc?: boolean; unique?: string[]; indexes?: string[]; named?: Record<string, string[]>; defaults?: Row };
+/** A table's rows by key and its autoInc counter: what a restore fills, and a commit's sequences read. */
+interface TableState { meta: Meta; rows: Map<string, Row>; counter: { next: bigint } }
+/** A write as the journal records it beside its undo: the stored rows themselves, which are never changed in place. */
+interface Write { table: TableName; key: string; before?: Row; after?: Row }
+interface Store {
+  db: Db;
+  tables: Record<string, TableState>;
+  journal?: Array<() => void>;
+  /** The open transaction's writes: kept only while there's a listener to tell. */
+  writes?: Write[];
+  onCommit?: (changes: ChangeSet) => void;
+  log: (line: string) => void;
+}
 
-function newStore(): Store {
-  const store: Store = { db: undefined as unknown as Db };
-  const tables = Object.fromEntries(Object.entries(TABLES as Record<string, Meta>).map(([name, meta]) => [name, tableOf(name, meta, store)]));
-  store.db = new Proxy(tables, {
+function newStore(onCommit: ((changes: ChangeSet) => void) | undefined, log: (line: string) => void): Store {
+  const store: Store = { db: undefined as unknown as Db, tables: {}, onCommit, log };
+  const handles = Object.fromEntries(Object.entries(TABLES as Record<string, Meta>).map(([name, meta]) => [name, tableOf(name, meta, store)]));
+  store.db = new Proxy(handles, {
     get(target, prop) {
       if (typeof prop !== "string" || prop === "then") return undefined;
       if (!(prop in target)) throw new Error(`the memory host has no table ${prop}`);
@@ -258,11 +363,33 @@ function newStore(): Store {
   return store;
 }
 
-/** Runs a body with a fresh journal; a throw undoes every write it made, in reverse. */
+/** A previous run's rows into the tables, as Restore says, in no transaction: they were committed then. A table with no rows left still has its counter. */
+function restoreRows(store: Store, restore: Restore): void {
+  const unknown = Object.keys(restore.rows).find(name => !store.tables[name]);
+  if (unknown) throw new Error(`restore: the memory host has no table ${unknown}`);
+
+  for (const [name, table] of Object.entries(store.tables)) {
+    const rows = restore.rows[name as TableName] ?? [];
+    const pk = table.meta.primaryKey;
+    for (const row of [...rows].sort(byKey(pk))) table.rows.set(keyOf(row[pk]), withDefaults(row, table.meta.defaults));
+    if (table.meta.autoInc) table.counter.next = nextIdAfter(rows, pk, restore.sequences?.[name as TableName]);
+  }
+}
+
+/** A transaction: its body run on a fresh journal, then, once it has committed, its net change told to the listener. */
 function inTransaction<T>(store: Store, body: () => T): T {
+  const writes: Write[] | undefined = store.onCommit ? [] : undefined;
+  const result = journalled(store, writes, body);
+  if (writes?.length) tellCommit(store, changeSetOf(store, writes));
+  return result;
+}
+
+/** Runs a body with a fresh journal (keeping its writes in `writes`, when given); a throw undoes every write it made, in reverse. */
+function journalled<T>(store: Store, writes: Write[] | undefined, body: () => T): T {
   if (store.journal) throw new Error("the memory host doesn't nest transactions");
   const journal: Array<() => void> = [];
   store.journal = journal;
+  store.writes = writes;
   try {
     return body();
   } catch (e) {
@@ -270,18 +397,92 @@ function inTransaction<T>(store: Store, body: () => T): T {
     throw e;
   } finally {
     store.journal = undefined;
+    store.writes = undefined;
   }
+}
+
+/** A commit's net change to the listener, unless it changed nothing. A throw from the listener is logged: the commit stands, as a reducer's does whatever its subscribers make of it. */
+function tellCommit(store: Store, commit: ChangeSet): void {
+  if (!commit.changes.length && !Object.keys(commit.sequences).length) return;
+  try {
+    store.onCommit!(commit);
+  } catch (e) {
+    store.log(`[onCommit] ${String(e)}`);
+  }
+}
+
+/** A transaction's writes as its net change: each row's first `before` and last `after`, in the order the row was first written, and the counters its inserts moved on. */
+function changeSetOf(store: Store, writes: Write[]): ChangeSet {
+  const net = new Map<string, Write>();
+  for (const write of writes) {
+    const id = `${write.table}\u0000${write.key}`;
+    const first = net.get(id);
+    net.set(id, first ? { ...first, after: write.after } : write);
+  }
+  return { changes: [...net.values()].flatMap(changeOf), sequences: sequencesOf(store, writes) };
+}
+
+/** A row's net write as SpacetimeDB reports it (copies of the rows), or nothing when the row has come back to where it started. */
+function changeOf({ table, key, before, after }: Write): RowChange[] {
+  if (before && after) return sameRow(before, after) ? [] : [{ table, key, op: "update", row: copy(after), old: copy(before) }];
+  if (after) return [{ table, key, op: "insert", row: copy(after) }];
+  if (before) return [{ table, key, op: "delete", row: copy(before) }];
+  return [];
+}
+
+/** The next id of each autoInc table the transaction inserted into. */
+function sequencesOf(store: Store, writes: Write[]): ChangeSet["sequences"] {
+  const sequences: ChangeSet["sequences"] = {};
+  for (const { table, before } of writes) {
+    const { meta, counter } = store.tables[table]!;
+    if (!before && meta.autoInc) sequences[table] = counter.next;
+  }
+  return sequences;
+}
+
+/** Whether a row was written back as it was: the same values all through (an option left out is undefined). */
+function sameRow(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null || Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
+  if (Array.isArray(a) && a.length !== (b as unknown[]).length) return false;
+  const columns = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...columns].every(column => sameRow((a as Row)[column], (b as Row)[column]));
+}
+
+/** A saved row (copied, as every row kept is) with each column it lacks that has a default taking it, as a publish that adds the column fills it. */
+function withDefaults(row: Row, defaults: Row = {}): Row {
+  const filled = copy(row);
+  for (const [column, value] of Object.entries(defaults)) if (filled[column] === undefined) filled[column] = copy(value);
+  return filled;
+}
+
+/** An autoInc table's counter after a restore: its saved value, or past its highest id when that's further on. */
+function nextIdAfter(rows: Row[], pk: string, saved = 1n): bigint {
+  const past = rows.reduce((next, row) => (typeof row[pk] === "bigint" && (row[pk] as bigint) >= next ? (row[pk] as bigint) + 1n : next), 1n);
+  return past > saved ? past : saved;
+}
+
+/** Rows in their primary keys' order: ids as numbers (an autoInc table's in the order they were inserted), any other key by its text. */
+function byKey(pk: string) {
+  return (a: Row, b: Row): number => {
+    const x = a[pk], y = b[pk];
+    if (typeof x === "bigint" && typeof y === "bigint") return x < y ? -1 : x > y ? 1 : 0;
+    const [kx, ky] = [keyOf(x), keyOf(y)];
+    return kx < ky ? -1 : kx > ky ? 1 : 0;
+  };
 }
 
 /** One table's handle: insert, iter, count, delete, clear, and an accessor per key and index. */
 function tableOf(name: string, meta: Meta, store: Store): Record<string, unknown> {
   const rows = new Map<string, Row>();
   const pk = meta.primaryKey;
-  let nextId = 1n;
+  const counter = { next: 1n };
+  store.tables[name] = { meta, rows, counter };
 
-  const journal = (undo: () => void) => {
+  const journal = (undo: () => void, write: Omit<Write, "table">) => {
     if (!store.journal) throw new Error(`${name}: a write outside a transaction`);
     store.journal.push(undo);
+    store.writes?.push({ table: name as TableName, ...write });
   };
   const all = () => [...rows.values()];
   const matching = (columns: string[], value: unknown) => {
@@ -292,7 +493,7 @@ function tableOf(name: string, meta: Meta, store: Store): Record<string, unknown
     const k = keyOf(row[pk]);
     const old = rows.get(k)!;
     rows.delete(k);
-    journal(() => rows.set(k, old));
+    journal(() => rows.set(k, old), { key: k, before: old });
   };
   const refuseDuplicates = (row: Row, except?: string) => {
     for (const column of meta.unique ?? []) {
@@ -303,12 +504,12 @@ function tableOf(name: string, meta: Meta, store: Store): Record<string, unknown
 
   const insert = (row: Row) => {
     const r = copy(row);
-    if (meta.autoInc && r[pk] === 0n) r[pk] = nextId++;
+    if (meta.autoInc && r[pk] === 0n) r[pk] = counter.next++;
     const k = keyOf(r[pk]);
     if (rows.has(k)) throw new Error(`${name}: ${pk} ${String(r[pk])} is already taken (a unique violation)`);
     refuseDuplicates(r);
     rows.set(k, r);
-    journal(() => rows.delete(k));
+    journal(() => rows.delete(k), { key: k, after: r });
     return copy(r);
   };
   const update = (row: Row) => {
@@ -318,13 +519,15 @@ function tableOf(name: string, meta: Meta, store: Store): Record<string, unknown
     const r = copy(row);
     refuseDuplicates(r, k);
     rows.set(k, r);
-    journal(() => rows.set(k, old));
+    journal(() => rows.set(k, old), { key: k, before: old, after: r });
     return copy(r);
   };
+  /** The row a unique column's value finds: the primary key's straight from the map, another column's by a scan (the same answer either way). */
+  const lookup = (column: string, value: unknown): Row | undefined => (column === pk ? rows.get(keyOf(value)) : matching([column], value)[0]);
   const unique = (column: string) => ({
-    find: (value: unknown) => copy(matching([column], value)[0] ?? null),
+    find: (value: unknown) => copy(lookup(column, value) ?? null),
     delete: (value: unknown) => {
-      const hit = matching([column], value)[0];
+      const hit = lookup(column, value);
       if (hit) remove(hit);
       return !!hit;
     },
@@ -358,8 +561,8 @@ function tableOf(name: string, meta: Meta, store: Store): Record<string, unknown
   return handle;
 }
 
-/** A column's value as a Map key: ids, strings, numbers, identities and tuples of them. */
-function keyOf(value: unknown): string {
+/** A column's value as a Map key: ids, strings, numbers, identities and tuples of them. A RowChange's key is its primary key's. */
+export function keyOf(value: unknown): string {
   if (typeof value === "bigint") return `${value}n`;
   if (typeof value === "string") return JSON.stringify(value);
   if (typeof value === "number" || typeof value === "boolean") return String(value);
