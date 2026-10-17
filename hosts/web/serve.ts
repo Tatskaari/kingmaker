@@ -1,7 +1,7 @@
-// Copied from the prototype's src/web/static/serve.ts at 44c6d4a, whole: the base is a v2 preview's (/kingmaker/pr-preview/pr-0/v2/), .wasm is served as Pages serves it, the default port is 7311, and the folder is v2's dist/web (the build's: npm run build:web).
+// Copied from the prototype's src/web/static/serve.ts at 44c6d4a, whole: the base is the game's in a preview (/kingmaker/pr-preview/pr-0/play/, the site's play/; v2's /v2/ until M1), .wasm is served as Pages serves it, the default port is 7311, and the folder is the repo's dist/web (the build's: npm run build:web), or the one --dir names (dist/site, the whole site).
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer, type Server } from "node:http";
-import { extname, join, normalize, sep } from "node:path";
+import { extname, join, normalize, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -50,7 +50,7 @@ export function serveStatic(root: string, base = DEFAULT_BASE, port = 0, host = 
 if (import.meta.main) {
   const { values } = parseArgs({ options: { port: { type: "string" }, base: { type: "string" }, dir: { type: "string" } } });
   const root = values.dir ?? fileURLToPath(new URL("../../dist/web", import.meta.url));
-  if (!existsSync(join(root, "index.html"))) { console.error(`No build in ${root}: npm run build:web first.`); process.exit(1); }
+  if (!existsSync(join(root, "index.html"))) { console.error(`No build in ${root}: npm run build:web (or build:site, for --dir dist/site) first.`); process.exit(1); }
   const { url } = await serveStatic(root, values.base ?? DEFAULT_BASE, Number(values.port ?? 7311));
-  console.log(`dist/web on ${url}`);
+  console.log(`${relative(process.cwd(), root) || "."} on ${url}`);
 }
