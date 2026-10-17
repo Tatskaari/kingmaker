@@ -506,7 +506,7 @@ for (const [w, h] of SIZES) {
   await draw();
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
-  checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. /suggestions off turns them off.")]);
+  checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off turns them off.")]);
   checks.push([`${size}: the help says how the marks work, and nothing of ⓘ lines (V1's)`, doubled(frame).includes("Underlined words are the GM's marks") && doubled(frame).includes("for a note from what you know.") && !/ⓘ/.test(frame)]);
   checks.push([`${size}: the help's example of a deed is one to do in the yard, never a spell`, doubled(frame).includes("*looks over my shoulder*, (I check his pockets).") && doubled(frame).includes("(🎲 lines)") && !/Fireball|I cast/.test(doubled(frame))]);
   await esc();

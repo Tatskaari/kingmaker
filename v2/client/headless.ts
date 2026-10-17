@@ -238,7 +238,7 @@ async function mapAct(game: Backend, move: MapMove, out: Out, waiting: Waiting):
   if (refused) return said(out, refused);
 
   // The move's row (its words), then the seats where it left them: in the scene (or the talk) it opened, or on the map.
-  const moved = await exploreWhen(game, v => v.acts !== before, ROWS_MS).catch(() => game.explore());
+  const moved = before === undefined ? game.explore() : await exploreWhen(game, v => v.acts !== before, ROWS_MS).catch(() => game.explore());
   if (moved && moved.acts !== before && moved.said) out.print(`${moved.said}\n`);
   if (moved?.ex.scene || game.home().seat?.sceneId !== undefined) {
     const stream = streamTo(out, waiting);

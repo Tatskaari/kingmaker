@@ -399,8 +399,6 @@ class Demo implements Backend {
     const game = this.seated();
     if (!game) return this.refuse("not_in_game");
     if (this.watched) return this.refuse("not_controller", { name: YARD.player.name });
-    const map = game.map;
-    if (!map) return this.refuse("no_way");
     const out = m.move === "walk" && m.args.toward === OUT;
     // A talk (town-design §3.6): walking out of it, live or over, walks on, and the scene it set aside is as it was.
     if (game.talk && out) {
@@ -409,11 +407,13 @@ class Demo implements Backend {
       return this.done();
     }
     if (game.view && !game.view.over) return this.refuse("scene_on");
-    // A word with whoever walks with the investigator (Kell, once the yard's done): the card's t, or talk_kell.
+    // A word with whoever walks with the investigator (Kell, once the yard's done): the card's t, or talk_kell (the demo's yard has no map to stand on after it).
     if (m.move === "interact" && m.args.verb === "talk" && m.args.target && game.view && game.story && storyOf(game.story).with.some(w => w.key === m.args.target)) {
       this.openTalk(game);
       return this.done();
     }
+    const map = game.map;
+    if (!map) return this.refuse("no_way");
     const rows = this.mapRows(map);
     const ex = exploreOf(rows);
     if (out) {
