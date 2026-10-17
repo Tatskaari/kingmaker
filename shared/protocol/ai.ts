@@ -464,7 +464,7 @@ export interface Health {
   budget: { dailyUsd: number; spentToday: number };
 }
 
-/** PUT /v1/campaigns/{campaign}/{version}: the whole campaign folder, by path ("scenes/hanged-clerk/setting.md"). */
+/** PUT /v1/campaigns/{campaign}/{version}: the whole campaign folder, by path ("scenes/hanged-clerk.kmscene"). */
 export interface CampaignPut { files: Record<string, string> }
 /** How many files it stored, and the scenes it loaded with their words. */
 export interface CampaignPutAnswer { campaign: string; version: string; files: number; scenes: string[] }
