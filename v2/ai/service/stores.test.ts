@@ -74,6 +74,16 @@ test("on the stand-in, each turn hears its own reply first, and the same turn al
   assert.deepEqual(transports("openrouter", { apiKey: "sk-or-x", fake: {} })(4), { apiKey: "sk-or-x" });
 });
 
+test("on the stand-in, each turn's suggested lines are its own set, when there are several", async () => {
+  const suggest = { operation: "scene.suggest", instructions: "You suggest what the player might say or do next.", input: [{ role: "user" as const, content: "Hi" }] };
+  const lines = (fake: Parameters<typeof transports>[1]["fake"]) => async (turn: number) => (await respond({ ...suggest, calls: { ...transports("fake", { fake })(turn), log: () => {}, cost: () => {} } })).text;
+  const sets = lines({ suggestions: ["say: Zero.", "say: One."] });
+  const one = lines({ suggestions: "say: Always." });
+
+  assert.deepEqual([await sets(0), await sets(1), await sets(2)], ["say: Zero.", "say: One.", "say: Zero."]);
+  assert.deepEqual([await one(0), await one(1)], ["say: Always.", "say: Always."]);
+});
+
 test("the config: the bearer required, the defaults, and the values checked", () => {
   assert.throws(() => readConfig({}), /KM_AI_TOKEN is required/);
   assert.deepEqual(readConfig({ KM_AI_TOKEN: "t" }), {

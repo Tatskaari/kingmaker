@@ -12,6 +12,7 @@ import { joinGameReducer } from "./moves/join-game.ts";
 import { newGameReducer } from "./moves/new-game.ts";
 import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
+import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
 import spacetimedb, { jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myNamesView, mySeatView } from "./views.ts";
@@ -36,6 +37,7 @@ export const newGame = spacetimedb.reducer({ campaign: t.string(), name: t.strin
 export const joinGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => joinGameReducer(tx, ctx.sender, args)));
 export const say = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => sayReducer(tx, ctx.sender, args)));
 export const retryTurn = spacetimedb.reducer({ turn: t.u64() }, (ctx, args) => asReducer(ctx, tx => retryTurnReducer(tx, ctx.sender, args)));
+export const setSuggestions = spacetimedb.reducer({ on: t.bool() }, (ctx, args) => asReducer(ctx, tx => setSuggestionsReducer(tx, ctx.sender, args)));
 
 // The AI service's: the reply as it's written, and proof its token reaches the module as itself.
 export const streamReply = spacetimedb.reducer(

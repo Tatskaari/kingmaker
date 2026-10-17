@@ -104,7 +104,7 @@ async function play(game: Backend, view: SceneView): Promise<void> {
   const root = createRoot(renderer);
   const quit = leaving(root, renderer, game);
 
-  const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), quit: () => quit(0) });
+  const scene = new SceneModel(view, { say: text => void game.say(text), retry: () => void game.retry(), setSuggestions: on => game.setSuggestions(on), quit: () => quit(0) });
   // From the rows as they are now, not as the first view had them: they may have moved on while the screen came up.
   scene.follow(game, GONE);
 

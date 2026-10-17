@@ -22,7 +22,7 @@ function standIn(t: TestContext) {
   const rows = (all: unknown[] = []) => ({ iter: () => all, onInsert() {}, onDelete() {}, onUpdate() {} });
   const db = {
     mySeat: rows([{ playerId: 1n, gameId: 3n, sceneId: 7n, placeId: 9n }]),
-    myNames: rows(), player: rows(), sheet: rows(), transcript: rows(), replyDraft: rows(), turn: rows(), onStage: rows(), look: rows(),
+    myNames: rows(), player: rows(), sheet: rows(), transcript: rows(), replyDraft: rows(), turn: rows(), onStage: rows(), look: rows(), sceneSuggestion: rows(),
     game: { ...rows(), id: { find: (id: bigint) => (id === 3n ? { id: 3n, time: "morning" } : undefined) } },
     scene: { ...rows(), id: { find: (id: bigint) => (id === 7n ? { id: 7n, title: "The Hanged Clerk", hook: "", status: "live", controllerId: 1n, turnId: undefined, placeId: 9n } : undefined) } },
   };
@@ -78,6 +78,7 @@ test("while the SDK tries again the status line says so; once it has stopped for
 
   assert.deepEqual(await connection.say("Kell, are you there?"), { code: "error", text: TURNED_AWAY });
   assert.deepEqual(await connection.retryTurn(5n), { code: "error", text: TURNED_AWAY });
+  assert.deepEqual(await connection.setSuggestions(false), { code: "error", text: TURNED_AWAY });
   assert.deepEqual(called, [], "nothing sent to the SDK");
   assert.equal(connection.view()?.refusal, TURNED_AWAY);
 });

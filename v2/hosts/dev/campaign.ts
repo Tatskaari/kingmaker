@@ -3,11 +3,14 @@ import { join, relative, sep } from "node:path";
 import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { SKILLS, validateScene, type Scene } from "../../shared/scene/types.ts";
+import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
+import { vocabularyProblems } from "./vocabulary.ts";
 
 /**
  * A campaign folder (v2/campaigns/<id>/) as the install sends it, and the check that it's fit to
- * send (v0-design §8; the converter's checks that need no prototype, content-world A10). Both work
- * on the folder's files in memory, so the AI service's PUT carries exactly what was checked.
+ * send (v0-design §8; the converter's checks that need no prototype, content-world A10; the
+ * vocabulary's, v5-design §3.8). Both work on the folder's files in memory, so the AI service's PUT
+ * carries exactly what was checked.
  */
 
 /** A campaign folder's files by path ("scenes/hanged-clerk/setting.md"): every file, dotfiles left out. */
@@ -54,17 +57,23 @@ export function checkCampaign(files: CampaignFiles): string[] {
     ...pack.places.flatMap((place, i) => placeProblems(place, pack.campaign.places[i]!)),
     ...buildProblems(pack.builds),
     ...lookProblems(pack.looks, pack.scenes.flatMap(s => s.scene.cast.map(c => c.id))),
+    ...vocabularyProblems(files, pack),
   ];
 }
 
-/** A short account of a pack: "caerwyn 0.1.0: 1 scene (5 beats, 37 routes, 5 exits), 1 place, 3 builds, 4 looks". */
+/**
+ * A short account of a pack: "caerwyn 0.1.0: 1 scene (5 beats, 37 routes, 5 exits), 1 place, 154 lore
+ * docs, 3 builds, 4 looks, the vocabulary of 25 scenes (44c6d4a)".
+ */
 export function describePack(pack: CampaignPack, files: CampaignFiles): string {
   const scenes = pack.scenes.map(({ scene }) => sceneOf(scene));
   const routes = scenes.reduce((n, s) => n + s.beats.reduce((m, b) => m + b.transitions.length, 0) + (s.anytime?.length ?? 0), 0);
   const beats = scenes.reduce((n, s) => n + s.beats.length, 0), exits = scenes.reduce((n, s) => n + s.exits.length, 0);
   const lore = Object.keys(files).filter(p => p.startsWith("lore/")).length;
+  const vocabulary = files[VOCABULARY] === undefined ? undefined : vocabularyOf(files[VOCABULARY]);
   return `${pack.campaign.id} ${pack.campaign.version}: ${count(scenes.length, "scene")} (${count(beats, "beat")}, ${count(routes, "route")}, ${count(exits, "exit")}), `
-    + `${count(pack.places.length, "place")}, ${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`;
+    + `${count(pack.places.length, "place")}, ${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`
+    + (vocabulary && !Array.isArray(vocabulary) ? `, the vocabulary of ${count(vocabulary.scenes.length, "scene")} (${vocabulary.source})` : "");
 }
 
 // ---------------------------------------------------------------------------------------------

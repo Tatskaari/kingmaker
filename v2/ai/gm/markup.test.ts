@@ -1,10 +1,11 @@
-// Copied from the prototype's src/runtime/markup.test.ts at 44c6d4a: every parse case as it is, and of who says each line, the hanged clerk's cases (the Heron's, the King's and the Rat's are the prototype's to keep: V0 has the one scene). The cast comes from campaigns/caerwyn and a TurnView (fixtures.ts).
+// Copied from the prototype's src/runtime/markup.test.ts at 44c6d4a, whole: the scenes come from the test story (fixtures.ts: the hanged clerk as campaigns/caerwyn has it, the Heron, the King's morning and the Rat as the prototype's tests had them), and a session is a TurnView.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hangedClerk, viewAt } from "./fixtures.ts";
+import { sceneById, stateIn } from "./fixtures.ts";
 import { speakersOf } from "./knowledge.ts";
 import { markupOf, parseMarkup, speechIn, stripMarkup, withSpeakers, type Marked } from "./markup.ts";
 import { speaker, type Speaker } from "./speakers.ts";
+import type { TurnView } from "./view.ts";
 
 const PEOPLE: Speaker[] = [
   speaker("crust", "Madam Crust", "the pie-seller"),
@@ -284,15 +285,19 @@ test("written back out, the markup reads the same", () => {
 
 // --- Who says what in whole scenes, as the QA pass's players saw it go wrong (their raw replies).
 
-/** The people of the hanged clerk, as the screen finds speakers among them: those here, those away. */
-function castOf(): Speaker[] {
-  const scene = hangedClerk();
-  return speakersOf(scene, { ...viewAt(scene), turnsInBeat: 1, player: { name: "Wren Ashdown", concept: "a halfling thief", modifiers: {} } });
+/** The people of a scene, as the screen finds speakers among them: those here, those away. */
+function castOf(sceneId: string, extra: Partial<TurnView> = {}): Speaker[] {
+  const scene = sceneById(sceneId);
+  const state = stateIn(sceneId, {
+    id: `markup-${sceneId}`, player: { name: "Wren Ashdown", concept: "a halfling thief", modifiers: {} },
+    turn: 1, beat: scene.start, turnsInBeat: 1, ...extra,
+  });
+  return speakersOf(scene, state);
 }
 const speakers = (raw: string, people: Speaker[]) => withSpeakers(parseMarkup(raw), people).speech.map(s => s.speaker);
 
 test("the tag inside a line's quotes, with the line's own quotes after it: the tag and one pair of quotes go", () => {
-  const people = castOf();
+  const people = castOf("hanged-clerk");
   const a = withSpeakers(parseMarkup("A woman in a rain cape steps away from the open gate, notebook in hand. “[Sergeant Kell] “Sergeant Kell. The Captain’s view is suicide. Mine is that I haven’t looked yet, investigator.””\n\nA stone clangs off the hoist hook."), people);
   assert.equal(a.text, "A woman in a rain cape steps away from the open gate, notebook in hand. “Sergeant Kell. The Captain’s view is suicide. Mine is that I haven’t looked yet, investigator.”\n\nA stone clangs off the hoist hook.");
   assert.deepEqual(lines(a), ["“Sergeant Kell. The Captain’s view is suicide. Mine is that I haven’t looked yet, investigator.”"]);
@@ -306,8 +311,28 @@ test("the tag inside a line's quotes, with the line's own quotes after it: the t
   assert.deepEqual(speechIn("He said ““No.”” and left.").map(s => s.end - s.start > 1), [true]);
 });
 
+test("a line is someone's who's here, by their name, their rank or what they are; someone away only by their name", () => {
+  // The Heron, with Hobb in the cells: a porter the GM made up isn't him (the thief's T45).
+  const heron = castOf("heron-warehouse", { absent: ["hobb"] });
+  assert.deepEqual(speakers("The door opens just wide enough for a grain-white porter to look you over.\n\n[the porter] “Hobb’s hand, is it? You’re short for him.”", heron), [undefined]);
+  // Someone away the narration brings in by what they're called is them (the wizard's T54).
+  assert.deepEqual(speakers("In the open doorway, two bruisers crowd past the watchman. The gentleman behind them carries a silver-topped cane.\n\n[the gentleman] “Clerk. I trust the count is ready.”", heron), ["sallow"]);
+  // "He calls": the watchman (the wizard's T47).
+  assert.deepEqual(speakers("For a few seconds, the old watchman follows it down the wharf, lantern raised. Then your magic runs out.\n\nHe stops. “Eh? Who’s there?” he calls into the dark.", heron), ["saul"]);
+  // The King is "the King" (the thief's T53 and T54, as written).
+  const king = castOf("kings-morning");
+  assert.deepEqual(speakers("The King looks at the inked initials again. “Then Master Sallow must answer for this—and for Wendell.” His gaze lifts to you. “What is to be done with the man?”", king), ["king", "king"]);
+  assert.deepEqual(speakers("The King’s mouth opens, then closes.\n\n[King Aldren] “Garran, ask Master Sallow to step in.”\n\nHolt turns to the open door. A minute later, lavender precedes a pink, well-fed gentleman.\n\n[Master Sallow] “Majesty. I’m told there are concerns about the grain.”\n\nThe King keeps the true book open between his hands. “How fortunate. We have the figures here, too.” His teacup points at the ledgers. “Master Sallow, what does ‘lost to goblins’ mean in your accounts?”", king), ["king", "sallow", "king", "king"]);
+  // Not the valets he sends away (the goals tester's g7), and "he" is the King (the wizard's opening).
+  assert.deepEqual(speakers("The King dismisses the valets with a look and lifts his teacup. “Milk in first, one sugar, the cup warmed. Wendell was particular.” His eyes settle on you. “You’ll take it black, I think. What did you find, Investigator?”", [...king, speaker("valets", "the valets")]), ["king", "king"]);
+  assert.deepEqual(speakers("The King’s cup stops halfway to his mouth.\n\nFor a moment, he looks not at the book but at the tea. “Milk first,” he says softly. “He would have been cross.”", king), ["king", "king"]);
+  // Not the one who spoke last when "he" can't be them (Kell, in g15's T3), nor whoever a speech tag in the next paragraph names (g15's T1).
+  assert.deepEqual(speakers("Kell lowers her eyes to the notebook. “I should have listened.”\n\nThe King’s teacup dips. For a moment he says nothing. Then he sets it carefully on the side table. “He wrote to me, too.”", king), ["kell", "king"]);
+  assert.deepEqual(speakers("Kell opens her oilcloth notebook. “I can swear to that entry.” Her pencil rests against the page. “I cannot swear that Sallow killed him.”\n\nHolt snaps his watch shut. “The Purveyor’s party is in the gallery.”", king), ["kell", "kell", "holt"]);
+});
+
 test("who says a line untagged, as the narration says: its own attribution before the last speaker carried over", () => {
-  const yard = castOf();
+  const yard = castOf("hanged-clerk");
   // "…,” he blurts: Cob, not Kell, whose questions the sentence before was about (the barbarian's T2).
   assert.deepEqual(speakers("Cob’s fist thumps into your gut and bounces off. His next breath catches. The threat does what Kell’s quiet questions did not.\n\n“Cob was up there,” he blurts, white-faced. “In the loft. Last night.” His voice breaks.", yard), ["cob", "cob"]);
   // "Her eyes flick to Sergeant Kell’s notebook": the girl, not Kell (the robustness tester's rb-1m).
@@ -317,16 +342,19 @@ test("who says a line untagged, as the narration says: its own attribution befor
   assert.deepEqual(speakers("A woman in a rain cape steps away from the gate. [the woman] “Sergeant Kell. The Captain calls it suicide.”", yard), ["kell"]);
   // A speech tag in the next paragraph isn't this line's: “Noted.” is Kell's, not the player's (rb-1m2's T4).
   assert.deepEqual(speakers("Kell’s pencil moves across her notebook.\n\n[Sergeant Agnes Kell] “Witness: a boy who says he was in the loft.” She looks up. “Noted.”\n\n“You said the boots stayed mine.” His hand closes around the left one.", yard), ["kell", "kell", undefined]);
+  // At the Rat Cob is the pot-boy: "the boy" who stops at your crown, not Kell, who spoke before him (g10's T2).
+  const rat = castOf("drowned-rat");
+  assert.deepEqual(speakers("Kell turns to the landlady, leaving you to the boy. “I’m lent, not on duty.” Her pencil stays tucked in her notebook.\n\nThe boy stops at your silver crown. His eyes flick to the big man by the fire, then back to the coin. “A whole crown, eh? Cob could buy himself a horse.” He reaches for the silver. “Not out here. Not with the big cove looking.” His voice drops. “And what happens to Cob after?”", rat), ["kell", "cob", "cob", "cob"]);
   // Someone brought in that nobody can name isn't the last speaker carried over.
   assert.deepEqual(speakers("[Kell] “Out.” A porter shoves past with a sack. “Mind yourself.”", yard), ["kell", undefined]);
 });
 
 test("words written and read aren't anyone's line", () => {
-  const yard = castOf();
+  const yard = castOf("hanged-clerk");
   const page = withSpeakers(parseMarkup("The page lists a dozen grain wagons for the King’s Road, each marked “lost to goblins,” each countersigned “J. Sallow, for the Royal Purveyor.” At the bottom, in pencil: “Not goblins. Who pays the hedge-folk?”\n\nKell reads over your shoulder. “I should have listened.”"), yard);
   assert.deepEqual(page.speech.map(s => [page.text.slice(s.start, s.end), s.speaker]), [["“I should have listened.”", "kell"]]);
   const ledger = withSpeakers(parseMarkup("The ledger opens onto close columns of figures: each “lost” King’s Road wagon listed by its number. At the foot of the monthly entries: “Hedge-folk, the usual: forty heron pennies.” Every entry bears the countersignature “J. Sallow, for the Royal Purveyor.”"), yard);
   assert.deepEqual(ledger.speech, []);
   // A crowd's shout the narration goes on with isn't a line said.
-  assert.deepEqual(withSpeakers(parseMarkup("Then he looks toward the window, where “Lost to goblins!” rises from the crowd."), yard).speech, []);
+  assert.deepEqual(withSpeakers(parseMarkup("Then he looks toward the window, where “Lost to goblins!” rises from the crowd."), castOf("kings-morning")).speech, []);
 });

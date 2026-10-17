@@ -1,21 +1,21 @@
-import { STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type DecideRequest, type OpenRequest, type ReplyRequest, type SettleRequest, type SheetRow, type Story, type TurnContext } from "../../../shared/protocol/ai.ts";
+import { STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type DecideRequest, type NotesRequest, type OpenRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext } from "../../../shared/protocol/ai.ts";
 import { idempotencyKey, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { OpenPlan, SayPlan } from "../moves/plans.ts";
+import type { NotesPlan, OpenPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, type GameRow, type PlayerRow, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
-import { entriesOf } from "../transcript.ts";
+import { entriesOf, entryAt, markupOf } from "../transcript.ts";
 import { placeRows } from "../world/rows-io.ts";
 import { getGm } from "./rows.ts";
 
 /**
- * think's bodies (v0-design §5.2, §6.2): each step's request, built from the rows the transaction
- * that queues it sees, so the request is exactly the state the commit's checks compare against,
- * and a stored request can be POSTed again unchanged after any crash.
+ * think's bodies (v0-design §5.2, §6.2; v5-design §3.6): each step's request, built from the rows
+ * the transaction that queues it sees, so the request is exactly the state the commit's checks
+ * compare against, and a stored request can be POSTed again unchanged after any crash.
  */
 
 /** The opening's call: POST /v1/scenes/open, key <uid>:s<scene>:t0:open. */
@@ -39,15 +39,46 @@ export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base) };
 }
 
-/** A turn's working set: everything the GM may need, as this transaction sees it. */
+/**
+ * The notes' call: POST /v1/turns/notes, key <uid>:s<scene>:t<n>:notes. The reply as its transcript
+ * row has it (its words, who says each line), the marks the GM drafted, and the scene up to it.
+ */
+export function notesCall(tx: TxCtx, plan: NotesPlan): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "notes");
+  const entry = entryAt(tx, at.scene.id, plan.seq);
+  const request: NotesRequest = {
+    ...aiRequest(key, at),
+    turn: sceneContext(tx, at, plan.n),
+    reply: { seq: entry.seq, text: entry.text, speech: markupOf(entry)?.speech ?? [], drafted: plan.drafted },
+  };
+  return { endpoint: STEP_ENDPOINT.notes, key, timeoutMs: STEP_TIMEOUT_MS.notes, request };
+}
+
+/**
+ * The lines' call: POST /v1/turns/suggest, key <uid>:s<scene>:t<n>:suggest, and suggest-<k> for the
+ * turn's k-th ask. The scene up to now, and its last set offered, none of which is offered again.
+ */
+export function suggestCall(tx: TxCtx, plan: SuggestPlan): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "suggest", plan.ask);
+  const request: SuggestRequest = { ...aiRequest(key, at), turn: sceneContext(tx, at, plan.n), offered: offeredIn(tx, at.scene.id) };
+  return { endpoint: STEP_ENDPOINT.suggest, key, timeoutMs: STEP_TIMEOUT_MS.suggest, request };
+}
+
+/** A turn's working set: everything the GM may need, as this transaction sees it, with the player's line. */
 export function turnContext(tx: TxCtx, plan: SayPlan, at: Where): TurnContext {
+  return { ...sceneContext(tx, at, plan.n), line: { speaker: playerSpeaker(plan.player), text: plan.input } };
+}
+
+/** The scene's working set at turn n, with no line in it: what a job beside a turn reads (an opening has none). */
+export function sceneContext(tx: TxCtx, at: Where, n: number): SceneContext {
   const gm = getGm(tx, at.scene.id);
   return {
-    scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: "scene", turn: plan.n },
+    scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: "scene", turn: n },
     pc: pcKey(at.controller.id),
     gm,
     transcript: entriesOf(tx, at.scene.id),
-    line: { speaker: playerSpeaker(plan.player), text: plan.input },
     world: placeRows(tx, at.scene.placeId),
     party: partyOf(tx, at.controller),
     present: presentCast(sceneGraph(tx, at.scene), gm).map(c => ({ key: c.id, name: c.name, ...(c.called ? { called: c.called } : {}) })),
@@ -79,6 +110,11 @@ function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): De
 function partyOf(tx: TxCtx, controller: PlayerRow): SheetRow[] {
   const sheet = sheetRow(tx, controller.id);
   return [{ name: controller.name, concept: controller.concept, build: sheet.build, skills: JSON.parse(sheet.skills) as Partial<Record<Skill, number>>, status: sheet.statusLine }];
+}
+
+/** The scene's suggested lines as they stand, in the order shown: the last set offered. */
+function offeredIn(tx: TxCtx, sceneId: bigint): string[] {
+  return [...tx.db.sceneSuggestion.sceneId.filter(sceneId)].sort((a, b) => a.ord - b.ord).map(s => s.text);
 }
 
 /** The story's clock (no flags until the boundary vertical). */

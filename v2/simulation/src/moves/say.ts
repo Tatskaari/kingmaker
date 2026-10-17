@@ -20,8 +20,8 @@ import { afterDecide, afterReply, afterSettle } from "./say-commits.ts";
  * say (v0-design §4.2): the controller's line, recorded at once with its turn; then three thinks,
  * each committed in turn: decide (the route, and its check rolled here), reply (streamed, then the
  * GM's entry), settle (the world and where the story stands). A line said while the last turn
- * settles waits as queued, and starts when that one is done. On the wind-down, decide and reply
- * close the scene.
+ * settles, or waits for its reply's notes, waits as queued, and starts when that one is done. On the
+ * wind-down, decide and reply close the scene.
  */
 export const say: Move<{ text: string }, SayPlan> = {
   name: "say",
@@ -97,13 +97,20 @@ function lineRefusal(text: string): Refusal | undefined {
   return undefined;
 }
 
-/** The turn in flight: a failed one waits for /retry; one deciding or replying, or settling with a line already waiting, can't take another. */
+/**
+ * The turn in flight: a failed one waits for /retry; one deciding or replying, or with a line
+ * already waiting, can't take another. One settling or noting (its reply in: the box is open) takes
+ * one more, which waits.
+ */
 function turnRefusal(tx: TxCtx, scene: SceneRow): Refusal | undefined {
   const inFlight = leaseOf(tx, scene);
   if (inFlight?.phase === "failed") return refusal("turn_failed");
-  if (inFlight && (inFlight.phase !== "settling" || queuedTurnOf(tx, scene.id))) return refusal("turn_in_flight");
+  if (inFlight && (!BOX_OPEN.has(inFlight.phase) || queuedTurnOf(tx, scene.id))) return refusal("turn_in_flight");
   return undefined;
 }
+
+/** The phases of a turn in flight whose reply is in: a line said now waits for it (v5-design §3.3). */
+const BOX_OPEN = new Set(["settling", "noting"]);
 
 /** The turn holding the scene's lease: in flight, or failed and waiting for /retry. */
 function leaseOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {

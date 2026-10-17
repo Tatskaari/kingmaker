@@ -1,47 +1,45 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { newGameOf } from "../client/backend.ts";
-import { connect, type Connection } from "../client/net/connection.ts";
-import type { SceneRows } from "../client/scene/rows.ts";
-import { sql } from "./dev/spacetime.ts";
-import { readStackFile, type StackFile } from "./dev/stack-file.ts";
+import { connect } from "../client/net/connection.ts";
+import { playScript } from "./live/play.ts";
+import { offeredOf, recordOf, spentOf } from "./live/record.ts";
+import { markdownOf } from "./live/report.ts";
+import { SCRIPTS, type Script } from "./live/scripts.ts";
+import { modelOf, runningStack } from "./live/stack.ts";
 
 /**
- * The live run (v0-design §1.4, §10.6): a new game and a few scripted lines against the running dev
- * stack, with the models it runs, recorded as Markdown: the transcript, each turn's timings (said,
- * first words, the reply final, the world settled) from the turn rows, and the model calls and their
- * cost from the AI service's call log.
+ * The live run (v0-design §10.6, v5-design §4.6): a new game and a script's lines against the running
+ * dev stack, with the models it runs, recorded as Markdown: each turn's timings (from the turn rows,
+ * and the notes and lines as they reached this client), who said what, the notes with their cards,
+ * the lines offered and those screened out, the model calls and their cost (the AI service's call
+ * log), the measures against the prototype's, and what the scene holds back from the player.
  *
- *   npm run dev                       # real models, in another terminal
- *   npm run live -- --lines 4         # writes docs/live/v0-<date>.md
+ *   npm run dev                                # real models, in another terminal
+ *   npm run live -- --script v5               # writes docs/live/v5-<date>.md
+ *   npm run live -- --lines 4                 # V0's script: docs/live/v0-<date>.md
  *
- * It stops before a line that would take the run past its budget (--budget, $0.10), judging a turn
- * by the dearest so far. It never writes over a record without being told to (--force): a second
- * run on the same day is recorded beside the first (v0-<date>-2.md), an --out already there is
- * refused before anything is played, and a rehearsal on the fake model goes to runs/live/, which
- * isn't committed.
+ * It finds the stack by its ports (the dev host's unless told) and stops before a line that would
+ * take the run past its budget (--budget, $0.10), judging a turn by the dearest so far. It never
+ * writes over a record without being told to (--force): a second run on the same day is recorded
+ * beside the first (v5-<date>-2.md), an --out already there is refused before anything is played,
+ * and a rehearsal on the fake model goes to runs/live/, which isn't committed.
  */
 
-/** The lines, in order: a question, two checks (medicine, insight), a promise that wins Cob over, what it all means, and the boot. */
-const LINES = [
-  "Sergeant, who found him?",
-  "*I climb up on the cart and look closely at Prout's neck, the back of his head and his hands.*",
-  "Moll, you never saw him jump, did you? Who paid you to say it?",
-  "Cob, nobody's taking your boots, and your name stays out of anybody's book. I'll keep the men from the loft off you. What did you hear last night?",
-  "*I turn to Kell.* He didn't hang himself. Someone strung him up after. We need to know why.",
-  "Cob, may I see what's crackling in your left boot? It stays yours.",
-];
-
 const USAGE = `npm run live [-- options]
-  --lines <n>        how many of the scripted lines to say (4; at most ${LINES.length})
-  --as "Name: concept" --build <id>   the character (Wren Ashdown, a hedge wizard from the fens; wizard)
-  --stack <dir>      the running dev stack's folder (runs/dev)
-  --out <file>       where the record goes (docs/live/v0-<date>.md, or beside it if that's there;
-                     a rehearsal's runs/live/v0-<date>-rehearsal.md)
+  --script v0|v5     the lines to play (v0): V0's six, or V5's twelve, two of them a suggested line picked
+  --lines <n>        how many of the script's lines (v0: 4; v5: 12)
+  --as "Name: concept" --build <id>   the character (the script's own)
+  --port <n>         the dev stack's SpacetimeDB port (3300)
+  --ai-port <n>      its AI service's port (8787)
+  --stack <dir>      the dev stack's folder (else the one under runs/ on those ports)
+  --out <file>       where the record goes (docs/live/<script>-<date>.md, or beside it if that's there;
+                     a rehearsal's runs/live/<script>-<date>-rehearsal.md)
   --force            write over a record already there
   --budget <usd>     stop before a line that would spend past this (0.10)
   --rehearse         run against a stack on the fake model (the record says so)`;
+
+const V2 = resolve(import.meta.dirname, "..");
 
 main(flagsOf(process.argv.slice(2))).then(() => process.exit(0), (error: unknown) => {
   console.error(`The live run stopped: ${error instanceof Error ? error.message : String(error)}`);
@@ -50,204 +48,33 @@ main(flagsOf(process.argv.slice(2))).then(() => process.exit(0), (error: unknown
 
 async function main(flags: Flags): Promise<void> {
   if (flags.outGiven && !flags.force && existsSync(flags.out)) throw new Error(`${shown(flags.out)} is already there: pass --force to write over it, or another --out`);
-  const stack = runningStack(flags.stack, flags.rehearse);
+  const stack = runningStack(join(V2, "runs"), flags);
+  const model = await modelOf(stack, flags.rehearse);
   const conn = await connect({ url: stack.ws, db: stack.db });
-  const said: string[] = [];
 
-  console.log(`The live run: ${flags.lines} lines against ${stack.http} (${stack.ai.model} model)`);
-  await opening(conn, flags.who, flags.build);
-  for (const line of LINES.slice(0, flags.lines)) {
-    if (!affordable(conn, flags.budget)) break;
-    await turn(conn, line);
-    said.push(line);
-  }
+  console.log(`The live run: ${flags.script.name}, ${flags.lines} lines against ${stack.http} (${model} model)`);
+  const run = await playScript(conn, flags.script, {
+    who: flags.who, build: flags.build, lines: flags.lines, budget: flags.budget,
+    spent: uid => spentOf(stack.root, uid), offered: scene => offeredOf(stack, scene), log: line => console.log(`  ${line}`),
+  });
+  if (run.stopped) console.log(`  stopped: ${run.stopped}`);
+  if (!run.game) throw new Error(run.stopped ?? "the game didn't open");
 
-  const record = await recordOf(stack, conn, said);
+  const record = await recordOf(stack, run, { script: flags.script, date: flags.date, rehearse: flags.rehearse, lines: flags.lines, model });
   const out = flags.outGiven || flags.force ? flags.out : besideAny(flags.out);
   const over = flags.force && existsSync(out);
-  writeRecord(out, markdownOf(record, flags), flags.force);
+  writeRecord(out, markdownOf(record, commandOf(flags)), flags.force);
   const beside = out !== flags.out ? ` (${shown(flags.out)} is already there: this is beside it)` : over ? " (over the record that was there)" : "";
   console.log(`\nRecorded ${shown(out)}${beside}: ${record.turns.length} turns, ${record.calls.length} model calls, $${record.cost.toFixed(4)}`);
   conn.close();
 }
 
 // ---------------------------------------------------------------------------------------------
-// Playing.
-
-/** The dev stack stack.json describes, on real models unless this is a rehearsal. */
-function runningStack(root: string, rehearse: boolean): StackFile {
-  const stack = readStackFile(root);
-  if (!stack?.pids.stdb || !stack.pids.ai) throw new Error(`there's no dev stack running from ${root}: start one with npm run dev`);
-  if (stack.ai.model !== "openrouter" && !rehearse) throw new Error("the dev stack runs the fake model: start it with real models (npm run dev), or pass --rehearse to try this run on the fake");
-  return stack;
-}
-
-async function opening(conn: Connection, who: string, build: string): Promise<void> {
-  const refused = await conn.newGame(newGameOf(who, build, "caerwyn"));
-  if (refused) throw new Error(`new_game was refused: ${refused.text}`);
-  await settled(conn, 0);
-  console.log(`  the opening: game ${conn.rows()!.game.id}`);
-}
-
-/** A line said, and its turn waited for until the world has settled behind the reply. */
-async function turn(conn: Connection, line: string): Promise<void> {
-  const n = (conn.rows()!.turns.reduce((m, t) => Math.max(m, t.n), 0)) + 1;
-  const refused = await conn.say(line);
-  if (refused) throw new Error(`"${line}" was refused: ${refused.text}`);
-  await settled(conn, n);
-  console.log(`  turn ${n}: done ($${spent(conn).toFixed(4)} so far)`);
-}
-
-/** Resolves once turn n is done; throws if it fails, or takes more than three minutes. */
-function settled(conn: Connection, n: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const look = () => {
-      const phase = conn.rows()?.turns.find(t => t.n === n)?.phase;
-      if (phase !== "done" && phase !== "failed") return;
-      clearTimeout(timer);
-      stop();
-      if (phase === "done") resolve();
-      else reject(new Error(`turn ${n} failed: ${conn.rows()!.turns.find(t => t.n === n)!.error}`));
-    };
-    const timer = setTimeout(() => { stop(); reject(new Error(`turn ${n} wasn't done in three minutes`)); }, 180_000);
-    const stop = conn.onChange(look);
-    look();
-  });
-}
-
-/** What the game's turns have cost so far, in dollars (each answer's usage, committed on its turn). */
-function spent(conn: Connection): number {
-  return turnsOf(conn).reduce((sum, t) => sum + Number(t.costMicros) / 1e6, 0);
-}
-
-/** Whether another line fits the budget, judging it by the dearest turn so far; says why not when it doesn't. */
-function affordable(conn: Connection, budget: number): boolean {
-  const left = budget - spent(conn);
-  const dearest = Math.max(0, ...turnsOf(conn).map(t => Number(t.costMicros) / 1e6));
-  if (dearest <= left) return true;
-  console.log(`  stopping: the dearest turn so far ($${dearest.toFixed(4)}) is more than the $${left.toFixed(4)} left`);
-  return false;
-}
-
-/** The turn rows as the client holds them: every column, though the view's type picks only some. */
-function turnsOf(conn: Connection): Array<SceneRows["turns"][number] & { costMicros: bigint }> {
-  return (conn.rows()?.turns ?? []) as Array<SceneRows["turns"][number] & { costMicros: bigint }>;
-}
-
-// ---------------------------------------------------------------------------------------------
 // The record.
 
-interface Turn { n: number; line?: string; saidAt: number; firstAt?: number; finalAt?: number; settledAt?: number; calls: number; cost: number }
-interface Entry { turn: number; kind: string; speaker: string; text: string }
-interface Call { key: string; operation: string; model: string; costUsd: number; latencyMs: number }
-interface LiveRecord { game: string; mode: string; who: string; build: string; turns: Turn[]; transcript: Entry[]; calls: Call[]; cost: number }
-
-/** The game's rows as the owner reads them (times in microseconds), and its model calls from the AI service's call log. */
-async function recordOf(stack: StackFile, conn: Connection, lines: string[]): Promise<LiveRecord> {
-  const scene = conn.rows()!.scene.id, game = conn.rows()!.game.id;
-  const query = (q: string) => sql(stack.http, q, stack.owner.token);
-  const [uidRow] = await query(`SELECT uid FROM game WHERE id = ${game}`);
-  const uid = String(uidRow!.uid);
-  const entries = (await query(`SELECT * FROM transcript WHERE scene_id = ${scene}`)).sort((a, b) => Number(a.seq) - Number(b.seq));
-  const turns = (await query(`SELECT * FROM turn WHERE scene_id = ${scene}`)).sort((a, b) => Number(a.n) - Number(b.n));
-  const [player] = await query(`SELECT * FROM player WHERE game_id = ${game}`);
-  const [sheet] = await query(`SELECT * FROM sheet WHERE game_id = ${game}`);
-
-  return {
-    game: uid, mode: stack.mode, who: `${player!.name}: ${player!.concept}`, build: String(sheet!.build),
-    turns: turns.map(t => turnOf(t, entries, lines)),
-    transcript: entries.map(e => ({ turn: Number(e.turn), kind: String(e.kind), speaker: String(e.speaker), text: String(e.text) })),
-    calls: callsOf(stack.root, uid),
-    cost: turns.reduce((sum, t) => sum + Number(t.cost_micros) / 1e6, 0),
-  };
-}
-
-/** A turn's timings: said (the turn's start), first words, the reply final (its entry's time), settled (the turn's end). */
-function turnOf(t: Record<string, unknown>, entries: Array<Record<string, unknown>>, lines: string[]): Turn {
-  const n = Number(t.n);
-  const reply = entries.find(e => Number(e.turn) === n && e.speaker === "gm");
-  return {
-    n, ...(n > 0 && lines[n - 1] ? { line: lines[n - 1] } : {}),
-    saidAt: Number(t.started_at),
-    ...(t.first_text_at !== null ? { firstAt: Number(t.first_text_at) } : {}),
-    ...(reply ? { finalAt: Number(reply.at) } : {}),
-    ...(t.ended_at !== null ? { settledAt: Number(t.ended_at) } : {}),
-    calls: Number(t.calls), cost: Number(t.cost_micros) / 1e6,
-  };
-}
-
-/** The model calls the AI service made for the game, done (its call log's entries with a cost). */
-function callsOf(root: string, uid: string): Call[] {
-  const path = join(root, "ai", "games", uid, "calls.jsonl");
-  if (!existsSync(path)) return [];
-  return readFileSync(path, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as Record<string, any>)
-    .filter(c => c.request && typeof c.costUsd === "number")
-    .map(c => ({ key: String(c.key), operation: String(c.operation), model: String(c.model ?? c.request.model ?? "?"), costUsd: c.costUsd, latencyMs: Number(c.latencyMs ?? 0) }));
-}
-
-function markdownOf(record: LiveRecord, options: Flags): string {
-  const models = [...new Set(record.calls.map(c => `${c.operation.replace(/^memory\.disclose\..*/, "memory.disclose.*")}: ${c.model}`))].sort();
-  return [
-    `# V0 live run, ${options.date}`,
-    "",
-    `The hanged clerk's scene through V0's split (client, SpacetimeDB, the AI service) with ${options.rehearse ? "**the fake model: a rehearsal, not a live run**" : "real models"}: \`npm run dev\` in ${record.mode} mode, then \`npm run live -- --lines ${options.lines}\` (hosts/live-run.ts wrote this file).`,
-    "",
-    "| | |",
-    "|---|---|",
-    `| Character | ${record.who} (${record.build}) |`,
-    `| Turns | ${record.turns.length}: the opening and ${record.turns.length - 1} lines |`,
-    `| Model calls | ${record.calls.length} |`,
-    `| Cost | $${record.cost.toFixed(4)} (each answer's usage, as committed on its turn) |`,
-    `| Game | ${record.game} |`,
-    "",
-    "## The turns",
-    "",
-    "Times from the line being said (the turn row's start): its first words in the draft, the reply final (its transcript entry), and the world settled behind it (the turn done).",
-    "",
-    "| Turn | Line | First words | Reply final | Settled | Calls | Cost |",
-    "|---|---|---|---|---|---|---|",
-    ...record.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : cell(t.line ?? "")} | ${after(t, t.firstAt)} | ${after(t, t.finalAt)} | ${after(t, t.settledAt)} | ${t.calls} | $${t.cost.toFixed(4)} |`),
-    "",
-    "## The models",
-    "",
-    ...models.map(m => `- ${m}`),
-    "",
-    "## Calls by operation",
-    "",
-    "| Operation | Calls | Cost | Median time |",
-    "|---|---|---|---|",
-    ...byOperation(record.calls),
-    "",
-    "## The transcript",
-    "",
-    ...record.transcript.flatMap(e => [entryText(e), ""]),
-  ].join("\n");
-}
-
-function byOperation(calls: Call[]): string[] {
-  const groups = new Map<string, Call[]>();
-  for (const c of calls) groups.set(c.operation, [...(groups.get(c.operation) ?? []), c]);
-  return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([operation, cs]) => {
-    const times = cs.map(c => c.latencyMs).sort((a, b) => a - b);
-    return `| ${operation} | ${cs.length} | $${cs.reduce((s, c) => s + c.costUsd, 0).toFixed(4)} | ${(times[Math.floor(times.length / 2)]! / 1000).toFixed(1)} s |`;
-  });
-}
-
-function entryText(e: Entry): string {
-  if (e.kind === "player") return `> **Turn ${e.turn}.** ${e.text}`;
-  if (e.kind === "roll") return `*${e.text}*`;
-  if (e.kind === "system") return `**— ${e.text} —**`;
-  return e.text;
-}
-
-/** How long after the line was said, in seconds. */
-function after(t: Turn, at: number | undefined): string {
-  return at === undefined ? "" : `${((at - t.saidAt) / 1e6).toFixed(1)} s`;
-}
-
-/** Text for a table's cell: its bars escaped. */
-function cell(text: string): string {
-  return text.replace(/\|/g, "\\|");
+/** The command as it was typed, for the record: the flags that changed anything. */
+function commandOf(flags: Flags): string {
+  return ["npm run live --", `--script ${flags.script.name}`, `--lines ${flags.lines}`, ...(flags.portsGiven ? [`--port ${flags.port} --ai-port ${flags.aiPort}`] : []), ...(flags.rehearse ? ["--rehearse"] : [])].join(" ");
 }
 
 /** A path as the reader typed it: relative to here when it's under here. */
@@ -262,7 +89,7 @@ function writeRecord(path: string, text: string, force: boolean): void {
   writeFileSync(path, text, { flag: force ? "w" : "wx" });
 }
 
-/** The path, or the first free one beside it: v0-<date>-2.md, -3, … */
+/** The path, or the first free one beside it: v5-<date>-2.md, -3, … */
 function besideAny(path: string): string {
   const free = (n: number): string => {
     const next = n === 1 ? path : path.replace(/(\.md)?$/, `-${n}$1`);
@@ -274,22 +101,53 @@ function besideAny(path: string): string {
 // ---------------------------------------------------------------------------------------------
 // Flags.
 
-interface Flags { lines: number; who: string; build: string; stack: string; out: string; outGiven: boolean; force: boolean; budget: number; rehearse: boolean; date: string }
+interface Flags {
+  script: Script; lines: number; who: string; build: string;
+  port: number; aiPort: number; portsGiven: boolean; stack?: string;
+  out: string; outGiven: boolean; force: boolean; budget: number; rehearse: boolean; date: string;
+}
 
 function flagsOf(argv: string[]): Flags {
-  const { values } = parseArgs({
-    args: argv,
-    options: { lines: { type: "string" }, as: { type: "string" }, build: { type: "string" }, stack: { type: "string" }, out: { type: "string" }, force: { type: "boolean" }, budget: { type: "string" }, rehearse: { type: "boolean" }, help: { type: "boolean" } },
-  });
+  const values = valuesOf(argv);
   if (values.help) { console.log(USAGE); process.exit(0); }
+  const script = SCRIPTS[values.script ?? "v0"];
+  if (!script) usage(`--script is ${Object.keys(SCRIPTS).join(" or ")}, not ${values.script}`);
+  const lines = Number(values.lines ?? script.lines);
+  if (!Number.isInteger(lines) || lines < 1 || lines > script.steps.length) usage(`--lines takes 1 to ${script.steps.length} for ${script.name}`);
   const date = new Date().toISOString().slice(0, 10);
-  const lines = Number(values.lines ?? 4);
-  if (!Number.isInteger(lines) || lines < 1 || lines > LINES.length) throw new Error(`--lines takes 1 to ${LINES.length}`);
   // A rehearsal's record isn't one to commit: it goes with the rest of the run output.
-  const record = values.rehearse ? join("runs", "live", `v0-${date}-rehearsal.md`) : join("docs", "live", `v0-${date}.md`);
+  const record = values.rehearse ? join(V2, "runs", "live", `${script.name}-${date}-rehearsal.md`) : join(V2, "docs", "live", `${script.name}-${date}.md`);
   return {
-    lines, who: values.as ?? "Wren Ashdown: a hedge wizard from the fens", build: values.build ?? "wizard",
-    stack: resolve(values.stack ?? join("runs", "dev")), out: resolve(values.out ?? record), outGiven: values.out !== undefined, force: !!values.force,
+    script, lines, who: values.as ?? script.who, build: values.build ?? script.build,
+    port: portOf(values.port, 3300, "--port"), aiPort: portOf(values["ai-port"], 8787, "--ai-port"), portsGiven: values.port !== undefined || values["ai-port"] !== undefined,
+    ...(values.stack ? { stack: resolve(values.stack) } : {}),
+    out: resolve(values.out ?? record), outGiven: values.out !== undefined, force: !!values.force,
     budget: Number(values.budget ?? 0.1), rehearse: !!values.rehearse, date,
   };
+}
+
+function valuesOf(argv: string[]) {
+  try {
+    return parseArgs({
+      args: argv,
+      options: {
+        script: { type: "string" }, lines: { type: "string" }, as: { type: "string" }, build: { type: "string" },
+        port: { type: "string" }, "ai-port": { type: "string" }, stack: { type: "string" },
+        out: { type: "string" }, force: { type: "boolean" }, budget: { type: "string" }, rehearse: { type: "boolean" }, help: { type: "boolean" },
+      },
+    }).values;
+  } catch (e) {
+    return usage((e as Error).message);
+  }
+}
+
+function portOf(value: string | undefined, fallback: number, flag: string): number {
+  const port = Number(value ?? fallback);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) usage(`${flag} is a port number, not ${value}`);
+  return port;
+}
+
+function usage(why: string): never {
+  console.error(`${why}\n\n${USAGE}`);
+  process.exit(2);
 }

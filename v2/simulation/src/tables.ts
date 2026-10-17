@@ -36,6 +36,7 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   turn: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   transcript: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   replyDraft: { primaryKey: "turnId", indexes: ["sceneId"] },
+  sceneSuggestion: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   heard: { primaryKey: "id", autoInc: true, indexes: ["playerId"] },
 
   place: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
@@ -54,7 +55,7 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   worldLog: { primaryKey: "id", autoInc: true, indexes: ["placeId"] },
   look: { primaryKey: "entityId", indexes: ["placeId"] },
 
-  job: { primaryKey: "id", autoInc: true, unique: ["key"], indexes: ["state"] },
+  job: { primaryKey: "id", autoInc: true, unique: ["key"], indexes: ["state", "turnId"] },
   jobDispatch: { primaryKey: "scheduledId", autoInc: true },
   reaper: { primaryKey: "scheduledId", autoInc: true },
 

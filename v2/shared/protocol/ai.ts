@@ -1,6 +1,6 @@
 import type { RollResult } from "../dice.ts";
 import type { GmState, OpenedNote, SceneStatus } from "../gm/state.ts";
-import type { Markup } from "../markup.ts";
+import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
 import type { Skill } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
@@ -8,15 +8,18 @@ import type { Step } from "./keys.ts";
 
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
- * back (v0-design §5.1-5.2, gm-port §13). Every request carries its working set, read in the
- * transaction that queued it, and its idempotency key; every answer is data the simulation commits.
+ * back (v0-design §5.1-5.2, gm-port §13; the notes and the suggested lines, v5-design §3.6). Every
+ * request carries its working set, read in the transaction that queued it, and its idempotency key;
+ * every answer is data the simulation commits.
  */
 
-export type Endpoint = "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reply" | "/v1/turns/settle";
+export type Endpoint = "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest";
 
 /** Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap). */
-export const STEP_ENDPOINT: Record<Step, Endpoint> = { open: "/v1/scenes/open", decide: "/v1/turns/decide", reply: "/v1/turns/reply", settle: "/v1/turns/settle" };
-export const STEP_TIMEOUT_MS: Record<Step, number> = { open: 60_000, decide: 20_000, reply: 60_000, settle: 60_000 };
+export const STEP_ENDPOINT: Record<Step, Endpoint> = {
+  open: "/v1/scenes/open", decide: "/v1/turns/decide", reply: "/v1/turns/reply", settle: "/v1/turns/settle", notes: "/v1/turns/notes", suggest: "/v1/turns/suggest",
+};
+export const STEP_TIMEOUT_MS: Record<Step, number> = { open: 60_000, decide: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000 };
 
 /** The headers on a think's POST (and the answer's, when it was kept from before). Lower case, as HTTP/2 and fetch's Headers have them. */
 export const HEADERS = {
@@ -42,8 +45,19 @@ export interface Usage { calls: number; costUsd: number; byOperation: Record<str
 export interface Entry { turn: number; speaker: string; kind: "player" | "narration" | "dialogue" | "roll" | "system"; text: string; markup?: Markup }
 export interface SheetRow { name: string; concept: string; build?: string; skills: Partial<Record<Skill, number>>; status?: string }
 export interface Story { time: string; day: number; flags: Record<string, string> }
-/** markup: speech with cast keys where they resolve. */
-export interface Reply { speaker: "gm"; kind: "narration"; text: string; markup?: Markup }
+/**
+ * A GM's entry. markup: who says each line, by game key where it resolves, and no marks (their notes
+ * are written after, from what the player knows). drafted: the marks the GM made as it wrote.
+ */
+export interface Reply { speaker: "gm"; kind: "narration"; text: string; markup?: Markup; drafted?: Drafted[] }
+/** A mark the GM made as it wrote: where, and what kind. Its own note is never kept (the prototype's notes.ts:23). */
+export interface Drafted { start: number; end: number; kind: MarkKind }
+/**
+ * A line the player might say or do next (the prototype's session.ts:192), as they'd type it:
+ * something to say, a deed in brackets, a risky try in brackets that would call for a roll, or a way
+ * to leave.
+ */
+export interface Suggestion { kind: "say" | "do" | "try" | "leave"; text: string }
 
 /** A turn's working set, read in the transaction that queued the think: everything the GM may need. */
 export interface TurnContext {
@@ -63,6 +77,9 @@ export interface TurnContext {
   present: Array<{ key: string; name: string; called?: string }>;
   story: Story;
 }
+
+/** The scene's working set with no line in it: what a job beside a turn reads (an opening has no line). */
+export type SceneContext = Omit<TurnContext, "line">;
 
 export interface OpenRequest extends AiRequest {
   scene: { id: string; key: string; kind: "scene" };
@@ -118,6 +135,27 @@ export interface After {
 }
 /** ops: at most 16, by game key; after absent when the reply closed the scene. */
 export interface SettleResponse { ops: WorldOp[]; after?: After; usage: Usage }
+
+/**
+ * POST /v1/turns/notes: the notes on a reply's marks, written from what the player knows, placed on
+ * its words, linked and carded. turn: the transcript up to and including the reply.
+ */
+export interface NotesRequest extends AiRequest {
+  turn: SceneContext;
+  /** The reply's transcript seq, its words, who says each line (by game key) and the GM's marks. */
+  reply: { seq: number; text: string; speech: Speech[]; drafted: Drafted[] };
+}
+/** People by game key; [] when there was nothing to note, or the model failed (a 200 all the same). */
+export interface NotesResponse { marks: Mark[]; usage: Usage }
+
+/** POST /v1/turns/suggest: the lines to offer after a reply. turn: the transcript up to and including the reply. */
+export interface SuggestRequest extends AiRequest {
+  turn: SceneContext;
+  /** The scene's last set, in order: none of them again. */
+  offered: string[];
+}
+/** The lines in the order shown, and what was screened out and why; none when the model failed (a 200 all the same). */
+export interface SuggestResponse { lines: Suggestion[]; dropped: Array<{ text: string; why: string }>; usage: Usage }
 
 export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready";
 export interface AiError { error: { code: AiErrorCode; message: string } }

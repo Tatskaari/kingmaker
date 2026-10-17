@@ -11,7 +11,8 @@ import type { Stores } from "./stores.ts";
 import { streamSink, type StreamTarget } from "./stream.ts";
 
 /**
- * The AI service's HTTP API (v0-design §5.1): the four thinks, a campaign's words, and its health.
+ * The AI service's HTTP API (v0-design §5.1, v5-design §3.6): the thinks (the opening, a turn's
+ * three, its notes and its suggested lines), a campaign's words, and its health.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
  * - A think is answered by its idempotency key: an answer kept from before is sent again with no
@@ -54,7 +55,10 @@ export interface AiService {
   shutdown(graceMs?: number): Promise<void>;
 }
 
-const THINKS: Record<Endpoint, Step & keyof Endpoints> = { "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle" };
+const THINKS: Record<Endpoint, Step & keyof Endpoints> = {
+  "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
+  "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest",
+};
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */

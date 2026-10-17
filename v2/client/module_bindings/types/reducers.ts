@@ -13,6 +13,7 @@ import NewGameReducer from "../new_game_reducer";
 import RetryTurnReducer from "../retry_turn_reducer";
 import SayReducer from "../say_reducer";
 import ServicePingReducer from "../service_ping_reducer";
+import SetSuggestionsReducer from "../set_suggestions_reducer";
 import StreamReplyReducer from "../stream_reply_reducer";
 
 export type DispatchWaitingParams = __Infer<typeof DispatchWaitingReducer>;
@@ -22,5 +23,6 @@ export type NewGameParams = __Infer<typeof NewGameReducer>;
 export type RetryTurnParams = __Infer<typeof RetryTurnReducer>;
 export type SayParams = __Infer<typeof SayReducer>;
 export type ServicePingParams = __Infer<typeof ServicePingReducer>;
+export type SetSuggestionsParams = __Infer<typeof SetSuggestionsReducer>;
 export type StreamReplyParams = __Infer<typeof StreamReplyReducer>;
 

@@ -1,28 +1,28 @@
 import { describeRoll } from "../../../shared/dice.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { After, Decision, DecideResponse, Outcome, Reply, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { After, Decision, DecideResponse, Outcome, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { Exit, Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
 import { rollerFor } from "../dice-row.ts";
 import { applyMove, holdEnding, keepOpened, moveOnAfterReply, movedOn, resolveMove, routeOf, takeMove, type Move } from "../gm/bookkeeping.ts";
 import { getGm, putGm } from "../gm/rows.ts";
-import { queueThink } from "../jobs.ts";
 import { sceneRow, updateScene, updateTurn, type SceneRow } from "../rows.ts";
 import { exitOf, sceneGraph } from "../scenes.ts";
-import { addEntry, noteHeard, playerLine } from "../transcript.ts";
-import { queuedTurnOf } from "../turns.ts";
+import { addEntry, noteHeard, writeReply } from "../transcript.ts";
+import { finishTurn } from "../turns.ts";
 import { applyStage, joinArrivals, placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Next } from "./move.ts";
+import { askForNotes } from "./notes.ts";
 import type { SayPlan } from "./plans.ts";
-import { say, startPlan } from "./say.ts";
+import { suggestAfter } from "./suggest.ts";
 
 /**
  * A say turn's commits (v0-design §6.2; gm-port §6, §8, §9), each one transaction, a pure function
  * of the rows, the plan and the answer (the dice are a row), so withTx can run one twice. Each ends
- * with the next step's plan, or with the turn done: the lease released, and a line that was waiting
- * started.
+ * with the next step's plan, or with the turn finished (turns.ts: done, or noting while its reply's
+ * notes are written, which v5-design §3.5 has the turn wait for).
  */
 
 /** A queued line's turn, when the scene ends before it starts. */
@@ -49,17 +49,20 @@ export function afterDecide(tx: TxCtx, plan: SayPlan, answer: DecideResponse): N
 }
 
 /**
- * After reply: the GM's entry, the draft gone, what the reply offered or repeated noted, whoever a
- * cue brought on joined to the world and the stage. The wind-down's reply closes the scene (unless
- * the player spoke out of character); any other goes on to the settle, the box open again. One
- * that closed the scene in its own right (the decide's gm.ended) leaves it ending: the settle ends
- * it, and nothing more is said in it meanwhile.
+ * After reply: the GM's entry, the draft gone; its notes asked for, and the lines to suggest after it
+ * unless it ends the scene, both on the world as the reply left it (engine.ts:844, :869, before
+ * :880); what the reply offered or repeated noted, whoever a cue brought on joined to the world and
+ * the stage. The wind-down's reply closes the scene (unless the player spoke out of character); any
+ * other goes on to the settle, the box open again. One that closed the scene in its own right (the
+ * decide's gm.ended) leaves it ending: the settle ends it, and nothing more is said in it meanwhile.
  */
 export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Next<SayPlan> {
   const at = atTurn(tx, plan);
   const turnId = idOf(plan.turn);
 
-  writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
+  const reply = writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
+  if (reply) askForNotes(tx, turnId, reply);
+  if (!endsScene(at, plan)) suggestAfter(tx, at.scene, turnId);
   noteReply(at.gm, answer);
   bringOnArrivals(tx, at, plan.n);
   noteHeard(tx, at.scene, at.graph);
@@ -96,7 +99,7 @@ export function afterSettle(tx: TxCtx, plan: SayPlan, answer: SettleResponse): N
   else if (at.gm.closing) updateScene(tx, at.scene.id, { status: "closing" });
   noteHeard(tx, at.scene, at.graph);
 
-  endTurn(tx, at.scene.id, idOf(plan.turn));
+  finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }
 
@@ -177,9 +180,9 @@ function diceLine(tx: TxCtx, scene: SceneRow, n: number, move: Move): string {
 // ---------------------------------------------------------------------------------------------
 // afterReply's parts.
 
-function writeReply(tx: TxCtx, scene: SceneRow, n: number, turnId: bigint, entries: Reply[]): void {
-  for (const e of entries) addEntry(tx, scene, { turn: n, speaker: e.speaker ?? "gm", kind: e.kind ?? "narration", text: e.text, ...(e.markup ? { markup: e.markup } : {}) });
-  tx.db.replyDraft.turnId.delete(turnId);
+/** This reply ends the scene: the decide commit found it closes on an ending, or it's the wind-down in character (engine.ts:498-504). */
+function endsScene(at: At, plan: SayPlan): boolean {
+  return !!at.gm.ended || (!!plan.outcome?.windDown && !plan.decision?.outOfCharacter);
 }
 
 /** A beat's pressure, once offered, isn't offered again; a sentence the reply repeated word for word, the next is told not to (or that's cleared). */
@@ -205,7 +208,7 @@ function windDown(tx: TxCtx, at: At, plan: SayPlan): Next<SayPlan> {
   putGm(tx, at.scene.id, at.gm);
 
   if (closes) endScene(tx, at.scene.id, exitOf(at.graph, closing.exitId), plan.n);
-  endTurn(tx, at.scene.id, idOf(plan.turn));
+  finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
 }
 
@@ -234,19 +237,6 @@ function endingOf(at: At, fight: Exit | undefined, n: number): Exit | undefined 
   if (at.gm.ended) return exitOf(at.graph, at.gm.ended.exitId);
   if (fight) at.gm.ended = { exitId: fight.id, turn: n };
   return fight;
-}
-
-/** The turn done and the lease released; a line said meanwhile starts now, its think queued. */
-function endTurn(tx: TxCtx, sceneId: bigint, turnId: bigint): void {
-  updateTurn(tx, turnId, { phase: "done", endedAt: tx.now, note: undefined });
-  const scene = updateScene(tx, sceneId, { turnId: undefined });
-  if (scene.status === "ended") return;
-
-  const queued = queuedTurnOf(tx, sceneId);
-  if (!queued) return;
-  updateTurn(tx, queued.id, { phase: "deciding" });
-  updateScene(tx, sceneId, { turnId: queued.id });
-  queueThink(tx, say, startPlan(tx, sceneId, queued, playerLine(tx, sceneId, queued.n)));
 }
 
 function needs<T>(value: T | undefined, what: string): T {

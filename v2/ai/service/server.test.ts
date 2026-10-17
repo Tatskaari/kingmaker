@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { DecideRequest, OpenRequest, ReplyRequest, SettleRequest } from "../../shared/protocol/ai.ts";
+import type { DecideRequest, NotesRequest, NotesResponse, OpenRequest, ReplyRequest, ReplyResponse, SettleRequest, SuggestRequest, SuggestResponse } from "../../shared/protocol/ai.ts";
 import { initialGm } from "../../shared/gm/state.ts";
 import { campaigns } from "./campaigns.ts";
 import { Failure, type Endpoints } from "./context.ts";
@@ -86,6 +86,16 @@ function settleRequest(n = 1): SettleRequest {
   return { key: `${GAME}:s1:t${n}:settle`, game, player, turn, reply: "Kell looks up.", lines: [], settled: [] };
 }
 
+function notesRequest(n = 1): NotesRequest {
+  const { game, player, turn: { line: _, ...turn } } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:notes`, game, player, turn, reply: { seq: 2, text: "Kell looks up.", speech: [], drafted: [{ start: 0, end: 4, kind: "why" }] } };
+}
+
+function suggestRequest(n = 1): SuggestRequest {
+  const { game, player, turn: { line: _, ...turn } } = decideRequest(n);
+  return { key: `${GAME}:s1:t${n}:suggest`, game, player, turn, offered: [] };
+}
+
 /** A request with one part taken out (a dotted path, "turn.line"), as a sender with a bug might send it. */
 function without<T extends { key: string }>(request: T, path: string): T {
   const copy = structuredClone(request) as unknown as Record<string, Record<string, unknown>>;
@@ -140,6 +150,25 @@ test("a campaign whose scene doesn't load, or whose paths climb out, is a 400 an
   assert.match(JSON.parse(missing.body).error.message, /hanged-clerk doesn't load: .*cast\/kell\.md/);
   assert.equal(climbing.status, 400);
   assert.equal(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).campaigns.length, 0);
+});
+
+test("a campaign whose vocabulary.json doesn't read as the story reads it is a 400 and isn't installed", async () => {
+  const { ai } = service();
+  const vocabulary = JSON.parse(filesOf(CAERWYN)["vocabulary.json"]!) as { scenes: Array<Record<string, unknown>> };
+  const withVocabulary = (text: string) => put("0.1.0", { ...filesOf(CAERWYN), "vocabulary.json": text });
+  const answers = [
+    await ai.answer(withVocabulary("{")),
+    await ai.answer(withVocabulary("{}")),
+    await ai.answer(withVocabulary(JSON.stringify({ ...vocabulary, scenes: vocabulary.scenes.map((e, i) => (i === 1 ? { ...e, prep: undefined, next: "wharf-night" } : e)) }))),
+  ];
+
+  assert.deepEqual(answers.map(a => `${a.status} ${JSON.parse(a.body).error.code}`), Array(3).fill("400 bad_request"));
+  const [garbled, shapeless, entry] = answers.map(a => JSON.parse(a.body).error.message as string);
+  assert.match(garbled!, /^vocabulary\.json isn't JSON: /);
+  assert.equal(shapeless, "vocabulary.json: isn't { source, scenes: [...] }");
+  assert.match(entry!, /^vocabulary\.json: scenes\[1\] \([a-z-]+\): next isn't a list of scene ids; vocabulary\.json: scenes\[1\] \([a-z-]+\): no prep$/);
+  assert.equal(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).campaigns.length, 0);
+  assert.equal((await ai.answer(put())).status, 200, "the campaign as it is installs");
 });
 
 test("a think is answered once by its key: the same POST again comes from the store, with no model call", async () => {
@@ -287,6 +316,38 @@ test("over HTTP on node's server (port 0): the same answers, and a body over its
   }
 });
 
+test("canned: someone of the cast says a line in each reply, the notes put a why on it with its card, and the same four lines are suggested", async () => {
+  const { ai } = service();
+  await ai.answer(put());
+  const { line: _, ...scene } = decideRequest(1).turn;
+  const reply: ReplyRequest = { ...decideRequest(1), key: `${GAME}:s1:t1:reply`, decision: { earned: false, daft: false, outOfCharacter: false }, outcome: { lines: [], directives: [], wasStuck: false }, stream: { turn: "4" } };
+  const said = (JSON.parse((await ai.answer(post("/v1/turns/reply", reply))).body) as ReplyResponse).entries[0]!;
+  const notes: NotesRequest = { key: `${GAME}:s1:t1:notes`, game: reply.game, player: reply.player, turn: { ...scene, transcript: [...scene.transcript, { turn: 1, ...said }] }, reply: { seq: 2, text: said.text, speech: said.markup!.speech, drafted: [] } };
+  const noted = JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse;
+  const suggest: SuggestRequest = { key: `${GAME}:s1:t1:suggest`, game: reply.game, player: reply.player, turn: notes.turn, offered: [] };
+  const suggested = JSON.parse((await ai.answer(post("/v1/turns/suggest", suggest))).body) as SuggestResponse;
+  const again = await ai.answer(post("/v1/turns/suggest", { ...suggest, key: `${GAME}:s1:t1:suggest-2` }));
+
+  assert.equal(said.text, "You said: “Sergeant, who found him?” “Go on, then,” says the boy in the too-big boots. (Canned: no model was asked.)");
+  assert.deepEqual(said.markup!.speech.map(s => [said.text.slice(s.start, s.end), s.speaker]), [["“Sergeant, who found him?”", "you"], ["“Go on, then,”", "cob"]]);
+  assert.deepEqual(noted.marks, [{
+    start: said.markup!.speech[1]!.start, end: said.markup!.speech[1]!.end, kind: "why", note: "The boy in the too-big boots wants to hear more. (Canned: no model was asked.)",
+    link: { kind: "person", id: "cob" }, card: { title: "The boy in the too-big boots", lines: ["You met them in this scene.", "Last said to you (turn 1): “Go on, then,”"] },
+  }]);
+  assert.deepEqual(suggested.lines.map(l => l.kind), ["say", "say", "do", "try"]);
+  assert.equal(again.status, 200, "a second ask of the same turn has a key of its own");
+});
+
+test("canned: a reply with nobody of the cast speaking gets no notes", async () => {
+  const { ai } = service();
+  await ai.answer(put());
+  const { line: _, ...scene } = decideRequest(1).turn;
+  const text = "The rain comes on. “Hm,” you say.";
+  const notes: NotesRequest = { key: `${GAME}:s1:t1:notes`, game: decideRequest().game, player: decideRequest().player, turn: scene, reply: { seq: 2, text, speech: [{ start: 19, end: 23, speaker: "you" }], drafted: [] } };
+
+  assert.deepEqual((JSON.parse((await ai.answer(post("/v1/turns/notes", notes))).body) as NotesResponse).marks, []);
+});
+
 test("a think missing what its endpoint reads is a 400 before any model is asked (the module fails the turn rather than retry it), and nothing is kept", async () => {
   const asked: string[] = [];
   const { ai, stores } = service({ endpoints: pipeline, transport: () => ({ apiKey: "test", fetch: async input => { asked.push(String(input)); throw new Error("no model may be asked"); } }) });
@@ -302,6 +363,10 @@ test("a think missing what its endpoint reads is a 400 before any model is asked
     ["/v1/turns/reply", without(replyRequest(), "decision"), /decision/],
     ["/v1/turns/settle", without(settleRequest(), "reply"), /reply \(the reply's text\)$/],
     ["/v1/turns/settle", without(settleRequest(), "settled"), /settled/],
+    ["/v1/turns/notes", without(notesRequest(), "reply"), /reply \{ seq, text, speech, drafted \}$/],
+    ["/v1/turns/notes", without(notesRequest(), "turn.world"), /turn\.world \(the place's rows\)$/],
+    ["/v1/turns/suggest", without(suggestRequest(), "offered"), /offered \(the scene's last set\)$/],
+    ["/v1/turns/suggest", without(suggestRequest(), "turn.transcript"), /turn\.transcript$/],
   ];
 
   for (const [path, body, says] of malformed) {

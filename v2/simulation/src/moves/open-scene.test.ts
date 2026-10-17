@@ -109,7 +109,7 @@ test("the opening's commit: the GM's entry, the draft gone, the scene live, turn
   const now = sceneNow(host, scene.id);
   assert.equal(now.scene.status, "live");
   assert.equal(now.scene.turnId, undefined);
-  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls, t.costMicros]), [[0, "done", 3, 2100n]]);
+  assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls, t.costMicros]), [[0, "done", 3 + 1 + 2, 2100n + 200n + 800n]], "the opening's calls, then its notes' and its lines'");
   assert.ok(now.turns[0]!.firstTextAt, "the stream set the first text's time");
   assert.deepEqual(now.lines.map(l => [l.seq, l.turn, l.speaker, l.kind]), [[1, 0, "gm", "narration"]]);
   assert.deepEqual(JSON.parse(now.lines[0]!.markup!), { speech: [{ start: 40, end: 54, tag: "Kell" }], marks: [] });

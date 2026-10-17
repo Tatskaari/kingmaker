@@ -252,6 +252,8 @@ The blueprint is [v0-design.md](v0-design.md): contracts, packages A to F, tests
 
 ### V5 · The reply as drawn
 
+Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its §7 lists where V5 departs from this plan: a picked line goes into the box, to send or change, and a turn ends when its notes are in.
+
 - **After it:** each speaker's lines are in their colour. The words a moment turns on are marked, and open a note written only from what the player knows, with a knowledge card. Three suggested lines sit under the box, and picking one says it.
 - **Client:** speech coloured from the markup's speakers and the cast's `look` rows (V0's cut screen already draws them, given speakers); the popover's knowledge card (`popover.tsx`); suggested lines (`scene.tsx:202-228`, whose rows the cut screen already has) and `/suggestions`; the marks section of `game.ts` (1869-1962).
 - **Simulation:** the reply commit stores the markup with speakers. It also queues two jobs that nothing waits for: `notes`, which lands on the entry's `transcript.markup`, and `suggest`, which writes `scene_suggestion` rows (turn, kind, text). Suggestions for a turn that's been overtaken are dropped.

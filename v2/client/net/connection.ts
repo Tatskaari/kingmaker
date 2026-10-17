@@ -9,10 +9,11 @@ import type { SceneView } from "../scene/view.ts";
 /**
  * The client's way into the simulation (v0-design §7), and the e2e's: a SpacetimeDB connection
  * that follows the seat. It subscribes to my_seat and my_names; whenever the seat moves (a new
- * game, a join) it subscribes to that game's, scene's and place's rows, and only then drops the
- * old set, so nothing blinks out. Each row change rebuilds the scene's rows from the client's
- * cache, once a tick; each row event also goes, in arrival order, to whoever listens. The moves
- * are the reducers: a refusal comes back as the simulation wrote it, in the game's words.
+ * game, a join) it subscribes to that game's, scene's and place's rows (the scene's suggested
+ * lines among them), and only then drops the old set, so nothing blinks out. Each row change
+ * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
+ * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
+ * simulation wrote it, in the game's words.
  */
 
 export interface ConnectOptions {
@@ -27,7 +28,7 @@ export interface ConnectOptions {
 }
 
 /** The tables and views a client watches, by their SQL names. */
-export type Watched = "my_seat" | "my_names" | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look";
+export type Watched = "my_seat" | "my_names" | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion";
 export type RowOp = "insert" | "update" | "delete";
 export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
 
@@ -94,6 +95,7 @@ export class Connection implements Backend {
       onStage: of(this.db.db.onStage, s => s.sceneId === scene.id),
       names: [...this.db.db.myNames.iter()],
       looks: of(this.db.db.look, l => l.placeId === scene.placeId),
+      suggestions: of(this.db.db.sceneSuggestion, s => s.sceneId === scene.id),
       ...(this.refused ? { refusal: this.refused } : {}),
       ...(this.trouble ? { trouble: this.trouble } : {}),
       ...(this.cutOff ? { cutOff: true } : {}),
@@ -131,6 +133,11 @@ export class Connection implements Backend {
 
   say(text: string): Promise<Rejection | undefined> {
     return this.move(() => this.db.reducers.say({ text }));
+  }
+
+  /** This player's own setting: the suggested lines on or off (on, this moment's are asked for at once). */
+  setSuggestions(on: boolean): Promise<Rejection | undefined> {
+    return this.move(() => this.db.reducers.setSuggestions({ on }));
   }
 
   /** Carries the failed turn on: the one holding the scene's lease. */
@@ -280,6 +287,7 @@ export class Connection implements Backend {
     const tables: Array<[Watched, Observable]> = [
       ["my_seat", t.mySeat], ["my_names", t.myNames], ["game", t.game], ["player", t.player], ["sheet", t.sheet], ["scene", t.scene],
       ["transcript", t.transcript], ["reply_draft", t.replyDraft], ["turn", t.turn], ["on_stage", t.onStage], ["look", t.look],
+      ["scene_suggestion", t.sceneSuggestion],
     ];
     for (const [name, table] of tables) {
       table.onInsert((_ctx, row) => this.event(name, "insert", row));
@@ -336,12 +344,12 @@ interface Observable {
   onUpdate?(cb: (ctx: unknown, old: unknown, row: unknown) => void): void;
 }
 
-/** The seat's subscription set (v0-design §7). */
+/** The seat's subscription set (v0-design §7, and v5-design §3.9's scene_suggestion). */
 function queriesFor({ game, scene, place }: WatchKey): string[] {
   return [
     `SELECT * FROM game WHERE id = ${game}`,
     ...["player", "sheet", "scene"].map(table => `SELECT * FROM ${table} WHERE game_id = ${game}`),
-    ...(scene === undefined ? [] : ["transcript", "reply_draft", "turn", "on_stage"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
+    ...(scene === undefined ? [] : ["transcript", "reply_draft", "turn", "on_stage", "scene_suggestion"].map(table => `SELECT * FROM ${table} WHERE scene_id = ${scene}`)),
     ...(place === undefined ? [] : [`SELECT * FROM look WHERE place_id = ${place}`]),
   ];
 }
