@@ -31,7 +31,7 @@ Every finding is triaged by hand before anyone believes it. At each stage a repo
 | `triage.ts` | `triage.json`, what counts after it, and the worksheet. |
 | `report.ts`, `eval-report.ts`, `html.ts` | The reports, and the call viewer (each call opened as its own transcript). |
 
-Rounds and runs aren't checked in: they go under `KM_LOOP_DIR` (default `runs/loop`; the skill uses `~/git/kingmaker-scratch/loop`).
+Rounds and runs aren't checked in: they go under `KM_LOOP_DIR` (default `runs/loop`, which the skill uses), and `loop archive` copies one to `KM_LOOP_ARCHIVE` to keep it.
 
 ## How a case replays a turn (V1's rule)
 

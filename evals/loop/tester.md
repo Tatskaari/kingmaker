@@ -24,7 +24,7 @@ Then take a turn at a time:
 - One turn is one thing you say or do, a line or three, as at a real table. Don't write the GM's part or decide how the world reacts.
 - `{{loop}} sheet {{round}} {{game}}` shows your character sheet; `transcript` shows the scene so far. They don't use a turn.
 - You have up to {{maxTurns}} turns. The game tells you when the scene is over or you're out of turns. Stop there.
-- A reply can take a few seconds, up to half a minute on a hard turn. If a command fails, run it again once; if it fails again, say so in your notes and stop.
+- A reply can take a few seconds, up to half a minute on a hard turn. If a command fails (an API error, say), wait half a minute and run it again. After three failures in a row, say so in your notes and stop.
 
 Play in character the whole way. Be curious, follow what interests your character, and try things the scene might not expect. Don't play to break the game on purpose, and don't play to please it either.
 

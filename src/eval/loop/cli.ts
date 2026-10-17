@@ -1,14 +1,14 @@
 /**
  * npm run loop -- <command>: the GM improvement loop (evals/loop/README.md, the kingmaker-gm-loop skill).
  */
-import { existsSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SessionState } from "../../runtime/session.ts";
 import { rejudge, runEval, runSample, selectCases } from "./eval.ts";
 import { triageSheet } from "./triage.ts";
 import { evalReport } from "./eval-report.ts";
 import { extractFixture, gameSource, type Finding } from "./fixture.ts";
-import { CASES_DIR } from "./paths.ts";
+import { CASES_DIR, runsRoot } from "./paths.ts";
 import { brief, say, start, view } from "./play.ts";
 import { roundReport } from "./report.ts";
 import { checkReview, reviewPack, type Review } from "./review.ts";
@@ -47,6 +47,11 @@ Evals: play each case's turn again on each variant, judge it by the rubric
                                                writing triage.json (keep or discard, and why) beside it
   loop rejudge <run> [--label note]            the run's replies judged again with today's rubric and
                                                criteria (no GM calls): for tuning the eval itself
+
+Keeping them
+  loop archive <round | evals/<run>> [--to dir]
+                                               copy a round or run out of KM_LOOP_DIR to KM_LOOP_ARCHIVE (or --to),
+                                               so it outlives the checkout it ran in
 
 Rounds and eval runs go under KM_LOOP_DIR (default runs/loop); cases under evals/loop/cases;
 variants under evals/loop/variants/<name>/ (variant.json, and prompts/ files that replace prompts/'s).
@@ -177,6 +182,17 @@ async function main(): Promise<void> {
       const run = await rejudge(need(pos[0], "loop rejudge <run> [--label note]"), { ...(flags.label ? { label: flags.label } : {}) });
       const { dir } = evalReport([run]);
       console.log(`\n${run}\nReport: ${join(dir, "index.html")}`);
+      return;
+    }
+    case "archive": {
+      const usage = "loop archive <round | evals/<run>> [--to dir]";
+      const name = need(pos[0], usage);
+      const from = join(runsRoot(), name);
+      if (!existsSync(from)) throw new Error(`No ${from}.`);
+      const to = flags.to || process.env.KM_LOOP_ARCHIVE;
+      if (!to) throw new Error(`Set KM_LOOP_ARCHIVE or pass --to. Usage: ${usage}`);
+      cpSync(from, join(to, name), { recursive: true });
+      console.log(`Copied ${from} to ${join(to, name)}`);
       return;
     }
     case "sample": await runSample(JSON.parse(need(pos[0], "loop sample <spec>"))); return;

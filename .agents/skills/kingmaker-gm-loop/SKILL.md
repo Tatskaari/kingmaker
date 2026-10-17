@@ -16,7 +16,7 @@ Everything runs through `npm run loop -- <command>` (src/eval/loop, evals/loop/R
 
 ## Ground rules
 
-- **Plan before fan-out.** A round spawns two Claude agents per game. Before launching one, give the plan: scene, arms, personas, games, max turns, agents (2 × games), rough OpenRouter spend (about $0.03–0.10 a game for play, under $0.01 a review pack). Wait for a yes. Evals call no agents and cost cents (a turn about $0.005, a Luna-high judgement about $0.001–0.003), so run them without asking, but sparingly: Luna at high reasoning is the most expensive judge the user allows.
+- **Plan before fan-out.** A round is personas × variants × repeat games, and each game spawns two Claude agents (a tester and a reviewer). Rounds of up to 8 games and 20 turns, on baseline plus at most one candidate, are pre-approved: state the plan in a line (scene, arms, personas, games, max turns, agents) and launch. Anything bigger needs a yes first. For scale: 8 games of 20 turns took about 12 minutes, 1M agent tokens and $0.20 a game on OpenRouter. Evals call no agents and cost cents (a turn about $0.005, a Luna-high judgement about $0.001–0.003), so run them without asking, but sparingly: Luna at high reasoning is the most expensive judge the user allows.
 - **Triage every finding before you show it.** The judge and the blind reviewers are fallible. Read each finding against the reply, the criterion and the truth sheet, and write `triage.json` beside the run or round: keep (why, in plain words; adjust the severity if needed) or discard (why). The report's "why" column shows your words first. An untriaged report isn't finished.
 - **Verify by reading, not by score.** Open the calls of a failing turn in the report's debug view (each call is its own transcript; changed parts are diffed against the last call of the same kind). Find the call where it goes wrong before you form a hypothesis.
 - **Blind means blind.** Testers and reviewers see neutral names (k1, g03) and nothing of the build. Never tell them the arms, the hypothesis or what you're hunting for.
@@ -26,11 +26,13 @@ Everything runs through `npm run loop -- <command>` (src/eval/loop, evals/loop/R
 ## Setup
 
 ```sh
-export KM_LOOP_DIR=~/git/kingmaker-scratch/loop     # rounds and eval runs live here (durable; /tmp is wiped on reboot)
 npm run loop -- help
 ```
 
-`OPENROUTER_API_KEY` or `~/secrets/kingmaker-dev-openrouter.txt` must be there. The Artifact tool publishes only files under the working directory, so copy a report to `runs/publish/<name>/` (gitignored) before publishing it.
+- **Run in a worktree, with KM_LOOP_DIR unset.** Rounds and eval runs then go under the worktree's `runs/loop/` (gitignored), and every command the agents type is a plain `npm run -s loop -- …` with relative paths. Don't point KM_LOOP_DIR or a symlink outside the worktree: a background session's worktree guard refuses writes through it (the testers couldn't save their notes) and absolute paths under `~/git` in compound commands.
+- **Archive when you're done.** `npm run loop -- archive <round>` (or `archive evals/<run>`) copies it to `KM_LOOP_ARCHIVE` (the user's is `~/git/kingmaker-scratch/loop`), so it outlives the worktree. Archive after triage, and again if you re-triage.
+- `OPENROUTER_API_KEY` or `~/secrets/kingmaker-dev-openrouter.txt` must be there. The key has an in-flight spending cap: 8 games at once hit it for 30 s (HTTP 402 `in_flight_budget_exhausted`), which stopped two games early and failed some co-GM calls in the others. Note which turns it touched before you triage them.
+- The Artifact tool publishes only files under the working directory, so copy a report to `runs/publish/<name>/` (gitignored) before publishing it.
 
 ## 1. A QA round
 
@@ -45,10 +47,10 @@ npm run loop -- import r1-1017 ~/Downloads/kingmaker-report-….json.gz   # opti
 - **Personas** are in `evals/loop/personas.json` (thief, wizard, barbarian, tangent, investigator, schemer, terse, absurd). Include `tangent` or `absurd`: the user cares most about how the GM improvises off the prep. `--goal "..."` makes a goal-directed round (docs/QA.txt).
 - An imported game is its own arm, marked "not comparable": a different player and maybe a different build.
 
-Then, after the user's yes, launch the saved workflow:
+Then launch the saved workflow (after the user's yes, if the round is bigger than the pre-approved size):
 
 ```
-Workflow({ name: "gm-qa-round", args: { round: "r1-1017", games: ["g01", "g02", …], loopDir: "<KM_LOOP_DIR>" } })
+Workflow({ name: "gm-qa-round", args: { round: "r1-1017", games: ["g01", "g02", …] } })
 ```
 
 Each game is a pipeline: a tester agent gets its brief (`loop brief`) and plays with `loop start` and `loop say`, which apply the arm's variant, strip the markup lines and stop at the scene's end or the turn limit. Its notes go to `notes/<game>.md`. As soon as a game is played, a reviewer agent builds its pack (`loop review-pack`: the reviewer brief, the rubric, the truth behind the screen, the scene as the player saw it), writes `reviews/<game>.json`, and checks it with `loop review-check` (every quote must be in its turn's reply).
@@ -58,8 +60,9 @@ Each game is a pipeline: a tester agent gets its brief (`loop brief`) and plays 
 ```sh
 npm run loop -- review-check r1-1017                # every review valid?
 npm run loop -- triage r1-1017                      # the worksheet: each finding, its key, the turn it's on
-# write $KM_LOOP_DIR/r1-1017/triage.json: { "g03/2": { "verdict": "keep" | "discard", "why": "...", "severity"?: 3 } }
+# write runs/loop/r1-1017/triage.json: { "g03/2": { "verdict": "keep" | "discard", "why": "...", "severity"?: 3 } }
 npm run loop -- report r1-1017                      # report/index.html + report/games/*.html
+npm run loop -- archive r1-1017                     # keep it beyond this worktree
 ```
 
 Publish it: index.html as the page, `games/*.html` as files. Tell the user, in a few lines: the arms compared (penalty per 10 replies, scenes ended, ratings), the worst kept findings, and what you discarded and why. The report's "Make it a case" column has the command for each finding.
@@ -144,7 +147,7 @@ If the candidate holds:
 | personas | evals/loop/personas.json |
 | truth sheets (what the prep doesn't spell out) | evals/loop/truth/<scene>.md |
 | cases, variants | evals/loop/cases/, evals/loop/variants/ |
-| rounds, eval runs, triage | $KM_LOOP_DIR/<round>/, $KM_LOOP_DIR/evals/<run>/ |
+| rounds, eval runs, triage | runs/loop/<round>/, runs/loop/evals/<run>/ (KM_LOOP_DIR), archived to KM_LOOP_ARCHIVE |
 | the saved workflow | .claude/workflows/gm-qa-round.js |
 | code | src/eval/loop (cli, round, play, review, report, fixture, eval, judge, triage, html) |
 
