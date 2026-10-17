@@ -287,6 +287,8 @@ export interface SessionState {
   /** Considered turns' rulings in this scene, in order. */
   rulings?: RulingRecord[];
   repairs: Array<Omit<RepairResult, "patches" | "canon" | "whispers" | "relocations"> & { patches: number; canon: number; whispers: number; relocations?: Array<{ essential: string; technique: string; to: string; how: string }> }>;
+  /** Approach "two-part" (src/runtime/two-part.ts): each character's role as the co-GM keeps it, the notes the mouthpiece was given before each player turn, and what the co-GM did each turn. */
+  twoPart?: { roles: Record<string, { status: string; mental_state: string; conversation_role: string }>; notes: Array<{ turn: number; text: string }>; moved?: string; held?: boolean; log?: Array<{ turn: number; calls?: Array<{ name: string; args: unknown; result: unknown }>; error?: string }> };
   transcript: Entry[];
   metrics: TurnMetric[];
   ended?: { exitId: string; turn: number; operations: Operation[]; warnings: string[] };

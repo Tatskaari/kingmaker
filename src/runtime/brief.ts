@@ -168,7 +168,7 @@ export function offstageCast(scene: Scene, state: SessionState): Character[] {
 
 const bullets = (items: readonly string[] | undefined, none = "- (nothing in particular)") => items?.length ? items.map(i => `- ${i}`).join("\n") : none;
 
-function castBlock(scene: Scene, c: Character, present: boolean): string {
+export function castBlock(scene: Scene, c: Character, present: boolean): string {
   const lines = [
     `### ${c.name}${c.group ? ` (${c.group})` : ""}`,
     `- Look: ${c.look}`,
