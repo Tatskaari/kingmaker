@@ -146,10 +146,16 @@ export function leaveTalk(tx: TxCtx, game: GameRow, row: ExploreTableRow): Explo
   return walkerOf(tx, game)!;
 }
 
-/** A talk's lines to choose from after turn n (the prep's for the greeting, the settle's after each reply): the scene's set replaced, each a line to say. */
-export function talkLines(tx: TxCtx, scene: SceneRow, n: number, lines: string[]): void {
+/**
+ * A talk's lines to choose from after turn n (the prep's for the greeting, the settle's after each
+ * reply): the scene's set replaced, each a line to say. Without new ones (the call failed, or none
+ * came), the old ones less the line just said, as the prototype keeps them (src/runtime/talk.ts:381-382).
+ */
+export function talkLines(tx: TxCtx, scene: SceneRow, n: number, lines: string[], said?: string): void {
+  const old = [...tx.db.sceneSuggestion.sceneId.filter(scene.id)].sort((a, b) => a.turn - b.turn || a.ord - b.ord).map(row => row.text);
+  const next = lines.length ? lines : old.filter(text => text !== said?.trim());
   tx.db.sceneSuggestion.sceneId.delete(scene.id);
-  lines.forEach((text, i) => {
+  next.forEach((text, i) => {
     tx.db.sceneSuggestion.insert({ id: 0n, gameId: scene.gameId, sceneId: scene.id, playerId: scene.controllerId, turn: n, ord: i + 1, kind: "say", text });
   });
 }

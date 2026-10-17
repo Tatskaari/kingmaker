@@ -45,7 +45,7 @@ export interface PageHost {
   serve(duplex: Duplex): void;
   /** Resolves once no job is running or due. */
   idle(): Promise<void>;
-  /** No more jobs started, and the reaper stopped: another tab has the game. */
+  /** No more jobs started, and the reaper and the town's clock stopped: another tab has the game. */
   stop(): void;
 }
 

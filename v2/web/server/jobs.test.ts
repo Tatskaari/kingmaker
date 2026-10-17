@@ -8,8 +8,8 @@ import { recoverAfterRestart, startJobs, type Jobs } from "./jobs.ts";
 /**
  * The jobs run as SpacetimeDB's scheduler runs them (browser-design §4.2), on fake timers: a commit
  * that dispatched starts its runs on the next turn of the event loop (after the move's answer), the
- * reaper runs on its row's interval, idle waits for the thinks to come in; and a start after the
- * page went dispatches every running job again and has nobody online.
+ * reaper runs on its row's interval, the town's clock every 6 s, idle waits for the thinks to come
+ * in; and a start after the page went dispatches every running job again and has nobody online.
  */
 
 const NEW_GAME = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "ranger" };
@@ -48,6 +48,20 @@ test("a commit that dispatched starts its runs on the next turn of the event loo
   assert.equal(idle, true);
   assert.deepEqual(script.sent.map(sent => sent.step), ["open", "suggest"], "the opening's lines run after it, dispatched by its commit");
   assert.ok(all(host.db.job).every(job => job.state === "done"));
+});
+
+test("the town's clock runs every 6 s, as SpacetimeDB schedules tick_place by its place_tick rows, and stops with the jobs", t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const host = memoryHost({ ai: scriptedAi().ai, seed: 7 });
+  let ticked = 0;
+  const jobs = startJobs({ ...host, tickPlaces: () => { ticked++; host.tickPlaces(); } });
+  t.mock.timers.tick(5999);
+  assert.equal(ticked, 0);
+  t.mock.timers.tick(12_001);
+  assert.equal(ticked, 3, "at 6, 12 and 18 s");
+  jobs.stop();
+  t.mock.timers.tick(60_000);
+  assert.equal(ticked, 3, "another tab has the game: its clock is that tab's");
 });
 
 test("a start after the page went: every job that was running is dispatched again now, and every seated player is offline", async () => {

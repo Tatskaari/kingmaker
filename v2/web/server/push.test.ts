@@ -9,16 +9,17 @@ import { pushTo, type Push } from "./push.ts";
  * What a client is pushed (browser-design §3): a snapshot of everything it may see, its own views
  * made for it, then a tx for each commit with the net change for each primary key, by the tables'
  * SQL names, and its views' changes by their keys; never a private table's row, and nothing for a
- * commit with nothing in it for the client.
+ * commit with nothing in it for the client. The town's (town-design §3.1) cross in the map's own
+ * rows; its clock's, its talks' records and its invented looks' rows never.
  */
 
-/** A memory host with the hanged clerk installed, each commit told to its push as the page host tells it, and the commits kept. */
-function pushed() {
+/** A memory host with the hanged clerk installed (starting on the map, as the dev pack does, with `map`), each commit told to its push as the page host tells it, and the commits kept. */
+function pushed(options: { map?: boolean } = {}) {
   const script = scriptedAi();
   const commits: ChangeSet[] = [];
   let push: Push | undefined;
   const host = memoryHost({ ai: script.ai, seed: 7, onCommit: commit => { commits.push(commit); push?.commit(commit); } });
-  host.as(host.owner).installCampaign(caerwynArgs());
+  host.as(host.owner).installCampaign(caerwynArgs(options));
   push = pushTo(host);
   return { host, push, commits };
 }
@@ -72,4 +73,30 @@ test("each commit is one tx: its net change for each key by the tables' SQL name
   const replaced = txs.find(tx => named(tx).includes("scene_suggestion delete"))!;
   assert.deepEqual(named(replaced).filter(change => change.startsWith("scene_suggestion")).sort(), [...Array(4).fill("scene_suggestion delete"), ...Array(4).fill("scene_suggestion insert")], "the opening's lines deleted as the reply's go in, in one tx");
   assert.ok(txs.some(tx => named(tx).includes("turn update")), "a turn's row updated in place");
+});
+
+test("the town crosses in the map's own rows: a Fire Bolt's words on the explore row and the door alight in the place's town, then the clock's rounds; the clock's own row never", () => {
+  const { host, push } = pushed({ map: true });
+  const wren = identity(1);
+  host.as(wren).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a hedge wizard from the fens", build: "wizard" });
+  host.advance(1000);
+  const sent: ToClient[] = [];
+  push.join(wren, message => sent.push(message));
+  assert.match(String(snapshotOf(sent).sheet[0]!.actions), /"Fire Bolt"/, "the sheet's catalogue, for the menu");
+
+  assert.equal(host.as(wren).walk({ to: { x: 22, y: 8 } }), undefined);
+  assert.equal(host.as(wren).cast({ spell: "fire-bolt", at: { x: 25, y: 6 } }), undefined);
+  const cast = txsIn(sent).at(-1)!;
+  const changed = (tx: Tx, table: string) => tx.changes.find(change => change.table === table && change.op === "update")?.row;
+  assert.match(String(changed(cast, "explore")?.said), /catches fire/);
+  assert.match(String(changed(cast, "place")?.town), /"burning"/);
+
+  host.advance(12_000);
+  host.tickPlaces();
+  const ticked = txsIn(sent).at(-1)!;
+  assert.notEqual(ticked, cast, "the clock's rounds are a tx of their own");
+  assert.ok((changed(ticked, "place")?.round as number) > (changed(cast, "place")?.round as number), "two rounds on");
+  assert.equal(all(host.db.placeTick).length, 1, "the clock's row is there");
+  const crossed = new Set(txsIn(sent).flatMap(tx => tx.changes.map(change => change.table as string)));
+  assert.deepEqual(["place_tick", "talk_record", "look_invention"].filter(table => crossed.has(table) || table in snapshotOf(sent)), []);
 });

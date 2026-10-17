@@ -225,7 +225,7 @@ function afterTalkSettle(tx: TxCtx, at: At, plan: SayPlan, answer: SettleRespons
   if (!plan.decision?.outOfCharacter && !movedOn(at.gm, plan.n)) at.gm.turnsInBeat++;
   const ending = endingOf(at, undefined, plan.n);
   putGm(tx, at.scene.id, at.gm);
-  if (!ending && playerRow(tx, at.scene.controllerId).suggestions) talkLines(tx, at.scene, plan.n, answer.talk?.suggestions ?? []);
+  if (!ending && playerRow(tx, at.scene.controllerId).suggestions) talkLines(tx, at.scene, plan.n, answer.talk?.suggestions ?? [], plan.input);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] the talk settled${ending ? `; it ends: ${ending.id}` : ""}`);
   if (ending) endScene(tx, at.scene.id, ending, plan.n);
   else if (at.gm.closing) updateScene(tx, at.scene.id, { status: "closing" });

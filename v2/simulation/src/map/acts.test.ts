@@ -80,6 +80,17 @@ test("no clear line from the lane to the watch house door: refused in the protot
   assert.equal(host.as(wren).leap({ at: { x: 42, y: 2 } })?.code, "too_far");
 });
 
+test("a game kept from before the town's clock (published over on SpacetimeDB, or a page's save) has no clock row on its map: a fire there puts it in", () => {
+  const { host, wren, town } = onMap();
+  host.transact(tx => { for (const row of [...tx.db.placeTick.iter()]) tx.db.placeTick.scheduledId.delete(row.scheduledId); });
+  assert.equal(host.as(wren).walk({ to: { x: 22, y: 8 } }), undefined);
+  assert.equal(host.as(wren).cast({ spell: "fire-bolt", at: { x: 25, y: 6 } }), undefined);
+  assert.deepEqual(all(host.db.placeTick).map(row => row.placeId), [town().id]);
+  host.advance(6_000);
+  host.tickPlaces();
+  assert.equal(town().round, 1, "it burns on");
+});
+
 test("a Fire Bolt at the watch house door from the street: it catches, the town keeps it, the guards shout; the clock burns it on, and stops once nobody's there", () => {
   const { host, wren, explore, town } = onMap();
   assert.equal(host.as(wren).walk({ to: { x: 22, y: 8 } }), undefined);
@@ -224,6 +235,12 @@ test("after the yard, a word with Kell: a talk opens with its prep, takes a line
   assert.deepEqual(gm.guard?.kell?.stage, "stirred");
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => [s.turn, s.text]), [[1, "Who was the thief?"], [1, "Do you regret it?"]]);
   assert.equal(script.to("suggest").filter(s => s.key.includes(`:s${talk.id}:`)).length, 0, "a talk's lines are its settle's");
+  // Without new ones (the call failed, or none came), the old ones less the line just said, for this turn.
+  script.then("decide", decided());
+  script.then("settle", read({}, [], { suggestions: [] }));
+  assert.equal(host.as(wren).say({ text: "Who was the thief?" }), undefined);
+  await host.drain();
+  assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(talk.id)].map(s => [s.turn, s.text]), [[2, "Do you regret it?"]]);
 
   // Walking on: no reply, the talk over, back on the map; the Rat as it was; the record counted, the stage kept.
   assert.equal(host.as(wren).walk({ toward: "out" }), undefined);

@@ -1,14 +1,16 @@
 import type { ChangeSet, MemoryHost } from "../../simulation/src/host/memory.ts";
 import { requeueRunning } from "../../simulation/src/jobs.ts";
 import { markOnline } from "../../simulation/src/lifecycle.ts";
+import { ROUND_MICROS } from "../../simulation/src/map/tick.ts";
 
 /**
  * The simulation's jobs, run as SpacetimeDB's scheduler runs them (browser-design §4.2), on the
  * page's own time. After a commit that dispatched a think (a job_dispatch row inserted: by a move, a
  * job's finish or the reaper), every due dispatch is started (dispatchDue: the claims commit in
  * order, the POSTs overlap, and each answer commits as it lands), a moment later, so the move's tx
- * and answer go first and nothing runs inside a commit. The reaper runs on its row's interval. A run
- * is never drain()'s, which waits on each in turn.
+ * and answer go first and nothing runs inside a commit. The reaper runs on its row's interval, and
+ * the town's clock (tick_place, town-design §3.5: tickPlaces, every place_tick row) on theirs, 6 s, as
+ * SpacetimeDB schedules each. A run is never drain()'s, which waits on each in turn.
  *
  * At a start, nothing that was running has survived (recoverAfterRestart): every running job is
  * dispatched again now (the same step with the same key, so an answer the AI service kept is
@@ -20,12 +22,14 @@ export interface Jobs {
   afterCommit(changes: ChangeSet): void;
   /** Resolves once no job is running or due and none is about to start: a test's way to wait for the thinks to come in. */
   idle(): Promise<void>;
-  /** Nothing more started, and the reaper stopped: another tab has the game. */
+  /** Nothing more started, and the reaper and the town's clock stopped: another tab has the game. */
   stop(): void;
 }
 
 /** The reaper's period when its row doesn't say (init's: 2 s). */
 const REAP_EVERY_MS = 2000;
+/** The town's clock: a place_tick row's interval, a round (map/tick.ts). */
+const TICK_EVERY_MS = Number(ROUND_MICROS / 1000n);
 
 export function startJobs(sim: MemoryHost): Jobs {
   const running = new Set<Promise<void>>();
@@ -51,6 +55,7 @@ export function startJobs(sim: MemoryHost): Jobs {
   };
 
   const reaper = setInterval(() => sim.reap(), reapEveryMs(sim));
+  const clock = setInterval(() => sim.tickPlaces(), TICK_EVERY_MS);
   // What was due when the database was last kept (a dispatch saved before its run began).
   dispatchSoon();
 
@@ -64,6 +69,7 @@ export function startJobs(sim: MemoryHost): Jobs {
       clearTimeout(soon);
       soon = undefined;
       clearInterval(reaper);
+      clearInterval(clock);
     },
   };
 }

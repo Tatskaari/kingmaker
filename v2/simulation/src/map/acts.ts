@@ -21,7 +21,7 @@ import { openLead } from "./lead.ts";
 import { FIGHT_FIRST, leave, walker } from "./moves.ts";
 import { mapPlaceOf, mapRowsOf, writeExplore } from "./rows.ts";
 import { openTalk } from "./talk.ts";
-import { burns } from "./tick.ts";
+import { burns, keepTicking } from "./tick.ts";
 
 /**
  * The map's action menu as moves (v2/docs/town-design.md §3.2): the rules on the town's world, each
@@ -158,7 +158,9 @@ export function companionsOf(tx: TxCtx, game: GameRow, ids: string[]): Character
 
 /**
  * What the rules did to the town, on the map's own place (place.town, JSON TownChanges): its clock
- * started (tickedAt) when something there has just caught fire, so the first tick burns one round.
+ * started (tickedAt) when something there has just caught fire, so the first tick burns one round,
+ * and its place_tick row put in if it has none (a game kept from before the town's clock, on
+ * SpacetimeDB or in a page, has none until its host next walks out onto the map).
  */
 function keepTheTown(tx: TxCtx, game: GameRow, ex: ReturnType<typeof exploreOf>, before: string): void {
   const town = ex.overlay.town?.[ex.map];
@@ -167,6 +169,7 @@ function keepTheTown(tx: TxCtx, game: GameRow, ex: ReturnType<typeof exploreOf>,
   const place = mapPlaceOf(tx, game, ex.map);
   const started = burns(json) && !burns(before) ? { tickedAt: tx.now } : {};
   tx.db.place.id.update({ ...place, town: json, ...started, rev: place.rev + 1 });
+  if (burns(json)) keepTicking(tx, place.id);
 }
 
 /**

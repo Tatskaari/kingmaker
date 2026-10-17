@@ -21,7 +21,8 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  * - a made-up key from the form: kept in localStorage, and in no URL, console line, IndexedDB record
  *   or screen;
  * - then the play, on the fake GM: the title, a character made, the map ("The lead: The Hanged
- *   Clerk"), g to the yard and the opening streamed in, a line and its reply with the suggested lines
+ *   Clerk") with its action menu (m opens it, Esc closes it: town-design §1.1), g to the yard and
+ *   the opening streamed in, a line and its reply with the suggested lines
  *   after it, a reload with the title's Continue carrying the game on from IndexedDB (the
  *   simulation's rows and the AI service's stores), another line, Ctrl+C and Play again (a new client
  *   worker, the server playing on), and a second tab told the game is open in this one (it takes it
@@ -492,6 +493,7 @@ async function play(browser: Browser, url: string): Promise<void> {
     await aCharacter(page);
     await waitFor(page, "The lead:.*Hanged Clerk", "Set off: the town's map, and the lead is the hanged clerk", 60000);
     await shot(page, "map");
+    await theMenu(page);
     await theOpening(page);
     await aLine(page, LINE, "What have we got", REPLY, "the fake GM's reply");
     await theSaves(page);
@@ -536,6 +538,18 @@ async function aCharacter(page: Page): Promise<void> {
   await waitFor(page, "Character sheet", "Skip: the sheet the rules engine made", 60000);
   await shot(page, "sheet");
   await press(page, "Enter");
+}
+
+/** m on the map: the action menu over it, made from the sheet's catalogue (town-design §1.1, step 1); Esc closes it, and the map is as it was. */
+async function theMenu(page: Page): Promise<void> {
+  await press(page, "m");
+  await waitFor(page, "What will you do\\?", "m on the map: the action menu", 30000);
+  await shot(page, "menu");
+  await press(page, "Escape");
+  await sleep(400);
+  const screen = await text(page);
+  if (!/What will you do\?/.test(screen) && /The lead:.*Hanged Clerk/s.test(screen)) ok("Esc closes the action menu, the map as it was");
+  else fail("Esc left the action menu up, or the map wasn't under it");
 }
 
 /** g walks to the lead and the yard opens; the fake's opening streams in, its first words before its last; then the box is open. */
