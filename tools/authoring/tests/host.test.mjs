@@ -404,12 +404,12 @@ test('a scene in a campaign folder deeper in the vault finds its campaign there'
   assert.deepEqual(h.opened,['campaigns/caerwyn/lore/World/Fronts.md']);
 });
 
-test('a vault with no campaign.json says so, and still offers its lore', async () => {
+test('a vault with no scenario says so, and still offers its lore', async () => {
   const h = harness();
   h.addFile('lore/Places/Somewhere.md','# Somewhere');
   await h.view.onLoadFile(h.addFile('scenes/draft.kmscene',h.sceneText(h.newScene('Draft'))));
   const campaign = await h.hostFor(h.view).campaign();
-  assert.match(campaign.error,/campaign\.json isn't there/);
+  assert.match(campaign.error,/the campaign has no scenario beside scenes\/ \(<id>\.kmscenario\)/);
   assert.deepEqual(plain(campaign.lore.map(note => note.path)),['Places/Somewhere.md']);
 });
 

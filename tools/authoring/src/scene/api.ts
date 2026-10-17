@@ -13,7 +13,7 @@ export type Confirmation={title:string;description:string;confirmLabel:string;on
 export type SceneApi={
   doc:SceneDocument;
   campaign:Campaign|null;
-  /** The scene's place (places/<key>.json), when it has one the campaign knows. */
+  /** The scene's place (places/<key>.kmplace, as the game keeps it), when it has one the campaign knows. */
   place:PlaceFile|undefined;
   /** A lore path's name, for the notes the campaign has. */
   loreNames:Map<string,string>;

@@ -11,7 +11,7 @@ import type {SceneHost} from './scene/host.ts';
 
 /**
  * The browser test harness: the same editors over a vault of files in memory (kept in localStorage),
- * seeded with the game's campaign as the vault Obsidian opens: campaign.json, places/, scenes/ and
+ * seeded with the game's campaign as the vault Obsidian opens: its scenario, places/, scenes/ and
  * lore/ (build.mjs's fixtures.json), beside the version 1 files the scenario and map editors still
  * edit (tests/fixtures/v1). A lore note opened is shown, as Obsidian would open it in a tab.
  */

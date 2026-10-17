@@ -113,7 +113,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const notes=[
     ...(!campaign?['Reading the campaign…']:[]),
     ...(campaign?.error?[`The campaign couldn't be read (${campaign.error}), so what the rules need of it (its scenes, places, quests) is missing.`]:[]),
-    ...(campaign&&!campaign.error&&!isListed(campaign,key)?[`${key} isn't one of campaign.json's scenes, so the game doesn't install it yet: list it there to play it.`]:[]),
+    ...(campaign&&!campaign.error&&!isListed(campaign,key)?[`${key} isn't one of the scenario's scenes (${campaign.scenario?.split('/').at(-1)??'its .kmscenario'}), so the game doesn't install it yet: list it there to play it.`]:[]),
   ];
   const place=useMemo(()=>doc.place?campaign?.places.find(candidate=>candidate.key===doc.place):undefined,[doc.place,campaign]);
   const loreNames=useMemo(()=>new Map((campaign?.lore??[]).map(note=>[note.path,note.name])),[campaign]);

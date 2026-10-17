@@ -2,7 +2,7 @@ import {test,expect,type Page,type Locator} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 // The scene editor on the game's own campaign: the browser harness's vault is campaigns/caerwyn (its
-// scenes, places, campaign.json and lore), and every journey asserts the scene file as saved.
+// scenes, places, scenario and lore), and every journey asserts the scene file as saved.
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const clerkPath='scenes/hanged-clerk.kmscene';
 const clerkText=await readFile(new URL(clerkPath,CAMPAIGN),'utf8');

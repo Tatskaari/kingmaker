@@ -35,7 +35,7 @@ export function ScenePanel(){
         <SelectField label="Time" field="time" value={doc.time??''} options={[{value:'',label:'Not set'},...TIMES.map(time=>({value:time,label:time}))]} onChange={value=>set('time',optionalText(value))}/>
         <SelectField label="Rest" field="rest" hint="A rest before it." value={doc.rest??''} options={[{value:'',label:'None'},{value:'short',label:'Short'},{value:'long',label:'Long'}]} onChange={value=>set('rest',optionalText(value))}/>
       </div>
-      <SelectField label="Place" field="place" hint="The place's world (places/<key>.json): its areas, things and who stands where." value={doc.place??''} options={[{value:'',label:'None'},...places]} onChange={value=>set('place',optionalText(value))}/>
+      <SelectField label="Place" field="place" hint="The place's world (places/<key>.kmplace): its areas, things and who stands where." value={doc.place??''} options={[{value:'',label:'None'},...places]} onChange={value=>set('place',optionalText(value))}/>
       <Checkbox label="Interlude" field="interlude" hint="Downtime between scenes, standing in for the map: the story skips it." checked={!!doc.interlude} onChange={checked=>set('interlude',checked?true:undefined)}/>
       <Checkbox label="Milestone" field="milestone" checked={!!doc.milestone} onChange={checked=>set('milestone',checked?true:undefined)}/>
     </Section>
