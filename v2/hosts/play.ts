@@ -7,6 +7,7 @@ import * as verbs from "../client/headless.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The headless client (v0-design §7, v5-design §3.9, v1-design §3.10), one verb a process: what an agent or a QA
@@ -47,6 +48,14 @@ const USAGE = `Kingmaker: headless play
   play act --session <name> --id talk_kell      on the map, any of its ACTIONS: walk_north, go_to_lead, talk_kell,
                                                 walk@30,22, travel_<way>…; a scene it opens waits for its opening.
                                                 From a scene that's over, --id out goes back to the map
+  play act --session <name> --id cast_fire-bolt@25,6
+                                                the action menu's (observe lists it): cast_<spell>, cast_<spell>_self,
+                                                cast_<spell>@x,y, the same for feature_<id>; attack@x,y, throw@x,y,
+                                                shove@x,y, grapple@x,y, lift@x,y, jump@x,y; hide; rest_short,
+                                                rest_short_recover, rest_long; use_<item>. One aimed at someone whose
+                                                scene is waiting opens it, the act its first turn
+  play act --session <name> --id say_goodbye    in a talk (after talk_kell with Kell walking with you): say_1…, its
+                                                lines; say_goodbye; walk_on, back to the map without a word
   play suggestions --session <name> [on|off]    the suggested lines: on (the default) or off; on asks
                                                 for this moment's at once, and lists them
   play retry --session <name> [--wait settled] [--stream]
@@ -78,6 +87,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
   if (args.values.help) { console.log(USAGE); return 0; }
   if (!args.verb) { console.log(USAGE); return 1; }
 
+  configureTerminal(env);
   const game = await backendFor(args, env);
   try {
     return await run(game, args);
@@ -152,9 +162,9 @@ function characterOf(args: Args): verbs.NewCharacter {
   return { campaign, name, concept, build: args.values.build, backstory, acceptFixes: args.values["accept-fixes"] ?? false, session: args.values.session };
 }
 
-/** act's id: a line, say_1, say_2…; the way on's (go_to_lead, fight, carry_on); or on the map, any of its actions (talk_kell, go_to_lead, walk@30,22…). */
+/** act's id: a line, say_1, say_2…; a talk's say_goodbye and walk_on; the way on's (go_to_lead, fight, carry_on); or on the map, any of its actions (talk_kell, go_to_lead, walk@30,22…), the action menu's among them (cast_fire-bolt@25,6, hide, rest_short…). */
 function lineId(id: string | undefined): string {
-  if (!id) throw new Error("Which one? act takes --id as ACTIONS: lists them (observe shows them): say_1, say_2… in a scene, go_to_lead, fight or carry_on once it's over, talk_kell, go_to_lead… on the map.");
+  if (!id) throw new Error("Which one? act takes --id as ACTIONS: lists them (observe shows them): say_1, say_2… in a scene (in a talk, say_goodbye and walk_on too), go_to_lead, fight or carry_on once it's over, talk_kell, go_to_lead, cast_fire-bolt@25,6, hide… on the map.");
   return id;
 }
 

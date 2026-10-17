@@ -1,10 +1,11 @@
-// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 110-125 (close, refresh), 140-447 but chooseBuild, 449-560, 562-632, 635-878, 884-909, 1108-1183, 1454, 1459-1512, 1765-1772, 1870-1883, 1951-1992. SessionState is RulesSession, under the same names; each function takes the Rules its host loaded, and none awaits; createCharacter requires a build (its model half is the AI service's, ai/rules/builds.ts); sheetText reads the sheet's data, not the engine; pocketsOf takes the campaign's starting purse, and sheetData leaves it to it; sheetData takes no fight's campaign (V12); sheetRows is v2's; close takes the Rules, and keeps the campaign in the isolate's cache when it's as loaded (engine.ts Ctx.asLoaded); withTopSpell's .at(-1) made ES2021. The engine plumbing (open, the loader, event) is engine.ts's. The world bridge's acts (acts.ts) share moreSpells, resolveChoices, grantResources, sheetOf, status, readySpells, endRage, FEATURES, close and refresh, which are exported for them; spellFactsOf is src/app/game.ts:1840-1851 (loadSpellFacts' body, on the engine's spell definitions), and sheetRows writes it as the sheet's spellFacts.
+// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 110-125 (close, refresh), 140-447 but chooseBuild, 449-560, 562-632, 635-878, 884-909, 1108-1183, 1454, 1459-1512, 1765-1772, 1870-1883, 1951-1992. SessionState is RulesSession, under the same names; each function takes the Rules its host loaded, and none awaits; createCharacter requires a build (its model half is the AI service's, ai/rules/builds.ts); sheetText reads the sheet's data, not the engine; pocketsOf takes the campaign's starting purse, and sheetData leaves it to it; sheetData takes no fight's campaign (V12); sheetRows is v2's; close takes the Rules, and keeps the campaign in the isolate's cache when it's as loaded (engine.ts Ctx.asLoaded); withTopSpell's .at(-1) made ES2021. The engine plumbing (open, the loader, event) is engine.ts's. The world bridge's acts (acts.ts) share moreSpells, resolveChoices, grantResources, sheetOf, status, readySpells, endRage, FEATURES, close and refresh, which are exported for them; spellFactsOf is src/app/game.ts:1840-1851 (loadSpellFacts' body, on the engine's spell definitions), and sheetRows writes it as the sheet's spellFacts. The town unit's: sheetRows writes the action menu's catalogue (actions.ts) as the sheet's actions, and resourceLeft is exported for acts.ts's arcaneRecovery.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { rng, rollCheck, type RollResult } from "../dice.ts";
 import { SKILLS, type Skill } from "../scene/types.ts";
 import type { Entity } from "../world/scene-world.ts";
 import { ABILITIES, ABILITY_NAME, changing, engineSkill, event, keep, loadWellFormed, opened, ordinal, reading, signed, SKILL_ABILITY, type Ctx } from "./engine.ts";
 import { spellDetails, type Caster, type Extras, type Names } from "./spells.ts";
+import { catalogue } from "./actions.ts";
 import type { Build, FeatureRef, GearRow, Pockets, Rules, RulesSession, SheetData, SheetRows, SlotRow, SpellFacts, SpellRef, Uses, WeaponRef } from "./types.ts";
 
 /**
@@ -448,7 +449,15 @@ export function sheetRows(rules: Rules, state: RulesSession): SheetRows {
     backstory: storyOf(state).story ? JSON.stringify(state.player.backstory) : undefined,
     // What each spell reaches, for the scene's menu.
     spellFacts: JSON.stringify(spellFactsOf(rules, readySpells(sheet))),
+    // The map's action menu (town-design §3.3): what they can do outside a fight, with the rests taken at this time of day.
+    actions: actionsOf(rules, state),
   };
+}
+
+/** The action menu's catalogue as the sheet keeps it (JSON, "" for none): made with the rests taken since the clock last moved (RulesSession.rested). */
+export function actionsOf(rules: Rules, state: RulesSession): string {
+  const made = catalogue(rules, state, state.rested ? { rested: state.rested } : {});
+  return made ? JSON.stringify(made) : "";
 }
 
 /** Each spell slot level they have: how many, and how many spent (a warlock's pact slots are the sheet's data's). */
@@ -946,7 +955,7 @@ interface FeatureRule {
 
 /** How many hit points someone is short of their maximum (as the engine has them). */
 const missingHp = (state: Dnd.CampaignState, id: string) => { const c = state.characters[id]; return c ? Math.max(0, c.hp.max - Math.max(0, c.hp.current)) : 0; };
-const resourceLeft = (state: Dnd.CampaignState, id: string, resource: string) => (state.characters[id] as unknown as { resources?: Resource[] } | undefined)?.resources?.find(r => r.resourceId === resource)?.current ?? 0;
+export const resourceLeft = (state: Dnd.CampaignState, id: string, resource: string) => (state.characters[id] as unknown as { resources?: Resource[] } | undefined)?.resources?.find(r => r.resourceId === resource)?.current ?? 0;
 
 export const FEATURES: FeatureRule[] = [
   { id: "second-wind", name: "Second Wind", classId: "fighter", resource: "second-wind", target: "self", intent: (E, me) => E.bonusActionIntent("second-wind", me) },

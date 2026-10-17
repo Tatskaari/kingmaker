@@ -48,6 +48,9 @@ const busy: GmState = {
   held: 4,
   brawl: { turn: 5, cause: "cast Burning Hands at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: ["cob", "moll"] },
   absent: ["cob", "moll"],
+  guard: { kell: { stage: "stirred", turn: 3 } },
+  withheld: ["Cast/Kell/Notes/The door at the Drowned Rat.md"],
+  talk: { with: "kell", where: "Granary Street in Caerwyn, evening", confide: { note: "Cast/Kell/Notes/Her brother.md", topic: "her brother in the river watch", what: "Her brother drowned on duty.", memory: "I told Wren about my brother." } },
 };
 
 test("a scene's bookkeeping goes to its gm_state row and back exactly", () => {
@@ -104,6 +107,15 @@ test("a row from before the world bridge's columns (their defaults) reads as a s
   assert.ok(!("threat" in gm) && !("held" in gm) && !("brawl" in gm));
   assert.deepEqual(gm.absent, []);
   assert.deepEqual(gm.rulings, busy.rulings);
+});
+
+test("a row from before the town's columns (their defaults) reads as a scene that stages nothing, keeps nothing back and isn't a talk", () => {
+  const { guard: _g, withheld: _w, talk: _t, ...gmOnly } = gmToRow(1n, busy);
+  const gm = gmFromRow({ ...gmOnly, guard: [], withheld: [], talk: undefined });
+
+  assert.ok(!("guard" in gm) && !("withheld" in gm) && !("talk" in gm));
+  assert.deepEqual(gm.absent, busy.absent);
+  assert.deepEqual(gmToRow(1n, { ...busy, talk: { with: "kell", where: "the lane" } }).talk, { companion: "kell", where: "the lane", confide: undefined });
 });
 
 test("who came on by a route has no column yet: writing it is an error, not a loss; the cast who are away have theirs", () => {

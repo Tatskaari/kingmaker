@@ -1,13 +1,14 @@
-// New (K, exploreOf M's): where the copied map code meets the rows (v2/docs/map-design.md §3.4). Both sides build the prototype's ExploreState from the same rows with exploreOf, run the copied code on it, and write back what a move changed with exploreRowOf.
+// New (K, exploreOf M's): where the copied map code meets the rows (v2/docs/map-design.md §3.4). Both sides build the prototype's ExploreState from the same rows with exploreOf, run the copied code on it, and write back what a move changed with exploreRowOf. The town unit's (v2/docs/town-design.md §3.1, §3.3): a map's own place's `town` into the overlay, the explore row's keep and fight carried by every move, and both to and from the table's columns (keepOf, keepColumns).
 import type { TimeOfDay } from "../scene/files.ts";
 import { keysFor, pcKey, rowsToWorld, type PlaceRows } from "../world/rows.ts";
 import type { SceneWorld } from "../world/scene-world.ts";
 import { setStory, type ExploreState, type Follower } from "./explore.ts";
 import { getMap, useMaps } from "./maps.ts";
-import { captureScene, emptyOverlay } from "./reconcile.ts";
+import { captureScene, emptyOverlay, type TownChanges } from "./reconcile.ts";
 import type { MapFile } from "./tiles.ts";
+import type { Keep } from "./menu.ts";
 import type { Unheard } from "./town.ts";
-import type { StoryState, Tile2 } from "./types.ts";
+import type { StoryState, Tile2, TownFight } from "./types.ts";
 
 /** A player's `explore` row (schema.ts), its ids as strings: the prototype's ExploreState but the story, and what the last move said. */
 export interface ExploreRow {
@@ -33,6 +34,12 @@ export interface ExploreRow {
   said: string;
   /** The last five things said, newest last (the prototype's town log: observe's "Recently"). */
   log: string[];
+  /** The action menu's keep (town-design §3.1): when they rested, where they were seen trying to hide, whose pockets they've tried. A move that doesn't change it carries it. */
+  rested?: Keep["rested"];
+  spotted?: Keep["spotted"];
+  lifted?: Keep["lifted"];
+  /** A fight that broke out on the map, recorded for V12. */
+  fight?: TownFight;
 }
 
 /** A place on a map, with its rows, as the map draws it: a map's own (the town), or a scene's (waiting for it, being played, or played). */
@@ -47,6 +54,8 @@ export interface MapPlace {
   scene?: { key: string; status: string; time?: TimeOfDay };
   /** Its rows, but the GM's notes (gm_note), which no client sees: the map is drawn and walked alike on both sides. */
   rows: PlaceRows;
+  /** A map's own place's: what the rules did to the town (the place row's `town`, JSON reconcile.ts TownChanges; "" for none), which exploreOf puts in ExploreState.overlay.town (town-design §3.3). */
+  town?: string;
 }
 
 /** Everything the map is read from, on either side: what the simulation reads in one transaction, and what a client holds. */
@@ -81,6 +90,8 @@ export function exploreOf(rows: MapRows): ExploreState {
   const waiting: Record<string, SceneWorld> = {};
   let overlay = emptyOverlay();
   for (const place of rows.places) {
+    // A map's own place: what the rules did to the town, the prototype's overlay.town (town-world.ts keepTown's).
+    if (place.town) overlay = { ...overlay, town: { ...overlay.town, [place.mapKey]: JSON.parse(place.town) as TownChanges } };
     if (!place.scene) continue;
     if (place.scene.status === "waiting") waiting[place.scene.key] = worldOf(place, place.scene.key);
     else if (place.scene.status === "ended" && place.region) {
@@ -114,5 +125,58 @@ export function exploreRowOf(ex: ExploreState, prev: ExploreRow, said: string): 
     acts: prev.acts + 1,
     said,
     log: said ? [...prev.log, said].slice(-LOG_LINES) : [...prev.log],
+    // The menu's keep and a fight on the map aren't the ExploreState's: they're carried, and the move that changes them sets them after.
+    ...keepOf(prev),
+  };
+}
+
+/** An explore row's keep and fight, as they are (the ones it has). */
+export function keepOf(r: Pick<ExploreRow, "rested" | "spotted" | "lifted" | "fight">): Pick<ExploreRow, "rested" | "spotted" | "lifted" | "fight"> {
+  return {
+    ...(r.rested ? { rested: { ...r.rested } } : {}), ...(r.spotted ? { spotted: { ...r.spotted, at: { ...r.spotted.at } } } : {}),
+    ...(r.lifted ? { lifted: { ...r.lifted, who: [...r.lifted.who] } } : {}),
+    ...(r.fight ? { fight: { ...r.fight, combatants: r.fight.combatants.map(c => ({ ...c, at: { ...c.at } })) } } : {}),
+  };
+}
+
+/** The explore table's keep and fight columns (schema.ts; the bindings' Explore has the same shape): options undefined when empty, a flag a bool. */
+export interface KeepColumns {
+  rested: { time: string; short: boolean; long: boolean } | undefined;
+  spotted: { time: string; at: Tile2; by: string } | undefined;
+  lifted: { time: string; who: string[] } | undefined;
+  fight: {
+    map: string; seed: number; place: string | undefined;
+    combatants: Array<{ id: string; name: string; side: string; statblock: string | undefined; weapon: string | undefined; at: Tile2; castId: string | undefined; role: string | undefined; glyph: string | undefined }>;
+  } | undefined;
+}
+
+/** The table's columns as the shared row has them (empty options left out). */
+export function keepFromColumns(c: KeepColumns): Pick<ExploreRow, "rested" | "spotted" | "lifted" | "fight"> {
+  const time = (t: string) => t as StoryState["time"];
+  return {
+    ...(c.rested ? { rested: { time: time(c.rested.time), ...(c.rested.short ? { short: true } : {}), ...(c.rested.long ? { long: true } : {}) } } : {}),
+    ...(c.spotted ? { spotted: { time: time(c.spotted.time), at: { x: c.spotted.at.x, y: c.spotted.at.y }, by: c.spotted.by } } : {}),
+    ...(c.lifted ? { lifted: { time: time(c.lifted.time), who: [...c.lifted.who] } } : {}),
+    ...(c.fight ? { fight: {
+      map: c.fight.map, seed: c.fight.seed, ...(c.fight.place !== undefined ? { place: c.fight.place } : {}),
+      combatants: c.fight.combatants.map(f => ({
+        id: f.id, name: f.name, side: f.side as TownFight["combatants"][number]["side"], at: { x: f.at.x, y: f.at.y },
+        ...(f.statblock !== undefined ? { statblock: f.statblock } : {}), ...(f.weapon !== undefined ? { weapon: f.weapon } : {}),
+        ...(f.castId !== undefined ? { castId: f.castId } : {}), ...(f.role !== undefined ? { role: f.role } : {}), ...(f.glyph !== undefined ? { glyph: f.glyph } : {}),
+      })),
+    } } : {}),
+  };
+}
+
+/** The shared row's keep and fight as the table's columns. */
+export function keepColumns(r: Pick<ExploreRow, "rested" | "spotted" | "lifted" | "fight">): KeepColumns {
+  return {
+    rested: r.rested ? { time: r.rested.time, short: !!r.rested.short, long: !!r.rested.long } : undefined,
+    spotted: r.spotted ? { time: r.spotted.time, at: { x: r.spotted.at.x, y: r.spotted.at.y }, by: r.spotted.by } : undefined,
+    lifted: r.lifted ? { time: r.lifted.time, who: [...r.lifted.who] } : undefined,
+    fight: r.fight ? {
+      map: r.fight.map, seed: r.fight.seed, place: r.fight.place,
+      combatants: r.fight.combatants.map(f => ({ id: f.id, name: f.name, side: f.side, statblock: f.statblock, weapon: f.weapon, at: { x: f.at.x, y: f.at.y }, castId: f.castId, role: f.role, glyph: f.glyph })),
+    } : undefined,
   };
 }

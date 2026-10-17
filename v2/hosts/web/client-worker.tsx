@@ -1,0 +1,151 @@
+// After the prototype's src/web/static/worker.ts at 44c6d4a, its terminal half (write :69-81, scrub :83-94, the messages :275-316), and its game.tsx (startGame, :36-77): the App over an AppModel on the Replica over a port, where the prototype's was over its Game; the key, the saves, the lock, the content, the jobs and the reports are the server worker's, or V16's.
+import { App } from "../../client/app.tsx";
+import { AppModel } from "../../client/app/model.ts";
+import { GLYPH_SETS, setGlyphSet, type GlyphSet } from "../../client/look/glyphs.ts";
+import { registerLookCanvas } from "../../client/look/opentui.ts";
+import { portLink, type MessagePortLike } from "../../client/net/port.ts";
+import { Replica } from "../../client/net/replica.ts";
+import { createRoot, type Root } from "../../web/tui/react.ts";
+import { createCliRenderer, type CliRenderer } from "../../web/tui/renderer.ts";
+
+/**
+ * The page's client worker (browser-design §2, §5): the client's App on the JS OpenTUI (web/tui),
+ * over the Replica on a port to the server worker, drawing into the page's terminal. The page talks
+ * to it in messages (understand-web.md §5.4):
+ *
+ *   page -> worker   {type: "start", port, cols, rows, glyphs?} (the port transferred), then
+ *                    {type: "input", data}, {type: "resize", cols, rows}, {type: "redraw"}, {type: "quit"}
+ *   worker -> page   {type: "started"}, {type: "output", data}, {type: "exit"}, {type: "error", message}
+ *
+ * The port is the client's end of the page's MessageChannel: the server worker has the other end.
+ * The client never sees the player's key (the server worker holds it), and a key pasted into the
+ * game goes no further than here. Quitting (q on the title, Ctrl+C, or the page's quit) takes the
+ * screen down, tells the server the client has gone, and says exit: the page starts a new client
+ * worker, with a new port, to play again.
+ */
+
+/** What the worker needs of its global scope (the DOM's types, no WebWorker lib). */
+export interface WorkerScope {
+  postMessage(message: unknown): void;
+  addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
+  addEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
+  addEventListener(type: "unhandledrejection", listener: (event: PromiseRejectionEvent) => void): void;
+}
+const scope = self as unknown as WorkerScope;
+
+/** The page's start: its end of the channel to the server worker, the terminal's size, and the glyph set its fonts draw (kingmaker unless it says). */
+interface Start { type: "start"; port: MessagePortLike; cols: number; rows: number; glyphs?: string }
+type PageMessage = Start | { type: "input"; data: Uint8Array | string } | { type: "resize"; cols: number; rows: number } | { type: "redraw" } | { type: "quit" };
+
+/** What the client tells the page: the terminal's bytes, started, exit, or why it couldn't start. */
+interface Page {
+  write(data: string): void;
+  started(): void;
+  exit(): void;
+  fail(error: unknown): void;
+}
+
+/** The client, running: what the page's later messages reach. */
+interface Running { renderer: CliRenderer; app: AppModel }
+
+/**
+ * The client, as hosts/client.tsx plays it in a terminal: the Replica over the port and its rows in
+ * (the AppModel reads them whole as it's made), then the screens on the stand-in, writing to the
+ * page, the title first.
+ */
+export async function runClient(start: Start, page: Page): Promise<Running> {
+  setGlyphSet(glyphsOf(start.glyphs));
+  const game = new Replica(portLink(start.port, { session: "default" }));
+  await game.ready;
+
+  // The scene's place paints itself, live (<lookCanvas>).
+  registerLookCanvas();
+  const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false, width: start.cols, height: start.rows, terminal: { write: page.write } });
+  const root = createRoot(renderer);
+  const app = new AppModel(game, { campaign: "caerwyn", intent: "title", surface: "page", onQuit: leaving(root, renderer, game, page) });
+
+  troubleOnScreen(app);
+  root.render(<App app={app} />);
+  page.started();
+  return { renderer, app };
+}
+
+/** The page's glyph set, if it's one: its fonts have Kingmaker Glyphs, so that by default. */
+function glyphsOf(said: string | undefined): GlyphSet {
+  return GLYPH_SETS.find(set => set === said) ?? "kingmaker";
+}
+
+/** Leaving: the screen taken down, the server told the client has gone (the port closed), the page told. */
+function leaving(root: Root, renderer: CliRenderer, game: Replica, page: Page): () => void {
+  let closing = false;
+  return () => {
+    if (closing) return;
+    closing = true;
+    try { root.unmount(); } catch { /* already gone */ }
+    try { renderer.destroy(); } catch { /* already gone */ }
+    game.close();
+    page.exit();
+  };
+}
+
+/** What goes wrong goes on the screen's own line, not over the screen (hosts/client.tsx's, for a worker's events). */
+function troubleOnScreen(app: AppModel): void {
+  const say = (e: unknown) => app.trouble(`(Something went wrong: ${e instanceof Error ? e.message : String(e)})`);
+  scope.addEventListener("unhandledrejection", event => { event.preventDefault(); say(event.reason); });
+  scope.addEventListener("error", event => { event.preventDefault(); say(event.error ?? event.message); });
+}
+
+// ---------------------------------------------------------------------------------------------
+// The page's side: its messages in, the client's out.
+
+/** The terminal's bytes go out in batches: whatever was drawn in one turn of the event loop is one message. */
+function pageOf(post: (message: unknown) => void): Page {
+  let output: string[] = [];
+  let queued = false;
+  const flush = () => {
+    queued = false;
+    if (!output.length) return;
+    const data = output.join("");
+    output = [];
+    post({ type: "output", data });
+  };
+  return {
+    write: data => { output.push(data); if (!queued) { queued = true; queueMicrotask(flush); } },
+    started: () => post({ type: "started" }),
+    // The screen's last bytes (the terminal given back) go before the word that it's gone.
+    exit: () => { flush(); post({ type: "exit" }); },
+    fail: error => post({ type: "error", message: error instanceof Error ? error.message : String(error) }),
+  };
+}
+
+/** What an OpenRouter key looks like. One pasted into the game (meant for the key form, say) goes no further: typed into a scene, it would go to the GM and into the saves. */
+const KEYISH = /sk-or-v1-[0-9a-f]{32,}/gi;
+const decoder = new TextDecoder();
+
+function scrub(data: Uint8Array | string): Uint8Array | string {
+  const text = typeof data === "string" ? data : decoder.decode(data);
+  KEYISH.lastIndex = 0;
+  return KEYISH.test(text) ? text.replace(KEYISH, "") : data;
+}
+
+const page = pageOf(message => scope.postMessage(message));
+let running: Promise<Running> | undefined;
+/** Once the client is running (the page's input during its start waits for it); nothing, if it couldn't start. */
+const whenRunning = (act: (client: Running) => void) => void running?.then(act, () => {});
+
+/** The page's messages: start once, then the terminal's input and size, a redraw, and quitting. */
+function onPage(message: PageMessage): void {
+  switch (message.type) {
+    case "start":
+      if (running) return;
+      running = runClient(message, page);
+      running.catch(page.fail);
+      return;
+    case "input": return whenRunning(({ renderer }) => renderer.processInput(scrub(message.data)));
+    case "resize": return whenRunning(({ renderer }) => renderer.resize(Number(message.cols), Number(message.rows)));
+    case "redraw": return whenRunning(({ renderer }) => renderer.invalidate());
+    case "quit": return whenRunning(({ app }) => app.quit());
+  }
+}
+
+scope.addEventListener("message", event => onPage(event.data as PageMessage));

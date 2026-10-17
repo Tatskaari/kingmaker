@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/xray.test.ts at 44c6d4a, whole but for the Drowned Rat's scene world, which v2 hasn't yet (V3 brings the Rat): the scenes played on the map here are the hanged clerk's, in the granary yard's world (check/place.ts yardWorld), the table that burns and is doused its loose board; its imports from the client's renderer and v2/shared, the maps the campaign's files (check/map.ts useCaerwyn).
+// Copied from the prototype's src/game/map/xray.test.ts at 44c6d4a, whole but for the Drowned Rat's scene world, which v2 hasn't yet (V3 brings the Rat): the scenes played on the map here are the hanged clerk's, in the granary yard's world (check/place.ts yardWorld), the table that burns and is doused its loose board; its imports from the client's renderer and v2/shared, the maps the campaign's files (check/map.ts useCaerwyn); letters by setGlyphSet, where it set KM_GLYPHS.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { damageThing } from "../../shared/world/scene-world.ts";
@@ -7,6 +7,7 @@ import type { MapActor, StoryState, Tile2 } from "../../shared/map/types.ts";
 import type { StyledLine } from "../ui/types.ts";
 import { hex } from "./palette.ts";
 import { CAST } from "../look/cast.ts";
+import { setGlyphSet } from "../look/glyphs.ts";
 import { enterScene, leaveScene, move, newExploration, pathTo, travel, type ExploreState } from "../../shared/map/explore.ts";
 import { getMap, MAPS } from "../../shared/map/maps.ts";
 import { isStructure, tileAt } from "../../shared/map/tiles.ts";
@@ -20,7 +21,7 @@ import { exploreFrame, findHidden, matters, renderXray, xray, xrayExplore } from
 useCaerwyn();
 
 // These read letters off the frames: draw with letters whatever this machine has installed.
-process.env.KM_GLYPHS ??= "ascii";
+setGlyphSet("ascii");
 
 const MORNING: StoryState = { time: "morning", played: [], lead: "hanged-clerk", flags: {} };
 const AFTERNOON: StoryState = { time: "afternoon", played: ["hanged-clerk"], lead: "drowned-rat", flags: {} };

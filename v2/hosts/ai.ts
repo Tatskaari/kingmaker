@@ -22,12 +22,12 @@ const log = (line: string) => console.log(line);
 async function main(): Promise<void> {
   const config = configured();
   const stores = folderStores(config.store);
-  const swept = stores.sweepAnswers(KEEP_ANSWERS_MS);
+  const swept = (await stores.answers.sweep?.(KEEP_ANSWERS_MS)) ?? 0;
 
   const service = aiService({
     token: config.token,
     stores,
-    campaigns: campaigns(stores.campaigns, stores.docsRoot),
+    campaigns: campaigns(stores.campaigns, stores.docs),
     endpoints: endpointsFor(config),
     transport: transports(config.model, { apiKey: config.apiKey, fake: config.fake }),
     stream: { ...config.stdb, periodMs: config.streamMs },

@@ -1,7 +1,4 @@
-// Copied from the prototype's src/game/look/glyphs.ts at 44c6d4a, whole, unchanged.
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+// Copied from the prototype's src/game/look/glyphs.ts at 44c6d4a, whole but for the seam (browser-design §4.1): the font probe (kingmakerFontHere) and the environment are the hosts' (hosts/terminal.ts), so glyphSet() is the set the host chose with setGlyphSet (ascii until it does), and detectGlyphSet is handed the environment and whether the font is here.
 import { KINGMAKER_GLYPHS, type KingmakerGlyph } from "./kingmaker-glyphs.ts";
 
 /**
@@ -115,24 +112,21 @@ export function inSet(ascii: string, set: GlyphSet): string {
 /** True for a Nerd Font private-use icon (they may draw wider than a cell in non-Mono fonts). */
 export const isNerdIcon = (ch: string) => { const c = ch.codePointAt(0) ?? 0; return (c >= 0xe000 && c <= 0xf8ff) || (c >= 0xf0000 && c <= 0xfffff); };
 
-/** Is the Kingmaker Glyphs font installed for this user (where npm run glyphs puts it)? */
-export const kingmakerFontHere = () => existsSync(join(homedir(), ".local", "share", "fonts", "kingmaker", "KingmakerGlyphs-Regular.ttf"));
-
-let chosen: GlyphSet | undefined;
-/** The glyph set this process draws with (KM_GLYPHS, or the environment's best guess), decided once. */
-export const glyphSet = (): GlyphSet => (chosen ??= detectGlyphSet().set);
-/** Draw with another set from now on, everywhere in this process (the zoo's lever); undefined goes back to KM_GLYPHS's. */
-export function setGlyphSet(set: GlyphSet | undefined): void { chosen = set; }
+let chosen: GlyphSet = "ascii";
+/** The glyph set this process draws with: the one its host chose (a terminal's from KM_GLYPHS and the environment, the page's from its address), ascii until it does. */
+export const glyphSet = (): GlyphSet => chosen;
+/** Draw with another set from now on, everywhere in this process (the host's choice at its start, the zoo's lever); undefined goes back to ascii. */
+export function setGlyphSet(set: GlyphSet | undefined): void { chosen = set ?? "ascii"; }
 
 /**
  * Which glyph set to use. There is no terminal query that says whether a font has a glyph, so this
  * is configuration first (KM_GLYPHS=ascii|nerd|plain|kingmaker), then a guess from the environment:
  * seven-bit for dumb terminals and non-UTF-8 locales; "ascii" otherwise, with a note when the
  * terminal is known to bundle the Nerd Font symbols (kitty, WezTerm), so the player can opt in.
- * The kingmaker set when its font is installed here (npm run glyphs) and the terminal is local:
- * over SSH the terminal is somewhere else, and so are its fonts.
+ * The kingmaker set when its font is installed here (`sprites`: the host looks where npm run glyphs
+ * puts it) and the terminal is local: over SSH the terminal is somewhere else, and so are its fonts.
  */
-export function detectGlyphSet(env: Record<string, string | undefined> = process.env, sprites = env === process.env && kingmakerFontHere()): { set: GlyphSet; reason: string; nerdLikely: boolean } {
+export function detectGlyphSet(env: Record<string, string | undefined>, sprites: boolean): { set: GlyphSet; reason: string; nerdLikely: boolean } {
   const asked = env.KM_GLYPHS?.toLowerCase();
   const nerdLikely = !!env.KITTY_WINDOW_ID || env.TERM === "xterm-kitty" || env.TERM_PROGRAM === "WezTerm" || !!env.WEZTERM_EXECUTABLE;
   if (asked === "ascii" || asked === "nerd" || asked === "plain" || asked === "kingmaker") return { set: asked, reason: "KM_GLYPHS", nerdLikely };

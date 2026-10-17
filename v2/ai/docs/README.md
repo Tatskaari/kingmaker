@@ -12,7 +12,7 @@ npm run scene -- memories <session>    # every doc as that game has it: the lore
 
 ## What it is
 
-The authored lore in [lore/](../../../lore/README.md) is the seed: Markdown files with a frontmatter line per key, linked to each other by relative links. Each game gets an overlay, `runs/sessions/<id>/docs/`, and every write goes there (copy on write), so play changes that game's lore and never the authored files. Both places are [config.ts](config.ts)'s: by default the repo's lore/ and `runs/sessions/<id>/docs/` (`KM_RUNS_DIR` moves runs/), and `configureDocs` moves them. The prototype points the overlay at its session folder, which is the same place. On top of the store sit:
+The authored lore in [lore/](../../../lore/README.md) is the seed: Markdown files with a frontmatter line per key, linked to each other by relative links. Each game gets an overlay, `runs/sessions/<id>/docs/`, and every write goes there (copy on write), so play changes that game's lore and never the authored files. Both places are [config.ts](config.ts)'s, each a volume ([volumes.ts](volumes.ts): a folder on disk, or docs in memory, synchronous as the service is): by default the repo's lore/ and `runs/sessions/<id>/docs/` folders (`KM_RUNS_DIR` moves runs/), made on the first read, and `configureDocs` moves them, as volumes or as folders by path. The prototype points the overlay at its session folder, which is the same place; the AI service serves a campaign version's lore/ and each game's copy from its stores; a host with no file system (the page's server worker) gives volumes in memory. A folder asks for Node's fs when it's first read (`process.getBuiltinModule`) rather than importing it, so the service bundles for a browser with no `node:` import. On top of the store sit:
 
 - **access by scope:** what each person in a scene, and the GM, may read;
 - **progressive disclosure:** before each reply, Jev opens the linked notes that bear on the moment;
@@ -30,7 +30,9 @@ The authored lore in [lore/](../../../lore/README.md) is the seed: Markdown file
 | [backstory.ts](backstory.ts) | Character creation's backstory: `draftBackstory` (one from the concept and build), `workIn` (notes made a story, keeping every name, place and number), `checkLore` (what doesn't fit the world, with a fix: checked against `canonFor`, the public lore only, and the story's `PREMISE`, never a GM's or a character's own doc, since what it says goes to the player as written), `applyFix`, `premiseSlips`, `finishBackstory` (who they are and their traits, for the sheet and the GM), and `MOST_WORDS` |
 | [fronts.ts](fronts.ts) | `frontsText` and `moveFronts`: steps ticked and struck, and bills added, in this game's copy of a fronts doc |
 | [types.ts](types.ts) | What it's handed: the working set (`WorkingSet`: the game, the turn, the scene, the player, who's present, the transcript, what disclosure keeps), and the backstory's shape |
-| [config.ts](config.ts) | Where the authored lore and each game's copy are (`docsConfig`, `configureDocs`) |
+| [config.ts](config.ts) | Where the authored lore and each game's copy are, as volumes (`DocsVolume`, `docsConfig`, `configureDocs`) |
+| [volumes.ts](volumes.ts) | The volumes: `folderVolume` (a folder on disk), `memoryVolume` (a map, each write handed on to a host's write-behind) |
+| [paths.ts](paths.ts) | The posix paths the AI service names docs and files by, with no `node:path` (held to Node's by its test) |
 
 **Docs written in play,** in the overlay:
 
@@ -80,7 +82,7 @@ These are the prototype's, and they call it through the adapters in src/lore, by
 ### Access
 
 - **Scopes.** `gm`, and `character:<cast id>` for each person present.
-- **`permitted`** ([docs.ts:99](docs.ts#L99)). The GM reads everything. A `gm` doc is the GM's alone; a `public` doc is anyone's; a `private` doc is only its `readers`'.
+- **`permitted`** ([docs.ts:89](docs.ts#L89)). The GM reads everything. A `gm` doc is the GM's alone; a `public` doc is anyone's; a `private` doc is only its `readers`'.
 - **Defaults.** A doc with no frontmatter counts as `gm`; one with frontmatter but no `visibility` counts as `public`.
 
 ### Disclosure
@@ -142,9 +144,8 @@ The evals need the key. After a live game, `runs/sessions/<id>/docs/` holds ever
 ## Known gaps and sharp edges
 
 - **A missing `visibility` fails open.** No frontmatter means `gm`, but frontmatter without `visibility` means `public`. Every authored doc has one today.
-- **The path guard is a prefix check** (`inside`, [docs.ts:38](docs.ts#L38)): `../docs2/x.md` passes, into a folder beside the overlay. The world-facts agent chooses the paths it reads, edits and creates.
 - **Whole-file writes, and no locks.** Memory reviews for consecutive turns can run at once, and two of them adding to one memory index can lose a line.
-- **Synchronous, and on disk.** Every `readDoc` reads a file, `linksIn` reads each linked doc, and a `[[wiki link]]` walks both trees.
+- **Synchronous.** Every `readDoc` reads its volume (a file, for a folder), `linksIn` reads each linked doc, and a `[[wiki link]]` lists both volumes.
 - **Search isn't ranked.** `searchDocs` counts the query's words in each doc, across every `.md` under lore/ (its README included).
 - **The registry is the authored lore's.** `characterEntry` scans lore/ once per process, so a lore entry created in play isn't found.
 - **The held story is cut, not annotated.** The GM knows its title and summary, and nothing else of it. A fast GM asked about something it can't see tends to invent it or deny it, and the reviews then record the invention.

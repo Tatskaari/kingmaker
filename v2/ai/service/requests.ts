@@ -5,7 +5,8 @@ import { Failure } from "./context.ts";
 
 /**
  * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7, full-gm-design
- * §4.1, world-bridge-design §3.1, story-design §4.4), checked before any model is asked, whichever
+ * §4.1, world-bridge-design §3.1, story-design §4.4, town-design §3.6-3.8: a talk's open and settle,
+ * decide's forced, the looks' things), checked before any model is asked, whichever
  * GM answers, and before a kept answer or the day's ceiling is looked at. A request without it is
  * the sender's mistake: 400 bad_request, which the module doesn't retry, rather than the endpoint's
  * TypeError, a 500 the module would retry for ten minutes (or an answer made from undefined, kept by
@@ -80,9 +81,15 @@ const BOUNDARY: Need[] = [
   ["candidates (the scenes the story could go to, at least one)", r => isList(r, "candidates") && (at(r, "candidates") as unknown[]).length > 0 && (at(r, "candidates") as unknown[]).every(c => typeof c === "string")],
 ];
 
+/** A talk's open, when it's one (a scene's open has none): with whom, where, their record, the earlier talks' entries and whether lines are suggested. */
+const TALK_OPEN: Need = [
+  "talk { with, where, record { count, told }, earlier, suggest } (a talk's, when it's sent)",
+  r => at(r, "talk") === undefined || (isText(r, "talk.with") && isText(r, "talk.where") && isNumber(r, "talk.record.count") && isList(r, "talk.record.told") && isList(r, "talk.earlier") && typeof at(r, "talk.suggest") === "boolean"),
+];
+
 const NEEDS: Record<Step, Need[]> = {
-  open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM],
-  decide: TURN,
+  open: [["scene { key }", r => isText(r, "scene.key")], ...viewNeeds(""), STREAM, TALK_OPEN],
+  decide: [...TURN, ["forced { kind } (the menu's act, when it's sent)", r => at(r, "forced") === undefined || isText(r, "forced.kind")]],
   reactions: [...TURN, ["act { what, victims, property } (what the rules decided the player did)", r => isText(r, "act.what") && isList(r, "act.victims") && isList(r, "act.property")]],
   consider: [
     ...TURN,
@@ -90,12 +97,16 @@ const NEEDS: Record<Step, Need[]> = {
     ["pending { exitId } (the ending held, when it's sent)", r => at(r, "pending") === undefined || isText(r, "pending.exitId")],
   ],
   reply: [...TURN, ["decision", r => isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM],
-  settle: [...TURN, ["reply (the reply's text)", r => isText(r, "reply")], ["lines (the turn's dice lines)", r => isList(r, "lines")], ["settled (what was settled before it)", r => isList(r, "settled")]],
+  settle: [
+    ...TURN, ["reply (the reply's text)", r => isText(r, "reply")], ["lines (the turn's dice lines)", r => isList(r, "lines")], ["settled (what was settled before it)", r => isList(r, "settled")],
+    ["talk { suggest } (a talk's, when it's sent)", r => at(r, "talk") === undefined || typeof at(r, "talk.suggest") === "boolean"],
+  ],
   notes: [...SCENE, ["reply { seq, text, speech, drafted }", r => isNumber(r, "reply.seq") && isText(r, "reply.text") && isList(r, "reply.speech") && isList(r, "reply.drafted")]],
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
   repair: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
+  look: [["things [{ key, name }] (what to invent a look for, at least one)", r => isList(r, "things") && (at(r, "things") as unknown[]).length > 0 && (at(r, "things") as Array<{ key?: unknown; name?: unknown }>).every(t => typeof t?.key === "string" && typeof t.name === "string")]],
 };
 
 /** The value at a dotted path of the parsed JSON ("turn.party.0.name"), or undefined where the path breaks. */

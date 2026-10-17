@@ -9,6 +9,7 @@ import { markdownOf } from "./live/report.ts";
 import { SCRIPTS, type Script } from "./live/scripts.ts";
 import { storyRun } from "./live/story.ts";
 import { modelOf, runningStack } from "./live/stack.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The live runs (v0-design §1.4, §10.6; v5-design §4.6; v1-design §4.6; full-gm-design §1.5;
@@ -67,6 +68,7 @@ main(flagsOf(process.argv.slice(2))).then(() => process.exit(0), (error: unknown
 
 async function main(flags: Flags): Promise<void> {
   refuseTakenOut(flags);
+  configureTerminal(process.env);
   const stack = runningStack(join(V2, "runs"), flags);
   const model = await modelOf(stack, flags.rehearse);
   if (flags.creation) return await creationRun(stack, flags);

@@ -6,7 +6,8 @@ import type { RulingRecord } from "./consider.ts";
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
  * open, the endings coming, the co-GM's steering, the GM's rulings, and what the story handed on to
- * it at the boundary before it (story-design §4.1). The simulation keeps it in
+ * it at the boundary before it (story-design §4.1), and a talk's staged secrets and its own state
+ * (town-design §3.6). The simulation keeps it in
  * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
  * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
  * reads this unchanged.
@@ -78,7 +79,35 @@ export interface GmState {
   absent: string[];
   /** Cast who came on by a route (V0's copied code reads it): no column yet, so always empty. */
   entered: string[];
+  // A talk with a companion between scenes (town-design §3.6; the prototype's session.ts:268, 333),
+  // under the prototype's names: absent in a scene that has none.
+  /** Staged secrets: how far each of the cast who keeps something back has come towards giving it up (never back), and the turn it got there. A talk stages them. */
+  guard?: Record<string, { stage: GuardStage; turn: number }>;
+  /** Notes disclosure keeps out of the scene (memory.withheld): a talk's, the deepest of the companion's story before its time. */
+  withheld?: string[];
+  /** A talk's own: with whom (their cast id), where and when, and the one thing they might open up about this time. */
+  talk?: TalkState;
 }
+
+/** How far someone has opened up about what they're keeping back (staged secrets), in order: it never goes back (director.ts:1220). */
+export type GuardStage = "surface" | "tell" | "stirred" | "torn" | "settled";
+export const GUARD_STAGES: readonly GuardStage[] = ["surface", "tell", "stirred", "torn", "settled"];
+
+/** The one thing a companion might open up about in a talk (talk.ts's confide): the note of their lore it's in, what it is in a few words, what they'd tell, and how they'd remember telling it. */
+export interface Confide { note: string; topic: string; what: string; memory: string }
+
+/**
+ * A talk in progress, as its gm_state keeps it (the prototype's TalkState less what v2 keeps
+ * elsewhere: the waiting scene is its own row, never set aside; the choices are scene_suggestion rows).
+ */
+export interface TalkState { with: string; where: string; confide?: Confide }
+
+/**
+ * A companion's talks with the player between scenes, kept for the whole story (session.ts's
+ * TalkRecord; the talk_record table): how many there have been, what they've told of themselves (each
+ * note of their lore once, in the order told), and how far they'd come with what's not yet told.
+ */
+export interface TalkRecord { count: number; told: Array<{ note: string; topic: string; turn: number }>; stages?: Record<string, GuardStage> }
 
 /**
  * Something the story still owes the player (the prototype's Owed, session.ts:154-171), as the rows
@@ -164,6 +193,11 @@ export interface GmRow {
   held: number | undefined;
   brawl: Brawl | undefined;
   absent: string[];
+  /** GmState's guard, a row a holder: stage one of GUARD_STAGES. */
+  guard: Array<{ cast: string; stage: string; turn: number }>;
+  withheld: string[];
+  /** TalkState, `with` as `companion`; confide an empty option when there's none. */
+  talk: { companion: string; where: string; confide: Confide | undefined } | undefined;
 }
 
 /** kind: attack (by), hazard (hazard and severity: glancing, serious). */
@@ -208,6 +242,9 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     held: gm.held,
     brawl: gm.brawl ? brawlOf(gm.brawl) : undefined,
     absent: [...gm.absent],
+    guard: Object.entries(gm.guard ?? {}).map(([cast, g]) => ({ cast, stage: g.stage, turn: g.turn })),
+    withheld: [...(gm.withheld ?? [])],
+    talk: gm.talk ? { companion: gm.talk.with, where: gm.talk.where, confide: gm.talk.confide ? { ...gm.talk.confide } : undefined } : undefined,
   };
 }
 
@@ -243,6 +280,10 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.held !== undefined ? { held: row.held } : {}),
     ...(row.brawl ? { brawl: brawlOf(row.brawl) } : {}),
     absent: [...row.absent],
+    // A row read from an older module (the dev tools' SQL) may lack the town's columns: none yet.
+    ...(row.guard?.length ? { guard: Object.fromEntries(row.guard.map(g => [g.cast, { stage: g.stage as GuardStage, turn: g.turn }])) } : {}),
+    ...(row.withheld?.length ? { withheld: [...row.withheld] } : {}),
+    ...(row.talk ? { talk: { with: row.talk.companion, where: row.talk.where, ...(row.talk.confide ? { confide: { ...row.talk.confide } } : {}) } } : {}),
   };
 }
 

@@ -101,7 +101,7 @@ function insertPlace(tx: TxCtx, after: PlaceRows, gameId: bigint): bigint {
   const p = after.place;
   return tx.db.place.insert({
     id: 0n, gameId, key: p.key, name: p.name, rootId: 0n, sizeW: p.sizeW, sizeH: p.sizeH, round: p.round, rev: p.rev, sceneId: undefined,
-    mapKey: undefined, region: undefined, origin: undefined, active: false,
+    mapKey: undefined, region: undefined, origin: undefined, active: false, town: "", tickedAt: undefined,
   }).id;
 }
 

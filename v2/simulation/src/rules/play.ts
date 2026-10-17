@@ -154,14 +154,16 @@ export function carryGearAfter(tx: TxCtx, scene: SceneRow, world: SceneWorld, tu
 // The rules at work in a scene's commit.
 
 /** The player's character at work in a scene: the player, the place's world rebuilt from its rows, the session in it, and the engine's campaign as it was. */
-export interface InPlay { player: PlayerRow; place: PlaceWorld; session: SceneSession; campaign: string | undefined }
+export interface InPlay { player: PlayerRow; place: PlaceWorld; session: SceneSession; campaign: string | undefined; talk?: boolean }
 
 /** The player's character in the scene's place at turn n, as the rules code reads it (sceneSessionOf), from the rows. */
 export function inPlay(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState, n: number): InPlay {
   const player = playerRow(tx, scene.controllerId);
   const place = placeWorldOf(tx, scene);
-  const session = sceneSessionOf(tx, player, place.world, { turn: n, graph, transcript: entriesOf(tx, scene.id), gm });
-  return { player, place, session, campaign: session.rules?.campaign };
+  // A talk has no world (town-design §3.6, as the prototype's had none): the rules act on its cast alone, and nothing of a place is kept.
+  const talk = scene.kind === "talk";
+  const session = sceneSessionOf(tx, player, talk ? undefined : place.world, { turn: n, graph, transcript: entriesOf(tx, scene.id), gm });
+  return { player, place, session, campaign: session.rules?.campaign, ...(talk ? { talk } : {}) };
 }
 
 /**
@@ -173,8 +175,10 @@ export function playedOut(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState,
   const { player, place, session } = played;
   saveSession(tx, player, session);
   if (session.rules && session.rules.campaign !== played.campaign) engineCall(tx, player.gameId, rules => writeSheet(tx, player, session, rules));
-  savePlaceWorld(tx, scene, place, graph);
-  refreshPockets(tx, player.id, place.world);
+  if (!played.talk) {
+    savePlaceWorld(tx, scene, place, graph);
+    refreshPockets(tx, player.id, place.world);
+  }
   sceneSessionBack(gm, session);
 }
 

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import type { AnswerStore, CampaignStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
+import { dirname, join, relative, sep } from "node:path";
+import { folderVolume } from "../docs/volumes.ts";
+import type { AnswerStore, CampaignStore, Ledger, StoredAnswer, Stores, VersionFiles } from "./stores.ts";
 
 /**
  * The stores as one folder (KM_AI_STORE; a volume in the container):
@@ -17,15 +18,14 @@ import type { AnswerStore, CampaignStore, Ledger, StoredAnswer, Stores } from ".
  * Whole files are written beside their place and renamed into it, so a crash never leaves half an
  * answer or half a campaign where a reader would take it for the whole.
  */
-export function folderStores(root: string): Stores & { sweepAnswers(olderThanMs: number, now?: number): number } {
+export function folderStores(root: string): Stores {
   return {
     answers: answerFolder(join(root, "answers")),
     calls: gameLines(join(root, "games"), "calls.jsonl"),
     reviews: gameLines(join(root, "games"), "memory-reviews.jsonl"),
     ledger: ledgerFile(join(root, "ledger.jsonl")),
     campaigns: campaignFolder(join(root, "campaigns")),
-    docsRoot: join(root, "games"),
-    sweepAnswers: (olderThanMs, now = Date.now()) => sweep(join(root, "answers"), now - olderThanMs),
+    docs: { overlay: game => folderVolume(join(root, "games", game, "docs")) },
   };
 }
 
@@ -41,6 +41,7 @@ function answerFolder(dir: string): AnswerStore {
       await writeFile(temp, JSON.stringify(answer));
       await rename(temp, file(key));
     },
+    sweep: async (olderThanMs, now = Date.now()) => sweep(dir, now - olderThanMs),
   };
 }
 
@@ -135,11 +136,19 @@ function campaignFolder(dir: string): CampaignStore {
       }
       replaceFolder(staging, target);
     },
-    root: (campaign, version) => (existsSync(join(folder(campaign, version), "campaign.json")) ? folder(campaign, version) : undefined),
+    files: (campaign, version) => (existsSync(join(folder(campaign, version), "campaign.json")) ? filesIn(folder(campaign, version)) : undefined),
     list() {
       if (!existsSync(dir)) return [];
       return readdirSync(dir).flatMap(c => readdirSync(join(dir, c)).filter(v => !v.endsWith(".tmp") && existsSync(join(dir, c, v, "campaign.json"))).map(v => `${c}@${v}`)).sort();
     },
+  };
+}
+
+/** A version's folder, read as it is when it's read (a version PUT again is a new folder in its place). */
+function filesIn(dir: string): VersionFiles {
+  return {
+    read: path => (existsSync(join(dir, path)) ? readFileSync(join(dir, path), "utf8") : undefined),
+    paths: () => readdirSync(dir, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => relative(dir, join(entry.parentPath, entry.name)).split(sep).join("/")),
   };
 }
 

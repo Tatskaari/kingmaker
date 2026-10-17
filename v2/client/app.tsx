@@ -1,7 +1,7 @@
-// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves.
+// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves; the title, the scene and the map are told where they're drawn (the app's surface: a terminal or a page).
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useCallback, useSyncExternalStore } from "react";
-import type { AppModel } from "./app/model.ts";
+import type { AppModel, Surface } from "./app/model.ts";
 import type { ExploreModel } from "./explore/model.ts";
 import type { SceneModel } from "./scene/model.ts";
 import { C } from "./theme.ts";
@@ -27,15 +27,15 @@ export function App({ app }: { app: AppModel }) {
   const scene = app.scene;
   const screen = (() => {
     switch (app.screen) {
-      case "title": return <TitleScreen game={app.title} />;
+      case "title": return <TitleScreen game={app.title} surface={app.surface} />;
       case "create": return <CreateScreen game={app.creation} />;
       case "creating": return <CreatingScreen game={app.creation} />;
       case "choose": return <ChooseScreen game={app.creation} />;
       case "custom": return <CustomScreen game={app.creation} />;
       case "backstory": return <BackstoryScreen game={app.creation} />;
       case "created": return <CreatedScreen game={app.creation} />;
-      case "scene": return scene ? <ScenePlay scene={scene} /> : null;
-      case "explore": return app.explore ? <ExplorePlay explore={app.explore} /> : null;
+      case "scene": return scene ? <ScenePlay scene={scene} surface={app.surface} /> : null;
+      case "explore": return app.explore ? <ExplorePlay explore={app.explore} surface={app.surface} /> : null;
     }
   })();
   return <box width={width} height={height} backgroundColor={C.bg}>{screen}</box>;
@@ -46,18 +46,18 @@ export function App({ app }: { app: AppModel }) {
  * quests): the scene; once it's over, the moment between scenes, the fight's stand-in, or The End,
  * as the way on goes (SceneModel.page).
  */
-export function ScenePlay({ scene }: { scene: SceneModel }) {
+export function ScenePlay({ scene, surface = "terminal" }: { scene: SceneModel; surface?: Surface }) {
   const page = usePage(scene);
   return <>
-    {page === "between" ? <BetweenScreen scene={scene} /> : page === "fight" ? <FightScreen scene={scene} /> : page === "end" ? <EndScreen scene={scene} /> : <SceneScreen scene={scene} />}
+    {page === "between" ? <BetweenScreen scene={scene} /> : page === "fight" ? <FightScreen scene={scene} /> : page === "end" ? <EndScreen scene={scene} /> : <SceneScreen scene={scene} surface={surface} />}
     <Overlay scene={scene} />
   </>;
 }
 
 /** The map between scenes, with what's open over it (the sheet, the help, What happens, the menu). */
-export function ExplorePlay({ explore }: { explore: ExploreModel }) {
+export function ExplorePlay({ explore, surface = "terminal" }: { explore: ExploreModel; surface?: Surface }) {
   return <>
-    <ExploreScreen explore={explore} />
+    <ExploreScreen explore={explore} surface={surface} />
     <ExploreOverlay explore={explore} />
   </>;
 }

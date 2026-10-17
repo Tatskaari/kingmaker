@@ -1,6 +1,4 @@
-// Copied from the prototype's src/game/look/invent.ts at 44c6d4a, less the model half (the openrouter import, INSTRUCTIONS, prompt, SCHEMA, LOOK_MODEL, lunaInventor and askLuna, and GLYPH_BY_NAME, MOTIONS and MATERIALS, which only they read): no inventor, so guesses only, as the prototype offline.
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+// Copied from the prototype's src/game/look/invent.ts at 44c6d4a, less the model half (the openrouter import, INSTRUCTIONS, prompt, SCHEMA, LOOK_MODEL, lunaInventor and askLuna, and GLYPH_BY_NAME, MOTIONS and MATERIALS, which only they read): no inventor, so guesses only, as the prototype offline. And the cache's file is the hosts' (browser-design §4.1): LookCache keeps the looks in memory, or in the LookStore a host gives it (hosts/terminal.ts keeps a terminal's in a file, as the cache did).
 import { PALETTE, type ColorName } from "./color.ts";
 import type { Motion } from "./roles.ts";
 
@@ -8,12 +6,10 @@ import type { Motion } from "./roles.ts";
  * Looks for things the rules don't recognise. The GM invents freely ("a disgruntled swan", "the
  * Purveyor's grain cart in garlands", "a sackbut"), and a look has to come from somewhere: a small
  * Luna call (no reasoning) picks a glyph from a curated menu, a colour from the palette, a Nerd Font
- * icon if one fits, and how it moves. The answer is cached on disk by the name's key, so it costs
- * once per kind of thing, ever; rendering never waits for it (the thing is drawn with a guess until
- * the answer lands, then with the answer).
- *
- *   KM_LOOK_CACHE   where the cache lives (default runs/look-cache.json)
- *   KM_LOOK_MODEL   "off" to never call the model (guesses only)
+ * icon if one fits, and how it moves. The answer is cached by the name's key, so it costs once per
+ * kind of thing, ever; rendering never waits for it (the thing is drawn with a guess until the
+ * answer lands, then with the answer). The cache is in memory unless the host keeps it somewhere:
+ * a terminal's is on disk (KM_LOOK_CACHE, default runs/look-cache.json: hosts/terminal.ts).
  */
 
 export interface Invention {
@@ -58,38 +54,34 @@ export const GLYPH_MENU: Array<[string, string, string]> = [
 export const MENU_GLYPHS = [...GLYPH_MENU.map(([, g]) => g).filter(Boolean), ..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"];
 
 // ---------------------------------------------------------------------------------------------
-// The cache on disk.
+// The cache.
 
+/** Where a host keeps the looks between runs (a terminal's file: hosts/terminal.ts). */
+export interface LookStore {
+  /** The looks kept, read on first use (none when there's nothing to read). */
+  load(): Record<string, CachedInvention>;
+  /** Keep them all, whole (a half-kept cache would cost every look again). */
+  save(looks: Record<string, CachedInvention>): void;
+}
+
+/** The looks invented so far, by key: in memory, and in the host's store when it gives one. */
 export class LookCache {
-  readonly path: string;
+  private readonly store: LookStore | undefined;
   private looks: Record<string, CachedInvention> | undefined;
-  constructor(path = process.env.KM_LOOK_CACHE ?? "runs/look-cache.json") { this.path = path; }
-  private load(): Record<string, CachedInvention> {
-    if (this.looks) return this.looks;
-    try {
-      const file = JSON.parse(readFileSync(this.path, "utf8")) as { version?: number; looks?: Record<string, CachedInvention> };
-      this.looks = file.looks ?? {};
-    } catch { this.looks = {}; }
-    return this.looks;
-  }
+  constructor(store?: LookStore) { this.store = store; }
+  private load(): Record<string, CachedInvention> { return (this.looks ??= this.store?.load() ?? {}); }
   get(key: string): CachedInvention | undefined { return this.load()[key]; }
   has(key: string): boolean { return key in this.load(); }
   set(key: string, look: CachedInvention): void { this.load()[key] = look; }
   get size(): number { return Object.keys(this.load()).length; }
   entries(): Array<[string, CachedInvention]> { return Object.entries(this.load()); }
-  /** Write atomically (a half-written cache would cost every look again). */
-  save(): void {
-    const looks = this.load();
-    mkdirSync(dirname(this.path), { recursive: true });
-    const tmp = `${this.path}.${process.pid}.tmp`;
-    writeFileSync(tmp, `${JSON.stringify({ version: 1, looks }, null, 1)}\n`);
-    renameSync(tmp, this.path);
-  }
+  /** Into the host's store, if it has one: memory keeps them already. */
+  save(): void { this.store?.save(this.load()); }
 }
 
 let cache: LookCache | undefined;
 export function lookCache(): LookCache { return (cache ??= new LookCache()); }
-/** Point the look layer at another cache (tests, a session's own). */
+/** Point the look layer at another cache (tests, a session's own, a terminal host's on disk). */
 export function setLookCache(next: LookCache | undefined): void { cache = next; version++; }
 
 // ---------------------------------------------------------------------------------------------

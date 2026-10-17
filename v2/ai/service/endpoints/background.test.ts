@@ -40,17 +40,17 @@ function filesOf(dir: string): Record<string, string> {
   return files;
 }
 
-/** The campaign in a fresh store, and a request's context on the stand-in (with the stores' review log, as the server hands it on, unless `ownLog` is false). */
-async function setUp(options: FakeOptions, ownLog = true) {
+/** The campaign in a fresh store, and a request's context on the stand-in (with the stores' review log, as the server hands it on). */
+async function setUp(options: FakeOptions) {
   const store = mkdtempSync(join(SCRATCH, "store-"));
   const stores = folderStores(store);
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
   const contextFor = (key: string): AiContext => {
     const { calls, usage } = callContext({ fetch: fake.fetch, apiKey: "test" }, stores, { game: GAME, key, attempt: 1 });
-    return { campaign, calls, usage, attempt: 1, stream: () => { throw new Error("nothing streams after a turn"); }, ...(ownLog ? { reviews: stores.reviews } : {}) };
+    return { campaign, calls, usage, attempt: 1, stream: () => { throw new Error("nothing streams after a turn"); }, reviews: stores.reviews };
   };
   return { store, campaign, fake, contextFor };
 }
@@ -105,8 +105,8 @@ test("remember: a witnessed moment fires the memories agent, which writes Kell's
   assert.ok(review.instructions!.includes(prompt("review/witnessed")), "the witnessed category's prompt");
 });
 
-test("remember: nothing flagged is one call and no review, and the line is beside the game's docs when the server gives no log of its own", async () => {
-  const { store, campaign, fake, contextFor } = await setUp({ choices: flagging() }, false);
+test("remember: nothing flagged is one call and no review, and the turn's line still goes in memory-reviews.jsonl", async () => {
+  const { store, campaign, fake, contextFor } = await setUp({ choices: flagging() });
   const key = `${GAME}:s1:t1:remember`;
   const answer = await remember({ key, game, player, turn: sceneOf(campaign, 1, initialGm({ start: "yard" }), GIFT), reviewed: 1 }, contextFor(key));
 

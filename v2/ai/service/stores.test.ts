@@ -1,6 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fakeFetch } from "../llm/fake-openrouter.ts";
@@ -8,11 +8,102 @@ import { respond } from "../llm/openrouter.ts";
 import { callContext, transports } from "./calls.ts";
 import { readConfig } from "./config.ts";
 import { folderStores } from "./folder-stores.ts";
+import { memoryStores, type Persistence } from "./memory-stores.ts";
+import type { StoredAnswer, Stores } from "./stores.ts";
 
-/** Every test's store is a folder in this one, removed once the file's tests are done. */
+/** Every test's folder store is a folder in this one, removed once the file's tests are done. */
 const SCRATCH = mkdtempSync(join(tmpdir(), "km-store-"));
 after(() => rmSync(SCRATCH, { recursive: true, force: true }));
 const fresh = () => mkdtempSync(join(SCRATCH, "store-"));
+
+/** A kind of store, made fresh, and how a test reads back its logs (the interface only writes them). */
+interface Kind { stores: Stores; lines(log: "calls" | "reviews", game: string): unknown[] }
+
+const KINDS: Record<string, () => Kind> = {
+  folder() {
+    const root = fresh();
+    const file = (log: "calls" | "reviews", game: string) => join(root, "games", game, log === "calls" ? "calls.jsonl" : "memory-reviews.jsonl");
+    return { stores: folderStores(root), lines: (log, game) => readFileSync(file(log, game), "utf8").trim().split("\n").map(l => JSON.parse(l)) };
+  },
+  memory() {
+    const host = keeping();
+    return { stores: memoryStores(host), lines: (log, game) => host.lines.filter(l => l.log === log && l.game === game).map(l => l.line) };
+  },
+};
+
+/** A host's persistence that keeps what it's handed in arrays, starting from what it's given as kept. */
+function keeping(kept: Persistence["kept"] = {}) {
+  const host = {
+    kept, answers: [] as Array<[string, StoredAnswer]>, forgotten: [] as string[], docs: [] as Array<[string, string, string]>,
+    lines: [] as Array<{ log: string; game: string; line: Record<string, unknown> }>, ledgerLines: [] as Array<Record<string, unknown>>,
+    async answer(key: string, answer: StoredAnswer) { host.answers.push([key, answer]); },
+    forget(keys: string[]) { host.forgotten.push(...keys); },
+    doc(game: string, path: string, text: string) { host.docs.push([game, path, text]); },
+    line(log: "calls" | "reviews", game: string, line: Record<string, unknown>) { host.lines.push({ log, game, line }); },
+    ledger(line: Record<string, unknown>) { host.ledgerLines.push(line); },
+  };
+  return host;
+}
+
+const ANSWER: StoredAnswer = { requestHash: "abc", status: 200, body: "{\"entries\":[]}", at: new Date().toISOString() };
+const DAY = 86_400_000;
+
+/**
+ * The stores' contract (stores.ts), the same for every kind: answers by key, swept once they're
+ * older than asked; a campaign version's files, replaced whole by a PUT again; each game's own copy
+ * of the lore, which outlives the volume it was written through; each game's logs, and today's spend.
+ */
+for (const [name, make] of Object.entries(KINDS)) {
+  test(`the stores' contract: ${name}`, async () => {
+    const { stores, lines } = make();
+
+    await stores.answers.put("g1:s1:t3:reply", ANSWER);
+    assert.deepEqual(await stores.answers.get("g1:s1:t3:reply"), ANSWER);
+    assert.equal(await stores.answers.get("g1:s1:t3:settle"), undefined);
+    assert.equal(await stores.answers.sweep?.(7 * DAY), 0, "nothing a week old");
+    assert.equal(await stores.answers.sweep?.(7 * DAY, Date.now() + 8 * DAY), 1, "a week on, swept");
+    assert.equal(await stores.answers.get("g1:s1:t3:reply"), undefined);
+
+    await stores.campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/Old.md": "old" });
+    await stores.campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/New.md": "new" });
+    const files = stores.campaigns.files("caerwyn", "0.1.0")!;
+    assert.deepEqual([files.read("lore/World/New.md"), files.read("lore/World/Old.md"), files.paths().sort()], ["new", undefined, ["campaign.json", "lore/World/New.md"]]);
+    assert.deepEqual([stores.campaigns.list(), stores.campaigns.files("caerwyn", "0.2.0")], [["caerwyn@0.1.0"], undefined]);
+
+    stores.docs.overlay("g1").write("Cast/Kell/memories/index.md", "# Memories");
+    stores.docs.overlay("g1").write("Cast/Kell/.draft.md", "hidden");
+    assert.equal(stores.docs.overlay("g1").read("Cast/Kell/memories/index.md"), "# Memories", "a later volume reads what an earlier one wrote");
+    assert.deepEqual([stores.docs.overlay("g1").list(), stores.docs.overlay("g2").list()], [["Cast/Kell/memories/index.md"], []]);
+    assert.equal(stores.docs.overlay("g2").read("Cast/Kell/memories/index.md"), undefined, "another game's copy is its own");
+
+    stores.calls.append("g1", { operation: "gm.reply" });
+    stores.reviews.append("g1", { turn: 1 });
+    stores.ledger.append({ at: new Date(Date.now() - DAY).toISOString(), costUsd: 4 });
+    stores.ledger.append({ at: new Date().toISOString(), costUsd: 0.25 });
+    stores.ledger.append({ at: new Date().toISOString(), costUsd: 0.5 });
+    assert.deepEqual([lines("calls", "g1"), lines("reviews", "g1")], [[{ operation: "gm.reply" }], [{ turn: 1 }]]);
+    assert.equal(await stores.ledger.spentToday(), 0.75, "yesterday's doesn't count");
+  });
+}
+
+test("memory: the host hears each write as it's made, and an answer before put returns; new stores start from what it kept", async () => {
+  const host = keeping();
+  const stores = memoryStores(host);
+  const today = new Date().toISOString();
+  let putDone = false;
+  const put = stores.answers.put("g1:s1:t1:remember", { ...ANSWER, at: today }).then(() => { putDone = true; });
+  assert.equal(putDone, false);
+  await put;
+  stores.docs.overlay("g1").write("Cast/Kell/memories/a1b2c3d4.md", "She watched.");
+  stores.ledger.append({ at: today, costUsd: 0.5 });
+  await stores.answers.sweep?.(0, Date.now() + 1);
+  assert.deepEqual([host.answers.map(([key]) => key), host.forgotten, host.docs, host.ledgerLines], [["g1:s1:t1:remember"], ["g1:s1:t1:remember"], [["g1", "Cast/Kell/memories/a1b2c3d4.md", "She watched."]], [{ at: today, costUsd: 0.5 }]]);
+
+  const again = memoryStores(keeping({ answers: { "g1:s1:t2:reply": ANSWER }, docs: { g1: { "Cast/Kell/memories/a1b2c3d4.md": "She watched." } }, ledger: host.ledgerLines }));
+  assert.deepEqual(await again.answers.get("g1:s1:t2:reply"), ANSWER);
+  assert.equal(again.docs.overlay("g1").read("Cast/Kell/memories/a1b2c3d4.md"), "She watched.");
+  assert.equal(await again.ledger.spentToday(), 0.5);
+});
 
 test("answers are kept by key, a key's characters safe in a file's name", async () => {
   const root = fresh();
@@ -25,7 +116,7 @@ test("answers are kept by key, a key's characters safe in a file's name", async 
   assert.deepEqual(readdirSync(join(root, "answers")), [`${encodeURIComponent(key)}.json`]);
 });
 
-test("answers older than a week are swept, the rest kept", async () => {
+test("answers older than a week are swept by their files' times, the rest kept", async () => {
   const root = fresh();
   const stores = folderStores(root);
   await stores.answers.put("old:s1:t1:decide", { requestHash: "a", status: 200, body: "{}", at: "" });
@@ -33,22 +124,19 @@ test("answers older than a week are swept, the rest kept", async () => {
   const eightDaysAgo = (Date.now() - 8 * 86_400_000) / 1000;
   utimesSync(join(root, "answers", `${encodeURIComponent("old:s1:t1:decide")}.json`), eightDaysAgo, eightDaysAgo);
 
-  assert.equal(stores.sweepAnswers(7 * 86_400_000), 1);
+  assert.equal(await stores.answers.sweep?.(7 * 86_400_000), 1);
   assert.equal(await stores.answers.get("old:s1:t1:decide"), undefined);
   assert.ok(await stores.answers.get("new:s1:t1:decide"));
 });
 
-test("a campaign version is the whole folder as PUT, replaced whole when it's PUT again", async () => {
+test("a campaign version is a folder on disk as PUT, and each game's copy of the lore one beside its logs", async () => {
   const root = fresh();
-  const { campaigns } = folderStores(root);
-  await campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/Old.md": "old" });
-  await campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/New.md": "new" });
+  const stores = folderStores(root);
+  await stores.campaigns.put("caerwyn", "0.1.0", { "campaign.json": "{}", "lore/World/New.md": "new" });
+  stores.docs.overlay("g1").write("Player/Wren.md", "# Wren");
 
-  const at = campaigns.root("caerwyn", "0.1.0")!;
-  assert.equal(readFileSync(join(at, "lore", "World", "New.md"), "utf8"), "new");
-  assert.equal(existsSync(join(at, "lore", "World", "Old.md")), false);
-  assert.deepEqual(campaigns.list(), ["caerwyn@0.1.0"]);
-  assert.equal(campaigns.root("caerwyn", "0.2.0"), undefined);
+  assert.equal(readFileSync(join(root, "campaigns", "caerwyn", "0.1.0", "lore", "World", "New.md"), "utf8"), "new");
+  assert.equal(readFileSync(join(root, "games", "g1", "docs", "Player", "Wren.md"), "utf8"), "# Wren");
 });
 
 test("a request's calls go to its game's call log with its key and attempt (as each starts, and when it's done), and its costs to the ledger and its usage", async () => {

@@ -91,14 +91,17 @@ export function modelOffline(): boolean {
   try { return !/^sk-or-/.test(apiKey()); } catch { return true; }
 }
 
-let logFile: string | undefined = process.env.KM_CALL_LOG;
+/** The process's environment, or none where there's no process (a browser's worker, which only ever calls with a context). */
+const env = (): Record<string, string | undefined> => globalThis.process?.env ?? {};
+
+let logFile: string | undefined = env().KM_CALL_LOG;
 /** Point model-call logging at a JSONL file (per session or eval run). */
 export function setCallLog(path: string | undefined): void {
   logFile = path;
   if (path) mkdirSync(dirname(path), { recursive: true });
 }
 
-const ledger = process.env.KM_COST_LEDGER ?? "runs/cost-ledger.jsonl";
+const ledger = env().KM_COST_LEDGER ?? "runs/cost-ledger.jsonl";
 /** The cost ledger: every call's cost, across games and evals (a report keeps its game's lines). */
 export const costLedger = () => ledger;
 let spent = 0;
@@ -127,6 +130,12 @@ export function recordCost(provider: string, operation: string, model: string, c
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * OpenRouter turned the call's key down (HTTP 401): asking again won't mend it, so nothing does. The
+ * AI service tells the player so (key_refused), rather than failing the turn as the model's.
+ */
+export class KeyRefused extends Error {}
+
 export async function fetchWithRetry(url: string, init: RequestInit, label: string, calls?: CallContext): Promise<Response> {
   const send = calls?.fetch ?? fetch;
   // A request's own log hears a call as it goes out too, so a call cut off (its process killed) is still counted.
@@ -146,12 +155,20 @@ export async function fetchWithRetry(url: string, init: RequestInit, label: stri
       const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1500 * 2 ** attempt;
       // Retries are routine: logged with the calls, never printed into play.
       logCall({ operation: label, retry: attempt + 1, status: response.status, delayMs: delay }, calls);
-      if (process.env.KM_DEBUG) process.stderr.write(`[${label}] HTTP ${response.status}, retrying in ${Math.round(delay / 1000)}s\n`);
+      if (env().KM_DEBUG) globalThis.process?.stderr?.write(`[${label}] HTTP ${response.status}, retrying in ${Math.round(delay / 1000)}s\n`);
       await sleep(delay);
       continue;
     }
+    if (response.status === 401) throw await keyRefused(response, label, calls);
     return response;
   }
+}
+
+/** A 401 as the call's error, and in the call log as any failed call is. */
+async function keyRefused(response: Response, label: string, calls?: CallContext): Promise<KeyRefused> {
+  const detail = (await response.text()).slice(0, 400);
+  logCall({ operation: label, status: 401, error: `HTTP 401: ${detail}` }, calls);
+  return new KeyRefused(`OpenRouter ${label} HTTP 401: ${detail}`);
 }
 
 async function* sse(response: Response): AsyncGenerator<string> {

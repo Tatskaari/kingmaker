@@ -41,7 +41,7 @@ async function setUp(options: FakeOptions = {}, world: (creation: Record<string,
   const files = filesOf(CAERWYN);
   const file = JSON.parse(files["campaign.json"]!) as { creation: Record<string, unknown> };
   files["campaign.json"] = JSON.stringify({ ...file, creation: world(file.creation) });
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", files);
   const fake = fakeFetch(options);
   const contextFor = (key: string): AiContext => {

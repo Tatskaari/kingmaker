@@ -1,10 +1,11 @@
-// Copied from the prototype's src/runtime/knowledge.ts at 44c6d4a, whole: it reads a TurnView (gm/view.ts) for the session; the scenes it names besides this one are the view's story (gm/story.ts) for sceneById; a talk (talkOf) is V11's, so none is; the world whose common knowledge the player shares is the campaign's (`setting`: "Caerwyn"), in the brief and on a lore card; the public lore's index is kept with the view's story (a campaign version as installed), so a version PUT again is indexed afresh; Card is v2/shared/markup.ts's.
+// Copied from the prototype's src/runtime/knowledge.ts at 44c6d4a, whole: it reads a TurnView (gm/view.ts) for the session; the scenes it names besides this one are the view's story (gm/story.ts) for sceneById; a talk (talkOf) is v2/shared/scene/talk.ts's; the world whose common knowledge the player shares is the campaign's (`setting`: "Caerwyn"), in the brief and on a lore card; the public lore's index is kept with the view's story (a campaign version as installed), so a version PUT again is indexed afresh; Card is v2/shared/markup.ts's; basename is v2/ai/docs/paths.ts's (no node:path).
 
-import { basename } from "node:path";
 import { listDocs, playerDocPath, readDoc, seedDoc, titleOf, type Doc } from "../docs/docs.ts";
+import { basename } from "../docs/paths.ts";
 import type { Card, Mark, MarkLink, Markup } from "../../shared/markup.ts";
 import { presentCast } from "../../shared/scene/graph.ts";
 import { knownCast, nameTokens } from "../../shared/scene/names.ts";
+import { talkOf } from "../../shared/scene/talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { distinct, speaker, type Speaker } from "./speakers.ts";
 import type { Story } from "./story.ts";
@@ -39,9 +40,6 @@ export interface PlayerKnowledge {
 
 /** A scene of the story, as play has it, or none. */
 const safeScene = (state: TurnView, id: string): Scene | undefined => state.story?.scene(id);
-
-/** A talk with a companion between scenes (V11's): none yet. */
-const talkOf = (_sceneId: string): undefined => undefined;
 
 /** What the player knows of the story so far (this scene is the conversation itself). */
 export function playerKnowledge(state: TurnView): PlayerKnowledge {

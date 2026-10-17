@@ -18,6 +18,8 @@ import {
   player, restartAi, seconds, step, turnOf, until, type Player,
 } from "./e2e/kit.ts";
 import { backToTheMap, inTheLane, mapTimes } from "./e2e/map.ts";
+import { theTown } from "./e2e/town.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3, full-gm-design §4.4,
@@ -44,7 +46,12 @@ import { backToTheMap, inTheLane, mapTimes } from "./e2e/map.ts";
  * gone after it kept the reactions, and the spectator's world row for row the lead's. The whole
  * story's (e2e/story.ts): one game from the yard to The End, each scene's end crossing the boundary,
  * the lead walked to on the map, a scene ended by the owner, the fight's stand-in, a summons, a
- * spectator following. Host mode in CI; namespace mode where 11.0.0.1 isn't this machine's.
+ * spectator following. The town's (e2e/town.ts, town-design §4), after the times: the action menu's
+ * Fire Bolt refused with no clear line and writing nothing, then catching the watch house door from
+ * the street, the guards shouting, a spectator's map drawing it and the town's clock burning it on;
+ * an act at Kell opening the yard as its first turn; an invented look; and a talk with Kell between
+ * scenes that leaves the waiting Rat as it was. Host mode in CI; namespace mode where 11.0.0.1 isn't
+ * this machine's.
  *
  *   npm run e2e [-- --port 3310] [--ai-port 8797] [--root runs/e2e] [--mode host|namespace]
  *
@@ -79,6 +86,7 @@ const NOTE = "The GM has lost the thread for a moment: trying again.";
 const REPLIED = ["settling", "noting", "done"];
 
 const flags = flagsOf(process.argv.slice(2));
+configureTerminal(process.env);
 
 console.log(`The e2e: a line in a scene, its reply as drawn, a character made, the full GM, spells and blows in the world, and the whole story, end to end (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
 const stack = await startStack({
@@ -131,6 +139,7 @@ try {
   const lead = await player(stack, "C", true);
   await theWholeStory(stack, flags.root, lead, b, FAKE);
   await latencies(stack, a);
+  await theTown(stack, lead, b, FAKE);
 
   a.conn.close();
   b.conn.close();
@@ -147,7 +156,7 @@ console.log(passed ? `\nPASS: every step, in ${elapsed()}` : "\nFAIL");
 process.exit(passed ? 0 : 1);
 
 // ---------------------------------------------------------------------------------------------
-// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the full GM's, 22 to 25, e2e/gm.ts's, the world bridge's, 26 to 30, e2e/world.ts's, and the whole story's, 31 to 34, e2e/story.ts's.
+// The steps (v0-design §10.4, v5-design §4.4); V1's, 15 to 21, are e2e/creation.ts's, the full GM's, 22 to 25, e2e/gm.ts's, the world bridge's, 26 to 30, e2e/world.ts's, the whole story's, 31 to 34, e2e/story.ts's, and the town's, 36 to 39, e2e/town.ts's.
 
 /** 1. The stack is up (--fresh); the campaign goes into both; the doctor finds all well. */
 async function installedAndWell(stack: Stack): Promise<void> {

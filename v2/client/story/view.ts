@@ -1,4 +1,4 @@
-// New, with the prototype's src/app/ui/scene.tsx:230-243 (onward, as wayOnOf over the rows' story), src/app/game.ts:1746-1777 (leadCard, as betweenOf: no map, so no way), src/app/ui/overlay.tsx:242-252 (the notebook's entries and how things stood, as notebook) and src/app/story.ts:60-77 (epilogue, as epilogueOf over rows) at 44c6d4a.
+// New, with the prototype's src/app/ui/scene.tsx:230-243 (onward, as wayOnOf over the rows' story; a talk's, game.ts:1673-1675, straight back to the map), src/app/game.ts:1746-1777 (leadCard, as betweenOf: no map, so no way), src/app/ui/overlay.tsx:242-252 (the notebook's entries and how things stood, as notebook) and src/app/story.ts:60-77 (epilogue, as epilogueOf over rows) at 44c6d4a.
 import type { Line, SceneView } from "../scene/view.ts";
 import { STANDIN, talkBetween, TIME_WORDS } from "./words.ts";
 
@@ -62,9 +62,9 @@ export interface WayOn {
   /**
    * What Enter does: waits (the story still moving on, or someone else has the lead); carries the
    * story on (it got stuck); the moment between scenes; the next scene, on screen (a summons, or
-   * the lead taken by whoever has it); the fight; The End.
+   * the lead taken by whoever has it); the fight; The End; from a talk, back to the map (walk out).
    */
-  to: "wait" | "carry_on" | "between" | "next" | "fight" | "end";
+  to: "wait" | "carry_on" | "between" | "next" | "fight" | "end" | "map";
   /** Drawn in the fight's red. */
   fight?: boolean;
 }
@@ -93,6 +93,8 @@ export function wayOnOf(shown: SceneView, story: StoryView | undefined, options:
   // A summons's next scene can be watched coming in before the story has quite finished with the last.
   if (options.next) return { title, go: `On to ${options.next.title}`, ready: true, to: "next" };
   if (shown.fighting) return { title: "Roll for initiative!", go: watching ?? "To the fight", ready: !watching, to: watching ? "wait" : "fight", fight: true };
+  // A talk moves nothing on (the lead is still the lead): its way on goes straight back to the map.
+  if (shown.talk) { const said = endingOf(shown) ?? "The talk is over"; return watching ? { title: said, go: watching, ready: false, to: "wait" } : { title: said, go: "Back to the map", ready: true, to: "map" }; }
   if (story.onward === "failed") return watching ? { title, go: watching, ready: false, to: "wait" } : { title, go: "The story got stuck on the way: try again", ready: true, to: "carry_on" };
   if (story.onward) return { title, go: options.queued ? "Going on as soon as the story's ready" : "Continue, once the story has moved on", ready: false, to: "wait" };
   if (story.ended) return { title, go: "The End", ready: true, to: "end" };
@@ -110,6 +112,8 @@ export interface BetweenView {
   talk?: Line[];
   /** Who that is: "Sergeant Agnes Kell". */
   with?: string;
+  /** Who walks with the player, by their key: a word with them (t) opens a talk (town-design §3.6). */
+  friend?: { key: string; name: string };
   /** The card: the notebook's new lines, how the time went, the lead. */
   card: string[];
   /** The lead. */
@@ -141,6 +145,7 @@ export function betweenOf(story: StoryView, sceneId: string | undefined): Betwee
   return {
     title: TIME_WORDS[story.time] ?? story.time,
     ...(talk ? { talk, with: friend!.name } : {}),
+    ...(friend ? { friend: { key: friend.key, name: friend.name } } : {}),
     card, next: { key: next.key, title: next.title }, go: `On to ${next.title}`,
   };
 }

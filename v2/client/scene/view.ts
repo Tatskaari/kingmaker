@@ -111,6 +111,12 @@ export interface SceneView {
   place?: PlaceView;
   /** The scene was opened from a map, which its end goes back to (map-design §3.3): the game has someone walking one. */
   onMap?: boolean;
+  /**
+   * A word with someone who walks with the player, between scenes (town-design §3.6: a scene of kind
+   * `talk`): its suggested lines are its dialogue choices, said at once, with the goodbye and walking
+   * on after them; it moves nothing on, and its end goes back to the map.
+   */
+  talk?: boolean;
 }
 
 /** The light a place is drawn in: the game's time of day (the look layer's TimeOfDay). */

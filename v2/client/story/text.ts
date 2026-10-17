@@ -27,6 +27,7 @@ export function wayOnPhase(view: SceneView): string | undefined {
     case "fight": return "PHASE: fight (Use: act --id fight)";
     case "end": return "PHASE: end (the story is over)";
     case "next": return "PHASE: over (the next scene has begun: observe again)";
+    case "map": return "PHASE: over (the talk is over. Use: act --id out, back to the map)";
   }
 }
 

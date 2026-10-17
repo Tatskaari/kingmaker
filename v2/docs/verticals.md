@@ -72,13 +72,13 @@ A team of four to six agents, in about two to three hours, in three steps: V0's 
 | V6 | People remember, the GM steers | meet people who remember what they did; have a drifting scene steered back | V0 | ≈0.9k + 0.6k | 4 · 2 |
 | V7 | A spell or a blow in a scene | cast, strike, shove or jump in a scene, and see the dice, the reactions and the fire spreading | V1 | ≈1.5k + 3.5k | 6 · 3 |
 | V8 | The GM rules on it | get a considered ruling and a roll for a risky act no route covers | V7 | ≈0.6k + 1k | 4 · 2 |
-| V9 | The scene's place, and deeds | see the place beside the talk, point at things, and act from its menu | V2, V7 | ≈0.8k + 2.5k | 5 · 2.5 |
-| V10 | The rules on the map | aim spells and blows from the action menu, Fireball a door, hide and rest | V9 (so V2, V7) | ≈1.2k + 1.9k | 5 · 2.5 |
-| V11 | A talk with Kell | stop and talk with a companion between scenes | V3 | ≈0.7k + 0.9k | 4 · 2 |
+| V9 | The scene's place, and deeds | see the place beside the talk, point at things, and act from its menu | V2, V7 | ≈0.8k + 2.5k, built (the place and its menu with the world bridge; invented looks with V10 and V11) | |
+| V10 | The rules on the map | aim spells and blows from the action menu, Fireball a door, hide and rest | V9 (so V2, V7) | built, with V11 and V9's rest: ≈3.8k + 4.5k together | one PR |
+| V11 | A talk with Kell | stop and talk with a companion between scenes | V3 | built, with V10 | (V10's) |
 | V12 | Roll for initiative | fight Sallow and the Crakes on the map, then play the aftermath | V2, V4, V7 | ≈1.5k + 3.3k | 6 · 3 |
 | V13 | Words in a fight | type what they do in a fight and have it read onto their turn | V12 | ≈0.5k + 1.5k | 4 · 2 |
 | | **Parity with the prototype on the demo arc (§4)** | | | | |
-| V14 | Play in a browser, and without a server | play in a browser tab; open a PR's preview with no server | parity | ≈3k + 2k | two PRs |
+| V14 | Play in a browser, and without a server | play in a browser tab; open a PR's preview with no server | parity (built early, on V2-V4) | ≈3.9k + 7.6k, built | one PR |
 | V15 | Two players | share a game BG3-style: watch, ask for the lead, hand it over | parity | ≈2.5k | 5 · 3 |
 | V16 | Playtesters | play on an allowlist within daily caps, and report a problem | parity | ≈2k | 5 · 2.5 |
 | V17 | Hosted | play on a hosted machine, the AI service on Cloud Run or Lambda | V16 | ≈1.5k | 4 · 3 |
@@ -331,6 +331,7 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 - **Proof:** offline, the scene menu's tests, copied (a glance never shows an entity's `description`), and the stage view's check at 80x24 and up; end to end, a deed picked from the menu plays, and a new thing gets a look; arc check 5; live, a deed and an invented look.
 - **Defers:** the menu on the map (V10); a fight in the place (V12).
 - **Risks:** `stage.ts` (1,061 lines) assumes a live `SceneWorld`. The director's comparison has to run once per change of rows, not once per turn.
+- **Built:** the place beside the talk, pointing and its menu with the world bridge ([world-bridge-design.md](world-bridge-design.md)); invented looks with V10 and V11, in the town's PR ([town-design.md](town-design.md)): the `inventLook` job beside a turn, `POST /v1/looks` (`look.invent`), a `look_invention` row a name, and the client's look cache. The deed is a queued line with its mechanic, decide's `forced` (as V10's act is), not a reducer of its own.
 
 ### V10 · The rules on the map
 
@@ -348,6 +349,7 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 - **Proof:** offline, the menu and town tests adapted, with each refusal's code and words; end to end, the seed-6 Fireball at the watch house door gives the prototype's dice lines, a `no_line` refusal from up the lane writes nothing, and the fire spreads on the clock.
 - **Defers:** the fights that break out (V12); one coding of fire for fights too (V18).
 - **Risks:** tick cost on a big map; `tick_place` must stop when no one's there. Fire on the map now burns on the clock, not by the hour: the tests should say so.
+- **Built** in one PR with V11 and V9's rest ([town-design.md](town-design.md), its As built): the prototype's `menu.ts` split in two, the menu both sides run (`shared/map/menu.ts`) and its acts the simulation does (`menu-acts.ts`); the catalogue written to the sheet (`sheet.actions`); the town's changes as the prototype's overlay on the map's place (`place.town`); seven typed moves with the prototype's ids; `tick_place` on SpacetimeDB's schedule and on the page host's clock; a fight that breaks out recorded on the explore row and told by the stand-in until V12. The proof's Fireball became a Fire Bolt from the street outside the watch house (from up the lane the watch house's own wall and window block the line, a `no_line` refusal that writes nothing): the e2e's steps 36 and 37; a menu act takes 13 to 72 ms on the module, a tick 8 to 21 ms. The AI service gained `forced` after all: the act is decide's mechanic, with no question asked.
 
 ### V11 · A talk with Kell
 
@@ -360,6 +362,7 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 - **Proof:** offline, the talk tests adapted (`talk.test.ts`: the waiting scene restored) and golden prompts; end to end, a talk between the granary and the Rat; live, a talk with Kell.
 - **Defers:** nothing the arc needs.
 - **Risks:** a talk started while a turn is in flight; restoring the waiting scene exactly.
+- **Built** with V10 ([town-design.md](town-design.md)): a talk is a scene of kind `talk` on the town's own place, so the waiting scene is never set aside or touched (the e2e compares its rows before and after); its prep comes with the opening (`talk.sift`, `talk.plan` beside the greeting), its lines with each settle (`talk.suggest` there, not in `reply`, as the prototype runs it), its staged secrets in `gm_state.guard`, and the record of what was told in `talk_record`. The template is campaign data (`campaigns/caerwyn/scenes/talk/`).
 
 ### V12 · Roll for initiative
 
@@ -396,6 +399,8 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 
 ### The parity point: after V13
 
+Built so far: V0 to V11, and V14 ahead of parity. V12 and V13, the fight played on the map and words typed in it, are what's left; until then the stand-in tells every fight as won.
+
 v2 can replace the prototype for the demo arc, in a terminal, when:
 - `npm run arc` passes 16 of 16 in CI;
 - every model call on the arc has a golden request equal to the prototype's for the same state, or a listed reason;
@@ -404,7 +409,7 @@ v2 can replace the prototype for the demo arc, in a terminal, when:
 - a turn carries on after either service is killed mid-turn.
 
 **Still only the prototype's at that point:**
-- the browser builds and the PR previews (V14);
+- the browser builds and the PR previews (V14: built early, so v2 has them now, beside the prototype's);
 - the zoo, and places from a description (`src/game/map/generate`) (V19);
 - problem reports (V16);
 - the eval suites not yet moved, and the nine scenes off the arc that some of them use (`blocked-entrance`, the four `crossroads` scenes, `garrows-toll`, `green-standoff`, `holed`, `warren-hostage`): they convert with the campaign tool when their suites move;
@@ -414,7 +419,7 @@ v2 can replace the prototype for the demo arc, in a terminal, when:
 
 The order after parity is the user's call. A suggestion:
 
-- **V14 · Play in a browser, and without a server** (two PRs). The local host as a client's host: `Connection` over the memory host, with in-process subscriptions as row diffs, views per caller and schedules, and the AI service in process through the same JSON. One contract suite, every e2e scenario, runs on both hosts. The static build in a worker, with the player's own key (`src/web/static`, `src/web/tui`, copied), so v2 gets PR previews. A browser tab against a SpacetimeDB server.
+- **V14 · Play in a browser, and without a server.** Built, ahead of parity and in one PR, as the test of the DI the design asks for: the blueprint, with what was built, is [browser-design.md](browser-design.md). The page runs two workers on one MessageChannel: the client's App on the JS OpenTUI (`src/web/tui`, copied) over a Replica of the rows, in place of `Connection`; and the memory host as the client's host, its tables in IndexedDB, with the AI service in the same worker and the player's own key, so every PR's preview carries v2 at `/v2/`. A contract test plays the Replica over the port link against the page host (a new game to a reply on the fake, carried on after a rebuild), as the e2e plays `Connection` against SpacetimeDB; every e2e scenario on both hosts is still to come, and so is a browser tab against a SpacetimeDB server.
 - **V15 · Two players, BG3-style.** `joinGame` with a character; `handOff`, `acceptHandOff`, `requestControl`; `releaseControl` two minutes after a disconnect; queued turns; notices; several live scenes at once, one stage per entity; names heard per player. Prompts that know the party (today `brief.ts:321` and `engine.ts:1173` say "the only player character"), with two-player eval cases and the one-player goldens unchanged. Proof: the design's hand-off flow as a contract test, and two QA clients sharing a scene with a hand-off mid-scene inside the 5 s budget.
 - **V16 · Playtesters.** The `allow` table checked in `clientConnected` (verified in the spike); usage rows per player and day; the host's budget; `my_usage`; caps that refuse with `over_budget` and spend nothing. Problem reports: a game's rows, its documents and its call log (`GET /v1/games/{game}/calls`), restorable into a local stack, and `b` or `/report` in the client.
 - **V17 · Hosted.** The AI service on Cloud Run or Lambda, at an HTTPS URL with its bearer token and the key in a secret store; its stores in Cloud Storage and Firestore behind V0's interfaces (the docs service's store becomes asynchronous, a change to code the prototype shares); SpacetimeDB standalone on a VM; backups of both. From here, schema changes are additive or migrated: a publish that conflicts wipes data.
@@ -446,8 +451,8 @@ Everyone builds V0. Then three teams work in three lanes, each taking the next v
 
 | Thread | Where it lands |
 |---|---|
-| The local host and the contract suite | V0: the memory host runs every move in the unit tests, and `hosts/local.ts` plays a scene with the AI service in process. Every vertical: its moves on the memory host, its e2e scenarios through `Connection`. V14: the local host as a client's host, and one contract suite on both hosts. |
-| The Pages preview | V14. Until then `preview.yml` keeps publishing the prototype. |
+| The local host and the contract suite | V0: the memory host runs every move in the unit tests, and `hosts/local.ts` plays a scene with the AI service in process. Every vertical: its moves on the memory host, its e2e scenarios through `Connection`. V14 (built): the memory host as a client's host in a page, and the contract suite's first test, a Replica over the page host's port. Later: every e2e scenario on both hosts. |
+| The Pages preview | V14 (built): `preview.yml` publishes v2's page at `/v2/` in each PR's preview, beside the prototype's `play/`. |
 | The campaign tool | V0: check, and install into both services (the PUT and the owner-only `install_campaign`). V2: maps and places. V3 and V4: scenes, through the converter, with only its output committed. V19: git tags, versions, and exhibits at install. |
 | The scripting API | V0: the stage manager's operations through one gate. V3: the story operations, applied (exits' effects, `afterwards`, `follow`). V7 and V10: the rules' writes through the same gate. V18: the registry. V19: rules as data. |
 | Multiplayer | V0: rows keyed by player, `controller_id`, spectators, `not_controller`. Every vertical: moves written for an actor and a seat. V15: control, hand-offs and the party in the prompts. |
@@ -522,7 +527,9 @@ Each adoption edits `src/runtime`, which PR #650 is still changing, so its timin
 | V8 | No row for a considered turn's steps | `turn.step` | The status line's steps |
 | V2, V9 | The look director plays typed `world_event`s and `rules_event`s | `rules_event` for dice, `world_event` for walks and barks; the rest the director works out by comparing worlds rebuilt from rows, as the prototype does, until V18 | Parity first; events for everything come with one world |
 | V10 | `tickPlace` on the map | `tick_place` runs the scenes' `tick`; the map's ageing by the hour isn't ported | One coding of fire for scenes and the town |
-| V10 | An act on the map that opens a scene travels as the opening's `firstLine` | The opening is V0's, and the act is the scene's first turn, a `deed`, after it | As the prototype plays it (`play.ts:256`), so the opening's prompt keeps parity |
+| V10 | An act on the map that opens a scene travels as the opening's `firstLine` | The opening is V0's, and the act is the scene's first turn after it: a queued line with its mechanic (`turn.mechanic`), which decide takes as `forced` (no `deed` reducer) | As the prototype plays it (`play.ts:256`), so the opening's prompt keeps parity; the world bridge had made deeds lines |
+| V10 | The town's doors, people and things as entity rows | The prototype's overlay (`TownChanges`) as JSON on the map's own place (`place.town`) | Drop in: `townWorld`, `keepTown` and the renderer run unchanged |
+| V11 | The waiting scene set aside and put back | A talk is a scene of its own on the town's place; the waiting scene's rows are never touched | Nothing to restore, so nothing to get wrong |
 | V12 | A fight as rows, with an `initiative` component, on one world | A `fight` row with the fight's state as JSON, mirrored into the place's rows; the fights' own fire, dust and props kept until V18 | The prototype's fight code (about 5,800 lines with its typed lines) ported without a rewrite |
 
 ---

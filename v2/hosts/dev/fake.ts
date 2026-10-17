@@ -1,16 +1,16 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
+import file from "./fake.json" with { type: "json" };
 
 /**
  * What npm run dev -- --fake plays (v5-design §3.10): fake.json's options for the fake model, a game
  * that looks like one on real models (the GM's golden replies, written notes, suggested lines, and
- * each model call taking about as long as a model's), with KM_AI_FAKE's options on top.
+ * each model call taking about as long as a model's), with KM_AI_FAKE's options on top. fake.json is
+ * a JSON module, so nothing here touches Node: the page's server worker plays the same fake.
  */
 
-/** fake.json without its `about`. */
+/** fake.json without its `about`: a copy of its own, for a caller to change. */
 export function devFake(): FakeOptions {
-  const { about: _about, ...fake } = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8")) as FakeOptions & { about?: string };
+  const { about: _about, ...fake } = structuredClone(file) as FakeOptions & { about?: string };
   return fake;
 }
 
@@ -50,6 +50,16 @@ export function onTop(under: FakeOptions, over: FakeOptions): FakeOptions {
   const merged = { ...below, ...above };
   for (const key of BY_NAME) if (above[key]) merged[key] = { ...below[key] as object, ...above[key] as object };
   return merged as FakeOptions;
+}
+
+/**
+ * The whole story's recipe (story-design §1.1): each scene ends at the first of these endings it
+ * offers, the player's own doing, so a scene closes in two lines and the arc is walked to The End on
+ * the fake. The dev stack takes it as KM_AI_FAKE (v2/README.md); the page's ?fake=arc puts it on
+ * fake.json's (hosts/web/server-worker.ts).
+ */
+export function wholeStory(): FakeOptions {
+  return { choices: { ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" } };
 }
 
 /**

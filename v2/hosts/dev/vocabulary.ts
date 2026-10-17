@@ -32,7 +32,8 @@ export function vocabularyProblems(files: CampaignFiles, pack: CampaignPack): st
   return [
     ...twiceProblems(v),
     ...nextProblems(v, pack),
-    ...pack.scenes.flatMap(({ scene }) => installedProblems(v, scene, files, pack)),
+    // (The talk template is no scene of the story's: the vocabulary has no entry for it.)
+    ...pack.scenes.filter(({ scene }) => scene.id !== pack.campaign.talk).flatMap(({ scene }) => installedProblems(v, scene, files, pack)),
   ];
 }
 

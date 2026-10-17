@@ -2,7 +2,7 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
-import type { GmState, OpenedNote, OwedRow, ScenePatch, SceneStatus } from "../gm/state.ts";
+import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord } from "../gm/state.ts";
 import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
 import type { Skill, Transition } from "../scene/types.ts";
@@ -15,14 +15,16 @@ import type { CreationStep, Step } from "./keys.ts";
  * back (v0-design §5.1-5.2, gm-port §13; the notes and the suggested lines, v5-design §3.6;
  * character creation's two, v1-design §3.7; a considered turn's ruling, and the memory reviews and
  * the co-GM after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
- * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2).
+ * world-bridge-design §3.1; the boundary between scenes and a fight's aftermath, story-design §4.2;
+ * a talk with a companion, the menu's act played as a turn, and the looks of what the story makes,
+ * town-design §3.6-3.8).
  * Every request carries its working set, read in the transaction that queued it, and its
  * idempotency key; every answer is data the simulation commits.
  */
 
 export type Endpoint =
   | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
-  | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary"
+  | "/v1/turns/remember" | "/v1/turns/repair" | "/v1/scenes/boundary" | "/v1/looks"
   | "/v1/characters" | "/v1/backstories";
 
 /**
@@ -30,16 +32,16 @@ export type Endpoint =
  * The reactions are one decider call (about 0.3 s), waited for as long as the decision; the ruling's
  * review is cut off at 12 s (KM_CONSIDER_DEADLINE_MS), then the plain check is asked for; a memory
  * review's or the co-GM's tool loops can take a minute and more; a boundary's three calls at once,
- * then presence, about 10 to 20 s on real models.
+ * then presence, about 10 to 20 s on real models; the looks of what a turn made, one small call.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
   open: "/v1/scenes/open", decide: "/v1/turns/decide", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
-  notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary",
+  notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair", boundary: "/v1/scenes/boundary", look: "/v1/looks",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000,
+  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000, boundary: 120_000, look: 30_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -87,9 +89,11 @@ export interface SheetRow {
  * (story-design §4.2) the scenes played before this one, oldest first, as the prototype's session's
  * `history`, and every entry of theirs, in order, each with its scene's key (without markup), as the
  * prototype's transcript holds the whole story. Both are absent (none) in a request built before
- * the story unit, and in a game's first scene.
+ * the story unit, and in a game's first scene. And (town-design §3.8) what companions have told the
+ * player of themselves in talks between scenes, by their cast ids (talk.ts's records): the notes'
+ * knowledge cards read it, and a talk's prep and lines; absent while there have been none.
  */
-export interface Story { time: string; day: number; flags: Record<string, string>; history?: Chapter[]; earlier?: Entry[] }
+export interface Story { time: string; day: number; flags: Record<string, string>; history?: Chapter[]; earlier?: Entry[]; talks?: Record<string, TalkRecord> }
 
 /**
  * A scene played, as the prototype's session's history has it (src/runtime/session.ts:337-345):
@@ -116,7 +120,8 @@ export interface Suggestion { kind: "say" | "do" | "try" | "leave"; text: string
 
 /** A turn's working set, read in the transaction that queued the think: everything the GM may need. */
 export interface TurnContext {
-  scene: { id: string; key: string; kind: "scene"; turn: number };
+  /** kind: a scene of the story, or a talk with a companion between scenes (town-design §3.6). */
+  scene: { id: string; key: string; kind: "scene" | "talk"; turn: number };
   /** The controller's character's key ("pc:1"): the world's "player". */
   pc: string;
   gm: GmState;
@@ -139,10 +144,12 @@ export type SceneContext = Omit<TurnContext, "line">;
 /**
  * POST /v1/scenes/open: a scene's opening; or, with `aftermath`, the scene picking up after a fight
  * (story-design §4.4: the prototype's resumeAfterFight), told from the fight's summary in place of
- * the opening, on a turn of its own, the scene's transcript and world as the fight left them.
+ * the opening, on a turn of its own, the scene's transcript and world as the fight left them. With
+ * `talk`, a talk with a companion opens (town-design §3.6: talk.ts openTalk): their greeting, and
+ * beside it the talk's prep (talk.sift, talk.plan), which the answer's `talk` brings back.
  */
 export interface OpenRequest extends AiRequest {
-  scene: { id: string; key: string; kind: "scene" };
+  scene: { id: string; key: string; kind: "scene" | "talk" };
   pc: string; gm: GmState; world: PlaceRows; party: SheetRow[]; story: Story;
   /** The opening's turn (turn 0; an aftermath's own), for stream_reply. */
   stream: { turn: string };
@@ -150,9 +157,39 @@ export interface OpenRequest extends AiRequest {
   aftermath?: { summary: string };
   /** An aftermath's: the scene's transcript so far (an opening has none). */
   transcript?: Entry[];
+  /** A talk's: with whom, where, their record, and what the prep reads besides the scene. */
+  talk?: TalkOpen;
 }
-/** ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key), applied through the gate. */
-export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; usage: Usage }
+/** ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key), applied through the gate. talk: a talk's prep, to keep. */
+export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; usage: Usage }
+
+/**
+ * A talk's open (town-design §3.6; talk.ts startTalk, openTalk and plan): the companion's cast id;
+ * where and when, as the map says it ("Granary Street in Caerwyn, evening"); their record with the
+ * player, this talk counted; how the story led on to the waiting scene, as the player knows it (its
+ * gm's `lead`, for the facts); every entry of their earlier talks with the player, each with its
+ * scene's key (earlierTalks reads them); and whether lines to say are suggested (the controller's own
+ * setting: off, the prep's suggestions are none).
+ */
+export interface TalkOpen { with: string; where: string; record: TalkRecord; lead?: string; earlier: Entry[]; suggest: boolean }
+
+/**
+ * What a talk's prep came to (talk.ts prepare), for the open's commit to keep: the facts the talk's
+ * GM takes as given (where and when, how often they've talked, what they've told, what they may open
+ * up about now, what waits for a later talk, what they knew in the story's scenes); the prep's
+ * patches (the one thing they might tell, a secret on their card, and the route by which it comes out,
+ * to the talk's `told` beat); how near the surface it starts (the companion's staged secret); what
+ * they'd tell, for the record and the memory once it's out; the notes disclosure keeps out of this
+ * talk (the deepest of their story, before its time); and the opening choices, two to four lines.
+ */
+export interface TalkPrep {
+  established: string[];
+  patches: ScenePatch[];
+  guard?: { stage: GuardStage; turn: number };
+  confide?: Confide;
+  withheld: string[];
+  suggestions: string[];
+}
 
 export interface Check { skill: Skill; dc: number; reason?: string }
 export interface Decision {
@@ -187,8 +224,12 @@ export interface Decision {
    */
   mechanic?: Mechanic;
 }
-/** landed: [] in V0 (no world clock). */
-export interface DecideRequest extends AiRequest { turn: TurnContext; landed: string[] }
+/**
+ * landed: [] in V0 (no world clock). forced: what the rules resolve this turn, chosen already (the
+ * map's action menu, town-design §3.4: an act at a waiting scene, played as its first turn): the
+ * decider asks no mechanic question (the prototype's decideBefore `forced`, director.ts:793, 889-901).
+ */
+export interface DecideRequest extends AiRequest { turn: TurnContext; landed: string[]; forced?: Mechanic }
 export interface DecideResponse { decision: Decision; opened: OpenedNote[]; usage: Usage }
 
 /** What the decide commit did: the reply builds its directives from it. */
@@ -227,8 +268,8 @@ export interface Outcome {
 export interface ReplyRequest extends AiRequest { turn: TurnContext; decision: Decision; outcome: Outcome; stream: { turn: string } }
 export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; usage: Usage }
 
-/** reply: plain text. */
-export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[] }
+/** reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's setting). */
+export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean } }
 export interface After {
   /**
    * An outcome route the reply achieved, with its check for the simulation to roll. `exit`: the
@@ -252,9 +293,15 @@ export interface After {
   threat?: ThreatRead;
   /** The threat question's raw choice ("attack:kell", "hazard:grab_or_shove", "none"): a hold the reply no longer has them in lets them go (threats.ts holdAfterReply). */
   threatRead?: string;
+  /**
+   * Staged secrets (town-design §3.6: director.ts:1263-1275), in a scene that stages them (a talk):
+   * how far each of the cast present who keeps something back has come towards giving it up, judged
+   * after the reply. The settle commit moves each one step at most, and never back.
+   */
+  guard?: Record<string, GuardStage>;
 }
-/** ops: at most 16, by game key; after absent when the reply closed the scene. */
-export interface SettleResponse { ops: WorldOp[]; after?: After; usage: Usage }
+/** ops: at most 16, by game key; after absent when the reply closed the scene. talk: a talk's next lines (talk.suggest, beside the after-reply decision), none when they weren't asked for or the talk ended. */
+export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; usage: Usage }
 
 /**
  * POST /v1/turns/consider (full-gm-design §4.1): the GM's ruling on an act the decider flagged
@@ -355,6 +402,22 @@ export interface BoundaryResponse {
   usage: Usage;
 }
 
+/**
+ * POST /v1/looks (town-design §3.7: src/game/look/invent.ts's model half, look.invent): how things the
+ * story made look on the map, one call for a batch. `key` is each thing's own for the answer (the
+ * simulation's: the name in lower case); kind: object, item, creature, person.
+ */
+export interface LooksRequest extends AiRequestBase { things: Array<{ key: string; name: string; kind?: string }> }
+/** A look for each key answered (one the model left out has none: it's drawn with the look layer's guess). */
+export interface LooksResponse { looks: Record<string, Invention>; usage: Usage }
+/**
+ * A look invented for a thing (invent.ts's Invention): a glyph from the look layer's menu, a Nerd Font
+ * icon's name if one fits, a palette colour's name, how it moves (still, flutter, swarm, sway,
+ * shimmer, flicker, pulse, drift, bob, drip), whether it gives off light, whether it's a creature or a
+ * person, whether it's many, and what it's mostly made of.
+ */
+export interface Invention { glyph: string; nerd?: string; color: string; motion: string; light: boolean; being: boolean; group: boolean; material?: string }
+
 // ---------------------------------------------------------------------------------------------
 // Character creation (v1-design §3.7): before there's a game, so no player and no scene.
 
@@ -378,8 +441,12 @@ export interface BackstoriesResponse { asked?: Asked<string>; checked?: Asked<Lo
 
 // ---------------------------------------------------------------------------------------------
 
-/** over_budget (402): today's spending is past the service's daily ceiling (KM_AI_DAILY_USD). */
-export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready" | "over_budget";
+/**
+ * over_budget (402): today's spending is past the service's daily ceiling (KM_AI_DAILY_USD).
+ * key_refused (403): OpenRouter turned the service's key down, and asking again won't mend it. The
+ * message of either is words for the player.
+ */
+export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready" | "over_budget" | "key_refused";
 export interface AiError { error: { code: AiErrorCode; message: string } }
 
 /** GET /v1/health (no bearer needed; `?deep=1` also calls service_ping as the service). */

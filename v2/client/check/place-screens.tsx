@@ -20,7 +20,8 @@ import { yardPlaceRows } from "./place.ts";
  * rope under him, whose own menu cuts it, sent as the lead's line; an attack asks with what; giving
  * lists what Pell carries. By key: Tab to the nearest, ↓ the next, Enter its menu, a letter puts it
  * away and goes in the box, Esc lets go. While the GM has the floor the menu only looks, and a
- * spectator's only looks. Glyphs are the ascii set's, whatever this terminal has.
+ * spectator's only looks. On a page, the side panel has no game's number. Glyphs are the ascii
+ * set's, whatever this terminal has.
  */
 export async function checkPlace(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
   registerLookCanvas();
@@ -30,6 +31,7 @@ export async function checkPlace(checks: Array<[string, boolean]>, show: boolean
   console.error = (...args: unknown[]) => { if (!/not wrapped in act/.test(String(args[0]))) error(...args); };
   try {
     for (const size of [[80, 24], [100, 30], [130, 42]] as const) await placeAt(checks, size, show);
+    await onAPage(checks, show);
   } finally {
     console.error = error;
   }
@@ -233,5 +235,16 @@ async function placeAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   checks.push([`${size}: a spectator sees the place, and Kell's menu only looks (${scene.sceneMenu?.actions.map(a => a.label).join(", ")})`, /Watching/.test(frame) && /K Sergeant Agnes K/.test(frame) && scene.sceneMenu?.title === "Sergeant Agnes Kell" && scene.sceneMenu.actions.map(a => a.label).join() === "Look at them"]);
   checks.push([`${size}: a spectator's list names the lead's character, not "you"`, /@ Pell Marrow/.test(frame) && !/@ you/.test(frame)]);
   await esc();
+  await setup.dispose();
+}
+
+/** The yard on a page (the app's surface): the place and who's in it as in a terminal, and no game's number, since no terminal can watch from there. */
+async function onAPage(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
+  const scene = new SceneModel(sceneViewOf(yardPlaceRows()), { say: () => {}, retry: () => {}, setSuggestions: async () => undefined, out: () => {}, quit: () => {} });
+  const setup = await testRender(<ScenePlay scene={scene} surface="page" />, { width: 100, height: 30 });
+  await setup.renderOnce();
+  const frame = setup.captureCharFrame();
+  if (show) console.log(`place 100x30 on a page\n${frame}`);
+  checks.push(["place 100x30 on a page: the yard and who's in it, and no game's number to watch it by", /The yard behind the K/.test(frame) && /K Sergeant Agnes K/.test(frame) && !/Game 1/.test(frame) && !/--join/.test(frame)]);
   await setup.dispose();
 }

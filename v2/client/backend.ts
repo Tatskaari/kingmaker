@@ -44,13 +44,16 @@ export interface Backend {
  * Character creation's moves, and the games': called by name (v1-design §3.10). And the story's
  * (story-design §4.3): walk (toward the lead: its scene opens), carry_on (a boundary that got stuck,
  * tried again), fight_it_out (the fight's stand-in), and end_scene, which only the database's owner
- * may make: the connection makes it as the dev stack's owner (net/owner.ts), for testing.
+ * may make: the connection makes it as the dev stack's owner (net/owner.ts), for testing. And the
+ * map's action menu (town-design §3.2): cast, attack, use_feature, leap, hide, rest, use_item, each
+ * one of the prototype's menu ids (shared/map/moves.ts moveOf; mapMove sends them here).
  */
 export type MoveName =
   | "startCreation" | "creationBack" | "chooseBuild" | "makeOwn" | "pickOwn" | "takeOwn" | "setBackstory" | "draftBackstory"
   | "workInBackstory" | "takeProposal" | "leaveProposal" | "finishBackstory" | "acceptFix" | "rewriteIssue" | "skipBackstory"
   | "chooseAgain" | "begin" | "continueGame" | "deleteGame"
-  | "walk" | "carryOn" | "fightItOut" | "endScene";
+  | "walk" | "carryOn" | "fightItOut" | "endScene"
+  | "cast" | "attack" | "useFeature" | "leap" | "hide" | "rest" | "useItem";
 
 /** Each move's arguments, as the bindings have them. */
 export type Moves = { [K in MoveName]: Parameters<DbConnection["reducers"][K]>[0] };
@@ -115,12 +118,19 @@ function when<T>(game: Backend, read: () => T | undefined, done: (value: T) => b
   });
 }
 
-/** A map move (shared/map/moves.ts moveOf makes one from an action id) through the backend's walk, interact or travel. */
-export function mapMove(game: Pick<Backend, "walk" | "interact" | "travel">, m: MapMove): Promise<Rejection | undefined> {
+/** A map move (shared/map/moves.ts moveOf makes one from an action id) through the backend's walk, interact or travel, or, the action menu's (town-design §3.2), its act. */
+export function mapMove(game: Pick<Backend, "walk" | "interact" | "travel" | "act">, m: MapMove): Promise<Rejection | undefined> {
   switch (m.move) {
     case "walk": return game.walk(m.args);
     case "interact": return game.interact(m.args);
     case "travel": return game.travel(m.args);
+    case "cast": return game.act("cast", { spell: m.args.spell, at: m.args.at, self: m.args.self });
+    case "attack": return game.act("attack", { how: m.args.how, at: m.args.at });
+    case "useFeature": return game.act("useFeature", { feature: m.args.feature, at: m.args.at, self: m.args.self });
+    case "leap": return game.act("leap", { at: m.args.at });
+    case "hide": return game.act("hide", {});
+    case "rest": return game.act("rest", { length: m.args.length, recover: m.args.recover });
+    case "useItem": return game.act("useItem", { item: m.args.item });
   }
 }
 

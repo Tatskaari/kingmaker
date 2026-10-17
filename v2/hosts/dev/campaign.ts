@@ -1,23 +1,25 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
-import { inBounds, isStructure, mapOf, tileAt, type MapDef, type MapFile } from "../../shared/map/tiles.ts";
+import { inBounds, isStructure, mapOf, tileAt, type MapDef } from "../../shared/map/tiles.ts";
 import type { TileMap } from "../../shared/map/types.ts";
-import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
+import type { BuildsFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
+import { TOLD } from "../../shared/scene/talk.ts";
 import { validateScene, type Scene } from "../../shared/scene/types.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
+import { packOf, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
 
 /**
  * A campaign folder (v2/campaigns/<id>/) as the install sends it, and the check that it's fit to
  * send (v0-design §8; the converter's checks that need no prototype, content-world A10; the
  * vocabulary's, v5-design §3.8). Both work on the folder's files in memory, so the AI service's PUT
- * carries exactly what was checked.
+ * carries exactly what was checked. The structure the install takes from them is pack.ts's (packOf),
+ * which touches no Node, and is re-exported here.
  */
 
-/** A campaign folder's files by path ("scenes/hanged-clerk/setting.md"): every file, dotfiles left out. */
-export type CampaignFiles = Record<string, string>;
+export { packOf, type CampaignFiles } from "./pack.ts";
 
 /** Every file under a folder, by its path in it with "/" separators, in path order. */
 export function readCampaignFiles(dir: string): CampaignFiles {
@@ -27,23 +29,6 @@ export function readCampaignFiles(dir: string): CampaignFiles {
     .filter(path => !path.split("/").some(part => part.startsWith(".")))
     .sort();
   return Object.fromEntries(paths.map(path => [path, readFileSync(join(dir, path), "utf8")]));
-}
-
-/**
- * The structure install_campaign takes: campaign.json, each listed scene's scene.json with its hook
- * (hook.md, as the loader reads it), each listed place, the builds, the looks and each listed map.
- * Throws when a file it needs is missing or isn't JSON.
- */
-export function packOf(files: CampaignFiles): CampaignPack {
-  const campaign = json<CampaignFile>(files, "campaign.json");
-  return {
-    campaign,
-    scenes: campaign.scenes.map(key => ({ scene: json<SceneFile>(files, `scenes/${key}/scene.json`), hook: text(files, `scenes/${key}/hook.md`).trim() })),
-    places: campaign.places.map(key => json<PlaceFile>(files, `places/${key}.json`)),
-    builds: json<BuildsFile>(files, "builds.json"),
-    looks: json<LooksFile>(files, "looks.json"),
-    maps: (campaign.maps ?? []).map(key => json<MapFile>(files, `maps/${key}.json`)),
-  };
 }
 
 /**
@@ -80,6 +65,7 @@ export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredP
     ...campaignProblems(pack, rules),
     ...creationProblems(pack.campaign.creation, files),
     ...pack.scenes.flatMap(({ scene }) => sceneProblems(scene, files, pack)),
+    ...talkProblems(pack, files),
     ...storyProblems(pack),
     ...pack.places.flatMap((place, i) => placeProblems(place, pack.campaign.places[i]!)),
     ...buildProblems(pack.builds, rules),
@@ -90,17 +76,17 @@ export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredP
 }
 
 /**
- * A short account of a pack: "caerwyn 0.1.0: 1 scene (5 beats, 37 routes, 5 exits), 1 place, 4 maps,
- * 154 lore docs, 3 builds, 4 looks, the vocabulary of 25 scenes (44c6d4a)".
+ * A short account of a pack: "caerwyn 0.1.0: 1 scene (5 beats, 37 routes, 5 exits), a talk template, 1
+ * place, 4 maps, 154 lore docs, 3 builds, 4 looks, the vocabulary of 25 scenes (44c6d4a)".
  */
 export function describePack(pack: CampaignPack, files: CampaignFiles): string {
-  const scenes = pack.scenes.map(({ scene }) => sceneOf(scene));
+  const scenes = pack.scenes.filter(({ scene }) => scene.id !== pack.campaign.talk).map(({ scene }) => sceneOf(scene));
   const routes = scenes.reduce((n, s) => n + s.beats.reduce((m, b) => m + b.transitions.length, 0) + (s.anytime?.length ?? 0), 0);
   const beats = scenes.reduce((n, s) => n + s.beats.length, 0), exits = scenes.reduce((n, s) => n + s.exits.length, 0);
   const lore = Object.keys(files).filter(p => p.startsWith("lore/")).length;
   const vocabulary = files[VOCABULARY] === undefined ? undefined : vocabularyOf(files[VOCABULARY]);
   return `${pack.campaign.id} ${pack.campaign.version}: ${count(scenes.length, "scene")} (${count(beats, "beat")}, ${count(routes, "route")}, ${count(exits, "exit")}), `
-    + `${count(pack.places.length, "place")}, ${pack.maps.length ? `${count(pack.maps.length, "map")}, ` : ""}${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`
+    + `${pack.campaign.talk ? "a talk template, " : ""}${count(pack.places.length, "place")}, ${pack.maps.length ? `${count(pack.maps.length, "map")}, ` : ""}${count(lore, "lore doc")}, ${count(Object.keys(pack.builds).length, "build")}, ${count(Object.keys(pack.looks).length, "look")}`
     + (vocabulary && !Array.isArray(vocabulary) ? `, the vocabulary of ${count(vocabulary.scenes.length, "scene")} (${vocabulary.source})` : "");
 }
 
@@ -139,7 +125,7 @@ function creationProblems(world: CreationWorld | undefined, files: CampaignFiles
 function sceneProblems(file: SceneFile, files: CampaignFiles, pack: CampaignPack): string[] {
   const at = `scenes/${file.id}`;
   const problems: string[] = [];
-  if (!pack.campaign.scenes.includes(file.id)) problems.push(`${at}/scene.json: its id ${file.id} isn't its folder's name`);
+  if (!pack.campaign.scenes.includes(file.id) && file.id !== pack.campaign.talk) problems.push(`${at}/scene.json: its id ${file.id} isn't its folder's name`);
 
   const scene = loads(() => sceneOf(file, path => files[`${at}/${path}`]), problems, at, file.id);
   loads(() => sceneOf(file), problems, `${at} (without its words)`, file.id);
@@ -212,6 +198,32 @@ function owedThings(file: SceneFile, pack: CampaignPack): string[] {
 /** The keys a world operation names (what it acts on, where it goes); "$player" is the controller's character. */
 function namedKeys(op: { what?: string; to?: string }): string[] {
   return [op.what, op.to].filter((k): k is string => !!k && k !== "$player");
+}
+
+/**
+ * The talk template (campaign.json's `talk`, town-design §3.6): a scene of kind talk whose first cast
+ * entry is whoever walks with the player (`{companion}`, named `{name}`), with the beat the one thing
+ * they were keeping back moves the talk to (TOLD); and everyone the story has walk with the player
+ * (a `follow` effect) has a lore entry to be themselves from (the AI service builds their talks from
+ * it: a talk with someone who hasn't is refused).
+ */
+function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
+  const key = pack.campaign.talk;
+  if (key === undefined) return [];
+  const template = pack.scenes.find(({ scene }) => scene.id === key)?.scene;
+  if (!template) return [`campaign.json: its talk template ${key} isn't installed`];
+  const at = `scenes/${key}`, problems: string[] = [];
+  if (template.kind !== "talk") problems.push(`${at}: the talk template's kind is ${template.kind}, not talk`);
+  const [first] = template.cast;
+  if (first?.id !== "{companion}" || first.name !== "{name}") problems.push(`${at}: the talk template's first cast entry isn't the companion's ({companion}, named {name})`);
+  if (!(TOLD in template.beats)) problems.push(`${at}: the talk template has no beat ${TOLD} (where the one thing they keep back takes the talk once it's told)`);
+  if (template.place !== undefined) problems.push(`${at}: the talk template has a place (a talk is wherever the player stopped)`);
+  const followers = new Set(pack.scenes.flatMap(({ scene }) => [...(scene.onEnd ?? []), ...Object.values(scene.exits).flatMap(e => e.effects)])
+    .flatMap(e => (e.op === "follow" ? [e.who] : [])));
+  const entries = new Set(Object.entries(files).filter(([path]) => path.startsWith("lore/") && path.endsWith("/private.md"))
+    .map(([, text]) => /^character:\s*"?([^"\n]+)"?\s*$/m.exec(text)?.[1]).filter((id): id is string => !!id));
+  for (const who of followers) if (!entries.has(who)) problems.push(`${at}: ${who} walks with the player, but has no lore entry to talk from (a private.md with character: ${who})`);
+  return problems;
 }
 
 /**
@@ -362,23 +374,6 @@ function standable(map: TileMap, p: { x: number; y: number }): boolean {
   if (!inBounds(map, p)) return false;
   const t = tileAt(map, p);
   return !t.blocks && (!isStructure(t) || t.terrain === "door");
-}
-
-// ---------------------------------------------------------------------------------------------
-// Reading.
-
-function text(files: CampaignFiles, path: string): string {
-  const found = files[path];
-  if (found === undefined) throw new Error(`${path} is missing`);
-  return found;
-}
-
-function json<T>(files: CampaignFiles, path: string): T {
-  try {
-    return JSON.parse(text(files, path)) as T;
-  } catch (e) {
-    throw new Error(e instanceof SyntaxError ? `${path} isn't JSON: ${e.message}` : (e as Error).message);
-  }
 }
 
 /** A scene loaded, or undefined with why it didn't load among the problems (the loader's own "<scene id>: " dropped). */

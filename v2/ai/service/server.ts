@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
 import { isGameId, isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { KeyRefused } from "../llm/openrouter.ts";
 import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
@@ -25,9 +25,12 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  *   nothing. The same key with another body is 409 key_reused.
  * - The daily ceiling (budget.ts): past it, a think that may call a model is 402 over_budget before
  *   it runs; a kept answer is served all the same.
+ * - OpenRouter turning the key down (a 401) is 403 key_refused, in words for the player that say
+ *   where the key is changed: asking again won't mend it, so the game fails the move at once.
  * - Errors are { error: { code, message } }: 400 bad_request (a request it can't read, checked
- *   before any model is asked), 401 unauthorised, 402 over_budget, 409 other_campaign or
- *   key_reused, 500 model_failed (after the model client's own retries), 503 not_ready.
+ *   before any model is asked), 401 unauthorised, 402 over_budget, 403 key_refused, 409
+ *   other_campaign or key_reused, 500 model_failed (after the model client's own retries), 503
+ *   not_ready.
  * - Shutting down, it takes nothing new and gives what's running ten seconds to finish and be sent.
  */
 
@@ -45,8 +48,12 @@ export interface ServiceOptions {
   serves: Pick<Health, "model" | "gm">;
   /** The daily ceiling on what the models cost, in dollars (KM_AI_DAILY_USD); 0 or absent: none. */
   dailyUsd?: number;
+  /** What the player is told once the day's ceiling is reached (402 over_budget): this host's words for it. Absent: overBudget's, which name KM_AI_DAILY_USD. */
+  overBudget?: string;
   /** How long a considered turn's review may take (KM_CONSIDER_DEADLINE_MS); absent: 12 s. */
   considerDeadlineMs?: number;
+  /** What the player is told when OpenRouter turns the key down (403 key_refused): where this host's key is changed. Absent: KEY_REFUSED's words. */
+  keyRefused?: string;
   faults: Faults;
   log(line: string): void;
   /** How a fault ends the process (process.exit; a test's stand-in). */
@@ -69,12 +76,15 @@ export interface AiService {
 const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
   "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember", "/v1/turns/repair": "repair",
-  "/v1/scenes/boundary": "boundary",
+  "/v1/scenes/boundary": "boundary", "/v1/looks": "looks",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };
 /** The steps that never call a model: the ceiling doesn't stop them. */
 const NO_MODEL: ReadonlyArray<Step | CreationStep> = ["own"];
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
+
+/** What the player is told when OpenRouter turns down a key that's the AI service's own (a host whose key is the player's says where to change it instead). */
+export const KEY_REFUSED = "OpenRouter turned the AI service's key down: give it another (OPENROUTER_API_KEY) and start it again.";
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */
 interface Answered { body: string; how: "ran" | "kept" | "joined"; usage?: { calls: number; costUsd: number } }
@@ -82,7 +92,7 @@ interface Answered { body: string; how: "ran" | "kept" | "joined"; usage?: { cal
 const HOW = { kept: "from the store, no model call", joined: "joined the same request in flight, no model call of its own" };
 
 export function aiService(options: ServiceOptions): AiService {
-  const ceiling = budget(options.dailyUsd ?? 0, options.stores.ledger);
+  const ceiling = budget(options.dailyUsd ?? 0, options.stores.ledger, options.overBudget);
   const inFlight = new Map<string, { hash: string; answer: Promise<Answered> }>();
   /** handle's responses until they're sent (or their connection is gone): the process mustn't exit before an answer it ran is sent. */
   const unsent = new Set<Promise<void>>();
@@ -115,7 +125,7 @@ export function aiService(options: ServiceOptions): AiService {
     const campaign = options.campaigns.use(body.game.campaign, body.game.version);
     const started = performance.now();
 
-    const answered = await byKey(key, sha256(request.body), () => run(THINKS[endpoint], parts, body, campaign, attempt, started));
+    const answered = await byKey(key, await sha256(request.body), () => run(THINKS[endpoint], parts, body, campaign, attempt, started));
 
     const took = answered.how === "ran" ? `in ${Math.round(performance.now() - started)} ms, ${answered.usage?.calls ?? 0} calls, $${(answered.usage?.costUsd ?? 0).toFixed(4)}` : HOW[answered.how];
     options.log(`[ai] ${step} ${key} attempt ${attempt}: 200 ${took}`);
@@ -160,6 +170,7 @@ export function aiService(options: ServiceOptions): AiService {
       return await (options.endpoints[handler] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);
     } catch (error) {
       if (error instanceof Failure) throw error;
+      if (error instanceof KeyRefused) throw new Failure(403, "key_refused", options.keyRefused ?? KEY_REFUSED);
       throw new Failure(500, "model_failed", error instanceof Error ? error.message : String(error));
     }
   }
@@ -213,7 +224,7 @@ export function aiService(options: ServiceOptions): AiService {
     async shutdown(graceMs = 10_000) {
       closing = true;
       const running = Promise.allSettled([...[...inFlight.values()].map(r => r.answer), ...unsent]);
-      await Promise.race([running, new Promise(resolve => setTimeout(resolve, graceMs).unref())]);
+      await Promise.race([running, new Promise(resolve => unref(setTimeout(resolve, graceMs)))]);
     },
   };
 }
@@ -290,7 +301,14 @@ async function servicePing(target: Omit<StreamTarget, "log">): Promise<string> {
   }
 }
 
-const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+/** A request's hash, as hex: Web Crypto's SHA-256, the same as node:crypto's, so answers kept before still match. */
+async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** A timer that doesn't keep the process up, where timers can (Node's); a browser's never do. */
+const unref = (timer: ReturnType<typeof setTimeout>) => (timer as { unref?: () => void }).unref?.();
 
 const json = (status: number, value: unknown): AiHttpResponse => ({ status, headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
 

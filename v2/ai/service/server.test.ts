@@ -1,5 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -17,7 +18,8 @@ import { Failure, type Endpoints } from "./context.ts";
 import { canned } from "./endpoints/canned.ts";
 import { pipeline } from "./endpoints/pipeline.ts";
 import { folderStores } from "./folder-stores.ts";
-import { aiService, type AiHttpRequest, type ServiceOptions } from "./server.ts";
+import { respond } from "../llm/openrouter.ts";
+import { aiService, KEY_REFUSED, type AiHttpRequest, type ServiceOptions } from "./server.ts";
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const TOKEN = "the-bearer";
@@ -53,7 +55,7 @@ function service(overrides: Partial<ServiceOptions> & { slowMs?: number } = {}) 
     return (handler as (r: unknown, c: typeof ctx) => Promise<unknown>)(req, ctx);
   }])) as unknown as Endpoints;
   const ai = aiService({
-    token: TOKEN, stores, campaigns: campaigns(stores.campaigns, stores.docsRoot), endpoints: counted,
+    token: TOKEN, stores, campaigns: campaigns(stores.campaigns, stores.docs), endpoints: counted,
     transport: () => ({}), stream: { url: "http://127.0.0.1:9", db: "kingmaker", periodMs: 200 },
     serves: { model: "fake", gm: "canned" }, faults: {}, log: line => lines.push(line), exit: code => exits.push(code),
     ...overrides,
@@ -219,6 +221,19 @@ test("a think is answered once by its key: the same POST again comes from the st
   assert.deepEqual(ran, ["decide"]);
 });
 
+test("an answer kept under node:crypto's hash of its request is still found by Web Crypto's: the same hex", async () => {
+  const { ai, stores, ran } = service();
+  await ai.answer(put());
+  const request = post("/v1/turns/decide", decideRequest());
+  await stores.answers.put(decideRequest().key, { requestHash: createHash("sha256").update(request.body).digest("hex"), status: 200, body: '{"kept":true}', at: new Date().toISOString() });
+  const answer = await ai.answer(request);
+
+  assert.equal(answer.status, 200);
+  assert.equal(answer.headers["x-km-replayed"], "1");
+  assert.equal(answer.body, '{"kept":true}');
+  assert.deepEqual(ran, []);
+});
+
 test("a duplicate that comes while the first is still running joins it: one run, one answer", async () => {
   const { ai, ran } = service({ slowMs: 50 });
   await ai.answer(put());
@@ -315,6 +330,16 @@ test("past the daily ceiling, a think that would call a model is 402 over_budget
   assert.equal(await stores.answers.get(decideRequest().key), undefined, "nothing kept: the move fails, and /retry asks again");
 });
 
+test("past the ceiling, the host's own words for it are what the game shows (the page's: its browser's ceiling)", async () => {
+  const words = "The GM has spent today's budget in this browser ($5.00): it starts again at midnight UTC.";
+  const { ai, stores } = service({ serves: { model: "fake", gm: "pipeline" }, dailyUsd: 5, overBudget: words });
+  await ai.answer(put());
+  stores.ledger.append({ at: new Date().toISOString(), operation: "gm.reply", costUsd: 5 });
+  const decided = await ai.answer(post("/v1/turns/decide", decideRequest()));
+
+  assert.deepEqual([decided.status, JSON.parse(decided.body)], [402, { error: { code: "over_budget", message: words } }]);
+});
+
 test("past the ceiling, a kept answer is still served, and what calls no model still runs: own's step, the canned GM", async () => {
   const overSpent = async (overrides: Partial<ServiceOptions>) => {
     const made = service({ dailyUsd: 1, ...overrides });
@@ -367,6 +392,26 @@ test("anything an endpoint throws but a refusal is 500 model_failed, and nothing
   assert.equal(answer.status, 500);
   assert.deepEqual(JSON.parse(answer.body), { error: { code: "model_failed", message: "OpenRouter director.before HTTP 502" } });
   assert.equal(await stores.answers.get(decideRequest().key), undefined);
+});
+
+test("OpenRouter turning the key down is 403 key_refused, in the host's words for the player: asked once, and nothing stored", async () => {
+  const asked: string[] = [];
+  const refusing: typeof fetch = async input => {
+    asked.push(String(input));
+    return new Response('{"error":{"message":"User not found.","code":401}}', { status: 401 });
+  };
+  const calling: Endpoints = { ...canned, decide: async (_req, ctx) => { await respond({ operation: "director.before", input: [{ role: "user", content: "Who found him?" }], calls: ctx.calls }); throw new Error("the model answered"); } };
+  const page = service({ endpoints: calling, transport: () => ({ apiKey: "sk-or-v1-turned-down", fetch: refusing }), keyRefused: "OpenRouter turned the key down: change it from the bar under the game." });
+  const own = service({ endpoints: calling, transport: () => ({ apiKey: "sk-or-v1-turned-down", fetch: refusing }) });
+  await page.ai.answer(put());
+  await own.ai.answer(put());
+  const answer = await page.ai.answer(post("/v1/turns/decide", decideRequest()));
+
+  assert.equal(answer.status, 403);
+  assert.deepEqual(JSON.parse(answer.body), { error: { code: "key_refused", message: "OpenRouter turned the key down: change it from the bar under the game." } });
+  assert.deepEqual(asked, ["https://openrouter.ai/api/v1/responses"], "never asked again");
+  assert.equal(await page.stores.answers.get(decideRequest().key), undefined);
+  assert.equal(JSON.parse((await own.ai.answer(post("/v1/turns/decide", decideRequest()))).body).error.message, KEY_REFUSED, "a key that's the service's own: its own words");
 });
 
 test("a refusal an endpoint throws keeps its own status", async () => {

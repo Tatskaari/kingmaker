@@ -2,6 +2,7 @@ import type { Identity } from "spacetimedb";
 import type { ConsiderResponse, DecideResponse, ReactionsResponse, ReplyResponse, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { MAX_LINE, refusal, type Refusal } from "../../../shared/protocol/refusals.ts";
+import type { Mechanic } from "../../../shared/rules/types.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { actorOf, runMove, type Actor, type TxCtx } from "../context.ts";
 import { mergeReviews } from "../gm/background.ts";
@@ -91,6 +92,8 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
     ...(first?.directives.length ? { rulesFirst: { directives: first.directives, down: first.down, shielded: first.shielded } } : {}),
     lines: first?.lines ?? [],
     seen: seenOf(tx, sceneId),
+    // The map's act as this turn (town-design §3.4): its mechanic chosen already, decide's `forced`.
+    ...(turn.mechanic ? { forced: JSON.parse(turn.mechanic) as Mechanic } : {}),
   };
 }
 

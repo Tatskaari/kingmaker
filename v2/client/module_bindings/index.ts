@@ -35,8 +35,10 @@ import {
 
 // Import all reducer arg schemas
 import AcceptFixReducer from "./accept_fix_reducer";
+import AttackReducer from "./attack_reducer";
 import BeginReducer from "./begin_reducer";
 import CarryOnReducer from "./carry_on_reducer";
+import CastReducer from "./cast_reducer";
 import ChooseAgainReducer from "./choose_again_reducer";
 import ChooseBuildReducer from "./choose_build_reducer";
 import ContinueGameReducer from "./continue_game_reducer";
@@ -47,13 +49,16 @@ import DraftBackstoryReducer from "./draft_backstory_reducer";
 import EndSceneReducer from "./end_scene_reducer";
 import FightItOutReducer from "./fight_it_out_reducer";
 import FinishBackstoryReducer from "./finish_backstory_reducer";
+import HideReducer from "./hide_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
 import InteractReducer from "./interact_reducer";
 import JoinGameReducer from "./join_game_reducer";
+import LeapReducer from "./leap_reducer";
 import LeaveProposalReducer from "./leave_proposal_reducer";
 import MakeOwnReducer from "./make_own_reducer";
 import NewGameReducer from "./new_game_reducer";
 import PickOwnReducer from "./pick_own_reducer";
+import RestReducer from "./rest_reducer";
 import RetryTurnReducer from "./retry_turn_reducer";
 import RewriteIssueReducer from "./rewrite_issue_reducer";
 import SayReducer from "./say_reducer";
@@ -66,6 +71,8 @@ import StreamReplyReducer from "./stream_reply_reducer";
 import TakeOwnReducer from "./take_own_reducer";
 import TakeProposalReducer from "./take_proposal_reducer";
 import TravelReducer from "./travel_reducer";
+import UseFeatureReducer from "./use_feature_reducer";
+import UseItemReducer from "./use_item_reducer";
 import WalkReducer from "./walk_reducer";
 import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
@@ -600,8 +607,10 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("accept_fix", AcceptFixReducer),
+  __reducerSchema("attack", AttackReducer),
   __reducerSchema("begin", BeginReducer),
   __reducerSchema("carry_on", CarryOnReducer),
+  __reducerSchema("cast", CastReducer),
   __reducerSchema("choose_again", ChooseAgainReducer),
   __reducerSchema("choose_build", ChooseBuildReducer),
   __reducerSchema("continue_game", ContinueGameReducer),
@@ -612,13 +621,16 @@ const reducersSchema = __reducers(
   __reducerSchema("end_scene", EndSceneReducer),
   __reducerSchema("fight_it_out", FightItOutReducer),
   __reducerSchema("finish_backstory", FinishBackstoryReducer),
+  __reducerSchema("hide", HideReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),
   __reducerSchema("interact", InteractReducer),
   __reducerSchema("join_game", JoinGameReducer),
+  __reducerSchema("leap", LeapReducer),
   __reducerSchema("leave_proposal", LeaveProposalReducer),
   __reducerSchema("make_own", MakeOwnReducer),
   __reducerSchema("new_game", NewGameReducer),
   __reducerSchema("pick_own", PickOwnReducer),
+  __reducerSchema("rest", RestReducer),
   __reducerSchema("retry_turn", RetryTurnReducer),
   __reducerSchema("rewrite_issue", RewriteIssueReducer),
   __reducerSchema("say", SayReducer),
@@ -631,6 +643,8 @@ const reducersSchema = __reducers(
   __reducerSchema("take_own", TakeOwnReducer),
   __reducerSchema("take_proposal", TakeProposalReducer),
   __reducerSchema("travel", TravelReducer),
+  __reducerSchema("use_feature", UseFeatureReducer),
+  __reducerSchema("use_item", UseItemReducer),
   __reducerSchema("walk", WalkReducer),
   __reducerSchema("work_in_backstory", WorkInBackstoryReducer),
 );

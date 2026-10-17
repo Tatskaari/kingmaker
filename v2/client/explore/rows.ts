@@ -1,8 +1,11 @@
-// New (map-design §3.4, §3.6): the map's rows as the client holds them, made into the prototype's ExploreState by shared/map's exploreOf (the seam the simulation calls too), with what the explore screen says beside the map.
+// New (map-design §3.4, §3.6): the map's rows as the client holds them, made into the prototype's ExploreState by shared/map's exploreOf (the seam the simulation calls too), with what the explore screen says beside the map; and the action menu's (town-design §3.3, §3.9): the walker's catalogue from their sheet, the explore row's keep and the fight it records.
 import type { ExploreState } from "../../shared/map/explore.ts";
-import { exploreOf, type ExploreRow, type MapPlace, type MapRows } from "../../shared/map/rows.ts";
+import type { Keep } from "../../shared/map/menu.ts";
+import { exploreOf, keepFromColumns, type ExploreRow, type MapPlace, type MapRows } from "../../shared/map/rows.ts";
 import type { MapFile } from "../../shared/map/tiles.ts";
 import type { Unheard } from "../../shared/map/town.ts";
+import type { TownFight } from "../../shared/map/types.ts";
+import type { Catalogue } from "../../shared/rules/aim.ts";
 import type { TimeOfDay } from "../../shared/scene/files.ts";
 import type { Explore, Game, MapDef, Place, Player, Scene, Sheet } from "../module_bindings/types.ts";
 import { placeRowsOf, type PlaceTables } from "../scene/place-rows.ts";
@@ -14,7 +17,8 @@ import { placeRowsOf, type PlaceTables } from "../scene/place-rows.ts";
  * walked from what any client sees, so both sides offer the same ids.
  */
 export interface MapPlaceTables extends Omit<PlaceTables, "sceneKey" | "place"> {
-  place: PlaceTables["place"] & Pick<Place, "sceneId" | "mapKey" | "region" | "origin" | "active">;
+  /** town: a map's own place's changes (town-design §3.3), "" or absent for none. */
+  place: PlaceTables["place"] & Pick<Place, "sceneId" | "mapKey" | "region" | "origin" | "active"> & Partial<Pick<Place, "town">>;
 }
 
 /** Everything the explore screen is drawn from, as the bindings have it. */
@@ -23,7 +27,8 @@ export interface ExploreRows {
   me: bigint;
   game: Pick<Game, "id" | "time" | "hostId" | "leadScene">;
   players: Array<Pick<Player, "id" | "name" | "concept">>;
-  sheets: Array<Pick<Sheet, "playerId" | "statusLine" | "build">>;
+  /** Each player's sheet: the walker's status line and build, and what they can do outside a fight (the action menu's catalogue, town-design §3.3). */
+  sheets: Array<Pick<Sheet, "playerId" | "statusLine" | "build"> & Partial<Pick<Sheet, "actions">>>;
   /** The game's campaign version's maps (map_def). */
   maps: Array<Pick<MapDef, "key" | "json">>;
   /** The game's explore rows: the walker's is the host's, which a spectator draws too. */
@@ -64,6 +69,15 @@ export interface ExploreView {
   /** What the game is waiting on: the server, while the connection's down. */
   note?: string;
   cutOff?: boolean;
+  /**
+   * The action menu's (town-design §3.3): what the walker can do outside a fight, by kind (their
+   * sheet's catalogue: none without a rules character, or before the menu), and what the explore row
+   * keeps for it (when they rested, where they were seen hiding, whose pockets they've tried).
+   */
+  catalogue?: Catalogue;
+  keep?: Keep;
+  /** A fight that broke out on the map (the explore row's, for V12): its stand-in's card is up until it's fought out. */
+  fight?: TownFight;
 }
 
 const TIMES: readonly TimeOfDay[] = ["morning", "afternoon", "evening", "night", "next-morning"];
@@ -97,6 +111,8 @@ export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
       origin: p.place.origin ? { x: p.place.origin.x, y: p.place.origin.y } : { x: 0, y: 0 },
       ...(scene ? { scene: { key: scene.sceneKey, status: scene.status, time } } : {}),
       rows: placeRowsOf({ ...p, sceneKey: scene?.sceneKey ?? "" }),
+      // A map's own place's: what the rules did to the town (town-design §3.3), into the overlay.
+      ...(p.place.town ? { town: p.place.town } : {}),
     }];
   });
   const explore: ExploreRow = {
@@ -105,6 +121,7 @@ export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
     followers: row.followers.map(f => ({ ...f, at: { x: f.at.x, y: f.at.y } })),
     quips: row.quips, ...(row.lastQuip !== undefined ? { lastQuip: row.lastQuip } : {}), styles: [...row.styles],
     acts: row.acts, said: row.said, log: [...row.log],
+    ...keepFromColumns(row),
   };
   return { maps, explore, story: { time, ...(rows.game.leadScene !== undefined ? { lead: rows.game.leadScene } : {}), played }, places, unheard: unheardOf(rows, onMaps) };
 }
@@ -157,5 +174,24 @@ export function exploreViewOf(rows: ExploreRows): ExploreView | undefined {
     ...(rows.refusal ? { refusal: rows.refusal } : {}),
     ...(rows.trouble ? { note: rows.trouble } : {}),
     ...(rows.cutOff ? { cutOff: true } : {}),
+    ...townOf(map.explore, sheet?.actions),
   };
+}
+
+/** The action menu's part of the view: the walker's catalogue (the sheet's `actions`, JSON; "" before the menu), the explore row's keep, and a fight it records. */
+function townOf(row: ExploreRow, actions: string | undefined): Pick<ExploreView, "catalogue" | "keep" | "fight"> {
+  const catalogue = catalogueOf(actions);
+  const keep: Keep = { ...(row.rested ? { rested: row.rested } : {}), ...(row.spotted ? { spotted: row.spotted } : {}), ...(row.lifted ? { lifted: row.lifted } : {}) };
+  return { ...(catalogue ? { catalogue } : {}), keep, ...(row.fight ? { fight: row.fight } : {}) };
+}
+
+/** A sheet's catalogue (town-design §3.1: JSON shared/rules/aim.ts Catalogue), or none when it's "" or unreadable: then there's no menu. */
+export function catalogueOf(json: string | undefined): Catalogue | undefined {
+  if (!json) return undefined;
+  try {
+    const value = JSON.parse(json) as Partial<Catalogue> | null;
+    return value && Array.isArray(value.sections) && Array.isArray(value.entries) ? value as Catalogue : undefined;
+  } catch {
+    return undefined;
+  }
 }

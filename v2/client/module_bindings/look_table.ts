@@ -9,6 +9,10 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import {
+  InventedLook,
+} from "./types";
+
 
 export default __t.row({
   entityId: __t.u64().primaryKey().name("entity_id"),
@@ -16,4 +20,7 @@ export default __t.row({
   role: __t.string(),
   glyph: __t.string(),
   fg: __t.string(),
+  get invention() {
+    return __t.option(InventedLook);
+  },
 });

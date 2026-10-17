@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p simulation",
-    "test": "node --no-warnings --import tsx --test 'shared/**/*.test.ts' 'simulation/**/*.test.ts' 'ai/**/*.test.ts' 'client/**/*.test.ts' 'hosts/**/*.test.ts'",
+    "test": "node --no-warnings --import tsx --test 'shared/**/*.test.ts' 'simulation/**/*.test.ts' 'ai/**/*.test.ts' 'client/**/*.test.ts' 'hosts/**/*.test.ts' 'web/**/*.test.ts'",
     "screens": "node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx",
     "check": "npm run typecheck && npm test && npm run screens",
     "simulation:build": "spacetime --config-path runs/cli.toml build -p simulation",
@@ -24,7 +24,11 @@
     "e2e": "node --no-warnings --import tsx hosts/e2e.ts",
     "arc": "node --no-warnings --import tsx hosts/arc.ts",
     "live": "node --no-warnings --import tsx hosts/live-run.ts",
-    "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx"
+    "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx",
+    "build:web": "node --no-warnings --import tsx hosts/web/build.ts",
+    "web:serve": "node --no-warnings --import tsx hosts/web/serve.ts",
+    "web:check": "node --no-warnings --import tsx hosts/web/check.ts",
+    "web:screens": "node --no-warnings --import tsx hosts/web/screens.ts"
   },
   "dependencies": {
     "@opentui/core": "0.6.5",
@@ -35,8 +39,18 @@
   "devDependencies": {
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
+    "@types/react-reconciler": "0.33.0",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/addon-unicode11": "0.9.0",
+    "@xterm/addon-webgl": "0.19.0",
+    "@xterm/xterm": "6.0.0",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.5",
+    "playwright": "1.62.1",
+    "react-reconciler": "0.33.0",
     "tsx": "4.23.15",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "yoga-layout": "3.2.1"
   },
   "allowScripts": {
     "esbuild": false
