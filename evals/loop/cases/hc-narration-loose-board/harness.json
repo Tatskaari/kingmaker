@@ -1,0 +1,204 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "whispers": [],
+ "canon": [
+  "Kell’s notebook records that Cob is wearing the boots and that their ownership is disputed.",
+  "A pigeon watched from the hoist beam, and a stone clanged against the hoist hook.",
+  "Cob accepted two silver crowns from Bartholomew and tucked them away.",
+  "Sir Bartholomew successfully climbed the hoist rope and reached the beam beside Prout.",
+  "From beside the body, Sir Bartholomew saw a second, narrow level mark on Prout’s neck beneath the noose mark, swelling beneath the hair at the back of his head, and clean palms.",
+  "Cob accepted two silver crowns from Sir Bartholomew and said he found the boots in the yard; he kept the boots on.",
+  "Kell recorded the two-crown payment and Cob’s answer in her notebook."
+ ],
+ "patches": [],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "The player is enjoying a playful, grandiose entrance and banter with the yard’s occupants; the exchanges are moving naturally and Cob has already stopped throwing stones.",
+   "status": "on_track",
+   "notes": "Let this reach the player through the world: As Cob boasts about his boots, he stamps to punctuate it; the left one gives a faint papery crackle. Let the detail pass once without explaining it.",
+   "relocations": [
+    {
+     "essential": "page",
+     "technique": "soft_nudge",
+     "to": "world",
+     "how": "As Cob boasts about his boots, he stamps to punctuate it; the left one gives a faint papery crackle. Let the detail pass once without explaining it."
+    }
+   ],
+   "costUsd": 0.002523175,
+   "latencyMs": 16502.01927,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "The player is enjoying theatrical, overconfident roleplay and has naturally turned attention to Cob’s boots. The exchange is lively and the boots are a live path into the evidence; keep Cob’s defensiveness and the kids’ humor in play.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00073043,
+   "latencyMs": 10061.631839,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 5,
+   "assessment": "The player is enjoying playful, theatrical banter and is now focusing on Cob’s boots. The scene is moving at a lively pace; the offer of a coin should get a real response without buying the secret.",
+   "status": "on_track",
+   "notes": "Let Cob take the coin if offered, but keep his answer to a boast, a bargain, or his unconvincing “found ’em”—he won’t reveal the truth about the boots for payment. Leave room for a no-strings kindness or a promise that makes him feel safe.",
+   "relocations": [],
+   "costUsd": 0.000816555,
+   "latencyMs": 11353.075218,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 8,
+   "assessment": "The player is enjoying the comic knightly performance, and has now noticed the contradiction between Moll’s account and the loft door being barred from the inside.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "moveTo": "doubt",
+   "moveBecause": "Kell has stated that the loft door is barred on the inside, contradicting Moll’s claim that Prout jumped from it.",
+   "costUsd": 0.00090493,
+   "latencyMs": 10922.871043,
+   "patches": 0,
+   "canon": 2,
+   "whispers": 0
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 9,
+   "assessment": "The player’s theatrical banter has led into genuine investigation: they climbed to the body and found clear signs worth reporting. The scene is on track, with Kell inviting them to put their observations on the record.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.002485925,
+   "latencyMs": 12640.419662,
+   "patches": 0,
+   "canon": 4,
+   "whispers": 2
+  }
+ ],
+ "pending": [
+  {
+   "name": "repair-012.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 12,
+    "assessment": "The player’s theatrical challenge has exposed Moll’s lie, and the case is moving forward. Moll is now focused on protecting Cob, while the boots remain an active thread the player has already pursued.",
+    "status": "on_track",
+    "notes": "Let the player decide whether to follow up with Moll or turn back to Cob. Don’t repeat the silver-cane hint; Moll has more to say if asked who paid her, especially if Cob’s safety is addressed.",
+    "whispers": [
+     {
+      "to": "moll",
+      "note": "You’re frightened the watch will put Cob in its book or take him away. You want his safety secured before you give up anything more about the gentleman."
+     },
+     {
+      "to": "kell",
+      "note": "You want the retraction recorded truthfully, but you’re wary of pushing the girl while she shields Cob. Keep your attention on what the investigator can establish."
+     },
+     {
+      "to": "cob",
+      "note": "If it fits the moment, this reaches the player through you: As Moll moves close to shield him, Cob shifts his weight; his left boot gives a dry crackle, and he plants that foot still."
+     }
+    ],
+    "relocations": [
+     {
+      "essential": "page",
+      "technique": "soft_nudge",
+      "to": "cob",
+      "how": "As Moll moves close to shield him, Cob shifts his weight; his left boot gives a dry crackle, and he plants that foot still."
+     }
+    ],
+    "canon": [
+     "Moll admitted she did not see Prout jump and said a gentleman paid her to claim she had.",
+     "Moll said the gentleman had a silver-topped cane.",
+     "Kell said Moll would need to repeat the retraction for it to be entered in the notebook.",
+     "Moll refused to have it put in Kell’s book and moved between Cob and the watch."
+    ],
+    "patches": [],
+    "costUsd": 0.00312205,
+    "latencyMs": 20463.45491
+   }
+  },
+  {
+   "name": "repair-013.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 13,
+    "assessment": "The player is enjoying the comic knightly performance while following real leads; the body has established murder, and Moll’s paid lie is now exposed. The scene is moving well through the player’s questions.",
+    "status": "on_track",
+    "notes": "",
+    "whispers": [
+     {
+      "to": "moll",
+      "note": "She wants Cob kept out of Kell’s book and safe from the gentleman’s return; with Kell saying she won’t record Moll’s name, she may risk giving more identifying detail if Bartholomew keeps Cob’s safety in view."
+     },
+     {
+      "to": "kell",
+      "note": "She wants the murder and the payment recorded accurately, but needs evidence before putting a culprit in her notebook."
+     },
+     {
+      "to": "moll",
+      "note": "If it fits the moment, this reaches the player through you: As Bartholomew follows up on the silver crown and the gentleman, Moll can explain that the big man with him called him Master Sallow; she also remembers his wheat-ear ring and the bandaged-hand companion."
+     }
+    ],
+    "relocations": [
+     {
+      "essential": "silvertop",
+      "technique": "move",
+      "to": "moll",
+      "how": "As Bartholomew follows up on the silver crown and the gentleman, Moll can explain that the big man with him called him Master Sallow; she also remembers his wheat-ear ring and the bandaged-hand companion."
+     }
+    ],
+    "canon": [
+     "Kell said she would record Moll’s payment but not Moll’s name."
+    ],
+    "patches": [],
+    "costUsd": 0.001457325,
+    "latencyMs": 17267.461599
+   }
+  },
+  {
+   "name": "repair-014.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 14,
+    "assessment": "Bartholomew is enjoying the comic, theatrical investigation while following the evidence, and has broken the suicide story. He’s now focused on Cob’s boots; the page can bring that thread forward without making Cob volunteer what he fears.",
+    "status": "on_track",
+    "notes": "Let this reach the player through the world: As Cob edges toward the water butt, his left boot flexes and gives a faint, dry paper crackle. Let Bartholomew notice it, without revealing what is inside.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "He wants to keep the boots and fears grown-ups who pay to inspect them will take them away; he is wary, but a respectful request that leaves them his could still work."
+     },
+     {
+      "to": "kell",
+      "note": "The body gives her enough to sign murder, but she still wants evidence before putting a name in her notebook."
+     }
+    ],
+    "relocations": [
+     {
+      "essential": "page",
+      "technique": "soft_nudge",
+      "to": "world",
+      "how": "As Cob edges toward the water butt, his left boot flexes and gives a faint, dry paper crackle. Let Bartholomew notice it, without revealing what is inside."
+     }
+    ],
+    "canon": [],
+    "patches": [],
+    "costUsd": 0.00127445,
+    "latencyMs": 12689.744845000001
+   }
+  }
+ ]
+}

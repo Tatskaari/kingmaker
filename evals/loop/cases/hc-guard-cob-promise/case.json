@@ -1,0 +1,36 @@
+{
+ "id": "hc-guard-cob-promise",
+ "scene": "hanged-clerk",
+ "turn": 17,
+ "input": "(I blink.) Cob? You were down in the yard with the Sergeant not a minute ago. (I take my hand off the dagger and sit on a sack, slow.) No, I'll not tell anyone you sleep here. But you slept here last night, didn't you? Did you see what happened to Mister Prout up here?",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 17,
+  "check": "withheld",
+  "severity": 0,
+  "quote": "",
+  "why": "A guard: the player has made the promise Cob's fear needs, and he should tell what he heard.",
+  "reply": "Cob looks at your empty hands, then at the sacks around him. His voice is low.\n\n“A little after the midnight bells, a lantern woke Cob. Mister Prout was arguing with two men. One wanted ‘the page’. Mister Prout kept saying ‘proper channels’.”\n\nHe swallows. “Then there was a thump. A choking noise. The hoist creaked, though there weren’t any sacks on it.”\n\nMoll’s face has gone very still. “Cob.”\n\n“I hid till it was light. Didn’t tell the bluebottles.”",
+  "better": "Cob, frightened and low, tells what he heard in the loft that night, in his own voice."
+ },
+ "criterion": "A guard against tuning that stonewalls. In the loft, kindly, the player promises Cob she won't tell anyone he sleeps here, and asks whether he saw what happened to Mister Prout. That promise answers his fear (his name kept out of it), which is what his card says earns his account. A good reply has Cob, quiet and frightened, tell what he heard: woken by a lantern after the midnight bells, Prout arguing with two men, one wanting 'the page', Prout saying 'proper channels', then a thump, choking and the hoist creaking. It can come in a rush or in pieces, but it comes. Who the men were can wait for the player to ask. It fails if Cob stonewalls, lies or bargains for coin after this promise. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "withheld",
+  "dump"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g01",
+  "game": "g01"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "guard"
+ ]
+}

@@ -1,0 +1,857 @@
+{
+ "scene": "hanged-clerk",
+ "root": "hanged-clerk:place",
+ "entities": {
+  "hanged-clerk:place": {
+   "id": "hanged-clerk:place",
+   "name": "The yard behind the King's Granary",
+   "kind": "place",
+   "parent": null,
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 52,
+    "h": 40
+   },
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "A cobbled yard behind the granary, swept bare for the Assembly, smelling of wet grain, pigeons and river mud. Over the wall the city is hanging bunting."
+  },
+  "lane": {
+   "id": "lane",
+   "name": "the lane",
+   "kind": "area",
+   "parent": "hanged-clerk:place",
+   "rect": {
+    "x": 0,
+    "y": 0,
+    "w": 40,
+    "h": 8
+   },
+   "tags": [
+    "outside"
+   ],
+   "states": [],
+   "notes": [],
+   "description": "The lane beyond the yard wall, with an old elm leaning over it."
+  },
+  "yard": {
+   "id": "yard",
+   "name": "the yard",
+   "kind": "area",
+   "parent": "hanged-clerk:place",
+   "rect": {
+    "x": 0,
+    "y": 8,
+    "w": 38,
+    "h": 32
+   },
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "Cobbles, a water butt, the padlocked yard doors and, on the granary's back wall, the hoist."
+  },
+  "loft": {
+   "id": "loft",
+   "name": "the tally loft (above the yard, inside the granary)",
+   "kind": "area",
+   "parent": "hanged-clerk:place",
+   "rect": {
+    "x": 38,
+    "y": 8,
+    "w": 14,
+    "h": 32
+   },
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "Up under the granary roof: the tally desk, grain stacks, Cob's nest. Reached by the loft door (barred inside) or Cob's loose board behind the water butt."
+  },
+  "player": {
+   "id": "player",
+   "name": "Brann",
+   "kind": "person",
+   "parent": "yard",
+   "tags": [],
+   "states": [
+    "crouching"
+   ],
+   "notes": [],
+   "player": true,
+   "at": {
+    "x": 30,
+    "y": 18
+   }
+  },
+  "kell": {
+   "id": "kell",
+   "name": "Sergeant Agnes Kell",
+   "kind": "person",
+   "parent": "yard",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "cast": "kell",
+   "at": {
+    "x": 30,
+    "y": 23
+   }
+  },
+  "cob": {
+   "id": "cob",
+   "name": "Cob",
+   "kind": "person",
+   "parent": "yard",
+   "tags": [],
+   "states": [],
+   "notes": [
+    {
+     "text": "Edging toward the water butt.",
+     "turn": 8,
+     "by": "stage"
+    }
+   ],
+   "cast": "cob",
+   "at": {
+    "x": 28,
+    "y": 25
+   }
+  },
+  "moll": {
+   "id": "moll",
+   "name": "Moll",
+   "kind": "person",
+   "parent": "yard",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "cast": "moll",
+   "at": {
+    "x": 25,
+    "y": 13
+   }
+  },
+  "elm": {
+   "id": "elm",
+   "name": "the old elm",
+   "kind": "feature",
+   "parent": "lane",
+   "size": "huge",
+   "material": "wood",
+   "tags": [
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 50,
+    "max": 50
+   },
+   "description": "Old, dry and leaning over the wall into the yard; pigeons in it.",
+   "at": {
+    "x": 34,
+    "y": 3
+   }
+  },
+  "yard-wall": {
+   "id": "yard-wall",
+   "name": "the yard wall",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "huge",
+   "material": "stone",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "ac": 17,
+   "hp": {
+    "current": 50,
+    "max": 50
+   },
+   "description": "Shoulder-high on the lane side.",
+   "at": {
+    "x": 20,
+    "y": 8
+   }
+  },
+  "gate": {
+   "id": "gate",
+   "name": "the yard gate",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "large",
+   "material": "wood",
+   "tags": [
+    "door",
+    "flammable"
+   ],
+   "states": [
+    "open"
+   ],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 27,
+    "max": 27
+   },
+   "at": {
+    "x": 12,
+    "y": 8
+   }
+  },
+  "satchel": {
+   "id": "satchel",
+   "name": "Prout's satchel",
+   "kind": "item",
+   "parent": "yard",
+   "size": "small",
+   "material": "leather",
+   "tags": [
+    "flammable"
+   ],
+   "states": [
+    "open",
+    "empty"
+   ],
+   "notes": [],
+   "ac": 12,
+   "hp": {
+    "current": 10,
+    "max": 10
+   },
+   "description": "Lying open and empty by the gate.",
+   "at": {
+    "x": 14,
+    "y": 10
+   }
+  },
+  "spectacles": {
+   "id": "spectacles",
+   "name": "Prout's spectacles",
+   "kind": "item",
+   "parent": "yard",
+   "size": "tiny",
+   "material": "glass",
+   "tags": [],
+   "states": [
+    "bent"
+   ],
+   "notes": [],
+   "ac": 13,
+   "hp": {
+    "current": 2,
+    "max": 2
+   },
+   "description": "Bent, in the gutter.",
+   "at": {
+    "x": 10,
+    "y": 11
+   }
+  },
+  "granary-wall": {
+   "id": "granary-wall",
+   "name": "the granary's back wall",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "gargantuan",
+   "material": "stone",
+   "tags": [],
+   "states": [],
+   "notes": [
+    {
+     "text": "A child-sized gap behind the loose board leads into darkness; it smells of grain dust and old sacking.",
+     "turn": 7,
+     "by": "stage"
+    }
+   ],
+   "ac": 17,
+   "hp": {
+    "current": 100,
+    "max": 100
+   },
+   "at": {
+    "x": 37,
+    "y": 24
+   }
+  },
+  "hoist-beam": {
+   "id": "hoist-beam",
+   "name": "the hoist beam",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "large",
+   "material": "wood",
+   "tags": [
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 27,
+    "max": 27
+   },
+   "description": "Juts out high above the loft door, with a pulley; the rope runs up over it and in through a slot to a cleat inside.",
+   "at": {
+    "x": 34,
+    "y": 20
+   }
+  },
+  "hoist-rope": {
+   "id": "hoist-rope",
+   "name": "the hoist rope",
+   "kind": "item",
+   "parent": "hoist-beam",
+   "size": "small",
+   "material": "rope",
+   "tags": [
+    "hanging",
+    "fixed",
+    "flammable"
+   ],
+   "states": [],
+   "notes": [
+    {
+     "text": "Runs over the hoist beam and through a slot above the loft door.",
+     "turn": 2,
+     "by": "stage"
+    }
+   ],
+   "ac": 11,
+   "hp": {
+    "current": 3,
+    "max": 3
+   },
+   "description": "Runs over the pulley and in through the slot above the loft door; the noose end holds Prout well out of reach of the cobbles."
+  },
+  "prout": {
+   "id": "prout",
+   "name": "Wendell Prout's body",
+   "kind": "object",
+   "parent": "hoist-rope",
+   "size": "medium",
+   "material": "flesh",
+   "tags": [
+    "body",
+    "evidence"
+   ],
+   "states": [
+    "hanging"
+   ],
+   "notes": [],
+   "ac": 10,
+   "hp": {
+    "current": 18,
+    "max": 18
+   },
+   "description": "A small grey-coated clerk with ink-stained fingers, in darned stockings, no boots; a swelling at the back of the skull, a level cord mark under the noose burn, clean palms."
+  },
+  "loft-door": {
+   "id": "loft-door",
+   "name": "the loft door",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "large",
+   "material": "wood",
+   "tags": [
+    "door",
+    "flammable"
+   ],
+   "states": [
+    "closed",
+    "barred"
+   ],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 27,
+    "max": 27
+   },
+   "description": "High in the wall under the hoist beam; barred on the inside.",
+   "at": {
+    "x": 35,
+    "y": 18
+   }
+  },
+  "yard-doors": {
+   "id": "yard-doors",
+   "name": "the granary's yard doors",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "huge",
+   "material": "wood",
+   "tags": [
+    "door",
+    "flammable"
+   ],
+   "states": [
+    "closed",
+    "locked"
+   ],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 50,
+    "max": 50
+   },
+   "description": "Big double doors, padlocked; the warden has the key, at the palace.",
+   "at": {
+    "x": 36,
+    "y": 32
+   }
+  },
+  "water-butt": {
+   "id": "water-butt",
+   "name": "the water butt",
+   "kind": "object",
+   "parent": "yard",
+   "size": "large",
+   "material": "wood",
+   "tags": [
+    "container",
+    "water",
+    "flammable"
+   ],
+   "states": [
+    "full"
+   ],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 27,
+    "max": 27
+   },
+   "at": {
+    "x": 4,
+    "y": 36
+   }
+  },
+  "loose-board": {
+   "id": "loose-board",
+   "name": "a loose board behind the water butt",
+   "kind": "feature",
+   "parent": "yard",
+   "size": "small",
+   "material": "wood",
+   "tags": [
+    "passage",
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 10,
+    "max": 10
+   },
+   "description": "Cob's way into the loft: child-sized; a grown-up could squeeze through with effort.",
+   "at": {
+    "x": 2,
+    "y": 38
+   }
+  },
+  "cleat": {
+   "id": "cleat",
+   "name": "the rope cleat",
+   "kind": "feature",
+   "parent": "loft",
+   "size": "small",
+   "material": "iron",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "ac": 19,
+   "hp": {
+    "current": 10,
+    "max": 10
+   },
+   "description": "Inside the loft door: the hoist rope tied off on it with a docker's knot.",
+   "at": {
+    "x": 40,
+    "y": 18
+   }
+  },
+  "tally-desk": {
+   "id": "tally-desk",
+   "name": "the tally desk",
+   "kind": "object",
+   "parent": "loft",
+   "size": "large",
+   "material": "wood",
+   "tags": [
+    "furniture",
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 15,
+   "hp": {
+    "current": 27,
+    "max": 27
+   },
+   "description": "Ink spilled across it, a smashed lantern beside it, heel scuffs in the grain dust from here to the loft door.",
+   "at": {
+    "x": 45,
+    "y": 22
+   }
+  },
+  "granary-roll": {
+   "id": "granary-roll",
+   "name": "the Royal Granary Roll",
+   "kind": "item",
+   "parent": "tally-desk",
+   "size": "small",
+   "material": "paper",
+   "tags": [
+    "evidence",
+    "flammable"
+   ],
+   "states": [
+    "chained"
+   ],
+   "notes": [],
+   "ac": 11,
+   "hp": {
+    "current": 3,
+    "max": 3
+   },
+   "description": "The big book, chained to the desk, with a page razored out. The pages either side list King's Road grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'."
+  },
+  "smashed-lantern": {
+   "id": "smashed-lantern",
+   "name": "a smashed lantern",
+   "kind": "item",
+   "parent": "loft",
+   "size": "tiny",
+   "material": "glass",
+   "tags": [],
+   "states": [
+    "broken"
+   ],
+   "notes": [],
+   "ac": 13,
+   "hp": {
+    "current": 2,
+    "max": 2
+   },
+   "at": {
+    "x": 44,
+    "y": 24
+   }
+  },
+  "cobs-nest": {
+   "id": "cobs-nest",
+   "name": "a nest of sacking in the loft",
+   "kind": "object",
+   "parent": "loft",
+   "size": "medium",
+   "material": "cloth",
+   "tags": [
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 11,
+   "hp": {
+    "current": 4,
+    "max": 4
+   },
+   "description": "Sacks and candle-ends behind the grain stacks: Cob's castle.",
+   "at": {
+    "x": 48,
+    "y": 36
+   }
+  },
+  "grain-stacks": {
+   "id": "grain-stacks",
+   "name": "the grain stacks",
+   "kind": "object",
+   "parent": "loft",
+   "size": "huge",
+   "material": "cloth",
+   "tags": [
+    "cover",
+    "flammable"
+   ],
+   "states": [
+    "dusty"
+   ],
+   "notes": [],
+   "ac": 11,
+   "hp": {
+    "current": 10,
+    "max": 10
+   },
+   "at": {
+    "x": 47,
+    "y": 30
+   }
+  },
+  "boots": {
+   "id": "boots",
+   "name": "Prout's good black boots",
+   "kind": "item",
+   "parent": "cob",
+   "size": "small",
+   "material": "leather",
+   "tags": [
+    "evidence",
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 12,
+   "hp": {
+    "current": 10,
+    "max": 10
+   },
+   "description": "Three sizes too big for Cob, laced on with string; the backs of both heels scraped raw, and the left one crackles when he stamps."
+  },
+  "ledger-page": {
+   "id": "ledger-page",
+   "name": "a folded page sewn into the left boot's lining",
+   "kind": "item",
+   "parent": "player",
+   "size": "tiny",
+   "material": "paper",
+   "tags": [
+    "evidence",
+    "hidden",
+    "flammable"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 11,
+   "hp": {
+    "current": 2,
+    "max": 2
+   },
+   "description": "A page razored from the Royal Granary Roll: wagons 'lost to goblins', countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and 'Not goblins. Who pays the hedge-folk?'"
+  },
+  "gutter-stones": {
+   "id": "gutter-stones",
+   "name": "a fistful of gutter stones",
+   "kind": "item",
+   "parent": "yard",
+   "size": "tiny",
+   "material": "stone",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "ac": 17,
+   "hp": {
+    "current": 5,
+    "max": 5
+   },
+   "at": {
+    "x": 33,
+    "y": 24
+   }
+  },
+  "wheat-crown": {
+   "id": "wheat-crown",
+   "name": "a silver crown stamped with a wheat-ear",
+   "kind": "item",
+   "parent": "moll",
+   "size": "tiny",
+   "material": "silver",
+   "tags": [
+    "evidence"
+   ],
+   "states": [],
+   "notes": [],
+   "ac": 17,
+   "hp": {
+    "current": 5,
+    "max": 5
+   },
+   "description": "What the gentleman paid her to say she saw the clerk jump."
+  },
+  "silver-crowns": {
+   "id": "silver-crowns",
+   "name": "silver crowns",
+   "kind": "item",
+   "parent": "player",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "Heavy silver with the King's face, a little worn.",
+   "quantity": 2,
+   "created": 0
+  },
+  "shillings": {
+   "id": "shillings",
+   "name": "shillings",
+   "kind": "item",
+   "parent": "player",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "Silver, five to the crown.",
+   "quantity": 6,
+   "created": 0
+  },
+  "pennies": {
+   "id": "pennies",
+   "name": "pennies",
+   "kind": "item",
+   "parent": "player",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "Copper, twelve to the shilling, and the currency of the Drowned Rat.",
+   "quantity": 11,
+   "created": 0
+  },
+  "brann-warhammer": {
+   "id": "brann-warhammer",
+   "name": "Brann's warhammer",
+   "kind": "item",
+   "parent": "player",
+   "tags": [
+    "weapon"
+   ],
+   "states": [
+    "in hand"
+   ],
+   "notes": [],
+   "gear": "01M54S49TQMG7C19EXHS8KDSQ5"
+  },
+  "brann-handaxe": {
+   "id": "brann-handaxe",
+   "name": "Brann's handaxe",
+   "kind": "item",
+   "parent": "player",
+   "tags": [
+    "weapon"
+   ],
+   "states": [],
+   "notes": [],
+   "gear": "01M54S49TQHA1VVW97G7W79H6V"
+  },
+  "brann-chain-mail": {
+   "id": "brann-chain-mail",
+   "name": "Brann's chain mail",
+   "kind": "item",
+   "parent": "player",
+   "tags": [
+    "armor"
+   ],
+   "states": [
+    "worn"
+   ],
+   "notes": [],
+   "gear": "01M54S49TQJVT16T5KHVJ7ZF11"
+  },
+  "brann-shield": {
+   "id": "brann-shield",
+   "name": "Brann's shield",
+   "kind": "item",
+   "parent": "player",
+   "tags": [
+    "shield"
+   ],
+   "states": [
+    "worn"
+   ],
+   "notes": [],
+   "gear": "01M54S49TQ649X7QQXT0J4G731"
+  },
+  "pennies-2": {
+   "id": "pennies-2",
+   "name": "pennies",
+   "kind": "item",
+   "parent": "cob",
+   "tags": [],
+   "states": [],
+   "notes": [],
+   "description": "Copper, twelve to the shilling, and the currency of the Drowned Rat.",
+   "quantity": 1,
+   "created": 12
+  }
+ },
+ "log": [
+  {
+   "turn": 0,
+   "text": "Brann now has 2 silver crowns",
+   "by": "rules"
+  },
+  {
+   "turn": 0,
+   "text": "Brann now has 6 shillings",
+   "by": "rules"
+  },
+  {
+   "turn": 0,
+   "text": "Brann now has 12 pennies",
+   "by": "rules"
+  },
+  {
+   "turn": 2,
+   "text": "note on the hoist rope: Runs over the hoist beam and through a slot above the loft door.",
+   "by": "stage"
+  },
+  {
+   "turn": 3,
+   "text": "Brann is beside the loft door",
+   "by": "stage"
+  },
+  {
+   "turn": 7,
+   "text": "note on the granary's back wall: A child-sized gap behind the loose board leads into darkness; it smells of grain dust and old sacking.",
+   "by": "stage"
+  },
+  {
+   "turn": 7,
+   "text": "Cob → the yard: a fistful of gutter stones",
+   "by": "rules"
+  },
+  {
+   "turn": 7,
+   "text": "Moll is beside the yard wall",
+   "by": "stage"
+  },
+  {
+   "turn": 7,
+   "text": "(not done) move: a loose board behind the water butt is fixed where it is",
+   "by": "stage"
+  },
+  {
+   "turn": 8,
+   "text": "Brann: now crouching",
+   "by": "stage"
+  },
+  {
+   "turn": 8,
+   "text": "note on Cob: Edging toward the water butt.",
+   "by": "stage"
+  },
+  {
+   "turn": 9,
+   "text": "Moll is 7 ft from Brann",
+   "by": "stage"
+  },
+  {
+   "turn": 11,
+   "text": "Cob is 26 ft from the water butt",
+   "by": "stage"
+  },
+  {
+   "turn": 12,
+   "text": "Brann → Cob: 1 pennies",
+   "by": "rules"
+  },
+  {
+   "turn": 15,
+   "text": "Cob → Brann: a folded page sewn into the left boot's lining",
+   "by": "rules"
+  },
+  {
+   "turn": 15,
+   "text": "Sergeant Agnes Kell is near Brann",
+   "by": "stage"
+  }
+ ]
+}

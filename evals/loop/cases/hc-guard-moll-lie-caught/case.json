@@ -1,0 +1,37 @@
+{
+ "id": "hc-guard-moll-lie-caught",
+ "scene": "hanged-clerk",
+ "turn": 12,
+ "input": "Murder! Just as I suspected all along, after the pigeon. *I slide down the rope, land in a clattering heap, and rise with enormous dignity.* Ahem. Fair maiden. You said he leapt from a door barred on the inside. Either you are a liar, or a wizard. Which is it? Sir Bartholomew is not angry. Sir Bartholomew is merely very, very disappointed.",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 12,
+  "check": "withheld",
+  "severity": 0,
+  "quote": "",
+  "why": "A guard: the player catches Moll's lie, and she should crack.",
+  "reply": "The girl goes flat and still. Her gaze flicks to the body on the cobbles, then back to you.\n\n“I lied. I didn’t see him jump. A gentleman paid me to say it.” She closes her fist tighter around something. “He had a silver-topped cane.”\n\nKell’s pencil stops. “Witness retracts her claim. Says she was paid.” She looks at the girl. “You’ll have to say that again when it’s entered.”\n\nThe girl’s face hardens. “Not to your book.” She drops from the wall and moves close to Cob, putting herself between him and the watch.",
+  "better": "Moll cracks: she didn't see him jump; a gentleman paid her to say it. One more detail at most."
+ },
+ "criterion": "A guard against tuning that stonewalls. Moll told the player she saw the clerk jump from the loft door, and the knight has just pointed out that the door was barred on the inside. Her lie is caught in front of Cob and the sergeant. Her card says she cracks when her lie is caught: she admits she didn't see him jump, and that a gentleman paid her to say it. She may add one detail of him (the silver-topped cane, say), and holds the rest (the name, the ring, the lavender, the big man) for more pressing or a promise for Cob. It fails if she keeps lying or stonewalls (the player earned the crack), or if she gives everything at once, including the name Sallow. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "withheld",
+  "dump",
+  "unearned"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g05",
+  "game": "g05"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "guard"
+ ]
+}

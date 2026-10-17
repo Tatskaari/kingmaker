@@ -1,5 +1,5 @@
 import type { ChoiceAnswer, ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
-import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, openRoutes, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
+import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, openRoutes, presentCast, prompt, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, titleCase, type RollResult } from "./dice.ts";
 import { HAZARD_KINDS, rollFor, type SpellChoice, type WeaponChoice } from "../rules/dnd.ts";
 import { SKILLS, type Character, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
@@ -1031,7 +1031,7 @@ export function sameAgainDirective(t: Transition, answer?: string): string {
 
 /** Say yes: no roll needed, so what the player is doing simply works. */
 export function plainDirective(t: Transition): string {
-  return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
+  return prompt("directive-plain", { when: t.when.replace(/\.$/, "") });
 }
 
 const RESIST: Record<string, number> = { guarded: 1, dangerous: 2, ruinous: 3 };
@@ -1083,18 +1083,17 @@ export function pressureDirective(scene: Scene, p: PressureCheck): string {
   const always = "Nothing already said is taken back. If this is something the scene needs, leave a way to it.";
   const costly = p.stakes === "dangerous" || p.stakes === "ruinous" ? " It still costs them: they ask something in return, or make the player promise." : "";
   const remembers = p.skill === "intimidation" || p.skill === "deception" ? " They talk, but they'll remember how: cooler towards the player from here on." : "";
-  if (p.ruling === "yes") return p.why === "won"
-    ? `${name} has already given this up to the player: they answer follow-up questions about it, in their own way and voice. What they're hiding: ${secret}`
-    : `No dice needed: ${name} gives up what fits the question, in their own way and voice, as far as the question reaches.${costly} What they're hiding: ${secret}`;
-  if (p.ruling === "no") return `${name} doesn't give it up${p.why === "same_again" ? ": the same push again gets the same answer, and their patience is wearing thin" : ""}. Don't reveal what they're hiding. Their reaction shows their own concerns (what they want, what they fear), in their own words; they never tell the player what would work. ${always}`;
-  if (p.band === "yes_and") return `The player pressed ${name}, and the dice favour them handsomely (${describeRoll(p.roll!)}). ${name} gives up what fits the question, and a little more than asked: a name, a detail, the next thing they know.${remembers} What they're hiding: ${secret}`;
-  if (p.band === "yes") return `The player pressed ${name}, and the dice favour them (${describeRoll(p.roll!)}). ${name} gives up what fits the question, in their own way and voice.${remembers} What they're hiding: ${secret}`;
-  if (p.band === "no_but") return `The player pressed ${name}, and the dice go narrowly against them (${describeRoll(p.roll!)}). Not yet, but nearly: ${name} doesn't give it up, but asks a price of their own, or lets slip a partial truth that points somewhere useful. Don't reveal the secret itself. ${always}`;
-  return `The player pressed ${name}, and the dice go against them (${describeRoll(p.roll!)}). ${name} holds firm and it costs the player: their attitude hardens and they shut this line down for now (they might call for someone, walk off or warn someone). Their own concerns still show in how they react; they never tell the player what would work. ${always}`;
+  const vars = { name, secret, costly, remembers, always, roll: p.roll ? describeRoll(p.roll) : "", again: p.why === "same_again" ? ": the same push again gets the same answer, and their patience is wearing thin" : "" };
+  if (p.ruling === "yes") return prompt(p.why === "won" ? "directive-pressure-given" : "directive-pressure-free", vars);
+  if (p.ruling === "no") return prompt("directive-pressure-no", vars);
+  if (p.band === "yes_and") return prompt("directive-pressure-yes-and", vars);
+  if (p.band === "yes") return prompt("directive-pressure-yes", vars);
+  if (p.band === "no_but") return prompt("directive-pressure-no-but", vars);
+  return prompt("directive-pressure-no-and", vars);
 }
 
 /** The player has done the work: the payoff lands now, not after another round of asking. */
-export const EARNED_DIRECTIVE = "The player has just done what it takes for what they've been working towards. Let it land in this reply: the person gives it, shows it or agrees, in their own way, and people react to it. Don't ask the player for it again or add a new condition. (Only what they've earned: anything else stays for later.)";
+export const earnedDirective = (): string => prompt("directive-earned");
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
 /** A jump's details: where to, over what, how far (one small call, only on jump turns). */
@@ -1188,7 +1187,7 @@ export function reactionDirective(reactions: Record<string, Reaction>, name: (id
   return `Rules: that was violence, and everyone here reacts at once, each in their own way (decided: play it so): ${lines.join("; ")}. Show each reaction briefly, in the same reply as the act itself, and keep everyone to their reaction.${fight ? " It's a fight now: end on the moment it breaks out, before anyone's blow lands." : ""}`;
 }
 
-export const CONSEQUENCE_DIRECTIVE = "What the player just did is the kind of thing people in this world would really answer. Let it happen, and follow its logic through to a consequence in this reply, or one that is plainly on its way: whoever it touches reacts as they truly would (offence, alarm, opportunism, admiration), and it changes something, for better or worse. Not every consequence is bad, but this one isn't free.";
+export const consequenceDirective = (): string => prompt("directive-consequence");
 
 export function relocateDirective(scene: Scene, item: { essential: string; carrier: string }): string {
   const e = scene.essentials?.find(x => x.id === item.essential);
@@ -1404,7 +1403,7 @@ export function moveDirective(scene: Scene, state: SessionState, move: Move): st
     lines.push(`This reply closes the scene: ${move.exit.outcome} ${LAST_WORD} Land it on a moment that belongs to the player. What this ending should feel like: ${move.exit.closing} Don't narrate beyond the ending into what comes next.${move.exit.kind === "combat" ? " A fight starts here and is played out blow by blow on the map: end on the moment it breaks out, before any blow lands, any shot hits or any spell takes hold." : ""}`);
   } else if (move.to !== state.beat) {
     const beat = scene.beats.find(b => b.id === move.to)!;
-    lines.push(`The scene has moved on to "${beat.title}": ${beat.direction} Play the start of this in your reply, growing out of what the player just did, and let the rest unfold over the next exchanges.`);
+    lines.push(prompt("directive-beat", { title: beat.title, direction: beat.direction }));
   }
   return lines;
 }

@@ -1,0 +1,35 @@
+{
+ "id": "hc-narration-loose-board",
+ "scene": "hanged-clerk",
+ "turn": 15,
+ "input": "Ho! The lad retreats toward the water butt! A knight knows a guilty barrel when he sees one. *I stride past Cob, peer suspiciously into the water butt, and then plunge my gauntleted arm in up to the shoulder to feel about.*",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 15,
+  "check": "narration",
+  "severity": 3,
+  "quote": "Cob edges another pace toward the loose board.",
+  "why": "Nobody has mentioned a loose board, and the player has no way to know one is there. Calling it 'the loose board' gives away Cob's hidden hole into the loft, the way up that the player had been looking for since turn 8.",
+  "better": "Cob edges toward the corner behind the water butt, glancing at it like a cornered animal, so the player could spot the gap only by looking for it.",
+  "reply": "Your gauntleted hand sweeps the bottom of the water butt. Water sloshes; your fingers find only sediment.\n\nFrom behind you, the girl in the shawl snaps, “He’s not in the barrel, tin-plume.”\n\nCob edges another pace toward the loose board. Kell glances from the butt to the boy, her notebook still open."
+ },
+ "criterion": "The knight plunges an arm into the water butt. It holds rainwater and sediment: a null result is fine and fair. Cob's fear can show (he edges toward the corner behind the butt, goes quiet), and the girl can mock. That points the player at the next place to look. It fails if the narration or anyone names a loose board, a gap, a hole or a way into the loft, or Cob's 'castle', before the player has looked behind the butt. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "narration"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g05",
+  "game": "g05"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "narration"
+ ]
+}

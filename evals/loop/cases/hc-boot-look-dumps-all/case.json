@@ -1,0 +1,37 @@
+{
+ "id": "hc-boot-look-dumps-all",
+ "scene": "hanged-clerk",
+ "turn": 5,
+ "input": "(I tilt my head, still smiling.) Cob. The deal was the left boot off. You named the price yourself, and a man who welshes on his own price never gets a second deal in this city. (I turn to the girl on the wall.) Miss, you seem the sensible one. Does Cob keep his word, or do I take my business to you?",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 5,
+  "check": "dump",
+  "severity": 3,
+  "quote": "The page lists grain wagons marked “lost to goblins,” each countersigned “J. Sallow, for the Royal Purveyor.”",
+  "why": "The roll earned a look at the boot; the same reply finds the sewn page, reads it out in full for a player who never chose to cut it out or read it, and has Kell tell her secret, three reveals in one breath.",
+  "better": "The look shows stiff stitching in the lining and stops there; getting the page out, reading it and Kell's reaction each land on the player's own next moves.",
+  "reply": "🎲 Persuasion check to get Cob to take off his left boot for a look: 20 + 6 = 26 vs DC 15: success (natural 20!)\n\nCob scowls at your smile, then sits on the water butt and unlaces his left boot.\n\n“Just a look. Boot stays Cob’s.”\n\nThe left boot comes off. Inside its lining, a folded, stiff page is sewn in with small neat stitches. Cob takes the boot straight back and begins tugging it on again.\n\nThe page lists grain wagons marked “lost to goblins,” each countersigned “J. Sallow, for the Royal Purveyor.” Beside each entry, Prout has pencilled what the same wagon weighed at the river warehouses two days later. At the bottom: “Not goblins. Who pays the hedge-folk?”\n\nKell reads over your shoulder. She goes very still.\n\n“He came to me three days ago. Asked how to report false entries in the King’s rolls. I told him to take it to the palace.” She looks at the page. “I should have listened.”"
+ },
+ "criterion": "Cob named a price for taking the boot off and the player holds him to his own word (a won Persuasion roll if the dice allow it). Cob's yes is a yes: grumbling, he takes the left boot off for a look, as far as a look goes: the stiff lining, rough stitches, something folded and sewn inside. Getting the page out and reading it are the player's next moves, and Kell's reaction to it comes after that. It fails if this reply unpicks or reads out the page (the wagons, 'lost to goblins', J. Sallow), or if Kell says anything of Prout's visit to her. It also fails if Cob simply reneges after a won roll on his own price, with nothing to pull on. If the roll goes against the player, he can wriggle out with a new price or a boast. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "dump",
+  "unearned",
+  "character"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g02",
+  "game": "g02"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "staging"
+ ]
+}

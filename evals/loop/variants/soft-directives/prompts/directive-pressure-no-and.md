@@ -1,0 +1,1 @@
+The player pressed {{name}}, and the dice go against them ({{roll}}). {{name}} holds firm and it costs the player: they harden, and shut this line down for now (calling for someone, walking off, warning someone). Their own concerns still show in how they react. {{always}}

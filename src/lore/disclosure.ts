@@ -103,6 +103,9 @@ export function withhold(state: SessionState, path: string): void {
 /** A note worth restarting the reply for: clearly about this moment (the speculative reply is otherwise kept). */
 export const URGENT = 0.9;
 
+/** KM_LEAN=links: a note's "Read when relevant" lists are for the notes' opener, not the GM's reply. */
+const unlinked = (body: string): string => (process.env.KM_LEAN ?? "").split(",").includes("links") ? body.replace(/\n#{2,3} Read when relevant\n[\s\S]*?(?=\n#{1,3} |$)/g, "").trim() : body;
+
 /**
  * The GM's memory block (V1's reuse note: one GM voice gets each person's scoped lore in its own
  * labelled block, so it can keep who-knows-what straight). Split for prompt caching: "stable" is
@@ -116,10 +119,10 @@ export function memoryBrief(scene: Scene, state: SessionState, part: "stable" | 
     const indexes = scope.initial.filter(d => d.path.endsWith("memories/index.md") || d.path === STORY_INDEX);
     const notes = opened(state).filter(n => n.scope === scope.id).map(n => readDoc(state.id, n.path)).filter((d): d is Doc => !!d);
     const parts = part === "stable"
-      ? entries.map(d => d.body)
+      ? entries.map(d => unlinked(d.body))
       : [
         ...indexes.map(d => d.path === STORY_INDEX ? `Earlier scenes (index):\n${d.body.replace(/^# .*\n?/, "").trim()}` : `What ${scope.label} remembers (index; notes open below when they matter):\n${d.body.replace(/^# .*\n?/, "").trim() || "(nothing yet)"}`),
-        ...notes.map(d => `#### ${titleOf(d)}${d.meta.context ? ` (${d.meta.context})` : ""}\n${d.body}`),
+        ...notes.map(d => `#### ${titleOf(d)}${d.meta.context ? ` (${d.meta.context})` : ""}\n${unlinked(d.body)}`),
       ];
     if (parts.length) blocks.push(`### ${scope.character ? `${scope.label}: their own ${part === "stable" ? "lore" : "memories"}` : `The GM's ${part === "stable" ? "own notes (the player character, this place)" : "notes"}`}\n${parts.join("\n\n")}`);
   }

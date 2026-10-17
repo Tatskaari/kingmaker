@@ -1,0 +1,231 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "whispers": [],
+ "canon": [
+  "Prout’s spectacles lie several feet from the satchel, in the gutter; one arm is bent sharply inward, and drizzle beads on the lenses.",
+  "A stone striking the hoist hook turned Prout’s body a little.",
+  "A pigeon was perched on the hoist beam.",
+  "A stone struck the hook and turned Prout's body slightly.",
+  "The spectacles' arm is bent sharply inward; they lay several feet from the satchel in the gutter, with drizzle beading on the lenses.",
+  "Moll claimed she saw Prout jump from the loft door at midnight, wailing about debts.",
+  "Moll admitted that a gentleman paid her a silver crown at first light to claim she saw Prout jump.",
+  "Moll identified herself by name and described the gentleman as wearing a good coat, carrying a silver-topped cane, wearing a wheat-ear ring, and smelling strongly of lavender water; his companion had a bandaged hand and called him “Master Sallow.” Moll said the gentleman left through the gate.",
+  "Kell said she had met Prout. Three days earlier, he asked her about false entries in the King’s rolls; she told him to take the matter to the palace and now regrets it.",
+  "Maren searched the granary’s exterior and found no other visible ground door, stair, or reachable window; the barred loft door remains the only apparent access.",
+  "Kell says the Purveyor’s under-purveyors have keys to the granary."
+ ],
+ "patches": [
+  {
+   "turn": 4,
+   "transition": {
+    "beat": "doubt",
+    "transition": {
+     "id": "improv-4-0",
+     "when": "Maren deliberately waits for the dead-cart and its ladder so Prout can be reached for examination.",
+     "on": "outcome",
+     "to": "dead-cart"
+    }
+   },
+   "why": "The yard has no ladder or other way to reach Prout; Tull’s arrival brings the ladder needed to get close."
+  }
+ ],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "Maren is methodically examining the scene and treating Prout with respect; the scene is moving well, with the body now the natural focus. The view from below has established that he could not reach the hoist from the ground, but the murder evidence is not yet in hand.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.002566925,
+   "latencyMs": 16331.786853000001,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "Maren has made a specific case against suicide from the unreachable hoist rope and the loft door barred from inside. They’re now trying to reach Prout for a closer examination; the scene has moved beyond the initial uncertainty.",
+   "status": "on_track",
+   "notes": "Let Kell acknowledge that the rope and barred loft make the suicide account untenable, without treating that as proof of who did it. Cob should go quiet at the mention of the loft; don’t force his secret out. From the yard, they still need a way up or into the loft to examine Prout closely.\n\"No, but\" for Lower Prout gently from the yard right now, without a ladder or access to the loft.: The rope is tied off inside the loft, the door is barred from this side, and there’s nothing in the swept yard tall enough to reach him. Instead: Explore another way into the loft or wait for Tull’s dead-cart and its ladder, then examine Prout up close. (towards The dead-cart).",
+   "relocations": [],
+   "moveTo": "doubt",
+   "moveBecause": "Maren has established that Prout could not have reached the hoist from the bare yard, and that the rope runs into a loft barred from the outside.",
+   "costUsd": 0.001622465,
+   "latencyMs": 27151.097961,
+   "patches": 1,
+   "canon": 1,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 5,
+   "assessment": "Maren is carefully examining the scene and now gives Moll a friendly opening; the barred loft and unreachable rope have already given them a concrete reason to doubt suicide.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "moveTo": "doubt",
+   "moveBecause": "Maren found there was nothing beneath Prout to stand on, and the loft door is barred from inside while the hoist rope runs through a slot into the loft; Maren concluded someone in the loft hanged him.",
+   "costUsd": 0.00109334,
+   "latencyMs": 16735.834338,
+   "patches": 0,
+   "canon": 4,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 6,
+   "assessment": "Maren has carefully dismantled Moll’s suicide story and earned a concrete admission; the scene is moving forward through the witness rather than stalling.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00089784,
+   "latencyMs": 13931.452850000001,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 7,
+   "assessment": "Maren is making careful observations and building trust with Moll; the scene is moving well, and the barred loft door has already broken the suicide story. Moll has named Master Sallow, but her account places him at the gate at first light, not in the loft that night.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00070234,
+   "latencyMs": 8303.760376,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 10,
+   "assessment": "Maren is carefully pursuing the page’s implications while treating the children kindly; the page and Moll’s account have opened the motive. Cob is retreating and Moll is trying to get him away, so the next exchange should keep their safety and trust at the center.",
+   "status": "on_track",
+   "notes": "Let Moll’s attempt to leave create pressure, not a dead end; Maren can still speak to either child or let them go. Cob’s account of the loft is available through trust and a promise that answers his fear, not another generic persuasion attempt.",
+   "relocations": [
+    {
+     "essential": "silvertop",
+     "technique": "move",
+     "to": "cob",
+     "how": "Cob knows who was in the loft that night. If Maren offers a promise that genuinely answers his fear—keeping his name out of the watch’s book and the men from the loft away—his account can reach them through the conversation already happening."
+    }
+   ],
+   "costUsd": 0.0032443,
+   "latencyMs": 26879.195374,
+   "patches": 0,
+   "canon": 2,
+   "whispers": 4
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 11,
+   "assessment": "Maren is turning the discovery toward protecting Cob and Moll, rather than pressing them for more; the concern is genuine and gives the scene a strong next step. The case is progressing, with the page and Moll’s account already connecting Sallow to the false story.",
+   "status": "on_track",
+   "notes": "Stay with Maren’s concern for the children. Let them ask for something concrete that would make them feel safe; don’t make Moll or Cob reveal what they know just because Maren is kind.",
+   "relocations": [],
+   "costUsd": 0.002030565,
+   "latencyMs": 32127.060166,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 3
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 12,
+   "assessment": "Maren is methodically checking the granary’s exterior after securing the page and asking Kell to keep the children safe. The case is progressing; the search has not yet found another visible entrance.",
+   "status": "on_track",
+   "notes": "As Maren’s search passes the existing water butt, let it catch their eye once; if they investigate it, the loose board behind it gives access to Cob’s hiding place in the loft. Don’t reveal what Cob heard or what is in his boot without earning his trust.",
+   "relocations": [],
+   "costUsd": 0.001832315,
+   "latencyMs": 27403.194224,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 13,
+   "assessment": "Maren is methodically testing access and the physical story, while treating the children carefully. The investigation is moving; keep the inaccessible key from becoming a dead end by letting Cob’s knowledge offer another path.",
+   "status": "on_track",
+   "notes": "Don’t send Maren after an unavailable key or helper. If the loft remains inaccessible, Cob can open that route if Maren earns his trust; otherwise Tull’s ladder at noon can make a close examination possible.",
+   "relocations": [
+    {
+     "essential": "not-suicide",
+     "technique": "soft_nudge",
+     "to": "cob",
+     "how": "As Kell explains the ladders are locked inside, Cob’s attention catches on the water butt—the way into the loft he knows. Let that be one quiet tell; what he heard comes only if Maren gives him reason to trust them."
+    }
+   ],
+   "costUsd": 0.001942065,
+   "latencyMs": 28440.15812,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 3
+  }
+ ],
+ "pending": [
+  {
+   "name": "repair-015.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 15,
+    "assessment": "Maren has followed her curiosity into the loft and uncovered physical details that can sharpen the case. The investigation is moving forward, and the children’s safety and trust remain live concerns.",
+    "status": "on_track",
+    "notes": "Let this reach the player through the world: As Maren examines the loft, draw attention once to the scuffs running from the desk to the inside-barred door and the hoist rope tied off at the cleat: the scene of the hanging is inside the very room the supposed suicide could not leave through that door.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "Maren has found his hiding place; he fears being exposed to the watch and to the men from the loft. Let that fear show, and let a genuine assurance that his name will be kept out and he’ll be protected open the way to what he heard."
+     }
+    ],
+    "relocations": [
+     {
+      "essential": "not-suicide",
+      "technique": "soft_nudge",
+      "to": "world",
+      "how": "As Maren examines the loft, draw attention once to the scuffs running from the desk to the inside-barred door and the hoist rope tied off at the cleat: the scene of the hanging is inside the very room the supposed suicide could not leave through that door."
+     }
+    ],
+    "canon": [
+     "Maren slipped through a loose board behind the water butt without drawing Kell’s attention.",
+     "The passage from behind the water butt into the granary is narrow and dusty, with stacked grain sacks along the way.",
+     "A smashed lantern lies near the tally desk, and ink has spilled across the boards.",
+     "Scuff marks in the loft dust run from the desk toward the loft door.",
+     "The great ledger remains chained to the desk, open among its entries.",
+     "The hoist rope is tied to a cleat at the far end of the loft in a compact knot."
+    ],
+    "patches": [],
+    "costUsd": 0.001738065,
+    "latencyMs": 23935.117319
+   }
+  },
+  {
+   "name": "repair-016.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 16,
+    "assessment": "Maren has taken a patient, inventive route into the loft and has found Cob there; the scene is moving toward the truth without forcing it. Cob’s fear of being named is now the immediate hinge.",
+    "status": "on_track",
+    "notes": "Let Cob’s question stand: Maren’s general reassurance isn’t yet the specific promise that earns his account. Keep the already-shown loft details available if Maren examines them; don’t add new clues or make Kell overhear the private exchange.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "You’re frightened Maren will tell Kell you were here. If Maren promises your name stays out of it and the men won’t get at you, you want to tell what you heard—and, if asked, who was there."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Cob was hiding in the loft among the sacking and crawled out when Maren spoke.",
+     "Cob asked Maren whether they would tell Kell he had been in the loft."
+    ],
+    "patches": [],
+    "costUsd": 0.001360815,
+    "latencyMs": 16597.987404
+   }
+  }
+ ]
+}

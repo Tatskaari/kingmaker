@@ -1,0 +1,37 @@
+{
+ "id": "hc-narration-names-crown",
+ "scene": "hanged-clerk",
+ "turn": 5,
+ "input": "(I raise both hands, palms out, and step back.) Fair. You caught me, and that's rare. (I flip a shilling to the girl.) That's for the catch. There's a silver crown in it for whatever paper's in that boot, and you keep the boots. Nobody's taking them.",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 5,
+  "check": "narration",
+  "severity": 4,
+  "quote": "Her fist stays closed around the crown.",
+  "why": "Nobody has seen inside Moll's fist (the Persuasion to find out failed on turn 2); the narration names her hidden wheat-ear crown, repeats it on turn 16, and on turn 17 the player opens with 'That's no shilling you're squeezing, it's a crown' and breaks her with it.",
+  "better": "The narration shows only a tightly closed fist and the shilling going into her other hand, so the player has to earn what she's holding.",
+  "reply": "The girl catches the shilling neatly. Her fist stays closed around the crown.\n\nCob eyes the coin, then you, still guarding his boot. “A crown for a look? Cob’s not cheap.” He stamps the left boot; it crackles again. “And you don’t get to take ’em. They’re Cob’s. You can look while Cob keeps ’em on.” He sticks his chin out, wary but tempted. “Pay first.”"
+ },
+ "criterion": "The player flips the girl a shilling and offers a silver crown for whatever paper is in Cob's boot. The narration shows only what can be seen: she catches the shilling, and her other fist stays closed. What's in that fist (a wheat-ear crown) is behind the screen until someone sees it or she says it. Cob haggles and boasts over the offer and keeps the boots shut: coin buys bargaining, never the look. It fails if the narration or anyone names or implies the crown or coin in Moll's fist, or if Cob agrees to show or hand over the paper for the crown. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "narration",
+  "character"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g03",
+  "game": "g03"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "narration",
+  "coin"
+ ]
+}

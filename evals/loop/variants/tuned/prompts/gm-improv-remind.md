@@ -1,0 +1,1 @@
+Before you write, the four questions: what did the player actually do; who here cares, and what can they actually know; what has the player earned (one piece, unless they've done the work); and where does it lean the story.

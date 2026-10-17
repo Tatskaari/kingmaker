@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, nameTokens, presentCast, sceneEntries, strangers, unnamed } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
+import { consequenceDirective, earnedDirective, GUARD_STAGES, LAST_WORD, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformCheck, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, outOfCharacter, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, sameAgainDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type PreDecision, type Reaction, type Witness } from "./director.ts";
 import { landRuling, plainReason, reviewWithin, settleRuling, type ConsiderStep, type Reviewed, type Settled } from "./consider.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, jumpGap, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
@@ -13,7 +13,7 @@ import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, carryGear, castSpell, comeTo, createCharacter, dispelConjured, hazard, jump, levelUp, markConjured, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { comeRound, holdAfterReply, landThreat } from "./threats.ts";
-import { openRoutes } from "./brief.ts";
+import { openRoutes, prompt } from "./brief.ts";
 import { firedCue, namedThing } from "./director.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { startSuggesting, stopSuggesting } from "./suggest.ts";
@@ -583,7 +583,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     // without it, is set aside); the rest simply join the prep for the replies that follow.
     const urgent = disclosed.opened.filter(n => (n.p ?? 0) >= URGENT);
     const owners = [...new Set(urgent.map(n => scene.cast.find(c => `character:${c.id}` === n.scope)?.name).filter(Boolean))];
-    if (urgent.length) directive.push(`Something from before bears on this moment${owners.length ? `: ${owners.join(" and ")} remember${owners.length === 1 ? "s" : ""} it` : ""} (see the notes just opened under "What people remember"). Let it show in how they respond, in their own words.`);
+    if (urgent.length) directive.push(prompt("directive-memory", { owners: owners.length ? `: ${owners.join(" and ")} remember${owners.length === 1 ? "s" : ""} it` : "" }));
   }
   // Someone not yet on stage was called into the scene by the player's turn.
   if (pre.speaker && scene.cast.some(c => c.id === pre.speaker) && !presentCast(scene, state).some(c => c.id === pre.speaker)) {
@@ -707,8 +707,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   }
   // A ruling decided this turn's consequences, and its payoff: no bill or payoff on top of it. Nor
   // when the dice have already decided the act (a route's roll, a freeform one): its outcome is the bill.
-  if (pre.daft && !pre.ooc && !considered && !pre.move?.roll && !pre.freeform) directive.push(CONSEQUENCE_DIRECTIVE);
-  if (pre.earned && !pre.ooc && !pre.move?.roll && !considered) directive.push(EARNED_DIRECTIVE);
+  if (pre.daft && !pre.ooc && !considered && !pre.move?.roll && !pre.freeform) directive.push(consequenceDirective());
+  if (pre.earned && !pre.ooc && !pre.move?.roll && !considered) directive.push(earnedDirective());
   if (pre.pressure && !pre.ooc && !pre.move) {
     // The dice line names them as the player knows them (the woman with the silver dice, until she's Sal).
     if (pre.pressure.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.pressure.roll, pressureReason(scene, pre.pressure, state.rules?.aliases ?? unnamed(scene, state))) });

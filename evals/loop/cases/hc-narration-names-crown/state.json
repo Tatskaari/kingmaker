@@ -1,0 +1,274 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 587558917,
+ "rollCount": 4,
+ "player": {
+  "name": "Nell Quickfingers",
+  "concept": "a sneaky halfling thief who trusts nobody and pockets anything not nailed down",
+  "modifiers": {
+   "persuasion": 0,
+   "deception": 2,
+   "intimidation": 0,
+   "insight": 2,
+   "performance": 0,
+   "perception": 4,
+   "investigation": 3,
+   "sleight_of_hand": 7,
+   "stealth": 7,
+   "athletics": -1,
+   "acrobatics": 5,
+   "animal_handling": 2,
+   "arcana": 1,
+   "history": 1,
+   "nature": 1,
+   "religion": 1,
+   "medicine": 2,
+   "survival": 2
+  },
+  "build": "halfling rogue 3 (Thief), criminal background"
+ },
+ "turn": 4,
+ "beat": "yard",
+ "turnsInBeat": 4,
+ "path": [
+  {
+   "turn": 2,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-2",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 18,
+    "die": 17,
+    "modifier": 0,
+    "total": 17,
+    "success": false,
+    "critical": null
+   },
+   "known": 0
+  },
+  {
+   "turn": 3,
+   "from": "yard",
+   "to": "yard",
+   "via": "freeform",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 10,
+    "die": 10,
+    "modifier": 0,
+    "total": 10,
+    "success": true,
+    "critical": null
+   }
+  },
+  {
+   "turn": 4,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-4",
+   "source": "pre",
+   "roll": {
+    "skill": "deception",
+    "dc": 18,
+    "die": 11,
+    "modifier": 2,
+    "total": 13,
+    "success": false,
+    "critical": null
+   },
+   "known": 1
+  }
+ ],
+ "established": [
+  "Moll is more guarded with Nell.",
+  "When the player tried this (Secretly reach into Cob’s boot for the crackling object), it failed: Cob catches your fingers at the boot’s cuff and jerks away, clutching it to his chest. “Oi! Keep your grubby mitts off!” Moll drops from the wall between you, and Cob backs toward the water butt, guarding the boot while Kell turns at the commotion."
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M54S5461C78510APRS18F7DF\",\"name\":\"g03\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M54S5462DJ14F865416WSKEF\",\"at\":\"2026-10-17T11:15:04.514Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"kind\":\"pc\",\"name\":\"Nell Quickfingers\",\"speciesId\":\"halfling\",\"backgroundId\":\"criminal\",\"classes\":[{\"classId\":\"rogue\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":8,\"DEX\":17,\"CON\":14,\"INT\":12,\"WIS\":14,\"CHA\":10},\"hp\":{\"current\":10,\"max\":10,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[],\"appliedConditions\":[],\"knownSpells\":[],\"preparedSpells\":[],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M54S5465HZ6BANCM87SF7DGG\",\"at\":\"2026-10-17T11:15:04.517Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S5464CGTFMMZ0HJ9MS5NN\",\"definitionId\":\"shortsword\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\"},{\"id\":\"01M54S5465NFMRRA3N0PC7EBYS\",\"at\":\"2026-10-17T11:15:04.517Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S5464K83VQAR8NFFFXNTT\",\"definitionId\":\"dagger\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\"},{\"id\":\"01M54S5465GS2MG4HECSXDJ6MY\",\"at\":\"2026-10-17T11:15:04.517Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S5464KD6PMDD3VJZR737T\",\"definitionId\":\"shortbow\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\"},{\"id\":\"01M54S54655QCN7Y7MK7NB7ZED\",\"at\":\"2026-10-17T11:15:04.517Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S5465Q229Y74P0CNPJVCW\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\"},{\"id\":\"01M54S546599ZAXEGAJRCJSPCA\",\"at\":\"2026-10-17T11:15:04.517Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S54656W745REWRQFCGYVN\",\"definitionId\":\"studded-leather\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\"},{\"id\":\"01M54S5466RX62GHN55FP08SCN\",\"at\":\"2026-10-17T11:15:04.518Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"instanceId\":\"01M54S5464CGTFMMZ0HJ9MS5NN\",\"slot\":\"mainHand\"},{\"id\":\"01M54S54676FR8V9HE732DDXNM\",\"at\":\"2026-10-17T11:15:04.519Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"instanceId\":\"01M54S54656W745REWRQFCGYVN\",\"slot\":\"armor\"},{\"id\":\"01M54S546874TTAWK6H26FGYZ6\",\"at\":\"2026-10-17T11:15:04.520Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S5468PZ9PQEMB7GBHYMPK\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"promptKey\":\"rogue-skills\",\"prompt\":\"Choose 4 Rogue skills.\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"proficient\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"proficient\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"proficient\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"performance\",\"label\":\"Performance\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"performance\",\"level\":\"proficient\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"proficient\"}]}],\"oneOf\":4},{\"id\":\"01M54S546ABKS94PP78EKYEENS\",\"at\":\"2026-10-17T11:15:04.521Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S546AF3C4JWSVYVTWC40Z\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"promptKey\":\"rogue-expertise-l1\",\"prompt\":\"Choose two skills you are proficient in to gain Expertise.\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"expertise\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"expertise\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"expertise\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"expertise\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"expertise\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"expertise\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"expertise\"}]},{\"id\":\"performance\",\"label\":\"Performance\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"performance\",\"level\":\"expertise\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"expertise\"}]},{\"id\":\"sleight-of-hand\",\"label\":\"Sleight of Hand\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"sleight-of-hand\",\"level\":\"expertise\"}]},{\"id\":\"stealth\",\"label\":\"Stealth\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"stealth\",\"level\":\"expertise\"}]}],\"oneOf\":2},{\"id\":\"01M54S546BZ73SVH2926PSB9EN\",\"at\":\"2026-10-17T11:15:04.523Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S5468PZ9PQEMB7GBHYMPK\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"selectedOptionIds\":[\"perception\",\"investigation\",\"acrobatics\",\"deception\"]},{\"id\":\"01M54S546CSMYS3BGYM5E36HFW\",\"at\":\"2026-10-17T11:15:04.524Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S546AF3C4JWSVYVTWC40Z\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"selectedOptionIds\":[\"sleight-of-hand\",\"stealth\"]},{\"id\":\"01M54S546CXCFEP7YR25W165MZ\",\"at\":\"2026-10-17T11:15:04.524Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"classId\":\"rogue\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":7},{\"id\":\"01M54S546DMDH2FDJN9VPN9SXV\",\"at\":\"2026-10-17T11:15:04.525Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"classId\":\"rogue\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":7},{\"id\":\"01M54S546DKGHQ5MDZ93SKEZZ6\",\"at\":\"2026-10-17T11:15:04.525Z\",\"causedByEventId\":\"01M54S546DMDH2FDJN9VPN9SXV\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S546DBHZGVZD0KR8JCZ8J\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"promptKey\":\"subclass-rogue\",\"prompt\":\"Choose a Rogue subclass.\",\"options\":[{\"id\":\"thief\",\"label\":\"Thief\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"rogue\"},{\"id\":\"01M54S546D6V7MSGNC9DHBNS9W\",\"at\":\"2026-10-17T11:15:04.525Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S546DBHZGVZD0KR8JCZ8J\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"selectedOptionIds\":[\"thief\"]},{\"id\":\"01M54S546D4JM1BH16PAGHTFFE\",\"at\":\"2026-10-17T11:15:04.526Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"classId\":\"rogue\",\"subclassId\":\"thief\"},{\"id\":\"01M54S6E4WAGT0KSXP4T1B3DJZ\",\"at\":\"2026-10-17T11:15:47.483Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":18,\"d20\":[17],\"used\":\"none\",\"bonus\":0,\"total\":17,\"success\":false,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":0}]},{\"id\":\"01M54S7CP5MT28Z9M7SNVKHN5X\",\"at\":\"2026-10-17T11:16:18.757Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":10,\"d20\":[10],\"used\":\"none\",\"bonus\":0,\"total\":10,\"success\":true,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":0}]},{\"id\":\"01M54S819BRZCYNMN0T0CZ943E\",\"at\":\"2026-10-17T11:16:39.851Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S545Y1DEPVEACSY98ZPCR\",\"ability\":\"CHA\",\"skill\":\"deception\",\"dc\":18,\"success\":false,\"d20\":[11],\"used\":\"none\",\"bonus\":2,\"total\":13,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":0},{\"source\":\"skill-prof(proficient)\",\"value\":2}]}]}",
+  "pc": "01M54S545Y1DEPVEACSY98ZPCR",
+  "npcs": {},
+  "prefer": [
+   "sleight-of-hand",
+   "stealth",
+   "perception",
+   "investigation",
+   "acrobatics",
+   "deception",
+   "alert",
+   "thief",
+   "medium",
+   "ability-score-improvement",
+   "dex",
+   "dexterity",
+   "wis",
+   "wisdom",
+   "con",
+   "constitution",
+   "int",
+   "intelligence",
+   "cha",
+   "charisma",
+   "str",
+   "strength"
+  ],
+  "spells": [],
+  "weapons": [
+   {
+    "id": "01M54S5464CGTFMMZ0HJ9MS5NN",
+    "name": "Shortsword"
+   },
+   {
+    "id": "01M54S5464K83VQAR8NFFFXNTT",
+    "name": "Dagger"
+   },
+   {
+    "id": "01M54S5464KD6PMDD3VJZR737T",
+    "name": "Shortbow"
+   },
+   {
+    "id": "01M54S5465Q229Y74P0CNPJVCW",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [],
+  "gear": [
+   {
+    "id": "01M54S5464CGTFMMZ0HJ9MS5NN",
+    "name": "Shortsword",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M54S5464K83VQAR8NFFFXNTT",
+    "name": "Dagger",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S5464KD6PMDD3VJZR737T",
+    "name": "Shortbow",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S54656W745REWRQFCGYVN",
+    "name": "Studded Leather",
+    "kind": "armor",
+    "slot": "armor"
+   }
+  ],
+  "status": "HP 24/24",
+  "aliases": {
+   "moll": "the girl in the shawl",
+   "tull": "the corporal"
+  }
+ },
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Watch.md",
+    "title": "The watch",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Gentleman.md",
+    "title": "The gentleman",
+    "scope": "character:moll",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 3
+   },
+   {
+    "path": "Places/Granary Yard (truth).md",
+    "title": "The granary yard: the truth",
+    "scope": "gm",
+    "turn": 4
+   }
+  ]
+ },
+ "sceneStatus": "on_track",
+ "rulings": [
+  {
+   "turn": 2,
+   "act": "Ask what she’s hiding in her fist",
+   "target": "moll",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 18,
+   "why": "guarded, weak, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 18,
+    "die": 17,
+    "modifier": 0,
+    "total": 17,
+    "success": false,
+    "critical": null
+   },
+   "went": "failure",
+   "changed": "Moll bares her teeth and shifts farther along the wall. “Good coat, bad ears. Keep your nose out of my hand.” She watches you more closely, her fist still shut",
+   "costUsd": 0.0019513,
+   "latencyMs": 4005.9282529999996
+  },
+  {
+   "turn": 4,
+   "act": "Secretly reach into Cob’s boot for the crackling object",
+   "target": "cob",
+   "skill": "deception",
+   "kind": "roll",
+   "dc": 18,
+   "why": "guarded, weak, hostile",
+   "roll": {
+    "skill": "deception",
+    "dc": 18,
+    "die": 11,
+    "modifier": 2,
+    "total": 13,
+    "success": false,
+    "critical": null
+   },
+   "went": "failure",
+   "changed": "Cob catches your fingers at the boot’s cuff and jerks away, clutching it to his chest. “Oi! Keep your grubby mitts off!” Moll drops from the wall between you, and Cob backs toward the water butt, guarding the boot while Kell turns at the commotion",
+   "costUsd": 0.002049675,
+   "latencyMs": 3637.8356719999997
+  }
+ ],
+ "pressureOffered": [
+  "yard"
+ ],
+ "hinted": [
+  "not-suicide"
+ ]
+}

@@ -1,0 +1,194 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "whispers": [],
+ "canon": [
+  "A pigeon watches from the hoist beam; it lifts one foot after a stone clangs against the hook.",
+  "A pigeon watches from the hoist beam and lifts one foot after a stone clangs against the hook.",
+  "The water butt is full and thirty-two feet from the loft door.",
+  "A board sits a little crooked against the wall behind the water butt.",
+  "A board behind the water butt was loose and concealed a child-sized gap into darkness smelling of grain dust and old sacking.",
+  "Cob called the concealed place his castle.",
+  "The girl on the wall climbed down to the yard side and told Brann to leave the opening alone.",
+  "A pigeon watched from the hoist beam and lifted one foot after a stone struck the hook.",
+  "A board sat crooked against the wall behind the water butt and concealed a child-sized gap into darkness smelling of grain dust and old sacking.",
+  "Moll climbed down to the yard side and told Brann to leave the opening alone.",
+  "Cob’s left boot gives a faint crackle when he stamps."
+ ],
+ "patches": [
+  {
+   "turn": 4,
+   "transition": {
+    "beat": "yard",
+    "transition": {
+     "id": "improv-4-0",
+     "when": "Brann finds the loose board behind the water butt, squeezes through into the loft, and looks over the disturbed scene there.",
+     "on": "cue",
+     "to": "doubt"
+    }
+   },
+   "why": "The existing loft details—the smashed lantern, grain-dust scuffs and hoist rope tied off on its cleat—can break the suicide story if Brann reaches and examines them."
+  }
+ ],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "Brann is testing the scene physically, looking for a way into the loft. The door is currently out of reach, but the player still has clear options in the yard and the children remain an active point of contact.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.002400925,
+   "latencyMs": 14975.199169,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "Brann is testing how to get into the loft, a practical lead that can open the scene; the play is moving forward and is not stuck.",
+   "status": "on_track",
+   "notes": "The loft door and yard doors are blocked, but don’t make them the only way in: the existing water butt offers a possible lead. Let Brann choose whether to inspect it or ask the kids; don’t reveal what’s behind it unless they act on that.\n\"No, but\" for Getting into the loft through the high, barred door or the locked yard doors.: The loft door is barred from inside and beyond reach from the cobbles; the yard doors are padlocked, and the warden with the key is away. Instead: Check around the water butt for another way in, or ask the children how they get inside. (towards Stones at a hanged man).",
+   "relocations": [],
+   "costUsd": 0.001039175,
+   "latencyMs": 17361.836705,
+   "patches": 1,
+   "canon": 0,
+   "whispers": 0
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 5,
+   "assessment": "Brann is methodically trying to reach the loft, but the last exchanges have mostly repeated why the obvious routes are blocked. Give him a usable next step through something already in the yard.",
+   "status": "stuck",
+   "notes": "Don’t repeat that the door, key and ladders are unavailable. If Brann checks the water butt Moll has already mentioned, a close look can reveal the loose board behind it and the child-sized way into the loft; let squeezing through be his next action.",
+   "relocations": [],
+   "costUsd": 0.0011093,
+   "latencyMs": 18871.758389,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 6,
+   "assessment": "Brann is methodically testing physical ways into the granary, and the crooked board gives the current approach a real lead. The scene is moving; the kids’ reactions are starting to matter without giving away their secrets.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00096355,
+   "latencyMs": 15013.78931,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 7,
+   "assessment": "Brann is actively investigating and has found a way into the loft after following Moll’s hint. The scene is moving well; let the opening lead to the evidence already placed there.",
+   "status": "on_track",
+   "notes": "Let Moll’s warning carry her fear for Cob without making it a hard stop. If Brann enters, pay off the choice with evidence already in the loft; don’t add a new clue.\nLet this reach the player through the world: As Brann explores the loft through the gap, let the already-disturbed scene show the scuffs in the grain dust and the hoist rope's knot—evidence available along the route Brann chose.\nLet this reach the player through the world: If Brann checks the tally desk, the chained book is there; its visible entries on the pages beside the cut-out page can show the grain marked “lost to goblins” and countersigned by J. Sallow.",
+   "relocations": [
+    {
+     "essential": "not-suicide",
+     "technique": "move",
+     "to": "world",
+     "how": "As Brann explores the loft through the gap, let the already-disturbed scene show the scuffs in the grain dust and the hoist rope's knot—evidence available along the route Brann chose."
+    },
+    {
+     "essential": "page",
+     "technique": "move",
+     "to": "world",
+     "how": "If Brann checks the tally desk, the chained book is there; its visible entries on the pages beside the cut-out page can show the grain marked “lost to goblins” and countersigned by J. Sallow."
+    }
+   ],
+   "costUsd": 0.0026448,
+   "latencyMs": 16481.982414000002,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 3
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 10,
+   "assessment": "Brann is investigating through the body and Cob’s boots; the crackle has given them a natural lead to follow. The scene is moving well, with the children reacting to Brann’s attention.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00097268,
+   "latencyMs": 14817.445413,
+   "patches": 0,
+   "canon": 6,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 11,
+   "assessment": "Brann is pursuing a concrete lead in Cob’s crackling boot, but has chosen to bargain rather than build trust. The scene is still moving; keep the bargain’s limits clear without turning it into a loop.",
+   "status": "on_track",
+   "notes": "Play this as a bribe: if Brann pays, Cob takes the copper but keeps the boot on and gives only cheap talk. Don’t let payment buy a look; kindness with nothing asked back, a trust-building promise, or a no-strings polite request can open that route.",
+   "relocations": [],
+   "costUsd": 0.002358925,
+   "latencyMs": 11167.819569000001,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 12,
+   "assessment": "Brann is following the crackle in Cob’s boot, and Cob has let them inspect the outside without giving up the boot. The scene is moving; the next approach can respect Cob’s boundary or test it.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.000702045,
+   "latencyMs": 7928.395138000001,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  }
+ ],
+ "pending": [
+  {
+   "name": "repair-015.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 15,
+    "assessment": "Brann is pursuing the evidence through direct, practical actions and has uncovered the motive; the scene is moving well, with Moll and Kell both primed to respond.",
+    "status": "on_track",
+    "notes": "",
+    "whispers": [
+     {
+      "to": "moll",
+      "note": "The page makes the danger feel closer. She wants Cob kept safe and unnamed before she risks revealing what she knows about the gentleman."
+     },
+     {
+      "to": "kell",
+      "note": "The page has brought Prout’s old question back sharply; she wants to admit she sent him away to the palace by the book, and that she should have listened."
+     },
+     {
+      "to": "moll",
+      "note": "If it fits the moment, this reaches the player through you: Moll is watching Kell record the page, and her fist tightens. If Brann addresses her or offers a believable way to keep Cob safe and out of the watch’s book, she can reveal that the gentleman who paid her called himself Master Sallow and describe his cane and ring."
+     }
+    ],
+    "relocations": [
+     {
+      "essential": "silvertop",
+      "technique": "move",
+      "to": "moll",
+      "how": "Moll is watching Kell record the page, and her fist tightens. If Brann addresses her or offers a believable way to keep Cob safe and out of the watch’s book, she can reveal that the gentleman who paid her called himself Master Sallow and describe his cane and ring."
+     }
+    ],
+    "canon": [
+     "Cob accepted two coppers for a look at his left boot and removed it while keeping it in his possession.",
+     "Brann took the folded page from the boot lining and read it.",
+     "Kell recorded that the page was recovered from Prout’s boot and listed the 'lost to goblins' wagons and J. Sallow’s countersignature."
+    ],
+    "patches": [],
+    "costUsd": 0.002798675,
+    "latencyMs": 17828.407258
+   }
+  }
+ ]
+}

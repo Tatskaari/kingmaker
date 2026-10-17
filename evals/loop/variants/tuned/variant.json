@@ -1,0 +1,4 @@
+{
+  "description": "All three together: gm-headspace (the system prompt), soft-directives (the per-turn directives and the ruling prompt) and lean-dressing (the trimmed dressing).",
+  "env": { "KM_LEAN": "world,physics,links" }
+}

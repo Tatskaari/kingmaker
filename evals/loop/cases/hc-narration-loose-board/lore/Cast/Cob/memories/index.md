@@ -1,0 +1,17 @@
+---
+summary: "An index of Cob's saved memories and the context in which they were recorded."
+type: "index"
+visibility: "private"
+readers: ["character:cob"]
+---
+# Memories
+- [What I said about the boots](f14f914f.md) — In Granary Yard, Puddle challenged me about the boots while Kell and Moll were there.
+- [Puddle's silver offer for the boots' hiding place](57effaef.md) — In Granary Yard, while Kell and Moll were present, Puddle knelt before me and offered payment for information about the boots.
+- [Puddle paid me two crowns for where I found the boots](650b1fcd.md) — In Granary Yard, I took Puddle's two crowns and answered his question about the boots' location while Kell and Moll were there.
+- [Moll claimed Prout jumped](220e9a72.md) — In Granary Yard, I was across the yard when Puddle asked Moll on the wall whether she saw who strung up Mister Prout.
+- [Puddle found the granary doors locked](e6961445.md) — I was across the yard when Puddle went to the granary’s back doors, with Kell nearby and Moll on the wall.
+- [Puddle called down about marks on Prout](0fdccf75.md) — In Granary Yard, I was below while Puddle, up on the hoist beside Prout, bellowed his findings; Kell answered and I went quiet.
+- [Prout fell beside me from the hoist](8f1df815.md) — In Granary Yard, I was beside the place Prout fell while Puddle cut the rope above and Kell examined the body.
+- [Moll admitted she lied about Prout jumping](81a9f26c.md) — In Granary Yard, I heard Moll retract her story after Puddle challenged her, then saw her move close to me as the watch stood nearby.
+- [Moll showed the crown and described the man who paid her](904dc0fa.md) — In Granary Yard, beside where Prout had fallen, I heard Moll answer Puddle and saw her open her fist.
+- [I wouldn't show Puddle the crowns](f365dc34.md) — In Granary Yard, after Moll admitted the gentleman paid her to lie and showed his crown, Puddle pressed me about the crowns he'd paid me and whether that gentleman gave me the boots.

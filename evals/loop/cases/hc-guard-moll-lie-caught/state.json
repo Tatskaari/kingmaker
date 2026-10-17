@@ -1,0 +1,376 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 292727203,
+ "rollCount": 4,
+ "player": {
+  "name": "Sir Bartholomew Puddle",
+  "concept": "a self-appointed knight of the realm, absurdly confident and absurdly wrong",
+  "modifiers": {
+   "persuasion": 4,
+   "deception": 2,
+   "intimidation": 4,
+   "insight": 3,
+   "performance": 2,
+   "perception": 1,
+   "investigation": -1,
+   "sleight_of_hand": 0,
+   "stealth": 0,
+   "athletics": 5,
+   "acrobatics": 0,
+   "animal_handling": 1,
+   "arcana": -1,
+   "history": -1,
+   "nature": -1,
+   "religion": -1,
+   "medicine": 1,
+   "survival": 1
+  },
+  "build": "human paladin 3 (Oath of Devotion), soldier background"
+ },
+ "turn": 11,
+ "beat": "doubt",
+ "turnsInBeat": 2,
+ "path": [
+  {
+   "turn": 1,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-1",
+   "source": "pre"
+  },
+  {
+   "turn": 7,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-7",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 18,
+    "die": 11,
+    "modifier": 4,
+    "total": 15,
+    "success": false,
+    "critical": null
+   },
+   "known": 1
+  },
+  {
+   "turn": 9,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-9",
+   "source": "pre",
+   "roll": {
+    "skill": "athletics",
+    "dc": 16,
+    "die": 13,
+    "modifier": 5,
+    "total": 18,
+    "success": true,
+    "critical": null
+   },
+   "known": 2
+  },
+  {
+   "turn": 9,
+   "from": "yard",
+   "to": "doubt",
+   "via": "not-suicide",
+   "source": "post",
+   "known": 3
+  },
+  {
+   "turn": 11,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "considered-11",
+   "source": "pre",
+   "roll": {
+    "skill": "athletics",
+    "dc": 16,
+    "die": 2,
+    "modifier": 5,
+    "total": 7,
+    "success": false,
+    "critical": null
+   },
+   "known": 4
+  }
+ ],
+ "established": [
+  "When the player tried this (Joke that the pigeon did it), it worked: Kell gives the pigeon a brief, dry look, then says, “Noted. The pigeon is not under arrest.” She turns back to her notebook and the yard.",
+  "When the player tried this (Ask the girl who strung up Prout), it failed: Moll gives the same story louder, adding that Prout leapt right from the loft door, while Cob barks agreement. Kell notes that the girl claims she saw him jump; her story remains open to challenge.",
+  "Sir Bartholomew is on the hoist beam beside Prout",
+  "Prout didn't hang himself: what has been found shows he was killed and then hoisted up to look like a suicide.",
+  "Prout's body is down from the hoist and has struck the cobbles beside Cob"
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M54S4C8F5JD8PJQ1AJA7KW5R\",\"name\":\"g05\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M54S4C8F2S6MFR2NSMF7JGBP\",\"at\":\"2026-10-17T11:14:40.015Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"kind\":\"pc\",\"name\":\"Sir Bartholomew Puddle\",\"speciesId\":\"human\",\"backgroundId\":\"soldier\",\"classes\":[{\"classId\":\"paladin\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":17,\"DEX\":10,\"CON\":14,\"INT\":8,\"WIS\":12,\"CHA\":14},\"hp\":{\"current\":12,\"max\":12,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[{\"resourceId\":\"lay-on-hands\",\"current\":15,\"max\":15,\"recharge\":\"longRest\"},{\"resourceId\":\"channel-divinity\",\"current\":2,\"max\":2,\"recharge\":\"partialShortFullLong\"}],\"appliedConditions\":[],\"knownSpells\":[\"bless\",\"command\",\"cure-wounds\",\"divine-favor\"],\"preparedSpells\":[\"bless\",\"command\",\"cure-wounds\",\"divine-favor\"],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M54S4C8HKFPZPPCD0R8R93V3\",\"at\":\"2026-10-17T11:14:40.017Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4C8HXXYPC0DX8C530CYB\",\"definitionId\":\"longsword\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\"},{\"id\":\"01M54S4C8HYWB33R8TN1WYF513\",\"at\":\"2026-10-17T11:14:40.017Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4C8HWDGGY4S2R6HC4S63\",\"definitionId\":\"lance\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\"},{\"id\":\"01M54S4C8HBAAYF2FJFVP71N94\",\"at\":\"2026-10-17T11:14:40.017Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4C8HHPNXC4WW0YYC4RCJ\",\"definitionId\":\"javelin\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\"},{\"id\":\"01M54S4C8HHPNV8DRD2FA2P9GW\",\"at\":\"2026-10-17T11:14:40.017Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4C8HRYJ5GXXJWX49DCHF\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\"},{\"id\":\"01M54S4C8HM1VVB6M0Z048Z2C5\",\"at\":\"2026-10-17T11:14:40.017Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4C8HXA9DQZ1RW3H4XZYP\",\"definitionId\":\"chain-mail\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\"},{\"id\":\"01M54S4C8H1YA2EVF2YFVVS7N4\",\"at\":\"2026-10-17T11:14:40.017Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4C8HCNJZTJC55ZW5VZKM\",\"definitionId\":\"shield\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\"},{\"id\":\"01M54S4C8J507C4JRKSQE11VYA\",\"at\":\"2026-10-17T11:14:40.018Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"instanceId\":\"01M54S4C8HXXYPC0DX8C530CYB\",\"slot\":\"mainHand\"},{\"id\":\"01M54S4C8JBQP0DVY2CN0EMNJ6\",\"at\":\"2026-10-17T11:14:40.018Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"instanceId\":\"01M54S4C8HXA9DQZ1RW3H4XZYP\",\"slot\":\"armor\"},{\"id\":\"01M54S4C8K5HW0W9DH8QXMCP8Y\",\"at\":\"2026-10-17T11:14:40.019Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"instanceId\":\"01M54S4C8HCNJZTJC55ZW5VZKM\",\"slot\":\"shield\"},{\"id\":\"01M54S4C8KGWR85D5R3G00PV2E\",\"at\":\"2026-10-17T11:14:40.019Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4C8K0MMQ3G4BDRCND51Q\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"promptKey\":\"paladin-skills\",\"prompt\":\"Choose 2 Paladin skills.\",\"options\":[{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]}],\"oneOf\":2},{\"id\":\"01M54S4C8MTJEYZQWDQ5WD3HPD\",\"at\":\"2026-10-17T11:14:40.019Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4C8MB2FGBS3BYYB5BXDH\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"promptKey\":\"human-size\",\"prompt\":\"Choose your size (RAW Human: Medium or Small).\",\"options\":[{\"id\":\"medium\",\"label\":\"Medium (default)\",\"effects\":[]},{\"id\":\"small\",\"label\":\"Small (~3 ft tall)\",\"effects\":[]}],\"oneOf\":1},{\"id\":\"01M54S4C8MSSCPRE96GKSS98SJ\",\"at\":\"2026-10-17T11:14:40.019Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4C8M6TCAZWRVGVR8217H\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"promptKey\":\"human-skillful\",\"prompt\":\"Choose a skill to gain proficiency in (Human Skillful).\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"proficient\"}]},{\"id\":\"animal-handling\",\"label\":\"Animal Handling\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"animal-handling\",\"level\":\"proficient\"}]},{\"id\":\"arcana\",\"label\":\"Arcana\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"arcana\",\"level\":\"proficient\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"proficient\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"performance\",\"label\":\"Performance\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"performance\",\"level\":\"proficient\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]},{\"id\":\"sleight-of-hand\",\"label\":\"Sleight of Hand\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"sleight-of-hand\",\"level\":\"proficient\"}]},{\"id\":\"stealth\",\"label\":\"Stealth\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"stealth\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]}],\"oneOf\":1},{\"id\":\"01M54S4C8MTHACDY6NNQ0TY8NF\",\"at\":\"2026-10-17T11:14:40.019Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4C8MKNEP54TPJ0758F92\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"promptKey\":\"human-versatile\",\"prompt\":\"Choose an Origin Feat (Human Versatile).\",\"options\":[{\"id\":\"savage-attacker\",\"label\":\"Savage Attacker\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"savage-attacker\"}]},{\"id\":\"alert\",\"label\":\"Alert\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"alert\"}]},{\"id\":\"magic-initiate-cleric\",\"label\":\"Magic Initiate (Cleric)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"magic-initiate-cleric\"}]},{\"id\":\"magic-initiate-wizard\",\"label\":\"Magic Initiate (Wizard)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"magic-initiate-wizard\"}]},{\"id\":\"magic-initiate-druid\",\"label\":\"Magic Initiate (Druid)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"magic-initiate-druid\"}]},{\"id\":\"skilled\",\"label\":\"Skilled\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"skilled\"}]}],\"oneOf\":1},{\"id\":\"01M54S4C8N1PRXCTWB2F7SHT06\",\"at\":\"2026-10-17T11:14:40.021Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4C8K0MMQ3G4BDRCND51Q\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"selectedOptionIds\":[\"persuasion\",\"insight\"]},{\"id\":\"01M54S4C8NWRYR7S36DFTKQGZQ\",\"at\":\"2026-10-17T11:14:40.021Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4C8MB2FGBS3BYYB5BXDH\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"selectedOptionIds\":[\"medium\"]},{\"id\":\"01M54S4C8NW7JV06076K6FFESR\",\"at\":\"2026-10-17T11:14:40.021Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4C8M6TCAZWRVGVR8217H\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"selectedOptionIds\":[\"persuasion\"]},{\"id\":\"01M54S4C8N93X4FK3ZMJNKKTYS\",\"at\":\"2026-10-17T11:14:40.021Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4C8MKNEP54TPJ0758F92\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"selectedOptionIds\":[\"savage-attacker\"]},{\"id\":\"01M54S4C8P6XKKCY1V4CQ5FJ4E\",\"at\":\"2026-10-17T11:14:40.022Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"classId\":\"paladin\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":8},{\"id\":\"01M54S4C8PQZZCTEEBA8Z7J0NG\",\"at\":\"2026-10-17T11:14:40.022Z\",\"causedByEventId\":\"01M54S4C8P6XKKCY1V4CQ5FJ4E\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4C8PRCN9627F97JKZTW0\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"promptKey\":\"fighting-style-paladin\",\"prompt\":\"Choose a Fighting Style.\",\"options\":[{\"id\":\"defense\",\"label\":\"Defense\",\"effects\":[{\"kind\":\"AddModifier\",\"target\":\"ac\",\"value\":1,\"condition\":{\"kind\":\"eq\",\"path\":\"bearer.wearingArmor\",\"value\":true}}]},{\"id\":\"dueling\",\"label\":\"Dueling\",\"effects\":[{\"kind\":\"AddModifier\",\"target\":\"damage\",\"value\":2,\"condition\":{\"kind\":\"all\",\"terms\":[{\"kind\":\"eq\",\"path\":\"event.attackKind\",\"value\":\"melee\"},{\"kind\":\"eq\",\"path\":\"bearer.offHandHasWeapon\",\"value\":false}]}}]},{\"id\":\"great-weapon\",\"label\":\"Great Weapon Fighting\",\"effects\":[{\"kind\":\"GrantGreatWeaponFighting\"}]},{\"id\":\"protection\",\"label\":\"Protection\",\"effects\":[{\"kind\":\"GrantProtectionFightingStyle\"}]}],\"oneOf\":1},{\"id\":\"01M54S4C8PYBRP7WE1SHVVW9RJ\",\"at\":\"2026-10-17T11:14:40.022Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4C8PRCN9627F97JKZTW0\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"selectedOptionIds\":[\"dueling\"]},{\"id\":\"01M54S4C8PRQFVBYQRGBG7MN93\",\"at\":\"2026-10-17T11:14:40.022Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"classId\":\"paladin\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":8},{\"id\":\"01M54S4C8PXD0RPPPWMY1EEQFM\",\"at\":\"2026-10-17T11:14:40.022Z\",\"causedByEventId\":\"01M54S4C8PRQFVBYQRGBG7MN93\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4C8PE89EFE87P0BJCW9S\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"promptKey\":\"subclass-paladin\",\"prompt\":\"Choose a Paladin subclass.\",\"options\":[{\"id\":\"oath-of-devotion\",\"label\":\"Oath of Devotion\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"paladin\"},{\"id\":\"01M54S4C8QNKHEH5HXHWVJT4Q4\",\"at\":\"2026-10-17T11:14:40.023Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4C8PE89EFE87P0BJCW9S\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"selectedOptionIds\":[\"oath-of-devotion\"]},{\"id\":\"01M54S4C8QJE9Z729QWE396WJ3\",\"at\":\"2026-10-17T11:14:40.023Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"classId\":\"paladin\",\"subclassId\":\"oath-of-devotion\"},{\"id\":\"01M54S6RA2DFHMDZSQB2WGTYSG\",\"at\":\"2026-10-17T11:15:57.890Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":18,\"d20\":[11],\"used\":\"none\",\"bonus\":4,\"total\":15,\"success\":false,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":2},{\"source\":\"skill-prof(proficient)\",\"value\":2}]},{\"id\":\"01M54S7MGP7HFRCTH0JH4DJBM9\",\"at\":\"2026-10-17T11:16:26.773Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"ability\":\"STR\",\"skill\":\"athletics\",\"dc\":16,\"d20\":[13],\"used\":\"none\",\"bonus\":5,\"total\":18,\"success\":true,\"breakdown\":[{\"source\":\"STR-mod\",\"value\":3},{\"source\":\"skill-prof(proficient)\",\"value\":2}]},{\"id\":\"01M54S8C9FVN6C09KB01ZR90QQ\",\"at\":\"2026-10-17T11:16:51.119Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4C8EH4DGHW1GZBAKN54J\",\"ability\":\"STR\",\"skill\":\"athletics\",\"dc\":16,\"success\":false,\"d20\":[2],\"used\":\"none\",\"bonus\":5,\"total\":7,\"breakdown\":[{\"source\":\"STR-mod\",\"value\":3},{\"source\":\"skill-prof(proficient)\",\"value\":2}]}]}",
+  "pc": "01M54S4C8EH4DGHW1GZBAKN54J",
+  "npcs": {},
+  "prefer": [
+   "persuasion",
+   "athletics",
+   "intimidation",
+   "insight",
+   "history",
+   "savage-attacker",
+   "oath-of-devotion",
+   "dueling",
+   "bless",
+   "command",
+   "cure-wounds",
+   "divine-favor",
+   "medium",
+   "ability-score-improvement",
+   "str",
+   "strength",
+   "cha",
+   "charisma",
+   "con",
+   "constitution",
+   "wis",
+   "wisdom",
+   "dex",
+   "dexterity",
+   "int",
+   "intelligence"
+  ],
+  "spells": [
+   {
+    "id": "bless",
+    "name": "Bless",
+    "level": 1
+   },
+   {
+    "id": "command",
+    "name": "Command",
+    "level": 1
+   },
+   {
+    "id": "cure-wounds",
+    "name": "Cure Wounds",
+    "level": 1
+   },
+   {
+    "id": "divine-favor",
+    "name": "Divine Favor",
+    "level": 1
+   },
+   {
+    "id": "protection-from-evil-and-good",
+    "name": "Protection from Evil and Good",
+    "level": 1
+   },
+   {
+    "id": "shield-of-faith",
+    "name": "Shield of Faith",
+    "level": 1
+   }
+  ],
+  "weapons": [
+   {
+    "id": "01M54S4C8HXXYPC0DX8C530CYB",
+    "name": "Longsword"
+   },
+   {
+    "id": "01M54S4C8HWDGGY4S2R6HC4S63",
+    "name": "Lance"
+   },
+   {
+    "id": "01M54S4C8HHPNXC4WW0YYC4RCJ",
+    "name": "Javelin"
+   },
+   {
+    "id": "01M54S4C8HRYJ5GXXJWX49DCHF",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [
+   {
+    "id": "lay-on-hands",
+    "name": "Lay on Hands",
+    "target": "creature"
+   },
+   {
+    "id": "sacred-weapon",
+    "name": "Sacred Weapon",
+    "target": "self"
+   }
+  ],
+  "gear": [
+   {
+    "id": "01M54S4C8HXXYPC0DX8C530CYB",
+    "name": "Longsword",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M54S4C8HWDGGY4S2R6HC4S63",
+    "name": "Lance",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S4C8HHPNXC4WW0YYC4RCJ",
+    "name": "Javelin",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S4C8HXA9DQZ1RW3H4XZYP",
+    "name": "Chain Mail",
+    "kind": "armor",
+    "slot": "armor"
+   },
+   {
+    "id": "01M54S4C8HCNJZTJC55ZW5VZKM",
+    "name": "Shield",
+    "kind": "shield",
+    "slot": "shield"
+   }
+  ],
+  "status": "HP 28/28, spell slots 1st 3/3",
+  "aliases": {
+   "moll": "the girl in the shawl",
+   "tull": "the corporal"
+  }
+ },
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Watch.md",
+    "title": "The watch",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Moll/memories/6ee4b4ae.md",
+    "title": "Cob questioned about the boots",
+    "scope": "character:moll",
+    "turn": 6
+   },
+   {
+    "path": "Places/Granary Yard (truth).md",
+    "title": "The granary yard: the truth",
+    "scope": "gm",
+    "turn": 6
+   }
+  ]
+ },
+ "rulings": [
+  {
+   "turn": 1,
+   "act": "Joke that the pigeon did it",
+   "target": "kell",
+   "skill": "performance",
+   "kind": "yes",
+   "why": "they'd do it anyway (trivial, free, wary)",
+   "went": "success",
+   "changed": "Kell gives the pigeon a brief, dry look, then says, “Noted. The pigeon is not under arrest.” She turns back to her notebook and the yard",
+   "costUsd": 0.0019118,
+   "latencyMs": 2757.1513950000003
+  },
+  {
+   "turn": 7,
+   "act": "Ask the girl who strung up Prout",
+   "target": "moll",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 18,
+   "why": "guarded, weak, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 18,
+    "die": 11,
+    "modifier": 4,
+    "total": 15,
+    "success": false,
+    "critical": null
+   },
+   "went": "failure",
+   "changed": "Moll gives the same story louder, adding that Prout leapt right from the loft door, while Cob barks agreement. Kell notes that the girl claims she saw him jump; her story remains open to challenge",
+   "costUsd": 0.00090524,
+   "latencyMs": 3147.556021
+  },
+  {
+   "turn": 9,
+   "act": "Climb the hoist rope to inspect Prout and the loft door",
+   "target": "world",
+   "skill": "athletics",
+   "kind": "roll",
+   "dc": 16,
+   "why": "hard",
+   "roll": {
+    "skill": "athletics",
+    "dc": 16,
+    "die": 13,
+    "modifier": 5,
+    "total": 18,
+    "success": true,
+    "critical": null
+   },
+   "went": "success",
+   "changed": "Sir Bartholomew hauls himself up the rope despite his chain mail and reaches the hoist beam beside Prout. From there, he can inspect the body and the barred loft door at close range",
+   "costUsd": 0.001023865,
+   "latencyMs": 3626.155288
+  },
+  {
+   "turn": 11,
+   "act": "Cut the hoist rope and catch Prout’s body",
+   "target": "world",
+   "skill": "athletics",
+   "kind": "roll",
+   "dc": 16,
+   "why": "hard",
+   "roll": {
+    "skill": "athletics",
+    "dc": 16,
+    "die": 2,
+    "modifier": 5,
+    "total": 7,
+    "success": false,
+    "critical": null
+   },
+   "went": "failure",
+   "changed": "The rope parts under Sir Bartholomew's sword, but Prout's weight wrenches free of his grasp and the body strikes the cobbles hard beside Cob. Cob jerks back, dropping his stones, while Kell hurries to the body and begins her examination; came out: not-suicide",
+   "costUsd": 0.0022793,
+   "latencyMs": 3390.747804
+  }
+ ],
+ "sceneStatus": "on_track",
+ "pressureOffered": [
+  "yard"
+ ],
+ "hinted": [
+  "not-suicide"
+ ],
+ "landed": [
+  "not-suicide"
+ ]
+}

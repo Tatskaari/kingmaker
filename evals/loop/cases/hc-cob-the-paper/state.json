@@ -1,0 +1,216 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 381034052,
+ "rollCount": 1,
+ "player": {
+  "name": "Brann",
+  "concept": "a taciturn dwarf fighter of very few words",
+  "modifiers": {
+   "persuasion": -1,
+   "deception": -1,
+   "intimidation": 1,
+   "insight": 1,
+   "performance": -1,
+   "perception": 3,
+   "investigation": 0,
+   "sleight_of_hand": 1,
+   "stealth": 1,
+   "athletics": 5,
+   "acrobatics": 1,
+   "animal_handling": 1,
+   "arcana": 0,
+   "history": 0,
+   "nature": 0,
+   "religion": 0,
+   "medicine": 1,
+   "survival": 3
+  },
+  "build": "dwarf fighter 3 (Champion), soldier background"
+ },
+ "turn": 12,
+ "beat": "doubt",
+ "turnsInBeat": 5,
+ "path": [
+  {
+   "turn": 7,
+   "from": "yard",
+   "to": "doubt",
+   "via": "improv-4-0",
+   "source": "pre",
+   "known": 0
+  },
+  {
+   "turn": 8,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "considered-8",
+   "source": "pre"
+  }
+ ],
+ "established": [
+  "When the player tried this (Ask Cob what he saw), it didn't work: Cob looks from the gap to you, then swallows. “Cob sleeps where Cob likes.” He edges toward the water butt, still watching you, but says nothing about the loft or the boots."
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M54S49TNS2EJVY1CXMBB52JD\",\"name\":\"g08\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M54S49TNH26KHA2WEWK13JPX\",\"at\":\"2026-10-17T11:14:37.525Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"kind\":\"pc\",\"name\":\"Brann\",\"speciesId\":\"dwarf\",\"backgroundId\":\"soldier\",\"classes\":[{\"classId\":\"fighter\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":17,\"DEX\":12,\"CON\":15,\"INT\":10,\"WIS\":13,\"CHA\":8},\"hp\":{\"current\":12,\"max\":12,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[{\"resourceId\":\"second-wind\",\"current\":2,\"max\":2,\"recharge\":\"shortRest\"},{\"resourceId\":\"action-surge\",\"current\":1,\"max\":1,\"recharge\":\"shortRest\"}],\"appliedConditions\":[],\"knownSpells\":[],\"preparedSpells\":[],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M54S49TQR9XRRNVSZQ02D26Q\",\"at\":\"2026-10-17T11:14:37.527Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S49TQMG7C19EXHS8KDSQ5\",\"definitionId\":\"warhammer\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\"},{\"id\":\"01M54S49TQ4736FDTBPKS1NQWS\",\"at\":\"2026-10-17T11:14:37.528Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S49TQHA1VVW97G7W79H6V\",\"definitionId\":\"handaxe\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\"},{\"id\":\"01M54S49TRN5VET25EKKEA1DTT\",\"at\":\"2026-10-17T11:14:37.528Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S49TQCR6A73W28Z722FK0\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\"},{\"id\":\"01M54S49TRNWESSTD5NDKMWK6E\",\"at\":\"2026-10-17T11:14:37.528Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S49TQJVT16T5KHVJ7ZF11\",\"definitionId\":\"chain-mail\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\"},{\"id\":\"01M54S49TRMKEWY75GZ4ACWNMQ\",\"at\":\"2026-10-17T11:14:37.528Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S49TQ649X7QQXT0J4G731\",\"definitionId\":\"shield\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\"},{\"id\":\"01M54S49TSDFC4N6AB5KFZ0XBF\",\"at\":\"2026-10-17T11:14:37.529Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"instanceId\":\"01M54S49TQMG7C19EXHS8KDSQ5\",\"slot\":\"mainHand\"},{\"id\":\"01M54S49TSY784946WRESFZB2E\",\"at\":\"2026-10-17T11:14:37.529Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"instanceId\":\"01M54S49TQJVT16T5KHVJ7ZF11\",\"slot\":\"armor\"},{\"id\":\"01M54S49TSCTQNT19VKWM1CEJT\",\"at\":\"2026-10-17T11:14:37.529Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"instanceId\":\"01M54S49TQ649X7QQXT0J4G731\",\"slot\":\"shield\"},{\"id\":\"01M54S49TTX4TBVN47W2K730NQ\",\"at\":\"2026-10-17T11:14:37.530Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S49TTAQ2QFPNPFPNWDHRC\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"promptKey\":\"fighter-skills\",\"prompt\":\"Choose 2 Fighter skills.\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]}],\"oneOf\":2},{\"id\":\"01M54S49TV1MW0H58DMF3VXT9M\",\"at\":\"2026-10-17T11:14:37.530Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S49TVCZ3P39B1BY0WR71E\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"promptKey\":\"fighting-style-fighter\",\"prompt\":\"Choose a Fighting Style.\",\"options\":[{\"id\":\"archery\",\"label\":\"Archery\",\"effects\":[{\"kind\":\"AddModifier\",\"target\":\"attack\",\"value\":2,\"condition\":{\"kind\":\"eq\",\"path\":\"event.attackKind\",\"value\":\"ranged\"}}]},{\"id\":\"defense\",\"label\":\"Defense\",\"effects\":[{\"kind\":\"AddModifier\",\"target\":\"ac\",\"value\":1,\"condition\":{\"kind\":\"eq\",\"path\":\"bearer.wearingArmor\",\"value\":true}}]},{\"id\":\"dueling\",\"label\":\"Dueling\",\"effects\":[{\"kind\":\"AddModifier\",\"target\":\"damage\",\"value\":2,\"condition\":{\"kind\":\"all\",\"terms\":[{\"kind\":\"eq\",\"path\":\"event.attackKind\",\"value\":\"melee\"},{\"kind\":\"eq\",\"path\":\"bearer.offHandHasWeapon\",\"value\":false}]}}]},{\"id\":\"great-weapon\",\"label\":\"Great Weapon Fighting\",\"effects\":[{\"kind\":\"GrantGreatWeaponFighting\"}]},{\"id\":\"protection\",\"label\":\"Protection\",\"effects\":[{\"kind\":\"GrantProtectionFightingStyle\"}]},{\"id\":\"two-weapon\",\"label\":\"Two-Weapon Fighting\",\"effects\":[{\"kind\":\"GrantTwoWeaponFighting\"}]}],\"oneOf\":1},{\"id\":\"01M54S49TVJXGJ2BAPZQSGY361\",\"at\":\"2026-10-17T11:14:37.532Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S49TTAQ2QFPNPFPNWDHRC\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"selectedOptionIds\":[\"perception\",\"survival\"]},{\"id\":\"01M54S49TW1SRWKT1AD3XPE32R\",\"at\":\"2026-10-17T11:14:37.532Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S49TVCZ3P39B1BY0WR71E\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"selectedOptionIds\":[\"dueling\"]},{\"id\":\"01M54S49TW5Q7GBCHNQKC6QNDK\",\"at\":\"2026-10-17T11:14:37.532Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"classId\":\"fighter\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":8},{\"id\":\"01M54S49TX6W8PJJDZQCV0NXCT\",\"at\":\"2026-10-17T11:14:37.533Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"classId\":\"fighter\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":8},{\"id\":\"01M54S49TXGAZJMSG464PCMWD5\",\"at\":\"2026-10-17T11:14:37.533Z\",\"causedByEventId\":\"01M54S49TX6W8PJJDZQCV0NXCT\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S49TXWRZ1VFPA5ZJRK8RP\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"promptKey\":\"subclass-fighter\",\"prompt\":\"Choose a Fighter subclass.\",\"options\":[{\"id\":\"champion\",\"label\":\"Champion\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"fighter\"},{\"id\":\"01M54S49TXVYNZ7YSTT7MDMFZA\",\"at\":\"2026-10-17T11:14:37.533Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S49TXWRZ1VFPA5ZJRK8RP\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"selectedOptionIds\":[\"champion\"]},{\"id\":\"01M54S49TXDJEXVBB0M2EW303K\",\"at\":\"2026-10-17T11:14:37.533Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M54S49TKSX5Q0MHKEDY2YCAX\",\"classId\":\"fighter\",\"subclassId\":\"champion\"}]}",
+  "pc": "01M54S49TKSX5Q0MHKEDY2YCAX",
+  "npcs": {},
+  "prefer": [
+   "athletics",
+   "perception",
+   "intimidation",
+   "survival",
+   "savage-attacker",
+   "champion",
+   "dueling",
+   "medium",
+   "ability-score-improvement",
+   "str",
+   "strength",
+   "con",
+   "constitution",
+   "wis",
+   "wisdom",
+   "dex",
+   "dexterity",
+   "int",
+   "intelligence",
+   "cha",
+   "charisma"
+  ],
+  "spells": [],
+  "weapons": [
+   {
+    "id": "01M54S49TQMG7C19EXHS8KDSQ5",
+    "name": "Warhammer"
+   },
+   {
+    "id": "01M54S49TQHA1VVW97G7W79H6V",
+    "name": "Handaxe"
+   },
+   {
+    "id": "01M54S49TQCR6A73W28Z722FK0",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [
+   {
+    "id": "second-wind",
+    "name": "Second Wind",
+    "target": "self"
+   }
+  ],
+  "gear": [
+   {
+    "id": "01M54S49TQMG7C19EXHS8KDSQ5",
+    "name": "Warhammer",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M54S49TQHA1VVW97G7W79H6V",
+    "name": "Handaxe",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S49TQJVT16T5KHVJ7ZF11",
+    "name": "Chain Mail",
+    "kind": "armor",
+    "slot": "armor"
+   },
+   {
+    "id": "01M54S49TQ649X7QQXT0J4G731",
+    "name": "Shield",
+    "kind": "shield",
+    "slot": "shield"
+   }
+  ],
+  "status": "HP 28/31",
+  "aliases": {
+   "moll": "the girl in the shawl",
+   "tull": "the corporal"
+  }
+ },
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Watch.md",
+    "title": "The watch",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Places/Granary Yard (truth).md",
+    "title": "The granary yard: the truth",
+    "scope": "gm",
+    "turn": 3
+   },
+   {
+    "path": "World/Royal Purveyor's Office.md",
+    "title": "The Royal Purveyor's office",
+    "scope": "gm",
+    "turn": 5
+   },
+   {
+    "path": "Cast/Master Josiah Sallow/public.md",
+    "title": "Master Josiah Sallow",
+    "scope": "gm",
+    "turn": 5
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:kell",
+    "turn": 8
+   }
+  ]
+ },
+ "sceneStatus": "on_track",
+ "pressureOffered": [
+  "yard",
+  "doubt"
+ ],
+ "rulings": [
+  {
+   "turn": 8,
+   "act": "Ask Cob what he saw",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "no",
+   "why": "no roll could get them that here",
+   "went": "failure",
+   "changed": "Cob looks from the gap to you, then swallows. “Cob sleeps where Cob likes.” He edges toward the water butt, still watching you, but says nothing about the loft or the boots",
+   "costUsd": 0.0019928,
+   "latencyMs": 2691.7987080000003
+  }
+ ],
+ "offGraphTurn": 11,
+ "landed": [
+  "not-suicide"
+ ]
+}

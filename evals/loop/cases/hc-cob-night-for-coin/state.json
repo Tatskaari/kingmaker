@@ -1,0 +1,355 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 89184668,
+ "rollCount": 3,
+ "player": {
+  "name": "Corvin Vale",
+  "concept": "a silver-tongued human bard who treats every conversation as a negotiation",
+  "modifiers": {
+   "persuasion": 6,
+   "deception": 4,
+   "intimidation": 3,
+   "insight": 5,
+   "performance": 3,
+   "perception": 2,
+   "investigation": 2,
+   "sleight_of_hand": 5,
+   "stealth": 5,
+   "athletics": 0,
+   "acrobatics": 4,
+   "animal_handling": 2,
+   "arcana": 2,
+   "history": 2,
+   "nature": 1,
+   "religion": 1,
+   "medicine": 2,
+   "survival": 2
+  },
+  "build": "human bard 3 (College of Lore), criminal background"
+ },
+ "turn": 7,
+ "beat": "motive",
+ "turnsInBeat": 2,
+ "path": [
+  {
+   "turn": 5,
+   "from": "yard",
+   "to": "motive",
+   "via": "considered-5",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 20,
+    "modifier": 6,
+    "total": 26,
+    "success": true,
+    "critical": "success"
+   },
+   "known": 0
+  },
+  {
+   "turn": 6,
+   "from": "motive",
+   "to": "motive",
+   "via": "considered-6",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 18,
+    "die": 13,
+    "modifier": 6,
+    "total": 19,
+    "success": true,
+    "critical": null
+   },
+   "known": 3
+  },
+  {
+   "turn": 7,
+   "from": "motive",
+   "to": "motive",
+   "via": "considered-7",
+   "source": "pre"
+  }
+ ],
+ "established": [
+  "Sewn into the lining of Prout's left boot was a page razored from the Royal Granary Roll: a dozen grain wagons for the King's Road this past month marked 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled note beside each of what the same wagon weighed at the river warehouses two days later, and at the foot: 'Not goblins. Who pays the hedge-folk?'",
+  "Cob lets Corvin inspect his left boot; the boot remains Cob's.",
+  "The folded page from the boot is found and read.",
+  "Cob gives Corvin the page in exchange for one silver"
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M54S4MNP7AX297K8TR5FPG8Y\",\"name\":\"g02\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M54S4MNQ77TTY12YZ46H96VV\",\"at\":\"2026-10-17T11:14:48.633Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"kind\":\"pc\",\"name\":\"Corvin Vale\",\"speciesId\":\"human\",\"backgroundId\":\"criminal\",\"classes\":[{\"classId\":\"bard\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":8,\"DEX\":16,\"CON\":14,\"INT\":10,\"WIS\":12,\"CHA\":15},\"hp\":{\"current\":10,\"max\":10,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[{\"resourceId\":\"bardic-inspiration\",\"current\":2,\"max\":2,\"recharge\":\"longRest\"}],\"appliedConditions\":[],\"knownSpells\":[\"vicious-mockery\",\"message\",\"charm-person\",\"comprehend-languages\",\"dissonant-whispers\",\"healing-word\",\"hideous-laughter\",\"suggestion\"],\"preparedSpells\":[\"charm-person\",\"comprehend-languages\",\"dissonant-whispers\",\"healing-word\",\"hideous-laughter\",\"suggestion\"],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M54S4MNWTS7CH70YB36QTQHP\",\"at\":\"2026-10-17T11:14:48.636Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4MNWP82ZH2DKECB42BFN\",\"definitionId\":\"rapier\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\"},{\"id\":\"01M54S4MNWNJXYGMDR4YCJ16BT\",\"at\":\"2026-10-17T11:14:48.636Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4MNWBC62Z52RPV7VJJ1W\",\"definitionId\":\"dagger\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\"},{\"id\":\"01M54S4MNWXEKTPMW6BFK6X0B0\",\"at\":\"2026-10-17T11:14:48.636Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4MNWARX1XDC980W3PBNV\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\"},{\"id\":\"01M54S4MNWN6XYR1SDM17JFJE3\",\"at\":\"2026-10-17T11:14:48.636Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4MNWDWGCH9JX18V83E0H\",\"definitionId\":\"leather-armor\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\"},{\"id\":\"01M54S4MNYVMYQ1WSXT3AVY8JT\",\"at\":\"2026-10-17T11:14:48.638Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"instanceId\":\"01M54S4MNWP82ZH2DKECB42BFN\",\"slot\":\"mainHand\"},{\"id\":\"01M54S4MNYS1GEJFTMYD81GXBA\",\"at\":\"2026-10-17T11:14:48.638Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"instanceId\":\"01M54S4MNWDWGCH9JX18V83E0H\",\"slot\":\"armor\"},{\"id\":\"01M54S4MNYJNDC81SMN5KVHYP8\",\"at\":\"2026-10-17T11:14:48.639Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4MNY3X8X8N2HXSWM15VW\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"promptKey\":\"bard-skills\",\"prompt\":\"Choose 3 Bard skills.\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"proficient\"}]},{\"id\":\"animal-handling\",\"label\":\"Animal Handling\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"animal-handling\",\"level\":\"proficient\"}]},{\"id\":\"arcana\",\"label\":\"Arcana\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"arcana\",\"level\":\"proficient\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"proficient\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"performance\",\"label\":\"Performance\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"performance\",\"level\":\"proficient\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]}],\"oneOf\":3},{\"id\":\"01M54S4MP0EPWQ6PT1J3F809TD\",\"at\":\"2026-10-17T11:14:48.639Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4MP0G51SN8YBCAHK4C3J\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"promptKey\":\"human-size\",\"prompt\":\"Choose your size (RAW Human: Medium or Small).\",\"options\":[{\"id\":\"medium\",\"label\":\"Medium (default)\",\"effects\":[]},{\"id\":\"small\",\"label\":\"Small (~3 ft tall)\",\"effects\":[]}],\"oneOf\":1},{\"id\":\"01M54S4MP02RBSE1W2TMVNTCEZ\",\"at\":\"2026-10-17T11:14:48.639Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4MP0H8DD46QZEZ1EDTHB\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"promptKey\":\"human-skillful\",\"prompt\":\"Choose a skill to gain proficiency in (Human Skillful).\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"proficient\"}]},{\"id\":\"animal-handling\",\"label\":\"Animal Handling\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"animal-handling\",\"level\":\"proficient\"}]},{\"id\":\"arcana\",\"label\":\"Arcana\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"arcana\",\"level\":\"proficient\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"proficient\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"performance\",\"label\":\"Performance\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"performance\",\"level\":\"proficient\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]},{\"id\":\"sleight-of-hand\",\"label\":\"Sleight of Hand\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"sleight-of-hand\",\"level\":\"proficient\"}]},{\"id\":\"stealth\",\"label\":\"Stealth\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"stealth\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]}],\"oneOf\":1},{\"id\":\"01M54S4MP0PRAQDSY9RDPYZW2V\",\"at\":\"2026-10-17T11:14:48.639Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4MP141XNRHGFRH3976PJ\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"promptKey\":\"human-versatile\",\"prompt\":\"Choose an Origin Feat (Human Versatile).\",\"options\":[{\"id\":\"savage-attacker\",\"label\":\"Savage Attacker\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"savage-attacker\"}]},{\"id\":\"alert\",\"label\":\"Alert\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"alert\"}]},{\"id\":\"magic-initiate-cleric\",\"label\":\"Magic Initiate (Cleric)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"magic-initiate-cleric\"}]},{\"id\":\"magic-initiate-wizard\",\"label\":\"Magic Initiate (Wizard)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"magic-initiate-wizard\"}]},{\"id\":\"magic-initiate-druid\",\"label\":\"Magic Initiate (Druid)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"magic-initiate-druid\"}]},{\"id\":\"skilled\",\"label\":\"Skilled\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"skilled\"}]}],\"oneOf\":1},{\"id\":\"01M54S4MP4VYRECAN2Y94MJEV1\",\"at\":\"2026-10-17T11:14:48.644Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4MNY3X8X8N2HXSWM15VW\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"selectedOptionIds\":[\"persuasion\",\"deception\",\"insight\"]},{\"id\":\"01M54S4MP4WVY1Q95FEYHBGRZB\",\"at\":\"2026-10-17T11:14:48.644Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4MP0G51SN8YBCAHK4C3J\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"selectedOptionIds\":[\"medium\"]},{\"id\":\"01M54S4MP4MPQRF8MR5GHN58FM\",\"at\":\"2026-10-17T11:14:48.644Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4MP0H8DD46QZEZ1EDTHB\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"selectedOptionIds\":[\"persuasion\"]},{\"id\":\"01M54S4MP4TZ6R6DJCDQM2DASJ\",\"at\":\"2026-10-17T11:14:48.644Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4MP141XNRHGFRH3976PJ\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"selectedOptionIds\":[\"skilled\"]},{\"id\":\"01M54S4MP4A7BTXGNTFNR24YY5\",\"at\":\"2026-10-17T11:14:48.644Z\",\"causedByEventId\":\"01M54S4MP4TZ6R6DJCDQM2DASJ\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4MP5A0KFHGZQX54Y4JBX\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"promptKey\":\"skilled\",\"prompt\":\"Choose any three combinations of skills or tools to gain proficiency (RAW Skilled: any combination of three).\",\"options\":[{\"id\":\"acrobatics\",\"label\":\"Acrobatics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"acrobatics\",\"level\":\"proficient\"}]},{\"id\":\"animal-handling\",\"label\":\"Animal Handling\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"animal-handling\",\"level\":\"proficient\"}]},{\"id\":\"arcana\",\"label\":\"Arcana\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"arcana\",\"level\":\"proficient\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"proficient\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"insight\",\"label\":\"Insight\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"insight\",\"level\":\"proficient\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"performance\",\"label\":\"Performance\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"performance\",\"level\":\"proficient\"}]},{\"id\":\"persuasion\",\"label\":\"Persuasion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"persuasion\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]},{\"id\":\"sleight-of-hand\",\"label\":\"Sleight of Hand\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"sleight-of-hand\",\"level\":\"proficient\"}]},{\"id\":\"stealth\",\"label\":\"Stealth\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"stealth\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]},{\"id\":\"thieves-tools\",\"label\":\"Thieves' Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"thieves-tools\",\"level\":\"proficient\"}]},{\"id\":\"smiths-tools\",\"label\":\"Smith's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"smiths-tools\",\"level\":\"proficient\"}]},{\"id\":\"herbalism-kit\",\"label\":\"Herbalism Kit\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"herbalism-kit\",\"level\":\"proficient\"}]},{\"id\":\"calligraphers-supplies\",\"label\":\"Calligrapher's Supplies\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"calligraphers-supplies\",\"level\":\"proficient\"}]},{\"id\":\"musical-lute\",\"label\":\"Lute\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-lute\",\"level\":\"proficient\"}]},{\"id\":\"alchemists-supplies\",\"label\":\"Alchemist's Supplies\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"alchemists-supplies\",\"level\":\"proficient\"}]},{\"id\":\"brewers-supplies\",\"label\":\"Brewer's Supplies\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"brewers-supplies\",\"level\":\"proficient\"}]},{\"id\":\"carpenters-tools\",\"label\":\"Carpenter's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"carpenters-tools\",\"level\":\"proficient\"}]},{\"id\":\"cartographers-tools\",\"label\":\"Cartographer's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"cartographers-tools\",\"level\":\"proficient\"}]},{\"id\":\"cobblers-tools\",\"label\":\"Cobbler's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"cobblers-tools\",\"level\":\"proficient\"}]},{\"id\":\"cooks-utensils\",\"label\":\"Cook's Utensils\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"cooks-utensils\",\"level\":\"proficient\"}]},{\"id\":\"glassblowers-tools\",\"label\":\"Glassblower's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"glassblowers-tools\",\"level\":\"proficient\"}]},{\"id\":\"jewelers-tools\",\"label\":\"Jeweler's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"jewelers-tools\",\"level\":\"proficient\"}]},{\"id\":\"leatherworkers-tools\",\"label\":\"Leatherworker's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"leatherworkers-tools\",\"level\":\"proficient\"}]},{\"id\":\"masons-tools\",\"label\":\"Mason's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"masons-tools\",\"level\":\"proficient\"}]},{\"id\":\"painters-supplies\",\"label\":\"Painter's Supplies\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"painters-supplies\",\"level\":\"proficient\"}]},{\"id\":\"potters-tools\",\"label\":\"Potter's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"potters-tools\",\"level\":\"proficient\"}]},{\"id\":\"tinkers-tools\",\"label\":\"Tinker's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"tinkers-tools\",\"level\":\"proficient\"}]},{\"id\":\"weavers-tools\",\"label\":\"Weaver's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"weavers-tools\",\"level\":\"proficient\"}]},{\"id\":\"woodcarvers-tools\",\"label\":\"Woodcarver's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"woodcarvers-tools\",\"level\":\"proficient\"}]},{\"id\":\"disguise-kit\",\"label\":\"Disguise Kit\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"disguise-kit\",\"level\":\"proficient\"}]},{\"id\":\"forgery-kit\",\"label\":\"Forgery Kit\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"forgery-kit\",\"level\":\"proficient\"}]},{\"id\":\"navigators-tools\",\"label\":\"Navigator's Tools\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"navigators-tools\",\"level\":\"proficient\"}]},{\"id\":\"poisoners-kit\",\"label\":\"Poisoner's Kit\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"poisoners-kit\",\"level\":\"proficient\"}]},{\"id\":\"gaming-set-dice\",\"label\":\"Gaming Set, Dice\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"gaming-set-dice\",\"level\":\"proficient\"}]},{\"id\":\"gaming-set-dragonchess\",\"label\":\"Gaming Set, Dragonchess\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"gaming-set-dragonchess\",\"level\":\"proficient\"}]},{\"id\":\"gaming-set-playing-cards\",\"label\":\"Gaming Set, Playing Cards\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"gaming-set-playing-cards\",\"level\":\"proficient\"}]},{\"id\":\"gaming-set-three-dragon-ante\",\"label\":\"Gaming Set, Three-Dragon Ante\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"gaming-set-three-dragon-ante\",\"level\":\"proficient\"}]},{\"id\":\"musical-bagpipes\",\"label\":\"Bagpipes\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-bagpipes\",\"level\":\"proficient\"}]},{\"id\":\"musical-drum\",\"label\":\"Drum\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-drum\",\"level\":\"proficient\"}]},{\"id\":\"musical-dulcimer\",\"label\":\"Dulcimer\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-dulcimer\",\"level\":\"proficient\"}]},{\"id\":\"musical-flute\",\"label\":\"Flute\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-flute\",\"level\":\"proficient\"}]},{\"id\":\"musical-horn\",\"label\":\"Horn\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-horn\",\"level\":\"proficient\"}]},{\"id\":\"musical-lyre\",\"label\":\"Lyre\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-lyre\",\"level\":\"proficient\"}]},{\"id\":\"musical-pan-flute\",\"label\":\"Pan Flute\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-pan-flute\",\"level\":\"proficient\"}]},{\"id\":\"musical-shawm\",\"label\":\"Shawm\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-shawm\",\"level\":\"proficient\"}]},{\"id\":\"musical-viol\",\"label\":\"Viol\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"tool\",\"id\":\"musical-viol\",\"level\":\"proficient\"}]}],\"oneOf\":3},{\"id\":\"01M54S4MP6C1DF12YEAQ56SAYG\",\"at\":\"2026-10-17T11:14:48.646Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4MP5A0KFHGZQX54Y4JBX\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"selectedOptionIds\":[\"persuasion\",\"deception\",\"insight\"]},{\"id\":\"01M54S4MP735S6X1WKQFNAFF2B\",\"at\":\"2026-10-17T11:14:48.647Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"classId\":\"bard\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":7},{\"id\":\"01M54S4MP7GWH5NQ4DYW485X7X\",\"at\":\"2026-10-17T11:14:48.647Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"classId\":\"bard\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":7},{\"id\":\"01M54S4MP7SZSBPR0D0ZJM64PW\",\"at\":\"2026-10-17T11:14:48.647Z\",\"causedByEventId\":\"01M54S4MP7GWH5NQ4DYW485X7X\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4MP8DRE4DCN35YSNC4BY\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"promptKey\":\"subclass-bard\",\"prompt\":\"Choose a Bard subclass.\",\"options\":[{\"id\":\"college-of-lore\",\"label\":\"College of Lore\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"bard\"},{\"id\":\"01M54S4MP8P2AS726PF00B3ZYH\",\"at\":\"2026-10-17T11:14:48.648Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4MP8DRE4DCN35YSNC4BY\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"selectedOptionIds\":[\"college-of-lore\"]},{\"id\":\"01M54S4MP8SBKY6MXBSN03XBYD\",\"at\":\"2026-10-17T11:14:48.649Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"classId\":\"bard\",\"subclassId\":\"college-of-lore\"},{\"id\":\"01M54S6DBKYF157ZYKFYE4FSRV\",\"at\":\"2026-10-17T11:15:46.675Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":15,\"d20\":[20],\"used\":\"none\",\"bonus\":6,\"total\":26,\"success\":true,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":2},{\"source\":\"skill-prof(expertise)\",\"value\":4}]},{\"id\":\"01M54S727DJPP0QX45DG4H4K0A\",\"at\":\"2026-10-17T11:16:08.045Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4MNKYJNYG4SF0MD8VW3N\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":18,\"success\":true,\"d20\":[13],\"used\":\"none\",\"bonus\":6,\"total\":19,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":2},{\"source\":\"skill-prof(expertise)\",\"value\":4}]}]}",
+  "pc": "01M54S4MNKYJNYG4SF0MD8VW3N",
+  "npcs": {},
+  "prefer": [
+   "persuasion",
+   "deception",
+   "insight",
+   "performance",
+   "investigation",
+   "sleight-of-hand",
+   "skilled",
+   "college-of-lore",
+   "vicious-mockery",
+   "message",
+   "charm-person",
+   "comprehend-languages",
+   "dissonant-whispers",
+   "healing-word",
+   "hideous-laughter",
+   "suggestion",
+   "medium",
+   "ability-score-improvement",
+   "cha",
+   "charisma",
+   "dex",
+   "dexterity",
+   "con",
+   "constitution",
+   "wis",
+   "wisdom",
+   "int",
+   "intelligence",
+   "str",
+   "strength"
+  ],
+  "spells": [
+   {
+    "id": "message",
+    "name": "Message",
+    "level": 0
+   },
+   {
+    "id": "vicious-mockery",
+    "name": "Vicious Mockery",
+    "level": 0
+   },
+   {
+    "id": "charm-person",
+    "name": "Charm Person",
+    "level": 1
+   },
+   {
+    "id": "comprehend-languages",
+    "name": "Comprehend Languages",
+    "level": 1
+   },
+   {
+    "id": "dissonant-whispers",
+    "name": "Dissonant Whispers",
+    "level": 1
+   },
+   {
+    "id": "healing-word",
+    "name": "Healing Word",
+    "level": 1
+   },
+   {
+    "id": "hideous-laughter",
+    "name": "Hideous Laughter",
+    "level": 1
+   },
+   {
+    "id": "suggestion",
+    "name": "Suggestion",
+    "level": 2
+   }
+  ],
+  "weapons": [
+   {
+    "id": "01M54S4MNWP82ZH2DKECB42BFN",
+    "name": "Rapier"
+   },
+   {
+    "id": "01M54S4MNWBC62Z52RPV7VJJ1W",
+    "name": "Dagger"
+   },
+   {
+    "id": "01M54S4MNWARX1XDC980W3PBNV",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [
+   {
+    "id": "bardic-inspiration",
+    "name": "Bardic Inspiration",
+    "target": "creature"
+   }
+  ],
+  "gear": [
+   {
+    "id": "01M54S4MNWP82ZH2DKECB42BFN",
+    "name": "Rapier",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M54S4MNWBC62Z52RPV7VJJ1W",
+    "name": "Dagger",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S4MNWDWGCH9JX18V83E0H",
+    "name": "Leather Armor",
+    "kind": "armor",
+    "slot": "armor"
+   }
+  ],
+  "status": "HP 24/24, spell slots 1st 4/4, 2nd 2/2",
+  "aliases": {
+   "moll": "the girl in the shawl",
+   "tull": "the corporal"
+  }
+ },
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Watch.md",
+    "title": "The watch",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Sallow.md",
+    "title": "J. Sallow and the Purveyor's office",
+    "scope": "character:kell",
+    "turn": 6
+   },
+   {
+    "path": "Cast/Cob/knowledge/Silvertop.md",
+    "title": "Silvertop",
+    "scope": "character:cob",
+    "turn": 6
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Gentleman.md",
+    "title": "The gentleman",
+    "scope": "character:moll",
+    "turn": 6
+   },
+   {
+    "path": "World/Royal Purveyor's Office.md",
+    "title": "The Royal Purveyor's office",
+    "scope": "gm",
+    "turn": 6
+   },
+   {
+    "path": "Cast/Master Josiah Sallow/public.md",
+    "title": "Master Josiah Sallow",
+    "scope": "gm",
+    "turn": 6
+   },
+   {
+    "path": "World/Grain Crisis (truth).md",
+    "title": "The Grain Crisis: the truth",
+    "scope": "gm",
+    "turn": 6
+   },
+   {
+    "path": "World/Royal Palace.md",
+    "title": "The Royal Palace",
+    "scope": "gm",
+    "turn": 6
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:kell",
+    "turn": 7
+   }
+  ]
+ },
+ "sceneStatus": "on_track",
+ "pressureOffered": [
+  "yard"
+ ],
+ "rulings": [
+  {
+   "turn": 5,
+   "act": "Press Cob to remove the boot; appeal to Moll for leverage",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 15,
+   "why": "guarded, plausible, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 20,
+    "modifier": 6,
+    "total": 26,
+    "success": true,
+    "critical": "success"
+   },
+   "went": "success",
+   "changed": "Cob scowls, then sits on the water butt and unlaces his left boot, holding it out for you to inspect. The lining holds a folded, stiff page sewn in with small neat stitches; Cob takes the boot straight back; the scene went to What Prout found; came out: page",
+   "costUsd": 0.002055925,
+   "latencyMs": 3351.18686
+  },
+  {
+   "turn": 6,
+   "act": "Ask Kell who Sallow is and where the Purveyor’s office is; offer Cob a silver for the page",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 18,
+   "why": "guarded, weak, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 18,
+    "die": 13,
+    "modifier": 6,
+    "total": 19,
+    "success": true,
+    "critical": null
+   },
+   "went": "success",
+   "changed": "Cob pockets the silver and hands you the folded page, keeping the boot. Kell answers your questions: she knows J. Sallow’s name from Purveyor’s office notices, but doesn’t know which man he is or where his office is",
+   "costUsd": 0.00187055,
+   "latencyMs": 3525.3238329999995
+  },
+  {
+   "turn": 7,
+   "act": "Ask Moll who was in the yard last night",
+   "target": "moll",
+   "skill": "persuasion",
+   "kind": "no",
+   "why": "not like this: it's too far from what would move them (dangerous, weak, hostile)",
+   "went": "failure",
+   "changed": "The girl in the shawl said no, and nothing else changed",
+   "costUsd": 0.00075311,
+   "latencyMs": 3430.186082
+  }
+ ],
+ "landed": [
+  "page"
+ ]
+}

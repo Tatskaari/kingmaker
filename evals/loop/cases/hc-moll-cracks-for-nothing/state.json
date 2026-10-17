@@ -1,0 +1,359 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 428082187,
+ "rollCount": 3,
+ "player": {
+  "name": "Pip Marrowby",
+  "concept": "a gnome tinkerer with a head full of side projects",
+  "modifiers": {
+   "persuasion": 0,
+   "deception": 0,
+   "intimidation": 0,
+   "insight": 1,
+   "performance": 0,
+   "perception": 1,
+   "investigation": 5,
+   "sleight_of_hand": 1,
+   "stealth": 1,
+   "athletics": -1,
+   "acrobatics": 1,
+   "animal_handling": 1,
+   "arcana": 5,
+   "history": 5,
+   "nature": 5,
+   "religion": 3,
+   "medicine": 1,
+   "survival": 1
+  },
+  "build": "gnome wizard 3 (Evoker), sage background"
+ },
+ "turn": 13,
+ "beat": "yard",
+ "turnsInBeat": 13,
+ "path": [
+  {
+   "turn": 3,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-3",
+   "source": "pre"
+  },
+  {
+   "turn": 9,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-9",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 14,
+    "modifier": 0,
+    "total": 14,
+    "success": false,
+    "critical": null
+   },
+   "known": 2
+  },
+  {
+   "turn": 10,
+   "from": "yard",
+   "to": "yard",
+   "via": "rules:cast:mending",
+   "source": "pre"
+  },
+  {
+   "turn": 11,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-11",
+   "source": "pre"
+  },
+  {
+   "turn": 13,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-13",
+   "source": "pre"
+  }
+ ],
+ "established": [
+  "Cob accepts the copper bet and throws a stone.",
+  "The pigeon is startled off the beam and lands in the yard.",
+  "Cob has rejected the offered trade and moved toward the water butt.",
+  "Moll has taught Pip the Saltmere dock-cant curse “Brenn’s barn.”"
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M54S4BJGHDV00B4SKGD469WN\",\"name\":\"g07\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M54S4BJG82GYRT8D2SRBFZC6\",\"at\":\"2026-10-17T11:14:39.312Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M54S4BJF4ABMA6877YJ073WB\",\"kind\":\"pc\",\"name\":\"Pip Marrowby\",\"speciesId\":\"gnome\",\"backgroundId\":\"sage\",\"classes\":[{\"classId\":\"wizard\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":8,\"DEX\":13,\"CON\":15,\"INT\":17,\"WIS\":12,\"CHA\":10},\"hp\":{\"current\":8,\"max\":8,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[{\"resourceId\":\"arcane-recovery-points\",\"current\":2,\"max\":2,\"recharge\":\"longRest\"}],\"appliedConditions\":[],\"knownSpells\":[\"mage-hand\",\"mending\",\"prestidigitation\",\"detect-magic\",\"find-familiar\",\"identify\",\"grease\",\"shield\",\"enlarge-reduce\"],\"preparedSpells\":[\"detect-magic\",\"find-familiar\",\"identify\",\"grease\",\"shield\",\"enlarge-reduce\"],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M54S4BJJVQGRYB6W5QASMZ30\",\"at\":\"2026-10-17T11:14:39.314Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4BJJCFFB2P1V3Y84RWKP\",\"definitionId\":\"quarterstaff\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\"},{\"id\":\"01M54S4BJJ9Z4MBT9RJFCS7PSB\",\"at\":\"2026-10-17T11:14:39.314Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4BJJW24EXSFP07WR8D99\",\"definitionId\":\"dagger\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\"},{\"id\":\"01M54S4BJJAVVM6ASYSS9V0QXA\",\"at\":\"2026-10-17T11:14:39.314Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4BJJYFC2GHAMCZ8Q4JNE\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\"},{\"id\":\"01M54S4BJK6TH1FE9HT4HJKJ7C\",\"at\":\"2026-10-17T11:14:39.314Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"instanceId\":\"01M54S4BJJCFFB2P1V3Y84RWKP\",\"slot\":\"mainHand\"},{\"id\":\"01M54S4BJK6MRVY7WA2321P1A0\",\"at\":\"2026-10-17T11:14:39.315Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4BJKXY71V98F70QV0E7S\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"promptKey\":\"wizard-skills\",\"prompt\":\"Choose 2 Wizard skills.\",\"options\":[{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]}],\"oneOf\":2},{\"id\":\"01M54S4BJMSAGNS8Y58SK12GXD\",\"at\":\"2026-10-17T11:14:39.315Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4BJM2935GMTGFAFPPADB\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"promptKey\":\"gnome-gnomish-lineage\",\"prompt\":\"Choose a Gnomish Lineage.\",\"options\":[{\"id\":\"forest-gnome\",\"label\":\"Forest Gnome (Minor Illusion + Speak with Animals)\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"minor-illusion\",\"preparation\":\"at-will\",\"spellcastingAbility\":\"INT\"},{\"kind\":\"GrantSpell\",\"spellId\":\"speak-with-animals\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"rock-gnome\",\"label\":\"Rock Gnome (Mending + Prestidigitation)\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"mending\",\"preparation\":\"at-will\",\"spellcastingAbility\":\"INT\"},{\"kind\":\"GrantSpell\",\"spellId\":\"prestidigitation\",\"preparation\":\"at-will\",\"spellcastingAbility\":\"INT\"}]}],\"oneOf\":1},{\"id\":\"01M54S4BJMY1HGY0V4NYCDA349\",\"at\":\"2026-10-17T11:14:39.315Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4BJMKZVCXNG18R6000HK\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"promptKey\":\"magic-initiate-wizard-cantrips\",\"prompt\":\"Choose two Wizard cantrips for Magic Initiate (Wizard).\",\"options\":[{\"id\":\"fire-bolt\",\"label\":\"Fire Bolt\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"fire-bolt\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"ray-of-frost\",\"label\":\"Ray of Frost\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"ray-of-frost\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"shocking-grasp\",\"label\":\"Shocking Grasp\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"shocking-grasp\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"light\",\"label\":\"Light\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"light\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"mage-hand\",\"label\":\"Mage Hand\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"mage-hand\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"prestidigitation\",\"label\":\"Prestidigitation\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"prestidigitation\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"acid-splash\",\"label\":\"Acid Splash\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"acid-splash\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"chill-touch\",\"label\":\"Chill Touch\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"chill-touch\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"dancing-lights\",\"label\":\"Dancing Lights\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"dancing-lights\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"mending\",\"label\":\"Mending\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"mending\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"message\",\"label\":\"Message\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"message\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"minor-illusion\",\"label\":\"Minor Illusion\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"minor-illusion\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"poison-spray\",\"label\":\"Poison Spray\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"poison-spray\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"true-strike\",\"label\":\"True Strike\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"true-strike\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"elementalism\",\"label\":\"Elementalism\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"elementalism\",\"preparation\":\"always-prepared\",\"spellcastingAbility\":\"INT\"}]}],\"oneOf\":2},{\"id\":\"01M54S4BJMWAEH42E04C72NTHN\",\"at\":\"2026-10-17T11:14:39.315Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4BJMPRH9ZNGBA52894XK\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"promptKey\":\"magic-initiate-wizard-l1\",\"prompt\":\"Choose one Wizard level-1 spell for Magic Initiate (Wizard).\",\"options\":[{\"id\":\"magic-missile\",\"label\":\"Magic Missile\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"magic-missile\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"detect-magic\",\"label\":\"Detect Magic\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"detect-magic\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"shield\",\"label\":\"Shield\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"shield\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"burning-hands\",\"label\":\"Burning Hands\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"burning-hands\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"thunderwave\",\"label\":\"Thunderwave\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"thunderwave\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"mage-armor\",\"label\":\"Mage Armor\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"mage-armor\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"sleep\",\"label\":\"Sleep\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"sleep\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"identify\",\"label\":\"Identify\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"identify\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"charm-person\",\"label\":\"Charm Person\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"charm-person\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"color-spray\",\"label\":\"Color Spray\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"color-spray\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"ray-of-sickness\",\"label\":\"Ray of Sickness\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"ray-of-sickness\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"hideous-laughter\",\"label\":\"Hideous Laughter\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"hideous-laughter\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"alarm\",\"label\":\"Alarm\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"alarm\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"chromatic-orb\",\"label\":\"Chromatic Orb\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"chromatic-orb\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"comprehend-languages\",\"label\":\"Comprehend Languages\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"comprehend-languages\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"disguise-self\",\"label\":\"Disguise Self\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"disguise-self\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"expeditious-retreat\",\"label\":\"Expeditious Retreat\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"expeditious-retreat\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"false-life\",\"label\":\"False Life\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"false-life\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"feather-fall\",\"label\":\"Feather Fall\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"feather-fall\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"find-familiar\",\"label\":\"Find Familiar\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"find-familiar\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"fog-cloud\",\"label\":\"Fog Cloud\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"fog-cloud\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"grease\",\"label\":\"Grease\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"grease\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"jump\",\"label\":\"Jump\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"jump\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"longstrider\",\"label\":\"Longstrider\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"longstrider\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"protection-from-evil-and-good\",\"label\":\"Protection from Evil and Good\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"protection-from-evil-and-good\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"silent-image\",\"label\":\"Silent Image\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"silent-image\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"unseen-servant\",\"label\":\"Unseen Servant\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"unseen-servant\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"floating-disk\",\"label\":\"Floating Disk\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"floating-disk\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"ice-knife\",\"label\":\"Ice Knife\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"ice-knife\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]},{\"id\":\"illusory-script\",\"label\":\"Illusory Script\",\"effects\":[{\"kind\":\"GrantSpell\",\"spellId\":\"illusory-script\",\"preparation\":\"oncePerLongRest\",\"spellcastingAbility\":\"INT\"}]}],\"oneOf\":1},{\"id\":\"01M54S4BJN25FXACJ65TE2JX74\",\"at\":\"2026-10-17T11:14:39.317Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4BJKXY71V98F70QV0E7S\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"selectedOptionIds\":[\"investigation\",\"nature\"]},{\"id\":\"01M54S4BJNSF62KCWXD2P43HXS\",\"at\":\"2026-10-17T11:14:39.317Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4BJM2935GMTGFAFPPADB\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"selectedOptionIds\":[\"forest-gnome\"]},{\"id\":\"01M54S4BJNDGDA9S6BE5388ZCY\",\"at\":\"2026-10-17T11:14:39.317Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4BJMKZVCXNG18R6000HK\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"selectedOptionIds\":[\"mage-hand\",\"mending\"]},{\"id\":\"01M54S4BJNZVPBRY30T733Q8TH\",\"at\":\"2026-10-17T11:14:39.317Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4BJMPRH9ZNGBA52894XK\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"selectedOptionIds\":[\"detect-magic\"]},{\"id\":\"01M54S4BJNTCH62266BEH3FBK0\",\"at\":\"2026-10-17T11:14:39.317Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"classId\":\"wizard\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":6},{\"id\":\"01M54S4BJPAPSYQHRX1FGV6E3H\",\"at\":\"2026-10-17T11:14:39.317Z\",\"causedByEventId\":\"01M54S4BJNTCH62266BEH3FBK0\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4BJPBQ6ZD2XZGWME289M\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"promptKey\":\"wizard-scholar\",\"prompt\":\"Choose two academic skills to gain proficiency in.\",\"options\":[{\"id\":\"arcana\",\"label\":\"Arcana\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"arcana\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"medicine\",\"label\":\"Medicine\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"medicine\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]}],\"oneOf\":2},{\"id\":\"01M54S4BJPE7MPW63R8FYVHM9V\",\"at\":\"2026-10-17T11:14:39.318Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4BJPBQ6ZD2XZGWME289M\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"selectedOptionIds\":[\"arcana\",\"investigation\"]},{\"id\":\"01M54S4BJP4SQ8J4E901NPVDZ7\",\"at\":\"2026-10-17T11:14:39.318Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"classId\":\"wizard\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":6},{\"id\":\"01M54S4BJP3QR7BVCSC4VTDMYV\",\"at\":\"2026-10-17T11:14:39.318Z\",\"causedByEventId\":\"01M54S4BJP4SQ8J4E901NPVDZ7\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4BJPE9T823GTVPSAESTC\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"promptKey\":\"subclass-wizard\",\"prompt\":\"Choose a Wizard subclass.\",\"options\":[{\"id\":\"evoker\",\"label\":\"Evoker\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"wizard\"},{\"id\":\"01M54S4BJPKWZ1KQ4GS6VXK36M\",\"at\":\"2026-10-17T11:14:39.318Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4BJPE9T823GTVPSAESTC\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"selectedOptionIds\":[\"evoker\"]},{\"id\":\"01M54S4BJPXPZD2B3JA9MTJXX8\",\"at\":\"2026-10-17T11:14:39.318Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"classId\":\"wizard\",\"subclassId\":\"evoker\"},{\"id\":\"01M54S7W7YMFW1DWWBNM317EHE\",\"at\":\"2026-10-17T11:16:34.686Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":15,\"d20\":[14],\"used\":\"none\",\"bonus\":0,\"total\":14,\"success\":false,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":0}]},{\"id\":\"01M54S8FAHNP3J61G8R8B8NVKH\",\"at\":\"2026-10-17T11:16:54.225Z\",\"type\":\"SpellCastDeclared\",\"characterId\":\"01M54S4BJF4ABMA6877YJ073WB\",\"spellId\":\"mending\",\"slotLevel\":0,\"slotSource\":\"standard\",\"targetIds\":[],\"castAsRitual\":false}]}",
+  "pc": "01M54S4BJF4ABMA6877YJ073WB",
+  "npcs": {},
+  "prefer": [
+   "arcana",
+   "investigation",
+   "history",
+   "nature",
+   "perception",
+   "skilled",
+   "evoker",
+   "mage-hand",
+   "mending",
+   "prestidigitation",
+   "detect-magic",
+   "find-familiar",
+   "identify",
+   "grease",
+   "shield",
+   "enlarge-reduce",
+   "medium",
+   "ability-score-improvement",
+   "int",
+   "intelligence",
+   "con",
+   "constitution",
+   "dex",
+   "dexterity",
+   "wis",
+   "wisdom",
+   "cha",
+   "charisma",
+   "str",
+   "strength"
+  ],
+  "spells": [
+   {
+    "id": "mage-hand",
+    "name": "Mage Hand",
+    "level": 0
+   },
+   {
+    "id": "mending",
+    "name": "Mending",
+    "level": 0
+   },
+   {
+    "id": "minor-illusion",
+    "name": "Minor Illusion",
+    "level": 0
+   },
+   {
+    "id": "prestidigitation",
+    "name": "Prestidigitation",
+    "level": 0
+   },
+   {
+    "id": "detect-magic",
+    "name": "Detect Magic",
+    "level": 1
+   },
+   {
+    "id": "find-familiar",
+    "name": "Find Familiar",
+    "level": 1
+   },
+   {
+    "id": "grease",
+    "name": "Grease",
+    "level": 1
+   },
+   {
+    "id": "identify",
+    "name": "Identify",
+    "level": 1
+   },
+   {
+    "id": "shield",
+    "name": "Shield",
+    "level": 1
+   },
+   {
+    "id": "enlarge-reduce",
+    "name": "Enlarge/Reduce",
+    "level": 2
+   }
+  ],
+  "weapons": [
+   {
+    "id": "01M54S4BJJCFFB2P1V3Y84RWKP",
+    "name": "Quarterstaff"
+   },
+   {
+    "id": "01M54S4BJJW24EXSFP07WR8D99",
+    "name": "Dagger"
+   },
+   {
+    "id": "01M54S4BJJYFC2GHAMCZ8Q4JNE",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [],
+  "gear": [
+   {
+    "id": "01M54S4BJJCFFB2P1V3Y84RWKP",
+    "name": "Quarterstaff",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M54S4BJJW24EXSFP07WR8D99",
+    "name": "Dagger",
+    "kind": "weapon"
+   }
+  ],
+  "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
+  "aliases": {
+   "tull": "the corporal"
+  }
+ },
+ "sceneStatus": "on_track",
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 3
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Sallow.md",
+    "title": "J. Sallow and the Purveyor's office",
+    "scope": "character:kell",
+    "turn": 6
+   },
+   {
+    "path": "Cast/Cob/knowledge/Silvertop.md",
+    "title": "Silvertop",
+    "scope": "character:cob",
+    "turn": 6
+   },
+   {
+    "path": "World/Royal Purveyor's Office.md",
+    "title": "The Royal Purveyor's office",
+    "scope": "gm",
+    "turn": 6
+   },
+   {
+    "path": "Cast/Master Josiah Sallow/public.md",
+    "title": "Master Josiah Sallow",
+    "scope": "gm",
+    "turn": 6
+   },
+   {
+    "path": "Places/Granary Yard (truth).md",
+    "title": "The granary yard: the truth",
+    "scope": "gm",
+    "turn": 7
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 8
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 9
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 9
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:kell",
+    "turn": 12
+   },
+   {
+    "path": "Cast/Cob/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:cob",
+    "turn": 13
+   },
+   {
+    "path": "Cast/Moll/memories/bef77e55.md",
+    "title": "Pip notices I went quiet",
+    "scope": "character:moll",
+    "turn": 13
+   },
+   {
+    "path": "Cast/Moll/memories/171e024b.md",
+    "title": "The wheat-ear stamp",
+    "scope": "character:moll",
+    "turn": 13
+   }
+  ]
+ },
+ "rulings": [
+  {
+   "turn": 3,
+   "act": "Bets Cob to hit the pigeon with a stone",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "yes",
+   "why": "it costs them nothing (trivial, strong, hostile)",
+   "went": "success",
+   "changed": "Cob grins at the copper and takes careful aim. His stone clips the beam beside the pigeon; it flaps down into the yard, startled and unharmed, while Prout keeps turning untouched",
+   "costUsd": 0.001978925,
+   "latencyMs": 3070.228912
+  },
+  {
+   "turn": 9,
+   "act": "Trade the clockwork cricket for another way into the loft",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 15,
+   "why": "guarded, plausible, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 14,
+    "modifier": 0,
+    "total": 14,
+    "success": false,
+    "critical": null
+   },
+   "went": "failure",
+   "changed": "Cob laughs at the half-disassembled cricket and says he won't trade for a thing that barely works. He scoops up his stones and moves toward the water butt, keeping his distance while Moll jeers from the wall",
+   "costUsd": 0.0021783,
+   "latencyMs": 3351.709693
+  },
+  {
+   "turn": 11,
+   "act": "Give Cob the cricket and ask for another way in",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "no",
+   "why": "the same push again, with nothing new",
+   "went": "failure",
+   "changed": "the same answer as before: nothing changed",
+   "costUsd": 0.001078335,
+   "latencyMs": 3497.4213760000002
+  },
+  {
+   "turn": 13,
+   "act": "Bargain with Moll for a Saltmere curse",
+   "target": "moll",
+   "skill": "persuasion",
+   "kind": "yes",
+   "why": "it costs them nothing (trivial, plausible, wary)",
+   "went": "success",
+   "changed": "Moll tilts her head, amused despite herself. “Fine. ‘Brenn’s barn,’” she says, giving you the dock-cant curse, then adds, “Now tell me about the bird.”",
+   "costUsd": 0.001077835,
+   "latencyMs": 3391.168469
+  }
+ ],
+ "pressureOffered": [
+  "yard"
+ ],
+ "hinted": [
+  "page",
+  "silvertop"
+ ]
+}

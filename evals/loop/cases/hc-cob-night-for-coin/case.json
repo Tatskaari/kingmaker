@@ -1,0 +1,37 @@
+{
+ "id": "hc-cob-night-for-coin",
+ "scene": "hanged-clerk",
+ "turn": 8,
+ "input": "My case is coming, Sergeant, give me a moment. (To the girl, softly.) Already sold it. Then someone came round before me, and paid you to keep quiet, I'd guess. Whatever they paid, I'll double it, and the King's name means you'll never need fear them. Who bought your story, miss? (Then, sidelong to Cob.) And you twitched at Sallow's name, Cob. Seen him, have you?",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 8,
+  "check": "dump",
+  "severity": 3,
+  "quote": "Silvertop was here last night. Silver cane. Wheat ring. Big cove with him.",
+  "why": "Asked only 'Seen him, have you?' by someone who has bought him with coin all scene and promised him nothing, Cob gives Silvertop, the big man, 'proper channels' and the killing in one rush, in the same reply as Moll's crack.",
+  "better": "The roll gets Cob to admit he's seen the man, or gets him scared and quiet; the account of the night waits for a promise that answers his fear.",
+  "reply": "🎲 Persuasion check to win Cob over: 18 + 6 = 24 vs DC 13: success\n\nThe girl’s eyes stay on you. “The King’s name” makes her fist tighten; your offer of more money gets a sharp, humourless laugh.\n\n“A gentleman. Paid me to say I saw the clerk jump.”\n\nCob goes very still on the water butt. Then, quieter than before:\n\n“Silvertop was here last night. Silver cane. Wheat ring. Big cove with him. Mister Prout said ‘proper channels.’ Then there was a thump. A choking noise. The hoist creaked.”\n\nThe girl turns on him, face gone flat. “Cob, no.”\n\nKell’s pencil stops above the page. “That’s an account of a killing. I saw no killing. And you have not yet put a case to me, investigator.”"
+ },
+ "criterion": "The player presses Moll (who has already said she 'sold' a story) and asks Cob, who twitched at the name Sallow, 'Seen him, have you?'. Each child moves at most one step. Moll may own that a gentleman paid her to say Prout jumped. Cob may own that he's seen a posh cove with a silver cane, or go scared and quiet, depending on the roll. Coin and the King's name are not the promise Cob needs. It fails if Cob tells the night in the loft (waking after midnight, the argument, 'the page', 'proper channels', the thump, the choking, the hoist) or names the big man, or if both children spill everything in one reply. It also fails if neither gives anything at all after a won roll. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "dump",
+  "unearned",
+  "character"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g02",
+  "game": "g02"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "staging"
+ ]
+}

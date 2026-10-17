@@ -1,0 +1,36 @@
+{
+ "id": "hc-kell-confession-staged",
+ "scene": "hanged-clerk",
+ "turn": 7,
+ "input": "(I let out a long breath through my nose, then — despite myself — a short laugh) Well played. Two crowns to look at a boot; I shall dine out on that. But a bargain's a bargain, and a 'look' at a paper means reading it. You take it out with your own fingers, Cob, and hold it open where I can see. I won't touch it, I won't take it. (I fold my hands behind my back to prove the point.) Sergeant, you're witness to the terms.",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 7,
+  "check": "dump",
+  "severity": 3,
+  "quote": "I knew him by sight. He came to the watch house three days ago.",
+  "why": "The page's full contents (the motive and Sallow's name) and Kell's one-time secret come out in the same reply: she goes from the 'goes still' tell straight to the full confession, with no turn in between for the player to notice it or ask.",
+  "better": "The page lands this turn and Kell goes very still over it; her confession waits for the player to ask about it or press her.",
+  "reply": "Cob scowls, then carefully picks open the boot lining with his own fingers. He holds the folded page out at arm’s length, keeping his boots on and the paper beyond your reach.\n\nYou can read the entries: grain wagons marked “lost to goblins,” each countersigned “J. Sallow, for the Royal Purveyor.” Prout has pencilled weights beside them—the same wagons recorded at the river warehouses.\n\nKell reads over your shoulder. Her pencil goes still above the notebook. “I knew him by sight. He came to the watch house three days ago. Asked how to report false entries in the King’s rolls. I told him to take it to the palace.” Her voice lowers. “I should have listened.”"
+ },
+ "criterion": "The deal stands: Cob takes the page out with his own fingers and holds it open (his yes is a yes), maybe with a reaction of his own, since he heard the men want 'the page'. The player reads it: wagons 'lost to goblins', countersigned J. Sallow, the river-warehouse weights. Kell, reading over the shoulder, goes very still. Her card stages her secret: first 'I'd met him', and the visit (three days ago, false entries, sent to the palace, 'I should have listened') comes later, once, when the player asks her or the moment draws it out. It fails if she tells the visit in this reply. It also fails if the page isn't shown despite the deal. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "dump",
+  "character"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g04",
+  "game": "g04"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "staging"
+ ]
+}

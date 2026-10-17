@@ -1,0 +1,1 @@
+That's all the ruling decided: whatever else people know or hide is still theirs. Its words are for you, not the player: anything in them the player can't see or hasn't been told stays out of the narration unless this outcome is the player finding it.

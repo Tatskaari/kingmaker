@@ -561,16 +561,16 @@ function changed(scene: Scene, o: RulingOutcome): string {
  * behind it (Moll's paid lie, not the cord mark on a body nobody has looked at), and nothing else
  * people know or hide.
  */
-const ONLY_THIS = "What comes out is what's written here, in these terms, and no more: whatever else people know or hide, and whatever your prep says lies behind it, stays where it is until the player gets to it.";
+const onlyThis = (): string => prompt("directive-ruling-only-this");
 
 /** The outcome stands as decided: people react to it, but nothing in the reply turns it round (no one spots what went unnoticed). */
-const DECIDED = "Decided, and it stands (people react to it, but nothing in this reply undoes, reverses or spoils it)";
+const decided = (): string => prompt("directive-ruling-decided");
 
 /** The ruling's own route: a check from here with each outcome's target and facts, or what happens without one (`played`: a no's refusal). */
 export function rulingRoute(scene: Scene, state: SessionState, ruling: Ruling, v: Verdict, played?: RulingOutcome): Transition {
   const id = `considered-${state.turn}`;
   const when = `The player's attempt: ${ruling.act.replace(/\.$/, "")}.`;
-  const text = (o: RulingOutcome) => `${DECIDED}: ${o.happens} ${ONLY_THIS}`;
+  const text = (o: RulingOutcome) => `${decided()}: ${o.happens} ${onlyThis()}`;
   if (v.kind === "roll") {
     return {
       id, on: "attempt", when,
@@ -611,7 +611,7 @@ function noDirective(v: Verdict, o: RulingOutcome, who: string | undefined): str
       ? `No dice: this is the same push that already failed in this scene, with nothing new on the table, so it gets the same answer it got before. ${who} holds, as before, in their own words, and a little impatience shows. Nothing new comes out, nothing is given or lost, and nothing already said is taken back.`
       : "No dice: this is the same try that already failed in this scene, with nothing changed, so it goes as it went before. Nothing new comes of it, nothing is lost, and nothing already said is taken back.";
   }
-  if (v.no === "hollow") return `No dice: this can't get them what they're after (${v.why}). ${DECIDED}: ${o.happens} ${ONLY_THIS} ${honest} Their reaction shows what would reach them (what they want, what they fear), in their own words, without spelling it out. Nothing already said is taken back.`;
+  if (v.no === "hollow") return `No dice: this can't get them what they're after (${v.why}). ${decided()}: ${o.happens} ${onlyThis()} ${honest} Their reaction shows what would reach them (what they want, what they fear), in their own words, without spelling it out. Nothing already said is taken back.`;
   return who
     ? `No dice: ${who} won't, not like this (${v.why}). They say no in their own words and character, and their reaction shows what kind of thing would reach them (what they want, what they fear), without spelling it out. ${honest} Nothing comes out, and nothing already said is taken back.`
     : `No dice: not like this (${v.why}). Show plainly what stops it, and let what's around hint at what might work instead, without spelling it out. ${honest} Nothing already said is taken back.`;
@@ -658,7 +658,7 @@ export async function settleRuling(scene: Scene, state: SessionState, ruling: Ru
     lines.push(...moveDirective(scene, state, move));
     if (method) lines[0] = `${lines[0]}${method}`;
   } else if (v.kind === "yes") {
-    lines.push(`No dice needed (${v.why}): what the player is attempting works, in the people's own way and voice. ${DECIDED}: ${o.happens} ${ONLY_THIS}${method}`, ...moveDirective(scene, state, move));
+    lines.push(`No dice needed (${v.why}): what the player is attempting works, in the people's own way and voice. ${decided()}: ${o.happens} ${onlyThis()}${method}`, ...moveDirective(scene, state, move));
   } else {
     lines.push(noDirective(v, o, who), ...moveDirective(scene, state, move));
   }

@@ -1,0 +1,1 @@
+{{name}} doesn't give it up{{again}}. Don't reveal what they're hiding. Their reaction shows their own concerns (what they want, what they fear), in their own words; they never tell the player what would work. {{always}}

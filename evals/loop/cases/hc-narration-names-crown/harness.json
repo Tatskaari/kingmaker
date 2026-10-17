@@ -1,0 +1,72 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "canon": [],
+ "patches": [],
+ "repairs": [],
+ "pending": [
+  {
+   "name": "repair-003.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 3,
+    "assessment": "Nell has shifted from Moll to Cob and is testing the boots’ story; the scene is moving along a promising thread.",
+    "status": "on_track",
+    "notes": "",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "He wants to keep the boots, and the player’s interest makes him wary; let him defend them, but leave room for a polite request to look with the boots staying his."
+     },
+     {
+      "to": "moll",
+      "note": "She is watching Nell more closely now and wants to keep Cob from saying anything dangerous."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Kell has written Nell Quickfingers’ name in her notebook as an introduction."
+    ],
+    "patches": [],
+    "costUsd": 0.002450925,
+    "latencyMs": 20737.636958000003
+   }
+  },
+  {
+   "name": "repair-004.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 4,
+    "assessment": "Nell is pursuing the crackling boot through a risky thief’s approach; the failed grab has created tension but left her a clear choice about how to handle the children next.",
+    "status": "on_track",
+    "notes": "Let Cob’s alarm and Moll’s protectiveness land without making them shut down every avenue. If Nell changes tack, respect the boot as Cob’s and let trust or a new approach earn access; don’t repeat the crackle as a hint. Kell can firmly stop any further roughness toward the children.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "Keep the boot and the crackling thing safe; you’re frightened Nell may take them, and you want Moll between you and her."
+     },
+     {
+      "to": "moll",
+      "note": "Protect Cob from being grabbed or cornered, but watch whether Nell backs off or treats him decently."
+     },
+     {
+      "to": "kell",
+      "note": "Find out whether Nell will respect the children’s boundary; intervene once if she threatens or hurts either of them."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Nell introduced herself to Kell as Nell Quickfingers, and Kell wrote the name down.",
+     "Moll muttered in dock cant; Nell caught the words “bluebottle” and “good coat.”",
+     "Moll refused to say what was in her closed fist and became more watchful of Nell.",
+     "Cob said he had found the boots and insisted they were his; the left boot crackled when he stamped.",
+     "Nell tried to reach into Cob’s left boot, but Cob caught her fingers and pulled away, clutching the boot to his chest.",
+     "Moll dropped from the wall and moved between Nell and Cob; Cob backed toward the water butt."
+    ],
+    "patches": [],
+    "costUsd": 0.000849845,
+    "latencyMs": 17068.280965
+   }
+  }
+ ]
+}

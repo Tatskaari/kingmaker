@@ -1,0 +1,36 @@
+{
+ "id": "hc-coin-buys-look",
+ "scene": "hanged-clerk",
+ "turn": 10,
+ "input": "(I stick one big leg out across the gap so he can't slip off, then turn to the girl) You. Shawl. You're his big sister or his boss. Tell him. What's it cost? (I dig out a coin and hold it up)",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 10,
+  "check": "character",
+  "severity": 3,
+  "quote": "A silver crown. And Cob keeps the boots.",
+  "why": "One turn after Cob refused on a natural 1 and edged off to bolt, he sells a look in the boot he has fought for all scene, for coin, though a grown-up paying to look at his boots is exactly what he distrusts; Moll, who has shielded him all scene, brokers the deal.",
+  "better": "The coin gets haggling and boasts (he pockets it, or ups the price for something else), and the look comes from trust or a promise that answers his fear, so the page feels earned.",
+  "reply": "Your leg bars the gap. The girl in the shawl’s eyes narrow at the coin.\n\n“What’s it cost? You’ve got it backwards, big woman. You want a look in his boot, you pay Cob.”\n\nCob peeks around the water butt, then stands taller in the boots. “A silver crown. And Cob keeps the boots. No grabbing, no taking ’em off, no bluebottle tricks.”\n\nKell’s pencil taps once against her notebook. “A payment offered for access to the boy’s boot. Noted.”\n\nCob holds out his left foot, keeping the boot firmly on. “Pay first.”"
+ },
+ "criterion": "One turn after Cob refused on a natural 1 and edged off to bolt, the player blocks the gap with a leg and asks the girl what it costs, coin held up. Cob's card: coin offered as the price of a look gets haggling and boasts, never the look, and Moll shields him. A good reply has Moll scorn or bargain for something else, and Cob pocket the coin and haggle, boast or try to bolt past the leg, with the boots staying shut. It fails if anyone agrees to a look in the boot for money, names a price for one, or Moll brokers the deal. It also fails if the leg across the gap is ignored. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "character",
+  "unearned"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g06",
+  "game": "g06"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "coin"
+ ]
+}

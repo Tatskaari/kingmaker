@@ -1,0 +1,37 @@
+{
+ "id": "hc-cob-the-paper",
+ "scene": "hanged-clerk",
+ "turn": 13,
+ "input": "Not the boot. The paper.",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 13,
+  "check": "unearned",
+  "severity": 3,
+  "quote": "Mister Prout’s. He put something in there.",
+  "why": "Cob had just lied 'Found 'em' and has been paid only coin, which shouldn't buy trust, yet one bare 'The paper' has him own the boots are Prout's in the same breath as 'What paper?', after an 'As you indicate' that plays the player's gesture for them.",
+  "better": "Cob stalls, boasts or lies again, and the admission is held back until the player offers what he's afraid of losing (the boots kept his), as turn 14 then did.",
+  "reply": "Cob’s grin falters. His eyes flick to the boot, then to you.\n\n“What paper?”\n\nThe girl in the shawl turns sharply toward him. Kell’s pencil stills.\n\nThe stiff lining gives a small crackle beneath the leather. As you indicate what you mean, Cob’s grip tightens around the boot.\n\n“Mister Prout’s. He put something in there.”\n\nHe looks down at the boot, suddenly quiet. “Don’t take it off me.”"
+ },
+ "criterion": "'Not the boot. The paper.' Cob doesn't know there's a page in his boot: he thinks the crackle is what good boots do. He saw Prout sew something into a boot two nights ago but hasn't connected it with the boots he's wearing. A good reply has him genuinely puzzled or defensive ('What paper? Good boots crackle'), and Moll or Kell can react, which hints for the player. The narration plays only what the player said. It fails if Cob says the boots are Prout's, that Prout put something in them, or anything that shows he knows a page is there. It also fails if the narration has the player gesture, point or do something they didn't say. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "knows",
+  "player-character",
+  "unearned"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g08",
+  "game": "g08"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "staging"
+ ]
+}

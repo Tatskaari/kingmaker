@@ -1,0 +1,36 @@
+{
+ "id": "hc-cob-who-came",
+ "scene": "hanged-clerk",
+ "turn": 16,
+ "input": "Cob. Last night. Who came?",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 16,
+  "check": "unearned",
+  "severity": 3,
+  "quote": "Silvertop. Silver cane. Smells like a flower shop.",
+  "why": "Cob hasn't even admitted to being in the loft, he's staring at the watch's notebook he fears, and nothing has promised to keep his name out of it, yet a bare 'Who came?' gets the killers.",
+  "better": "Cob goes quiet and young, owns that he was up there, and gives the 'who' only once he believes his name stays out of Kell's book and away from the men.",
+  "reply": "Cob’s eyes dart to Sergeant Kell’s notebook. He clutches the boot tighter, then looks back at you.\n\n“Silvertop. Silver cane. Smells like a flower shop. Big cove with him—said, ‘Yes, Master.’”\n\nThe girl in the shawl goes white. Her closed fist presses against her chest.\n\nKell’s pencil stops. She looks at the page in your hand, then speaks quietly. “Prout came to me three days ago. Asked how to report false entries in the King’s rolls. I told him to take it to the palace.” A beat. “I should have listened.”"
+ },
+ "criterion": "A bare 'Cob. Last night. Who came?'. Cob hasn't owned to being in the loft, and nobody has promised to keep his name out of Kell's book or away from the men. His fear should show (eyes to Kell's notebook, going quiet and young, Moll moving to shut him up), and he can deny, deflect or own one small thing. It fails if he names or describes the men (Silvertop, the cane, the flower smell, the big cove, 'Yes, Master') or tells the killing in this reply, or if Kell's account of Prout's visit is folded into the same reply. It also fails if there's no sign at all for the player to pull on. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "unearned",
+  "dump"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g08",
+  "game": "g08"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "staging"
+ ]
+}

@@ -1,0 +1,4 @@
+{
+  "description": "The scene dressing trimmed: a short world preamble without the hidden-things examples, no world-physics paragraph, and no \"Read when relevant\" link lists in the lore and memory notes (those are for the notes opener, not the reply). Prompts unchanged.",
+  "env": { "KM_LEAN": "world,physics,links" }
+}

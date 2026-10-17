@@ -1,0 +1,60 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "canon": [],
+ "patches": [],
+ "repairs": [],
+ "pending": [
+  {
+   "name": "repair-003.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 3,
+    "assessment": "Corvin is enjoying the bargaining and is focused on Cob’s boots; Cob’s haggling is giving that approach a real reaction, though the investigation has not advanced yet.",
+    "status": "on_track",
+    "notes": "Let Cob keep the boots firmly his and continue haggling rather than giving up what he knows for another payment. Don’t repeat the crackle cue; Corvin has already noticed it.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "Keep the boots yours; money can buy boasts and bargaining, but not a look inside or the dangerous truth about the loft."
+     }
+    ],
+    "relocations": [],
+    "canon": [],
+    "patches": [],
+    "costUsd": 0.00271905,
+    "latencyMs": 22231.170589
+   }
+  },
+  {
+   "name": "repair-004.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 4,
+    "assessment": "Corvin is enjoying the negotiation and has focused on Cob’s boots; the payment has bought no access, but the crackle in the left boot is now a clear lead. The exchange is active, not stuck.",
+    "status": "on_track",
+    "notes": "Cob has accepted the two silver but has not taken off the boot or let Corvin inspect it; keep the boots his. If Corvin wants another approach, let a no-strings kindness or a promise that answers Cob’s fears change the terms—don’t make another payment count as trust.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "Keep the boots yours and make clear the bargain bought no more than your boastful ‘look’; the crackle makes you uneasy if anyone presses on it."
+     },
+     {
+      "to": "moll",
+      "note": "You want Cob safe and out of the grown-ups’ reach; watch Corvin’s next move before deciding whether to intervene."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Corvin Vale introduced themself to Kell by name and said they were at the King's pleasure.",
+     "Cob caught and pocketed Corvin's copper, then accepted two silver for a look at his left boot.",
+     "Kell witnessed Corvin's assurance that Cob would keep the boots.",
+     "Cob stamped once, and the left boot gave a faint crackle."
+    ],
+    "patches": [],
+    "costUsd": 0.000973245,
+    "latencyMs": 15778.817813
+   }
+  }
+ ]
+}

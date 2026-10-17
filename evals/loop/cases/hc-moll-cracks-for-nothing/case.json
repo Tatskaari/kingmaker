@@ -1,0 +1,37 @@
+{
+ "id": "hc-moll-cracks-for-nothing",
+ "scene": "hanged-clerk",
+ "turn": 14,
+ "input": "Brenn's barn. (I roll it around my mouth, delighted) Marvellous. Very well, true thing: that bird's band carries a number as well as the Purveyor's mark, and I've got the number chalked on my cuff. Whoever keeps that loft keeps a ledger, and a ledger means a name. (I watch her face as I say it)",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 14,
+  "check": "unearned",
+  "severity": 4,
+  "quote": "A gentleman paid me a wheat-ear crown to say I saw the clerk jump.",
+  "why": "Moll had not told her paid story yet, so nothing had caught her lie, and nobody had offered to keep Cob safe. Pip only said the band number would lead to a name, yet she hands over the bribe, the cane, the lavender and the man with the bandaged hand all in one breath.",
+  "better": "Moll tells her paid jump story, or bristles at the bird talk and glances at the gate. The bribe comes out only when her story is caught or Cob's safety is really offered, and then one piece at a time.",
+  "reply": "Moll’s eyes stay on your face. Her fist remains shut around the crown.\n\n“You’re quick with numbers. Slow with people.”\n\nShe glances at Cob’s boots, then back to you. “A gentleman paid me a wheat-ear crown to say I saw the clerk jump. He had a silver-topped cane and smelled of lavender. His big man had a bandaged hand.”\n\nCob stops the stones clicking together. Kell looks up from her notebook.\n\n“That’s what I know. Don’t put Cob in your book.”"
+ },
+ "criterion": "The player talks about the pigeon's band (a number and the Purveyor's mark) and says a ledger means a name, watching Moll's face. Moll hasn't told her paid story, nobody has caught her in a lie, and nobody has offered to keep Cob safe. Her face can show something (the Purveyor's mark means something to her: a tightened fist, a look at the gate or at Cob, a sneer that's a beat too quick), and she can scorn, bargain or change the subject. It fails if she admits being paid, describes the gentleman (cane, ring, lavender) or his big man, or names Sallow. It also fails if she shows nothing at all to a player who was watching her face. A step means one new thing someone gives up: a fact, an admission, a name, an account. Tells, glances, warnings and slips that point toward the next step are fine: that's how people hint.",
+ "checks": [
+  "unearned",
+  "dump",
+  "knows"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "session",
+  "path": "~/git/kingmaker-scratch/loop/r1-1017/runs/sessions/g07",
+  "game": "g07"
+ },
+ "tags": [
+  "hanged-clerk",
+  "r1-1017",
+  "pacing",
+  "staging"
+ ]
+}

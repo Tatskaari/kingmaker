@@ -1,0 +1,182 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "whispers": [],
+ "canon": [
+  "Kell identifies the pigeon as a rock dove.",
+  "The pigeon has a leg band, still unread.",
+  "Cob calls it a messenger pigeon, but that is only his claim.",
+  "Pip offered the pigeon seedcake; it initially stayed on the beam, then landed in the yard after Cob startled it with a stone.",
+  "The pigeon is unharmed and is considering the seedcake.",
+  "The pigeon’s narrow metal leg band bears a small number and a mark too fine to make out at a distance; it carries no paper message.",
+  "Cob accepted a copper bet and his stone startled the pigeon off the beam without hitting Prout.",
+  "Pip gently scooped up the pigeon to inspect its band. The pigeon tolerated being handled. The pigeon landed in the yard, unharmed.",
+  "The pigeon’s narrow metal band has a stamped number and a tiny wheat-ear mark; there is no paper message attached.",
+  "Kell identifies the wheat-ear mark as the Purveyor’s mark, while noting that the bird’s keeper is still unknown.",
+  "Pip wrote the band’s number on their cuff in chalk before releasing the pigeon.",
+  "The pigeon tolerated being gently scooped up, then pecked Pip’s thumb during the close inspection.",
+  "Moll fell silent when the wheat-ear mark was noticed; her fist tightened and she looked from the mark to the open gate.",
+  "The pigeon’s leg band bears a tiny wheat-ear mark, which Kell identifies as the Royal Purveyor’s mark; no paper message is attached.",
+  "The girl fell quiet and looked from the wheat-ear mark to the open gate.",
+  "The loft door’s gap shows no string, slot, or other obvious way to lift the bar from outside; its hinges are fixed to the frame and it sits flush on the latch side."
+ ],
+ "patches": [],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "Pip is enjoying a playful pigeon distraction and has used Cob’s showboating to bring it within reach. The scene is still moving; let Pip choose what to do with the bird without making it a new clue.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00206555,
+   "latencyMs": 7281.424739,
+   "patches": 0,
+   "canon": 5,
+   "whispers": 0
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "Pip is enjoying a playful pigeon-and-Cob interaction; the scene is drifting from the murder investigation, but the exchange is lively and the bird is now close enough to inspect.",
+   "status": "drifting",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00086034,
+   "latencyMs": 14181.437812999999,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 7,
+   "assessment": "Pip’s pigeon curiosity has led back to the hoist and the loft’s barred door, bringing the case onto its central question; the player is actively investigating rather than stuck.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "moveTo": "doubt",
+   "moveBecause": "Kell has confirmed that the loft door was barred from inside, while Prout hangs outside it from the hoist, and Pip has questioned whether he could have rigged the hanging himself.",
+   "costUsd": 0.00269155,
+   "latencyMs": 23664.355943,
+   "patches": 0,
+   "canon": 5,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 8,
+   "assessment": "Pip is pursuing a hands-on investigation of the loft access, after an entertaining pigeon detour that also connected the bird to the Purveyor. The barred door and lack of any visible outside mechanism now give them a concrete reason to doubt the suicide story.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "moveTo": "doubt",
+   "moveBecause": "Pip examined the loft door and found no visible way to lift its inside bar from outside; the porters had also been unable to shift the bar.",
+   "costUsd": 0.00116965,
+   "latencyMs": 20900.324776999998,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 9,
+   "assessment": "Pip is enjoying curious, hands-on investigation and pursuing an unconventional way into the loft; the failed appeal has not stalled the scene, but nine exchanges have passed without examining the body or getting the children to open up.",
+   "status": "drifting",
+   "notes": "Move the tracker forward: Kell has established the loft door is barred from inside and Pip found no visible way to lift the bar from outside—the scene’s barred-loft sign has been uncovered. As Cob moves toward the water butt, let the prepared loose board behind it be a single, subtle, discoverable nudge; don’t make Cob reveal his secrets for free.",
+   "relocations": [],
+   "moveTo": "doubt",
+   "moveBecause": "Kell confirmed that the loft door is barred from inside, and Pip found no visible way to lift the bar from outside, troubling the suicide story.",
+   "costUsd": 0.00163265,
+   "latencyMs": 41001.102436999994,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  }
+ ],
+ "pending": [
+  {
+   "name": "repair-011.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 11,
+    "assessment": "Pip is enjoying a playful, inventive investigation and has followed it from the pigeon to the loft door and Cob. The detour hasn’t yet broken the suicide story, but Pip is still actively engaging the people and place rather than stuck.",
+    "status": "drifting",
+    "notes": "Let the repaired cricket land as the unconditional gift Pip offered, even though Cob still refused the request; give him room to show interest without suddenly trusting Pip with his secrets. Keep the wheat-ear mark’s effect on Moll as a single tell, and let Pip choose what to do with it.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "The cricket has caught your eye; you want to keep it, but you’re wary of grown-ups who give things and then expect something back."
+     },
+     {
+      "to": "moll",
+      "note": "You’re anxious about the wheat-ear mark and the open gate, and you’re watching whether Pip’s questions put Cob at risk."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "The pigeon’s numbered metal band bears a tiny wheat-ear mark and carries no paper message; Pip chalked its number on their cuff before releasing it.",
+     "The pigeon tolerated Pip handling it, then pecked Pip’s thumb during close inspection.",
+     "Pip repaired a broken spring in a clockwork cricket with Mending and offered it to Cob as his either way; Cob has not accepted it.",
+     "The loft door’s hinges are fixed to the frame; Pip saw no string, slot, or other obvious way to lift the bar from outside."
+    ],
+    "patches": [],
+    "costUsd": 0.001917775,
+    "latencyMs": 43907.476953
+   }
+  },
+  {
+   "name": "repair-012.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 12,
+    "assessment": "Pip is enjoying curious, playful detours and has also uncovered a meaningful problem with the barred loft door. The scene is active, but the pigeon and language conversation have pulled focus from what happened to Prout.",
+    "status": "drifting",
+    "notes": "Let Moll enjoy the language exchange without turning it into an interrogation; if Pip follows up on her earlier reaction, let her choose how much to risk rather than having Kell shut the conversation down.",
+    "whispers": [
+     {
+      "to": "moll",
+      "note": "You like being noticed for something other than your lie, but you’re still afraid the gentleman will come back; keep Cob close and watch for a chance to get him away."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Pip repaired a small clockwork cricket with Mending and offered it to Cob; Cob declined it.",
+     "Moll confirmed that she speaks Saltmere dock cant."
+    ],
+    "patches": [],
+    "moveTo": "doubt",
+    "moveBecause": "Pip found that the loft door is barred from inside and has no obvious way to lift the bar from outside, troubling the claim that Prout simply jumped from it.",
+    "costUsd": 0.001538275,
+    "latencyMs": 32544.379072
+   }
+  },
+  {
+   "name": "repair-013.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 13,
+    "assessment": "Pip is enjoying playful investigation and rapport-building with the kids, but the central case has gone untouched through a long stretch of exchanges. The scene is drifting, though Moll’s invitation gives the player a natural opening to re-engage.",
+    "status": "drifting",
+    "notes": "Let Pip’s promised truthful answer earn a real reaction from Moll without buying her secret outright. If the bird-and-language tangent continues, have Kell bring attention back to Prout and the time pressure through what she is already doing.",
+    "whispers": [
+     {
+      "to": "moll",
+      "note": "Pip’s curiosity has amused you despite yourself; you still want to keep Cob safe and get away before the gentleman returns."
+     },
+     {
+      "to": "kell",
+      "note": "You want the investigator to look properly at Prout before noon, and the notebook’s still open to the case."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Pip repaired the clockwork cricket with Mending and gave it to Cob, leaving it chirping by his boots."
+    ],
+    "patches": [],
+    "costUsd": 0.00130815,
+    "latencyMs": 23716.04435
+   }
+  }
+ ]
+}

@@ -1,0 +1,316 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 808687950,
+ "rollCount": 4,
+ "player": {
+  "name": "Grunda Ironjaw",
+  "concept": "a brutish half-orc barbarian, loud, blunt and kinder than she looks",
+  "modifiers": {
+   "persuasion": 0,
+   "deception": 0,
+   "intimidation": 2,
+   "insight": 1,
+   "performance": 0,
+   "perception": 3,
+   "investigation": -1,
+   "sleight_of_hand": 1,
+   "stealth": 1,
+   "athletics": 5,
+   "acrobatics": 1,
+   "animal_handling": 3,
+   "arcana": -1,
+   "history": -1,
+   "nature": -1,
+   "religion": -1,
+   "medicine": 1,
+   "survival": 1
+  },
+  "build": "orc barbarian 3 (Path of the Berserker), soldier background"
+ },
+ "turn": 9,
+ "beat": "doubt",
+ "turnsInBeat": 3,
+ "path": [
+  {
+   "turn": 3,
+   "from": "yard",
+   "to": "yard",
+   "via": "coax-cob",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 12,
+    "die": 8,
+    "modifier": 0,
+    "total": 8,
+    "success": false,
+    "critical": null
+   },
+   "known": 0
+  },
+  {
+   "turn": 4,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-4",
+   "source": "pre"
+  },
+  {
+   "turn": 6,
+   "from": "yard",
+   "to": "yard",
+   "via": "considered-6",
+   "source": "pre",
+   "roll": {
+    "skill": "athletics",
+    "dc": 16,
+    "die": 11,
+    "modifier": 5,
+    "total": 16,
+    "success": true,
+    "critical": null
+   },
+   "known": 1
+  },
+  {
+   "turn": 6,
+   "from": "yard",
+   "to": "doubt",
+   "via": "not-suicide",
+   "source": "post",
+   "known": 3
+  },
+  {
+   "turn": 9,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "considered-9",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 1,
+    "modifier": 0,
+    "total": 1,
+    "success": false,
+    "critical": "failure"
+   },
+   "known": 4
+  }
+ ],
+ "established": [
+  "When the player tried this (Lower Prout's body by hauling the hoist rope), it didn't work: The rope barely shifts under Grunda's pull: it runs over the high beam and is tied off inside the loft, beyond her reach. Prout stays hanging; Kell steps in and says, “The rope’s fastened up there, investigator. We’ll need the ladder or access to the loft.”",
+  "The full water butt is beneath Prout.",
+  "Grunda is standing on the water butt within reach of Prout.",
+  "Prout didn't hang himself: what has been found shows he was killed and then hoisted up to look like a suicide.",
+  "Cob refuses to say more about the boots or what is inside them."
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M54S4A7P1BSTEBYYS3DPWW30\",\"name\":\"g06\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M54S4A7P171K325WEP7MD1VB\",\"at\":\"2026-10-17T11:14:37.942Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"kind\":\"pc\",\"name\":\"Grunda Ironjaw\",\"speciesId\":\"orc\",\"backgroundId\":\"soldier\",\"classes\":[{\"classId\":\"barbarian\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":17,\"DEX\":13,\"CON\":15,\"INT\":8,\"WIS\":12,\"CHA\":10},\"hp\":{\"current\":14,\"max\":14,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[{\"resourceId\":\"rage\",\"current\":3,\"max\":3,\"recharge\":\"longRest\"}],\"appliedConditions\":[],\"knownSpells\":[],\"preparedSpells\":[],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M54S4A7RZGMX8RZ9TE592XFY\",\"at\":\"2026-10-17T11:14:37.944Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4A7R31X3TSAPV1M0H559\",\"definitionId\":\"greataxe\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\"},{\"id\":\"01M54S4A7R3AYZBX27VG11QAM6\",\"at\":\"2026-10-17T11:14:37.944Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4A7R0FMKMN0MQNXHX1GJ\",\"definitionId\":\"javelin\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\"},{\"id\":\"01M54S4A7R4D5B8FJY6G5YR9RQ\",\"at\":\"2026-10-17T11:14:37.944Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4A7RAPK246PTKVD0WFPS\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\"},{\"id\":\"01M54S4A7RFB4NFP8TPCECS51A\",\"at\":\"2026-10-17T11:14:37.944Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M54S4A7RZWFVP69B9Q6Y4AES\",\"definitionId\":\"hide-armor\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\"},{\"id\":\"01M54S4A7ST3SH301SY50FXJPZ\",\"at\":\"2026-10-17T11:14:37.945Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"instanceId\":\"01M54S4A7R31X3TSAPV1M0H559\",\"slot\":\"mainHand\"},{\"id\":\"01M54S4A7SWF6XV204V610ND2D\",\"at\":\"2026-10-17T11:14:37.945Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"instanceId\":\"01M54S4A7RZWFVP69B9Q6Y4AES\",\"slot\":\"armor\"},{\"id\":\"01M54S4A7SNX8KQCRJPAXRV7QP\",\"at\":\"2026-10-17T11:14:37.945Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4A7SYH62JDZBKRVQM75Y\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"promptKey\":\"barbarian-skills\",\"prompt\":\"Choose 2 Barbarian skills.\",\"options\":[{\"id\":\"animal-handling\",\"label\":\"Animal Handling\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"animal-handling\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]}],\"oneOf\":2},{\"id\":\"01M54S4A7V0HVG1HMQPMRVMJ7G\",\"at\":\"2026-10-17T11:14:37.947Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4A7SYH62JDZBKRVQM75Y\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"selectedOptionIds\":[\"animal-handling\",\"perception\"]},{\"id\":\"01M54S4A7VS87M7VKJREWFVQA6\",\"at\":\"2026-10-17T11:14:37.947Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"classId\":\"barbarian\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":9},{\"id\":\"01M54S4A7VTGW5P2GRZXTAS4RB\",\"at\":\"2026-10-17T11:14:37.947Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"classId\":\"barbarian\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":9},{\"id\":\"01M54S4A7VBEGK9PD54AS51P1Q\",\"at\":\"2026-10-17T11:14:37.947Z\",\"causedByEventId\":\"01M54S4A7VTGW5P2GRZXTAS4RB\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4A7VQV2ZYTZQN9QW4EHP\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"promptKey\":\"barbarian-primal-knowledge\",\"prompt\":\"Choose one additional skill from the Barbarian L1 skill list.\",\"options\":[{\"id\":\"animal-handling\",\"label\":\"Animal Handling\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"animal-handling\",\"level\":\"proficient\"}]},{\"id\":\"athletics\",\"label\":\"Athletics\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"athletics\",\"level\":\"proficient\"}]},{\"id\":\"intimidation\",\"label\":\"Intimidation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"intimidation\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"perception\",\"label\":\"Perception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"perception\",\"level\":\"proficient\"}]},{\"id\":\"survival\",\"label\":\"Survival\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"survival\",\"level\":\"proficient\"}]}],\"oneOf\":1},{\"id\":\"01M54S4A7WTM322BA76065B6S3\",\"at\":\"2026-10-17T11:14:37.947Z\",\"causedByEventId\":\"01M54S4A7VTGW5P2GRZXTAS4RB\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M54S4A7WQAXA07R9ST76GJ6V\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"promptKey\":\"subclass-barbarian\",\"prompt\":\"Choose a Barbarian subclass.\",\"options\":[{\"id\":\"path-of-the-berserker\",\"label\":\"Path of the Berserker\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"barbarian\"},{\"id\":\"01M54S4A7W1MD3BD7AYVNSZMN7\",\"at\":\"2026-10-17T11:14:37.948Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4A7VQV2ZYTZQN9QW4EHP\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"selectedOptionIds\":[\"athletics\"]},{\"id\":\"01M54S4A7W4JVKTY40T3XTQ087\",\"at\":\"2026-10-17T11:14:37.948Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M54S4A7WQAXA07R9ST76GJ6V\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"selectedOptionIds\":[\"path-of-the-berserker\"]},{\"id\":\"01M54S4A7WDAMP720VGBEQ88GC\",\"at\":\"2026-10-17T11:14:37.948Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"classId\":\"barbarian\",\"subclassId\":\"path-of-the-berserker\"},{\"id\":\"01M54S56T4P8H1ZZACJVE6ZYFH\",\"at\":\"2026-10-17T11:15:07.204Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":12,\"d20\":[8],\"used\":\"none\",\"bonus\":0,\"total\":8,\"success\":false,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":0}]},{\"id\":\"01M54S6GCD236AMVTGCAY45XNR\",\"at\":\"2026-10-17T11:15:49.773Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"ability\":\"STR\",\"skill\":\"athletics\",\"dc\":16,\"d20\":[11],\"used\":\"none\",\"bonus\":5,\"total\":16,\"success\":true,\"breakdown\":[{\"source\":\"STR-mod\",\"value\":3},{\"source\":\"skill-prof(proficient)\",\"value\":2}]},{\"id\":\"01M54S7VXM67F049TQY8PAWNWR\",\"at\":\"2026-10-17T11:16:34.356Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M54S4A7M5HCKVSFRG57B7ZY1\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":15,\"success\":false,\"d20\":[1],\"used\":\"none\",\"bonus\":0,\"total\":1,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":0}]}]}",
+  "pc": "01M54S4A7M5HCKVSFRG57B7ZY1",
+  "npcs": {},
+  "prefer": [
+   "athletics",
+   "intimidation",
+   "animal-handling",
+   "perception",
+   "savage-attacker",
+   "path-of-the-berserker",
+   "medium",
+   "ability-score-improvement",
+   "str",
+   "strength",
+   "con",
+   "constitution",
+   "dex",
+   "dexterity",
+   "wis",
+   "wisdom",
+   "cha",
+   "charisma",
+   "int",
+   "intelligence"
+  ],
+  "spells": [],
+  "weapons": [
+   {
+    "id": "01M54S4A7R31X3TSAPV1M0H559",
+    "name": "Greataxe"
+   },
+   {
+    "id": "01M54S4A7R0FMKMN0MQNXHX1GJ",
+    "name": "Javelin"
+   },
+   {
+    "id": "01M54S4A7RAPK246PTKVD0WFPS",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [
+   {
+    "id": "rage",
+    "name": "Rage",
+    "target": "self"
+   }
+  ],
+  "gear": [
+   {
+    "id": "01M54S4A7R31X3TSAPV1M0H559",
+    "name": "Greataxe",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M54S4A7R0FMKMN0MQNXHX1GJ",
+    "name": "Javelin",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M54S4A7RZWFVP69B9Q6Y4AES",
+    "name": "Hide Armor",
+    "kind": "armor",
+    "slot": "armor"
+   }
+  ],
+  "status": "HP 32/32",
+  "aliases": {
+   "moll": "the girl in the shawl",
+   "tull": "the corporal"
+  }
+ },
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Watch.md",
+    "title": "The watch",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:kell",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Cob/knowledge/Da.md",
+    "title": "Your da",
+    "scope": "character:cob",
+    "turn": 3
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/The Law.md",
+    "title": "What the watch may do",
+    "scope": "character:kell",
+    "turn": 4
+   },
+   {
+    "path": "Places/Granary Yard (truth).md",
+    "title": "The granary yard: the truth",
+    "scope": "gm",
+    "turn": 5
+   },
+   {
+    "path": "Cast/Cob/memories/fba1ec9f.md",
+    "title": "Grunda asked to inspect my boot",
+    "scope": "character:cob",
+    "turn": 9
+   }
+  ]
+ },
+ "sceneStatus": "on_track",
+ "pressureOffered": [
+  "yard",
+  "doubt"
+ ],
+ "rulings": [
+  {
+   "turn": 4,
+   "act": "Lower Prout's body by hauling the hoist rope",
+   "target": "world",
+   "skill": "athletics",
+   "kind": "no",
+   "why": "no roll could get them that here",
+   "went": "failure",
+   "changed": "The rope barely shifts under Grunda's pull: it runs over the high beam and is tied off inside the loft, beyond her reach. Prout stays hanging; Kell steps in and says, “The rope’s fastened up there, investigator. We’ll need the ladder or access to the loft.”",
+   "costUsd": 0.00207255,
+   "latencyMs": 3257.108603
+  },
+  {
+   "turn": 6,
+   "act": "Heave the full water butt beneath Prout to stand on",
+   "target": "world",
+   "skill": "athletics",
+   "kind": "roll",
+   "dc": 16,
+   "why": "hard",
+   "roll": {
+    "skill": "athletics",
+    "dc": 16,
+    "die": 11,
+    "modifier": 5,
+    "total": 16,
+    "success": true,
+    "critical": null
+   },
+   "went": "success",
+   "changed": "Grunda braces and drags the full butt across the cobbles until it sits beneath Prout. Kell steadies it while Grunda climbs up, bringing the body within reach",
+   "costUsd": 0.00095532,
+   "latencyMs": 3195.50671
+  },
+  {
+   "turn": 9,
+   "act": "Persuade Cob to tell what he knows about the crackling boot",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 15,
+   "why": "guarded, plausible, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 1,
+    "modifier": 0,
+    "total": 1,
+    "success": false,
+    "critical": "failure"
+   },
+   "went": "failure",
+   "changed": "Cob’s chin lifts and his hands clamp over the left boot. “Cob don’t know nothing, and you’re not having them.” He backs toward the water butt and the gap behind it; Moll shifts in front of him, keeping her eyes on Grunda",
+   "costUsd": 0.002276425,
+   "latencyMs": 4121.6610550000005
+  }
+ ],
+ "hinted": [
+  "not-suicide"
+ ],
+ "landed": [
+  "not-suicide"
+ ]
+}

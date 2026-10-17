@@ -1,0 +1,71 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "whispers": [],
+ "canon": [
+  "A stone Cob threw struck the hoist hook with a sharp clang, and the pigeon flew off.",
+  "Cob's next stone struck the cobbles short of Prout.",
+  "Cob took the silver crown Aurelian offered.",
+  "Kell noted that Prout wore stockings, not boots. Aurelian introduced himself to Kell as Aurelian Thorne."
+ ],
+ "patches": [],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 2,
+   "assessment": "Aurelian has noticed the stockinged feet and the crackle in Cob’s boot, then tried to buy the boots and their contents. That’s a live approach, but Cob’s fear of losing the first good thing he owns should keep the offer at haggling rather than reveal the page.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.002383675,
+   "latencyMs": 13364.099136,
+   "patches": 0,
+   "canon": 2,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "The player is pursuing the crackling boot and testing Moll’s story, enjoying a sharp, deductive exchange. The bribe has earned Cob’s coin but not access; Moll’s question leaves a clear opening to press her.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.000786755,
+   "latencyMs": 11677.804728000001,
+   "patches": 0,
+   "canon": 2,
+   "whispers": 2
+  }
+ ],
+ "pending": [
+  {
+   "name": "repair-006.json",
+   "result": {
+    "sceneId": "hanged-clerk",
+    "turn": 6,
+    "assessment": "Aurelian has broken the suicide story and is now trying to get at the evidence in Cob’s boot by bargaining and warning him. The bribe has bought Cob’s attention, not trust; the scene is still moving, but don’t let the repeated “look” exchange become a loop.",
+    "status": "on_track",
+    "notes": "Cob has taken the second crown but has not shown or opened the boot; his “you’ve had your look” is a boast, not access. Let the player choose a new approach: a genuine kindness or a promise that addresses Cob’s fear can earn the look, while the loft and Moll remain live avenues.",
+    "whispers": [
+     {
+      "to": "cob",
+      "note": "Keep the boots and the hidden thing safe; the warning about the killer has frightened you, but a grown-up paying to look still feels dangerous."
+     },
+     {
+      "to": "moll",
+      "note": "You want to get Cob away before the gentleman returns, and you’re watching to see whether Aurelian will keep pushing him."
+     }
+    ],
+    "relocations": [],
+    "canon": [
+     "Aurelian examined Prout’s body and found a low, level second cord mark, swelling at the back of the skull, and clean palms; the noose did not kill him, and someone struck and strangled him before hoisting him.",
+     "Kell recorded the body findings and accepted that Prout was murdered, though no killer has been named.",
+     "Cob took the second silver crown but kept his left boot on and did not let Aurelian inspect it; Kell noted the payment and the terms Cob stated."
+    ],
+    "patches": [],
+    "costUsd": 0.002602675,
+    "latencyMs": 14424.441586
+   }
+  }
+ ]
+}

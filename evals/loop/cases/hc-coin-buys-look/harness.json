@@ -1,0 +1,104 @@
+{
+ "notes": null,
+ "notesTurn": null,
+ "whispers": [],
+ "canon": [
+  "Grunda gave her name and said the King sent her.",
+  "Grunda took a stone from Cob before he could throw it; she did not hurt him.",
+  "Cob stamped once and the left boot crackled.",
+  "Cob refused Grunda's request to look in the boot and backed toward the water butt.",
+  "Moll dropped from the wall and stood between Grunda and Cob, telling her to keep her hands off his boots.",
+  "Kell recorded Grunda's request and Cob's refusal.",
+  "Grunda took a stone from Cob before he could throw it; Cob still has other stones.",
+  "Cob claims the oversized boots are his father's and says he found them.",
+  "The left boot crackles when Cob stamps.",
+  "Moll dropped down from the wall and stood between Grunda and Cob when Grunda asked to inspect the boot.",
+  "Kell recorded Grunda's name and the disputed boots, then recorded her request to inspect the boot and Cob's refusal.",
+  "Grunda's attempt to haul Prout down barely moved the rope; it runs over the beam and is fastened somewhere inside the loft.",
+  "Kell addressed Grunda as the King's investigator and said they would need a ladder or access to the loft.",
+  "A pigeon was perched on the hoist beam.",
+  "A stone struck the hoist hook.",
+  "Dragging the water butt sloshed water over its rim.",
+  "Kell steadied the water butt while Grunda climbed onto it.",
+  "Grunda dragged the full water butt beneath Prout and climbed up within reach; Kell steadied it.",
+  "Prout has a slanting rope mark and a separate level line around his throat; Grunda identified the level line as strangulation before he was hoisted.",
+  "Kell agreed to sign Prout in as a murder, but will not write a name without evidence."
+ ],
+ "patches": [
+  {
+   "turn": 4,
+   "transition": {
+    "beat": "yard",
+    "transition": {
+     "id": "improv-4-0",
+     "when": "Grunda searches behind the water butt for another way into the loft.",
+     "on": "attempt",
+     "check": {
+      "skill": "investigation",
+      "dc": 12,
+      "reason": "to find a way into the loft and spot signs of what happened there",
+      "success": "She finds the loose board behind the water butt and squeezes into the loft. The smashed lantern, spilled ink, heel-scuffs leading from the tally desk to the barred door, and the hoist rope's docker's knot show a struggle and a staged hanging.",
+      "failure": "She finds no way in behind the water butt.",
+      "onSuccess": "doubt"
+     }
+    }
+   },
+   "why": "The prepared loose board offers a way into the loft without requiring the locked yard doors, a ladder, or the warden's key; its prepared signs can break the suicide story."
+  }
+ ],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "Grunda is pursuing the crackling boot with a gentle approach, and the failed check has made Cob defensive without shutting the scene down. The children are reacting actively; give her room to change tack rather than repeat the same ask.",
+   "status": "on_track",
+   "notes": "Cob has refused this look; don't make him surrender the boot or repeat the same check. A kindness with nothing asked back, or a promise that truly answers his fear, can open a different path. Keep his name and the boot safe unless Grunda earns his trust.",
+   "relocations": [],
+   "costUsd": 0.0021903,
+   "latencyMs": 10089.453930000001,
+   "patches": 0,
+   "canon": 6,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "Grunda is trying to treat the body respectfully and has shifted toward investigating it after the boy refused her request. The failed attempt has revealed a real access problem, but play is still moving and the children remain engaged.",
+   "status": "on_track",
+   "notes": "Don’t repeat the ladder obstacle as a dead end; let Grunda choose another avenue, and keep the children responsive without making them give up secrets for free.",
+   "relocations": [],
+   "costUsd": 0.001517385,
+   "latencyMs": 27280.573589,
+   "patches": 1,
+   "canon": 7,
+   "whispers": 0
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 6,
+   "assessment": "Grunda is improvising practical ways to reach the body and treating the children gently despite Cob’s refusal. The scene is moving well: she’s now close enough to inspect the body, and the clues already shown have established that this was no suicide.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.002659425,
+   "latencyMs": 13464.244337,
+   "patches": 0,
+   "canon": 4,
+   "whispers": 1
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 7,
+   "assessment": "Grunda found a physical sign of murder and Kell has accepted it, so the scene has moved cleanly into the investigation. The player is enjoying practical, forceful problem-solving and is actively pursuing the truth.",
+   "status": "on_track",
+   "notes": "",
+   "relocations": [],
+   "costUsd": 0.00255455,
+   "latencyMs": 14139.441194,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 2
+  }
+ ],
+ "pending": []
+}

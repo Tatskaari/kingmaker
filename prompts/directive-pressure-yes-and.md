@@ -1,0 +1,1 @@
+The player pressed {{name}}, and the dice favour them handsomely ({{roll}}). {{name}} gives up what fits the question, and a little more than asked: a name, a detail, the next thing they know.{{remembers}} What they're hiding: {{secret}}
