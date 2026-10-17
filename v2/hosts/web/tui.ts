@@ -1,7 +1,38 @@
-// Copied from the prototype's src/web/static/plugins.ts at 44c6d4a: openTuiFonts and virtualModules, whole, for the page's build (build.ts: the JS OpenTUI's core.ts registers the fonts from virtual:opentui-fonts); importMeta isn't needed (nothing in v2 finds its files from import.meta in the browser: its hosts hand them in), nor are replaceModules and stubModules (boardgame.io's debug panel is the prototype's).
+// openTuiFonts and virtualModules are copied from the prototype's src/web/static/plugins.ts at 44c6d4a, whole; the aliases are its src/web/tui/compare/run.ts's (:40-46), pointed at v2's copy of the stand-in.
 import { readdirSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import type { Plugin } from "esbuild";
+
+/**
+ * Where web/tui stands in for OpenTUI in a bundle (browser-design §5): the page's client worker, and
+ * the screen check run on the stand-in (hosts/web/screens.ts). The client imports @opentui/core and
+ * @opentui/react, whose renderer is native Zig, so a bundle points them at web/tui, and OpenTUI's JSX
+ * runtime at React's own. React, its reconciler and the scheduler come from v2/node_modules, where
+ * web/tui finds them as the client does (web/tui/imports.test.ts): one React in the bundle. And
+ * web/tui/core.ts registers OpenTUI's ASCII fonts (the title's block letters) from a module the
+ * bundle makes, read out of the installed @opentui/core.
+ *
+ *   build({ absWorkingDir: v2, alias: tuiAliases(v2), plugins: [tuiFonts(v2)], jsx: "automatic", jsxImportSource: "@opentui/react", … })
+ *
+ * An alias's target is found from the working directory, so the bundle is made from v2 (absWorkingDir).
+ */
+
+/** esbuild's aliases for a bundle of the client on the stand-in, from v2's folder. */
+export function tuiAliases(v2: string): Record<string, string> {
+  const tui = join(v2, "web", "tui");
+  return {
+    "@opentui/core": join(tui, "core.ts"),
+    "@opentui/react/test-utils": join(tui, "testing.ts"),
+    "@opentui/react/jsx-runtime": "react/jsx-runtime",
+    "@opentui/react/jsx-dev-runtime": "react/jsx-dev-runtime",
+    "@opentui/react": join(tui, "react.ts"),
+  };
+}
+
+/** The module web/tui/core.ts registers OpenTUI's fonts from (virtual:opentui-fonts), read out of v2's @opentui/core. */
+export function tuiFonts(v2: string): Plugin {
+  return virtualModules({ "virtual:opentui-fonts": () => `export default ${JSON.stringify(openTuiFonts(v2))};` });
+}
 
 /**
  * OpenTUI's ASCII fonts (cfonts' block letters, which the title and the End are drawn in), read

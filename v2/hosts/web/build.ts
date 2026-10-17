@@ -7,8 +7,8 @@ import { gzipSync } from "node:zlib";
 import { build } from "esbuild";
 import { fontFaceCss, fontList, webFonts } from "../../web/fonts/fonts.ts";
 import { readContent } from "./content.ts";
-import { openTuiFonts, virtualModules } from "./plugins.ts";
 import { keyNeedles, preloadOf, siteProblems, stampedPage, stampedScript, stampOf, writeSite, type Site } from "./site.ts";
+import { tuiAliases, tuiFonts } from "./tui.ts";
 
 /**
  * The page-only build (browser-design §5, npm run build:web): v2 in the browser, with no server, in
@@ -21,8 +21,9 @@ import { keyNeedles, preloadOf, siteProblems, stampedPage, stampedScript, stampO
  *   content.json                                    the campaign, the prompts and the fake model, from an allowlist (content.ts)
  *
  * The workers are taken by path, so the real ones drop in for the stubs. What they ask of OpenTUI is
- * the JS stand-in's (web/tui), with React from v2's node_modules (one React, or the screens die on
- * their first hook); what they still ask of Node is web/node's stand-in for it, each file there
+ * the JS stand-in's (web/tui, as tui.ts points a bundle at it, with OpenTUI's ASCII fonts), with React
+ * from v2's node_modules (one React, or the screens die on their first hook); what they still ask of
+ * Node is web/node's stand-in for it, each file there
  * standing for the module its name says ("fs-promises.ts" for node:fs/promises), or the build fails.
  * The site is put together in memory and held to site.ts's rules (the stamp, the preload list, the
  * CSP, relative URLs, the allowlist, and nothing like an OpenRouter key: the dev key is read from
@@ -78,7 +79,7 @@ async function bundleWorkers(out: string): Promise<Site> {
     jsxImportSource: "@opentui/react",
     alias: aliases(),
     define: { "process.env.NODE_ENV": '"production"' },
-    plugins: [virtualModules({ "virtual:opentui-fonts": () => `export default ${JSON.stringify(openTuiFonts(V2))};` })],
+    plugins: [tuiFonts(V2)],
     write: false,
     logLevel: "warning",
   });
@@ -86,16 +87,11 @@ async function bundleWorkers(out: string): Promise<Site> {
 }
 
 /**
- * OpenTUI as the JS stand-in (web/tui), as the prototype's static build aliases it; React,
- * react-reconciler and scheduler from v2's node_modules; and each node: module web/node stands in for.
+ * OpenTUI as the JS stand-in (web/tui: tui.ts), React, react-reconciler and scheduler from v2's
+ * node_modules by name (one React), and each node: module web/node stands in for.
  */
 function aliases(): Record<string, string> {
-  const alias: Record<string, string> = {
-    "@opentui/core": join(V2, "web", "tui", "core.ts"),
-    "@opentui/react/jsx-runtime": "react/jsx-runtime",
-    "@opentui/react/jsx-dev-runtime": "react/jsx-dev-runtime",
-    "@opentui/react": join(V2, "web", "tui", "react.ts"),
-  };
+  const alias = tuiAliases(V2);
   for (const name of ["react", "react-reconciler", "scheduler"]) alias[name] = join(V2, "node_modules", name);
   for (const [name, file] of nodeStandIns(join(V2, "web", "node"))) {
     alias[name] = file;
