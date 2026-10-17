@@ -446,10 +446,10 @@ departs from the plan, and how it measures.
 | | |
 |---|---|
 | The site | 26 files, 5.52 MB, 1.47 MB gzipped: client-worker.js 820 KB, server-worker.js 527 KB, the engine's chunk 1.17 MB, the pack 630 KB, the spells 297 KB, content.json 1.28 MB (the campaign's 261 files, 23 prompts, the fake) |
-| To the title | 428 ms on a first visit, 833 ms after a reload, served locally (`web:check`, on a busy machine) |
+| To the title | 421 to 428 ms on a first visit, 426 to 833 ms after a reload, served locally (two runs of `web:check`, on a busy machine) |
 | `npm run check` | 870 tests, screens PASS 655 |
 | `npm run web:screens` | PASS 655 |
-| `npm run web:check` | PASS, 78 checks, about 40 s |
+| `npm run web:check` | PASS, 78 checks, about 40 s (77 before the check on the fake GM's address was added) |
 | The contract test | passes (in `npm test`) |
 | `npm run e2e` (SpacetimeDB, once) | PASS, every step (1 to 35), 418 s |
 | The repo root | `npm run typecheck` clean, `npm test` 859/859, `npm run build:web` builds |
