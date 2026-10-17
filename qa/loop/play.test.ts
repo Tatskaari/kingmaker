@@ -71,7 +71,7 @@ test("start: a character made from the persona's sentence, the lead walked to, a
 
   assert.match((await say(config, "r1", "g01", "And the boots?", deps)).text, /\(That was your last turn: the round's limit is 2\. Write your notes now\.\)$/);
   const over = await say(config, "r1", "g01", "One more?", deps);
-  assert.deepEqual(over, { code: 1, text: "That was your last turn (the round's limit is 2). Write your notes now." });
+  assert.deepEqual(over, { code: 0, text: "That was your last turn (the round's limit is 2). Write your notes now." }, "the game's answer, not a failure to try again");
 
   const text = (await transcript(config, "r1", "g01", deps)).text;
   assert.match(text, /^## Turn 0 \(the opening\)\n\n/);
@@ -87,7 +87,7 @@ test("say: a line that ends the scene says so, notes the ending, and no line is 
   const ended = await say(config, "r1", "g01", "Sergeant, that's a cord mark. Write him down as murdered, persons unknown.", deps);
   assert.match(ended.text, /— Scene ends: Murder by persons unknown —\n\n— The scene is over \(Murder by persons unknown\)\. — Write your notes now\.$/);
   assert.deepEqual(readRecord(recordPath(config, "r1", "g01"))!.ended, { turn: 1, title: "Murder by persons unknown" });
-  assert.deepEqual(await say(config, "r1", "g01", "And now?", deps), { code: 1, text: "— The scene is over (Murder by persons unknown). — Write your notes now." });
+  assert.deepEqual(await say(config, "r1", "g01", "And now?", deps), { code: 0, text: "— The scene is over (Murder by persons unknown). — Write your notes now." });
 });
 
 test("a later scene reached: the scene before it ended for QA on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {

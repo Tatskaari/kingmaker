@@ -195,11 +195,14 @@ export async function say(config: LoopConfig, roundName: string, id: string, wor
   }
 }
 
-/** Why there's no saying a line now: the game hasn't started, the scene's over, or the turns are used up. */
+/**
+ * Why there's no saying a line now: the game hasn't started (exit 1); or the scene's over, or the
+ * turns are used up, which is the game's answer, not a failure a tester would try again (exit 0).
+ */
 function cantSay(record: GameRecord | undefined, round: Round, config: LoopConfig, id: string): Played | undefined {
   if (!record?.sceneRow) return { code: 1, text: `Game ${id} hasn't started: ${config.command} start ${round.name} ${id}` };
-  if (record.ended) return { code: 1, text: `— The scene is over (${record.ended.title}). — Write your notes now.` };
-  if (turnsTaken(record) >= round.maxTurns) return { code: 1, text: `That was your last turn (the round's limit is ${round.maxTurns}). Write your notes now.` };
+  if (record.ended) return { code: 0, text: `— The scene is over (${record.ended.title}). — Write your notes now.` };
+  if (turnsTaken(record) >= round.maxTurns) return { code: 0, text: `That was your last turn (the round's limit is ${round.maxTurns}). Write your notes now.` };
   return undefined;
 }
 

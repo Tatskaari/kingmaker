@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { readStackFile } from "../dev/stack-file.ts";
 
 /**
@@ -32,7 +32,7 @@ const READY = "Kingmaker dev stack ·";
 /** The dev host started in the background, and waited for until its stack is up (its screen, as `npm run dev` prints it), or why not. */
 export async function stackUp(ask: StackAsk, repo: string, wait = 8 * 60_000): Promise<string> {
   const running = runningIn(ask.root);
-  if (running) return `A stack is up already in ${ask.root} (the dev host's pid ${running.pid}): npm run loop -- stack down first.`;
+  if (running) return `A stack is up already in ${shown(ask.root)} (the dev host's pid ${running.pid}): npm run loop -- stack down first.`;
 
   mkdirSync(ask.root, { recursive: true });
   const args = devArgs(ask, repo);
@@ -46,21 +46,21 @@ export async function stackUp(ask: StackAsk, repo: string, wait = 8 * 60_000): P
 /** The background dev host stopped (SIGTERM: it stops the AI service, then SpacetimeDB), and waited for. */
 export async function stackDown(root: string, wait = 60_000): Promise<string> {
   const running = runningIn(root);
-  if (!running) return `No stack of the loop's is up in ${root}.`;
+  if (!running) return `No stack of the loop's is up in ${shown(root)}.`;
 
   process.kill(running.pid, "SIGTERM");
   const stopped = await until(() => !alive(running.pid), wait);
   if (!stopped) process.kill(-running.pid, "SIGKILL");
   rmSync(join(root, RUNNING), { force: true });
-  return stopped ? `The stack in ${root} is down.` : `The stack in ${root} didn't stop in ${wait / 1000} s: killed.`;
+  return stopped ? `The stack in ${shown(root)} is down.` : `The stack in ${shown(root)} didn't stop in ${wait / 1000} s: killed.`;
 }
 
 /** Whether the loop's stack is up, and where. */
 export function stackStatus(root: string): string {
   const running = runningIn(root);
   const file = readStackFile(root);
-  if (!running) return `No stack of the loop's is up in ${root}${file?.pids.host && alive(file.pids.host) ? `, but a dev host is (pid ${file.pids.host}): the loop can play on it all the same` : ""}.`;
-  return `${screenOf(root)}\n(The dev host's pid ${running.pid}, started ${running.started}; its log is ${join(root, LOG)}.)`;
+  if (!running) return `No stack of the loop's is up in ${shown(root)}${file?.pids.host && alive(file.pids.host) ? `, but a dev host is (pid ${file.pids.host}): the loop can play on it all the same` : ""}.`;
+  return `${screenOf(root)}\n(The dev host's pid ${running.pid}, started ${running.started}; its log is ${shown(join(root, LOG))}.)`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -88,8 +88,11 @@ async function readyOrNot(root: string, pid: number, wait: number): Promise<void
   if (up && logOf(root).includes(READY)) return;
   rmSync(join(root, RUNNING), { force: true });
   if (alive(pid)) process.kill(pid, "SIGTERM");
-  throw new Error(`The stack didn't come up${up ? "" : ` in ${wait / 1000} s`}. The end of ${join(root, LOG)}:\n${logOf(root).split("\n").slice(-15).join("\n")}`);
+  throw new Error(`The stack didn't come up${up ? "" : ` in ${wait / 1000} s`}. The end of ${shown(join(root, LOG))}:\n${logOf(root).split("\n").slice(-15).join("\n")}`);
 }
+
+/** A folder as the person who ran the command would type it: from where they are. */
+const shown = (path: string) => relative(process.cwd(), path) || path;
 
 const logOf = (root: string) => (existsSync(join(root, LOG)) ? readFileSync(join(root, LOG), "utf8") : "");
 const screenOf = (root: string) => logOf(root).slice(logOf(root).lastIndexOf(READY)).trim();

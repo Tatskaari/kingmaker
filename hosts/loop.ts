@@ -114,7 +114,8 @@ async function round(config: LoopConfig, name: string, flags: Flags): Promise<nu
     ...(flags.goal ? { goal: flags.goal } : {}),
   }, { personas: personas(), scenes: playable(loaded), build: build(), now: new Date().toISOString() });
 
-  console.log(`Round ${name}: ${Object.keys(made.games).length} games (${made.scenes.map(s => `${s.scene} ${s.games}`).join(", ")}) in ${shortPath(roundDir(config, name))}`);
+  const n = Object.keys(made.games).length;
+  console.log(`Round ${name}: ${n} game${n === 1 ? "" : "s"} (${made.scenes.map(s => `${s.scene} ${s.games}`).join(", ")}) in ${shortPath(roundDir(config, name))}`);
   console.log(`Arms (keep these from the testers and reviewers): ${Object.entries(made.arms).map(([k, a]) => `${k}=${a.name} (${a.stack})`).join(", ")}`);
   console.log(`Games: ${Object.keys(made.games).join(" ")}`);
   return 0;
