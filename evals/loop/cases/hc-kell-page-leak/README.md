@@ -16,7 +16,7 @@ The scene (`scenes/hanged-clerk.ts`), the prompts (`prompts/`) and the lore (`lo
 - `transcript.json`: 16 entries, what the player had seen.
 - `world.json`: the scene's world as it stood.
 - `harness.json`: the co-GM's notes (written on turn 4), whispers, canon and patches. `"harness"` in case.json: `recorded` uses them; `fresh` drops the notes, whispers and waiting results and runs today's co-GM on the fixture first; `none` drops them all.
-- `lore/`: the session's docs overlay as it stood: 17 notes kept, 3 written on turn 7 or later left out (index lines linking to them too). These have no turn, so they're as the game left them (a later edit may be in them): `Places/Granary Yard.md`, `Player/Xarax.md`.
+- `lore/`: the session's docs overlay as it stood: 17 notes kept, 3 written on turn 7 or later left out (index lines linking to them too). Notes with no turn are edited all game, so these are set back to the turn's own GM call: `Places/Granary Yard.md`, `Player/Xarax.md`.
 
 ## Reconstruction assumptions
 
