@@ -62,6 +62,7 @@ export async function localHost(options: LocalOptions = {}): Promise<LocalHost> 
     seed: options.seed ?? 1,
     ai: (endpoint, body, headers) => ai.answer({ method: "POST", path: endpoint, headers, body }),
     env: { AI_URL: "http://ai.local", AI_TOKEN: BEARER, AI_IDENTITY: SERVICE.toHexString() },
+    service: SERVICE,
   });
   const ai = localAi(store, options, line => aiLogs.push(line), post => sim.streamReply(streamArgsOf(post), SERVICE));
 
