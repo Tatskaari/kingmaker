@@ -59,9 +59,14 @@ export function mapDoors(picks: Picks, frame: StyledLine[]): MapDoorShape[] {
     const l = { r: coarse(d.light.r), g: coarse(d.light.g), b: coarse(d.light.b) };
     const lit = (c: string) => hexOf(shadeBy(rgbOf(c), l.r, l.g, l.b, d.floor));
     const dark = d.look === "locked" || d.look === "barred";
+    // The restored wall face already contains material colour, face shading and lighting.
+    // Use it directly, so neither the mask nor its hardware introduces an orange palette.
+    const faceColumn = d.sc + (d.face === "south" ? 1 : -1);
+    const tile = hex(d.wall.find(c => c.x === faceColumn)?.bg ?? lit(MAP_DOOR.wood));
+    const tint = (k: number) => toHex(scale(tile, k));
     const shape: MapDoorShape = {
       view: "map", id: `${picks.map}:door@${d.at.x},${d.at.y}`, look: d.look, face: d.face, x: d.sc, y: d.sr, h: d.height,
-      colors: { wood: lit(dark ? MAP_DOOR.dark : MAP_DOOR.wood), mark: lit(MAP_DOOR.mark), brass: lit(MAP_DOOR.brass), bar: lit(MAP_DOOR.bar), gap: lit(MAP_DOOR.gap) },
+      colors: { wood: tint(dark ? 0.85 : 1.05), mark: tint(0.25), brass: tint(1.65), bar: tint(1.3), gap: tint(0.3) },
       cells: [], wall: d.wall.map(c => [c.x, c.y, c.ch, c.fg, c.bg]),
     };
     // Its leaf swings out over the tile in front of its face; splinters fall there. It stands on its

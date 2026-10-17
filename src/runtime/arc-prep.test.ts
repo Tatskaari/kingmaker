@@ -414,6 +414,17 @@ test("Cob: at the granary the boot has ways in of its own, a polite ask is a rol
     assert.equal(trust.to, "motive");
     for (const t of [coax.check!.establishes!.success!, trust.establishes!]) assert.deepEqual(t, route(clerk, beat, "page-found").establishes, "the page is out, as the endings read it");
   }
+  // A coin to make him talk is a route of its own (the user's "Perhaps a shilling would change your
+  // mind?" read as the bribe for a look): no dice, boasts and a scrap, never the loft; and the bribe
+  // is only a bribe when the player's own words are about the boot.
+  for (const beat of ["yard", "doubt"] as const) {
+    const talk = route(clerk, beat, "pay-cob-to-talk");
+    assert.equal(talk.check, undefined, "no dice");
+    assert.equal(talk.to, beat);
+    assert.equal(talk.towards, beat === "yard" ? "not-suicide" : "silvertop", "a way towards what he's holding that doesn't bring it");
+    assert.match(talk.when, /offers Cob coin, food or a trade to talk[\s\S]*The boots aren't part of it unless the player's own words make them so[\s\S]*bought attention isn't trust/);
+    assert.match(route(clerk, beat, "bribe-cob").when, /Their own words make it about the boot or what's in it: a coin offered to make him talk, with nothing said of the boots, is not this/);
+  }
   // Found, they go: the ways in that bring it, and the bribe and the kindness that are ways towards it.
   const state = at("hanged-clerk", "doubt", { landed: ["page"] });
   const open = openRoutes(clerk.beats.find(b => b.id === "doubt")!.transitions, state).map(t => t.id);

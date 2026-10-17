@@ -65,6 +65,13 @@ export interface Approach {
   staging?: boolean;
   /** House style for the GM voice: "comic" adds v2/ai/prompts/tone-comic.md (Pratchett / Monty Python). */
   tone?: "comic";
+  /**
+   * Guidance for improvising from the prep: "improv" adds prompts/gm-improv.md to the GM's
+   * instructions (the person before the purpose, hints before answers, where each thing someone says
+   * comes from, the player's words as theirs, moving the story on) and prompts/gm-improv-remind.md
+   * just before each reply's directives.
+   */
+  guide?: "improv";
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
   effort?: "none" | "low" | "medium" | "high";
 }
@@ -76,7 +83,7 @@ export const APPROACHES: Record<string, Approach> = {
   // or not, the DC, what each outcome changes), and the reply plays what was decided; those turns
   // take longer. The full co-GM reviews in the background between turns. No speculative replies:
   // one started before the decision was sometimes shown and then taken back.
-  v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), considered rolls (an act a roll should settle that no route covers is ruled on by the GM before the reply: the roll, the DC, what success and failure change), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true },
+  v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), the improvisation guide (prompts/gm-improv.md), considered rolls (an act a roll should settle that no route covers is ruled on by the GM before the reply: the roll, the DC, what success and failure change), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true, guide: "improv" },
   // v2 as it was before considered rolls, to compare against: off-graph turns wait up to 3 s for the
   // quick co-GM (routes with rolls), and a risky attempt no route covers gets a freeform roll.
   "v2-quick": { id: "v2-quick", description: "v2 before considered rolls: quick co-GM on off-graph turns (3 s), freeform rolls for risky attempts no route covers, background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs", freeformChecks: true },
