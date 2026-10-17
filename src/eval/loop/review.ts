@@ -9,7 +9,7 @@ import { sceneBrief, speakerName } from "../../runtime/brief.ts";
 import type { Entry, SessionState } from "../../runtime/session.ts";
 import type { Finding } from "./fixture.ts";
 import { locate } from "./html.ts";
-import { LOOP_DIR, RUBRIC } from "./paths.ts";
+import { LOOP_DIR, loopCommand, RUBRIC } from "./paths.ts";
 
 /** The rubric's check ids: its "#### `id`: ..." headings. */
 export function rubricChecks(text = readFileSync(RUBRIC, "utf8")): string[] {
@@ -65,7 +65,7 @@ export function reviewPack(options: { round: string; game: string; sessionDir: s
   const opening = openingState(options.sessionDir, final);
   const turns = [...turnsOf(final)].sort((a, b) => a[0] - b[0]);
   const reviewPath = options.out.replace(/\.pack\.md$/, ".json");
-  const brief = readFileSync(join(LOOP_DIR, "reviewer.md"), "utf8").replace(/\{\{(\w+)\}\}/g, (_, k: string) => ({ round: options.round, game: options.game } as Record<string, string>)[k] ?? "");
+  const brief = readFileSync(join(LOOP_DIR, "reviewer.md"), "utf8").replace(/\{\{(\w+)\}\}/g, (_, k: string) => ({ round: options.round, game: options.game, loop: loopCommand() } as Record<string, string>)[k] ?? "");
   const text = [
     brief,
     `---\n\n# The pack for game ${options.game}\n\nWrite your review to \`${reviewPath}\`, with \`"game": "${options.game}"\`.`,

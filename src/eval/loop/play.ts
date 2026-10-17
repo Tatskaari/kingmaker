@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SessionState } from "../../runtime/session.ts";
-import { LOOP_DIR, ROOT } from "./paths.ts";
+import { LOOP_DIR, loopCommand, ROOT } from "./paths.ts";
 import { gameDir, loadRound, loadVariant, personas, roundDir, roundRuns, variantEnv, type Round } from "./round.ts";
 
 const SCENE = join(ROOT, "src", "cli", "scene.ts");
@@ -37,7 +37,7 @@ const turnOf = (round: Round, id: string): SessionState | undefined => {
 
 export function start(roundName: string, id: string): string {
   const round = loadRound(roundName);
-  if (turnOf(round, id)) return `Game ${id} has already started. Go on with: npm run -s loop -- say ${roundName} ${id} "<what you say or do>"`;
+  if (turnOf(round, id)) return `Game ${id} has already started. Go on with: ${loopCommand()} say ${roundName} ${id} "<what you say or do>"`;
   const g = game(round, id);
   return scene(round, id, ["start", round.scene, "--approach", g.variant.approach ?? "v2", "--level", String(round.level), "--session", id, "--as", g.persona.as]);
 }
@@ -45,7 +45,7 @@ export function start(roundName: string, id: string): string {
 export function say(roundName: string, id: string, text: string): string {
   const round = loadRound(roundName);
   const before = turnOf(round, id);
-  if (!before) return `Game ${id} hasn't started: npm run -s loop -- start ${roundName} ${id}`;
+  if (!before) return `Game ${id} hasn't started: ${loopCommand()} start ${roundName} ${id}`;
   if (before.ended) return "— The scene is over. — Write your notes now.";
   if (before.turn >= round.maxTurns) return `That was your last turn (the round's limit is ${round.maxTurns}). Write your notes now.`;
   const out = scene(round, id, ["say", id, text]);
@@ -67,7 +67,7 @@ export function brief(roundName: string, id: string): string {
   const fill: Record<string, string> = {
     round: roundName, game: id, as: g.persona.as, style: g.persona.style, maxTurns: String(round.maxTurns),
     goal: g.goal ? `\n## Your goal\n\n${g.goal}\n` : "",
-    notes: join(roundDir(roundName), "notes", `${id}.md`),
+    notes: join(roundDir(roundName), "notes", `${id}.md`), loop: loopCommand(),
   };
   return template.replace(/\{\{(\w+)\}\}/g, (_, k: string) => fill[k] ?? "");
 }

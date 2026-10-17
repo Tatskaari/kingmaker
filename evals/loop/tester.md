@@ -14,15 +14,15 @@ How you play: {{style}}
 
 Start the game (it prints what your character was told and the opening):
 
-    npm run -s loop -- start {{round}} {{game}}
+    {{loop}} start {{round}} {{game}}
 
 Then take a turn at a time:
 
-    npm run -s loop -- say {{round}} {{game}} "<what you say or do>"
+    {{loop}} say {{round}} {{game}} "<what you say or do>"
 
 - Talk as your character in plain words: that's what they say out loud. Put actions in *asterisks* or (parentheses): `(I crouch by the gate and look at the lock)`. You can mix both.
 - One turn is one thing you say or do, a line or three, as at a real table. Don't write the GM's part or decide how the world reacts.
-- `npm run -s loop -- sheet {{round}} {{game}}` shows your character sheet; `transcript` shows the scene so far. They don't use a turn.
+- `{{loop}} sheet {{round}} {{game}}` shows your character sheet; `transcript` shows the scene so far. They don't use a turn.
 - You have up to {{maxTurns}} turns. The game tells you when the scene is over or you're out of turns. Stop there.
 - A reply can take a few seconds, up to half a minute on a hard turn. If a command fails, run it again once; if it fails again, say so in your notes and stop.
 

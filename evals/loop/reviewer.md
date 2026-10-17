@@ -43,6 +43,6 @@ Write one JSON file, exactly this shape, to the path the pack gives:
 
 Then check your file:
 
-    npm run -s loop -- review-check {{round}} {{game}}
+    {{loop}} review-check {{round}} {{game}}
 
 Fix what it reports (a quote not found in that turn's reply, an unknown check, a turn out of range) and check again. Reply with one line: the number of findings and the overall rating.
