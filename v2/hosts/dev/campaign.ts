@@ -1,23 +1,24 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { CreationWorld } from "../../shared/creation/types.ts";
-import { inBounds, isStructure, mapOf, tileAt, type MapDef, type MapFile } from "../../shared/map/tiles.ts";
+import { inBounds, isStructure, mapOf, tileAt, type MapDef } from "../../shared/map/tiles.ts";
 import type { TileMap } from "../../shared/map/types.ts";
-import type { BuildsFile, CampaignFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
+import type { BuildsFile, CampaignPack, Effect, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { validateScene, type Scene } from "../../shared/scene/types.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
+import { packOf, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
 
 /**
  * A campaign folder (v2/campaigns/<id>/) as the install sends it, and the check that it's fit to
  * send (v0-design §8; the converter's checks that need no prototype, content-world A10; the
  * vocabulary's, v5-design §3.8). Both work on the folder's files in memory, so the AI service's PUT
- * carries exactly what was checked.
+ * carries exactly what was checked. The structure the install takes from them is pack.ts's (packOf),
+ * which touches no Node, and is re-exported here.
  */
 
-/** A campaign folder's files by path ("scenes/hanged-clerk/setting.md"): every file, dotfiles left out. */
-export type CampaignFiles = Record<string, string>;
+export { packOf, type CampaignFiles } from "./pack.ts";
 
 /** Every file under a folder, by its path in it with "/" separators, in path order. */
 export function readCampaignFiles(dir: string): CampaignFiles {
@@ -27,23 +28,6 @@ export function readCampaignFiles(dir: string): CampaignFiles {
     .filter(path => !path.split("/").some(part => part.startsWith(".")))
     .sort();
   return Object.fromEntries(paths.map(path => [path, readFileSync(join(dir, path), "utf8")]));
-}
-
-/**
- * The structure install_campaign takes: campaign.json, each listed scene's scene.json with its hook
- * (hook.md, as the loader reads it), each listed place, the builds, the looks and each listed map.
- * Throws when a file it needs is missing or isn't JSON.
- */
-export function packOf(files: CampaignFiles): CampaignPack {
-  const campaign = json<CampaignFile>(files, "campaign.json");
-  return {
-    campaign,
-    scenes: campaign.scenes.map(key => ({ scene: json<SceneFile>(files, `scenes/${key}/scene.json`), hook: text(files, `scenes/${key}/hook.md`).trim() })),
-    places: campaign.places.map(key => json<PlaceFile>(files, `places/${key}.json`)),
-    builds: json<BuildsFile>(files, "builds.json"),
-    looks: json<LooksFile>(files, "looks.json"),
-    maps: (campaign.maps ?? []).map(key => json<MapFile>(files, `maps/${key}.json`)),
-  };
 }
 
 /**
@@ -362,23 +346,6 @@ function standable(map: TileMap, p: { x: number; y: number }): boolean {
   if (!inBounds(map, p)) return false;
   const t = tileAt(map, p);
   return !t.blocks && (!isStructure(t) || t.terrain === "door");
-}
-
-// ---------------------------------------------------------------------------------------------
-// Reading.
-
-function text(files: CampaignFiles, path: string): string {
-  const found = files[path];
-  if (found === undefined) throw new Error(`${path} is missing`);
-  return found;
-}
-
-function json<T>(files: CampaignFiles, path: string): T {
-  try {
-    return JSON.parse(text(files, path)) as T;
-  } catch (e) {
-    throw new Error(e instanceof SyntaxError ? `${path} isn't JSON: ${e.message}` : (e as Error).message);
-  }
 }
 
 /** A scene loaded, or undefined with why it didn't load among the problems (the loader's own "<scene id>: " dropped). */

@@ -1,5 +1,4 @@
 // Copied from the prototype's src/rules/builds.ts:246-295 (askThree, threeBuilds) and src/rules/dnd.ts:289-297 (chooseBuild) with createCharacter's choosing, settling and style (:393-398) as pickBuild, at 44c6d4a: the engine handed in (rules), ask required (null is offline), DEFAULTS[id].plays read through classDefault, the three made one at a time with a turn of the event loop between (the engine is synchronous here), the engine's half from v2/shared/rules.
-import { setImmediate as nextTurn } from "node:timers/promises";
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { BUILD_FIELDS, BUILD_GUIDE, BUILD_SCHEMA, buildMenu, classDefault, classesFor, srdId, throughEngine, type Build, type BuildOption, type Offer, type Rules } from "../../shared/rules/index.ts";
 import type { Ask } from "../llm/openrouter.ts";
@@ -76,6 +75,9 @@ async function madeOneByOne(rules: Rules, picked: Array<{ raw: Partial<Build>; p
   }
   return made;
 }
+
+/** A turn of the event loop, by a timer (as in a browser too): what's waiting goes first. */
+const nextTurn = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
 // ---------------------------------------------------------------------------------------------
 // The model's one build: the prototype's createCharacter with no build given.

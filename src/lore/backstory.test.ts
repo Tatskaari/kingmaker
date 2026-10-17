@@ -14,7 +14,7 @@ import { test } from "node:test";
 process.env.KM_RUNS_DIR = mkdtempSync(join(tmpdir(), "km-backstory-"));
 process.env.OPENROUTER_API_KEY = "offline";
 const { traitsFromWords } = await import("./backstory.ts");
-const { LORE_ROOT, playerDocPath, readDoc } = await import("./docs.ts");
+const { playerDocPath, readDoc, seedDoc } = await import("./docs.ts");
 
 const WHO = { name: "Tamsin Vell", concept: "a disgraced palace auditor with a borrowed rapier", build: "halfling rogue 3 (Thief), sage background" };
 
@@ -56,7 +56,7 @@ test("into the game: the GM's brief says who they are, the whole of it is in the
   assert.match(doc.body, /- Bonds: Her sister Ada/);
   assert.match(doc.body, /## What they've told or shown people about themselves$/, "what they tell people still goes last");
   assert.ok(existsSync(join(process.env.KM_RUNS_DIR!, "sessions", session.id, "docs", path)), "in the session's own overlay");
-  assert.ok(!existsSync(join(LORE_ROOT, path)), "never in the authored lore");
+  assert.equal(seedDoc(path), undefined, "never in the authored lore");
   // The GM's notes (the docs service's memory brief) carry it every turn.
   const notes = memoryBrief(scene, session, "stable") ?? "";
   assert.match(notes, /### The GM's own notes[\s\S]*my sister Ada a letter/);

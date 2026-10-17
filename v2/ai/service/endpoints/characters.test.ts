@@ -37,7 +37,7 @@ function filesOf(dir: string): Record<string, string> {
 
 async function setUp(options: FakeOptions = {}) {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const fake = fakeFetch(options);
   const contextFor = (key: string): AiContext => {

@@ -73,7 +73,7 @@ function requestOf(golden: Golden): { characters: CharactersRequest } | { backst
 /** The case's request through v2's endpoint, on the campaign as installed, the stand-in answering by schema name as the recording's did. */
 async function asked(golden: Golden): Promise<{ answer: CharactersResponse | BackstoriesResponse; sent: Request[] }> {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const fake = fakeFetch({ byName: golden.byName ?? {} });
   const request = requestOf(golden);

@@ -26,3 +26,8 @@ test("over the AI service's daily budget fails at once, in the service's own wor
   const message = "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.";
   assert.deepEqual(outcomeOf({ status: 402, body: JSON.stringify({ error: { code: "over_budget", message } }) }), { kind: "fatal", status: 402, reason: `402 over_budget: ${message}`, words: message });
 });
+
+test("OpenRouter turning the key down fails at once (asking again for ten minutes won't mend it), in the service's words for the player", () => {
+  const message = "OpenRouter turned the key down: change it from the bar under the game.";
+  assert.deepEqual(outcomeOf({ status: 403, body: JSON.stringify({ error: { code: "key_refused", message } }) }), { kind: "fatal", status: 403, reason: `403 key_refused: ${message}`, words: message });
+});

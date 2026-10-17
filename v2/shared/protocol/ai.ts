@@ -378,8 +378,12 @@ export interface BackstoriesResponse { asked?: Asked<string>; checked?: Asked<Lo
 
 // ---------------------------------------------------------------------------------------------
 
-/** over_budget (402): today's spending is past the service's daily ceiling (KM_AI_DAILY_USD). */
-export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready" | "over_budget";
+/**
+ * over_budget (402): today's spending is past the service's daily ceiling (KM_AI_DAILY_USD).
+ * key_refused (403): OpenRouter turned the service's key down, and asking again won't mend it. The
+ * message of either is words for the player.
+ */
+export type AiErrorCode = "bad_request" | "unauthorised" | "other_campaign" | "key_reused" | "model_failed" | "not_ready" | "over_budget" | "key_refused";
 export interface AiError { error: { code: AiErrorCode; message: string } }
 
 /** GET /v1/health (no bearer needed; `?deep=1` also calls service_ping as the service). */
