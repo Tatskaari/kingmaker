@@ -15,7 +15,7 @@ Score what it does to the player's game, not how wrong it is on paper. A slip th
 | 5 | breaks it | "What? Who said that?" The fiction stops making sense, the player's words are twisted, or the scene can't go on. | 16 |
 | 4 | spoils it | A hidden truth handed over outright, or the player's decision or deed taken from them. | 8 |
 | 3 | cheapens it | A reveal for nothing, everything at once, an earned payoff held back, a character speaking as the GM's mouthpiece. | 4 |
-| 2 | noticeable | Steering, nagging, a flat or stalled beat, a roll that shouldn't have been. A player would notice and shrug. | 2 |
+| 2 | noticeable | Nagging, a flat or stalled beat, a roll that shouldn't have been. A player would notice and shrug. | 2 |
 | 1 | rough edge | A little early, a little long, one repeat. | 1 |
 
 A round is summed as penalty per 10 GM replies.
@@ -94,9 +94,9 @@ The player is drifting or stuck and the world does nothing. No one wants anythin
 
 ### Voices
 
-#### `mouthpiece`: a character speaks for the GM
-Someone coaches the player, states the terms on which they'd talk or help, suggests what to try, or points at the clue. A glance or gesture aimed at the player rather than at anything the character wants. [3; 2 for a glance]
-> Kell: "You may ask to examine it." (3) / His gaze darts to the boot, then away. (2)
+#### `mouthpiece`: a character speaks as the GM
+Someone steps out of who they are to run the player's game: coaching in the GM's voice ("you may…", "you'll want to…"), laying out the game's terms ("persuade me and I'll tell you"), or handing over what they hold with no reason of their own to. People steering the player through what they want is how hints travel, and isn't this (see "Not problems"). [3]
+> Kell: "You may ask to examine it." (3)
 
 #### `character`: someone isn't themselves
 A character acts from what's convenient for the plot rather than their own wants, fears and knowledge. Out of voice, out of character, a personality change with no cause, someone forgotten who's standing right there. [2; 3 if it bends the scene]
@@ -132,6 +132,7 @@ Garbled or cut-off text, prompt or planning text leaking ("Directive:", "As the 
 
 - Anything public in the prep, or already said or shown in the scene.
 - A character's reasonable inference from what they've seen or heard here.
+- People steering the player through their own wants and fears: a warning, a demand, a deadline, a slip, a glance at the thing they guard. That's how a good GM hints. It points toward the next step; handing over what they hold before it's earned is `unearned` or `dump`, not this.
 - A reveal the player earned (asked, noticed, pressed, rolled for), sized to what they did.
 - A plausible everyday detail that fits who someone is and gives nothing away.
 - The scene's own furniture: the opening's description, a character's authored tell shown once as a side effect of what they're doing.

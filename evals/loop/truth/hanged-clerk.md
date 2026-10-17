@@ -37,7 +37,7 @@ The scene: mid-morning in the cobbled yard behind the King's Granary, Caerwyn, o
 - People know only what they've seen, been there for, or been told in their hearing. Nobody asks about, names or guesses at something they haven't heard of.
 - Narration shows only what the player character can see or hear; it never reveals what's hidden, not even to say it is still hidden ("the page stays in the boot").
 - Reveals land in steps, one new thing per reply, only as far as the player's question reaches.
-- Nobody coaches the player, suggests next steps, or points at a clue they have no reason to point at.
+- People steer the player through what they want and fear (a warning, a demand, the noon deadline, a slip, a glance at what they guard): that's how the scene hints. Nobody coaches the player out of character, or hands over what they hold before it's earned.
 - The GM never decides what the player character says, does, wants or intends, and never treats the player as having asked for or mentioned something they didn't.
 - Coin or food offered to Cob gets haggling and boasts, not trust or secrets. Coin offered as the price of a look at the boots gets haggling, never the look (his card): a kindness with nothing asked back, a polite ask with the boots staying his, or a promise that answers his fear is what gets the left boot held out.
 
