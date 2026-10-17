@@ -209,7 +209,7 @@ The review judges; code holds the ruling to its job ([consider.ts](consider.ts))
 | `pressureRolls`, `staging` | Pressing someone for a secret is ruled yes, no, or a roll at DC 12, 15 or 18; staged secrets (surface, tell, stirred, torn, settled) | off |
 | `speculative`, `deciderRelocation`, `hideEssentials`, `effort`, `repairEffort` | Experiments: the reply started alongside the decision, the decider moving missed essentials, no essentials in the prep, reasoning for the voices and the co-GM | off |
 
-A scene can set any of these for itself (`Scene.approach`, through `sceneApproach`, [approaches.ts:118](approaches.ts#L118)). A talk turns the co-GM, freeform rolls and rulings off and staged secrets on. The other `v2-*` presets (`v2-staged`, `v2-pressure` and the rest) are the experiments as they were run, with the quick co-GM's wait and no rulings.
+A scene can set any of these for itself (`Scene.approach`, through `sceneApproach`, [approaches.ts:125](approaches.ts#L125)). A talk turns the co-GM, freeform rolls and rulings off and staged secrets on. The other `v2-*` presets (`v2-staged`, `v2-pressure` and the rest) are the experiments as they were run, with the quick co-GM's wait and no rulings.
 
 ### What the GM sees
 
@@ -221,7 +221,7 @@ A scene can set any of these for itself (`Scene.approach`, through `sceneApproac
 4. **The scene so far,** as a conversation: the player's lines as user turns, the GM's as assistant turns, dice and system lines as developer notes.
 5. **What changes every turn, last:** what people remember (`memoryBrief(…, "live")`) and `nowNote` ([brief.ts:398](brief.ts#L398)). That's the beat and its direction, cast notes, pressure, the routes from here, staged secrets, the co-GM's notes and whispers, details established in play, the player's injuries, the world right now (the truth behind the screen, with what's out of the player's sight by name: `outOfSight`, anything hidden or inside what's hidden, neither theirs nor come across), names not yet heard (every name they go by, last before the reply's form, since the prep, the facts, the world and the directives all use them), and the directives under "For this reply". The GM is given every fact with its status, and the narration shows only what the player could see or has been told ([v2/ai/prompts/gm.md](../../v2/ai/prompts/gm.md)): listed like anything else, the page sewn into Cob's boot was narrated as staying there, to a player who had never met Cob.
 
-The order serves the provider's prompt cache: what's stable comes first, so a newly opened note doesn't spoil the prefix ([voices.ts:141](voices.ts#L141)). The prep ends with "What the player knows" (`knowledgeBrief`), and the note with a one-line reminder of the markup ([v2/ai/prompts/gm-markup.md](../../v2/ai/prompts/gm-markup.md)), just before "For this reply" ([below](#the-gms-markup)).
+The order serves the provider's prompt cache: what's stable comes first, so a newly opened note doesn't spoil the prefix ([voices.ts:142](voices.ts#L142)). The prep ends with "What the player knows" (`knowledgeBrief`), and the note with a one-line reminder of the markup ([v2/ai/prompts/gm-markup.md](../../v2/ai/prompts/gm-markup.md)), just before "For this reply" ([below](#the-gms-markup)).
 
 ### The GM's markup
 
