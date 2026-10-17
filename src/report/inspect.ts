@@ -158,7 +158,7 @@ function groupsOf(session: SessionState): Group[] {
 }
 
 /** Each call's turn: the latest turn whose player's words its request holds; a call with none goes with the one before it. */
-function turnsOfCalls(calls: Call[], session: SessionState): number[] {
+export function turnsOfCalls(calls: Array<{ request?: unknown }>, session: SessionState): number[] {
   const said = (session.transcript ?? []).filter(e => e.kind === "player" && e.text.trim().length >= 4)
     .map(e => ({ turn: e.turn, needle: JSON.stringify(e.text).slice(1, -1) })).sort((a, b) => b.turn - a.turn);
   let last = 0;

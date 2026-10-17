@@ -1,0 +1,45 @@
+# The fact sheet for this scene
+
+## What the player was told before the scene began (the hook)
+This morning a palace clerk, Wendell Prout, was found hanged behind the Caerwyn granary, and the Watch Captain has already called it suicide. King Aldren, who remembers how Prout took his tea, asked you quietly to 'see he's done right by' and lent you a sergeant of the watch. She's waiting for you in the granary yard. So, by the sound of it, are some children.
+
+The scene: mid-morning in the cobbled yard behind the King's Granary, Caerwyn, on the eve of the Centennial Assembly. The player is the King's investigator, lent Sergeant Agnes Kell of the watch. The dead-cart (Corporal Tull and two constables) comes at noon to take the body away as a suicide.
+
+## What anyone can see from the start (fair game for narration)
+- Wendell Prout, a small grey-coated clerk with inky fingers and **no boots** (darned stockings), hanging from the sack hoist above the shut loft door. A pigeon on the beam. Nothing beneath him.
+- His satchel open and empty by the gate; his spectacles bent in the gutter. Big yard doors padlocked. A water butt in a corner.
+- A scrawny boy (Cob, about 11) in a man's waistcoat and **good black clerk's boots three sizes too big**, laced with string, throwing gutter stones at the body. The left boot **crackles** when he stamps (a visible/audible tell, fine to show).
+- A sharp-faced girl (Moll, about 13) on the wall, one fist kept tightly closed, eyes going to the gate.
+- Sergeant Kell with notebook and pencil. The Watch Captain has called it suicide.
+
+## Public knowledge (anyone in Caerwyn may know it, per the lore marked public)
+- The yard's layout: the hoist beam and loft door; **the tally loft behind it, where the under-clerk of the Royal Granary Roll keeps the palace's grain accounts; the Roll is a great book chained to the tally desk**; the padlocked yard doors (the warden and the Purveyor's under-purveyors have keys); the water butt, wall, gate, cart shed and elm.
+- **Wendell Prout, under-clerk of the Granary Roll**, was found hanged at first light; the Watch Captain called it suicide; the dead-cart comes at noon.
+- The porters (one is **Nat Pike**, a porter with a thirst and heavy hands: Cob's father), the granary warden **Mistress Ida Garner** (away at the palace counting Assembly provisions), the Purveyor's carters with wheat-ear canvas, and the granary rats (children who run errands and sleep rough).
+- The grain crisis: King's Road wagons have been **"lost" (to goblins, it's said)**, bread is dear, and the bays stand empty. That wagons go missing is public; that they were sold at the river warehouses under Sallow's countersignature is not.
+
+## Hidden facts (none of these may be narrated or spoken until legitimately uncovered)
+1. **How he died**: struck on the back of the head, strangled with a cord, then hoisted up for show. Shown by examining the body: a second, level cord mark under the rope burn, swelling at the back of the skull, clean palms (no rope burn). The backs of the boots' heels are scraped raw (dragged): only seen by examining the boots.
+2. **The killers**: Master Josiah Sallow, an under-purveyor of the Royal Purveyor's office (silver-topped cane, wheat-ear signet ring, lavender water; the kids call him **"Silvertop"**), and Big Hobb (big dock-man, **bandaged hand**, calls him "Master").
+3. **The motive**: Prout found King's Road grain wagons written off as "lost to goblins" that were sold at the river warehouses, every wagon countersigned "J. Sallow, for the Royal Purveyor". He **razored a page out of the Granary Roll** (the big chained book on the tally desk in the loft) and **sewed it into the lining of his left boot**. Sallow wanted "the page"; Prout kept saying "proper channels".
+4. **The page is in the left boot Cob is wearing.** Nobody alive knows that: Cob saw Prout sew *something* into his boot two nights ago but hasn't connected it with the boots he's wearing.
+5. **The loft** (only seen by going up there): smashed lantern, spilled ink, heel scuffs, the loft door barred inside, hoist rope tied off with a docker's knot, the Roll with a page cut out, and the pages either side listing the "lost to goblins" wagons countersigned by J. Sallow.
+6. **Moll's crown**: a gentleman (cane, wheat-ear ring, lavender; the big man called him "Master Sallow") paid her a wheat-ear-stamped silver crown at first light to say she saw the clerk jump. Her "he jumped, wailing about his debts" story is a paid lie.
+
+## Who legitimately knows what
+- **Kell** knows: Prout by sight (she did not find the body: the porters found him at first light, and she was sent this morning); the dead man's job (under-clerk of the Granary Roll, kept the palace grain accounts in the tally loft; honest, no debts or enemies); the porters found him at first light; the yard doors padlocked, the loft door barred inside, the ladders locked away; the Captain wants it closed as suicide by noon; the kids are Cob and Moll; **wheat-ear-stamped silver is Royal Purveyor purse money**; **"J. Sallow, for the Royal Purveyor" is a signature on the Assembly delivery notices (a name, not a face)**. Her secret (comes out once, when earned, e.g. at "false entries", the Purveyor's office, or asked straight why this matters to her): **three days ago Prout asked her how a clerk reports "false entries in the King's rolls"** and whether the watch could arrest "a gentleman of the Purveyor's office"; she sent him to the palace ("I should have listened").
+  Kell does **NOT** know: anything about a page, a ledger page, the Roll's missing page, or what is in the boots; that the boots are Prout's (unless told or she infers it from them being clerk's boots); who Silvertop is by face; Hobb; what the kids saw or heard; what's in the loft. She knows only what she has seen or heard in this scene plus the above.
+- **Cob** knows (tells only when earned: trust, a real promise that answers his fear, a kindness, or a real fright): he sleeps in the loft; that night, a little after the midnight bells, a lantern and voices woke him and he heard Prout arguing with two men (Silvertop and a big man with a bandaged hand who said "Yes, Master"), Silvertop wanted "the page", Prout said "proper channels", then a thump, choking and the hoist creaking. He knows Silvertop by sight and smell from the yard: the posh cove with the silver-topped cane, the flower smell and a ring with a bit of wheat on it, who comes with the Purveyor's wagons and opens the big doors with his own key. He does not know Silvertop's real name. Two nights ago he saw Prout cut a page from the big book and sew something into his boot. He and Moll pulled the boots off the body at first light. He does NOT know the page is in his boot.
+- **Moll** knows: the gentleman who paid her (cane, ring, lavender; called "Master Sallow" by the big man), her paid lie, that Cob was in the loft and heard it, that they took the boots. Hostile, protective of Cob; cracks only when her lie is caught or Cob's safety is convincingly offered.
+- **Corporal Tull** (arrives with the dead-cart): carries the Captain's written order "...to be closed as self-murder, without fuss, at the request of Master J. Sallow of the Royal Purveyor's office."
+
+## How the GM is supposed to disclose
+- People know only what they've seen, been there for, or been told in their hearing. Nobody asks about, names or guesses at something they haven't heard of.
+- Narration shows only what the player character can see or hear; it never reveals what's hidden, not even to say it is still hidden ("the page stays in the boot").
+- Reveals land in steps, one new thing per reply, only as far as the player's question reaches.
+- Nobody coaches the player, suggests next steps, or points at a clue they have no reason to point at.
+- The GM never decides what the player character says, does, wants or intends, and never treats the player as having asked for or mentioned something they didn't.
+- Coin or food offered to Cob gets haggling and boasts, not trust or secrets.
+
+Where this summary and a person's card below differ, the card is right: what a card lists under Knows or Secrets is that person's to know.
+
