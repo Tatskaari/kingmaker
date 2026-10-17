@@ -7,7 +7,7 @@ import {Checkbox,Checklist,LoreLinks,NumberField,SelectField,TextArea,TextField}
 import type {Option} from './fields.tsx';
 import {EffectsEditor} from './effects.tsx';
 import type {EffectChoices,EffectData} from './effects.tsx';
-import {EXIT_KINDS,ORDER,RESULTS,SKILLS,STRENGTHS,addRoute,isBeat,isDiscovery,nodeKind,optionalList,optionalText,removeNodes,removeRoutes,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
+import {EXIT_KINDS,ORDER,RESULTS,SKILLS,STRENGTHS,addRoute,isBeat,isDiscovery,isEnding,isStart,moveRoutes,nodeKind,optionalList,optionalText,removeNodes,removeRoutes,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,withKey} from './model.ts';
 import type {BeatData,Connection,EndingData,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
@@ -239,13 +239,25 @@ function RoutesOf({node}:{node:SceneNode}){
 
 /** The inspector for a connection: every route between the two nodes in that direction, each its own. */
 export function ConnectionInspector({connection}:{connection:Connection}){
-  const {doc,edit,confirm,editingRoute,setEditingRoute}=useScene();
+  const {doc,edit,confirm,editingRoute,setEditingRoute,showRoute}=useScene();
   const from=titleOf(doc,connection.source),to=titleOf(doc,connection.target);
+  const move=(side:'source'|'target',node:string)=>{
+    const ids=connection.routes.map(route=>route.id);
+    edit(scene=>moveRoutes(scene,ids,side,node));
+    showRoute(ids[0]);
+  };
+  const ends=(side:'source'|'target'):Option[]=>doc.nodes.filter(node=>side==='source'?!isEnding(node):!isStart(node)).map(node=>({value:node.id,label:`${node.data.title||node.id} (${node.id})`}));
   const add=()=>{let id='';edit(scene=>{const added=addRoute(scene,connection.source,connection.target);id=added.id;return added.doc});setEditingRoute(id)};
   const removeAll=()=>confirm({title:'Delete routes?',confirmLabel:'Delete routes',description:`Delete all ${connection.routes.length} route${connection.routes.length===1?'':'s'} from “${from}” to “${to}”? Both nodes stay. You can undo this.`,onConfirm:()=>edit(scene=>removeRoutes(scene,connection.routes.map(route=>route.id)))});
   return <div className="connection-inspector">
     <p className="route-path"><b>{from}</b> → <b>{to}</b></p>
     <p className="muted">{connection.routes.length} route{connection.routes.length===1?'':'s'}: each its own way for the scene to move from one to the other.</p>
+    <details className="connection-endpoints">
+      <summary>Move these routes</summary>
+      <p className="muted">Every route here moves together, its id and the rest of it as they were.</p>
+      <SelectField label="From" value={connection.source} options={ends('source')} onChange={value=>move('source',value)}/>
+      <SelectField label="To" value={connection.target} options={ends('target')} onChange={value=>move('target',value)}/>
+    </details>
     {connection.routes.map((route,index)=><RouteCard key={route.id} route={route} index={index} open={editingRoute===route.id||connection.routes.length===1} onToggle={connection.routes.length===1?undefined:open=>setEditingRoute(open?route.id:null)}/>)}
     <div className="inspector-actions">
       <button type="button" onClick={add}><Plus size={14}/>Add route</button>

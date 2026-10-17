@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -117,6 +117,9 @@ test('taking something out takes what named it with it, so the game can still lo
   const {doc:withFact,id}=addFact(clerk(),'','Kell has seen the page.');
   assert.equal(id,'kell-has-seen-the-page');
   assert.equal(withFact.facts[id],'Kell has seen the page.');
+  const moved=moveRoutes(clerk(),['signed-murder','signed-suicide'],'source','start');
+  assert.deepEqual(moved.edges.filter(route=>route.source==='start').map(route=>route.id),['find-murder','find-motive','find-hobb','cart-comes','signed-murder','signed-suicide','case-lost']);
+  assert.deepEqual(Object.keys(moved.edges[4]),['id','source','target','type','label','data'],'a moved route keeps its keys where they were');
   const noMoll=removeCast(clerk(),'moll');
   assert.ok(!noMoll.cast.some(member=>member.id==='moll'));
   assert.ok(!noMoll.nodes.some(node=>node.data.cast&&'moll' in node.data.cast));

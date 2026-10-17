@@ -323,3 +323,21 @@ test('drawing a route between two nodes adds one, its id made from where it goes
   await expect(problemsTab(page)).toHaveText(/^Problems1$/);
   await expect(page.locator('.route-card[data-route-id="to-failed"]').getByLabel('Condition',{exact:true})).toBeVisible();
 });
+
+test('a connection\'s routes move to other ends together, ids kept, merging with the routes already there',async({page})=>{
+  await select(page,'failed');
+  await inspector(page).locator('.route-list button').filter({hasText:'Last resort'}).click();
+  await inspector(page).getByText('Move these routes').click();
+  await inspector(page).getByLabel('From',{exact:true}).selectOption('cart-arrives');
+  await expect.poll(async()=>route(await saved(page),'case-lost').source).toBe('cart-arrives');
+  const moved=route(await saved(page),'case-lost'),original=route(JSON.parse(clerkText),'case-lost');
+  expect(moved).toEqual({...original,source:'cart-arrives'});
+  expect(Object.keys(moved)).toEqual(Object.keys(original));
+  await expect(page.locator('.route-card[data-route-id="case-lost"]')).toBeVisible();
+  await expect(page.locator('.route-path')).toContainText('The dead-cart arrives');
+  await inspector(page).getByText('Move these routes').click();
+  await inspector(page).getByLabel('To',{exact:true}).selectOption('suspicious');
+  await expect(page.locator('.route-card')).toHaveCount(2);
+  await expect(page.locator('.react-flow__edge-text').filter({hasText:'2 routes'})).toHaveCount(1);
+  expect(route(await saved(page),'case-lost').target).toBe('suspicious');
+});

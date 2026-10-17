@@ -230,6 +230,12 @@ export function removeNodes(doc:SceneDocument,ids:Iterable<string>):SceneDocumen
   return {...doc,nodes:doc.nodes.filter(node=>!gone.has(node.id)),edges,cast};
 }
 
+/** Routes moved: each leaves from (`source`) or goes to (`target`) another node, its id and the rest of it as they were. */
+export function moveRoutes(doc:SceneDocument,ids:Iterable<string>,side:'source'|'target',node:string):SceneDocument{
+  const moving=new Set(ids);
+  return {...doc,edges:doc.edges.map(route=>moving.has(route.id)&&route[side]!==node?{...route,[side]:node}:route)};
+}
+
 /** Routes taken out, and what else named them: nothing does. */
 export function removeRoutes(doc:SceneDocument,ids:Iterable<string>):SceneDocument{
   const gone=new Set(ids);
