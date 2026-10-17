@@ -29,6 +29,7 @@ export function markdownOf(r: LiveRecord, command: string): string {
     ...callsByOperation(r.calls),
     ...models(r.calls),
     ...gmSide(r),
+    ...worldSide(r),
     "## Turn by turn",
     "",
     ...r.turns.flatMap(turnSection),
@@ -190,6 +191,26 @@ function gmSide(r: LiveRecord): string[] {
       const items = list(field!);
       return items.length ? [`**${title}**`, "", ...items.map(l => `- ${l}`), ""] : [`**${title}**: none.`, ""];
     }),
+  ];
+}
+
+/**
+ * The world's side (world-bridge-design §1.3), for a script that records it: per line, the rules'
+ * dice lines, the act the rules resolved, what the place showed changed once the turn was done, who
+ * reacted and how, the first words and the cost.
+ */
+function worldSide(r: LiveRecord): string[] {
+  if (!r.script.worldSide) return [];
+  const dice = (t: TurnRecord) => t.entries.filter(e => e.kind === "roll").map(e => cell(e.text)).join("<br>") || "none";
+  return [
+    "## The world",
+    "",
+    "Per line: the rules' dice lines (before the reply), the act the rules resolved (the path's step), what the place's rows showed changed once the turn was done, who reacted to the act and how, the first words from the line, and the turn's cost.",
+    "",
+    "| Turn | Line | The dice lines | The act | What the world showed | Reactions | First words | Cost |",
+    "|---|---|---|---|---|---|---|---|",
+    ...r.turns.filter(t => t.n > 0).map(t => `| ${t.n} | ${cell(lineOf(t))} | ${dice(t)} | ${t.act ?? "none"} | ${t.world?.length ? t.world.map(cell).join("; ") : "nothing changed"} | ${t.reactions ?? "none"} | ${since(t, t.firstAt)} | $${costOf(t.calls).toFixed(4)} |`),
+    "",
   ];
 }
 

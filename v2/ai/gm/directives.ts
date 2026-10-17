@@ -1,4 +1,4 @@
-// Copied from the prototype at 44c6d4a: the directives' words from src/runtime/director.ts:1021-1035, 1096-1097, 1190-1191, 1201-1211, 1387-1410 and src/runtime/engine.ts:225-228, 255-328, 586, 706, 728, 1329 (openingDirective without its after-a-boundary branch: V0 plays one scene). directivesFor is new: the list engine.ts's playerTurn builds step by step (:577-738), rebuilt from the decision and what the decide commit (and on a considered turn, the consider commit) did.
+// Copied from the prototype at 44c6d4a: the directives' words from src/runtime/director.ts:1021-1035, 1096-1097, 1190-1191, 1201-1211, 1387-1410 and src/runtime/engine.ts:225-228, 255-328, 586, 706, 728, 1329 (openingDirective without its after-a-boundary branch: V0 plays one scene). directivesFor is new: the list engine.ts's playerTurn builds step by step (:577-738), rebuilt from the decision and what the decide commit (and on a considered turn, the consider commit) did; with the world bridge, the rules' act's directive and the reactions' after the move's lines (:630-651), and on a fight breaking out the move's closing lines dropped (:643-648, the filter as it is).
 
 import type { RollResult } from "../../shared/dice.ts";
 import { describeRoll, titleCase } from "../../shared/dice.ts";
@@ -27,8 +27,10 @@ export interface Move {
 
 /**
  * The reply's directives, in the prototype's order and with its overwrites (engine.ts:577-738): the
- * urgent memory, then a move's lines (which replace it) or the same push again; on a considered turn
- * the ruling's lines after it (or, with no ruling, the plain check's); an ending near, the bill, the
+ * urgent memory, then a move's lines (which replace it) or the same push again; the rules' act and
+ * the reactions to it (`o.acts`, the decide and reactions commits'), a fight breaking out
+ * (`o.brawl`) dropping the move's closing lines first; on a considered turn the ruling's lines
+ * after them (or, with no ruling, the plain check's); an ending near, the bill, the
  * payoff, out of character or the plain route, a limit, the loop broken (none of the five over a
  * ruling: it decided the turn), a held ending, and a last chance before a close. `s` is the view
  * after the decide commit (the consider commit, on a considered turn); `o` what they did. `ruled`:
@@ -46,6 +48,10 @@ export function directivesFor(scene: Scene, s: TurnView, d: Decision, o: Outcome
   } else if (d.sameAgain) {
     lines = [sameAgainDirective(routeOf(scene, s.beat, d.sameAgain.route), d.sameAgain.answer)];
   }
+  // The rules resolved a spell, a blow or a rest, and everyone who saw violence reacted (engine.ts:630-651):
+  // the GM narrates what they decided. A fight that broke out answers the turn: the move's ending waits.
+  if (o.brawl) lines = lines.filter(d => !/closes the scene|The dice have decided it|The scene is on the brink/.test(d));
+  lines.push(...(o.acts ?? []));
   // A considered turn (engine.ts:656-701): the ruling, or the plain check rolled without one.
   const r = o.ruled;
   if (r) {

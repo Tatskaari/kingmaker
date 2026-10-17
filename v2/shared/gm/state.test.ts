@@ -36,6 +36,10 @@ const busy: GmState = {
     { turn: 4, act: "lifting the paper from Cob's boot", target: "cob", skill: "sleight_of_hand", kind: "roll", dc: 12, why: "guarded to lose, plausible cover, wary: they could notice", roll: rollCheck(rng(5), "sleight_of_hand", 12, 3), went: "failure", changed: "Cob yanks his foot away; closed: win-cob", costUsd: 0.0021, latencyMs: 4312.5 },
     { turn: 5, act: "asking Kell who found him", target: "kell", skill: "persuasion", kind: "yes", why: "it comes freely when asked (trivial, plausible, friendly)", went: "success", changed: "Kell says the carter found him", costUsd: 0.0018, latencyMs: 3900 },
   ],
+  threat: { kind: "attack", by: "kell", turn: 5 },
+  held: 4,
+  brawl: { turn: 5, cause: "cast Burning Hands at Sergeant Agnes Kell", against: ["kell"], allies: [], fled: ["cob", "moll"] },
+  absent: ["cob", "moll"],
 };
 
 test("a scene's bookkeeping goes to its gm_state row and back exactly", () => {
@@ -44,11 +48,20 @@ test("a scene's bookkeeping goes to its gm_state row and back exactly", () => {
   assert.equal(gmToRow(7n, busy).sceneId, 7n);
 });
 
+test("a hazard hanging over the player goes to the row and back too, the attack's fields empty", () => {
+  const hazard: GmState = { ...busy, threat: { kind: "hazard", hazard: "grab_or_shove", severity: "serious", turn: 6 } };
+
+  assert.deepEqual(gmToRow(7n, hazard).threat, { kind: "hazard", by: undefined, hazard: "grab_or_shove", severity: "serious", turn: 6 });
+  assert.deepEqual(gmToRow(7n, busy).threat, { kind: "attack", by: "kell", hazard: undefined, severity: undefined, turn: 5 });
+  assert.deepEqual(gmFromRow(gmToRow(7n, hazard)), hazard);
+});
+
 test("the row keeps empty options as undefined, as SpacetimeDB's rows do", () => {
   const row = gmToRow(1n, initialGm({ start: "yard" }));
 
   assert.deepEqual([row.endingLead, row.pendingExit, row.closing, row.ended, row.sceneStatus, row.repeated], [undefined, undefined, undefined, undefined, undefined, undefined]);
   assert.deepEqual([row.notes, row.notesTurn, row.lastRepairTurn, row.offGraphTurn], [undefined, undefined, undefined, undefined]);
+  assert.deepEqual([row.threat, row.held, row.brawl, row.absent], [undefined, undefined, undefined, []]);
   assert.equal(row.patches, "[]");
   assert.equal(gmToRow(1n, busy).path[1]!.roll, undefined);
   assert.equal(gmToRow(1n, busy).path[0]!.roll!.critical, roll.critical ?? undefined);
@@ -65,7 +78,16 @@ test("a row from before the co-GM's columns (their defaults) reads as a scene wi
   assert.equal(gm.beat, "doubt");
 });
 
-test("presence has no column yet: writing it is an error, not a loss", () => {
+test("a row from before the world bridge's columns (their defaults) reads as a scene with nothing hanging and nobody gone", () => {
+  const { threat: _t, held: _h, brawl: _b, absent: _a, ...gmOnly } = gmToRow(1n, busy);
+  const gm = gmFromRow({ ...gmOnly, threat: undefined, held: undefined, brawl: undefined, absent: [] });
+
+  assert.ok(!("threat" in gm) && !("held" in gm) && !("brawl" in gm));
+  assert.deepEqual(gm.absent, []);
+  assert.deepEqual(gm.rulings, busy.rulings);
+});
+
+test("V3's entered has no column yet: writing it is an error, not a loss; the cast who fled have theirs", () => {
   assert.throws(() => gmToRow(1n, { ...busy, entered: ["tull"] }), /no column for entered/);
-  assert.throws(() => gmToRow(1n, { ...busy, absent: ["moll"] }), /no column for absent/);
+  assert.deepEqual(gmFromRow(gmToRow(1n, { ...busy, absent: ["moll"] })).absent, ["moll"]);
 });

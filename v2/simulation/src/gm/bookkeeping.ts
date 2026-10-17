@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/engine.ts:255-265 (moveTaken), 276-286 (heldEnding), 335-395 (moveOnAfterReply, endingReached, whyItWaits, arrivals, reachEnding), 397-410 (wantsReview), 418-437 (settledFacts, applyMove), director.ts:330-342 (resolve) and src/lore/disclosure.ts:94-96 (keepOpened) at 44c6d4a. They read and write GmState, not the session; turn numbers are the scene's, passed in; the dice are the game's row, through the roll handed in; the GM's words stay with the AI service, so moveTaken and heldEnding say what they did instead of returning directives; wantsReview reads the wire's Decision and the move the decide commit resolved (the v2 approach has no mechanic, freeform or pressure in its decision); no fights yet.
+// Copied from the prototype's src/runtime/engine.ts:255-265 (moveTaken), 276-286 (heldEnding), 335-395 (moveOnAfterReply, endingReached, whyItWaits, arrivals, reachEnding), 397-410 (wantsReview), 418-437 (settledFacts, applyMove), director.ts:330-342 (resolve) and src/lore/disclosure.ts:94-96 (keepOpened) at 44c6d4a. They read and write GmState, not the session; turn numbers are the scene's, passed in; the dice are the game's row, through the roll handed in; the GM's words stay with the AI service, so moveTaken and heldEnding say what they did instead of returning directives; wantsReview reads the wire's Decision and the move the decide commit resolved (the v2 approach has no freeform or pressure in its decision; the rules' act is its mechanic, world-bridge-design §3.4); no fights yet.
 
 import type { RollResult } from "../../../shared/dice.ts";
 import type { GmState, OpenedNote } from "../../../shared/gm/state.ts";
@@ -170,13 +170,16 @@ export function settledFacts(gm: GmState): string[] {
 /**
  * Does the turn go to the GM's review (considered rolls)? A roll is wanted that nothing the author
  * wrote settles, or it's a plan off the graph; and nothing else this turn has answered it (a route's
- * move, a limit, the same push again, out of character, a route the author gave no dice read with
- * confidence) or is winding the scene down. (The thief's crown for Cob's paper read as the bribe
- * route at .81 and off the graph at .84, and the review's ruling played instead of the haggling the
- * author wrote.)
+ * move, a route the author gave no dice read with confidence, the rules, a limit, the same push
+ * again, out of character) or is winding the scene down. (The thief's crown for Cob's paper read as
+ * the bribe route at .81 and off the graph at .84, and the review's ruling played instead of the
+ * haggling the author wrote.) The rules answer it only when nothing's left to rule on: a spell or a
+ * blow that's only the means to something risky (a Mage Hand at the page in a watching boy's boot),
+ * or a class feature with a risky act beside it (a war-roar with the rage), still gets the act's
+ * ruling, once the rules have resolved it.
  */
 export function wantsReview(gm: GmState, decision: Decision, move: Move | undefined): boolean {
-  const answered = !!(move || decision.limit || decision.outOfCharacter || decision.sameAgain || decision.byPrep);
+  const answered = !!(move || (decision.mechanic && !decision.considered) || decision.limit || decision.outOfCharacter || decision.sameAgain || decision.byPrep);
   return !gm.closing && !answered && !!(decision.considered || decision.offGraph);
 }
 

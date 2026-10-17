@@ -1,7 +1,7 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
-  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type ConsiderRequest, type DecideRequest, type NotesRequest, type OpenRequest, type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext,
-  type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext,
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type ConsiderRequest, type DecideRequest, type NotesRequest, type OpenRequest, type ReactionsRequest, type RememberRequest, type RepairRequest, type ReplyRequest,
+  type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
 import { idempotencyKey, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
@@ -17,7 +17,8 @@ import { placeRows } from "../world/rows-io.ts";
 import { getGm } from "./rows.ts";
 
 /**
- * think's bodies (v0-design §5.2, §6.2; v5-design §3.6; full-gm-design §4.2): each step's request,
+ * think's bodies (v0-design §5.2, §6.2; v5-design §3.6; full-gm-design §4.2; world-bridge-design
+ * §3.1): each step's request,
  * built from the rows the transaction that queues it sees, so the request is exactly the state the
  * commit's checks compare against, and a stored request can be POSTed again unchanged after any
  * crash.
@@ -36,7 +37,7 @@ export function openCall(tx: TxCtx, plan: OpenPlan): AiCall {
   return { endpoint: STEP_ENDPOINT.open, key, timeoutMs: STEP_TIMEOUT_MS.open, request };
 }
 
-/** A say turn's call for its step: decide, consider, reply or settle, each with the turn's working set. */
+/** A say turn's call for its step: decide, reactions, consider, reply or settle, each with the turn's working set. */
 export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const at = whereOf(tx, plan.scene);
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
@@ -133,20 +134,32 @@ function aiRequest(key: string, at: Where): AiRequest {
   return { key, game: { id: at.game.uid, campaign: at.game.campaign, version: at.game.campaignVersion }, player: { id: idText(at.controller.id), name: at.controller.name } };
 }
 
-/** consider: the decider's read that asked for the ruling, and the ending held for the player's answer (the decide commit took it off the bookkeeping). */
-function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): DecideRequest | ConsiderRequest | ReplyRequest | SettleRequest {
+/**
+ * reactions: what the decide commit's act did, which everyone who saw it reacts to (the turn's working
+ * set is the world after it). consider: the decider's read that asked for the ruling, and the ending
+ * held for the player's answer (the decide commit took it off the bookkeeping).
+ */
+function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
   if (plan.step === "decide") return { ...base, landed: [] };
+  if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
   if (plan.step === "consider") return { ...base, ...(plan.decision?.considered ? { read: plan.decision.considered } : {}), ...(plan.pendingExit ? { pending: plan.pendingExit } : {}) };
-  if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision"), outcome: needs(plan.outcome, "outcome"), stream: { turn: plan.turn } };
+  if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision", "reply"), outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };
   return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore };
 }
 
-/** The party: the controller's character, by their sheet, with the backstory they wrote at creation (the GM's brief and the player's doc read it). */
+/**
+ * The party: the controller's character, by their sheet, with the backstory they wrote at creation
+ * (the GM's brief and the player's doc read it), and what the rules' act can be done with: the
+ * spells ready, the weapons carried, the class features with uses (world-bridge-design §3.1).
+ */
 function partyOf(tx: TxCtx, controller: PlayerRow): SheetRow[] {
   const sheet = sheetRow(tx, controller.id);
   return [{
     name: controller.name, concept: controller.concept, build: sheet.build, skills: JSON.parse(sheet.skills) as Partial<Record<Skill, number>>, status: sheet.statusLine,
     ...(sheet.backstory ? { backstory: JSON.parse(sheet.backstory) as Backstory } : {}),
+    spells: sheet.spells.map(s => ({ id: s.id, name: s.name, level: s.level })),
+    weapons: sheet.weapons.map(w => ({ id: w.id, name: w.name })),
+    features: sheet.features.map(f => ({ id: f.id, name: f.name, target: f.target === "creature" ? "creature" : "self" })),
   }];
 }
 
@@ -158,7 +171,7 @@ function offeredIn(tx: TxCtx, sceneId: bigint): string[] {
 /** The story's clock (no flags until the boundary vertical). */
 const storyOf = (game: GameRow): Story => ({ time: game.time, day: game.day, flags: {} });
 
-function needs<T>(value: T | undefined, what: string): T {
-  if (value === undefined) throw new Error(`the plan has no ${what} for its reply`);
+function needs<T>(value: T | undefined, what: string, step: SayPlan["step"]): T {
+  if (value === undefined) throw new Error(`the plan has no ${what} for its ${step}`);
   return value;
 }

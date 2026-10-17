@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { callsOf, droppedOf, spentOf } from "./record.ts";
+import { callsOf, droppedOf, spentOf, worldSideOf } from "./record.ts";
 
 const UID = "2b6c";
 
@@ -51,4 +51,20 @@ test("what the lines' answer screened out comes from the answer kept by its key"
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("the world's side of a turn: what changed in the place since the turn before, the rules' act and the reactions, from the path", () => {
+  const before = [{ id: "hoist-rope", name: "the hoist rope", states: [] }, { id: "prout", name: "Wendell Prout's body", states: ["hanging"] }, { id: "cob", name: "Cob", states: [] }];
+  const after = [{ id: "hoist-rope", name: "the hoist rope", states: ["destroyed"] }, { id: "prout", name: "Wendell Prout's body", states: ["fallen"] }, { id: "cob", name: "Cob", states: ["gone"] }];
+  const worlds = new Map([[0, before], [1, after], [2, after]]);
+  const path = ["1: yard -> yard via rules:cast:magic-missile (pre)", "1: yard -> yard via reactions:kell=intervene,cob=flee,moll=cower (pre)"];
+
+  assert.deepEqual(worldSideOf(1, worlds, path), {
+    world: ["the hoist rope: destroyed", "Wendell Prout's body: fallen, no longer hanging", "Cob: gone"],
+    act: "cast:magic-missile", reactions: "kell=intervene, cob=flee, moll=cower",
+  });
+  assert.deepEqual(worldSideOf(2, worlds, path), { world: [] });
+  worlds.set(3, [...after, { id: "smoke-1", name: "smoke", states: [] }]);
+  assert.deepEqual(worldSideOf(3, worlds, path).world, ["smoke: appeared"]);
+  assert.deepEqual(worldSideOf(0, worlds, path), { world: [] });
 });

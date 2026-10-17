@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/director.test.ts at 44c6d4a: its cases V0 keeps (the hanged clerk's: a route's act, two routes for one check, the same push again, cues, the bill, an ending on the brink, the after-reply read), against beforeQuestions, readBefore and readAfter, with what the decision picks in place of what resolve rolled. The rules', considered rolls' and the other scenes' cases stay the prototype's.
+// Copied from the prototype's src/runtime/director.test.ts at 44c6d4a: its cases V0 keeps (the hanged clerk's: a route's act, two routes for one check, the same push again, cues, the bill, an ending on the brink, the after-reply read), against beforeQuestions, readBefore and readAfter, with what the decision picks in place of what resolve rolled; and with the world bridge the rules' cases (:40-75, the rules' own act from :194-204, :423-440), against withMechanic too, the freeform roll's and the map menu's (forced) left out, and the threat's reading after the reply (new). Considered rolls' and the other scenes' cases stay the prototype's.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ChoiceQuestion, Decider } from "../llm/decide.ts";
@@ -6,8 +6,9 @@ import { JevDecider } from "../llm/decide.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
 import { sameAgainDirective } from "./directives.ts";
-import { afterQuestions, beforeQuestions, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decisionState, readAfter, readBefore } from "./director.ts";
+import { afterQuestions, beforeQuestions, CUE_CONFIDENCE, CUE_EARLY_CONFIDENCE, cueCount, DAFT_CONFIDENCE, decisionState, readAfter, readBefore, withMechanic } from "./director.ts";
 import { hangedClerk, viewAt } from "./fixtures.ts";
+import { namedThing, type RulesOptions } from "./mechanics.ts";
 import type { TurnView } from "./view.ts";
 
 /** A decider that answers from a script (choice, its probability, the others'), and keeps what it was asked. */
@@ -213,4 +214,103 @@ test("after the reply: an outcome route with its check for the simulation, and t
   const instead = await read({ outcome: ["improvised-ending", 0.8], ending: ["own-ending", 0.5, { "walked-away": 0.3 }] });
   assert.deepEqual(instead.outcome, { route: "improvised-ending", exit: "walked-away" });
   assert.deepEqual(instead.ending, { exitId: "walked-away", probability: 0.8 });
+});
+
+// ---------------------------------------------------------------------------------------------
+// The rules (world-bridge-design §2.2): what they resolve is the turn's act, with its details asked
+// in a second small call (withMechanic), as the decide endpoint makes them.
+
+/** The turn's decision with the rules' act: the questions, the call, the reading, then the act's details. */
+async function decideWithRules(decider: Decider, state: TurnView, line: string, rules: RulesOptions) {
+  const asked = beforeQuestions(scene, state, undefined, { rules });
+  const read = readBefore(scene, state, await decider.decide(decisionState(scene, state, line), asked.questions, "director.before"), asked);
+  return withMechanic(decider, scene, state, line, read, rules);
+}
+
+const rules: RulesOptions = { spells: [], weapons: [{ id: "javelin", name: "Javelin" }], things: [{ id: "hoist-rope", name: "the hoist rope" }] };
+const THROW = "(I throw my javelin at the rope above the corpse to get the body down)";
+
+test("a route's roll waits while the rules resolve the player's act", async () => {
+  const decider = scripted({ attempt: ["examine-body", 0.9], mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1], also: ["no", 0.9] });
+  const d = await decideWithRules(decider, yard(), THROW, rules);
+  assert.equal(d.route, undefined, "no Medicine roll for a javelin throw");
+  assert.deepEqual(d.mechanic, { kind: "attack", target: "hoist-rope", weapon: "javelin" });
+  // Asked alongside the attack's details, in the call those turns make anyway.
+  assert.equal(decider.asked.length, 2);
+  assert.match(decider.asked[1]!.also!.instructions, /Medicine check is for \(to tell how Prout really died\)/);
+  assert.equal("details" in d, false, "what the details call needed isn't part of the answer");
+});
+
+test("the route still rolls when the player is doing its act too", async () => {
+  const decider = scripted({ attempt: ["examine-body", 0.9], mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1], also: ["yes", 0.9] });
+  const d = await decideWithRules(decider, yard(), THROW, rules);
+  assert.deepEqual(d.route, { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12, reason: "to tell how Prout really died" } });
+  assert.equal(d.mechanic?.kind, "attack");
+});
+
+test("without an act for the rules, a route's roll is as it was", async () => {
+  const decider = scripted({ attempt: ["examine-body", 0.9] });
+  const d = await decideWithRules(decider, yard(), "(I get right up to Prout and examine his neck and hands)", rules);
+  assert.equal(d.route?.check?.skill, "medicine");
+  assert.equal(d.mechanic, undefined);
+  assert.equal(decider.asked.length, 1, "no second call");
+  // A rest needs no details either; nor does anything the rules resolve on an unsure read, over a limit or out of character.
+  assert.deepEqual((await decideWithRules(scripted({ mechanic: ["short_rest", 0.8] }), yard(), "We sit down for an hour.", rules)).mechanic, { kind: "rest", length: "short" });
+  assert.equal((await decideWithRules(scripted({ mechanic: ["attack", 0.55] }), yard(), THROW, rules)).mechanic, undefined);
+  assert.equal((await decideWithRules(scripted({ mechanic: ["attack", 0.9], ooc: ["out_of_character", 0.9] }), yard(), THROW, rules)).mechanic, undefined);
+});
+
+test("considered rolls: the rules settle a blow, unless it's only the means to something risky they don't", async () => {
+  const LINING = "*crouches by Cob* Take the left boot off yourself and feel along the lining with your own fingers.";
+  const blow = { roll_call: ["new", 0.9], mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1] } satisfies Parameters<typeof scripted>[0];
+  const settled = scripted(blow);
+  const d = await decideWithRules(settled, yard(), LINING, rules);
+  assert.equal(d.considered, undefined, "the rules settle a blow");
+  assert.equal(d.mechanic?.kind, "attack");
+  assert.ok(settled.asked[1]!.means_only, "asked with the act's details");
+  assert.equal(settled.asked[0]!.means_only, undefined, "not in the turn's main decision");
+  const means = await decideWithRules(scripted({ ...blow, means_only: ["yes", 0.8] }), yard(), LINING, rules);
+  assert.equal(means.mechanic?.kind, "attack");
+  assert.ok(means.considered, "the act is only the means: the GM rules on the rest, after the rules");
+  assert.equal(means.considered.probability, 0.9);
+  // No roll wanted: the means question isn't asked at all.
+  const quiet = scripted({ mechanic: ["attack", 0.9], target: ["hoist-rope", 0.95], weapon: ["javelin", 1] });
+  await decideWithRules(quiet, yard(), THROW, rules);
+  assert.equal(quiet.asked[1]!.means_only, undefined);
+});
+
+test("a spell's aim on a weak read is what the player named, a doubtful second target is dropped, and an aim nobody can make out is asked (wizard#17)", async () => {
+  const doors = [{ id: "loft-door", name: "the loft door" }, { id: "yard-doors", name: "the yard doors" }, { id: "tally-desk", name: "the tally desk" }, { id: "smashed-lantern", name: "a smashed lantern" }];
+  assert.equal(namedThing(doors, "*I aim a Fire Bolt at the padlocked yard doors' hasp*"), "yard-doors");
+  assert.equal(namedThing(doors, "the Mage Hand goes through the slot to the chained tally book"), "tally-desk");
+  assert.equal(namedThing(doors, "I fling it at the door"), undefined, "a tie names nothing");
+  const spells: RulesOptions = { spells: [{ id: "fire-bolt", name: "Fire Bolt", level: 0 }, { id: "magic-missile", name: "Magic Missile", level: 1 }], weapons: [], things: doors };
+  const cast = async (said: string, picks: Parameters<typeof scripted>[0]) => (await decideWithRules(scripted({ mechanic: ["cast", 0.95], ...picks }), yard(), said, spells)).mechanic;
+  // As played: the loft door at .44 against the yard doors at .14, for the yard doors' hasp.
+  assert.deepEqual(await cast("*I aim a Fire Bolt at the padlocked yard doors' hasp*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.44, { "yard-doors": 0.14 }] }), { kind: "cast", spell: "fire-bolt", targets: ["yard-doors"] });
+  // A sure read stands.
+  assert.deepEqual(await cast("*Fire Bolt at the loft door*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.9] }), { kind: "cast", spell: "fire-bolt", targets: ["loft-door"] });
+  // Nothing named, and no clear lead: asked.
+  assert.deepEqual(await cast("*I hurl a Fire Bolt up there*", { spell: ["fire-bolt", 0.99], aim_thing: ["loft-door", 0.29, { "yard-doors": 0.25 }] }), { kind: "cast", spell: "fire-bolt", targets: [], unclear: true });
+  // Magic Missile into the boy (.99), and Kell at .56 is dropped.
+  assert.deepEqual(await cast("*Magic Missile straight into the boy*", { spell: ["magic-missile", 0.9], aim_cob: ["yes", 0.99], aim_kell: ["yes", 0.56] }), { kind: "cast", spell: "magic-missile", targets: ["cob"] });
+});
+
+test("after the reply, for a character with a build: a blow or a danger left hanging over the player, on a clear read", async () => {
+  const state = { ...yard(), rules: { aliases: {} } };
+  const asked = afterQuestions(scene, state);
+  assert.deepEqual(Object.keys(asked.questions.threat!.criteria).filter(k => k.startsWith("attack:")), ["attack:kell", "attack:cob", "attack:moll"], "whoever's here");
+  assert.ok(asked.questions.threat!.criteria["hazard:grab_or_shove"]);
+  assert.ok(asked.questions.threat_severity);
+  const read = async (picks: Parameters<typeof scripted>[0]) => readAfter(scene, await scripted(picks).decide({}, asked.questions, "director.after"), asked);
+  const blow = await read({ threat: ["attack:kell", 0.8] });
+  assert.deepEqual([blow.threat, blow.threatRead], [{ kind: "attack", by: "kell" }, "attack:kell"]);
+  const fire = await read({ threat: ["hazard:fire", 0.7], threat_severity: ["serious", 0.9] });
+  assert.deepEqual(fire.threat, { kind: "hazard", hazard: "fire", severity: "serious" });
+  // An unsure read leaves nothing hanging, though the hold it names still counts for letting go of one (threats.ts holdAfterReply).
+  const unsure = await read({ threat: ["hazard:grab_or_shove", 0.5] });
+  assert.deepEqual([unsure.threat, unsure.threatRead], [undefined, "hazard:grab_or_shove"]);
+  assert.equal((await read({})).threatRead, "none");
+  // No build, no rules: not asked.
+  assert.equal(afterQuestions(scene, yard()).questions.threat, undefined);
 });

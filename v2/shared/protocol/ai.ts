@@ -4,7 +4,7 @@ import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
 import type { GmState, OpenedNote, SceneStatus } from "../gm/state.ts";
 import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
-import type { BuildOption, Offer, OwnPicks, SrdLists } from "../rules/types.ts";
+import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
 import type { Skill, Transition } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
@@ -14,28 +14,30 @@ import type { CreationStep, Step } from "./keys.ts";
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
  * back (v0-design §5.1-5.2, gm-port §13; the notes and the suggested lines, v5-design §3.6;
  * character creation's two, v1-design §3.7; a considered turn's ruling, and the memory reviews and
- * the co-GM after a turn, full-gm-design §4.1). Every request carries its working set, read in the
- * transaction that queued it, and its idempotency key; every answer is data the simulation commits.
+ * the co-GM after a turn, full-gm-design §4.1; the rules' act in a turn and the reactions to it,
+ * world-bridge-design §3.1). Every request carries its working set, read in the transaction that
+ * queued it, and its idempotency key; every answer is data the simulation commits.
  */
 
 export type Endpoint =
-  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
+  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reactions" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
   | "/v1/turns/remember" | "/v1/turns/repair"
   | "/v1/characters" | "/v1/backstories";
 
 /**
  * Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap).
- * The ruling's review is cut off at 12 s (KM_CONSIDER_DEADLINE_MS), then the plain check is asked
- * for; a memory review's or the co-GM's tool loops can take a minute and more.
+ * The reactions are one decider call (about 0.3 s), waited for as long as the decision; the ruling's
+ * review is cut off at 12 s (KM_CONSIDER_DEADLINE_MS), then the plain check is asked for; a memory
+ * review's or the co-GM's tool loops can take a minute and more.
  */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
-  open: "/v1/scenes/open", decide: "/v1/turns/decide", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
+  open: "/v1/scenes/open", decide: "/v1/turns/decide", reactions: "/v1/turns/reactions", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
   notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000,
+  open: 60_000, decide: 20_000, reactions: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -65,8 +67,18 @@ export interface AiRequest extends AiRequestBase {
 
 export interface Usage { calls: number; costUsd: number; byOperation: Record<string, { calls: number; costUsd: number; ms: number }> }
 export interface Entry { turn: number; speaker: string; kind: "player" | "narration" | "dialogue" | "roll" | "system"; text: string; markup?: Markup }
-/** A player's sheet as the GM is told it; backstory: theirs from character creation, when they wrote one (the brief and the player's doc read it). */
-export interface SheetRow { name: string; concept: string; build?: string; skills: Partial<Record<Skill, number>>; status?: string; backstory?: Backstory }
+/**
+ * A player's sheet as the GM is told it; backstory: theirs from character creation, when they wrote
+ * one (the brief and the player's doc read it). The spells ready, the weapons carried and the class
+ * features with uses are the sheet row's own columns (world-bridge-design §3.1): what the decider
+ * offers the rules' act (director.ts's RulesOptions).
+ */
+export interface SheetRow {
+  name: string; concept: string; build?: string; skills: Partial<Record<Skill, number>>; status?: string; backstory?: Backstory;
+  spells?: SpellRef[];
+  weapons?: WeaponRef[];
+  features?: Array<FeatureRef & { target: "self" | "creature" }>;
+}
 export interface Story { time: string; day: number; flags: Record<string, string> }
 /**
  * A GM's entry. markup: who says each line, by game key where it resolves, and no marks (their notes
@@ -137,6 +149,13 @@ export interface Decision {
    * off_graph says.
    */
   byPrep?: boolean;
+  /**
+   * What the player is doing that the D&D rules resolve, and with what (world-bridge-design §3.1): a
+   * spell, a blow, a grab or a shove, a jump, a class feature, a rest. The decide commit resolves it
+   * on the scene's world. A route's check the act held back (director.ts:938) comes back as `route`
+   * only when the player is also doing what the check is for.
+   */
+  mechanic?: Mechanic;
 }
 /** landed: [] in V0 (no world clock). */
 export interface DecideRequest extends AiRequest { turn: TurnContext; landed: string[] }
@@ -146,7 +165,10 @@ export interface DecideResponse { decision: Decision; opened: OpenedNote[]; usag
 export interface Outcome {
   /** This turn's dice lines. */
   lines: string[];
-  /** The rules' lines: [] in V0. */
+  /**
+   * The rules' directives from before the player acted (world-bridge-design §3.4: a timed spell
+   * running out, fire's tick, coming round, a blow left hanging): first in the reply.
+   */
   directives: string[];
   move?: { route: string; phase: "attempt" | "cue"; from: string; to: string; roll?: RollResult; exit?: string; chosen: boolean };
   taken?: { ended?: string; closing?: string; pendingExit?: string };
@@ -164,6 +186,13 @@ export interface Outcome {
   ruled?: { ruling: Ruling; verdict: Verdict; route: Transition; went: "success" | "failure"; roll?: RollResult; from: string; to: string; exit?: string; chosen: boolean };
   /** A considered turn with no ruling (the review failed, or ran past its deadline): the plain check rolled instead, and its dice line's reason. */
   freeform?: { skill: Skill; dc: number; roll: RollResult; reason: string };
+  /**
+   * The rules' act's directive (what they decided, for the GM to narrate) and the reactions' to it,
+   * in that order (world-bridge-design §3.2): after the move's lines, before a ruling's.
+   */
+  acts?: string[];
+  /** The player's violence started a fight this turn: the move's closing lines are dropped, and the reply ends on the fight breaking out. */
+  brawl?: boolean;
 }
 export interface ReplyRequest extends AiRequest { turn: TurnContext; decision: Decision; outcome: Outcome; stream: { turn: string } }
 export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; usage: Usage }
@@ -185,6 +214,14 @@ export interface After {
    * character is the rules engine's, read at 0.7 (director.ts:1280-1283, :1350).
    */
   left?: boolean;
+  /**
+   * What the reply left hanging over the player, read at 0.6 when the character is the rules
+   * engine's (director.ts:1284-1295, :1343-1349): someone's blow, or a danger with its severity. The
+   * settle commit keeps it in gm_state, and it lands as the next turn starts.
+   */
+  threat?: ThreatRead;
+  /** The threat question's raw choice ("attack:kell", "hazard:grab_or_shove", "none"): a hold the reply no longer has them in lets them go (threats.ts holdAfterReply). */
+  threatRead?: string;
 }
 /** ops: at most 16, by game key; after absent when the reply closed the scene. */
 export interface SettleResponse { ops: WorldOp[]; after?: After; usage: Usage }
@@ -207,6 +244,20 @@ export interface ConsiderResponse {
   fallback?: { skill: Skill; dc: number; reason: string };
   error?: string; ms: number; usage: Usage;
 }
+
+/**
+ * POST /v1/turns/reactions (world-bridge-design §3.1): everyone who saw the player's violence reacts,
+ * each by their own lights, before the GM says a word (the prototype's decideReactions). turn: the
+ * turn's working set as the decide commit left it (the world after the act); act: what the rules
+ * decided it did (scene-acts.ts violence).
+ */
+export interface ReactionsRequest extends AiRequest { turn: TurnContext; act: Act }
+/**
+ * Each witness's reaction, by the world's local id (which both sides rebuild alike: keysFor), and
+ * the GM's direction for them (reactionDirective). No reactions, no directive and no model call when
+ * nobody saw it.
+ */
+export interface ReactionsResponse { reactions: Record<string, Reaction>; directive?: string; usage: Usage }
 
 /**
  * POST /v1/turns/remember (full-gm-design §4.1): the memory reviews of a turn once it's over (the

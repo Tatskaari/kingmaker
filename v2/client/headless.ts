@@ -1,8 +1,9 @@
-// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves.
+// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows.
 import { tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild } from "../shared/creation/types.ts";
 import { refusal } from "../shared/protocol/refusals.ts";
 import { cardText, sheetText } from "../shared/rules/index.ts";
+import { asciiMap } from "../shared/world/scene-world.ts";
 import type { BuildOption, Offer } from "../shared/rules/types.ts";
 import { homeWhen, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
 import { timeWords } from "./creation/words.ts";
@@ -10,6 +11,7 @@ import { jsonOf } from "./json.ts";
 import { actionLines, phaseLine, render, viewText } from "./scene/text.ts";
 import type { SceneView } from "./scene/view.ts";
 import { sheetOf } from "./sheet/rows.ts";
+import { stageView } from "./look/stage-view.ts";
 import { describe } from "./title/model.ts";
 
 /**
@@ -78,6 +80,21 @@ export function observe(game: Backend, out: Out): number {
   const view = game.view();
   if (!view) return notInGame(out);
   out.print(viewText(view));
+  return 0;
+}
+
+/**
+ * The scene's place, its world as the rows have it: as the player sees it (the stage from above, in
+ * seven-bit characters, still), then the world from above with what's what (shared/world asciiMap,
+ * the prototype's QA map). Refused when there's no scene; says so when its place's rows haven't come.
+ */
+export function map(game: Backend, out: Out, size: { w: number; h: number } = { w: 100, h: 30 }): number {
+  const view = game.view();
+  if (!view) return notInGame(out);
+  const place = view.place;
+  if (!place) { out.print("MODE: map\n\n(The scene's place hasn't come: its rows aren't in yet. Observe again in a moment.)"); return 1; }
+  const stage = stageView(place.world, size, { t: 0, time: place.time, glyphs: "plain" });
+  out.print(`MODE: map\n\n${stage?.toPlain() ?? ""}\n\n${asciiMap(place.world)}`);
   return 0;
 }
 
