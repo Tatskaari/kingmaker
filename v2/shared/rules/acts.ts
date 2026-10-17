@@ -1,10 +1,10 @@
-// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 102-108 (missesMiss), 911-1059, 1061-1106 but castable, 1191-1452, 1454-1459, 1520-1763, 1774-1863, 1885-1946 and 1994-2027. The usual edits (world-bridge-design §2): SessionState is RulesSession; each act takes the Rules its host loaded first and none awaits (await open(state) is opened(rules, state), close takes the Rules, and jumpReach reads the sheet with reading(rules, state)); Outcome is RulesOutcome (the protocol has an Outcome); SpellChoice and WeaponChoice are types.ts's SpellRef and WeaponRef. The helpers dnd.ts shares with the character's code (close, refresh, sheetOf, status, readySpells, endRage, resolveChoices, grantResources, moreSpells, CASTING, cantripsAt, rollFor, FEATURES) are character.ts's, and spellFactsOf (src/app/game.ts:1840-1851) is too, so sheetRows can call it without the two modules importing each other: it's re-exported here. areaPlacement (1357-1366) is shared/rules/aim.ts's (the town unit's: the map's aim runs it on the client, which never loads this file), re-exported here.
+// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 102-108 (missesMiss), 911-1059, 1061-1106 but castable, 1191-1452, 1454-1459, 1520-1763, 1774-1863, 1885-1946 and 1994-2027. The usual edits (world-bridge-design §2): SessionState is RulesSession; each act takes the Rules its host loaded first and none awaits (await open(state) is opened(rules, state), close takes the Rules, and jumpReach reads the sheet with reading(rules, state)); Outcome is RulesOutcome (the protocol has an Outcome); SpellChoice and WeaponChoice are types.ts's SpellRef and WeaponRef. The helpers dnd.ts shares with the character's code (close, refresh, sheetOf, status, readySpells, endRage, resolveChoices, grantResources, moreSpells, CASTING, cantripsAt, rollFor, FEATURES) are character.ts's, and spellFactsOf (src/app/game.ts:1840-1851) is too, so sheetRows can call it without the two modules importing each other: it's re-exported here. areaPlacement (1357-1366) is shared/rules/aim.ts's (the town unit's: the map's aim runs it on the client, which never loads this file), re-exported here. The town unit's (town-design §2): castable (1067-1073), arcaneRecovery (2034-2056) and useItem (2059-2079), the usual way; FEATURE_IDS (1985) is a function, featureIds(), so that character.ts can call the catalogue (actions.ts loads this file) with nothing here reading character.ts's FEATURES as the module loads.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { describeRoll, rng, type RollResult } from "../dice.ts";
 import type { Character } from "../scene/types.ts";
 import { caughtIn, damageThing, positionOf, within, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
-import { CASTING, cantripsAt, close, endRage, FEATURES, grantResources, moreSpells, readySpells, refresh, resolveChoices, rollFor, sheetOf, status } from "./character.ts";
+import { CASTING, cantripsAt, close, endRage, FEATURES, grantResources, moreSpells, readySpells, refresh, resolveChoices, resourceLeft, rollFor, sheetOf, status } from "./character.ts";
 import { ABILITY_NAME, event, opened, ordinal, reading, signed, type Ctx } from "./engine.ts";
 import { areaPlacement } from "./aim.ts";
 import { RAYS } from "./spells.ts";
@@ -874,8 +874,8 @@ export function jump(rules: Rules, state: RulesSession, j: Jump): JumpOutcome {
   return { made, reach, ...(roll ? { roll } : {}), lines: [...lines, `Fall: ${j.drop} ft`, ...more], account: `${short}, and fall ${j.drop} ft${account.length ? `: ${account.join("; ")}` : " unhurt"}${down}`, status: statusText };
 }
 
-/** The class features with uses that the rules can resolve, in the order a menu lists them. */
-export const FEATURE_IDS = FEATURES.map(f => f.id);
+/** The class features with uses that the rules can resolve, in the order a menu lists them (dnd.ts's FEATURE_IDS, read when it's asked for). */
+export const featureIds = (): string[] => FEATURES.map(f => f.id);
 
 /** A class feature, through the engine's own intent for it (uses, rests and all). */
 export function useFeature(rules: Rules, state: RulesSession, cast: Character[], featureId: string, targetId?: string): RulesOutcome {
@@ -905,6 +905,67 @@ export function useFeature(rules: Rules, state: RulesSession, cast: Character[],
   return {
     lines: [`${feature.name}${who ? ` for ${calledBy(state, who)}` : ""}`, ...lines, `${state.player.name}: ${statusText}`],
     directive: `Rules: the player used ${feature.name}${who ? ` on ${calledBy(state, who)}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It takes effect as the feature describes."} Narrate exactly that, in the fiction, briefly.`,
+    status: statusText,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The town unit's (dnd.ts 1067-1073, 2029-2079): what the map's action menu does with the rules.
+
+/** What the player can cast right now: cantrips and prepared spells, with a slot to cast them from. */
+export function castable(rules: Rules, state: RulesSession): SpellChoice[] {
+  if (!state.rules) return [];
+  return readySpells(sheetOf(reading(rules, state), state.rules.pc));
+}
+
+/**
+ * Arcane Recovery (a wizard, with a short rest, once a day): spent slots back, as many levels'
+ * worth as the feature has points left (half the wizard's level, rounded up), the highest first and
+ * none above 5th. The rest itself is rest()'s.
+ */
+export function arcaneRecovery(rules: Rules, state: RulesSession): RulesOutcome {
+  const ctx = opened(rules, state);
+  const pcId = state.rules!.pc;
+  const me = ctx.campaign.state.characters[pcId]!;
+  const points = resourceLeft(ctx.campaign.state, pcId, "arcane-recovery-points");
+  const spent = Object.entries(me.spellSlotsUsed).map(([l, n]) => ({ level: Number(l), n })).filter(s => s.n > 0 && s.level <= 5).sort((a, b) => b.level - a.level);
+  const regained: Array<{ level: number; count: number }> = [];
+  let left = points;
+  for (const s of spent) {
+    const count = Math.min(s.n, Math.floor(left / s.level));
+    if (count > 0) { regained.push({ level: s.level, count }); left -= count * s.level; }
+  }
+  if (!regained.length) {
+    close(rules, state, ctx);
+    return { lines: [points ? "(Arcane Recovery: no spent slot it could bring back.)" : "(Arcane Recovery is used: it comes back with a long rest.)"], directive: "" };
+  }
+  ctx.apply([event(ctx.E, "ResourceSpent", { characterId: pcId, resourceId: "arcane-recovery-points", amount: points - left }),
+    ...regained.map(r => event(ctx.E, "SpellSlotsRegained", { characterId: pcId, slotLevel: r.level, count: r.count, source: "arcane-recovery" }))]);
+  const statusText = status(ctx, pcId);
+  close(rules, state, ctx);
+  const what = regained.map(r => `${r.count} ${ordinal(r.level)}-level slot${r.count > 1 ? "s" : ""}`).join(" and ");
+  return { lines: [`Arcane Recovery: ${what} back`, `${state.player.name}: ${statusText}`], directive: `Rules: the player used Arcane Recovery and got back ${what}. Narrate it briefly.`, status: statusText };
+}
+
+/** Something the player carries that's used up (a potion), by the engine's own rule for it. */
+export function useItem(rules: Rules, state: RulesSession, instanceId: string): RulesOutcome {
+  const ctx = opened(rules, state);
+  const pcId = state.rules!.pc;
+  const def = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instanceId]?.definitionId ?? "");
+  let events: Dnd.EngineEvent[];
+  try {
+    events = ctx.apply((ctx.engine.plan["consumeItem"] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, { characterId: pcId, instanceId }).events);
+  } catch (error) {
+    close(rules, state, ctx);
+    return { lines: [`(${def?.name ?? "That"}: ${error instanceof Error ? error.message : String(error)})`], directive: "" };
+  }
+  const { lines, account } = describe(ctx, state, events, () => def?.name ?? "it");
+  refresh(ctx, state);
+  const statusText = status(ctx, pcId);
+  close(rules, state, ctx);
+  return {
+    lines: [`${def?.name ?? "It"}: used`, ...lines, `${state.player.name}: ${statusText}`],
+    directive: `Rules: the player used ${def?.name ?? "something they carry"}. ${account.length ? `${capitalise(account.join("; "))}.` : "It takes effect as it says."} Narrate it briefly.`,
     status: statusText,
   };
 }

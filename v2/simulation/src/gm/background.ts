@@ -29,7 +29,9 @@ export interface TurnIds { game: string; scene: string; turn: string; n: number 
 export function afterTurn(tx: TxCtx, sceneId: bigint, turn: TurnIds, gm: GmState): void {
   const ids = { game: turn.game, scene: turn.scene, turn: turn.turn, n: turn.n };
   queueThink(tx, remember, { step: "remember", ...ids });
-  if (!OVER.has(sceneRow(tx, sceneId).status) && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
+  // A talk has no co-GM (the prototype's talk approach: repair off).
+  const scene = sceneRow(tx, sceneId);
+  if (!OVER.has(scene.status) && scene.kind !== "talk" && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
 }
 
 /** A scene the co-GM doesn't review: over, or at its fight (both are the prototype's state.ended). */

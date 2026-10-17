@@ -1,6 +1,7 @@
 import { enterScene, type ExploreState } from "../../../shared/map/explore.ts";
 import { usePlaces } from "../../../shared/map/places.ts";
 import { exploreOf, exploreRowOf } from "../../../shared/map/rows.ts";
+import type { Mechanic } from "../../../shared/rules/types.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
 import { runMove, type Actor, type TxCtx } from "../context.ts";
 import { startOf } from "../games/create.ts";
@@ -16,15 +17,17 @@ import { mapRowsOf, moveSeats, walkerOf, writeExplore } from "./rows.ts";
  * map's triggers call it (a step into the yard, a word with Kell) in the same transaction as the
  * move, handing it the state they walked (`walked`), which the move then writes back; and so does
  * the whole story's Go on (V3: walk toward the lead where there's no map), with none, when the
- * explore row is read and written here.
+ * explore row is read and written here. `act`: what the player did on the map that opened it (the
+ * action menu's, at one of its people: town-design §3.4), queued as its first turn once the opening
+ * is in, its mechanic chosen already.
  */
-export function openLead(tx: TxCtx, actor: Actor, game: GameRow, walked?: ExploreState): void {
+export function openLead(tx: TxCtx, actor: Actor, game: GameRow, walked?: ExploreState, act?: { text: string; mechanic: Mechanic }): void {
   const sceneKey = game.leadScene;
   if (!sceneKey) throw new Error(`game ${game.id} has no lead to open`);
   const first = [...tx.db.scene.gameId.filter(game.id)].every(s => s.status === "waiting");
   const waiting = waitingScene(tx, game.id, sceneKey);
 
-  runMove(tx, openScene, actor, { game: game.id, sceneKey, ...(first ? { start: startOf(tx, campaignOfGame(tx, game), actor.id!) } : {}) });
+  runMove(tx, openScene, actor, { game: game.id, sceneKey, ...(first ? { start: startOf(tx, campaignOfGame(tx, game), actor.id!) } : {}), ...(act ? { act } : {}) });
 
   const scene = sceneRow(tx, waiting?.id ?? openedScene(tx, game, sceneKey));
   moveSeats(tx, game.id, scene.placeId, scene.id);

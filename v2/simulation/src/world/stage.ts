@@ -12,6 +12,8 @@ import { campaignOfGame, looksOf } from "../scenes.ts";
  * Someone not in the world yet has no entity, so no row until they join it.
  */
 export function syncStage(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState): void {
+  // A talk has no stage of its own (no place, no world: town-design §3.6), and the companion's rows are the waiting scene's.
+  if (scene.kind === "talk") return;
   const stage = stageOf(tx, scene, graph, gm);
 
   for (const row of [...tx.db.onStage.sceneId.filter(scene.id)]) {
