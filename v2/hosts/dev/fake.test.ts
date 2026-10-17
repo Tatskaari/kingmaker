@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CATEGORIES } from "../../ai/docs/reviews.ts";
-import { devFake, fakeOptions, onTop, quietGm } from "./fake.ts";
+import { devFake, fakeOptions, onTop, quietGm, wholeStory } from "./fake.ts";
 
 const file = JSON.parse(readFileSync(join(import.meta.dirname, "fake.json"), "utf8"));
 const fake = devFake();
@@ -88,6 +88,7 @@ test("a choice that's a list goes in as it is, beside the quiet ones (the whole 
   const options = fakeOptions('{"choices":{"ending":["open-case","hobb-talks","fight","caught-in-the-act","justice"],"own_exit":"theirs"}}');
 
   assert.deepEqual(options.choices, { ...fake.choices, ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" });
+  assert.deepEqual(onTop(devFake(), wholeStory()), options, "the page's ?fake=arc plays the recipe v2/README.md gives KM_AI_FAKE");
 });
 
 test("the world bridge's quiet reactions (world-bridge-design §1.4): in the granary yard nobody fights the player's violence", () => {

@@ -1,24 +1,18 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
-import type { CampaignFiles } from "../dev/pack.ts";
+import type { Content } from "../../web/server/content.ts";
+
+export type { Content };
 
 /**
  * What the page's server worker reads as it starts (content.json, browser-design §5): the campaign's
  * files, the prompts and the fake model's options, taken from v2's folders by an allowlist, and
  * nothing else. The build (build.ts) writes it, the build and the check (check.ts) hold it to the
  * allowlist, and the server worker alone fetches it, asking with its own ?v= (it's served as
- * server-worker.js?v=<the build's stamp>). The rest of the game is code, bundled.
+ * server-worker.js?v=<the build's stamp>). The rest of the game is code, bundled. Its shape is the
+ * server worker's (web/server/content.ts), which reads it.
  */
-
-export interface Content {
-  /** campaigns/caerwyn's files by their path in it ("scenes/hanged-clerk/scene.json"): what install (hosts/in-process.ts) takes. */
-  campaign: CampaignFiles;
-  /** The prompts by name, their path under ai/prompts without .md ("gm", "review/system"): a PromptSource is a lookup in it. */
-  prompts: Record<string, string>;
-  /** hosts/dev/fake.json as it is (its `about` too): what Play with the fake GM plays, as devFake() has it. */
-  fake: FakeOptions;
-}
 
 /** The allowlist, by v2's folders: what may go into content.json. Nothing hidden does. */
 export const CONTENT = [

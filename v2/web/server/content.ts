@@ -7,11 +7,14 @@ import type { CampaignStore } from "../../ai/service/stores.ts";
  * as the install sends them ("scenes/hanged-clerk/scene.json"); the prompts by name, their paths
  * under ai/prompts/ without .md ("gm", "review/system"); and the fake GM's options
  * (hosts/dev/fake.json). The campaign is served to the AI service from here (contentCampaigns), never
- * written to the database: the next build ships its own.
+ * written to the database: the next build ships its own. The build writes it (hosts/web/content.ts).
  */
 export interface Content {
+  /** campaigns/caerwyn's files by their path in it ("scenes/hanged-clerk/scene.json"): what install (hosts/in-process.ts) takes. */
   campaign: Record<string, string>;
+  /** The prompts by name, their path under ai/prompts without .md ("gm", "review/system"): a PromptSource is a lookup in it. */
   prompts: Record<string, string>;
+  /** hosts/dev/fake.json as it is (its `about` too): what Play with the fake GM plays, as devFake() has it. */
   fake: FakeOptions;
 }
 

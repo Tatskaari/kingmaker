@@ -1,11 +1,10 @@
-import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
 import { loadContent, Unloaded, type Content } from "../../web/server/content.ts";
 import { pageDatabase } from "../../web/server/database.ts";
 import { fakeModel, keyModel, redact, type Model } from "../../web/server/model.ts";
 import { openStorage, type Storage } from "../../web/server/sim-store.ts";
 import { claimTab, type Tab } from "../../web/server/tab.ts";
 import { portDuplex, type PortLike } from "../../web/server/transport.ts";
-import { onTop } from "../dev/fake.ts";
+import { onTop, wholeStory } from "../dev/fake.ts";
 import { startHost, type PageHost } from "./page-host.ts";
 
 /**
@@ -66,12 +65,6 @@ export interface Page {
 /** The page host as it plays: what the page's later messages reach. */
 export interface Running { model: Model; storage: Storage; host: PageHost; tab: Tab }
 
-/**
- * The whole story's recipe (story-design §1.1, v2/README.md): each scene ends at the first of these
- * endings it offers, the player's own doing, so on the fake the arc is walked to The End.
- */
-const WHOLE_STORY: FakeOptions = { choices: { ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" } };
-
 export async function runServer(config: ServerConfig, page: Page): Promise<Running> {
   const tab = await claimTab(config.deployment, page.busy);
   const storage = await openStorage(await pageDatabase(config.deployment, page.storage), page.storage);
@@ -85,7 +78,7 @@ export async function runServer(config: ServerConfig, page: Page): Promise<Runni
 
 /** The fake GM the player chose (with the whole story's recipe on it, for ?fake=arc), or OpenRouter with their key. */
 function modelFor(config: ServerConfig, content: Content, page: Page): Model {
-  if (config.fake === "arc") return fakeModel(onTop(content.fake, WHOLE_STORY));
+  if (config.fake === "arc") return fakeModel(onTop(content.fake, wholeStory()));
   if (config.fake === "dev") return fakeModel(content.fake);
   return keyModel(config.key, page.keyRefused);
 }

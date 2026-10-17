@@ -36,13 +36,6 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  * KM_WEB_CHECK_DEBUG=1 prints the page's and the workers' console, and every request.
  */
 
-/**
- * The workers as built: K1's stubs, each answering the page's start with "not built", until the real
- * ones (the server worker, the client worker) are in. With the stubs, the check holds the page to what
- * it does alone and skips the play; the integration sets this to false, and the play steps run.
- */
-const STUB_WORKERS = true;
-
 const V2 = resolve(import.meta.dirname, "..", "..");
 const RUN = new Date().toLocaleString("sv").replace(/[-:]/g, "").replace(" ", "-");
 const OUT = join(V2, "runs", "web", RUN);
@@ -274,8 +267,8 @@ function stayedHome(seen: Watch, origin: string, what: string, openRouter = fals
 
 /**
  * Both workers started on the page's channel: the client with its end, the terminal's size and no key;
- * the server with the other end, and the key or the fake. Then what they said: the stubs, "not built"
- * (and the page says so); the real ones, ready (the server has the game) and started (the client drew).
+ * the server with the other end, and the key or the fake. Then what they said: ready (the server has
+ * the game) and started (the client drew).
  */
 async function bothStarted(page: Page, seen: Watch, what: string, server: { fake: string; key: boolean }): Promise<void> {
   const started = (worker: string) => seen.told.find(t => t.worker === worker && t.type === "start");
@@ -285,17 +278,8 @@ async function bothStarted(page: Page, seen: Watch, what: string, server: { fake
   else fail(`${what}: the client worker's start: ${JSON.stringify(client ?? "none")}`);
   if (host?.port && host.key === server.key && host.fake === server.fake) ok(`${what}: the server worker was started with the other end${server.fake ? `, on the fake GM (${server.fake})` : ""}${server.key ? ", and the key" : ""}`);
   else fail(`${what}: the server worker's start: ${JSON.stringify(host ?? "none")}, not ${JSON.stringify(server)}`);
-  if (STUB_WORKERS) return stubsAnswered(page, what);
   if (await until(page, `km.heard.some(h => h.from === "server" && h.type === "ready") && km.heard.some(h => h.from === "client" && h.type === "started")`, 60000)) ok(`${what}: the server worker has the game (ready), and the client worker drew its first screen (started)`);
   else fail(`${what}: the workers said ${JSON.stringify(await page.evaluate("km.heard"))}`);
-}
-
-/** The stubs: each worker answered start with "not built", and the page put it up as a notice. */
-async function stubsAnswered(page: Page, what: string): Promise<void> {
-  const both = `km.heard.filter(h => h.type === "error" && h.message === "not built").map(h => h.from).sort().join() === "client,server"`;
-  const said = (await until(page, both, 15000)) ? await page.textContent("#notice-text") : undefined;
-  if (said === "not built" && (await page.isVisible("#notice"))) ok(`${what}: both workers answered (the stubs: "not built"), and the page says so`);
-  else fail(`${what}: the workers said ${JSON.stringify(await page.evaluate("km.heard"))}, the notice "${said}"`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -395,7 +379,7 @@ async function refusals(page: Page, asked: string[]): Promise<void> {
 /**
  * A key from the form (OpenRouter faked, knowing it): checked, kept in localStorage, the field
  * cleared, sent to the server worker and never the client, and in no URL, console line, IndexedDB
- * record or screen. With the real workers: the title, the bar, Change key and Cancel, Forget it.
+ * record or screen; then the title, the bar, Change key and Cancel, Forget it.
  */
 async function aKeyFromTheForm(browser: Browser, url: string): Promise<void> {
   const context = await browser.newContext({ viewport: VIEWPORT });
@@ -414,7 +398,7 @@ async function aKeyFromTheForm(browser: Browser, url: string): Promise<void> {
     else fail("the key isn't in localStorage");
     if ((await page.inputValue("#key")) === "") ok("the key field is cleared once it's sent");
     else fail("the key is still in the field");
-    if (!STUB_WORKERS) await theBar(page);
+    await theBar(page);
     await shot(page, "a-key");
     await keyNowhere(page, seen);
     stayedHome(seen, origin, "a key from the form", true);
@@ -485,13 +469,9 @@ const SAVES = `(async () => {
 const saves = (page: Page) => page.evaluate(SAVES) as Promise<Record<string, string[]>>;
 
 // ---------------------------------------------------------------------------------------------
-// The play, on the fake GM (the real workers: the integration)
+// The play, on the fake GM
 
 async function thePlay(browser: Browser, url: string): Promise<void> {
-  if (STUB_WORKERS) {
-    note("(the play steps wait for the real workers: STUB_WORKERS is on in hosts/web/check.ts)");
-    return;
-  }
   await play(browser, url);
   await twoTabs(browser, url);
   await noStorage(browser, url);
