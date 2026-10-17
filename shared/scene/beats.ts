@@ -13,8 +13,8 @@ import type { Beat, Character, Exit, Scene, SceneRoute } from "./types.ts";
 /** How a move came out: a dice route's success or failure; none for a route with no dice. */
 export type RouteOutcome = "success" | "failure" | "none";
 
-/** What the bookkeeping these read: the nodes reached, and the stage (which stands for them in a state from before them). */
-type Where = Pick<GmState, "reached" | "beat">;
+/** What the bookkeeping these read: the nodes reached, the stage (which stands for them in a state from before them), and the fights already fought. */
+type Where = Pick<GmState, "reached" | "beat"> & Partial<Pick<GmState, "fought">>;
 
 /** The nodes the scene has reached, in order, its start first. A state with none (from before M2) has its stage alone. */
 export function reachedOf(gm: Where): string[] {
@@ -54,12 +54,13 @@ export function endingOf(scene: Scene, gm: Where): Exit | undefined {
 /**
  * The open routes: those whose source is reached, whose target isn't, and every beat of whose
  * `requires` is. The start is always reached, so its routes are open all scene long. Once an ending
- * is reached, nothing is: the scene is closing.
+ * is reached, nothing is: the scene is closing. A fight already fought (the scene picked up after
+ * it: story/fight.ts) isn't offered again.
  */
 export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
   if (endingOf(scene, gm)) return [];
   const reached = new Set(reachedOf(gm));
-  return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && (r.requires ?? []).every(b => reached.has(b)));
+  return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && !gm.fought?.includes(r.target) && (r.requires ?? []).every(b => reached.has(b)));
 }
 
 /** Who arrives when the scene reaches a node: the cast whose `enters` it is (an event beat's people). */
@@ -133,6 +134,7 @@ function whyShut(scene: Scene, gm: Where, route: SceneRoute): string {
   const reached = new Set(reachedOf(gm));
   if (!reached.has(route.source)) return `it leaves from ${titleOf(scene, route.source)} [${route.source}], which the scene hasn't reached`;
   if (reached.has(route.target)) return `it goes to ${titleOf(scene, route.target)} [${route.target}], which the scene has reached already`;
+  if (gm.fought?.includes(route.target)) return `it goes to ${titleOf(scene, route.target)} [${route.target}], a fight already fought`;
   const missing = (route.requires ?? []).filter(b => !reached.has(b));
   return `it requires ${missing.map(b => `${titleOf(scene, b)} [${b}]`).join(" and ")}, not reached yet`;
 }

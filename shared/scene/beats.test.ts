@@ -112,3 +112,18 @@ test("a dice route: it refuses none; success goes to its target, settling its fa
   assert.deepEqual([stayed.reached, stayed.beat, stayed.path.at(-1)], [gm.reached, "cart-arrives", { turn: 3, from: "cart-arrives", to: "cart-arrives", via: "climb", source: "post", known: 1 }]);
   assert.ok(ids(openRoutes(dice, stayed)).includes("climb"), "and the route is still there to try again");
 });
+
+test("a fight already fought isn't offered again: the scene picked up after it can end another way", () => {
+  // The Heron's fight, fought by the stand-in (story/fight.ts): its ending no longer reached, and spent.
+  const heron = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "scenes", "heron-warehouse.kmscene"), "utf8")) as SceneDocument);
+  let gm = took(takeRoute(heron, initialGm(heron), "master-comes", "none", 1));
+  gm = took(takeRoute(heron, gm, "cornered", "none", 2));
+  assert.equal(gm.closing?.exitId, "fight");
+  const after: GmState = { ...gm, reached: gm.reached.filter(id => id !== "fight"), fought: ["fight"] };
+  delete after.closing;
+
+  const open = ids(openRoutes(heron, after));
+  assert.ok(!open.includes("cornered") && !open.includes("attack"), "no way back into the fight");
+  assert.ok(open.includes("overpowered") || open.includes("cast-off"), "the night's other endings are open again");
+  assert.match(refused(takeRoute(heron, after, "attack", "none", 3)), /^\[attack\] isn't open: it goes to Roll for initiative \[fight\], a fight already fought\./);
+});

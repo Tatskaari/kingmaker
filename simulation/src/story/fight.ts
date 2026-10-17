@@ -15,7 +15,8 @@ import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY, STANDIN_LINE } from "./words.ts";
  * The fight, fought by the stand-in (story-design §4.3): one action resolves it as won. Its line,
  * then "The fight: <how it went>" in the scene's transcript, and the notebook's line that it wasn't
  * played. The scene picks up where the fight left it (resumeAfterFight): its combat exit is spent
- * (fought), its ending is undone (ended, closing, pending, the lead towards one), and "The fight is
+ * (fought), its ending is undone (ended, closing, pending, the lead towards one, and its node no
+ * longer reached, so the scene's routes are open again but the fight's), and "The fight is
  * over: <how it went>" is settled; a new turn holds the scene while the GM tells the aftermath (the
  * opening's think, with how it went), and the scene is live again once it's told. `scene` is
  * fighting, and its controller's.
@@ -34,6 +35,8 @@ export function fightItOut(tx: TxCtx, scene: SceneRow): void {
 
   delete gm.ended; delete gm.closing; delete gm.pendingExit; delete gm.endingLead;
   if (exit && !gm.fought.includes(exit)) gm.fought.push(exit);
+  // The scene format's play (shared/scene/beats.ts): the fight's ending is no longer where the scene is, so its routes open again (all but the fight's).
+  if (exit) gm.reached = gm.reached.filter(id => id !== exit);
   gm.established.push(`The fight is over: ${FIGHT_SUMMARY}`);
   putGm(tx, scene.id, gm);
 
