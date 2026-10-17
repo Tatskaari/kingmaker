@@ -224,11 +224,17 @@ export class AppModel implements AppPart {
   private followScene(view: SceneView | undefined): void {
     if (!view) return;
     if (this.scene?.view.game === view.game) { this.scene.update(view); return; }
+    const game = BigInt(view.game);
     this.scene = new SceneModel(view, {
       say: text => void this.backend.say(text),
       retry: () => void this.backend.retry(),
       setSuggestions: on => this.backend.setSuggestions(on),
       quit: () => this.go("title"),
+      // The story's moves (story-design §4.3), and the testing end as the dev stack's owner.
+      walk: () => this.backend.act("walk", { to: undefined, toward: "lead" }),
+      carryOn: () => this.backend.act("carryOn", {}),
+      fightItOut: () => this.backend.act("fightItOut", {}),
+      end: exit => this.backend.act("endScene", { game, exit }),
     }, () => this.sheetShown());
   }
 

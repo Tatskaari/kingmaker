@@ -75,10 +75,10 @@ test("the hook, the ways on, the cast and the world names are each checked again
 
 test("an id twice, or a way on to nowhere, is found", () => {
   const twice = changed(VOCAB, v => { v.scenes.push({ ...v.scenes[0] }); });
-  const nowhere = changed(VOCAB, v => { v.scenes.find((e: any) => e.id === "wharf-night").next.push("the-moon"); });
+  const nowhere = changed(VOCAB, v => { v.scenes.find((e: any) => e.id === "stranger-crossroads").next.push("the-moon"); });
 
   assert.deepEqual(checkCampaign(twice), ["vocabulary.json: stranger-crossroads is there twice"]);
-  assert.deepEqual(checkCampaign(nowhere), ["vocabulary.json: wharf-night leads to the-moon, which is neither an entry nor an installed scene"]);
+  assert.deepEqual(checkCampaign(nowhere), ["vocabulary.json: stranger-crossroads leads to the-moon, which is neither an entry nor an installed scene"]);
 });
 
 test("a way on to a scene the campaign installs needs no entry; an installed scene without one is found", () => {
@@ -109,9 +109,14 @@ test("a vocabulary that isn't JSON, or isn't the tool's shape, says so", () => {
 });
 
 test("no vocabulary is missed only when a scene leads beyond what the campaign installs", () => {
+  // The whole story is installed, from the yard to the King's morning, whose endings go nowhere.
   const none = changed(VOCAB, undefined);
-  const leadsNowhere = { ...none, [SCENE]: JSON.stringify({ ...JSON.parse(files[SCENE]!), exits: Object.fromEntries(Object.entries(JSON.parse(files[SCENE]!).exits).map(([id, e]: [string, any]) => [id, { ...e, next: undefined }])) }) };
+  const KING = "scenes/kings-morning/scene.json";
+  const leadsBeyond = { ...none, [KING]: JSON.stringify({ ...JSON.parse(files[KING]!), exits: { ...JSON.parse(files[KING]!).exits, justice: { ...JSON.parse(files[KING]!).exits.justice, next: "garrows-toll" } } }) };
 
-  assert.deepEqual(checkCampaign(none), ["vocabulary.json is missing, and hanged-clerk leads to caerwyn-afternoon, which the campaign doesn't install (tools/v2/export-vocabulary.mts writes it)"]);
-  assert.deepEqual(checkCampaign(leadsNowhere), []);
+  assert.deepEqual(checkCampaign(none), []);
+  assert.deepEqual(checkCampaign(leadsBeyond), [
+    "scenes/kings-morning: exit justice goes on to garrows-toll, which isn't one of the campaign's scenes",
+    "vocabulary.json is missing, and kings-morning leads to garrows-toll, which the campaign doesn't install (tools/v2/export-vocabulary.mts writes it)",
+  ]);
 });

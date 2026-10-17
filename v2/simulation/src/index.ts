@@ -20,13 +20,14 @@ import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
 import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
 import { loadRules } from "./rules/load.ts";
-import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
+import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView, Tile2 } from "./schema.ts";
+import { carryOnReducer, endSceneReducer, fightItOutReducer, walkReducer } from "./story/moves.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
 
 /**
  * The module's entry: every reducer, procedure, view and lifecycle hook, registered (v0-design
- * §3.3, v1-design §3.2-3.3, v5-design §3.3), and the few adapters that need SpacetimeDB at run time
+ * §3.3, v1-design §3.2-3.3, v5-design §3.3, story-design §4.3), and the few adapters that need SpacetimeDB at run time
  * (txOf, asReducer, the AI service's HTTP). Each body is a plain function over TxCtx in another file,
  * so the memory host runs the same code. The export names are the wire's, in snake_case (newGame is
  * new_game): the client's bindings are generated from them.
@@ -68,6 +69,12 @@ export const chooseAgain = spacetimedb.reducer(ctx => asReducer(ctx, tx => choos
 export const begin = spacetimedb.reducer(ctx => asReducer(ctx, tx => beginReducer(tx, ctx.sender, {})));
 export const continueGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => continueGameReducer(tx, ctx.sender, args)));
 export const deleteGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => deleteGameReducer(tx, ctx.sender, args)));
+
+// The story between scenes (story-design §4.3): on to the lead, a boundary that failed carried on, the fight's stand-in; and the owner's testing end.
+export const walk = spacetimedb.reducer({ to: t.option(Tile2), toward: t.option(t.string()) }, (ctx, args) => asReducer(ctx, tx => walkReducer(tx, ctx.sender, args)));
+export const carryOn = spacetimedb.reducer(ctx => asReducer(ctx, tx => carryOnReducer(tx, ctx.sender, {})));
+export const fightItOut = spacetimedb.reducer(ctx => asReducer(ctx, tx => fightItOutReducer(tx, ctx.sender, {})));
+export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string() }, (ctx, args) => asReducer(ctx, tx => endSceneReducer(tx, ctx.sender, args)));
 
 // The AI service's: the reply as it's written, and proof its token reaches the module as itself.
 export const streamReply = spacetimedb.reducer(

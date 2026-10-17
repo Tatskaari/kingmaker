@@ -1,0 +1,65 @@
+{
+  "id": "caerwyn-afternoon",
+  "title": "Caerwyn, the afternoon",
+  "summary": "Downtime in the market square on the eve of the Assembly, between the granary and the river.",
+  "kind": "scene",
+  "time": "afternoon",
+  "interlude": true,
+  "rest": "short",
+  "start": "downtime",
+  "cast": [
+    {
+      "id": "kell",
+      "name": "Sergeant Agnes Kell",
+      "card": "cast/kell.md",
+      "statblock": "guard",
+      "weapon": "club"
+    }
+  ],
+  "facts": {},
+  "beats": {
+    "downtime": {
+      "title": "Downtime",
+      "text": "beats/downtime.md",
+      "routes": [
+        {
+          "id": "onward",
+          "on": "attempt",
+          "when": "The player sets off for the river stairs and the Drowned Rat (or says they're going there now), following the lead.",
+          "to": "onward"
+        }
+      ]
+    }
+  },
+  "anytime": [],
+  "exits": {
+    "onward": {
+      "kind": "progress",
+      "title": "Onward",
+      "next": "drowned-rat",
+      "text": "exits/onward.md",
+      "effects": []
+    }
+  },
+  "essentials": {
+    "lead": {
+      "what": "The big man with the bandaged hand, whom Kell saw at a gentleman's elbow by the Purveyor's wagons at noon, went down the river stairs into the Drowned Rat; she followed him there, and means to go back down at dusk (dock gossip says the big men who do night work for gentlemen drink there).",
+      "placedWith": [
+        "Sergeant Kell's own errand (she's going there)",
+        "gossip in the town"
+      ],
+      "carriers": [
+        "kell"
+      ],
+      "unlocks": "the next scene"
+    }
+  },
+  "afterwards": [],
+  "lore": [
+    "World/Caerwyn.md",
+    "World/Centennial Assembly.md",
+    "World/Caerwyn now.md",
+    "Places/Market Square.md"
+  ],
+  "fronts": "World/Fronts.md"
+}

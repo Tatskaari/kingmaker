@@ -36,6 +36,7 @@ import {
 // Import all reducer arg schemas
 import AcceptFixReducer from "./accept_fix_reducer";
 import BeginReducer from "./begin_reducer";
+import CarryOnReducer from "./carry_on_reducer";
 import ChooseAgainReducer from "./choose_again_reducer";
 import ChooseBuildReducer from "./choose_build_reducer";
 import ContinueGameReducer from "./continue_game_reducer";
@@ -43,6 +44,8 @@ import CreationBackReducer from "./creation_back_reducer";
 import DeleteGameReducer from "./delete_game_reducer";
 import DispatchWaitingReducer from "./dispatch_waiting_reducer";
 import DraftBackstoryReducer from "./draft_backstory_reducer";
+import EndSceneReducer from "./end_scene_reducer";
+import FightItOutReducer from "./fight_it_out_reducer";
 import FinishBackstoryReducer from "./finish_backstory_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
 import JoinGameReducer from "./join_game_reducer";
@@ -61,6 +64,7 @@ import StartCreationReducer from "./start_creation_reducer";
 import StreamReplyReducer from "./stream_reply_reducer";
 import TakeOwnReducer from "./take_own_reducer";
 import TakeProposalReducer from "./take_proposal_reducer";
+import WalkReducer from "./walk_reducer";
 import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
 // Import all procedure arg schemas
@@ -68,12 +72,17 @@ import * as PingAiProcedure from "./ping_ai_procedure";
 
 // Import all table schema definitions
 import AreaRow from "./area_table";
+import AttitudeRow from "./attitude_table";
 import CampaignRow from "./campaign_table";
+import ChapterRow from "./chapter_table";
 import CreatureRow from "./creature_table";
 import EntityRow from "./entity_table";
+import FlagRow from "./flag_table";
+import FollowerRow from "./follower_table";
 import GameRow from "./game_table";
 import GearRow from "./gear_table";
 import HealthRow from "./health_table";
+import JournalRow from "./journal_table";
 import LookRow from "./look_table";
 import MaterialRow from "./material_table";
 import MyCreationRow from "./my_creation_table";
@@ -86,6 +95,7 @@ import PlaceRow from "./place_table";
 import PlayerRow from "./player_table";
 import PlayerCharacterRow from "./player_character_table";
 import PositionRow from "./position_table";
+import QuestRow from "./quest_table";
 import ReplyDraftRow from "./reply_draft_table";
 import SceneRow from "./scene_table";
 import SceneSuggestionRow from "./scene_suggestion_table";
@@ -114,6 +124,20 @@ const tablesSchema = __schema({
       { name: 'area_entity_id_key', constraint: 'unique', columns: ['entityId'] },
     ],
   }, AreaRow),
+  attitude: __table({
+    name: 'attitude',
+    indexes: [
+      { accessor: 'gameId', name: 'attitude_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'attitude_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'attitude_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AttitudeRow),
   campaign: __table({
     name: 'campaign',
     indexes: [
@@ -125,6 +149,20 @@ const tablesSchema = __schema({
       { name: 'campaign_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, CampaignRow),
+  chapter: __table({
+    name: 'chapter',
+    indexes: [
+      { accessor: 'gameId', name: 'chapter_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'sceneId', name: 'chapter_scene_id_idx_btree', algorithm: 'btree', columns: [
+        'sceneId',
+      ] },
+    ],
+    constraints: [
+      { name: 'chapter_scene_id_key', constraint: 'unique', columns: ['sceneId'] },
+    ],
+  }, ChapterRow),
   creature: __table({
     name: 'creature',
     indexes: [
@@ -157,6 +195,34 @@ const tablesSchema = __schema({
       { name: 'entity_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EntityRow),
+  flag: __table({
+    name: 'flag',
+    indexes: [
+      { accessor: 'gameId', name: 'flag_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'flag_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'flag_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FlagRow),
+  follower: __table({
+    name: 'follower',
+    indexes: [
+      { accessor: 'gameId', name: 'follower_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'follower_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'follower_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FollowerRow),
   game: __table({
     name: 'game',
     indexes: [
@@ -200,6 +266,20 @@ const tablesSchema = __schema({
       { name: 'health_entity_id_key', constraint: 'unique', columns: ['entityId'] },
     ],
   }, HealthRow),
+  journal: __table({
+    name: 'journal',
+    indexes: [
+      { accessor: 'gameId', name: 'journal_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'journal_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'journal_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, JournalRow),
   look: __table({
     name: 'look',
     indexes: [
@@ -315,6 +395,20 @@ const tablesSchema = __schema({
       { name: 'position_entity_id_key', constraint: 'unique', columns: ['entityId'] },
     ],
   }, PositionRow),
+  quest: __table({
+    name: 'quest',
+    indexes: [
+      { accessor: 'gameId', name: 'quest_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'id', name: 'quest_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'quest_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, QuestRow),
   replyDraft: __table({
     name: 'reply_draft',
     indexes: [
@@ -475,6 +569,7 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("accept_fix", AcceptFixReducer),
   __reducerSchema("begin", BeginReducer),
+  __reducerSchema("carry_on", CarryOnReducer),
   __reducerSchema("choose_again", ChooseAgainReducer),
   __reducerSchema("choose_build", ChooseBuildReducer),
   __reducerSchema("continue_game", ContinueGameReducer),
@@ -482,6 +577,8 @@ const reducersSchema = __reducers(
   __reducerSchema("delete_game", DeleteGameReducer),
   __reducerSchema("dispatch_waiting", DispatchWaitingReducer),
   __reducerSchema("draft_backstory", DraftBackstoryReducer),
+  __reducerSchema("end_scene", EndSceneReducer),
+  __reducerSchema("fight_it_out", FightItOutReducer),
   __reducerSchema("finish_backstory", FinishBackstoryReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),
   __reducerSchema("join_game", JoinGameReducer),
@@ -500,6 +597,7 @@ const reducersSchema = __reducers(
   __reducerSchema("stream_reply", StreamReplyReducer),
   __reducerSchema("take_own", TakeOwnReducer),
   __reducerSchema("take_proposal", TakeProposalReducer),
+  __reducerSchema("walk", WalkReducer),
   __reducerSchema("work_in_backstory", WorkInBackstoryReducer),
 );
 

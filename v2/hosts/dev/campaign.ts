@@ -77,6 +77,7 @@ export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredP
     ...campaignProblems(pack, rules),
     ...creationProblems(pack.campaign.creation, files),
     ...pack.scenes.flatMap(({ scene }) => sceneProblems(scene, files, pack)),
+    ...storyProblems(pack),
     ...pack.places.flatMap((place, i) => placeProblems(place, pack.campaign.places[i]!)),
     ...buildProblems(pack.builds, rules),
     ...lookProblems(pack.looks, pack.scenes.flatMap(s => s.scene.cast.map(c => c.id))),
@@ -143,9 +144,15 @@ function sceneProblems(file: SceneFile, files: CampaignFiles, pack: CampaignPack
   if (scene) problems.push(...validateScene({ ...scene, ...(place ? { world: place } : {}) }).map(p => `${at}: ${p}`));
 
   const cast = new Set(file.cast.map(c => c.id));
-  const keys = new Set([...cast, ...(place ? [...place.areas.map(a => a.id), ...place.things.map(t => t.id)] : [])]);
+  // What an effect may name: the cast, the place's areas and things, and the things of an earlier
+  // scene's essential that this one stands in for (`missed`: Prout's page, owed into the Rat in Cob's boot).
+  const keys = new Set([...cast, ...(place ? [...place.areas.map(a => a.id), ...place.things.map(t => t.id)] : []), ...owedThings(file, pack)]);
+  const effects: Array<[string, Effect]> = [
+    ...(file.onEnd ?? []).map(e => ["onEnd", e] as [string, Effect]),
+    ...Object.entries(file.exits).flatMap(([id, exit]) => exit.effects.map(e => [`exit ${id}`, e] as [string, Effect])),
+  ];
   problems.push(
-    ...Object.entries(file.exits).flatMap(([id, exit]) => exit.effects.flatMap(e => effectProblems(e, keys, cast, file.facts).map(p => `${at}: exit ${id}: ${p}`))),
+    ...effects.flatMap(([where, e]) => effectProblems(e, keys, cast, file.facts, pack.campaign.quests ?? {}).map(p => `${at}: ${where}: ${p}`)),
     ...file.afterwards.flatMap(op => namedKeys(op).filter(k => !keys.has(k)).map(k => `${at}: afterwards: ${op.op} names unknown ${k}`)),
     ...Object.keys(place?.people ?? {}).filter(id => id !== "player" && !cast.has(id)).map(id => `${at}: ${file.place}'s people: ${id} isn't in the cast`),
     ...[...file.lore, ...(file.fronts ? [file.fronts] : [])].filter(p => files[`lore/${p}`] === undefined).map(p => `${at}: lore ${p} isn't in lore/`),
@@ -153,21 +160,83 @@ function sceneProblems(file: SceneFile, files: CampaignFiles, pack: CampaignPack
   return problems;
 }
 
-/** An exit's effect: its condition on a known fact, and the cast or things it names. */
-function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, facts: Record<string, string>): string[] {
+/**
+ * An exit's effect (or onEnd's): an op the story knows, its condition on known facts, the cast or
+ * things it names, and a quest campaign.json titles (story-design §4.6).
+ */
+function effectProblems(effect: Effect, keys: Set<string>, cast: Set<string>, facts: Record<string, string>, quests: Record<string, string>): string[] {
   const problems: string[] = [];
-  for (const cond of [effect.if, effect.unless]) if (cond && !(cond.established in facts)) problems.push(`condition on unknown fact ${cond.established}`);
-  if (effect.op === "attitude" || effect.op === "remember") {
+  const op: string = effect.op;
+  if (!(op in EFFECT_OPS) && op !== START_FIGHT) return [`${op} isn't an effect the story knows`];
+  for (const cond of [effect.if, effect.unless]) for (const fact of cond ? [cond.established].flat() : []) if (!(fact in facts)) problems.push(`condition on unknown fact ${fact}`);
+  if (op === START_FIGHT) {
+    // The fight's set-up (the Heron's combat exit), recorded for the fight to come: who's in it, where.
+    const fight = effect as unknown as { enemies?: Array<{ leader?: string }>; allies?: string[]; at?: string };
+    for (const who of [...(fight.allies ?? []), ...(fight.enemies ?? []).flatMap(e => e.leader ? [e.leader] : [])]) if (!cast.has(who)) problems.push(`startFight names unknown ${who}`);
+    if (fight.at !== undefined && !keys.has(fight.at)) problems.push(`startFight is at unknown ${fight.at}`);
+  } else if (effect.op === "attitude" || effect.op === "remember" || effect.op === "follow") {
     if (!cast.has(effect.who)) problems.push(`${effect.op} names unknown ${effect.who}`);
-  } else if (effect.op !== "quest" && effect.op !== "flag" && effect.op !== "journal") {
+    if (effect.op === "attitude" && !ATTITUDES.includes(effect.to)) problems.push(`attitude ${String(effect.to)} isn't an attitude`);
+  } else if (effect.op === "promise") {
+    for (const who of [effect.by, effect.to]) if (who !== "$player" && !cast.has(who)) problems.push(`promise names unknown ${who}`);
+  } else if (effect.op === "quest") {
+    if (!(effect.quest in quests)) problems.push(`quest ${effect.quest} isn't one of campaign.json's quests`);
+  } else if (effect.op !== "flag" && effect.op !== "journal") {
     for (const k of namedKeys(effect)) if (!keys.has(k)) problems.push(`${effect.op} names unknown ${k}`);
   }
   return problems;
 }
 
+/** Every op an effect may have (shared/scene/files.ts Effect): the story's, and the world's (WorldOp's). */
+const EFFECT_OPS: Record<Effect["op"], true> = {
+  quest: true, flag: true, attitude: true, remember: true, journal: true, follow: true, promise: true,
+  move: true, place: true, give: true, drop: true, create: true, state: true, note: true, forget: true, remove: true,
+  destroy: true, ignite: true, douse: true, spill: true, chill: true, bleed: true, break: true,
+};
+/** The fight's set-up, which the effects have no op for yet: recorded, as the prototype's startCombat was, for the fight to come (V12). */
+const START_FIGHT = "startFight";
+const ATTITUDES: string[] = ["hostile", "unfriendly", "wary", "neutral", "friendly", "devoted"];
+
+/** The things of the earlier scenes' essentials a scene stands in for (`missed`: "<scene>:<essential>"). */
+function owedThings(file: SceneFile, pack: CampaignPack): string[] {
+  return Object.values(file.essentials).flatMap(e => {
+    const [scene, id] = e.missed?.split(":") ?? [];
+    return pack.scenes.find(s => s.scene.id === scene)?.scene.essentials[id ?? ""]?.things ?? [];
+  });
+}
+
 /** The keys a world operation names (what it acts on, where it goes); "$player" is the controller's character. */
 function namedKeys(op: { what?: string; to?: string }): string[] {
   return [op.what, op.to].filter((k): k is string => !!k && k !== "$player");
+}
+
+/**
+ * The story between scenes (story-design §4.6): where an exit goes on to, and where the story goes
+ * when a scene is overtaken, are scenes of the campaign, and a scene that can be overtaken says what
+ * it assumes; an interlude (downtime the story skips) has an exit that goes on; an essential prepped
+ * for one an earlier scene missed (`missed`) stands in for a scene's essential that the rest of the
+ * story needs (`later`); and each of the story's quests has a title.
+ */
+function storyProblems(pack: CampaignPack): string[] {
+  const scenes = new Map(pack.scenes.map(({ scene }) => [scene.id, scene]));
+  const problems: string[] = [];
+  for (const { scene } of pack.scenes) {
+    const at = `scenes/${scene.id}`;
+    for (const [id, exit] of Object.entries(scene.exits)) if (exit.next && !scenes.has(exit.next)) problems.push(`${at}: exit ${id} goes on to ${exit.next}, which isn't one of the campaign's scenes`);
+    if (scene.overtaken && !scenes.has(scene.overtaken)) problems.push(`${at}: overtaken, the story goes to ${scene.overtaken}, which isn't one of the campaign's scenes`);
+    if (scene.assumes?.length && !scene.overtaken) problems.push(`${at}: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)`);
+    if (scene.overtaken && !scene.assumes?.length) problems.push(`${at}: it says where the story goes when it's overtaken, but assumes nothing that play could overtake`);
+    if (scene.interlude && !Object.values(scene.exits).some(e => e.next)) problems.push(`${at}: an interlude, but none of its exits goes on (the story skips it to where they go)`);
+    for (const [id, e] of Object.entries(scene.essentials)) {
+      if (!e.missed) continue;
+      const [from, essential] = e.missed.split(":");
+      const earlier = from && from !== scene.id ? scenes.get(from)?.essentials[essential ?? ""] : undefined;
+      if (!earlier) problems.push(`${at}: essential ${id} stands in for ${e.missed}, which isn't another scene's essential`);
+      else if (!earlier.later) problems.push(`${at}: essential ${id} stands in for ${e.missed}, which the rest of the story doesn't need (it has no later)`);
+    }
+  }
+  for (const [key, title] of Object.entries(pack.campaign.quests ?? {})) if (typeof title !== "string" || !title.trim()) problems.push(`campaign.json: quest ${key} has no title`);
+  return problems;
 }
 
 /** A place: unique ids, and every thing and person in an area, a thing or a person that exists. */

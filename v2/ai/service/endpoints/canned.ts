@@ -1,6 +1,6 @@
 import type { RepairResult } from "../../../shared/gm/repair.ts";
 import type { Mark, Speech } from "../../../shared/markup.ts";
-import type { NotesRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
+import type { BoundaryRequest, NotesRequest, Reply, SceneContext, Suggestion } from "../../../shared/protocol/ai.ts";
 import { effectiveScene, presentCast } from "../../../shared/scene/graph.ts";
 import { unnamed } from "../../../shared/scene/names.ts";
 import type { Character, Scene } from "../../../shared/scene/types.ts";
@@ -20,7 +20,9 @@ import { characters } from "./characters.ts";
  * on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
  * The notes put one why on the first line someone of the cast says, linked to them, with their card;
  * the suggested lines are the same four every time. After a turn, nobody remembers anything, and the
- * co-GM finds the scene on track, with no notes. Character creation gets the prototype's offline
+ * co-GM finds the scene on track, with no notes. After a scene, the boundary goes to the first scene
+ * it could, with the prototype's fallback hand-off, nothing rewritten, nobody absent, nothing owed
+ * and no docs written (story-design §4.4). Character creation gets the prototype's offline
  * answers (its endpoints with no model to ask): three builds from the class defaults, the player's
  * own made legal, no draft, the backstory unchecked, its traits from the player's own words.
  */
@@ -69,6 +71,17 @@ export const canned: Endpoints = {
   },
   async repair(req) {
     return { review: onTrack(req.reviewed), usage: noUsage() };
+  },
+  async boundary(req, ctx) {
+    const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
+    const exit = scene.exits.find(e => e.id === req.exit);
+    const ended = exit ? `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}` : req.exit;
+    return {
+      handOff: `Previous scene, "${scene.title}", ended: ${ended}`,
+      lastMoments: lastMoments(scene, req),
+      next: { scene: req.candidates[0]!, skipped: [], adjustments: [], absent: [], patches: [], hinted: [] },
+      owed: [], fronts: [], usage: noUsage(),
+    };
   },
 
   characters: characters(() => null),
@@ -123,6 +136,13 @@ function whyOn(scene: Scene, req: NotesRequest, line: Speech): Mark {
     link: { kind: "person", id: who.id },
     card: { title: `${name.charAt(0).toUpperCase()}${name.slice(1)}`, lines: ["You met them in this scene.", `Last said to you (turn ${req.turn.scene.turn}): ${words}`] },
   };
+}
+
+/** The ended scene's last four moments that aren't the system's, as the prototype words them (engine.ts:1078-1079). */
+function lastMoments(scene: Scene, req: BoundaryRequest): string[] {
+  const player = req.turn.party[0]?.name ?? "The player";
+  return req.turn.transcript.filter(e => e.kind !== "system").slice(-4)
+    .map(e => (e.kind === "player" ? `${player} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text));
 }
 
 /** How long each word takes, so a canned reply grows over a second or so, as a model's does. */

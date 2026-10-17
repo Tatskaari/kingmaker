@@ -1,4 +1,4 @@
-// Copied from the prototype's src/runtime/brief.ts:22-106, 344-389 and director.ts:54-58 at 44c6d4a; they read GmState's fields (not the session's), and effectiveScene's .at(-1) and leftBehind's findLast are ES2021.
+// Copied from the prototype's src/runtime/brief.ts:22-106, 344-389 and director.ts:54-58 at 44c6d4a; they read GmState's fields (not the session's), and effectiveScene's .at(-1) and leftBehind's findLast are ES2021. candidatesOf is engine.ts:1061-1069 (chainScene's candidates), pure over a lookup.
 
 import type { GmState, PathStep, ScenePatch } from "../gm/state.ts";
 import type { Beat, Character, Scene, Transition } from "./types.ts";
@@ -146,6 +146,31 @@ export function openRoutes(transitions: Transition[], state: Pick<GmState, "beat
 export function endsScene(scene: Scene, t: Transition): boolean {
   const target = t.check ? t.check.onSuccess : t.to;
   return scene.exits.some(e => e.id === target);
+}
+
+/** What candidatesOf reads of a scene: its id, its exits' ways on, and whether it's an interlude or may be overtaken. */
+export type Onward = Pick<Scene, "id" | "exits" | "interlude" | "assumes" | "overtaken">;
+
+/**
+ * The scenes the story could go to after a scene ends through an exit, in order (the prototype's
+ * chainScene with skipInterludes, engine.ts:1061-1069): the exit's next, an interlude replaced by
+ * where its way on goes (with a map to walk, downtime between scenes is the map), then wherever a
+ * candidate goes if it's overtaken, while it takes something for granted. Six at most, none twice;
+ * none when the exit goes nowhere (the story's end). `sceneOf` finds a scene by its key (the
+ * campaign's scenes: the simulation's structure is enough); one it can't find ends the list there.
+ */
+export function candidatesOf(scene: Pick<Scene, "exits">, exitId: string, sceneOf: (key: string) => Onward | undefined): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (let id = scene.exits.find(e => e.id === exitId)?.next; id && out.length < 6 && !seen.has(id); ) {
+    seen.add(id);
+    const candidate = sceneOf(id);
+    if (!candidate) break;
+    if (candidate.interlude) { id = candidate.exits.find(e => e.next)?.next; continue; }
+    out.push(candidate.id);
+    id = candidate.assumes?.length ? candidate.overtaken : undefined;
+  }
+  return out;
 }
 
 /** The last item that matches (Array.prototype.findLast is ES2023; the module's lib is ES2021). */

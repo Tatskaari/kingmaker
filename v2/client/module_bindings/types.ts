@@ -26,6 +26,17 @@ export const Area = __t.object("Area", {
 });
 export type Area = __Infer<typeof Area>;
 
+export const Attitude = __t.object("Attitude", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  castKey: __t.string(),
+  playerId: __t.u64(),
+  attitude: __t.string(),
+  reason: __t.string(),
+  at: __t.timestamp(),
+});
+export type Attitude = __Infer<typeof Attitude>;
+
 export const Brawl = __t.object("Brawl", {
   turn: __t.u32(),
   cause: __t.string(),
@@ -46,6 +57,27 @@ export const Campaign = __t.object("Campaign", {
   installedAt: __t.timestamp(),
 });
 export type Campaign = __Infer<typeof Campaign>;
+
+export const Chapter = __t.object("Chapter", {
+  sceneId: __t.u64(),
+  gameId: __t.u64(),
+  seq: __t.u32(),
+  sceneKey: __t.string(),
+  title: __t.string(),
+  exitKey: __t.string(),
+  ending: __t.string(),
+  summary: __t.string(),
+  lastMoments: __t.array(__t.string()),
+  facts: __t.array(__t.string()),
+  fronts: __t.array(__t.string()),
+  get skipped() {
+    return __t.array(Skipped);
+  },
+  calls: __t.u32(),
+  costMicros: __t.u64(),
+  at: __t.timestamp(),
+});
+export type Chapter = __Infer<typeof Chapter>;
 
 export const CoGmResult = __t.object("CoGmResult", {
   id: __t.u64(),
@@ -141,6 +173,25 @@ export const FeatureRef = __t.object("FeatureRef", {
 });
 export type FeatureRef = __Infer<typeof FeatureRef>;
 
+export const Flag = __t.object("Flag", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  name: __t.string(),
+  value: __t.string(),
+  sceneId: __t.u64(),
+});
+export type Flag = __Infer<typeof Flag>;
+
+export const Follower = __t.object("Follower", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  castKey: __t.string(),
+  name: __t.string(),
+  leaderId: __t.u64(),
+  sinceScene: __t.string(),
+});
+export type Follower = __Infer<typeof Follower>;
+
 export const Game = __t.object("Game", {
   id: __t.u64(),
   uid: __t.string(),
@@ -152,6 +203,10 @@ export const Game = __t.object("Game", {
   hostId: __t.u64(),
   status: __t.string(),
   createdAt: __t.timestamp(),
+  leadScene: __t.option(__t.string()),
+  leadText: __t.option(__t.string()),
+  onward: __t.option(__t.string()),
+  onwardNote: __t.option(__t.string()),
 });
 export type Game = __Infer<typeof Game>;
 
@@ -237,6 +292,13 @@ export const GmState = __t.object("GmState", {
     return __t.option(Brawl);
   },
   absent: __t.array(__t.string()),
+  adjustments: __t.array(__t.string()),
+  opening: __t.option(__t.string()),
+  lead: __t.option(__t.string()),
+  get owed() {
+    return __t.array(OwedRow);
+  },
+  fought: __t.array(__t.string()),
 });
 export type GmState = __Infer<typeof GmState>;
 
@@ -285,6 +347,16 @@ export const JobDispatch = __t.object("JobDispatch", {
   jobId: __t.u64(),
 });
 export type JobDispatch = __Infer<typeof JobDispatch>;
+
+export const Journal = __t.object("Journal", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  sceneId: __t.u64(),
+  seq: __t.u32(),
+  text: __t.string(),
+  at: __t.timestamp(),
+});
+export type Journal = __Infer<typeof Journal>;
 
 export const Look = __t.object("Look", {
   entityId: __t.u64(),
@@ -347,6 +419,16 @@ export const OpenedNote = __t.object("OpenedNote", {
   turn: __t.u32(),
 });
 export type OpenedNote = __Infer<typeof OpenedNote>;
+
+export const OwedRow = __t.object("OwedRow", {
+  from: __t.string(),
+  id: __t.string(),
+  hinted: __t.bool(),
+  things: __t.array(__t.string()),
+  holders: __t.array(__t.string()),
+  where: __t.option(__t.string()),
+});
+export type OwedRow = __Infer<typeof OwedRow>;
 
 export const PathStep = __t.object("PathStep", {
   turn: __t.u32(),
@@ -422,6 +504,18 @@ export const Position = __t.object("Position", {
   y: __t.f64(),
 });
 export type Position = __Infer<typeof Position>;
+
+export const Quest = __t.object("Quest", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  key: __t.string(),
+  title: __t.string(),
+  status: __t.string(),
+  stage: __t.option(__t.string()),
+  notes: __t.array(__t.string()),
+  updatedAt: __t.timestamp(),
+});
+export type Quest = __Infer<typeof Quest>;
 
 export const Reaper = __t.object("Reaper", {
   scheduledId: __t.u64(),
@@ -503,6 +597,7 @@ export const Scene = __t.object("Scene", {
   rev: __t.u32(),
   openedAt: __t.timestamp(),
   endedAt: __t.option(__t.timestamp()),
+  time: __t.option(__t.string()),
 });
 export type Scene = __Infer<typeof Scene>;
 
@@ -573,6 +668,12 @@ export const Sheet = __t.object("Sheet", {
 });
 export type Sheet = __Infer<typeof Sheet>;
 
+export const Skipped = __t.object("Skipped", {
+  sceneKey: __t.string(),
+  why: __t.string(),
+});
+export type Skipped = __Infer<typeof Skipped>;
+
 export const SlotRow = __t.object("SlotRow", {
   level: __t.u32(),
   max: __t.u32(),
@@ -610,6 +711,12 @@ export const Threat = __t.object("Threat", {
   turn: __t.u32(),
 });
 export type Threat = __Infer<typeof Threat>;
+
+export const Tile2 = __t.object("Tile2", {
+  x: __t.i32(),
+  y: __t.i32(),
+});
+export type Tile2 = __Infer<typeof Tile2>;
 
 export const Transcript = __t.object("Transcript", {
   id: __t.u64(),

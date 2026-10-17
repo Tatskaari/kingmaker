@@ -50,6 +50,7 @@ test("a reply's notes have a key of their own, and each ask for its lines anothe
 test("every step has its endpoint and its timeout: the notes' and the lines' 30 s", () => {
   assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), [
     "/v1/scenes/open", "/v1/turns/decide", "/v1/turns/reactions", "/v1/turns/consider", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/notes", "/v1/turns/suggest", "/v1/turns/remember", "/v1/turns/repair",
+    "/v1/scenes/boundary",
   ]);
   assert.deepEqual([STEP_TIMEOUT_MS.notes, STEP_TIMEOUT_MS.suggest], [30_000, 30_000]);
 });
@@ -72,6 +73,14 @@ test("a ruling before the reply, and the memory reviews and the co-GM after a tu
   }
   assert.equal(keyParts("5f0c-uid:c4:repair"), undefined, "a turn's step isn't a creation's");
   assert.deepEqual([STEP_TIMEOUT_MS.consider, STEP_TIMEOUT_MS.remember, STEP_TIMEOUT_MS.repair], [20_000, 170_000, 170_000]);
+});
+
+test("a scene's boundary is keyed by the ended scene's last turn, and waits 120 s (story-design §4.2)", () => {
+  const key = idempotencyKey("5f0c-uid", 4n, 7, "boundary");
+  assert.equal(key, "5f0c-uid:s4:t7:boundary");
+  assert.deepEqual(keyParts(key), { game: "5f0c-uid", scene: "4", turn: 7, step: "boundary" });
+  assert.equal(keyParts("5f0c-uid:s4:boundary"), undefined, "a boundary is keyed by a turn");
+  assert.deepEqual([STEP_ENDPOINT.boundary, STEP_TIMEOUT_MS.boundary], ["/v1/scenes/boundary", 120_000]);
 });
 
 test("stream_reply's arguments are named as the reducer's, the markup in SpacetimeDB's option", () => {

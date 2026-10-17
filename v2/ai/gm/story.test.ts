@@ -12,11 +12,11 @@ import { everyday, storyScenes, vetting } from "./suggest.ts";
 
 /**
  * The story the suggested lines are vetted against (v5-design §3.8): the campaign's installed
- * scenes, read live, and its vocabulary.json for the prototype's others. With the hanged clerk the
- * only scene installed, the vetting is the prototype's: its story is itself, caerwyn-afternoon, the
- * Rat, wharf-night, the Heron and the King's morning (by the prototype's storyScenes, checked once
- * against its own code: A-report §2), and its everyday words the other 19 scenes' prep and the GM's
- * prompts, 2,560 stems.
+ * scenes, read live, and its vocabulary.json for the prototype's others. With the arc's six scenes
+ * installed (story-design §4.6), the vetting is still the prototype's: its story is the hanged clerk,
+ * caerwyn-afternoon, the Rat, wharf-night, the Heron and the King's morning (by the prototype's
+ * storyScenes, checked once against its own code: A-report §2), and its everyday words the other 19
+ * scenes' prep and the GM's prompts, 2,560 stems.
  */
 
 function filesOf(dir: string): Record<string, string> {
@@ -38,19 +38,22 @@ async function installed() {
   return all.use("caerwyn", "0.1.0");
 }
 
-test("the campaign's story: the scene it installs, its place as its world, and the vocabulary's stubs for the rest", async () => {
+test("the campaign's story: the scenes it installs, their places as their worlds, and the vocabulary's stubs for the rest", async () => {
   const story = (await installed()).story;
   const yard = story.scene("hanged-clerk")!;
   const rat = story.scene("drowned-rat")!;
+  const ambush = story.scene("crossroads-ambush")!; // one of the 19 the campaign doesn't install
 
   assert.equal(story.id, "caerwyn@0.1.0");
-  assert.equal(story.all().length, 25, "the prototype's 25 scenes, the hanged clerk among them");
+  assert.equal(story.all().length, 25, "the prototype's 25 scenes, the arc's six among them");
   assert.equal(yard.prep, undefined, "an installed scene's prep is read from it, live");
   assert.ok(yard.world?.areas.some(a => a.name === "the lane"), "its place's areas and things, by name");
   assert.ok(yard.exits.some(e => e.id === "own-ending"), "as play has it: an ending of its own");
-  assert.match(rat.prep ?? "", /Nan Quill/);
-  assert.deepEqual(rat.cast.find(c => c.id === "nan-quill"), { id: "nan-quill", name: "Nan Quill", called: "the landlady", look: "", voice: "", wants: "", knows: [], attitude: "" });
-  assert.deepEqual(rat.exits.map(e => [e.id, e.next]), [["to-wharf-night", "wharf-night"], ["own-ending", "wharf-night"]], "its ways on, and an ending of its own that goes the same way, as sceneById has it");
+  assert.equal(rat.prep, undefined, "the Rat is installed now, so it's read live too");
+  assert.match(rat.cast.find(c => c.id === "nan-quill")?.voice ?? "", /\S/, "its cards whole");
+  assert.match(ambush.prep ?? "", /milestone/);
+  assert.deepEqual(ambush.cast.find(c => c.id === "tam"), { id: "tam", name: "Tam Hollis", look: "", voice: "", wants: "", knows: [], attitude: "" });
+  assert.deepEqual(ambush.exits.map(e => [e.id, e.next]), [["to-crossroads-aftermath", "crossroads-aftermath"], ["own-ending", "crossroads-aftermath"]], "its ways on, and an ending of its own that goes the same way, as sceneById has it");
   assert.equal(story.scene("no-such-scene"), undefined);
 });
 
@@ -87,9 +90,9 @@ test("a version PUT again is vetted with its new words: what the vetting keeps g
   await all.put("caerwyn", "0.1.0", files);
   const before = vettingNow();
 
-  const vocabulary = JSON.parse(files["vocabulary.json"]!) as Vocabulary;
-  const withoutHobb = { ...vocabulary, scenes: vocabulary.scenes.map(e => ({ ...e, cast: e.cast.filter(c => c.id !== "hobb"), hook: e.hook.replaceAll("Hobb", "Someone"), prep: e.prep.replaceAll("Hobb", "Someone") })) };
-  await all.put("caerwyn", "0.1.0", { ...files, "vocabulary.json": JSON.stringify(withoutHobb) });
+  // Hobb comes from the installed Rat and Heron (and the vocabulary's entries for them): rename him in every file.
+  const withoutHobb = Object.fromEntries(Object.entries(files).map(([path, text]) => [path, text.replaceAll("Hobb", "Someone")]));
+  await all.put("caerwyn", "0.1.0", withoutHobb);
   const after = vettingNow();
 
   assert.deepEqual([before.names.includes("Hobb"), before.proper.includes("Hobb")], [true, true], "Hobb, from the Rat and the Heron, is a name the player hasn't heard");

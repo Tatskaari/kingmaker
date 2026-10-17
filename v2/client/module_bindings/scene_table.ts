@@ -26,4 +26,5 @@ export default __t.row({
   rev: __t.u32(),
   openedAt: __t.timestamp().name("opened_at"),
   endedAt: __t.option(__t.timestamp()).name("ended_at"),
+  time: __t.option(__t.string()),
 });

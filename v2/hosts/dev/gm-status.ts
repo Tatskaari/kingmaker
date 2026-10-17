@@ -27,21 +27,30 @@ export interface StatusRows {
   jobs: Row[];
   /** memory-reviews.jsonl's lines, as JSON. */
   reviews: unknown[];
+  /** The story between scenes (story-design §4.1): the game's chapters, quests, flags, followers and attitudes. */
+  story?: StoryRows;
 }
+
+/** The game's story rows, by game. */
+export interface StoryRows { chapters: Row[]; quests: Row[]; flags: Row[]; followers: Row[]; attitudes: Row[] }
 
 /**
  * What statusOf reads for a game's scene: its gm_state, turns, co-GM reviews and jobs by owner SQL
  * (`query`), and the memory reviews' lines from the game's folder in the AI service's store.
  */
 export async function statusRows(query: (q: string) => Promise<Row[]>, store: string, game: Row, scene: Row): Promise<StatusRows> {
-  const id = String(scene.id);
-  const [[gm], turns, repairs, jobs] = await Promise.all([
+  const id = String(scene.id), byGame = `WHERE game_id = ${String(game.id)}`;
+  const [[gm], turns, repairs, jobs, chapters, quests, flags, followers, attitudes] = await Promise.all([
     query(`SELECT * FROM gm_state WHERE scene_id = ${id}`), query(`SELECT * FROM turn WHERE scene_id = ${id}`),
     query(`SELECT * FROM co_gm_result WHERE scene_id = ${id}`),
     // A job's scene is an option column: the whole table, read for this scene's (statusOf).
     query("SELECT * FROM job"),
+    ...["chapter", "quest", "flag", "follower", "attitude"].map(table => query(`SELECT * FROM ${table} ${byGame}`)),
   ]);
-  return { game, scene, ...(gm ? { gm } : {}), turns, repairs, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")) };
+  return {
+    game, scene, ...(gm ? { gm } : {}), turns, repairs, jobs, reviews: reviewLines(join(store, "memory-reviews.jsonl")),
+    story: { chapters: chapters!, quests: quests!, flags: flags!, followers: followers!, attitudes: attitudes! },
+  };
 }
 
 /** The background moves (full-gm-design §4.2): a memory review and a co-GM review run after a turn, holding nothing. */
@@ -74,6 +83,32 @@ export function statusOf(rows: StatusRows): Record<string, unknown> {
       avgConsiderMs: average(gm?.rulings.map(r => r.latencyMs) ?? []),
     },
     costUsd: (rows.turns.reduce((sum, t) => sum + Number(t.cost_micros ?? 0), 0) / 1e6).toFixed(5),
+    story: storyFields(rows.game, rows.story ?? { chapters: [], quests: [], flags: [], followers: [], attitudes: [] }),
+  };
+}
+
+/**
+ * The story between scenes (story-design §4.1): where the game stands (its status, its time, the
+ * lead and a boundary in flight), each chapter (a played scene's ending, its hand-off's first line,
+ * what its boundary cost and what it skipped), the quests, the flags, who walks with the player and
+ * the attitudes, as the prototype's session.history and story state have them.
+ */
+function storyFields(game: Row, story: StoryRows): Record<string, unknown> {
+  const text = (v: unknown) => (v === null || v === undefined ? null : String(v));
+  const onward = text(game.onward);
+  return {
+    status: text(game.status), time: text(game.time),
+    lead: game.lead_scene === null || game.lead_scene === undefined ? null : `${String(game.lead_scene)}${game.lead_text ? `: ${String(game.lead_text)}` : ""}`,
+    onward: onward ? `${onward}${game.onward_note ? ` (${String(game.onward_note)})` : ""}` : null,
+    chapters: [...story.chapters].sort((a, b) => Number(a.seq) - Number(b.seq)).map(c => {
+      const skipped = (c.skipped as Array<{ scene_key?: string; sceneKey?: string }> | undefined ?? []).map(k => k.scene_key ?? k.sceneKey);
+      const handOff = String(c.summary ?? "").split("\n")[0] || (String(game.status) === "ended" ? "(The End: no boundary after it)" : "(no hand-off yet: the boundary is in flight)");
+      return `${Number(c.seq)}. ${String(c.scene_key)} -> ${String(c.exit_key)} (${String(c.ending)}): ${handOff} [${Number(c.calls)} calls, $${(Number(c.cost_micros ?? 0) / 1e6).toFixed(4)}${skipped.length ? `; skipped ${skipped.join(", ")}` : ""}]`;
+    }),
+    quests: story.quests.map(q => `${String(q.key)} (${String(q.status)}${q.stage ? `, ${String(q.stage)}` : ""}): ${(q.notes as string[] | undefined ?? []).at(-1) ?? String(q.title)}`),
+    flags: story.flags.map(f => `${String(f.name)} = ${String(f.value)}`),
+    followers: story.followers.map(f => `${String(f.cast_key)} (${String(f.name)}), since ${String(f.since_scene)}`),
+    attitudes: story.attitudes.map(a => `${String(a.cast_key)}: ${String(a.attitude)}${a.reason ? ` (${String(a.reason)})` : ""}`),
   };
 }
 
@@ -91,11 +126,15 @@ function gmFields(gm: GmState): Record<string, unknown> {
     landed: gm.landed, hinted: gm.hinted,
     sceneStatus: gm.sceneStatus ?? null, offGraphTurn: gm.offGraphTurn ?? null, lastRepairTurn: gm.lastRepairTurn ?? null,
     opened: gm.opened.map(o => `${o.turn}: ${o.scope}: ${o.title} (${o.path})`),
-    // The world bridge's (world-bridge-design §3.3): what the last reply left hanging, a hold on the player, a fight that broke out, and who left.
+    // The world bridge's (world-bridge-design §3.3): what the last reply left hanging, a hold on the player, a fight that broke out, and who's away.
     threat: gm.threat ? `${gm.threat.turn}: ${gm.threat.kind === "attack" ? `an attack by ${gm.threat.by}` : `${gm.threat.hazard}, ${gm.threat.severity}`}` : null,
     held: gm.held ?? null,
     brawl: gm.brawl ? `${gm.brawl.turn}: ${gm.brawl.cause}; against ${gm.brawl.against.join(", ") || "nobody"}${gm.brawl.allies.length ? `; with ${gm.brawl.allies.join(", ")}` : ""}${gm.brawl.fled.length ? `; fled ${gm.brawl.fled.join(", ")}` : ""}` : null,
     absent: gm.absent,
+    // What the boundary handed on to this scene (story-design §4.1), and the fights fought in it.
+    adjustments: gm.adjustments, opening: gm.opening ?? null, lead: gm.lead ?? null,
+    owed: gm.owed.map(o => `${o.from}/${o.id}${o.hinted ? " (hinted)" : ""}: ${[...o.things].reverse().join(" in ")}${o.holders.length ? ` with ${o.holders.join(", ")}` : ""}${o.where ? ` at ${o.where}` : ""}`),
+    fought: gm.fought,
   };
 }
 

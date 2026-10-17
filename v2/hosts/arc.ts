@@ -9,7 +9,7 @@ import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
 
 /**
- * The arc check (verticals.md §2, v1-design §4.5): the prototype's whole-arc check
+ * The arc check (verticals.md §2, v1-design §4.5, story-design §5): the prototype's whole-arc check
  * (src/app/smoke/flow.ts at 44c6d4a) on the split. A stack of its own on the fake model, the
  * headless client's `play new` as the prototype's flow makes its character (a sentence, no build:
  * the model picks one), then the flow's sixteen checks in its order, each on once the vertical that
@@ -28,8 +28,12 @@ const USAGE = `npm run arc [-- options]
 /** The prototype's flow's character (flow.ts:31). */
 const WHO = "Tamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
 
-/** What a check reads: the player's rows once the game is made and begun. */
-interface Arc { conn: Connection; home: HomeRows }
+/**
+ * What a check reads: the player's rows once the game is made and begun; and, scene by scene, what
+ * the story showed as the flow took it on (`way`: each check's number, with what it found there,
+ * or undefined where it didn't hold).
+ */
+interface Arc { conn: Connection; home: HomeRows; way: Map<number, string | undefined> }
 
 /** One of the flow's checks: what it holds, the unit that turns it on, and, once on, what it found (or undefined when it doesn't hold). */
 interface ArcCheck { what: string; unit: string; run?(arc: Arc): string | undefined }
@@ -40,25 +44,31 @@ const CHECKS: ArcCheck[] = [
   { what: "the story starts in the morning, heading for the granary", unit: "V2" },
   { what: "observe: the lane by the granary gate, Kell to talk to", unit: "V2" },
   { what: "the granary yard opens the hanged clerk", unit: "V2" },
-  { what: "the scene's place is drawn with the player in it", unit: "V9", run: placeDrawn },
-  { what: "on to the Drowned Rat at dusk", unit: "V3" },
-  { what: "Kell walks with the investigator", unit: "V3" },
-  { what: "down the river stairs and into the Rat", unit: "V3" },
-  { what: "on to the Heron at night", unit: "V4" },
-  { what: "along the wharf to the Heron", unit: "V4" },
-  { what: "Roll for initiative!", unit: "V12" },
+  { what: "the scene's place is drawn with the player in it", unit: "V9", run: seen(5) },
+  { what: "on to the Drowned Rat at dusk", unit: "V3", run: seen(6) },
+  { what: "Kell walks with the investigator", unit: "V3", run: seen(7) },
+  { what: "down the river stairs and into the Rat", unit: "V3", run: seen(8) },
+  { what: "on to the Heron at night", unit: "V4", run: seen(9) },
+  { what: "along the wharf to the Heron", unit: "V4", run: seen(10) },
+  { what: "Roll for initiative!", unit: "V4", run: seen(11) },
   { what: "Sallow and the Crakes are in the fight", unit: "V12" },
-  { what: "after the fight, back to the Heron for its aftermath", unit: "V12" },
-  { what: "the King's morning opens straight away", unit: "V4" },
-  { what: "The End", unit: "V4" },
-  { what: "observe says The End", unit: "V4" },
+  { what: "after the fight, back to the Heron for its aftermath", unit: "V4", run: seen(13) },
+  { what: "the King's morning opens straight away", unit: "V4", run: seen(14) },
+  { what: "The End", unit: "V4", run: seen(15) },
+  { what: "observe says The End", unit: "V4", run: seen(16) },
 ];
+
+/** Checks 5 to 16 (flow.ts:40-73): what the story showed at that point of the flow, as theStory and theWayOn found it. */
+function seen(n: number): (arc: Arc) => string | undefined {
+  return arc => arc.way.get(n);
+}
 
 /**
  * Check 5 (flow.ts:40, the world bridge's drawing half of V9): the scene's place, the world rebuilt
  * from the player's rows, drawn by the look layer's stage view, plain, at 80x24, has the player's @.
+ * Looked at in the yard, before the story moves on.
  */
-function placeDrawn({ conn }: Arc): string | undefined {
+function placeDrawn(conn: Connection): string | undefined {
   const place = conn.view()?.place;
   const drawn = place ? stageView(place.world, { w: 80, h: 24 }, { t: 0, time: place.time, glyphs: "plain" })?.toPlain() ?? "" : "";
   const row = drawn.split("\n").findIndex(line => line.includes("@"));
@@ -101,18 +111,68 @@ process.exit(failed ? 1 : 0);
 
 // ---------------------------------------------------------------------------------------------
 
-/** The campaign installed, then play new as the flow makes its character: the game made and begun. */
+/**
+ * The campaign installed, then play new as the flow makes its character: the game made and begun.
+ * Then the story on, as the flow takes it (story-design §1.3): each scene ended through the flow's
+ * exit as the QA console's end does (end_scene as the stack's owner), and go_to_lead to the next.
+ */
 async function theStory(stack: Stack): Promise<Arc> {
   await stack.install(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
-  const conn = await connect({ url: stack.ws, db: stack.db });
+  // The stack's owner, for end (end_scene), as play end has it from the dev stack's stack.json.
+  const conn = await connect({ url: stack.ws, db: stack.db, owner: { http: stack.http, db: stack.db, token: stack.owner.token } });
   const who = newGameOf(WHO, "", "caerwyn");
-  const printed: string[] = [];
-  const code = await verbs.newCharacter(conn, { campaign: who.campaign, name: who.name, concept: who.concept }, { print: text => printed.push(text), progress: () => {} });
-  console.log(`\nplay new --as "${WHO}"\n${printed.join("\n").replace(/^/gm, "  | ")}\n`);
-  if (code !== 0) throw new Error(`play new exited ${code}`);
-  // The scene's place comes with its rows: wait for them (10 s at most), as the screen does.
+  const made = await played(`new --as "${WHO}"`, out => verbs.newCharacter(conn, { campaign: who.campaign, name: who.name, concept: who.concept }, out));
+  if (made.code !== 0) throw new Error(`play new exited ${made.code}`);
+  // The scene's place comes with its rows: wait for them (10 s at most), as the screen does, and look at it before the story moves on.
   for (let waited = 0; !conn.view()?.place && waited < 10_000; waited += 100) await new Promise(r => setTimeout(r, 100));
-  return { conn, home: conn.home() };
+  const drawn = placeDrawn(conn);
+  const home = conn.home();
+  const way = await theWayOn(conn);
+  way.set(5, drawn);
+  return { conn, home, way };
+}
+
+/** A headless verb, printed as the QA console prints it: its exit code and what it said. */
+async function played(verb: string, play: (out: verbs.Out) => Promise<number> | number): Promise<{ code: number; text: string }> {
+  const printed: string[] = [];
+  const code = await play({ print: text => printed.push(text), progress: () => {} });
+  console.log(`\nplay ${verb}\n${printed.join("\n").replace(/^/gm, "  | ")}\n`);
+  return { code, text: printed.join("\n") };
+}
+
+/**
+ * The flow from the yard to The End (flow.ts:40-73): end each scene through its exit, go to the lead,
+ * fight the Heron's fight (its stand-in), and observe The End. What each point showed, by check.
+ */
+async function theWayOn(conn: Connection): Promise<Map<number, string | undefined>> {
+  const way = new Map<number, string | undefined>();
+  const story = () => conn.view()?.story;
+  const at = (title: string) => { const v = conn.view(); return v?.title === title && v.phase !== "failed" && !v.over && !v.fighting; };
+
+  await played("end --exit open-case", out => verbs.end(conn, "open-case", out));
+  way.set(6, story()?.lead?.key === "drowned-rat" && story()?.time === "evening" ? `the lead ${story()!.lead!.title}, ${story()!.time}` : undefined);
+  way.set(7, story()?.with.some(w => w.key === "kell") ? `with ${story()!.with.map(w => w.name).join(", ")}` : undefined);
+  const rat = await played("go", out => verbs.go(conn, out));
+  way.set(8, rat.code === 0 && at("The Drowned Rat") ? `"${rat.text.split("\n")[2]}"` : undefined);
+
+  await played("end --exit hobb-talks", out => verbs.end(conn, "hobb-talks", out));
+  way.set(9, story()?.lead?.key === "heron-warehouse" && story()?.time === "night" ? `the lead ${story()!.lead!.title}, ${story()!.time}` : undefined);
+  const heron = await played("go", out => verbs.go(conn, out));
+  way.set(10, heron.code === 0 && at("The Heron Warehouse") ? `"${heron.text.split("\n")[2]}"` : undefined);
+
+  const fight = await played("end --exit fight", out => verbs.end(conn, "fight", out));
+  way.set(11, conn.view()?.fighting && fight.text.includes("Roll for initiative!") ? "MODE: fight, Roll for initiative!" : undefined);
+  const fought = await played("act --id fight", out => verbs.fight(conn, out));
+  const picked = conn.view()?.entries.find(e => e.text.startsWith("The fight: "));
+  way.set(13, fought.code === 0 && at("The Heron Warehouse") && picked ? `"${picked.text}", then the aftermath` : undefined);
+
+  const summons = await played("end --exit caught-in-the-act", out => verbs.end(conn, "caught-in-the-act", out));
+  way.set(14, summons.code === 0 && at("The King's Morning") ? `${conn.view()!.title}, ${story()?.time}, with no go` : undefined);
+  const end = await played("end --exit justice", out => verbs.end(conn, "justice", out));
+  way.set(15, story()?.ended && end.text.includes("MODE: end") ? "the story is over" : undefined);
+  const observed = await played("observe", out => verbs.observe(conn, out));
+  way.set(16, observed.text.includes("THE END") ? `"${observed.text.split("\n").find(l => l.startsWith("THE END"))}"` : undefined);
+  return way;
 }
 
 /** Each check in turn: "ok" or "FAIL" for those on, "skip" with the unit for the rest. How many failed. */

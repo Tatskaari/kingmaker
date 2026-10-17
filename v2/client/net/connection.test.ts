@@ -24,6 +24,7 @@ function standIn(t: TestContext) {
     mySeat: rows([{ playerId: 1n, gameId: 3n, sceneId: 7n, placeId: 9n }]),
     myNames: rows(), player: rows(), sheet: rows(), transcript: rows(), replyDraft: rows(), turn: rows(), onStage: rows(), look: rows(), sceneSuggestion: rows(),
     myGames: rows(), myCreation: rows(), campaign: rows(),
+    chapter: rows(), quest: rows(), flag: rows(), journal: rows(), attitude: rows(), follower: rows(),
     // The place's world (the world bridge): watched, and none of it in yet.
     place: { ...rows(), id: { find: () => undefined } },
     entity: rows(), position: rows(), area: rows(), material: rows(), health: rows(), stack: rows(), surface: rows(), creature: rows(),

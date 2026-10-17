@@ -1,4 +1,4 @@
-// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows.
+// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows; end is its :203-215, through end_scene as the dev stack's owner, and go, journal and act's go_to_lead, fight and carry_on take the story on between scenes (story-design §4.5).
 import { tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild } from "../shared/creation/types.ts";
 import { refusal } from "../shared/protocol/refusals.ts";
@@ -11,6 +11,8 @@ import { jsonOf } from "./json.ts";
 import { actionLines, phaseLine, render, viewText } from "./scene/text.ts";
 import type { SceneView } from "./scene/view.ts";
 import { sheetOf } from "./sheet/rows.ts";
+import { journalText, storyText } from "./story/text.ts";
+import { wayOnOf } from "./story/view.ts";
 import { stageView } from "./look/stage-view.ts";
 import { describe } from "./title/model.ts";
 
@@ -72,14 +74,18 @@ export async function joinGame(game: Backend, id: bigint, out: Out): Promise<num
   return 0;
 }
 
-/** What the player sees: the title (their games) without a seat; the sheet before their game begins; else the scene, and whose turn it is. */
+/**
+ * What the player sees: the title (their games) without a seat; the sheet before their game begins;
+ * the moment between scenes, the fight or The End once the scene is over (story-design §4.5); else
+ * the scene, and whose turn it is.
+ */
 export function observe(game: Backend, out: Out): number {
   const rows = game.home();
   if (!rows.seat) return games(game, out);
   if (rows.seat.sceneId === undefined) return created(rows, out);
   const view = game.view();
   if (!view) return notInGame(out);
-  out.print(viewText(view));
+  out.print(storyText(view) ?? viewText(view));
   return 0;
 }
 
@@ -126,6 +132,9 @@ export async function say(game: Backend, text: string, out: Out, waiting: Waitin
 export async function act(game: Backend, id: string, out: Out, waiting: Waiting = {}): Promise<number> {
   const view = game.view();
   if (!view) return notInGame(out);
+  // The way on between scenes: on to the lead, the fight's stand-in, a story that got stuck tried again.
+  if (id === "go_to_lead" || id === "carry_on") return await go(game, out, waiting);
+  if (id === "fight") return await fight(game, out, waiting);
   if (view.watching) return said(out, refusal("not_controller", { name: view.watching }));
   const line = /^say_[1-9]\d*$/.test(id) ? view.suggestions[Number(id.slice(4)) - 1] : undefined;
   if (!line) { out.print(noSuchLine(id, view)); return 1; }
@@ -173,22 +182,141 @@ export async function retry(game: Backend, out: Out, waiting: Waiting = {}): Pro
   return await answered(game, out, waiting);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Between scenes (story-design §4.5): the testing end, the way on, the fight's stand-in, the notebook.
+
 /**
- * Waits for the turn in flight to answer, and for the notes on its reply and the lines suggested
- * after it; then prints what answered it (not the line itself), the lines, and the phase.
+ * For testing (the QA console's end): the scene ends through `exit` now, as the dev stack's owner
+ * (end_scene), and the story moves on; then where it stands, as observe says it (MODE: between, the
+ * fight, The End, or a summons's next scene once its opening is in). With no exit, the endings.
  */
-async function answered(game: Backend, out: Out, waiting: Waiting): Promise<number> {
-  const turn = game.view()?.turn;
+export async function end(game: Backend, exit: string | undefined, out: Out, waiting: Waiting = {}): Promise<number> {
+  const view = game.view();
+  if (!view) return notInGame(out);
+  const refused = await game.act("endScene", { game: BigInt(view.game), exit: exit ?? "" });
+  // With no exit, the refusal is the list of the endings: the QA console's answer to end alone.
+  if (refused) { out.print(refused.text); return exit ? 1 : 0; }
+
   const stream = streamTo(out, waiting);
-  const replied = await viewWhen(game, v => finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
-  stream.end(replied);
-  const after = await afterwards(game, replied, waiting);
-  const answer = after.entries.filter(e => e.turn === turn && e.kind !== "player");
+  const moved = await viewWhen(game, v => movedOn(view.sceneId, v), waiting.ms ?? TURN_MS, stream.see);
+  stream.end(moved);
+  out.print(storyText(moved) ?? viewText(await afterwards(game, moved, waiting)));
+  return moved.story?.onward === "failed" ? 1 : 0;
+}
+
+/**
+ * The scene that was played has moved on: over (or its fight next) with the story done moving on
+ * (the way on ready, or stuck); or the seat has gone on to the next scene (a summons), its opening in.
+ */
+function movedOn(before: string | undefined, view: SceneView): boolean {
+  if (view.sceneId !== before) return view.phase === "failed" || view.phase === "done" || view.mayType || view.over;
+  if (!view.over && !view.fighting) return false;
+  return view.story?.onward !== "moving" && view.story?.onward !== "waiting";
+}
+
+/**
+ * On from the scene that's over (the QA console's act --id go_to_lead): walk to the lead, whose
+ * scene opens, its opening played (its notes and lines in), then the scene; a story that got stuck
+ * is tried again (carry_on), and waited for; the fight's way on is the fight's.
+ */
+export async function go(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
+  const view = game.view();
+  if (!view) return notInGame(out);
+  const way = wayOnOf(view, view.story);
+  if (way?.to === "fight") return await fight(game, out, waiting);
+  if (way?.to === "end") { out.print(storyText(view)!); return 0; }
+  if (way?.to === "carry_on") {
+    const refused = await game.act("carryOn", {});
+    if (refused) return said(out, refused);
+    const moved = await viewWhen(game, v => movedOn(view.sceneId, v) && v.story?.onward !== "failed", waiting.ms ?? TURN_MS);
+    out.print(storyText(moved) ?? viewText(moved));
+    return 0;
+  }
+  const refused = await game.act("walk", { to: undefined, toward: "lead" });
+  if (refused) return said(out, refused);
+
+  // The lead's scene, its opening over, and its notes and the lines suggested after it in, as for a new game.
+  const stream = streamTo(out, waiting);
+  const opening = await viewWhen(game, v => v.sceneId !== view.sceneId && (v.phase === "failed" || v.mayType || v.over), waiting.ms ?? TURN_MS, stream.see);
+  stream.end(opening);
+  const opened = await afterwards(game, opening, waiting);
+  out.print(viewText(opened));
+  return opened.phase === "failed" ? 1 : 0;
+}
+
+/**
+ * The fight's stand-in (act --id fight): fought out, as won (fight_it_out); then the scene picking
+ * up from it (the stand-in's line and how it went, as the simulation writes them in the scene, then
+ * the GM's aftermath, its notes and lines in), as for a line said.
+ */
+export async function fight(game: Backend, out: Out, waiting: Waiting = {}): Promise<number> {
+  const view = game.view();
+  if (!view) return notInGame(out);
+  if (!view.fighting) return said(out, refusal("no_fight"));
+  const seen = view.entries.length;
+  const refused = await game.act("fightItOut", {});
+  if (refused) return said(out, refused);
+
+  const stream = streamTo(out, waiting);
+  const picked = await viewWhen(game, v => !v.fighting && v.entries.length > seen && finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
+  stream.end(picked);
+  const after = await afterwards(game, picked, waiting);
+  const answer = after.entries.slice(seen).filter(e => e.kind !== "player");
   if (answer.length) out.print(render(after, answer));
   const actions = actionLines(after);
   if (actions.length) out.print(`\n${actions.join("\n")}`);
   out.print(`\n${phaseLine(after)}`);
   return after.phase === "failed" ? 1 : 0;
+}
+
+/** The investigator's notebook, the quests, the flags and the attitudes (the journal verb). */
+export function journal(game: Backend, out: Out): number {
+  const view = game.view();
+  if (!view) return notInGame(out);
+  if (!view.story) { out.print("MODE: journal\n\nNothing yet. The notebook is new, and smells of it."); return 0; }
+  out.print(journalText(view.story));
+  return 0;
+}
+
+/**
+ * Waits for the turn in flight to answer, and for the notes on its reply and the lines suggested
+ * after it; then prints what answered it (not the line itself), the lines, and the phase. A line
+ * that ended the scene in a summons (the next scene came for the player as this one ended, the seat
+ * with it) prints what answered it as the scene last stood, then the next scene once it's opened.
+ */
+async function answered(game: Backend, out: Out, waiting: Waiting): Promise<number> {
+  const said = game.view();
+  const turn = said?.turn, scene = said?.sceneId;
+  // The scene the line was said in, as last seen: its rows go once the seat has moved on.
+  let last = said;
+  const stop = game.onChange(() => { const v = game.view(); if (v && v.sceneId === scene) last = v; });
+  try {
+    const stream = streamTo(out, waiting);
+    const replied = await viewWhen(game, v => v.sceneId !== scene || finished(v, waiting.settled ?? false), waiting.ms ?? TURN_MS, stream.see);
+    stream.end(replied);
+    const after = await afterwards(game, replied, waiting);
+    const own = after.sceneId === scene ? after : last ?? after;
+    const answer = own.entries.filter(e => e.turn === turn && e.kind !== "player");
+    if (answer.length) out.print(render(own, answer));
+    if (after.sceneId !== scene) return await summoned(game, out, waiting);
+    // A line that brought the fight on (or the story to its end): what comes next, as observe says it, as the QA console's say does.
+    const next = storyText(after);
+    if (next) { out.print(`\n${next}`); return 0; }
+    const actions = actionLines(after);
+    if (actions.length) out.print(`\n${actions.join("\n")}`);
+    out.print(`\n${phaseLine(after)}`);
+    return after.phase === "failed" ? 1 : 0;
+  } finally {
+    stop();
+  }
+}
+
+/** The next scene, come for the player as the last ended (a summons): its opening over, its notes and lines in, then the scene. */
+async function summoned(game: Backend, out: Out, waiting: Waiting): Promise<number> {
+  const opening = await viewWhen(game, v => v.phase === "failed" || v.mayType || v.over || (!!v.watching && v.phase === "done"), waiting.ms ?? TURN_MS);
+  const opened = await afterwards(game, opening, waiting);
+  out.print(`\n${viewText(opened)}`);
+  return opened.phase === "failed" ? 1 : 0;
 }
 
 /**

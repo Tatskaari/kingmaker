@@ -1,17 +1,18 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
-  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type ConsiderRequest, type DecideRequest, type NotesRequest, type OpenRequest, type ReactionsRequest, type RememberRequest, type RepairRequest, type ReplyRequest,
-  type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext,
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type NotesRequest, type OpenRequest, type ReactionsRequest,
+  type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
-import { idempotencyKey, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
+import { idempotencyKey, idOf, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
-import { gameRow, playerRow, sceneRow, sheetRow, type GameRow, type PlayerRow, type SceneRow } from "../rows.ts";
+import type { BoundaryPlan, NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import { gameRow, playerRow, sceneRow, sheetRow, turnRow, type GameRow, type PlayerRow, type RowOf, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
+import { FIGHT_NOT_PLAYED } from "../story/words.ts";
 import { entriesOf, entryAt, markupOf } from "../transcript.ts";
 import { placeRows } from "../world/rows-io.ts";
 import { getGm } from "./rows.ts";
@@ -24,17 +25,34 @@ import { getGm } from "./rows.ts";
  * crash.
  */
 
-/** The opening's call: POST /v1/scenes/open, key <uid>:s<scene>:t0:open. */
+/**
+ * The opening's call: POST /v1/scenes/open, key <uid>:s<scene>:t0:open. A fight's aftermath (story-
+ * design §4.3) is the same call on a turn of its own (key <uid>:s<scene>:t<n>:open), with how the
+ * fight went and the scene's transcript so far.
+ */
 export function openCall(tx: TxCtx, plan: OpenPlan): AiCall {
   const at = whereOf(tx, plan.scene);
-  const key = idempotencyKey(at.game.uid, at.scene.id, 0, "open");
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.aftermath ? turnRow(tx, idOf(plan.turn)).n : 0, "open");
   const request: OpenRequest = {
     ...aiRequest(key, at),
     scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: "scene" },
-    pc: pcKey(at.controller.id), gm: getGm(tx, at.scene.id), world: placeRows(tx, at.scene.placeId), party: partyOf(tx, at.controller), story: storyOf(at.game),
+    pc: pcKey(at.controller.id), gm: getGm(tx, at.scene.id), world: placeRows(tx, at.scene.placeId), party: partyOf(tx, at.controller), story: storyOf(tx, at.game, at.scene.id),
     stream: { turn: plan.turn },
+    ...(plan.aftermath ? { aftermath: plan.aftermath, transcript: entriesOf(tx, at.scene.id) } : {}),
   };
   return { endpoint: STEP_ENDPOINT.open, key, timeoutMs: STEP_TIMEOUT_MS.open, request };
+}
+
+/**
+ * The boundary's call: POST /v1/scenes/boundary, key <uid>:s<scene>:t<n>:boundary (n: the ended
+ * scene's last turn). The scene's working set as it ended ("Scene ends" last, the place as its
+ * afterwards left it), the exit it ended by, and the scenes the story could go to.
+ */
+export function boundaryCall(tx: TxCtx, plan: BoundaryPlan): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "boundary");
+  const request: BoundaryRequest = { ...aiRequest(key, at), turn: sceneContext(tx, at, plan.n), exit: plan.exit, candidates: plan.candidates };
+  return { endpoint: STEP_ENDPOINT.boundary, key, timeoutMs: STEP_TIMEOUT_MS.boundary, request };
 }
 
 /** A say turn's call for its step: decide, reactions, consider, reply or settle, each with the turn's working set. */
@@ -107,7 +125,7 @@ export function sceneContext(tx: TxCtx, at: Where, n: number): SceneContext {
     world: placeRows(tx, at.scene.placeId),
     party: partyOf(tx, at.controller),
     present: presentCast(sceneGraph(tx, at.scene, gm), gm).map(c => ({ key: c.id, name: c.name, ...(c.called ? { called: c.called } : {}) })),
-    story: storyOf(at.game),
+    story: storyOf(tx, at.game, at.scene.id),
   };
 }
 
@@ -168,8 +186,39 @@ function offeredIn(tx: TxCtx, sceneId: bigint): string[] {
   return [...tx.db.sceneSuggestion.sceneId.filter(sceneId)].sort((a, b) => a.ord - b.ord).map(s => s.text);
 }
 
-/** The story's clock (no flags until the boundary vertical). */
-const storyOf = (game: GameRow): Story => ({ time: game.time, day: game.day, flags: {} });
+/**
+ * The story so far, beside the scene (story-design §4.2): its clock, the flags its endings set, and,
+ * once a scene has been played before this one, the chapters (the prototype's history, oldest first)
+ * and every entry of those scenes, in order, each with its scene's key (the prototype's transcript
+ * holds the whole story). This scene's own chapter, while its boundary is being crossed, isn't yet
+ * the story before it.
+ */
+export function storyOf(tx: TxCtx, game: GameRow, sceneId: bigint): Story {
+  const flags = Object.fromEntries([...tx.db.flag.gameId.filter(game.id)].sort((a, b) => (a.id < b.id ? -1 : 1)).map(f => [f.name, f.value]));
+  const chapters = [...tx.db.chapter.gameId.filter(game.id)].filter(c => c.sceneId !== sceneId).sort((a, b) => a.seq - b.seq);
+  const history = chapters.map(c => chapterOf(tx, c));
+  const earlier = chapters.flatMap(c => earlierEntries(tx, c.sceneId, c.sceneKey));
+  return { time: game.time, day: game.day, flags, ...(history.length ? { history } : {}), ...(earlier.length ? { earlier } : {}) };
+}
+
+/**
+ * A chapter as the prototype's history entry has it (engine.ts:1080): the scene's and exit's keys,
+ * the hand-off, its last moments, then only what it has of the scenes skipped, the fronts moved, its
+ * notebook's lines (its ending's journal, not the fight stand-in's word on the fight) and its facts.
+ */
+function chapterOf(tx: TxCtx, c: RowOf<"chapter">): Chapter {
+  const journal = [...tx.db.journal.gameId.filter(c.gameId)].filter(j => j.sceneId === c.sceneId && j.text !== FIGHT_NOT_PLAYED).sort((a, b) => a.seq - b.seq).map(j => j.text);
+  const skipped = c.skipped.map(s => ({ sceneId: s.sceneKey, why: s.why }));
+  return {
+    sceneId: c.sceneKey, exitId: c.exitKey, summary: c.summary, lastMoments: [...c.lastMoments],
+    ...(skipped.length ? { skipped } : {}), ...(c.fronts.length ? { fronts: [...c.fronts] } : {}), ...(journal.length ? { journal } : {}), ...(c.facts.length ? { facts: [...c.facts] } : {}),
+  };
+}
+
+/** An earlier scene's entries, in order, each with its scene's key, without markup. */
+function earlierEntries(tx: TxCtx, sceneId: bigint, sceneKey: string): Entry[] {
+  return entriesOf(tx, sceneId).map(({ markup: _markup, ...e }) => ({ ...e, scene: sceneKey }));
+}
 
 function needs<T>(value: T | undefined, what: string, step: SayPlan["step"]): T {
   if (value === undefined) throw new Error(`the plan has no ${what} for its ${step}`);

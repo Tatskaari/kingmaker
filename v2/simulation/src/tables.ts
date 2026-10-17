@@ -40,6 +40,13 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   heard: { primaryKey: "id", autoInc: true, indexes: ["playerId"] },
   coGmResult: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
 
+  chapter: { primaryKey: "sceneId", indexes: ["gameId"] },
+  quest: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
+  flag: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
+  journal: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
+  attitude: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
+  follower: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
+
   place: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
   entity: { primaryKey: "id", autoInc: true, indexes: ["placeId"], named: { byGameKey: ["gameId", "key"] } },
   position: { primaryKey: "entityId", indexes: ["placeId"] },

@@ -84,6 +84,12 @@ test("a test's recipe on the quiet full GM: its choices beside the attention fil
   assert.deepEqual((options as { toolCalls?: unknown }).toolCalls, (fake as { toolCalls?: unknown }).toolCalls);
 });
 
+test("a choice that's a list goes in as it is, beside the quiet ones (the whole story's recipe, story-design §1.1)", () => {
+  const options = fakeOptions('{"choices":{"ending":["open-case","hobb-talks","fight","caught-in-the-act","justice"],"own_exit":"theirs"}}');
+
+  assert.deepEqual(options.choices, { ...fake.choices, ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" });
+});
+
 test("the world bridge's quiet reactions (world-bridge-design §1.4): in the granary yard nobody fights the player's violence", () => {
   const reactions = Object.fromEntries(Object.entries(fake.choices!).filter(([k]) => k.startsWith("react_")));
 

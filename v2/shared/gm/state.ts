@@ -5,7 +5,8 @@ import type { RulingRecord } from "./consider.ts";
 
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
- * open, the endings coming, the co-GM's steering and the GM's rulings. The simulation keeps it in
+ * open, the endings coming, the co-GM's steering, the GM's rulings, and what the story handed on to
+ * it at the boundary before it (story-design §4.1). The simulation keeps it in
  * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
  * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
  * reads this unchanged.
@@ -53,6 +54,18 @@ export interface GmState {
   offGraphTurn?: number;
   /** The GM's rulings on considered acts, in the order made. */
   rulings: RulingRecord[];
+  // What the boundary before the scene handed on (story-design §4.1; the prototype's session.ts:
+  // 278-331), written as the scene waits: each is the scene's own from then on.
+  /** Where the scene's prep no longer matches the story: what's true instead (the boundary's verdict). */
+  adjustments: string[];
+  /** The scene's opening, rewritten for where the story is (none: the author's stands). */
+  opening?: string;
+  /** How the story led the player here, in second-person fiction (none: the hook says it). */
+  lead?: string;
+  /** What the story still owes the player from scenes already over: missed essentials, and where their things are now. */
+  owed: OwedRow[];
+  /** The combat exits already fought: the scene picked up after the fight (the stand-in's, until fights land). */
+  fought: string[];
   // The rules in a scene (world-bridge-design §3.3): what the player's violence and the last reply
   // left hanging, under the prototype's names (src/runtime/session.ts:300-311).
   /** A blow or a danger the last reply left hanging over the player: it lands as their next turn starts, which takes it off. */
@@ -61,12 +74,20 @@ export interface GmState {
   held?: number;
   /** A fight the player's violence started: who goes for the player, who's with them, who fled. */
   brawl?: Brawl;
-  // Presence: who came on beyond the scene's own cues (V3's: empty until then, but read by the
-  // copied code; the row refuses it until V3 gives it a column), and the cast who left: they fled
-  // the player's violence or ran for help (the world bridge's).
-  entered: string[];
+  /** Cast who are away: those from earlier scenes that what happened keeps away (the boundary's presence), and those who fled the player's violence or ran for help (the world bridge's). */
   absent: string[];
+  /** Cast who came on by a route (V0's copied code reads it): no column yet, so always empty. */
+  entered: string[];
 }
+
+/**
+ * Something the story still owes the player (the prototype's Owed, session.ts:154-171), as the rows
+ * keep it: the scene it was placed in and its id there ("hanged-clerk", "page"); whether a reply
+ * already pointed towards it; the things it's in, by their entity keys, the outermost first
+ * ("granary-yard/boots", "granary-yard/ledger-page"), and who holds them (cast ids, or "player");
+ * and where it is now, in a few words. Its essential is the campaign's: the AI service looks it up.
+ */
+export interface OwedRow { from: string; id: string; hinted: boolean; things: string[]; holders: string[]; where?: string }
 
 /**
  * A move the scene made (a route taken, a roll, the same push again, an ending reached). Turn
@@ -97,15 +118,15 @@ export function initialGm(scene: Pick<Scene, "start">): GmState {
     beat: scene.start, turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
     oocTurns: [], pressureOffered: [],
     canon: [], patches: [], notes: null, notesTurn: null, whispers: [], rulings: [],
-    entered: [], absent: [],
+    adjustments: [], owed: [], fought: [], absent: [], entered: [],
   };
 }
 
 // ---------------------------------------------------------------------------------------------
-// The gm_state row: a column a field (simulation/src/schema.ts), but `entered` (V3's). An option
-// column is undefined when empty; a roll's `critical` null is an empty option; the patches are
-// JSON, a piece of the scene graph in the campaign format's own shape; a threat is one object with
-// the fields of both its kinds, those of the other kind empty.
+// The gm_state row: a column a field (simulation/src/schema.ts), but `entered`. An option column is
+// undefined when empty; a roll's `critical` null is an empty option; the patches are JSON, a piece
+// of the scene graph in the campaign format's own shape; a threat is one object with the fields of
+// both its kinds, those of the other kind empty.
 
 export interface GmRow {
   sceneId: bigint;
@@ -133,6 +154,12 @@ export interface GmRow {
   lastRepairTurn: number | undefined;
   offGraphTurn: number | undefined;
   rulings: RulingRow[];
+  adjustments: string[];
+  opening: string | undefined;
+  lead: string | undefined;
+  /** OwedRow's, where it is an empty option when it isn't known. */
+  owed: Array<{ from: string; id: string; hinted: boolean; things: string[]; holders: string[]; where: string | undefined }>;
+  fought: string[];
   threat: ThreatRow | undefined;
   held: number | undefined;
   brawl: Brawl | undefined;
@@ -172,6 +199,11 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     lastRepairTurn: gm.lastRepairTurn,
     offGraphTurn: gm.offGraphTurn,
     rulings: gm.rulings.map(rulingRowOf),
+    adjustments: [...gm.adjustments],
+    opening: gm.opening,
+    lead: gm.lead,
+    owed: gm.owed.map(o => ({ from: o.from, id: o.id, hinted: o.hinted, things: [...o.things], holders: [...o.holders], where: o.where })),
+    fought: [...gm.fought],
     threat: gm.threat ? threatRowOf(gm.threat) : undefined,
     held: gm.held,
     brawl: gm.brawl ? brawlOf(gm.brawl) : undefined,
@@ -179,7 +211,7 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
   };
 }
 
-/** A scene's bookkeeping from its row, V3's entered empty. */
+/** A scene's bookkeeping from its row, `entered` empty. */
 export function gmFromRow(row: GmRow): GmState {
   return {
     ...initialGm({ start: row.beat }),
@@ -202,6 +234,11 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.lastRepairTurn !== undefined ? { lastRepairTurn: row.lastRepairTurn } : {}),
     ...(row.offGraphTurn !== undefined ? { offGraphTurn: row.offGraphTurn } : {}),
     rulings: row.rulings.map(rulingOf),
+    adjustments: [...row.adjustments],
+    ...(row.opening !== undefined ? { opening: row.opening } : {}),
+    ...(row.lead !== undefined ? { lead: row.lead } : {}),
+    owed: row.owed.map(o => ({ from: o.from, id: o.id, hinted: o.hinted, things: [...o.things], holders: [...o.holders], ...(o.where !== undefined ? { where: o.where } : {}) })),
+    fought: [...row.fought],
     ...(row.threat ? { threat: threatOf(row.threat) } : {}),
     ...(row.held !== undefined ? { held: row.held } : {}),
     ...(row.brawl ? { brawl: brawlOf(row.brawl) } : {}),
