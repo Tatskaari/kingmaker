@@ -29,6 +29,7 @@ import { errandsOf, saveMemory, savePlayedScene, writePlayerBackstory } from "..
 import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
 import { rememberScene } from "../lore/remember.ts";
 import { broadcastEnding } from "../lore/reviews.ts";
+import { twoPartOpening, twoPartTurn } from "./two-part.ts";
 
 export interface TurnHooks {
   /** A new speaker starts; text follows via onText. */
@@ -124,7 +125,7 @@ export async function createSession(options: { sceneId: string; approach: string
   return state;
 }
 
-function push(state: SessionState, hooks: TurnHooks, entry: Omit<Entry, "turn" | "scene">): Entry {
+export function push(state: SessionState, hooks: TurnHooks, entry: Omit<Entry, "turn" | "scene">): Entry {
   const full: Entry = { turn: state.turn, scene: state.sceneId, ...entry };
   state.transcript.push(full);
   hooks.onEntry?.(full);
@@ -198,6 +199,13 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}, opti
     const rested = scene.rest ? await rest(state, scene.rest).catch(() => undefined) : undefined;
     for (const text of rested?.lines ?? []) push(state, hooks, { speaker: "dice", kind: "roll", text });
     for (const text of levelled) push(state, hooks, { speaker: "system", kind: "system", text });
+  }
+  // The GM in two parts opens the scene its own way (src/runtime/two-part.ts).
+  if (approach.twoPart) {
+    await twoPartOpening(scene, state, hooks);
+    saveSession(state);
+    snapshotSession(state);
+    return state.transcript.slice(before);
   }
   if (approach.memory) {
     // Recurring people walk in remembering: open what bears on this scene before the first line.
@@ -445,6 +453,7 @@ function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" 
  */
 export async function playerTurn(state: SessionState, input: string, hooks: TurnHooks = {}, options: { mechanic?: Mechanic; suggest?: boolean } = {}): Promise<TurnResult> {
   if (state.ended) throw new Error(`Scene ${state.sceneId} has already ended (${state.ended.exitId}).`);
+  if (approachById(state.approach).twoPart) return twoPartTurn(state, input, hooks);
   const authored = sceneById(state.sceneId);
   // Who was on stage as the player spoke (before a co-GM's move brings anyone on): whoever is here
   // after the reply and wasn't has just come in, and an ending found then waits for the player.
@@ -978,7 +987,7 @@ function cueBesideFight(scene: Scene, state: SessionState, pre: PreDecision): Mo
   return cue && !scene.exits.some(e => e.id === to) ? { transition: cue, phase: "cue", to, chosen: false } : undefined;
 }
 
-function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
+export function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
   const { world, operations, warnings } = recordingWorld({ assets: ASSETS, characters: scene.cast.map(c => c.id), anchors: scene.anchors ?? [] });
   // A spell's lights and hands don't outlast the scene (nor stay on the map after it).
   if (state.world) dispelConjured(state.world, undefined, state.turn);

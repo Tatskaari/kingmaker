@@ -72,6 +72,12 @@ export interface Approach {
    * just before each reply's directives.
    */
   guide?: "improv";
+  /**
+   * The GM in two parts (src/runtime/two-part.ts): a mouthpiece that voices the scene from its prep
+   * and a note before each player turn, and a co-GM after each reply that keeps every character's role
+   * (the beat's cast notes are its suggestions) and moves the scene on along its routes. No decider.
+   */
+  twoPart?: boolean;
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
   effort?: "none" | "low" | "medium" | "high";
 }
@@ -84,6 +90,7 @@ export const APPROACHES: Record<string, Approach> = {
   // take longer. The full co-GM reviews in the background between turns. No speculative replies:
   // one started before the decision was sometimes shown and then taken back.
   v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), the improvisation guide (prompts/gm-improv.md), considered rolls (an act a roll should settle that no route covers is ruled on by the GM before the reply: the roll, the DC, what success and failure change), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "background", tone: "comic", consequences: true, memory: "docs", considered: true, guide: "improv" },
+  "two-part": { id: "two-part", description: "The GM in two parts: a mouthpiece (prompts/two-part-gm.md) voicing the scene from its prep and the co-GM's note on each character's role, asking for checks with five outcomes; a co-GM after each reply (prompts/two-part-co-gm.md) keeping the roles (the beat's cast notes as suggestions) and moving the scene along its routes; the stage manager keeps the world.", voice: "gm", decider: "luna-decisions", repair: "off", tone: "comic", twoPart: true },
   // v2 as it was before considered rolls, to compare against: off-graph turns wait up to 3 s for the
   // quick co-GM (routes with rolls), and a risky attempt no route covers gets a freeform roll.
   "v2-quick": { id: "v2-quick", description: "v2 before considered rolls: quick co-GM on off-graph turns (3 s), freeform rolls for risky attempts no route covers, background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, tone: "comic", consequences: true, memory: "docs", freeformChecks: true },
