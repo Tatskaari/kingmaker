@@ -2,7 +2,7 @@
 
 **The question.** The user noticed that the GM "doesn't pace the beats nicely always", and asked us to try ideas from GM guidance: three Alexandrian articles (the exposition drip, the two prongs of mystery design, revelation lists) and a five-step guide to delivering a character's secret that they pasted in. This doc covers what those sources say about pacing a reveal in live play, where the ideas agree or clash with what the runtime already does, three mechanisms we could build and A/B, and an eval design that doesn't just fit a judge.
 
-**Status.** Research and design only. Nothing here is built. The constraints are those in [FINDINGS.md](../FINDINGS.md):
+**Status.** Research and design only. Nothing here is built. The constraints are those in [FINDINGS.md](../prototype/FINDINGS.md):
 - a resolving reply within 5 s;
 - decisions as fast parallel classification calls (Luna decision mode);
 - the GM is Luna with reasoning `none`, one call per reply;
@@ -28,18 +28,18 @@ These come from the user's own session and from blind QA. Every one is a hanged-
 
 | failure | where | what happened |
 |---|---|---|
-| **Collapse on success** | the user's playtest ([evals/fixtures/playtest-1](../../evals/fixtures/playtest-1/)), turn 4 | A natural-20 Intimidation on Cob. The authored success for the yard beat is that he "blurts that he was in the loft last night and heard men do it". The reply also gave who was there ("Mister Prout argued with Silvertop and a big man with a bandaged hand"), which is the *next* beat's success text. A turn later Cob added "Wheat-ear ring", which is in Moll's card, not his. By turn 6 the player had the murder, the witness, the name Sallow and the coin. |
+| **Collapse on success** | the user's playtest ([evals/fixtures/playtest-1](https://github.com/Tatskaari/kingmaker/tree/bc2ab1f/evals/fixtures/playtest-1/)), turn 4 | A natural-20 Intimidation on Cob. The authored success for the yard beat is that he "blurts that he was in the loft last night and heard men do it". The reply also gave who was there ("Mister Prout argued with Silvertop and a big man with a bandaged hand"), which is the *next* beat's success text. A turn later Cob added "Wheat-ear ring", which is in Moll's card, not his. By turn 6 the player had the murder, the witness, the name Sallow and the coin. |
 | | QA round 2, skeptic ([qa/round-2-reports.json](../qa/round-2-reports.json)) | "The turn-12 Intimidation success unlocked a lot at once: the coin, Cob's full sobbing witness account, and Moll's plea. It fit the fright, but it was the one place where pacing turned into an info-dump." |
 | | absurd round 1, logician ([qa/absurd-r1-reports.json](../qa/absurd-r1-reports.json)), turn 5 | One Persuasion success brought out the boots, the sewing, and Silvertop with his key and the big man, all in one reply. The authored success holds the boots and the sewing for "if asked". The player had addressed the boot, so this one is borderline. |
 | **Blurt** | absurd round 1, pedant (garrows-toll) | "Garrow blurted 'Tam was drunk' too quickly." |
 | **Skipped set piece** | the playtest, turn 8 | "Can we inspect the body?" Kell points out all three marks at once, from below. Her card says she sees them "close up (once he's down, or someone gets her up to him)". The problem of getting Prout down, and its Medicine check, never happened. |
-| **Nagging** | the playtest, turns 7–9 | The left boot crackles in three replies running ([experiments/absurdity.md](../experiments/absurdity.md)). Meanwhile Kell's memory of Prout's visit and the tally book, two other routes to the same truth, never came up. Hint tracking now stops a pointer from repeating, but nothing yet chooses a *different* one. |
-| | deviation round 3 ([experiments/deviation-repair.md](../experiments/deviation-repair.md)) | "Holt's signed order was pushed six times." |
+| **Nagging** | the playtest, turns 7–9 | The left boot crackles in three replies running ([experiments/absurdity.md](../prototype/experiments/absurdity.md)). Meanwhile Kell's memory of Prout's visit and the tally book, two other routes to the same truth, never came up. Hint tracking now stops a pointer from repeating, but nothing yet chooses a *different* one. |
+| | deviation round 3 ([experiments/deviation-repair.md](../prototype/experiments/deviation-repair.md)) | "Holt's signed order was pushed six times." |
 | | absurd round 2, straight; QA round 2, schemer | "Hester repeated the same line across several turns"; "NPCs on the green kept repeating the same lines for several turns". |
 | **Tease without payoff** | absurd round 2, straight and orator | "At the end, Hester invited a question and then refused to answer it." "The goblin and seed-grain thread, which Ned pushed three times, was dropped; Hester's fear of failing to hold the ward never paid off." |
 | **Oscillation** | deviation rounds 1–4 | Decider relocation first produced "47 of 56 … early reveals through the original carrier, 24 of them on turn 1". Tightened, it "never fired (0 relocations)". |
 
-The "collapse" rows share a cause. The GM's prep lists all of a character's secrets under one heading ("Secrets (they come out only when earned)"), and a pressure "yes" passes them all on joined together (`pressureDirective` in [director.ts](../../src/runtime/director.ts)). Once a success says "earned", everything under the heading is fair game. Authors already write staging into their success texts ("If asked, he owns up…", "the rest will come as he's asked"), but nothing in the runtime holds the GM to it.
+The "collapse" rows share a cause. The GM's prep lists all of a character's secrets under one heading ("Secrets (they come out only when earned)"), and a pressure "yes" passes them all on joined together (`pressureDirective` in [director.ts](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/src/runtime/director.ts)). Once a success says "earned", everything under the heading is fair game. Authors already write staging into their success texts ("If asked, he owns up…", "the rest will come as he's asked"), but nothing in the runtime holds the GM to it.
 
 ---
 
@@ -166,10 +166,10 @@ Four properties carry the weight:
 
 | idea | what the runtime does now | agrees | gap |
 |---|---|---|---|
-| Revelation list | `essentials`: what, `placedWith`, `carriers`, `unlocks` ([scene.ts](../../src/runtime/scene.ts)). The after-reply decision marks each `landed` or `hinted`. | Essentials are a list of structural revelations. `placedWith` already lists the clues. | Tracking stops at each essential, not each clue: we don't know which clue landed it, which ways in are unused, or whether the player *concluded* it. Background revelations aren't listed at all. They sit inside character secrets. |
+| Revelation list | `essentials`: what, `placedWith`, `carriers`, `unlocks` ([scene.ts](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/src/runtime/scene.ts)). The after-reply decision marks each `landed` or `hinted`. | Essentials are a list of structural revelations. `placedWith` already lists the clues. | Tracking stops at each essential, not each clue: we don't know which clue landed it, which ways in are unused, or whether the player *concluded* it. Background revelations aren't listed at all. They sit inside character secrets. |
 | Three clues, permissive, proactive | "When they go elsewhere … move the thing to whatever they are engaging with". The quick co-GM relocates on off-graph turns. Beat `pressure` is offered once after two exchanges. Cues fire after N exchanges, and the momentum rule after a "stuck" status. | The GM relocates well when told the essentials (pooled target endings 60% → 72%). | Relocation hands over the whole `what`, not a sign of it. Stall signals count exchanges, not information: the after-reply status said "drifting" or "uncovered" on 0 of 322 turns. Most authored pressure lines are threats or countdowns ([gm-techniques.md](gm-techniques.md)). The few that carry a clue, like the doubt beat's crackling boot, are the proactive clues the Alexandrian means. |
 | Never the same pointer twice | Hint tracking: a hinted essential is marked "Don't point at it again; let them take it up, or let it reach them another way". The repeat filter regenerates a reply that repeats an 8+ word sentence verbatim. | It stops the nagging that playtest 1 showed. | It's binary per essential. It silences the essential rather than steering to an *unused* way in, so after one hint the drip can go quiet: the starve side. |
-| Earned reveals | `secrets` ("they come out only when earned"). Pressure rolls (`v2-pressure`): stakes × leverage × disposition gives yes, no, or a roll at DC 12/15/18, with bands yes-and, yes, no-but, no-and. Successes ride. | The bands match the staged beat's outcomes: yes = confesses, no-but = "asks a price of their own" (a bargain), no-and = hardens (hostile). | All of a holder's secrets are one block. A "yes" passes every secret to the GM (the collapse rows). There's no notion of how far someone has opened up, so a first blunt question and a fifth patient one are judged on the same footing. Per-secret `stakes` and `ask` are already listed as open in [pressure-rolls.md](../experiments/pressure-rolls.md). |
+| Earned reveals | `secrets` ("they come out only when earned"). Pressure rolls (`v2-pressure`): stakes × leverage × disposition gives yes, no, or a roll at DC 12/15/18, with bands yes-and, yes, no-but, no-and. Successes ride. | The bands match the staged beat's outcomes: yes = confesses, no-but = "asks a price of their own" (a bargain), no-and = hardens (hostile). | All of a holder's secrets are one block. A "yes" passes every secret to the GM (the collapse rows). There's no notion of how far someone has opened up, so a first blunt question and a fifth patient one are judged on the same footing. Per-secret `stakes` and `ask` are already listed as open in [pressure-rolls.md](../prototype/experiments/pressure-rolls.md). |
 | Hints before answers | Cards hold `knows` (shared freely) and `secrets`. Beat directions say "secrets still need a reason to come out". | Hanged-clerk and drowned-rat write tells into prose: Hobb's hidden hand, Moll's closed fist, Cob's crackling boot. | Tells aren't marked as tells, so the GM can't tell a free hint from a secret. |
 | One piece at a time | Decider relocation is "one at a time: several essentials in one reply reads as an info dump". Nan sells gossip by the measure. | Nan's measures are a perfect diegetic tiered-information device: a gill, a half, a pint, never a quart. | Nothing limits how much one reply reveals outside relocation. |
 | Comic house style | The world plays it straight; every daft act sends a bill. | Comedy is set-up and payoff. A running gag is a drip, and the punch needs its set-up (the drip's Excalibur point). | A repeated tell can turn into a loop: "the bare-feet running gag turned into a near-verbatim loop". In the comic style a tell may recur only if it escalates. |
@@ -199,7 +199,7 @@ The sources resolve it themselves, and the resolution fits the runtime:
 
 - **A binary "deliver now" trigger oscillates.** Decider relocation went from 47/56 early reveals to zero. Mechanisms should give graded, state-based guidance ("what they have; what's unused; one step") and keep push triggers rare, gated, and limited to a sign rather than the answer.
 - **Whatever the GM reads, characters may say.** Co-GM whispers that set terms were recited ("tell me how you'll keep him safe"), and once coaching is in the history the GM imitates it. Every new note must read as the GM's table notes about the *world* (where things are, how far someone has come), never as moves for a character to announce. Every eval must rerun the mouthpiece scan.
-- **Keep state in `nowNote`; keep `directive` empty when possible.** The speculative reply is generated with the same `nowNote` (built from session state) and kept only when the pre-reply decision adds no directive ([engine.ts](../../src/runtime/engine.ts)). State written by the previous after-reply decision therefore reaches the GM for free. A new pre-reply directive discards the speculation (+0.3 s median) and should be reserved for rare turns.
+- **Keep state in `nowNote`; keep `directive` empty when possible.** The speculative reply is generated with the same `nowNote` (built from session state) and kept only when the pre-reply decision adds no directive ([engine.ts](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/src/runtime/engine.ts)). State written by the previous after-reply decision therefore reaches the GM for free. A new pre-reply directive discards the speculation (+0.3 s median) and should be reserved for rare turns.
 - **The after-reply decision runs while the player reads.** Questions added to it cost no extra call. The pressure question "adds nothing measurable to the main call". But more criteria can split votes ("adding a near-duplicate option splits the vote"), so every new question needs labelled decision cases.
 - **Single rounds are noisy.** The same `gm` configuration scored 16, 16, 14 and 12 of 20 target endings across rounds. Use paired designs and pooled n.
 
@@ -301,7 +301,7 @@ When "overdue" is active, the momentum rule's generic "something is revealed tha
 
 **Hypothesis.** Characters collapse their secrets because the GM can't see where in a reveal it is. Show it the stage, allow one step per reply, and use the existing pressure ruling for the last step. Reveals should then build: tell, defensiveness with feeling, dilemma, outcome. That shouldn't slow down a player who has done the work.
 
-**What the author writes.** Nothing is required: stages are generic, and the GM fills each step from the card's wants, fears and attitude. Optionally, a secret becomes an object (the shape [pressure-rolls.md](../experiments/pressure-rolls.md) already asks for):
+**What the author writes.** Nothing is required: stages are generic, and the GM fills each step from the card's wants, fears and attitude. Optionally, a secret becomes an object (the shape [pressure-rolls.md](../prototype/experiments/pressure-rolls.md) already asks for):
 
 ```ts
 type SecretSpec = string | {
@@ -387,7 +387,7 @@ Authored check routes (win-cob, catch-moll) keep their authored outcomes. The no
 > - Secrets (your prep: they come out only when earned; what shows before it's told comes first):
 >   - Shows: he won't arm-wrestle tonight; keeps his right hand out of sight. Under it: …
 
-**What the GM is told.** One new bullet in [v2/ai/prompts/gm.md](../../v2/ai/prompts/gm.md), worded as an outcome:
+**What the GM is told.** One new bullet in [v2/ai/prompts/gm.md](../../ai/prompts/gm.md), worded as an outcome:
 
 > - Let secrets surface the way they would at a good table: something that doesn't fit comes first (a question for the player, not an answer); then, as the player picks at it, the person's guard and their own reasons; and the thing itself when the player has earned it, in the person's own way: told, bargained over or refused, depending on how they've been treated. One new piece at a time: a reveal lands when the player has seen it coming, and a scene that hands over everything at once has nothing left to find. What the scene needs the player to find is different: never hold it back; if they aren't getting it one way, it reaches them another.
 
@@ -482,7 +482,7 @@ Target ≥ 90% with Luna decisions, compared with Jev. Re-run the existing suite
 
 Held-out reply cases use scenes not touched in development: garrows-toll (Garrow's "Tam was drunk"), warren-hostage (Hester's question she won't answer), heron-warehouse (Scrope and the true book).
 
-**Trajectories.** The simulated player ([v2/ai/prompts/player-sim.md](../../v2/ai/prompts/player-sim.md)) plays a whole scene. Personas, one per failure family:
+**Trajectories.** The simulated player ([v2/ai/prompts/player-sim.md](../../ai/prompts/player-sim.md)) plays a whole scene. Personas, one per failure family:
 - **the blunt interrogator** asks everyone everything outright (dumps);
 - **the wanderer** avoids the kids, the boot and Hobb's corner (starving);
 - **the noticer** examines every detail and follows every tell (nagging, over-hinting);
@@ -555,11 +555,11 @@ Then compare each player's list (question 1) with the audit timeline for the sam
 - Ben Robbins, Ars Ludi: [Revelations](http://arsludi.lamemage.com/index.php/41/revelations/)
 - The user's staged-beat guidance: pasted into the request; source not identified.
 - Ours:
-  - [FINDINGS.md](../FINDINGS.md)
-  - [experiments/deviation-repair.md](../experiments/deviation-repair.md)
-  - [experiments/absurdity.md](../experiments/absurdity.md)
-  - [experiments/pressure-rolls.md](../experiments/pressure-rolls.md)
+  - [FINDINGS.md](../prototype/FINDINGS.md)
+  - [experiments/deviation-repair.md](../prototype/experiments/deviation-repair.md)
+  - [experiments/absurdity.md](../prototype/experiments/absurdity.md)
+  - [experiments/pressure-rolls.md](../prototype/experiments/pressure-rolls.md)
   - [research/dc-guidance.md](dc-guidance.md)
   - [research/gm-techniques.md](gm-techniques.md)
   - [qa/](../qa/)
-  - [evals/fixtures/playtest-1](../../evals/fixtures/playtest-1/)
+  - [evals/fixtures/playtest-1](https://github.com/Tatskaari/kingmaker/tree/bc2ab1f/evals/fixtures/playtest-1/)
