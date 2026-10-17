@@ -1,12 +1,18 @@
 import { EventEmitter } from "../../tui/events.ts";
 import { chdir, cwd } from "./cwd.ts";
+import * as fs from "./fs.ts";
+import * as path from "./path.ts";
 
 /**
  * The `process` the game sees in the browser (the static build injects this for every use of the
  * global): its environment (the worker fills it in before the game's modules load), a working
- * directory in the browser's file system, events for the worker to forward, and exit() handing over
- * to the worker. Nothing here reaches a real process.
+ * directory in the browser's file system, events for the worker to forward, exit() handing over to
+ * the worker, and the built-ins asked for by name rather than imported (getBuiltinModule: v2/ai's
+ * folders of docs and prompts ask for node:fs that way). Nothing here reaches a real process.
  */
+
+/** The stand-ins getBuiltinModule hands out, by name. */
+const BUILTINS: Record<string, unknown> = { fs, path };
 
 type ExitHandler = (code: number) => void;
 let exitHandler: ExitHandler | undefined;
@@ -53,6 +59,7 @@ class BrowserProcess extends EventEmitter {
   uptime = () => performance.now() / 1000;
   umask = () => 0o22;
   kill(): boolean { return false; }
+  getBuiltinModule(id: string): unknown { return BUILTINS[id.replace(/^node:/, "")]; }
   emitWarning(): void {}
   exit(code = 0): never {
     this.exitCode = code;
