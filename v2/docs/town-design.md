@@ -227,3 +227,73 @@ K lands first; S, A and C build from K's commit on `claude/v2-town-s`, `-a` and 
 | `tick_place` for an active place with a player in it | A map's own place only | A scene's place burns by its turns; ticking it too would burn it twice |
 
 **Risks.** The menu's searches and the town's world are built per act and per tick: `tick_place` builds the world only when something burns, and every move logs its time. The catalogue costs a sheet read each `sheetRows`; over 100 ms it moves to a follow-up. Both sides must build the same menu from the same rows: the catalogue is the sheet's, the keep the explore row's, the town the place's. A talk's scene is built on both sides from the template (the simulation's graph, the AI service's words and lore). Restoring the waiting scene is free, since nothing touches it: S's test holds that.
+
+---
+
+## 6. As built
+
+Built as briefed, in one PR (`claude/v2-town`): K's contracts, then S, A and C in parallel from K's commit, then the integration, which merged them and the browser unit's head (2e21196) and made the town meet in both hosts. What follows is where it departs from the text above, and how it measures.
+
+### The parts, where they are
+
+- **Both sides** (`shared/`): the menu's geometry, aiming and view, `map/menu.ts` (the prototype's `menu.ts` 1-474 and `mapWhy`, over `MenuCtx`); the town's world, `map/town-world.ts` (whole); the catalogue's types and words, `rules/aim.ts`; the seven moves and their ids, `map/moves.ts`; the town's changes and the keep on the map's rows, `map/rows.ts`; a talk's ids and the template's filling, `scene/talk.ts`.
+- **The simulation's:** doing a menu act, `shared/map/menu-acts.ts` (`menu.ts` 477-928); the catalogue, `shared/rules/actions.ts` (whole), written to `sheet.actions`; `rules/acts.ts`' `castable`, `arcaneRecovery` and `useItem`; the seven moves (`simulation/src/map/acts.ts`), `tick_place` (`map/tick.ts`), a fight on the map and `fight_it_out`'s branch for it (`map/fight.ts`), a talk's rows (`map/talk.ts`), the act queued as turn 1 and a talk's prep kept (`moves/open-scene.ts`), `forced` and a talk's settle (`moves/say.ts`, `say-commits.ts`), `inventLook` (`moves/looks.ts`), and the requests' `story.talks`, `forced` and talk (`gm/requests.ts`).
+- **The AI service's:** `ai/gm/talk.ts` (the prototype's `talk.ts` and `scenes/talk.ts`, its AI half), the open's and the settle's talk branches, staged secrets and `forced` in `director.ts`, `ai/look/invent.ts` and `POST /v1/looks`; the talk template as campaign data (`campaigns/caerwyn/scenes/talk/`, `campaign.json`'s `talk`); `hosts/dev/fake.json`'s answers for a talk and a swan's look.
+- **The client's:** `ui/actions.tsx` (whole), the menu, aiming and the fight card on the map (`explore/model.ts`, `explore/town.ts`, `ui/explore.tsx`), a talk's choices (`scene/model.ts`, `ui/scene.tsx`), the card's `t` (`ui/between.tsx`), invented looks into the look cache (`look/invented.ts`, `net/replica.ts`), the headless ids (`headless.ts`, `explore/text.ts`, `hosts/play.ts`), the demo's menu and talk, and the screen check's town part (`check/town-screens.tsx` on `check/town.ts`'s fixture menu).
+- **The page host:** the seven moves come in through the wire's `PLAYER_MOVES`, as every move does; `web/server/jobs.ts` runs `tick_place` (the memory host's `tickPlaces`) every 6 s beside the reaper; the three new tables are private in `tables.ts`, so they're never in a snapshot or a tx, and the new columns cross with their rows.
+- **The checks:** the e2e's steps 36 to 39 (`hosts/e2e/town.ts`), web:check's action menu step, and the tests beside each part.
+
+### Where it departs from the brief
+
+From S's report:
+
+- `sheetRows` writes the catalogue through `actionsOf`, with `acts.ts`' `FEATURE_IDS` read when it's asked for (`featureIds()`): `character.ts` → `actions.ts` → `acts.ts` → `character.ts` is a cycle, and reading `FEATURES` as `acts.ts` loads throws.
+- A refused act is thrown as `NotDone { code, text }` where the prototype returned its sentence, and the move turns it into the refusal, so the transaction keeps nothing.
+- `after.guard` (§3.6, "one step at most") moves a staged secret any step forward, never back, and out is out: that's the prototype's engine (`engine.ts:902-905`); one step at a time is the GM's instruction (the guard note), not code. The live run's second talk told on its first line.
+- `syncStage` skips a talk, so no `position` or `look` row of the companion's moves: their entity stays in the waiting scene's place. (Their `on_stage` row does move, below.)
+- `tick_place` puts only the news in the walker's log (something catches, spreads, burns down or out, explodes): every 6 s round's damage pushed the act's own words out of the last five lines.
+- `hosts/local.ts` is unchanged: the local host has no real time.
+- Pennies lifted from a purse go into the place the character is in (the last scene's). Before the story's first scene there's none, so they go nowhere (the module logs it). Rare: a purse lifted in the lane before the yard.
+
+From A's report:
+
+- The memory of telling it is written by the settle that finds it told, once by its title: the AI service never sees a talk end (walking on asks nothing of it).
+- The look layer's colour names and Nerd Font names are copied into `ai/look/invent.ts` as lists: the look layer is the client's, which v2/ai can't import.
+- `/v1/looks` swallows a refused key, as `/v1/notes` does: a look is never fatal.
+- The fake has no answers for `talk.sift`: its defaults (the first note held back, nothing told) are what the dev game wants.
+
+From C's report:
+
+- The screen check draws the menu from a fixture (`check/town.ts`), so it doesn't need the engine; the demo's map runs the shared menu on the fixture catalogue.
+
+The integration's:
+
+- **§1.1 step 2 walks up the street first** (22,8): from the lane the watch house's own wall and window block the line, a `no_line` refusal that writes nothing (S's report). §1.2, the e2e and the PR say so.
+- **The town's news on the clock is said on the map.** The map's model said only a move's words (when its count of moves goes up), and the clock writes the log with no move made, so the door burned down unsaid in the terminal client. Now a new line in the log with no move made is said in What happens.
+- **The companion is on stage in a talk.** A talk had no `on_stage` rows, so a client couldn't name or colour its companion: live, "Sergeant Agnes Kell (not in the cast)" and "Nobody else is here"; on the fake, every voice in a talk gold. Opening a talk now moves the companion's `on_stage` row into it, from the scene they were last on stage in, which is over; their entity, its place and the waiting scene's rows stay as they are. The client keeps an on-stage person's look wherever their entity is.
+- **A fire starts its map's clock if it has none:** an act that sets something alight puts the map's `place_tick` row in, so a game kept from before the clock (published over on SpacetimeDB, or a page's save) burns on.
+- **A talk's settle with no new lines keeps the old ones** less the line just said, as the prototype's `talk.ts:381-382` does (A's report).
+- **On the fake,** a talk's greeting and replies are the yard's golden words, and the goodbye doesn't close the talk unless a recipe says so (`'{"choices":{"attempt":"goodbye"}}'`: the fake decider can't tell a goodbye from any other line). Walking on leaves. On real models the goodbye ends it through a reply.
+- **The live run** was the dev stack's, headless, not beside the prototype's: the task's budget went to two talks and an invented look on v2.
+
+### How it measures
+
+| | |
+|---|---|
+| A menu act on SpacetimeDB | 13 to 72 ms in the module (the e2e, the plays), as S measured (20 to 44 ms) |
+| A tick of the town's clock | 8 to 21 ms, once something burns; nothing is built otherwise |
+| `npm run check` | 948 tests, screens PASS 712 (the browser's 655 and C's 57) |
+| `npm run web:screens` | PASS 712 |
+| `npm run build:web` | 26 files, 5.66 MB (1.52 MB gzipped) |
+| `npm run web:check` | PASS, 80 checks (the browser's 78, and the map's action menu opened and closed) |
+| `npm run e2e` (SpacetimeDB, once) | PASS, every step (1 to 39), 437 s; the town's steps alone again after the last fix, PASS |
+| `npm run arc` | PASS, 15 of 16 checks on (the one left is V12's) |
+| The repo root | `npm run typecheck` clean, `npm test` 874/874, `npm run build:web` builds |
+| The live run | $0.0350: the menu on the map, the yard with an invented look, two talks with Kell ([live/town.md](live/town.md)) |
+
+### Left for later
+
+- **V12:** the fights that break out on the map are recorded on the explore row and told as won by the stand-in, as the Heron's is. **V13**, words in a fight.
+- A talk's side panel shows the place the player stands in (where the last scene left them), without the companion drawn in it: their entity is in the waiting scene's place.
+- Lifted pennies before the story's first scene (above).
+- The fake can't play a talk's goodbye without its recipe (above).
