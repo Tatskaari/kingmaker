@@ -122,8 +122,9 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('v2/package-lock.json') }}
-      - if: steps.browsers.outputs.cache-hit != 'true'
-        run: npx --no-install playwright install chromium-headless-shell
+      # The browser comes from the cache while v2's lock is unchanged; the system libraries it needs are
+      # installed every run (a cached browser doesn't bring them).
+      - run: npx --no-install playwright install --with-deps chromium-headless-shell
       - run: npm run build:web
       - run: npm run web:check
       - name: The check's screens, when it failed
