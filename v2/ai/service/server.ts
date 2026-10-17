@@ -48,6 +48,8 @@ export interface ServiceOptions {
   serves: Pick<Health, "model" | "gm">;
   /** The daily ceiling on what the models cost, in dollars (KM_AI_DAILY_USD); 0 or absent: none. */
   dailyUsd?: number;
+  /** What the player is told once the day's ceiling is reached (402 over_budget): this host's words for it. Absent: overBudget's, which name KM_AI_DAILY_USD. */
+  overBudget?: string;
   /** How long a considered turn's review may take (KM_CONSIDER_DEADLINE_MS); absent: 12 s. */
   considerDeadlineMs?: number;
   /** What the player is told when OpenRouter turns the key down (403 key_refused): where this host's key is changed. Absent: KEY_REFUSED's words. */
@@ -90,7 +92,7 @@ interface Answered { body: string; how: "ran" | "kept" | "joined"; usage?: { cal
 const HOW = { kept: "from the store, no model call", joined: "joined the same request in flight, no model call of its own" };
 
 export function aiService(options: ServiceOptions): AiService {
-  const ceiling = budget(options.dailyUsd ?? 0, options.stores.ledger);
+  const ceiling = budget(options.dailyUsd ?? 0, options.stores.ledger, options.overBudget);
   const inFlight = new Map<string, { hash: string; answer: Promise<Answered> }>();
   /** handle's responses until they're sent (or their connection is gone): the process mustn't exit before an answer it ran is sent. */
   const unsent = new Set<Promise<void>>();
