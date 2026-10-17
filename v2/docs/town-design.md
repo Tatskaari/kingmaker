@@ -32,12 +32,12 @@ The ready-made wizard is level 3: Fire Bolt, Ray of Frost, Light; Burning Hands,
 | # | Do | See in v2 | The prototype it matches |
 |---|---|---|---|
 | 1 | In the lane, `m` | The action menu: Cantrips; 1st level (4/4 slots), Shield dimmed ("a reaction: only in a fight"); 2nd level; Class features (Arcane Recovery dimmed: no slots spent); Actions (Attack, Leap, Hide, Lift a purse, Throw, Shove, Grab; Help, Dash, Dodge, Disengage dimmed: only in a fight; both rests dimmed: nothing to rest off) | `menuOf`, `catalogue`, `ui/actions.tsx` |
-| 2 | Fire Bolt; aim with Tab, the arrows or the mouse at the watch house door, up the street (25,6); Enter | The hint line: "Fire Bolt (cantrip) on the watch house door", the reach ring; out of reach, or no clear line, it says why in red. Then the dice line, the damage, "catches fire", and the door burns on the map | `aimView`, `checkAim`, `doMenuAct` → `castSpell` on the town's world, `keepTown` |
+| 2 | Walk up the street to the watch house (22,8: the arrows, or a click there; from the lane its own wall and window are in the way), `m`, Fire Bolt; aim with Tab, the arrows or the mouse at its door (25,6); Enter | The hint line: "Fire Bolt (cantrip) on the watch house door", the reach ring; out of reach, or no clear line, it says why in red. Then the dice line, the damage, "catches fire", and the door burns on the map | `aimView`, `checkAim`, `doMenuAct` → `castSpell` on the town's world, `keepTown` |
 | 3 | Watch who's about | They run for it, cower or run for the watch; a guard shouts at you to stop it | `townReactions` |
 | 4 | Wait a minute on the map | The fire burns on the clock: the door burns down, fire spreads to what burns beside it, smoke | `tick_place` (new: the prototype's town only aged by the hour) |
 | 5 | Walk west to the palace gate; Burning Hands at a palace guard | The guards come on: "Roll for initiative!" The fight card's "Fight it out" tells it as won, as at the Heron | `townFight`, recorded for V12 |
 | 6 | `m`, Hide; then a step | A Stealth check against the sharpest eyes about; out of sight until you move | `hideNow` |
-| 7 | Right-click Sergeant Kell inside the granary gate, "Do something…", Ray of Frost | The hanged clerk opens; after the opening, "(I cast Ray of Frost at Sergeant Agnes Kell)" is your first turn, resolved by the scene's rules from as far off as you stood | `storyRoute`, `storyAct`, `play.ts:256` |
+| 7 | Back in the lane, right-click Sergeant Kell inside the granary gate, "Do something…", Ray of Frost | The hanged clerk opens; after the opening, "(I cast Ray of Frost at Sergeant Kell)" is your first turn, resolved by the scene's rules from as far off as you stood | `storyRoute`, `storyAct`, `play.ts:256` |
 | 8 | End the scene (any line, on the fake above), back on the map; `e` beside Kell (or `t` on the card) | "A word with Sergeant Agnes Kell": her greeting, two to four lines to choose (1 to 4), "I'll leave you to it.", and walking on | `startTalk`, `openTalk`, `scene.tsx:189-200` |
 | 9 | Choose a line; then walk on | Her reply and new choices; walking on, back to the map: the lead (the Drowned Rat) waits as it was | `talkTurn`, `talk.suggest`, `leaveTalk` |
 | 10 | A second terminal (`--join`) throughout | The same map, fire, menu acts' words and talk | V0's spectator |
@@ -48,14 +48,16 @@ On real models, the same, and the talk is Kell's own: she opens up about one thi
 
 ```sh
 npm run play -- new --session qa --as "Wren Ashdown: a hedge wizard" --build wizard   # observe lists the menu after ACTIONS:
-npm run play -- act --session qa --id cast_fire-bolt@25,6
+npm run play -- act --session qa --id cast_fire-bolt@25,6  # refused from the lane: no_line (the watch house's wall and window)
+npm run play -- act --session qa --id walk@22,8            # up the street to the watch house
+npm run play -- act --session qa --id cast_fire-bolt@25,6  # the door catches (a miss is a miss: cast it again)
 npm run play -- act --session qa --id hide
 npm run play -- act --session qa --id rest_short         # refused while you're whole, in the prototype's words
 npm run play -- act --session qa --id cast_ray-of-frost@<Kell's tile, from observe>   # the scene opens, the act its first turn
 npm run play -- act --session qa --id talk_kell           # after the scene: say_1…, say_goodbye, walk_on
 ```
 
-The ids are the prototype's (menu.ts's header): `cast_<spell>`, `cast_<spell>_self`, `cast_<spell>@x,y`, the same for `feature_<id>`, `attack@x,y`, `throw@x,y`, `shove@x,y`, `grapple@x,y`, `lift@x,y`, `jump@x,y`, `hide`, `rest_short`, `rest_short_recover`, `rest_long`, `use_<item>`; and a talk's `say_<n>`, `say_goodbye`, `walk_on`. Side by side: at the repo root, `npm run qa -- new --session p --as "…" --build 1`, `observe`, `act --id cast_fire-bolt@25,6`.
+The ids are the prototype's (menu.ts's header): `cast_<spell>`, `cast_<spell>_self`, `cast_<spell>@x,y`, the same for `feature_<id>`, `attack@x,y`, `throw@x,y`, `shove@x,y`, `grapple@x,y`, `lift@x,y`, `jump@x,y`, `hide`, `rest_short`, `rest_short_recover`, `rest_long`, `use_<item>`; and a talk's `say_<n>`, `say_goodbye`, `walk_on`. Side by side: at the repo root, `npm run qa -- new --session p --as "…" --build 1`, `observe`, `act --id walk@22,8`, `act --id cast_fire-bolt@25,6`.
 
 The checks: `npm run check`; `npm run e2e`; `npm run arc`; at the root `npm run typecheck && npm test` (v2/ai and v2/shared change).
 

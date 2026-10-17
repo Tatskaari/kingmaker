@@ -147,7 +147,8 @@ export class ExploreModel {
   /**
    * A new view from the rows. A move made elsewhere (the host's, watched from another seat) says its
    * words here when it said something; this client's own moves' words are shown as each comes back
-   * (explore), by the prototype's quiet rules.
+   * (explore), by the prototype's quiet rules. The town's news with no move made (tick_place's: the
+   * fire caught, spread or burned down, town-design §3.5) is said as it comes into the log.
    */
   update(view: ExploreView): void {
     const was = this.view;
@@ -155,7 +156,7 @@ export class ExploreModel {
     if (!this.inFlight && view.acts !== this.seen) {
       if (view.acts > this.seen && view.said) { this.say(view.said); this.playTown(was.ex, view.said); }
       this.seen = view.acts;
-    }
+    } else if (view.acts === was.acts && view.log.length && view.log.at(-1) !== was.log.at(-1)) this.say(view.log.at(-1)!);
     this.reaim();
     this.emit();
   }
