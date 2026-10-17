@@ -107,6 +107,16 @@ export function dispatchWaitingReducer(tx: TxCtx, sender: Identity): void {
   for (const job of jobsIn(tx, "waiting")) if (!dropUnwanted(tx, job)) dispatchAgain(tx, job, "[dispatch_waiting]");
 }
 
+/**
+ * A host's start, when no run_job outlives a restart (the page's: browser-design §4.2): every job
+ * that was running is dispatched again now, rather than once its deadline has passed (up to three
+ * minutes on). Its POST is the same step's, with the same idempotency key, so an answer the AI
+ * service kept is replayed. One nobody wants any more goes instead.
+ */
+export function requeueRunning(tx: TxCtx): void {
+  for (const job of jobsIn(tx, "running")) if (!dropUnwanted(tx, job, "[restart]")) dispatchAgain(tx, job, "[restart]");
+}
+
 /** retry_turn's: a failed job queued again from its first attempt, with a dispatch. */
 export function retryJob(tx: TxCtx, job: JobRow): void {
   tx.db.job.id.update({ ...job, ...freshState(tx) });
@@ -252,9 +262,9 @@ function retryWaiting(tx: TxCtx): void {
   }
 }
 
-/** A waiting job queued, with a dispatch: its next attempt. */
+/** A waiting job (or a running one whose run_job is gone) queued, with a dispatch: its next attempt. */
 function dispatchAgain(tx: TxCtx, job: JobRow, who: string): void {
-  tx.db.job.id.update({ ...job, state: "queued", retryAt: undefined, updatedAt: tx.now });
+  tx.db.job.id.update({ ...job, state: "queued", retryAt: undefined, deadline: undefined, updatedAt: tx.now });
   dispatch(tx, job.id);
   tx.log(`${who} job ${job.id} ${job.key} dispatched again (attempt ${job.attempts + 1})`);
 }
@@ -285,9 +295,9 @@ function redispatchForgotten(tx: TxCtx): void {
 }
 
 /** A job about to be dispatched again that nobody wants any more goes instead: a creation the player has moved on from asks for nothing more. */
-function dropUnwanted(tx: TxCtx, job: JobRow): boolean {
+function dropUnwanted(tx: TxCtx, job: JobRow, who = "[reaper]"): boolean {
   if (wanted(tx, job)) return false;
-  dropJob(tx, job, `[reaper] job ${job.id} ${job.key}`);
+  dropJob(tx, job, `${who} job ${job.id} ${job.key}`);
   return true;
 }
 
