@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
 import { isGameId, isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
+import { KeyRefused } from "../llm/openrouter.ts";
 import { budget } from "./budget.ts";
 import type { Campaign, Campaigns } from "./campaigns.ts";
 import { callContext, type Transport } from "./calls.ts";
@@ -24,9 +25,12 @@ import { streamSink, type StreamTarget } from "./stream.ts";
  *   nothing. The same key with another body is 409 key_reused.
  * - The daily ceiling (budget.ts): past it, a think that may call a model is 402 over_budget before
  *   it runs; a kept answer is served all the same.
+ * - OpenRouter turning the key down (a 401) is 403 key_refused, in words for the player that say
+ *   where the key is changed: asking again won't mend it, so the game fails the move at once.
  * - Errors are { error: { code, message } }: 400 bad_request (a request it can't read, checked
- *   before any model is asked), 401 unauthorised, 402 over_budget, 409 other_campaign or
- *   key_reused, 500 model_failed (after the model client's own retries), 503 not_ready.
+ *   before any model is asked), 401 unauthorised, 402 over_budget, 403 key_refused, 409
+ *   other_campaign or key_reused, 500 model_failed (after the model client's own retries), 503
+ *   not_ready.
  * - Shutting down, it takes nothing new and gives what's running ten seconds to finish and be sent.
  */
 
@@ -46,6 +50,8 @@ export interface ServiceOptions {
   dailyUsd?: number;
   /** How long a considered turn's review may take (KM_CONSIDER_DEADLINE_MS); absent: 12 s. */
   considerDeadlineMs?: number;
+  /** What the player is told when OpenRouter turns the key down (403 key_refused): where this host's key is changed. Absent: KEY_REFUSED's words. */
+  keyRefused?: string;
   faults: Faults;
   log(line: string): void;
   /** How a fault ends the process (process.exit; a test's stand-in). */
@@ -74,6 +80,9 @@ const THINKS: Record<Endpoint, keyof Endpoints> = {
 /** The steps that never call a model: the ceiling doesn't stop them. */
 const NO_MODEL: ReadonlyArray<Step | CreationStep> = ["own"];
 const LIMIT = { think: 2 << 20, campaign: 16 << 20 };
+
+/** What the player is told when OpenRouter turns down a key that's the AI service's own (a host whose key is the player's says where to change it instead). */
+export const KEY_REFUSED = "OpenRouter turned the AI service's key down: give it another (OPENROUTER_API_KEY) and start it again.";
 
 /** A think's answer as sent: its body, and how it came (run now; kept from before; another request's, still running when this came). */
 interface Answered { body: string; how: "ran" | "kept" | "joined"; usage?: { calls: number; costUsd: number } }
@@ -159,6 +168,7 @@ export function aiService(options: ServiceOptions): AiService {
       return await (options.endpoints[handler] as (req: unknown, ctx: AiContext) => Promise<{ usage: { calls: number; costUsd: number } }>)(body, ctx);
     } catch (error) {
       if (error instanceof Failure) throw error;
+      if (error instanceof KeyRefused) throw new Failure(403, "key_refused", options.keyRefused ?? KEY_REFUSED);
       throw new Failure(500, "model_failed", error instanceof Error ? error.message : String(error));
     }
   }

@@ -130,6 +130,12 @@ export function recordCost(provider: string, operation: string, model: string, c
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * OpenRouter turned the call's key down (HTTP 401): asking again won't mend it, so nothing does. The
+ * AI service tells the player so (key_refused), rather than failing the turn as the model's.
+ */
+export class KeyRefused extends Error {}
+
 export async function fetchWithRetry(url: string, init: RequestInit, label: string, calls?: CallContext): Promise<Response> {
   const send = calls?.fetch ?? fetch;
   // A request's own log hears a call as it goes out too, so a call cut off (its process killed) is still counted.
@@ -153,8 +159,16 @@ export async function fetchWithRetry(url: string, init: RequestInit, label: stri
       await sleep(delay);
       continue;
     }
+    if (response.status === 401) throw await keyRefused(response, label, calls);
     return response;
   }
+}
+
+/** A 401 as the call's error, and in the call log as any failed call is. */
+async function keyRefused(response: Response, label: string, calls?: CallContext): Promise<KeyRefused> {
+  const detail = (await response.text()).slice(0, 400);
+  logCall({ operation: label, status: 401, error: `HTTP 401: ${detail}` }, calls);
+  return new KeyRefused(`OpenRouter ${label} HTTP 401: ${detail}`);
 }
 
 async function* sse(response: Response): AsyncGenerator<string> {

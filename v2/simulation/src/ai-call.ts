@@ -22,7 +22,7 @@ export interface Claim {
  * What a POST came to: an answer to commit; something to try again (429, 5xx, a refused or reset
  * connection, a timeout, an answer that isn't JSON); or something trying again won't mend (another
  * status, no AI_URL), which fails the job. `words`: what the player is told, when the AI service
- * said it for them (over its daily budget, v1-design §3.7).
+ * said it for them (over its daily budget, v1-design §3.7; OpenRouter turning its key down).
  */
 export type AiOutcome =
   | { kind: "answer"; status: 200; answer: unknown; replayed: boolean }
@@ -41,8 +41,11 @@ export function outcomeOf(response: AiResponse): AiOutcome {
   const error = errorOf(body);
   const reason = `${status} ${error ? `${error.code}: ${error.message}`.trim() : body.slice(0, 200)}`;
   if (status === 429 || status >= 500) return { kind: "retry", status, reason };
-  return { kind: "fatal", status, reason, ...(error?.code === "over_budget" && error.message ? { words: error.message } : {}) };
+  return { kind: "fatal", status, reason, ...(error && FOR_THE_PLAYER.includes(error.code) && error.message ? { words: error.message } : {}) };
 }
+
+/** The AI service's errors whose message is the player's words: over its daily budget, and OpenRouter turning its key down. */
+const FOR_THE_PLAYER: string[] = ["over_budget", "key_refused"];
 
 /** No AI_URL: nothing to POST to, and trying again won't change that. */
 export const NOT_CONFIGURED: AiOutcome = { kind: "fatal", reason: "the AI service isn't configured (no AI_URL)" };

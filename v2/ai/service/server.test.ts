@@ -18,7 +18,8 @@ import { Failure, type Endpoints } from "./context.ts";
 import { canned } from "./endpoints/canned.ts";
 import { pipeline } from "./endpoints/pipeline.ts";
 import { folderStores } from "./folder-stores.ts";
-import { aiService, type AiHttpRequest, type ServiceOptions } from "./server.ts";
+import { respond } from "../llm/openrouter.ts";
+import { aiService, KEY_REFUSED, type AiHttpRequest, type ServiceOptions } from "./server.ts";
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const TOKEN = "the-bearer";
@@ -381,6 +382,26 @@ test("anything an endpoint throws but a refusal is 500 model_failed, and nothing
   assert.equal(answer.status, 500);
   assert.deepEqual(JSON.parse(answer.body), { error: { code: "model_failed", message: "OpenRouter director.before HTTP 502" } });
   assert.equal(await stores.answers.get(decideRequest().key), undefined);
+});
+
+test("OpenRouter turning the key down is 403 key_refused, in the host's words for the player: asked once, and nothing stored", async () => {
+  const asked: string[] = [];
+  const refusing: typeof fetch = async input => {
+    asked.push(String(input));
+    return new Response('{"error":{"message":"User not found.","code":401}}', { status: 401 });
+  };
+  const calling: Endpoints = { ...canned, decide: async (_req, ctx) => { await respond({ operation: "director.before", input: [{ role: "user", content: "Who found him?" }], calls: ctx.calls }); throw new Error("the model answered"); } };
+  const page = service({ endpoints: calling, transport: () => ({ apiKey: "sk-or-v1-turned-down", fetch: refusing }), keyRefused: "OpenRouter turned the key down: change it from the bar under the game." });
+  const own = service({ endpoints: calling, transport: () => ({ apiKey: "sk-or-v1-turned-down", fetch: refusing }) });
+  await page.ai.answer(put());
+  await own.ai.answer(put());
+  const answer = await page.ai.answer(post("/v1/turns/decide", decideRequest()));
+
+  assert.equal(answer.status, 403);
+  assert.deepEqual(JSON.parse(answer.body), { error: { code: "key_refused", message: "OpenRouter turned the key down: change it from the bar under the game." } });
+  assert.deepEqual(asked, ["https://openrouter.ai/api/v1/responses"], "never asked again");
+  assert.equal(await page.stores.answers.get(decideRequest().key), undefined);
+  assert.equal(JSON.parse((await own.ai.answer(post("/v1/turns/decide", decideRequest()))).body).error.message, KEY_REFUSED, "a key that's the service's own: its own words");
 });
 
 test("a refusal an endpoint throws keeps its own status", async () => {
