@@ -10,6 +10,8 @@ import { gameRow, placeRow, playerRow, sceneRow, updateScene, type GameRow, type
 import { campaignFile, campaignOfGame, graphOf, sceneDefOf, sceneFileOf, sceneGraph } from "../scenes.ts";
 import { noteHeard, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
+import { comeToAtOpening } from "../rules/play.ts";
+import { refreshPockets } from "../rules/session.ts";
 import { openPlace, type Start } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Move } from "./move.ts";
@@ -18,11 +20,12 @@ import type { OpenPlan, Seen } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
 
 /**
- * A scene opens (v0-design §4.3): its place built, the scene row and its GM bookkeeping, who's on
- * stage, turn 0 holding the lease; then one think, the opening, streamed into turn 0's draft and
- * committed as the transcript's first entry, and the scene goes live (its notes and first lines
- * asked for: v5-design §3.5). `start` is what the character starts the game with: only the game's
- * first scene hands it out.
+ * A scene opens (v0-design §4.3, v1-design §3.6): its place built, the scene row and its GM
+ * bookkeeping, who's on stage, the controller come to if they were down (the rules engine's first
+ * draw of the scene), turn 0 holding the lease; then one think, the opening, streamed into turn 0's
+ * draft and committed as the transcript's first entry, and the scene goes live (its notes and first
+ * lines asked for: v5-design §3.5). `start` is what the character starts the game with: only the
+ * game's first scene hands it out.
  */
 export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
   name: "openScene",
@@ -38,6 +41,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     putGm(tx, scene.id, gm);
     syncStage(tx, scene, graph, gm);
     noteHeard(tx, scene, graph);
+    comeToAtOpening(tx, scene);
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });
@@ -73,6 +77,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
 function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined): SceneRow {
   const placeKey = sceneFileOf(def).place ?? campaignFile(campaignOfGame(tx, game)).startPlace;
   const place = openPlace(tx, game, placeKey, graph, gm, controller, start);
+  refreshPockets(tx, controller.id, place.world);
   const scene = tx.db.scene.insert({
     id: 0n, gameId: game.id, sceneKey: def.key, title: def.title, hook: def.hook, kind: "scene", placeId: place.placeId,
     status: "opening", controllerId: controller.id, turnId: undefined, turns: 0, exitKey: undefined, rev: 0, openedAt: tx.now, endedAt: undefined,

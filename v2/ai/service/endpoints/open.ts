@@ -1,4 +1,4 @@
-import { playerDoc } from "../../docs/docs.ts";
+import { writePlayerBackstory } from "../../docs/docs.ts";
 import { openingDirective } from "../../gm/directives.ts";
 import { openSource } from "../../gm/view.ts";
 import { gmReply, replyOf } from "../../gm/voice.ts";
@@ -9,14 +9,16 @@ import { disclosed, sceneAndView, withOpened } from "./turn.ts";
 
 /**
  * POST /v1/scenes/open (v0-design §5.3, gm-port §5): the scene's opening. The player's doc is made
- * if it's missing (the GM's notes and its note of what the player knows both read it), what bears on
- * the scene's start is opened, and the GM opens the scene, its words streamed to the opening's draft
- * with who says each line. The answer says who's here, the opening (who says each line by the game's
- * keys, and the marks the GM made, for its notes) and the notes opened, for the simulation to commit.
+ * if it's missing, with their backstory in it when they wrote one at character creation (v1-design
+ * §3.7: the GM's notes and its note of what the player knows both read it, so it's written before
+ * disclosure), what bears on the scene's start is opened, and the GM opens the scene, its words
+ * streamed to the opening's draft with who says each line. The answer says who's here, the opening
+ * (who says each line by the game's keys, and the marks the GM made, for its notes) and the notes
+ * opened, for the simulation to commit.
  */
 export const open: Handler<OpenRequest, OpenResponse> = async (req, ctx) => {
   const { scene, view, byKey } = sceneAndView(ctx, req.scene.key, openSource(req));
-  playerDoc(view.id, view.player);
+  writePlayerBackstory(view.id, view.player);
 
   const opened = await disclosed(scene, view, "", ctx.calls);
   withOpened(view, opened);

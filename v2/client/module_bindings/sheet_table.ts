@@ -9,6 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import {
+  SlotRow,
+  SpellRef,
+  WeaponRef,
+  FeatureRef,
+} from "./types";
+
 
 export default __t.row({
   playerId: __t.u64().primaryKey().name("player_id"),
@@ -16,4 +23,24 @@ export default __t.row({
   build: __t.string(),
   skills: __t.string(),
   statusLine: __t.string().name("status_line"),
+  level: __t.u32(),
+  hp: __t.i32(),
+  maxHp: __t.i32().name("max_hp"),
+  ac: __t.i32(),
+  get slots() {
+    return __t.array(SlotRow);
+  },
+  conditions: __t.array(__t.string()),
+  get spells() {
+    return __t.array(SpellRef);
+  },
+  get weapons() {
+    return __t.array(WeaponRef);
+  },
+  get features() {
+    return __t.array(FeatureRef);
+  },
+  data: __t.string(),
+  pockets: __t.string(),
+  backstory: __t.option(__t.string()),
 });

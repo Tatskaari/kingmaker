@@ -55,11 +55,14 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   worldLog: { primaryKey: "id", autoInc: true, indexes: ["placeId"] },
   look: { primaryKey: "entityId", indexes: ["placeId"] },
 
-  job: { primaryKey: "id", autoInc: true, unique: ["key"], indexes: ["state", "turnId"] },
+  job: { primaryKey: "id", autoInc: true, unique: ["key"], indexes: ["state"] },
   jobDispatch: { primaryKey: "scheduledId", autoInc: true },
   reaper: { primaryKey: "scheduledId", autoInc: true },
 
   campaign: { primaryKey: "id" },
   sceneDef: { primaryKey: "id", indexes: ["campaignId"] },
   placeDef: { primaryKey: "id", indexes: ["campaignId"] },
+
+  creation: { primaryKey: "identity" },
+  rulesState: { primaryKey: "playerId", indexes: ["gameId"] },
 };

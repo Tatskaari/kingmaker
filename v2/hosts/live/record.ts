@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Card, Mark, MarkLink, Markup, Speech } from "../../shared/markup.ts";
-import { idempotencyKey, keyParts } from "../../shared/protocol/keys.ts";
+import { idempotencyKey, turnKeyParts } from "../../shared/protocol/keys.ts";
 import type { SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
@@ -211,7 +211,7 @@ export function callsOf(root: string, uid: string): Call[] {
   return readFileSync(path, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as Record<string, any>)
     .filter(c => c.request && typeof c.costUsd === "number")
     .map(c => ({
-      key: String(c.key), ...defined({ turn: keyParts(String(c.key))?.turn }), operation: String(c.operation),
+      key: String(c.key), ...defined({ turn: turnKeyParts(String(c.key))?.turn }), operation: String(c.operation),
       model: String(c.model ?? c.request.model ?? "?"), costUsd: c.costUsd, latencyMs: Number(c.latencyMs ?? 0),
     }));
 }

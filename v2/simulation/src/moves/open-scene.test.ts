@@ -49,7 +49,9 @@ test("the opening's place: the yard built, the cast present, the character with 
 
   const held = entities.filter(e => e.parentId === player.characterId).map(e => e.name);
   assert.deepEqual(held, ["silver crowns", "shillings", "pennies", "Wren's longbow", "Wren's shortsword", "Wren's studded leather"]);
-  assert.deepEqual([...host.db.gear.placeId.filter(scene.placeId)].map(g => g.engineItem).sort(), ["longbow", "shortsword", "studded-leather"]);
+  const kit = host.db.rulesState.playerId.find(player.id)!.gear;
+  assert.deepEqual(kit.map(g => g.name), ["Longbow", "Shortsword", "Studded Leather"], "the ranger's kit, as the rules engine made it");
+  assert.deepEqual([...host.db.gear.placeId.filter(scene.placeId)].map(g => g.engineItem).sort(), kit.map(g => g.id).sort(), "each by its engine item instance");
   assert.equal([...host.db.playerCharacter.placeId.filter(scene.placeId)][0]?.playerId, player.id);
   assert.match([...host.db.worldLog.placeId.filter(scene.placeId)].map(l => l.text).join("\n"), /Wren Ashdown now has 12 pennies/);
 });

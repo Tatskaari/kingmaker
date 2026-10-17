@@ -1,6 +1,6 @@
 # The dev stack
 
-`npm run dev` runs v2 on one machine: SpacetimeDB with the module published, the AI service, and the campaign installed in both. Then it checks that each service can reach the other, and gives you keys to break and mend the AI service while you play. The blueprint is `v0-design` §1.1 and §9, and for the fake model `v5-design` §3.10.
+`npm run dev` runs the game on one machine: SpacetimeDB with the module published, the AI service, and the campaign installed in both. Then it checks that each service can reach the other, and gives you keys to break and mend the AI service while you play. The blueprints are `v0-design` §1.1 and §9, `v1-design` §3.7 for the budget, and `v5-design` §3.10 for the fake model.
 
 ```sh
 cd v2 && npm ci
@@ -10,11 +10,22 @@ npm run dev                  # real models: OPENROUTER_API_KEY, or ~/secrets/kin
 
 Then play from other terminals with `npm run client` or `npm run play`. They find the stack through `runs/dev/stack.json`.
 
+## The budget
+
+The AI service keeps a daily ceiling on what the models cost: `KM_AI_DAILY_USD` ($5 unless it's set, 0 for none), held against today's (UTC) lines in its ledger (`runs/dev/ai/ledger.jsonl`). Past it, every move that needs a model fails in the game's words ("The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD."), and a kept answer is still served. The dev host passes the variable on, to the node process or the container, and its screen and the doctor say where today stands: `Budget  $0.12 of $5.00 today`.
+
+```sh
+KM_AI_DAILY_USD=0.001 npm run dev    # the ceiling, met at once: say a line and it fails in the ceiling's words
+KM_AI_DAILY_USD=5 npm run dev        # raised (without --fresh, so the game is kept): /retry finishes the turn
+```
+
+The ledger is the stack's folder's, so `--fresh` starts today's count again.
+
 ## Flags
 
 | Flag | What |
 |---|---|
-| `--fake` | the fake model (`KM_AI_MODEL=fake`), playing [fake.json](fake.json) (below): the GM's golden replies with notes and suggested lines, each written over two seconds, as a model takes about that long, so you see it grow and `k` can land in it. `KM_AI_FAKE`'s options, JSON, go on top: `'{"streamMs":0}'` answers at once, `'{"choices":{"attempt":"examine-body"}}'` makes the decider take the body's examination (a Medicine roll) where it can, `'{"replies":["…"]}'` gives the GM other words |
+| `--fake` | the fake model (`KM_AI_MODEL=fake`), playing [fake.json](fake.json) (below): the GM's golden replies with notes and suggested lines, each written over two seconds, as a model takes about that long, so you see it grow and `k` can land in it. `KM_AI_FAKE`'s options, JSON, go on top: `'{"streamMs":0}'` answers at once, `'{"choices":{"attempt":"examine-body"}}'` makes the decider take the body's examination (a Medicine roll) where it can, `'{"replies":["…"]}'` gives the GM other words, and `"byName"` answers a structured call by its schema's name, beside the file's notes (`builds`, `build`, `backstory`, `lore_check`, `traits` at character creation: otherwise the least JSON, so the builds are the class defaults, there's no draft, and the lore check finds nothing) |
 | `--gm canned` | the AI service's canned GM: no model at all, for checking the plumbing |
 | `--container` | the AI service in its podman image, built from `ai/Containerfile` at every start |
 | `--fresh` | start with no data: deletes `runs/dev/stdb`, `runs/dev/ai` and `runs/play`. The keys stay, so the identities do |
@@ -45,7 +56,7 @@ Then play from other terminals with `npm run client` or `npm run play`. They fin
 - **The suggested lines** come 2.8 s after each reply, as the prototype's did live: twelve lines (seven to say, two deeds, two risky tries, a way out), of which four are offered each time (two to say, a deed, a risky try), since the lines offered last time are screened out, and so are the last three you said. A way out joins them after four lines. A line said before a reply's lines come leaves them behind: the next set is offered against the one before.
 - **Every model call streams** over 2 s: the reply, so you see it written, and the stage manager, the notes and the lines too. The notes wait 1.5 s more, and the lines 0.8 s.
 
-`KM_AI_FAKE`'s options go on top of the file's, key by key: `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines, and `'{"byNameDelayMs":{"notes":12000}}'` writes the notes 14 s after each reply, time to type a line while they're written. The e2e plays the file too, with its own holds on top where a step needs the notes or the lines late.
+`KM_AI_FAKE`'s options go on top of the file's, key by key, and `byName` and `byNameDelayMs` name by name, beside the file's (`hosts/dev/fake.ts`): `KM_AI_FAKE='{"streamMs":6000}'` is a slower model, `'{"suggestions":""}'` offers no lines, `'{"byNameDelayMs":{"notes":12000}}'` writes the notes 14 s after each reply, time to type a line while they're written, and character creation's answers in `byName` (the prototype's own, recorded in `ai/rules/golden/`) leave the notes' answer as it is. The e2e plays the file too, with its own holds on top where a step needs the notes or the lines late.
 
 ## Host mode and namespace mode
 
@@ -73,10 +84,10 @@ The module's own log: `spacetime --config-path runs/dev/cli.toml logs kingmaker 
 
 ## The other tools
 
-- **`npm run doctor`** checks a running stack and says how to fix what's wrong. It checks the versions, the mode, SpacetimeDB, the module and its env, the pool, the AI service's health and bearer, both paths between the services, and the campaign in both. It exits 1 if anything is wrong. `--root` picks another stack.
+- **`npm run doctor`** checks a running stack and says how to fix what's wrong. It checks the versions, the mode, SpacetimeDB, the module and its env, the pool, the AI service's health and bearer, its budget, both paths between the services, and the campaign in both. It exits 1 if anything is wrong. `--root` picks another stack.
 - **`npm run install-campaign -- campaigns/caerwyn`** checks the campaign, sends every file to the AI service, then the structure to the module. The dev host does this at every start.
-- **`npm run live -- --script v5`** plays V5's twelve lines of the hanged clerk against the running stack, with its models, and writes `docs/live/v5-<date>.md` (beside it, `v5-<date>-2.md`, if that's there: `--force` writes over a record, and nothing else does): each turn's timings, who said what, the notes with their cards, the lines offered and those screened out, the calls and their cost, the measures against the prototype's, and what the scene holds back. It stops before a line that would take it past $0.10 (`--budget`). It finds the stack by its ports (`--port`, `--ai-port`, else 3300 and 8787) or its folder (`--stack`), and refuses the fake model unless it's a rehearsal (`--rehearse`), whose record goes to `runs/live/`. `--lines 2` plays two; `--script v0` (the default) is V0's six.
-- **`npm run campaign -- check campaigns/caerwyn`** checks a campaign folder without a stack, its `vocabulary.json` too: what the suggested lines are vetted against of the prototype's scenes, written by `tools/v2/export-vocabulary.mts`. Each scene the campaign installs must agree with its entry (prep, hook, ways on, cast, world names): when a scene changes, write the vocabulary again from a prototype whose scene matches.
+- **`npm run live -- --script v5`** plays V5's twelve lines of the hanged clerk against the running stack, with its models, and writes `docs/live/v5-<date>.md` (beside it, `v5-<date>-2.md`, if that's there: `--force` writes over a record, and nothing else does): each turn's timings, who said what, the notes with their cards, the lines offered and those screened out, the calls and their cost, the measures against the prototype's, and what the scene holds back. It stops before a line that would take it past $0.10 (`--budget`). It finds the stack by its ports (`--port`, `--ai-port`, else 3300 and 8787) or its folder (`--stack`), and refuses the fake model unless it's a rehearsal (`--rehearse`), whose record goes to `runs/live/`. `--lines 2` plays two; `--script v0` (the default) is V0's six. `npm run live -- --creation` is V1's run instead, to `docs/live/v1-<date>.md`: three concepts' builds, then Tamsin Vell made through the lore check to her first line.
+- **`npm run campaign -- check campaigns/caerwyn`** checks a campaign folder without a stack: its scenes, places and looks, its ready-made builds against the rules engine's pack, the lore character creation's world reads, and its `vocabulary.json`: what the suggested lines are vetted against of the prototype's scenes, written by `tools/v2/export-vocabulary.mts`. Each scene the campaign installs must agree with its entry (prep, hook, ways on, cast, world names): when a scene changes, write the vocabulary again from a prototype whose scene matches.
 
 ## When it doesn't start
 

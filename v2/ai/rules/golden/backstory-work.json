@@ -1,0 +1,61 @@
+{
+ "about": "workIn (Work it in): her notes, every word kept",
+ "fn": "workIn",
+ "args": {
+  "notes": "auditor 9 yrs, exchequer. found the rivergate tolls short. sacked for it. owe Fat Jory three crowns for the rapier. sister Bet in the Nine Furrows",
+  "who": {
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "build": "human rogue 3 (Thief), sage background"
+  }
+ },
+ "byName": {
+  "backstory": {
+   "story": "I was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after."
+  }
+ },
+ "calls": [
+  {
+   "operation": "backstory.work",
+   "body": {
+    "model": "openai/gpt-6-luna",
+    "instructions": "You turn a player's rough notes about their character into their backstory, in the player's own voice: the first person if that's how they wrote (or if it's unclear), the third if they wrote in it; their tone, their turns of phrase.\nKeep everything they wrote: every fact, name, place, number and choice stays, and nothing they wrote is contradicted, softened or explained away. You may order it, join it up and smooth it, and add only what links it together (a because, a then); no new people, places or events of your own.\nWrite it as a story, not as notes: numbers in words where a story would have them (\"two men\", \"seventy years\", \"the first winter\"; a year can stay as it is), and shorthand spelled out (\"yrs\" is years). Leave out the game's terms: no class, subclass, background or level (they're on the sheet; a story says what they do, not what they are in the rules).\nAs long as it needs to be and no longer (their notes are the measure): paragraphs separated by a blank line.",
+    "input": [
+     {
+      "role": "user",
+      "content": "## The player character\nTamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier.\n\n## The player's notes, word for word\nauditor 9 yrs, exchequer. found the rivergate tolls short. sacked for it. owe Fat Jory three crowns for the rapier. sister Bet in the Nine Furrows"
+     }
+    ],
+    "reasoning": {
+     "effort": "low"
+    },
+    "store": false,
+    "stream": true,
+    "max_output_tokens": 1500,
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "backstory",
+      "schema": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "story"
+       ],
+       "properties": {
+        "story": {
+         "type": "string"
+        }
+       }
+      },
+      "strict": true
+     }
+    }
+   }
+  }
+ ],
+ "result": {
+  "ok": true,
+  "value": "I was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after."
+ }
+}

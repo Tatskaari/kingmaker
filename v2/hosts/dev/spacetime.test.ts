@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cliConfigProblem, poolSizeIn, rowsOf, startArgs, withPoolSize } from "./spacetime.ts";
+import { cliConfigProblem, poolSizeIn, publishedHow, rowsOf, startArgs, withPoolSize } from "./spacetime.ts";
 
 /** The part of the config.toml SpacetimeDB 2.12 writes at its first start that matters here. */
 const DEFAULT = `[logs]
@@ -85,4 +85,19 @@ test("SQL rows come back as objects: identities as hex, times as microseconds, o
   };
 
   assert.deepEqual(rowsOf(result as Parameters<typeof rowsOf>[0]), [{ identity: "0xc200ab", turn_id: 7, note: null, scheduled_at: { Interval: 2000000 }, tags: ["a", "b"] }]);
+});
+
+test("a publish that cleared the database says so, as the 2.12 CLI words it: a dev stack upgraded across a schema change that can't migrate", () => {
+  const cleared = [
+    "Checking for breaking changes...",
+    "Changing the type of column game_id in table job from U64 to (some: U64 | none: ()) requires a manual migration",
+    "Proceeding with database clear due to --delete-data=on-conflict.",
+    "This will DESTROY the current kingmaker module, and ALL corresponding data.",
+    "Skipping confirmation due to --yes",
+    "Updated database with name: kingmaker, identity: c2006f2a",
+  ].join("\n");
+
+  assert.deepEqual(publishedHow(cleared), { created: false, wiped: true });
+  assert.deepEqual(publishedHow("Uploading to kingmaker-dev\nUpdated database with name: kingmaker"), { created: false, wiped: false });
+  assert.deepEqual(publishedHow("Created new database with name: kingmaker"), { created: true, wiped: false });
 });

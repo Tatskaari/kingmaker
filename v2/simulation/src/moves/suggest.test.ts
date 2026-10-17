@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { After, Decision, DecideResponse, SettleResponse, Suggestion, SuggestRequest, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
-import { idText, keyParts } from "../../../shared/protocol/keys.ts";
+import { idText, keyParts, turnKeyParts } from "../../../shared/protocol/keys.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { all, DEFAULTS, down, held, http, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
 import { queueThink } from "../jobs.ts";
@@ -75,7 +75,7 @@ test("a set overtaken by the next line is dropped when it comes: the rows stay a
   const now = sceneNow(host, scene.id);
   assert.equal(now.turns[1]!.suggest, "dropped");
   assert.deepEqual(setOf(host, scene.id), asSet(2, DEFAULTS.suggest.lines), "turn 2's set; turn 1's never landed");
-  assert.equal(script.to("suggest").filter(s => keyParts(s.key)?.turn === 1).length, 1);
+  assert.equal(script.to("suggest").filter(s => turnKeyParts(s.key)?.turn === 1).length, 1);
   assert.match(host.logs.join("\n"), /\[scene \d+ turn 1\] lines dropped \(turn 2 has been said\)/);
 });
 
@@ -122,7 +122,7 @@ test("turned off, lines on their way are dropped and none are asked for; turned 
   assert.deepEqual([asked.suggest, asked.suggestAsks], ["coming", 1]);
   await host.drain();
   assert.deepEqual(setOf(host, scene.id), asSet(2, DEFAULTS.suggest.lines));
-  assert.deepEqual(keyParts(script.to("suggest")[2]!.key)?.turn, 2);
+  assert.deepEqual(turnKeyParts(script.to("suggest")[2]!.key)?.turn, 2);
   assert.equal(script.to("suggest")[2]!.key.endsWith(":t2:suggest"), true, "turn 2's first ask");
 });
 
@@ -217,7 +217,7 @@ test("a reply that ends the scene asks for no lines; a wind-down out of characte
     host.as(wren).say({ text });
     await host.drain();
   };
-  const askedFor = () => script.to("suggest").map(s => keyParts(s.key)!.turn);
+  const askedFor = () => script.to("suggest").map(s => turnKeyParts(s.key)!.turn);
 
   await say("I'll take the page to the King myself.", decided(), read({ ending: { exitId: "case-made", probability: 0.9 }, theirs: true }));
   await say("(ooc: can I still look around?)", decided({ outOfCharacter: true }));
@@ -230,7 +230,7 @@ test("a reply that ends the scene asks for no lines; a wind-down out of characte
   script2.then("decide", decided({ route: { id: "walk-away", phase: "attempt" } }));
   again.as(wren2).say({ text: "*I walk out of the gate.*" });
   await again.drain();
-  assert.deepEqual(script2.to("suggest").map(s => keyParts(s.key)!.turn), [0], "a route into an ending closes the scene in its reply");
+  assert.deepEqual(script2.to("suggest").map(s => turnKeyParts(s.key)!.turn), [0], "a route into an ending closes the scene in its reply");
 });
 
 test("a reply that ends the scene gets no lines while it settles, the scene ending: set_suggestions asks for none, and a set for it that comes is dropped", async () => {
@@ -263,7 +263,7 @@ test("a reply that ends the scene gets no lines while it settles, the scene endi
 test("lines given up once their moment has passed are lost, and leave the set that's there", async () => {
   const { host, script, wren, scene } = await openedGame();
   const refused = down();
-  const turnOne = (request: SuggestRequest) => (keyParts(request.key)!.turn === 1 ? refused() : lines("Turn 2's line"));
+  const turnOne = (request: SuggestRequest) => (turnKeyParts(request.key)!.turn === 1 ? refused() : lines("Turn 2's line"));
   for (let i = 0; i < 20; i++) script.then("suggest", turnOne);
 
   host.as(wren).say({ text: "Sergeant." });

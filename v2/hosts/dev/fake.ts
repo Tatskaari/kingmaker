@@ -14,12 +14,24 @@ export function devFake(): FakeOptions {
   return fake;
 }
 
-/** --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once). Throws, saying so, when KM_AI_FAKE isn't JSON. */
+/**
+ * --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once). The
+ * answers and delays by a call's name are put beside fake.json's, name by name, so answers given for
+ * character creation's calls (v1's recipe of the prototype's own) keep the notes' answer. Throws,
+ * saying so, when KM_AI_FAKE isn't JSON.
+ */
 export function fakeOptions(own: string | undefined): FakeOptions {
   if (!own) return devFake();
+  let options: FakeOptions;
   try {
-    return { ...devFake(), ...(JSON.parse(own) as FakeOptions) };
+    options = JSON.parse(own) as FakeOptions;
   } catch {
     throw new Error(`KM_AI_FAKE isn't JSON: ${own}`);
   }
+  const fake = devFake();
+  return {
+    ...fake, ...options,
+    ...(options.byName ? { byName: { ...fake.byName, ...options.byName } } : {}),
+    ...(options.byNameDelayMs ? { byNameDelayMs: { ...fake.byNameDelayMs, ...options.byNameDelayMs } } : {}),
+  };
 }

@@ -1,0 +1,61 @@
+{
+ "about": "draftBackstory (Draft one) for Tamsin's chosen build",
+ "fn": "draftBackstory",
+ "args": {
+  "who": {
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "build": "human rogue 3 (Thief), sage background"
+  }
+ },
+ "byName": {
+  "backstory": {
+   "story": "I kept the Exchequer's ledgers for nine years, and I was good at it: good enough to notice that the Rivergate tolls came in a shilling short every week, and foolish enough to say so. The shillings went somewhere with a title, and I went out of the palace with nothing but a borrowed rapier and a reputation.\n\nThis morning they found Wendell Prout hanged behind the King's Granary, and the King sent for me. He remembered that I count things nobody else wants counted. I said yes because nobody listened to me the last time, and I'd like to be listened to once."
+  }
+ },
+ "calls": [
+  {
+   "operation": "backstory.draft",
+   "body": {
+    "model": "openai/gpt-6-luna",
+    "instructions": "You write a player character's backstory for a tabletop roleplaying game, in the first person, as the player would write it at the table: where they're from, what they owe (and to whom), who they've lost, and why they took this case (the story it leads into).\n120 to 180 words, in two or three short paragraphs; plain and specific: names, places, and one good detail each. Their past makes sense of their concept and their build (the class's skills, the background's trade, the species), told as a life, not in the game's terms (no class, subclass or background by name).\nInvent their own people and places freely, but fit the world below: don't make them kin to, or old friends or enemies of, the story's named people (they've never met any of them), and don't give them anything the world would have had to record (a title, an office, a famous deed).\nIt ends where the game begins. Their past runs up to this morning: Prout was found hanged, and then, when the news reached him, the King asked them (because Prout was found, so never before it, and never on another day). Say why they said yes, not how the case goes: their reasons are their own (a debt, a loss, a conscience), but the case is Prout's alone, and nothing in their past is part of it.\nThe house style is dry and a little comic (Pratchett): the world plays it straight, and the comedy is in the specifics.",
+    "input": [
+     {
+      "role": "user",
+      "content": "## The player character\nTamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier. In game terms: human rogue 3 (Thief), sage background.\n\n## The world: Caerwyn\n# Caerwyn\n\nThe King's city, where the King's Road meets the river: grain comes in by road and goes out by barge, and the palace on the rise lives off both. This winter it's host to the Centennial Assembly, and everything costs more.\n\n**The court.** King Aldren rules from the palace on the rise above the river. He is warm and hospitable, remembers how everyone takes their tea, and is famously unwilling to sign anything that might upset anyone. Marshal Garran Holt keeps the roads, the garrisons and the Assembly timetable, to the minute. Magister Corvin keeps the royal seal and the exact wording of the law.\n\n**The city**\n- The palace on the rise, with its offices and kitchens in the back courts.\n- The market square: stalls, the market cross, the procession route, and the Corn Exchange, where grain factors trade, chalk up prices and keep the wagon lists.\n- The granary quarter: the King's Granary, warehouses, porters' lodgings and a watch house.\n- The river stairs, down to the docks and the wharves, with the Wharf Road winding down at the downriver end for wagons.\n- The Shambles, the butchers' quarter across the city from the river, where porters' families rent rooms over the shops.\n- The north gate, where the city keeps what it would rather not look at: the Mending House inside it, the suicides' pit outside it.\n\n**Why it's like this**: Caerwyn is roads, courts and garrisons. The palace buys first and the court runs the roads; the river carries away whatever pays better downriver. Most of the city works for one or the other: at a desk in the palace, or with a hook on the river.\n\n**Who does well out of it**: the palace and its officers, the grain factors and the Saltmere buyers on the wharves, and, this week, every innkeeper with a bed.\n**Who pays for it**: porters, carters and granary rats. A porter earns about eight pennies a day, and the price of bread is the first thing anyone on the river stairs will tell you.\n\n**The rules, and who keeps them**\n- The City Watch keeps the King's peace in the streets. Officers of the royal household answer to the palace: the watch may not lay hands on one without a warrant under the royal seal, unless he's caught in the act.\n- The river stairs are the river watch's patch.\n- The palace bells ring the hours, the half hours and the quarters for the whole city.\n- The Mending House takes in strays and wayward children and mends them with porridge, hymns and picking oakum. Every granary rat would sooner take their chances with the goblins.\n\n**Everyday things**\n- Money: twelve silver pennies to the shilling, five shillings to the crown, so a silver crown is more than a week's wages. Caerwyn's pennies carry the King's face, and the chandlers want to see it.\n- Magic is Nine Furrows business: weather, wards and grain. Nobody in Caerwyn talks to the dead, and the dead stay dead, which people find a comfort.\n\n**What people say, and who says it**\n- Anyone with a desk at the palace: \"After the Assembly.\"\n- The river stairs: visitors notice the gilt; the city notices the bread.\n- Everyone, about anything that goes missing: \"lost to goblins\".\n\n**What's happening now**: the eve of the Assembly. There's bunting on every rope that will hold it, the watch is out lining the procession route, delegations' servants are everywhere, and prices are up, bread most of all. How things stand at this hour, and what the town is saying, is in [Caerwyn now](Caerwyn%20now.md).\n\n## Read when relevant\n- [Caerwyn now](Caerwyn%20now.md) — read for the hour, the price of bread and the talk around town right now\n- [The Royal Palace](Royal%20Palace.md) — read for the palace, the King and the court, or getting in\n- [The market square and the Corn Exchange](../Places/Market%20Square.md) — read for the market, the price board, the bakers or the procession route\n- [The City Watch](City%20Watch.md) — read for the watch, arrests, the dead or the suicides' pit\n- [The Royal Purveyor's office](Royal%20Purveyor's%20Office.md) — read for under-purveyors, wheat-ear silver or who supplies the palace\n- [The Grain Crisis](Grain%20Crisis.md) — read for bread prices, the grain wagons or \"lost to goblins\"\n- [The Centennial Assembly](Centennial%20Assembly.md) — read for the Assembly, the delegations, the procession or the feast\n- [The King's Road](King's%20Road.md) — read for the road out of the city, the toll bridge or the goblins\n- [The river stairs and the docks](../Places/River%20Stairs.md) — read for the river, the wharves or the dock-porters\n- [What's in motion](Fronts.md) — GM only: read at a scene boundary, or when deciding what someone offstage does next\n\n## The story this backstory leads into\nThis morning, the eve of the Centennial Assembly in Caerwyn, a palace clerk, Wendell Prout, was found hanged behind the King's Granary, and the Watch Captain has already called it suicide. When the news reached him, King Aldren, who remembers how Prout took his tea, asked the player character quietly to see Prout done right by (they're the King's investigator now), and lent them a sergeant of the watch, Agnes Kell, who has never met them. The game begins as they walk into the granary yard to meet her. The King asked for them, but none of the story's other named people know them yet."
+     }
+    ],
+    "reasoning": {
+     "effort": "low"
+    },
+    "store": false,
+    "stream": true,
+    "max_output_tokens": 1200,
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "backstory",
+      "schema": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "story"
+       ],
+       "properties": {
+        "story": {
+         "type": "string",
+         "description": "The backstory: paragraphs separated by a blank line"
+        }
+       }
+      },
+      "strict": true
+     }
+    }
+   }
+  }
+ ],
+ "result": {
+  "ok": true,
+  "value": "I kept the Exchequer's ledgers for nine years, and I was good at it: good enough to notice that the Rivergate tolls came in a shilling short every week, and foolish enough to say so. The shillings went somewhere with a title, and I went out of the palace with nothing but a borrowed rapier and a reputation.\n\nThis morning they found Wendell Prout hanged behind the King's Granary, and the King sent for me. He remembered that I count things nobody else wants counted. I said yes because nobody listened to me the last time, and I'd like to be listened to once."
+ }
+}

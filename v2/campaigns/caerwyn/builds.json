@@ -1,133 +1,194 @@
 {
+  "cleric": {
+    "concept": "a cheerful priest of the river god who blesses barges for a living and hits harder than you'd think",
+    "build": {
+      "classId": "cleric",
+      "subclassId": "life-domain",
+      "speciesId": "dwarf",
+      "backgroundId": "acolyte",
+      "abilities": [
+        "WIS",
+        "CON",
+        "STR",
+        "DEX",
+        "CHA",
+        "INT"
+      ],
+      "skills": [
+        "insight",
+        "medicine",
+        "religion"
+      ],
+      "feat": "alert",
+      "cantrips": [
+        "sacred-flame",
+        "guidance",
+        "thaumaturgy"
+      ],
+      "spells": [
+        "cure-wounds",
+        "healing-word",
+        "guiding-bolt",
+        "bless",
+        "shield-of-faith",
+        "spiritual-weapon"
+      ],
+      "weapons": [
+        "mace"
+      ],
+      "armor": "chain-shirt",
+      "shield": true
+    }
+  },
+  "fighter": {
+    "concept": "a broken-nosed ex-sergeant of the river watch who solves most problems with a longsword and the rest with a longer one",
+    "build": {
+      "classId": "fighter",
+      "subclassId": "champion",
+      "speciesId": "human",
+      "backgroundId": "soldier",
+      "abilities": [
+        "STR",
+        "CON",
+        "DEX",
+        "WIS",
+        "CHA",
+        "INT"
+      ],
+      "skills": [
+        "athletics",
+        "intimidation",
+        "perception"
+      ],
+      "feat": "savage-attacker",
+      "cantrips": [],
+      "spells": [],
+      "weapons": [
+        "longsword",
+        "longbow"
+      ],
+      "armor": "chain-mail",
+      "shield": true
+    }
+  },
   "ranger": {
-    "build": "elf ranger 3 (Hunter), soldier background",
-    "level": 3,
-    "skills": {
-      "persuasion": -1,
-      "deception": -1,
-      "intimidation": 1,
-      "insight": 2,
-      "performance": -1,
-      "perception": 4,
-      "investigation": 0,
-      "sleight_of_hand": 3,
-      "stealth": 5,
-      "athletics": 3,
-      "acrobatics": 3,
-      "animal_handling": 2,
-      "arcana": 0,
-      "history": 0,
-      "nature": 0,
-      "religion": 0,
-      "medicine": 2,
-      "survival": 6
-    },
-    "status": "HP 28/28, spell slots 1st 3/3",
-    "gear": [
-      {
-        "id": "longbow",
-        "name": "Longbow",
-        "kind": "weapon",
-        "slot": "mainHand"
-      },
-      {
-        "id": "shortsword",
-        "name": "Shortsword",
-        "kind": "weapon"
-      },
-      {
-        "id": "studded-leather",
-        "name": "Studded Leather",
-        "kind": "armor",
-        "slot": "armor"
-      }
-    ]
+    "concept": "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs",
+    "build": {
+      "classId": "ranger",
+      "subclassId": "hunter",
+      "speciesId": "elf",
+      "backgroundId": "soldier",
+      "abilities": [
+        "DEX",
+        "WIS",
+        "CON",
+        "STR",
+        "INT",
+        "CHA"
+      ],
+      "skills": [
+        "survival",
+        "perception",
+        "stealth",
+        "investigation",
+        "nature"
+      ],
+      "feat": "alert",
+      "cantrips": [],
+      "spells": [
+        "hunters-mark",
+        "goodberry",
+        "ensnaring-strike",
+        "cure-wounds",
+        "pass-without-trace",
+        "spike-growth",
+        "longstrider",
+        "alarm"
+      ],
+      "weapons": [
+        "longbow",
+        "shortsword"
+      ],
+      "armor": "studded-leather",
+      "shield": false
+    }
   },
   "rogue": {
-    "build": "halfling rogue 3 (Thief), criminal background",
-    "level": 3,
-    "skills": {
-      "persuasion": 0,
-      "deception": 0,
-      "intimidation": 0,
-      "insight": 5,
-      "performance": 0,
-      "perception": 3,
-      "investigation": 5,
-      "sleight_of_hand": 5,
-      "stealth": 5,
-      "athletics": -1,
-      "acrobatics": 5,
-      "animal_handling": 1,
-      "arcana": 1,
-      "history": 1,
-      "nature": 1,
-      "religion": 1,
-      "medicine": 1,
-      "survival": 1
-    },
-    "status": "HP 24/24",
-    "gear": [
-      {
-        "id": "rapier",
-        "name": "Rapier",
-        "kind": "weapon",
-        "slot": "mainHand"
-      },
-      {
-        "id": "shortbow",
-        "name": "Shortbow",
-        "kind": "weapon"
-      },
-      {
-        "id": "dagger",
-        "name": "Dagger",
-        "kind": "weapon"
-      },
-      {
-        "id": "leather-armor",
-        "name": "Leather Armor",
-        "kind": "armor",
-        "slot": "armor"
-      }
-    ]
+    "concept": "a palace inspector with soft shoes, a rapier and a notebook, who reads people better than ledgers",
+    "build": {
+      "classId": "rogue",
+      "subclassId": "thief",
+      "speciesId": "halfling",
+      "backgroundId": "criminal",
+      "abilities": [
+        "DEX",
+        "CON",
+        "INT",
+        "WIS",
+        "CHA",
+        "STR"
+      ],
+      "skills": [
+        "investigation",
+        "insight",
+        "stealth",
+        "perception",
+        "sleight-of-hand"
+      ],
+      "feat": "alert",
+      "cantrips": [],
+      "spells": [],
+      "weapons": [
+        "rapier",
+        "shortbow",
+        "dagger"
+      ],
+      "armor": "leather-armor",
+      "shield": false
+    }
   },
   "wizard": {
-    "build": "human wizard 3 (Evoker), sage background",
-    "level": 3,
-    "skills": {
-      "persuasion": 0,
-      "deception": 0,
-      "intimidation": 0,
-      "insight": 1,
-      "performance": 0,
-      "perception": 1,
-      "investigation": 5,
-      "sleight_of_hand": 2,
-      "stealth": 2,
-      "athletics": -1,
-      "acrobatics": 2,
-      "animal_handling": 1,
-      "arcana": 5,
-      "history": 5,
-      "nature": 3,
-      "religion": 3,
-      "medicine": 3,
-      "survival": 1
-    },
-    "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
-    "gear": [
-      {
-        "id": "quarterstaff",
-        "name": "Quarterstaff",
-        "kind": "weapon",
-        "slot": "mainHand"
-      },
-      {
-        "id": "dagger",
-        "name": "Dagger",
-        "kind": "weapon"
-      }
-    ]
+    "concept": "an absent-minded hedge-wizard of the Invisible College who has read about fire extensively and is keen to try it",
+    "build": {
+      "classId": "wizard",
+      "subclassId": "evoker",
+      "speciesId": "human",
+      "backgroundId": "sage",
+      "abilities": [
+        "INT",
+        "DEX",
+        "CON",
+        "WIS",
+        "CHA",
+        "STR"
+      ],
+      "skills": [
+        "arcana",
+        "investigation",
+        "history"
+      ],
+      "feat": "alert",
+      "cantrips": [
+        "fire-bolt",
+        "ray-of-frost",
+        "light"
+      ],
+      "spells": [
+        "burning-hands",
+        "magic-missile",
+        "shield",
+        "thunderwave",
+        "sleep",
+        "scorching-ray",
+        "fireball",
+        "misty-step"
+      ],
+      "weapons": [
+        "quarterstaff",
+        "dagger"
+      ],
+      "armor": "none",
+      "shield": false
+    }
   }
 }

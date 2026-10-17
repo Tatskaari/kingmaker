@@ -7,7 +7,7 @@ import { actorOf, runMove, type Actor, type TxCtx } from "../context.ts";
 import { settledFacts } from "../gm/bookkeeping.ts";
 import { sayCall } from "../gm/requests.ts";
 import { getGm } from "../gm/rows.ts";
-import { playerRow, sceneOfPlayer, sceneRow, updateScene, type SceneRow, type TurnRow } from "../rows.ts";
+import { gameRow, playerRow, sceneOfPlayer, sceneRow, updateScene, type SceneRow, type TurnRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard } from "../transcript.ts";
 import { newTurn, queuedTurnOf } from "../turns.ts";
@@ -17,11 +17,11 @@ import type { SayPlan } from "./plans.ts";
 import { afterDecide, afterReply, afterSettle } from "./say-commits.ts";
 
 /**
- * say (v0-design §4.2): the controller's line, recorded at once with its turn; then three thinks,
- * each committed in turn: decide (the route, and its check rolled here), reply (streamed, then the
- * GM's entry), settle (the world and where the story stands). A line said while the last turn
- * settles, or waits for its reply's notes, waits as queued, and starts when that one is done. On the
- * wind-down, decide and reply close the scene.
+ * say (v0-design §4.2): the controller's line, recorded at once with its turn, and the game played
+ * now; then three thinks, each committed in turn: decide (the route, and its check rolled here),
+ * reply (streamed, then the GM's entry), settle (the world and where the story stands). A line said
+ * while the last turn settles, or waits for its reply's notes, waits as queued, and starts when that
+ * one is done. On the wind-down, decide and reply close the scene.
  */
 export const say: Move<{ text: string }, SayPlan> = {
   name: "say",
@@ -40,6 +40,7 @@ export const say: Move<{ text: string }, SayPlan> = {
     addEntry(tx, scene, { turn: n, speaker: playerSpeaker(actor.id!), kind: "player", text: line });
     noteHeard(tx, scene, sceneGraph(tx, scene));
     updateScene(tx, scene.id, waits ? { turns: n } : { turns: n, turnId: turn.id });
+    playedNow(tx, scene.gameId);
 
     return waits ? { done: true } : { done: false, plan: startPlan(tx, scene.id, turn, line) };
   },
@@ -70,6 +71,11 @@ export function startPlan(tx: TxCtx, sceneId: bigint, turn: TurnRow, line: strin
     lines: [],
     seen: seenOf(tx, sceneId),
   };
+}
+
+/** The game played now (v1-design §3.1): its host's lastPlayedAt, which the title's "(just now)" and my_games' order read, as the prototype's save after every turn gave its folder's time. */
+function playedNow(tx: TxCtx, gameId: bigint): void {
+  tx.db.player.id.update({ ...playerRow(tx, gameRow(tx, gameId).hostId), lastPlayedAt: tx.now });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -114,5 +120,5 @@ const BOX_OPEN = new Set(["settling", "noting"]);
 
 /** The turn holding the scene's lease: in flight, or failed and waiting for /retry. */
 function leaseOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {
-  return scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId) ?? undefined;
+  return scene.turnId === undefined ? undefined : (tx.db.turn.id.find(scene.turnId) ?? undefined);
 }

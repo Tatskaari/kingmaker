@@ -147,6 +147,8 @@ The blueprint is [v0-design.md](v0-design.md): contracts, packages A to F, tests
 
 ### V1 · Who you are
 
+The blueprint is [v1-design.md](v1-design.md). Its §7 says where it departs from this summary (one `rules_state` row a character and a per-isolate cache of the loaded campaign, in place of `rules_log`; the character made when the backstory is settled, with `begin` opening the scene; the player's doc written by the opening; four backstory operations), and its §8 how it was built. In short:
+
 - **After it:**
   - The game opens on the title: New, Continue, Quit.
   - A character is made from a sentence: three builds that fit it, or the player's own. A backstory is typed or drafted, then checked against Caerwyn's lore.

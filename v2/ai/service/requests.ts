@@ -1,16 +1,47 @@
-import type { Step } from "../../shared/protocol/keys.ts";
+import { STEP_ENDPOINT, type BackstoriesRequest, type BackstoryOp, type CharactersAsk, type CharactersRequest } from "../../shared/protocol/ai.ts";
+import { keyParts, type CreationStep, type Step } from "../../shared/protocol/keys.ts";
+import type { OwnPicks } from "../../shared/rules/types.ts";
 import { Failure } from "./context.ts";
 
 /**
- * What each think's endpoint reads of its request (v0-design §5.2), checked before any model is
- * asked, whichever GM answers. A request without it is the sender's mistake: 400 bad_request, which
- * the module doesn't retry, rather than the endpoint's TypeError, a 500 the module would retry for
- * ten minutes (or an answer made from undefined, kept by its key). It checks what the code reads,
- * by the path it reads it at, not every field of the types.
+ * What each think's endpoint reads of its request (v0-design §5.2, v1-design §3.7), checked before
+ * any model is asked, whichever GM answers, and before a kept answer or the day's ceiling is looked
+ * at. A request without it is the sender's mistake: 400 bad_request, which the module doesn't retry,
+ * rather than the endpoint's TypeError, a 500 the module would retry for ten minutes (or an answer
+ * made from undefined, kept by its key). It checks what the code reads, by the path it reads it at,
+ * not every field of the types.
  */
-export function checkRequest(step: Step, body: unknown): void {
-  const missing = NEEDS[step].filter(([, has]) => !has(body)).map(([what]) => what);
-  if (missing.length) throw new Failure(400, "bad_request", `the request is missing ${missing.join(", ")}`);
+export function checkRequest(step: Step | CreationStep, body: unknown): void {
+  const endpoint = STEP_ENDPOINT[step];
+  if (endpoint === "/v1/characters") charactersAsk(body as CharactersRequest);
+  else if (endpoint === "/v1/backstories") backstoryOp(body as BackstoriesRequest);
+  else missingFrom(NEEDS[step as Step], body);
+}
+
+/** POST /v1/characters' ask, or a 400 for a request the endpoint can't read, or an ask that isn't its key's step's. */
+export function charactersAsk(req: CharactersRequest): CharactersAsk {
+  const step = keyParts(req.key)?.step as CreationStep;
+  missing([
+    !(typeof req.who?.name === "string" && req.who.name.trim()) && "who.name",
+    typeof req.who?.concept !== "string" && "who.concept",
+    !(Number.isInteger(req.level) && req.level >= 1 && req.level <= 20) && "a level from 1 to 20",
+    req.ask?.kind === "own" && !picksRead(req.ask.picks) && "own's picks { speciesId, classId, subclassId?, backgroundId }",
+  ]);
+  if (STEP_ASK[step] !== req.ask?.kind) throw new Failure(400, "bad_request", `the ask is ${JSON.stringify(req.ask?.kind)}, not the key's step's (${step}: ${STEP_ASK[step]})`);
+  return req.ask;
+}
+
+/** POST /v1/backstories' op, or a 400 for a request the endpoint can't read, or an op that isn't its key's step. */
+export function backstoryOp(req: BackstoriesRequest): BackstoryOp {
+  const step = keyParts(req.key)?.step;
+  missing([
+    !(typeof req.who?.name === "string" && req.who.name.trim()) && "who.name",
+    typeof req.who?.concept !== "string" && "who.concept",
+    req.who?.build !== undefined && typeof req.who.build !== "string" && "who.build (a line)",
+    typeof req.text !== "string" && "the text (empty for a draft)",
+  ]);
+  if (req.op !== step) throw new Failure(400, "bad_request", `the op is ${JSON.stringify(req.op)}, not the key's step (${step})`);
+  return req.op;
 }
 
 /** A part of a request, by its name in the 400, and whether a request has it. */
@@ -58,3 +89,18 @@ const isText = (r: unknown, path: string) => typeof at(r, path) === "string";
 const isNumber = (r: unknown, path: string) => typeof at(r, path) === "number";
 const isList = (r: unknown, path: string) => Array.isArray(at(r, path));
 const isObject = (r: unknown, path: string) => { const v = at(r, path); return v !== null && typeof v === "object" && !Array.isArray(v); };
+
+/** A 400 naming what a request is missing, if anything. */
+function missing(gaps: Array<string | false>): void {
+  const named = gaps.filter(Boolean);
+  if (named.length) throw new Failure(400, "bad_request", `the request is missing ${named.join(", ")}`);
+}
+
+function missingFrom(needs: Need[], body: unknown): void {
+  missing(needs.map(([what, has]) => !has(body) && what));
+}
+
+/** Which ask each character step's key is for. */
+const STEP_ASK: Partial<Record<CreationStep, CharactersAsk["kind"]>> = { offer: "three", pick: "one", own: "own" };
+
+const picksRead = (p: OwnPicks | undefined) => !!p && [p.speciesId, p.classId, p.backgroundId].every(id => typeof id === "string") && (p.subclassId === undefined || typeof p.subclassId === "string");

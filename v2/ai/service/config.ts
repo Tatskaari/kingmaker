@@ -1,5 +1,5 @@
 import type { FakeOptions } from "../llm/fake-openrouter.ts";
-import { STEPS, type Step } from "../../shared/protocol/keys.ts";
+import { CREATION_STEPS, STEPS, type CreationStep, type Step } from "../../shared/protocol/keys.ts";
 
 /**
  * The AI service's configuration (v0-design §5.7), from its environment. Only hosts/ai.ts reads the
@@ -15,7 +15,8 @@ import { STEPS, type Step } from "../../shared/protocol/keys.ts";
  * | KM_AI_MODEL, KM_AI_FAKE | openrouter, {} | fake: the stand-in for OpenRouter, with these options |
  * | KM_AI_GM | pipeline | canned: the thinks with no model at all |
  * | KM_AI_STREAM_MS | 200 | the stream's period |
- * | KM_AI_FAULTS | none | exit-after-store:<open, decide, reply, settle, notes, suggest or any> (tests only) |
+ * | KM_AI_DAILY_USD | 5 | the daily ceiling on what the models cost, in dollars, from the ledger (0: none) |
+ * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, reply, settle, notes, suggest, or a creation's offer, pick, own, draft, work, check, traits |
  */
 export interface AiConfig {
   listen: Array<{ host: string; port: number }>;
@@ -28,11 +29,13 @@ export interface AiConfig {
   apiKey?: string;
   gm: "pipeline" | "canned";
   streamMs: number;
+  /** The daily ceiling, in dollars (0: none). */
+  dailyUsd: number;
   faults: Faults;
 }
 
-/** What the tests ask the process to do wrong on purpose: exit (code 137) right after storing an answer, before sending it. */
-export interface Faults { exitAfterStore?: Step | "any" }
+/** What the tests ask the process to do wrong on purpose: exit (code 137) right after storing an answer of this step, before sending it. */
+export interface Faults { exitAfterStore?: Step | CreationStep | "any" }
 
 export function readConfig(env: Record<string, string | undefined>): AiConfig {
   const token = env.KM_AI_TOKEN?.trim();
@@ -48,6 +51,7 @@ export function readConfig(env: Record<string, string | undefined>): AiConfig {
     ...(env.OPENROUTER_API_KEY?.trim() ? { apiKey: env.OPENROUTER_API_KEY.trim() } : {}),
     gm: oneOf("KM_AI_GM", env.KM_AI_GM || "pipeline", ["pipeline", "canned"] as const),
     streamMs: numberOf("KM_AI_STREAM_MS", env.KM_AI_STREAM_MS ?? "200"),
+    dailyUsd: dollarsOf("KM_AI_DAILY_USD", env.KM_AI_DAILY_USD || "5"),
     faults: faultsOf(env.KM_AI_FAULTS),
   };
 }
@@ -72,15 +76,24 @@ function numberOf(name: string, value: string): number {
   return n;
 }
 
+function dollarsOf(name: string, value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${name}: "${value}" isn't a number of dollars (0 for no ceiling)`);
+  return n;
+}
+
 function fakeOf(text: string | undefined): FakeOptions {
   if (!text) return {};
   try { return JSON.parse(text) as FakeOptions; } catch { throw new Error(`KM_AI_FAKE isn't JSON: ${text.slice(0, 80)}`); }
 }
 
+/** Every step a fault can name: a turn's think, or a creation's. */
+const FAULT_STEPS: readonly string[] = [...STEPS, ...CREATION_STEPS];
+
 function faultsOf(text: string | undefined): Faults {
   if (!text) return {};
   const m = /^exit-after-store:(\w+)$/.exec(text.trim());
   const step = m?.[1];
-  if (!step || !(step === "any" || (STEPS as readonly string[]).includes(step))) throw new Error(`KM_AI_FAULTS: "${text}" isn't exit-after-store:<${STEPS.join("|")}|any>`);
-  return { exitAfterStore: step as Step | "any" };
+  if (!step || !(step === "any" || FAULT_STEPS.includes(step))) throw new Error(`KM_AI_FAULTS: "${text}" isn't exit-after-store:<${FAULT_STEPS.join("|")}|any>`);
+  return { exitAfterStore: step as Faults["exitAfterStore"] };
 }

@@ -1,15 +1,16 @@
 import { setGlobalLogLevel } from "spacetimedb";
 import { refusal, refusalIn } from "../../shared/protocol/refusals.ts";
-import type { Backend, NewGame, Rejection } from "../backend.ts";
+import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
 import { DbConnection, type SubscriptionHandle } from "../module_bindings/index.ts";
 import type { SeatView } from "../module_bindings/types.ts";
 import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 
 /**
- * The client's way into the simulation (v0-design §7), and the e2e's: a SpacetimeDB connection
- * that follows the seat. It subscribes to my_seat and my_names; whenever the seat moves (a new
- * game, a join) it subscribes to that game's, scene's and place's rows (the scene's suggested
+ * The client's way into the simulation (v0-design §7, v1-design §3.10), and the e2e's: a
+ * SpacetimeDB connection that follows the seat. It subscribes to the caller's own views (my_seat,
+ * my_names, my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join,
+ * a game continued) it subscribes to that game's, scene's and place's rows (the scene's suggested
  * lines among them), and only then drops the old set, so nothing blinks out. Each row change
  * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
  * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
@@ -28,7 +29,9 @@ export interface ConnectOptions {
 }
 
 /** The tables and views a client watches, by their SQL names. */
-export type Watched = "my_seat" | "my_names" | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion";
+export type Watched =
+  | "my_seat" | "my_names" | "my_games" | "my_creation" | "campaign"
+  | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion";
 export type RowOp = "insert" | "update" | "delete";
 export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
 
@@ -112,6 +115,23 @@ export class Connection implements Backend {
     return [...this.db.db.mySeat.iter()][0];
   }
 
+  /** The caller's games and the character they're making, the campaigns, and the seat's own player and sheet (before its game has a scene too). */
+  home(): HomeRows {
+    const seat = this.seat();
+    const player = seat ? this.db.db.player.id.find(seat.playerId) : undefined;
+    const sheet = seat ? this.db.db.sheet.playerId.find(seat.playerId) : undefined;
+    const creation = [...this.db.db.myCreation.iter()][0];
+    return {
+      games: [...this.db.db.myGames.iter()],
+      ...(creation ? { creation } : {}),
+      campaigns: [...this.db.db.campaign.iter()],
+      ...(seat ? { seat } : {}),
+      ...(player ? { player } : {}),
+      ...(sheet ? { sheet } : {}),
+      ...(this.refused ? { refusal: this.refused } : {}),
+    };
+  }
+
   onChange(listener: () => void): () => void {
     this.changes.add(listener);
     return () => { this.changes.delete(listener); };
@@ -148,6 +168,11 @@ export class Connection implements Backend {
 
   retryTurn(turn: bigint): Promise<Rejection | undefined> {
     return this.move(() => this.db.reducers.retryTurn({ turn }));
+  }
+
+  act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined> {
+    const reducer = this.db.reducers[move] as (args: Moves[K]) => Promise<void>;
+    return this.move(() => reducer(args));
   }
 
   close(): void {
@@ -216,12 +241,12 @@ export class Connection implements Backend {
   // -------------------------------------------------------------------------------------------
   // Following the seat.
 
-  /** The caller's own views: always watched. Once they're in, the seat's rows follow. */
+  /** The caller's own views and the campaigns: always watched. Once they're in, the seat's rows follow. */
   private watchSeat(): void {
     this.db.subscriptionBuilder()
       .onApplied(() => { this.seatKnown = true; this.follow(); this.readyOnceIn(); })
       .onError(ctx => this.subscriptionFailed(ctx.event))
-      .subscribe(["SELECT * FROM my_seat", "SELECT * FROM my_names"]);
+      .subscribe(["my_seat", "my_names", "my_games", "my_creation", "campaign"].map(table => `SELECT * FROM ${table}`));
   }
 
   /**
@@ -285,7 +310,8 @@ export class Connection implements Backend {
   private watchTables(): void {
     const t = this.db.db;
     const tables: Array<[Watched, Observable]> = [
-      ["my_seat", t.mySeat], ["my_names", t.myNames], ["game", t.game], ["player", t.player], ["sheet", t.sheet], ["scene", t.scene],
+      ["my_seat", t.mySeat], ["my_names", t.myNames], ["my_games", t.myGames], ["my_creation", t.myCreation], ["campaign", t.campaign],
+      ["game", t.game], ["player", t.player], ["sheet", t.sheet], ["scene", t.scene],
       ["transcript", t.transcript], ["reply_draft", t.replyDraft], ["turn", t.turn], ["on_stage", t.onStage], ["look", t.look],
       ["scene_suggestion", t.sceneSuggestion],
     ];

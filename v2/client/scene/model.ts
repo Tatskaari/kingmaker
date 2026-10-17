@@ -1,5 +1,6 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2341-2344 (closeOverlay).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay).
 import type { Backend, Rejection } from "../backend.ts";
+import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import { C } from "../theme.ts";
@@ -28,9 +29,13 @@ export const SUGGESTIONS_ON = "Suggested lines on: a few things to say or do com
 export const SUGGESTIONS_OFF = "Suggested lines off. (/suggestions brings them back.)";
 
 export type Overlay =
+  | { kind: "sheet" }
   | { kind: "help" }
   /** A marked phrase opened: by its line (an index into lines()) and its place in that line's marks; where it was clicked, when it was. */
   | { kind: "mark"; line: number; mark: number; x?: number; y?: number };
+
+/** The character sheet over the scene: the seat's sheet row as the engine made it (none until it's in), and who they are. */
+export interface SheetShown { data?: SheetData | undefined; who: { name: string; concept: string } }
 
 export class SceneModel {
   view: SceneView;
@@ -55,6 +60,8 @@ export class SceneModel {
   typing = false;
 
   private readonly actions: SceneActions;
+  /** The seat's sheet, read when /sheet shows it: the rows have it, not the scene's view. */
+  readonly sheet: () => SheetShown | undefined;
   private listeners = new Set<() => void>();
   private changes = 0;
   private pending?: ReturnType<typeof setTimeout>;
@@ -63,9 +70,10 @@ export class SceneModel {
   /** Where the scene stood (momentOf) when the view's refusal came: it's shown until the scene moves on. */
   private refusedAt?: string;
 
-  constructor(view: SceneView, actions: SceneActions) {
+  constructor(view: SceneView, actions: SceneActions, sheet: () => SheetShown | undefined = () => undefined) {
     this.view = view;
     this.actions = actions;
+    this.sheet = sheet;
     this.noteRefusal(view);
   }
 
@@ -181,6 +189,7 @@ export class SceneModel {
   private command(command: string): void {
     const [typed = "", word] = command.trim().split(/\s+/);
     switch (commandNamed(typed)) {
+      case "sheet": this.overlay = { kind: "sheet" }; break;
       case "help": this.overlay = { kind: "help" }; break;
       case "retry":
         if (this.view.phase === "failed") this.actions.retry();

@@ -15,20 +15,22 @@
  * numbered over the box, a number or a click into the box, typing puts them away, /suggestions off,
  * none for a spectator), each speaker's colour as the draft grows, and the popover's card, dropped
  * first when there's no room. Last, the screen coming up as the rows move on: a change between its
- * first render and its subscription to the model is drawn. (The prototype's
+ * first render and its subscription to the model is drawn. Then V1's: the title, character
+ * creation's six screens and the sheet (check/creation.tsx). (The prototype's
  * src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
  */
 import { act, useLayoutEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
-import { App } from "../app.tsx";
+import { ScenePlay } from "../app.tsx";
 import { GM_BUSY } from "../busy.ts";
 import { SceneModel, SUGGESTIONS_OFF, SUGGESTIONS_ON, type SceneActions } from "../scene/model.ts";
 import { markupOf, sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView, Suggestion } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
+import { checkCreation } from "./creation.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -61,7 +63,7 @@ for (const [w, h] of SIZES) {
   let view: SceneView = YARD;
   const scene = new SceneModel(view, actions);
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; act(() => scene.update(view)); };
-  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   /** A lone Esc is held a moment by the key parser (it might start a sequence): wait it out, as the prototype's checks do. */
   const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); };
@@ -389,7 +391,7 @@ for (const [w, h] of SIZES) {
   const { sent, actions } = recorder();
   const rows = yardRows();
   const scene = new SceneModel(sceneViewOf(rows), actions);
-  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   const esc = async () => { await act(async () => { setup.mockInput.pressEscape(); await new Promise(r => setTimeout(r, 80)); }); };
   /** The rows changed (a move made, a job's answer committed): the view the connection would give the screen. */
@@ -526,7 +528,7 @@ for (const [w, h] of SIZES) {
   const { actions } = recorder();
   let view: SceneView = { ...YARD, suggestions: LINES };
   const scene = new SceneModel(view, actions);
-  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   const soon = async () => { await act(async () => { await new Promise(r => setTimeout(r, 50)); }); };
   const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; act(() => scene.update(view)); };
@@ -587,7 +589,7 @@ for (const [w, h] of [[100, 30], [120, 36], [120, 40], [160, 50]] as const) {
   const size = `${w}x${h}`;
   const { actions } = recorder();
   const scene = new SceneModel({ ...YARD, entries: [OPENING], turn: 0, suggestions: LINES.slice(0, 4) }, actions);
-  const setup = await testRender(<App scene={scene} onQuit={() => {}} />, { width: w, height: h });
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   await draw();
   await draw();
@@ -629,7 +631,7 @@ for (const [what, next, shows] of comingUp) {
   /** The App, and the rows moving on after its first render, before its effects run. */
   function ComingUp() {
     useLayoutEffect(() => { rows = next; for (const listener of listeners) listener(); }, []);
-    return <App scene={scene} onQuit={() => {}} />;
+    return <ScenePlay scene={scene} />;
   }
   const setup = await testRender(<ComingUp />, { width: 100, height: 30 });
   await setup.renderOnce();
@@ -639,6 +641,9 @@ for (const [what, next, shows] of comingUp) {
   checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
   await setup.dispose();
 }
+
+// The title, character creation and the sheet (V1's).
+await checkCreation(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

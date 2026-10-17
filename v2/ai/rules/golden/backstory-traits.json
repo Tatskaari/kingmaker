@@ -1,0 +1,117 @@
+{
+ "about": "finishBackstory (the traits) on her worked-in story",
+ "fn": "finishBackstory",
+ "args": {
+  "text": "I was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after.",
+  "who": {
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "build": "human rogue 3 (Thief), sage background"
+  }
+ },
+ "byName": {
+  "traits": {
+   "summary": "Tamsin Vell, sacked from the Exchequer for finding the Rivergate tolls short, owes Fat Jory three crowns and took the King's case to be listened to once.",
+   "personality": [
+    "sharp-tongued",
+    "counts everything"
+   ],
+   "ideals": [
+    "the books should balance"
+   ],
+   "bonds": [
+    "Fat Jory, who she owes",
+    "her sister Bet"
+   ],
+   "flaws": [
+    "can't let a wrong sum go"
+   ]
+  }
+ },
+ "calls": [
+  {
+   "operation": "backstory.traits",
+   "body": {
+    "model": "openai/gpt-6-luna",
+    "instructions": "From a player character's backstory, write what it says of them, for their character sheet and the GM:\n- summary: who they are, in one or two sentences in the third person, using their name: where they're from, what drives them, what they're carrying (a debt, a loss) and why they took this case. The GM reads it every turn.\n- personality: one or two short traits; ideals: one; bonds: one or two (people, places, debts); flaws: one. Short phrases, in the backstory's own terms.\nOnly what the backstory says or plainly implies: nothing new.",
+    "input": [
+     {
+      "role": "user",
+      "content": "## The player character\nTamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier. In game terms: human rogue 3 (Thief), sage background.\n\n## Their backstory\nI was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after."
+     }
+    ],
+    "reasoning": {
+     "effort": "none"
+    },
+    "store": false,
+    "stream": true,
+    "max_output_tokens": 700,
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "traits",
+      "schema": {
+       "type": "object",
+       "additionalProperties": false,
+       "required": [
+        "summary",
+        "personality",
+        "ideals",
+        "bonds",
+        "flaws"
+       ],
+       "properties": {
+        "summary": {
+         "type": "string"
+        },
+        "personality": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "ideals": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "bonds": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        },
+        "flaws": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "strict": true
+     }
+    }
+   }
+  }
+ ],
+ "result": {
+  "text": "I was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after.",
+  "summary": "Tamsin Vell, sacked from the Exchequer for finding the Rivergate tolls short, owes Fat Jory three crowns and took the King's case to be listened to once.",
+  "personality": [
+   "sharp-tongued",
+   "counts everything"
+  ],
+  "ideals": [
+   "the books should balance"
+  ],
+  "bonds": [
+   "Fat Jory, who she owes",
+   "her sister Bet"
+  ],
+  "flaws": [
+   "can't let a wrong sum go"
+  ]
+ }
+}

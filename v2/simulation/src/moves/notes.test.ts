@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Mark } from "../../../shared/markup.ts";
 import type { DecideRequest, DecideResponse, NotesRequest, NotesResponse, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SuggestRequest, Usage } from "../../../shared/protocol/ai.ts";
-import { keyParts } from "../../../shared/protocol/keys.ts";
+import { keyParts, turnKeyParts } from "../../../shared/protocol/keys.ts";
 import { all, down, held, hostWithCampaign, http, identity, openedGame, sceneNow, tick } from "../host/testing.ts";
 import { LOST_THREAD } from "../jobs.ts";
 
@@ -232,7 +232,7 @@ test("the opening's notes: turn 0 waits for them while the scene is live, and a 
   const scene = all(host.db.scene)[0]!;
   const noting = sceneNow(host, scene.id);
   assert.deepEqual([noting.scene.status, noting.turns[0]!.phase, noting.scene.turnId], ["live", "noting", noting.turns[0]!.id]);
-  assert.equal(keyParts((script.to("notes")[0]!.body as NotesRequest).key)?.turn, 0);
+  assert.equal(turnKeyParts((script.to("notes")[0]!.body as NotesRequest).key)?.turn, 0);
   assert.equal(host.as(wren).say({ text: "Sergeant?" }), undefined);
 
   notes.settle(noted());

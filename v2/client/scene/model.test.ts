@@ -24,6 +24,8 @@ function rowsByHand(first: SceneView) {
     show(next) { view = next; for (const listener of listeners) listener(); },
     newGame: async () => { game.show(opening); return undefined; },
     joinGame: async () => undefined, say: async () => undefined, retry: async () => undefined, setSuggestions: async () => undefined, close: () => {},
+    // The rows a scene doesn't read (V1's title and creation's) are empty.
+    home: () => ({ games: [], campaigns: [] }), act: async () => undefined,
   };
   return game;
 }

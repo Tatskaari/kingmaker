@@ -16,8 +16,12 @@ export interface AnswerStore {
 /** Each game's model calls in full (its calls.jsonl). Synchronous, as the model client's log is. */
 export interface CallLog { append(game: string, entry: Record<string, unknown>): void }
 
-/** A line per model call, with what it cost, across every game. */
-export interface Ledger { append(line: Record<string, unknown>): void }
+/** A line per model call, with what it cost (costUsd) and when (at), across every game. */
+export interface Ledger {
+  append(line: Record<string, unknown>): void;
+  /** What today's (UTC) lines have cost, in dollars: the daily ceiling's measure (budget.ts). */
+  spentToday(): Promise<number>;
+}
 
 /** Installed campaign versions, each the whole folder as it was PUT. */
 export interface CampaignStore {

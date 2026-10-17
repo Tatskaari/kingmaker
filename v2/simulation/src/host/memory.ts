@@ -4,8 +4,11 @@ import { rng } from "../../../shared/dice.ts";
 import { HEADERS } from "../../../shared/protocol/ai.ts";
 import type { Refusal } from "../../../shared/protocol/refusals.ts";
 import type { InstallArgs } from "../../../shared/scene/files.ts";
+import type { Rules } from "../../../shared/rules/types.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type Claim } from "../ai-call.ts";
 import { Refused, type Db, type Env, type Schema, type TxCtx } from "../context.ts";
+import * as creation from "../creation/moves.ts";
+import * as games from "../games/moves.ts";
 import { installCampaignReducer } from "../install.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs } from "../jobs.ts";
 import { initDatabase } from "../lifecycle.ts";
@@ -14,16 +17,18 @@ import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
 import { sayReducer } from "../moves/say.ts";
 import { setSuggestionsReducer } from "../moves/set-suggestions.ts";
+import { loadRules } from "../rules/load.ts";
 import { streamReplyReducer } from "../stream.ts";
 import { TABLES } from "../tables.ts";
-import { myNamesView, mySeatView } from "../views.ts";
+import { myCreationView, myGamesView, myNamesView, mySeatView } from "../views.ts";
 
 /**
  * The simulation without SpacetimeDB (v0-design §4.5): the same moves, job functions and views
  * over tables kept in Maps, for tests and the local host. Each call is a transaction (a throw rolls
  * back every write it made); the clock moves only when told to; the game's seeds and uuids come
- * from a fixed sequence, so a run replays; and run_job is drain(): each due dispatch claimed, POSTed
- * through the injected `ai`, and committed, exactly as index.ts does it.
+ * from a fixed sequence, so a run replays; the rules engine is the module's own, loaded once in the
+ * process; and run_job is drain(): each due dispatch claimed, POSTed through the injected `ai`, and
+ * committed, exactly as index.ts does it.
  */
 
 /** What a think's POST got back: a status and body, and the headers that matter (x-km-replayed). */
@@ -42,12 +47,29 @@ export interface MemoryHostOptions {
   database?: Identity;
   /** AI_URL, AI_TOKEN, AI_IDENTITY: the defaults reach `ai` as the service below. */
   env?: Env;
+  /** The rules engine: the module's (simulation/src/rules/load.ts) unless a test hands in its own. */
+  rules?: () => Rules;
 }
 
 export type StreamArgs = Parameters<typeof streamReplyReducer>[2];
 
+/** A move's body, as index.ts registers it: the caller and the reducer's arguments. */
+type Body<A> = (tx: TxCtx, sender: Identity, args: A) => void;
+/** The move, as a caller makes it (with no arguments, when none are needed): the refusal, or nothing when it was made. */
+type Made<B> = B extends Body<infer A> ? ({} extends A ? (args?: A) => Refusal | undefined : (args: A) => Refusal | undefined) : never;
+
+/** Character creation's moves and the games' (v1-design §3.3), by their bodies' names. */
+const MOVES = {
+  startCreation: creation.startCreationReducer, creationBack: creation.creationBackReducer, chooseBuild: creation.chooseBuildReducer,
+  makeOwn: creation.makeOwnReducer, pickOwn: creation.pickOwnReducer, takeOwn: creation.takeOwnReducer, setBackstory: creation.setBackstoryReducer,
+  draftBackstory: creation.draftBackstoryReducer, workInBackstory: creation.workInBackstoryReducer, takeProposal: creation.takeProposalReducer,
+  leaveProposal: creation.leaveProposalReducer, finishBackstory: creation.finishBackstoryReducer, acceptFix: creation.acceptFixReducer,
+  rewriteIssue: creation.rewriteIssueReducer, skipBackstory: creation.skipBackstoryReducer, chooseAgain: creation.chooseAgainReducer,
+  begin: games.beginReducer, continueGame: games.continueGameReducer, deleteGame: games.deleteGameReducer,
+};
+
 /** A caller's moves: each returns the refusal, or nothing when it was made. */
-export interface Caller {
+export type Caller = { [M in keyof typeof MOVES]: Made<(typeof MOVES)[M]> } & {
   newGame(args: Parameters<typeof newGameReducer>[2]): Refusal | undefined;
   joinGame(args: Parameters<typeof joinGameReducer>[2]): Refusal | undefined;
   say(args: Parameters<typeof sayReducer>[2]): Refusal | undefined;
@@ -55,7 +77,7 @@ export interface Caller {
   setSuggestions(args: Parameters<typeof setSuggestionsReducer>[2]): Refusal | undefined;
   installCampaign(args: InstallArgs): Refusal | undefined;
   dispatchWaiting(): Refusal | undefined;
-}
+};
 
 export interface MemoryHost {
   db: Db;
@@ -70,7 +92,7 @@ export interface MemoryHost {
   drain(): Promise<void>;
   /** The clock moves on, and the reaper runs. */
   advance(ms: number): void;
-  view(identity: Identity): { mySeat(): ReturnType<typeof mySeatView>; myNames(): ReturnType<typeof myNamesView> };
+  view(identity: Identity): { mySeat(): ReturnType<typeof mySeatView>; myNames(): ReturnType<typeof myNamesView>; myCreation(): ReturnType<typeof myCreationView>; myGames(): ReturnType<typeof myGamesView> };
   /** A body in a transaction of its own: a test's way to read rows, or to change one. */
   transact<T>(body: (tx: TxCtx) => T): T;
   now(): Timestamp;
@@ -91,7 +113,11 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
   const uuid = options.uuid ?? random.uuid;
   const database = (options.database ?? new Identity(0xdbn)).toHexString();
 
-  const txNow = (): TxCtx => ({ db: store.db, now: clock.now, env, database: () => database, uuid, seed: random.seed, log: line => logs.push(line) });
+  const rules = options.rules ?? loadRules;
+  const txNow = (): TxCtx => {
+    const began = performance.now();
+    return { db: store.db, now: clock.now, env, database: () => database, uuid, seed: random.seed, log: line => logs.push(line), rules, engineCalls: 0, elapsedMs: () => performance.now() - began };
+  };
   const transact = <T>(body: (tx: TxCtx) => T): T => inTransaction(store, () => body(txNow()));
   const call = (body: (tx: TxCtx) => void): Refusal | undefined => refusalOf(() => transact(body));
 
@@ -109,7 +135,7 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
     },
     view: identity => {
       const ctx = { sender: identity, db: store.db, env } as unknown as ViewCtx<Schema>;
-      return { mySeat: () => mySeatView(ctx), myNames: () => myNamesView(ctx) };
+      return { mySeat: () => mySeatView(ctx), myNames: () => myNamesView(ctx), myCreation: () => myCreationView(ctx), myGames: () => myGamesView(ctx) };
     },
     now: () => clock.now,
   };
@@ -119,7 +145,9 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
 // The moves, and run_job.
 
 function callerAs(identity: Identity, call: (body: (tx: TxCtx) => void) => Refusal | undefined): Caller {
+  const moves = Object.fromEntries(Object.entries(MOVES).map(([name, body]) => [name, (args = {}) => call(tx => (body as Body<unknown>)(tx, identity, args))]));
   return {
+    ...(moves as unknown as { [M in keyof typeof MOVES]: Made<(typeof MOVES)[M]> }),
     newGame: args => call(tx => newGameReducer(tx, identity, args)),
     joinGame: args => call(tx => joinGameReducer(tx, identity, args)),
     say: args => call(tx => sayReducer(tx, identity, args)),

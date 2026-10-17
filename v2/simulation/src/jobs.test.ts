@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { DecideResponse, NotesResponse, ReplyResponse, SuggestResponse } from "../../shared/protocol/ai.ts";
-import { idText } from "../../shared/protocol/keys.ts";
+import { idText, turnKeyParts } from "../../shared/protocol/keys.ts";
 import { memoryHost } from "./host/memory.ts";
 import { all, caerwynArgs, DEFAULTS, down, held, http, identity, openedGame, sceneNow, tick } from "./host/testing.ts";
 import { LOST_THREAD, queueThink } from "./jobs.ts";
@@ -174,6 +174,22 @@ test("with no AI_URL, the opening fails at once: nothing to POST to", async () =
   assert.deepEqual([scene.status, turn0.phase, turn0.error], ["opening", "failed", "The GM couldn't answer: the AI service isn't configured (no AI_URL)"]);
 });
 
+test("over the AI service's daily budget, the turn fails at once in its words; retry_turn, once there's budget again, finishes it", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const message = "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.";
+  script.then("decide", http(402, { error: { code: "over_budget", message } }));
+
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  const failed = sceneNow(host, scene.id).turns[1]!;
+  assert.deepEqual([failed.phase, failed.error], ["failed", message]);
+  assert.equal(script.to("decide").length, 1, "not tried again");
+
+  assert.equal(host.as(wren).retryTurn({ turn: failed.id }), undefined);
+  await host.drain();
+  assert.equal(sceneNow(host, scene.id).turns[1]!.phase, "done");
+});
+
 // ---------------------------------------------------------------------------------------------
 // Jobs in the background (v5-design §3.4).
 
@@ -251,6 +267,24 @@ test("one job a turn and move: queued again, its row is written over, and an ans
   await first;
   assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(scene.id)].map(s => s.text), DEFAULTS.suggest.lines.map(l => l.text));
   assert.match(host.logs.join("\n"), /:t1:suggest attempt 1\] dropped: the job has moved on since this dispatch/);
+});
+
+test("over the AI service's daily budget, the jobs beside a turn are given up at once, as their moves give up: the reply unmarked, no lines, the turn done", async () => {
+  const { host, script, wren, scene } = await openedGame();
+  const spent = http(402, { error: { code: "over_budget", message: "The GM has spent today's budget ($5.00): it starts again at midnight UTC, or raise KM_AI_DAILY_USD." } });
+  script.then("reply", kellSays);
+  script.then("notes", spent);
+  script.then("suggest", spent);
+
+  host.as(wren).say({ text: "Who found him?" });
+  await host.drain();
+  const turn = sceneNow(host, scene.id).turns[1]!;
+  assert.deepEqual([turn.phase, turn.error, turn.note, turn.notes, turn.suggest], ["done", undefined, undefined, "lost", "lost"], "the turn isn't failed by them");
+  const asked = (step: "notes" | "suggest") => script.to(step).filter(s => turnKeyParts(s.key)?.turn === 1).length;
+  assert.deepEqual([asked("notes"), asked("suggest")], [1, 1], "neither tried again");
+  assert.deepEqual(sceneNow(host, scene.id).lines.filter(l => l.turn === 1 && l.speaker === "gm").map(l => JSON.parse(l.markup!).marks), [[]], "the reply unmarked");
+  assert.deepEqual([...host.db.sceneSuggestion.sceneId.filter(scene.id)], [], "no lines");
+  assert.deepEqual(all(host.db.job), [], "nothing kept for retry_turn");
 });
 
 test("dispatch_waiting, the owner's: every waiting job goes again now, not at its time; anyone else is refused", async () => {

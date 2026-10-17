@@ -6,6 +6,12 @@ import { isAdmin, servicePing as servicePingBody } from "./access.ts";
 import { NOT_CONFIGURED, outcomeOf, type AiOutcome, type AiResponse, type Claim } from "./ai-call.ts";
 import { Refused, type Schema, type TxCtx } from "./context.ts";
 import { installCampaignReducer } from "./install.ts";
+import {
+  acceptFixReducer, chooseAgainReducer, chooseBuildReducer, creationBackReducer, draftBackstoryReducer, finishBackstoryReducer, leaveProposalReducer,
+  makeOwnReducer, pickOwnReducer, rewriteIssueReducer, setBackstoryReducer, skipBackstoryReducer, startCreationReducer, takeOwnReducer,
+  takeProposalReducer, workInBackstoryReducer,
+} from "./creation/moves.ts";
+import { beginReducer, continueGameReducer, deleteGameReducer } from "./games/moves.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
 import { initDatabase, markOnline } from "./lifecycle.ts";
 import { joinGameReducer } from "./moves/join-game.ts";
@@ -13,16 +19,17 @@ import { newGameReducer } from "./moves/new-game.ts";
 import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
 import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
-import spacetimedb, { jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
+import { loadRules } from "./rules/load.ts";
+import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView } from "./schema.ts";
 import { streamReplyReducer } from "./stream.ts";
-import { myNamesView, mySeatView } from "./views.ts";
+import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
 
 /**
  * The module's entry: every reducer, procedure, view and lifecycle hook, registered (v0-design
- * §3.3), and the few adapters that need SpacetimeDB at run time (txOf, asReducer, the AI service's
- * HTTP). Each body is a plain function over TxCtx in another file, so the memory host runs the same
- * code. The export names are the wire's, in snake_case (newGame is new_game): the client's bindings
- * are generated from them.
+ * §3.3, v1-design §3.2-3.3, v5-design §3.3), and the few adapters that need SpacetimeDB at run time
+ * (txOf, asReducer, the AI service's HTTP). Each body is a plain function over TxCtx in another file,
+ * so the memory host runs the same code. The export names are the wire's, in snake_case (newGame is
+ * new_game): the client's bindings are generated from them.
  */
 
 export { default } from "./schema.ts";
@@ -38,6 +45,29 @@ export const joinGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => as
 export const say = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => sayReducer(tx, ctx.sender, args)));
 export const retryTurn = spacetimedb.reducer({ turn: t.u64() }, (ctx, args) => asReducer(ctx, tx => retryTurnReducer(tx, ctx.sender, args)));
 export const setSuggestions = spacetimedb.reducer({ on: t.bool() }, (ctx, args) => asReducer(ctx, tx => setSuggestionsReducer(tx, ctx.sender, args)));
+
+// Character creation (v1-design §3.3): the caller's creation row, from a concept to the game made from it.
+export const startCreation = spacetimedb.reducer({ campaign: t.string(), name: t.string(), concept: t.string(), how: t.string(), afresh: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => startCreationReducer(tx, ctx.sender, args)));
+export const creationBack = spacetimedb.reducer({ story: t.option(t.string()) }, (ctx, args) => asReducer(ctx, tx => creationBackReducer(tx, ctx.sender, args)));
+export const chooseBuild = spacetimedb.reducer({ index: t.u32() }, (ctx, args) => asReducer(ctx, tx => chooseBuildReducer(tx, ctx.sender, args)));
+export const makeOwn = spacetimedb.reducer({ from: t.u32() }, (ctx, args) => asReducer(ctx, tx => makeOwnReducer(tx, ctx.sender, args)));
+export const pickOwn = spacetimedb.reducer({ speciesId: t.string(), classId: t.string(), subclassId: t.option(t.string()), backgroundId: t.string() }, (ctx, args) => asReducer(ctx, tx => pickOwnReducer(tx, ctx.sender, args)));
+export const takeOwn = spacetimedb.reducer(ctx => asReducer(ctx, tx => takeOwnReducer(tx, ctx.sender, {})));
+export const setBackstory = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => setBackstoryReducer(tx, ctx.sender, args)));
+export const draftBackstory = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => draftBackstoryReducer(tx, ctx.sender, args)));
+export const workInBackstory = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => workInBackstoryReducer(tx, ctx.sender, args)));
+export const takeProposal = spacetimedb.reducer(ctx => asReducer(ctx, tx => takeProposalReducer(tx, ctx.sender, {})));
+export const leaveProposal = spacetimedb.reducer(ctx => asReducer(ctx, tx => leaveProposalReducer(tx, ctx.sender, {})));
+export const finishBackstory = spacetimedb.reducer({ text: t.string() }, (ctx, args) => asReducer(ctx, tx => finishBackstoryReducer(tx, ctx.sender, args)));
+export const acceptFix = spacetimedb.reducer(ctx => asReducer(ctx, tx => acceptFixReducer(tx, ctx.sender, {})));
+export const rewriteIssue = spacetimedb.reducer(ctx => asReducer(ctx, tx => rewriteIssueReducer(tx, ctx.sender, {})));
+export const skipBackstory = spacetimedb.reducer(ctx => asReducer(ctx, tx => skipBackstoryReducer(tx, ctx.sender, {})));
+export const chooseAgain = spacetimedb.reducer(ctx => asReducer(ctx, tx => chooseAgainReducer(tx, ctx.sender, {})));
+
+// The caller's games: setting off in the one their creation made, carrying on with one, deleting one.
+export const begin = spacetimedb.reducer(ctx => asReducer(ctx, tx => beginReducer(tx, ctx.sender, {})));
+export const continueGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => continueGameReducer(tx, ctx.sender, args)));
+export const deleteGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => deleteGameReducer(tx, ctx.sender, args)));
 
 // The AI service's: the reply as it's written, and proof its token reaches the module as itself.
 export const streamReply = spacetimedb.reducer(
@@ -69,15 +99,18 @@ export const reapJobs = spacetimedb.reducer({ onSchedule: reaper }, { arg: reape
   if (fromScheduler(ctx)) asReducer(ctx, reapJobsBody);
 });
 
-// The views: the caller's seat, and the names they know the cast by.
+// The views: the caller's seat, the names they know the cast by, the character they're making, and their games.
 export const mySeat = spacetimedb.view({ name: "my_seat", public: true }, t.option(SeatView), ctx => mySeatView(ctx));
 export const myNames = spacetimedb.view({ name: "my_names", public: true }, t.array(NameView), ctx => myNamesView(ctx));
+export const myCreation = spacetimedb.view({ name: "my_creation", public: true }, t.option(creation.rowType), ctx => myCreationView(ctx));
+export const myGames = spacetimedb.view({ name: "my_games", public: true }, t.array(GameSummary), ctx => myGamesView(ctx));
 
 // ---------------------------------------------------------------------------------------------
 // The adapters.
 
 /** A body's TxCtx from a reducer's context, or a procedure's transaction. */
 function txOf(ctx: ReducerCtx<Schema>): TxCtx {
+  const began = hostMs();
   return {
     db: ctx.db,
     now: ctx.timestamp,
@@ -86,8 +119,18 @@ function txOf(ctx: ReducerCtx<Schema>): TxCtx {
     uuid: () => ctx.newUuidV4().toString(),
     seed: () => ctx.random.integerInRange(0, 999_999_999),
     log: line => console.info(line),
+    rules: loadRules,
+    engineCalls: 0,
+    elapsedMs: () => hostMs() - began,
   };
 }
+
+/**
+ * The platform's clock, for TxCtx.elapsedMs: the timing log lines' only clock (the module's other
+ * time is the transaction's). In a reducer it starts at ctx.timestamp and runs on in real time
+ * (spacetime.md §4.9).
+ */
+const hostMs = () => Date.now();
 
 /** Runs a body as a reducer: a refusal reaches the caller as a SenderError carrying it as JSON; anything else thrown is a bug (a panic). */
 function asReducer(ctx: ReducerCtx<Schema>, body: (tx: TxCtx) => void): void {

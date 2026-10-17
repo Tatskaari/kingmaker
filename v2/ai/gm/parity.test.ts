@@ -12,6 +12,7 @@ import { pipeline } from "../service/endpoints/pipeline.ts";
 import { sceneAndView } from "../service/endpoints/turn.ts";
 import { folderStores } from "../service/folder-stores.ts";
 import type { StreamSink } from "../service/stream.ts";
+import type { Backstory } from "../../shared/creation/types.ts";
 import type { GmState } from "../../shared/gm/state.ts";
 import type { Card, Mark, Markup, Speech } from "../../shared/markup.ts";
 import type { AiRequest, Decision, DecideRequest, Drafted, Entry, NotesRequest, NotesResponse, OpenRequest, OpenResponse, Outcome, ReplyRequest, ReplyResponse, SceneContext, SettleRequest, SheetRow, Suggestion, SuggestRequest, SuggestResponse, TurnContext } from "../../shared/protocol/ai.ts";
@@ -21,14 +22,16 @@ import { vetting, type Vetting } from "./suggest.ts";
 import { gameMarkup, turnSource } from "./view.ts";
 
 /**
- * Prompt parity (v0-design §10.2, v5-design §4.2), the AI service's acceptance test: its GM asks the
- * models what the prototype's asks, for the same state. golden/hanged-clerk holds the prototype's
- * calls on the hanged clerk at 44c6d4a, with marked-up replies, the notes on them and the lines
- * suggested after each (recorded by the repo's tools/record-golden.mts; golden/README.md): for each
- * step, the session as it stood and every call it made; for each moment's notes and lines, the
- * session frozen at the call and what came of it. Each session becomes the request the simulation
- * would send, the AI service's endpoint runs on the same stand-in, and what it asks and answers are
- * compared:
+ * Prompt parity (v0-design §10.2, v5-design §4.2, v1-design §4.2), the AI service's acceptance test:
+ * its GM asks the models what the prototype's asks, for the same state. golden/hanged-clerk holds the
+ * prototype's calls on the hanged clerk at 44c6d4a, with marked-up replies, the notes on them and the
+ * lines suggested after each (recorded by the repo's tools/record-golden.mts; golden/README.md): for
+ * each step, the session as it stood and every call it made; for each moment's notes and lines, the
+ * session frozen at the call and what came of it. golden/hanged-clerk-backstory holds the GM's steps
+ * for a player with a backstory from character creation (tools/v2/record-v1-golden.mts), whose
+ * opening writes it into the player's doc and whose brief says who they are from it. Each session
+ * becomes the request the simulation would send, the AI service's endpoint runs on the same
+ * stand-in, and what it asks and answers are compared:
  *
  * - byte for byte: the GM's (gm.opening, gm.reply: the speakers' names and the notes in its
  *   history), the stage manager's, disclosure's, the notes' writer's (instructions, input, schema)
@@ -43,7 +46,7 @@ import { gameMarkup, turnSource } from "./view.ts";
  * turn; what the decide commit did (the roll, the move) is read off the prototype's session.
  */
 
-const GOLDEN = join(import.meta.dirname, "golden", "hanged-clerk");
+const GOLDEN = join(import.meta.dirname, "golden");
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const GAME = "6f0c1d2e-0000-4000-8000-00000000901d";
 
@@ -53,14 +56,18 @@ interface Session {
   patches: GmState["patches"]; landed?: string[]; hinted?: string[]; memory?: { opened: GmState["opened"] }; endingLead?: GmState["endingLead"];
   pendingExit?: GmState["pendingExit"]; closing?: GmState["closing"]; sceneStatus?: GmState["sceneStatus"]; oocTurns?: number[]; pressureOffered?: string[];
   repeated?: string; entered?: string[]; absent?: string[]; whispers?: GmState["whispers"]; rulings?: unknown[];
-  player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string };
+  player: { name: string; concept: string; modifiers: SheetRow["skills"]; build?: string; backstory?: Backstory };
   rules?: { status?: string; spells?: Array<{ name: string }> };
   transcript: Array<{ turn: number; speaker: string; kind: Entry["kind"]; text: string; marked?: Markup }>;
   world: SceneWorld;
 }
 /** Who says each line of a reply as it streams (each time its words grow) and once it's whole. */
 interface Speakers { streamed: Array<{ text: string; speech: Speech[] }>; whole: { text: string; speech: Speech[]; drafted: Drafted[] } }
-interface Step { step: string; line?: string; fake: FakeOptions; session: Session; calls: Array<{ operation: string; body: Request }>; speakers?: Speakers }
+/**
+ * A step of the GM's. The stand-in it ran on is `fake` (tools/record-golden.mts), or, in V1's
+ * recording with a backstory (tools/v2/record-v1-golden.mts), its replies and the decider's choices.
+ */
+interface Step { step: string; line?: string; fake?: FakeOptions; replies?: string[]; choices?: Record<string, string>; session: Session; calls: Array<{ operation: string; body: Request }>; speakers?: Speakers }
 interface NotesMoment { moment: string; fake: FakeOptions; session: Session; reply: { at: number; text: string; speech: Speech[]; drafted: Drafted[] }; body: Request; marks: Mark[]; cards: Array<Card | null> }
 interface SuggestMoment { moment: string; fake: FakeOptions; session: Session; offered: string[]; bodies: { suggest: Request; judge?: Request & { state?: Record<string, string> } }; vetting: Vetting; lines: Suggestion[]; dropped: Array<{ text: string; why: string }> }
 
@@ -82,11 +89,16 @@ const WORDED_OTHERWISE: string[] = [];
  */
 const SPELLS = / Spells: [^.]*\./;
 
-const read = <T>(file: string) => JSON.parse(readFileSync(join(GOLDEN, file), "utf8")) as T;
-const files = readdirSync(GOLDEN).filter(f => f.endsWith(".json")).sort();
-const steps = files.filter(f => /^\d\d-/.test(f)).map(f => read<Step>(f));
+const read = <T>(file: string, recording = "hanged-clerk") => JSON.parse(readFileSync(join(GOLDEN, recording, file), "utf8")) as T;
+const filesIn = (recording: string) => readdirSync(join(GOLDEN, recording)).filter(f => f.endsWith(".json")).sort();
+const stepsOf = (recording: string) => filesIn(recording).filter(f => /^\d\d-/.test(f)).map(f => read<Step>(f, recording));
+const files = filesIn("hanged-clerk");
+const steps = stepsOf("hanged-clerk");
+const withBackstory = stepsOf("hanged-clerk-backstory");
 const notesOf = (moment: string) => read<NotesMoment>(`${moment}.notes.json`);
 const linesOf = (moment: string) => read<SuggestMoment>(`${moment}.suggest.json`);
+/** The stand-in a step ran on. */
+const fakeOf = (g: Step): FakeOptions => g.fake ?? { replies: g.replies ?? [], ...(g.choices ? { choices: g.choices } : {}) };
 
 test("the golden recording is there: the opening and three turns, each step's calls, and each moment's notes and lines", () => {
   assert.deepEqual(steps.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle", "t2-decide", "t2-reply", "t2-settle", "t3-decide", "t3-reply", "t3-settle"]);
@@ -101,13 +113,34 @@ test("the golden recording is there: the opening and three turns, each step's ca
 });
 
 test("the AI service asks what the prototype's asks, step by step through the opening and three turns, with the notes and the lines after each reply", async () => {
+  await playedAlong(steps, { notesAndLines: true });
+});
+
+test("the recording with a backstory is there: the opening and a turn, the GM told who they are from it", () => {
+  assert.deepEqual(withBackstory.map(s => s.step), ["open", "t1-decide", "t1-reply", "t1-settle"]);
+  assert.ok(withBackstory.every(s => s.session.player.backstory?.text.trim()), "a backstory on the player throughout");
+  const gm = withBackstory.flatMap(s => s.calls).filter(c => c.operation === "gm.opening" || c.operation === "gm.reply");
+  assert.equal(gm.length, 2);
+  for (const call of gm) assert.match(call.body.input![0]!.content, /Who they are, from their own backstory: /);
+});
+
+test("with a backstory from character creation, the GM asks what the prototype's asks: the player's doc written before disclosure, the brief's who they are", async () => {
+  await playedAlong(withBackstory, { notesAndLines: false });
+});
+
+/**
+ * A recording's steps in order on one game, each compared with the prototype's calls; and, where
+ * the recording has them (the hanged clerk's, not the one with a backstory), each reply's notes and
+ * lines after it.
+ */
+async function playedAlong(recording: Step[], { notesAndLines }: { notesAndLines: boolean }): Promise<void> {
   const play = await game();
   const decisions = new Map<string, Decision>();
   const before = new Map<string, Session>();
 
-  for (const golden of steps) {
+  for (const golden of recording) {
     const turn = golden.step.split("-")[0]!;
-    const asked = await play.run(golden.fake, request => {
+    const asked = await play.run(fakeOf(golden), request => {
       if (golden.step === "open") return pipeline.open(openRequest(golden), request);
       if (golden.step.endsWith("-decide")) return pipeline.decide(decideRequest(golden), request);
       if (golden.step.endsWith("-reply")) return pipeline.reply(replyRequest(golden, decisions.get(turn)!, before.get(turn)!), request);
@@ -117,12 +150,12 @@ test("the AI service asks what the prototype's asks, step by step through the op
 
     compare(golden.step, golden.calls, asked.calls);
     if (golden.speakers) sameSpeakers(golden.step, golden.speakers, asked.shown, (asked.answer as OpenResponse | ReplyResponse).entries[0]!);
-    if (golden.step === "open" || golden.step.endsWith("-reply")) {
+    if (notesAndLines && (golden.step === "open" || golden.step.endsWith("-reply"))) {
       await sameNotes(play, notesOf(turn));
       await sameLines(play, linesOf(turn));
     }
   }
-});
+}
 
 test("the notes are in the GM's history: a reply's notes, written once it's on the transcript, are what the next reply's history writes back", () => {
   const t2 = steps.find(s => s.step === "t2-reply")!.calls[0]!.body;
@@ -279,19 +312,19 @@ function filesOf(dir: string): Record<string, string> {
 // The requests the simulation would send, from the prototype's session as it stood.
 
 const KEYS = keysFor("granary-yard", "hanged-clerk", "pc:1");
-const base = (step: string, n: number): AiRequest => ({ key: `${GAME}:s1:t${n}:${step}`, game: { id: GAME, campaign: "caerwyn", version: "0.1.0" }, player: { id: "1", name: "Wren Ashdown" } });
+const base = (step: string, n: number, s: Session): AiRequest => ({ key: `${GAME}:s1:t${n}:${step}`, game: { id: GAME, campaign: "caerwyn", version: "0.1.0" }, player: { id: "1", name: s.player.name } });
 const story = { time: "morning", day: 1, flags: {} };
 
 function openRequest(g: Step): OpenRequest {
-  return { ...base("open", 0), scene: { id: "1", key: "hanged-clerk", kind: "scene" }, pc: "pc:1", gm: gmOf(g.session), world: rowsOf(g.session), party: partyOf(g.session), story, stream: { turn: "1" } };
+  return { ...base("open", 0, g.session), scene: { id: "1", key: "hanged-clerk", kind: "scene" }, pc: "pc:1", gm: gmOf(g.session), world: rowsOf(g.session), party: partyOf(g.session), story, stream: { turn: "1" } };
 }
 
 function decideRequest(g: Step): DecideRequest {
-  return { ...base("decide", g.session.turn), turn: turnOf(g.session), landed: [] };
+  return { ...base("decide", g.session.turn, g.session), turn: turnOf(g.session), landed: [] };
 }
 
 function replyRequest(g: Step, decision: Decision, before: Session): ReplyRequest {
-  return { ...base("reply", g.session.turn), turn: turnOf(g.session), decision, outcome: outcomeOf(before, g.session, decision), stream: { turn: String(g.session.turn + 1) } };
+  return { ...base("reply", g.session.turn, g.session), turn: turnOf(g.session), decision, outcome: outcomeOf(before, g.session, decision), stream: { turn: String(g.session.turn + 1) } };
 }
 
 function settleRequest(g: Step, before: Session): SettleRequest {
@@ -299,17 +332,17 @@ function settleRequest(g: Step, before: Session): SettleRequest {
   const reply = s.transcript.filter(e => e.turn === s.turn && e.kind === "narration").at(-1)!.text;
   const lines = s.transcript.filter(e => e.turn === s.turn && e.kind === "roll").map(e => e.text);
   // What was settled before the turn (settledFacts: the facts, and the rulings, none here), the last 16.
-  return { ...base("settle", s.turn), turn: turnOf(s), reply, lines, settled: before.established.slice(-16) };
+  return { ...base("settle", s.turn, s), turn: turnOf(s), reply, lines, settled: before.established.slice(-16) };
 }
 
 /** The notes on a moment's reply: the reply's seq is its place on the scene's transcript, from 1, as the simulation numbers its rows. */
 function notesRequest(m: NotesMoment): NotesRequest {
-  return { ...base("notes", m.session.turn), turn: sceneOf(m.session), reply: { seq: m.reply.at + 1, text: m.reply.text, speech: m.reply.speech, drafted: m.reply.drafted } };
+  return { ...base("notes", m.session.turn, m.session), turn: sceneOf(m.session), reply: { seq: m.reply.at + 1, text: m.reply.text, speech: m.reply.speech, drafted: m.reply.drafted } };
 }
 
 /** The lines after a moment's reply: none of the scene's last set again. */
 function suggestRequest(m: SuggestMoment): SuggestRequest {
-  return { ...base("suggest", m.session.turn), turn: sceneOf(m.session), offered: m.offered };
+  return { ...base("suggest", m.session.turn, m.session), turn: sceneOf(m.session), offered: m.offered };
 }
 
 function turnOf(s: Session): TurnContext {
@@ -334,7 +367,11 @@ function gmOf(s: Session): GmState {
 
 const worldOf = (s: Session) => s.world;
 const rowsOf = (s: Session) => worldToRows(s.world, KEYS);
-const partyOf = (s: Session): SheetRow[] => [{ name: s.player.name, concept: s.player.concept, ...(s.player.build ? { build: s.player.build } : {}), skills: s.player.modifiers, ...(s.rules?.status ? { status: s.rules.status } : {}) }];
+/** The sheet as the simulation sends it: the player's, the rules' status line, and the backstory they wrote at character creation. */
+const partyOf = (s: Session): SheetRow[] => [{
+  name: s.player.name, concept: s.player.concept, ...(s.player.build ? { build: s.player.build } : {}), skills: s.player.modifiers,
+  ...(s.rules?.status ? { status: s.rules.status } : {}), ...(s.player.backstory ? { backstory: s.player.backstory } : {}),
+}];
 
 /** An entry as the simulation keeps it: the player's lines as player:1, the markup by the game's keys (the place's own people under the place). */
 function entryOf(e: Session["transcript"][number], s: Session): Entry {

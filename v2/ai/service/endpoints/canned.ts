@@ -6,6 +6,8 @@ import type { Character, Scene } from "../../../shared/scene/types.ts";
 import { noUsage } from "../calls.ts";
 import type { Endpoints } from "../context.ts";
 import type { StreamSink } from "../stream.ts";
+import { backstories } from "./backstories.ts";
+import { characters } from "./characters.ts";
 
 /**
  * The thinks with no model at all (KM_AI_GM=canned): for bringing a stack up and playing it end to
@@ -14,7 +16,9 @@ import type { StreamSink } from "../stream.ts";
  * someone of the cast says a line in each, so the screen has a speaker to colour and the notes a line
  * to go on. Nothing moves the scene: no route is taken, nothing lands, no ending comes. The notes put
  * one why on the first line someone of the cast says, linked to them, with their card; the suggested
- * lines are the same four every time.
+ * lines are the same four every time. Character creation gets the prototype's offline answers (its
+ * endpoints with no model to ask): three builds from the class defaults, the player's own made legal,
+ * no draft, the backstory unchecked, its traits from the player's own words.
  */
 export const canned: Endpoints = {
   async open(req, ctx) {
@@ -50,6 +54,10 @@ export const canned: Endpoints = {
   async suggest() {
     return { lines: LINES, dropped: [], usage: noUsage() };
   },
+
+  characters: characters(() => null),
+
+  backstories: backstories(() => null),
 };
 
 /** The same four lines after every reply: two to say, a deed, a risky try. */

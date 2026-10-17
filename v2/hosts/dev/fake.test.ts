@@ -43,3 +43,13 @@ test("--fake plays fake.json's options, KM_AI_FAKE's on top, and says so when KM
   assert.deepEqual(fakeOptions('{"streamMs":0,"suggestions":""}'), { ...fake, streamMs: 0, suggestions: "" });
   assert.throws(() => fakeOptions("{ streamMs: 0"), /^Error: KM_AI_FAKE isn't JSON: \{ streamMs: 0$/);
 });
+
+test("KM_AI_FAKE's answers and delays by name go beside fake.json's: creation's answers keep the notes'", () => {
+  const options = fakeOptions('{"byName":{"draft_backstory":{"backstory":"I kept the palace books."}},"byNameDelayMs":{"notes":12000},"choices":{"attempt":"examine-body"}}');
+
+  assert.deepEqual(Object.keys(options.byName!).sort(), ["draft_backstory", "notes"]);
+  assert.deepEqual(options.byName!.notes, fake.byName!.notes);
+  assert.deepEqual(options.byNameDelayMs, { notes: 12000 });
+  assert.deepEqual(options.choices, { attempt: "examine-body" });
+  assert.deepEqual(options.replies, fake.replies);
+});

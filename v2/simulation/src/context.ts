@@ -1,15 +1,17 @@
 import type { Identity, Timestamp } from "spacetimedb";
 import type { InferSchema, ReducerCtx } from "spacetimedb/server";
 import type { Refusal } from "../../shared/protocol/refusals.ts";
+import type { Rules } from "../../shared/rules/types.ts";
 import { queueThink, type JobPlan } from "./jobs.ts";
 import type { Move } from "./moves/move.ts";
 import type spacetimedb from "./schema.ts";
 
 /**
- * What a move's body runs on (v0-design §4.1): the module's own tables and the transaction's time,
- * env and randomness, with nothing of SpacetimeDB's at run time, so the same body runs in the module
- * (index.ts's txOf makes one from a reducer's context) and on the memory host. And how a move is
- * made: checked, resolved, and its think queued in the same transaction.
+ * What a move's body runs on (v0-design §4.1, v1-design §3.6): the module's own tables, the
+ * transaction's time, env and randomness, and the rules engine, with nothing of SpacetimeDB's at run
+ * time, so the same body runs in the module (index.ts's txOf makes one from a reducer's context) and
+ * on the memory host. And how a move is made: checked, resolved, and its think queued in the same
+ * transaction.
  */
 
 export type Schema = InferSchema<typeof spacetimedb>;
@@ -30,13 +32,20 @@ export interface TxCtx {
   /**
    * A new v4 UUID, from SpacetimeDB's generator. That's seeded by the transaction's time alone, and
    * gives about 3% of transactions the same uuid (v0-design §14): never use one alone where an id
-   * must be unique. A game's uid folds in its own id (new-game.ts gameUid).
+   * must be unique. A ready-made game's uid folds in its own id (games/create.ts gameUid), and a
+   * creation's the transaction's time (newUid).
    */
   uuid(): string;
   /** A new game's dice seed, 0 to 999,999,999. */
   seed(): number;
   /** A line in the module's log (spacetime logs). */
   log(line: string): void;
+  /** The rules engine and its content, loaded once per isolate (simulation/src/rules/load.ts). */
+  rules(): Rules;
+  /** The engine calls this transaction has made so far: each call's ids are pinned apart from the last's (rules/session.ts). */
+  engineCalls: number;
+  /** Host time since the transaction began, in milliseconds: for the timing log lines only, never a row. */
+  elapsedMs(): number;
 }
 
 /** Who is making a move: the caller, and the player their seat holds (none when they have no seat). */

@@ -1,9 +1,17 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Identity } from "spacetimedb";
-import type { DecideResponse, NotesResponse, OpenResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
+import type { RollResult } from "../../../shared/dice.ts";
+import type { Backstory } from "../../../shared/creation/types.ts";
+import type { BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, DecideResponse, NotesResponse, OpenResponse, ReplyResponse, SettleResponse, SuggestResponse, Usage } from "../../../shared/protocol/ai.ts";
+import { CREATION_STEPS, type CreationStep } from "../../../shared/protocol/keys.ts";
 import { gmFromRow } from "../../../shared/gm/state.ts";
+import { rollFor } from "../../../shared/rules/index.ts";
+import type { BuildOption, OwnPicks, SrdLists } from "../../../shared/rules/types.ts";
 import { installArgsOf, type BuildsFile, type CampaignFile, type CampaignPack, type InstallArgs, type LooksFile, type PlaceFile, type SceneFile } from "../../../shared/scene/files.ts";
+import type { Skill } from "../../../shared/scene/types.ts";
+import { playerRow } from "../rows.ts";
+import { engineCall, sessionOf } from "../rules/session.ts";
 import { memoryHost, type AiPost, type AiReply, type MemoryHost } from "./memory.ts";
 
 /**
@@ -35,7 +43,8 @@ export const identity = (n: number) => new Identity(BigInt(0x1000 + n));
 // ---------------------------------------------------------------------------------------------
 // A scripted AI service.
 
-export type Step = "open" | "decide" | "reply" | "settle" | "notes" | "suggest";
+/** A turn's steps (its own, and the notes and the lines beside it), and character creation's (named from the request: /v1/characters' ask, /v1/backstories' op). */
+export type Step = "open" | "decide" | "reply" | "settle" | "notes" | "suggest" | CreationStep;
 
 /** What an endpoint answers: the answer itself (200, as JSON), another HTTP reply, a thrown error (a refused connection), or a function of the request that gives one of those. */
 export type Scripted = unknown | { http: AiReply } | ((request: any, headers: Record<string, string>) => unknown);
@@ -69,6 +78,66 @@ const STEPS: Record<string, Step> = {
   "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle", "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest",
 };
 
+/** A creation request's step: the builds asked for, or what's asked of the backstory. */
+function creationStepOf(endpoint: string, request: { ask?: { kind?: string }; op?: string }): Step | undefined {
+  if (endpoint === "/v1/characters") return request.ask?.kind === "three" ? "offer" : request.ask?.kind === "one" ? "pick" : request.ask?.kind === "own" ? "own" : undefined;
+  if (endpoint === "/v1/backstories") return CREATION_STEPS.find(s => s === request.op);
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Character creation's answers, as the AI service gives them (v1-design §3.7): builds.json's builds as the cards on offer.
+
+const READY = (JSON.parse(read("builds.json")) as BuildsFile);
+
+/** One of builds.json's builds as a card on offer (its card's numbers are a stand-in's: the sheet is the engine's). */
+export function optionOf(id: string, from: BuildOption["from"] = "model"): BuildOption {
+  const build = READY[id]!.build;
+  return {
+    build, plays: `Plays as a ${id}.`, line: LINES[id]!, from,
+    card: { species: build.speciesId, className: build.classId, subclass: build.subclassId, background: build.backgroundId, level: 3, hp: 20, ac: 14, speed: 30, features: [], skills: build.skills },
+  };
+}
+
+/** The engine's build lines for builds.json's builds (what its sheets say). */
+const LINES: Record<string, string> = {
+  cleric: "dwarf cleric 3 (Life Domain), acolyte background", fighter: "human fighter 3 (Champion), soldier background",
+  ranger: "elf ranger 3 (Hunter), soldier background", rogue: "halfling rogue 3 (Thief), criminal background", wizard: "human wizard 3 (Evoker), sage background",
+};
+
+/** What a player picks from to make their own: a few of the SRD's, as the AI service sends them with an own answer. */
+export const LISTS: SrdLists = {
+  species: ["dwarf", "elf", "gnome", "halfling", "human", "orc"].map(id => ({ id, name: id, about: "" })),
+  classes: ["cleric", "fighter", "rogue", "wizard"].map(id => ({ id, name: id, about: "" })),
+  subclasses: { cleric: [{ id: "life-domain", name: "Life Domain", about: "" }], fighter: [{ id: "champion", name: "Champion", about: "" }], rogue: [{ id: "thief", name: "Thief", about: "" }], wizard: [{ id: "evoker", name: "Evoker", about: "" }] },
+  backgrounds: ["acolyte", "criminal", "sage", "soldier"].map(id => ({ id, name: id, about: "" })),
+  level: 3,
+  subclassLevel: { cleric: 3, fighter: 3, rogue: 3, wizard: 3 },
+};
+
+/** The player's own picks as a card: builds.json's build of that class with their species, subclass and background. */
+export function ownOption(picks: OwnPicks): BuildOption {
+  const base = optionOf(picks.classId, "own");
+  const build = { ...base.build, speciesId: picks.speciesId, backgroundId: picks.backgroundId, subclassId: picks.subclassId ?? "" };
+  return { ...base, build, line: `${picks.speciesId} ${picks.classId} 3 (${picks.subclassId ?? "none"}), ${picks.backgroundId} background`, from: "own" };
+}
+
+/** A backstory's traits, from its words. */
+export const traitsOf = (text: string): Backstory => ({ text, summary: `Who they are: ${text.slice(0, 40)}`, personality: ["Dry"], ideals: ["Truth"], bonds: ["The King"], flaws: ["Debt"] });
+
+type CreationAnswer = (request: any) => CharactersResponse | BackstoriesResponse;
+
+/** Each creation step's answer when the script has none queued: three of builds.json's, the cleric, the player's own, a draft, notes worked in, a story that fits, its traits. */
+export const CREATION_DEFAULTS: Record<CreationStep, CreationAnswer> = {
+  offer: () => ({ offer: { options: [optionOf("rogue"), optionOf("wizard"), optionOf("fighter")] }, usage: usage(1, 0.002) }),
+  pick: () => ({ option: optionOf("cleric"), usage: usage(1, 0.001) }),
+  own: (request: CharactersRequest) => ({ option: ownOption((request.ask as { picks: OwnPicks }).picks), lists: LISTS, usage: usage(0, 0) }),
+  draft: () => ({ asked: { ok: true, value: "I kept the palace's ledgers for nine years, until the numbers stopped adding up." }, usage: usage(1, 0.001) }),
+  work: (request: BackstoriesRequest) => ({ asked: { ok: true, value: `In my own words: ${request.text}` }, usage: usage(1, 0.001) }),
+  check: () => ({ checked: { ok: true, value: [] }, usage: usage(1, 0.001) }),
+  traits: (request: BackstoriesRequest) => ({ backstory: traitsOf(request.text), usage: usage(1, 0.001) }),
+};
+
 /** An answer that isn't 200. */
 export const http = (status: number, body: unknown = { error: { code: status === 400 ? "bad_request" : "model_failed", message: "scripted" } }): { http: AiReply } => ({ http: { status, body: JSON.stringify(body) } });
 
@@ -81,15 +150,15 @@ export const down = () => () => {
 
 export function scriptedAi() {
   const sent: Sent[] = [];
-  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reply: [], settle: [], notes: [], suggest: [] };
+  const queues: Record<Step, Scripted[]> = { open: [], decide: [], reply: [], settle: [], notes: [], suggest: [], offer: [], pick: [], own: [], draft: [], work: [], check: [], traits: [] };
 
   const ai: AiPost = async (endpoint, body, headers) => {
-    const step = STEPS[endpoint];
+    const request = JSON.parse(body) as { key: string; ask?: { kind?: string }; op?: string };
+    const step = STEPS[endpoint] ?? creationStepOf(endpoint, request);
     if (!step) return { status: 404, body: JSON.stringify({ error: { code: "bad_request", message: `no ${endpoint}` } }) };
-    const request = JSON.parse(body) as { key: string };
     sent.push({ step, key: request.key, attempt: headers["x-km-attempt"] ?? "", body: request });
 
-    const next = queues[step].length ? queues[step].shift() : DEFAULTS[step];
+    const next = queues[step].length ? queues[step].shift() : { ...DEFAULTS, ...CREATION_DEFAULTS }[step];
     const answer = typeof next === "function" ? await (next as (r: unknown, h: Record<string, string>) => unknown)(request, headers) : next;
     return isHttp(answer) ? answer.http : { status: 200, body: JSON.stringify(answer) };
   };
@@ -141,6 +210,21 @@ export async function openedGame(seed = 7, build = "ranger") {
   return { host, script, wren, scene, player: host.db.player.id.find(scene.controllerId)! };
 }
 
+/** A character made through creation (three builds offered, one chosen, no backstory): the game made, not yet begun. */
+export async function madeCharacter(host: MemoryHost, who: Identity, options: { name?: string; index?: number; story?: string } = {}) {
+  const made = (refused: { text: string } | undefined) => {
+    if (refused) throw new Error(`creation was refused: ${refused.text}`);
+  };
+  made(host.as(who).startCreation({ campaign: "caerwyn", name: options.name ?? "Tamsin Vell", concept: "a disgraced palace auditor", how: "three" }));
+  await host.drain();
+  made(host.as(who).chooseBuild({ index: options.index ?? 0 }));
+  made(options.story ? host.as(who).finishBackstory({ text: options.story }) : host.as(who).skipBackstory());
+  await host.drain();
+  const creation = host.view(who).myCreation()!;
+  const game = host.db.game.id.find(creation.gameId!)!;
+  return { creation, game, player: host.db.player.id.find(game.hostId)! };
+}
+
 /** Every row of a table. */
 export const all = <T>(table: { iter(): Iterable<T> }): T[] => [...table.iter()];
 
@@ -153,4 +237,13 @@ export function sceneNow(host: MemoryHost, sceneId: bigint) {
     gm: gmFromRow(host.db.gmState.sceneId.find(sceneId)!),
     jobs: all(host.db.job),
   };
+}
+
+/** What the rules engine rolls next for a player's check, as the rows stand now (the check that rolls it writes the count; this writes nothing). */
+export function nextCheck(host: MemoryHost, playerId: bigint, skill: Skill, dc: number): RollResult {
+  return host.transact(tx => {
+    const player = playerRow(tx, playerId);
+    const session = sessionOf(tx, player);
+    return engineCall(tx, player.gameId, rules => rollFor(rules, session, skill, dc));
+  });
 }

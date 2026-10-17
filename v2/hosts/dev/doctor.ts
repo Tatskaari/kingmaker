@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { dollars } from "../../ai/service/budget.ts";
 import type { Health } from "../../shared/protocol/ai.ts";
 import { refusalIn } from "../../shared/protocol/refusals.ts";
 import { bearer, request } from "./http.ts";
@@ -41,6 +42,7 @@ export async function doctor(stack: StackFile, options: DoctorOptions = {}): Pro
     await envCheck(stack),
     poolCheck(stack),
     healthCheck(stack, health),
+    budgetCheck(health),
     await moduleToAi(stack, health),
     aiToModule(stack, deep),
     await campaignCheck(stack, health, options.campaign),
@@ -143,6 +145,21 @@ function healthCheck(stack: StackFile, seen: HealthSeen): Check {
   return {
     name, ok, detail: `${stack.aiFromHost} answers in ${seen.ms} ms: ${h.model} model, ${h.gm} GM${stack.ai.container ? ", in podman" : ""}; the stack's bearer ${h.token}`,
     fix: "the service has another bearer: restart it from the dev host (r)",
+  };
+}
+
+/**
+ * The AI service's daily ceiling (KM_AI_DAILY_USD, v1-design §3.7) and what today's (UTC) calls
+ * have cost: past it, every move that needs a model fails in the ceiling's words until midnight.
+ */
+function budgetCheck(seen: HealthSeen): Check {
+  const name = "Budget";
+  if (!seen.ok) return { name, ok: false, detail: `the AI service doesn't answer (${seen.error})`, fix: "start it: s in the dev host" };
+  const { dailyUsd, spentToday } = seen.health.budget;
+  if (dailyUsd <= 0) return { name, ok: true, detail: `${dollars(spentToday)} today, with no ceiling (KM_AI_DAILY_USD=0)` };
+  return {
+    name, ok: spentToday < dailyUsd, detail: `${dollars(spentToday)} of ${dollars(dailyUsd)} today`,
+    fix: "today's budget is spent: quit and start the stack again with KM_AI_DAILY_USD raised (or wait for midnight UTC); /retry carries a failed turn on",
   };
 }
 

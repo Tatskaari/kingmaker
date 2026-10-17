@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeRoll, rollFrom } from "../../../shared/dice.ts";
+import { describeRoll } from "../../../shared/dice.ts";
 import type { DecideRequest, DecideResponse, ReplyRequest, SettleRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { keyParts } from "../../../shared/protocol/keys.ts";
 import type { WorldOp } from "../../../shared/world/scene-world.ts";
-import { all, openedGame, sceneNow } from "../host/testing.ts";
+import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
 
 /** A line in a scene (v0-design §4.2, §6.2): said, decided, rolled, replied, settled, on the memory host. */
 
@@ -18,9 +18,10 @@ const examineBody: DecideResponse = {
   opened: [], usage: { calls: 2, costUsd: 0.0006, byOperation: {} },
 };
 
-test("a line: said at once, then decided (a route with a check, rolled from the game's dice), replied and settled", async () => {
+test("a line: said at once, then decided (a route with a check, rolled by the rules engine from the game's dice), replied and settled", async () => {
   const { host, script, wren, scene } = await openedGame();
   const dice = host.db.dice.gameId.find(scene.gameId)!;
+  const roll = nextCheck(host, scene.controllerId, "medicine", 12);
   const phases: string[] = [];
   const phaseNow = () => phases.push(sceneNow(host, scene.id).turns[1]!.phase);
   script.then("decide", () => { phaseNow(); return examineBody; });
@@ -35,7 +36,6 @@ test("a line: said at once, then decided (a route with a check, rolled from the 
 
   await host.drain();
 
-  const roll = rollFrom(dice, "medicine", 12, 2).roll;
   const line = describeRoll(roll, "to tell how Prout really died");
   const now = sceneNow(host, scene.id);
   assert.deepEqual(phases, ["deciding", "replying", "settling"]);
@@ -44,7 +44,8 @@ test("a line: said at once, then decided (a route with a check, rolled from the 
     [1, "dice", "roll", line],
     [1, "gm", "narration", "You kneel by the body. The rope burn is wrong."],
   ]);
-  assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, 1);
+  assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, dice.rolls + 1);
+  assert.equal(roll.modifier, JSON.parse(host.db.sheet.playerId.find(scene.controllerId)!.skills).medicine, "the sheet's own modifier");
   assert.deepEqual(now.turns.map(t => [t.n, t.phase, t.calls]), [[0, "done", 2 + 2], [1, "done", 5 + 2]], "each turn's own calls, and its lines' (nothing to note: no markup)");
   assert.equal(now.scene.turnId, undefined);
   assert.equal(now.scene.turns, 1);

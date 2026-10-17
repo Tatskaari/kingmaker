@@ -38,6 +38,37 @@ export const Campaign = __t.object("Campaign", {
 });
 export type Campaign = __Infer<typeof Campaign>;
 
+export const Creation = __t.object("Creation", {
+  identity: __t.identity(),
+  uid: __t.string(),
+  campaign: __t.string(),
+  campaignVersion: __t.string(),
+  name: __t.string(),
+  concept: __t.string(),
+  how: __t.string(),
+  step: __t.string(),
+  busy: __t.option(__t.string()),
+  rev: __t.u32(),
+  offer: __t.option(__t.string()),
+  own: __t.option(__t.string()),
+  chosen: __t.option(__t.string()),
+  story: __t.string(),
+  version: __t.u32(),
+  proposal: __t.option(__t.string()),
+  issues: __t.option(__t.string()),
+  issue: __t.u32(),
+  rewriting: __t.option(__t.string()),
+  again: __t.bool(),
+  note: __t.option(__t.string()),
+  unchecked: __t.option(__t.string()),
+  backstory: __t.option(__t.string()),
+  gameId: __t.option(__t.u64()),
+  calls: __t.u32(),
+  costMicros: __t.u64(),
+  updatedAt: __t.timestamp(),
+});
+export type Creation = __Infer<typeof Creation>;
+
 export const Creature = __t.object("Creature", {
   entityId: __t.u64(),
   placeId: __t.u64(),
@@ -83,6 +114,13 @@ export const ExitAt = __t.object("ExitAt", {
 });
 export type ExitAt = __Infer<typeof ExitAt>;
 
+export const FeatureRef = __t.object("FeatureRef", {
+  id: __t.string(),
+  name: __t.string(),
+  target: __t.string(),
+});
+export type FeatureRef = __Infer<typeof FeatureRef>;
+
 export const Game = __t.object("Game", {
   id: __t.u64(),
   uid: __t.string(),
@@ -97,12 +135,31 @@ export const Game = __t.object("Game", {
 });
 export type Game = __Infer<typeof Game>;
 
+export const GameSummary = __t.object("GameSummary", {
+  gameId: __t.u64(),
+  name: __t.string(),
+  time: __t.string(),
+  where: __t.string(),
+  hook: __t.string(),
+  begun: __t.bool(),
+  lastPlayedAt: __t.timestamp(),
+});
+export type GameSummary = __Infer<typeof GameSummary>;
+
 export const Gear = __t.object("Gear", {
   entityId: __t.u64(),
   placeId: __t.u64(),
   engineItem: __t.string(),
 });
 export type Gear = __Infer<typeof Gear>;
+
+export const GearRow = __t.object("GearRow", {
+  id: __t.string(),
+  name: __t.string(),
+  kind: __t.string(),
+  slot: __t.option(__t.string()),
+});
+export type GearRow = __Infer<typeof GearRow>;
 
 export const GmNote = __t.object("GmNote", {
   entityId: __t.u64(),
@@ -163,9 +220,9 @@ export type Heard = __Infer<typeof Heard>;
 export const Job = __t.object("Job", {
   id: __t.u64(),
   key: __t.string(),
-  gameId: __t.u64(),
-  sceneId: __t.u64(),
-  turnId: __t.u64(),
+  gameId: __t.option(__t.u64()),
+  sceneId: __t.option(__t.u64()),
+  turnId: __t.option(__t.u64()),
   move: __t.string(),
   step: __t.string(),
   endpoint: __t.string(),
@@ -205,6 +262,12 @@ export const Material = __t.object("Material", {
   size: __t.option(__t.string()),
 });
 export type Material = __Infer<typeof Material>;
+
+export const MyCreation = __t.object("MyCreation", {});
+export type MyCreation = __Infer<typeof MyCreation>;
+
+export const MyGames = __t.object("MyGames", {});
+export type MyGames = __Infer<typeof MyGames>;
 
 export const MyNames = __t.object("MyNames", {});
 export type MyNames = __Infer<typeof MyNames>;
@@ -301,6 +364,7 @@ export const Player = __t.object("Player", {
   sceneId: __t.option(__t.u64()),
   online: __t.bool(),
   suggestions: __t.bool(),
+  lastPlayedAt: __t.timestamp(),
 });
 export type Player = __Infer<typeof Player>;
 
@@ -348,6 +412,19 @@ export const Roll = __t.object("Roll", {
   advantage: __t.option(__t.string()),
 });
 export type Roll = __Infer<typeof Roll>;
+
+export const RulesState = __t.object("RulesState", {
+  playerId: __t.u64(),
+  gameId: __t.u64(),
+  pc: __t.string(),
+  campaign: __t.string(),
+  prefer: __t.array(__t.string()),
+  get gear() {
+    return __t.array(GearRow);
+  },
+  gone: __t.array(__t.string()),
+});
+export type RulesState = __Infer<typeof RulesState>;
 
 export const Scene = __t.object("Scene", {
   id: __t.u64(),
@@ -411,8 +488,42 @@ export const Sheet = __t.object("Sheet", {
   build: __t.string(),
   skills: __t.string(),
   statusLine: __t.string(),
+  level: __t.u32(),
+  hp: __t.i32(),
+  maxHp: __t.i32(),
+  ac: __t.i32(),
+  get slots() {
+    return __t.array(SlotRow);
+  },
+  conditions: __t.array(__t.string()),
+  get spells() {
+    return __t.array(SpellRef);
+  },
+  get weapons() {
+    return __t.array(WeaponRef);
+  },
+  get features() {
+    return __t.array(FeatureRef);
+  },
+  data: __t.string(),
+  pockets: __t.string(),
+  backstory: __t.option(__t.string()),
 });
 export type Sheet = __Infer<typeof Sheet>;
+
+export const SlotRow = __t.object("SlotRow", {
+  level: __t.u32(),
+  max: __t.u32(),
+  used: __t.u32(),
+});
+export type SlotRow = __Infer<typeof SlotRow>;
+
+export const SpellRef = __t.object("SpellRef", {
+  id: __t.string(),
+  name: __t.string(),
+  level: __t.u32(),
+});
+export type SpellRef = __Infer<typeof SpellRef>;
 
 export const Stack = __t.object("Stack", {
   entityId: __t.u64(),
@@ -462,6 +573,12 @@ export const Turn = __t.object("Turn", {
   suggestAsks: __t.u32(),
 });
 export type Turn = __Infer<typeof Turn>;
+
+export const WeaponRef = __t.object("WeaponRef", {
+  id: __t.string(),
+  name: __t.string(),
+});
+export type WeaponRef = __Infer<typeof WeaponRef>;
 
 export const WorldLog = __t.object("WorldLog", {
   id: __t.u64(),

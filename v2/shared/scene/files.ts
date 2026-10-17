@@ -1,3 +1,5 @@
+import type { CreationWorld } from "../creation/types.ts";
+import type { Build } from "../rules/types.ts";
 import type { Skill } from "./types.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 
@@ -25,6 +27,8 @@ export interface CampaignFile {
   places: string[];
   /** Coin the player starts with, given at the first scene. */
   startingPurse: Array<{ name: string; quantity: number; description: string }>;
+  /** The world a backstory is written for and checked against, at character creation (v1-design §3.9). */
+  creation: CreationWorld;
 }
 
 export type Phase = "attempt" | "cue" | "outcome";
@@ -94,19 +98,14 @@ export interface SceneFile {
 /** places/<key>.json: the place as a world, as authored (the engine's defaults are applied when it's built). */
 export type PlaceFile = { key: string } & WorldSpec;
 
-/** One of builds.json's ready-made characters. */
+/** One of builds.json's ready-made characters: who they are, and the build the rules engine makes them from (v1-design §3.9). */
 export interface BuildFile {
-  /** "elf ranger 3 (Hunter), criminal background" */
-  build: string;
-  level: number;
-  /** Every skill's modifier, all 18. */
-  skills: Record<Skill, number>;
-  /** "HP 28/28, spell slots 1st 3/3" */
-  status: string;
-  gear: Array<{ id: string; name: string; kind: "weapon" | "armor" | "shield" | "item"; slot?: "mainHand" | "offHand" | "armor" | "shield" }>;
+  /** "a palace inspector with soft shoes, a rapier and a notebook, who reads people better than ledgers" */
+  concept: string;
+  build: Build;
 }
 
-/** builds.json: the ready-made characters, by id (ranger, rogue, wizard). */
+/** builds.json: the ready-made characters, by id (cleric, fighter, ranger, rogue, wizard). */
 export type BuildsFile = Record<string, BuildFile>;
 
 /** looks.json: how the cast looks on screen, by cast id (Kell is a blue K). */

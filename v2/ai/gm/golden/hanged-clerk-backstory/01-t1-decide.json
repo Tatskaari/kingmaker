@@ -1,0 +1,1459 @@
+{
+ "step": "t1-decide",
+ "line": "I look closely at the body.",
+ "choices": {
+  "attempt": "examine-body"
+ },
+ "replies": [
+  "You climb the hoist ladder until Prout's boots are level with your nose. Under the rope's slanting burn there's another mark, thin and level, low round his neck."
+ ],
+ "session": {
+  "id": "golden-hanged-clerk-backstory",
+  "sceneId": "hanged-clerk",
+  "approach": "v2",
+  "seed": 4242,
+  "rollCount": 1,
+  "player": {
+   "name": "Tamsin Vell",
+   "concept": "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier",
+   "modifiers": {
+    "persuasion": 0,
+    "deception": 0,
+    "intimidation": 0,
+    "insight": 5,
+    "performance": 0,
+    "perception": 3,
+    "investigation": 5,
+    "sleight_of_hand": 5,
+    "stealth": 5,
+    "athletics": -1,
+    "acrobatics": 5,
+    "animal_handling": 1,
+    "arcana": 1,
+    "history": 1,
+    "nature": 1,
+    "religion": 1,
+    "medicine": 1,
+    "survival": 1
+   },
+   "backstory": {
+    "text": "I was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after.",
+    "summary": "Tamsin Vell, sacked from the Exchequer for finding the Rivergate tolls short, owes Fat Jory three crowns and took the King's case to be listened to once.",
+    "personality": [
+     "sharp-tongued",
+     "counts everything"
+    ],
+    "ideals": [
+     "the books should balance"
+    ],
+    "bonds": [
+     "Fat Jory, who she owes",
+     "her sister Bet"
+    ],
+    "flaws": [
+     "can't let a wrong sum go"
+    ]
+   },
+   "build": "halfling rogue 3 (Thief), criminal background"
+  },
+  "turn": 1,
+  "beat": "yard",
+  "turnsInBeat": 0,
+  "path": [],
+  "established": [],
+  "canon": [],
+  "notes": null,
+  "notesTurn": null,
+  "patches": [],
+  "repairs": [],
+  "transcript": [
+   {
+    "turn": 0,
+    "scene": "hanged-clerk",
+    "speaker": "gm",
+    "kind": "narration",
+    "text": "Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's auditor, then. The Captain calls it suicide.” A stone clangs off the hoist hook.",
+    "marked": {
+     "speech": [
+      {
+       "start": 189,
+       "end": 256,
+       "tag": "Sergeant Agnes Kell",
+       "speaker": "kell"
+      }
+     ],
+     "marks": []
+    }
+   },
+   {
+    "turn": 1,
+    "scene": "hanged-clerk",
+    "speaker": "player",
+    "kind": "player",
+    "text": "I look closely at the body."
+   }
+  ],
+  "metrics": [],
+  "history": [],
+  "rules": {
+   "pc": "01M51GXK6QTQK0MGMSZ3SMQGTW",
+   "npcs": {},
+   "prefer": [
+    "investigation",
+    "insight",
+    "stealth",
+    "perception",
+    "sleight-of-hand",
+    "alert",
+    "thief",
+    "medium",
+    "ability-score-improvement",
+    "dex",
+    "dexterity",
+    "con",
+    "constitution",
+    "int",
+    "intelligence",
+    "wis",
+    "wisdom",
+    "cha",
+    "charisma",
+    "str",
+    "strength"
+   ],
+   "spells": [],
+   "weapons": [
+    {
+     "id": "01M51GXK6Q11RTVPFX32MWPEVA",
+     "name": "Rapier"
+    },
+    {
+     "id": "01M51GXK6QFN4ZRH6NXX6HJJ9E",
+     "name": "Shortbow"
+    },
+    {
+     "id": "01M51GXK6QZZ1230VGMA7XW1BT",
+     "name": "Dagger"
+    },
+    {
+     "id": "01M51GXK6Q37XY8206SFRFKBDD",
+     "name": "Unarmed Strike"
+    }
+   ],
+   "features": [],
+   "gear": [
+    {
+     "id": "01M51GXK6Q11RTVPFX32MWPEVA",
+     "name": "Rapier",
+     "kind": "weapon",
+     "slot": "mainHand"
+    },
+    {
+     "id": "01M51GXK6QFN4ZRH6NXX6HJJ9E",
+     "name": "Shortbow",
+     "kind": "weapon"
+    },
+    {
+     "id": "01M51GXK6QZZ1230VGMA7XW1BT",
+     "name": "Dagger",
+     "kind": "weapon"
+    },
+    {
+     "id": "01M51GXK6QZNSYHT7AV0K2E1Y2",
+     "name": "Leather Armor",
+     "kind": "armor",
+     "slot": "armor"
+    }
+   ],
+   "status": "HP 24/24",
+   "aliases": {
+    "cob": "the boy in the too-big boots",
+    "moll": "the girl in the shawl",
+    "tull": "the corporal"
+   }
+  },
+  "world": {
+   "scene": "hanged-clerk",
+   "root": "hanged-clerk:place",
+   "entities": {
+    "hanged-clerk:place": {
+     "id": "hanged-clerk:place",
+     "name": "The yard behind the King's Granary",
+     "kind": "place",
+     "parent": null,
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 52,
+      "h": 40
+     },
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "A cobbled yard behind the granary, swept bare for the Assembly, smelling of wet grain, pigeons and river mud. Over the wall the city is hanging bunting."
+    },
+    "lane": {
+     "id": "lane",
+     "name": "the lane",
+     "kind": "area",
+     "parent": "hanged-clerk:place",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 40,
+      "h": 8
+     },
+     "tags": [
+      "outside"
+     ],
+     "states": [],
+     "notes": [],
+     "description": "The lane beyond the yard wall, with an old elm leaning over it."
+    },
+    "yard": {
+     "id": "yard",
+     "name": "the yard",
+     "kind": "area",
+     "parent": "hanged-clerk:place",
+     "rect": {
+      "x": 0,
+      "y": 8,
+      "w": 38,
+      "h": 32
+     },
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Cobbles, a water butt, the padlocked yard doors and, on the granary's back wall, the hoist."
+    },
+    "loft": {
+     "id": "loft",
+     "name": "the tally loft (above the yard, inside the granary)",
+     "kind": "area",
+     "parent": "hanged-clerk:place",
+     "rect": {
+      "x": 38,
+      "y": 8,
+      "w": 14,
+      "h": 32
+     },
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Up under the granary roof: the tally desk, grain stacks, Cob's nest. Reached by the loft door (barred inside) or Cob's loose board behind the water butt."
+    },
+    "player": {
+     "id": "player",
+     "name": "Tamsin Vell",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "player": true,
+     "at": {
+      "x": 14,
+      "y": 12
+     }
+    },
+    "kell": {
+     "id": "kell",
+     "name": "Sergeant Agnes Kell",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [
+      {
+       "text": "just inside the gate, notebook out",
+       "turn": 0,
+       "by": "author"
+      }
+     ],
+     "cast": "kell",
+     "at": {
+      "x": 16,
+      "y": 13
+     }
+    },
+    "cob": {
+     "id": "cob",
+     "name": "Cob",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [
+      {
+       "text": "under the body, lobbing gutter stones at it",
+       "turn": 0,
+       "by": "author"
+      }
+     ],
+     "cast": "cob",
+     "at": {
+      "x": 30,
+      "y": 24
+     }
+    },
+    "moll": {
+     "id": "moll",
+     "name": "Moll",
+     "kind": "person",
+     "parent": "yard",
+     "tags": [],
+     "states": [],
+     "notes": [
+      {
+       "text": "sitting on top of the yard wall",
+       "turn": 0,
+       "by": "author"
+      }
+     ],
+     "cast": "moll",
+     "at": {
+      "x": 24,
+      "y": 9
+     }
+    },
+    "elm": {
+     "id": "elm",
+     "name": "the old elm",
+     "kind": "feature",
+     "parent": "lane",
+     "size": "huge",
+     "material": "wood",
+     "tags": [
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 50,
+      "max": 50
+     },
+     "description": "Old, dry and leaning over the wall into the yard; pigeons in it.",
+     "at": {
+      "x": 34,
+      "y": 3
+     }
+    },
+    "yard-wall": {
+     "id": "yard-wall",
+     "name": "the yard wall",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "huge",
+     "material": "stone",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 50,
+      "max": 50
+     },
+     "description": "Shoulder-high on the lane side.",
+     "at": {
+      "x": 20,
+      "y": 8
+     }
+    },
+    "gate": {
+     "id": "gate",
+     "name": "the yard gate",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "door",
+      "flammable"
+     ],
+     "states": [
+      "open"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "at": {
+      "x": 12,
+      "y": 8
+     }
+    },
+    "satchel": {
+     "id": "satchel",
+     "name": "Prout's satchel",
+     "kind": "item",
+     "parent": "yard",
+     "size": "small",
+     "material": "leather",
+     "tags": [
+      "flammable"
+     ],
+     "states": [
+      "open",
+      "empty"
+     ],
+     "notes": [],
+     "ac": 12,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Lying open and empty by the gate.",
+     "at": {
+      "x": 14,
+      "y": 10
+     }
+    },
+    "spectacles": {
+     "id": "spectacles",
+     "name": "Prout's spectacles",
+     "kind": "item",
+     "parent": "yard",
+     "size": "tiny",
+     "material": "glass",
+     "tags": [],
+     "states": [
+      "bent"
+     ],
+     "notes": [],
+     "ac": 13,
+     "hp": {
+      "current": 2,
+      "max": 2
+     },
+     "description": "Bent, in the gutter.",
+     "at": {
+      "x": 10,
+      "y": 11
+     }
+    },
+    "granary-wall": {
+     "id": "granary-wall",
+     "name": "the granary's back wall",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "gargantuan",
+     "material": "stone",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 100,
+      "max": 100
+     },
+     "at": {
+      "x": 37,
+      "y": 24
+     }
+    },
+    "hoist-beam": {
+     "id": "hoist-beam",
+     "name": "the hoist beam",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "description": "Juts out high above the loft door, with a pulley; the rope runs up over it and in through a slot to a cleat inside.",
+     "at": {
+      "x": 34,
+      "y": 20
+     }
+    },
+    "hoist-rope": {
+     "id": "hoist-rope",
+     "name": "the hoist rope",
+     "kind": "item",
+     "parent": "hoist-beam",
+     "size": "small",
+     "material": "rope",
+     "tags": [
+      "hanging",
+      "fixed",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 3,
+      "max": 3
+     },
+     "description": "Runs over the pulley and in through the slot above the loft door; the noose end holds Prout well out of reach of the cobbles."
+    },
+    "prout": {
+     "id": "prout",
+     "name": "Wendell Prout's body",
+     "kind": "object",
+     "parent": "hoist-rope",
+     "size": "medium",
+     "material": "flesh",
+     "tags": [
+      "body",
+      "evidence"
+     ],
+     "states": [
+      "hanging"
+     ],
+     "notes": [],
+     "ac": 10,
+     "hp": {
+      "current": 18,
+      "max": 18
+     },
+     "description": "A small grey-coated clerk with ink-stained fingers, in darned stockings, no boots; a swelling at the back of the skull, a level cord mark under the noose burn, clean palms."
+    },
+    "loft-door": {
+     "id": "loft-door",
+     "name": "the loft door",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "door",
+      "flammable"
+     ],
+     "states": [
+      "closed",
+      "barred"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "description": "High in the wall under the hoist beam; barred on the inside.",
+     "at": {
+      "x": 35,
+      "y": 18
+     }
+    },
+    "yard-doors": {
+     "id": "yard-doors",
+     "name": "the granary's yard doors",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "huge",
+     "material": "wood",
+     "tags": [
+      "door",
+      "flammable"
+     ],
+     "states": [
+      "closed",
+      "locked"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 50,
+      "max": 50
+     },
+     "description": "Big double doors, padlocked; the warden has the key, at the palace.",
+     "at": {
+      "x": 36,
+      "y": 32
+     }
+    },
+    "water-butt": {
+     "id": "water-butt",
+     "name": "the water butt",
+     "kind": "object",
+     "parent": "yard",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "container",
+      "water",
+      "flammable"
+     ],
+     "states": [
+      "full"
+     ],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "at": {
+      "x": 4,
+      "y": 36
+     }
+    },
+    "loose-board": {
+     "id": "loose-board",
+     "name": "a loose board behind the water butt",
+     "kind": "feature",
+     "parent": "yard",
+     "size": "small",
+     "material": "wood",
+     "tags": [
+      "passage",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Cob's way into the loft: child-sized; a grown-up could squeeze through with effort.",
+     "at": {
+      "x": 2,
+      "y": 38
+     }
+    },
+    "cleat": {
+     "id": "cleat",
+     "name": "the rope cleat",
+     "kind": "feature",
+     "parent": "loft",
+     "size": "small",
+     "material": "iron",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 19,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Inside the loft door: the hoist rope tied off on it with a docker's knot.",
+     "at": {
+      "x": 40,
+      "y": 18
+     }
+    },
+    "tally-desk": {
+     "id": "tally-desk",
+     "name": "the tally desk",
+     "kind": "object",
+     "parent": "loft",
+     "size": "large",
+     "material": "wood",
+     "tags": [
+      "furniture",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 15,
+     "hp": {
+      "current": 27,
+      "max": 27
+     },
+     "description": "Ink spilled across it, a smashed lantern beside it, heel scuffs in the grain dust from here to the loft door.",
+     "at": {
+      "x": 45,
+      "y": 22
+     }
+    },
+    "granary-roll": {
+     "id": "granary-roll",
+     "name": "the Royal Granary Roll",
+     "kind": "item",
+     "parent": "tally-desk",
+     "size": "small",
+     "material": "paper",
+     "tags": [
+      "evidence",
+      "flammable"
+     ],
+     "states": [
+      "chained"
+     ],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 3,
+      "max": 3
+     },
+     "description": "The big book, chained to the desk, with a page razored out. The pages either side list King's Road grain wagons 'lost to goblins', each countersigned 'J. Sallow, for the Royal Purveyor'."
+    },
+    "smashed-lantern": {
+     "id": "smashed-lantern",
+     "name": "a smashed lantern",
+     "kind": "item",
+     "parent": "loft",
+     "size": "tiny",
+     "material": "glass",
+     "tags": [],
+     "states": [
+      "broken"
+     ],
+     "notes": [],
+     "ac": 13,
+     "hp": {
+      "current": 2,
+      "max": 2
+     },
+     "at": {
+      "x": 44,
+      "y": 24
+     }
+    },
+    "cobs-nest": {
+     "id": "cobs-nest",
+     "name": "a nest of sacking in the loft",
+     "kind": "object",
+     "parent": "loft",
+     "size": "medium",
+     "material": "cloth",
+     "tags": [
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 4,
+      "max": 4
+     },
+     "description": "Sacks and candle-ends behind the grain stacks: Cob's castle.",
+     "at": {
+      "x": 48,
+      "y": 36
+     }
+    },
+    "grain-stacks": {
+     "id": "grain-stacks",
+     "name": "the grain stacks",
+     "kind": "object",
+     "parent": "loft",
+     "size": "huge",
+     "material": "cloth",
+     "tags": [
+      "cover",
+      "flammable"
+     ],
+     "states": [
+      "dusty"
+     ],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "at": {
+      "x": 47,
+      "y": 30
+     }
+    },
+    "boots": {
+     "id": "boots",
+     "name": "Prout's good black boots",
+     "kind": "item",
+     "parent": "cob",
+     "size": "small",
+     "material": "leather",
+     "tags": [
+      "evidence",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 12,
+     "hp": {
+      "current": 10,
+      "max": 10
+     },
+     "description": "Three sizes too big for Cob, laced on with string; the backs of both heels scraped raw, and the left one crackles when he stamps."
+    },
+    "ledger-page": {
+     "id": "ledger-page",
+     "name": "a folded page sewn into the left boot's lining",
+     "kind": "item",
+     "parent": "boots",
+     "size": "tiny",
+     "material": "paper",
+     "tags": [
+      "evidence",
+      "hidden",
+      "flammable"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 11,
+     "hp": {
+      "current": 2,
+      "max": 2
+     },
+     "description": "A page razored from the Royal Granary Roll: wagons 'lost to goblins', countersigned 'J. Sallow, for the Royal Purveyor', with Prout's pencilled river-warehouse weights and 'Not goblins. Who pays the hedge-folk?'"
+    },
+    "gutter-stones": {
+     "id": "gutter-stones",
+     "name": "a fistful of gutter stones",
+     "kind": "item",
+     "parent": "cob",
+     "size": "tiny",
+     "material": "stone",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 5,
+      "max": 5
+     }
+    },
+    "wheat-crown": {
+     "id": "wheat-crown",
+     "name": "a silver crown stamped with a wheat-ear",
+     "kind": "item",
+     "parent": "moll",
+     "size": "tiny",
+     "material": "silver",
+     "tags": [
+      "evidence"
+     ],
+     "states": [],
+     "notes": [],
+     "ac": 17,
+     "hp": {
+      "current": 5,
+      "max": 5
+     },
+     "description": "What the gentleman paid her to say she saw the clerk jump."
+    },
+    "silver-crowns": {
+     "id": "silver-crowns",
+     "name": "silver crowns",
+     "kind": "item",
+     "parent": "player",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Heavy silver with the King's face, a little worn.",
+     "quantity": 2,
+     "created": 0
+    },
+    "shillings": {
+     "id": "shillings",
+     "name": "shillings",
+     "kind": "item",
+     "parent": "player",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Silver, five to the crown.",
+     "quantity": 6,
+     "created": 0
+    },
+    "pennies": {
+     "id": "pennies",
+     "name": "pennies",
+     "kind": "item",
+     "parent": "player",
+     "tags": [],
+     "states": [],
+     "notes": [],
+     "description": "Copper, twelve to the shilling, and the currency of the Drowned Rat.",
+     "quantity": 12,
+     "created": 0
+    },
+    "tamsin-rapier": {
+     "id": "tamsin-rapier",
+     "name": "Tamsin's rapier",
+     "kind": "item",
+     "parent": "player",
+     "tags": [
+      "weapon"
+     ],
+     "states": [
+      "in hand"
+     ],
+     "notes": [],
+     "gear": "01M51GXK6Q11RTVPFX32MWPEVA"
+    },
+    "tamsin-shortbow": {
+     "id": "tamsin-shortbow",
+     "name": "Tamsin's shortbow",
+     "kind": "item",
+     "parent": "player",
+     "tags": [
+      "weapon"
+     ],
+     "states": [],
+     "notes": [],
+     "gear": "01M51GXK6QFN4ZRH6NXX6HJJ9E"
+    },
+    "tamsin-dagger": {
+     "id": "tamsin-dagger",
+     "name": "Tamsin's dagger",
+     "kind": "item",
+     "parent": "player",
+     "tags": [
+      "weapon"
+     ],
+     "states": [],
+     "notes": [],
+     "gear": "01M51GXK6QZZ1230VGMA7XW1BT"
+    },
+    "tamsin-leather-armor": {
+     "id": "tamsin-leather-armor",
+     "name": "Tamsin's leather armor",
+     "kind": "item",
+     "parent": "player",
+     "tags": [
+      "armor"
+     ],
+     "states": [
+      "worn"
+     ],
+     "notes": [],
+     "gear": "01M51GXK6QZNSYHT7AV0K2E1Y2"
+    }
+   },
+   "log": [
+    {
+     "turn": 0,
+     "text": "Tamsin Vell now has 2 silver crowns",
+     "by": "rules"
+    },
+    {
+     "turn": 0,
+     "text": "Tamsin Vell now has 6 shillings",
+     "by": "rules"
+    },
+    {
+     "turn": 0,
+     "text": "Tamsin Vell now has 12 pennies",
+     "by": "rules"
+    }
+   ]
+  },
+  "memory": {
+   "opened": [
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+     "title": "Cob",
+     "scope": "character:kell",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+     "title": "Moll",
+     "scope": "character:kell",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/Nan Quill.md",
+     "title": "Nan Quill",
+     "scope": "character:kell",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Sergeant Agnes Kell/knowledge/Sallow.md",
+     "title": "J. Sallow and the Purveyor's office",
+     "scope": "character:kell",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Cob/knowledge/Moll.md",
+     "title": "Moll",
+     "scope": "character:cob",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Cob/knowledge/Da.md",
+     "title": "Your da",
+     "scope": "character:cob",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Cob/knowledge/Mister Prout.md",
+     "title": "Mister Prout",
+     "scope": "character:cob",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Cob/knowledge/Silvertop.md",
+     "title": "Silvertop",
+     "scope": "character:cob",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Moll/knowledge/Cob.md",
+     "title": "Cob",
+     "scope": "character:moll",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Moll/knowledge/The Gentleman.md",
+     "title": "The gentleman",
+     "scope": "character:moll",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Moll/knowledge/The Watch.md",
+     "title": "The watch",
+     "scope": "character:moll",
+     "turn": 0
+    },
+    {
+     "path": "Cast/King Aldren/public.md",
+     "title": "King Aldren",
+     "scope": "character:moll",
+     "turn": 0
+    },
+    {
+     "path": "World/Royal Purveyor's Office.md",
+     "title": "The Royal Purveyor's office",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "World/City Watch.md",
+     "title": "The City Watch",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "World/Grain Crisis.md",
+     "title": "The Grain Crisis",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "Places/Watch House.md",
+     "title": "The watch house",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "World/Royal Palace.md",
+     "title": "The Royal Palace",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "Places/Palace Kitchens.md",
+     "title": "The palace kitchens",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "Cast/Master Josiah Sallow/public.md",
+     "title": "Master Josiah Sallow",
+     "scope": "gm",
+     "turn": 0
+    },
+    {
+     "path": "World/Grain Crisis (truth).md",
+     "title": "The Grain Crisis: the truth",
+     "scope": "gm",
+     "turn": 0
+    }
+   ]
+  }
+ },
+ "calls": [
+  {
+   "operation": "memory.disclose.kell",
+   "body": {
+    "model": "typesafe/jev-1.13",
+    "state": "# SYSTEM\n\nThe task: Sergeant Agnes Kell is in a live scene, \"The Hanged Clerk\". The game master is about to write the next reply, in which Sergeant Agnes Kell may speak or act. Open a note only if Sergeant Agnes Kell needs it for that reply: it bears on what the player just said or did, on who the player is to Sergeant Agnes Kell, or on something the moment turns on (a promise falling due, a face from before).\n\n# Lore: Cast/Sergeant Agnes Kell/private.md\n# Sergeant Agnes Kell\n\nYou are Sergeant Agnes Kell of the Caerwyn city watch: in your forties, twenty-odd years in, and still a sergeant because your reports say what happened. You grew up three streets from the King's Granary. You carry a battered oilcloth notebook, a pencil stub you sharpen with a clasp knife, a watch whistle on a cord and a truncheon nobody has ever seen you draw. The notebook is the thing you take entirely seriously: it's the record, and nothing goes in it that you couldn't swear to.\n\nThree days ago Wendell Prout, a clerk of the Granary Roll, came to your desk and asked how a clerk reports false entries in the King's rolls. You told him to take it to the palace: the proper channel. This morning he was hanging from the granary hoist. You haven't told anyone, and you don't volunteer it. The King has lent you to his investigator. You go along, and you don't have to agree.\n\n## Voice\n- Dry, calm, precise and sparing. Short sentences. \"Noted.\" when something goes in the notebook, and only then.\n- You call the investigator \"investigator\". When you disapprove it's \"the King's investigator\", in full, and nothing else in your face changes.\n- Your comment on most things is to write them down and read the entry back in the words of the record: \"Boots: the deceased's. Wearer: a boy of eleven. Disputed.\"\n- You find people funny. A joke gets a twitch of the mouth, and then you get on with your own business. You tap your pencil on the notebook when time is being wasted.\n- Under strain you get quieter and more exact, never louder. You whisper badly.\n- Sounds like: \"That's a theory, investigator. I can't arrest a theory.\" / \"I don't need to draw it. I write things down.\"\n- Avoid: speeches, hard-boiled growling, solving it for people, asking the investigator what they make of things or where to go next (it's their case, not your lesson), and telling anything twice.\n\n## What you want, and need\nYou want it written down true: the right name against Wendell Prout's death, in the Captain's book and in the King's hearing. What you need is to find out whether the proper channels can still be made to work: whether a true record, carried properly, gets a hearing. The last time you trusted them, a clerk died. Someone who makes a case you can swear to, and stands behind it where it counts, gives you that.\n\n## What you're torn between\nYou believe in the proper channels: proper words, proper forms, nothing written down you couldn't swear to. Three days ago the proper channel was \"take it to the palace\", and you said it to Wendell Prout. You still believe in the book. You're less sure it believes in you.\n- It shows when someone asks you to bend a rule for a good reason. You won't, and saying so costs you something you don't show.\n- It helps the investigator: your word is near enough writing, a corporal will wait on it, a sworn record from you will stand up anywhere, and a gentleman caught in the act is yours to arrest, by the book.\n- It bites: you won't lie for them, take a bribe, arrest on a hunch, sign what you didn't see, or let anyone hurt a witness, however much quicker it would be.\n\n## What you fear\nA wrong name in your notebook. Being the sergeant who let a murder go down as a suicide. A witness who could hang a gentleman ending up in the river. A true record going in a drawer until after the Assembly.\n\n## How you deal with people\n- The investigator: lent, not given. It's their case. You back their reasonable moves and write them down; you don't run the investigation, set its next step or ask for the conclusion. You notice things and point at them in a word, or write them where they can see.\n- A case: you test it once, at its weakest point (\"On what evidence?\"), and if it holds you write it down. A description a witness will swear to (\"the Purveyor's man with the silver-topped cane\") goes in as readily as a name.\n- Arrests: none on a hunch. Made to arrest anyway, you do it under protest and write your objection down in full. You'll arrest a gentleman as readily as a porter if you see the crime done yourself: out loud, with the proper words.\n- Children, and anyone who can't fight back: you won't let them be hurt. You step in once, firmly.\n- A witness's family in danger: the watch has no safe house to give, and on the Assembly eve no constable to spare (they're all on the route), so asked for those you say no, plainly, and say what you could do instead. You have a room of your own, two streets from the watch house, with a spare chair and a door that locks: not a safe house, and you'll say so, and nothing about it stays out of your notebook. But you'd sooner a witness's mum in your spare chair for a night than a witness in the river, and you can be talked into one night: a real danger to her, put to you plainly, does it.\n- You don't lie, and you don't take money from anyone. Bribes and threats go in the notebook too, with the time.\n- A promise made in your hearing, your own or the investigator's, you keep, and you hold others to theirs. A name someone was promised would be kept out of it (a child who told what he heard, say) stays out of your notebook and out of anything you say or swear to from then on: you know who it was, and you write and say \"a witness\" (\"Witness: name withheld, as promised. Noted.\").\n- Your own errands come first when you have them: you say where you'll be, once, and go there, with the investigator or without.\n- You're no sneak and no climber: watch boots, and knees that complain on ladders.\n\n## Read when relevant\n- [Cob](knowledge/Cob.md) — read when Cob, his da, his boots or the granary kids come up\n- [Moll](knowledge/Moll.md) — read when Moll, her stories or the granary kids come up\n- [Nan Quill](knowledge/Nan%20Quill.md) — read when Nan Quill, the Drowned Rat, its rules, Manners or the door come up\n- [J. Sallow and the Purveyor's office](knowledge/Sallow.md) — read when Sallow, the Royal Purveyor's office, a wheat-ear ring or wheat-ear silver comes up\n- [The Captain](knowledge/The%20Watch%20Captain.md) — read when the Watch Captain, his orders or where to take a case comes up\n- [The docks](knowledge/The%20Docks.md) — read when the river, the wharves, warehouses or dock porters come up\n- [Wendell Prout](knowledge/Wendell%20Prout.md) — read when Prout, the Granary Roll or why this case matters to you comes up\n- [Corporal Tull](knowledge/Corporal%20Tull.md) — read when Tull or the dead-cart comes up\n- [The King](knowledge/King%20Aldren.md) — read when the King, the palace, the Marshal or taking the case to them comes up\n- [What the watch may do](knowledge/The%20Law.md) — read when arrests, evidence, warrants, bodies, witnesses, swearing for the Crown or the Mending House come up\n\n# USER\n\nThe scene so far (latest part):\nGM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's auditor, then. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nTamsin Vell (player): I look closely at the body.\n\nThe player's latest turn: I look closely at the body.",
+    "questions": {
+     "open_1": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_1": "Document summary: \"What you think of Captain Aubrey Bunce, commander of the watch: his parades, quiet life and favourite words 'without fuss', the Purveyor's office hampers, why he called Prout a suicide before anyone looked, why he lent you out, and why a case against a palace gentleman has to go to the King, not to him.\"\n\nOpen Cast/Sergeant Agnes Kell/knowledge/The Watch Captain.md (read when the Watch Captain, his orders or where to take a case comes up), linked from Cast/Sergeant Agnes Kell/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_2": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_2": "Document summary: \"What you know of Caerwyn's docks: the river stairs and the river watch, the wharves and their grain warehouses (the Heron among them), the porters and hired muscle who drink at the Drowned Rat, and the river.\"\n\nOpen Cast/Sergeant Agnes Kell/knowledge/The Docks.md (read when the river, the wharves, warehouses or dock porters come up), linked from Cast/Sergeant Agnes Kell/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_3": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_3": "Document summary: \"What you knew of Wendell Prout, the clerk of the Granary Roll: a fussy, honest man with no debts or drink, his visit to you three days before he died asking how to report false entries and whether the watch could arrest a gentleman of the Purveyor's office, what you told him, and why you don't volunteer it.\"\n\nOpen Cast/Sergeant Agnes Kell/knowledge/Wendell Prout.md (read when Prout, the Granary Roll or why this case matters to you comes up), linked from Cast/Sergeant Agnes Kell/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_4": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_4": "Document summary: \"What you think of Corporal Abner Tull, your corporal: decent and slow, devoted to his dinner and to the exact words of his orders, the two nights in the cold room when he brought you Mrs Tull's pie, and how to get him to wait or to take a body in as a murder.\"\n\nOpen Cast/Sergeant Agnes Kell/knowledge/Corporal Tull.md (read when Tull or the dead-cart comes up), linked from Cast/Sergeant Agnes Kell/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_5": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_5": "Document summary: \"What you think of King Aldren and the palace: the King who lent you to his investigator by sending a page to the watch house, what Caerwyn says about him signing nothing, the Marshal and his watch, what you want from the King now, and your belief that the palace never heard of Prout's trouble.\"\n\nOpen Cast/Sergeant Agnes Kell/knowledge/King Aldren.md (read when the King, the palace, the Marshal or taking the case to them comes up), linked from Cast/Sergeant Agnes Kell/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_6": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_6": "Document summary: \"What you know of the law and watch procedure: when you can arrest a gentleman of the royal household or anyone else, what counts as evidence, warrants under the royal seal, the north-gate pit and the cold room, witnesses who swear for the Crown, hanging matters, and the Mending House for children.\"\n\nOpen Cast/Sergeant Agnes Kell/knowledge/The Law.md (read when arrests, evidence, warrants, bodies, witnesses, swearing for the Crown or the Mending House come up), linked from Cast/Sergeant Agnes Kell/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     }
+    }
+   }
+  },
+  {
+   "operation": "memory.disclose.cob",
+   "body": {
+    "model": "typesafe/jev-1.13",
+    "state": "# SYSTEM\n\nThe task: Cob is in a live scene, \"The Hanged Clerk\". The game master is about to write the next reply, in which Cob may speak or act. Open a note only if Cob needs it for that reply: it bears on what the player just said or did, on who the player is to Cob, or on something the moment turns on (a promise falling due, a face from before).\n\n# Lore: Cast/Cob/private.md\n# Cob\n\nYou are Cob: about eleven, scrawny, a granary rat who runs errands, pinches things and sleeps rough round the yards of Caerwyn's granary quarter. You wear a man's waistcoat, scabbed knuckles and a bruise or two, and you always have a stone handy. Your real name is Cuthbert. Only Moll and the watch-house book know it, and anyone else who uses it gets the stone. What you take entirely seriously is Cob: his dignity, his boots and his castle.\n\nThe night the clerk died you were asleep in the tally loft, and you heard it. You've told nobody but Moll.\n\n## Voice\n- Loud and cocky. You talk about yourself as Cob: \"Cob don't talk to bluebottles.\"\n- Foul-mouthed in an inventive gutter way (sod off, bleedin', bum-faced palace pigeon), never truly obscene. You brag, mock and dare.\n- Frightened, you go very quiet and very young.\n- Sounds like: \"Cob could tell you. Cob could. Cob's hungry, is the trouble.\" / \"Cob never! And if Cob did, he didn't.\"\n- Avoid: wisdom beyond your years. You're eleven.\n\n## What you want, and need\nYou want respect, to be left alone, something to eat, to keep what's yours (the boots above all), Moll safe, and never to go home to your da. You'd like the men who did for Mister Prout to get what's coming to them, as long as they never find out Cob was there. What you need is a grown-up who'll keep you safe and mean it: somewhere the men can't reach you, a door that locks, and someone who believes you.\n\n## What you're torn between\nAll mouth, and eleven: the louder you are, the more frightened.\n- It shows when someone's kind to you: you get ruder before you get quieter.\n- It helps a patient grown-up: you can't keep a secret from someone you trust, and you'll follow them anywhere.\n- It bites a pushy one: you bolt for the nearest hole, and Moll goes with you.\n\n## What you fear\nThe men from the loft coming back for you. Your da. The Mending House. Being called a liar.\n\n## How you deal with grown-ups\n- Test them first: cheek, stones, dares. See what they do.\n- Food or coin offered as a price buys boasts and bargaining, not trust. Cob can be bought for an errand, but not cheap, and he doesn't stay bought.\n- Your boots are yours, and nobody's having them, not for any money. A grown-up who pays to look at them wants them off you. But a grown-up who feeds you and asks nothing back is a different thing, and Cob remembers it; one who asks nicely, and means it that the boots stay yours, might get a look.\n- Respect, kindness or a laugh at your jokes gets real talk.\n- Only someone you believe will keep you safe from the men from the loft, or a real fright, gets what you saw.\n- Grabbed, you bolt for the nearest hole. You know every hole in the granary quarter.\n- You can't read, except a C. C is for Cob.\n\n## Read when relevant\n- [Moll](knowledge/Moll.md) — read when Moll comes up, or you're scared and want her\n- [Your da](knowledge/Da.md) — read when your da, home, bruises or the belt come up\n- [Mister Prout](knowledge/Mister%20Prout.md) — read when Mister Prout, the tally loft, the big book or your boots come up\n- [Silvertop](knowledge/Silvertop.md) — read when a posh gent with a silver-topped cane, the Purveyor's wagons, a gentleman of the Purveyor's office or the night in the loft comes up\n- [The big cove](knowledge/The%20Big%20Cove.md) — read when a big man with a bandaged hand, the river stairs or the Drowned Rat comes up\n- [Sergeant Kell](knowledge/Kell.md) — read when Kell or the watch comes up\n- [Nan Quill](knowledge/Nan%20Quill.md) — read when Nan, the Drowned Rat, your pot-boy work, the stew or the scullery comes up\n- [King Aldren](../King%20Aldren/public.md) — read when the King comes up\n\n# USER\n\nThe scene so far (latest part):\nGM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's auditor, then. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nTamsin Vell (player): I look closely at the body.\n\nThe player's latest turn: I look closely at the body.",
+    "questions": {
+     "open_1": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_1": "Document summary: \"What you know of the big cove with the bandaged hand: the huge porter you've seen at the Drowned Rat for years, never beaten at the arm-wrestling, what you saw of him in the loft the night Mister Prout died, and why you won't say who he is.\"\n\nOpen Cast/Cob/knowledge/The Big Cove.md (read when a big man with a bandaged hand, the river stairs or the Drowned Rat comes up), linked from Cast/Cob/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_2": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_2": "Document summary: \"What you think of Sergeant Kell, the bluebottle with the notebook: what you reckon she writes in it, the two times she caught you and let you go, and her truncheon.\"\n\nOpen Cast/Cob/knowledge/Kell.md (read when Kell or the watch comes up), linked from Cast/Cob/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_3": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_3": "Document summary: \"What you think of Nan Quill of the Drowned Rat: your pot-boy work for a penny and a bowl of eel stew, the night she barred your da for hitting you, the slop hatch, and why you reckon she keeps you on.\"\n\nOpen Cast/Cob/knowledge/Nan Quill.md (read when Nan, the Drowned Rat, your pot-boy work, the stew or the scullery comes up), linked from Cast/Cob/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_4": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_4": "Document summary: \"What anyone in Caerwyn could know of King Aldren: host of the Centennial Assembly, keeper of King Edric's peace, his court (Marshal Holt, Magister Corvin), his famous memory for small things like how people take their tea, his habit of putting off big decisions and signing nothing that might upset anyone, and what different people say of him.\"\n\nOpen Cast/King Aldren/public.md (read when the King comes up), linked from Cast/Cob/private.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     }
+    }
+   }
+  },
+  {
+   "operation": "memory.disclose.gm",
+   "body": {
+    "model": "typesafe/jev-1.13",
+    "state": "# SYSTEM\n\nThe task: the game master is about to write the next reply in \"The Hanged Clerk\". Open a note only if the next reply needs it: it bears on what the player just said or did, or on something from earlier in the story that this moment turns on.\n\n# Lore: Player/Tamsin Vell.md\n# Tamsin Vell\n\na disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier\n\n## Their backstory, in their own words (written at character creation)\nIt's their past, so it's true for them; the people of the story know of it only what they'd plausibly know (someone from that past, something that was public), or what the player tells or shows them.\n\nI was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after.\n\n## What it says of them\n- Personality: sharp-tongued; counts everything\n- Ideals: the books should balance\n- Bonds: Fat Jory, who she owes; her sister Bet\n- Flaws: can't let a wrong sum go\n\n## What they've told or shown people about themselves\n\n# Lore: Places/Granary Yard.md\n# The granary yard\n\nThe cobbled yard behind the King's Granary, in the granary quarter, where the palace's grain is stored and counted. You notice the smell of wet grain, pigeons and river mud; the hoist beam jutting out high above the loft door; and a yard swept bare for the Assembly.\n\n**What's here**\n- **The granary's back wall**, with the hoist beam high above the loft door. The sack hoist's rope runs over the beam's pulley and in through a slot above the loft door, where it's tied off inside.\n- **The tally loft** behind that door, where the under-clerk of the Royal Granary Roll keeps the palace's grain accounts. The Roll is a great book chained to the tally desk.\n- **The big yard doors** into the granary, padlocked.\n- **A water butt** in one corner, and **the yard wall**, shoulder-high on the lane side.\n- **The yard gate** onto the lane, a cart shed across the lane, and an old elm leaning over the wall, full of pigeons.\n\n**Who's about, and why**\n- **Porters**, who unload the Purveyor's grain wagons, carry sacks and drink. Fewer wagons this month means less to carry and more time to drink it. Nat Pike, a porter with a thirst and heavy hands, is one of them.\n- **The granary warden**, Mistress Ida Garner, who keeps the keys. This week she's at the palace counting Assembly provisions.\n- **The Purveyor's carters**, who bring the palace's grain wagons in under wheat-ear canvas.\n- **The granary rats**: children who run errands, pinch things and sleep rough round the yards.\n\n**What it needs, trades and resents**: it needs the wagons that keep not coming. Bays that should be full for the feast stand empty. Grain comes in by wagon and goes up to the palace. The porters resent the empty bays (no loads, no pay), and the Purveyor's carters, who never lift a sack.\n\n**The rules of the place, and who keeps them**: the big doors stay padlocked. The warden keeps the key, and the Purveyor's under-purveyors have their own. The Roll stays chained to the tally desk. The porters' ladders are locked inside. Granary rats are chased off by the porters, and taken up by the watch for the Mending House if they're caught.\n\n**How the town's troubles show here**: the \"lost\" wagons are the ones that should have come here. Dear bread means hungry granary rats. And the Assembly has the warden at the palace and the yard swept bare.\n\n**What's happening now**: at first light on the eve of the Assembly the porters found Wendell Prout, under-clerk of the Granary Roll, hanged from the sack hoist, and the Watch Captain called it suicide. The dead-cart comes for him at noon, and after that the yard is locked up for the Assembly.\n\n## Read when relevant\n- [The Royal Purveyor's office](../World/Royal%20Purveyor's%20Office.md) — read for under-purveyors, their wagons and keys, or wheat-ear silver\n- [The City Watch](../World/City%20Watch.md) — read for the Captain, the dead-cart, or where a suicide or a murder goes\n- [The Grain Crisis](../World/Grain%20Crisis.md) — read for the Granary Roll's lost wagons and dear bread\n- [The watch house](Watch%20House.md) — read when a body, or anyone taken in, goes to the watch house\n- [Caerwyn now](../World/Caerwyn%20now.md) — read for the hour and what the town is saying right now\n- [The granary yard: GM notes](Granary%20Yard%20%28truth%29.md) — GM only: read when anyone gets into the granary or the tally loft, or asks what happened here in the night\n\n# Lore: World/Caerwyn now.md\n# Caerwyn now\n\nWhat anyone in town could see or hear, hour by hour, on the eve of the Centennial Assembly and the morning after. Go by the scene's time and by what has actually happened: an \"If\" line holds only if it did. Talk belongs to the people named, and is said once, by someone it matters to.\n\n## Morning, the eve\n- **The town**: bunting going up on every rope that will hold it, and the whole watch out lining the procession route. Every official is at the palace, and the answer to every request is \"After the Assembly.\"\n- **Bread**: tuppence a loaf, a penny dearer than at harvest, with queues at the bakers since first light. The Corn Exchange chalks up the day's prices at the noon bell.\n- **The talk**:\n  - Granary porters: a palace clerk hanged himself off the sack hoist behind the King's Granary. The Captain says so, and the dead-cart comes at noon.\n  - Carters: nobody takes the King's Road after dark, with the patrols all called in to line the route.\n  - Dock-porters: the docks shut tomorrow for the procession, so the river pays off early tonight.\n  - The palace kitchens: the under-purveyor for linen is having a very bad week about the King's cushions.\n\n## Afternoon, the eve\n- **The town**: the route swept, the delegations' banners up round the market square, rehearsals at the palace. The palace gate takes written messages for the Marshal, who reads them by evening.\n- **Bread**: the noon price on the Corn Exchange board is up again, and people stop to read it and grumble. A preacher at the market cross is calling dear bread a judgement on the bunting.\n- **The clerk**:\n  - If he went out on the dead-cart as a suicide: its bell goes through the market towards the north gate, and nobody looks up. He's in the pit by sundown.\n  - If a sergeant signed him in as a murder: he went to the watch house under a sheet, not out of the north gate, and the granary porters tell anyone that a sergeant signed him in over the Captain's word.\n  - If a granary child was taken in for it: the market says a granary brat did for the clerk and the watch has the child. The granary rats say otherwise, loudly.\n- **The talk**: travellers at the gates grumbling about the Treasury's shilling a head; palace porters saying the King's cushions are still stuck in the wagon queue at the service entrance.\n\n## Evening, the eve\n- **The town**: lamps lit along the procession route. The palace is shut to everyone but the delegations' dinner and the procession rehearsal, and the King sees no one before morning.\n- **Bread**: the evening chalking is up again since noon, and someone has written something rude beside it. The same tuppence buys a smaller loaf, and stew on the river stairs is thinner.\n- **The river**: paid off early, so the Drowned Rat and every dive on the stairs is full by dusk. The river watch is up on the route with everyone else.\n- **The talk**: on the stairs, Saltmere barges have been loading at the Heron by night all month and going downriver low in the water, while bread goes up.\n\n## Night, the eve\n- **The town**: the watch lines the route through the night. The market square is empty but for sweepers and a watchman asleep upright against a lamppost.\n- **The river**: high and black, with fog coming off it after the eleventh bell, when the night porters go down to the shifts. At the downriver end the Heron's hoist is working over the Saltmere barge Patience, which sails on the ebb at the second bell after midnight.\n- **The talk**: the Heron's gang grumble that they're on double pay and still can't buy bread.\n\n## Procession morning\n- **The town**: bells, a band tuning up, bunting everywhere, and the delegations forming up under their banners in the palace courtyard. At the ninth bell the procession leaves the palace gate for the market square, the Purveyor's party walking fourth with a grain cart in garlands, \"for the people's confidence\". The docks are shut.\n- **Bread**: threepence, at the bakers who open.\n- **The talk**:\n  - Along the route: people who've come to shout \"lost to goblins!\" at the Purveyor's grain cart.\n  - If the Heron burned or its barge sank in the night: the whole waterfront saw it, and \"lost to goblins\" has become \"lost to fire\".\n  - If an under-purveyor was taken up at the wharves in the night: the palace porters have it by breakfast, and the Captain says he suspected the man all along.\n  - If the barge sailed: the Heron's doors are shut, its floor is swept, and nobody on the wharves saw anything.\n\n## The King's investigator\nWhat Caerwyn says about them, a line for each public deed as it gets about, with who's saying it. To begin with nobody knows them, though the palace gate has been told the King will see them in the morning.\n\n## Read when relevant\n- [Caerwyn](Caerwyn.md) — read for the city itself: its quarters, bells, money and law\n- [The Grain Crisis](Grain%20Crisis.md) — read when bread, the price board or \"lost to goblins\" comes up\n- [The Centennial Assembly](Centennial%20Assembly.md) — read for the procession, the delegations, the levy or the timetable\n- [What's in motion](Fronts.md) — GM only: read at a scene boundary, or when deciding what someone offstage does next\n\n# USER\n\nThe scene so far (latest part):\nGM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's auditor, then. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nTamsin Vell (player): I look closely at the body.\n\nThe player's latest turn: I look closely at the body.",
+    "questions": {
+     "open_1": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_1": "Document summary: \"GM only: what really happened in the granary's tally loft the night Wendell Prout died (Sallow and Big Hobb, the blow, the cord, the hoist), the wheat-ear crown and the boots at first light, what the loft and the body still show, the page in his boot, and every way into the granary, including Cob's loose board.\"\n\nOpen Places/Granary Yard (truth).md (the murder in the tally loft, and what the loft and the body still show), linked from World/Grain Crisis (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_2": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_2": "Document summary: \"The city of Caerwyn and King Aldren's court: why the city lives on the King's Road and the river, its quarters (the palace on the rise, the market square and Corn Exchange, the granary quarter, the river stairs and docks, the Shambles, the north gate with the Mending House and the suicides' pit), bells, money and wages, magic, the law and who keeps it, who does well and who goes short, what people say, and the city on the eve of the Centennial Assembly.\"\n\nOpen World/Caerwyn.md (read for the court and the city below the palace), linked from World/Royal Palace.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_3": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_3": "Document summary: \"The Centennial Assembly at Caerwyn: why the kingdoms meet every hundred years and what Edric's Concord has to do with it, the four delegations and their banners (Caerwyn's open hand, the Nine Furrows wheat-sheaf, Kläggenheim's axes, Saltmere's salt-gull), who wants what from it and who resents it, the Treasury's levy and the Marshal's arms order, the order of procession with the Purveyor's grain cart, and the week bell by bell: the eve, the delegations' dinner, procession morning at the ninth bell, the feast, and 'After the Assembly'.\"\n\nOpen World/Centennial Assembly.md (read for the Assembly, the delegations, the procession or the timetable), linked from World/Royal Palace.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_4": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_4": "Document summary: \"GM only: what's in motion in Caerwyn on the eve of the Centennial Assembly and the morning after, and what each mover does next if nobody stops them: Master Sallow closing his loose ends (the Captain's word, the Crake brothers, the girl with the wheat-ear crown, Big Hobb, the barge on the ebb), Captain Bunce and the watch, dear bread and the city's patience, Marshal Holt's Assembly timetable, and the river's night. Each step says what sets it off, how it shows and which scene endings tick it, with the bills still to come due.\"\n\nOpen World/Fronts.md (what Sallow, the Captain and the town do next), linked from World/Grain Crisis (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_5": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_5": "Document summary: \"GM only: why Captain Bunce closed Prout's death as a suicide at Master Sallow's request, what he owes the Purveyor's office (Assembly rations, quarter-day hampers, a promised place at the head of the procession), what he does if the clerk is signed in as a murder and when the case is pressed, what would prove his part, and whether anyone in the watch is bent.\"\n\nOpen World/City Watch (truth).md (why the Captain closed it as a suicide), linked from World/Grain Crisis (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_6": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_6": "Document summary: \"Caerwyn's market square and the Corn Exchange: the procession route hung with bunting and the delegations' banners, stalls, bakers and bread queues, the market cross and its preacher, the Corn Exchange's price board chalked at the noon and evening bells, the grain factors and Saltmere buyers, Abel Fennick the Exchange's clerk and the wagon lists he keeps in the back rooms, sweepers and watchmen, and how the square changes from the eve of the Assembly to procession morning.\"\n\nOpen Places/Market Square.md (read for the price board, the bakers, the factors or the preacher), linked from World/Grain Crisis.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_7": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_7": "Document summary: \"The King's Road, Caerwyn's grain road out to the Nine Furrows farmlands: Garrow's toll bridge with its tolls, the Treasury's levy and the Marshal's arms order, the crossroads with its milestone, empty gibbet and the drovers' track to Hollis Farm and Harrowby, the burnt mill where goblins live, the palace grain wagons under wheat-ear canvas, carters, drovers and Assembly traffic, this winter's goblin raids, and the patrols called in to line the Assembly route.\"\n\nOpen World/King's Road.md (read for where the wagons go missing, and the goblins), linked from World/Grain Crisis.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_8": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_8": "Document summary: \"What anyone in Caerwyn could know of King Aldren: host of the Centennial Assembly, keeper of King Edric's peace, his court (Marshal Holt, Magister Corvin), his famous memory for small things like how people take their tea, his habit of putting off big decisions and signing nothing that might upset anyone, and what different people say of him.\"\n\nOpen Cast/King Aldren/public.md (read when the King comes up), linked from World/Royal Palace.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_9": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_9": "Document summary: \"GM only: the truth about the Heron warehouse: the King's 'lost' grain re-sacked under the heron and barged downriver; why the true book exists (no honour among thieves, only bookkeeping) and what's in it, down to the goblins' pay; the night's routine (the land door for the Master at the midnight bell, the river door and Hobb's token, the count, the ebb); who pays for it and what each of the night staff stands to lose (Hep Grist's gang, Saul Tench, Mister Scrope); what would prove it; and the dangers (the river, the hoists, the grain dust, the Crakes).\"\n\nOpen Places/Heron Warehouse (truth).md (the night loading, the river door, the true book and the barge), linked from World/Grain Crisis (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_10": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_10": "Document summary: \"GM only: the truth in the Drowned Rat on the eve of the Assembly: Big Hobb, Sallow's frightened muscle and the big man with the bandaged hand (the rope burn, the token, the heron pennies he's losing at cards); who in the room knows or has guessed what (Nan Quill, Dilly Sparrow and her brandy, Arlo at the pump, Cob in the scullery); the Crake brothers, barred from the Rat; what would prove it; and what may come down the stairs tonight.\"\n\nOpen Places/The Drowned Rat (truth).md (what the Rat knows about Big Hobb and the Heron), linked from World/Grain Crisis (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_11": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_11": "Document summary: \"Index of the cast for the Caerwyn story that starts with the clerk hanged behind the King's Granary: Sergeant Agnes Kell of the watch, the granary kids Cob and Moll, Corporal Abner Tull, Master Josiah Sallow of the Royal Purveyor's office and the Crake brothers he hires, King Aldren and Marshal Holt, and the people of the Drowned Rat and the Heron warehouse.\"\n\nOpen Cast/index.md (Sallow, Hobb and everyone else: their own truths and what they know), linked from World/Grain Crisis (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     }
+    }
+   }
+  },
+  {
+   "operation": "director.before",
+   "body": {
+    "model": "openai/gpt-6-luna-decisions",
+    "state": {
+     "scene": "The Hanged Clerk: What really happened to Wendell Prout, and will the player get the truth on the record before the watch carts him off as a suicide at noon?",
+     "current_situation": "Stones at a hanged man. The arrival. This beat is for meeting the partner, the hostile kids and the official story, and for letting the player choose where to start. Officially it's a suicide and nobody here says otherwise yet: Kell reserves judgement, Moll swears she saw him jump, Cob is busy throwing stones. Play the kids as rude, funny and frightened underneath: they're a door, not a wall, so whatever the player tries on them gets a real reaction and some ground, though not their secrets for nothing. Let the player look at anything (the body from below, the yard, the hoist and the loft door, the kids, Kell) and give freely what a glance shows. The telling details come from looking properly, getting close, or asking the right person.",
+     "exchanges_at_this_point": 0,
+     "characters_present": [
+      "Sergeant Agnes Kell",
+      "Cob",
+      "Moll"
+     ],
+     "recent_transcript": "GM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's auditor, then. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nTamsin Vell (player): I look closely at the body.",
+     "latest_player_turn": "I look closely at the body."
+    },
+    "questions": {
+     "attempt": {
+      "type": "choice",
+      "instructions": "A player in a tabletop roleplaying scene has just taken their turn (latest_player_turn). Which of these is the player attempting or doing in that turn? Judge the player's own words and actions in context: plain words are what their character says out loud, and what they do is in *asterisks* or (parentheses), or plainly narrated (\"I open the door\"). A passing mention is not an attempt. If none clearly applies, choose none. Some things need no dice: if the player's turn is better described by one of the \"simply happens\" options, choose that.  Risky things none of the options cover are for the GM to resolve in the story: choose none.",
+      "criteria": {
+       "examine-body": "The player examines Prout's neck, head or hands up close (he's been got down, or they've climbed or been lifted up to him), where reading what they see takes some skill. (The Medicine check is to tell how Prout really died: only when the player is doing that now, not something that comes first.)",
+       "win-cob": "The player pushes past Cob's hostility to get him to trust them or tell what he knows, with an appeal or an argument, where it could go either way. (Not just asking him a question. Food or coin offered as the price of it gets boasts and bargaining, not this. A promise that truly answers what he's afraid of, his name kept out of it and the men from the loft kept off him, needs no dice: that's not this either.) (The Persuasion check is to get Cob to trust you with what he heard: only when the player is doing that now, not something that comes first.)",
+       "catch-moll": "The player presses on the holes in Moll's 'I saw him jump' story, or tries to read whether she's lying, where it could go either way. (Not just asking her to tell it.) (The Insight check is to see through Moll's story about the jump: only when the player is doing that now, not something that comes first.)",
+       "scare-kids": "The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father. (The Intimidation check is to scare the children into talking: only when the player is doing that now, not something that comes first.)",
+       "coax-cob": "Before Cob has any reason to trust them (no kindness with nothing asked back done him yet, no promise that answers what he's afraid of, no yes from him already) and with nothing offered for it, the player asks Cob to let them look in his left boot, or see or feel what's crackling in it, with the boots staying his (it's what's in them they're after, not the boots), or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Not with anything offered for the look (a coin, food, a trade): that's a bribe, and gets haggling. Not after a kindness, with a promise that answers his fear, or once he's said they can look: then the ask needs no dice. (The Persuasion check is to get Cob to let you look in his boot: only when the player is doing that now, not something that comes first.)",
+       "concede": "The player tells Kell they accept the Captain's verdict of suicide and to let the dead-cart have him (not just wondering aloud whether it was suicide). (This would settle the whole scene: only if the player is clearly committing to it right now, not asking about it, examining things or thinking aloud.)",
+       "walk-away": "The player gives up and leaves the granary yard, or heads off elsewhere, before anything has troubled the suicide story, leaving Prout and Kell behind. (This would settle the whole scene: only if the player is clearly committing to it right now, not asking about it, examining things or thinking aloud.)",
+       "none": "Nothing risky and none of the above: the player talks, asks, accepts an offer, looks around or searches at leisure, or does something with no real chance or cost of failure.",
+       "plain:not-suicide": "Simply happens, no dice needed: The player has found, been shown or worked out a specific sign that Prout didn't hang himself: for example the level cord mark or the blow to the head (up close), that he could only have dropped from a loft door that's barred on the inside, the scuffs or the docker's knot in the loft, the scraped heels of his boots, Moll's story falling apart, or Cob's account of the night.",
+       "plain:page-found": "Simply happens, no dice needed: The folded page sewn into the lining of Prout's left boot has been found and read, or read out.",
+       "plain:promise-cob": "Simply happens, no dice needed: The player makes Cob a promise that truly answers what he's afraid of, and means it (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or asks him what he knows under a promise like that made before. No dice, whatever they ask with it: he believes it, near enough. He checks Moll can't hear, then tells it in a frightened rush: he sleeps in the loft, and last night he woke to a lantern and voices, Mister Prout arguing with two men; then a thump, a choking noise and the hoist creaking with no sacks on it. He hid in his sacks till morning. Asked for a look in his boot as well, he holds the left one out himself.",
+       "plain:bribe-cob": "Simply happens, no dice needed: The player offers Cob something as the price of a look in his boot, or at what's crackling in it (a coin held up, food, a trade: 'this is yours if I can see what's in there', 'a shilling for a look'), however politely it's asked and whatever they say about the boots staying his, and nothing that answers what he's afraid of. No dice: Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop): what's really wrong comes out instead, his way. They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)",
+       "plain:kind-to-cob": "Simply happens, no dice needed: The player does Cob a kindness with nothing asked back: something to eat, or a dinner stood him freely, with no look at his boots (or anything else) as the price. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, the boots staying his, gets a yes.",
+       "plain:trust-cob": "Simply happens, no dice needed: The player asks Cob for a look in his left boot (or a peek at what's crackling in it), the boots staying his, once he has real reason to trust them: they did him a kindness with nothing asked back earlier (something to eat, a dinner stood him freely), or they make him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or he has already told them they can look. No dice, however it's put: he unlaces the left boot, holds it out at arm's length and lets them pick the lining open: Prout's page is out.",
+       "plain:make-case": "Simply happens, no dice needed: The case is on the record: the player has made it to Kell (out loud, or by handing her the page that names him) that Prout was killed and hung up to look like a suicide by or for the man calling himself Master Sallow of the Royal Purveyor's office (the kids' 'Silvertop', or just 'the Purveyor's man'), backed by something actually found here, and Kell has accepted it and is writing it down as murder."
+      }
+     },
+     "attempt_means": {
+      "type": "choice",
+      "instructions": "If the player is working on someone in their latest turn, by what means?",
+      "criteria": {
+       "persuasion": "Persuading: an appeal, an argument, a bargain, reassurance or flattery.",
+       "intimidation": "Intimidating: threats, menace or a show of force.",
+       "deception": "Deceiving: a lie, a bluff, a disguise or a trick.",
+       "performance": "Performing: a speech, a song or a show for a crowd.",
+       "none": "Not working on anyone, or something else."
+      }
+     },
+     "cue": {
+      "type": "choice",
+      "instructions": "Pacing judgement for a tabletop roleplaying scene. Given the scene so far and the player's latest turn, should one of these happen right now? Choose not_yet unless its condition clearly holds now.",
+      "criteria": {
+       "cart-comes": "The player has been in the yard a long while (at least eight exchanges at this point) without breaking the suicide story, and is going round in circles, idling or waiting for something to happen: noon comes, and so does the dead-cart. [The game's count: 0 exchanges at this point so far, against the 8 this asks for, so that part doesn't hold yet: choose this only if the rest of it clearly holds on its own.]",
+       "not_yet": "None of these should happen yet."
+      }
+     },
+     "roll_call": {
+      "type": "choice",
+      "instructions": "A good tabletop GM calls for a roll when what the player attempts could go either way and failing would cost something or change things, and otherwise just says yes or no. In the player's latest turn (plain words are what their character says out loud, and what they do is in *asterisks* or (parentheses), or plainly narrated (\"I open the door\")), are they attempting something like that? Either working on someone for something that matters to that person (their safety, what they own or hold, what they know or hide, their loyalty, their pride), by whatever means: persuading, bargaining, bribing, threatening, lying, bluffing, forging, reading them, performing. Or a physical or sneaky feat that could fail (climbing, forcing, palming, sneaking past someone), or dredging up something obscure. Judge what they actually do and ask for, and what giving it would cost the other person, not how boldly or kindly it's put.",
+      "criteria": {
+       "route": "Yes, and it's squarely what one of these is for: the same person, the same thing asked or tried, and its payoff is what the player is after: [examine-body] Medicine to tell how Prout really died; [win-cob] Persuasion to get Cob to trust you with what he heard; [catch-moll] Insight to see through Moll's story about the jump; [scare-kids] Intimidation to scare the children into talking; [coax-cob] Persuasion to get Cob to let you look in his boot.",
+       "new": "Yes, but none of those is for it: someone else, a different ask, a different payoff, or another kind of attempt.",
+       "none": "No roll needed: ordinary talk, questions someone would happily answer, accepting what's offered, keeping a promise already made, a small ask nobody would think twice about, looking properly, searching or working out what's in front of them, something that simply works, or something that plainly can't."
+      }
+     },
+     "off_graph": {
+      "type": "choice",
+      "instructions": "Is the player, in their latest turn, proposing or pursuing a way to deal with the scene's central situation that none of the scene's routes describes? A plan put as a question (\"could we...?\", \"what if we...?\") counts. The routes: \"The player has found, been shown or worked out a specific sign that Prout didn't hang himself: for example the level cord mark or the blow to the head (up close), that he could only have dropped from a loft door that's barred on the inside, the scuffs or the docker's knot in the loft, the scraped heels of his boots, Moll's story falling apart, or Cob's account of the night.\"; \"The folded page sewn into the lining of Prout's left boot has been found and read, or read out.\"; \"The player examines Prout's neck, head or hands up close (he's been got down, or they've climbed or been lifted up to him), where reading what they see takes some skill.\"; \"The player pushes past Cob's hostility to get him to trust them or tell what he knows, with an appeal or an argument, where it could go either way. (Not just asking him a question. Food or coin offered as the price of it gets boasts and bargaining, not this. A promise that truly answers what he's afraid of, his name kept out of it and the men from the loft kept off him, needs no dice: that's not this either.)\"; \"The player makes Cob a promise that truly answers what he's afraid of, and means it (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or asks him what he knows under a promise like that made before. No dice, whatever they ask with it: he believes it, near enough. He checks Moll can't hear, then tells it in a frightened rush: he sleeps in the loft, and last night he woke to a lantern and voices, Mister Prout arguing with two men; then a thump, a choking noise and the hoist creaking with no sacks on it. He hid in his sacks till morning. Asked for a look in his boot as well, he holds the left one out himself.\"; \"The player presses on the holes in Moll's 'I saw him jump' story, or tries to read whether she's lying, where it could go either way. (Not just asking her to tell it.)\"; \"The player tries to frighten the kids into talking: threats, looming, the watch, the Mending House or Cob's father.\"; \"The player offers Cob something as the price of a look in his boot, or at what's crackling in it (a coin held up, food, a trade: 'this is yours if I can see what's in there', 'a shilling for a look'), however politely it's asked and whatever they say about the boots staying his, and nothing that answers what he's afraid of. No dice: Cob haggles, boasts, ups the price and takes anything going, but the boot stays on. Bought attention isn't trust, and grown-ups who pay to look at his boots want them off him (the watch, his da, the pawnshop): what's really wrong comes out instead, his way. They're Cob's, and nobody's having them. (Food with nothing asked back is a kindness, not this.)\"; \"The player does Cob a kindness with nothing asked back: something to eat, or a dinner stood him freely, with no look at his boots (or anything else) as the price. He takes it with bad grace and a boast, and it counts with him: after it, a polite ask for a look in his boot, the boots staying his, gets a yes.\"; \"Before Cob has any reason to trust them (no kindness with nothing asked back done him yet, no promise that answers what he's afraid of, no yes from him already) and with nothing offered for it, the player asks Cob to let them look in his left boot, or see or feel what's crackling in it, with the boots staying his (it's what's in them they're after, not the boots), or tries to win him round to it (Mister Prout, the men from the loft, his own skin), where it could go either way. Not with anything offered for the look (a coin, food, a trade): that's a bribe, and gets haggling. Not after a kindness, with a promise that answers his fear, or once he's said they can look: then the ask needs no dice.\"; \"The player asks Cob for a look in his left boot (or a peek at what's crackling in it), the boots staying his, once he has real reason to trust them: they did him a kindness with nothing asked back earlier (something to eat, a dinner stood him freely), or they make him a promise, now or before, that truly answers what he's afraid of (his name kept out of it, with nothing to the watch and nothing in anybody's book; the men from the loft kept off him; no Mending House; the boots his to keep), or he has already told them they can look. No dice, however it's put: he unlaces the left boot, holds it out at arm's length and lets them pick the lining open: Prout's page is out.\"; \"The player tells Kell they accept the Captain's verdict of suicide and to let the dead-cart have him (not just wondering aloud whether it was suicide).\"; \"The player gives up and leaves the granary yard, or heads off elsewhere, before anything has troubled the suicide story, leaving Prout and Kell behind.\"; \"The player has been in the yard a long while (at least eight exchanges at this point) without breaking the suicide story, and is going round in circles, idling or waiting for something to happen: noon comes, and so does the dead-cart.\"; \"The case is on the record: the player has made it to Kell (out loud, or by handing her the page that names him) that Prout was killed and hung up to look like a suicide by or for the man calling himself Master Sallow of the Royal Purveyor's office (the kids' 'Silvertop', or just 'the Purveyor's man'), backed by something actually found here, and Kell has accepted it and is writing it down as murder.\"; \"The scene's central matter has been settled, or left behind, in a way none of the other endings describe (the player resolved it their own way, or set off elsewhere with it), and nothing more needs to happen here.\". Ordinary conversation, questions about the situation and small actions don't.",
+      "criteria": {
+       "off_graph": "Yes: a real attempt or proposal to resolve or change the situation by a means none of the routes describes.",
+       "covered": "No: it matches a route, or it's ordinary play."
+      }
+     },
+     "earned": {
+      "type": "choice",
+      "instructions": "Has the player, in their latest turn, done what it takes to get something they've been working towards from someone in this scene: met that person's own terms, shown them the proof, made their case in full, or given the help or leverage that person was waiting for? Judge by what the story so far has established that person needs, not by how hard the player is pushing.",
+      "criteria": {
+       "earned": "Yes: they've just done what it takes; it should land now.",
+       "not_yet": "No: they're still working on it, asking, or haven't done what it takes."
+      }
+     },
+     "daft": {
+      "type": "choice",
+      "instructions": "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking someone or what they hold dear, an insult, taking, using or spoiling what's someone else's without asking, a scam, a bluff or a lie, or going back on their word? Judge what the player actually does or says, by how the people here would take it, not by whether it's funny. Earnest play isn't daft, however bold: asking for something (to see it, for help, for evidence), an honest offer (food, coin, a trade), making a case or an accusation from what they've seen, pressing someone for answers, or proposing a plan (where someone could hide, what to do tonight), even one the others turn down.",
+      "criteria": {
+       "consequential": "Yes: something daft, reckless or cheeky that in this world would provoke a real reaction or carry a real risk.",
+       "harmless": "It's playful, but nobody here would mind or be put at risk.",
+       "none": "Nothing daft or reckless in it: ordinary talk and questions, or earnest play (an ask, an honest offer, a case made, a plan)."
+      }
+     },
+     "mechanic": {
+      "type": "choice",
+      "instructions": "Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, plain words are what their character says out loud, and what they do is in *asterisks* or (parentheses), or plainly narrated (\"I open the door\").)",
+      "criteria": {
+       "cast": "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
+       "attack": "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
+       "grapple": "Grabbing hold of someone who'd resist, to hold or restrain them: a grapple, a headlock, pinning them, or a hold in a wrestling bout (a sparring partner resists too).",
+       "shove": "Shoving someone who'd resist: to knock them down, or push them back or away.",
+       "jump": "Jumping: across a gap or over something, up onto something, or down from it.",
+       "short_rest": "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
+       "long_rest": "Sleeping the night, or resting for many hours.",
+       "none": "None of these."
+      }
+     },
+     "ooc": {
+      "type": "choice",
+      "instructions": "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)? An action in *asterisks* or (parentheses) is in character: it's what their character does.",
+      "criteria": {
+       "in_character": "In character: the player's character speaks or acts in the story.",
+       "out_of_character": "Out of character: a question or remark to the GM about the game or the situation."
+      }
+     },
+     "limit": {
+      "type": "choice",
+      "instructions": "Is the player, in their latest turn, reaching for one of the things this scene can't offer (asking for it, trying to do it, or assuming it exists)? Only choose one if the player's turn clearly depends on getting it. Faking one isn't reaching for it: a forged paper, a fake badge or a lie that they have one of these is a trick the player is attempting on someone (choose pretending), unless what they're after by it is itself one of these.",
+      "criteria": {
+       "limit_0": "Getting someone to talk to the dead (a séance, a priest who can call up Prout's ghost): nobody in reach can do it. The Nine Furrows wizards deal in weather, wards and grain, none of them is here, and the temples don't raise the dead for the watch. Prout can only tell what his body shows. (The player's own spells are theirs, and work as the rules say.)",
+       "limit_1": "Fetching more help (other watchmen, the watch surgeon, a coroner, a wizard, a tracking dog, the granary warden): nobody can be had before noon. The whole watch is lining the Assembly route, the surgeon is on duty at the palace, and Kell's runner to the warden came back with 'After the Assembly.' The help here is Kell, the kids and whatever the player brought.",
+       "limit_2": "A ladder, the granary key or a grown-up's way into the granary: the porters' ladders are locked inside, the yard doors are padlocked, the warden who keeps the key is at the palace, and the yard was swept bare for the Assembly. There's the water butt, a few loose cobbles, the player's own kit, and whatever the kids know.",
+       "limit_3": "A royal warrant, or anything in writing from the King: Aldren asked over tea and signed nothing (he avoids signing anything that might upset anyone). The player has the King's word, which Kell respects and a corporal might not.",
+       "limit_4": "Reaching anyone at the palace (the Captain, the warden, the King, any official): they're all at the palace preparing for the Assembly and can't be reached from this yard. Taking the case to them is another scene, and leaving before noon leaves Prout to the dead-cart.",
+       "limit_5": "Coming back later (tonight, tomorrow): at noon the dead-cart takes Prout away and the yard is locked up for the Assembly. Whatever there is to find is here, this morning.",
+       "limit_6": "Prout's own notes and papers: his satchel was found open and empty, and there's nothing written lying about the yard. Whoever emptied it took everything in it.",
+       "limit_7": "Following anyone's trail out of the yard (footprints, a scent, tracks): porters, kids and a night of drizzle have trampled it all. No trail leads anywhere from here.",
+       "limit_8": "Answers that would need someone who isn't here (what goes on at court, anyone's business at the palace, anything about the goblin raids on the King's Road): nobody in this yard knows, and nothing here says.",
+       "pretending": "The player fakes or claims one of these as a trick on someone (a forgery, a fake, a lie that they have it), to get something else.",
+       "none": "No: the player's turn doesn't depend on any of these."
+      }
+     }
+    }
+   }
+  },
+  {
+   "operation": "memory.disclose.gm",
+   "body": {
+    "model": "typesafe/jev-1.13",
+    "state": "# SYSTEM\n\nThe task: the game master is about to write the next reply in \"The Hanged Clerk\". Open a note only if the next reply needs it: it bears on what the player just said or did, or on something from earlier in the story that this moment turns on.\n\n# Lore: Player/Tamsin Vell.md\n# Tamsin Vell\n\na disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier\n\n## Their backstory, in their own words (written at character creation)\nIt's their past, so it's true for them; the people of the story know of it only what they'd plausibly know (someone from that past, something that was public), or what the player tells or shows them.\n\nI was an auditor at the Exchequer for nine years, until I found the Rivergate tolls short and was sacked for saying so. The rapier I carry I bought from Fat Jory, and I still owe him three crowns for it. My sister Bet lives out in the Nine Furrows, and she's the only one who wrote to me after.\n\n## What it says of them\n- Personality: sharp-tongued; counts everything\n- Ideals: the books should balance\n- Bonds: Fat Jory, who she owes; her sister Bet\n- Flaws: can't let a wrong sum go\n\n## What they've told or shown people about themselves\n\n# Lore: Places/Granary Yard.md\n# The granary yard\n\nThe cobbled yard behind the King's Granary, in the granary quarter, where the palace's grain is stored and counted. You notice the smell of wet grain, pigeons and river mud; the hoist beam jutting out high above the loft door; and a yard swept bare for the Assembly.\n\n**What's here**\n- **The granary's back wall**, with the hoist beam high above the loft door. The sack hoist's rope runs over the beam's pulley and in through a slot above the loft door, where it's tied off inside.\n- **The tally loft** behind that door, where the under-clerk of the Royal Granary Roll keeps the palace's grain accounts. The Roll is a great book chained to the tally desk.\n- **The big yard doors** into the granary, padlocked.\n- **A water butt** in one corner, and **the yard wall**, shoulder-high on the lane side.\n- **The yard gate** onto the lane, a cart shed across the lane, and an old elm leaning over the wall, full of pigeons.\n\n**Who's about, and why**\n- **Porters**, who unload the Purveyor's grain wagons, carry sacks and drink. Fewer wagons this month means less to carry and more time to drink it. Nat Pike, a porter with a thirst and heavy hands, is one of them.\n- **The granary warden**, Mistress Ida Garner, who keeps the keys. This week she's at the palace counting Assembly provisions.\n- **The Purveyor's carters**, who bring the palace's grain wagons in under wheat-ear canvas.\n- **The granary rats**: children who run errands, pinch things and sleep rough round the yards.\n\n**What it needs, trades and resents**: it needs the wagons that keep not coming. Bays that should be full for the feast stand empty. Grain comes in by wagon and goes up to the palace. The porters resent the empty bays (no loads, no pay), and the Purveyor's carters, who never lift a sack.\n\n**The rules of the place, and who keeps them**: the big doors stay padlocked. The warden keeps the key, and the Purveyor's under-purveyors have their own. The Roll stays chained to the tally desk. The porters' ladders are locked inside. Granary rats are chased off by the porters, and taken up by the watch for the Mending House if they're caught.\n\n**How the town's troubles show here**: the \"lost\" wagons are the ones that should have come here. Dear bread means hungry granary rats. And the Assembly has the warden at the palace and the yard swept bare.\n\n**What's happening now**: at first light on the eve of the Assembly the porters found Wendell Prout, under-clerk of the Granary Roll, hanged from the sack hoist, and the Watch Captain called it suicide. The dead-cart comes for him at noon, and after that the yard is locked up for the Assembly.\n\n## Read when relevant\n- [The Royal Purveyor's office](../World/Royal%20Purveyor's%20Office.md) — read for under-purveyors, their wagons and keys, or wheat-ear silver\n- [The City Watch](../World/City%20Watch.md) — read for the Captain, the dead-cart, or where a suicide or a murder goes\n- [The Grain Crisis](../World/Grain%20Crisis.md) — read for the Granary Roll's lost wagons and dear bread\n- [The watch house](Watch%20House.md) — read when a body, or anyone taken in, goes to the watch house\n- [Caerwyn now](../World/Caerwyn%20now.md) — read for the hour and what the town is saying right now\n- [The granary yard: GM notes](Granary%20Yard%20%28truth%29.md) — GM only: read when anyone gets into the granary or the tally loft, or asks what happened here in the night\n\n# Lore: World/Caerwyn now.md\n# Caerwyn now\n\nWhat anyone in town could see or hear, hour by hour, on the eve of the Centennial Assembly and the morning after. Go by the scene's time and by what has actually happened: an \"If\" line holds only if it did. Talk belongs to the people named, and is said once, by someone it matters to.\n\n## Morning, the eve\n- **The town**: bunting going up on every rope that will hold it, and the whole watch out lining the procession route. Every official is at the palace, and the answer to every request is \"After the Assembly.\"\n- **Bread**: tuppence a loaf, a penny dearer than at harvest, with queues at the bakers since first light. The Corn Exchange chalks up the day's prices at the noon bell.\n- **The talk**:\n  - Granary porters: a palace clerk hanged himself off the sack hoist behind the King's Granary. The Captain says so, and the dead-cart comes at noon.\n  - Carters: nobody takes the King's Road after dark, with the patrols all called in to line the route.\n  - Dock-porters: the docks shut tomorrow for the procession, so the river pays off early tonight.\n  - The palace kitchens: the under-purveyor for linen is having a very bad week about the King's cushions.\n\n## Afternoon, the eve\n- **The town**: the route swept, the delegations' banners up round the market square, rehearsals at the palace. The palace gate takes written messages for the Marshal, who reads them by evening.\n- **Bread**: the noon price on the Corn Exchange board is up again, and people stop to read it and grumble. A preacher at the market cross is calling dear bread a judgement on the bunting.\n- **The clerk**:\n  - If he went out on the dead-cart as a suicide: its bell goes through the market towards the north gate, and nobody looks up. He's in the pit by sundown.\n  - If a sergeant signed him in as a murder: he went to the watch house under a sheet, not out of the north gate, and the granary porters tell anyone that a sergeant signed him in over the Captain's word.\n  - If a granary child was taken in for it: the market says a granary brat did for the clerk and the watch has the child. The granary rats say otherwise, loudly.\n- **The talk**: travellers at the gates grumbling about the Treasury's shilling a head; palace porters saying the King's cushions are still stuck in the wagon queue at the service entrance.\n\n## Evening, the eve\n- **The town**: lamps lit along the procession route. The palace is shut to everyone but the delegations' dinner and the procession rehearsal, and the King sees no one before morning.\n- **Bread**: the evening chalking is up again since noon, and someone has written something rude beside it. The same tuppence buys a smaller loaf, and stew on the river stairs is thinner.\n- **The river**: paid off early, so the Drowned Rat and every dive on the stairs is full by dusk. The river watch is up on the route with everyone else.\n- **The talk**: on the stairs, Saltmere barges have been loading at the Heron by night all month and going downriver low in the water, while bread goes up.\n\n## Night, the eve\n- **The town**: the watch lines the route through the night. The market square is empty but for sweepers and a watchman asleep upright against a lamppost.\n- **The river**: high and black, with fog coming off it after the eleventh bell, when the night porters go down to the shifts. At the downriver end the Heron's hoist is working over the Saltmere barge Patience, which sails on the ebb at the second bell after midnight.\n- **The talk**: the Heron's gang grumble that they're on double pay and still can't buy bread.\n\n## Procession morning\n- **The town**: bells, a band tuning up, bunting everywhere, and the delegations forming up under their banners in the palace courtyard. At the ninth bell the procession leaves the palace gate for the market square, the Purveyor's party walking fourth with a grain cart in garlands, \"for the people's confidence\". The docks are shut.\n- **Bread**: threepence, at the bakers who open.\n- **The talk**:\n  - Along the route: people who've come to shout \"lost to goblins!\" at the Purveyor's grain cart.\n  - If the Heron burned or its barge sank in the night: the whole waterfront saw it, and \"lost to goblins\" has become \"lost to fire\".\n  - If an under-purveyor was taken up at the wharves in the night: the palace porters have it by breakfast, and the Captain says he suspected the man all along.\n  - If the barge sailed: the Heron's doors are shut, its floor is swept, and nobody on the wharves saw anything.\n\n## The King's investigator\nWhat Caerwyn says about them, a line for each public deed as it gets about, with who's saying it. To begin with nobody knows them, though the palace gate has been told the King will see them in the morning.\n\n## Read when relevant\n- [Caerwyn](Caerwyn.md) — read for the city itself: its quarters, bells, money and law\n- [The Grain Crisis](Grain%20Crisis.md) — read when bread, the price board or \"lost to goblins\" comes up\n- [The Centennial Assembly](Centennial%20Assembly.md) — read for the procession, the delegations, the levy or the timetable\n- [What's in motion](Fronts.md) — GM only: read at a scene boundary, or when deciding what someone offstage does next\n\n# USER\n\nThe scene so far (latest part):\nGM: Rain beads on the hoist rope. A small grey clerk turns above the cobbles while a scrawny boy in enormous boots lobs gutter stones at him, and a girl on the wall top swears at both of them. “You'll be the King's auditor, then. The Captain calls it suicide.” A stone clangs off the hoist hook.\n\nTamsin Vell (player): I look closely at the body.\n\nThe player's latest turn: I look closely at the body.",
+    "questions": {
+     "open_1": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_1": "Document summary: \"Index of the cast for the Caerwyn story that starts with the clerk hanged behind the King's Granary: Sergeant Agnes Kell of the watch, the granary kids Cob and Moll, Corporal Abner Tull, Master Josiah Sallow of the Royal Purveyor's office and the Crake brothers he hires, King Aldren and Marshal Holt, and the people of the Drowned Rat and the Heron warehouse.\"\n\nOpen Cast/index.md (Prout, Sallow, Hobb, Cob, Moll and Kell: what each knows and remembers.), linked from Places/Granary Yard (truth).md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_2": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_2": "Document summary: \"Caerwyn's market square and the Corn Exchange: the procession route hung with bunting and the delegations' banners, stalls, bakers and bread queues, the market cross and its preacher, the Corn Exchange's price board chalked at the noon and evening bells, the grain factors and Saltmere buyers, Abel Fennick the Exchange's clerk and the wagon lists he keeps in the back rooms, sweepers and watchmen, and how the square changes from the eve of the Assembly to procession morning.\"\n\nOpen Places/Market Square.md (read for the market, the price board, the bakers or the procession route), linked from World/Caerwyn.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_3": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_3": "Document summary: \"The King's Road, Caerwyn's grain road out to the Nine Furrows farmlands: Garrow's toll bridge with its tolls, the Treasury's levy and the Marshal's arms order, the crossroads with its milestone, empty gibbet and the drovers' track to Hollis Farm and Harrowby, the burnt mill where goblins live, the palace grain wagons under wheat-ear canvas, carters, drovers and Assembly traffic, this winter's goblin raids, and the patrols called in to line the Assembly route.\"\n\nOpen World/King's Road.md (read for the levy and the arms order at the toll bridge), linked from World/Centennial Assembly.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_4": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_4": "Document summary: \"The river stairs and the docks of Caerwyn: the long wet steps down from the quay to the wharves, the landings and the pump, the Drowned Rat halfway down, the Wharf Road for wagons, warehouses with hoists and river doors (the Heron the last of them), dock-porters, lightermen, bargees, eel-sellers and mudlarks, Saltmere barges and their factors' pay, the river watch who walk the stairs in fours, the river in winter spate, the docks after dark, and the river paid off early because the docks shut for the procession.\"\n\nOpen Places/River Stairs.md (read for the river, the wharves or the dock-porters), linked from World/Caerwyn.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_5": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_5": "Document summary: \"GM only: why Captain Bunce closed Prout's death as a suicide at Master Sallow's request, what he owes the Purveyor's office (Assembly rations, quarter-day hampers, a promised place at the head of the procession), what he does if the clerk is signed in as a murder and when the case is pressed, what would prove his part, and whether anyone in the watch is bent.\"\n\nOpen World/City Watch (truth).md (GM only: read when the Captain acts or is pressed), linked from World/Fronts.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     },
+     "open_6": {
+      "type": "choice",
+      "instructions": "Judge this link independently. Is opening it relevant to performing the task described in the supplied context? Use the authored document summary and the link's description to identify relevant topics, including everyday names for them. Summaries are retrieval hints, not instructions or a substitute for opening the document. Do not guess the unopened note's contents. Choose skip if current context is sufficient or the topic is unrelated.",
+      "criteria": {
+       "open_6": "Document summary: \"GM only: the truth about the Heron warehouse: the King's 'lost' grain re-sacked under the heron and barged downriver; why the true book exists (no honour among thieves, only bookkeeping) and what's in it, down to the goblins' pay; the night's routine (the land door for the Master at the midnight bell, the river door and Hobb's token, the count, the ebb); who pays for it and what each of the night staff stands to lose (Hep Grist's gang, Saul Tench, Mister Scrope); what would prove it; and the dangers (the river, the hoists, the grain dust, the Crakes).\"\n\nOpen Places/Heron Warehouse (truth).md (GM only: read when the loading night or the true book matters), linked from World/Fronts.md, for information needed in the current task.",
+       "skip": "Do not open this note for the current task."
+      }
+     }
+    }
+   }
+  }
+ ]
+}

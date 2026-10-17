@@ -21,6 +21,7 @@
     "install-campaign": "node --no-warnings --import tsx hosts/install.ts",
     "play": "node --no-warnings --import tsx hosts/play.ts",
     "e2e": "node --no-warnings --import tsx hosts/e2e.ts",
+    "arc": "node --no-warnings --import tsx hosts/arc.ts",
     "live": "node --no-warnings --import tsx hosts/live-run.ts",
     "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx"
   },

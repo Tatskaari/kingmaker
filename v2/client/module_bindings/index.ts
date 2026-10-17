@@ -34,15 +34,34 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AcceptFixReducer from "./accept_fix_reducer";
+import BeginReducer from "./begin_reducer";
+import ChooseAgainReducer from "./choose_again_reducer";
+import ChooseBuildReducer from "./choose_build_reducer";
+import ContinueGameReducer from "./continue_game_reducer";
+import CreationBackReducer from "./creation_back_reducer";
+import DeleteGameReducer from "./delete_game_reducer";
 import DispatchWaitingReducer from "./dispatch_waiting_reducer";
+import DraftBackstoryReducer from "./draft_backstory_reducer";
+import FinishBackstoryReducer from "./finish_backstory_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
 import JoinGameReducer from "./join_game_reducer";
+import LeaveProposalReducer from "./leave_proposal_reducer";
+import MakeOwnReducer from "./make_own_reducer";
 import NewGameReducer from "./new_game_reducer";
+import PickOwnReducer from "./pick_own_reducer";
 import RetryTurnReducer from "./retry_turn_reducer";
+import RewriteIssueReducer from "./rewrite_issue_reducer";
 import SayReducer from "./say_reducer";
 import ServicePingReducer from "./service_ping_reducer";
+import SetBackstoryReducer from "./set_backstory_reducer";
 import SetSuggestionsReducer from "./set_suggestions_reducer";
+import SkipBackstoryReducer from "./skip_backstory_reducer";
+import StartCreationReducer from "./start_creation_reducer";
 import StreamReplyReducer from "./stream_reply_reducer";
+import TakeOwnReducer from "./take_own_reducer";
+import TakeProposalReducer from "./take_proposal_reducer";
+import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
 // Import all procedure arg schemas
 import * as PingAiProcedure from "./ping_ai_procedure";
@@ -57,6 +76,8 @@ import GearRow from "./gear_table";
 import HealthRow from "./health_table";
 import LookRow from "./look_table";
 import MaterialRow from "./material_table";
+import MyCreationRow from "./my_creation_table";
+import MyGamesRow from "./my_games_table";
 import MyNamesRow from "./my_names_table";
 import MySeatRow from "./my_seat_table";
 import NarrativeRow from "./narrative_table";
@@ -420,6 +441,20 @@ const tablesSchema = __schema({
       { name: 'world_log_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WorldLogRow),
+  myCreation: __table({
+    name: 'my_creation',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyCreationRow),
+  myGames: __table({
+    name: 'my_games',
+    indexes: [
+    ],
+    constraints: [
+    ],
+  }, MyGamesRow),
   myNames: __table({
     name: 'my_names',
     indexes: [
@@ -438,15 +473,34 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("accept_fix", AcceptFixReducer),
+  __reducerSchema("begin", BeginReducer),
+  __reducerSchema("choose_again", ChooseAgainReducer),
+  __reducerSchema("choose_build", ChooseBuildReducer),
+  __reducerSchema("continue_game", ContinueGameReducer),
+  __reducerSchema("creation_back", CreationBackReducer),
+  __reducerSchema("delete_game", DeleteGameReducer),
   __reducerSchema("dispatch_waiting", DispatchWaitingReducer),
+  __reducerSchema("draft_backstory", DraftBackstoryReducer),
+  __reducerSchema("finish_backstory", FinishBackstoryReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),
   __reducerSchema("join_game", JoinGameReducer),
+  __reducerSchema("leave_proposal", LeaveProposalReducer),
+  __reducerSchema("make_own", MakeOwnReducer),
   __reducerSchema("new_game", NewGameReducer),
+  __reducerSchema("pick_own", PickOwnReducer),
   __reducerSchema("retry_turn", RetryTurnReducer),
+  __reducerSchema("rewrite_issue", RewriteIssueReducer),
   __reducerSchema("say", SayReducer),
   __reducerSchema("service_ping", ServicePingReducer),
+  __reducerSchema("set_backstory", SetBackstoryReducer),
   __reducerSchema("set_suggestions", SetSuggestionsReducer),
+  __reducerSchema("skip_backstory", SkipBackstoryReducer),
+  __reducerSchema("start_creation", StartCreationReducer),
   __reducerSchema("stream_reply", StreamReplyReducer),
+  __reducerSchema("take_own", TakeOwnReducer),
+  __reducerSchema("take_proposal", TakeProposalReducer),
+  __reducerSchema("work_in_backstory", WorkInBackstoryReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

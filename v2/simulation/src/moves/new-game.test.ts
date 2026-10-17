@@ -6,7 +6,7 @@ import { memoryHost } from "../host/memory.ts";
 import { all, caerwynArgs, identity, scriptedAi } from "../host/testing.ts";
 
 /**
- * A game's uid (new-game.ts gameUid): unique by construction, never by chance. SpacetimeDB 2.12's
+ * A game's uid (games/create.ts gameUid): unique by construction, never by chance. SpacetimeDB 2.12's
  * generator gives about 3% of transactions one uuid, this one (v0-design §14), and new_game took it
  * whole for a uid that must be unique: a game made with it once, the next panicked.
  */

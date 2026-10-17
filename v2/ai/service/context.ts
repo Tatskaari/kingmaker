@@ -1,5 +1,8 @@
 import type { CallContext } from "../llm/openrouter.ts";
-import type { AiErrorCode, DecideRequest, DecideResponse, NotesRequest, NotesResponse, OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage } from "../../shared/protocol/ai.ts";
+import type {
+  AiErrorCode, BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, DecideRequest, DecideResponse, NotesRequest, NotesResponse,
+  OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
+} from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
 import type { StreamSink } from "./stream.ts";
 
@@ -25,8 +28,9 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
 /**
  * The thinks: the opening, a turn's three, and the two beside a turn once its reply is in (the notes
- * on its marks, the lines suggested after it). The pipeline's (endpoints/*.ts) or the canned ones
- * (KM_AI_GM=canned).
+ * on its marks, the lines suggested after it: v5-design §3.6); and character creation's two (v1-design
+ * §3.7), each serving several steps. The pipeline's (endpoints/*.ts), or the canned ones
+ * (KM_AI_GM=canned: no model at all).
  */
 export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
@@ -35,6 +39,10 @@ export interface Endpoints {
   settle: Handler<SettleRequest, SettleResponse>;
   notes: Handler<NotesRequest, NotesResponse>;
   suggest: Handler<SuggestRequest, SuggestResponse>;
+  /** The builds: three offered (offer), the model's one (pick), the player's own made legal (own). */
+  characters: Handler<CharactersRequest, CharactersResponse>;
+  /** The backstory: a draft, notes worked in, the lore check, and what it says of them (traits). */
+  backstories: Handler<BackstoriesRequest, BackstoriesResponse>;
 }
 
 /** A request the service won't or can't answer, with its status and code ({ error: { code, message } }). */

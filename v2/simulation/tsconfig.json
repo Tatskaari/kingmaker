@@ -2,7 +2,8 @@
  * The module's own: SpacetimeDB requires target/lib/module/isolatedModules as `spacetime init
  * --lang typescript` writes them. It bundles shared/ too, so shared/ must typecheck here (ES2021, no
  * Node: "types" is empty, so Node's globals don't). The tests and the memory host run under Node and
- * are checked by v2/tsconfig.json instead.
+ * are checked by v2/tsconfig.json instead. JSON imports (the rules engine's pack and the SRD's
+ * spells, simulation/src/rules/load.ts) are bundled into the module.
  */
 {
   "compilerOptions": {
@@ -11,6 +12,7 @@
     "moduleResolution": "bundler",
     "noUncheckedIndexedAccess": true,
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "types": [],

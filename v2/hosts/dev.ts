@@ -33,7 +33,10 @@ const USAGE = `npm run dev [-- options]
   --ai-port <n>         the AI service's port (8787)
   --root <dir>          the stack's folder (runs/dev)
   --gm pipeline|canned  the AI service's GM (canned: no model at all)
-  --no-keys             no keyboard; stops on SIGTERM`;
+  --no-keys             no keyboard; stops on SIGTERM
+
+KM_AI_DAILY_USD (env) is the AI service's daily ceiling on what the models cost: $5 unless it's
+set, 0 for none. Past it, a move that needs a model fails in the game's words until midnight UTC.`;
 
 const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
@@ -123,6 +126,8 @@ async function start(): Promise<Stack> {
       root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
       model: fake ? "fake" : "openrouter", ...(fake ? { fake } : {}),
       ...(flags.gm ? { gm: flags.gm } : {}), container: flags.container, fresh: flags.fresh,
+      // The daily ceiling goes to the AI service whichever way it runs (podman takes only what it's given).
+      ...(process.env.KM_AI_DAILY_USD ? { aiEnv: { KM_AI_DAILY_USD: process.env.KM_AI_DAILY_USD } } : {}),
       sessions: join(V2, "runs", "play"), log: line => print(`  … ${line}`), signal: starting.signal,
     });
   } catch (e) {
@@ -140,16 +145,19 @@ function screen(s: Stack, campaignLine: string, report: DoctorReport): string[] 
     ? `namespace mode (SpacetimeDB in a pasta namespace; ${AI_ADDRESS} is this machine's loopback)`
     : `host mode (${AI_ADDRESS} is on this machine)`;
   const model = `${file.ai.model}${fake && file.ai.gm !== "canned" ? ` (${fakeLine(fake)})` : ""}${file.ai.gm === "canned" ? " (canned GM)" : ""}${file.ai.container ? " · in podman" : ""}`;
-  // The two paths are the summary's; anything else wrong is listed under it.
-  const failing = report.checks.filter(c => !c.ok && !c.name.includes("→"));
+  // The two paths are the summary's, the budget has its own line; anything else wrong is listed under them.
+  const failing = report.checks.filter(c => !c.ok && !c.name.includes("→") && c.name !== "Budget");
+  const budget = report.checks.find(c => c.name === "Budget");
   return [
     `Kingmaker dev stack · ${modeLine}`,
     `  SpacetimeDB   ${s.ws}  database ${s.db}       log ${logs}/spacetime.log`,
     `  AI service    ${s.aiFromHost} · the module calls ${s.aiFromSimulation} · ${model}   log ${logs}/ai.log`,
     `  Campaign      ${campaignLine}`,
     `  Doctor        ${report.summary}`,
+    ...(budget ? [`  Budget        ${budget.detail}${budget.ok ? "" : `: ${budget.fix}`}`] : []),
     ...failing.map(c => `                ✗ ${c.name}: ${c.detail}`),
-    `Play:  npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
+    `Play:  npm run client -- --session <name>${stackFlag}     the title: New game makes a character, Continue carries one on`,
+    `       npm run client -- --session <name> --new "Name: concept" [--build ${builds.join("|")}]${stackFlag}`,
     `       npm run client -- --session <name> --join <game>${stackFlag}`,
     ...(flags.keys
       ? ["Keys:  k kill the AI service · s start it · r restart it · f kill it after its next stored reply", "       n kill it after the next notes it stores · p republish the module · d doctor · q quit"]

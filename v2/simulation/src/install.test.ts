@@ -14,7 +14,7 @@ test("the owner installs the hanged clerk: the campaign, its scene's def and hoo
 
   const [campaign] = all(host.db.campaign);
   assert.deepEqual([campaign!.id, campaign!.key, campaign!.version, campaign!.title], ["caerwyn@0.1.0", "caerwyn", "0.1.0", "Caerwyn"]);
-  assert.deepEqual(Object.keys(JSON.parse(campaign!.builds)), ["ranger", "rogue", "wizard"]);
+  assert.deepEqual(Object.keys(JSON.parse(campaign!.builds)), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
   const [def] = all(host.db.sceneDef);
   assert.deepEqual([def!.id, def!.campaignId, def!.key, def!.title], ["caerwyn@0.1.0/hanged-clerk", "caerwyn@0.1.0", "hanged-clerk", "The Hanged Clerk"]);
   assert.match(def!.hook, /^This morning a palace clerk, Wendell Prout/);
@@ -50,4 +50,16 @@ test("a pack that doesn't load is refused, saying why, and nothing is installed"
   const yard = install!.scene.beats.yard!;
   assert.match(refusedPack(withScene({ beats: { ...install!.scene.beats, yard: { ...yard, routes: [{ id: "x", on: "attempt", when: "w", to: "doubt", establishes: ["no-such-fact"] }] } } }))!, /unknown fact no-such-fact/);
   assert.deepEqual([all(host.db.campaign).length, all(host.db.sceneDef).length, all(host.db.placeDef).length], [0, 0, 0]);
+});
+
+test("a ready-made build the rules engine's pack can't make is refused: a class, species, background or subclass it hasn't got", () => {
+  const host = newHost();
+  const pack = caerwynPack();
+  const withRogue = (over: Partial<CampaignPack["builds"][string]["build"]>) => installArgsOf({ ...pack, builds: { ...pack.builds, rogue: { ...pack.builds.rogue!, build: { ...pack.builds.rogue!.build, ...over } } } });
+
+  assert.equal(host.as(host.owner).installCampaign(withRogue({ classId: "artificer" }))?.text, "The campaign pack doesn't load: build rogue: its class artificer isn't in the rules engine's pack.");
+  assert.equal(host.as(host.owner).installCampaign(withRogue({ speciesId: "kobold" }))?.text, "The campaign pack doesn't load: build rogue: its species kobold isn't in the rules engine's pack.");
+  assert.equal(host.as(host.owner).installCampaign(withRogue({ backgroundId: "pirate" }))?.text, "The campaign pack doesn't load: build rogue: its background pirate isn't in the rules engine's pack.");
+  assert.equal(host.as(host.owner).installCampaign(withRogue({ subclassId: "arcane-trickster" }))?.text, "The campaign pack doesn't load: build rogue: its subclass arcane-trickster isn't in the rules engine's pack.");
+  assert.equal(all(host.db.campaign).length, 0);
 });

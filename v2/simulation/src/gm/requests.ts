@@ -1,3 +1,4 @@
+import type { Backstory } from "../../../shared/creation/types.ts";
 import { STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type DecideRequest, type NotesRequest, type OpenRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext } from "../../../shared/protocol/ai.ts";
 import { idempotencyKey, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
@@ -106,10 +107,13 @@ function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): De
   return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore };
 }
 
-/** V0's party: the controller's character, by their sheet. */
+/** The party: the controller's character, by their sheet, with the backstory they wrote at creation (the GM's brief and the player's doc read it). */
 function partyOf(tx: TxCtx, controller: PlayerRow): SheetRow[] {
   const sheet = sheetRow(tx, controller.id);
-  return [{ name: controller.name, concept: controller.concept, build: sheet.build, skills: JSON.parse(sheet.skills) as Partial<Record<Skill, number>>, status: sheet.statusLine }];
+  return [{
+    name: controller.name, concept: controller.concept, build: sheet.build, skills: JSON.parse(sheet.skills) as Partial<Record<Skill, number>>, status: sheet.statusLine,
+    ...(sheet.backstory ? { backstory: JSON.parse(sheet.backstory) as Backstory } : {}),
+  }];
 }
 
 /** The scene's suggested lines as they stand, in the order shown: the last set offered. */
