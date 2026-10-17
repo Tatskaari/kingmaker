@@ -268,7 +268,7 @@ after(() => rmSync(SCRATCH, { recursive: true, force: true }));
 
 async function game() {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const campaign = installed.use("caerwyn", "0.1.0");
 

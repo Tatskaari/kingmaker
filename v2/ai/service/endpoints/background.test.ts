@@ -44,7 +44,7 @@ function filesOf(dir: string): Record<string, string> {
 async function setUp(options: FakeOptions) {
   const store = mkdtempSync(join(SCRATCH, "store-"));
   const stores = folderStores(store);
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);

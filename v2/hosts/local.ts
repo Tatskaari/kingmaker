@@ -77,7 +77,7 @@ function localAi(store: string, options: LocalOptions, log: (line: string) => vo
   return aiService({
     token: BEARER,
     stores,
-    campaigns: campaigns(stores.campaigns, stores.docsRoot),
+    campaigns: campaigns(stores.campaigns, stores.docs),
     endpoints: options.gm === "canned" ? canned : pipeline,
     transport: turn => transports("fake", { fake: fake(turn) })(turn),
     stream: { url: "http://stdb.local", db: "kingmaker", token: "local", periodMs: 0, fetch: streamInto(post) },

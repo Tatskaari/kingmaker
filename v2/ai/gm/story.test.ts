@@ -33,7 +33,7 @@ after(() => rmSync(scratch, { recursive: true, force: true }));
 /** The campaign as the AI service has it once the install tool has PUT it. */
 async function installed() {
   const stores = folderStores(mkdtempSync(join(scratch, "store-")));
-  const all = campaigns(stores.campaigns, stores.docsRoot);
+  const all = campaigns(stores.campaigns, stores.docs);
   await all.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   return all.use("caerwyn", "0.1.0");
 }
@@ -83,7 +83,7 @@ test("the hanged clerk's story and the words any other scene might use are the p
 
 test("a version PUT again is vetted with its new words: what the vetting keeps goes with the story it was kept for", async () => {
   const stores = folderStores(mkdtempSync(join(scratch, "store-")));
-  const all = campaigns(stores.campaigns, stores.docsRoot);
+  const all = campaigns(stores.campaigns, stores.docs);
   const files = filesOf(CAERWYN);
   const scene = hangedClerk();
   const vettingNow = () => vetting(scene, { ...stateIn("hanged-clerk"), story: all.use("caerwyn", "0.1.0").story });
@@ -101,7 +101,7 @@ test("a version PUT again is vetted with its new words: what the vetting keeps g
 
 test("so does the notes' index of the public lore: a version PUT again links a phrase by its new lore", async () => {
   const stores = folderStores(mkdtempSync(join(scratch, "store-")));
-  const all = campaigns(stores.campaigns, stores.docsRoot);
+  const all = campaigns(stores.campaigns, stores.docs);
   const files = filesOf(CAERWYN);
   const linked = (phrase: string) => {
     const story = all.use("caerwyn", "0.1.0").story;

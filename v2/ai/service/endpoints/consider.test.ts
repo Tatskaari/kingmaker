@@ -45,7 +45,7 @@ function filesOf(dir: string): Record<string, string> {
 /** The campaign installed in a fresh store, and a request's context on the stand-in, its calls kept. */
 async function setUp(options: FakeOptions = {}) {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
-  const installed = campaigns(stores.campaigns, stores.docsRoot);
+  const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);

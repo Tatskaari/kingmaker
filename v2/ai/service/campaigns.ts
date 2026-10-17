@@ -1,6 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
-import { isAbsolute, join, normalize } from "node:path";
-import { configureDocs } from "../docs/config.ts";
+import { configureDocs, type DocsVolume } from "../docs/config.ts";
+import { isAbsolute, normalize } from "../docs/paths.ts";
+import { isDoc } from "../docs/volumes.ts";
 import { storyOf, VOCABULARY, vocabularyOf, type Story, type Vocabulary } from "../gm/story.ts";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
@@ -8,7 +8,7 @@ import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/file
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { Failure } from "./context.ts";
-import type { CampaignStore } from "./stores.ts";
+import type { CampaignStore, DocsStore, VersionFiles } from "./stores.ts";
 
 /**
  * The campaigns the AI service has the words of (v0-design §8): each version as the install tool PUT
@@ -45,15 +45,15 @@ export interface Campaigns {
   list(): string[];
 }
 
-export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
+export function campaigns(store: CampaignStore, docs: DocsStore): Campaigns {
   const read = new Map<string, Campaign>();
   let serving: string | undefined;
 
-  /** The docs service's lore root, set once: this version's lore, and each game's copy under docsRoot. */
-  const serve = (campaign: string, version: string, root: string) => {
+  /** The docs service's lore, set once: this version's lore/, and each game's copy in the docs store. */
+  const serve = (campaign: string, version: string, files: VersionFiles) => {
     const id = `${campaign}@${version}`;
     if (serving === id) return;
-    configureDocs({ loreRoot: join(root, "lore"), overlay: game => join(docsRoot, game, "docs") });
+    configureDocs({ lore: loreOf(files), overlay: game => docs.overlay(game) });
     serving = id;
   };
   const refuseOther = (campaign: string, version: string) => {
@@ -73,20 +73,20 @@ export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
 
       await store.put(campaign, version, files);
       read.delete(`${campaign}@${version}`);
-      serve(campaign, version, store.root(campaign, version)!);
+      serve(campaign, version, store.files(campaign, version)!);
 
       return { campaign, version, files: Object.keys(files).length, scenes: scenes.map(s => s.id) };
     },
 
     use(campaign, version) {
       checkNames(campaign, version);
-      const root = store.root(campaign, version);
-      if (!root) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} isn't installed here: PUT /v1/campaigns/${campaign}/${version} first`);
+      const files = store.files(campaign, version);
+      if (!files) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} isn't installed here: PUT /v1/campaigns/${campaign}/${version} first`);
       refuseOther(campaign, version);
-      serve(campaign, version, root);
+      serve(campaign, version, files);
 
       const id = `${campaign}@${version}`;
-      const cached = read.get(id) ?? campaignAt(root, campaign, version);
+      const cached = read.get(id) ?? campaignAt(files, campaign, version);
       read.set(id, cached);
       return cached;
     },
@@ -95,11 +95,20 @@ export function campaigns(store: CampaignStore, docsRoot: string): Campaigns {
   };
 }
 
-/** A version on disk: its campaign.json now, each scene when it's first asked for, the story when it's first read. */
-function campaignAt(root: string, campaign: string, version: string): Campaign {
-  const file = JSON.parse(readFileSync(join(root, "campaign.json"), "utf8")) as CampaignFile;
+/** A version's lore/, as the docs service reads the authored lore: read only. */
+function loreOf(files: VersionFiles): DocsVolume {
+  return {
+    read: path => files.read(`lore/${path}`),
+    write: path => { throw new Error(`the authored lore is read only: ${path}`); },
+    list: () => files.paths().filter(path => path.startsWith("lore/")).map(path => path.slice("lore/".length)).filter(isDoc),
+  };
+}
+
+/** An installed version: its campaign.json now, each scene when it's first asked for, the story when it's first read. */
+function campaignAt(files: VersionFiles, campaign: string, version: string): Campaign {
+  const file = JSON.parse(files.read("campaign.json")!) as CampaignFile;
   const scenes = new Map<string, Scene>();
-  const words = (path: string) => (existsSync(join(root, path)) ? readFileSync(join(root, path), "utf8") : undefined);
+  const words = (path: string) => files.read(path);
   const scene = (key: string): Scene => {
     if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
     const loaded = scenes.get(key) ?? sceneFrom(key, words);

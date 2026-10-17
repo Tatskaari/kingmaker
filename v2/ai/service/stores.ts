@@ -1,7 +1,11 @@
+import type { DocsVolume } from "../docs/config.ts";
+
 /**
  * What the AI service keeps between requests, behind interfaces (v0-design §5.6): it holds nothing of
  * a game in memory, so everything a later request needs is here. V0's are a folder
- * (folder-stores.ts); a hosted service swaps in buckets and tables without touching the endpoints.
+ * (folder-stores.ts); a page's are in memory, kept where its host keeps them (memory-stores.ts); a
+ * hosted service swaps in buckets and tables without touching the endpoints. stores.test.ts holds
+ * every kind to the same contract.
  */
 
 /** An answer kept by its idempotency key: the request it answered (by hash) and the body sent back. */
@@ -11,6 +15,8 @@ export interface StoredAnswer { requestHash: string; status: 200; body: string; 
 export interface AnswerStore {
   get(key: string): Promise<StoredAnswer | undefined>;
   put(key: string, answer: StoredAnswer): Promise<void>;
+  /** The answers kept longer than `olderThanMs` before `now`, deleted (a host's start does it): how many. */
+  sweep?(olderThanMs: number, now?: number): Promise<number>;
 }
 
 /** Each game's model calls in full (its calls.jsonl). Synchronous, as the model client's log is. */
@@ -29,13 +35,26 @@ export interface Ledger {
   spentToday(): Promise<number>;
 }
 
+/** An installed version's files, by their paths in it ("scenes/hanged-clerk/setting.md"). */
+export interface VersionFiles {
+  /** A file's text, or undefined when the version has none at that path. */
+  read(path: string): string | undefined;
+  /** Every file's path. */
+  paths(): string[];
+}
+
 /** Installed campaign versions, each the whole folder as it was PUT. */
 export interface CampaignStore {
   put(campaign: string, version: string, files: Record<string, string>): Promise<void>;
-  /** The folder a version's files are in, or undefined when it isn't installed. */
-  root(campaign: string, version: string): string | undefined;
+  /** A version's files, or undefined when it isn't installed. */
+  files(campaign: string, version: string): VersionFiles | undefined;
   /** The installed versions, "caerwyn@0.1.0". */
   list(): string[];
+}
+
+/** Each game's own copy of the lore, which the docs service reads and writes as it's played (its overlay, docs/config.ts). */
+export interface DocsStore {
+  overlay(game: string): DocsVolume;
 }
 
 export interface Stores {
@@ -44,6 +63,5 @@ export interface Stores {
   reviews: ReviewLog;
   ledger: Ledger;
   campaigns: CampaignStore;
-  /** Where each game's copy of the lore is (the docs service's overlay): <docsRoot>/<game uid>/docs. */
-  docsRoot: string;
+  docs: DocsStore;
 }

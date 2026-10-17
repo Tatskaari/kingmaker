@@ -53,7 +53,7 @@ function service(overrides: Partial<ServiceOptions> & { slowMs?: number } = {}) 
     return (handler as (r: unknown, c: typeof ctx) => Promise<unknown>)(req, ctx);
   }])) as unknown as Endpoints;
   const ai = aiService({
-    token: TOKEN, stores, campaigns: campaigns(stores.campaigns, stores.docsRoot), endpoints: counted,
+    token: TOKEN, stores, campaigns: campaigns(stores.campaigns, stores.docs), endpoints: counted,
     transport: () => ({}), stream: { url: "http://127.0.0.1:9", db: "kingmaker", periodMs: 200 },
     serves: { model: "fake", gm: "canned" }, faults: {}, log: line => lines.push(line), exit: code => exits.push(code),
     ...overrides,
