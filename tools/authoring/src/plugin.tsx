@@ -3,9 +3,14 @@ import {createRoot} from 'react-dom/client';
 import type {Root} from 'react-dom/client';
 import {FuzzySuggestModal, Modal, normalizePath, Notice, Plugin, Setting, TextFileView, TFile, TFolder} from 'obsidian';
 import type {App as ObsidianApp, WorkspaceLeaf} from 'obsidian';
-import {App} from './App';
+import {App, LegacyScene, SceneApp} from './App';
 import {emptyDocument, parseDocument, serializeDocument} from './model';
-import type {ContentFile, FileEntry, GraphDocument, Host, Lore} from './model';
+import type {ContentFile, GraphDocument, Host} from './model';
+import {openSceneFile, serializeScene, skeletonScene, slugOf} from './scene/model.ts';
+import type {SceneDocument} from './scene/model.ts';
+import {campaignRootOf, lorePathOf, readCampaign, scenePathOf} from './scene/campaign.ts';
+import type {VaultFiles} from './scene/campaign.ts';
+import type {SceneHost} from './scene/host.ts';
 
 const VIEW = 'kingmaker-authoring-file';
 const EXTENSIONS = ['kmscene', 'kmscenario', 'kmmap'];
@@ -14,12 +19,17 @@ const extensionFor = (kind: DocumentKind) => ({scene:'kmscene', scenario:'kmscen
 const kindFor = (file: TFile): DocumentKind => file.extension.toLowerCase() === 'kmscenario' ? 'scenario' : file.extension.toLowerCase() === 'kmmap' ? 'map' : 'scene';
 const isDocument = (file: TFile) => EXTENSIONS.includes(file.extension.toLowerCase());
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+/** Where new files of a kind go when the vault has the folder: a campaign's scenes/ first. */
+const FOLDERS: Record<DocumentKind, string[]> = {scene:['scenes', 'Scenes'], scenario:['Scenarios'], map:['Maps']};
+
+/** What a file view holds: a scene of the game's format, a version 1 scene to show read-only, or one of the plugin's version 1 graphs. */
+type Held = {kind:'scene'; scene:SceneDocument} | {kind:'legacy'; title:string; nodes:number; routes:number} | {kind:'graph'; document:GraphDocument};
 
 /** The file, not plugin data or a browser cache, is the editor's source of truth. */
 export class KingmakerFileView extends TextFileView {
   private root: Root|null = null;
   private raw = '';
-  private document: GraphDocument|null = null;
+  private held: Held|null = null;
   private revision = 0;
   private parseError: string|null = null;
   private diskRaw = '';
@@ -39,16 +49,23 @@ export class KingmakerFileView extends TextFileView {
 
   getViewData() { return this.raw; }
 
+  /** Does this view hold one of the plugin's version 1 graphs (a scenario or a map), which the scenario editor reads and wires? */
+  holdsGraph() { return this.held?.kind === 'graph' && !this.parseError; }
+
+  /** The scene this view is editing, as it is now (its unsaved draft too), if it holds one. */
+  sceneDraft(): SceneDocument|undefined { return this.held?.kind === 'scene' ? this.held.scene : undefined; }
+
   readDocument(): GraphDocument {
-    if (!this.document || this.parseError) throw new Error(`Cannot read ${this.file?.path ?? 'this file'}: ${this.parseError ?? 'file is not open'}`);
-    return parseDocument(serializeDocument(this.document), this.document.kind);
+    if (this.held?.kind !== 'graph' || this.parseError) throw new Error(`Cannot read ${this.file?.path ?? 'this file'}: ${this.parseError ?? (this.held ? 'it is a scene of the game\'s format, which the scenario editor doesn\'t read' : 'file is not open')}`);
+    return parseDocument(serializeDocument(this.held.document), this.held.document.kind);
   }
 
   getDiskData() { return this.diskRaw; }
 
   applyExternalDocument(document: GraphDocument, notify = true) {
-    this.document = parseDocument(serializeDocument(document), this.file ? kindFor(this.file) : document.kind);
-    this.raw = serializeDocument(this.document);
+    const parsed = parseDocument(serializeDocument(document), this.file ? kindFor(this.file) : document.kind);
+    this.held = {kind:'graph', document:parsed};
+    this.raw = serializeDocument(parsed);
     this.parseError = null;
     this.revision += 1;
     this.renderEditor();
@@ -59,7 +76,7 @@ export class KingmakerFileView extends TextFileView {
   setViewData(data: string, clear: boolean) {
     // A write can echo after the user has already typed a newer draft. Known
     // saved bytes acknowledge the write; they do not replace that newer draft.
-    if (!clear && this.document) {
+    if (!clear && this.held) {
       if (data === this.raw || data === this.diskRaw) {
         this.diskRaw = data;
         this.data = data;
@@ -79,12 +96,11 @@ export class KingmakerFileView extends TextFileView {
     this.raw = data;
     this.revision += 1;
     try {
-      const kind = this.file ? kindFor(this.file) : 'scene';
-      this.document = parseDocument(data, kind);
+      this.held = heldOf(data, this.file ? kindFor(this.file) : 'scene');
       this.parseError = null;
     } catch (error) {
       // Retain the exact bytes so closing an invalid file cannot replace it.
-      this.document = null;
+      this.held = null;
       this.parseError = message(error);
     }
     this.renderEditor();
@@ -123,7 +139,7 @@ export class KingmakerFileView extends TextFileView {
 
   clear() {
     this.raw = '';
-    this.document = null;
+    this.held = null;
     this.parseError = null;
     this.revision += 1;
     this.renderEditor();
@@ -161,18 +177,50 @@ export class KingmakerFileView extends TextFileView {
 
   private renderEditor() {
     this.root ??= createRoot(this.contentEl);
-    if (!this.document) {
-      this.root.render(this.parseError ? <div className="km-file-error" style={{padding:24}}>
+    if (this.parseError) {
+      this.root.render(<div className="km-file-error" style={{padding:24}}>
         <h3>Cannot open this Kingmaker file</h3>
         <p>{this.parseError}</p>
-        <p>The file has been left unchanged. Fix its JSON in a text editor and reopen it.</p>
-      </div> : null);
+        <p>The file has been left unchanged. Fix it in a text editor and reopen it.</p>
+      </div>);
       return;
     }
+    const held = this.held;
+    if (!held) { this.root.render(null); return; }
     const revision = this.revision;
     const assertActive = () => {
       if (revision !== this.revision || !this.file || this.parseError) throw new Error('This editor has changed or closed. Reopen it and try again.');
     };
+    if (held.kind === 'legacy') { this.root.render(<LegacyScene path={this.file?.path ?? ''} title={held.title} nodes={held.nodes} routes={held.routes}/>); return; }
+    if (held.kind === 'scene') { this.root.render(<SceneApp key={this.revision} document={held.scene} host={this.sceneHost(revision)}/>); return; }
+    this.root.render(<App key={this.revision} document={held.document} host={this.graphHost(revision, assertActive)}/>);
+  }
+
+  /** What the scene editor asks of Obsidian: the file saved, the campaign around it read, and lore and scenes opened. */
+  private sceneHost(revision: number): SceneHost {
+    const path = this.file?.path ?? '';
+    const root = campaignRootOf(path);
+    return {
+      filePath: path,
+      change: scene => {
+        if (revision !== this.revision || !this.file || this.parseError || this.held?.kind !== 'scene') return;
+        const raw = serializeScene(scene);
+        if (raw === this.raw) return;
+        this.held = {kind:'scene', scene};
+        // Update immediately; closing the tab before the debounce still saves.
+        this.raw = raw;
+        this.requestSave();
+        this.plugin.documentsChanged();
+      },
+      campaign: () => readCampaign(path, this.plugin.vaultFiles(), draft => this.plugin.sceneDraft(draft)),
+      subscribe: listener => this.plugin.subscribeDocuments(() => { if (revision === this.revision && this.file) listener(); }),
+      openLore: lore => this.plugin.openVaultFile(lorePathOf(root, lore), path),
+      openScene: id => this.plugin.openVaultFile(scenePathOf(root, id), path),
+    };
+  }
+
+  /** What the scenario and map editors (version 1 files) ask of Obsidian. */
+  private graphHost(revision: number, assertActive: () => void): Host {
     const read = async <T,>(action: () => Promise<T>): Promise<T> => {
       assertActive();
       const value = await action();
@@ -181,27 +229,24 @@ export class KingmakerFileView extends TextFileView {
     };
     const createLinked = async (kind: 'scene'|'map') => {
       assertActive();
-      const preferred = this.app.vault.getAbstractFileByPath(kind === 'scene' ? 'Scenes' : 'Maps');
-      const parent = preferred instanceof TFolder ? preferred : this.file?.parent ?? this.app.vault.getRoot();
+      const parent = this.plugin.folderFor(kind, this.file?.parent ?? this.app.vault.getRoot());
       const file = await this.plugin.createDocument(kind, parent, false, assertActive);
       assertActive();
-      return file ? {path:file.path, title:file.basename} : null;
+      return file ? {path:file.path, title:this.plugin.titleOfCreated(file)} : null;
     };
-    const host: Host = {
+    return {
       filePath: this.file?.path ?? '',
       change: document => {
-        if (revision !== this.revision || !this.file || this.parseError) return;
+        if (revision !== this.revision || !this.file || this.parseError || this.held?.kind !== 'graph') return;
         const raw = serializeDocument(document);
         if (raw === this.raw) return;
-        this.document = document;
+        this.held = {kind:'graph', document};
         // Update immediately; closing the tab before the debounce still saves.
         this.raw = raw;
         this.requestSave();
         this.plugin.documentsChanged();
       },
-      lore: () => this.plugin.readLore(),
       openFile: path => this.plugin.openVaultFile(path, this.file?.path),
-      listScenes: () => this.plugin.listScenes(),
       createScene: () => createLinked('scene'),
       createMap: () => createLinked('map'),
       listDocuments: () => read(() => this.plugin.listDocuments()),
@@ -218,10 +263,20 @@ export class KingmakerFileView extends TextFileView {
         });
       },
     };
-    this.root.render(<App key={this.revision} document={this.document} host={host}/>);
   }
 }
 
+/** A file's text as what its view holds: a scene file is the game's (version 1 shown read-only); the others are the plugin's version 1 graphs. */
+function heldOf(raw: string, kind: DocumentKind): Held {
+  if (kind !== 'scene') return {kind:'graph', document:parseDocument(raw, kind)};
+  const file = openSceneFile(raw);
+  return file.kind === 'scene' ? {kind:'scene', scene:file.doc} : {kind:'legacy', title:file.title, nodes:file.nodes, routes:file.routes};
+}
+
+/**
+ * The name of a new file. A scene's is a title, and its file is named for the slug of it (its id:
+ * scenes/<id>.kmscene); a scenario's or a map's is the file's own name.
+ */
 class NameDocumentModal extends Modal {
   private resolve: (name: string|null) => void;
   private submitted = false;
@@ -231,29 +286,33 @@ class NameDocumentModal extends Modal {
   }
 
   onOpen() {
+    const scene = this.kind === 'scene';
     this.setTitle(`New Kingmaker ${this.kind}`);
-    this.contentEl.createEl('p', {text:`Create a .${extensionFor(this.kind)} file in ${this.folder.path || 'the vault root'}.`});
+    this.contentEl.createEl('p', {text: scene
+      ? `Create a scene in ${this.folder.path || 'the vault root'}. Its title can be anything; its file is named for its id, a slug of the title (The Hanged Clerk is hanged-clerk.kmscene), which game state keys on.`
+      : `Create a .${extensionFor(this.kind)} file in ${this.folder.path || 'the vault root'}.`});
     let name = '';
     let input: HTMLInputElement;
     const error = this.contentEl.createEl('p', {cls:'mod-warning'});
     const submit = () => {
       const cleaned = name.trim().replace(/\.(kmscene|kmscenario|kmmap)$/i, '').trim();
-      if (!cleaned || cleaned === '.' || cleaned === '..' || /[\\/:*?"<>|\x00-\x1F]/.test(cleaned)) {
-        error.setText('Choose a filename without slashes or special filename characters.');
+      const file = scene ? slugOf(cleaned) : cleaned;
+      if (!file || file === '.' || file === '..' || /[\\/:*?"<>|\x00-\x1F]/.test(file)) {
+        error.setText(scene ? 'Give the scene a title with letters or digits in it.' : 'Choose a filename without slashes or special filename characters.');
         return;
       }
-      const path = normalizePath(`${this.folder.path}/${cleaned}.${extensionFor(this.kind)}`);
+      const path = normalizePath(`${this.folder.path}/${file}.${extensionFor(this.kind)}`);
       if (this.app.vault.getAbstractFileByPath(path)) {
-        error.setText('A file with that name already exists. Choose another name.');
+        error.setText(`A file with that name already exists (${path}). Choose another ${scene ? 'title' : 'name'}.`);
         return;
       }
       this.submitted = true;
       this.resolve(cleaned);
       this.close();
     };
-    new Setting(this.contentEl).setName('Name').addText(text => {
+    new Setting(this.contentEl).setName(scene ? 'Title' : 'Name').addText(text => {
       input = text.inputEl;
-      text.setPlaceholder(this.kind === 'scene' ? 'The Hanged Clerk' : this.kind === 'map' ? 'Granary Yard' : 'Caerwyn');
+      text.setPlaceholder(scene ? 'The Hanged Clerk' : this.kind === 'map' ? 'Granary Yard' : 'Caerwyn');
       text.onChange(value => { name = value; error.empty(); });
       text.inputEl.addEventListener('keydown', event => {
         if (event.key === 'Enter') { event.preventDefault(); submit(); }
@@ -284,6 +343,8 @@ class OpenDocumentModal extends FuzzySuggestModal<TFile> {
 export default class WorkshopPlugin extends Plugin {
   private fileViews = new Set<KingmakerFileView>();
   private documentListeners = new Set<() => void>();
+  /** The titles of the scenes this plugin created, by path (a new scene's file is named for its id, not its title). */
+  private createdTitles = new Map<string, string>();
 
   attachView(view: KingmakerFileView) { this.fileViews.add(view); }
   detachView(view: KingmakerFileView) { this.fileViews.delete(view); this.documentsChanged(); }
@@ -312,11 +373,7 @@ export default class WorkshopPlugin extends Plugin {
     for (const kind of ['scene','scenario','map'] as const) {
       this.addCommand({
         id:`new-${kind}`, name:`Create new ${kind}`,
-        callback:() => {
-          const preferred = this.app.vault.getAbstractFileByPath(kind === 'scene' ? 'Scenes' : kind === 'map' ? 'Maps' : 'Scenarios');
-          const parent = preferred instanceof TFolder ? preferred : this.app.workspace.getActiveFile()?.parent ?? this.app.vault.getRoot();
-          void this.createDocument(kind, parent);
-        },
+        callback:() => { void this.createDocument(kind, this.folderFor(kind, this.app.workspace.getActiveFile()?.parent ?? this.app.vault.getRoot())); },
       });
     }
     const open = () => {
@@ -328,6 +385,18 @@ export default class WorkshopPlugin extends Plugin {
     this.addCommand({id:'open-file', name:'Open scene, map or scenario', callback:open});
   }
 
+  /** The folder new files of a kind go in: the vault's folder for them when it has one (a campaign's scenes/), else `fallback`. */
+  folderFor(kind: DocumentKind, fallback: TFolder): TFolder {
+    for (const name of FOLDERS[kind]) {
+      const folder = this.app.vault.getAbstractFileByPath(name);
+      if (folder instanceof TFolder) return folder;
+    }
+    return fallback;
+  }
+
+  /** A created file's title: a new scene's is the one it was given; others are named for their title. */
+  titleOfCreated(file: TFile) { return this.createdTitles.get(file.path) ?? file.basename; }
+
   async createDocument(kind: DocumentKind, parent: TFolder, open = true, assertActive: () => void = () => {}): Promise<TFile|null> {
     assertActive();
     const name = await new Promise<string|null>(resolve => new NameDocumentModal(this.app, kind, parent, resolve).open());
@@ -335,8 +404,11 @@ export default class WorkshopPlugin extends Plugin {
     if (!name) return null;
     let file: TFile;
     try {
-      const path = normalizePath(`${parent.path}/${name}.${extensionFor(kind)}`);
-      file = await this.app.vault.create(path, serializeDocument(emptyDocument(kind, name)));
+      const base = kind === 'scene' ? slugOf(name) : name;
+      const path = normalizePath(`${parent.path}/${base}.${extensionFor(kind)}`);
+      const text = kind === 'scene' ? serializeScene(skeletonScene(name, base)) : serializeDocument(emptyDocument(kind, name));
+      file = await this.app.vault.create(path, text);
+      if (kind === 'scene') this.createdTitles.set(file.path, name);
     } catch (error) {
       new Notice(`Could not create ${kind}: ${message(error)}`);
       return null;
@@ -352,14 +424,36 @@ export default class WorkshopPlugin extends Plugin {
     return file;
   }
 
+  /** The vault's files as the scene editor reads its campaign: the paths under a folder, and a file's text (an open editor's unsaved draft is the editor's to give). */
+  vaultFiles(): VaultFiles {
+    const vault = this.app.vault;
+    return {
+      list: folder => vault.getFiles().map(file => file.path).filter(path => path.startsWith(folder)),
+      read: async path => {
+        const file = vault.getAbstractFileByPath(normalizePath(path));
+        if (file instanceof TFile) return vault.cachedRead(file);
+        // A file of a kind Obsidian doesn't list (it lists every file it can see, but be sure).
+        const adapter = (vault as {adapter?: {exists:(path:string)=>Promise<boolean>; read:(path:string)=>Promise<string>}}).adapter;
+        return adapter && await adapter.exists(path) ? adapter.read(path) : undefined;
+      },
+    };
+  }
+
+  /** The draft of a scene an open editor holds, by its path: what the campaign's other scenes see of it. */
+  sceneDraft(path: string): SceneDocument|undefined {
+    for (const view of this.fileViews) if (view.file?.path === path) { const draft = view.sceneDraft(); if (draft) return draft; }
+    return undefined;
+  }
+
   private contentFile(path: string): TFile {
     const file = this.app.vault.getAbstractFileByPath(normalizePath(path));
     if (!(file instanceof TFile) || !isDocument(file)) throw new Error(`Kingmaker file not found: ${path}`);
     return file;
   }
 
+  /** The open editors of a file that hold a version 1 graph (a version 2 scene is the scene editor's; a version 1 scene is shown read-only). */
   private openDocuments(file: TFile): {view: KingmakerFileView; document: GraphDocument}[] {
-    const open = [...this.fileViews].filter(view => view.file?.path === file.path).map(view => ({view, document:view.readDocument()}));
+    const open = [...this.fileViews].filter(view => view.file?.path === file.path && view.holdsGraph()).map(view => ({view, document:view.readDocument()}));
     if (open.some(item => serializeDocument(item.document) !== serializeDocument(open[0].document))) {
       throw new Error(`Conflicting open editors for ${file.path}. Save or close them before editing its ports here.`);
     }
@@ -431,39 +525,5 @@ export default class WorkshopPlugin extends Plugin {
       throw new Error(`Linked file not found: ${path}`);
     }
     await this.app.workspace.getLeaf('tab').openFile(file);
-  }
-
-  async listScenes(): Promise<FileEntry[]> {
-    const files = this.app.vault.getFiles().filter(file => file.extension.toLowerCase() === 'kmscene');
-    return Promise.all(files.sort((a,b) => a.path.localeCompare(b.path)).map(async file => {
-      try {
-        const document = await this.readDocument(file.path);
-        return {path:file.path, title:document.title};
-      } catch {
-        return {path:file.path, title:`${file.basename} (invalid file)`};
-      }
-    }));
-  }
-
-  async readLore(): Promise<Lore[]> {
-    const files = this.app.vault.getMarkdownFiles();
-    // A Cast entry normally has public/private/gm/index notes. Offer its public
-    // card once, while still supporting flat character notes and other folders.
-    const publicFolders = new Set(files.filter(file => /(^|\/)Cast\//i.test(file.path) && file.basename.toLowerCase() === 'public').map(file => file.parent?.path));
-    const selected = files.filter(file => {
-      if (!/(^|\/)Cast\//i.test(file.path)) return true;
-      if (publicFolders.has(file.parent?.path)) return file.basename.toLowerCase() === 'public';
-      return file.path.toLowerCase() !== 'cast/index.md' && !['private','gm'].includes(file.basename.toLowerCase()) && !/(^|\/)knowledge\//i.test(file.path);
-    });
-    return Promise.all(selected.sort((a,b) => a.path.localeCompare(b.path)).map(async file => {
-      const meta = this.app.metadataCache.getFileCache(file)?.frontmatter;
-      const requestedKind = typeof meta?.kind === 'string' ? meta.kind.toLowerCase() : '';
-      const kind: Lore['kind'] = requestedKind === 'object' || /(^|\/)Objects\//i.test(file.path) ? 'object'
-        : requestedKind === 'place' || /(^|\/)Places\//i.test(file.path) ? 'place'
-        : requestedKind === 'character' || /(^|\/)Cast\//i.test(file.path) ? 'character' : 'note';
-      const name = typeof meta?.name === 'string' ? meta.name
-        : ['public','index'].includes(file.basename.toLowerCase()) ? file.parent?.name ?? file.basename : file.basename;
-      return {id:file.path, name, kind, path:file.path, text:await this.app.vault.cachedRead(file)};
-    }));
   }
 }

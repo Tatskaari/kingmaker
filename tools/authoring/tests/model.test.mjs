@@ -5,7 +5,7 @@ import {build} from 'esbuild';
 
 const output=await build({entryPoints:[new URL('../src/model.ts',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node'});
 const {parseDocument,serializeDocument,emptyDocument,removeNodes,connectionId,groupConnections,entryPorts,exitPorts,withDestination}=await import('data:text/javascript;base64,'+Buffer.from(output.outputFiles[0].text).toString('base64'));
-const raw=await readFile(new URL('../examples/Scenes/The%20Hanged%20Clerk.kmscene',import.meta.url),'utf8');
+const raw=await readFile(new URL('./fixtures/v1/Scenes/The%20Hanged%20Clerk.kmscene',import.meta.url),'utf8');
 
 test('real authored scene validates and roundtrips without losing source or route metadata',()=>{
   const doc=parseDocument(raw,'scene');

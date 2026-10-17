@@ -1,10 +1,9 @@
 import React from 'react';
 import {BaseEdge,getBezierPath} from '@xyflow/react';
 import type {EdgeProps} from '@xyflow/react';
-import type {ConnectionGroup} from './model';
 
 /** A single visible path per directed pair. Returning to the same beat is a real loop. */
-export function ConnectionEdge(props:EdgeProps<ConnectionGroup>){
+export function ConnectionEdge(props:EdgeProps){
   const {id,source,target,sourceX:sx,sourceY:sy,targetX:tx,targetY:ty,markerEnd,style,label,labelStyle,labelBgStyle}=props;
   const [path,x,y]=source===target
     ? [`M ${sx},${sy} C ${sx+85},${sy} ${sx+85},${sy-155} ${sx},${sy-155} L ${tx},${ty-155} C ${tx-85},${ty-155} ${tx-85},${ty} ${tx},${ty}`, (sx+tx)/2, Math.min(sy,ty)-155]

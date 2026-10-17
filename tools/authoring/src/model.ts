@@ -21,10 +21,9 @@ export function groupConnections(routes:Route[]):ConnectionGroup[]{
   return [...groups.values()];
 }
 export type GraphDocument={format:'kingmaker';version:1;kind:'scene'|'scenario'|'map';id:string;title:string;description:string;nodes:CardNode[];edges:Route[];lore:string[];scenario?:ScenarioConfig;terrain?:MapData;[key:string]:unknown};
-export type Lore={id:string;name:string;kind:'character'|'object'|'place'|'note';path:string;text:string};
 export type FileEntry={path:string;title:string};
 export type ContentFile={path:string;document?:GraphDocument;error?:string};
-export type Host={filePath:string;change:(doc:GraphDocument)=>void;lore:()=>Promise<Lore[]>;openFile:(path:string)=>Promise<void>;listScenes:()=>Promise<FileEntry[]>;createScene:()=>Promise<FileEntry|null>;createMap?:()=>Promise<FileEntry|null>;listDocuments?:()=>Promise<ContentFile[]>;readDocument?:(path:string)=>Promise<GraphDocument>;writeDocument?:(path:string,before:GraphDocument,after:GraphDocument)=>Promise<void>;subscribeDocuments?:(listener:()=>void)=>()=>void};
+export type Host={filePath:string;change:(doc:GraphDocument)=>void;openFile:(path:string)=>Promise<void>;createScene:()=>Promise<FileEntry|null>;createMap?:()=>Promise<FileEntry|null>;listDocuments?:()=>Promise<ContentFile[]>;readDocument?:(path:string)=>Promise<GraphDocument>;writeDocument?:(path:string,before:GraphDocument,after:GraphDocument)=>Promise<void>;subscribeDocuments?:(listener:()=>void)=>()=>void};
 export type EntryPort={id:string;title:string;legacy?:boolean};
 /** Imported opening beats remain addressable when new starts are added, so existing links never silently move. */
 export function entryPorts(doc:GraphDocument):EntryPort[]{
