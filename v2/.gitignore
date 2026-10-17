@@ -1,3 +1,0 @@
-# Run output: the dev stack's data, keys and logs, the e2e's, the headless client's sessions. (node_modules
-# and dist/ are ignored by the repo's own .gitignore at any depth; its /runs/ is the root's only.)
-runs/
