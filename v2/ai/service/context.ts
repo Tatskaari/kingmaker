@@ -26,7 +26,7 @@ export interface AiContext {
   attempt: number;
   /** How long a considered turn's review may take before the plain check is rolled instead (KM_CONSIDER_DEADLINE_MS): the server's config, 12 s; absent in a test's context, 12 s too (config.ts CONSIDER_DEADLINE_MS). */
   considerDeadlineMs?: number;
-  /** Each game's memory reviews (memory-reviews.jsonl), which the remember endpoint appends to: the server's store (Stores.reviews); absent in a test's context, where the line goes beside the game's docs. */
+  /** Each game's memory reviews (memory-reviews.jsonl), which the remember endpoint appends to: the server's store (Stores.reviews); absent in a test's context, which keeps no line. */
   reviews?: ReviewLog;
 }
 

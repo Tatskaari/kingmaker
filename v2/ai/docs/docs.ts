@@ -1,13 +1,12 @@
-import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, normalize } from "node:path";
-import { docsConfig, REPO_LORE } from "./config.ts";
+import { docsConfig, type DocsVolume } from "./config.ts";
+import { basename, dirname, isAbsolute, join, normalize } from "./paths.ts";
 
 /**
  * The docs service (V1's, rebuilt): linked Markdown lore with frontmatter.
  * - Authored lore lives in lore/ (Cast/<Name>/{private,public,gm,knowledge/*}.md, World/, Places/).
  * - Each session gets a copy-on-write overlay (runs/sessions/<id>/docs/): play edits the session's
- *   lore, never the authored seed. Both places are config.ts's to say.
+ *   lore, never the authored seed. Both places are config.ts's to say, as volumes (a folder, or docs
+ *   in memory), so nothing here touches a file system itself.
  * - A character's memories live next to their lore entry: Cast/<Name>/memories/index.md plus one
  *   note per memory (V1's save_memory). Characters without lore get characters/<id>/memories/.
  * - Access fails closed: a character's scope sees public docs and private docs listing them as a
@@ -30,15 +29,14 @@ export interface DocMeta {
 export interface Doc { path: string; meta: DocMeta; body: string }
 export interface DocLink { path: string; from: string; title: string; summary: string; label: string }
 
-/** The repo's lore/: where the authored lore is read from, unless configureDocs (config.ts) says otherwise. */
-export const LORE_ROOT = REPO_LORE;
-const loreRoot = () => docsConfig().loreRoot;
+const lore = () => docsConfig().lore;
 const overlay = (sessionId: string) => docsConfig().overlay(sessionId);
 
-function inside(root: string, path: string): string {
-  const full = normalize(join(root, path));
-  if (!full.startsWith(root)) throw new Error(`Doc path escapes the store: ${path}`);
-  return full;
+/** A doc's path, made normal, in its volume: never from the root, never climbing out of it. */
+function inside(path: string): string {
+  const clean = normalize(path);
+  if (isAbsolute(clean) || clean === ".." || clean.startsWith("../")) throw new Error(`Doc path escapes the store: ${path}`);
+  return clean;
 }
 
 /** Frontmatter as one key per line with JSON-compatible values (V1's YAML subset). */
@@ -62,37 +60,29 @@ export function parseDoc(path: string, text: string): Doc {
 }
 
 export function readDoc(sessionId: string, path: string): Doc | undefined {
-  for (const root of [overlay(sessionId), loreRoot()]) {
-    const f = inside(root, path);
-    if (existsSync(f)) return parseDoc(path, readFileSync(f, "utf8"));
+  for (const volume of [overlay(sessionId), lore()]) {
+    const text = volume.read(inside(path));
+    if (text !== undefined) return parseDoc(path, text);
   }
   return undefined;
 }
 
 /** A doc as authored, before any session's play has touched it. */
 export function seedDoc(path: string): Doc | undefined {
-  const f = inside(loreRoot(), path);
-  return existsSync(f) ? parseDoc(path, readFileSync(f, "utf8")) : undefined;
+  const text = lore().read(inside(path));
+  return text === undefined ? undefined : parseDoc(path, text);
 }
 
 export function writeDoc(sessionId: string, doc: Doc): void {
-  const f = inside(overlay(sessionId), doc.path);
-  mkdirSync(dirname(f), { recursive: true });
-  writeFileSync(f, serialize(doc));
-}
-
-function walk(root: string, dir = ""): string[] {
-  const base = join(root, dir);
-  if (!existsSync(base)) return [];
-  return readdirSync(base, { withFileTypes: true }).flatMap(e => e.name.startsWith(".") ? [] : e.isDirectory() ? walk(root, join(dir, e.name)) : e.name.endsWith(".md") ? [join(dir, e.name)] : []);
+  overlay(sessionId).write(inside(doc.path), serialize(doc));
 }
 
 export function listDocs(sessionId: string, options: { sessionOnly?: boolean } = {}): string[] {
-  return [...new Set([...walk(overlay(sessionId)), ...(options.sessionOnly ? [] : walk(loreRoot()))])].sort();
+  return [...new Set([...overlay(sessionId).list(), ...(options.sessionOnly ? [] : lore().list())])].sort();
 }
 
 /** The authored lore's docs, by path, before any session has a copy of them (character creation reads the world from these). */
-export const seedPaths = (): string[] => walk(loreRoot()).sort();
+export const seedPaths = (): string[] => lore().list().sort();
 
 export const titleOf = (doc: Doc) => doc.meta.title ?? /^#\s+(.+)$/m.exec(doc.body)?.[1]?.trim() ?? basename(doc.path, ".md");
 
@@ -126,16 +116,16 @@ export function linksIn(sessionId: string, doc: Doc): DocLink[] {
 }
 
 let registry: Map<string, string> | undefined;
-let registryRoot: string | undefined;
+let registryRoot: DocsVolume | undefined;
 /** Scene cast id -> the character's lore entry (private.md with `character: <id>`). */
 export function characterEntry(id: string): string | undefined {
-  const root = loreRoot();
+  const root = lore();
   if (!registry || registryRoot !== root) {
     registry = new Map();
     registryRoot = root;
-    for (const path of walk(root)) {
+    for (const path of root.list()) {
       if (!path.endsWith("private.md")) continue;
-      const doc = parseDoc(path, readFileSync(join(root, path), "utf8"));
+      const doc = parseDoc(path, root.read(path) ?? "");
       if (doc.meta.character) registry.set(doc.meta.character, path);
     }
   }
@@ -218,7 +208,7 @@ export interface MemoryInput { title: string; context: string; content: string }
 export function saveMemory(sessionId: string, character: { id: string; name: string }, memory: MemoryInput, origin: { scene: string; turn: number }): string {
   for (const key of ["title", "context", "content"] as const) if (typeof memory[key] !== "string" || !memory[key].trim()) throw new Error(`Memory requires ${key}.`);
   const index = memoryIndex(sessionId, character.id, character.name);
-  const path = join(dirname(index.path), `${randomUUID().slice(0, 8)}.md`);
+  const path = join(dirname(index.path), `${crypto.randomUUID().slice(0, 8)}.md`);
   const title = memory.title.trim(), context = memory.context.trim();
   writeDoc(sessionId, { path, meta: { title, context, summary: `${title}: ${context}`, type: "memory", visibility: "private", readers: [`character:${character.id}`], scene: origin.scene, turn: origin.turn }, body: memory.content.trim() });
   appendLink(sessionId, index, path, title, context);
@@ -245,7 +235,7 @@ export function savePlayedScene(sessionId: string, scene: { id: string; title: s
 /** A shared fact as its own note (the lite alternative; V1-style reviews edit the lore instead). */
 export function saveFact(sessionId: string, fact: MemoryInput, origin: { scene: string; turn: number }): string {
   const index = storyIndex(sessionId);
-  const path = `story/facts/${randomUUID().slice(0, 8)}.md`;
+  const path = `story/facts/${crypto.randomUUID().slice(0, 8)}.md`;
   writeDoc(sessionId, { path, meta: { title: fact.title.trim(), context: fact.context.trim(), summary: `${fact.title.trim()}: ${fact.context.trim()}`, type: "fact", visibility: "public", scene: origin.scene, turn: origin.turn }, body: fact.content.trim() });
   appendLink(sessionId, index, path, fact.title, fact.context);
   return path;
