@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { loadMap, loadPlace, loadScenario, mapPath, placePath, scenarioPath } from "../scene/scenario.ts";
 import { join } from "node:path";
 import { buildWorld, type WorldSpec } from "../world/scene-world.ts";
 import type { StoryState, Tile2 } from "./types.ts";
@@ -11,9 +12,9 @@ import { getMap, useMaps } from "./maps.ts";
 import { steps, tileAt } from "./tiles.ts";
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = (path: string) => JSON.parse(readFileSync(join(CAMPAIGN, path), "utf8"));
-useMaps((read("campaign.json").maps as string[]).map(key => read(`maps/${key}.json`)));
-const YARD = read("places/granary-yard.json") as WorldSpec;
+const text = (path: string) => readFileSync(join(CAMPAIGN, path), "utf8");
+useMaps((loadScenario(text(scenarioPath("caerwyn"))).maps ?? []).map(key => loadMap(text(mapPath(key)))));
+const YARD: WorldSpec = loadPlace(text(placePath("granary-yard")));
 
 /** A fresh exploration, the granary yard waiting with its people in it while its scene is the lead (presence.ts: v2 draws it from its rows). */
 function newExploration(story: StoryState, options: { map?: string; at?: Tile2 } = {}): ExploreState {

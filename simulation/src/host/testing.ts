@@ -12,9 +12,9 @@ import { CREATION_STEPS, type CreationStep } from "../../../shared/protocol/keys
 import { gmFromRow } from "../../../shared/gm/state.ts";
 import { rollFor } from "../../../shared/rules/index.ts";
 import type { BuildOption, OwnPicks, SrdLists } from "../../../shared/rules/types.ts";
-import type { MapFile } from "../../../shared/map/tiles.ts";
 import type { SceneDocument } from "../../../shared/scene/document.ts";
-import { installArgsOf, type BuildsFile, type CampaignFile, type CampaignPack, type InstallArgs, type LooksFile, type PlaceFile } from "../../../shared/scene/files.ts";
+import { installArgsOf, type BuildsFile, type CampaignPack, type InstallArgs, type LooksFile } from "../../../shared/scene/files.ts";
+import { loadMap, loadPlace, loadScenario, mapPath, placePath, scenarioPath } from "../../../shared/scene/scenario.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { playerRow } from "../rows.ts";
 import { engineCall, sessionOf } from "../rules/session.ts";
@@ -48,20 +48,20 @@ export interface PackOptions { map?: boolean; asIs?: boolean }
 /**
  * campaigns/caerwyn as install_campaign takes it: every scene's file whole (the hanged clerk the
  * tests' own, unless `asIs`), then the talk template's. Its maps are installed either way; without
- * `map: true` its start is off the map (campaign.json's start.map and start.at left out), so a new
+ * `map: true` its start is off the map (the scenario's start.map and start.at left out), so a new
  * game opens its first scene at once, as the stack's tests from before the map expect.
  */
 export function caerwynPack(options: PackOptions = {}): CampaignPack {
-  const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
+  const campaign = loadScenario(read(scenarioPath("caerwyn")), scenarioPath("caerwyn"));
   const { map: _map, at: _at, ...offMap } = campaign.start;
   const scene = (key: string) => JSON.parse(key === "hanged-clerk" && !options.asIs ? readFileSync(TEST_CLERK, "utf8") : read(`scenes/${key}.kmscene`)) as SceneDocument;
   return {
     campaign: options.map ? campaign : { ...campaign, start: offMap },
     scenes: [...campaign.scenes, campaign.talk!].map(scene),
-    places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
+    places: campaign.places.map(key => loadPlace(read(placePath(key)), placePath(key))),
     builds: JSON.parse(read("builds.json")) as BuildsFile,
     looks: JSON.parse(read("looks.json")) as LooksFile,
-    maps: (campaign.maps ?? []).map(key => JSON.parse(read(`maps/${key}.json`)) as MapFile),
+    maps: (campaign.maps ?? []).map(key => loadMap(read(mapPath(key)), mapPath(key))),
   };
 }
 

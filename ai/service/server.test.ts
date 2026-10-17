@@ -184,12 +184,12 @@ test("a campaign whose scene doesn't load, or whose paths climb out, is a 400 an
 test("a campaign without the world a backstory is written for, or whose places' words don't compile, is a 400", async () => {
   const { ai } = service();
   const files = withTestClerk(filesOf(CAERWYN));
-  const file = JSON.parse(files["campaign.json"]!) as { creation: { places: unknown[] } };
-  const unwritten = await ai.answer(put("0.1.0", { ...files, "campaign.json": JSON.stringify({ ...file, creation: undefined }) }));
-  const broken = await ai.answer(put("0.1.0", { ...files, "campaign.json": JSON.stringify({ ...file, creation: { ...file.creation, places: [{ doc: "Places/Granary Yard.md", words: "\\b(granary" }] } }) }));
+  const file = JSON.parse(files["caerwyn.kmscenario"]!) as { creation: { places: unknown[] } };
+  const unwritten = await ai.answer(put("0.1.0", { ...files, "caerwyn.kmscenario": JSON.stringify({ ...file, creation: { ...file.creation, primer: undefined } }) }));
+  const broken = await ai.answer(put("0.1.0", { ...files, "caerwyn.kmscenario": JSON.stringify({ ...file, creation: { ...file.creation, places: [{ doc: "Places/Granary Yard.md", words: "\\b(granary" }] } }) }));
 
   assert.equal(unwritten.status, 400);
-  assert.match(JSON.parse(unwritten.body).error.message, /campaign\.json's creation isn't/);
+  assert.match(JSON.parse(unwritten.body).error.message, /the scenario's creation isn't/);
   assert.equal(broken.status, 400);
 });
 
@@ -381,7 +381,7 @@ test("a version other than the one served is 409 other_campaign: the docs servic
   const { ai } = service();
   await ai.answer(put());
   const files = withTestClerk(filesOf(CAERWYN));
-  files["campaign.json"] = files["campaign.json"]!.replace('"0.1.0"', '"0.2.0"');
+  files["caerwyn.kmscenario"] = files["caerwyn.kmscenario"]!.replace('"0.1.0"', '"0.2.0"');
   const other = await ai.answer(put("0.2.0", files));
 
   assert.equal(other.status, 409);
@@ -596,18 +596,22 @@ test("a think missing what its endpoint reads is a 400 before any model is asked
   assert.deepEqual(asked, [], "no model was asked");
 });
 
-test("a campaign PUT the service can't read is a 400: a name that isn't one, a campaign.json that isn't a campaign's", async () => {
+test("a campaign PUT the service can't read is a 400: a name that isn't one, a scenario that isn't one, or none", async () => {
   const { ai } = service();
-  const withCampaign = (text: string) => ({ ...put(), body: JSON.stringify({ files: { ...withTestClerk(filesOf(CAERWYN)), "campaign.json": text } }) });
-  const campaign = JSON.parse(withTestClerk(filesOf(CAERWYN))["campaign.json"]!) as Record<string, unknown>;
+  const withScenario = (text: string | undefined) => ({ ...put(), body: JSON.stringify({ files: { ...withTestClerk(filesOf(CAERWYN)), "caerwyn.kmscenario": text } }) });
+  const scenario = JSON.parse(withTestClerk(filesOf(CAERWYN))["caerwyn.kmscenario"]!) as Record<string, unknown>;
   const answers = [
     await ai.answer({ ...put(), path: "/v1/campaigns/caerwyn/%E0%A4%A" }),
-    await ai.answer(withCampaign("null")),
-    await ai.answer(withCampaign("[]")),
-    await ai.answer(withCampaign(JSON.stringify({ ...campaign, scenes: undefined }))),
-    await ai.answer(withCampaign(JSON.stringify({ ...campaign, title: 7 }))),
+    await ai.answer(withScenario("null")),
+    await ai.answer(withScenario("[]")),
+    await ai.answer(withScenario(JSON.stringify({ ...scenario, scenes: undefined }))),
+    await ai.answer(withScenario(JSON.stringify({ ...scenario, title: 7 }))),
+    await ai.answer(withScenario(JSON.stringify({ ...scenario, version: "0.1.0" }))),
+    await ai.answer(withScenario(undefined)),
   ];
 
-  assert.deepEqual(answers.map(a => `${a.status} ${JSON.parse(a.body).error.code}`), Array(5).fill("400 bad_request"));
-  assert.match(JSON.parse(answers[3]!.body).error.message, /campaign\.json/);
+  assert.deepEqual(answers.map(a => `${a.status} ${JSON.parse(a.body).error.code}`), Array(7).fill("400 bad_request"));
+  assert.match(JSON.parse(answers[3]!.body).error.message, /^caerwyn\.kmscenario: its scenes isn't a list of text/);
+  assert.match(JSON.parse(answers[5]!.body).error.message, /^caerwyn\.kmscenario: it isn't a scenario of the kingmaker format, version 2 \(format "kingmaker", version "0\.1\.0", kind "scenario"\)/);
+  assert.equal(JSON.parse(answers[6]!.body).error.message, "the files have no caerwyn.kmscenario");
 });

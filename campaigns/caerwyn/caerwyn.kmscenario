@@ -1,7 +1,11 @@
 {
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scenario",
   "id": "caerwyn",
   "title": "Caerwyn",
-  "version": "0.1.0",
+  "description": "A palace clerk found hanged behind the King's Granary on the eve of the Centennial Assembly, and the King's investigator sent to see him done right by: from the granary yard, down the river stairs to the Drowned Rat and the Heron, to the King's morning.",
+  "campaignVersion": "0.1.0",
   "firstScene": "hanged-clerk",
   "startPlace": "granary-yard",
   "start": {

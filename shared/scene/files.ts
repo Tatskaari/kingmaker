@@ -6,14 +6,18 @@ import type { MapFile } from "../map/tiles.ts";
 
 /**
  * The campaign format: the files of a campaign folder (campaigns/<id>/), as content-world A1-A4 had
- * them and M2 changed them: campaign.json, each scene one .kmscene file (scenes/<id>.kmscene, the
- * scene format: document.ts, docs/scene-format.md), each place, map, the ready-made builds, the
- * cast's looks and the lore. Object key order is meaningful, and JSON.parse keeps it.
+ * them and M2 and M4 changed them: the scenario (<id>.kmscenario), each scene one .kmscene file
+ * (scenes/<id>.kmscene, the scene format: document.ts, docs/scene-format.md), each place
+ * (places/<key>.kmplace) and map (maps/<key>.kmmap: the scenario format, scenario.ts,
+ * docs/scenario-format.md), the ready-made builds, the cast's looks and the lore. The game keeps the
+ * scenario, the places and the maps as the shapes here and in tiles.ts (CampaignFile, PlaceFile,
+ * MapFile), which scenario.ts makes from the files: their fields as campaign.json, places/<key>.json
+ * and maps/<key>.json had them before M4. Object key order is meaningful, and JSON.parse keeps it.
  */
 
 export type TimeOfDay = "morning" | "afternoon" | "evening" | "night" | "next-morning";
 
-/** campaign.json. */
+/** The campaign as the game keeps it: its scenario's fields (scenario.ts asCampaignFile), its version the campaign's own. */
 export interface CampaignFile {
   id: string;
   title: string;
@@ -32,7 +36,7 @@ export interface CampaignFile {
   /** The story's scenes, by their ids (scenes/<id>.kmscene), the first one's first. */
   scenes: string[];
   places: string[];
-  /** The maps the story is walked on (maps/<key>.json), if it has any. */
+  /** The maps the story is walked on (maps/<key>.kmmap), if it has any. */
   maps?: string[];
   /** Coin the player starts with, given at the first scene. */
   startingPurse: Array<{ name: string; quantity: number; description: string }>;
@@ -75,7 +79,7 @@ export type Effect = Cond & (
   | WorldOpData
 );
 
-/** places/<key>.json: the place as a world, as authored (the engine's defaults are applied when it's built). */
+/** A place as the game keeps it (places/<key>.kmplace, scenario.ts asPlaceFile): the place as a world, as authored (the engine's defaults are applied when it's built). */
 export type PlaceFile = { key: string } & WorldSpec;
 
 /** One of builds.json's ready-made characters: who they are, and the build the rules engine makes them from (v1-design §3.9). */
@@ -99,7 +103,7 @@ export interface CampaignPack {
   places: PlaceFile[];
   builds: BuildsFile;
   looks: LooksFile;
-  /** Its maps (campaign.json's `maps`), each as maps/<key>.json has it: none for a campaign without. */
+  /** Its maps (the scenario's `maps`), each as the game keeps it (maps/<key>.kmmap, scenario.ts asMapFile): none for a campaign without. */
   maps: MapFile[];
 }
 

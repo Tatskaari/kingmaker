@@ -1,6 +1,9 @@
 {
-  "key": "dressing-room",
-  "name": "The King's dressing room",
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "dressing-room",
+  "title": "The King's dressing room",
   "description": "A warm, cluttered room off the long gallery, all wardrobes, mirrors and a fire, where King Aldren is being got into his procession robes; through the tall windows the city is roaring awake.",
   "size": {
     "w": 65,

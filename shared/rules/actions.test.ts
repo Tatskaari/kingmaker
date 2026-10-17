@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import "./shim.ts";
 import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import type { PlaceFile } from "../scene/files.ts";
+import { loadPlace } from "../scene/scenario.ts";
 import { buildWorld } from "../world/scene-world.ts";
 import { casterChoice, castSpell, hazard, useFeature } from "./acts.ts";
 import { catalogue, spellAim, type Catalogue, type Entry } from "./actions.ts";
@@ -210,7 +211,7 @@ test("aims from the spell's own range and shape", () => {
 test("a spell cast one of several ways: dimmed on the map; in a scene the player's words pick the way, or they're asked", () => {
   const state = character("Cleric", { ...PREGENS.cleric!.build, spells: ["cure-wounds", "healing-word", "guiding-bolt", "bless", "command", "spiritual-weapon"] });
   assert.match(entry(cat(state), "spell:command").why!, /cast one of 5 ways, and the menu can't ask which yet/);
-  const yard = read<PlaceFile>("../../campaigns/caerwyn/places/granary-yard.json");
+  const yard: PlaceFile = loadPlace(readFileSync(new URL("../../campaigns/caerwyn/places/granary-yard.kmplace", import.meta.url), "utf8"));
   state.world = buildWorld("hanged-clerk", yard, [{ id: "cob", name: "Cob" }], { name: state.player.name });
   // Not said: asked, and nothing's spent.
   assert.equal(pinned(() => castSpell(rules, state, [], "command", ["cob"])).lines[0], "(Command is cast one of 5 ways: approach, drop, flee, grovel, halt. Say which.)");

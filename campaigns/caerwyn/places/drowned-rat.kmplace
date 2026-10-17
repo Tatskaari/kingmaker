@@ -1,6 +1,9 @@
 {
-  "key": "drowned-rat",
-  "name": "The Drowned Rat",
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "drowned-rat",
+  "title": "The Drowned Rat",
   "description": "A dockside dive dug into the bank halfway down the river stairs: one long, low, smoky room under a ceiling hung with eel traps and old oars, a scullery at the back, and a single door onto the stairs.",
   "size": {
     "w": 48,

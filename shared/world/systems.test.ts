@@ -2,11 +2,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import type { PlaceFile } from "../scene/files.ts";
+import { loadPlace } from "../scene/scenario.ts";
 import { applyOps, buildWorld, caughtIn, positionOf, tick } from "./scene-world.ts";
 import { douse, elemental, ignite, spill, surfacesAt } from "./systems.ts";
 
-const yard = () => buildWorld("hanged-clerk", JSON.parse(readFileSync(new URL("../../campaigns/caerwyn/places/granary-yard.json", import.meta.url), "utf8")) as PlaceFile, [{ id: "moll", name: "Moll" }, { id: "kell", name: "Sergeant Agnes Kell" }], { name: "Odo" });
+const yard = () => buildWorld("hanged-clerk", loadPlace(readFileSync(new URL("../../campaigns/caerwyn/places/granary-yard.kmplace", import.meta.url), "utf8")), [{ id: "moll", name: "Moll" }, { id: "kell", name: "Sergeant Agnes Kell" }], { name: "Odo" });
 
 test("a bucket of water over a burning desk: out, scorched, wet, in a puddle, with steam", () => {
   const world = yard();

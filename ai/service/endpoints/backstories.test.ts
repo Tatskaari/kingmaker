@@ -39,8 +39,8 @@ function filesOf(dir: string): Record<string, string> {
 async function setUp(options: FakeOptions = {}, world: (creation: Record<string, unknown>) => Record<string, unknown> = c => c) {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const files = filesOf(CAERWYN);
-  const file = JSON.parse(files["campaign.json"]!) as { creation: Record<string, unknown> };
-  files["campaign.json"] = JSON.stringify({ ...file, creation: world(file.creation) });
+  const file = JSON.parse(files["caerwyn.kmscenario"]!) as { creation: Record<string, unknown> };
+  files["caerwyn.kmscenario"] = JSON.stringify({ ...file, creation: world(file.creation) });
   const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", files);
   const fake = fakeFetch(options);

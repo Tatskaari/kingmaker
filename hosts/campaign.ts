@@ -9,9 +9,10 @@ import { checkCampaign, describePack, packOf, readCampaignFiles } from "./dev/ca
  * check: the campaign loads as both services will load it, every scene (scenes/<id>.kmscene) is held
  * to the scene format's rules (docs/scene-format.md, "Rules the campaign check enforces"), and every
  * id it names exists: its ready-made builds on the rules engine's pack, which is the one
- * campaign.json names, and the docs character creation's world reads in lore/ (v1-design §3.9); its
- * maps build, their ways out land where a person can stand, and the story starts on one (map-design
- * §3.1); and its vocabulary.json (what the suggested lines are vetted against of the prototype's
+ * scenario (<id>.kmscenario, docs/scenario-format.md) names, and the docs character creation's world
+ * reads in lore/ (v1-design §3.9); its maps (maps/<key>.kmmap) build, their ways out land where a
+ * person can stand, and the story starts on one (map-design §3.1); its places (places/<key>.kmplace)
+ * hold together; and its vocabulary.json (what the suggested lines are vetted against of the prototype's
  * scenes) is whole, with no entry for a scene the campaign installs. It prints what's there, or each
  * problem, and exits 1 on any. A path is relative to the repo's root, where npm runs it.
  */

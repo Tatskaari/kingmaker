@@ -9,6 +9,7 @@ import { initialGm, type GmState, type TalkRecord } from "../../../shared/gm/sta
 import type { DecideRequest, Entry, LooksRequest, OpenRequest, SettleRequest, SheetRow, Story, TalkPrep } from "../../../shared/protocol/ai.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../../shared/scene/scenario.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { talkSceneId } from "../../../shared/scene/talk.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
@@ -75,7 +76,7 @@ const WIZARD: SheetRow = {
 
 /** The yard as the hanged clerk opens it, by the game's keys. */
 function yardRows(gm: GmState): PlaceRows {
-  const place = JSON.parse(FILES["places/granary-yard.json"]!) as PlaceFile;
+  const place: PlaceFile = loadPlace(FILES[placePath("granary-yard")]!);
   const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
   const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
   joinWorld(world, people, 0);

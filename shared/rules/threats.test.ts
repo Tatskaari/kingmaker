@@ -7,6 +7,7 @@ import * as E from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { initialGm } from "../gm/state.ts";
 import type { SceneDocument } from "../scene/document.ts";
 import type { BuildsFile, PlaceFile } from "../scene/files.ts";
+import { loadPlace } from "../scene/scenario.ts";
 import { presentCast } from "../scene/graph.ts";
 import { sceneOf } from "../scene/load.ts";
 import { buildWorld, joinWorld } from "../world/scene-world.ts";
@@ -38,7 +39,7 @@ const at = (pregen: string, seed = 5): SceneSession => {
   const state: SceneSession = { id: `pregen-${pregen}-${seed}`, seed, rollCount: 0, turn: 0, player: { name: "Wren Ashdown", concept: BUILDS[pregen]!.concept, modifiers: {} }, beat: gm.beat, path: gm.path, entered: gm.entered, absent: gm.absent };
   pinned(() => createCharacter(rules, state, 3, BUILDS[pregen]!.build));
   const present = presentCast(yard, state).map(c => ({ id: c.id, name: c.name }));
-  state.world = buildWorld(yard.id, read<PlaceFile>("../../campaigns/caerwyn/places/granary-yard.json"), present, state.player);
+  state.world = buildWorld(yard.id, loadPlace(readFileSync(new URL("../../campaigns/caerwyn/places/granary-yard.kmplace", import.meta.url), "utf8")), present, state.player);
   joinWorld(state.world, present, 0);
   return state;
 };

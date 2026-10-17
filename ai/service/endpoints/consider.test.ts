@@ -10,6 +10,7 @@ import type { RollResult } from "../../../shared/dice.ts";
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
 import type { ConsiderRequest, ConsiderResponse, Decision, DecideRequest, Entry, Outcome, ReplyRequest, SettleRequest, SheetRow } from "../../../shared/protocol/ai.ts";
 import type { PlaceFile } from "../../../shared/scene/files.ts";
+import { loadPlace, placePath } from "../../../shared/scene/scenario.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows.ts";
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
@@ -56,7 +57,7 @@ async function setUp(options: FakeOptions = {}) {
     return { campaign, calls, usage, attempt: 1, stream, ...(considerDeadlineMs ? { considerDeadlineMs } : {}) };
   };
   const rows = (gm: GmState) => {
-    const place = JSON.parse(readFileSync(join(CAERWYN, "places", "granary-yard.json"), "utf8")) as PlaceFile;
+    const place: PlaceFile = loadPlace(readFileSync(join(CAERWYN, placePath("granary-yard")), "utf8"));
     const people = presentCast(campaign.scene("hanged-clerk"), gm).map(c => ({ id: c.id, name: c.name }));
     const world = buildWorld("hanged-clerk", place, people, { name: "Wren Ashdown" });
     joinWorld(world, people, 0);

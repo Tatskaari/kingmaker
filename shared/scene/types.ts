@@ -279,7 +279,7 @@ export interface Scene {
   time?: "morning" | "afternoon" | "evening" | "night" | "next-morning";
   /** Reaching this scene is a milestone: the player's character goes up a level as it opens. */
   milestone?: boolean;
-  /** The place as a world: areas, things and where people start (shared/world/scene-world.ts). A campaign keeps it in places/<key>.json: a host that wants it here puts it here. */
+  /** The place as a world: areas, things and where people start (shared/world/scene-world.ts). A campaign keeps it in places/<key>.kmplace: a host that wants it here puts it here. */
   world?: WorldSpec;
   /**
    * The GM-only doc of what's in motion in this scene's world (fronts: who wants what, a clock of

@@ -1,6 +1,9 @@
 {
-  "key": "granary-yard",
-  "name": "The yard behind the King's Granary",
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "granary-yard",
+  "title": "The yard behind the King's Granary",
   "description": "A cobbled yard behind the granary, swept bare for the Assembly, smelling of wet grain, pigeons and river mud. Over the wall the city is hanging bunting.",
   "size": {
     "w": 52,

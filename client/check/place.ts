@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SceneDocument } from "../../shared/scene/document.ts";
-import type { CampaignFile, PlaceFile } from "../../shared/scene/files.ts";
+import { loadPlace, loadScenario, placePath, scenarioPath } from "../../shared/scene/scenario.ts";
 import { inventory } from "../../shared/world/inventory.ts";
 import { keysFor, pcKey, worldToRows, type Keys, type PlaceRows } from "../../shared/world/rows.ts";
 import { buildWorld, joinWorld, type SceneWorld } from "../../shared/world/scene-world.ts";
@@ -13,7 +13,8 @@ import { YARD, yardRows } from "./fixture.ts";
 import spellFacts from "./fixtures/spell-facts-wizard.json" with { type: "json" };
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = <T>(path: string): T => JSON.parse(readFileSync(join(CAERWYN, path), "utf8")) as T;
+const text = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
+const read = <T>(path: string): T => JSON.parse(text(path)) as T;
 
 /** The scene the yard is the place of, and the place's id in the fixtures' rows (the scene's is 7). */
 export const YARD_SCENE = "hanged-clerk";
@@ -29,9 +30,9 @@ export const WIZARD_SPELLS = spellFacts as SpellFacts[];
 export function yardWorld(name = "Pell Marrow"): SceneWorld {
   const scene = read<SceneDocument>(`scenes/${YARD_SCENE}.kmscene`);
   const present = scene.cast.filter(c => !c.enters).map(c => ({ id: c.id, name: c.name }));
-  const world = buildWorld(YARD_SCENE, read<PlaceFile>("places/granary-yard.json"), present, { name });
+  const world = buildWorld(YARD_SCENE, loadPlace(text(placePath("granary-yard"))), present, { name });
   joinWorld(world, present, 0);
-  for (const coin of read<CampaignFile>("campaign.json").startingPurse) inventory(world, 0).add("player", coin);
+  for (const coin of loadScenario(text(scenarioPath("caerwyn"))).startingPurse) inventory(world, 0).add("player", coin);
   const first = name.split(" ")[0]!;
   const gear = (item: string, states: string[]) => {
     const id = `${first}-${item}`.toLowerCase();

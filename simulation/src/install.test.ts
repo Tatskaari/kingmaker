@@ -50,7 +50,7 @@ test("a pack that doesn't load is refused, saying why, and nothing is installed"
   const withScene = (scene: Partial<SceneDocument>): CampaignPack => ({ ...pack, scenes: [{ ...clerk!, ...scene }] });
 
   assert.match(refusedArgs({ ...caerwynArgs(), scenes: "[not json" })!, /^The campaign pack doesn't load: its JSON doesn't parse/);
-  assert.equal(refusedArgs({ ...caerwynArgs(), id: "caerwyn@9.9.9" }), "The campaign pack doesn't load: its id caerwyn@9.9.9 isn't campaign.json's caerwyn@0.1.0.");
+  assert.equal(refusedArgs({ ...caerwynArgs(), id: "caerwyn@9.9.9" }), "The campaign pack doesn't load: its id caerwyn@9.9.9 isn't its campaign's caerwyn@0.1.0.");
   assert.equal(refusedPack(withScene({ nodes: clerk!.nodes.filter(n => n.data.kind !== "start") }))?.split("; ")[0], "The campaign pack doesn't load: scene hanged-clerk: its file: it has 0 start nodes, not one");
   assert.equal(refusedPack({ ...pack, places: [] }), "The campaign pack doesn't load: scene hanged-clerk: its place granary-yard isn't in the pack.");
   const [first, ...rest] = clerk!.edges;

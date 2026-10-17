@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/presence.ts at 44c6d4a. Imports from v2/shared. Two seams: places() draws a waiting place from its rows (ExploreState.waiting, passed to presence) where the prototype built its world afresh, and only those (a place to come has no rows yet: V3 builds the next lead's); town() takes who's about at each hour from the map's file (maps/<key>.json's people, peopleOf) where the prototype wrote them in it, the palace page as it was.
+// Copied from the prototype's src/game/map/presence.ts at 44c6d4a. Imports from v2/shared. Two seams: places() draws a waiting place from its rows (ExploreState.waiting, passed to presence) where the prototype built its world afresh, and only those (a place to come has no rows yet: V3 builds the next lead's); town() takes who's about at each hour from the map's file (maps/<key>.json's people, now maps/<key>.kmmap's, peopleOf) where the prototype wrote them in it, the palace page as it was.
 import type { SceneWorld } from "../world/scene-world.ts";
 import type { Interaction, MapActor, StoryState, Tile2 } from "./types.ts";
 import { CAST, TOWNSFOLK_COLOR } from "./looks.ts";

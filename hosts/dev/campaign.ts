@@ -4,11 +4,12 @@ import type { CreationWorld } from "../../shared/creation/types.ts";
 import { inBounds, isStructure, mapOf, tileAt, type MapDef } from "../../shared/map/tiles.ts";
 import type { TileMap } from "../../shared/map/types.ts";
 import { isBeat, isDiscovery, isEnding, shapeProblems, type SceneDocument } from "../../shared/scene/document.ts";
-import type { BuildsFile, CampaignPack, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
+import type { BuildsFile, CampaignFile, CampaignPack, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
+import { mapPath, placePath, SCENARIO_EXTENSION } from "../../shared/scene/scenario.ts";
 import { sceneRuleProblems, sceneStoryProblems, type SceneContext } from "../../shared/scene/rules.ts";
 import { TOLD } from "../../shared/scene/talk.ts";
 import { VOCABULARY, vocabularyOf } from "../../ai/gm/story.ts";
-import { packOf, scenePath, type CampaignFiles } from "./pack.ts";
+import { campaignOf, packOf, scenarioPathOf, scenePath, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
 
 /**
@@ -19,7 +20,12 @@ import { vocabularyProblems } from "./vocabulary.ts";
  * which touches no Node, and is re-exported here.
  */
 
-export { packOf, scenePath, type CampaignFiles } from "./pack.ts";
+export { campaignOf, packOf, scenarioPathOf, scenePath, type CampaignFiles } from "./pack.ts";
+
+/** A campaign folder's campaign as the game keeps it, from its scenario (its one <id>.kmscenario at the root): what a host needs to know of it before an install (its id and version, say). */
+export function readCampaign(dir: string): CampaignFile {
+  return campaignOf(Object.fromEntries(readdirSync(dir).filter(name => name.endsWith(SCENARIO_EXTENSION)).map(name => [name, readFileSync(join(dir, name), "utf8")])));
+}
 
 /** Every file under a folder, by its path in it with "/" separators, in path order. */
 export function readCampaignFiles(dir: string): CampaignFiles {
@@ -54,8 +60,9 @@ export function vendoredPack(): RulesPack {
 
 /** What's wrong with a campaign, each problem a line naming where: [] when it's fit to install. The builds are held to the rules engine's pack. */
 export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredPack()): string[] {
-  let pack: CampaignPack;
+  let pack: CampaignPack, scenario: string;
   try {
+    scenario = scenarioPathOf(files);
     pack = packOf(files);
   } catch (e) {
     return [(e as Error).message];
@@ -67,16 +74,16 @@ export function checkCampaign(files: CampaignFiles, rules: RulesPack = vendoredP
   const whole: CampaignPack = { ...pack, scenes: shaped.filter(s => !s.problems.length).map(s => s.doc) };
 
   return [
-    ...campaignProblems(pack, rules),
-    ...creationProblems(pack.campaign.creation, files),
+    ...campaignProblems(pack, rules, scenario),
+    ...creationProblems(pack.campaign.creation, files, scenario),
     ...shaped.flatMap(s => s.problems.map(p => `${scenePath(s.key)}: ${p}`)),
     ...shaped.filter(s => !s.problems.length).flatMap(s => sceneProblems(s.key, s.doc, files, whole, pack.scenes)),
-    ...talkProblems(whole, files),
-    ...storyProblems(whole),
+    ...talkProblems(whole, files, scenario),
+    ...storyProblems(whole, scenario),
     ...pack.places.flatMap((place, i) => placeProblems(place, pack.campaign.places[i]!)),
     ...buildProblems(pack.builds, rules),
     ...lookProblems(pack.looks, pack.scenes.flatMap(s => (Array.isArray(s?.cast) ? s.cast.map(c => c?.id) : []))),
-    ...mapProblems(pack),
+    ...mapProblems(pack, scenario),
     ...vocabularyProblems(files, whole),
   ];
 }
@@ -99,23 +106,23 @@ export function describePack(pack: CampaignPack, files: CampaignFiles): string {
 // ---------------------------------------------------------------------------------------------
 // The checks, a part of the pack each.
 
-function campaignProblems(pack: CampaignPack, rules: RulesPack): string[] {
+function campaignProblems(pack: CampaignPack, rules: RulesPack, at: string): string[] {
   const c = pack.campaign, problems: string[] = [];
-  for (const field of ["id", "title", "version", "firstScene", "startPlace"] as const) if (typeof c[field] !== "string" || !c[field]) problems.push(`campaign.json: no ${field}`);
-  if (!c.scenes.includes(c.firstScene)) problems.push(`campaign.json: the first scene ${c.firstScene} isn't one of its scenes`);
-  if (!c.places.includes(c.startPlace)) problems.push(`campaign.json: the start place ${c.startPlace} isn't one of its places`);
-  if (!Number.isInteger(c.level) || c.level < 1) problems.push(`campaign.json: level ${c.level} isn't a level`);
-  if (c.rulesPack !== rules.id) problems.push(`campaign.json: its rulesPack ${c.rulesPack} isn't the rules engine's pack, ${rules.id}`);
+  for (const field of ["id", "title", "version", "firstScene", "startPlace"] as const) if (typeof c[field] !== "string" || !c[field]) problems.push(`${at}: no ${field}`);
+  if (!c.scenes.includes(c.firstScene)) problems.push(`${at}: the first scene ${c.firstScene} isn't one of its scenes`);
+  if (!c.places.includes(c.startPlace)) problems.push(`${at}: the start place ${c.startPlace} isn't one of its places`);
+  if (!Number.isInteger(c.level) || c.level < 1) problems.push(`${at}: level ${c.level} isn't a level`);
+  if (c.rulesPack !== rules.id) problems.push(`${at}: its rulesPack ${c.rulesPack} isn't the rules engine's pack, ${rules.id}`);
   return problems;
 }
 
 /**
- * The world a backstory is written for and checked against (campaign.json's creation): its primer,
+ * The world a backstory is written for and checked against (the scenario's creation): its primer,
  * the docs the lore check leaves out and each place's doc are in lore/, and each place's words (when
  * the check reads its doc) are a regular expression.
  */
-function creationProblems(world: CreationWorld | undefined, files: CampaignFiles): string[] {
-  const at = "campaign.json: creation";
+function creationProblems(world: CreationWorld | undefined, files: CampaignFiles, scenario: string): string[] {
+  const at = `${scenario}: creation`;
   if (!world || typeof world !== "object") return [`${at} is missing`];
   const problems: string[] = [];
   for (const field of ["name", "premise", "primer"] as const) if (typeof world[field] !== "string" || !world[field].trim()) problems.push(`${at} has no ${field}`);
@@ -146,18 +153,18 @@ function sceneProblems(key: string, doc: SceneDocument, files: CampaignFiles, pa
 }
 
 /**
- * The talk template (campaign.json's `talk`, town-design §3.6), held to the talk's own rules: a scene
+ * The talk template (the scenario's `talk`, town-design §3.6), held to the talk's own rules: a scene
  * whose companion is `{companion}`, its first cast entry whoever walks with the player (`{companion}`,
  * named `{name}`), with the event beat the one thing they were keeping back moves the talk to (TOLD),
  * the ending walking on ends it at (goodbye) and no place of its own; and everyone the story has walk
  * with the player (a `follow` effect) has a lore entry to be themselves from (the AI service builds
  * their talks from it: a talk with someone who hasn't is refused).
  */
-function talkProblems(pack: CampaignPack, files: CampaignFiles): string[] {
+function talkProblems(pack: CampaignPack, files: CampaignFiles, scenario: string): string[] {
   const key = pack.campaign.talk;
   if (key === undefined) return [];
   const template = pack.scenes.find(scene => scene.id === key);
-  if (!template) return files[scenePath(key)] === undefined ? [`campaign.json: its talk template ${scenePath(key)} isn't there`] : [];
+  if (!template) return files[scenePath(key)] === undefined ? [`${scenario}: its talk template ${scenePath(key)} isn't there`] : [];
   const at = scenePath(key), problems: string[] = [];
   if (template.companion !== "{companion}") problems.push(`${at}: the talk template's companion is ${JSON.stringify(template.companion)}, not "{companion}"`);
   const [first] = template.cast;
@@ -183,17 +190,17 @@ const GOODBYE = "goodbye";
  * (downtime the story skips) has an ending that goes on; and each of the story's quests has a title.
  * (An ending's next is each scene's own check.)
  */
-function storyProblems(pack: CampaignPack): string[] {
+function storyProblems(pack: CampaignPack, scenario: string): string[] {
   const scenes = new Set(pack.scenes.map(scene => scene.id));
   const problems = pack.scenes.flatMap(scene => sceneStoryProblems(scene, scenes).map(p => `${scenePath(scene.id)}: ${p.message}`));
-  for (const [key, title] of Object.entries(pack.campaign.quests ?? {})) if (typeof title !== "string" || !title.trim()) problems.push(`campaign.json: quest ${key} has no title`);
+  for (const [key, title] of Object.entries(pack.campaign.quests ?? {})) if (typeof title !== "string" || !title.trim()) problems.push(`${scenario}: quest ${key} has no title`);
   return problems;
 }
 
 /** A place: unique ids, and every thing and person in an area, a thing or a person that exists. */
 function placeProblems(place: PlaceFile, key: string): string[] {
-  const at = `places/${key}.json`, problems: string[] = [];
-  if (place.key !== key) problems.push(`${at}: its key ${place.key} isn't its file's name`);
+  const at = placePath(key), problems: string[] = [];
+  if (place.key !== key) problems.push(`${at}: its id ${place.key} isn't its file's name`);
   const ids = [...place.areas.map(a => a.id), ...place.things.map(t => t.id), ...Object.keys(place.people)];
   for (const id of new Set(ids.filter((id, i) => ids.indexOf(id) !== i))) problems.push(`${at}: ${id} is there twice`);
   const known = new Set(ids), areas = new Set(place.areas.map(a => a.id));
@@ -252,14 +259,14 @@ function lookProblems(looks: LooksFile, castIds: string[]): string[] {
  * stand on; its people somewhere on it, about at times of day. And the start on a map: one of
  * them, on a tile a person can stand on.
  */
-function mapProblems(pack: CampaignPack): string[] {
+function mapProblems(pack: CampaignPack, scenario: string): string[] {
   const problems: string[] = [];
   // The campaign's maps by id, and those that build (a way out to one that doesn't is that map's problem, not the way's).
   const ids = new Set(pack.maps.map(m => m.id));
   const built = new Map<string, TileMap>();
   pack.maps.forEach((file, i) => {
     const key = pack.campaign.maps?.[i] ?? file.id;
-    const at = `maps/${key}.json`;
+    const at = mapPath(key);
     if (file.id !== key) problems.push(`${at}: its id ${file.id} isn't its file's name`);
     let def: MapDef;
     try {
@@ -277,7 +284,7 @@ function mapProblems(pack: CampaignPack): string[] {
   });
   const regions = new Map<string, string>();
   for (const [id, map] of built) {
-    const at = `maps/${id}.json`;
+    const at = mapPath(id);
     for (const r of map.regions) {
       const inside = r.rect.x >= 0 && r.rect.y >= 0 && r.rect.w > 0 && r.rect.h > 0 && r.rect.x + r.rect.w <= map.width && r.rect.y + r.rect.h <= map.height;
       if (!inside) problems.push(`${at}: region ${r.id} isn't inside the map`);
@@ -295,10 +302,10 @@ function mapProblems(pack: CampaignPack): string[] {
   if (start.map !== undefined) {
     const map = built.get(start.map);
     const tile = start.at ? { x: start.at[0], y: start.at[1] } : undefined;
-    if (!ids.has(start.map)) problems.push(`campaign.json: it starts on the map ${start.map}, which isn't one of its maps`);
-    else if (!tile) problems.push(`campaign.json: it starts on ${start.map} but doesn't say where (start.at)`);
-    else if (map && !standable(map, tile)) problems.push(`campaign.json: it starts at (${tile.x}, ${tile.y}) on ${start.map}, where nobody can stand`);
-  } else if (start.at) problems.push("campaign.json: it says where to start (start.at) but not on which map");
+    if (!ids.has(start.map)) problems.push(`${scenario}: it starts on the map ${start.map}, which isn't one of its maps`);
+    else if (!tile) problems.push(`${scenario}: it starts on ${start.map} but doesn't say where (start.at)`);
+    else if (map && !standable(map, tile)) problems.push(`${scenario}: it starts at (${tile.x}, ${tile.y}) on ${start.map}, where nobody can stand`);
+  } else if (start.at) problems.push(`${scenario}: it says where to start (start.at) but not on which map`);
   return problems;
 }
 

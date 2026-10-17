@@ -1,6 +1,9 @@
 {
-  "key": "heron",
-  "name": "The Heron warehouse",
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "place",
+  "id": "heron",
+  "title": "The Heron warehouse",
   "description": "A tall, tarred timber warehouse at the downriver end of the wharves, half on the wharf and half on piles over the river, under a painted heron. Inside, one long floor lit by lanterns and thick with grain dust; outside, the dark, the river and a barge waiting for the ebb.",
   "size": {
     "w": 105,

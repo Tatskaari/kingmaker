@@ -12,6 +12,7 @@ import { rulesFrom } from "../rules/engine.ts";
 import { withEngine } from "../rules/pin.ts";
 import type { Build, RulesSession } from "../rules/types.ts";
 import type { PlaceFile } from "../scene/files.ts";
+import { loadMap, loadPlace, loadScenario, mapPath, placePath, scenarioPath } from "../scene/scenario.ts";
 import { keysFor, pcKey, worldToRows, type PlaceRows } from "../world/rows.ts";
 import { buildWorld, type SceneWorld } from "../world/scene-world.ts";
 import { actorsHere, doorState, move, walkPlan, type ExploreState } from "./explore.ts";
@@ -24,9 +25,9 @@ import { actionMenu, actions, aimAt as aimTown, aimFor as aimForTown } from "./t
 import { townWorld } from "./town-world.ts";
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
-const read = (path: string) => JSON.parse(readFileSync(join(CAMPAIGN, path), "utf8"));
-const MAPS = (read("campaign.json").maps as string[]).map(key => read(`maps/${key}.json`)) as MapFile[];
-const YARD = read("places/granary-yard.json") as PlaceFile;
+const text = (path: string) => readFileSync(join(CAMPAIGN, path), "utf8");
+const MAPS: MapFile[] = (loadScenario(text(scenarioPath("caerwyn"))).maps ?? []).map(key => loadMap(text(mapPath(key))));
+const YARD: PlaceFile = loadPlace(text(placePath("granary-yard")));
 const rules = rulesFrom(E, JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "vendor", "dnd-srd-engine", "starter-pack.json"), "utf8")), JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "vendor", "srd-spells", "spells.json"), "utf8")));
 const T = Date.UTC(2026, 9, 16, 9, 30);
 let pin = 900;

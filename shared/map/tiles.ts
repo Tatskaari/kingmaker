@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/map/tiles.ts at 44c6d4a, whole; its types from ./types.ts. Added at the end: MapFile and LegendEntry (a map as campaign data: maps/<key>.json) and mapOf, which builds one with buildMap; and MapPerson, who's about on a map by the hour (presence.ts's town, as data).
+// Copied from the prototype's src/game/map/tiles.ts at 44c6d4a, whole; its types from ./types.ts. Added at the end: MapFile and LegendEntry (a map as campaign data: maps/<key>.json, now maps/<key>.kmmap) and mapOf, which builds one with buildMap; and MapPerson, who's about on a map by the hour (presence.ts's town, as data).
 import type { Interaction, MapActor, Region, StoryState, Terrain, Tile, Tile2, TileMap } from "./types.ts";
 
 /**
@@ -167,13 +167,13 @@ export function direction(from: Tile2, to: Tile2): string {
 export const steps = (a: Tile2, b: Tile2) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 // ---------------------------------------------------------------------------------------------
-// v2: a map as campaign data (campaigns/<id>/maps/<key>.json), installed as a map_def row.
+// v2: a map as campaign data (campaigns/<id>/maps/<key>.kmmap, shared/scene/scenario.ts: this is the game's shape of it), installed as a map_def row.
 
 /** A legend entry as data: T()'s arguments (the terrain, any overrides, and the decor that stands on it). */
 export type LegendEntry = { terrain: Terrain; decor?: DecorDef } & Omit<MapTile, "terrain">;
 
 /**
- * maps/<key>.json: the prototype's MapSpec as data. The grid is its rows (north at the top), each
+ * A map as the game keeps it (maps/<key>.kmmap, its envelope off: scenario.ts asMapFile): the prototype's MapSpec as data. The grid is its rows (north at the top), each
  * legend entry is what T() is given, and the exits are written out one by one.
  */
 export interface MapFile {

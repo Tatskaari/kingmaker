@@ -1,5 +1,6 @@
 import type { DocsVolume } from "../docs/config.ts";
 import { memoryVolume } from "../docs/volumes.ts";
+import { scenarioPath } from "../../shared/scene/scenario.ts";
 import type { AnswerStore, CampaignStore, DocsStore, Ledger, StoredAnswer, Stores } from "./stores.ts";
 
 /**
@@ -88,10 +89,10 @@ function dailySpend(kept: Array<Record<string, unknown>>, persist: Persistence |
 const costOf = (line: Record<string, unknown>) =>
   typeof line.at === "string" && typeof line.costUsd === "number" && Number.isFinite(line.costUsd) ? { day: line.at.slice(0, 10), usd: line.costUsd } : undefined;
 
-/** Versions as PUT, each held whole, and installed once it has its campaign.json: one PUT again replaces it, under the readers already handed out too. */
+/** Versions as PUT, each held whole, and installed once it has its scenario (<campaign>.kmscenario): one PUT again replaces it, under the readers already handed out too. */
 function campaignMap(): CampaignStore {
   const versions = new Map<string, Map<string, string>>();
-  const installed = (id: string) => versions.get(id)?.has("campaign.json") ?? false;
+  const installed = (id: string) => versions.get(id)?.has(scenarioPath(id.slice(0, id.indexOf("@")))) ?? false;
   return {
     async put(campaign, version, files) {
       versions.set(`${campaign}@${version}`, new Map(Object.entries(files)));

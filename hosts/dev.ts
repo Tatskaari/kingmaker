@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
-import type { BuildsFile, CampaignFile } from "../shared/scene/files.ts";
+import type { BuildsFile } from "../shared/scene/files.ts";
+import { readCampaign } from "./dev/campaign.ts";
 import { signalGroup } from "./dev/child.ts";
 import { reportLines, type DoctorReport } from "./dev/doctor.ts";
 import { fakeOptions } from "./dev/fake.ts";
@@ -56,7 +57,7 @@ const STORED: Record<string, string> = { f: "a reply", n: "the notes on a reply"
 const flags = flagsOf(process.argv.slice(2));
 /** The fake model's options, with --fake: fake.json's, KM_AI_FAKE's on top. */
 const fake = flags.fake ? fakeFor(process.env.KM_AI_FAKE) : undefined;
-const campaign = JSON.parse(readFileSync(join(CAMPAIGN, "campaign.json"), "utf8")) as CampaignFile;
+const campaign = readCampaign(CAMPAIGN);
 const builds = Object.keys(JSON.parse(readFileSync(join(CAMPAIGN, "builds.json"), "utf8")) as BuildsFile);
 const campaignId = `${campaign.id}@${campaign.version}`;
 
