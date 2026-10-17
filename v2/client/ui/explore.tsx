@@ -1,10 +1,11 @@
-// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the action menu (m, a right-click's "Do something…"), aiming, the zoo's keys and look, the town's effects (V10's), the notebook (j: V3's) and the report (b) are cut; the sidebar's title has the game's number to watch it by, and a spectator's sidebar says whose map it is.
+// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the action menu (m, a right-click's "Do something…"), aiming, the zoo's keys and look, the town's effects (V10's), the notebook (j: V3's) and the report (b) are cut; the sidebar's title has the game's number to watch it by (in a terminal: not on a page, the app's surface), and a spectator's sidebar says whose map it is.
 import { MouseButton, type KeyEvent, type MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { look, nearby, whereabouts } from "../../shared/map/explore.ts";
 import { direction, steps } from "../../shared/map/tiles.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
+import type { Surface } from "../app/model.ts";
 import type { ExploreModel, TileMenu } from "../explore/model.ts";
 import { ARROW, leadWay, TIME_WORDS } from "../explore/words.ts";
 import { glyphSet } from "../look/glyphs.ts";
@@ -28,7 +29,7 @@ const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home",
  * the lead. Picking reads what the map's renderer drew where (Picks), so a click on someone's letter
  * is a click on them.
  */
-export function ExploreScreen({ explore: game }: { explore: ExploreModel }) {
+export function ExploreScreen({ explore: game, surface = "terminal" }: { explore: ExploreModel; surface?: Surface }) {
   useStore(game);
   const { width, height } = useTerminalDimensions();
   const canvas = useRef<LookCanvasRenderable>(null);
@@ -149,8 +150,8 @@ export function ExploreScreen({ explore: game }: { explore: ExploreModel }) {
           }}
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>
-      {/* Its title has the game's number: what a second terminal gives --join to watch it (v2's: the scene's side panel has it too). */}
-      <box width={sideW} height={mapH} border borderColor={C.border} title={` The investigation · Game ${view.game} `} flexDirection="column" paddingX={1} overflow="hidden">
+      {/* Its title has the game's number: what a second terminal gives --join to watch it (v2's: the scene's side panel has it too). Not on a page. */}
+      <box width={sideW} height={mapH} border borderColor={C.border} title={surface === "page" ? " The investigation " : ` The investigation · Game ${view.game} `} flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
         <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
         {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}

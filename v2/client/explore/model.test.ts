@@ -4,6 +4,7 @@ import { walkPlan } from "../../shared/map/explore.ts";
 import type { MapMove } from "../../shared/map/moves.ts";
 import { mapMove, newGameOf, type Backend } from "../backend.ts";
 import { demoBackend } from "../demo.ts";
+import { setPace } from "../pace.ts";
 import { ExploreModel } from "./model.ts";
 
 /**
@@ -15,7 +16,7 @@ import { ExploreModel } from "./model.ts";
 
 /** The demo with a new game on the map, and a model over it whose every move is kept. */
 async function onTheMap(): Promise<{ game: Backend; model: ExploreModel; moves: MapMove[] }> {
-  process.env.KM_APP_STEP_MS = "1";
+  setPace({ stepMs: 1 });
   const game = demoBackend({ ms: 1 });
   assert.equal(await game.newGame(newGameOf("Wren Ashdown: a hedge wizard", "wizard", "caerwyn")), undefined);
   const moves: MapMove[] = [];
