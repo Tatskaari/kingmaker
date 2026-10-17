@@ -88,7 +88,7 @@ export const replyOf = (s: Spoken, byKey: (markup: Markup) => Markup = m => m): 
  * written, so a reply from before the markup (an older save) gets its spoken lines tagged too, by
  * whoever the prose says spoke them.
  */
-function asWritten(scene: Scene, state: TurnView, e: ViewEntry): string {
+export function asWritten(scene: Scene, state: TurnView, e: ViewEntry): string {
   const name = (id: string) => nameAsKnown(scene, state, id);
   if (e.marked) return markupOf({ text: e.text, ...e.marked }, name);
   if (e.kind !== "narration" || !/[“"]/.test(e.text)) return e.text;
@@ -118,7 +118,7 @@ const lastSaid = (state: TurnView) => state.transcript.findLast(e => e.kind === 
  * A GM reply's markup read as it streams: `onText` hears the words shown so far (never the markup)
  * and who says each line in them, only when they've grown. The marks wait for their notes.
  */
-function streamed(scene: Scene, state: TurnView, onText: (text: string, markup?: Markup) => void): (raw: string) => void {
+export function streamed(scene: Scene, state: TurnView, onText: (text: string, markup?: Markup) => void): (raw: string) => void {
   const people = speakersOf(scene, state);
   const player = lastSaid(state);
   let shown = "";

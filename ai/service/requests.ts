@@ -96,10 +96,14 @@ const NEEDS: Record<Step, Need[]> = {
     ["read { probability, routes } (the decider's, when it's sent)", r => at(r, "read") === undefined || (isNumber(r, "read.probability") && isList(r, "read.routes"))],
     ["pending { exitId } (the ending held, when it's sent)", r => at(r, "pending") === undefined || isText(r, "pending.exitId")],
   ],
-  reply: [...TURN, ["decision", r => isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM],
+  reply: [
+    ...TURN, ["decision (the decider's: a two-part reply has none)", r => at(r, "twoPart") === true || isObject(r, "decision")], ["outcome { directives }", r => isList(r, "outcome.directives")], STREAM,
+    ["outcome.windDown { exit } (the wind-down's, when it's sent)", r => at(r, "outcome.windDown") === undefined || isText(r, "outcome.windDown.exit")],
+  ],
   settle: [
     ...TURN, ["reply (the reply's text)", r => isText(r, "reply")], ["lines (the turn's dice lines)", r => isList(r, "lines")], ["settled (what was settled before it)", r => isList(r, "settled")],
     ["talk { suggest } (a talk's, when it's sent)", r => at(r, "talk") === undefined || typeof at(r, "talk.suggest") === "boolean"],
+    ["check { skill, dc, total, success, band } (the turn's check, when it's sent)", r => at(r, "check") === undefined || (isText(r, "check.skill") && isNumber(r, "check.dc") && isNumber(r, "check.total") && typeof at(r, "check.success") === "boolean" && isText(r, "check.band"))],
   ],
   notes: [...SCENE, ["reply { seq, text, speech, drafted }", r => isNumber(r, "reply.seq") && isText(r, "reply.text") && isList(r, "reply.speech") && isList(r, "reply.drafted")]],
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],

@@ -2,9 +2,11 @@ import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
 import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
 import type { RepairResult } from "../gm/repair.ts";
-import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord } from "../gm/state.ts";
+import type { Confide, GmState, GuardStage, OpenedNote, OwedRow, ScenePatch, SceneStatus, TalkRecord, TwoPartRole } from "../gm/state.ts";
+import type { Band } from "../gm/two-part.ts";
 import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellRef, SrdLists, ThreatRead, WeaponRef } from "../rules/types.ts";
+import type { RouteOutcome } from "../scene/beats.ts";
 import type { Skill, Transition } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
@@ -159,9 +161,15 @@ export interface OpenRequest extends AiRequest {
   transcript?: Entry[];
   /** A talk's: with whom, where, their record, and what the prep reads besides the scene. */
   talk?: TalkOpen;
+  /** A scene of the story played by the two-part GM (docs/two-part-design.md): its mouthpiece speaks the opening, the roles as the scene opens its note -1. */
+  twoPart?: boolean;
 }
-/** ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key), applied through the gate. talk: a talk's prep, to keep. */
-export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; usage: Usage }
+/**
+ * ops: an aftermath's, what the stage manager says it did to the world (at most 16, by game key),
+ * applied through the gate. talk: a talk's prep, to keep. check: the two-part GM's opening called
+ * one (the simulation rolls it and writes the outcome that came up, as a reply's).
+ */
+export interface OpenResponse { present: string[]; entries: Reply[]; opened: OpenedNote[]; ops?: WorldOp[]; talk?: TalkPrep; check?: SpokenCheck; usage: Usage }
 
 /**
  * A talk's open (town-design §3.6; talk.ts startTalk, openTalk and plan): the companion's cast id;
@@ -265,11 +273,47 @@ export interface Outcome {
   /** The player's violence started a fight this turn: the move's closing lines are dropped, and the reply ends on the fight breaking out. */
   brawl?: boolean;
 }
-export interface ReplyRequest extends AiRequest { turn: TurnContext; decision: Decision; outcome: Outcome; stream: { turn: string } }
-export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; usage: Usage }
+/**
+ * decision: the decider's, for a talk (the old pipeline's). twoPart: a scene of the story, played by
+ * the two-part GM (docs/two-part-design.md): no decision, the outcome's directives (the rules' from
+ * before the player acted, and the map's act's) leading the mouthpiece's, and on the wind-down
+ * (outcome.windDown) its closing, which may wait once (the bookkeeping's twoPart.held not yet set).
+ */
+export interface ReplyRequest extends AiRequest { turn: TurnContext; decision?: Decision; outcome: Outcome; stream: { turn: string }; twoPart?: boolean }
+/**
+ * offered: the stage whose pressure this reply was offered. A two-part reply's check: the one its
+ * mouthpiece called, with each of its five outcomes as the screen would have it (the simulation rolls
+ * it and writes the dice line and the one that came up); closes: a closing that may wait once says
+ * whether it closed (false: it waits).
+ */
+export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; check?: SpokenCheck; closes?: boolean; usage: Usage }
 
-/** reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's setting). */
-export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean } }
+/** A check the two-part GM's mouthpiece called: its skill and DC, and its five outcomes (shared/gm/two-part.ts BANDS), each the next words of the reply. */
+export interface SpokenCheck { skill: Skill; dc: number; outcomes: Record<Band, Reply> }
+
+/** A turn's check as the simulation rolled it: the co-GM takes a route the dice decide on how it went. */
+export interface TurnCheck { skill: string; dc: number; total: number; success: boolean; band: Band }
+
+/**
+ * What the two-part GM's co-GM did after a reply (its tools' calls): the roles it set, the latest
+ * for each person by cast id; the moves it made, in order, each taken at once with beats.ts's
+ * takeRoute on a copy of the bookkeeping (the simulation takes them again on its rows, the
+ * authority); and every call it made with what it was told. `error`: why it failed (nothing set or
+ * moved then).
+ */
+export interface CoGmAnswer {
+  roles: Record<string, TwoPartRole>;
+  moves: Array<{ route: string; outcome: RouteOutcome; why: string }>;
+  log: Array<{ name: string; args: Record<string, unknown>; result: string }>;
+  error?: string;
+}
+
+/**
+ * reply: plain text. talk: a talk's turn, and whether its next lines are asked for (the controller's
+ * setting). twoPart: a scene of the story, played by the two-part GM: the stage manager and its co-GM
+ * side by side, the co-GM told how this turn's check went (`check`, when the mouthpiece called one).
+ */
+export interface SettleRequest extends AiRequest { turn: TurnContext; reply: string; lines: string[]; settled: string[]; talk?: { suggest: boolean }; twoPart?: boolean; check?: TurnCheck }
 export interface After {
   /**
    * An outcome route the reply achieved, with its check for the simulation to roll. `exit`: the
@@ -300,8 +344,13 @@ export interface After {
    */
   guard?: Record<string, GuardStage>;
 }
-/** ops: at most 16, by game key; after absent when the reply closed the scene. talk: a talk's next lines (talk.suggest, beside the after-reply decision), none when they weren't asked for or the talk ended. */
-export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; usage: Usage }
+/**
+ * ops: at most 16, by game key; after absent when the reply closed the scene (and in a two-part
+ * scene, which has no read after the reply). talk: a talk's next lines (talk.suggest, beside the
+ * after-reply decision), none when they weren't asked for or the talk ended. coGm: a two-part
+ * scene's co-GM: its roles and moves.
+ */
+export interface SettleResponse { ops: WorldOp[]; after?: After; talk?: { suggestions: string[] }; coGm?: CoGmAnswer; usage: Usage }
 
 /**
  * POST /v1/turns/consider (full-gm-design §4.1): the GM's ruling on an act the decider flagged

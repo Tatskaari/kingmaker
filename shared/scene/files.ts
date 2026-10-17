@@ -46,6 +46,13 @@ export interface CampaignFile {
    * scenes (its scene def's key is its id), never on the story's way (it isn't in `scenes`).
    */
   talk?: string;
+  /**
+   * Who plays the story's scenes (docs/two-part-design.md): the two-part GM (the default), or the
+   * old pipeline ("pipeline": the decider, the reactions, considered rolls and the co-GM's reviews,
+   * kept until the user decides what to salvage of it; the simulation's tests of it set it). A talk
+   * keeps its own steps either way.
+   */
+  gm?: "two-part" | "pipeline";
 }
 
 /**

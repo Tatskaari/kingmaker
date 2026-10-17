@@ -2,6 +2,7 @@ import { writePlayerBackstory } from "../../docs/docs.ts";
 import { resumeAfterFight } from "../../gm/aftermath.ts";
 import { openingDirective } from "../../gm/directives.ts";
 import { planTalk, prepareTalk, talkFacts } from "../../gm/talk.ts";
+import { speak } from "../../gm/two-part.ts";
 import { keysOf, openSource, type TurnView, type ViewSource } from "../../gm/view.ts";
 import { gmReply, replyOf } from "../../gm/voice.ts";
 import type { Markup } from "../../../shared/markup.ts";
@@ -42,6 +43,7 @@ export const open: Handler<OpenRequest, OpenResponse> = async (req, ctx) => {
   if (req.aftermath) return aftermath(req, req.aftermath.summary, ctx, scene, view, byKey);
   if (req.talk) return talk(req, req.talk, ctx, scene, view, byKey);
   writePlayerBackstory(view.id, view.player);
+  if (req.twoPart) return twoPartOpening(req, ctx, scene, view, byKey);
 
   const opened = await disclosed(scene, view, "", ctx.calls);
   withOpened(view, opened);
@@ -53,6 +55,21 @@ export const open: Handler<OpenRequest, OpenResponse> = async (req, ctx) => {
 
   return { present: presentCast(scene, view).map(c => c.id), entries: [opening], opened, usage: ctx.usage() };
 };
+
+/**
+ * A scene of the story's opening, by the two-part GM (docs/two-part-design.md, step 6): the
+ * mouthpiece speaks it, streamed to the opening's draft, from the roles the simulation gave everyone
+ * present as it opened (the co-GM's note -1: their stage's cast note, else their attitude), the
+ * opening directive as the boundary left it (its rewritten opening, after the story so far). No
+ * disclosure: the two-part GM reads no memories. A check it calls comes back for the simulation to
+ * roll, as a reply's does.
+ */
+async function twoPartOpening(req: OpenRequest, ctx: AiContext, scene: Scene, view: TurnView, byKey: (markup: Markup) => Markup): Promise<OpenResponse> {
+  const sink = ctx.stream(req.stream.turn);
+  const spoke = await speak(scene, view, [openingDirective(scene, view)], { operation: "two-part.opening", calls: ctx.calls, byKey, onText: (text, markup) => sink.show(text, markup && byKey(markup)) });
+  await sink.finish(spoke.narration.text, spoke.narration.markup);
+  return { present: presentCast(scene, view).map(c => c.id), entries: [spoke.narration], opened: [], ...(spoke.check ? { check: spoke.check } : {}), usage: ctx.usage() };
+}
 
 /** The scene after a fight: the aftermath streamed to its turn's draft, and what the stage manager made of it. */
 async function aftermath(req: OpenRequest, summary: string, ctx: AiContext, scene: Scene, view: TurnView, byKey: (markup: Markup) => Markup): Promise<OpenResponse> {

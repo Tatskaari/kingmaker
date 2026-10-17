@@ -37,9 +37,9 @@ export function strangers(scenes: Scene[], state: TurnView, hooks: string[]): Ar
   return [...first.values()].filter(c => c.called && !namedIn(c, heard)).map(c => ({ name: c.name, called: c.called! }));
 }
 
-const bullets = (items: readonly string[] | undefined, none = "- (nothing in particular)") => items?.length ? items.map(i => `- ${i}`).join("\n") : none;
+export const bullets = (items: readonly string[] | undefined, none = "- (nothing in particular)") => items?.length ? items.map(i => `- ${i}`).join("\n") : none;
 
-function castBlock(scene: Scene, c: Character, present: boolean): string {
+export function castBlock(scene: Scene, c: Character, present: boolean): string {
   const lines = [
     `### ${c.name}${c.group ? ` (${c.group})` : ""}`,
     `- Look: ${c.look}`,
@@ -121,7 +121,7 @@ const STRANGER = "Before the story began, none of its people had met them (whoev
  * it: "what it's in stays where the world has it" came back as "The folded page remains sewn
  * inside Cob's left boot in the scullery", to a player who had never met Cob.
  */
-const OWED_PLACE = "its things are where the world has them, with whoever has them, out of the player's sight until they find them or someone shows them; the narration never says where they are";
+export const OWED_PLACE = "its things are where the world has them, with whoever has them, out of the player's sight until they find them or someone shows them; the narration never says where they are";
 
 /**
  * What in the place is out of the player's sight: hidden (by its author, or in play), or inside
@@ -269,7 +269,7 @@ export function nowNote(scene: Scene, state: TurnView, directive: string[], opti
 }
 
 /** The player's state from the rules, when it should show in the story: hurt, or under a condition. */
-function playerNow(state: TurnView): string | undefined {
+export function playerNow(state: TurnView): string | undefined {
   const status = state.rules?.status;
   if (!status) return undefined;
   const hp = /^HP (\d+)\/(\d+)/.exec(status);

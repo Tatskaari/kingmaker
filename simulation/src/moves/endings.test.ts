@@ -193,7 +193,7 @@ test("the same push again: no dice, and a step on the path that the reply is tol
   assert.deepEqual(now.gm.path, [{ turn: 1, from: "yard", to: "yard", via: "same-again:catch-moll", source: "pre" }]);
   assert.equal(host.db.dice.gameId.find(scene.gameId)!.rolls, 1, "the opening's coming to, and no roll since");
   assert.equal(now.lines.filter(l => l.kind === "roll").length, 0);
-  assert.deepEqual((script.to("reply")[0]!.body as ReplyRequest).decision.sameAgain, { route: "catch-moll", answer: "Moll sticks to her story." });
+  assert.deepEqual((script.to("reply")[0]!.body as ReplyRequest).decision!.sameAgain, { route: "catch-moll", answer: "Moll sticks to her story." });
 });
 
 test("a decision naming a route that isn't open here moves nothing", async () => {
