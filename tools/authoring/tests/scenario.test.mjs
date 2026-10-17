@@ -200,7 +200,7 @@ test('stored diagram positions apply to Start, source cards and unresolved refer
 });
 
 test('real imported Hanged Clerk exposes its opening and five distinct unresolved authored continuations',()=>{
-  const doc=model.parseDocument(readFileSync(new URL('../examples/Scenes/The%20Hanged%20Clerk.kmscene',import.meta.url),'utf8'));
+  const doc=model.parseDocument(readFileSync(new URL('./fixtures/v1/Scenes/The%20Hanged%20Clerk.kmscene',import.meta.url),'utf8'));
   const file={path:'Scenes/The Hanged Clerk.kmscene',document:doc};
   const graph=diagram(scenario({entry:{file:file.path,entry:'yard'}}),[file]);
   const card=sourceNodes(graph)[0];
