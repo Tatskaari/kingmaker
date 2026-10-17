@@ -25,7 +25,8 @@ test("caerwyn is fit to install: its pack is the structure, its files every file
   const pack = packOf(files);
 
   assert.deepEqual(checkCampaign(files), []);
-  assert.deepEqual(pack.scenes.map(s => s.scene.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
+  assert.deepEqual(pack.scenes.map(s => s.scene.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"], "the story's, then the talk template's");
+  assert.equal(pack.campaign.talk, "talk");
   assert.match(pack.scenes[0]!.hook, /^This morning a palace clerk, Wendell Prout/);
   assert.deepEqual(pack.places.map(p => p.key), ["granary-yard", "drowned-rat", "heron", "dressing-room"]);
   assert.deepEqual(pack.campaign.quests, { "hanged-clerk": "The Hanged Clerk", "purveyors-man": "The Purveyor's Man", "heron-ledger": "The Heron Ledger" });
@@ -202,4 +203,24 @@ test("the maps: each builds as the simulation builds it, its ways out land where
   ]);
   assert.deepEqual(checkCampaign(offStart), ["campaign.json: it starts at (2, 2) on caerwyn, where nobody can stand"]);
   assert.deepEqual(checkCampaign(lostStart), ["campaign.json: it starts on the map atlantis, which isn't one of its maps"]);
+});
+
+const TALK = "scenes/talk/scene.json";
+
+test("the talk template (town-design §3.6): a scene of kind talk whose first cast entry is the companion's, with a told beat and no place; and everyone who walks with the player has a lore entry to talk from", () => {
+  const template = packOf(files).scenes.find(s => s.scene.id === "talk")!.scene;
+  assert.deepEqual([template.kind, template.cast[0]!.id, template.cast[0]!.name, Object.keys(template.beats)], ["talk", "{companion}", "{name}", ["talk", "told"]]);
+
+  const wrong = changed(TALK, t => { t.kind = "scene"; t.cast[0].id = "kell"; delete t.beats.told; t.place = "granary-yard"; });
+  // (A place's people would be the template's cast: the scene checks say so too.)
+  assert.deepEqual(checkCampaign(wrong).filter(p => !p.includes("'s people:")), [
+    "scenes/talk: the talk template's kind is scene, not talk",
+    "scenes/talk: the talk template's first cast entry isn't the companion's ({companion}, named {name})",
+    "scenes/talk: the talk template has no beat told (where the one thing they keep back takes the talk once it's told)",
+    "scenes/talk: the talk template has a place (a talk is wherever the player stopped)",
+  ]);
+  const entry = "lore/Cast/Sergeant Agnes Kell/private.md";
+  const loreless = changed(entry, files[entry]!.replace('character: "kell"\n', ""));
+  assert.deepEqual(checkCampaign(loreless), ["scenes/talk: kell walks with the player, but has no lore entry to talk from (a private.md with character: kell)"]);
+  assert.deepEqual(checkCampaign(changed("scenes/talk/beats/told.md", undefined)), ["scenes/talk: no beats/told.md"]);
 });

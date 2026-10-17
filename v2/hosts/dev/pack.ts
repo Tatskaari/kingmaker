@@ -12,14 +12,17 @@ export type CampaignFiles = Record<string, string>;
 
 /**
  * The structure install_campaign takes: campaign.json, each listed scene's scene.json with its hook
- * (hook.md, as the loader reads it), each listed place, the builds, the looks and each listed map.
- * Throws when a file it needs is missing or isn't JSON.
+ * (hook.md, as the loader reads it), and after them the talk template's (campaign.json's `talk`: a
+ * scene def the simulation fills for whoever walks with the player, town-design §3.6, though it isn't
+ * on the story's way), each listed place, the builds, the looks and each listed map. Throws when a
+ * file it needs is missing or isn't JSON.
  */
 export function packOf(files: CampaignFiles): CampaignPack {
   const campaign = json<CampaignFile>(files, "campaign.json");
   return {
     campaign,
-    scenes: campaign.scenes.map(key => ({ scene: json<SceneFile>(files, `scenes/${key}/scene.json`), hook: text(files, `scenes/${key}/hook.md`).trim() })),
+    scenes: [...campaign.scenes, ...(campaign.talk ? [campaign.talk] : [])]
+      .map(key => ({ scene: json<SceneFile>(files, `scenes/${key}/scene.json`), hook: text(files, `scenes/${key}/hook.md`).trim() })),
     places: campaign.places.map(key => json<PlaceFile>(files, `places/${key}.json`)),
     builds: json<BuildsFile>(files, "builds.json"),
     looks: json<LooksFile>(files, "looks.json"),

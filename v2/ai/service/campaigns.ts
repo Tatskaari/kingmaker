@@ -2,10 +2,12 @@ import { configureDocs, type DocsVolume } from "../docs/config.ts";
 import { isAbsolute, normalize } from "../docs/paths.ts";
 import { isDoc } from "../docs/volumes.ts";
 import { storyOf, VOCABULARY, vocabularyOf, type Story, type Vocabulary } from "../gm/story.ts";
+import { talkScene } from "../gm/talk.ts";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
 import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
+import { talkOf } from "../../shared/scene/talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { Failure } from "./context.ts";
 import type { CampaignStore, DocsStore, VersionFiles } from "./stores.ts";
@@ -30,7 +32,11 @@ export interface Campaign {
   title: string;
   /** The world a backstory is written for and checked against, at character creation. */
   creation: CreationWorld;
-  /** A scene as authored, with its words. Throws a 400 for a scene the campaign hasn't got. */
+  /**
+   * A scene as authored, with its words; or a talk's ("talk-kell-2", town-design §3.6), the campaign's
+   * talk template filled for the companion, with their lore's look and voice (gm/talk.ts talkScene).
+   * Throws a 400 for a scene the campaign hasn't got, or a talk with someone who has no lore entry.
+   */
   scene(key: string): Scene;
   /** The story its scenes belong to: those it installs, and its vocabulary.json for the rest (gm/story.ts). */
   story: Story;
@@ -68,6 +74,8 @@ export function campaigns(store: CampaignStore, docs: DocsStore): Campaigns {
       const file = campaignFileOf(files, campaign, version);
       checkCreation(file.creation);
       const scenes = file.scenes.map(key => sceneFrom(key, path => files[path]));
+      // The talk template loads with its words too, its placeholders as they are (town-design §3.6).
+      if (file.talk) sceneFrom(file.talk, path => files[path]);
       checkVocabulary(files);
       refuseOther(campaign, version);
 
@@ -104,16 +112,32 @@ function loreOf(files: VersionFiles): DocsVolume {
   };
 }
 
-/** An installed version: its campaign.json now, each scene when it's first asked for, the story when it's first read. */
+/** An installed version: its campaign.json now, each scene (or talk) when it's first asked for, the story when it's first read. */
 function campaignAt(files: VersionFiles, campaign: string, version: string): Campaign {
   const file = JSON.parse(files.read("campaign.json")!) as CampaignFile;
   const scenes = new Map<string, Scene>();
   const words = (path: string) => files.read(path);
   const scene = (key: string): Scene => {
-    if (!file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
-    const loaded = scenes.get(key) ?? sceneFrom(key, words);
+    const talk = file.talk !== undefined && !file.scenes.includes(key) ? talkOf(key) : undefined;
+    if (!talk && !file.scenes.includes(key)) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no scene ${key}`);
+    const loaded = scenes.get(key) ?? (talk ? talkFrom(key, talk.companion) : sceneFrom(key, words));
     scenes.set(key, loaded);
     return loaded;
+  };
+  // A talk: the template filled for the companion, their statblock and weapon from their card in the
+  // first of the story's scenes that has them (the prototype's castCard).
+  const talkFrom = (key: string, companion: string): Scene => {
+    const folder = `scenes/${file.talk}`;
+    let built: Scene | undefined;
+    try {
+      const template = JSON.parse(words(`${folder}/scene.json`) ?? "") as SceneFile;
+      built = talkScene(key, template, path => words(`${folder}/${path}`), id => file.scenes.map(scene).flatMap(s => s.cast).find(c => c.id === id));
+    } catch (error) {
+      if (error instanceof Failure) throw error;
+      throw new Failure(400, "bad_request", `the talk template ${file.talk} doesn't load: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (!built) throw new Failure(400, "bad_request", `campaign ${campaign}@${version} has no talk ${key}: ${companion} has no lore entry to talk from`);
+    return built;
   };
   let story: Story | undefined;
   return {

@@ -1,0 +1,1 @@
+Out in the town between one scene of the story and the next, wherever the player stopped for a word (the details established in play say where and when), with the place going about its business around them.
