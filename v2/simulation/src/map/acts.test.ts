@@ -216,6 +216,8 @@ test("after the yard, a word with Kell: a talk opens with its prep, takes a line
   const talk = all(host.db.scene).find(s => s.kind === "talk")!;
   assert.deepEqual([talk.sceneKey, talk.title, talk.status, wrenNow().sceneId, wrenNow().placeId], ["talk-kell-1", "A word with Sergeant Agnes Kell", "opening", talk.id, talk.placeId]);
   assert.equal(talk.placeId, all(host.db.place).find(p => p.key === "map:caerwyn")!.id, "on the town's own place");
+  const kellId = all(host.db.entity).find(e => e.key === "kell")!.id;
+  assert.deepEqual(host.db.onStage.entityId.find(kellId), { entityId: kellId, sceneId: talk.id, role: "cast" }, "Kell on stage in the talk, so a client names and colours her lines; her entity stays in the Rat's place");
   await host.drain();
 
   const opened = script.to("open").at(-1)!.body as OpenRequest;

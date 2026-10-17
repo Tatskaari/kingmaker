@@ -140,6 +140,10 @@ export async function theTown(stack: Stack, lead: Player, b: Player, fake: FakeO
   const greeted = await doneTurn(lead, 0);
   const lines = greeted.suggestions.filter(s => s.turn === 0).sort((x, y) => x.ord - y.ord);
   check(`"${talk.scene.title}": her greeting, and ${lines.length} lines to choose: ${lines.map(l => `"${l.text}"`).join(", ")}`, talk.scene.title === "A word with Sergeant Agnes Kell" && lines.length >= 2 && lines.length <= 4);
+  const kellRow = (await stack.sql(`SELECT * FROM entity WHERE game_id = ${game}`)).find(e => e.key === "kell")!;
+  const [kellLook] = await stack.sql(`SELECT * FROM look WHERE entity_id = ${String(kellRow.id)}`);
+  const here = lead.conn.view()?.present ?? [];
+  check(`Kell is here in the talk, by her name and in her look's colour: ${here.map(p => `${p.name} (${p.color})`).join(", ") || "nobody"}`, here.some(p => p.key === "kell" && p.name === "Sergeant Agnes Kell" && p.color === kellLook?.fg));
   await until(b, "B's seat to follow into the talk", 10_000, r => r.scene.id === talk.scene.id);
   ok("B's seat went into the talk with the lead");
   check(`${lead.name} chooses the first: "${lines[0]!.text}"`, (await lead.conn.say(lines[0]!.text)) === undefined);

@@ -50,6 +50,9 @@ export class Replica implements Backend {
 
     const of = <T>(table: { iter(): Iterable<T> }, keep: (row: T) => boolean) => [...table.iter()].filter(keep);
     const mine = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => of(table, r => r.gameId === game.id);
+    const onStage = of(t.onStage, s => s.sceneId === scene.id);
+    // Whoever's on stage keeps their look wherever their entity is: a talk's companion is on stage in a talk on the town's place, their entity still in the waiting scene's (town-design §3.6).
+    const staged = new Set(onStage.map(s => s.entityId));
     return {
       me: seat.playerId,
       game, scene,
@@ -58,9 +61,9 @@ export class Replica implements Backend {
       transcript: of(t.transcript, r => r.sceneId === scene.id),
       drafts: of(t.replyDraft, d => d.sceneId === scene.id),
       turns: of(t.turn, r => r.sceneId === scene.id),
-      onStage: of(t.onStage, s => s.sceneId === scene.id),
+      onStage,
       names: [...t.myNames.iter()],
-      looks: of(t.look, l => l.placeId === scene.placeId),
+      looks: of(t.look, l => l.placeId === scene.placeId || staged.has(l.entityId)),
       suggestions: of(t.sceneSuggestion, s => s.sceneId === scene.id),
       story: {
         game, scenes: mine(t.scene), chapters: mine(t.chapter), quests: mine(t.quest), flags: mine(t.flag),

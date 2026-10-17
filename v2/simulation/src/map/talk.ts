@@ -49,12 +49,30 @@ export function openTalk(tx: TxCtx, actor: Actor, game: GameRow, ex: ExploreStat
   putGm(tx, scene.id, { ...initialGm(graph), talk: { with: talk.with, where: talk.where } });
   moveSeats(tx, game.id, town.id, scene.id);
   noteHeard(tx, scene, graph);
+  companionOnStage(tx, game, scene, talk.with);
 
   const turn = newTurn(tx, scene, host.id, 0, "replying");
   updateScene(tx, scene.id, { turnId: turn.id });
   queueThink(tx, openScene, { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}) });
   tx.log(`[talk] game ${game.id}: ${sceneKey} opens (${talk.where})${act ? `, the act its first turn: ${act.text}` : ""}; actor ${actor.id ?? "?"}`);
   return sceneRow(tx, scene.id);
+}
+
+/**
+ * Who the talk is with is on stage in it, as the prototype's talk has its companion present: a
+ * client names and colours their lines by their on_stage row (my_names gives their name only for
+ * who's on stage). Only that row moves, from the scene they were last on stage in, which is over;
+ * their entity, its place and the waiting scene's rows stay as they are (town-design §3.6).
+ */
+function companionOnStage(tx: TxCtx, game: GameRow, scene: SceneRow, castKey: string): void {
+  const companion = [...tx.db.entity.byGameKey.filter([game.id, castKey])].find(e => e.kind === "person" || e.kind === "creature");
+  if (!companion) return;
+  const was = tx.db.onStage.entityId.find(companion.id);
+  const there = was ? tx.db.scene.id.find(was.sceneId) : undefined;
+  if (there && there.status !== "ended") return;
+  const row = { entityId: companion.id, sceneId: scene.id, role: "cast" };
+  if (was) tx.db.onStage.entityId.update(row);
+  else tx.db.onStage.insert(row);
 }
 
 /** A companion's record with the player (talk_record), its talks counted one more (the first makes it). */
