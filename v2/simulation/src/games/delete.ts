@@ -18,6 +18,7 @@ const BY_GAME: Array<(tx: TxCtx, rows: GameRows) => void> = [
   (tx, { game }) => tx.db.dice.gameId.delete(game.id),
   (tx, { game }) => jobsOf(tx, game).forEach(job => deleteJob(tx, job.id)),
   (tx, { game }) => [...tx.db.creation.iter()].filter(c => c.gameId === game.id).forEach(c => tx.db.creation.identity.delete(c.identity)),
+  (tx, { game }) => tx.db.explore.gameId.delete(game.id),
   (tx, { game }) => tx.db.chapter.gameId.delete(game.id),
   (tx, { game }) => tx.db.quest.gameId.delete(game.id),
   (tx, { game }) => tx.db.flag.gameId.delete(game.id),

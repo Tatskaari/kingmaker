@@ -28,12 +28,12 @@ import { suggestAfter } from "./suggest.ts";
  * opening, streamed into turn 0's draft and committed as the transcript's first entry, and the scene
  * goes live (its notes and first lines asked for: v5-design §3.5). `start` is what the character
  * starts the game with: only the game's first scene hands it out. A scene waiting (map-design §3.5,
- * story-design §4.3: the lead, its place built when it became the lead, with what the boundary
- * handed on) opens in its row: its GM bookkeeping and its place kept, the controller's character
- * joining the place with what they carry, and the names heard anywhere in the story so far heard
- * here too. A fight's aftermath (story-design §4.3) is this move's think and commit again, on a turn
- * of its own (`aftermath`): the reply is that turn's, and what the stage manager says it did goes
- * through the gate.
+ * story-design §4.3: the lead, its place built when it became the lead, on the map where there is
+ * one, with what the boundary handed on) opens in its row: its GM bookkeeping and its place kept,
+ * the controller's character joining the place with what they carry, and the names heard anywhere in
+ * the story so far heard here too. A fight's aftermath (story-design §4.3) is this move's think and
+ * commit again, on a turn of its own (`aftermath`): the reply is that turn's, and what the stage
+ * manager says it did goes through the gate.
  */
 export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
   name: "openScene",
@@ -115,7 +115,7 @@ function openWaiting(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, g
   return scene;
 }
 
-/** A game's scene of that key waiting to be opened (the lead), if there is one. */
+/** A game's scene of that key waiting to be opened (the lead, on the map where there is one), if there is one. */
 export function waitingScene(tx: TxCtx, gameId: bigint, sceneKey: string): SceneRow | undefined {
   return [...tx.db.scene.gameId.filter(gameId)].find(s => s.sceneKey === sceneKey && s.status === "waiting");
 }

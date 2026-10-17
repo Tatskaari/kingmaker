@@ -109,6 +109,8 @@ export interface SceneView {
   story?: StoryView;
   /** The scene's place, from its rows (the world bridge): none until they've come, and none for a scene without one. */
   place?: PlaceView;
+  /** The scene was opened from a map, which its end goes back to (map-design §3.3): the game has someone walking one. */
+  onMap?: boolean;
 }
 
 /** The light a place is drawn in: the game's time of day (the look layer's TimeOfDay). */

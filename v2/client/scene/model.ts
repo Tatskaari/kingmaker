@@ -24,6 +24,8 @@ export interface SceneActions {
   retry(): void;
   /** The `setSuggestions` move: this player's own setting. Answers why not, when it wasn't made (the view's refusal says so too). */
   setSuggestions(on: boolean): Promise<Rejection | undefined>;
+  /** Back to the map from a scene that's over (map-design §3.3: walk out). */
+  out(): void;
   quit(): void;
   /** The story's moves (story-design §4.3): `walk` toward the lead (its scene opens, the seat with it); `carry_on`, a boundary that got stuck; `fight_it_out`, the fight's stand-in. Each answers why not. */
   walk?(): Promise<Rejection | undefined>;
@@ -239,11 +241,16 @@ export class SceneModel {
     return this.story ? betweenOf(this.story, this.view.sceneId) : undefined;
   }
 
-  /** On from the moment between scenes (an Enter of its own, or a click): walk toward the lead, whose scene opens, and the seat with it. */
+  /**
+   * On from the moment between scenes (an Enter of its own, or a click). On a map, back onto it,
+   * where the scene left the player, with the lead to walk to (the prototype's continueFromCard: the
+   * explore screen); with no map, walk toward the lead, whose scene opens, and the seat with it.
+   */
   toLead(): void {
     this.typing = false;
     this.status = undefined;
-    void this.answer(this.actions.walk?.());
+    if (this.view.onMap) this.actions.out();
+    else void this.answer(this.actions.walk?.());
     this.emit();
   }
 

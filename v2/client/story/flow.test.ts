@@ -20,7 +20,7 @@ function moves(answer: (move: string) => Rejection | undefined = () => undefined
   const made: string[] = [];
   const call = (move: string) => () => { made.push(move); return Promise.resolve(answer(move)); };
   const actions: SceneActions = {
-    say: text => { made.push(`say ${text}`); }, retry: () => { made.push("retry"); }, setSuggestions: () => Promise.resolve(undefined), quit: () => { made.push("quit"); },
+    say: text => { made.push(`say ${text}`); }, retry: () => { made.push("retry"); }, setSuggestions: () => Promise.resolve(undefined), out: () => { made.push("out"); }, quit: () => { made.push("quit"); },
     walk: call("walk"), carryOn: call("carryOn"), fightItOut: call("fightItOut"), end: exit => { made.push(`end ${exit}`); return Promise.resolve(answer(`end ${exit}`)); },
   };
   return { made, actions };

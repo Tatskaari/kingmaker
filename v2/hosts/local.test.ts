@@ -32,6 +32,8 @@ async function game(seed = 7, opening: FakeOptions = {}) {
   let next = opening;
   const local = await localHost({ seed, fake: () => next });
   assert.equal(local.sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
+  // The campaign starts on its map, in the granary lane: she walks into the yard, which opens the scene (map-design §1).
+  if (all(local.sim.db.explore).length) assert.equal(local.sim.as(WREN).walk({ toward: "lead" }), undefined);
   await local.sim.drain();
   const scene = all(local.sim.db.scene)[0]!;
   const now = () => sceneNow(local.sim, scene.id);
@@ -304,7 +306,8 @@ test("the story on the local host: a scene ended by its owner crosses the bounda
   assert.deepEqual([rat.status, rat.time, all(local.sim.db.game)[0]!.leadScene], ["waiting", "evening", "drowned-rat"]);
   assert.ok(local.sim.db.gmState.sceneId.find(rat.id)!.owed.some(o => o.id === "page"), "the page is owed into the Rat");
 
-  assert.equal(local.sim.as(WREN).walk({ toward: "lead" }), undefined);
+  // On the map, walked to as the prototype's flow walks to the lead (flow.ts walkToLead): down the river stairs, then in at the Rat's door.
+  for (let i = 0; i < 6 && local.sim.db.scene.id.find(rat.id)!.status === "waiting"; i++) assert.equal(local.sim.as(WREN).walk({ toward: "lead" }), undefined);
   await local.sim.drain();
   assert.equal(local.sim.db.scene.id.find(rat.id)!.status, "live");
   const opening = calls(local).find(c => c.key.endsWith(`:s${rat.id}:t0:open`) && c.operation === "gm.opening")!.request.input!.map(m => m.content).join("\n");

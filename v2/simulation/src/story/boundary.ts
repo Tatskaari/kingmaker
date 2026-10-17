@@ -10,7 +10,8 @@ import type { JobOwner, Move } from "../moves/move.ts";
 import type { BoundaryPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, type GameRow } from "../rows.ts";
 import { exitOf, graphOf, sceneDefOf } from "../scenes.ts";
-import { buildLead, openLead } from "./lead.ts";
+import { openLead } from "../map/lead.ts";
+import { buildLead } from "../map/start.ts";
 
 /**
  * The boundary after a scene ends (story-design §4.3): queued by closeScene (story/end.ts), never

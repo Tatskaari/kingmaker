@@ -30,7 +30,7 @@ function recorder(answer: (move: string) => Rejection | undefined = () => undefi
   return {
     made,
     actions: {
-      say: text => { made.push(`say ${text}`); }, retry: () => { made.push("retry"); }, setSuggestions: () => Promise.resolve(undefined), quit: () => { made.push("quit"); },
+      say: text => { made.push(`say ${text}`); }, retry: () => { made.push("retry"); }, setSuggestions: () => Promise.resolve(undefined), out: () => { made.push("out"); }, quit: () => { made.push("quit"); },
       walk: call("walk"), carryOn: call("carryOn"), fightItOut: call("fightItOut"), end: exit => { made.push(`end ${exit}`); return Promise.resolve(answer(`end ${exit}`)); },
     },
   };

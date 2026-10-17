@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mapOf, type MapFile } from "../../shared/map/tiles.ts";
 import { installArgsOf, type CampaignPack, type InstallArgs, type SceneFile } from "../../shared/scene/files.ts";
 import { memoryHost } from "./host/memory.ts";
 import { all, caerwynArgs, caerwynPack, identity } from "./host/testing.ts";
@@ -64,4 +65,25 @@ test("a ready-made build the rules engine's pack can't make is refused: a class,
   assert.equal(host.as(host.owner).installCampaign(withRogue({ backgroundId: "pirate" }))?.text, "The campaign pack doesn't load: build rogue: its background pirate isn't in the rules engine's pack.");
   assert.equal(host.as(host.owner).installCampaign(withRogue({ subclassId: "arcane-trickster" }))?.text, "The campaign pack doesn't load: build rogue: its subclass arcane-trickster isn't in the rules engine's pack.");
   assert.equal(all(host.db.campaign).length, 0);
+});
+
+test("a campaign's maps go in as map_def rows, built first: a map that doesn't build, or a start on a map it hasn't got, is refused (map-design §3.1)", () => {
+  const host = newHost();
+  const pack = caerwynPack();
+  const lane: MapFile = {
+    id: "lane", name: "A lane", grid: ["##", ".*"],
+    legend: { "#": { terrain: "wall", style: "brick" }, ".": { terrain: "cobbles" }, "*": { terrain: "cobbles", decor: { name: "bunting", glyph: "▾", states: ["overhead"] } } },
+    regions: [], exits: [],
+  };
+  const withMaps = (maps: MapFile[], start?: string) => installArgsOf({ ...pack, maps, campaign: { ...pack.campaign, start: { ...pack.campaign.start, ...(start ? { map: start, at: [0, 1] as [number, number] } : {}) } } });
+
+  assert.equal(host.as(host.owner).installCampaign(withMaps([lane], "lane")), undefined);
+  const [def] = all(host.db.mapDef);
+  assert.deepEqual([def!.id, def!.campaignId, def!.key], ["caerwyn@0.1.0/lane", "caerwyn@0.1.0", "lane"]);
+  assert.deepEqual(JSON.parse(def!.json), lane);
+  assert.equal(mapOf(lane).decor.length, 1, "the bunting stands on its tile");
+
+  assert.match(host.as(host.owner).installCampaign(withMaps([{ ...lane, grid: ["#?"] }]))!.text, /^The campaign pack doesn't load: map lane: Error: lane: no legend entry for "\?" at \(1, 0\)/);
+  assert.equal(host.as(host.owner).installCampaign(withMaps([lane], "caerwyn"))?.text, "The campaign pack doesn't load: it starts on the map caerwyn, which it hasn't got.");
+  assert.deepEqual(all(host.db.mapDef).map(m => m.id), ["caerwyn@0.1.0/lane"], "a refused install leaves the version's maps as they were");
 });

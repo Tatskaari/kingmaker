@@ -12,6 +12,7 @@ import * as games from "../games/moves.ts";
 import { installCampaignReducer } from "../install.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs } from "../jobs.ts";
 import { initDatabase } from "../lifecycle.ts";
+import * as map from "../map/moves.ts";
 import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
@@ -59,7 +60,7 @@ type Body<A> = (tx: TxCtx, sender: Identity, args: A) => void;
 /** The move, as a caller makes it (with no arguments, when none are needed): the refusal, or nothing when it was made. */
 type Made<B> = B extends Body<infer A> ? ({} extends A ? (args?: A) => Refusal | undefined : (args: A) => Refusal | undefined) : never;
 
-/** Character creation's moves and the games' (v1-design §3.3), and the story's between scenes (story-design §4.3), by their bodies' names. */
+/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and the story's between scenes (story-design §4.3), by their bodies' names. */
 const MOVES = {
   startCreation: creation.startCreationReducer, creationBack: creation.creationBackReducer, chooseBuild: creation.chooseBuildReducer,
   makeOwn: creation.makeOwnReducer, pickOwn: creation.pickOwnReducer, takeOwn: creation.takeOwnReducer, setBackstory: creation.setBackstoryReducer,
@@ -67,7 +68,8 @@ const MOVES = {
   leaveProposal: creation.leaveProposalReducer, finishBackstory: creation.finishBackstoryReducer, acceptFix: creation.acceptFixReducer,
   rewriteIssue: creation.rewriteIssueReducer, skipBackstory: creation.skipBackstoryReducer, chooseAgain: creation.chooseAgainReducer,
   begin: games.beginReducer, continueGame: games.continueGameReducer, deleteGame: games.deleteGameReducer,
-  walk: story.walkReducer, carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
+  walk: map.walkReducer, interact: map.interactReducer, travel: map.travelReducer,
+  carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
 };
 
 /** A caller's moves: each returns the refusal, or nothing when it was made. */

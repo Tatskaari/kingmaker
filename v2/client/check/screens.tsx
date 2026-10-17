@@ -33,6 +33,7 @@ import type { SceneView, Suggestion } from "../scene/view.ts";
 import { C, MARK_TINT } from "../theme.ts";
 import { sceneSide } from "../ui/scene.tsx";
 import { checkCreation } from "./creation.tsx";
+import { checkMap } from "./map-screens.tsx";
 import { checkStory } from "./story-screens.tsx";
 import { checkPlace } from "./place-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
@@ -58,7 +59,7 @@ const SIZES = [[80, 24], [100, 30], [130, 42], [160, 45]] as const;
 /** The moves the screen makes, kept to read back (none of them changes anything: the checks change the views). */
 function recorder(): { sent: string[]; actions: SceneActions } {
   const sent: string[] = [];
-  return { sent, actions: { say: text => sent.push(text), retry: () => sent.push("/retry"), setSuggestions: on => { sent.push(`/suggestions ${on ? "on" : "off"}`); return Promise.resolve(undefined); }, quit: () => {} } };
+  return { sent, actions: { say: text => sent.push(text), retry: () => sent.push("/retry"), setSuggestions: on => { sent.push(`/suggestions ${on ? "on" : "off"}`); return Promise.resolve(undefined); }, out: () => sent.push("(out)"), quit: () => {} } };
 }
 
 for (const [w, h] of SIZES) {
@@ -698,6 +699,9 @@ for (const [w, h] of [[80, 24], [120, 40]] as const) {
 
 // The scene's place (the world bridge's): drawn from its rows, pointed at, its menu.
 await checkPlace(checks, show);
+
+// The map between scenes (V2's): the lane in the morning, walking and the lead, the map after the scene, and the way back to it.
+await checkMap(checks, show);
 
 // The title, character creation and the sheet (V1's).
 await checkCreation(checks, show);

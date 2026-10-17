@@ -166,6 +166,31 @@ export const ExitAt = __t.object("ExitAt", {
 });
 export type ExitAt = __Infer<typeof ExitAt>;
 
+export const Explore = __t.object("Explore", {
+  playerId: __t.u64(),
+  gameId: __t.u64(),
+  map: __t.string(),
+  get at() {
+    return Tile2;
+  },
+  get facing() {
+    return Tile2;
+  },
+  steps: __t.u32(),
+  hidden: __t.bool(),
+  scene: __t.option(__t.string()),
+  get followers() {
+    return __t.array(MapFollower);
+  },
+  quips: __t.u32(),
+  lastQuip: __t.option(__t.string()),
+  styles: __t.array(__t.string()),
+  acts: __t.u32(),
+  said: __t.string(),
+  log: __t.array(__t.string()),
+});
+export type Explore = __Infer<typeof Explore>;
+
 export const FeatureRef = __t.object("FeatureRef", {
   id: __t.string(),
   name: __t.string(),
@@ -367,6 +392,26 @@ export const Look = __t.object("Look", {
 });
 export type Look = __Infer<typeof Look>;
 
+export const MapDef = __t.object("MapDef", {
+  id: __t.string(),
+  campaignId: __t.string(),
+  key: __t.string(),
+  json: __t.string(),
+});
+export type MapDef = __Infer<typeof MapDef>;
+
+export const MapFollower = __t.object("MapFollower", {
+  id: __t.string(),
+  name: __t.string(),
+  glyph: __t.string(),
+  color: __t.string(),
+  map: __t.string(),
+  get at() {
+    return Tile2;
+  },
+});
+export type MapFollower = __Infer<typeof MapFollower>;
+
 export const Material = __t.object("Material", {
   entityId: __t.u64(),
   placeId: __t.u64(),
@@ -463,6 +508,12 @@ export const Place = __t.object("Place", {
   round: __t.u32(),
   rev: __t.u32(),
   sceneId: __t.option(__t.u64()),
+  mapKey: __t.option(__t.string()),
+  region: __t.option(__t.string()),
+  get origin() {
+    return __t.option(Tile2);
+  },
+  active: __t.bool(),
 });
 export type Place = __Infer<typeof Place>;
 

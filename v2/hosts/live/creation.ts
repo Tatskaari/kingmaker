@@ -129,8 +129,14 @@ async function made(conn: Connection, run: Run): Promise<void> {
   run.made = { build: row.sheet!.build, status: row.sheet!.statusLine };
 }
 
+/** Set off: on the campaign's map (map-design §3.3), the walk to the lead opens the scene; with no map it opens at once. */
 async function begun(conn: Connection): Promise<void> {
   await act(conn, "begin", {});
+  await homeWhen(conn, r => r.seat?.sceneId !== undefined || !!conn.explore(), 10_000);
+  if (conn.home().seat?.sceneId === undefined) {
+    const refused = await conn.walk({ toward: "lead" });
+    if (refused) throw new Error(`the walk to the lead was refused: ${refused.text}`);
+  }
   await homeWhen(conn, r => r.seat?.sceneId !== undefined, 10_000);
   await settled(conn, 0);
 }

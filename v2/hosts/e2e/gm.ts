@@ -8,7 +8,7 @@ import { onTop } from "../dev/fake.ts";
 import { camel, reviewLines } from "../dev/gm-status.ts";
 import type { Stack } from "../dev/stack.ts";
 import type { Game } from "./creation.ts";
-import { callLog, check, doneTurn, Failed, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
+import { callLog, check, doneTurn, Failed, mapUntil, nextTurn, note, ok, restartAi, seconds, step, turnOf, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the full GM (full-gm-design §4.4), after V1's: a memory kept and brought back,
@@ -184,10 +184,16 @@ export async function walkingOut(stack: Stack, a: Player, b: Player, game: Game,
 // ---------------------------------------------------------------------------------------------
 // What the steps share.
 
-/** A's new game with a ready-made wizard: its opening done. */
+/**
+ * A's new game with a ready-made wizard: it starts on the map in the granary lane (map-design §3.3),
+ * so A walks to the lead, into the yard, which opens the hanged clerk; its opening done.
+ */
 export async function aNewGame(stack: Stack, a: Player): Promise<Game> {
   const before = a.conn.rows()?.game.id;
+  const was = a.conn.explore()?.game;
   check(`A's new_game (${WREN.name}, ${WREN.build}) is made`, (await a.conn.newGame(WREN)) === undefined);
+  await mapUntil(a, "A's new game on the map, in the lane", 10_000, v => v.game !== was && !v.ex.scene && v);
+  check("A walks from the lane to the lead (walk toward lead)", (await a.conn.walk({ toward: "lead" })) === undefined);
   const rows = await until(a, "the new game's scene to go live", 60_000, r => r.game.id !== before && r.scene.status === "live" && r);
   await doneTurn(a, 0);
   const [game] = await stack.sql(`SELECT uid FROM game WHERE id = ${rows.game.id}`);

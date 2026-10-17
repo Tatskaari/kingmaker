@@ -279,6 +279,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   const hit = useRef<((x: number, y: number) => SceneTarget | undefined) | undefined>(undefined);
   /** The name the box was last started with (talking to someone), so talking to someone else starts it with theirs instead. */
   const started = useRef<string | undefined>(undefined);
+  /** The scene's end has been seen by the keys (the way back to the map): what was in the box then goes unsaid. */
   // An overlay coming up (a click on /sheet) puts the menu away.
   useEffect(() => { if (scene.overlay && scene.sceneMenu) scene.closeSceneMenu(); });
   const view = scene.view;
@@ -610,6 +611,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
       onRight={(x, y) => { const under = hit.current?.(x, y); if (under && !theLead(under)) openFor(under, { x, y }); else scene.closeSceneMenu(); }} /> : null}
   </box>;
 }
+
 
 /**
  * The bottom line while a mark is picked out or pointed at (in place of the keys): what it is, the

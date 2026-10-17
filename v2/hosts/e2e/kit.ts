@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { FakeOptions } from "../../ai/llm/fake-openrouter.ts";
 import type { HomeRows } from "../../client/backend.ts";
+import type { ExploreView } from "../../client/explore/rows.ts";
 import { connect, type Connection, type RowOp, type Watched } from "../../client/net/connection.ts";
 import type { SceneRows } from "../../client/scene/rows.ts";
 import { run } from "../dev/child.ts";
@@ -84,6 +85,14 @@ export function until<T>(p: Player, what: string, ms: number, test: (rows: Scene
 /** The same for the rows outside a scene (my_creation, my_games, the seat and its sheet). */
 export function homeUntil<T>(p: Player, what: string, ms: number, test: (rows: HomeRows) => T | undefined | null | false | 0): Promise<T> {
   return waitOn(p, what, ms, () => p.conn.home(), test, () => JSON.stringify(p.conn.home().creation ?? "no creation", bigints));
+}
+
+/** The same for the map between scenes (map-design §3.6): the walker's map as this player sees it, a spectator's too. */
+export function mapUntil<T>(p: Player, what: string, ms: number, test: (view: ExploreView) => T | undefined | null | false | 0): Promise<T> {
+  return waitOn(p, what, ms, () => p.conn.explore(), test, () => {
+    const v = p.conn.explore();
+    return v ? `game ${v.game}: ${v.ex.map} (${v.ex.at.x},${v.ex.at.y})${v.ex.scene ? ` in ${v.ex.scene}` : ""}, ${v.acts} moves, "${v.said}"` : "no map";
+  });
 }
 
 function waitOn<R, T>(p: Player, what: string, ms: number, read: () => R | undefined, test: (rows: R) => T | undefined | null | false | 0, last: () => string): Promise<T> {

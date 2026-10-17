@@ -1,4 +1,6 @@
+import type { InteractArgs, TravelArgs, WalkArgs } from "../../shared/map/moves.ts";
 import type { Backend, CampaignRow, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
+import type { ExploreView } from "../explore/rows.ts";
 import type { SceneView } from "../scene/view.ts";
 
 /**
@@ -9,10 +11,12 @@ import type { SceneView } from "../scene/view.ts";
 export class StubBackend implements Backend {
   rows: HomeRows;
   scene?: SceneView;
+  /** The map between scenes, when a check sets one. */
+  map?: ExploreView;
   /** Every move made, in order: its name and its arguments. */
   readonly moves: Array<{ name: string; args: unknown }> = [];
   /** What a move does, by name: a refusal to answer with, or nothing (after changing the rows, say). */
-  readonly answers: Partial<Record<MoveName | "say" | "retry" | "setSuggestions" | "newGame" | "joinGame", (args: never) => Rejection | void>> = {};
+  readonly answers: Partial<Record<MoveName | "say" | "retry" | "setSuggestions" | "newGame" | "joinGame" | "walk" | "interact" | "travel", (args: never) => Rejection | void>> = {};
   private readonly listeners = new Set<() => void>();
 
   constructor(rows: Partial<HomeRows> = {}, scene?: SceneView) {
@@ -35,6 +39,7 @@ export class StubBackend implements Backend {
   }
 
   view(): SceneView | undefined { return this.scene; }
+  explore(): ExploreView | undefined { return this.map; }
   home(): HomeRows { return this.rows; }
 
   onChange(listener: () => void): () => void {
@@ -47,6 +52,9 @@ export class StubBackend implements Backend {
   say(text: string): Promise<Rejection | undefined> { return this.answer("say", { text }); }
   retry(): Promise<Rejection | undefined> { return this.answer("retry", {}); }
   setSuggestions(on: boolean): Promise<Rejection | undefined> { return this.answer("setSuggestions", { on }); }
+  walk(args: WalkArgs): Promise<Rejection | undefined> { return this.answer("walk", args); }
+  interact(args: InteractArgs): Promise<Rejection | undefined> { return this.answer("interact", args); }
+  travel(args: TravelArgs): Promise<Rejection | undefined> { return this.answer("travel", args); }
   act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined> { return this.answer(move, args); }
   close(): void {}
 

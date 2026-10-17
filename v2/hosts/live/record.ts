@@ -9,7 +9,7 @@ import { readCampaignFiles } from "../dev/campaign.ts";
 import { backgroundOf, statusOf, statusRows } from "../dev/gm-status.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
-import type { Offered, Played, Run, WorldThing } from "./play.ts";
+import type { Offered, Played, Run, WalkedIn, WorldThing } from "./play.ts";
 import type { Script } from "./scripts.ts";
 
 /**
@@ -76,6 +76,8 @@ export interface LiveRecord {
   stopped?: string;
   /** The scene's ending, when it ended. */
   ending?: string;
+  /** The way into the scene, when the game began on the map (map-design §4). */
+  walkedIn?: WalkedIn;
   calls: Call[];
   cost: number;
   held: Held;
@@ -113,6 +115,7 @@ export async function recordOf(stack: StackFile, run: Run, setup: RecordSetup): 
     skipped: run.played.filter(p => p.skipped),
     ...(run.stopped ? { stopped: run.stopped } : {}),
     ...(rows.scene.exit_key ? { ending: String(rows.scene.exit_key) } : {}),
+    ...(run.walkedIn ? { walkedIn: run.walkedIn } : {}),
     ...(setup.script.gmSide && gm ? { gm, ...(run.settledMs !== undefined ? { settledMs: run.settledMs } : {}) } : {}),
     calls,
     cost: calls.reduce((sum, c) => sum + c.costUsd, 0),

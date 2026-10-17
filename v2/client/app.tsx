@@ -1,13 +1,15 @@
-// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six and the game: its scene, the moment between scenes, the fight's stand-in and The End; the map comes with its vertical), with what's open over them; Ctrl+C or Ctrl+D leaves.
+// Cut from the prototype's src/app/app.tsx at 44c6d4a: the screen switch over an AppModel in place of the Game (the title, character creation's six, the map between scenes and the game: its scene, the moment between scenes, the fight's stand-in and The End), with what's open over the scene and the map; Ctrl+C or Ctrl+D leaves.
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useCallback, useSyncExternalStore } from "react";
 import type { AppModel } from "./app/model.ts";
+import type { ExploreModel } from "./explore/model.ts";
 import type { SceneModel } from "./scene/model.ts";
 import { C } from "./theme.ts";
 import { BackstoryScreen, ChooseScreen, CreatedScreen, CreateScreen, CreatingScreen, CustomScreen } from "./ui/create.tsx";
 import { BetweenScreen, FightScreen } from "./ui/between.tsx";
 import { EndScreen } from "./ui/end.tsx";
-import { Overlay } from "./ui/overlay.tsx";
+import { ExploreScreen } from "./ui/explore.tsx";
+import { ExploreOverlay, Overlay } from "./ui/overlay.tsx";
 import { SceneScreen } from "./ui/scene.tsx";
 import { TitleScreen } from "./ui/title.tsx";
 
@@ -33,6 +35,7 @@ export function App({ app }: { app: AppModel }) {
       case "backstory": return <BackstoryScreen game={app.creation} />;
       case "created": return <CreatedScreen game={app.creation} />;
       case "scene": return scene ? <ScenePlay scene={scene} /> : null;
+      case "explore": return app.explore ? <ExplorePlay explore={app.explore} /> : null;
     }
   })();
   return <box width={width} height={height} backgroundColor={C.bg}>{screen}</box>;
@@ -51,6 +54,14 @@ export function ScenePlay({ scene }: { scene: SceneModel }) {
   </>;
 }
 
+/** The map between scenes, with what's open over it (the sheet, the help, What happens, the menu). */
+export function ExplorePlay({ explore }: { explore: ExploreModel }) {
+  return <>
+    <ExploreScreen explore={explore} />
+    <ExploreOverlay explore={explore} />
+  </>;
+}
+
 /** Which of the game's screens is up: redrawn when it changes, not at every row (each screen follows the scene's model itself). */
 function usePage(scene: SceneModel): SceneModel["page"] {
   const subscribe = useCallback((listener: () => void) => scene.subscribe(listener), [scene]);
@@ -64,5 +75,5 @@ function usePage(scene: SceneModel): SceneModel["page"] {
  */
 function useScreen(app: AppModel): void {
   const subscribe = useCallback((listener: () => void) => app.subscribe(listener), [app]);
-  useSyncExternalStore(subscribe, () => (app.screen === "scene" ? app.scene ?? app.screen : app.screen));
+  useSyncExternalStore(subscribe, () => (app.screen === "scene" ? app.scene ?? app.screen : app.screen === "explore" ? app.explore ?? app.screen : app.screen));
 }

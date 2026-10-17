@@ -54,6 +54,7 @@ function heading(r: LiveRecord, command: string): string[] {
     `| Model calls | ${r.calls.length} (${r.model}) |`,
     `| Cost | $${r.cost.toFixed(4)} (the AI service's call log) |`,
     `| Game | ${r.game} |`,
+    ...(r.walkedIn ? [`| The way in | on the map at ${r.walkedIn.from}, \`${r.walkedIn.move}\`: "${cell(r.walkedIn.said)}" (${r.walkedIn.ms} ms to the seat in the scene) |`] : []),
     ...(r.ending ? [`| The scene ended | ${r.ending} |`] : []),
     ...(r.stopped ? [`| Stopped early | ${cell(r.stopped)} |`] : []),
     ...r.skipped.map(s => `| Skipped | ${cell(s.step)}: ${cell(s.skipped ?? "")} |`),

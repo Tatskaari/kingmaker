@@ -11,7 +11,7 @@ import { sceneGraph } from "../scenes.ts";
 import { crossBoundary } from "./boundary.ts";
 import { candidatesFrom, queueBoundary } from "./end.ts";
 import { fightItOut } from "./fight.ts";
-import { openLead } from "./lead.ts";
+import { openLead } from "../map/lead.ts";
 
 /**
  * The story's moves between scenes (story-design §4.3), registered in index.ts and the memory host
@@ -20,8 +20,8 @@ import { openLead } from "./lead.ts";
  * straight into its waiting scene.
  */
 
-/** walk: on to the lead, straight into its waiting scene where there's no map (openLead). The game's host's (the scenes' controller). */
-export function walkReducer(tx: TxCtx, sender: Identity, args: { to?: { x: number; y: number } | undefined; toward?: string | undefined }): void {
+/** walk where there's no map (map/moves.ts's walk hands it on): on to the lead, straight into its waiting scene (openLead). The game's host's (the scenes' controller). */
+export function goOnReducer(tx: TxCtx, sender: Identity, args: { to?: { x: number; y: number } | undefined; toward?: string | undefined }): void {
   const { actor, player, game } = hostOf(tx, sender);
   if (game.status === "ended") throw new Refused(refusal("story_over"));
   const scene = player.sceneId === undefined ? undefined : tx.db.scene.id.find(player.sceneId);

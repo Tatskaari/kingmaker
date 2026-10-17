@@ -4,9 +4,10 @@ import type { Schema } from "./context.ts";
 import type { creation, GameSummary, NameView, SeatView } from "./schema.ts";
 
 /**
- * The views (v0-design §3.2, v1-design §3.2), per caller: my_seat, the game and scene their seat is
- * in, from which a client subscribes to the rest; my_names, the cast on that scene's stage by the
- * names its controller has heard (a spectator knows them as the controller does); my_creation, the
+ * The views (v0-design §3.2, v1-design §3.2, map-design §3.3), per caller: my_seat, the game and
+ * scene their seat is in, from which a client subscribes to the rest; my_names, the cast on that
+ * scene's stage, or, on the map, the people in the places on it, by the names the scene's controller
+ * (the game's host) has heard (a spectator knows them as the controller does); my_creation, the
  * character they're making; my_games, the games they host, as the title lists them.
  */
 
@@ -40,18 +41,44 @@ export function mySeatView(ctx: Ctx): Infer<typeof SeatView> | undefined {
 }
 
 export function myNamesView(ctx: Ctx): Array<Infer<typeof NameView>> {
-  const scene = seatedPlayer(ctx)?.sceneId;
+  const player = seatedPlayer(ctx);
+  const scene = player?.sceneId;
   const sceneRow = scene === undefined ? undefined : ctx.db.scene.id.find(scene);
-  if (!sceneRow) return [];
+  if (!sceneRow) return player ? namesOnMap(ctx, player) : [];
 
-  const heard = new Set([...ctx.db.heard.playerId.filter(sceneRow.controllerId)].map(h => h.entityKey));
+  const heard = heardBy(ctx, sceneRow.controllerId);
   const names: Array<Infer<typeof NameView>> = [];
   for (const onStage of ctx.db.onStage.sceneId.filter(sceneRow.id)) {
     const entity = onStage.role === "cast" ? ctx.db.entity.id.find(onStage.entityId) : undefined;
-    if (entity) names.push({ entityId: entity.id, key: entity.key, name: heard.has(entity.key) ? entity.name : (entity.called ?? entity.name) });
+    if (entity) names.push(nameOf(entity, heard));
   }
   return names;
 }
+
+type Player = NonNullable<ReturnType<typeof seatedPlayer>>;
+type Entity = NonNullable<ReturnType<Ctx["db"]["entity"]["id"]["find"]>>;
+
+/** Between scenes, the people in the places on the seat's map (the lead's, waiting there), as the host knows them. */
+function namesOnMap(ctx: Ctx, player: Player): Array<Infer<typeof NameView>> {
+  const here = player.placeId === undefined ? undefined : ctx.db.place.id.find(player.placeId);
+  const game = ctx.db.game.id.find(player.gameId);
+  if (!here?.mapKey || !game) return [];
+
+  const heard = heardBy(ctx, game.hostId);
+  const names: Array<Infer<typeof NameView>> = [];
+  for (const place of ctx.db.place.gameId.filter(player.gameId)) {
+    if (place.id === here.id || place.mapKey !== here.mapKey || !place.active) continue;
+    for (const entity of ctx.db.entity.placeId.filter(place.id)) {
+      if ((entity.kind === "person" || entity.kind === "creature") && !ctx.db.playerCharacter.entityId.find(entity.id)) names.push(nameOf(entity, heard));
+    }
+  }
+  return names;
+}
+
+const heardBy = (ctx: Ctx, playerId: bigint) => new Set([...ctx.db.heard.playerId.filter(playerId)].map(h => h.entityKey));
+
+/** Someone by the name the controller knows them by: theirs once it's been heard, what they look like until then. */
+const nameOf = (entity: Entity, heard: Set<string>): Infer<typeof NameView> => ({ entityId: entity.id, key: entity.key, name: heard.has(entity.key) ? entity.name : (entity.called ?? entity.name) });
 
 function seatedPlayer(ctx: Ctx) {
   const seat = ctx.db.seat.identity.find(ctx.sender);
@@ -60,7 +87,7 @@ function seatedPlayer(ctx: Ctx) {
 
 type Game = NonNullable<ReturnType<Ctx["db"]["game"]["id"]["find"]>>;
 
-/** Where a game's story is: in its latest scene ("in …", "…, over" once it's ended, "heading for …" while it waits: the lead), or, before it has one, heading for its first. */
+/** Where a game's story is: in its latest scene ("in …", "…, over" once it's ended, "heading for …" while it waits: the lead, on the map), or, before it has one, heading for its first. */
 function whereOf(ctx: Ctx, game: Game): Pick<Summary, "where" | "hook" | "begun"> | undefined {
   const latest = [...ctx.db.scene.gameId.filter(game.id)].sort((a, b) => (a.id > b.id ? -1 : 1))[0];
   if (latest) return { where: latest.status === "ended" ? `${latest.title}, over` : latest.status === "waiting" ? `heading for ${latest.title}` : `in ${latest.title}`, hook: latest.hook, begun: true };

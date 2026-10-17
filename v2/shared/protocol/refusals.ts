@@ -14,7 +14,7 @@ export type RefusalCode =
   | "not_service" | "not_admin" | "bad_pack" | "not_built"
   | "not_creating" | "creation_busy" | "not_offered" | "still_making" | "not_now" | "bad_how"
   | "nothing_to_work_in" | "story_too_long" | "story_too_big" | "already_begun" | "not_yours" | "not_begun"
-  | "scene_on" | "no_way" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight";
+  | "scene_on" | "no_way" | "unavailable" | "not_in_scene" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight";
 
 export interface Refusal { code: RefusalCode; text: string }
 
@@ -66,6 +66,8 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   not_begun: () => "(That game hasn't begun: its player is still making their character.)",
   scene_on: () => "(You're in the middle of a scene: see it through first.)",
   no_way: () => "(There's no map to walk here yet: go on to the lead.)",
+  unavailable: () => "(That isn't there to do from here: look again at what's in sight.)",
+  not_in_scene: () => "(You're not in a scene: pick an action instead.)",
   no_lead: () => "(The story hasn't said where it goes next yet.)",
   story_over: () => "(The story is over.)",
   not_stuck: () => "(The story isn't stuck: there's nothing to carry on.)",

@@ -48,6 +48,7 @@ import EndSceneReducer from "./end_scene_reducer";
 import FightItOutReducer from "./fight_it_out_reducer";
 import FinishBackstoryReducer from "./finish_backstory_reducer";
 import InstallCampaignReducer from "./install_campaign_reducer";
+import InteractReducer from "./interact_reducer";
 import JoinGameReducer from "./join_game_reducer";
 import LeaveProposalReducer from "./leave_proposal_reducer";
 import MakeOwnReducer from "./make_own_reducer";
@@ -64,6 +65,7 @@ import StartCreationReducer from "./start_creation_reducer";
 import StreamReplyReducer from "./stream_reply_reducer";
 import TakeOwnReducer from "./take_own_reducer";
 import TakeProposalReducer from "./take_proposal_reducer";
+import TravelReducer from "./travel_reducer";
 import WalkReducer from "./walk_reducer";
 import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
@@ -77,6 +79,7 @@ import CampaignRow from "./campaign_table";
 import ChapterRow from "./chapter_table";
 import CreatureRow from "./creature_table";
 import EntityRow from "./entity_table";
+import ExploreRow from "./explore_table";
 import FlagRow from "./flag_table";
 import FollowerRow from "./follower_table";
 import GameRow from "./game_table";
@@ -84,6 +87,7 @@ import GearRow from "./gear_table";
 import HealthRow from "./health_table";
 import JournalRow from "./journal_table";
 import LookRow from "./look_table";
+import MapDefRow from "./map_def_table";
 import MaterialRow from "./material_table";
 import MyCreationRow from "./my_creation_table";
 import MyGamesRow from "./my_games_table";
@@ -195,6 +199,20 @@ const tablesSchema = __schema({
       { name: 'entity_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EntityRow),
+  explore: __table({
+    name: 'explore',
+    indexes: [
+      { accessor: 'gameId', name: 'explore_game_id_idx_btree', algorithm: 'btree', columns: [
+        'gameId',
+      ] },
+      { accessor: 'playerId', name: 'explore_player_id_idx_btree', algorithm: 'btree', columns: [
+        'playerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'explore_player_id_key', constraint: 'unique', columns: ['playerId'] },
+    ],
+  }, ExploreRow),
   flag: __table({
     name: 'flag',
     indexes: [
@@ -294,6 +312,20 @@ const tablesSchema = __schema({
       { name: 'look_entity_id_key', constraint: 'unique', columns: ['entityId'] },
     ],
   }, LookRow),
+  mapDef: __table({
+    name: 'map_def',
+    indexes: [
+      { accessor: 'campaignId', name: 'map_def_campaign_id_idx_btree', algorithm: 'btree', columns: [
+        'campaignId',
+      ] },
+      { accessor: 'id', name: 'map_def_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'map_def_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, MapDefRow),
   material: __table({
     name: 'material',
     indexes: [
@@ -581,6 +613,7 @@ const reducersSchema = __reducers(
   __reducerSchema("fight_it_out", FightItOutReducer),
   __reducerSchema("finish_backstory", FinishBackstoryReducer),
   __reducerSchema("install_campaign", InstallCampaignReducer),
+  __reducerSchema("interact", InteractReducer),
   __reducerSchema("join_game", JoinGameReducer),
   __reducerSchema("leave_proposal", LeaveProposalReducer),
   __reducerSchema("make_own", MakeOwnReducer),
@@ -597,6 +630,7 @@ const reducersSchema = __reducers(
   __reducerSchema("stream_reply", StreamReplyReducer),
   __reducerSchema("take_own", TakeOwnReducer),
   __reducerSchema("take_proposal", TakeProposalReducer),
+  __reducerSchema("travel", TravelReducer),
   __reducerSchema("walk", WalkReducer),
   __reducerSchema("work_in_backstory", WorkInBackstoryReducer),
 );

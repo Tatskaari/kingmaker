@@ -9,7 +9,7 @@ import { onTop } from "../dev/fake.ts";
 import { camel } from "../dev/gm-status.ts";
 import type { Stack } from "../dev/stack.ts";
 import type { Game } from "./creation.ts";
-import { callLog, check, doneTurn, modelCalls, nextTurn, ok, restartAi, step, until, type Player } from "./kit.ts";
+import { callLog, check, doneTurn, mapUntil, modelCalls, nextTurn, ok, restartAi, step, until, type Player } from "./kit.ts";
 
 /**
  * The e2e's steps for the whole story (story-design §5, the integrator's): one game from the yard to
@@ -45,7 +45,11 @@ export async function theWholeStory(stack: Stack, root: string, lead: Player, b:
   step("31. A scene's end crosses the boundary: the yard to the Drowned Rat, waiting");
   // The recipe on fake.json's quiet answers, every call at once (no streaming: this step isn't about it).
   await restartAi(stack, onTop(fake, { choices: { ending: ENDINGS, own_exit: "theirs" }, streamMs: 0, byNameDelayMs: { notes: 0 }, suggestDelayMs: 0 }), RAISED);
+  const was = lead.conn.explore()?.game;
   check(`${lead.name}'s new_game (${WREN.name}, ${WREN.build}) is made`, (await lead.conn.newGame(WREN)) === undefined);
+  // The game starts on the map in the granary lane (map-design §3.3): walked to its lead, the yard.
+  await mapUntil(lead, `${lead.name}'s new game on the map, in the lane`, 10_000, v => v.game !== was && !v.ex.scene && v);
+  check(`${lead.name} walks from the lane to the lead (walk toward lead)`, (await lead.conn.walk({ toward: "lead" })) === undefined);
   const opened = await until(lead, "the yard to go live", 60_000, r => r.scene.status === "live" && r);
   await doneTurn(lead, 0);
   const game: Game = { id: opened.game.id, uid: String((await stack.sql(`SELECT uid FROM game WHERE id = ${opened.game.id}`))[0]!.uid), scene: opened.scene.id };

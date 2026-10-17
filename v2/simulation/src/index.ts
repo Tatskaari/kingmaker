@@ -19,15 +19,16 @@ import { newGameReducer } from "./moves/new-game.ts";
 import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
 import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
+import { interactReducer, travelReducer, walkReducer } from "./map/moves.ts";
 import { loadRules } from "./rules/load.ts";
 import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView, Tile2 } from "./schema.ts";
-import { carryOnReducer, endSceneReducer, fightItOutReducer, walkReducer } from "./story/moves.ts";
+import { carryOnReducer, endSceneReducer, fightItOutReducer } from "./story/moves.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
 
 /**
  * The module's entry: every reducer, procedure, view and lifecycle hook, registered (v0-design
- * §3.3, v1-design §3.2-3.3, v5-design §3.3, story-design §4.3), and the few adapters that need SpacetimeDB at run time
+ * §3.3, v1-design §3.2-3.3, v5-design §3.3, map-design §3.2, story-design §4.3), and the few adapters that need SpacetimeDB at run time
  * (txOf, asReducer, the AI service's HTTP). Each body is a plain function over TxCtx in another file,
  * so the memory host runs the same code. The export names are the wire's, in snake_case (newGame is
  * new_game): the client's bindings are generated from them.
@@ -70,8 +71,12 @@ export const begin = spacetimedb.reducer(ctx => asReducer(ctx, tx => beginReduce
 export const continueGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => continueGameReducer(tx, ctx.sender, args)));
 export const deleteGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => deleteGameReducer(tx, ctx.sender, args)));
 
-// The story between scenes (story-design §4.3): on to the lead, a boundary that failed carried on, the fight's stand-in; and the owner's testing end.
+// The map between scenes (map-design §3.2): each the prototype's explorer's action of that id; walk
+// toward the lead is also the story's Go on, straight into its waiting scene where there's no map.
 export const walk = spacetimedb.reducer({ to: t.option(Tile2), toward: t.option(t.string()) }, (ctx, args) => asReducer(ctx, tx => walkReducer(tx, ctx.sender, args)));
+export const interact = spacetimedb.reducer({ verb: t.string(), target: t.option(t.string()), at: t.option(Tile2) }, (ctx, args) => asReducer(ctx, tx => interactReducer(tx, ctx.sender, args)));
+export const travel = spacetimedb.reducer({ way: t.option(t.string()), at: t.option(Tile2) }, (ctx, args) => asReducer(ctx, tx => travelReducer(tx, ctx.sender, args)));
+// The story between scenes (story-design §4.3): a boundary that failed carried on, the fight's stand-in; and the owner's testing end.
 export const carryOn = spacetimedb.reducer(ctx => asReducer(ctx, tx => carryOnReducer(tx, ctx.sender, {})));
 export const fightItOut = spacetimedb.reducer(ctx => asReducer(ctx, tx => fightItOutReducer(tx, ctx.sender, {})));
 export const endScene = spacetimedb.reducer({ game: t.u64(), exit: t.string() }, (ctx, args) => asReducer(ctx, tx => endSceneReducer(tx, ctx.sender, args)));
@@ -85,7 +90,7 @@ export const servicePing = spacetimedb.reducer(ctx => asReducer(ctx, tx => servi
 
 // The owner's: a campaign's structure, whether the module reaches the AI service, and the waiting thinks sent now that it's back.
 export const installCampaign = spacetimedb.reducer(
-  { id: t.string(), campaign: t.string(), scenes: t.string(), places: t.string(), builds: t.string(), looks: t.string() },
+  { id: t.string(), campaign: t.string(), scenes: t.string(), places: t.string(), builds: t.string(), looks: t.string(), maps: t.string() },
   (ctx, args) => asReducer(ctx, tx => installCampaignReducer(tx, ctx.sender, args)),
 );
 export const pingAi = spacetimedb.procedure(t.string(), ctx => pingAiBody(ctx));

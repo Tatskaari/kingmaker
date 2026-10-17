@@ -1,9 +1,12 @@
 /**
  * The live runs' scripts: what each says in the hanged clerk's scene, line by line, and as whom.
  * v0 is V0's (v0-design §10.6); v5 is v5-design §4.6's twelve, two of them a suggested line picked
- * as the headless client's `act` picks one; gm is full-gm-design §1.2's eight, two of them said once
- * the memory review and the co-GM are done, as a tester reading the reply would; world is
- * world-bridge-design §1.2's spells and blows, with what the world showed after each.
+ * as the headless client's `act` picks one; map is the map's (map-design §4): the scene opened by
+ * talking to Kell in the lane (as every script's is, now the campaign starts on its map), then V0's
+ * first three lines, played beside the prototype's QA console on the same lines; gm is
+ * full-gm-design §1.2's eight, two of them said once the memory review and the co-GM are done, as a
+ * tester reading the reply would; world is world-bridge-design §1.2's spells and blows, with what
+ * the world showed after each.
  */
 
 /** A suggested line as `act` names it: say_N, or the first of a kind ("the try line"). */
@@ -84,6 +87,19 @@ export const SCRIPTS: Record<string, Script> = {
       say("Kell, I think he was killed. Let's look at the loft."),
     ],
     lines: 12,
+  },
+  map: {
+    name: "map",
+    title: "Walk Caerwyn live run",
+    about: "A game begun on the map in the granary lane, the hanged clerk opened by talking to Kell (map-design §4), then V0's first three lines",
+    who: "Wren Ashdown: a hedge wizard from the fens",
+    build: "wizard",
+    steps: [
+      say("Sergeant, who found him?"),
+      say("*I climb up on the cart and look closely at Prout's neck, the back of his head and his hands.*"),
+      say("Moll, you never saw him jump, did you? Who paid you to say it?"),
+    ],
+    lines: 3,
   },
   gm: {
     name: "gm",

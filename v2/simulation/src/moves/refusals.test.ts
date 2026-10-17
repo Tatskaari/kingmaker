@@ -114,7 +114,7 @@ test("join_game: no such game; a spectator watches the host's scene with no char
 test("stream_reply and install_campaign: only their callers", async () => {
   const { host, wren } = await openedGame();
   assert.equal(code(host.streamReply({ turnId: 1n, attempt: 1, seq: 1, speaker: "gm", text: "x", done: false }, wren)), "not_service");
-  assert.deepEqual(host.as(wren).installCampaign({ id: "x@1", campaign: "{}", scenes: "[]", places: "[]", builds: "{}", looks: "{}" }), { code: "not_admin", text: "Only the database's owner may install a campaign." });
+  assert.deepEqual(host.as(wren).installCampaign({ id: "x@1", campaign: "{}", scenes: "[]", places: "[]", builds: "{}", looks: "{}", maps: "[]" }), { code: "not_admin", text: "Only the database's owner may install a campaign." });
 });
 
 test("start_creation: no such campaign, a name missing or too long, a concept too long, no such way to choose a build", () => {

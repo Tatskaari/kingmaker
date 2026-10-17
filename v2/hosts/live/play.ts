@@ -4,12 +4,13 @@ import type { Game, Transcript, Turn } from "../../client/module_bindings/types.
 import { picked, stepName, type Script, type Step } from "./scripts.ts";
 
 /**
- * Playing a live run's script as a player would: a new game, then each line said once the turn
- * before it is done and its notes and lines are in (at most 15 s more, v5-design §4.6), or a
- * suggested line picked as the headless `act` picks one. A line that waits for the background
- * (full-gm-design §1.2) is said once the memory review and the co-GM are done too, and a script
- * that records the GM's side waits for them after its last line. It stops before a line the budget
- * can't cover, when the scene ends, or when a turn fails, and says why.
+ * Playing a live run's script as a player would: a new game (on the campaign's map, its scene opened
+ * by talking to Kell, map-design §4), then each line said once the turn before it is done and its
+ * notes and lines are in (at most 15 s more, v5-design §4.6), or a suggested line picked as the
+ * headless `act` picks one. A line that waits for the background (full-gm-design §1.2) is said once
+ * the memory review and the co-GM are done too, and a script that records the GM's side waits for
+ * them after its last line. It stops before a line the budget can't cover, when the scene ends, or
+ * when a turn fails, and says why.
  */
 
 /** A suggested line, as its row has it. */
@@ -37,10 +38,15 @@ export interface Played { step: string; n?: number; said?: string; skipped?: str
 /** When each turn's parts reached this client (Date.now()): its reply's entry, its notes' commit, its lines' commit. */
 export interface Seen { final?: number; notes?: number; lines?: number }
 
+/** How a game begun on the map came into its scene: where the walker stood, the move, what it said, and how long it took to the seat in the scene. */
+export interface WalkedIn { from: string; move: string; said: string; ms: number }
+
 /** The run as played: its game, the steps, each turn's moments, every set of lines as it landed (by turn), and why it stopped early. */
 export interface Run {
   /** Once the opening's rows are in: the game's id and uid, and its scene's id. */
   game?: { id: bigint; uid: string; sceneId: bigint };
+  /** The way into the scene, when the game began on the map. */
+  walkedIn?: WalkedIn;
   played: Played[];
   /** How long the run waited after its last line for the background jobs (a script that records the GM's side). */
   settledMs?: number;
@@ -87,11 +93,27 @@ export async function playScript(conn: Connection, script: Script, options: Play
 async function opening(conn: Connection, run: Run, options: PlayOptions): Promise<void> {
   const refused = await conn.newGame(newGameOf(options.who, options.build, "caerwyn"));
   if (refused) throw new Error(`new_game was refused: ${refused.text}`);
-  await until(conn, () => !!conn.rows(), TURN_MS, "the new game's rows didn't come");
+  await until(conn, () => !!conn.rows() || !!conn.explore(), TURN_MS, "the new game's rows didn't come");
+  if (!conn.rows()) {
+    run.walkedIn = await talkToKell(conn);
+    options.log(`on the map: ${run.walkedIn.move} from ${run.walkedIn.from}: "${run.walkedIn.said}" (${run.walkedIn.ms} ms to the scene)`);
+  }
+  await until(conn, () => !!conn.rows(), TURN_MS, "the scene's rows didn't come");
   const rows = conn.rows()!;
   run.game = { id: rows.game.id, uid: (rows.game as Game).uid, sceneId: rows.scene.id };
   await afterTurn(conn, 0, run, options);
   options.log(`the opening: game ${rows.game.id}${extrasNote(conn, 0)}`);
+}
+
+/** A game begun on the map, in the granary lane: Kell talked to (interact talk kell), which opens the hanged clerk, as the plan's live run opens it. */
+async function talkToKell(conn: Connection): Promise<WalkedIn> {
+  const lane = conn.explore()!;
+  const from = `${lane.ex.map} (${lane.ex.at.x},${lane.ex.at.y})`;
+  const started = Date.now();
+  const refused = await conn.interact({ verb: "talk", target: "kell" });
+  if (refused) throw new Error(`talking to Kell was refused: ${refused.text}`);
+  await until(conn, () => conn.home().seat?.sceneId !== undefined && conn.explore()?.ex.scene !== undefined, 10_000, "talking to Kell opened no scene");
+  return { from, move: "talk_kell", said: conn.explore()!.said, ms: Date.now() - started };
 }
 
 /** A step: its line said (or the suggested line it picks), then its turn waited for. */

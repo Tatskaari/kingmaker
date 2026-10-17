@@ -129,7 +129,7 @@ test("the menu, as the scene's model words it: the lead's names and spells; deed
   const { tables } = yardTables(yardWorld());
   const said: string[] = [];
   const view = sceneViewOf(rowsWith(tables));
-  const scene = new SceneModel(view, { say: text => said.push(text), retry: () => {}, setSuggestions: async () => undefined, quit: () => {} });
+  const scene = new SceneModel(view, { say: text => said.push(text), retry: () => {}, setSuggestions: async () => undefined, out: () => {}, quit: () => {} });
 
   // Cob, by what Pell calls him: talk first, a glance, a deed, a spell that fits, a blow last.
   scene.openSceneMenu({ id: "cob" }, 10, 5);
