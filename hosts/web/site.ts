@@ -159,8 +159,8 @@ function contentProblems(site: Site): string[] {
   ];
 }
 
-/** Files holding the dev key, or anything shaped like an OpenRouter key: by name only. */
-function leaks(site: Site, needles: string[]): string[] {
+/** Files holding the dev key, or anything shaped like an OpenRouter key: by name only (the site's build, build-site.ts, holds the whole site to it too). */
+export function leaks(site: Site, needles: string[]): string[] {
   const leaking = [...site].filter(([, bytes]) => {
     const text = Buffer.from(bytes).toString("latin1");
     return needles.some(needle => text.includes(needle)) || KEYISH.test(text);

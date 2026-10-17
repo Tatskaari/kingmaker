@@ -1,1 +1,3 @@
 The browser platform for v2's page-only mode (browser-design §5): the JS OpenTUI stand-in (`tui/`), the page and its key form (`page/`), the glyph fonts (`fonts/`), the few Node stand-ins the bundles still need (`node/`) and the page host's parts (`server/`), composed by `hosts/web/`.
+
+And the site's own pages around the game (`site/`): the pitch and the roadmap, the user's claude.ai artifacts saved as they're published there (where they're edited, so never here). `npm run build:site` ([hosts/web/build-site.ts](../hosts/web/build-site.ts)) puts them beside the page at `play/`, their links pointed at the site's own pages.

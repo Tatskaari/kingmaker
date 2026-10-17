@@ -26,6 +26,7 @@
     "live": "node --no-warnings --import tsx hosts/live-run.ts",
     "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx",
     "build:web": "node --no-warnings --import tsx hosts/web/build.ts",
+    "build:site": "node --no-warnings --import tsx hosts/web/build-site.ts",
     "web:serve": "node --no-warnings --import tsx hosts/web/serve.ts",
     "web:check": "node --no-warnings --import tsx hosts/web/check.ts",
     "web:screens": "node --no-warnings --import tsx hosts/web/screens.ts",
