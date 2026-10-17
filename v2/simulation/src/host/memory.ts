@@ -363,11 +363,13 @@ function newStore(onCommit: ((changes: ChangeSet) => void) | undefined, log: (li
   return store;
 }
 
-/** A previous run's rows into the tables, as Restore says, in no transaction: they were committed then. */
+/** A previous run's rows into the tables, as Restore says, in no transaction: they were committed then. A table with no rows left still has its counter. */
 function restoreRows(store: Store, restore: Restore): void {
-  for (const [name, rows = []] of Object.entries(restore.rows)) {
-    const table = store.tables[name];
-    if (!table) throw new Error(`restore: the memory host has no table ${name}`);
+  const unknown = Object.keys(restore.rows).find(name => !store.tables[name]);
+  if (unknown) throw new Error(`restore: the memory host has no table ${unknown}`);
+
+  for (const [name, table] of Object.entries(store.tables)) {
+    const rows = restore.rows[name as TableName] ?? [];
     const pk = table.meta.primaryKey;
     for (const row of [...rows].sort(byKey(pk))) table.rows.set(keyOf(row[pk]), withDefaults(row, table.meta.defaults));
     if (table.meta.autoInc) table.counter.next = nextIdAfter(rows, pk, restore.sequences?.[name as TableName]);

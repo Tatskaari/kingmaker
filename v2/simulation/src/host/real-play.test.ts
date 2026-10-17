@@ -61,14 +61,14 @@ test("a commit tells the next id of each autoInc table it inserted into, even wh
   assert.deepEqual(told.map(c => [c.changes.map(x => `${x.op} ${String(x.row.id)}`), c.sequences]), [[["insert 1"], { heard: 2n }], [[], { heard: 3n }]]);
 });
 
-test("restore puts a previous run's rows in as they were given, in key order, filling a column added since with its default; each autoInc counter carries on from the higher of its saved value and the table's highest id", () => {
+test("restore puts a previous run's rows in as they were given, in key order, filling a column added since with its default; each autoInc counter carries on from the higher of its saved value and the table's highest id, a table with no rows left too", () => {
   const when = new Timestamp(1_760_000_000_000_000n);
   const saved = (id: bigint, who: Identity): Row => ({ id, identity: who, gameId: 1n, name: "Wren", concept: "", role: "host", characterId: undefined, placeId: undefined, sceneId: undefined, online: false });
   const host = memoryHost({
     ai: unused,
     restore: {
       rows: { player: [saved(7n, identity(2)), { ...saved(3n, identity(1)), suggestions: false, lastPlayedAt: when }], heard: [{ id: 4n, gameId: 1n, playerId: 3n, entityKey: "kell" }] },
-      sequences: { heard: 9n, player: 2n },
+      sequences: { heard: 9n, player: 2n, flag: 5n },
     },
   });
 
@@ -79,8 +79,12 @@ test("restore puts a previous run's rows in as they were given, in key order, fi
   const seven = host.db.player.id.find(7n)!;
   assert.deepEqual([seven.suggestions, seven.lastPlayedAt.microsSinceUnixEpoch], [true, 0n], "saved before suggestions and lastPlayedAt were added: their defaults");
 
-  const [heard, player] = host.transact(tx => [tx.db.heard.insert({ id: 0n, gameId: 1n, playerId: 3n, entityKey: "cob" }), tx.db.player.insert({ ...seven, id: 0n, identity: identity(3) })]);
-  assert.deepEqual([heard.id, player.id], [9n, 8n], "heard from its saved counter; player past its highest id");
+  const ids = host.transact(tx => [
+    tx.db.heard.insert({ id: 0n, gameId: 1n, playerId: 3n, entityKey: "cob" }).id,
+    tx.db.player.insert({ ...seven, id: 0n, identity: identity(3) }).id,
+    tx.db.flag.insert({ id: 0n, gameId: 1n, name: "kell-trusts", value: "yes", sceneId: 1n }).id,
+  ]);
+  assert.deepEqual(ids, [9n, 8n, 5n], "heard from its saved counter; player past its highest id; flag, with no rows left, from its saved counter");
   assert.throws(() => memoryHost({ ai: unused, restore: { rows: { nosuch: [] } as Restore["rows"] } }), /no table nosuch/);
 });
 
