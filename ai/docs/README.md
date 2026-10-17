@@ -1,18 +1,18 @@
-# v2/ai/docs: the docs service
+# ai/docs: the docs service
 
-Part of the [architecture overview](../../../ARCHITECTURE.md), and of [v2/ai](../README.md): the AI API's docs service, one copy shared by the prototype and v2.
+Part of the [architecture overview](../../ARCHITECTURE.md), and of [ai/](../README.md): the AI service's docs service.
 
-The lore as linked Markdown documents, a copy of it for each game that play writes to, who may read what, what the GM is shown of it each turn, and what people remember. It's V1's docs service, rebuilt for scenes. Disclosure and the reviews run when the approach has memory, as `v2` does; the fronts and companion talks use the store whatever the approach.
+The lore as linked Markdown documents, a copy of it for each game that play writes to, who may read what, what the GM is shown of it each turn, and what people remember. It's V1's docs service, rebuilt for scenes. The game's GM plays the prototype's `v2` approach, which has this memory, so disclosure and the reviews always run; the fronts and companion talks use the store too.
 
-It's handed what it needs of the game, never the game itself: disclosure, the memory reviews and the ending's memories take a view of the game's working set ([types.ts](types.ts): the game's id and turn, the scene, the people present, the player, the transcript as the models read it, and the notes disclosure has open or withheld), and what disclosure keeps comes back as a value for the game to keep. The prototype calls it through adapters at the old paths, [src/lore](../../../src/lore/): each has the name and signature the prototype's code has always called, makes the view from the scene and the session ([view.ts](../../../src/lore/view.ts), with the runtime's own brief.ts) and calls in here; the store, the fronts and the backstory are re-exported as they are.
+It's handed what it needs of the game, never the game itself: disclosure, the memory reviews and the ending's memories take a view of the game's working set ([types.ts](types.ts): the game's id and turn, the scene, the people present, the player, the transcript as the models read it, and the notes disclosure has open or withheld), and what disclosure keeps comes back as a value for the game to keep. The GM pipeline makes the view from each request ([gm/working-set.ts](../gm/working-set.ts)) and calls in here. (The prototype called it through adapters at its old paths, src/lore, until it was retired.)
 
 ```sh
-npm run scene -- memories <session>    # every doc as that game has it: the lore, its edits, the memories, the story so far
+npm run status -- --game <n> --memories    # on a running dev stack: every memory that game's reviews wrote
 ```
 
 ## What it is
 
-The authored lore in [lore/](../../../lore/README.md) is the seed: Markdown files with a frontmatter line per key, linked to each other by relative links. Each game gets an overlay, `runs/sessions/<id>/docs/`, and every write goes there (copy on write), so play changes that game's lore and never the authored files. Both places are [config.ts](config.ts)'s, each a volume ([volumes.ts](volumes.ts): a folder on disk, or docs in memory, synchronous as the service is): by default the repo's lore/ and `runs/sessions/<id>/docs/` folders (`KM_RUNS_DIR` moves runs/), made on the first read, and `configureDocs` moves them, as volumes or as folders by path. The prototype points the overlay at its session folder, which is the same place; the AI service serves a campaign version's lore/ and each game's copy from its stores; a host with no file system (the page's server worker) gives volumes in memory. A folder asks for Node's fs when it's first read (`process.getBuiltinModule`) rather than importing it, so the service bundles for a browser with no `node:` import. On top of the store sit:
+The authored lore, a campaign's `lore/` (Caerwyn's is [campaigns/caerwyn/lore](../../campaigns/caerwyn/lore/index.md)), is the seed: Markdown files with a frontmatter line per key, linked to each other by relative links. Each game gets an overlay, `runs/sessions/<id>/docs/`, and every write goes there (copy on write), so play changes that game's lore and never the authored files. Both places are [config.ts](config.ts)'s, each a volume ([volumes.ts](volumes.ts): a folder on disk, or docs in memory, synchronous as the service is): by default the campaign's lore and `runs/sessions/<id>/docs/` folders (`KM_RUNS_DIR` moves runs/), made on the first read, and `configureDocs` moves them, as volumes or as folders by path. The AI service serves a campaign version's lore/ and each game's copy from its stores; a host with no file system (the page's server worker) gives volumes in memory. A folder asks for Node's fs when it's first read (`process.getBuiltinModule`) rather than importing it, so the service bundles for a browser with no `node:` import. On top of the store sit:
 
 - **access by scope:** what each person in a scene, and the GM, may read;
 - **progressive disclosure:** before each reply, Jev opens the linked notes that bear on the moment;
@@ -44,9 +44,8 @@ The authored lore in [lore/](../../../lore/README.md) is the seed: Markdown file
 | `Player/<name>.md` | Who the player character is: their backstory in their own words and what it says of them (from character creation), and what they've told or shown people about themselves | gm | `writePlayerBackstory` when the session is made, `playerDoc`, then the world-facts agent |
 | Any lore path | The world-facts agent's edits and new docs | as written | `editDoc`, `createDoc` |
 | `World/Fronts.md` | The story's fronts, as this game has moved them | gm | `moveFronts` at a boundary; the world-facts agent mid-scene |
-| `Zoo/Fronts.md` | The zoo's own fronts, for its boundary desk | gm | [src/game/zoo/fronts.ts](../../../src/game/zoo/fronts.ts) |
 
-**What disclosure keeps,** which the game holds and hands back in each working set (`memory`; the prototype's `state.memory`): `opened` (the notes opened in this scene, with their scope and turn, 24 at most) and `withheld` (notes kept out of it however relevant they get: a talk's held story). `keepOpened` and `withhold` return it changed. The prototype resets it when the next scene starts.
+**What disclosure keeps,** which the game holds and hands back in each working set (`memory`): `opened` (the notes opened in this scene, with their scope and turn, 24 at most) and `withheld` (notes kept out of it however relevant they get: a talk's held story). `keepOpened` and `withhold` return it changed. The simulation keeps both in the scene's GM bookkeeping (`GmState`'s `opened` and `withheld`, [shared/gm/state.ts](../../shared/gm/state.ts)), so the next scene starts with none.
 
 ## How it fits
 
@@ -67,15 +66,15 @@ flowchart TB
 
 | Caller | Uses |
 |---|---|
-| [src/runtime/engine.ts](../../../src/runtime/engine.ts) | `disclose` and `keepOpened` before each reply and before an opening; at a boundary `errandsOf` (for the verdict: what the people the story goes on with do in the time between), `savePlayedScene`, `broadcastEnding` or `rememberScene`, `frontsText` and `moveFronts` |
-| [src/runtime/voices.ts](../../../src/runtime/voices.ts) | `memoryBrief`, in every GM reply when the approach has memory |
-| [src/runtime/jobs.ts](../../../src/runtime/jobs.ts) | `reviewTurn` or `rememberTurn`, after each turn, in the background |
-| [v2/ai/service/endpoints/remember.ts](../service/endpoints/remember.ts) | `reviewTurn`, after each turn of a v2 game (the AI service's `POST /v1/turns/remember`), with the request's call context (`calls`) |
-| [src/runtime/talk.ts](../../../src/runtime/talk.ts), [scenes/talk.ts](../../../scenes/talk.ts) | A companion's lore entry, notes and memories (`characterEntry`, `seedDoc`, `readDoc`, `linksIn`, `permitted`, `memoryLines`, `saveMemory`), and `withhold` |
-| The scene harness, the evals, the zoo | `listDocs` and `readDoc` (`scene memories`), the memory evals, the zoo's own fronts |
-| [src/app](../../../src/app/README.md#making-a-character), [src/cli/qa.ts](../../../src/cli/qa.ts) | Character creation's backstory: `draftBackstory`, `workIn`, `checkLore`, `applyFix`, `finishBackstory` |
+| [service/endpoints/turn.ts](../service/endpoints/turn.ts) | `disclose` before an opening and alongside each turn's decide; `keepOpened` |
+| [gm/voice.ts](../gm/voice.ts) | `memoryBrief`, in every GM reply |
+| [service/endpoints/remember.ts](../service/endpoints/remember.ts) | `reviewTurn`, after each turn (`POST /v1/turns/remember`), with the request's call context (`calls`) |
+| [gm/boundary.ts](../gm/boundary.ts) | At a boundary: `errandsOf` (for the verdict: what the people the story goes on with do in the time between), `savePlayedScene`, `broadcastEnding`, `frontsText` and `moveFronts`, `saveMemory` and `memoryLines` |
+| [gm/talk.ts](../gm/talk.ts) | A companion's talk: their lore entry, notes and memories (`characterEntry`, `seedDoc`, `memoryLines`, `saveMemory`), and `withhold` |
+| [gm/knowledge.ts](../gm/knowledge.ts), [gm/notes.ts](../gm/notes.ts) | `listDocs` and `seedDoc`: the lore a note on a reply links to, and its card |
+| [service/endpoints/backstories.ts](../service/endpoints/backstories.ts) | Character creation's backstory: `draftBackstory`, `workIn`, `checkLore`, `finishBackstory` (`applyFix` is shared/creation's) |
 
-These are the prototype's, and they call it through the adapters in src/lore, by the same names, with the scene and the session. It calls [the model client](../llm/README.md) (`JevDecider` for disclosure and the attention filter, `runTools` for the agents, `respondJson` for the lite reviews) and [the prompts](../prompts/README.md) (the reviews'), and nothing outside v2/ai. Who is present and the transcript come in the working set: the adapters make them with [src/runtime/brief.ts](../../../src/runtime/brief.ts), and point the game's copy at the session's folder (`sessionDir`, [src/runtime/session.ts](../../../src/runtime/session.ts)).
+It calls [the model client](../llm/README.md) (`JevDecider` for disclosure and the attention filter, `runTools` for the agents, `respondJson` for the lite reviews) and [the prompts](../prompts/README.md) (the reviews'), and nothing outside ai/ and shared/. Who is present and the transcript come in the working set. The lite reviews ([remember.ts](remember.ts): `rememberTurn`, `rememberScene`) were the prototype's `memory: "lite"` approaches' alone: nothing in the game calls them.
 
 ## How it works
 
@@ -94,7 +93,7 @@ These are the prototype's, and they call it through the adapters in src/lore, by
 
 ### Reviews (`memory: "docs"`)
 
-After each turn, a background job ([src/runtime/jobs.ts](../../../src/runtime/jobs.ts)) runs `reviewTurn` ([reviews.ts:171](reviews.ts#L171)) on that turn's snapshot. In v2 the AI service runs it the same way when the simulation asks (`POST /v1/turns/remember`), on the working set it sends once the turn is over, and appends the same line to the game's `memory-reviews.jsonl` in its store.
+After each turn, a background job runs `reviewTurn` ([reviews.ts:171](reviews.ts#L171)) on that turn's snapshot: the AI service runs it when the simulation asks (`POST /v1/turns/remember`), on the working set it sends once the turn is over, and appends a line to the game's `memory-reviews.jsonl` in its store.
 
 - **`attend`:** one Jev call with V1's seven attention categories, and an eighth, `witnessed`: someone present saw or heard for themselves something the story may need them to tell or swear to later (an admission, who came in), a companion or whoever stood watch included. A category flagged at 0.4 or more (`FLAG_THRESHOLD`) fires its agent: a false flag costs a review that writes nothing, and a missed one loses the memory.
 - **The personal-memories agent** handles commitments, changes in trust or knowledge, exchanges, and what witnesses saw and heard (in its own words: what Hobb admitted, not that it was recorded), with `save_memory`, `list_memories`, `read_doc` and `edit_doc`. It's told to write at most one memory per person present.
@@ -107,7 +106,7 @@ After each turn, a background job ([src/runtime/jobs.ts](../../../src/runtime/jo
 
 ### At a scene boundary
 
-`chainScene` ([src/runtime/engine.ts](../../../src/runtime/engine.ts)) records the scene that ended:
+`chainScene` ([gm/boundary.ts](../gm/boundary.ts), the prototype's engine.ts) records the scene that ended:
 
 - **`broadcastEnding`** (`docs`): everyone present gets the authored outcome as a memory, so the ending itself is never left to a review;
 - **`rememberScene`** (`lite`);
@@ -119,7 +118,7 @@ The fronts move in the same crossing. `moveFronts` ([fronts.ts:25](fronts.ts#L25
 
 ### A companion's stories: told, now, held
 
-Talks ([src/runtime/talk.ts](../../../src/runtime/talk.ts)) keep a companion's stories with the store. `confidences` lists the private notes linked from their lore entry that they haven't told yet. A story they tell goes in their memories (`saveMemory`) as well as the talk record. The deepest is held until the third talk: the GM is told its title and summary and to turn the question aside, and `withhold` ([disclosure.ts:101](disclosure.ts#L101)) keeps the note itself out of disclosure.
+Talks ([gm/talk.ts](../gm/talk.ts)) keep a companion's stories with the store. `confidences` lists the private notes linked from their lore entry that they haven't told yet. A story they tell goes in their memories (`saveMemory`) as well as the talk record. The deepest is held until the third talk: the GM is told its title and summary and to turn the question aside, and `withhold` ([disclosure.ts:101](disclosure.ts#L101)) keeps the note itself out of disclosure.
 
 ## Where to look first
 
@@ -132,24 +131,22 @@ Talks ([src/runtime/talk.ts](../../../src/runtime/talk.ts)) keep a companion's s
 ## How to test it
 
 ```sh
-node --no-warnings --test v2/ai/docs/*.test.ts      # on a working set made by hand; the fronts in a game's copy; the backstory: offline
-node --no-warnings --test src/lore/*.test.ts src/runtime/talk.test.ts   # through the prototype's adapters: a backstory in the game; talks' records and memories
-node --no-warnings src/eval/memory-eval.ts --approach v2-nomemory,v2,v2-memory-lite   # does someone remember, in a later scene? judged
-node --no-warnings src/eval/memory-run.ts <script.json> --approach v2   # scripted turns, reviews awaited, then what each person remembers
-npm run scene -- memories <session>                                   # a game's docs, with their visibility and readers
+node --no-warnings --test 'ai/docs/*.test.ts'          # on a working set made by hand; the fronts in a game's copy; the backstory: offline
+node --no-warnings --import tsx --test ai/service/endpoints/background.test.ts   # the remember endpoint: a review's notes in the game's copy, its line
+npm run status -- --game <n> --memories                 # on a running dev stack: every memory that game's reviews wrote
 ```
 
-The evals need the key. After a live game, `runs/sessions/<id>/docs/` holds everything play wrote, and `memory-reviews.jsonl` says which flags fired and what each review changed.
+The prototype's memory evals (`src/eval/memory-eval.ts`, `memory-run.ts`: does someone remember, a scene later?) went with it, in git history at `bc2ab1f`. After a live game, the AI service's store holds each game's copy of the lore and its `memory-reviews.jsonl`, which says which flags fired and what each review changed.
 
 ## Known gaps and sharp edges
 
 - **A missing `visibility` fails open.** No frontmatter means `gm`, but frontmatter without `visibility` means `public`. Every authored doc has one today.
 - **Whole-file writes, and no locks.** Memory reviews for consecutive turns can run at once, and two of them adding to one memory index can lose a line.
 - **Synchronous.** Every `readDoc` reads its volume (a file, for a folder), `linksIn` reads each linked doc, and a `[[wiki link]]` lists both volumes.
-- **Search isn't ranked.** `searchDocs` counts the query's words in each doc, across every `.md` under lore/ (its README included).
+- **Search isn't ranked.** `searchDocs` counts the query's words in each doc, across every `.md` under lore/.
 - **The registry is the authored lore's.** `characterEntry` scans lore/ once per process, so a lore entry created in play isn't found.
 - **The held story is cut, not annotated.** The GM knows its title and summary, and nothing else of it. A fast GM asked about something it can't see tends to invent it or deny it, and the reviews then record the invention.
 - **Always Jev.** Disclosure and the attention filter make their own `JevDecider`; the approach's decider never reaches them.
 - **Reviews run late.** A review reads its turn's snapshot but writes into the live overlay, perhaps after the next turn's disclosure has already read it.
-- **The reviews have no unit tests.** Disclosure, the memory block, what disclosure keeps and the ending's memories are tested on a working set made by hand ([working-set.test.ts](working-set.test.ts)), the fronts and the backstory too, and `errandsOf` in [src/runtime/boundary.test.ts](../../../src/runtime/boundary.test.ts). The attention filter and the review agents are tested by the memory evals, live.
-- **The prototype's working set is read when it's used.** Its view reads the session as the docs service asks, as this code always did: disclosure runs alongside a turn's decision, and its second round sees the turn as it stands by then. A working set sent in a request (the AI API's) is a copy, so a second round would see the turn as it was sent.
+- **The reviews have no unit tests.** Disclosure, the memory block, what disclosure keeps and the ending's memories are tested on a working set made by hand ([working-set.test.ts](working-set.test.ts)), the fronts and the backstory too, and `errandsOf` through the boundary's tests ([gm/boundary.test.ts](../gm/boundary.test.ts)). The attention filter and the review agents were tested by the prototype's memory evals, live.
+- **A working set is a copy.** The prototype's view read its session as the docs service asked, so disclosure's second round saw the turn as it stood by then; the working set a request sends is a copy, so a second round sees the turn as it was sent.

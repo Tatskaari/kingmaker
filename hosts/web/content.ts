@@ -14,7 +14,7 @@ export type { Content };
  * server worker's (web/server/content.ts), which reads it.
  */
 
-/** The allowlist, by v2's folders: what may go into content.json. Nothing hidden does. */
+/** The allowlist, by the repo's folders: what may go into content.json. Nothing hidden does. */
 export const CONTENT = [
   { dir: "campaigns/caerwyn", include: /\.(md|json)$/, what: "the campaign's Markdown and JSON" },
   { dir: "ai/prompts", include: /^(?!README\.md$).*\.md$/, what: "the prompts" },
@@ -33,7 +33,7 @@ export function readContent(v2: string): Content {
   };
 }
 
-/** Where each of content.json's files came from, as a path in v2: what the allowlist is asked about. */
+/** Where each of content.json's files came from, as a path in the repo: what the allowlist is asked about. */
 export function contentPaths(content: Content): string[] {
   return [
     ...Object.keys(content.campaign).map(path => `${CAMPAIGN.dir}/${path}`),
@@ -42,7 +42,7 @@ export function contentPaths(content: Content): string[] {
   ];
 }
 
-/** Is a path in v2 (forward slashes) one the allowlist lets in? */
+/** Is a path in the repo (forward slashes) one the allowlist lets in? */
 export function allowed(path: string): boolean {
   const parts = path.split("/");
   if (parts.some(part => part.startsWith("."))) return false;
