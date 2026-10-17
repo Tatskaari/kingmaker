@@ -5,8 +5,8 @@ import { join, resolve } from "node:path";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
-import { readCalls } from "../qa/loop/calls.ts";
-import { CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
+import { keptCalls, readCalls } from "../qa/loop/calls.ts";
+import { callsPath, CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
 import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
 import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
@@ -156,7 +156,7 @@ function checks(config: LoopConfig, name: string, asked: string[]): number {
 
 async function report(config: LoopConfig, name: string, deps: PlayDeps): Promise<number> {
   const reading: ReportDeps = {
-    calls: record => (record.uid ? deps.calls(record.stack, record.uid) : []),
+    calls: record => (record.uid ? keptCalls(deps.callLog(record.stack, record.uid), callsPath(config, name, record.game)) : []),
     async scene(record, key) {
       const loaded = record?.campaign ? await campaignOfRecord(record, deps) : await deps.campaign(STACK, "caerwyn", "");
       const scene = sceneOf(loaded, key);
@@ -204,11 +204,15 @@ function playDeps(): PlayDeps {
       if (!loaded.has(dir)) loaded.set(dir, campaignAt(dir));
       return loaded.get(dir)!;
     },
-    calls: (stack, uid) => readCalls(join(resolve(REPO, stack), "ai", "games", uid, "calls.jsonl")),
+    calls: (stack, uid) => readCalls(callLogOf(stack, uid)),
+    callLog: (stack, uid) => callLogOf(stack, uid),
     sleep: ms => new Promise(r => setTimeout(r, ms)),
     now: () => new Date(),
   };
 }
+
+/** A game's call log in its stack's AI service's store. */
+const callLogOf = (stack: string, uid: string) => join(resolve(REPO, stack), "ai", "games", uid, "calls.jsonl");
 
 const campaignOfRecord = (record: GameRecord, deps: PlayDeps) => deps.campaign(record.stack, record.campaign?.id ?? "caerwyn", record.campaign?.version ?? "");
 

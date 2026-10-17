@@ -12,6 +12,7 @@ import { join, relative } from "node:path";
  *     notes/<game>.md         the tester's own notes, as a player
  *     reviews/<game>.pack.md  what a blind reviewer reads (review-pack)
  *     reviews/<game>.json     the review (checked by review-check)
+ *     calls/<game>.jsonl      the game's model calls, kept from its stack's log by the report
  *     triage.json             each finding kept or discarded, and why
  *     report/                 index.html and games/<game>.html
  */
@@ -38,6 +39,7 @@ export const recordPath = (config: LoopConfig, round: string, game: string) => j
 export const notesPath = (config: LoopConfig, round: string, game: string) => join(roundDir(config, round), "notes", `${game}.md`);
 export const reviewPath = (config: LoopConfig, round: string, game: string) => join(roundDir(config, round), "reviews", `${game}.json`);
 export const packPath = (config: LoopConfig, round: string, game: string) => join(roundDir(config, round), "reviews", `${game}.pack.md`);
+export const callsPath = (config: LoopConfig, round: string, game: string) => join(roundDir(config, round), "calls", `${game}.jsonl`);
 
 /** A path from the repo's root, as an agent working there types it (absolute when it's outside). */
 export function shortPath(path: string): string {

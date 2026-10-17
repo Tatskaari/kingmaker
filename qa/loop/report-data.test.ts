@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { callsBefore, callsByTurn, capped, costOf, type Call } from "./calls.ts";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { callsBefore, callsByTurn, capped, costOf, keptCalls, type Call } from "./calls.ts";
 import { newRecord, type GameRecord } from "./record.ts";
 import { armStats, byCheck, gameStats } from "./report-data.ts";
 import type { Review } from "./review.ts";
@@ -51,6 +54,17 @@ test("calls by the turn their key names, whole ones only; what they cost; the 40
   assert.equal(capped(byTurn.get(1)!), 1);
   assert.equal(Math.round(costOf(CALLS) * 1000), 20);
   assert.deepEqual(callsBefore(CALLS, "7").map(c => c.key), ["u1:c1:offer", "u1:s3:t2:boundary"]);
+});
+
+test("a game's calls are kept with the round as they're read, and read from there once the stack's log is gone", () => {
+  const dir = mkdtempSync(join(tmpdir(), "km-calls-"));
+  const stackLog = join(dir, "stack", "calls.jsonl"), kept = join(dir, "round", "calls", "g01.jsonl");
+  rmSync(join(dir, "stack"), { recursive: true, force: true });
+  assert.deepEqual(keptCalls(stackLog, kept), [], "no log anywhere: no calls");
+  writeFileSync(join(dir, "calls.jsonl"), `${JSON.stringify(CALLS[2])}\nnot json\n`);
+  assert.equal(keptCalls(join(dir, "calls.jsonl"), kept).length, 1, "a line that isn't JSON is skipped");
+  rmSync(join(dir, "calls.jsonl"));
+  assert.equal(keptCalls(join(dir, "calls.jsonl"), kept)[0]!.text, "The yard.", "the round's copy, the stack's gone");
 });
 
 test("triage: numbered from 1, the severity as triaged; a discarded finding doesn't count; a verdict for a finding there isn't is caught", () => {

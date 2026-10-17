@@ -33,7 +33,7 @@ function demoDeps(): PlayDeps & { game: Backend } {
       return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(target) : value;
     },
   });
-  return { game, connect: async () => kept, owner: () => undefined, campaign: () => loaded, calls: () => [], sleep: async () => {}, now: () => new Date("2026-10-17T20:00:00Z"), backoff: [1, 1] };
+  return { game, connect: async () => kept, owner: () => undefined, campaign: () => loaded, calls: () => [], callLog: () => "", sleep: async () => {}, now: () => new Date("2026-10-17T20:00:00Z"), backoff: [1, 1] };
 }
 
 function round(config: LoopConfig, scene: string, maxTurns = 2) {

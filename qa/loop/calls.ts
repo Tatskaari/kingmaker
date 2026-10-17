@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { turnKeyParts } from "../../shared/protocol/keys.ts";
 
 /**
@@ -26,6 +27,19 @@ export function readCalls(file: string): Call[] {
     if (!line.trim()) return [];
     try { return [JSON.parse(line) as Call]; } catch { return []; }
   });
+}
+
+/**
+ * A game's calls as the round keeps them: its stack's log, copied beside the round as it's read
+ * (`kept`), so the round outlives the stack (a fresh start wipes its store) and goes with its archive;
+ * the round's copy when the stack's log is gone.
+ */
+export function keptCalls(stackLog: string, kept: string): Call[] {
+  if (existsSync(stackLog)) {
+    mkdirSync(dirname(kept), { recursive: true });
+    copyFileSync(stackLog, kept);
+  }
+  return readCalls(kept);
 }
 
 /** A call in full: its answer, or how it failed (not one going out, a try again, or a warning). */

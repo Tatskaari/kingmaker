@@ -29,8 +29,9 @@ export interface PlayDeps {
   owner(stack: string): OwnerQuery | undefined;
   /** The campaign version the stack installed, loaded as its AI service loads it (scenes.ts). */
   campaign(stack: string, id: string, version: string): Promise<Loaded>;
-  /** The game's model calls, from the stack's AI service's log. */
+  /** The game's model calls, from the stack's AI service's log (its path, for keeping a copy). */
   calls(stack: string, uid: string): Call[];
+  callLog(stack: string, uid: string): string;
   sleep(ms: number): Promise<void>;
   now(): Date;
   /** The backoffs between tries (patience.ts): a test's are short. */
