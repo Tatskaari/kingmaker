@@ -5,10 +5,10 @@ import { folderVolume } from "./volumes.ts";
  * Where the docs service finds the docs: the authored lore, which it reads and never writes, and each
  * game's own copy of it, where every write goes (copy on write). Each is a volume: a folder on disk,
  * docs in memory (volumes.ts), or whatever else a host keeps them in. A host says where once, before
- * the first read. Until one does, they're the folders the prototype keeps them in, the repo's lore/
- * and runs/sessions/<game>/docs (KM_RUNS_DIR moves runs/), made when the docs are first read: so
- * importing this asks nothing of a file system, or of where this file is, and a browser's host
- * configures volumes of its own before it reads.
+ * the first read. Until one does, they're the campaign's lore (campaigns/caerwyn/lore, the copy the
+ * prototype's lore/ became) and runs/sessions/<game>/docs (KM_RUNS_DIR moves runs/), made when the
+ * docs are first read: so importing this asks nothing of a file system, or of where this file is,
+ * and a browser's host configures volumes of its own before it reads.
  */
 
 /** A folder of docs, as the docs service reads it: synchronous, as the service is, by paths of its own ("Cast/Kell/private.md"). */
@@ -42,7 +42,7 @@ let overlay: ((game: string) => DocsVolume) | undefined;
 
 /** Where the docs are now: the folders, for what no host has said. */
 export function docsConfig(): Readonly<DocsConfig> {
-  lore ??= folderVolume(join(import.meta.dirname, "..", "..", "..", "lore"));
+  lore ??= folderVolume(join(import.meta.dirname, "..", "..", "campaigns", "caerwyn", "lore"));
   overlay ??= game => folderVolume(join(globalThis.process?.env.KM_RUNS_DIR ?? "runs", "sessions", game, "docs"));
   return { lore, overlay };
 }
