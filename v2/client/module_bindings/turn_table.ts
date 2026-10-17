@@ -27,4 +27,5 @@ export default __t.row({
   notes: __t.string(),
   suggest: __t.string(),
   suggestAsks: __t.u32().name("suggest_asks"),
+  mechanic: __t.option(__t.string()),
 });

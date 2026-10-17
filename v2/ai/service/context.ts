@@ -1,7 +1,7 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
   AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderRequest, ConsiderResponse,
-  DecideRequest, DecideResponse, NotesRequest, NotesResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
+  DecideRequest, DecideResponse, LooksRequest, LooksResponse, NotesRequest, NotesResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
   ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
@@ -37,7 +37,8 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
  * world-bridge-design §3.1, consider on a turn the GM rules on, reply, settle),
  * the two beside a turn once its reply is in (the notes on its marks, the lines suggested after it:
  * v5-design §3.6), the two in the background once it's over (the memory reviews and the co-GM:
- * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4); and character
+ * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4), the looks of what a
+ * turn made (town-design §3.7); and character
  * creation's two (v1-design §3.7), each serving several steps.
  * The pipeline's (endpoints/*.ts), or the canned ones (KM_AI_GM=canned: no model at all).
  */
@@ -58,6 +59,8 @@ export interface Endpoints {
   repair: Handler<RepairRequest, RepairResponse>;
   /** The boundary after a scene ends: the hand-off, the verdict, the fronts, presence, what's owed; the game's docs written once. */
   boundary: Handler<BoundaryRequest, BoundaryResponse>;
+  /** How things the story made look on the map (look.invent): one call for a batch. */
+  looks: Handler<LooksRequest, LooksResponse>;
   /** The builds: three offered (offer), the model's one (pick), the player's own made legal (own). */
   characters: Handler<CharactersRequest, CharactersResponse>;
   /** The backstory: a draft, notes worked in, the lore check, and what it says of them (traits). */

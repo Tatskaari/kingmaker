@@ -2,7 +2,8 @@ import { MOST_WORDS } from "../creation/story.ts";
 
 /**
  * Refusals: a move the simulation won't make, in the game's words (v0-design §3.4, v1-design §3.4,
- * story-design §4.2: the way on between scenes, the testing end, the fight's stand-in).
+ * story-design §4.2: the way on between scenes, the testing end, the fight's stand-in; town-design
+ * §3.2: the map's action menu, whose words are the prototype's own sentence for what it won't do).
  * A reducer throws one as a SenderError whose message is the refusal as JSON; the client parses it
  * back and shows `text` in its status line, or, on the creation screens, in their note line (the two
  * that are the prototype's notes keep its words, with no brackets).
@@ -14,7 +15,8 @@ export type RefusalCode =
   | "not_service" | "not_admin" | "bad_pack" | "not_built"
   | "not_creating" | "creation_busy" | "not_offered" | "still_making" | "not_now" | "bad_how"
   | "nothing_to_work_in" | "story_too_long" | "story_too_big" | "already_begun" | "not_yours" | "not_begun"
-  | "scene_on" | "no_way" | "unavailable" | "not_in_scene" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight";
+  | "scene_on" | "no_way" | "unavailable" | "not_in_scene" | "no_lead" | "story_over" | "not_stuck" | "no_scene" | "no_exit" | "no_fight"
+  | "no_line" | "out_of_reach" | "too_far" | "no_slot" | "shut";
 
 export interface Refusal { code: RefusalCode; text: string }
 
@@ -40,7 +42,7 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   no_build: v => `(There's no ready-made build called ${v.build ?? "that"}: there's ${v.builds ?? "none"}.)`,
   bad_name: () => `(Your character needs a name of ${MAX_NAME} characters or fewer.)`,
   bad_concept: () => `(Your character's concept needs to be ${MAX_CONCEPT} characters or fewer.)`,
-  not_ready: () => "(The scene is still opening.)",
+  not_ready: v => v.text ?? "(The scene is still opening.)",
   scene_over: () => "(The scene is over.)",
   not_controller: v => `(${v.name ?? "Someone else"} has the lead here: you're watching.)`,
   turn_in_flight: () => "(The GM is still answering.)",
@@ -56,7 +58,7 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   creation_busy: () => "(The GM is still working on it.)",
   not_offered: () => "(That isn't one of the builds on offer.)",
   still_making: () => "(The rules engine is still making it.)",
-  not_now: () => "(That doesn't apply just now.)",
+  not_now: v => v.text ?? "(That doesn't apply just now.)",
   bad_how: () => "(That isn't a way to make a character: three, model, or own:<species>,<class>,<subclass>,<background>.)",
   nothing_to_work_in: () => "There's nothing in the box to work in yet: write a few notes first, or Draft one.",
   story_too_long: v => `It's ${v.words ? thousands(Number(v.words)) : `over ${thousands(MOST_WORDS)}`} words, and the GM reads all of it every turn: cut it to ${thousands(MOST_WORDS)} or fewer.`,
@@ -74,6 +76,13 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
   no_scene: () => "(There's no scene being played.)",
   no_exit: v => (v.exit ? `(There's no ending called ${v.exit} here: there's ${v.exits ?? "none"}.)` : `(The endings here: ${v.exits ?? "none"}.)`),
   no_fight: () => "(There's no fight to be had here.)",
+  // The map's action menu (town-design §3.2): each takes the prototype's sentence for it as `text`,
+  // "(<what it is>: <why not>.)", as menu.ts says it; these words stand in when none is given.
+  no_line: v => v.text ?? "(There's no clear line to there.)",
+  out_of_reach: v => v.text ?? "(That's out of reach from here.)",
+  too_far: v => v.text ?? "(That's too far to get to from here.)",
+  no_slot: v => v.text ?? "(No spell slots left for that: a rest brings them back.)",
+  shut: v => v.text ?? "(That's shut at this hour.)",
 };
 
 /**
@@ -81,7 +90,9 @@ const WORDS: Record<RefusalCode, (v: Record<string, string>) => string> = {
  * `campaign`; no_build `build` and `builds` (andList of the ids); not_controller `name`; not_admin
  * `what` ("install a campaign" when absent); bad_pack `why`; story_too_long `words` (the story's
  * wordCount, as shared/creation/story.ts tooLong says it); no_exit `exit` (what was asked for: none
- * lists them) and `exits` (andList of "<id> (<title>)").
+ * lists them) and `exits` (andList of "<id> (<title>)"); the map's action menu's (no_line,
+ * out_of_reach, too_far, no_slot, shut, and not_ready and not_now when a menu act gives them) `text`,
+ * the prototype's sentence whole: "(Fire Bolt (cantrip): out of reach: 130 ft (it reaches 120 ft).)".
  */
 export function refusal(code: RefusalCode, vars: Record<string, string> = {}): Refusal {
   return { code, text: WORDS[code](vars) };

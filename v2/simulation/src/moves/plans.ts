@@ -1,7 +1,7 @@
 import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
 import type { Decision, Drafted, Outcome } from "../../../shared/protocol/ai.ts";
-import type { Act } from "../../../shared/rules/types.ts";
+import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 import type { Transition } from "../../../shared/scene/types.ts";
 
 /**
@@ -15,9 +15,12 @@ export interface Seen { scene: number; place: number }
 /**
  * The opening's plan: one think, POST /v1/scenes/open. With `aftermath` (story-design §4.3), the
  * scene picking up after a fight on a turn of its own: the think is told how the fight went, and its
- * commit applies what the stage manager says the aftermath did.
+ * commit applies what the stage manager says the aftermath did. With `act` (town-design §3.4), the
+ * map's action menu opened it: once the opening is in, the commit queues the act as turn 1, its
+ * words the player's line and its mechanic the turn's (decide's `forced`). A talk's opening (§3.6)
+ * is told its own in the request (`talk`), and keeps the answer's prep.
  */
-export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string } }
+export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic } }
 
 /**
  * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
@@ -63,6 +66,8 @@ export interface SayPlan {
   /** This turn's dice lines. */
   lines: string[];
   seen: Seen;
+  /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act): the decide request's `forced`. */
+  forced?: Mechanic;
 }
 
 /**
@@ -94,3 +99,11 @@ export interface RepairPlan { step: "repair"; game: string; scene: string; turn:
  * the answer chose waiting, with what was handed on, or opens it at once (a summons).
  */
 export interface BoundaryPlan { step: "boundary"; game: string; scene: string; n: number; exit: string; candidates: string[] }
+
+/**
+ * The looks of what the stage manager made in a turn (town-design §3.7): one think beside the turn,
+ * POST /v1/looks, keyed by the turn (`n`). `things`: each new thing's entity id (as a string), the key
+ * its look is asked for by (its name in lower case: look_invention's) and its name and kind. Its
+ * commit writes look_invention by key and a look row for each thing still there.
+ */
+export interface LookPlan { step: "look"; game: string; scene: string; turn: string; n: number; things: Array<{ entityId: string; key: string; name: string; kind?: string }> }

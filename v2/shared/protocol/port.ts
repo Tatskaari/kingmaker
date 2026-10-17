@@ -105,12 +105,14 @@ export type Rejection = Refusal | { code: "error"; text: string };
 
 /**
  * The moves a client makes as itself, by their names in the bindings (and the memory host's Caller):
- * a scene's, the map's, character creation's, the games' and the story's between scenes. Never
- * installCampaign, dispatchWaiting or streamReply, which aren't a player's.
+ * a scene's, the map's (its action menu's too: town-design §3.2), character creation's, the games'
+ * and the story's between scenes. Never installCampaign, dispatchWaiting or streamReply, which aren't
+ * a player's.
  */
 export const PLAYER_MOVES = [
   "newGame", "joinGame", "say", "retryTurn", "setSuggestions",
   "walk", "interact", "travel",
+  "cast", "attack", "useFeature", "leap", "hide", "rest", "useItem",
   "startCreation", "creationBack", "chooseBuild", "makeOwn", "pickOwn", "takeOwn", "setBackstory", "draftBackstory", "workInBackstory",
   "takeProposal", "leaveProposal", "finishBackstory", "acceptFix", "rewriteIssue", "skipBackstory", "chooseAgain",
   "begin", "continueGame", "deleteGame", "carryOn", "fightItOut",

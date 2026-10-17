@@ -41,13 +41,13 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   seat: { primaryKey: "identity" },
   sheet: {
     primaryKey: "playerId", indexes: ["gameId"], public: true,
-    defaults: { level: 0, hp: 0, maxHp: 0, ac: 0, slots: [], conditions: [], spells: [], weapons: [], features: [], data: "", pockets: "", spellFacts: "" },
+    defaults: { level: 0, hp: 0, maxHp: 0, ac: 0, slots: [], conditions: [], spells: [], weapons: [], features: [], data: "", pockets: "", spellFacts: "", actions: "" },
   },
   dice: { primaryKey: "gameId" },
   admin: { primaryKey: "identity" },
 
   scene: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
-  gmState: { primaryKey: "sceneId", defaults: { canon: [], patches: "[]", whispers: [], rulings: [], absent: [], adjustments: [], owed: [], fought: [] } },
+  gmState: { primaryKey: "sceneId", defaults: { canon: [], patches: "[]", whispers: [], rulings: [], absent: [], adjustments: [], owed: [], fought: [], guard: [], withheld: [] } },
   onStage: { primaryKey: "entityId", indexes: ["sceneId"], public: true },
   turn: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true, defaults: { notes: "none", suggest: "none", suggestAsks: 0 } },
   transcript: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true },
@@ -62,8 +62,9 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   journal: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
   attitude: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
   follower: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
+  talkRecord: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
 
-  place: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true, defaults: { active: false } },
+  place: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true, defaults: { active: false, town: "" } },
   entity: { primaryKey: "id", autoInc: true, indexes: ["placeId"], named: { byGameKey: ["gameId", "key"] }, public: true },
   position: { primaryKey: "entityId", indexes: ["placeId"], public: true },
   area: { primaryKey: "entityId", indexes: ["placeId"], public: true },
@@ -78,6 +79,7 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   gmNote: { primaryKey: "entityId", indexes: ["placeId"] },
   worldLog: { primaryKey: "id", autoInc: true, indexes: ["placeId"], public: true },
   look: { primaryKey: "entityId", indexes: ["placeId"], public: true },
+  lookInvention: { primaryKey: "key" },
 
   job: { primaryKey: "id", autoInc: true, unique: ["key"], indexes: ["state"] },
   jobDispatch: { primaryKey: "scheduledId", autoInc: true },
@@ -92,4 +94,5 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   rulesState: { primaryKey: "playerId", indexes: ["gameId"], defaults: { npcs: "{}", timed: false } },
 
   explore: { primaryKey: "playerId", indexes: ["gameId"], public: true },
+  placeTick: { primaryKey: "scheduledId", autoInc: true },
 };

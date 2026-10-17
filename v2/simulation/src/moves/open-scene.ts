@@ -1,15 +1,17 @@
 import { initialGm, type GmState } from "../../../shared/gm/state.ts";
-import type { OpenResponse } from "../../../shared/protocol/ai.ts";
-import { idOf, idText } from "../../../shared/protocol/keys.ts";
+import type { OpenResponse, TalkPrep } from "../../../shared/protocol/ai.ts";
+import { idOf, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
+import type { Mechanic } from "../../../shared/rules/types.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
 import { keepOpened } from "../gm/bookkeeping.ts";
 import { openCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
-import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
+import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
 import { campaignFile, campaignOfGame, graphOf, sceneDefOf, sceneFileOf, sceneGraph } from "../scenes.ts";
-import { noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
+import { addEntry, noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
+import { talkLines } from "../map/talk.ts";
 import { betweenScenes } from "../rules/play.ts";
 import { refreshPockets } from "../rules/session.ts";
 import { rekeyOwed } from "../world/cross.ts";
@@ -19,6 +21,7 @@ import type { Move } from "./move.ts";
 import { askForNotes } from "./notes.ts";
 import type { OpenPlan, Seen } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
+import { keysIn, lookForNew } from "./looks.ts";
 
 /**
  * A scene opens (v0-design §4.3, v1-design §3.6): its place built, the scene row and its GM
@@ -35,10 +38,10 @@ import { suggestAfter } from "./suggest.ts";
  * commit again, on a turn of its own (`aftermath`): the reply is that turn's, and what the stage
  * manager says it did goes through the gate.
  */
-export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, OpenPlan> = {
+export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; act?: { text: string; mechanic: Mechanic } }, OpenPlan> = {
   name: "openScene",
 
-  resolve(tx, actor, { game: gameId, sceneKey, start }) {
+  resolve(tx, actor, { game: gameId, sceneKey, start, act }) {
     const game = gameRow(tx, gameId);
     const def = sceneDefOf(tx, game, sceneKey);
     const controller = playerRow(tx, actor.id!);
@@ -55,7 +58,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });
-    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id) } };
+    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}) } };
   },
 
   think: (tx, plan) => openCall(tx, plan),
@@ -70,19 +73,55 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start }, 
     const scene = sceneRow(tx, idOf(plan.scene));
     const gm = getGm(tx, scene.id);
     const turnId = idOf(plan.turn);
+    const talk = scene.kind === "talk";
 
-    putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []) });
+    putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []), ...(talk && opened.talk ? prepared(gm, opened.talk, turnRow(tx, turnId).n) : {}) });
     const opening = writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
     if (opening) askForNotes(tx, turnId, opening);
-    suggestAfter(tx, scene, turnId);
-    if (plan.aftermath) stageAftermath(tx, scene, turnRow(tx, turnId).n, opened);
+    // A talk's lines to choose come with its prep (talk.ts prepare); a scene's are asked for (v5-design §3.5).
+    if (talk) { if (playerRow(tx, scene.controllerId).suggestions) talkLines(tx, scene, turnRow(tx, turnId).n, opened.talk?.suggestions ?? []); }
+    else suggestAfter(tx, scene, turnId);
+    if (plan.aftermath) stageAftermath(tx, scene, turnRow(tx, turnId).n, turnId, opened);
     noteHeard(tx, scene, sceneGraph(tx, scene, gm));
+    // The map's act that opened it is its first turn (play.ts:256: said after the opening): queued now, started as turn 0 finishes.
+    if (plan.act) queueAct(tx, sceneRow(tx, scene.id), plan.act);
 
     updateScene(tx, scene.id, { status: "live" });
     finishTurn(tx, scene.id, turnId);
     return { done: true };
   },
 };
+
+/**
+ * A talk's prep kept (talk.ts prepare): what the talk's GM takes as given, the one thing the companion
+ * might tell (on their card, and the route by which it comes out: the prep's patches), how near the
+ * surface it starts (their staged secret, or as far as an earlier talk brought it: the AI service's
+ * reading of the record), what they'd tell and how they'd remember it, and what disclosure keeps out.
+ */
+function prepared(gm: GmState, prep: TalkPrep, n: number): Partial<GmState> {
+  const companion = gm.talk?.with;
+  return {
+    established: [...gm.established, ...prep.established.filter(f => !gm.established.includes(f))],
+    patches: [...gm.patches, ...prep.patches],
+    ...(companion && prep.guard ? { guard: { ...(gm.guard ?? {}), [companion]: { stage: prep.guard.stage, turn: prep.guard.turn ?? n } } } : {}),
+    ...(prep.withheld.length ? { withheld: [...new Set([...(gm.withheld ?? []), ...prep.withheld])] } : {}),
+    ...(gm.talk && prep.confide ? { talk: { ...gm.talk, confide: prep.confide } } : {}),
+  };
+}
+
+/**
+ * The map's act as the scene's first turn (town-design §3.4: storyAct's): the player's line in
+ * brackets, and its mechanic, chosen already, on the turn (turn.mechanic: decide's `forced`). It
+ * waits as queued; turn 0's end starts it (turns.ts), or its notes coming in do.
+ */
+function queueAct(tx: TxCtx, scene: SceneRow, act: { text: string; mechanic: Mechanic }): void {
+  const n = scene.turns + 1;
+  const turn = newTurn(tx, scene, scene.controllerId, n, "queued");
+  updateTurn(tx, turn.id, { mechanic: JSON.stringify(act.mechanic) });
+  addEntry(tx, scene, { turn: n, speaker: playerSpeaker(scene.controllerId), kind: "player", text: act.text });
+  updateScene(tx, scene.id, { turns: n });
+  tx.log(`[scene ${scene.id}] the map's act queued as turn ${n}: ${act.text}`);
+}
 
 /** The scene's row, in its place (built now), with the controller and their character placed in both. */
 function insertScene(tx: TxCtx, game: GameRow, def: SceneDefRow, graph: Scene, gm: GmState, controller: PlayerRow, start: Start | undefined): SceneRow {
@@ -129,13 +168,15 @@ export function placeKeyOf(tx: TxCtx, game: GameRow, def: SceneDefRow): string {
  * What the aftermath did to the world, as a turn's reply's is (engine.ts:1024-1035, stageAftermath):
  * the stage manager's operations through the gate (the player kept in the place), written back.
  */
-function stageAftermath(tx: TxCtx, scene: SceneRow, n: number, opened: OpenResponse): void {
+function stageAftermath(tx: TxCtx, scene: SceneRow, n: number, turnId: bigint, opened: OpenResponse): void {
   const place = placeWorldOf(tx, scene);
   const graph = sceneGraph(tx, scene, getGm(tx, scene.id));
+  const keys = keysIn(tx, scene.placeId);
   const done = applyStage(place, opened.ops ?? [], n);
   savePlaceWorld(tx, scene, place, graph);
   refreshPockets(tx, scene.controllerId, place.world);
   syncStage(tx, scene, graph, getGm(tx, scene.id));
+  lookForNew(tx, scene, n, turnId, keys);
   tx.log(`[scene ${scene.id} turn ${n}] the aftermath staged: ${done.changes.length} changed, ${done.problems.length} not done`);
 }
 

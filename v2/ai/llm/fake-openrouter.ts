@@ -11,7 +11,8 @@ import type { ToolCall } from "./tools.ts";
  * - The Responses API: JSON made to fit the schema asked for (the stage manager's operations, the
  *   quick co-GM), or one of `byName`'s by the schema's name; the lines a scene or a talk suggests
  *   (asked for in instructions that begin "You suggest what the player might": v2/ai/prompts/suggest.md,
- *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given; the hand-off between
+ *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given (a talk's from
+ *   `talkSuggestions` instead, when it's given: its lines are plain, a scene's have their kinds); the hand-off between
  *   two scenes (instructions that begin "You write the hand-off between two scenes": v2/ai/gm/boundary.ts)
  *   from `handoff`, when it's given; otherwise the GM's next line from `replies`, streamed as
  *   OpenRouter streams it.
@@ -43,6 +44,7 @@ const QUIET = ["none", "not_yet", "on_track", "in_character", "covered", "harmle
  * structured call waits this long, by its schema's name, before it answers; `suggestDelayMs`: so do
  * the suggested lines (for a test that needs the notes or the lines still on their way). `toolCalls`:
  * the calls a tool loop makes, by its first tool's name (each a tool's name and its arguments).
+ * `talkSuggestions`: a talk's lines (talk.suggest), apart from a scene's, in turn as `suggestions`.
  */
 export interface FakeOptions {
   replies?: string[];
@@ -50,6 +52,7 @@ export interface FakeOptions {
   choices?: Record<string, string | string[]>;
   odds?: Record<string, number>;
   suggestions?: string | string[];
+  talkSuggestions?: string | string[];
   handoff?: string;
   stall?: string[];
   capped?: Record<string, number>;
@@ -86,7 +89,8 @@ export interface FakeOpenRouter {
 export function fakeFetch(options: FakeOptions = {}): FakeFetch {
   const replies = options.replies ?? ["The GM nods. “Go on.”"];
   const suggestions = [options.suggestions ?? ""].flat();
-  let next = 0, suggested = 0;
+  const talkSuggestions = options.talkSuggestions === undefined ? undefined : [options.talkSuggestions].flat();
+  let next = 0, suggested = 0, talked = 0;
   const asked: string[] = [];
   const sent: Request[] = [];
   const answerFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -103,12 +107,14 @@ export function fakeFetch(options: FakeOptions = {}): FakeFetch {
     if (looped) return json(toolRound(looped, body.input ?? []));
     const format = body.text?.format;
     const suggesting = !!body.instructions?.startsWith("You suggest what the player might");
+    const talking = !!talkSuggestions && !!body.instructions?.startsWith("You suggest what the player might say next in a conversation with");
     const handing = options.handoff !== undefined && !!body.instructions?.startsWith("You write the hand-off between two scenes");
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
     const delay = format ? options.byNameDelayMs?.[format.name] : suggesting ? options.suggestDelayMs : undefined;
     if (delay) await waited(delay, init?.signal);
     if (format && options.capped?.[format.name] !== undefined) return capped(options.capped[format.name]!);
     const text = format?.type === "json_schema" ? JSON.stringify(options.byName?.[format.name] ?? fit(format.schema))
+      : talking ? talkSuggestions![talked++ % talkSuggestions!.length]!
       : suggesting ? suggestions[suggested++ % suggestions.length]!
       : handing ? options.handoff!
       : replies[next++ % replies.length]!;

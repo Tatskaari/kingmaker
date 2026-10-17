@@ -3,7 +3,8 @@ import type { MoveWire } from "../../shared/protocol/port.ts";
 import { refusal } from "../../shared/protocol/refusals.ts";
 import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
 import { exploreViewOf, type ExploreRows, type ExploreView, type MapPlaceTables } from "../explore/rows.ts";
-import type { SeatView } from "../module_bindings/types.ts";
+import { keepInvented } from "../look/invented.ts";
+import type { Look, SeatView } from "../module_bindings/types.ts";
 import type { PlaceTables } from "../scene/place-rows.ts";
 import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
@@ -49,6 +50,9 @@ export class Replica implements Backend {
 
     const of = <T>(table: { iter(): Iterable<T> }, keep: (row: T) => boolean) => [...table.iter()].filter(keep);
     const mine = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => of(table, r => r.gameId === game.id);
+    const onStage = of(t.onStage, s => s.sceneId === scene.id);
+    // Whoever's on stage keeps their look wherever their entity is: a talk's companion is on stage in a talk on the town's place, their entity still in the waiting scene's (town-design §3.6).
+    const staged = new Set(onStage.map(s => s.entityId));
     return {
       me: seat.playerId,
       game, scene,
@@ -57,9 +61,9 @@ export class Replica implements Backend {
       transcript: of(t.transcript, r => r.sceneId === scene.id),
       drafts: of(t.replyDraft, d => d.sceneId === scene.id),
       turns: of(t.turn, r => r.sceneId === scene.id),
-      onStage: of(t.onStage, s => s.sceneId === scene.id),
+      onStage,
       names: [...t.myNames.iter()],
-      looks: of(t.look, l => l.placeId === scene.placeId),
+      looks: of(t.look, l => l.placeId === scene.placeId || staged.has(l.entityId)),
       suggestions: of(t.sceneSuggestion, s => s.sceneId === scene.id),
       story: {
         game, scenes: mine(t.scene), chapters: mine(t.chapter), quests: mine(t.quest), flags: mine(t.flag),
@@ -234,8 +238,16 @@ export class Replica implements Backend {
 
   private event(table: Watched, op: RowOp, row: unknown): void {
     if (MAP_TABLES.has(table)) this.mapRev++;
+    if (table === "look" && op !== "delete") this.invented(row as Look);
     for (const listener of this.events) listener(table, op, row);
     this.changed();
+  }
+
+  /** A look the AI service invented for something the story made up (town-design §3.7): the look layer's from now on, by the thing's name (its entity's, in the same commit). */
+  private invented(look: Look): void {
+    if (!look.invention) return;
+    const thing = [...this.link.tables.entity.iter()].find(e => e.id === look.entityId);
+    keepInvented(thing?.name, look.invention, thing?.kind);
   }
 
   /** The link's trouble (or what it covers) changed: the listeners hear of it. */

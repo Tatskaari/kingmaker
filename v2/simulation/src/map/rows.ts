@@ -1,5 +1,5 @@
 import { getMap, useMaps } from "../../../shared/map/maps.ts";
-import type { ExploreRow, MapPlace, MapRows } from "../../../shared/map/rows.ts";
+import { keepColumns, keepFromColumns, type ExploreRow, type MapPlace, type MapRows } from "../../../shared/map/rows.ts";
 import type { MapFile } from "../../../shared/map/tiles.ts";
 import type { Unheard } from "../../../shared/map/town.ts";
 import type { Tile2 } from "../../../shared/map/types.ts";
@@ -56,6 +56,7 @@ export function exploreRowFrom(r: ExploreTableRow): ExploreRow {
     followers: r.followers.map(f => ({ ...f, at: { ...f.at } })),
     quips: r.quips, ...(r.lastQuip !== undefined ? { lastQuip: r.lastQuip } : {}), styles: [...r.styles],
     acts: r.acts, said: r.said, log: [...r.log],
+    ...keepFromColumns(r),
   };
 }
 
@@ -65,6 +66,7 @@ export function writeExplore(tx: TxCtx, r: ExploreRow): void {
     playerId: BigInt(r.playerId), gameId: BigInt(r.gameId), map: r.map, at: tile(r.at), facing: tile(r.facing), steps: r.steps, hidden: r.hidden,
     scene: r.scene, followers: r.followers.map(f => ({ ...f, at: tile(f.at) })), quips: r.quips, lastQuip: r.lastQuip, styles: r.styles,
     acts: r.acts, said: r.said, log: r.log,
+    ...keepColumns(r),
   };
   if (tx.db.explore.playerId.find(row.playerId)) tx.db.explore.playerId.update(row);
   else tx.db.explore.insert(row);
@@ -85,7 +87,7 @@ export function mapPlaceOf(tx: TxCtx, game: GameRow, mapKey: string): PlaceRow {
   const map = getMap(mapKey);
   return tx.db.place.insert({
     id: 0n, gameId: game.id, key, name: map.name, rootId: 0n, sizeW: map.width * FEET_PER_TILE, sizeH: map.height * FEET_PER_TILE, round: 0, rev: 0,
-    sceneId: undefined, mapKey, region: undefined, origin: { x: 0, y: 0 }, active: true,
+    sceneId: undefined, mapKey, region: undefined, origin: { x: 0, y: 0 }, active: true, town: "", tickedAt: undefined,
   });
 }
 
@@ -108,6 +110,7 @@ function placeOnMap(tx: TxCtx, game: GameRow, place: PlaceRow, scenes: SceneRow[
     key: place.key, mapKey: place.mapKey!, ...(place.region ? { region: place.region } : {}), origin: place.origin ?? { x: 0, y: 0 },
     ...(scene ? { scene: { key: scene.sceneKey, status: scene.status, time: timeOf(tx, game, scene) } } : {}),
     rows: { ...placeRows(tx, place.id), gmNote: [] },
+    ...(place.town ? { town: place.town } : {}),
   };
 }
 

@@ -12,6 +12,10 @@ import {
 import {
   Tile2,
   MapFollower,
+  Rested,
+  Spotted,
+  Lifted,
+  TownFight,
 } from "./types";
 
 
@@ -37,4 +41,16 @@ export default __t.row({
   acts: __t.u32(),
   said: __t.string(),
   log: __t.array(__t.string()),
+  get rested() {
+    return __t.option(Rested);
+  },
+  get spotted() {
+    return __t.option(Spotted);
+  },
+  get lifted() {
+    return __t.option(Lifted);
+  },
+  get fight() {
+    return __t.option(TownFight);
+  },
 });

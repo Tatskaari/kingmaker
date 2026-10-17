@@ -19,8 +19,9 @@ import { characters } from "./characters.ts";
  * resolve no act (so nobody reacts: reactions asked for anyway come back with none), and the GM rules
  * on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
  * The notes put one why on the first line someone of the cast says, linked to them, with their card;
- * the suggested lines are the same four every time. After a turn, nobody remembers anything, and the
- * co-GM finds the scene on track, with no notes. After a scene, the boundary goes to the first scene
+ * the suggested lines are the same four every time, and a talk's the same two (town-design §3.6: a
+ * talk's prep keeps nothing back and adds no facts). After a turn, nobody remembers anything, and the
+ * co-GM finds the scene on track, with no notes, and nothing gets a look invented. After a scene, the boundary goes to the first scene
  * it could, with the prototype's fallback hand-off, nothing rewritten, nobody absent, nothing owed
  * and no docs written (story-design §4.4). Character creation gets the prototype's offline
  * answers (its endpoints with no model to ask): three builds from the class defaults, the player's
@@ -32,7 +33,8 @@ export const canned: Endpoints = {
     const voice = speakerAt(scene, presentCast(scene, req.gm), 0, []);
     const opening = said(`${scene.title}. (The AI service is canned: no model was asked, and nothing here is the GM's.) `, voice, "Say something, and it answers");
     await written(ctx.stream(req.stream.turn), opening);
-    return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], usage: noUsage() };
+    const talk = req.talk ? { talk: { established: [], patches: [], withheld: [], suggestions: req.talk.suggest ? TALK_LINES : [] } } : {};
+    return { present: presentCast(scene, req.gm).map(c => c.id), entries: [opening], opened: [], ...talk, usage: noUsage() };
   },
   async decide() {
     return { decision: { earned: false, daft: false, outOfCharacter: false }, opened: [], usage: noUsage() };
@@ -55,7 +57,8 @@ export const canned: Endpoints = {
   },
   async settle(req) {
     const closed = !!req.turn.gm.ended;
-    return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), usage: noUsage() };
+    const talk = req.talk ? { talk: { suggestions: req.talk.suggest && !closed ? TALK_LINES : [] } } : {};
+    return { ops: [], ...(closed ? {} : { after: { status: "on_track", landed: [], hinted: [], unanswered: false, theirs: false } }), ...talk, usage: noUsage() };
   },
   async notes(req, ctx) {
     const scene = effectiveScene(ctx.campaign.scene(req.turn.scene.key), req.turn.gm.patches);
@@ -83,6 +86,9 @@ export const canned: Endpoints = {
       owed: [], fronts: [], usage: noUsage(),
     };
   },
+  async looks() {
+    return { looks: {}, usage: noUsage() };
+  },
 
   characters: characters(() => null),
 
@@ -101,6 +107,9 @@ const LINES: Suggestion[] = [
   { kind: "do", text: "(I take a careful look around.)" },
   { kind: "try", text: "(I try to slip closer without anyone noticing.)" },
 ];
+
+/** A talk's two lines, every time: something to ask, and something to say. */
+const TALK_LINES = ["How are you keeping?", "What do you make of it all?"];
 
 const narration = (text: string, speech: Speech[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speech.length ? { markup: { speech, marks: [] } } : {}) });
 

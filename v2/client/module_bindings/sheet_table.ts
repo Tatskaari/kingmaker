@@ -44,4 +44,5 @@ export default __t.row({
   pockets: __t.string(),
   backstory: __t.option(__t.string()),
   spellFacts: __t.string().name("spell_facts"),
+  actions: __t.string(),
 });

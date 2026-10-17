@@ -90,6 +90,29 @@ export const CoGmResult = __t.object("CoGmResult", {
 });
 export type CoGmResult = __Infer<typeof CoGmResult>;
 
+export const Combatant = __t.object("Combatant", {
+  id: __t.string(),
+  name: __t.string(),
+  side: __t.string(),
+  statblock: __t.option(__t.string()),
+  weapon: __t.option(__t.string()),
+  get at() {
+    return Tile2;
+  },
+  castId: __t.option(__t.string()),
+  role: __t.option(__t.string()),
+  glyph: __t.option(__t.string()),
+});
+export type Combatant = __Infer<typeof Combatant>;
+
+export const Confide = __t.object("Confide", {
+  note: __t.string(),
+  topic: __t.string(),
+  what: __t.string(),
+  memory: __t.string(),
+});
+export type Confide = __Infer<typeof Confide>;
+
 export const Creation = __t.object("Creation", {
   identity: __t.identity(),
   uid: __t.string(),
@@ -188,6 +211,18 @@ export const Explore = __t.object("Explore", {
   acts: __t.u32(),
   said: __t.string(),
   log: __t.array(__t.string()),
+  get rested() {
+    return __t.option(Rested);
+  },
+  get spotted() {
+    return __t.option(Spotted);
+  },
+  get lifted() {
+    return __t.option(Lifted);
+  },
+  get fight() {
+    return __t.option(TownFight);
+  },
 });
 export type Explore = __Infer<typeof Explore>;
 
@@ -324,8 +359,22 @@ export const GmState = __t.object("GmState", {
     return __t.array(OwedRow);
   },
   fought: __t.array(__t.string()),
+  get guard() {
+    return __t.array(Guard);
+  },
+  withheld: __t.array(__t.string()),
+  get talk() {
+    return __t.option(TalkRow);
+  },
 });
 export type GmState = __Infer<typeof GmState>;
+
+export const Guard = __t.object("Guard", {
+  cast: __t.string(),
+  stage: __t.string(),
+  turn: __t.u32(),
+});
+export type Guard = __Infer<typeof Guard>;
 
 export const Health = __t.object("Health", {
   entityId: __t.u64(),
@@ -343,6 +392,18 @@ export const Heard = __t.object("Heard", {
   entityKey: __t.string(),
 });
 export type Heard = __Infer<typeof Heard>;
+
+export const InventedLook = __t.object("InventedLook", {
+  glyph: __t.string(),
+  nerd: __t.option(__t.string()),
+  color: __t.string(),
+  motion: __t.string(),
+  light: __t.bool(),
+  being: __t.bool(),
+  group: __t.bool(),
+  material: __t.option(__t.string()),
+});
+export type InventedLook = __Infer<typeof InventedLook>;
 
 export const Job = __t.object("Job", {
   id: __t.u64(),
@@ -383,14 +444,34 @@ export const Journal = __t.object("Journal", {
 });
 export type Journal = __Infer<typeof Journal>;
 
+export const Lifted = __t.object("Lifted", {
+  time: __t.string(),
+  who: __t.array(__t.string()),
+});
+export type Lifted = __Infer<typeof Lifted>;
+
 export const Look = __t.object("Look", {
   entityId: __t.u64(),
   placeId: __t.u64(),
   role: __t.string(),
   glyph: __t.string(),
   fg: __t.string(),
+  get invention() {
+    return __t.option(InventedLook);
+  },
 });
 export type Look = __Infer<typeof Look>;
+
+export const LookInvention = __t.object("LookInvention", {
+  key: __t.string(),
+  name: __t.string(),
+  kind: __t.option(__t.string()),
+  get look() {
+    return InventedLook;
+  },
+  at: __t.timestamp(),
+});
+export type LookInvention = __Infer<typeof LookInvention>;
 
 export const MapDef = __t.object("MapDef", {
   id: __t.string(),
@@ -514,6 +595,8 @@ export const Place = __t.object("Place", {
     return __t.option(Tile2);
   },
   active: __t.bool(),
+  town: __t.string(),
+  tickedAt: __t.option(__t.timestamp()),
 });
 export type Place = __Infer<typeof Place>;
 
@@ -524,6 +607,13 @@ export const PlaceDef = __t.object("PlaceDef", {
   json: __t.string(),
 });
 export type PlaceDef = __Infer<typeof PlaceDef>;
+
+export const PlaceTick = __t.object("PlaceTick", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  placeId: __t.u64(),
+});
+export type PlaceTick = __Infer<typeof PlaceTick>;
 
 export const Player = __t.object("Player", {
   id: __t.u64(),
@@ -585,6 +675,13 @@ export const ReplyDraft = __t.object("ReplyDraft", {
   done: __t.bool(),
 });
 export type ReplyDraft = __Infer<typeof ReplyDraft>;
+
+export const Rested = __t.object("Rested", {
+  time: __t.string(),
+  short: __t.bool(),
+  long: __t.bool(),
+});
+export type Rested = __Infer<typeof Rested>;
 
 export const Roll = __t.object("Roll", {
   skill: __t.string(),
@@ -716,6 +813,7 @@ export const Sheet = __t.object("Sheet", {
   pockets: __t.string(),
   backstory: __t.option(__t.string()),
   spellFacts: __t.string(),
+  actions: __t.string(),
 });
 export type Sheet = __Infer<typeof Sheet>;
 
@@ -739,6 +837,15 @@ export const SpellRef = __t.object("SpellRef", {
 });
 export type SpellRef = __Infer<typeof SpellRef>;
 
+export const Spotted = __t.object("Spotted", {
+  time: __t.string(),
+  get at() {
+    return Tile2;
+  },
+  by: __t.string(),
+});
+export type Spotted = __Infer<typeof Spotted>;
+
 export const Stack = __t.object("Stack", {
   entityId: __t.u64(),
   placeId: __t.u64(),
@@ -754,6 +861,42 @@ export const Surface = __t.object("Surface", {
 });
 export type Surface = __Infer<typeof Surface>;
 
+export const TalkRecord = __t.object("TalkRecord", {
+  id: __t.u64(),
+  gameId: __t.u64(),
+  castKey: __t.string(),
+  count: __t.u32(),
+  get told() {
+    return __t.array(TalkTold);
+  },
+  get stages() {
+    return __t.array(TalkStage);
+  },
+});
+export type TalkRecord = __Infer<typeof TalkRecord>;
+
+export const TalkRow = __t.object("TalkRow", {
+  companion: __t.string(),
+  where: __t.string(),
+  get confide() {
+    return __t.option(Confide);
+  },
+});
+export type TalkRow = __Infer<typeof TalkRow>;
+
+export const TalkStage = __t.object("TalkStage", {
+  note: __t.string(),
+  stage: __t.string(),
+});
+export type TalkStage = __Infer<typeof TalkStage>;
+
+export const TalkTold = __t.object("TalkTold", {
+  note: __t.string(),
+  topic: __t.string(),
+  turn: __t.u32(),
+});
+export type TalkTold = __Infer<typeof TalkTold>;
+
 export const Threat = __t.object("Threat", {
   kind: __t.string(),
   by: __t.option(__t.string()),
@@ -768,6 +911,16 @@ export const Tile2 = __t.object("Tile2", {
   y: __t.i32(),
 });
 export type Tile2 = __Infer<typeof Tile2>;
+
+export const TownFight = __t.object("TownFight", {
+  map: __t.string(),
+  get combatants() {
+    return __t.array(Combatant);
+  },
+  seed: __t.u32(),
+  place: __t.option(__t.string()),
+});
+export type TownFight = __Infer<typeof TownFight>;
 
 export const Transcript = __t.object("Transcript", {
   id: __t.u64(),
@@ -800,6 +953,7 @@ export const Turn = __t.object("Turn", {
   notes: __t.string(),
   suggest: __t.string(),
   suggestAsks: __t.u32(),
+  mechanic: __t.option(__t.string()),
 });
 export type Turn = __Infer<typeof Turn>;
 

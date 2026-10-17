@@ -3,7 +3,7 @@ import { schema, t, table } from "spacetimedb/server";
 
 /**
  * Every table of the module, and its env (v0-design §3.1, v1-design §3.1, v5-design §3.1,
- * full-gm-design §4.2, world-bridge-design §3.3, story-design §4.1, map-design §3.1). Columns are the
+ * full-gm-design §4.2, world-bridge-design §3.3, story-design §4.1, map-design §3.1, town-design §3.1). Columns are the
  * TypeScript names; SQL, HTTP and subscription queries use snake_case (sceneId is scene_id). Ids are
  * u64 (bigint); an autoInc id is inserted as 0n. Every row belongs to one game, but a creation's,
  * which belongs to an identity until the game is made, and a map's (map_def), which belongs to its
@@ -113,6 +113,12 @@ export const sheet = table({ name: "sheet", public: true }, {
    * have worked them out (before the world bridge): the menu offers every spell, by its name.
    */
   spellFacts: t.string().default(""),
+  /**
+   * JSON: shared/rules/aim.ts Catalogue, what the player can do outside a fight, by kind, and why not
+   * where they can't (town-design §3.3): the map's action menu, which the client draws and aims from
+   * and the simulation checks by. sheetRows writes it with the engine; "" before the menu.
+   */
+  actions: t.string().default(""),
 });
 
 /** The game's only randomness after its creation (shared/dice.ts rollFrom). */
@@ -138,7 +144,7 @@ export const scene = table({ name: "scene", public: true }, {
   sceneKey: t.string(),
   title: t.string(),
   hook: t.string(),
-  /** scene. */
+  /** scene; talk, a word with a companion between scenes (town-design §3.6), played on the town's own place. */
   kind: t.string(),
   /** The place it's played in: a waiting scene's is built as it becomes the lead, with no one playing in it yet (story-design §4.3; the map unit's buildLead). */
   placeId: t.u64(),
@@ -200,14 +206,20 @@ const RulingRow = t.object("RulingRow", {
 const Threat = t.object("Threat", { kind: t.string(), by: t.option(t.string()), hazard: t.option(t.string()), severity: t.option(t.string()), turn: t.u32() });
 /** A fight the player's violence started, as shared/rules's Brawl has it: who goes for the player, who's with them, who fled. */
 const Brawl = t.object("Brawl", { turn: t.u32(), cause: t.string(), against: t.array(t.string()), allies: t.array(t.string()), fled: t.array(t.string()) });
+/** A staged secret's holder (shared/gm/state.ts GmState.guard): how far they've opened up (surface, tell, stirred, torn, settled) and the turn they got there. */
+const Guard = t.object("Guard", { cast: t.string(), stage: t.string(), turn: t.u32() });
+/** The one thing a companion might open up about in a talk (shared/gm/state.ts Confide). */
+const Confide = t.object("Confide", { note: t.string(), topic: t.string(), what: t.string(), memory: t.string() });
+/** A talk's own (shared/gm/state.ts TalkState, its `with` the companion): with whom, where and when, and what they might tell. */
+const TalkRow = t.object("TalkRow", { companion: t.string(), where: t.string(), confide: t.option(Confide) });
 
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
  * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
  * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
- * handed on (story-design §4.1), each with a default, so a scene from before them reads as one with
- * none yet; the world bridge's before the story's, as they stack, so a database of either migrates.
- * `entered` has no column yet.
+ * handed on (story-design §4.1), then a talk's staged secrets and its own (town-design §3.1), each
+ * with a default, so a scene from before them reads as one with none yet; the world bridge's before
+ * the story's, as they stack, so a database of either migrates. `entered` has no column yet.
  */
 export const gmState = table({ name: "gm_state" }, {
   sceneId: t.u64().primaryKey(),
@@ -262,6 +274,12 @@ export const gmState = table({ name: "gm_state" }, {
   owed: t.array(OwedRow).default([]),
   /** The combat exits already fought (the stand-in's). */
   fought: t.array(t.string()).default([]),
+  /** Staged secrets (a talk stages them): how far each of the cast who keeps something back has come towards giving it up. Never back. */
+  guard: t.array(Guard).default([]),
+  /** Notes disclosure keeps out of the scene: a talk's, the deepest of the companion's story before its time. */
+  withheld: t.array(t.string()).default([]),
+  /** A talk's own: none in a scene of the story. */
+  talk: t.option(TalkRow).default(undefined),
 });
 
 /**
@@ -315,6 +333,12 @@ export const turn = table({ name: "turn", public: true }, {
   suggest: t.string().default("none"),
   /** How often its lines have been asked for: the latest ask's key is suggest, suggest-2, … */
   suggestAsks: t.u32().default(0),
+  /**
+   * JSON: shared/rules Mechanic, what the rules resolve this turn, chosen already (town-design §3.4:
+   * the map's action menu's act at a waiting scene, played as its first turn): its decide request's
+   * `forced`. None for a line the player typed.
+   */
+  mechanic: t.option(t.string()).default(undefined),
 });
 
 export const transcript = table({ name: "transcript", public: true }, {
@@ -472,6 +496,23 @@ export const follower = table({ name: "follower", public: true }, {
   sinceScene: t.string(),
 });
 
+const TalkTold = t.object("TalkTold", { note: t.string(), topic: t.string(), turn: t.u32() });
+const TalkStage = t.object("TalkStage", { note: t.string(), stage: t.string() });
+
+/**
+ * A companion's talks with the player between scenes, kept for the whole story (town-design §3.6;
+ * shared/gm/state.ts TalkRecord): how many, what they've told of themselves (each note of their lore
+ * once, in the order told), and how far they'd come with what's not yet told. One a companion and game.
+ */
+export const talkRecord = table({ name: "talk_record" }, {
+  id: t.u64().primaryKey().autoInc(),
+  gameId: t.u64().index("btree"),
+  castKey: t.string(),
+  count: t.u32(),
+  told: t.array(TalkTold),
+  stages: t.array(TalkStage),
+});
+
 // ---------------------------------------------------------------------------------------------
 // The world (content-world B2): a component holds only a field that moves out of the prototype's
 // Entity unchanged; every word stays in `narrative`. Each component row is keyed by entityId, with
@@ -500,6 +541,14 @@ export const place = table({ name: "place", public: true }, {
   origin: t.option(Tile2).default(undefined),
   /** It's on its map now: drawn there, and walked into. */
   active: t.bool().default(false),
+  /**
+   * JSON: shared/map/reconcile.ts TownChanges, what the rules did to a map's own things and people
+   * outside scenes (town-design §3.1: a Fire Bolt at a door, the people who ran), as the prototype's
+   * overlay keeps it; "" for none. Only a map's own place (map:<key>) has any.
+   */
+  town: t.string().default(""),
+  /** When its clock last ticked a round (tick_place: town-design §3.5); none before the first. */
+  tickedAt: t.option(t.timestamp()).default(undefined),
 });
 
 /** A key is unique in its game: by a check in the write path (byGameKey finds it). */
@@ -583,10 +632,30 @@ export const worldLog = table({ name: "world_log", public: true }, {
   cause: t.option(t.string()),
 });
 
-/** How the cast looks on screen (looks.json). */
+/**
+ * A look invented for a thing the rules don't recognise (town-design §3.7: the look layer's
+ * Invention): a glyph, a Nerd Font icon's name, a palette colour's name, how it moves, whether it
+ * gives off light, is a being, is many, and what it's made of.
+ */
+const InventedLook = t.object("InventedLook", {
+  glyph: t.string(), nerd: t.option(t.string()), color: t.string(), motion: t.string(), light: t.bool(), being: t.bool(), group: t.bool(), material: t.option(t.string()),
+});
+
+/** How the cast looks on screen (looks.json); and how a thing the story made looks (role invented, fg its colour's name, its invention). */
 export const look = table({ name: "look", public: true }, {
   entityId: t.u64().primaryKey(), placeId: t.u64().index("btree"),
   role: t.string(), glyph: t.string(), fg: t.string(),
+  /** An invented look (look.invent): none for the cast's. */
+  invention: t.option(InventedLook).default(undefined),
+});
+
+/** The looks invented so far, by the thing's name (lower case): one costs once per name (the prototype's look cache). */
+export const lookInvention = table({ name: "look_invention" }, {
+  key: t.string().primaryKey(),
+  name: t.string(),
+  kind: t.option(t.string()),
+  look: InventedLook,
+  at: t.timestamp(),
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -686,6 +755,17 @@ export const mapDef = table({ name: "map_def", public: true }, {
 
 /** Someone walking with the player on the map (the prototype's Follower: Kell, after the granary; MapFollower, as the story's follower table has the name Follower). */
 const MapFollower = t.object("MapFollower", { id: t.string(), name: t.string(), glyph: t.string(), color: t.string(), map: t.string(), at: Tile2 });
+/** The menu's keep (shared/map/menu.ts Rested, Spotted, Lifted): `time` the story's time of day it was at. */
+const Rested = t.object("Rested", { time: t.string(), short: t.bool(), long: t.bool() });
+const Spotted = t.object("Spotted", { time: t.string(), at: Tile2, by: t.string() });
+const Lifted = t.object("Lifted", { time: t.string(), who: t.array(t.string()) });
+/** One side of a fight on the map (shared/map/types.ts CombatantSetup). side: player, ally, enemy, neutral. */
+const Combatant = t.object("Combatant", {
+  id: t.string(), name: t.string(), side: t.string(), statblock: t.option(t.string()), weapon: t.option(t.string()), at: Tile2,
+  castId: t.option(t.string()), role: t.option(t.string()), glyph: t.option(t.string()),
+});
+/** A fight on the map as menu.ts's townFight sets it out (shared/map/types.ts TownFight): its map by key, who's in it, its dice's seed, where it is in words. */
+const TownFight = t.object("TownFight", { map: t.string(), combatants: t.array(Combatant), seed: t.u32(), place: t.option(t.string()) });
 
 /**
  * Where a player is on the maps between scenes: the prototype's ExploreState
@@ -717,6 +797,23 @@ export const explore = table({ name: "explore", public: true }, {
   said: t.string(),
   /** The last five things said, newest last (the prototype's town log: observe's "Recently"). */
   log: t.array(t.string()),
+  // The action menu's keep (town-design §3.1; the prototype's menu.ts Ctx.keep), each by the story's
+  // time of day: a new time forgets it.
+  /** When they last rested: the time of day, and whether short or long. */
+  rested: t.option(Rested).default(undefined),
+  /** Where they were seen trying to hide, and by whom. */
+  spotted: t.option(Spotted).default(undefined),
+  /** Whose pockets they've tried. */
+  lifted: t.option(Lifted).default(undefined),
+  /** A fight that broke out on the map (the people about came at them): recorded for V12, fought by the stand-in until then. */
+  fight: t.option(TownFight).default(undefined),
+});
+
+/** The schedule table that runs tick_place for a map's own place while its game's host is in it (town-design §3.5): a 6 s interval. */
+export const placeTick = table({ name: "place_tick" }, {
+  scheduledId: t.u64().primaryKey().autoInc(),
+  scheduledAt: t.scheduleAt(),
+  placeId: t.u64(),
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -857,6 +954,7 @@ const spacetimedb = schema(
     campaign, sceneDef, placeDef, mapDef,
     creation, rulesState,
     explore,
+    talkRecord, lookInvention, placeTick,
   },
   {
     /** Set at publish (`AI_URL=… spacetime publish …`, or --env-only). */

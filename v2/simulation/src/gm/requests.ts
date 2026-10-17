@@ -1,15 +1,17 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
-  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type NotesRequest, type OpenRequest, type ReactionsRequest,
-  type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TurnContext,
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type LooksRequest, type NotesRequest, type OpenRequest, type ReactionsRequest,
+  type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
+import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
+import { talkOf } from "../../../shared/scene/talk.ts";
 import { idempotencyKey, idOf, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { BoundaryPlan, NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import type { BoundaryPlan, LookPlan, NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, turnRow, type GameRow, type PlayerRow, type RowOf, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { FIGHT_NOT_PLAYED } from "../story/words.ts";
@@ -35,10 +37,11 @@ export function openCall(tx: TxCtx, plan: OpenPlan): AiCall {
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.aftermath ? turnRow(tx, idOf(plan.turn)).n : 0, "open");
   const request: OpenRequest = {
     ...aiRequest(key, at),
-    scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: "scene" },
+    scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: kindOf(at.scene) },
     pc: pcKey(at.controller.id), gm: getGm(tx, at.scene.id), world: placeRows(tx, at.scene.placeId), party: partyOf(tx, at.controller), story: storyOf(tx, at.game, at.scene.id),
     stream: { turn: plan.turn },
     ...(plan.aftermath ? { aftermath: plan.aftermath, transcript: entriesOf(tx, at.scene.id) } : {}),
+    ...(at.scene.kind === "talk" ? { talk: talkOpen(tx, at) } : {}),
   };
   return { endpoint: STEP_ENDPOINT.open, key, timeoutMs: STEP_TIMEOUT_MS.open, request };
 }
@@ -60,7 +63,7 @@ export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const at = whereOf(tx, plan.scene);
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
   const base = { ...aiRequest(key, at), turn: turnContext(tx, plan, at) };
-  return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base) };
+  return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base, at.controller.suggestions) };
 }
 
 /**
@@ -118,7 +121,7 @@ export function turnContext(tx: TxCtx, plan: SayPlan, at: Where): TurnContext {
 export function sceneContext(tx: TxCtx, at: Where, n: number): SceneContext {
   const gm = getGm(tx, at.scene.id);
   return {
-    scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: "scene", turn: n },
+    scene: { id: idText(at.scene.id), key: at.scene.sceneKey, kind: kindOf(at.scene), turn: n },
     pc: pcKey(at.controller.id),
     gm,
     transcript: entriesOf(tx, at.scene.id),
@@ -157,12 +160,13 @@ function aiRequest(key: string, at: Where): AiRequest {
  * set is the world after it). consider: the decider's read that asked for the ruling, and the ending
  * held for the player's answer (the decide commit took it off the bookkeeping).
  */
-function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }): DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
-  if (plan.step === "decide") return { ...base, landed: [] };
+function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, suggest: boolean): DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest {
+  if (plan.step === "decide") return { ...base, landed: [], ...(plan.forced ? { forced: plan.forced } : {}) };
   if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
   if (plan.step === "consider") return { ...base, ...(plan.decision?.considered ? { read: plan.decision.considered } : {}), ...(plan.pendingExit ? { pending: plan.pendingExit } : {}) };
   if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision", "reply"), outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };
-  return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore };
+  // A talk's settle asks for its next lines when its controller has them on (talk.suggest: town-design §3.6).
+  return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore, ...(base.turn.scene.kind === "talk" ? { talk: { suggest } } : {}) };
 }
 
 /**
@@ -198,7 +202,55 @@ export function storyOf(tx: TxCtx, game: GameRow, sceneId: bigint): Story {
   const chapters = [...tx.db.chapter.gameId.filter(game.id)].filter(c => c.sceneId !== sceneId).sort((a, b) => a.seq - b.seq);
   const history = chapters.map(c => chapterOf(tx, c));
   const earlier = chapters.flatMap(c => earlierEntries(tx, c.sceneId, c.sceneKey));
-  return { time: game.time, day: game.day, flags, ...(history.length ? { history } : {}), ...(earlier.length ? { earlier } : {}) };
+  const talks = talksOf(tx, game.id);
+  return { time: game.time, day: game.day, flags, ...(history.length ? { history } : {}), ...(earlier.length ? { earlier } : {}), ...(Object.keys(talks).length ? { talks } : {}) };
+}
+
+/** What companions have told the player of themselves in talks between scenes (town-design §3.8: talk_record), by their cast ids. */
+function talksOf(tx: TxCtx, gameId: bigint): Record<string, TalkRecord> {
+  return Object.fromEntries([...tx.db.talkRecord.gameId.filter(gameId)].sort((a, b) => (a.id < b.id ? -1 : 1)).map(r => [r.castKey, recordOf(r)]));
+}
+
+const recordOf = (r: RowOf<"talkRecord">): TalkRecord => ({
+  count: r.count, told: r.told.map(t => ({ note: t.note, topic: t.topic, turn: t.turn })),
+  ...(r.stages.length ? { stages: Object.fromEntries(r.stages.map(s => [s.note, s.stage as GuardStage])) } : {}),
+});
+
+/** A scene's kind on the wire: a scene of the story, or a talk with a companion. */
+const kindOf = (scene: SceneRow): "scene" | "talk" => (scene.kind === "talk" ? "talk" : "scene");
+
+/**
+ * A talk's open (town-design §3.6, talk.ts startTalk and plan): with whom and where; their record,
+ * this talk counted; how the story led on to the waiting scene, as the player knows it (its
+ * bookkeeping's lead); every entry of their earlier talks with the player, each with its scene's
+ * key; and whether lines are suggested (the controller's own setting).
+ */
+function talkOpen(tx: TxCtx, at: Where): TalkOpen {
+  const talk = getGm(tx, at.scene.id).talk;
+  if (!talk) throw new Error(`talk ${at.scene.id} has no talk in its bookkeeping`);
+  const record = [...tx.db.talkRecord.gameId.filter(at.game.id)].find(r => r.castKey === talk.with);
+  const lead = at.game.leadScene ? [...tx.db.scene.gameId.filter(at.game.id)].find(s => s.sceneKey === at.game.leadScene && s.status === "waiting") : undefined;
+  const leadText = lead ? getGm(tx, lead.id).lead : undefined;
+  const earlier = [...tx.db.scene.gameId.filter(at.game.id)]
+    .filter(s => s.kind === "talk" && s.id !== at.scene.id && talkOf(s.sceneKey)?.companion === talk.with).sort((a, b) => (a.id < b.id ? -1 : 1))
+    .flatMap(s => earlierEntries(tx, s.id, s.sceneKey));
+  return {
+    with: talk.with, where: talk.where, record: record ? recordOf(record) : { count: 1, told: [] },
+    ...(leadText ? { lead: leadText } : {}), earlier, suggest: at.controller.suggestions,
+  };
+}
+
+/**
+ * The looks' call (town-design §3.7): POST /v1/looks, key <uid>:s<scene>:t<n>:look, each new thing by
+ * the key its look is kept by (its name in lower case), its name and kind.
+ */
+export function looksCall(tx: TxCtx, plan: LookPlan): AiCall {
+  const at = whereOf(tx, plan.scene);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "look");
+  const seen = new Set<string>();
+  const things = plan.things.filter(t => !seen.has(t.key) && seen.add(t.key)).map(t => ({ key: t.key, name: t.name, ...(t.kind ? { kind: t.kind } : {}) }));
+  const request: LooksRequest = { ...aiRequest(key, at), things };
+  return { endpoint: STEP_ENDPOINT.look, key, timeoutMs: STEP_TIMEOUT_MS.look, request };
 }
 
 /**

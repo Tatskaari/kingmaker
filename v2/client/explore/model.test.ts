@@ -68,3 +68,11 @@ test("a key's step is one move, steered along the street; a spectator's keys wal
   watched.walk("up");
   assert.equal(watched.messages.filter(m => m === "Pell Marrow has the lead: you're watching.").length, 1, "said once");
 });
+
+test("the town's news with no move made (the clock's: a fire burning on) is said as it comes into the log, once", async () => {
+  const { model } = await onTheMap();
+  const news = "The door of the watch house burns down to a smouldering wreck";
+  model.update({ ...model.view, log: [...model.view.log, news] });
+  model.update({ ...model.view });
+  assert.deepEqual(model.messages.filter(m => m === news), [news]);
+});

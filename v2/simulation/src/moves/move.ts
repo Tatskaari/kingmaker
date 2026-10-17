@@ -1,5 +1,5 @@
 import type {
-  BackstoriesRequest, BoundaryRequest, CharactersRequest, ConsiderRequest, DecideRequest, Endpoint, NotesRequest, OpenRequest, ReactionsRequest, RememberRequest, RepairRequest, ReplyRequest,
+  BackstoriesRequest, BoundaryRequest, CharactersRequest, ConsiderRequest, DecideRequest, Endpoint, LooksRequest, NotesRequest, OpenRequest, ReactionsRequest, RememberRequest, RepairRequest, ReplyRequest,
   SettleRequest, SuggestRequest, Usage,
 } from "../../../shared/protocol/ai.ts";
 import type { Refusal } from "../../../shared/protocol/refusals.ts";
@@ -66,6 +66,6 @@ export interface AiCall {
   timeoutMs: number;
   request:
     | OpenRequest | DecideRequest | ReactionsRequest | ConsiderRequest | ReplyRequest | SettleRequest | NotesRequest | SuggestRequest | RememberRequest | RepairRequest
-    | BoundaryRequest
+    | BoundaryRequest | LooksRequest
     | CharactersRequest | BackstoriesRequest;
 }

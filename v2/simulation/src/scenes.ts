@@ -4,6 +4,7 @@ import { effectiveScene } from "../../shared/scene/graph.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import type { Exit, Scene } from "../../shared/scene/types.ts";
 import { refusal } from "../../shared/protocol/refusals.ts";
+import { FAREWELL, talkOf, talkSceneFile, type TalkCompanion } from "../../shared/scene/talk.ts";
 import { Refused, type TxCtx } from "./context.ts";
 import { gameRow, type CampaignRow, type GameRow, type SceneDefRow, type SceneRow } from "./rows.ts";
 
@@ -48,11 +49,39 @@ export function buildOf(row: CampaignRow, id: string): BuildFile | undefined {
   return Object.prototype.hasOwnProperty.call(builds, id) ? builds[id] : undefined;
 }
 
-/** A scene's def in a game's campaign version. */
+/** A scene's def in a game's campaign version; a talk's (talk-<companion>-<n>) is the campaign's talk template, filled for its companion. */
 export function sceneDefOf(tx: TxCtx, game: GameRow, sceneKey: string): SceneDefRow {
   const def = tx.db.sceneDef.id.find(`${gameCampaignId(game)}/${sceneKey}`);
-  if (!def) throw new Error(`${gameCampaignId(game)} has no scene ${sceneKey}`);
-  return def;
+  if (def) return def;
+  const talk = talkOf(sceneKey);
+  if (talk) return talkDefOf(tx, game, sceneKey, talk);
+  throw new Error(`${gameCampaignId(game)} has no scene ${sceneKey}`);
+}
+
+/**
+ * A talk's scene def (v2/docs/town-design.md §3.6), made as it's asked for, never kept: the
+ * campaign's talk template (campaign.json's `talk` names its folder, installed as a scene def of that
+ * key) filled for the companion (shared/scene/talk.ts talkSceneFile: their name, their id, the
+ * farewell, and the statblock and weapon of their card in the scene they came from), its hook too.
+ */
+function talkDefOf(tx: TxCtx, game: GameRow, sceneKey: string, talk: { companion: string; n: number }): SceneDefRow {
+  const folder = campaignFile(campaignOfGame(tx, game)).talk;
+  const template = folder ? tx.db.sceneDef.id.find(`${gameCampaignId(game)}/${folder}`) : undefined;
+  if (!template) throw new Error(`${gameCampaignId(game)} has no talk template for ${sceneKey}`);
+  const who = companionCard(tx, game, talk.companion);
+  const file = talkSceneFile(sceneFileOf(template), who, talk.n);
+  const hook = template.hook.split("{name}").join(who.name).split("{companion}").join(who.id).split("{farewell}").join(FAREWELL);
+  return { id: `${gameCampaignId(game)}/${sceneKey}`, campaignId: template.campaignId, key: sceneKey, title: file.title, hook, json: JSON.stringify(file) };
+}
+
+/** Who a talk is with, as the story's scenes have them: their name, statblock and weapon on the card of the latest scene that has them (or, with none, their cast id). */
+function companionCard(tx: TxCtx, game: GameRow, id: string): TalkCompanion {
+  const scenes = [...tx.db.scene.gameId.filter(game.id)].filter(s => s.kind !== "talk").sort((a, b) => (a.id > b.id ? -1 : 1));
+  for (const s of scenes) {
+    const card = sceneOf(sceneFileOf(sceneDefOf(tx, game, s.sceneKey))).cast.find(c => c.id === id);
+    if (card) return { id, name: card.name, ...(card.statblock ? { statblock: card.statblock } : {}), ...(card.weapon ? { weapon: card.weapon } : {}) };
+  }
+  return { id, name: id };
 }
 
 /** A place's file in a game's campaign version. */

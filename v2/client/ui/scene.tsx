@@ -1,4 +1,4 @@
-// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340), the keys as written, transcriptRows (:116-127, less the look's notes), and once the scene is over its way on in place of the box (:230-256, onward and Continue, with the over-key handling at :459-466); and the scene's place (the world bridge): glance notes (:48, :99-105), pointing, the menu and Tab through the place (:258-260, :345-432, the place's keys in useKeyboard, :483-495's menuKey), the bottom line about what's pointed at (:533-540), the place in the side panel (:562-571) and the menu over it (:599-602); talks' choices go; it reads a SceneModel in place of the Game; on a page (the app's surface) the side panel has no game's number: nobody watches from a page with --join.
+// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340), the keys as written, transcriptRows (:116-127, less the look's notes), and once the scene is over its way on in place of the box (:230-256, onward and Continue, with the over-key handling at :459-466); and the scene's place (the world bridge): glance notes (:48, :99-105), pointing, the menu and Tab through the place (:258-260, :345-432, the place's keys in useKeyboard, :483-495's menuKey), the bottom line about what's pointed at (:533-540), the place in the side panel (:562-571) and the menu over it (:599-602); a talk's choices (town-design §3.9: :189-200, wayOut and fitChoices, and :312-340's talk rows, kept while the GM has the floor), said at once; it reads a SceneModel in place of the Game; on a page (the app's surface) the side panel has no game's number: nobody watches from a page with --join.
 import type { InputRenderable, KeyEvent, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +16,7 @@ import type { WayOn } from "../story/view.ts";
 import { C, MARK_LABEL, MARK_TINT } from "../theme.ts";
 import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, SCROLLBAR, Spinner, useStore, wayOnKey, wrap, type KeyHint } from "./common.tsx";
 import { MenuBox } from "./menu.tsx";
+import type { Action } from "../../shared/map/town.ts";
 import { Place, type PlacePointing } from "./place.tsx";
 import { Reply } from "./reply.tsx";
 
@@ -207,6 +208,19 @@ export function fitSuggestions(all: Suggestion[], rows: number): Suggestion[] {
   return keep;
 }
 
+/** A choice that ends a talk (its goodbye, walking on): always listed, however short the screen. */
+const wayOut = (a: Action) => a.kind !== "say" || a.id === "say_goodbye";
+
+/**
+ * A talk's choices that fit in `room` rows, in its order (its lines, then its goodbye, then walking
+ * on): the lines to say first give way, never the ways out; nine at most, one a number key.
+ */
+export function fitChoices(all: Action[], room: number): Action[] {
+  const ways = all.filter(wayOut);
+  const keep = new Set([...all.filter(a => !wayOut(a)).slice(0, Math.max(0, room - ways.length)), ...ways]);
+  return all.filter(a => keep.has(a)).slice(0, 9);
+}
+
 /** The suggested lines' colours, by kind: a risky try in the dice's yellow, a way out quieter than the rest. */
 const KIND_COLOR: Record<Suggestion["kind"], string> = { say: C.player, do: C.player, try: C.dice, leave: C.dim };
 
@@ -280,6 +294,8 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
   const hit = useRef<((x: number, y: number) => SceneTarget | undefined) | undefined>(undefined);
   /** The name the box was last started with (talking to someone), so talking to someone else starts it with theirs instead. */
   const started = useRef<string | undefined>(undefined);
+  /** How many rows a talk's choices last took, kept for them while the GM has the floor. */
+  const talkRows = useRef(0);
   /** The scene's end has been seen by the keys (the way back to the map): what was in the box then goes unsaid. */
   // An overlay coming up (a click on /sheet) puts the menu away.
   useEffect(() => { if (scene.overlay && scene.sceneMenu) scene.closeSceneMenu(); });
@@ -309,14 +325,23 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
   const room = Math.min(9, Math.max(3, height - 18));
   /** The suggested lines have rows of their own, kept for them while they're on their way, so the conversation doesn't move when they come. */
   const rows = height < 26 ? 4 : 5;
-  const choices = fitSuggestions(view.suggestions, rows);
+  // A talk's are its dialogue choices (town-design §3.9): its lines, its goodbye and walking on, said at once.
+  const talking = !!view.talk;
+  const choices = talking ? [] : fitSuggestions(view.suggestions, rows);
+  // The GM has the floor in a talk until the settle behind the reply has brought the next lines.
+  const talkBusy = talking && (!view.mayType || view.phase === "settling");
+  const talkChoices = talking && !talkBusy ? fitChoices(scene.choices(), room) : [];
   /** Put a suggested line in the box (in place of nothing: they're shown only while it's empty). */
   const fill = (line: string) => { started.current = undefined; if (input.current) { input.current.value = line; input.current.focus(); } setDraft(line); };
   const toPick: Pick[] = typing !== undefined ? commands.slice(0, room).map(c => ({ key: `/${c.name}`, label: c.what, color: c.testing ? C.faint : C.dim, run: () => send(`/${c.name}`) }))
     : draft ? []
+    : talking ? talkChoices.map((a, i) => ({ key: String(i + 1), label: a.label, color: a.kind === "say" ? C.player : C.dim, run: () => { clear(); scene.choose(talkChoices[i]!); } }))
     : choices.map((s, i) => ({ key: String(i + 1), label: s.text, color: KIND_COLOR[s.kind], run: () => fill(choices[i]!.text) }));
-  // The rows they take: a command's list, or nothing with words in the box; else the suggested lines' own, kept while they're coming.
-  const kept = typing !== undefined || draft ? toPick.length : (toPick.length || view.suggestionsComing) ? rows : 0;
+  // The rows they take: a command's list, or nothing with words in the box; a talk's keep what they had while the GM has the floor; else the suggested lines' own, kept while they're coming.
+  if (talking && !talkBusy && !draft && typing === undefined) talkRows.current = toPick.length;
+  const kept = typing !== undefined || draft ? toPick.length
+    : talking ? (talkBusy && !view.over ? talkRows.current : toPick.length)
+    : (toPick.length || view.suggestionsComing) ? rows : 0;
 
   // The place needs room to be drawn: beside the transcript, a narrow panel on a narrow terminal (80 columns).
   const side = sceneSide(width);
@@ -526,7 +551,7 @@ export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel
   const placeH = Math.max(least, panelRows - fixedRows - (talk.length ? 2 + talk.length : 0));
   const picking = typing === undefined && toPick.length;
   const keys: KeyHint[] = [
-    ...(way ? [["Enter", "go on", () => { clear(); scene.goOn(); }] as KeyHint] : picking ? [[`1–${toPick.length}`, "into the box"] as KeyHint] : []),
+    ...(way ? [["Enter", "go on", () => { clear(); scene.goOn(); }] as KeyHint] : picking ? [[`1–${toPick.length}`, talking ? "choose one" : "into the box"] as KeyHint] : []),
     ["/help", "", () => { scene.input("/help"); }],
     ...(scene.story ? [["/journal", "", () => { scene.input("/journal"); }] as KeyHint] : []),
     ...(scene.lastMarks().length ? [["Tab", world && side ? "marks, the place" : "marks"] as KeyHint] : world && side ? [["Tab", "the place"] as KeyHint] : []), ["PgUp/PgDn", "scroll"],

@@ -1,5 +1,7 @@
-// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5).
+// The prototype's src/app/game.ts at 44c6d4a, its scene section as a model fed by rows: :451-464 (subscribe, emit, emitSoon), :1386-1393 (onStep's CONSIDERING, as the turn's considering phase), :1510-1551 (input), :1596-1622 (command), :1454-1462 and :1490-1505 (setSuggestions and peek's /suggestions, the setting a move), :1897-1935 (speechColor and the marks), :2332-2344 (showSheet, as the sheet row read; closeOverlay); the scene's place (the world bridge): :186-195 (SceneMenu), :1817-1868 (sceneContext, the menu opened and closed), :1937-1962 (lookNote, deed), the world the place's rows' (scene/place.ts); and the way on between scenes, :1696-1720 (continueScene, as goOn) and :1808-1815 (continueFromCard, as toLead), with the scene that's over kept on screen until the player goes on (story-design §4.5); and a talk's (town-design §3.6, §3.9): its choices (src/game/play.ts:351-361), choose and walkOn (game.ts:1554-1578), its way on back to the map, and a word with whoever walks with the player from the card between scenes (new: talkWith).
 import type { Backend, Rejection } from "../backend.ts";
+import type { Action } from "../../shared/map/town.ts";
+import { FAREWELL, WALK_ON } from "../../shared/scene/talk.ts";
 import type { SheetData } from "../../shared/rules/types.ts";
 import { BusyLines, CONSIDERING } from "../busy.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
@@ -33,6 +35,8 @@ export interface SceneActions {
   fightItOut?(): Promise<Rejection | undefined>;
   /** end_scene as the dev stack's owner (testing): the scene ends through `exit` now; "" lists the endings. */
   end?(exit: string): Promise<Rejection | undefined>;
+  /** A word with someone who walks with the player (their key), from the card between scenes: talking to them on the map, which walks out first (town-design §3.6). */
+  talk?(who: string): Promise<Rejection | undefined>;
 }
 
 /**
@@ -189,11 +193,12 @@ export class SceneModel {
   /**
    * Is this another scene, come while the one on screen is over (or its fight is next) and the
    * player hasn't gone on? A summons opens the next scene in the boundary's commit, and a spectator's
-   * seat follows the lead in: the scene that's over stays up, last reply and all, until Enter.
+   * seat follows the lead in: the scene that's over stays up, last reply and all, until Enter. A talk
+   * that's over holds nothing: it goes back to the map, and whatever comes next comes from there.
    */
   private holds(view: SceneView): boolean {
     const shown = this.view;
-    return this.page !== "between" && view.sceneId !== undefined && shown.sceneId !== undefined && view.sceneId !== shown.sceneId && (shown.over || !!shown.fighting);
+    return this.page !== "between" && view.sceneId !== undefined && shown.sceneId !== undefined && view.sceneId !== shown.sceneId && ((shown.over && !shown.talk) || !!shown.fighting);
   }
 
   /** Enter was pressed before the story was ready (queued), and now it is: on, as the prototype goes. True when it went. */
@@ -232,7 +237,51 @@ export class SceneModel {
       case "next": if (this.next) { this.show(this.next); return; } break;
       case "fight": this.page = "fight"; break;
       case "end": this.page = "end"; this.overlay = undefined; break;
+      // A talk that's over: back to the map (walk out), the lead where it was.
+      case "map": this.actions.out(); break;
     }
+    this.emit();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // A talk with someone who walks with the player (town-design §3.6, §3.9): the prototype's
+  // play.ts:351-361 (choices), game.ts:1554-1578 (choose, walkOn).
+
+  /**
+   * A talk's dialogue choices: the lines suggested for this moment (say_1…: the setting turns them
+   * off, never the ways out), the goodbye (say_goodbye: saying it ends the talk), and walking on
+   * without a word (walk_on: back to the map). None outside a talk, once it's over or ending, for a
+   * spectator (the lead's to choose), or with nothing to send them to.
+   */
+  choices(): Action[] {
+    const v = this.view;
+    if (!v.talk || v.over || v.ending || v.watching || v.cutOff || this.gone) return [];
+    return [
+      ...v.suggestions.map((s, i): Action => ({ id: `say_${i + 1}`, label: s.text, kind: "say" })),
+      { id: "say_goodbye", label: FAREWELL, kind: "say" },
+      { id: "walk_on", label: WALK_ON, kind: "move" },
+    ];
+  }
+
+  /** One of a talk's choices: a line said as if typed (its goodbye too), or walking on without a word, straight back to the map. */
+  choose(choice: Action): void {
+    if (choice.kind === "say") this.input(choice.label);
+    else this.walkOn();
+  }
+
+  /** Walking on from a talk without a word (walk out of a live talk, town-design §3.2): back on the map; while a turn is in flight it's refused, and the status line says so. */
+  walkOn(): void {
+    this.status = undefined;
+    this.refusedAt = undefined;
+    this.actions.out();
+    this.emit();
+  }
+
+  /** A word with whoever walks with the player, from the card between scenes (t): the talk opens, the card gives way to it. */
+  talkWith(who: string): void {
+    this.typing = false;
+    this.status = undefined;
+    void this.answer(this.actions.talk?.(who));
     this.emit();
   }
 

@@ -17,7 +17,8 @@ test("the owner installs Caerwyn: the campaign, each scene's def and hook (the h
   assert.deepEqual([campaign!.id, campaign!.key, campaign!.version, campaign!.title], ["caerwyn@0.1.0", "caerwyn", "0.1.0", "Caerwyn"]);
   assert.deepEqual(Object.keys(JSON.parse(campaign!.builds)), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
   const defs = all(host.db.sceneDef);
-  assert.deepEqual(defs.map(d => d.key), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
+  // The story's scenes, then the talk template (town-design §3.6: installed with them, never on the story's way).
+  assert.deepEqual(defs.map(d => d.key), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"]);
   const def = defs[0];
   assert.deepEqual([def!.id, def!.campaignId, def!.key, def!.title], ["caerwyn@0.1.0/hanged-clerk", "caerwyn@0.1.0", "hanged-clerk", "The Hanged Clerk"]);
   assert.match(def!.hook, /^This morning a palace clerk, Wendell Prout/);
@@ -30,7 +31,7 @@ test("installing a version again replaces it; a game starts on the newest versio
   host.as(host.owner).installCampaign(installArgsOf(pack));
   host.as(host.owner).installCampaign(installArgsOf({ ...pack, campaign: { ...pack.campaign, title: "Caerwyn, again" } }));
   assert.deepEqual(all(host.db.campaign).map(c => c.title), ["Caerwyn, again"]);
-  assert.equal(all(host.db.sceneDef).length, 6);
+  assert.equal(all(host.db.sceneDef).length, 7);
 
   host.as(host.owner).installCampaign(installArgsOf({ ...pack, campaign: { ...pack.campaign, version: "0.10.0" } }));
   host.as(identity(1)).newGame({ campaign: "caerwyn", name: "Wren", concept: "", build: "ranger" });

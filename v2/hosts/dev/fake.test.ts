@@ -48,7 +48,7 @@ test("--fake plays fake.json's options, KM_AI_FAKE's on top, and says so when KM
 test("KM_AI_FAKE's answers, delays and choices by name go beside fake.json's: creation's answers keep the notes', a choice keeps the quiet defaults", () => {
   const options = fakeOptions('{"byName":{"draft_backstory":{"backstory":"I kept the palace books."}},"byNameDelayMs":{"notes":12000},"choices":{"attempt":"examine-body","witnessed":"not_flagged"},"toolCalls":{"search_lore":[]}}');
 
-  assert.deepEqual(Object.keys(options.byName!).sort(), ["co_gm_notes", "draft_backstory", "notes", "ruling"]);
+  assert.deepEqual(Object.keys(options.byName!).sort(), ["co_gm_notes", "draft_backstory", "looks", "notes", "ruling", "talk"]);
   assert.deepEqual(options.byName!.notes, fake.byName!.notes);
   assert.deepEqual(options.byNameDelayMs, { notes: 12000 });
   assert.deepEqual(options.choices, { ...fake.choices, attempt: "examine-body", witnessed: "not_flagged" });
@@ -95,4 +95,17 @@ test("the world bridge's quiet reactions (world-bridge-design §1.4): in the gra
   const reactions = Object.fromEntries(Object.entries(fake.choices!).filter(([k]) => k.startsWith("react_")));
 
   assert.deepEqual(reactions, { react_kell: "intervene", react_cob: "flee", react_moll: "cower", react_tull: "unmoved" });
+});
+
+test("the town's answers (town-design §3.6-3.7): Kell's talk opens ready to tell the door at the Rat, with lines of its own, and a swan gets a look", () => {
+  const talk = fake.byName!.talk as { note: string; topic: string; ready: string; willing: string; suggestions: string[] };
+  assert.deepEqual([talk.note, talk.topic, talk.ready, talk.willing], ["Cast/Sergeant Agnes Kell/knowledge/Nan Quill.md", "the door at the Drowned Rat", "when_asked", "yes"]);
+  assert.equal(talk.suggestions.length, 3);
+  // A talk's lines are plain, apart from a scene's (which have their kinds).
+  const lines = String(fake.talkSuggestions).split("\n");
+  assert.equal(lines.length, 4);
+  assert.ok(lines.every(l => !/^(say|do|try|leave):/.test(l) && !/[[\]]/.test(l)));
+  const looks = (fake.byName!.looks as { looks: Array<{ key: string; glyph: string; letter: string; color: string; being: boolean }> }).looks;
+  assert.deepEqual(looks.map(l => l.key), ["a disgruntled swan", "disgruntled swan", "swan"]);
+  assert.ok(looks.every(l => l.glyph === "letter" && l.letter === "S" && l.color === "white" && l.being));
 });

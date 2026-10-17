@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the action menu (m, a right-click's "Do something…"), aiming, the zoo's keys and look, the town's effects (V10's), the notebook (j: V3's) and the report (b) are cut; the sidebar's title has the game's number to watch it by (in a terminal: not on a page, the app's surface), and a spectator's sidebar says whose map it is.
+// Copied from the prototype's src/app/ui/explore.tsx at 44c6d4a, whole but at the seams: the Game is the ExploreModel (client/explore/model.ts), the session's player and the story's lead its view's; the zoo's keys and look, the notebook (j: V3's) and the report (b) are cut; the sidebar's title has the game's number to watch it by (in a terminal: not on a page, the app's surface), and a spectator's sidebar says whose map it is. The town unit's (town-design §3.9), as the prototype has them: the action menu (m, a right-click's "Do something…": ActionMenu, groupsOf, doMenuKey), aiming (aimKey, aimMarks, AimLine, the pointer and the Nearby list as the aim) and the town's effects in the painter; new, a fight on the map as its stand-in's card (FightCard), which holds the keys until it's fought out.
 import { MouseButton, type KeyEvent, type MouseEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +17,11 @@ import { Picks } from "../map/render.ts";
 import { townView } from "../map/views.ts";
 import { C } from "../theme.ts";
 import { BOLD, fit, FPS, ITALIC, Keys, useStore, wrap, type KeyHint } from "./common.tsx";
+import type { Aiming, DoMenu } from "../explore/model.ts";
+import { ELEMENTS } from "../look/director.ts";
+import { mix } from "../map/palette.ts";
+import { fightOf } from "../story/view.ts";
+import { ActionMenu, menuKey, menuLayout, type MenuGroup } from "./actions.tsx";
 
 /** Arrow keys and WASD move with the screen (up is straight up), steered along the streets; the numpad's corners go along them exactly. */
 const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home", "pageup", "end", "pagedown"]);
@@ -38,12 +43,21 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
   const [hover, setHover] = useState<{ at: Tile2; from: "map" | "list" } | undefined>(undefined);
   useKeyboard(key => {
     if (game.overlay || key.defaultPrevented) return;
+    if (game.doMenu) { key.preventDefault(); doMenuKey(game, game.doMenu, key, width, height); return; }
+    if (game.aiming) { key.preventDefault(); aimKey(game, key); return; }
     if (game.menu) { key.preventDefault(); tileMenuKey(game, game.menu, key); return; }
+    // A fight on the map (town-design §3.3): its card is up until it's fought out (Enter), as the battlefield was; the sheet, the help and the menu still open.
+    if (game.fight && !["c", "r", "escape", "q", "f1"].includes(key.name) && key.sequence !== "?") {
+      key.preventDefault();
+      if (!game.view.watching && (key.name === "return" || key.name === "enter" || key.name === "kpenter" || key.name === "space")) void game.fightItOut();
+      return;
+    }
     // Any key stops a walk.
     if (game.walking) { game.walking = false; key.preventDefault(); game.emit(); return; }
     if (WALK.has(key.name) && !key.ctrl) { game.walk(key.name); return; }
     key.preventDefault();
     if (key.name === "e" || key.name === "return" || key.name === "space") game.interact();
+    else if (key.name === "m") game.openActions();
     else if (key.name === "g") void game.toLead();
     else if (key.name === "c") { game.overlay = { kind: "sheet" }; game.emit(); }
     else if (key.name === "r") { game.overlay = { kind: "log" }; game.emit(); }
@@ -98,8 +112,10 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
   const build = upTo(wrap(view.player.build ?? view.player.concept ?? "", inner), take(2), inner);
   const aboutLines = about ? upTo(wrap(about, inner), take(3), inner) : [];
   const near = everyone.slice(0, nearFirst + take(everyone.length - nearFirst));
-  // The tile lit up on the map: the menu's while it's open, else the pointer's.
-  const lit = game.menu?.at ?? hover?.at;
+  // The tile lit up on the map: the menu's while it's open, else the pointer's (aiming has its own cursor).
+  const lit = game.aiming ? undefined : game.menu?.at ?? game.doMenu?.view.at ?? hover?.at;
+  const aim = game.aiming;
+  const marks = aim ? aimMarks(aim) : undefined;
   // The keys at the bottom, the ones that do something as buttons too; as many as fit, the mouse's
   // first. Like any key, a click on one while walking only stops the walk. Narrow, they say less.
   const button = (run: () => void) => () => { if (game.walking) game.stop(); else run(); };
@@ -107,12 +123,13 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
   const narrow = width < 100;
   const gap = narrow ? " · " : "  ·  ";
   const hints: KeyHint[] = [
-    ...(narrow ? [] : [["click", "walk"] as KeyHint]), ["right-click", "act"],
+    ...(narrow ? [] : [["click", "walk"] as KeyHint]), ["right-click", "act"], ["m", "actions", button(() => game.openActions())],
     ["g", narrow ? "lead" : "the lead", button(() => void game.toLead())],
     ["c", "sheet", button(() => { game.overlay = { kind: "sheet" }; game.emit(); })],
     ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
     ["r", "what happened", overlay("log")],
   ];
+  const menuGroups = game.doMenu ? groupsOf(game.doMenu) : undefined;
 
   /** What's drawn in the map cell a mouse event is over (as last drawn: a frame of the map you were on before a door doesn't count). */
   const pickAt = (e: MouseEvent) => {
@@ -120,8 +137,14 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
     return c && p && p.map === game.ex.map ? p.at(e.x - c.x, e.y - c.y) : undefined;
   };
   const onMapDown = (e: MouseEvent) => {
-    if (game.overlay) return;
+    if (game.overlay || game.fight) return;
     const hit = pickAt(e);
+    // Aiming: a click does it there (if it can be done there; the bottom line says why not), a right-click thinks better of it.
+    if (game.aiming) {
+      if (e.button === MouseButton.RIGHT) game.cancelAim();
+      else if (e.button === MouseButton.LEFT && hit) { game.aimTo(hit.at); game.fire(); }
+      return;
+    }
     if (e.button === MouseButton.RIGHT) { if (hit) game.openMenu(hit.at, e.x, e.y); else game.closeMenu(); return; }
     if (e.button !== MouseButton.LEFT) return;
     // A click outside the menu just closes it; a click on the map walks there (and stops a walk under way).
@@ -131,6 +154,8 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
   };
   const onMapMove = (e: MouseEvent) => {
     const hit = pickAt(e);
+    // Aiming, the pointer is the aim.
+    if (game.aiming) { if (hit) game.aimTo(hit.at); return; }
     if (hit?.at.x === hover?.at.x && hit?.at.y === hover?.at.y && hover?.from === "map") return;
     setHover(hit ? { at: hit.at, from: "map" } : undefined);
   };
@@ -144,7 +169,12 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
             // In a browser, the doors are drawn as pictures over the map: the picks keep where they are.
             const doors = overlayWanted();
             const pick = new Picks({ doors });
-            const lines = townView(game.ex, undefined, { w, h }, { t: now, pick, ...(lit ? { hover: lit } : {}) });
+            // What happens on the map plays out in the town's world (what the player does there: a bolt, a burst, the splinters).
+            const look = game.townEffects();
+            const lines = townView(game.ex, undefined, { w, h }, {
+              t: now, pick, ...(lit ? { hover: lit } : {}), ...(look ? { effects: look.fx, town: look.world } : {}),
+              ...(marks ? { marks } : {}), ...(aim ? { cursor: aim.at } : {}),
+            });
             picks.current = pick;
             return doors ? { frame: lines, doors: mapDoors(pick, lines), lamps: mapLamps(pick, lines) } : lines;
           }}
@@ -172,10 +202,12 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
           return <box key={`${n.actor?.id ?? n.label}`} flexShrink={0} height={1} {...(pointing ? { backgroundColor: C.highlightBg } : {})}
             onMouseDown={(e: MouseEvent) => {
               if (game.overlay) return;
+              // Aiming, a click on someone in the list aims there and does it.
+              if (game.aiming) { if (e.button === MouseButton.LEFT) { game.aimTo(n.at); game.fire(); } else game.cancelAim(); return; }
               if (e.button === MouseButton.RIGHT) game.openMenu(n.at, e.x, e.y);
               else if (e.button === MouseButton.LEFT) { if (game.menu) game.closeMenu(); else void game.walkTo(n.at); }
             }}
-            onMouseOver={() => setHover({ at: n.at, from: "list" })} onMouseOut={() => setHover(h => (h?.from === "list" ? undefined : h))}>
+            onMouseOver={() => { if (game.aiming) game.aimTo(n.at); else setHover({ at: n.at, from: "list" }); }} onMouseOut={() => setHover(h => (h?.from === "list" ? undefined : h))}>
             <text>
               <span fg={seen?.fg ?? n.actor?.color ?? C.lead} attributes={BOLD}>{`${seen?.glyph ?? n.actor?.glyph ?? "»"} `}</span>
               <span fg={scene ? C.lead : C.text}>{truncate(n.actor?.name ?? n.label, inner - 12)}</span>
@@ -190,14 +222,106 @@ export function ExploreScreen({ explore: game, surface = "terminal" }: { explore
       </box>
     </box>
     <box height={msgH} border borderColor={C.border} title=" What happens " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden"
-      onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT && !game.overlay && !game.menu) { game.overlay = { kind: "log" }; game.emit(); } }}>
+      onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT && !game.overlay && !game.menu && !game.doMenu && !game.aiming) { game.overlay = { kind: "log" }; game.emit(); } }}>
       {messages.map((m, i) => <text key={i} fg={m.now ? C.text : C.dim}>{m.text}</text>)}
     </box>
     <box height={1} paddingX={1}>
-      {info && !game.menu ? <Pointer title={info.title} distance={steps(ex.at, info.at)} arrow={ARROW[direction(ex.at, info.at)] ?? ""} actions={info.actions.map(a => a.label)} width={width - 2} />
+      {aim ? <AimLine aiming={aim} width={width - 2} />
+        : info && !game.menu && !game.doMenu ? <Pointer title={info.title} distance={steps(ex.at, info.at)} arrow={ARROW[direction(ex.at, info.at)] ?? ""} actions={info.actions.map(a => a.label)} width={width - 2} />
         : <Keys items={fit(hints, width - 2, gap.length)} gap={gap} />}
     </box>
     {game.menu ? <MenuBox game={game} menu={game.menu} width={width} height={height} /> : null}
+    {game.doMenu && menuGroups ? <ActionMenu title={game.doMenu.view.title} groups={menuGroups} index={game.doMenu.index} width={width} height={height} scroll={game.doMenu}
+      anchor={game.doMenu.x !== undefined && game.doMenu.y !== undefined ? { x: game.doMenu.x, y: game.doMenu.y } : undefined}
+      onPick={i => { if (game.doMenu && game.doMenu.index !== i) { game.doMenu.index = i; game.emit(); } }} onChoose={i => game.chooseAction(i)} onClose={() => game.closeActions()} /> : null}
+    {game.fight && !game.menu && !game.doMenu && !game.aiming ? <FightCard game={game} width={mapW} height={mapH} /> : null}
+  </box>;
+}
+
+/** The menu's kinds and lines, as the menu box draws them. */
+function groupsOf(menu: DoMenu): MenuGroup[] {
+  return menu.view.sections.map(s => ({ title: s.title, ...(s.note ? { note: s.note } : {}), lines: s.entries.map(e => ({ name: e.name, summary: e.summary, ...(e.why ? { why: e.why } : {}), ...(e.aiming ? { aims: true } : {}) })) }));
+}
+
+/** Keys while the action menu's open: ↑↓ pick, ←→ a kind, Enter or a number does it, Esc puts it away. */
+function doMenuKey(game: ExploreModel, menu: DoMenu, key: KeyEvent, width: number, height: number): void {
+  const groups = groupsOf(menu);
+  const layout = menuLayout(groups, menu.index, width, height, menu.x !== undefined && menu.y !== undefined ? { x: menu.x, y: menu.y } : undefined, menu.top);
+  const r = menuKey(key, groups, menu.index, layout);
+  if (r.close) game.closeActions();
+  else if (r.choose !== undefined) game.chooseAction(r.choose);
+  else if (r.index !== undefined && r.index !== menu.index) { menu.index = r.index; game.emit(); }
+}
+
+/** Keys while aiming: the arrows move the aim, Tab goes through what's in reach, t is yourself, Enter does it, Esc (or m, back to the menu) thinks better of it. */
+function aimKey(game: ExploreModel, key: KeyEvent): void {
+  if (key.name === "escape" || key.name === "q") game.cancelAim();
+  else if (key.name === "m") { game.cancelAim(); game.openActions(); }
+  else if (key.name === "tab") game.aimNext(key.shift);
+  else if (key.name === "t") game.aimSelf();
+  else if (key.name === "return" || key.name === "enter" || key.name === "kpenter" || key.name === "space" || key.name === "e") game.fire();
+  else if (WALK.has(key.name)) game.aimStep(key.name);
+}
+
+/** The tiles aiming tints: how far it reaches (a faint ring), who and what it could be aimed at, and what an area would cover, in its element's colour. */
+function aimMarks(aim: Aiming): Array<{ at: Tile2; color: string; glyph?: string }> {
+  const out = new Map<string, { at: Tile2; color: string }>();
+  for (const t of aim.view.ring) out.set(`${t.x},${t.y}`, { at: t, color: "#4a4128" });
+  for (const t of aim.view.targets) out.set(`${t.at.x},${t.at.y}`, { at: t.at, color: "#8a6a1c" });
+  const element = aim.item.spell?.element;
+  const tint = mix(ELEMENTS[element ?? ""] ?? "#c79bf2", "#201010", 0.45);
+  for (const t of aim.check?.area ?? []) out.set(`${t.x},${t.y}`, { at: t, color: aim.check?.ok ? tint : "#5a2424" });
+  return [...out.values()];
+}
+
+/**
+ * The bottom line while aiming: what it would do where it's aimed (or why not), and the keys. An
+ * upcast says its slot, a leap what it goes over and what it takes; an area that would catch you
+ * says so in red, and asks for the Enter or click again.
+ */
+function AimLine({ aiming, width }: { aiming: Aiming; width: number }) {
+  const check = aiming.check;
+  const ok = !!check?.ok;
+  const item = aiming.item;
+  const you = !!check?.caught?.includes("you");
+  // Four by name and how many more (an ellipsis here would meet the line's own when it's cut short: "……").
+  const caught = check?.caught?.length ? ` · catches ${check.caught.slice(0, 4).join(", ")}${check.caught.length > 4 ? ` and ${check.caught.length - 4} more` : ""}` : "";
+  const slot = item.spell && item.spell.slot > item.spell.level && !item.spell.ritual ? ` (${ORDINAL[item.spell.slot]}-level slot)` : "";
+  const what = `${item.name}${slot}${ok && check?.target ? ` → ${check.target}` : ""}${check?.feet ? ` · ${check.feet} ft` : ""}`;
+  // Asked once already: what it costs first, so a narrow screen still says it.
+  const how = !ok ? ` · ${check?.why ?? "point at something"}`
+    : aiming.confirm && you ? " · it catches you too: Enter or click again to do it anyway"
+    : `${check?.note ? ` · ${check.note}` : ""}${caught} · click or Enter`;
+  const keys = width >= 100 ? ` · Tab next${aiming.view.self ? " · t you" : ""} · Esc cancel` : " · Esc cancel";
+  return <text flexShrink={0} height={1}>
+    <span fg={ok ? C.title : C.dim} attributes={BOLD}>{truncate(what, width)}</span>
+    <span fg={ok ? (you ? C.danger : C.text) : C.warn}>{truncate(how, Math.max(0, width - what.length))}</span>
+    <span fg={C.dim}>{truncate(keys, Math.max(0, width - what.length - how.length))}</span>
+  </text>;
+}
+
+const ORDINAL = ["cantrip", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
+
+/**
+ * A fight that broke out on the map (town-design §3.3, recorded for V12): until it's played on the
+ * map, the stand-in's card over it, as the scene's fight card is (between.tsx FightScreen). Enter, or
+ * a click, fights it out, as won; a spectator's is the lead's.
+ */
+function FightCard({ game, width, height }: { game: ExploreModel; width: number; height: number }) {
+  const fight = fightOf();
+  const w = Math.max(30, Math.min(width - 4, 72));
+  const lines = fight.lines.flatMap(l => wrap(l, w - 4));
+  const watching = game.view.watching;
+  const go = () => { if (!watching) void game.fightItOut(); };
+  return <box position="absolute" left={Math.max(0, Math.floor((width - w) / 2))} top={Math.max(1, Math.floor((height - lines.length - 7) / 2))} width={w} zIndex={40}
+    flexDirection="column" border borderStyle="rounded" borderColor={C.danger} backgroundColor={C.panel} title={` ${fight.title} `} titleAlignment="left" titleColor={C.danger} paddingX={1}
+    onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT) go(); }}>
+    {lines.map((l, i) => <text key={i} fg={C.dim}>{l || " "}</text>)}
+    <text marginTop={1}>
+      <span fg={C.lead}>{"▶ "}</span>
+      <span fg={watching ? C.dim : C.danger} attributes={BOLD}>{watching ? `Watching: ${watching} fights it out` : fight.go}</span>
+      <span fg={C.faint}>{watching ? "" : "   Enter, or click"}</span>
+    </text>
   </box>;
 }
 

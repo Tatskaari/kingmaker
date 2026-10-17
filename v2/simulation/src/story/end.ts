@@ -15,6 +15,7 @@ import { placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import { crossBoundary } from "./boundary.ts";
 import { applyEffects, recordAll, type Ending } from "./effects.ts";
+import { endTalk } from "../map/talk.ts";
 
 /**
  * The end of a scene (story-design §4.3), once V0's end is written (moves/say-commits.ts endScene:
@@ -27,6 +28,8 @@ import { applyEffects, recordAll, type Ending } from "./effects.ts";
  * The End.
  */
 export function closeScene(tx: TxCtx, scene: SceneRow, exit: Exit, how: "played" | "forced"): void {
+  // A talk moves nothing in the story on (town-design §3.6): no chapter, effects, boundary or lead; its record keeps what came of it.
+  if (scene.kind === "talk") return endTalk(tx, scene);
   const game = gameRow(tx, scene.gameId);
   const def = sceneDefOf(tx, game, scene.sceneKey);
   const gm = endedOn(tx, scene, exit);
