@@ -1,26 +1,25 @@
 import { setGlobalLogLevel } from "spacetimedb";
-import type { InteractArgs, TravelArgs, WalkArgs } from "../../shared/map/moves.ts";
-import { refusal, refusalIn } from "../../shared/protocol/refusals.ts";
-import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
-import { exploreViewOf, type ExploreRows, type ExploreView, type MapPlaceTables } from "../explore/rows.ts";
+import type { MoveWire } from "../../shared/protocol/port.ts";
+import { refusalIn } from "../../shared/protocol/refusals.ts";
+import type { Rejection } from "../backend.ts";
 import { DbConnection, type SubscriptionHandle } from "../module_bindings/index.ts";
-import type { SeatView } from "../module_bindings/types.ts";
-import type { PlaceTables } from "../scene/place-rows.ts";
-import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
-import type { SceneView } from "../scene/view.ts";
+import { PLACE_TABLES, type ClientTables, type Link, type LinkMoves, type LinkStatus, type RowListener, type RowOp, type Watched } from "./link.ts";
 import { endSceneAs, type Owner } from "./owner.ts";
+import { Replica } from "./replica.ts";
+
+export type { RowListener, RowOp, Watched } from "./link.ts";
 
 /**
- * The client's way into the simulation (v0-design §7, v1-design §3.10), and the e2e's: a
- * SpacetimeDB connection that follows the seat. It subscribes to the caller's own views (my_seat,
- * my_names, my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join,
- * a game continued) it subscribes to that game's, scene's and place's rows (the scene's suggested
- * lines among them, the story's tables: story-design §4.5, and the place's world, which the side
- * panel draws), and the map's (map-design §3.6: the campaign's maps, the explore rows, and the rows
- * of every place of the game on a map), and only then drops the old set, so nothing blinks out. Each row change
- * rebuilds the scene's rows from the client's cache, once a tick; each row event also goes, in
- * arrival order, to whoever listens. The moves are the reducers: a refusal comes back as the
- * simulation wrote it, in the game's words.
+ * The client's way into the simulation over SpacetimeDB (v0-design §7, v1-design §3.10), and the
+ * e2e's: a Connection is the client's rows and views (replica.ts) over a SpacetimeLink, a SpacetimeDB
+ * connection that follows the seat. It subscribes to the caller's own views (my_seat, my_names,
+ * my_games, my_creation) and the campaigns; whenever the seat moves (a new game, a join, a game
+ * continued) it subscribes to that game's, scene's and place's rows (the scene's suggested lines among
+ * them, the story's tables: story-design §4.5, and the place's world, which the side panel draws), and
+ * the map's (map-design §3.6: the campaign's maps, the explore rows, and the rows of every place of
+ * the game on a map), and only then drops the old set, so nothing blinks out. Each row event goes to
+ * the Replica as it comes, which rebuilds the scene's rows from the SDK's cache once a tick. The moves
+ * are the reducers: a refusal comes back as the simulation wrote it, in the game's words.
  */
 
 export interface ConnectOptions {
@@ -36,19 +35,6 @@ export interface ConnectOptions {
   owner?: Owner;
 }
 
-/** The tables and views a client watches, by their SQL names. */
-export type Watched =
-  | "my_seat" | "my_names" | "my_games" | "my_creation" | "campaign"
-  | "game" | "player" | "sheet" | "scene" | "transcript" | "reply_draft" | "turn" | "on_stage" | "look" | "scene_suggestion"
-  | "chapter" | "quest" | "flag" | "journal" | "attitude" | "follower"
-  | "place" | PlaceTable | "map_def" | "explore";
-
-/** The tables of a place's world a client watches (all but gm_note, which is the module's), by their SQL names. */
-type PlaceTable = (typeof PLACE_TABLES)[number];
-const PLACE_TABLES = ["entity", "position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "world_log"] as const;
-export type RowOp = "insert" | "update" | "delete";
-export type RowListener = (table: Watched, op: RowOp, row: unknown) => void;
-
 /** Connects, and resolves once the seat is known and, when there is one, its game's rows are in. */
 export async function connect(options: ConnectOptions): Promise<Connection> {
   quietSdk();
@@ -60,6 +46,22 @@ export async function connect(options: ConnectOptions): Promise<Connection> {
 /** The SDK's own news ("Connecting to SpacetimeDB WS...") goes to stdout, which is the screen, or the agent's answer: only its warnings and errors. */
 const quietSdk = () => setGlobalLogLevel("warn");
 
+/** The client over SpacetimeDB: the rows and views over a SpacetimeLink. */
+export class Connection extends Replica {
+  private readonly spacetime: SpacetimeLink;
+
+  constructor(options: ConnectOptions) {
+    const link = new SpacetimeLink(options);
+    super(link);
+    this.spacetime = link;
+  }
+
+  /** The identity (hex) the server gave, once connected. */
+  get identity(): string {
+    return this.spacetime.identity;
+  }
+}
+
 /**
  * What the seat's subscription set covers: the game, its scene, the place whose looks to read; the
  * game's campaign version (its maps), once its row has come, and its places on maps (their rows).
@@ -67,8 +69,8 @@ const quietSdk = () => setGlobalLogLevel("warn");
 interface WatchKey { game: bigint; scene?: bigint; place?: bigint; campaign?: string; mapPlaces: bigint[] }
 interface Watching { key: WatchKey; handle: SubscriptionHandle; dropped: boolean }
 
-export class Connection implements Backend {
-  /** Resolves once the seat and its rows are in (connect awaits it); rejects when the server can't be reached. */
+/** A SpacetimeDB connection that follows the seat (above): the SDK's cache is the link's tables. */
+export class SpacetimeLink implements Link {
   readonly ready: Promise<void>;
   identity = "";
 
@@ -76,22 +78,17 @@ export class Connection implements Backend {
   /** The dev stack's owner, for end_scene (testing): none when the client found no stack.json. */
   private readonly owner?: Owner;
   private watching?: Watching;
-  private refused?: string;
-  /** What's wrong with the connection, while something is: shown on the status line. */
-  private trouble?: string;
-  /** The SDK has stopped trying to reconnect, for good: what's wrong, and what to do. Every move is refused with it. */
-  private cutOff?: string;
+  /** What's wrong with the connection, while something is; and, once the SDK has stopped trying to reconnect for good, what's wrong and what to do. */
+  private status: LinkStatus = {};
   /** The client closed the connection itself: its end isn't trouble. */
   private closing = false;
   /** my_seat is in: the seat (or that there's none) is known. */
   private seatKnown = false;
   private settled = false;
-  private pending = false;
-  /** Moves on with every row event of a table the map is read from: the explore view is made again only then. */
-  private mapRev = 0;
-  private explored?: { rev: number; refused: string | undefined; trouble: string | undefined; seat: string; view: ExploreView | undefined };
-  private readonly changes = new Set<() => void>();
-  private readonly events = new Set<RowListener>();
+  /** The subscriptions follow the seat this tick. */
+  private following = false;
+  private readonly rowListeners = new Set<RowListener>();
+  private readonly statusListeners = new Set<(status: LinkStatus) => void>();
   private resolveReady!: () => void;
   private rejectReady!: (error: Error) => void;
 
@@ -102,193 +99,35 @@ export class Connection implements Backend {
     this.watchTables();
   }
 
-  /** The scene's rows as this client holds them; undefined while there's no seat, or its rows haven't come. */
-  rows(): SceneRows | undefined {
-    const seat = this.seat();
-    const game = seat ? this.db.db.game.id.find(seat.gameId) : undefined;
-    const scene = seat?.sceneId === undefined ? undefined : this.db.db.scene.id.find(seat.sceneId);
-    if (!seat || !game || !scene) return undefined;
-
-    const of = <T>(table: { iter(): Iterable<T> }, keep: (row: T) => boolean) => [...table.iter()].filter(keep);
-    const mine = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => of(table, r => r.gameId === game.id);
-    return {
-      me: seat.playerId,
-      game, scene,
-      players: of(this.db.db.player, p => p.gameId === game.id),
-      sheets: of(this.db.db.sheet, s => s.gameId === game.id),
-      transcript: of(this.db.db.transcript, t => t.sceneId === scene.id),
-      drafts: of(this.db.db.replyDraft, d => d.sceneId === scene.id),
-      turns: of(this.db.db.turn, t => t.sceneId === scene.id),
-      onStage: of(this.db.db.onStage, s => s.sceneId === scene.id),
-      names: [...this.db.db.myNames.iter()],
-      looks: of(this.db.db.look, l => l.placeId === scene.placeId),
-      suggestions: of(this.db.db.sceneSuggestion, s => s.sceneId === scene.id),
-      story: {
-        game, scenes: mine(this.db.db.scene), chapters: mine(this.db.db.chapter), quests: mine(this.db.db.quest), flags: mine(this.db.db.flag),
-        journal: mine(this.db.db.journal), attitudes: mine(this.db.db.attitude), followers: mine(this.db.db.follower), turns: mine(this.db.db.turn),
-      },
-      ...this.placeOf(scene),
-      ...(this.db.db.explore.playerId.find(game.hostId) ? { onMap: true } : {}),
-      ...(this.refused ? { refusal: this.refused } : {}),
-      ...(this.trouble ? { trouble: this.trouble } : {}),
-      ...(this.cutOff ? { cutOff: true } : {}),
-    };
+  /** The SDK's client cache, which has ClientTables' shape as it is. */
+  get tables(): ClientTables {
+    return this.db.db;
   }
 
-  view(): SceneView | undefined {
-    const rows = this.rows();
-    return rows && sceneViewOf(rows);
+  onRow(listener: RowListener): void {
+    this.rowListeners.add(listener);
   }
 
-  /**
-   * The map's rows as this client holds them (map-design §3.6): the seat's game, its players and
-   * sheets, the campaign's maps, the game's explore rows and scenes, its places on maps with their
-   * rows, and the names the player knows the people in them by; undefined while there's no seat or
-   * its game's row hasn't come.
-   */
-  exploreRows(): ExploreRows | undefined {
-    const seat = this.seat();
-    const game = seat ? this.db.db.game.id.find(seat.gameId) : undefined;
-    if (!seat || !game) return undefined;
-    const t = this.db.db;
-    const campaign = `${game.campaign}@${game.campaignVersion}`;
-    const ofGame = <T extends { gameId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.gameId === game.id);
-    const places: MapPlaceTables[] = ofGame(t.place).filter(p => p.mapKey !== undefined).map(place => {
-      const here = <T extends { placeId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.placeId === place.id);
-      return {
-        place, entity: here(t.entity), position: here(t.position), area: here(t.area), material: here(t.material), health: here(t.health),
-        stack: here(t.stack), surface: here(t.surface), creature: here(t.creature), playerCharacter: here(t.playerCharacter),
-        gear: here(t.gear), narrative: here(t.narrative), worldLog: here(t.worldLog),
-      };
-    });
-    return {
-      me: seat.playerId, game,
-      players: ofGame(t.player), sheets: ofGame(t.sheet),
-      maps: [...t.mapDef.iter()].filter(m => m.campaignId === campaign),
-      explore: ofGame(t.explore), scenes: ofGame(t.scene), places,
-      names: [...t.myNames.iter()],
-      ...(this.refused ? { refusal: this.refused } : {}),
-      ...(this.trouble ? { trouble: this.trouble } : {}),
-      ...(this.cutOff ? { cutOff: true } : {}),
-    };
-  }
-
-  /**
-   * The map between scenes, made from the rows: made again only when they (or the words beside it)
-   * have changed. While the set naming the game's places on maps is still coming (a game just begun,
-   * a map just reached), the map as it was, or none yet: a place's row comes with the game's, but
-   * its world's rows only with that set, and a waiting yard without them has nobody in it.
-   */
-  explore(): ExploreView | undefined {
-    const seat = this.seat();
-    const key = { rev: this.mapRev, refused: this.refused, trouble: this.trouble, seat: seat ? `${seat.playerId}:${seat.gameId}` : "" };
-    const was = this.explored;
-    if (!this.placesIn()) return was?.seat === key.seat ? was.view : undefined;
-    if (was && was.rev === key.rev && was.refused === key.refused && was.trouble === key.trouble && was.seat === key.seat) return was.view;
-    const rows = this.exploreRows();
-    const view = rows && exploreViewOf(rows);
-    this.explored = { ...key, view };
-    return view;
+  onStatus(listener: (status: LinkStatus) => void): void {
+    this.statusListeners.add(listener);
   }
 
   /** The set in place is the one the seat's rows ask for, and it's in: every place of the game on a map has its rows. */
-  private placesIn(): boolean {
+  covers(): boolean {
     return !!this.watching && this.watching.handle.isActive() && sameKey(this.wanted(), this.watching.key);
   }
 
-  /** The scene's place and its world's rows, once its row has come (the world bridge's §3.5). */
-  private placeOf(scene: { placeId: bigint; sceneKey: string }): { place?: PlaceTables } {
-    const place = this.db.db.place.id.find(scene.placeId);
-    if (!place) return {};
-    const t = this.db.db;
-    const here = <T extends { placeId: bigint }>(table: { iter(): Iterable<T> }) => [...table.iter()].filter(r => r.placeId === place.id);
-    return {
-      place: {
-        sceneKey: scene.sceneKey, place,
-        entity: here(t.entity), position: here(t.position), area: here(t.area), material: here(t.material), health: here(t.health),
-        stack: here(t.stack), surface: here(t.surface), creature: here(t.creature), playerCharacter: here(t.playerCharacter),
-        gear: here(t.gear), narrative: here(t.narrative), worldLog: here(t.worldLog),
-      },
-    };
-  }
-
-  /** The caller's seat (my_seat): its player, game, place and scene; undefined when it has none. */
-  seat(): SeatView | undefined {
-    return [...this.db.db.mySeat.iter()][0];
-  }
-
-  /** The caller's games and the character they're making, the campaigns, and the seat's own player and sheet (before its game has a scene too). */
-  home(): HomeRows {
-    const seat = this.seat();
-    const player = seat ? this.db.db.player.id.find(seat.playerId) : undefined;
-    const sheet = seat ? this.db.db.sheet.playerId.find(seat.playerId) : undefined;
-    const creation = [...this.db.db.myCreation.iter()][0];
-    return {
-      games: [...this.db.db.myGames.iter()],
-      ...(creation ? { creation } : {}),
-      campaigns: [...this.db.db.campaign.iter()],
-      ...(seat ? { seat } : {}),
-      ...(player ? { player } : {}),
-      ...(sheet ? { sheet } : {}),
-      ...(this.refused ? { refusal: this.refused } : {}),
-    };
-  }
-
-  onChange(listener: () => void): () => void {
-    this.changes.add(listener);
-    return () => { this.changes.delete(listener); };
-  }
-
-  /** Every row event of the watched tables, in the order they arrive (row callbacks fire before a move's promise resolves). */
-  onEvent(listener: RowListener): () => void {
-    this.events.add(listener);
-    return () => { this.events.delete(listener); };
-  }
-
-  newGame(args: NewGame): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.newGame(args));
-  }
-
-  joinGame(game: bigint): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.joinGame({ game }));
-  }
-
-  say(text: string): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.say({ text }));
-  }
-
-  walk(args: WalkArgs): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.walk({ to: args.to, toward: args.toward }));
-  }
-
-  interact(args: InteractArgs): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.interact({ verb: args.verb, target: args.target, at: args.at }));
-  }
-
-  travel(args: TravelArgs): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.travel({ way: args.way, at: args.at }));
-  }
-
-  /** This player's own setting: the suggested lines on or off (on, this moment's are asked for at once). */
-  setSuggestions(on: boolean): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.setSuggestions({ on }));
-  }
-
-  /** Carries the failed turn on: the one holding the scene's lease. */
-  retry(): Promise<Rejection | undefined> {
-    const turn = this.rows()?.scene.turnId;
-    return turn === undefined ? Promise.resolve(refusal("not_failed")) : this.retryTurn(turn);
-  }
-
-  retryTurn(turn: bigint): Promise<Rejection | undefined> {
-    return this.move(() => this.db.reducers.retryTurn({ turn }));
-  }
-
-  act<K extends MoveName>(move: K, args: Moves[K]): Promise<Rejection | undefined> {
+  /** A reducer called: undefined when it was made; else why not (its refusal, or what went wrong on the way). */
+  async move<K extends MoveWire>(name: K, args: LinkMoves[K]): Promise<Rejection | undefined> {
     // end_scene is the owner's (testing): made as the dev stack's owner, over HTTP, not as this player.
-    if (move === "endScene") { const { game, exit } = args as Moves["endScene"]; return endSceneAs(this.owner, game, exit); }
-    const reducer = this.db.reducers[move] as (args: Moves[K]) => Promise<void>;
-    return this.move(() => reducer(args));
+    if (name === "endScene") { const { game, exit } = args as LinkMoves["endScene"]; return endSceneAs(this.owner, game, exit); }
+    const reducer = this.db.reducers[name] as (args: LinkMoves[K]) => Promise<void>;
+    try {
+      await reducer(args);
+      return undefined;
+    } catch (error) {
+      return rejectionOf(error);
+    }
   }
 
   close(): void {
@@ -325,16 +164,14 @@ export class Connection implements Backend {
     if (!this.settled) { void whyNot(options, error).then(why => this.rejectReady(new Error(why))); return; }
     if (this.closing) return;
     if (next === undefined) { this.cut(TURNED_AWAY); return; }
-    this.trouble = `(The game's server is out of reach: trying again (attempt ${next})…)`;
-    this.changed();
+    this.troubled(`(The game's server is out of reach: trying again (attempt ${next})…)`);
   }
 
   /** The connection dropped: the SDK reconnects (`next`), or, with no next attempt, won't. */
   private lost(_error: Error | undefined, next: number | undefined): void {
     if (this.closing) return;
     if (next === undefined) { this.cut(CLOSED); return; }
-    this.trouble = "(Lost the game's server: reconnecting…)";
-    this.changed();
+    this.troubled("(Lost the game's server: reconnecting…)");
   }
 
   /**
@@ -344,13 +181,17 @@ export class Connection implements Backend {
    * would answer each one "out of reach", as if it were still trying.
    */
   private cut(words: string): void {
-    this.cutOff = words;
-    this.trouble = words;
+    this.status = { trouble: words, cutOff: words };
     this.changed();
   }
 
   private back(): void {
-    this.trouble = undefined;
+    this.troubled(undefined);
+  }
+
+  /** What's wrong with the connection now (or nothing), on the status line. */
+  private troubled(trouble: string | undefined): void {
+    this.status = { ...this.status, trouble };
     this.changed();
   }
 
@@ -380,7 +221,7 @@ export class Connection implements Backend {
   }
 
   private wanted(): WatchKey | undefined {
-    const seat = this.seat();
+    const seat = [...this.db.db.mySeat.iter()][0];
     if (!seat) return undefined;
     const scene = seat.sceneId === undefined ? undefined : this.db.db.scene.id.find(seat.sceneId);
     const place = seat.placeId ?? scene?.placeId;
@@ -424,14 +265,13 @@ export class Connection implements Backend {
   private subscriptionFailed(error: Error | undefined): void {
     const why = error?.message ?? "the server said no";
     if (!this.settled) { this.rejectReady(new Error(`The game's server won't share its rows: ${why}`)); return; }
-    this.trouble = `(The game's rows stopped coming: ${why}.)`;
-    this.changed();
+    this.troubled(`(The game's rows stopped coming: ${why}.)`);
   }
 
   // -------------------------------------------------------------------------------------------
-  // Rows and moves.
+  // Rows.
 
-  /** Every watched table's row events: told to the listeners as they come, and the view rebuilt once a tick. */
+  /** Every watched table's row events: told to the Replica as they come. */
   private watchTables(): void {
     const t = this.db.db;
     const tables: Array<[Watched, Observable]> = [
@@ -452,39 +292,27 @@ export class Connection implements Backend {
   }
 
   private event(table: Watched, op: RowOp, row: unknown): void {
-    if (MAP_TABLES.has(table)) this.mapRev++;
-    for (const listener of this.events) listener(table, op, row);
-    this.changed();
+    this.followSoon();
+    for (const listener of this.rowListeners) listener(table, op, row);
   }
 
-  /** The rows changed: once a tick, the subscriptions follow the seat and the listeners hear of it. */
+  /** The trouble, or what the set in place covers, changed: the subscriptions follow the seat, and the Replica hears of it. */
   private changed(): void {
-    if (this.pending) return;
-    this.pending = true;
-    queueMicrotask(() => {
-      this.pending = false;
-      if (this.seatKnown) this.follow();
-      for (const listener of this.changes) listener();
-    });
+    this.followSoon();
+    for (const listener of this.statusListeners) listener(this.status);
   }
 
   /**
-   * A reducer called: undefined when it was made; else why not, and the words kept for the status
-   * line until the next move. Once the SDK has stopped trying, none is called: the words say why.
+   * Once a tick, the subscriptions follow the seat: queued before the Replica hears of the change, so
+   * they've followed before its listeners look, as they always have.
    */
-  private async move(call: () => Promise<void>): Promise<Rejection | undefined> {
-    this.refused = this.cutOff;
-    this.changed();
-    if (this.cutOff) return { code: "error", text: this.cutOff };
-    try {
-      await call();
-      return undefined;
-    } catch (error) {
-      const why = rejectionOf(error);
-      this.refused = why.text;
-      this.changed();
-      return why;
-    }
+  private followSoon(): void {
+    if (this.following) return;
+    this.following = true;
+    queueMicrotask(() => {
+      this.following = false;
+      if (this.seatKnown) this.follow();
+    });
   }
 }
 
@@ -499,9 +327,6 @@ interface Observable {
   onDelete(cb: (ctx: unknown, row: unknown) => void): void;
   onUpdate?(cb: (ctx: unknown, old: unknown, row: unknown) => void): void;
 }
-
-/** The tables the map is read from (map-design §3.6): an event in one makes the explore view again. */
-const MAP_TABLES = new Set<Watched>(["my_seat", "my_names", "game", "player", "sheet", "scene", "place", ...PLACE_TABLES, "map_def", "explore"]);
 
 /**
  * The seat's subscription set (v0-design §7, v5-design §3.9's scene_suggestion), the story's
