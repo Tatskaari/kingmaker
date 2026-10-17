@@ -20,7 +20,7 @@ Each entry says what changed, where the old thing is in git history, and why whe
 - `lore/`: the prototype's copy of the Caerwyn lore, the same Cast, Places and World as `campaigns/caerwyn/lore` (once #661's edits were ported, below), plus its README, the plugin's imported `.kmscene` and `.kmscenario` files and two Objects notes.
 - `vendor/`: the prototype's rules engine build (`dnd-srd-engine.js`, its typings, `patch.ts`), its pack and the SRD spells. The game's `vendor/` has the module-ready bundle made from it, the same pack, NOTICE and LICENSE, and the same `spells.json`.
 - `assets/fonts/`: byte for byte the game's `web/fonts/`.
-- `tools/v2/` (the converters and recorders that ran the prototype: `scene-files`, `map-files`, `export-vocabulary`, `record-v1-golden`, `record-spell-facts`, `module-engine`, `golden-replies.json`), `tools/record-golden.mts`, `tools/ansi2png.py`, `tools/door-options.ts`, `tools/preview.py`, `tools/sheet.py`.
+- `tools/v2/` (the converters and recorders that ran the prototype: `scene-files` with its hand-written table of each scene's facts and effects in `scenes/`, `map-files`, `v1-campaign`, `export-vocabulary`, `record-v1-golden`, `record-spell-facts`, `module-engine`, `golden-replies.json`), `tools/record-golden.mts`, `tools/ansi2png.py`, `tools/door-options.ts`, `tools/preview.py`, `tools/sheet.py`.
 - `moon.yml`, `.moon/`, and the moon check workflow (`check.yml` at `bc2ab1f`).
 - The root `package.json`, `package-lock.json` and `tsconfig.json`: the game's took their place.
 - `.agents/skills/*` and `.claude/skills` (a link to them): V1-era skills about `packages/`, `scripts/`, `content/` and `AGENTS.md`, none of which is in this repo.
@@ -36,7 +36,7 @@ Each entry says what changed, where the old thing is in git history, and why whe
 
 - **#661's fix to Sergeant Kell's lore** (53f45f3, which only reached the prototype's lore): the campaign's `private.md` and `knowledge/Sallow.md` take the same two edits. The GM's golden calls embed her lore, so the same words are put into them by hand ([ai/gm/golden](../ai/gm/golden/README.md)).
 - **The site:** `npm run build:site` ([hosts/web/build-site.ts](../hosts/web/build-site.ts)) builds the pitch, the roadmap and the game's page at `play/` into `dist/site`. It fails if a link swap misses, a claude.ai artifact link is left, or anything like a key is in it. `preview.yml` publishes that site for each PR, its comment linking `play/` and `play/?fake`. `pages.yml` builds main's the same way. `web:serve` and `web:check` serve the page under `/kingmaker/pr-preview/pr-0/play/`.
-- **Paths:** every `v2/` and `cd v2` in code, scripts, CI and the live docs. The AI service's READMEs now describe the game alone.
+- **Paths:** every `v2/` path and `cd v2` that code, scripts, CI and the live docs follow. What's left names the prototype's tools in history (`tools/v2/...`), is a copy's provenance (its first line), or is a record (the design docs, `docs/live`). The AI service's READMEs now describe the game alone.
 - **The plugin** previews maps with the game's `client/map/render.ts`, and its fixtures read the campaign's lore.
 
 ### Judgement calls
@@ -45,7 +45,7 @@ Each entry says what changed, where the old thing is in git history, and why whe
 - **`tools/srd-spells` stays.** It builds and checks `vendor/srd-spells/spells.json`, the only copy now (`--check`: 339 spells against the PDF). The prototype's account of where the words come from is folded into [vendor/srd-spells/README.md](../vendor/srd-spells/README.md).
 - **`tools/glyphs` and `assets/glyphs` stay.** The terminal client draws sprites with the Kingmaker Glyphs font when it's installed. `build.py` now writes `web/fonts` and `client/look/kingmaker-glyphs.ts` (the fonts rebuild byte for byte). The npm scripts are back, except `glyphs:check`, whose `kingmaker-check.tsx` has no counterpart in the game.
 - **The prototype's README and ARCHITECTURE.md are archived too**, beyond the docs the plan named: they describe only the prototype. ARCHITECTURE.md is new, the game's.
-- **The docs service's default lore** (`ai/docs/config.ts`) is the campaign's, in place of the root `lore/`. Two of its tests read the default, and every host sets its own.
+- **The docs service's default lore** (`ai/docs/config.ts`) is the campaign's, in place of the root `lore/`. Two of its test files read the default (the backstory's lore check and the fronts', seven tests), and every host sets its own.
 - **`.containerignore` is an allowlist** (package.json, ai/, shared/, vendor/, hosts/ai.ts). The image's build context is the repo's root now, not `v2/`. The image builds and answers its health check on the fake model.
 - **The design docs and live records are left as written**, with `v2/x` paths, since they're records of each vertical; two broken links in them are repointed. Provenance comments (a copy's first line) are left too.
 - **The plugin's importer tests read the prototype's scenes from history:** `tests/prototype-game.mjs` takes `scenes/`, `lore/` and `package.json` out of `bc2ab1f` with `git archive`. The five-scene conversion test read the user's own checkout before.
@@ -68,8 +68,9 @@ At the end of M1, from the root: `npm ci`; `npm run check` (the type checks, 951
 - **docs/research and docs/qa** keep their text: 65 links in docs/research point into the prototype's tree. docs/prototype's links point where things were.
 - **The engine's rebuild pipeline is only in history:** the prototype's build, `patch.ts` and `tools/v2/module-engine.mts`. An engine upgrade brings it back.
 - **The golden recorders are only in history** (`tools/record-golden.mts`, `tools/v2/record-v1-golden.mts`, `record-spell-facts.mts`). Recording again runs them from a checkout of `bc2ab1f`, where the game was `v2/`.
+- **The campaign's converters are only in history:** `tools/v2/scene-files.mts` with its tables in `tools/v2/scenes/`, `map-files.mts` and `v1-campaign.mts` made `campaigns/caerwyn` from the prototype's scenes, and only their output is committed. Making it again runs them from a checkout of `bc2ab1f`; M2's re-authored scenes take their place.
 - **`campaigns/caerwyn/vocabulary.json`** was exported from the prototype's 25 scenes (`tools/v2/export-vocabulary.mts`, in history). M2's scenes may change what it needs to be.
 - **No counterpart in the game:** the glyph tests (fonts and code against the bitmaps, a sprite one cell wide), `kingmaker-check.tsx`, the sprite gallery, and the frame dump `tools/glyphs/frame.py` draws. `client/look/kingmaker-glyphs.ts` keeps a provenance line the generator drops at its next rebuild.
-- **`V2` constants** in `hosts/web/*` and the import tests name the repo's root. Left as they are.
+- **`V2` constants** in `hosts/` and a few tests (`const V2 = resolve(import.meta.dirname, ...)`) name the repo's root. Left as they are.
 - **The plugin has no vault in the repo:** the root `lore/` it was installed into is gone, and M3 brings it to `campaigns/caerwyn`. Its `import-main-campaign.mjs` reads the prototype's TypeScript scenes, so it's obsolete once M2 lands.
 - **Still only the prototype's** (in history): problem reports (`src/report`, M4), fights on the map (V12) and words typed in a fight (V13), the quick co-GM, the actors approaches, the zoo, and the page's door and lamp pictures.
