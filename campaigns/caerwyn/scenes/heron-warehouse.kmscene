@@ -169,7 +169,7 @@
     {
       "id": "hobb",
       "name": "Big Hobb Mallory",
-      "called": "the big porter with the bandaged hand",
+      "called": "the big man with the bandaged hand",
       "lore": "Cast/Big Hobb Mallory/public.md",
       "look": "A dock-porter the size of a door, with a head like a bollard, a nose broken more than once and a leather porter's hood. His right hand is wrapped in a tarry rag, and he works the hoist one-handed, wincing. Where he is tonight follows from how the Drowned Rat ended: on the hoist with Hep's gang as usual; in the watch-house cells if Kell took him in (then he isn't here at all, and the gang is a man shorter); or, if he ran from the Rat to warn his master, with the Master, and he comes in at his heels at the midnight bell.",
       "voice": "Slow, low and polite: 'sir', 'missus', and 'Master', which he can't stop saying. Says as little as he can; when it spills, it's how he feels, not how anything works. When frightened he goes very quiet and very still, like a dray-horse in thunder.",
@@ -797,7 +797,42 @@
         "result": "mixed",
         "exitKind": "combat",
         "next": "kings-morning",
-        "effects": [],
+        "effects": [
+          {
+            "op": "startFight",
+            "enemies": [
+              {
+                "asset": "bandit",
+                "count": 2,
+                "leader": "sallow"
+              }
+            ],
+            "allies": [
+              "kell"
+            ],
+            "at": "floor",
+            "if": {
+              "established": "master-here"
+            }
+          },
+          {
+            "op": "startFight",
+            "enemies": [
+              {
+                "asset": "bandit",
+                "count": 6,
+                "leader": "hep"
+              }
+            ],
+            "allies": [
+              "kell"
+            ],
+            "at": "floor",
+            "unless": {
+              "established": "master-here"
+            }
+          }
+        ],
         "lore": []
       }
     },
