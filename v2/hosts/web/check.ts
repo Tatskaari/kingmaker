@@ -23,8 +23,9 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  * - then the play, on the fake GM: the title, a character made, the map ("The lead: The Hanged
  *   Clerk"), g to the yard and the opening streamed in, a line and its reply with the suggested lines
  *   after it, a reload with the title's Continue carrying the game on from IndexedDB (the
- *   simulation's rows and the AI service's stores), another line, and a second tab told the game is
- *   open in this one (it takes it over); a browser that won't keep anything is told so.
+ *   simulation's rows and the AI service's stores), another line, Ctrl+C and Play again (a new client
+ *   worker, the server playing on), and a second tab told the game is open in this one (it takes it
+ *   over); a browser that won't keep anything is told so.
  *
  * Throughout: no page error, and no request leaves the origin (anything else is refused and failed),
  * but the key's check with OpenRouter, faked here.
@@ -514,6 +515,7 @@ async function play(browser: Browser, url: string): Promise<void> {
     await theSaves(page);
     await reloadAndContinue(page);
     await aLine(page, "Who's the girl on the wall, Sergeant?", "girl on the wall, Sergeant", "smirk", "after the reload, the game plays on: the next line's reply");
+    await closeAndPlayAgain(page, seen);
     stayedHome(seen, origin, "the play");
     noErrors(seen, "the play");
   } finally {
@@ -606,6 +608,29 @@ async function reloadAndContinue(page: Page): Promise<void> {
   await waitFor(page, "The Hanged Clerk ·", "Continue carries the game on, in the yard", 60000);
   await waitFor(page, `What have we got.*${REPLY}`, "the talk as it was: the line and its reply", 20000);
   await waitFor(page, "Say it out loud", "the box is open", 30000);
+}
+
+/**
+ * Ctrl+C closes the game: the client worker goes, the page says so, and Play again starts a new client
+ * worker on a new channel, whose other end goes to the server worker as it plays on ({type: "port"}):
+ * the title's Continue offers the game, and carries it on.
+ */
+async function closeAndPlayAgain(page: Page, seen: Watch): Promise<void> {
+  await press(page, "Control+c");
+  try {
+    await page.waitForSelector("#notice:not([hidden])", { timeout: 15000 });
+  } catch {
+    throw new Error("no notice after Ctrl+C");
+  }
+  ok(`Ctrl+C closes the game, and the page says so ("${await page.textContent("#notice-text")}")`);
+  await shot(page, "closed");
+  await page.click("#notice-button");
+  await waitFor(page, `Continue.*${NAME}`, "Play again: a new client worker, and the title's Continue offers the game", 30000);
+  const readies = await page.evaluate(`km.heard.filter(h => h.from === "server" && h.type === "ready").length`);
+  if (readies === 1 && seen.told.some(t => t.worker === "server" && t.type === "port" && t.port)) ok("the server worker played on through it (ready once), and was handed the new client's port");
+  else fail(`Play again: the server worker said ready ${readies} times, and was told ${JSON.stringify(seen.told.filter(t => t.worker === "server"))}`);
+  await press(page, "Enter");
+  await waitFor(page, "The Hanged Clerk ·.*smirk", "Continue carries the game on, in the yard, as it was", 60000);
 }
 
 /** The game open in a second tab: it's told so and starts nothing of its own; it takes the game over, and the first tab says so. */
