@@ -1,5 +1,6 @@
-// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines, with the way back to the map once a scene on one is over: map-design §3.3); viewText and phaseLine are new, the way on's lines (story/text.ts) once the scene is over.
+// The prototype's src/runtime/markup.ts:623-635 (markupLines, with each mark's card under it) and src/game/play.ts:547-553 (render) at 44c6d4a, reading names from the view; src/cli/qa.ts:94-97 (the actions, as actionLines, with the way back to the map once a scene on one is over: map-design §3.3, and a talk's goodbye and walking on: src/game/play.ts:351-361, town-design §3.9); viewText and phaseLine are new, the way on's lines (story/text.ts) once the scene is over.
 import type { Mark, MarkLink, Markup } from "../../shared/markup.ts";
+import { FAREWELL, WALK_ON } from "../../shared/scene/talk.ts";
 import { wayOnActions, wayOnPhase } from "../story/text.ts";
 import { isPlayer, type Entry, type SceneView } from "./view.ts";
 
@@ -40,11 +41,17 @@ export function render(view: SceneView, entries: Entry[]): string {
 }
 
 /**
- * The lines suggested for this moment, as the agent picks them (act --id say_2), and once a scene
- * played on a map is over, the way back to it (act --id out): nothing when there are none.
+ * The lines suggested for this moment, as the agent picks them (act --id say_2); in a talk, its
+ * goodbye and walking on after them (act --id say_goodbye, walk_on); and once a scene played on a map
+ * is over, the way back to it (act --id out): nothing when there are none.
  */
 export function actionLines(view: SceneView): string[] {
-  const lines = [...view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`), ...wayOnActions(view)];
+  const talking = view.talk && !view.over && !view.ending && !view.watching;
+  const lines = [
+    ...view.suggestions.map((s, i) => `- say_${i + 1}: ${s.text}`),
+    ...(talking ? [`- say_goodbye: ${FAREWELL}`, `- walk_on: ${WALK_ON}`] : []),
+    ...wayOnActions(view),
+  ];
   if (view.over && view.onMap && !view.watching) lines.push("- out: Back to the map, where the scene left you");
   return lines.length ? ["ACTIONS:", ...lines] : [];
 }

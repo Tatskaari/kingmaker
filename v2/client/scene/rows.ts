@@ -19,7 +19,7 @@ export interface SceneRows {
   /** This client's player: my_seat's playerId. */
   me: bigint;
   game: Pick<Game, "id" | "time">;
-  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns"> & Partial<Pick<Scene, "time">>;
+  scene: Pick<Scene, "id" | "title" | "hook" | "status" | "controllerId" | "turnId" | "turns"> & Partial<Pick<Scene, "time" | "kind">>;
   players: Array<Pick<Player, "id" | "name" | "suggestions">>;
   /** Each player's sheet: its status line; the lead's spells too, and what the rules say of them, for the place's menu. */
   sheets: Array<Pick<Sheet, "playerId" | "statusLine"> & LeadSheet>;
@@ -28,7 +28,8 @@ export interface SceneRows {
   turns: Array<Pick<Turn, "id" | "n" | "phase" | "note" | "error" | "notes" | "suggest">>;
   onStage: Array<Pick<OnStage, "entityId" | "role">>;
   names: Array<Pick<NameView, "entityId" | "key" | "name">>;
-  looks: Array<Pick<Look, "entityId" | "fg">>;
+  /** The place's looks: a cast member's colour, or a thing's invented look (town-design §3.7: its fg a colour's name, not the cast's). */
+  looks: Array<Pick<Look, "entityId" | "fg"> & Partial<Pick<Look, "invention">>>;
   /** The scene's suggested lines (scene_suggestion): one set at a time, each row its turn and its place in the set. */
   suggestions: Array<Pick<SceneSuggestion, "sceneId" | "turn" | "ord" | "kind" | "text">>;
   /** The game's story around the scene (story-design §4.5): the boundary, the lead, the notebook's tables, the costs. None until they've come. */
@@ -95,6 +96,7 @@ export function sceneViewOf(rows: SceneRows): SceneView {
     ...(rows.story ? { story: storyViewOf(rows.story, rows.scene.controllerId, name) } : {}),
     ...placeOf(rows),
     ...(rows.onMap ? { onMap: true } : {}),
+    ...(rows.scene.kind === "talk" ? { talk: true } : {}),
   };
 }
 
@@ -181,7 +183,7 @@ function presentOf(rows: SceneRows): Person[] {
   return rows.onStage.filter(s => s.role !== "controller").flatMap(s => {
     const known = rows.names.find(n => n.entityId === s.entityId);
     if (!known) return [];
-    return [{ key: known.key, name: known.name, color: rows.looks.find(l => l.entityId === s.entityId)?.fg ?? colorOf(known.key) }];
+    return [{ key: known.key, name: known.name, color: rows.looks.find(l => l.entityId === s.entityId && !l.invention)?.fg ?? colorOf(known.key) }];
   });
 }
 

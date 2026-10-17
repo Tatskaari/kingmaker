@@ -1,4 +1,4 @@
-// The prototype's src/app/game.ts at 44c6d4a, its explore section as a model over rows: :172-179 (TileMenu), :299 (STEP_MS), :354-357 and :389 (walking, the menu, walkNo), :451-464 (subscribe, emit), :904-923 (leadTarget, actionsAt, interactLabel), :956-1046 (say, walk, interact, toLead, walkTo, openMenu, closeMenu, chooseFromMenu), :1176-1280 (doAt, startWalk, endWalk, stepAlong, explore), :2440-2452 (sleep, within). Each act is a move (map-design §3.2: moveOf its id), and what it said is the explore row's (`said`, when `acts` moves on), shown by the prototype's quiet rules; the zoo, the action menu, aiming, fights, the town's effects and the report are cut.
+// The prototype's src/app/game.ts at 44c6d4a, its explore section as a model over rows: :172-179 (TileMenu), :299 (STEP_MS), :354-357 and :389 (walking, the menu, walkNo), :451-464 (subscribe, emit), :904-923 (leadTarget, actionsAt, interactLabel), :956-1046 (say, walk, interact, toLead, walkTo, openMenu, closeMenu, chooseFromMenu), :1176-1280 (doAt, startWalk, endWalk, stepAlong, explore), :2440-2452 (sleep, within). Each act is a move (map-design §3.2: moveOf its id), and what it said is the explore row's (`said`, when `acts` moves on), shown by the prototype's quiet rules; the zoo, the battlefield and the report are cut. The town unit's (town-design §2, §3.9): :197-224 (DoMenu, entriesOf, Aiming), :1026 and :1043 (Do something…), :1047-1170 (the action menu, aiming and act) and :2199-2230 (townFx, animateTown), the menu from the rows (explore/town.ts), each act a move, a fight on the map its stand-in's card, and a spectator's map playing the host's acts too.
 import { SCREEN_KEYS, steer, tileName, walkPlan, pathTo, type ExploreState } from "../../shared/map/explore.ts";
 import { getMap } from "../../shared/map/maps.ts";
 import { LEAD, moveOf, type MapMove } from "../../shared/map/moves.ts";
@@ -9,6 +9,12 @@ import type { Rejection } from "../backend.ts";
 import type { SheetShown } from "../scene/model.ts";
 import type { ExploreView } from "./rows.ts";
 import { TIME_WORDS } from "./words.ts";
+import type { AimAt, AimView, MenuCtx, MenuItem, MenuView } from "../../shared/map/menu.ts";
+import type { SceneWorld } from "../../shared/world/scene-world.ts";
+import { Director } from "../look/director.ts";
+import { Effects } from "../look/effects.ts";
+import { isRoll } from "../scene/view.ts";
+import { menuCtx, SHARED_TOWN, type TownMenu } from "./town.ts";
 
 /**
  * The map between scenes (the prototype's Game, its explore section, fed by rows): the walker's
@@ -27,6 +33,38 @@ export interface TileMenu extends TileActions {
   index: number;
 }
 
+/** The action menu (m on the map, a right-click's "Do something…"): what's on offer, and which entry is picked out. */
+export interface DoMenu {
+  view: MenuView;
+  /** The picked-out entry: an index into entriesOf(view). */
+  index: number;
+  /** Where its list starts on screen (it scrolls only to keep the picked-out entry on show). */
+  top: number;
+  /** Where on screen it was asked for (a right-click), when it was. */
+  x?: number;
+  y?: number;
+}
+
+/** Every entry of a menu, in the order its sections list them. */
+export const entriesOf = (view: MenuView): MenuItem[] => view.sections.flatMap(s => s.entries);
+
+/** Aiming one of the menu's entries on the map: the pointer or the cursor keys pick a tile, a click or Enter does it. */
+export interface Aiming {
+  item: MenuItem;
+  view: AimView;
+  /** The tile aimed at. */
+  at: Tile2;
+  /** What it would do there (or why not). */
+  check?: AimAt;
+  /** Which of the targets in reach Tab is on. */
+  index: number;
+  /** An area that would catch you, asked about once already: the next Enter or click does it. */
+  confirm?: boolean;
+}
+
+/** The town's look between scenes: the effects of what's done on the map, in the town's world, for the map they're on. */
+export interface TownLook { map: string; fx: Effects; director: Director; world: SceneWorld }
+
 /** What's open over the map: how to play, What happens in full, the menu (Esc), the character sheet. */
 export type ExploreOverlay = { kind: "help" } | { kind: "log" } | { kind: "sheet" } | { kind: "menu"; index: number };
 
@@ -36,6 +74,8 @@ export interface ExploreActions {
   move(m: MapMove): Promise<Rejection | undefined>;
   /** Back to the title, the game kept. */
   quit(): void;
+  /** The fight on the map's stand-in (town-design §3.3): fought out, as won (fight_it_out). Why not, when it wasn't. */
+  fightItOut?(): Promise<Rejection | undefined>;
 }
 
 /** How long a walk waits between steps, so the player sees the way (the prototype's KM_APP_STEP_MS). */
@@ -53,6 +93,12 @@ export class ExploreModel {
   /** The map's right-click menu, while it's open. */
   menu?: TileMenu;
   overlay?: ExploreOverlay;
+  /** The action menu, while it's open (m on the map). */
+  doMenu?: DoMenu;
+  /** Aiming something from the action menu on the map. */
+  aiming?: Aiming;
+  /** The town's look between scenes: what the player does on the map plays in the town's world (see townFx). */
+  townLook?: TownLook;
   /** The seat's sheet, for c. */
   readonly sheet: () => SheetShown | undefined;
 
@@ -68,9 +114,13 @@ export class ExploreModel {
   private readonly listeners = new Set<() => void>();
   private changes = 0;
 
-  constructor(view: ExploreView, actions: ExploreActions, read: () => ExploreView | undefined = () => undefined, sheet: () => SheetShown | undefined = () => undefined) {
+  /** The action menu's checks (explore/town.ts): the shared menu, or a test's fixture. */
+  private readonly town: TownMenu;
+
+  constructor(view: ExploreView, actions: ExploreActions, read: () => ExploreView | undefined = () => undefined, sheet: () => SheetShown | undefined = () => undefined, town: TownMenu = SHARED_TOWN) {
     this.view = view;
     this.actions = actions;
+    this.town = town;
     this.read = read;
     this.sheet = sheet;
     this.seen = view.acts;
@@ -99,11 +149,13 @@ export class ExploreModel {
    * (explore), by the prototype's quiet rules.
    */
   update(view: ExploreView): void {
+    const was = this.view;
     this.view = view;
     if (!this.inFlight && view.acts !== this.seen) {
-      if (view.acts > this.seen && view.said) this.say(view.said);
+      if (view.acts > this.seen && view.said) { this.say(view.said); this.playTown(was.ex, view.said); }
       this.seen = view.acts;
     }
+    this.reaim();
     this.emit();
   }
 
@@ -191,7 +243,12 @@ export class ExploreModel {
   openMenu(at: Tile2, x: number, y: number): void {
     if (this.idle()) return;
     this.walking = false;
-    this.menu = { ...this.actionsAt(at), x, y, index: 0 };
+    this.doMenu = undefined;
+    this.aiming = undefined;
+    const tile = this.actionsAt(at);
+    // Anything the action menu can do to what's there (a spell at them, a shove), aimed at it already.
+    const more: Action[] = this.view.catalogue ? [{ id: `do@${at.x},${at.y}`, label: "Do something…", kind: "use" }] : [];
+    this.menu = { ...tile, actions: [...tile.actions, ...more], x, y, index: 0 };
     this.emit();
   }
 
@@ -207,6 +264,7 @@ export class ExploreModel {
     this.menu = undefined;
     const choice = menu?.actions[index];
     if (!menu || !choice) { this.emit(); return; }
+    if (choice.id.startsWith("do@")) { this.openActions(menu.at, menu.x, menu.y); return; }
     await this.doAt(menu.at, choice);
   }
 
@@ -252,6 +310,227 @@ export class ExploreModel {
     this.emit();
   }
 
+  // -------------------------------------------------------------------------------------------
+  // The action menu (m): spells, class features, a leap, hiding, a rest; aimed on the map (the
+  // prototype's game.ts:1047-1170, each act a move; the menu from the rows: explore/town.ts).
+
+  /** What the menu reads (town-design §3.3): the state, the walker's catalogue, the explore row's keep. */
+  menuCtx(): MenuCtx {
+    return menuCtx(this.view);
+  }
+
+  /** Open the action menu: what the player can do here, by kind; `at`: aimed at that tile already (a right-click's "Do something…"). */
+  openActions(at?: Tile2, x?: number, y?: number): void {
+    if (this.idle() || this.inFlight) return;
+    this.walking = false;
+    this.menu = undefined;
+    this.aiming = undefined;
+    const view = this.ask(town => town.menu(this.menuCtx(), at));
+    if (!view) { if (view === undefined) this.say("There's no rules character here to do anything with."); this.emit(); return; }
+    const entries = entriesOf(view);
+    // The first thing that can be done, picked out.
+    this.doMenu = { view, index: Math.max(0, entries.findIndex(e => !e.why)), top: 0, ...(x !== undefined && y !== undefined ? { x, y } : {}) };
+    this.emit();
+  }
+
+  closeActions(): void {
+    if (!this.doMenu) return;
+    this.doMenu = undefined;
+    this.emit();
+  }
+
+  /**
+   * One of the menu's entries: done at once (nothing to aim, or aimed already), or aimed on the map
+   * first; one that can't be done now is only picked out (the menu says why).
+   */
+  chooseAction(index: number): void {
+    const menu = this.doMenu;
+    const item = menu ? entriesOf(menu.view)[index] : undefined;
+    if (!menu || !item) return;
+    if (item.why) { menu.index = index; this.emit(); return; }
+    this.doMenu = undefined;
+    if (item.id) void this.act(item.id);
+    else if (item.aiming) this.startAiming(item, menu.view.at);
+    else this.emit();
+  }
+
+  /**
+   * Aim an entry on the map: at `at` (what was right-clicked), else at the nearest thing in reach (for
+   * an area, the nearest whose area leaves you out), else where you stand.
+   */
+  startAiming(item: MenuItem, at?: Tile2): void {
+    const c = this.menuCtx();
+    const view = this.ask(town => town.aim(c, item.key));
+    if (!view) { this.emit(); return; }
+    const start = at ?? view.start ?? { ...this.ex.at };
+    this.aiming = { item, view, at: { ...start }, index: Math.max(0, view.targets.findIndex(t => t.at.x === start.x && t.at.y === start.y)) };
+    const check = this.ask(town => town.check(c, item.key, start));
+    if (check) this.aiming.check = check;
+    this.emit();
+  }
+
+  /** Aim at a tile (the pointer over the map, or the cursor keys). */
+  aimTo(at: Tile2): void {
+    const aiming = this.aiming;
+    if (!aiming || (aiming.at.x === at.x && aiming.at.y === at.y)) return;
+    aiming.at = { ...at };
+    const check = this.ask(town => town.check(this.menuCtx(), aiming.item.key, at));
+    if (check) aiming.check = check;
+    else delete aiming.check;
+    delete aiming.confirm;
+    this.emit();
+  }
+
+  /** The next (or the last) of what's in reach (Tab, Shift+Tab); yourself among them, when it can be. */
+  aimNext(back = false): void {
+    const aiming = this.aiming;
+    if (!aiming) return;
+    const tiles = [...aiming.view.targets.map(t => t.at), ...(aiming.view.self ? [{ ...this.ex.at }] : [])];
+    if (!tiles.length) return;
+    const now = tiles.findIndex(t => t.x === aiming.at.x && t.y === aiming.at.y);
+    const next = now < 0 ? 0 : (now + (back ? tiles.length - 1 : 1)) % tiles.length;
+    aiming.index = next;
+    this.aimTo(tiles[next]!);
+  }
+
+  /** Move the aim a tile (the arrow keys: with the screen, as walking does). */
+  aimStep(key: string): void {
+    const d = SCREEN_KEYS[key];
+    if (!d || !this.aiming) return;
+    this.aimTo({ x: this.aiming.at.x + d[0], y: this.aiming.at.y + d[1] });
+  }
+
+  /** Aim at yourself, when it can be. */
+  aimSelf(): void {
+    if (!this.aiming?.view.self) return;
+    this.aimTo(this.ex.at);
+  }
+
+  /** Do it, where it's aimed: if it can be done there. An area that would catch you asks first (the bottom line says so, in red). */
+  fire(): void {
+    const aiming = this.aiming, check = aiming?.check;
+    if (!aiming || !check?.ok || !check.id) { this.emit(); return; }
+    if (check.caught?.includes("you") && !aiming.confirm) { aiming.confirm = true; this.emit(); return; }
+    this.aiming = undefined;
+    void this.act(check.id);
+  }
+
+  cancelAim(): void {
+    if (!this.aiming) return;
+    this.aiming = undefined;
+    this.emit();
+  }
+
+  /**
+   * One of the menu's acts, made as its move (the action id the QA console would use: moveOf): what
+   * it did shows on the map as it lands (the look layer's effects: the bolt, the splinters, the
+   * numbers) and in What happens; a refusal says why there, in the game's words. It may open
+   * someone's scene, or a talk; a fight it starts is the explore row's (its card comes up).
+   */
+  async act(id: string): Promise<void> {
+    if (this.idle()) return;
+    // The town as it is now: what the act changes is what's shown.
+    this.townFx(true);
+    const done = await this.explore(id);
+    if (!done.refused && !this.away()) this.animateTown(done.text);
+    this.emit();
+  }
+
+  /** A fight that broke out on the map, recorded for V12 (the explore row's): its stand-in's card is up until it's fought out. */
+  get fight(): ExploreView["fight"] {
+    return this.view.fight;
+  }
+
+  /** Fight it out (fight_it_out: the stand-in tells it as won); what it said comes back as the explore row's words. Why not, in What happens. */
+  async fightItOut(): Promise<void> {
+    if (!this.view.fight || this.idle()) return;
+    const refused = await (this.actions.fightItOut?.() ?? Promise.resolve({ code: "error" as const, text: "(There's no fighting it out from here.)" }));
+    if (refused) this.say(refused.text);
+    this.emit();
+  }
+
+  /**
+   * The town's look between scenes: one Effects and one Director for the map the player is on, and
+   * the town's world they play in (shared/map/town-world.ts). `fresh`: take the world as it is now
+   * (just before an act, so only what the act does is news). None in a scene, or with no town's world
+   * to play in.
+   */
+  townFx(fresh = false): TownLook | undefined {
+    const ex = this.ex;
+    if (ex.scene) return undefined;
+    if (!this.townLook || this.townLook.map !== ex.map) {
+      const world = this.ask(town => town.world(ex), false);
+      if (!world) return undefined;
+      const fx = new Effects();
+      const director = new Director(fx);
+      director.prime(world);
+      this.townLook = { map: ex.map, fx, director, world };
+    } else if (fresh) {
+      const world = this.ask(town => town.world(ex), false);
+      if (world) { this.townLook.world = world; this.townLook.director.prime(world); }
+    }
+    return this.townLook;
+  }
+
+  /** What's playing on the map the player is on now, if anything has been done there (the painter's: it never builds the town's world). */
+  townEffects(): TownLook | undefined {
+    const look = this.townLook;
+    return look && look.map === this.ex.map && !this.ex.scene ? look : undefined;
+  }
+
+  /** What an act on the map did, in the town's world: the spell from the player to its aim, the numbers, what broke or caught fire, who ran. */
+  private animateTown(text: string): void {
+    const look = this.townLook;
+    const ex = this.ex;
+    if (!look || look.map !== ex.map || !text) return;
+    const world = this.ask(town => town.world(ex), false);
+    if (!world) return;
+    const lines = text.split("\n").filter(Boolean);
+    const now = performance.now();
+    look.director.spellsFrom(world, lines, now);
+    look.director.rulesLines(world, lines, now);
+    look.director.observe(world, now);
+    look.world = world;
+  }
+
+  /** Someone else's act on the map (the host's, watched from another seat): the town as it was before it, then what it did, played as the host's own is. */
+  private playTown(before: ExploreState, text: string): void {
+    if (before.map !== this.ex.map || this.ex.scene || !text.split("\n").some(isRoll)) return;
+    const world = this.ask(town => town.world(before), false);
+    if (!world) return;
+    if (!this.townLook || this.townLook.map !== before.map) {
+      const fx = new Effects();
+      this.townLook = { map: before.map, fx, director: new Director(fx), world };
+    }
+    this.townLook.world = world;
+    this.townLook.director.prime(world);
+    this.animateTown(text);
+  }
+
+  /** The rows moved on while aiming (the town's clock, someone's move): what's in reach, and what the aim would do, asked again. */
+  private reaim(): void {
+    const aiming = this.aiming;
+    if (!aiming || this.away()) { this.aiming = undefined; return; }
+    const c = this.menuCtx();
+    const view = this.ask(town => town.aim(c, aiming.item.key), false);
+    if (view) aiming.view = view;
+    const check = this.ask(town => town.check(c, aiming.item.key, aiming.at), false);
+    if (check) aiming.check = check;
+  }
+
+  /**
+   * Ask the action menu something: what it answers, or null when it went wrong (said in What happens,
+   * when `loud`, so the player sees why m did nothing). The town's effects ask quietly: they're only looks.
+   */
+  private ask<T>(question: (town: TownMenu) => T, loud = true): T | null {
+    try {
+      return question(this.town);
+    } catch (error) {
+      if (loud) this.say(`(The action menu went wrong: ${error instanceof Error ? error.message : String(error)}.)`);
+      return null;
+    }
+  }
+
   /** A walk begins: it takes over from any walk under way. */
   private startWalk(): number {
     this.walking = true;
@@ -293,7 +572,7 @@ export class ExploreModel {
    * move is made (a refusal's, when it wasn't), shown unless it's a quiet step of a walk with nothing
    * worth stopping for, or the move opened a scene (the scene screen comes up with it).
    */
-  private async explore(id: string, options: { quiet?: boolean } = {}): Promise<{ text: string; said: boolean }> {
+  private async explore(id: string, options: { quiet?: boolean } = {}): Promise<{ text: string; said: boolean; refused?: boolean }> {
     const m = id === "go_to_lead" ? { move: "walk" as const, args: { toward: LEAD } } : moveOf(id);
     if (!m) return { text: "", said: false };
     const before = this.view.acts;
@@ -311,9 +590,9 @@ export class ExploreModel {
     const opening = this.away();
     const said = !opening && !!text && (!options.quiet || !!refused || SAID_WALKING.test(text));
     if (said) this.say(text);
-    if (opening) { this.walking = false; this.menu = undefined; }
+    if (opening) { this.walking = false; this.menu = undefined; this.doMenu = undefined; this.aiming = undefined; }
     this.emit();
-    return { text, said };
+    return { text, said, ...(refused ? { refused: true } : {}) };
   }
 
   /** Nothing to do from here: a spectator's map is the host's to walk, and a scene opening has taken over. */

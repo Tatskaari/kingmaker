@@ -36,6 +36,7 @@ import { checkCreation } from "./creation.tsx";
 import { checkMap } from "./map-screens.tsx";
 import { checkStory } from "./story-screens.tsx";
 import { checkPlace } from "./place-screens.tsx";
+import { checkTown } from "./town-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -708,6 +709,9 @@ await checkCreation(checks, show);
 
 // The way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and The End (the story's).
 await checkStory(checks, show);
+
+// The action menu, aiming, a talk's choices, the card's word with Kell and the map's fight card (the town's).
+await checkTown(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {
