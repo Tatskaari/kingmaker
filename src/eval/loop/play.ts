@@ -39,7 +39,7 @@ export function start(roundName: string, id: string): string {
   const round = loadRound(roundName);
   if (turnOf(round, id)) return `Game ${id} has already started. Go on with: npm run -s loop -- say ${roundName} ${id} "<what you say or do>"`;
   const g = game(round, id);
-  return scene(round, id, ["start", round.scene, "--approach", g.variant.approach, "--level", String(round.level), "--session", id, "--as", g.persona.as]);
+  return scene(round, id, ["start", round.scene, "--approach", g.variant.approach ?? "v2", "--level", String(round.level), "--session", id, "--as", g.persona.as]);
 }
 
 export function say(roundName: string, id: string, text: string): string {

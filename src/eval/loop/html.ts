@@ -41,22 +41,6 @@ export function md(text: string): string {
   return `<div class="md">${out.join("\n")}</div>`;
 }
 
-/**
- * A page's long texts, so one repeated in a later call (the GM's instructions, every turn) is shown
- * once and pointed back to after that.
- */
-export class Seen {
-  private texts = new Map<string, string>();
-  text(text: string, anchor: string, label: string): string {
-    if (text.length >= 1500) {
-      const first = this.texts.get(text);
-      if (first) return `<p class="faint same">The same ${text.length.toLocaleString()} characters as <a href="#${esc(first)}">${esc(first.replace(/^call-/, "call #"))}</a>'s ${esc(label)}.</p>`;
-      this.texts.set(text, anchor);
-    }
-    return md(text);
-  }
-}
-
 /** Any JSON as HTML, every field. */
 export function value(v: unknown, depth = 0): string {
   if (v === null || v === undefined) return `<span class="nil">${v === null ? "null" : "—"}</span>`;
@@ -67,13 +51,8 @@ export function value(v: unknown, depth = 0): string {
   return keys.length ? `<dl class="kv d${Math.min(depth, 3)}">${keys.map(k => `<dt>${esc(k)}</dt><dd>${value((v as Record<string, unknown>)[k], depth + 1)}</dd>`).join("")}</dl>` : `<span class="nil">{ }</span>`;
 }
 
-/** A GM reply's raw text with its markup lit: speaker tags and marked phrases. */
-const rawReply = (s: string) => esc(s)
-  .replace(/\[([^\]:]{1,60})\](?=\s*[“"])/g, `<span class="tag">[$1]</span>`)
-  .replace(/\[(why|know|you):([^\]]*)\]/g, `<span class="mark">[$1:$2]</span>`);
-
 // ---------------------------------------------------------------------------------------------
-// A model call
+// Model calls: a row each on the page, opened in a panel as the call's own transcript
 
 export interface Call {
   at?: string; provider?: string; operation?: string; model?: string; effort?: string;
@@ -83,52 +62,173 @@ export interface Call {
   latencyMs?: number; firstTextMs?: number | null; costUsd?: number; tokens?: { in?: number; out?: number; reasoning?: number }; error?: string;
 }
 
-const ROLE: Record<string, string> = { developer: "developer (prep and notes)", user: "user (the player's turn)", assistant: "assistant (earlier replies)", system: "system" };
-
-function decisionCall(c: Call, seen: Seen, anchor: string): string {
-  const q = c.request?.questions ?? {};
-  const qs = Object.entries(q).map(([name, spec]) => {
-    const ans = c.answers?.[name];
-    const probs = ans?.probabilities ?? {};
-    const opts = [...new Set([...Object.keys(spec.criteria ?? {}), ...Object.keys(probs)])];
-    const rows = opts.map(o => {
-      const p = probs[o]; const chosen = ans?.choice === o;
-      return `<tr class="${chosen ? "chosen" : ""}"><td class="opt"><code>${esc(o)}</code>${chosen ? ` <span class="pill">chosen</span>` : ""}</td><td class="bar"><span style="--p:${p ?? 0}"></span><b>${p === undefined ? "–" : Number(p).toFixed(2)}</b></td><td>${spec.criteria?.[o] ? md(spec.criteria[o]!) : `<span class="nil">(no description)</span>`}</td></tr>`;
-    }).join("");
-    return `<section class="q"><h5><code>${esc(name)}</code>${ans ? ` → <code class="ans">${esc(ans.choice)}</code>${ans.confidence !== undefined ? ` <span class="faint">confidence ${Number(ans.confidence).toFixed(2)}</span>` : ""}` : ""}</h5>${spec.instructions ? md(spec.instructions) : ""}<div class="scroll"><table class="opts"><thead><tr><th>option</th><th>probability</th><th>what the option means</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
-  }).join("");
-  const state = c.request?.state;
-  const shown = typeof state === "string" ? seen.text(state, anchor, "decision state") : value(state);
-  return `<details class="part"><summary>What it was shown: the decision state</summary>${shown}</details>
-<details class="part" open><summary>The questions, its answers and every option's probability (${Object.keys(q).length})</summary>${qs}</details>`;
+/** What a call said, in a line: its answers, or the start of what it wrote. */
+function preview(c: Call): string {
+  if (c.answers) return Object.entries(c.answers).map(([q, a]) => `${q} → ${a.choice}${a.probabilities?.[a.choice] !== undefined ? ` (${Number(a.probabilities[a.choice]).toFixed(2)})` : ""}`).join(" · ");
+  return (c.error ? `failed: ${c.error}` : c.text ?? "").replace(/\s+/g, " ").slice(0, 180);
 }
 
-function generativeCall(c: Call, seen: Seen, anchor: string): string {
-  const input = c.request?.input ?? [];
-  const msgs = input.map((m, i) => `<details class="msg"><summary><span class="role ${esc(m.role)}">${esc(ROLE[m.role] ?? m.role)}</span> message ${i + 1} of ${input.length} · ${String(m.content ?? "").length.toLocaleString()} characters</summary>${seen.text(String(m.content ?? ""), anchor, `message ${i + 1}`)}</details>`).join("");
-  const text = c.text ?? "";
-  let out: string;
-  try { out = value(JSON.parse(text)); } catch { out = `<div class="raw">${rawReply(text)}</div>`; }
-  const tools = c.calls?.length ? `<details class="part"><summary>Its tool calls (${c.calls.length})</summary><ol class="tools">${c.calls.map(t => `<li><code>${esc(t.name)}</code>${value({ args: t.args, result: t.result })}</li>`).join("")}</ol></details>` : "";
-  const instructions = c.request?.instructions ?? "";
-  return `<details class="part"><summary>Its instructions (${instructions.length.toLocaleString()} characters)</summary>${seen.text(instructions, anchor, "instructions")}</details>
-<details class="part"><summary>Its input: ${input.length} message${input.length === 1 ? "" : "s"}${c.request?.json ? `, answering as JSON (<code>${esc(c.request.json.name ?? "")}</code>)` : ""}</summary>${msgs}</details>
-${tools}
-<details class="part" open><summary>What it wrote</summary>${out}</details>`;
+/**
+ * A page's model calls. Each is a row (`row`); the page carries them all as JSON (`script`), long
+ * strings stored once, and a viewer that opens one as its own transcript: the instructions, every
+ * message in order, what came back, a decider's questions with every option's probability.
+ */
+export class CallBook {
+  private strings: string[] = [];
+  private index = new Map<string, number>();
+  private calls: Array<{ id: string; label: string; call: unknown }> = [];
+
+  private pack(v: unknown): unknown {
+    if (typeof v === "string") {
+      if (v.length < 120) return v;
+      let i = this.index.get(v);
+      if (i === undefined) { i = this.strings.length; this.strings.push(v); this.index.set(v, i); }
+      return { $s: i };
+    }
+    if (Array.isArray(v)) return v.map(x => this.pack(x));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, this.pack(x)]));
+    return v;
+  }
+
+  /** A row that opens the call; `label` is how the page names it ("#12", "judge #3"). */
+  row(c: Call, options: { id: string; label: string }): string {
+    this.calls.push({ id: options.id, label: options.label, call: this.pack(c) });
+    const kind = c.answers ? "decision" : "writes text";
+    const meta = [c.model, c.latencyMs !== undefined ? `${(c.latencyMs / 1000).toFixed(1)} s` : "", c.tokens ? `${(c.tokens.in ?? 0).toLocaleString()} in` : "", c.costUsd !== undefined ? `$${Number(c.costUsd).toFixed(4)}` : ""].filter(Boolean);
+    return `<li><button type="button" class="callrow${c.error ? " failed" : ""}" data-call="${esc(options.id)}"><span class="callno">${esc(options.label)}</span><span class="op">${esc(c.operation ?? "?")}</span><span class="kind">${kind}</span><span class="meta">${esc(meta.join(" · "))}</span><span class="pv">${esc(preview(c))}</span></button></li>`;
+  }
+
+  /** The calls' data, the panel and the viewer: once per page, at the end. */
+  script(): string {
+    // Escaped so the JSON can't end the script tag, nor a line in older parsers (U+2028, U+2029).
+    const json = JSON.stringify({ strings: this.strings, calls: this.calls }).replace(/</g, "\\u003c")
+      .replaceAll(String.fromCharCode(0x2028), "\\u2028").replaceAll(String.fromCharCode(0x2029), "\\u2029");
+    return `<div class="panel-back" id="km-back" hidden></div>
+<aside class="panel" id="km-panel" hidden aria-label="A model call" tabindex="-1">
+<div class="panel-head"><div class="panel-title" id="km-title"></div><div class="panel-nav">
+<button type="button" id="km-prev" title="Previous call (←)">←</button><button type="button" id="km-next" title="Next call (→)">→</button>
+<button type="button" id="km-copy">Copy JSON</button><button type="button" id="km-close" title="Close (Esc)">Close</button></div></div>
+<div class="panel-body" id="km-body"></div>
+</aside>
+<script type="application/json" id="km-calls">${json}</script>
+<script>${VIEWER}</script>`;
+  }
 }
 
-/** One call as a card: the line about it, and the whole call behind a disclosure. */
-export function callCard(c: Call, n: number, seen: Seen, note?: { flag?: boolean; html: string }): string {
-  const kind = c.answers ? "decision" : "generative";
-  const anchor = `call-${n}`;
-  const meta = [c.provider, c.model, c.effort ? `effort ${c.effort}` : "", c.latencyMs !== undefined ? `${Math.round(c.latencyMs).toLocaleString()} ms` : "", c.firstTextMs ? `first text ${Math.round(c.firstTextMs)} ms` : "", c.tokens ? `${(c.tokens.in ?? 0).toLocaleString()} in, ${c.tokens.out ?? 0} out` : "", c.costUsd !== undefined ? `$${Number(c.costUsd).toFixed(4)}` : ""].filter(Boolean);
-  const body = kind === "decision" ? decisionCall(c, seen, anchor) : generativeCall(c, seen, anchor);
-  return `<li class="call${note?.flag ? " flag" : ""}${c.error ? " failed" : ""}" id="${anchor}">
-<div class="callhead"><span class="callno">#${n}</span><span class="op">${esc(c.operation ?? "?")}</span><span class="kind">${kind === "decision" ? "decision" : "writes text"}</span><span class="meta">${meta.map(esc).join(" · ")}</span></div>
-${c.error ? `<div class="err">Failed: ${esc(c.error)}</div>` : ""}${note ? `<div class="note">${note.html}</div>` : ""}
-<details class="full"><summary>The whole call</summary>${body}</details>
-</li>`;
-}
+const VIEWER = String.raw`(() => {
+  const data = JSON.parse(document.getElementById("km-calls").textContent);
+  const S = data.strings;
+  const isRef = v => v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 1 && "$s" in v;
+  const un = v => isRef(v) ? S[v.$s] : Array.isArray(v) ? v.map(un) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, un(x)])) : v;
+  const byId = new Map(data.calls.map((c, i) => [c.id, i]));
+  const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const inline = s => esc(s).replace(/\x60([^\x60]+)\x60/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  function md(text) {
+    const out = []; let para = []; const stack = [];
+    const flush = () => { if (para.length) { out.push("<p>" + para.map(inline).join("<br>") + "</p>"); para = []; } };
+    const close = (d = 0) => { while (stack.length > d) out.push("</" + stack.pop() + ">"); };
+    for (const raw of String(text ?? "").split("\n")) {
+      const line = raw.replace(/\s+$/, "");
+      const h = /^(#{1,6})\s+(.*)$/.exec(line), li = /^(\s*)([-*]|\d+\.)\s+(.*)$/.exec(line);
+      if (!line.trim()) { flush(); close(); continue; }
+      if (h) { flush(); close(); out.push('<h6 class="md-h">' + inline(h[2]) + "</h6>"); continue; }
+      if (li) { flush(); const d = Math.floor(li[1].length / 2) + 1, tag = /\d/.test(li[2]) ? "ol" : "ul"; while (stack.length < d) { out.push("<" + tag + ">"); stack.push(tag); } close(d); out.push("<li>" + inline(li[3]) + "</li>"); continue; }
+      close(); para.push(line);
+    }
+    flush(); close();
+    return '<div class="md">' + out.join("") + "</div>";
+  }
+  // What changed since the same part of an earlier call: a line diff (longest common subsequence).
+  function diff(a, b) {
+    const x = a.split("\n"), y = b.split("\n"), n = x.length, m = y.length;
+    if (n * m > 4e6) return '<p class="faint">Too long to compare.</p>';
+    const t = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) t[i][j] = x[i] === y[j] ? t[i + 1][j + 1] + 1 : Math.max(t[i + 1][j], t[i][j + 1]);
+    const rows = []; let i = 0, j = 0, same = 0;
+    const keep = () => { if (same) rows.push('<div class="d-same">… ' + same + " unchanged line" + (same === 1 ? "" : "s") + "</div>"); same = 0; };
+    while (i < n || j < m) {
+      if (i < n && j < m && x[i] === y[j]) { same++; i++; j++; }
+      else if (j < m && (i >= n || t[i][j + 1] >= t[i + 1][j])) { keep(); rows.push('<div class="d-add">+ ' + esc(y[j]) + "</div>"); j++; }
+      else { keep(); rows.push('<div class="d-del">− ' + esc(x[i]) + "</div>"); i++; }
+    }
+    keep();
+    return '<div class="diff">' + rows.join("") + "</div>";
+  }
+  // The same part of the last call of the same kind before this one: its raw (packed) value and label.
+  function earlier(i, pick) {
+    const op = un(data.calls[i].call.operation);
+    for (let k = i - 1; k >= 0; k--) if (un(data.calls[k].call.operation) === op) return { label: data.calls[k].label, value: pick(data.calls[k].call) };
+    return undefined;
+  }
+  function bubble(kind, title, packed, before, body) {
+    const text = un(packed);
+    const same = before && before.value !== undefined && JSON.stringify(before.value) === JSON.stringify(packed);
+    const changed = before && before.value !== undefined && !same && typeof text === "string" && typeof un(before.value) === "string";
+    const badge = !before || before.value === undefined ? "" : same ? '<span class="badge">unchanged since ' + esc(before.label) + "</span>" : '<span class="badge new">changed since ' + esc(before.label) + "</span>";
+    const len = typeof text === "string" ? " · " + text.length.toLocaleString() + " characters" : "";
+    // What's the same as last time starts folded, so what's new this call is what shows.
+    const id = "km-b" + toc.length;
+    toc.push('<a href="#' + id + '" class="' + (same ? "same" : changed ? "changed" : "") + '">' + esc(title) + "</a>");
+    return '<details class="bubble b-' + kind + '" id="' + id + '"' + (same ? "" : " open") + '><summary><span class="role">' + esc(title) + "</span>" + badge + '<span class="faint">' + len + "</span></summary>" +
+      (changed ? '<details class="sub"><summary>What changed since ' + esc(before.label) + "</summary>" + diff(un(before.value), text) + "</details>" : "") + body + "</details>";
+  }
+  const pre = v => '<pre class="json">' + esc(typeof v === "string" ? v : JSON.stringify(v, null, 2)) + "</pre>";
+  const rawText = s => '<div class="raw">' + esc(s).replace(/\[([^\]:]{1,60})\](?=\s*[“"])/g, '<span class="tag">[$1]</span>').replace(/\[(why|know|you):([^\]]*)\]/g, '<span class="mark">[$1:$2]</span>') + "</div>";
+  let toc = [];
+  function render(i) {
+    toc = [];
+    const packed = data.calls[i].call, c = un(packed), r = c.request || {}, parts = [];
+    const meta = [c.provider, c.model, c.effort && "effort " + c.effort, c.latencyMs !== undefined && Math.round(c.latencyMs) + " ms", c.firstTextMs && "first text " + Math.round(c.firstTextMs) + " ms", c.tokens && (c.tokens.in || 0).toLocaleString() + " tokens in, " + (c.tokens.out || 0) + " out", c.costUsd !== undefined && "$" + Number(c.costUsd).toFixed(4), c.at].filter(Boolean);
+    parts.push('<p class="meta">' + esc(meta.join(" · ")) + "</p>");
+    if (c.error) parts.push('<p class="err">Failed: ' + esc(c.error) + "</p>");
+    if (c.answers) {
+      parts.push(bubble("state", "What it was shown (the decision state)", packed.request && packed.request.state, earlier(i, x => x.request && x.request.state), typeof r.state === "string" ? md(r.state) : pre(r.state)));
+      for (const [q, spec] of Object.entries(r.questions || {})) {
+        const a = (c.answers || {})[q] || {}, probs = a.probabilities || {};
+        const opts = [...new Set([...Object.keys(spec.criteria || {}), ...Object.keys(probs)])];
+        const rows = opts.map(o => '<tr class="' + (a.choice === o ? "chosen" : "") + '"><td><code>' + esc(o) + "</code></td><td class=\"bar\"><span style=\"--p:" + (probs[o] || 0) + '"></span><b>' + (probs[o] === undefined ? "–" : Number(probs[o]).toFixed(2)) + "</b></td><td>" + (spec.criteria && spec.criteria[o] ? md(spec.criteria[o]) : "") + "</td></tr>").join("");
+        parts.push(bubble("q", "Question " + q + " → " + (a.choice || "?") + (a.confidence !== undefined ? " (confidence " + Number(a.confidence).toFixed(2) + ")" : ""), undefined, undefined,
+          (spec.instructions ? md(spec.instructions) : "") + '<div class="scroll"><table class="opts"><thead><tr><th>option</th><th>probability</th><th>what it means</th></tr></thead><tbody>' + rows + "</tbody></table></div>"));
+      }
+    } else {
+      parts.push(bubble("system", "Instructions (system)", packed.request && packed.request.instructions, earlier(i, x => x.request && x.request.instructions), md(r.instructions)));
+      (r.input || []).forEach((m, k) => parts.push(bubble(m.role, m.role + " message " + (k + 1) + " of " + r.input.length, packed.request.input[k].content, earlier(i, x => x.request && x.request.input && x.request.input[k] && x.request.input[k].role === m.role ? x.request.input[k].content : undefined), md(m.content))));
+      if (r.json) parts.push('<p class="faint">Answering as JSON: <code>' + esc(r.json.name || "") + "</code></p>");
+      for (const t of c.calls || []) parts.push(bubble("tool", "Tool call: " + t.name, undefined, undefined, pre({ args: t.args, result: t.result })));
+      let out; try { out = pre(JSON.parse(c.text)); } catch { out = rawText(c.text || ""); }
+      parts.push(bubble("out", "What it wrote", undefined, undefined, out));
+    }
+    return '<nav class="ptoc">' + toc.join("") + '</nav><p class="faint">Parts unchanged since the last call of this kind start folded; changed ones are marked, with what changed.</p>' + parts.join("");
+  }
+  const panel = document.getElementById("km-panel"), back = document.getElementById("km-back"), body = document.getElementById("km-body"), title = document.getElementById("km-title");
+  let at = -1;
+  function open(i) {
+    if (i < 0 || i >= data.calls.length) return;
+    at = i;
+    const c = data.calls[i];
+    title.innerHTML = '<span class="callno">' + esc(c.label) + '</span> <span class="op">' + esc(un(c.call.operation)) + "</span>";
+    body.innerHTML = render(i);
+    body.scrollTop = 0;
+    panel.hidden = false; back.hidden = false; panel.focus();
+  }
+  function shut() { panel.hidden = true; back.hidden = true; at = -1; }
+  document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-call]"); if (b) { const i = byId.get(b.getAttribute("data-call")); if (i !== undefined) open(i); } });
+  back.addEventListener("click", shut);
+  document.getElementById("km-close").addEventListener("click", shut);
+  document.getElementById("km-prev").addEventListener("click", () => open(at - 1));
+  document.getElementById("km-next").addEventListener("click", () => open(at + 1));
+  document.getElementById("km-copy").addEventListener("click", e => {
+    const text = JSON.stringify(un(data.calls[at].call), null, 1), btn = e.currentTarget;
+    const fallback = () => { body.insertAdjacentHTML("afterbegin", '<textarea class="copybox" readonly>' + esc(text) + "</textarea>"); const t = body.querySelector(".copybox"); t.focus(); t.select(); };
+    try { navigator.clipboard.writeText(text).then(() => { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Copy JSON"; }, 1500); }, fallback); } catch { fallback(); }
+  });
+  document.addEventListener("keydown", e => {
+    if (panel.hidden) return;
+    if (e.key === "Escape") shut();
+    else if (e.key === "ArrowLeft" && !e.target.closest("textarea")) open(at - 1);
+    else if (e.key === "ArrowRight" && !e.target.closest("textarea")) open(at + 1);
+  });
+})();`;
 
 // ---------------------------------------------------------------------------------------------
 // The transcript
@@ -215,6 +315,7 @@ const CSS = `
   --s5: #ff6b5e; --s4: #ff9b55; --s3: #e1b245; --s2: #91b2d2; --s1: #9aa3b1;
   --good: #72d0a1; --c0: #91b2d2; --c1: #72d0a1; --c2: #f0a45e; --c3: #e28ed2; --c4: #7dbfdf; --c5: #e1c45e; --c6: #b9a2f0; color-scheme: dark; }
 body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; margin: 0; }
+[hidden] { display: none !important; }
 .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 36px; }
 section, header, footer { min-width: 0; display: grid; gap: 12px; align-content: start; }
 h1, h2, h3, h4, h5 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.2; }
@@ -306,6 +407,38 @@ td.bar span { display: inline-block; width: calc(var(--p) * 5rem); height: 0.7em
 td.bar b { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
 .same { font-style: italic; }
 footer { border-block-start: 1px solid var(--rule); padding-block-start: 12px; }
+ol.callrows { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 4px; }
+button.callrow { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); }
+button.callrow:hover { border-color: var(--accent); }
+button.callrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.callrow.failed { border-color: var(--s4); }
+button.callrow .pv { flex-basis: 100%; font-size: 0.84rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-back { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 35%, transparent); z-index: 10; }
+.panel { position: fixed; inset-block: 0; inset-inline-end: 0; width: min(1000px, 100vw); background: var(--surface); border-inline-start: 1px solid var(--rule); z-index: 11; display: grid; grid-template-rows: auto minmax(0, 1fr); outline: none; }
+.panel-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; border-block-end: 1px solid var(--rule); }
+.panel-title { font-family: var(--display); font-size: 1.1rem; font-weight: 700; display: flex; gap: 8px; align-items: baseline; }
+.panel-nav { display: flex; gap: 6px; }
+.panel-nav button { font: 500 0.88rem var(--display); color: var(--accent); background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.panel-nav button:hover { border-color: var(--accent); }
+.panel-body { overflow-y: auto; padding: 12px 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; align-content: start; }
+.panel-body .meta { margin: 0; }
+.ptoc { display: flex; flex-wrap: wrap; gap: 4px 12px; font-family: var(--mono); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.ptoc a { text-decoration: none; color: var(--accent); }
+.ptoc a.same { color: var(--muted); } .ptoc a.changed { color: var(--s3); font-weight: 600; }
+details.bubble { border: 1px solid var(--rule); border-inline-start: 4px solid var(--c0); border-radius: 6px; padding: 6px 12px 10px; background: var(--paper); min-width: 0; }
+details.bubble > summary { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; color: var(--ink); }
+.bubble .role { font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.b-system { border-inline-start-color: var(--c6); } .b-developer { border-inline-start-color: var(--c4); } .b-user { border-inline-start-color: var(--c1); }
+.b-assistant { border-inline-start-color: var(--c2); } .b-out { border-inline-start-color: var(--accent); background: var(--accent-soft); } .b-state, .b-q { border-inline-start-color: var(--c5); } .b-tool { border-inline-start-color: var(--c3); }
+.badge { font-family: var(--mono); font-size: 0.7rem; padding: 0 6px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); }
+.badge.new { color: var(--s3); border-color: var(--s3); }
+pre.json { font-family: var(--mono); font-size: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0 0; }
+.diff { font-family: var(--mono); font-size: 0.78rem; white-space: pre-wrap; overflow-wrap: anywhere; display: grid; gap: 1px; margin-block: 6px; }
+.d-add { background: color-mix(in srgb, var(--good) 18%, transparent); } .d-del { background: color-mix(in srgb, var(--s5) 16%, transparent); } .d-same { color: var(--muted); font-style: italic; }
+textarea.copybox { width: 100%; min-height: 8rem; font-family: var(--mono); font-size: 0.78rem; background: var(--paper); color: var(--ink); border: 1px solid var(--rule); }
+.triage { display: grid; gap: 2px; }
+.triage .mine { font-weight: 600; }
+tr.discarded td { opacity: 0.55; } tr.discarded td.q { text-decoration: line-through; }
 @media (max-width: 640px) {
   h1 { font-size: 1.8rem; }
   .t { grid-template-columns: minmax(0, 1fr); gap: 2px; }

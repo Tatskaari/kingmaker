@@ -10,13 +10,16 @@ import { sceneById } from "../../../scenes/index.ts";
 import { turnsOfCalls } from "../../report/inspect.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import type { Finding } from "./fixture.ts";
-import { callCard, entryHtml, esc, md, page, PENALTY, Seen, sevChip, type Call, type Speakers } from "./html.ts";
+import { CallBook, entryHtml, esc, md, page, PENALTY, sevChip, type Call, type Speakers } from "./html.ts";
+import { loadTriage, whyHtml, type Verdict } from "./triage.ts";
 import { RATINGS, turnsOf, type Review } from "./review.ts";
 import { gameDir, loadRound, loadVariant, personas, roundDir, type Round } from "./round.ts";
 
 export interface Game {
   id: string; arm: string; variant: string; persona: string; as: string;
   state?: SessionState; calls: Call[]; review?: Review; notes?: string;
+  /** The review's findings, numbered, with their triage (severity as triaged); `kept`: not discarded. */
+  findings: Array<Finding & { n: number; v?: Verdict }>; kept: Array<Finding & { n: number; v?: Verdict }>;
   replies: number; penalty: number; costUsd: number; firstTextMs?: number;
 }
 
@@ -27,6 +30,7 @@ const fmt = (x: number | undefined, digits = 1) => x === undefined || Number.isN
 
 export function loadGames(round: Round): Game[] {
   const all = personas();
+  const triage = loadTriage(roundDir(round.name));
   return Object.entries(round.games).map(([id, g]) => {
     const dir = gameDir(round.name, id);
     const state = readJson<SessionState>(join(dir, "state.json"));
@@ -34,11 +38,13 @@ export function loadGames(round: Round): Game[] {
     const review = readJson<Review>(join(roundDir(round.name), "reviews", `${id}.json`));
     const notesFile = join(roundDir(round.name), "notes", `${id}.md`);
     const replies = state ? [...turnsOf(state).values()].filter(es => es.some(e => e.kind !== "player")).length : 0;
-    const penalty = (review?.findings ?? []).reduce((a, f) => a + (PENALTY[f.severity] ?? 0), 0);
+    const findings = (review?.findings ?? []).map((f, i) => { const v = triage[`${id}/${i + 1}`]; return { ...f, n: i + 1, ...(v ? { v, severity: v.severity ?? f.severity } : {}) }; });
+    const kept = findings.filter(f => f.v?.verdict !== "discard");
+    const penalty = kept.reduce((a, f) => a + (PENALTY[f.severity] ?? 0), 0);
     const first = (state?.metrics ?? []).map(m => m.firstTextMs ?? m.replyMs).filter((x): x is number => typeof x === "number");
     return {
       id, arm: g.arm, variant: round.arms[g.arm]!, persona: g.persona, as: all.find(p => p.id === g.persona)?.as ?? g.persona,
-      ...(state ? { state } : {}), calls, ...(review ? { review } : {}),
+      ...(state ? { state } : {}), calls, ...(review ? { review } : {}), findings, kept,
       ...(existsSync(notesFile) ? { notes: readFileSync(notesFile, "utf8") } : {}),
       replies, penalty, costUsd: calls.reduce((a, c) => a + (c.costUsd ?? 0), 0), ...(first.length ? { firstTextMs: median(first)! } : {}),
     };
@@ -60,9 +66,9 @@ function speakers(state: SessionState): Speakers {
 function gamePage(round: Round, g: Game): string {
   const s = g.state!;
   const who = speakers(s);
-  const seen = new Seen();
+  const book = new CallBook();
   const turnOf = turnsOfCalls(g.calls, s);
-  const findings = (g.review?.findings ?? []).map((f, i) => ({ ...f, n: i + 1 }));
+  const findings = g.findings;
   const variant = loadVariant(g.variant);
   const turns = [...turnsOf(s)].sort((a, b) => a[0] - b[0]);
   const body = turns.map(([n, entries]) => {
@@ -73,12 +79,12 @@ function gamePage(round: Round, g: Game): string {
     const calls = g.calls.map((c, i) => ({ c, i })).filter(({ i }) => turnOf[i] === n);
     const cost = calls.reduce((a, { c }) => a + (c.costUsd ?? 0), 0);
     return `<div class="turn${mine.length ? " flagged" : ""}" id="t-${n}">
-<div class="tn"><span>Turn ${n}${n === 0 ? " · the opening" : ""}</span>${mine.map(f => sevChip(f.severity)).join(" ")}<span class="faint">${calls.length} calls · $${cost.toFixed(4)}</span></div>
-${entries.map(e => entryHtml(e, who, mine)).join("\n")}
+<div class="tn"><span>Turn ${n}${n === 0 ? " · the opening" : ""}</span>${mine.filter(f => f.v?.verdict !== "discard").map(f => sevChip(f.severity)).join(" ")}<span class="faint">${calls.length} calls · $${cost.toFixed(4)}</span></div>
+${entries.map(e => entryHtml(e, who, mine.filter(f => f.v?.verdict !== "discard"))).join("\n")}
 ${moves.length || rulings.length ? `<div class="facts">${moves.map(m => `<span>path: ${esc(m.from)} → ${esc(m.to)} via ${esc(m.via)} (${esc(m.source)})${m.roll ? ` · ${esc(m.roll.skill)} ${m.roll.total} vs DC ${m.roll.dc}` : ""}</span>`).join("")}${rulings.map(r => `<span>ruling: ${esc(r.act)} → ${esc(r.kind)}${r.kind === "roll" ? ` ${esc(r.skill)} DC ${r.dc}` : ""} (${esc(r.why)})</span>`).join("")}</div>` : ""}
 ${mine.map(f => findingCard(f)).join("")}
 ${good.map(x => `<div class="finding good"><span class="pill pass">good</span><div class="body"><p>${esc(x.what)}</p></div></div>`).join("")}
-${calls.length ? `<details class="callsof"><summary>The ${calls.length} model calls of this turn, in full</summary><ol class="calls">${calls.map(({ c, i }) => callCard(c, i + 1, seen)).join("")}</ol></details>` : ""}
+${calls.length ? `<details class="callsof"><summary>The ${calls.length} model calls of this turn</summary><ol class="callrows">${calls.map(({ c, i }) => book.row(c, { id: `c${i + 1}`, label: `#${i + 1}` })).join("")}</ol></details>` : ""}
 </div>`;
   }).join("\n");
   const ratings = g.review ? `<div class="tiles">${RATINGS.map(r => `<div class="tile"><span class="eyebrow">${r}</span><b>${fmt(g.review!.ratings?.[r], 0)}</b></div>`).join("")}</div>` : "";
@@ -90,7 +96,7 @@ ${calls.length ? `<details class="callsof"><summary>The ${calls.length} model ca
 <div class="tile"><span class="eyebrow">Turns</span><b>${s.turn}</b></div>
 <div class="tile"><span class="eyebrow">Ending</span><b>${esc(s.ended?.exitId ?? "none")}</b></div>
 <div class="tile"><span class="eyebrow">Penalty / 10 replies</span><b>${g.review ? fmt(g.penalty / Math.max(1, g.replies) * 10) : "–"}</b></div>
-<div class="tile"><span class="eyebrow">Findings</span><b>${findings.length}</b></div>
+<div class="tile"><span class="eyebrow">Findings kept</span><b>${g.kept.length}${g.kept.length !== findings.length ? ` of ${findings.length}` : ""}</b></div>
 <div class="tile"><span class="eyebrow">Model calls</span><b>${g.calls.length}</b></div>
 <div class="tile"><span class="eyebrow">Cost</span><b>$${g.costUsd.toFixed(3)}</b></div>
 <div class="tile"><span class="eyebrow">First text, median</span><b>${g.firstTextMs ? `${(g.firstTextMs / 1000).toFixed(1)} s` : "–"}</b></div>
@@ -98,15 +104,16 @@ ${calls.length ? `<details class="callsof"><summary>The ${calls.length} model ca
 </header>
 <section><h2>The blind review</h2>${g.review ? `<p>${esc(g.review.summary)}</p>${ratings}` : `<p class="faint">No review yet: <code>npm run loop -- review-pack ${esc(round.name)} ${esc(g.id)}</code>, then a blind reviewer writes reviews/${esc(g.id)}.json.</p>`}</section>
 ${g.notes ? `<section><h2>The tester's notes</h2>${md(g.notes)}</section>` : ""}
-<section><h2>The game, turn by turn</h2><p class="faint">Findings are marked on the words they quote. Each turn's model calls are under it, numbered as in calls.jsonl (and <code>npm run report -- inspect --call n</code>): open one to see exactly what the model was given and what it returned. Text repeated from an earlier call is shown once and pointed back to.</p>${body}</section>
-<footer class="faint">Built by <code>npm run loop -- report ${esc(round.name)}</code> from ${esc(gameDir(round.name, g.id))}.</footer>`;
+<section><h2>The game, turn by turn</h2><p class="faint">Findings are marked on the words they quote. Each turn's model calls are under it, numbered as in calls.jsonl (and <code>npm run report -- inspect --call n</code>): open one to read it as its own transcript: the instructions, every message in order, and what came back, each part marked unchanged or changed since the last call of its kind (with what changed). ← and → step through the calls.</p>${body}</section>
+<footer class="faint">Built by <code>npm run loop -- report ${esc(round.name)}</code> from ${esc(gameDir(round.name, g.id))}.</footer>
+${book.script()}`;
   return page(`${round.name} ${g.id}`, html, { standalone: true });
 }
 
-function findingCard(f: Finding & { n: number }, link?: string): string {
-  return `<div class="finding" id="fd-${f.n}">${sevChip(f.severity)}<div class="body">
-<p><b>${link ? `<a href="${link}">` : ""}${esc(f.check)}${link ? "</a>" : ""}</b> · turn ${f.turn} · “${esc(f.quote)}”</p>
-<p>${esc(f.why)}</p>${f.better ? `<p class="faint">Better: ${esc(f.better)}</p>` : ""}</div></div>`;
+function findingCard(f: Finding & { n: number; v?: Verdict }): string {
+  return `<div class="finding${f.v?.verdict === "discard" ? " good" : ""}" id="fd-${f.n}">${sevChip(f.severity)}<div class="body">
+<p><b>${esc(f.check)}</b> · turn ${f.turn} · “${esc(f.quote)}”</p>
+${whyHtml(esc, f.why, f.v, "reviewer")}${f.better ? `<p class="faint">Better: ${esc(f.better)}</p>` : ""}</div></div>`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -122,7 +129,7 @@ function indexPage(round: Round, games: Game[]): string {
     const rv = gs.filter(g => g.review);
     const replies = rv.reduce((a, g) => a + g.replies, 0);
     const pen = rv.reduce((a, g) => a + g.penalty, 0);
-    const bySev = [5, 4, 3, 2, 1].map(sv => rv.reduce((a, g) => a + g.review!.findings.filter(f => f.severity === sv).length, 0));
+    const bySev = [5, 4, 3, 2, 1].map(sv => rv.reduce((a, g) => a + g.kept.filter(f => f.severity === sv).length, 0));
     const ended = gs.filter(g => g.state!.ended).length;
     return { arm, variant: round.arms[arm]!, games: gs.length, reviewed: rv.length, turns: mean(gs.map(g => g.state!.turn)), per10: replies ? pen / replies * 10 : undefined, bySev, ended,
       overall: mean(rv.map(g => g.review!.ratings?.overall).filter((x): x is number => typeof x === "number")),
@@ -130,21 +137,23 @@ function indexPage(round: Round, games: Game[]): string {
       cost: mean(gs.map(g => g.costUsd)), first: median(gs.flatMap(g => g.firstTextMs ? [g.firstTextMs] : [])) };
   };
   const rows = arms.map(armRow);
-  const best = Math.min(...rows.map(r => r.per10 ?? Infinity));
+  const imported = (v: string) => v.startsWith("import:");
+  const best = Math.min(...rows.filter(r => !imported(r.variant)).map(r => r.per10 ?? Infinity));
   const armTable = `<div class="scroll"><table class="data"><thead><tr><th>Arm</th><th>Variant</th><th class="n">Games</th><th class="n">Reviewed</th><th class="n">Mean turns</th><th class="n">Scenes ended</th><th class="n">Penalty / 10 replies</th><th class="n">5 · 4 · 3 · 2 · 1</th><th class="n">Overall</th><th class="n">Pacing</th><th class="n">Cost / game</th><th class="n">First text</th></tr></thead><tbody>
-${rows.map(r => `<tr class="${rows.length > 1 && r.per10 === best ? "best" : ""}"><td><b>${esc(r.arm)}</b></td><td><code>${esc(r.variant)}</code><div class="faint">${esc(loadVariant(r.variant).description)}</div></td><td class="n">${r.games}</td><td class="n">${r.reviewed}</td><td class="n">${fmt(r.turns)}</td><td class="n">${r.ended}</td><td class="n">${fmt(r.per10)}</td><td class="n">${r.bySev.join(" · ")}</td><td class="n">${fmt(r.overall)}</td><td class="n">${fmt(r.pacing)}</td><td class="n">$${fmt(r.cost, 3)}</td><td class="n">${r.first ? `${(r.first / 1000).toFixed(1)} s` : "–"}</td></tr>`).join("")}
+${rows.map(r => `<tr class="${rows.length > 1 && !imported(r.variant) && r.per10 === best ? "best" : ""}"><td><b>${esc(r.arm)}</b></td><td><code>${esc(r.variant)}</code><div class="faint">${esc(loadVariant(r.variant).description)}${imported(r.variant) ? " Not a controlled arm: a different player and build, so not comparable with the others." : ""}</div></td><td class="n">${r.games}</td><td class="n">${r.reviewed}</td><td class="n">${fmt(r.turns)}</td><td class="n">${r.ended}</td><td class="n">${fmt(r.per10)}</td><td class="n">${r.bySev.join(" · ")}</td><td class="n">${fmt(r.overall)}</td><td class="n">${fmt(r.pacing)}</td><td class="n">$${fmt(r.cost, 3)}</td><td class="n">${r.first ? `${(r.first / 1000).toFixed(1)} s` : "–"}</td></tr>`).join("")}
 </tbody></table></div>`;
 
-  const all = reviewed.flatMap(g => g.review!.findings.map((f, i) => ({ ...f, n: i + 1, game: g })));
+  const every = reviewed.flatMap(g => g.findings.map(f => ({ ...f, game: g })));
+  const all = every.filter(f => f.v?.verdict !== "discard");
   const checks = [...new Set(all.map(f => f.check))].sort((a, b) => all.filter(f => f.check === b).reduce((s, f) => s + PENALTY[f.severity]!, 0) - all.filter(f => f.check === a).reduce((s, f) => s + PENALTY[f.severity]!, 0));
   const checkTable = checks.length ? `<div class="scroll"><table class="data"><thead><tr><th>Check</th>${arms.map(a => `<th class="n">${esc(a)} (count · penalty)</th>`).join("")}</tr></thead><tbody>
 ${checks.map(c => `<tr><td><code>${esc(c)}</code></td>${arms.map(a => { const fs = all.filter(f => f.check === c && f.game.arm === a); return `<td class="n">${fs.length ? `${fs.length} · ${fs.reduce((s, f) => s + PENALTY[f.severity]!, 0)}` : "–"}</td>`; }).join("")}</tr>`).join("")}
 </tbody></table></div>` : `<p class="faint">No findings yet.</p>`;
 
-  const sorted = [...all].sort((a, b) => b.severity - a.severity || a.check.localeCompare(b.check) || a.game.id.localeCompare(b.game.id) || a.turn - b.turn);
-  const findingRows = sorted.map(f => `<tr><td>${sevChip(f.severity)}</td><td><code>${esc(f.check)}</code></td><td><a href="games/${esc(f.game.id)}.html#t-${f.turn}">${esc(f.game.id)} t${f.turn}</a><div class="faint">${esc(f.game.arm)} · ${esc(f.game.persona)}</div></td><td class="q">“${esc(f.quote)}”</td><td class="w">${esc(f.why)}${f.better ? `<div class="faint">Better: ${esc(f.better)}</div>` : ""}</td><td><code>npm run loop -- case ${esc(round.name)} ${esc(f.game.id)} ${f.n} --id ${esc(`${round.scene}-${f.check}-${f.game.id}t${f.turn}`)}</code></td></tr>`).join("");
+  const sorted = [...every].sort((a, b) => b.severity - a.severity || a.check.localeCompare(b.check) || a.game.id.localeCompare(b.game.id) || a.turn - b.turn);
+  const findingRows = sorted.map(f => `<tr class="${f.v?.verdict === "discard" ? "discarded" : ""}"><td>${sevChip(f.severity)}</td><td><code>${esc(f.check)}</code></td><td><a href="games/${esc(f.game.id)}.html#t-${f.turn}">${esc(f.game.id)} t${f.turn}</a><div class="faint">${esc(f.game.arm)} · ${esc(f.game.persona)}</div></td><td class="q">“${esc(f.quote)}”</td><td class="w">${whyHtml(esc, f.why, f.v, "reviewer")}${f.better ? `<div class="faint">Better: ${esc(f.better)}</div>` : ""}</td><td><code>npm run loop -- case ${esc(round.name)} ${esc(f.game.id)} ${f.n} --id ${esc(`${round.scene}-${f.check}-${f.game.id}t${f.turn}`)}</code></td></tr>`).join("");
 
-  const gameRows = games.map(g => `<tr><td>${g.state ? `<a href="games/${esc(g.id)}.html">${esc(g.id)}</a>` : esc(g.id)}</td><td>${esc(g.arm)}</td><td>${esc(g.persona)}</td><td class="n">${g.state?.turn ?? "–"}</td><td>${esc(g.state ? g.state.ended?.exitId ?? "(none)" : "not played")}</td><td class="n">${g.review ? g.review.findings.length : "–"}</td><td class="n">${g.review ? fmt(g.penalty / Math.max(1, g.replies) * 10) : "–"}</td><td class="n">${fmt(g.review?.ratings?.overall, 0)}</td><td class="w">${g.review ? esc(g.review.summary) : `<span class="faint">${g.state ? "not reviewed" : ""}</span>`}</td></tr>`).join("");
+  const gameRows = games.map(g => `<tr><td>${g.state ? `<a href="games/${esc(g.id)}.html">${esc(g.id)}</a>` : esc(g.id)}</td><td>${esc(g.arm)}</td><td>${esc(g.persona)}</td><td class="n">${g.state?.turn ?? "–"}</td><td>${esc(g.state ? g.state.ended?.exitId ?? "(none)" : "not played")}</td><td class="n">${g.review ? g.kept.length : "–"}</td><td class="n">${g.review ? fmt(g.penalty / Math.max(1, g.replies) * 10) : "–"}</td><td class="n">${fmt(g.review?.ratings?.overall, 0)}</td><td class="w">${g.review ? esc(g.review.summary) : `<span class="faint">${g.state ? "not reviewed" : ""}</span>`}</td></tr>`).join("");
 
   const html = `<header>
 <p class="eyebrow">GM loop · QA round · ${esc(round.created.slice(0, 16).replace("T", " "))} · <code>${esc(round.build.commit.slice(0, 7))}</code>${round.build.dirty ? " (with local changes)" : ""}</p>

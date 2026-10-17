@@ -18,7 +18,8 @@ import { LOOP_DIR, ROOT, VARIANTS_DIR, runsRoot } from "./paths.ts";
 export interface Variant {
   name: string;
   description: string;
-  approach: string;
+  /** The approach to play; unset, the game's (v2) for a new game, or the case's own in an eval. */
+  approach?: string;
   /** Extra environment for the game's processes (KM_* settings). */
   env: Record<string, string>;
   /** A folder of prompt files used in place of prompts/'s (KM_PROMPTS_DIR). */
@@ -26,7 +27,7 @@ export interface Variant {
 }
 
 /** The game as it is: the approach the game plays, no overlay. */
-export const BASELINE: Variant = { name: "baseline", description: "The game as it is on this commit: approach v2, prompts/ as checked in.", approach: "v2", env: {} };
+export const BASELINE: Variant = { name: "baseline", description: "The game as it is on this commit: its own approach, prompts/ as checked in.", env: {} };
 
 /**
  * A variant: evals/loop/variants/<name>/variant.json ({ description, approach?, env? }) and an
@@ -35,13 +36,13 @@ export const BASELINE: Variant = { name: "baseline", description: "The game as i
 export function loadVariant(name: string): Variant {
   if (name === "baseline") return BASELINE;
   // A game brought in from elsewhere (a playtest's report): played on whatever build made it.
-  if (name.startsWith("import:")) return { name, description: `Imported: ${name.slice("import:".length)}`, approach: BASELINE.approach, env: {} };
+  if (name.startsWith("import:")) return { name, description: `Imported: ${name.slice("import:".length)}`, env: {} };
   const dir = join(VARIANTS_DIR, name);
   const file = join(dir, "variant.json");
   if (!existsSync(file)) throw new Error(`No variant ${name} (looked for ${file}).`);
   const spec = JSON.parse(readFileSync(file, "utf8")) as Partial<Variant>;
   return {
-    name, description: spec.description ?? "", approach: spec.approach ?? BASELINE.approach, env: spec.env ?? {},
+    name, description: spec.description ?? "", ...(spec.approach ? { approach: spec.approach } : {}), env: spec.env ?? {},
     ...(existsSync(join(dir, "prompts")) ? { promptsDir: join(dir, "prompts") } : {}),
   };
 }

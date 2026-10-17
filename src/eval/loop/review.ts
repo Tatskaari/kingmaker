@@ -45,6 +45,13 @@ export function turnText(state: SessionState, entries: Entry[], options: { playe
           : e.kind === "dialogue" ? `${speakerName(scene, state, e.speaker)}: ${e.text}` : e.text).join("\n\n");
 }
 
+/** The truth behind the screen, as a judge or reviewer has it: the scene's truth sheet and its prep. */
+export function truthOf(state: SessionState): string {
+  const scene = sceneById(state.sceneId);
+  const sheet = join(LOOP_DIR, "truth", `${scene.id}.md`);
+  return `${existsSync(sheet) ? `${readFileSync(sheet, "utf8").trim()}\n\n` : ""}${sceneBrief(scene, state, { secrets: true })}`;
+}
+
 /** The opening's state (turn 0), for the prep as it stood before play changed anything. */
 function openingState(dir: string, final: SessionState): SessionState {
   const snap = join(dir, "snapshots", `${final.sceneId}-turn-000.json`);
@@ -56,7 +63,6 @@ export function reviewPack(options: { round: string; game: string; sessionDir: s
   const final = JSON.parse(readFileSync(join(options.sessionDir, "state.json"), "utf8")) as SessionState;
   const scene = sceneById(final.sceneId);
   const opening = openingState(options.sessionDir, final);
-  const truth = join(LOOP_DIR, "truth", `${scene.id}.md`);
   const turns = [...turnsOf(final)].sort((a, b) => a[0] - b[0]);
   const reviewPath = options.out.replace(/\.pack\.md$/, ".json");
   const brief = readFileSync(join(LOOP_DIR, "reviewer.md"), "utf8").replace(/\{\{(\w+)\}\}/g, (_, k: string) => ({ round: options.round, game: options.game } as Record<string, string>)[k] ?? "");
@@ -64,7 +70,7 @@ export function reviewPack(options: { round: string; game: string; sessionDir: s
     brief,
     `---\n\n# The pack for game ${options.game}\n\nWrite your review to \`${reviewPath}\`, with \`"game": "${options.game}"\`.`,
     `---\n\n${readFileSync(RUBRIC, "utf8")}`,
-    `---\n\n# The truth behind the screen (the player never saw this)\n\n${existsSync(truth) ? `${readFileSync(truth, "utf8").trim()}\n\n` : ""}${sceneBrief(scene, opening, { secrets: true })}`,
+    `---\n\n# The truth behind the screen (the player never saw this)\n\n${truthOf(opening)}`,
     `---\n\n# What the player was told before the scene began\n\n${scene.hook}\n\nTheir character: **${final.player.name}**: ${final.player.concept}${final.player.build ? ` (${final.player.build})` : ""}.`,
     `---\n\n# The scene, as the player saw it\n\n${turns.map(([n, entries]) => `## Turn ${n}${n === 0 ? " (the opening)" : ""}\n\n${turnText(final, entries)}`).join("\n\n")}${final.ended ? `\n\n— The scene ended (${final.ended.exitId}). —` : "\n\n— The game stopped here (out of turns, or the player stopped). —"}`,
   ].join("\n\n");

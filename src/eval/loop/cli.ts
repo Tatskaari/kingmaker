@@ -4,6 +4,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SessionState } from "../../runtime/session.ts";
+import { rejudge, runEval, runSample, selectCases } from "./eval.ts";
+import { triageSheet } from "./triage.ts";
+import { evalReport } from "./eval-report.ts";
 import { extractFixture, gameSource, type Finding } from "./fixture.ts";
 import { CASES_DIR } from "./paths.ts";
 import { brief, say, start, view } from "./play.ts";
@@ -35,7 +38,19 @@ Eval cases: a flagged turn as a fixture
       [--check knows --severity 5 --quote "..." --why "..." --better "..."] [--criterion "..."]
                                                cut a case from any session or problem report
 
-Rounds go under KM_LOOP_DIR (default runs/loop); cases under evals/loop/cases.
+Evals: play each case's turn again on each variant, judge it by the rubric
+  loop run [--case id,prefix] [--tag t] [--variants baseline,<variant>] [--samples 5] [--label note]
+            [--concurrency 6] [--recorded off]
+                                               also judges each case's recorded reply (does the eval see it?)
+  loop run-report <run> [<run>...] [--out dir] one run's report, or several side by side (before/after)
+  loop triage <run | round>                    every finding with its key and the reply around it, for
+                                               writing triage.json (keep or discard, and why) beside it
+  loop rejudge <run> [--label note]            the run's replies judged again with today's rubric and
+                                               criteria (no GM calls): for tuning the eval itself
+
+Rounds and eval runs go under KM_LOOP_DIR (default runs/loop); cases under evals/loop/cases;
+variants under evals/loop/variants/<name>/ (variant.json, and prompts/ files that replace prompts/'s).
+The judge is Luna at high reasoning (KM_JUDGE_MODEL, KM_JUDGE_EFFORT).
 `;
 
 function parse(args: string[]): { pos: string[]; flags: Record<string, string> } {
@@ -140,6 +155,37 @@ async function main(): Promise<void> {
       console.log(`Wrote ${join(CASES_DIR, c.id)}: ${c.scene}, turn ${c.turn}, ${finding.check} (${finding.severity}). Now write its criterion in case.json.`);
       return;
     }
+    case "run": {
+      const cases = selectCases(list(flags.case), list(flags.tag));
+      if (!cases.length) throw new Error("No cases selected (evals/loop/cases).");
+      const run = await runEval({
+        cases, variants: list(flags.variants) ?? ["baseline"],
+        ...(flags.samples ? { samples: Number(flags.samples) } : {}),
+        ...(flags.label ? { label: flags.label } : {}),
+        ...(flags.concurrency ? { concurrency: Number(flags.concurrency) } : {}),
+        recorded: flags.recorded !== "off",
+      });
+      const { dir, bytes } = evalReport([run]);
+      console.log(`\n${run}\nReport: ${join(dir, "index.html")} (${(bytes / 1e6).toFixed(1)} MB)`);
+      return;
+    }
+    case "triage": {
+      console.log(triageSheet(need(pos[0], "loop triage <eval run | round>")));
+      return;
+    }
+    case "rejudge": {
+      const run = await rejudge(need(pos[0], "loop rejudge <run> [--label note]"), { ...(flags.label ? { label: flags.label } : {}) });
+      const { dir } = evalReport([run]);
+      console.log(`\n${run}\nReport: ${join(dir, "index.html")}`);
+      return;
+    }
+    case "sample": await runSample(JSON.parse(need(pos[0], "loop sample <spec>"))); return;
+    case "run-report": {
+      need(pos[0], "loop run-report <run> [<run>...] [--out dir]");
+      const { dir, files, bytes } = evalReport(pos, flags.out);
+      console.log(`${join(dir, "index.html")} and ${Object.keys(files).length} case pages (${(bytes / 1e6).toFixed(1)} MB)`);
+      return;
+    }
     case "fixture": {
       const usage = "loop fixture <session-dir|report> --turn N --id <case-id>";
       const id = need(flags.id, usage);
@@ -158,7 +204,16 @@ async function main(): Promise<void> {
   }
 }
 
+// A promise nothing will ever settle (a request that dropped its connection) lets node exit as if
+// all went well, with the work half done: say so, and fail.
+let finished = false;
+process.on("beforeExit", () => {
+  if (finished) return;
+  finished = true;
+  console.error("Stopped with work unfinished: a model call never answered. Run it again.");
+  process.exitCode = 1;
+});
 main().catch(error => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
-});
+}).finally(() => { finished = true; });
