@@ -1,0 +1,42 @@
+.km-scenario .scenario-card {width:290px;background:var(--km-panel);border:1px solid var(--km-line);border-radius:9px;box-shadow:0 5px 16px #0002;color:var(--km-text);overflow:visible}
+.km-scenario .scenario-card.chosen {border-color:var(--km-accent);box-shadow:0 0 0 2px var(--km-accent)}
+.km-scenario .scenario-card-kind {display:flex;align-items:center;gap:7px;padding:10px 15px;border-bottom:1px solid var(--km-line);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--km-muted)}
+.km-scenario .scenario-card h3 {padding:13px 15px 6px;font-size:16px;line-height:1.4;overflow-wrap:anywhere}
+.km-scenario .scenario-card-description {font-size:11px;line-height:1.6;color:var(--km-muted);margin:0 15px 12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.km-scenario .scenario-card-path {display:block;color:var(--km-muted);font-size:9px;overflow-wrap:anywhere;margin:0 15px 13px}
+.km-scenario .scenario-port {position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px;padding:9px 16px;border-top:1px solid var(--km-line);font-size:11px}
+.km-scenario .scenario-port span {overflow-wrap:anywhere}
+.km-scenario .scenario-port small {flex-shrink:0;color:var(--km-muted);font-size:9px}
+.km-scenario .scenario-port-output {text-align:right}
+.km-scenario .scenario-port-output span {margin-left:auto}
+.km-scenario .scenario-port .react-flow__handle {top:50%;width:13px;height:13px}
+.km-scenario .scenario-start-card {width:240px;border-color:var(--km-accent)}
+.km-scenario .scenario-start-card .scenario-card-kind {color:var(--km-accent)}
+.km-scenario .scenario-missing-card {border:1px dashed var(--text-error,#d77d83);opacity:.9}
+.km-scenario .scenario-missing-card .scenario-card-kind {color:var(--text-error,#d77d83)}
+.km-scenario .scenario-missing-card .scenario-card-description {-webkit-line-clamp:5}
+.km-scenario .scenario-card-warning {padding:10px 15px;font-size:10px;color:var(--text-warning,#d5ae6b);line-height:1.5}
+.km-scenario .scenario-inspector {width:330px;flex-basis:330px}
+.km-scenario .scenario-inspector-title {font-size:22px;margin-top:18px;overflow-wrap:anywhere}
+.km-scenario .scenario-source-path {font-size:10px;color:var(--km-muted);overflow-wrap:anywhere;margin:8px 0 16px}
+.km-scenario .scenario-inspector-port {display:flex;flex-direction:column;gap:3px;padding:9px 0;border-bottom:1px solid var(--km-line)}
+.km-scenario .scenario-inspector-port strong {font-size:12px;font-weight:500}
+.km-scenario .scenario-inspector-port small {font-size:10px;color:var(--km-muted)}
+.km-scenario .scenario-exit-button {display:flex;align-items:flex-start;flex-direction:column;gap:4px;width:100%;text-align:left;border-bottom:1px solid var(--km-line);padding:11px 4px}
+.km-scenario .scenario-exit-button strong {font-size:12px;font-weight:500}
+.km-scenario .scenario-exit-button small {font-size:10px;color:var(--km-muted);overflow-wrap:anywhere}
+.km-scenario .scenario-warning {font-size:12px;color:var(--text-warning,#d5ae6b);line-height:1.7;margin:16px 0}
+.km-scenario .scenario-remove-destination {display:flex;margin:17px 0}
+.km-scenario .scenario-toolbar-hint {font-size:10px;color:var(--km-muted);padding:0 8px}
+.km-scenario .scenario-start-notice {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 16px;border-bottom:1px solid var(--km-line);background:var(--km-panel);font-size:12px;color:var(--km-muted)}
+.km-scenario .scenario-start-notice button {font-size:11px;color:var(--km-text);border:1px solid var(--km-accent)}
+.km-scenario .scenario-error {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:var(--background-modifier-error,#682c37);color:var(--text-normal,#fff);font-size:12px;line-height:1.6}
+.km-scenario .statusbar {gap:18px}
+.km-scenario .statusbar span:last-child {text-align:right;max-width:65%}
+.km-scenario .scenario-file-list {max-height:340px;overflow-y:auto}
+.km-scenario .scenario-file-choice {display:flex;align-items:center;gap:15px;border-bottom:1px solid var(--km-line);padding:12px 0}
+.km-scenario .scenario-file-choice>div {flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.km-scenario .scenario-file-choice strong {font-size:13px}
+.km-scenario .scenario-file-choice small {font-size:10px;color:var(--km-muted);overflow-wrap:anywhere}
+.km-scenario .scenario-file-choice button {font-size:11px;border:1px solid var(--km-line)}
+@media(max-width:900px){.km-scenario .scenario-toolbar-hint{display:none}.km-scenario .scenario-inspector{width:280px;flex-basis:280px}}

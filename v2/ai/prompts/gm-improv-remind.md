@@ -1,0 +1,1 @@
+Before you write: everyone says only what they could know (their own card or notes, what they've seen here, what's been said in their hearing); answer what the player actually said, and nothing they didn't; and a hint shows a sign worth following, it doesn't hand over the answer.
