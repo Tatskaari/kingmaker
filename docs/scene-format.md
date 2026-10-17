@@ -32,7 +32,7 @@ interface SceneDocument {
 
   // ---- When and where (the story and the map) ----
   time?: "morning" | "afternoon" | "evening" | "night" | "next-morning";
-  /** The place's key: places/<key>.json, the world the stage manager keeps (areas, things, who stands where). */
+  /** The place's key: places/<key>.kmplace (docs/scenario-format.md), the world the stage manager keeps (areas, things, who stands where). */
   place?: string;
   /** Downtime between scenes, standing in for the map (the story skips it). */
   interlude?: boolean;
@@ -293,5 +293,5 @@ The game's code for this is shared by the simulation and the AI service: [shared
 - Every `enters` names an event beat, every `cast` note is for someone in the cast, and every `onFailure` names a node.
 - An ending with `next` names a scene of the campaign.
 - A beat's carried `things` are things of its place, or carried by another scene of the campaign (Prout's page comes into the Rat in Cob's boot).
-- Effects only use the ops the story knows (quest, flag, attitude, remember, journal, follow, promise, startFight, and the world's ops), their `if`/`unless` name facts, and the people, quests and things they name exist (the cast, campaign.json's quests, the place's areas and things, and what the story carries between scenes). A combat ending's `startFight` is recorded for when fights are built: keep it.
+- Effects only use the ops the story knows (quest, flag, attitude, remember, journal, follow, promise, startFight, and the world's ops), their `if`/`unless` name facts, and the people, quests and things they name exist (the cast, the scenario's quests, the place's areas and things, and what the story carries between scenes). A combat ending's `startFight` is recorded for when fights are built: keep it.
 - The talk template (`kind: "scene"` with `companion`) is checked by the talk's own rules: its `companion` is `{companion}` and its first cast entry the companion's (`{companion}`, named `{name}`); it has an event beat `told` and an ending `goodbye`, and no place; and everyone the story has walk with the player has a lore entry to talk from. In the game, a talk's ways into `goodbye` are the player's attempt, judged before the reply from either beat, and its way into `told` is the talk's own, worded for each talk from what it may bring out: the template's route there stands for it in the file.

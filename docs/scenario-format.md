@@ -149,3 +149,13 @@ interface PlaceDocument {
   - every region with a scene has a `worldOrigin` and its scene's place fits inside the map;
   - every person a place starts is in its scene's cast, or is the player;
   - every scene is reachable on the maps from the start: a region or the story's flow plays it.
+
+### As built (M4, the game's side)
+
+- **The code:** [shared/scene/scenario.ts](../shared/scene/scenario.ts) has the three documents, their parses (the shape the game reads, unknown keys kept) and the game's own shapes made from them: the campaign, map and place the game kept before M4 (`CampaignFile`, `MapFile`, `PlaceFile`), each the old file's fields in their order, so what's installed and kept in the rows is unchanged. [shared/scene/scenario-rules.ts](../shared/scene/scenario-rules.ts) has the check's rules, each problem with its file and where in it, for the plugin to run too.
+- **The files** are written as the scenes are: `JSON.stringify` with two spaces and a closing newline, so the plugin can save them byte for byte. A campaign folder has one scenario, at its root, named for its id.
+- **The loader reads either:** the campaign's version is `campaignVersion`, or a string in `version` with no `campaignVersion` (a scenario written before the rename); the check asks for `campaignVersion`.
+- **A region with a scene lays it or opens it.** One with a `worldOrigin` is where the scene's place is laid, and the place must fit on the map from there (its feet in tiles of five, rounded up). One with a `trigger` and no `worldOrigin` opens a scene laid by another region (the town's wharf end opens the Heron, whose own map lays it): its scene must be laid somewhere. A region with a scene and neither is a problem.
+- **Everyone a place starts is its scene's cast** was already a scene rule: the check says it at the scene (`<place>'s people: <id> isn't in the cast`).
+- **Reachable:** from the start map through the maps' exits, every scene a region of those maps plays (`sceneId`), and from each of those every ending's `next`, again and again; with no start map, from the first scene. A start on a map the scenario hasn't got, or a map on the way that doesn't build, is its own problem, and nothing is said of what's beyond it.
+- **Also checked:** each file's id is its name and it has a title and a description; the scenario lists nothing twice and its talk template isn't one of its scenes; a map is 160 by 120 tiles at most; a region's `opensFor` and `exteriorOf` name the scenario's scenes too.
