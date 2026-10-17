@@ -156,11 +156,18 @@ test("a talk's open streams Kell's greeting and answers its prep: the facts, a c
 
 test("the third talk: the deepest may come out (nothing withheld) and the plan reads the GM's truth; lines only when the controller has them suggested; a prep that fails keeps the facts the talk opened on", async () => {
   const third = setUp({ replies: [GREETING], byName: { talk: PLAN } });
-  const req = talkOpen(3, { count: 3, told: [{ note: `${KELL}/knowledge/Wendell Prout.md`, topic: "why Prout's case matters to her", turn: 9 }] }, false);
+  const opened = talkOpen(3, { count: 3, told: [{ note: `${KELL}/knowledge/Wendell Prout.md`, topic: "why Prout's case matters to her", turn: 9 }] }, false);
+  const earlier: Entry[] = [
+    { turn: 1, speaker: "player:1", kind: "player", text: "Why does this one matter to you?", scene: talkSceneId("kell", 1) },
+    { turn: 1, speaker: "gm", kind: "narration", text: "“He came to me first,” says Kell.", scene: talkSceneId("kell", 1) },
+  ];
+  const req = { ...opened, talk: { ...opened.talk!, earlier } };
   const prep = (await pipeline.open(req, third.contextFor(req.key))).talk!;
   assert.deepEqual(prep.withheld, []);
-  assert.match(inputOf(formatted(third.fake, "talk")[0]!), /## The truth about them \(the GM's notes\)/);
-  assert.match(inputOf(formatted(third.fake, "talk")[0]!), /## What they've already told the player of their own story\n- why Prout's case matters to her/);
+  const planned = inputOf(formatted(third.fake, "talk")[0]!);
+  assert.match(planned, /## The truth about them \(the GM's notes\)/);
+  assert.match(planned, /## What they've already told the player of their own story\n- why Prout's case matters to her/);
+  assert.match(planned, /## Their earlier talks with the player between scenes, word for word\n### A word with Sergeant Agnes Kell \(talk-kell-1\)\nWren Ashdown \(player\): Why does this one matter to you\?\n\nGM: “He came to me first,” says Kell\./);
   assert.deepEqual(prep.suggestions, [], "lines aren't suggested: none");
   assert.match(prep.established.join("\n"), /This is the third time/);
 

@@ -65,10 +65,11 @@ async function aftermath(req: OpenRequest, summary: string, ctx: AiContext, scen
   return { present: presentCast(scene, view).map(c => c.id), entries: [said], opened: [], ops: ops.map(op => opToGame(op, view.world!, keysOf(openSource(req)))), usage: ctx.usage() };
 }
 
-/** The story so far with the companion's earlier talks in it, as the prototype's transcript has them: what the prep reads of them (earlierTalks), each entry with its talk's key. */
+/** The story so far with the companion's earlier talks in it, as the prototype's transcript has them: what the prep reads of them (earlierTalks), each entry with its talk's key (a talk the story's entries have already, not twice). */
 function withEarlierTalks(source: ViewSource, open: TalkOpen): ViewSource {
   const told = source.told ?? { time: "", day: 1, flags: {} };
-  return { ...source, told: { ...told, earlier: [...(told.earlier ?? []), ...open.earlier] } };
+  const had = new Set((told.earlier ?? []).map(e => e.scene));
+  return { ...source, told: { ...told, earlier: [...(told.earlier ?? []), ...open.earlier.filter(e => !had.has(e.scene))] } };
 }
 
 /**
