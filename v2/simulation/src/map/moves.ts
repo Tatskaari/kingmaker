@@ -8,11 +8,13 @@ import { inventory, InventoryError } from "../../../shared/world/inventory.ts";
 import { actorOf, Refused, type Actor, type TxCtx } from "../context.ts";
 import { getGm } from "../gm/rows.ts";
 import { gameRow, playerRow, type GameRow, type PlayerRow, type SceneRow } from "../rows.ts";
-import { refreshPockets } from "../rules/session.ts";
+import { refreshActions, refreshPockets } from "../rules/session.ts";
 import { sceneGraph } from "../scenes.ts";
 import { placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { goOnReducer } from "../story/moves.ts";
 import { openLead } from "./lead.ts";
+import { inALiveTalk, leaveTalk, openTalk, walkOn } from "./talk.ts";
+import { keepTicking } from "./tick.ts";
 import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreTableRow } from "./rows.ts";
 
 /**
@@ -28,7 +30,8 @@ import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreT
 export function walkReducer(tx: TxCtx, sender: Identity, args: WalkArgs): void {
   const actor = actorOf(tx, sender);
   if (!onAMap(tx, actor)) return goOnReducer(tx, sender, args);
-  if (args.toward === OUT) walkOut(tx, actor);
+  if (args.toward === OUT && inALiveTalk(tx, actor)) walkOn(tx, actor);
+  else if (args.toward === OUT) walkOut(tx, actor);
   else mapMove(tx, actor, { move: "walk", args });
 }
 
@@ -46,6 +49,7 @@ function mapMove(tx: TxCtx, actor: Actor, move: MapMove): void {
   const { game, scene, row } = walker(tx, actor);
   const id = actionId(move);
   if (!id) throw new Refused(refusal("unavailable"));
+  if (row.fight) throw new Refused(refusal("not_now", { text: FIGHT_FIRST }));
   const walking = scene ? leave(tx, game, scene, row) : row;
 
   const rows = mapRowsOf(tx, game, walking);
@@ -54,10 +58,18 @@ function mapMove(tx: TxCtx, actor: Actor, move: MapMove): void {
 
   if (done.take) take(tx, game, done.take);
   if (done.scene) openLead(tx, actor, game, ex);
-  else if (ex.map !== rows.explore.map) moveSeats(tx, game.id, mapPlaceOf(tx, game, ex.map).id, undefined);
+  else if (done.talk) openTalk(tx, actor, game, ex, done.talk);
+  else if (ex.map !== rows.explore.map) {
+    const there = mapPlaceOf(tx, game, ex.map).id;
+    moveSeats(tx, game.id, there, undefined);
+    keepTicking(tx, there);
+  }
   writeExplore(tx, exploreRowOf(ex, rows.explore, done.text));
-  tx.log(`[map] game ${game.id} ${id} ${Math.round(tx.elapsedMs() - started)} ms${done.scene ? `: ${game.leadScene} opens` : ""}`);
+  tx.log(`[map] game ${game.id} ${id} ${Math.round(tx.elapsedMs() - started)} ms${done.scene ? `: ${game.leadScene} opens` : done.talk ? `: a talk with ${done.talk.with}` : ""}`);
 }
+
+/** What a move on the map is refused with while a fight that broke out there waits to be fought (the fight card's "Fight it out"). */
+export const FIGHT_FIRST = "(There's a fight on: fight it out first.)";
 
 /** Whether the actor's game is walked on a map (it has an explore row): with none, walk is the story's Go on, straight into the lead (story-design §4.3). */
 function onAMap(tx: TxCtx, actor: Actor): boolean {
@@ -65,7 +77,7 @@ function onAMap(tx: TxCtx, actor: Actor): boolean {
   return !player || !!walkerOf(tx, gameRow(tx, player.gameId));
 }
 
-/** walk out: from a scene that has ended, back onto its map, where it left the walker. */
+/** walk out: from a scene that has ended (or a talk), back onto its map, where it left the walker. */
 function walkOut(tx: TxCtx, actor: Actor): void {
   const { game, scene, row } = walker(tx, actor);
   if (!scene) throw new Refused(refusal("unavailable"));
@@ -77,7 +89,7 @@ function walkOut(tx: TxCtx, actor: Actor): void {
  * being played (one that has ended they walk out of), and on a map. Their game, the scene they're
  * in, and their explore row.
  */
-function walker(tx: TxCtx, actor: Actor): { game: GameRow; host: PlayerRow; scene?: SceneRow; row: ExploreTableRow } {
+export function walker(tx: TxCtx, actor: Actor): { game: GameRow; host: PlayerRow; scene?: SceneRow; row: ExploreTableRow } {
   const player = actor.id === undefined ? undefined : (tx.db.player.id.find(actor.id) ?? undefined);
   if (!player) throw new Refused(refusal("not_in_game"));
   const game = gameRow(tx, player.gameId);
@@ -107,14 +119,20 @@ function acted(ex: ExploreState, rows: MapRows, id: string): Done {
  * map draws it from its rows), what was said before the scene old news; every seat back on the
  * map. The explore row as it's left.
  */
-function leave(tx: TxCtx, game: GameRow, scene: SceneRow, row: ExploreTableRow): ExploreTableRow {
+export function leave(tx: TxCtx, game: GameRow, scene: SceneRow, row: ExploreTableRow): ExploreTableRow {
+  // A talk had no place of its own (town-design §3.6): back on the map just where they stopped for it.
+  if (scene.kind === "talk") return leaveTalk(tx, game, row);
   const rows = mapRowsOf(tx, game, row);
   const ex = exploreOf(rows);
   ex.scene = scene.sceneKey;
   leaveScene(ex, placeWorldOf(tx, scene).world);
 
   writeExplore(tx, { ...exploreRowOf(ex, rows.explore, ""), log: [] });
-  moveSeats(tx, game.id, mapPlaceOf(tx, game, ex.map).id, undefined);
+  const there = mapPlaceOf(tx, game, ex.map).id;
+  moveSeats(tx, game.id, there, undefined);
+  keepTicking(tx, there);
+  // The clock may have moved on while they were in the scene: the menu's rests are the new time's.
+  refreshActions(tx, playerRow(tx, game.hostId));
   return walkerOf(tx, game)!;
 }
 

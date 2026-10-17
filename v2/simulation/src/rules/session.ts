@@ -2,6 +2,7 @@ import type { Timestamp } from "spacetimedb";
 import type { Backstory } from "../../../shared/creation/types.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
 import { pocketsOf, sheetRows } from "../../../shared/rules/index.ts";
+import { actionsOf } from "../../../shared/rules/character.ts";
 import { withEngine } from "../../../shared/rules/pin.ts";
 import type { Pockets, Rules, RulesSession, RulesState, SceneSession } from "../../../shared/rules/types.ts";
 import { unnamed, type Heard } from "../../../shared/scene/names.ts";
@@ -12,7 +13,7 @@ import { gameRow, playerRow, type PlayerRow, type RowOf } from "../rows.ts";
 import { campaignFile, campaignOfGame } from "../scenes.ts";
 
 /**
- * Where the rules engine meets the rows (v1-design §3.6, world-bridge-design §3.3). The rules code
+ * Where the rules engine meets the rows (v1-design §3.6, world-bridge-design §3.3; the town unit's rests, town-design §3.3). The rules code
  * (shared/rules) reads a RulesSession, the prototype's SessionState as far as it goes; this builds
  * one from a character's rows (the game's dice, the player, their sheet and rules_state, and the
  * world they're in when there is one; in a scene, its turn and the GM's bookkeeping too), runs the
@@ -62,8 +63,19 @@ export function sessionOf(tx: TxCtx, player: PlayerRow, world?: SceneWorld): Rul
       },
     } : {}),
     ...(world ? { world } : {}),
+    ...restedOf(tx, player),
     history: [],
   };
+}
+
+/**
+ * The rests a player has taken since the story's clock last moved (town-design §3.3): their explore
+ * row's `rested`, when its time of day is the game's. The action menu's catalogue is made with it.
+ */
+function restedOf(tx: TxCtx, player: PlayerRow): Pick<RulesSession, "rested"> {
+  const rested = tx.db.explore.playerId.find(player.id)?.rested;
+  if (!rested || rested.time !== gameRow(tx, player.gameId).time) return {};
+  return { rested: { ...(rested.short ? { short: true } : {}), ...(rested.long ? { long: true } : {}) } };
 }
 
 /** What a session in a scene reads beyond the player's rows: the scene's turn, its graph and transcript (whose names the player has heard), and the GM's bookkeeping. */
@@ -77,7 +89,7 @@ export interface InScene { turn: number; graph: Scene; transcript: Heard["transc
  * and write under the prototype's names: who's present (beat, path, entered, absent), a fight on,
  * what the last reply left hanging over the player, a hold. sceneSessionBack writes it back.
  */
-export function sceneSessionOf(tx: TxCtx, player: PlayerRow, world: SceneWorld, at: InScene): SceneSession {
+export function sceneSessionOf(tx: TxCtx, player: PlayerRow, world: SceneWorld | undefined, at: InScene): SceneSession {
   const session = sessionOf(tx, player, world);
   if (session.rules) session.rules.aliases = unnamed(at.graph, { transcript: at.transcript });
   const { gm } = at;
@@ -133,6 +145,15 @@ export function writeSheet(tx: TxCtx, player: PlayerRow, session: RulesSession, 
   const sheet = tx.db.sheet.playerId.find(player.id);
   if (!sheet) throw new Error(`player ${player.id} has no sheet`);
   tx.db.sheet.playerId.update({ ...sheet, ...sheetRows(rules, session) });
+}
+
+/** The sheet's action menu (`actions`) made again for a player with a rules character, as the rows have them now (the rests taken this time of day). */
+export function refreshActions(tx: TxCtx, player: PlayerRow): void {
+  const sheet = tx.db.sheet.playerId.find(player.id);
+  if (!sheet || !tx.db.rulesState.playerId.find(player.id)) return;
+  const session = sessionOf(tx, player);
+  const actions = engineCall(tx, player.gameId, rules => actionsOf(rules, session));
+  if (actions !== sheet.actions) tx.db.sheet.playerId.update({ ...sheet, actions });
 }
 
 /**

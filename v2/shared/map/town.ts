@@ -1,13 +1,15 @@
-// Copied from the prototype's src/game/town.ts at 44c6d4a, all but 465-490 (the action menu's: V10). The seams: the game and the session become the ExploreState (made from rows: rows.ts exploreOf) and the names the player hasn't heard (`unheard`, asHeard's pairs: the prototype's unheardNames); the `town` explorer's actions and act are functions over them, and its observe is the client's (it draws: townText). What a move says is the simulation's to keep (the explore row's said and log: the prototype's note and town log). Cut: talks with someone walking with you (talkable: V11), the action menu (V10), fights on the map (afterFight: V12), townOf and exploreState (exploreOf builds the state), and the explorer's enterScene, leaveScene and afterScene (the simulation's: explore.ts's enterScene and leaveScene, and the log cleared after a scene); pickUp says what to take (Done.take) for the simulation to move into the character's pockets; an id not on offer throws Unavailable. One fix: a way out shut at this hour (the Rat's door before dusk, the palace gate) says so to travel_<way> and the e key as it does to a step into it, where the prototype's went through (use: shutWay). Kept from K's stub: Action, Unheard, Done, Unavailable. leadWords is exported (the client's observe uses it). ES2021: the probes are JSON copies.
+// Copied from the prototype's src/game/town.ts at 44c6d4a, whole but the explorer's observe (465-490, the action menu's entry points, are the town unit's: over MenuCtx, the menu's context from rows). The seams: the game and the session become the ExploreState (made from rows: rows.ts exploreOf) and the names the player hasn't heard (`unheard`, asHeard's pairs: the prototype's unheardNames); the `town` explorer's actions and act are functions over them, and its observe is the client's (it draws: townText). What a move says is the simulation's to keep (the explore row's said and log: the prototype's note and town log). The town unit's: a word with someone walking with you is a talk (use: Done.talk, town.ts:316-318; `talkable` is walking with the player, the client having no lore), the action menu's entry points (actionMenu, aimFor, aimAt) and its ACTIONS (actions' `menu`). Cut: fights on the map (afterFight: V12), townOf and exploreState (exploreOf builds the state), and the explorer's enterScene, leaveScene and afterScene (the simulation's: explore.ts's enterScene and leaveScene, and the log cleared after a scene); pickUp says what to take (Done.take) for the simulation to move into the character's pockets; an id not on offer throws Unavailable. One fix: a way out shut at this hour (the Rat's door before dusk, the palace gate) says so to travel_<way> and the e key as it does to a step into it, where the prototype's went through (use: shutWay). Kept from K's stub: Action, Unheard, Done, Unavailable. leadWords is exported (the client's observe uses it). ES2021: the probes are JSON copies.
 import { asHeard } from "../scene/names.ts";
 import {
-  actorsAt, actorsHere, exitLabel, interact, look, lookAt, move, pathTo, travel, tileName, walkPlan, type ExploreState,
+  actorsAt, actorsHere, exitLabel, interact, look, lookAt, move, pathTo, travel, tileName, walkPlan, whereabouts, type ExploreState,
 } from "./explore.ts";
 import { getMap } from "./maps.ts";
 import { PLACES, regionForScene } from "./places.ts";
 import { isLive, leadMarker, regionOpen } from "./presence.ts";
 import { bumpLine } from "./quips.ts";
 import { direction, inRect, isDoorway, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
+import { aimView, checkAim, menuOf, type AimAt, type AimView, type MenuCtx, type MenuView } from "./menu.ts";
+import { townWorld } from "./town-world.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
 
 /**
@@ -278,6 +280,11 @@ function sceneOpens(ex: ExploreState, i: Interaction | undefined): boolean {
 
 /** Use an interaction (talk, look, go through): what the player sees, and whether the lead scene opens. */
 function use(ex: ExploreState, i: Interaction, actor?: MapActor): Done {
+  // Someone walking with the player, with a lore entry to be themselves from: a word with them (a talk). v2: whoever walks with them (the AI service has the lore).
+  if (actor && ex.followers.some(f => f.id === actor.id)) {
+    const w = whereabouts(ex);
+    return { text: `You go over to ${actor.name}.`, talk: { with: actor.id, where: `${w.place === w.map ? w.map : `${w.place} in ${w.map}`}, ${w.time.replace("-", " ")}` } };
+  }
   if (i.kind === "examine") {
     // Passing the time of day near where the story's heading: the line points the way in.
     const lead = leadTarget(ex);
@@ -319,7 +326,7 @@ function goTo(ex: ExploreState, t: Target, andUse: boolean): Done {
   }
   if (!andUse || !t.interaction) return { text: said.join(" ") || "You're already there." };
   const done = use(ex, t.interaction, t.actor);
-  return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}) };
+  return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}), ...(done.talk ? { talk: done.talk } : {}) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -446,14 +453,18 @@ function walkTowardsLead(ex: ExploreState): Done {
  */
 function showsYou(ex: ExploreState, id: string, was: { map: string; at: Tile2 }, done: Done): boolean {
   if (id === "look" || /^look@/.test(id)) return false;
-  if (ex.map !== was.map || ex.at.x !== was.at.x || ex.at.y !== was.at.y || done.scene) return true;
+  if (ex.map !== was.map || ex.at.x !== was.at.x || ex.at.y !== was.at.y || done.scene || done.talk) return true;
   if (/^(talk|enter|travel|door|open_door)/.test(id)) return true;
   // Interacting with whoever you face is talking to them.
   return id === "interact" && actorsHere(ex).some(a => a.at.x === ex.at.x + ex.facing.x && a.at.y === ex.at.y + ex.facing.y && isPerson(a));
 }
 
-/** The explorer's actions from here (the QA console's ACTIONS: the prototype's town.actions, but the action menu's: V10). */
-export function actions(ex: ExploreState, unheard: Unheard): Action[] {
+/**
+ * The explorer's actions from here (the QA console's ACTIONS: the prototype's town.actions). With
+ * `menu`, the action menu's too (out of a scene): what needs no aiming, and the nearest of what's in
+ * reach for what does (observe lists the rest, menuText).
+ */
+export function actions(ex: ExploreState, unheard: Unheard, menu?: MenuCtx): Action[] {
   const all = targets(ex, unheard);
   const out: Action[] = [];
   const lead = leadTarget(ex);
@@ -476,8 +487,48 @@ export function actions(ex: ExploreState, unheard: Unheard): Action[] {
     if (r.moved || r.trigger || r.travelled) out.push({ id: `walk_${name}`, label: `Step ${name} (${ON_SCREEN[name]} on the map)${r.trigger ? `: ${r.trigger.label}` : r.travelled ? `: ${r.travelled.label}` : ""}`, kind: "move" });
   }
   out.push({ id: "look", label: "Look around", kind: "examine" });
+  // The action menu's: what needs no aiming, and the nearest of what's in reach for what does (observe lists the rest).
+  if (!ex.scene && menu) {
+    const ctx = { ...menu, ex };
+    const view = menuOf(ctx);
+    const tw = view ? townWorld(ctx.ex) : undefined;
+    for (const e of view?.sections.flatMap(s => s.entries) ?? []) {
+      if (e.why || !e.act) continue;
+      const kind: Action["kind"] = e.key === "jump" ? "move" : e.effect === "harm" ? "fight" : e.key.startsWith("rest") ? "wait" : "use";
+      if (e.id) { out.push({ id: e.id, label: `${e.name}: ${e.summary}`, kind }); continue; }
+      const aim = aimView(ctx, tw!, e);
+      // The nearest; for an area, the nearest it doesn't catch you in.
+      const near = e.aim.kind === "area" ? aim.targets.find(t => !(checkAim(ctx, tw!, e, t.at).caught ?? []).includes("you")) : aim.targets[0];
+      if (aim.selfReady) out.push({ id: `${e.act}_self`, label: `${e.name} on yourself (${e.summary})`, kind });
+      if (near) out.push({ id: near.id, label: `${e.name} ${e.key === "jump" ? "to" : e.effect === "harm" ? "at" : "on"} ${near.name} (${e.summary})`, kind });
+    }
+  }
   return out;
 }
+
+// ---------------------------------------------------------------------------------------------
+// The action menu (the app's m): shared/map/menu.ts, over the town's world. v2: over MenuCtx, the
+// menu's context from rows (the ExploreState, the sheet's catalogue, the explore row's keep).
+
+/** What the player can do here, by kind (spells, features, actions, what they carry), and what's in reach; `at`: aimed at that tile already. */
+export function actionMenu(c: MenuCtx, at?: Tile2): MenuView | undefined {
+  return menuOf(c, at);
+}
+
+/** What one of the menu's entries can be aimed at from here: its reach, and who and what is in it. */
+export function aimFor(c: MenuCtx, key: string): AimView | undefined {
+  const entry = entryOf(c, key);
+  return entry ? aimView(c, townWorld(c.ex), entry) : undefined;
+}
+
+/** Aiming one of the menu's entries at a tile: whether it can be (and why not, there), what it would catch, and the action id to do it with. */
+export function aimAt(c: MenuCtx, key: string, at: Tile2): AimAt | undefined {
+  const entry = entryOf(c, key);
+  return entry ? checkAim(c, townWorld(c.ex), entry, at) : undefined;
+}
+
+/** A menu entry as the rules have it (what it needs and why it can't be done at all), before what's in reach is counted: the sheet's catalogue, made with the rests taken this time of day. */
+const entryOf = (c: MenuCtx, key: string) => c.catalogue?.entries.find(e => e.key === key);
 
 /**
  * An act by its id (the prototype's town.act, but the action menu's: V10): it changes the state as

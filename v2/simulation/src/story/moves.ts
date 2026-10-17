@@ -11,6 +11,7 @@ import { sceneGraph } from "../scenes.ts";
 import { crossBoundary } from "./boundary.ts";
 import { candidatesFrom, queueBoundary } from "./end.ts";
 import { fightItOut } from "./fight.ts";
+import { fightOnMap } from "../map/fight.ts";
 import { openLead } from "../map/lead.ts";
 
 /**
@@ -67,11 +68,17 @@ export function carryOnReducer(tx: TxCtx, sender: Identity, _args: Record<string
   tx.log(`[story] game ${game.id}: the boundary after ${scene.sceneKey} carried on`);
 }
 
-/** fight_it_out: the fight's stand-in resolves it (src/game/fight-standin.ts), and the scene picks up after it. The fighting scene's controller's. */
+/**
+ * fight_it_out: the fight's stand-in resolves it (src/game/fight-standin.ts), and the scene picks up
+ * after it. The fighting scene's controller's; or, on the map, a fight that broke out there (the
+ * explore row's: town-design §3.3), its host's.
+ */
 export function fightItOutReducer(tx: TxCtx, sender: Identity, _args: Record<string, never> = {}): void {
   const actor = actorOf(tx, sender);
   if (actor.id === undefined) throw new Refused(refusal("not_in_game"));
-  const scene = sceneOfSeat(tx, playerRow(tx, actor.id));
+  const player = playerRow(tx, actor.id);
+  if (player.sceneId === undefined && fightOnMap(tx, player)) return;
+  const scene = sceneOfSeat(tx, player);
   if (!scene || scene.status !== "fighting") throw new Refused(refusal("no_fight"));
   if (scene.controllerId !== actor.id) throw new Refused(refusal("not_controller", { name: playerRow(tx, scene.controllerId).name }));
 

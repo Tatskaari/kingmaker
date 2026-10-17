@@ -12,6 +12,7 @@ import { gameRow, playerRow, sceneRow, type GameRow } from "../rows.ts";
 import { exitOf, graphOf, sceneDefOf } from "../scenes.ts";
 import { openLead } from "../map/lead.ts";
 import { buildLead } from "../map/start.ts";
+import { refreshActions } from "../rules/session.ts";
 
 /**
  * The boundary after a scene ends (story-design §4.3): queued by closeScene (story/end.ts), never
@@ -87,6 +88,8 @@ function crossed(tx: TxCtx, plan: BoundaryPlan, answer: Partial<BoundaryResponse
   };
   const lead = buildLead(tx, game, key, handed);
   tx.db.game.id.update({ ...gameRow(tx, game.id), leadScene: key, leadText: next?.lead, time: lead.time ?? game.time, onward: undefined, onwardNote: undefined });
+  // The clock moved on: the action menu's rests are the new time of day's (town-design §3.3), so the sheet's catalogue is made again.
+  if ((lead.time ?? game.time) !== game.time) refreshActions(tx, playerRow(tx, game.hostId));
   const skipped = next?.skipped?.length ? ` (skipped: ${next.skipped.map(s => s.sceneId).join(", ")})` : "";
   tx.log(`[story] ${scene.sceneKey} ended by ${plan.exit}: ${key} ${lead.time === SUMMONS ? "summons" : "waits"}${skipped}${handed.absent.length ? `; absent: ${handed.absent.join(", ")}` : ""}`);
 

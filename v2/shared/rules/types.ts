@@ -62,6 +62,12 @@ export interface RulesSession {
   threat?: Threat;
   /** The turn a hold caught the player (gm_state.held): it stands with no more saving throws until they break free or the story lets them go. */
   held?: number;
+  /**
+   * The rests taken since the story's clock last moved (town-design §3.3: the explore row's
+   * `rested`, when its time is the game's): once each a time of day. The action menu's catalogue is
+   * made with it (sheetRows' `actions`).
+   */
+  rested?: { short?: boolean; long?: boolean };
 }
 
 /**

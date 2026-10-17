@@ -11,6 +11,7 @@ import { noteHeard } from "../transcript.ts";
 import { rekeyOwed } from "../world/cross.ts";
 import { waitingPlace } from "../world/place.ts";
 import { mapFilesOf, mapPlaceOf, originOf } from "./rows.ts";
+import { keepTicking } from "./tick.ts";
 
 /**
  * The start on the map (map-design §3.3). When the campaign's start names a map (campaign.json's
@@ -36,6 +37,7 @@ export function startOnMap(tx: TxCtx, game: GameRow, campaign: CampaignRow): boo
     rested: undefined, spotted: undefined, lifted: undefined, fight: undefined,
   });
   tx.db.player.id.update({ ...host, placeId: town.id, sceneId: undefined });
+  keepTicking(tx, town.id);
 
   buildLead(tx, gameRow(tx, game.id), file.firstScene);
   return true;
