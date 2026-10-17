@@ -1,0 +1,37 @@
+{
+ "id": "hc-kell-page-leak",
+ "scene": "hanged-clerk",
+ "turn": 7,
+ "input": "Seems highly likely he killed him. But why?",
+ "approach": "v2",
+ "harness": "recorded",
+ "memory": "recorded",
+ "observed": {
+  "turn": 7,
+  "check": "knows",
+  "severity": 5,
+  "quote": "We don't have the page he wanted",
+  "why": "Nobody has spoken of a page in Kell's hearing: only Cob's own memory notes and the GM's prep know Silvertop wanted 'the page', so Kell can't name it.",
+  "better": "Kell reasons from what she has seen and heard (a dead clerk, two men in the loft, a man called Silvertop) and turns the question back on the evidence, without naming anything nobody has mentioned.",
+  "reply": "Kell’s pencil stills. Her eyes move from the body to the boy in Prout’s oversized boots. “On motive, we have a dead clerk, two men in the loft, and one called Silvertop. We don’t have the page he wanted.”\n\nThe boy shifts, and the left boot gives its dry crackle again.\n\n“Prout came to the watch house three days ago. He asked how to report false entries in the King’s rolls. I sent him to the palace. I should have listened.”\n\nShe shuts the notebook halfway, not quite closing it. “If he found something in the accounts, that could explain why a man wanted a page badly enough to kill for it.”"
+ },
+ "criterion": "The player asks why Silvertop would kill Prout. Kell answers from what she herself has seen and heard in the yard (the body, the two men in the loft, a man the kids call Silvertop) and from her own knowledge (her card: Prout came to her three days ago about false entries, and she sent him away). She can share or hold back that admission as her guard allows, and she can reason aloud or turn the question back on the evidence. A good reply gives the player something real to pull on and ends on a moment they can respond to. It fails if anyone names or implies a missing page, a document, or what Prout carried before it has come up in play (the page sewn in the boot is behind the screen); if Kell or the narration ties Silvertop to Sallow or the Purveyor beyond what she said last turn; or if it stonewalls (a bare \"we don't know yet\" with nothing to pull on).",
+ "checks": [
+  "knows",
+  "narration",
+  "unearned"
+ ],
+ "failAt": 3,
+ "samples": 5,
+ "source": {
+  "kind": "report",
+  "path": "~/Downloads/kingmaker-report-20261016-193521.json.gz",
+  "game": "hanged-clerk-20261016-192124-py66",
+  "build": "b9c2c0fbef71ae2c685eeec2e1842a376183e9b9"
+ },
+ "tags": [
+  "hanged-clerk",
+  "knowledge",
+  "report-2026-10-16"
+ ]
+}

@@ -1,0 +1,43 @@
+{
+ "notes": "Let the threat have consequences: Cob is frightened and Moll may move to protect or flee with him. Don’t let the shilling buy access to the boots; a kindness with nothing asked back or a promise that answers Cob’s fear can still open that door.",
+ "notesTurn": 4,
+ "whispers": [],
+ "canon": [
+  "Xarax offered Cob a shilling; Cob pocketed it.",
+  "Cob said the boots were Mister Prout’s and claimed he had found them.",
+  "Cob stamped his left boot, which gave a dry crackle, and refused access to it.",
+  "Cob revealed that he heard Prout arguing with two men in the loft: one he called Silvertop, a posh cove with a silver cane; the other was a big man with a bandaged hand who called him 'Master'. He also heard a thump, a choking noise, and the hoist creaking afterward, with no sacks on it.",
+  "Moll threw her silver crown into the mud and accused Xarax of revealing where Cob had been.",
+  "Kell recorded the account as from a witness whose name is withheld."
+ ],
+ "patches": [],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "Xarax is pursuing the crackling boot, and the bribe has produced a useful tell without buying access. The scene is still moving: Cob’s fear and his attachment to the boots are now in play.",
+   "status": "on_track",
+   "notes": "Keep the boot his: the crackle is a nudge, not permission to inspect it. A free kindness or a promise that answers Cob’s fear can open the next step.",
+   "relocations": [],
+   "costUsd": 0.0022058,
+   "latencyMs": 13203,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "Xarax used a credible threat to force Cob to reveal what he heard, and learned about Silvertop and the bandaged man. The scene is progressing, though the intimidation has frightened Cob and angered Moll.",
+   "status": "on_track",
+   "notes": "Let the threat have consequences: Cob is frightened and Moll may move to protect or flee with him. Don’t let the shilling buy access to the boots; a kindness with nothing asked back or a promise that answers Cob’s fear can still open that door.",
+   "relocations": [],
+   "costUsd": 0.002234675,
+   "latencyMs": 9577,
+   "patches": 0,
+   "canon": 3,
+   "whispers": 2
+  }
+ ],
+ "pending": []
+}
