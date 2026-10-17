@@ -1,4 +1,4 @@
-// After the GM loop's src/eval/loop/cli.ts at 5f01806 (origin/claude/gm-loop, draft PR #663): its QA rounds' commands (round, games, brief, start, say, the views, review-pack, review-check, triage, archive), on the game; the cases, fixtures and evals (case, fixture, run, run-report, rejudge, sample, import) aren't ported yet. New: stack up, down and status, the dev stack the games are played on.
+// After the GM loop's src/eval/loop/cli.ts at 5f01806 (origin/claude/gm-loop, draft PR #663): its QA rounds' commands (round, games, brief, start, say, the views, review-pack, review-check, triage, report, archive), on the game; the cases, fixtures and evals (case, fixture, run, run-report, rejudge, sample, import) aren't ported yet. New: stack up, down and status, the dev stack the games are played on.
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -9,9 +9,10 @@ import { readCalls } from "../qa/loop/calls.ts";
 import { CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
 import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
+import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
 import { checkReviewFile, reviewPack } from "../qa/loop/review.ts";
 import { loadRound, newRound, parseArms, parseScenes, personas } from "../qa/loop/round.ts";
-import { campaignAt, playable, type Loaded } from "../qa/loop/scenes.ts";
+import { campaignAt, endingsOf, playable, sceneOf, type Loaded } from "../qa/loop/scenes.ts";
 import { triageSheet } from "../qa/loop/triage.ts";
 import { ping, sql } from "./dev/spacetime.ts";
 import { readStackFile } from "./dev/stack-file.ts";
@@ -46,6 +47,7 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
   loop review-pack <round> [<game>...]         what a blind reviewer reads: reviews/<game>.pack.md
   loop review-check <round> [<game>...]        check reviews/<game>.json: checks, turns, every quote in its turn's reply
   loop triage <round>                          every finding with its key and turn, to write triage.json from
+  loop report <round>                          report/index.html and report/games/*.html
   loop archive <round> [--to dir]              copy the round to KM_LOOP_ARCHIVE (or --to), to outlive this checkout
 
 Rounds go under KM_LOOP_DIR (default runs/loop). Not ported yet: the cases, fixtures and evals.`;
@@ -75,6 +77,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
     case "review-pack": return await packs(config, need(pos[0]), pos.slice(1), deps);
     case "review-check": return checks(config, need(pos[0]), pos.slice(1));
     case "triage": return shown({ code: 0, text: triageSheet(config, need(pos[0])) });
+    case "report": return await report(config, need(pos[0]), deps);
     case "archive": return archive(config, need(pos[0]), flags.to || env.KM_LOOP_ARCHIVE);
     default:
       console.log(USAGE);
@@ -148,6 +151,21 @@ function checks(config: LoopConfig, name: string, asked: string[]): number {
   }
   if (!ids.length) console.log("No reviews yet.");
   return bad ? 1 : 0;
+}
+
+async function report(config: LoopConfig, name: string, deps: PlayDeps): Promise<number> {
+  const reading: ReportDeps = {
+    calls: record => (record.uid ? deps.calls(record.stack, record.uid) : []),
+    async scene(record, key) {
+      const loaded = record?.campaign ? await campaignOfRecord(record, deps) : await deps.campaign(STACK, "caerwyn", "");
+      const scene = sceneOf(loaded, key);
+      return { title: typeof scene.title === "string" ? scene.title : key, endings: endingsOf(scene) };
+    },
+  };
+  const { dir, files, bytes, strays } = await roundReport(config, name, reading);
+  console.log(`${shortPath(join(dir, "index.html"))} and ${Object.keys(files).length} game pages (${(bytes / 1e6).toFixed(1)} MB)`);
+  if (strays.length) console.log(`triage.json names findings there aren't: ${strays.join(", ")}`);
+  return 0;
 }
 
 function archive(config: LoopConfig, name: string, to: string | undefined): number {
