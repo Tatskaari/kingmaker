@@ -1,0 +1,177 @@
+.km-workshop {
+  --km-bg: var(--background-primary, #201e26);
+  --km-panel: var(--background-secondary, #28242f);
+  --km-line: var(--background-modifier-border, #443c50);
+  --km-text: var(--text-normal, #e9e3ef);
+  --km-muted: var(--text-muted, #a89bb5);
+  --km-accent: var(--interactive-accent, #9878bb);
+  position: relative; display:flex; width:100%; height:100%; min-height:320px;
+  color:var(--km-text); background:var(--km-bg); font:13px/1.5 var(--font-interface, system-ui, sans-serif);
+  outline:none; overflow:hidden;
+}
+.km-workshop * {box-sizing:border-box}
+.km-workshop button,.km-workshop input,.km-workshop textarea,.km-workshop select {font:inherit}
+.km-workshop button {display:inline-flex;align-items:center;justify-content:center;gap:7px;background:transparent;border:0;color:inherit;border-radius:5px;padding:7px 9px;cursor:pointer;box-shadow:none;height:auto}
+.km-workshop button:hover {background:var(--background-modifier-hover, #ffffff0c)}
+.km-workshop button:focus-visible {outline:2px solid var(--km-accent);outline-offset:2px}
+.km-workshop button:disabled {opacity:.4;cursor:default}
+.km-workshop input,.km-workshop textarea,.km-workshop select {width:100%;background:var(--km-bg);color:var(--km-text);border:1px solid var(--km-line);border-radius:5px;padding:8px;box-shadow:none;height:auto}
+.km-workshop input:focus,.km-workshop textarea:focus,.km-workshop select:focus {outline:1px solid var(--km-accent)}
+.km-workshop textarea {resize:vertical;min-height:150px;line-height:1.65}
+.km-workshop h1,.km-workshop h2,.km-workshop h3,.km-workshop p {margin:0}
+.km-workshop kbd {font:10px ui-monospace,monospace;background:var(--background-modifier-hover, #ffffff08);border:1px solid var(--km-line);border-radius:4px;padding:1px 5px;color:var(--km-muted)}
+.km-workshop .workspace {flex:1;min-width:0;display:flex;flex-direction:column}
+.km-workshop .topbar {min-height:35px;flex-shrink:0;border-bottom:1px solid var(--km-line);display:flex;gap:15px;align-items:center;justify-content:space-between;padding:8px 18px;font-size:10px;color:var(--km-muted)}
+.km-workshop .file-path {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-workshop .save {white-space:nowrap}
+.km-workshop .canvas-heading {padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.km-workshop .eyebrow {font-size:9px;font-weight:600;letter-spacing:1.5px;color:var(--km-muted);margin-bottom:5px}
+.km-workshop h1 {font:25px/1.2 Georgia,serif;color:var(--km-text)}
+.km-workshop h2 {font:22px/1.3 Georgia,serif;color:var(--km-text)}
+.km-workshop .primary {background:var(--km-accent);color:var(--text-on-accent, white);font-weight:600;font-size:11px;padding:9px 12px;white-space:nowrap}
+.km-workshop .primary:hover {background:var(--interactive-accent-hover, #a88bc8);color:var(--text-on-accent, white)}
+.km-workshop .primary kbd {color:inherit;border-color:#ffffff40}
+.km-workshop .toolbar {display:flex;align-items:center;justify-content:space-between;gap:6px;border-bottom:1px solid var(--km-line);padding:6px 12px;background:var(--km-panel)}
+.km-workshop .toolbar>div {display:flex;align-items:center;gap:2px}
+.km-workshop .toolbar button {color:var(--km-muted);font-size:11px}
+.km-workshop .toolbar small {font-size:10px;background:var(--km-bg);border-radius:4px;padding:0 5px}
+.km-workshop .graph-canvas {flex:1;position:relative;min-height:150px;background:var(--km-bg)}
+.km-workshop .story-card {width:250px;border:1px solid #756386;border-radius:8px;background:var(--km-panel);box-shadow:0 5px 16px #0002;overflow:visible;color:var(--km-text)}
+.km-workshop .story-card.chosen {border-color:var(--km-accent);box-shadow:0 0 0 2px var(--km-accent),0 6px 20px #0002}
+.km-workshop .card-kind {display:flex;align-items:center;gap:7px;font-size:9px;text-transform:uppercase;letter-spacing:1.4px;color:var(--km-muted);padding:10px 14px 8px;border-bottom:1px solid var(--km-line);border-radius:8px 8px 0 0}
+.km-workshop .card-kind span {margin-left:auto}
+.km-workshop .story-card h3 {font-size:15px;font-weight:600;line-height:1.4;padding:12px 14px 6px}
+.km-workshop .story-card p {font-size:11px;line-height:1.6;margin:0 14px 12px;color:var(--km-muted);min-height:36px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+.km-workshop .story-card footer {display:flex;align-items:center;gap:6px;font-size:9px;color:var(--km-muted);border-top:1px solid var(--km-line);margin:0 14px;padding:8px 0}
+.km-workshop .story-card footer span {margin-left:auto}
+.km-workshop .story-card.map {border-color:#548d7c}
+.km-workshop .story-card.start {border-color:#548d7c}
+.km-workshop .start .card-kind {color:#629b88}
+.km-workshop .destination-result {display:flex;flex-direction:column;gap:8px;padding:14px 0;border-bottom:1px solid var(--km-line)}
+.km-workshop .destination-result small {font-size:10px;color:var(--km-muted)}
+.km-workshop .map .card-kind {color:#629b88}
+.km-workshop .story-card.exit {border-color:#b28a52}
+.km-workshop .exit .card-kind {color:#b28a52}
+.km-workshop .react-flow {background:transparent;--xy-edge-stroke: #96869f;--xy-edge-stroke-selected:var(--km-accent);--xy-minimap-background:var(--km-panel);--xy-minimap-mask-background: #88888840}
+.km-workshop .react-flow__handle {width:11px;height:11px;background:var(--km-accent);border:2px solid var(--km-bg)}
+.km-workshop .react-flow__handle:hover {box-shadow:0 0 0 3px #9878bb55}
+.km-workshop .react-flow__edge-interaction {stroke-width:24}
+.km-workshop .react-flow__edge-textwrapper,.km-workshop .react-flow__edge-text {pointer-events:all;cursor:pointer}
+.km-workshop .react-flow__controls {border:1px solid var(--km-line);border-radius:5px;overflow:hidden;box-shadow:0 2px 10px #0002}
+.km-workshop .react-flow__controls-button {background:var(--km-panel);border-bottom:1px solid var(--km-line);border-radius:0;color:var(--km-text);width:28px;height:28px;padding:7px}
+.km-workshop .react-flow__minimap {border:1px solid var(--km-line);border-radius:5px;width:120px;height:85px}
+.km-workshop .react-flow__attribution {background:var(--km-bg);color:var(--km-muted);font-size:8px}
+.km-workshop .statusbar {display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--km-line);padding:5px 14px;font-size:10px;color:var(--km-muted)}
+.km-workshop .statusbar button {font-size:10px;padding:2px 0}
+.km-workshop .inspector {flex:0 0 300px;width:300px;border-left:1px solid var(--km-line);background:var(--km-panel);overflow-y:auto}
+.km-workshop .inspector-head {display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 15px;border-bottom:1px solid var(--km-line);color:var(--km-muted);font-size:9px;letter-spacing:1.5px}
+.km-workshop .inspector-head>div {display:flex;align-items:center;gap:3px}
+.km-workshop .connection-inspector {width:360px;flex-basis:360px}
+.km-workshop .inspector-body {padding:0 17px 22px}
+.km-workshop .muted {color:var(--km-muted);font-size:11px;line-height:1.7;margin:12px 0}
+.km-workshop .info-box {border-left:2px solid var(--km-accent);background:var(--km-bg);padding:11px;margin:18px 0;font-size:11px;line-height:1.7;color:var(--km-muted)}
+.km-workshop .field {display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--km-muted);margin:16px 0;font-weight:500}
+.km-workshop .field input,.km-workshop .field select,.km-workshop .field textarea {font-size:12px}
+.km-workshop .field-row {display:flex;gap:12px}
+.km-workshop .field-row .field {flex:1;min-width:0}
+.km-workshop .field-row .field:last-child {max-width:65px}
+.km-workshop .subheading {font-size:9px;font-weight:600;letter-spacing:1.3px;color:var(--km-muted);margin-top:24px;margin-bottom:9px}
+.km-workshop .lore-link {display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--km-line);padding:9px 0}
+.km-workshop .avatar {flex-shrink:0;display:grid;place-items:center;width:29px;height:32px;border-radius:5px;background:var(--km-bg);color:var(--km-muted)}
+.km-workshop .lore-link button {padding:0;display:flex;align-items:flex-start;flex-direction:column;gap:2px;text-align:left;min-width:0}
+.km-workshop .lore-link button:first-of-type {flex:1;overflow:hidden}
+.km-workshop .lore-link b {font-size:11px;font-weight:500}
+.km-workshop .lore-link small {font-size:9px;color:var(--km-muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.km-workshop .add-lore {margin-top:12px;width:100%;border:1px dashed var(--km-line);color:var(--km-muted);font-size:11px;padding:9px}
+.km-workshop .inspector-tip {border-top:1px solid var(--km-line);margin-top:24px;padding-top:15px;color:var(--km-muted);font-size:10px;line-height:1.7}
+.km-workshop .inspector-actions {display:flex;gap:4px;border-bottom:1px solid var(--km-line);padding:12px 0}
+.km-workshop .inspector-actions button {font-size:11px}
+.km-workshop .wide-button {width:100%;justify-content:space-between;border:1px solid var(--km-line);color:var(--km-text);font-size:11px}
+.km-workshop .text-button {font-size:11px;padding:4px 0;color:var(--km-muted)}
+.km-workshop .danger {color:var(--text-error, #d77d83)}
+.km-workshop .route-path {display:flex;flex-direction:column;gap:6px;border:1px solid var(--km-line);border-radius:5px;padding:12px;margin-top:16px;font-size:12px}
+.km-workshop .route-path span {color:var(--km-muted)}
+.km-workshop .route-path strong {font-size:12px;font-weight:550;line-height:1.7}
+.km-workshop .connection-summary {font-size:12px;color:var(--km-muted);line-height:1.7;margin:12px 0 18px}
+.km-workshop .connection-endpoints {padding:10px 0 16px;color:var(--km-muted);font-size:11px}
+.km-workshop .connection-endpoints summary,.km-workshop .way-outcome summary {cursor:pointer}
+.km-workshop .transition-ways {display:flex;flex-direction:column;gap:14px}
+.km-workshop .transition-way {background:var(--km-bg);border:1px solid var(--km-line);border-radius:7px;padding:14px;min-width:0}
+.km-workshop .transition-way>header {display:flex;gap:8px;align-items:flex-start;margin:0 0 10px}
+.km-workshop .transition-way h3 {flex:1;font-size:13px;line-height:1.5;font-weight:600;overflow-wrap:anywhere}
+.km-workshop .transition-way>header button {font-size:10px;padding:3px 6px;border:1px solid var(--km-line);white-space:nowrap}
+.km-workshop .way-number {font-size:10px;background:var(--km-panel);color:var(--km-muted);border-radius:4px;min-width:20px;line-height:22px;text-align:center}
+.km-workshop .way-badges {display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.km-workshop .way-badges span {font-size:9px;padding:2px 6px;border:1px solid var(--km-line);border-radius:4px;color:var(--km-muted)}
+.km-workshop .way-condition {font-size:12px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.km-workshop .way-outcome {font-size:11px;line-height:1.75;color:var(--km-muted);margin-top:13px}
+.km-workshop .way-outcome p {padding-top:10px;white-space:pre-wrap}
+.km-workshop .connection-actions {display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin:18px 0}
+.km-workshop .connection-actions small {font-size:10px;color:var(--km-muted);line-height:1.6}
+.km-workshop .route-list {border-top:1px solid var(--km-line);padding-top:15px;margin-top:23px}
+.km-workshop .route-list summary {cursor:pointer;font-size:11px;color:var(--km-muted);padding-bottom:10px}
+.km-workshop .route-list button {width:100%;text-align:left;align-items:flex-start;flex-direction:column;border-bottom:1px solid var(--km-line);border-radius:0;padding:10px 4px;gap:4px}
+.km-workshop .route-list b {font-size:11px;font-weight:500}
+.km-workshop .route-list small {font-size:9px;color:var(--km-muted)}
+.km-workshop .active {background:var(--background-modifier-hover, #9878bb33);color:var(--km-text)}
+.km-workshop .empty-canvas {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;pointer-events:none;color:var(--km-muted)}
+.km-workshop .empty-canvas button {pointer-events:auto}
+.km-workshop .empty-canvas p {font-size:12px}
+.km-workshop .canvas-notice {position:absolute;top:15px;left:20px;right:20px;z-index:10;border:1px solid var(--km-accent);background:var(--km-panel);padding:9px 12px;border-radius:5px;font-size:12px}
+.km-workshop .canvas-notice button {float:right;padding:0}
+.km-workshop .toast {position:absolute;bottom:45px;left:50%;transform:translateX(-50%);background:var(--km-panel);border:1px solid var(--km-line);box-shadow:0 6px 24px #0004;z-index:40;padding:10px 18px;border-radius:7px;font-size:12px;max-width:80%}
+.km-workshop .modal-backdrop {position:absolute;inset:0;z-index:50;background:#111111aa;display:flex;align-items:center;justify-content:center;padding:20px}
+.km-workshop .modal {position:relative;width:610px;max-width:100%;max-height:90%;overflow-y:auto;background:var(--km-panel);border:1px solid var(--km-line);border-radius:10px;box-shadow:0 25px 80px #0005;padding:22px}
+.km-workshop .modal header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+.km-workshop .editor-backdrop {z-index:45;padding:20px}
+.km-workshop .expanded-editor {width:min(1000px,100%);max-height:96%;height:90%;display:flex;flex-direction:column;overflow:hidden;padding:22px 26px}
+.km-workshop .expanded-editor>header {flex-shrink:0;margin-bottom:10px}
+.km-workshop .expanded-editor>header h2 {overflow-wrap:anywhere}
+.km-workshop .expanded-editor .editor-modal-content {min-height:0;overflow-y:auto;flex:1;padding:0 8px 12px 0}
+.km-workshop .expanded-editor .editor-modal-footer {flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;border-top:1px solid var(--km-line);color:var(--km-muted);font-size:11px}
+.km-workshop .expanded-editor .editor-modal-footer button {background:var(--km-accent);color:var(--text-on-accent,white);padding:7px 18px}
+.km-workshop .confirm-backdrop {z-index:60}
+.km-workshop .exit-destination {margin:12px 14px 4px;padding-top:10px;border-top:1px solid var(--km-line);display:flex;flex-direction:column;gap:5px}
+.km-workshop .exit-destination>span {font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--km-muted)}
+.km-workshop .exit-destination strong {display:flex;align-items:flex-start;gap:5px;font-size:12px;font-weight:550;overflow-wrap:anywhere;color:var(--km-text)}
+.km-workshop .exit-destination strong svg {flex-shrink:0;margin-top:2px}
+.km-workshop .exit-destination small {font-size:9px;color:var(--km-muted)}
+.km-workshop .exit-destination-editor {margin-top:20px;border-top:1px solid var(--km-line)}
+.km-workshop .confirm-dialog {width:480px;padding:24px}
+.km-workshop .confirm-dialog>header {margin-bottom:14px}
+.km-workshop .confirm-dialog h2 {font-size:19px;line-height:1.4;overflow-wrap:anywhere}
+.km-workshop .confirm-description {font-size:13px;line-height:1.75;color:var(--km-muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.km-workshop .confirm-actions {display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-top:24px}
+.km-workshop .confirm-actions button {border:1px solid var(--km-line);padding:8px 16px;font-size:12px}
+.km-workshop .confirm-actions .confirm-cancel {background:var(--km-bg);color:var(--km-text)}
+.km-workshop .confirm-actions .confirm-destructive {background:var(--background-modifier-error, #8e363f);border-color:var(--text-error, #d77d83);color:var(--text-on-accent, #fff)}
+.km-workshop .confirm-actions button:focus-visible {outline:2px solid var(--km-accent);outline-offset:3px}
+.km-workshop .expanded-node-content>label.field:has(textarea) textarea {min-height:330px;font-size:14px;line-height:1.8}
+.km-workshop .expanded-node-content>.field input {font-size:15px}
+.km-workshop .expanded-editor .transition-way {padding:18px 20px}
+.km-workshop .expanded-editor .way-condition {font-size:14px;line-height:1.8}
+.km-workshop .expanded-editor .way-fields textarea {min-height:190px;font-size:14px}
+.km-workshop .expanded-editor .transition-way>header {margin-bottom:10px;gap:10px}
+.km-workshop .editor-history {display:flex;justify-content:flex-end;gap:4px;margin-bottom:5px}
+.km-workshop .editor-history button {font-size:11px;color:var(--km-muted)}
+.km-workshop .search-box {display:flex;align-items:center;gap:9px;background:var(--km-bg);border:1px solid var(--km-line);padding:4px 11px;border-radius:6px;color:var(--km-muted);margin-bottom:15px}
+.km-workshop .search-box input {background:transparent;border:0;outline:none;box-shadow:none;padding:8px 0;font-size:12px}
+.km-workshop .add-options {display:flex;flex-direction:column;gap:4px}
+.km-workshop .add-options>button {width:100%;text-align:left;padding:12px 9px;justify-content:flex-start;gap:14px}
+.km-workshop .add-options>button>div:nth-child(2) {flex:1}
+.km-workshop .add-options b {font-size:13px;font-weight:550}
+.km-workshop .add-options p {font-size:11px;color:var(--km-muted);margin-top:3px}
+.km-workshop .option-icon {width:38px;height:38px;background:var(--km-bg);color:var(--km-muted);border-radius:7px;display:grid;place-items:center}
+.km-workshop .filter-tabs {display:flex;gap:6px;margin:8px 0 14px;flex-wrap:wrap}
+.km-workshop .filter-tabs button {font-size:11px;text-transform:capitalize;color:var(--km-muted)}
+.km-workshop .lore-results {max-height:320px;overflow-y:auto}
+.km-workshop .lore-result {display:flex;gap:11px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--km-line)}
+.km-workshop .lore-result>div:not(.avatar) {flex:1;min-width:0}
+.km-workshop .lore-result b {font-size:12px;font-weight:500}
+.km-workshop .lore-result p {font-size:9px;color:var(--km-muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis}
+.km-workshop .lore-result .attached {font-size:11px;color:var(--km-muted);opacity:1}
+.km-workshop .modal-footer {display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:var(--km-muted);margin-top:18px;border-top:1px solid var(--km-line);padding-top:14px}
+.km-workshop .modal-footer button {border:1px solid var(--km-line);padding:7px 14px}
+.km-workshop .shortcuts>div {display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--km-line);font-size:11px;color:var(--km-muted)}
+@media(max-width:900px){.km-workshop .inspector{width:255px;flex-basis:255px}.km-workshop .canvas-heading{padding:13px}.km-workshop h1{font-size:22px}.km-workshop .save{display:none}.km-workshop .toolbar{padding:5px}.km-workshop .toolbar button{font-size:10px;gap:4px}}
+@media(max-width:650px){.km-workshop .inspector{position:absolute;right:0;top:35px;bottom:0;z-index:12;box-shadow:-8px 0 20px #0002}.km-workshop .canvas-heading{padding-right:12px}.km-workshop .inspector-head{height:35px}}
