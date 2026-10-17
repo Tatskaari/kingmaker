@@ -117,6 +117,6 @@ test("no vocabulary is missed only when a scene leads beyond what the campaign i
   assert.deepEqual(checkCampaign(none), []);
   assert.deepEqual(checkCampaign(leadsBeyond), [
     "scenes/kings-morning: exit justice goes on to garrows-toll, which isn't one of the campaign's scenes",
-    "vocabulary.json is missing, and kings-morning leads to garrows-toll, which the campaign doesn't install (tools/v2/export-vocabulary.mts writes it)",
+    "vocabulary.json is missing, and kings-morning leads to garrows-toll, which the campaign doesn't install (the prototype's tools/v2/export-vocabulary.mts wrote it: git show bc2ab1f:tools/v2/export-vocabulary.mts)",
   ]);
 });

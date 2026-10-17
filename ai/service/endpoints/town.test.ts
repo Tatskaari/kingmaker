@@ -23,7 +23,7 @@ import { canned } from "./canned.ts";
 import { pipeline } from "./pipeline.ts";
 
 /**
- * The town's thinks (v2/docs/town-design.md §3.4-3.8, package A's done-when), on the stand-in for
+ * The town's thinks (docs/town-design.md §3.4-3.8, package A's done-when), on the stand-in for
  * OpenRouter: a talk with Kell opening (her greeting streamed beside the prep: the facts, the one
  * thing she might tell on her card with its route out and how near the surface it is, two to four
  * lines, the deepest of her story withheld before the third talk), a talk's settle (the guard

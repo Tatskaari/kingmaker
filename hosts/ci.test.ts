@@ -10,7 +10,7 @@ import { join } from "node:path";
  * a push (a stray quote in the container job's health check would have turned it red).
  */
 
-const WORKFLOW = join(import.meta.dirname, "..", "..", ".github", "workflows", "v2.yml");
+const WORKFLOW = join(import.meta.dirname, "..", ".github", "workflows", "v2.yml");
 
 test("every run step of CI's workflow parses in bash", () => {
   const steps = runSteps(readFileSync(WORKFLOW, "utf8"));

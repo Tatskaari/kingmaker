@@ -9,7 +9,9 @@ hand it to `shared/rules`, which never imports it at run time.
 It's the prototype's build at `44c6d4a` (`vendor/dnd-srd-engine/`: the engine at `ead852b`, its
 dependencies bundled, and the prototype's two fixes already in it), made ready for a SpacetimeDB
 module by two edits and nothing else. How that build was made, and what the fixes are, is in the
-prototype's [vendor/dnd-srd-engine/README.md](../../../vendor/dnd-srd-engine/README.md).
+prototype's `vendor/dnd-srd-engine/README.md`, which went with it: it's in git history at `bc2ab1f`
+(`git show bc2ab1f:vendor/dnd-srd-engine/README.md`), with the build, its `patch.ts` and the tool
+below.
 
 ## Files
 
@@ -54,4 +56,6 @@ node --no-warnings tools/v2/module-engine.mts --proto <the prototype at 44c6d4a>
 
 It checks the source's sha256, that line 1 is the banner and that `NODE_ENV` is in exactly five
 places, writes this folder's files (and `../srd-spells/spells.json`) and prints their sha256s. A new
-engine build is made in the prototype first; then the tool's expected sha256 and this table change.
+engine build was made in the prototype first; then the tool's expected sha256 and this table
+changed. The tool and the prototype's build are in git history at `bc2ab1f`, where the game was
+still in `v2/` (`--out v2/vendor`): an engine upgrade brings that pipeline back first.

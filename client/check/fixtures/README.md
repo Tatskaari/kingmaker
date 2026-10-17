@@ -2,7 +2,7 @@
 
 What the prototype's creation and sheet code made, for the client's screens and screen check (v1-design §4.4), which draw them as the rows will carry them.
 
-Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked):
+Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked). The recorder went with the prototype: it's in git history at `bc2ab1f` (`git show bc2ab1f:tools/v2/record-v1-golden.mts`), where the game was still in `v2/` (`--out v2`):
 
 ```sh
 KM_RUNS_DIR=$(mktemp -d) OPENROUTER_API_KEY=offline node --no-warnings tools/v2/record-v1-golden.mts \
@@ -18,4 +18,4 @@ Record again only when a case is added: the prototype's code these come from is 
 | own-option.json | `ownBuild` (orc, rogue, thief, criminal) for Tamsin Vell |
 | sheet-wizard.json | the ready-made wizard's `SheetData` (Pell Marrow, seed 7), the starting purse in it |
 | sheet-fighter.json | the ready-made fighter's (Wren Ashdown, seed 7) |
-| spell-facts-wizard.json | what the rules engine says of the wizard's ready spells (range, effects' kinds, area), as the prototype's scene menu reads them: the sheet's `spellFacts` as the rules' `sheetRows` writes it (the same JSON). Recorded by `tools/v2/record-spell-facts.mts` (same flags) |
+| spell-facts-wizard.json | what the rules engine says of the wizard's ready spells (range, effects' kinds, area), as the prototype's scene menu reads them: the sheet's `spellFacts` as the rules' `sheetRows` writes it (the same JSON). Recorded by `tools/v2/record-spell-facts.mts` (same flags; in git history at `bc2ab1f` too) |

@@ -22,7 +22,7 @@ export type Site = Map<string, Uint8Array>;
 /** What the site holds at its top: the page, both workers and the chunks they share, xterm.js, the fonts, the content. Nothing else. */
 export const TOP = ["chunks", "client-worker.js", "content.json", "fonts", "fonts.css", "fonts.json", "index.html", "page.js", "server-worker.js", "style.css", "transport.js", "vendor"];
 
-/** xterm.js and the addons the page loads, from v2's node_modules. */
+/** xterm.js and the addons the page loads, from the repo's node_modules. */
 export const VENDOR = ["vendor/xterm.mjs", "vendor/xterm.css", "vendor/addon-fit.mjs", "vendor/addon-webgl.mjs", "vendor/addon-unicode11.mjs"];
 
 /** The page's policy, a meta tag (GitHub Pages sends no headers, and it doesn't reach the workers): its own files, and OpenRouter for the key's check. */

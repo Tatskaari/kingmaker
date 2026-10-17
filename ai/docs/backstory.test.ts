@@ -15,7 +15,7 @@ import type { Ask } from "../llm/openrouter.ts";
  * or offline from their own words); the world it's for, Caerwyn's unless another is given (the
  * campaign's creation block). What reaches the GM in the prototype is tested there
  * (src/lore/backstory.test.ts); where a quote is, a fix applied and the length, with their code, in
- * v2/shared/creation/story.test.ts.
+ * shared/creation/story.test.ts.
  */
 
 process.env.KM_RUNS_DIR = mkdtempSync(join(tmpdir(), "km-backstory-"));

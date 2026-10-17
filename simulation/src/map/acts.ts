@@ -24,7 +24,7 @@ import { openTalk } from "./talk.ts";
 import { burns, keepTicking } from "./tick.ts";
 
 /**
- * The map's action menu as moves (v2/docs/town-design.md §3.2): the rules on the town's world, each
+ * The map's action menu as moves (docs/town-design.md §3.2): the rules on the town's world, each
  * one to one with the prototype's menu ids (shared/map/moves.ts actionId and moveOf), each the
  * walker's as the map's own moves are (not_in_game, not_controller, scene_on, no_way; a walker in a
  * scene that has ended walks out of it first). The prototype's town.act for a menu id

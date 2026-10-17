@@ -6,7 +6,7 @@ import { backstoryOp } from "../requests.ts";
 
 /**
  * POST /v1/backstories (v1-design §3.7): the player's backstory at character creation, through the
- * shared v2/ai/docs/backstory.ts, for the world in the campaign's `creation` block. A draft from who
+ * shared ai/docs/backstory.ts, for the world in the campaign's `creation` block. A draft from who
  * they are (draft), their notes worked into a story (work), the lore check (check: what doesn't fit
  * the world, each with a fix), and what it says of them (traits). One model call each, or two when
  * the first answer slips; none with `askOf` null (offline, or the canned GM). Whatever the model

@@ -2,7 +2,7 @@
 
 The prototype's GM calls on the hanged clerk for a player with a backstory, in the format of [../hanged-clerk](../hanged-clerk/) ([the goldens' README](../README.md)), for the AI service's parity: the opening writes the player's doc with the backstory before disclosure, and the GM's brief says who they are from it (v1-design §4.2).
 
-Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked):
+Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked). The recorder went with the prototype: it's in git history at `bc2ab1f` (`git show bc2ab1f:tools/v2/record-v1-golden.mts`), where the game was still in `v2/` (`--out v2`):
 
 ```sh
 KM_RUNS_DIR=$(mktemp -d) OPENROUTER_API_KEY=offline node --no-warnings tools/v2/record-v1-golden.mts \

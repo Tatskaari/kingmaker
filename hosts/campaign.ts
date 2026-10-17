@@ -12,7 +12,7 @@ import { checkCampaign, describePack, packOf, readCampaignFiles } from "./dev/ca
  * §3.9); its maps build, their ways out land where a person can stand, and the story starts on one
  * (map-design §3.1); and its vocabulary.json (what the suggested lines are vetted against of the
  * prototype's scenes) is whole, and agrees with each scene the campaign installs. It prints what's
- * there, or each problem, and exits 1 on any. A path is relative to v2/, where npm runs it.
+ * there, or each problem, and exits 1 on any. A path is relative to the repo's root, where npm runs it.
  */
 
 const USAGE = "usage: npm run campaign -- check <campaign folder>   (e.g. campaigns/caerwyn)";

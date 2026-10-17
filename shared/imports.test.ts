@@ -4,13 +4,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 
 /**
- * The rule for v2/shared (v0-design §2.2): its code runs in the SpacetimeDB module, under Node and
- * in the AI service, so it imports nothing outside v2/shared (no node:, no packages) and keeps the
+ * The rule for shared/ (v0-design §2.2): its code runs in the SpacetimeDB module, under Node and
+ * in the AI service, so it imports nothing outside shared/ (no node:, no packages) and keeps the
  * simulation deterministic (no clock, no Math.random). Its tests run under Node, so they may import
  * node: built-ins too. The module's type check (ES2021, no Node types) catches the rest.
  *
  * The rules engine is its hosts' to load (v1-design §3.6): shared/rules imports its typings from
- * v2/vendor as types only, and is handed the engine; only a test loads the bundle itself (after the
+ * vendor/ as types only, and is handed the engine; only a test loads the bundle itself (after the
  * shim, as the hosts do). The shim is the one file that touches the clock and the platform's crypto:
  * it pins both for the engine, and leaves the platform's where nothing is pinned (the AI service).
  */
@@ -24,7 +24,7 @@ const isTest = (file: string) => /\.test\.ts$/.test(file);
 const IMPORT = /(?:^|\s)(?:import|export)\s[^;]*?\sfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)|^import\s*["']([^"']+)["']/gm;
 const TYPE_ONLY = /^\s*(?:import|export)\s+type\s/;
 
-test("v2/shared imports nothing outside v2/shared but the engine's typings, as types (its tests: node: built-ins and the engine too)", () => {
+test("shared/ imports nothing outside shared/ but the engine's typings, as types (its tests: node: built-ins and the engine too)", () => {
   const outside: string[] = [];
   for (const file of files) {
     for (const m of readFileSync(join(ROOT, file), "utf8").matchAll(IMPORT)) {
@@ -40,7 +40,7 @@ test("v2/shared imports nothing outside v2/shared but the engine's typings, as t
   assert.deepEqual(outside, []);
 });
 
-test("v2/shared's code reads no clock and no outside randomness (but the shim, which pins them)", () => {
+test("shared/'s code reads no clock and no outside randomness (but the shim, which pins them)", () => {
   const banned = /\bMath\.random\b|\bDate\.now\b|\bnew Date\b|\bperformance\.now\b|\bstructuredClone\b|\bprocess\./;
   const found = files.filter(f => !isTest(f) && f !== SHIM).flatMap(file => readFileSync(join(ROOT, file), "utf8").split("\n")
     .map((line, i) => ({ line: line.replace(/\/\/.*$/, ""), at: `${file}:${i + 1}` }))

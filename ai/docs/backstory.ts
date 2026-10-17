@@ -4,7 +4,7 @@ import { canonPaths } from "../../shared/creation/world.ts";
 import { modelOffline, respondJson, type Ask } from "../llm/openrouter.ts";
 import { seedDoc, seedPaths, titleOf, type Doc } from "./docs.ts";
 
-// Moved to v2/shared/creation (the client and the simulation need them, and may not import v2/ai): re-exported, so the prototype's imports stay as they were.
+// Moved to shared/creation (the client and the simulation need them, and may not import ai/): re-exported, so the prototype's imports stayed as they were.
 export { applyFix, locate, MOST_WORDS, tooLong, wordCount } from "../../shared/creation/story.ts";
 export type { Asked, LoreIssue, Who } from "../../shared/creation/types.ts";
 

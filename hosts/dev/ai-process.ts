@@ -75,7 +75,7 @@ function startNode(options: AiProcessOptions, env: Record<string, string>): Chil
 }
 
 /**
- * The image built (from v2/, so it has the current code; its log goes to the AI service's), then run
+ * The image built (from the repo's root, so it has the current code; its log goes to the AI service's), then run
  * with the host's network, so it listens and reaches SpacetimeDB as the node process does. The store
  * is mounted as /data (the image's KM_AI_STORE), with --userns=keep-id: the container runs as this
  * user, so what it writes there is this user's. Values are passed by name (-e NAME), never on podman's

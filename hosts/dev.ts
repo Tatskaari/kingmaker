@@ -18,7 +18,7 @@ import { startStack, type Stack } from "./dev/stack.ts";
  *   npm run dev [-- --fake] [--container] [--fresh] [--mode host|namespace] [--port 3300] [--ai-port 8787]
  *               [--root runs/dev] [--gm pipeline|canned] [--no-keys]
  *
- * It stops everything on q, Ctrl+C or SIGTERM. A --root is relative to where it's run (v2/ under npm).
+ * It stops everything on q, Ctrl+C or SIGTERM. A --root is relative to where it's run (the repo's root under npm).
  */
 
 const USAGE = `npm run dev [-- options]

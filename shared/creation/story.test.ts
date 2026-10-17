@@ -4,7 +4,7 @@ import { applyFix, locate, MOST_WORDS, tooLong, wordCount } from "./story.ts";
 
 /**
  * A backstory's text (story.ts): where a quote is in it, a fix fitted to where it goes, and how long
- * it may be. Moved with the code from v2/ai/docs/backstory.test.ts, whose lore check tests still
+ * it may be. Moved with the code from ai/docs/backstory.test.ts, whose lore check tests still
  * apply a fix the check found.
  */
 

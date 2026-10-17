@@ -12,7 +12,7 @@ import type { MemoryHost } from "../host/memory.ts";
 import { mapRowsOf } from "./rows.ts";
 
 /**
- * The town unit's simulation (v2/docs/town-design.md §3.2-3.7, package S's done-when), on the memory
+ * The town unit's simulation (docs/town-design.md §3.2-3.7, package S's done-when), on the memory
  * host with the campaign starting on its map and the ready-made wizard: the action menu from the
  * sheet as a client reads it; a Fire Bolt at the watch house door that burns it in the town's
  * changes and draws the guards, refused from where there's no clear line; the town's clock burning

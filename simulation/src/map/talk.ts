@@ -17,7 +17,7 @@ import { exploreRowFrom, mapPlaceOf, moveSeats, walkerOf, writeExplore, type Exp
 import { keepTicking } from "./tick.ts";
 
 /**
- * A word with someone walking with the player, between scenes (v2/docs/town-design.md §3.6): a scene
+ * A word with someone walking with the player, between scenes (docs/town-design.md §3.6): a scene
  * of kind talk, key talk-<companion>-<n>, built from the campaign's talk template (scenes.ts), played
  * on the town's own place with no world of its own (as the prototype's had none), every seat moved
  * into it; its turns are `say`, as in any scene. It ends with the goodbye (its one exit, through a

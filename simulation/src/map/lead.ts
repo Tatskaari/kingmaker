@@ -11,7 +11,7 @@ import { campaignOfGame, gameCampaignId } from "../scenes.ts";
 import { mapRowsOf, moveSeats, walkerOf, writeExplore } from "./rows.ts";
 
 /**
- * The one way into a scene (v2/docs/map-design.md §3.5): the lead's waiting scene (game.leadScene)
+ * The one way into a scene (docs/map-design.md §3.5): the lead's waiting scene (game.leadScene)
  * opened through V0's openScene, with what the character starts with on the game's first scene;
  * every seat of the game moved into it, and the explore row's scene and spot set (enterScene). The
  * map's triggers call it (a step into the yard, a word with Kell) in the same transaction as the

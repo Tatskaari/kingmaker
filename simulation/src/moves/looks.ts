@@ -8,7 +8,7 @@ import type { Move } from "./move.ts";
 import type { LookPlan } from "./plans.ts";
 
 /**
- * Invented looks (v2/docs/town-design.md §3.7; the simulation's half of the prototype's
+ * Invented looks (docs/town-design.md §3.7; the simulation's half of the prototype's
  * src/game/look/invent.ts, whose cache is look_invention): a thing the stage manager makes in a
  * settle or an aftermath that has no look gets one. One already invented for that name is written at
  * once; the rest are asked for together beside the turn (POST /v1/looks, in the background: never the

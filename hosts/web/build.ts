@@ -11,18 +11,18 @@ import { keyNeedles, preloadOf, siteProblems, stampedPage, stampedScript, stampO
 import { tuiAliases, tuiFonts } from "./tui.ts";
 
 /**
- * The page-only build (browser-design §5, npm run build:web): v2 in the browser, with no server, in
- * dist/web, every URL relative so it works from any path (the PR preview's /v2/, or web:serve's):
+ * The page-only build (browser-design §5, npm run build:web): the game in the browser, with no server,
+ * in dist/web, every URL relative so it works from any path (the site's play/, or web:serve's):
  *
  *   index.html, page.js, transport.js, style.css    the page (web/page): xterm.js, the key form, the workers' transport
- *   vendor/                                         xterm.js and its addons, from v2's node_modules
+ *   vendor/                                         xterm.js and its addons, from the repo's node_modules
  *   fonts.css, fonts.json, fonts/                   the glyph fonts (web/fonts)
  *   client-worker.js, server-worker.js, chunks/     the two workers (hosts/web), bundled in one esbuild call, sharing chunks
  *   content.json                                    the campaign, the prompts and the fake model, from an allowlist (content.ts)
  *
  * The workers are taken by path, so the real ones drop in for the stubs. What they ask of OpenTUI is
  * the JS stand-in's (web/tui, as tui.ts points a bundle at it, with OpenTUI's ASCII fonts), with React
- * from v2's node_modules (one React, or the screens die on their first hook). What they still ask of
+ * from the repo's node_modules (one React, or the screens die on their first hook). What they still ask of
  * Node is web/node's stand-in for it, each file there standing for the module its name says
  * ("fs-promises.ts" for node:fs/promises), or the build fails. The site is put together in memory and
  * held to site.ts's rules (the stamp, the preload list, the CSP, relative URLs, the allowlist, and
@@ -86,8 +86,8 @@ async function bundleWorkers(out: string): Promise<Site> {
 }
 
 /**
- * OpenTUI as the JS stand-in (web/tui: tui.ts), React, react-reconciler and scheduler from v2's
- * node_modules by name (one React), and each node: module web/node stands in for.
+ * OpenTUI as the JS stand-in (web/tui: tui.ts), React, react-reconciler and scheduler from the
+ * repo's node_modules by name (one React), and each node: module web/node stands in for.
  */
 function aliases(): Record<string, string> {
   const alias = tuiAliases(V2);
@@ -105,7 +105,7 @@ function nodeStandIns(dir: string): Array<[name: string, file: string]> {
   return readdirSync(dir).filter(file => /^[a-z_]+(-[a-z_]+)*\.ts$/.test(file) && !file.endsWith(".test.ts")).map(file => [file.slice(0, -3).replaceAll("-", "/"), join(dir, file)]);
 }
 
-/** xterm.js and its addons, from v2's node_modules, without the source maps they name (which aren't shipped, so the browser needn't look). */
+/** xterm.js and its addons, from the repo's node_modules, without the source maps they name (which aren't shipped, so the browser needn't look). */
 function vendorFiles(): Site {
   const require = createRequire(join(V2, "package.json"));
   const root = (name: string) => dirname(dirname(require.resolve(name)));

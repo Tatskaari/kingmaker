@@ -18,7 +18,7 @@ import { keepTicking } from "./tick.ts";
 import { mapPlaceOf, mapRowsOf, moveSeats, walkerOf, writeExplore, type ExploreTableRow } from "./rows.ts";
 
 /**
- * The map's moves (v2/docs/map-design.md §3.2): walk, interact and travel, each the controller's,
+ * The map's moves (docs/map-design.md §3.2): walk, interact and travel, each the controller's,
  * each made as the prototype's explorer makes its action of that id (shared/map/moves.ts maps the
  * arguments onto it): the ExploreState made from rows (shared/map/rows.ts exploreOf, as a client
  * makes it), the copied act, the explore row written back with what it said, the seats moved with

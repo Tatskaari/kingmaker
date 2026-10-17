@@ -1,5 +1,9 @@
-# The AI service's image takes package.json, ai/, shared/, vendor/ and hosts/ai.ts (ai/Containerfile):
-# the dependencies and the run folders stay out of the build context, which is v2/.
-node_modules
-runs
-simulation/dist
+# The AI service's image takes package.json, ai/, shared/, vendor/ and hosts/ai.ts (ai/Containerfile),
+# and the build context is the repo's root: everything else stays out of it (the other parts, the
+# docs, the tools, the dependencies and the run folders).
+*
+!package.json
+!ai
+!shared
+!vendor
+!hosts/ai.ts

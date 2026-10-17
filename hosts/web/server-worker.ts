@@ -24,10 +24,11 @@ import { startHost, type PageHost } from "./page-host.ts";
  *                   will again; {type: "key-refused"} when OpenRouter turns the key down; {type:
  *                   "flushed"} for each flush, and once a quit has let go; {type: "error", message, reload?}
  *
- * Its database, its lock and its channel are named after where it's published (its folder, which
- * ends in /v2/): kingmaker-v2-web <path>, never the prototype's kingmaker-v2 <path>, so the two keep
- * apart in one preview. The key stays in this worker (web/server/model.ts): no message out of it, no
- * log line and no record in the database has it in.
+ * Its database, its lock and its channel are named after where it's published (its folder: the
+ * site's play/): kingmaker-v2-web <path>, never the retired prototype's kingmaker-v2 <path>, which
+ * was published at play/ too, so a browser that kept the prototype's games keeps them apart. The key
+ * stays in this worker (web/server/model.ts): no message out of it, no log line and no record in the
+ * database has it in.
  */
 
 /** What the worker needs of its global scope (the DOM's types, no WebWorker lib). */

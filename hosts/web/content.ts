@@ -7,7 +7,7 @@ export type { Content };
 
 /**
  * What the page's server worker reads as it starts (content.json, browser-design §5): the campaign's
- * files, the prompts and the fake model's options, taken from v2's folders by an allowlist, and
+ * files, the prompts and the fake model's options, taken from the repo's folders by an allowlist, and
  * nothing else. The build (build.ts) writes it, the build and the check (check.ts) hold it to the
  * allowlist, and the server worker alone fetches it, asking with its own ?v= (it's served as
  * server-worker.js?v=<the build's stamp>). The rest of the game is code, bundled. Its shape is the
@@ -23,7 +23,7 @@ export const CONTENT = [
 
 const [CAMPAIGN, PROMPTS, FAKE] = CONTENT;
 
-/** content.json's contents, from v2's folders (`v2`: its root). */
+/** content.json's contents, from the repo's folders (`v2`: its root). */
 export function readContent(v2: string): Content {
   const prompts = Object.entries(filesUnder(v2, PROMPTS.dir, PROMPTS.include)).map(([path, text]) => [path.replace(/\.md$/, ""), text]);
   return {

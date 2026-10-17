@@ -20,7 +20,7 @@ const RECORDS: Write[] = [
   { store: "logs", key: ["g1", "calls", 0], value: { operation: "gm.reply" } },
 ];
 
-for (const [kind, open] of [["IndexedDB", () => openIndexedDb("kingmaker-v2-web /kingmaker/pr-preview/pr-0/v2/", new IDBFactory())], ["memory", async () => memoryDatabase()]] as const) {
+for (const [kind, open] of [["IndexedDB", () => openIndexedDb("kingmaker-v2-web /kingmaker/pr-preview/pr-0/play/", new IDBFactory())], ["memory", async () => memoryDatabase()]] as const) {
   test(`${kind}: records kept as structured clones and read back by key (the logs never), deleted and cleared; a write that can't be kept keeps none of it`, async () => {
     const database: Database = await open();
     await database.write(RECORDS);

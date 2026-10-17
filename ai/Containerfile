@@ -1,5 +1,5 @@
 # The AI service as an image (v0-design §5.7): plain node, no npm install (the service has no
-# dependencies: node: built-ins, v2/ai, v2/shared and v2/vendor), its stores on a volume. Built from v2/:
+# dependencies: node: built-ins, ai/, shared/ and vendor/), its stores on a volume. Built from the repo's root:
 #
 #   podman build -f ai/Containerfile -t kingmaker-ai .
 #   podman run --rm --network=host -v ./runs/dev/ai:/data:Z --userns=keep-id \

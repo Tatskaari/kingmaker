@@ -7,9 +7,9 @@ import { test } from "node:test";
 /**
  * web/tui's rule (browser-design §5): the JS OpenTUI the page draws with imports only itself and its
  * packages (React and its reconciler, Yoga, xterm's Unicode 11 widths, and the fonts module the build
- * makes), never v2/client (whose imports of OpenTUI a bundle points here) or the prototype, and
+ * makes), never client/ (whose imports of OpenTUI a bundle points here) or the prototype, and
  * nothing of Node's, since it runs in a browser's worker. And it finds React where the client finds
- * it, in v2/node_modules, so a bundle of the two holds one React: with two, the screens die on their
+ * it, in the repo's node_modules, so a bundle of the two holds one React: with two, the screens die on their
  * first hook.
  */
 
@@ -19,7 +19,7 @@ const PACKAGES = /^(?:react(?:\/|$)|react-reconciler(?:\/|$)|yoga-layout(?:\/|$)
 const IMPORT = /(?:^|\s)(?:import|export)\s[^;]*?\sfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)|^import\s*["']([^"']+)["']/gm;
 const files = readdirSync(ROOT).filter(f => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
-test("web/tui imports itself and its packages: never v2/client, the prototype or Node", () => {
+test("web/tui imports itself and its packages: never client/, the prototype or Node", () => {
   const outside: string[] = [];
   for (const file of files) {
     for (const m of readFileSync(join(ROOT, file), "utf8").matchAll(IMPORT)) {
@@ -33,7 +33,7 @@ test("web/tui imports itself and its packages: never v2/client, the prototype or
   assert.deepEqual(outside, []);
 });
 
-test("web/tui finds React, and its reconciler finds React and the scheduler, where the client finds React: one copy each, in v2/node_modules", () => {
+test("web/tui finds React, and its reconciler finds React and the scheduler, where the client finds React: one copy each, in the repo's node_modules", () => {
   const fromTui = createRequire(join(ROOT, "react.ts"));
   const fromClient = createRequire(join(V2, "client", "app.tsx"));
   const reconciler = fromTui.resolve("react-reconciler");

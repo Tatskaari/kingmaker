@@ -10,7 +10,7 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
 /**
  * The page-only build's check (browser-design §7, npm run web:check): the site in dist/web (npm run
  * build:web first) held to the build's rules, then served as GitHub Pages serves a preview (serve.ts,
- * under /kingmaker/pr-preview/pr-0/v2/: files only, max-age=600) and played in headless Chromium with
+ * under /kingmaker/pr-preview/pr-0/play/: files only, max-age=600) and played in headless Chromium with
  * Playwright, on the fake GM:
  *
  * - the gate: with no key kept, the page asks for one or offers the fake GM, and the key form turns

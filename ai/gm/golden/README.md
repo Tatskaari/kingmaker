@@ -4,7 +4,7 @@ The prototype's GM calls on the hanged clerk, recorded once, for the prompt pari
 
 ## How they were recorded
 
-[tools/record-golden.mts](../../../../tools/record-golden.mts), with the prototype's tools (it imports the prototype, which v2 never does), run on the prototype at `44c6d4a`. From the repo's root:
+`tools/record-golden.mts`, with the prototype's tools (it imports the prototype, which the game never does), run on the prototype at `44c6d4a`. It went with the prototype, and is in git history at `bc2ab1f` (`git show bc2ab1f:tools/record-golden.mts`), where the game was still in `v2/`. From that checkout's root:
 
 ```sh
 node --no-warnings tools/record-golden.mts                    # the prototype in this checkout, into v2/ai/gm/golden/hanged-clerk and v2/ai/gm/testdata/scenes
@@ -15,7 +15,7 @@ Re-record when the prototype's GM changes and the change is copied into [gm/](..
 
 Kell's lore in the recorded prompts carries #661's two edits (her `knowledge/Sallow.md` and `private.md`, in the campaign's lore since M1), put into these files by hand as a recording from the prototype at `53f45f3` would have them: nothing else in them changed.
 
-It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOpenRouter`: no model is asked, nothing leaves the machine), with the `v2` approach and suggested lines on. The GM's replies are [tools/v2/golden-replies.json](../../../../tools/v2/golden-replies.json)'s, marked up as the model writes them:
+It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOpenRouter`: no model is asked, nothing leaves the machine), with the `v2` approach and suggested lines on. The GM's replies are `tools/v2/golden-replies.json`'s (in git history at `bc2ab1f` too), marked up as the model writes them:
 
 | Moment | What the player does | The GM's reply | The stand-in |
 |---|---|---|---|

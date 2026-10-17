@@ -344,7 +344,7 @@ export interface ReactionsResponse { reactions: Record<string, Reaction>; direct
 export interface RememberRequest extends AiRequest { turn: SceneContext; reviewed: number }
 /** What the attention filter flagged, and each review it fired: what it changed, or why it failed. */
 export interface RememberResponse { flags: string[]; reviews: ReviewRecord[]; usage: Usage }
-/** A memory review's record, as v2/ai/docs/reviews.ts makes it (its shape written out here: shared imports nothing of the AI service's). */
+/** A memory review's record, as ai/docs/reviews.ts makes it (its shape written out here: shared imports nothing of the AI service's). */
 export interface ReviewRecord { kind: "memories" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
 
 /** POST /v1/turns/repair (full-gm-design §4.1): the background co-GM's review of a turn once it's over. turn and reviewed as remember's. */

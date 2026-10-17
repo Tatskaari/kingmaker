@@ -4,9 +4,9 @@ import { join, resolve, sep } from "node:path";
 import { test } from "node:test";
 
 /**
- * web/server's rule (browser-design §5): the page host's parts import only themselves, v2/shared, the
- * simulation (simulation/src), the AI service (v2/ai) and the SDK's classes (spacetimedb), so they
- * bundle into the server worker as they are. Never v2/client (the client worker's), hosts/ (the
+ * web/server's rule (browser-design §5): the page host's parts import only themselves, shared/, the
+ * simulation (simulation/src), the AI service (ai/) and the SDK's classes (spacetimedb), so they
+ * bundle into the server worker as they are. Never client/ (the client worker's), hosts/ (the
  * composition roots compose these parts, not the other way round), the prototype, or anything of
  * Node's, since they run in a browser's worker. Their tests may import what they like.
  */
@@ -18,7 +18,7 @@ const PACKAGES = /^spacetimedb$/;
 const IMPORT = /(?:^|\s)(?:import|export)\s[^;]*?\sfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)|^import\s*["']([^"']+)["']/gm;
 const files = readdirSync(ROOT).filter(file => file.endsWith(".ts") && !file.endsWith(".test.ts"));
 
-test("web/server imports itself, v2/shared, the simulation, the AI service and the SDK's classes: never v2/client, hosts/, the prototype or Node", () => {
+test("web/server imports itself, shared/, the simulation, the AI service and the SDK's classes: never client/, hosts/, the prototype or Node", () => {
   const outside: string[] = [];
   for (const file of files) {
     for (const match of readFileSync(join(ROOT, file), "utf8").matchAll(IMPORT)) {

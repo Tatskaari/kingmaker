@@ -6,7 +6,7 @@ import type { Handler } from "../context.ts";
 const BATCH = 20;
 
 /**
- * POST /v1/looks (v2/docs/town-design.md §3.7): how things the story made look on the map, for the
+ * POST /v1/looks (docs/town-design.md §3.7): how things the story made look on the map, for the
  * simulation's inventLook job to keep (look_invention, by the name's key) and draw (look rows): one
  * look.invent call a batch of twenty (ai/look/invent.ts, the prototype's src/game/look/invent.ts
  * askLuna), Luna with no reasoning. Never fatal, as the prototype's flush isn't: a key the model left

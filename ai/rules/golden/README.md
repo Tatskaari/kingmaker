@@ -2,7 +2,7 @@
 
 The prototype's model calls in character creation, a file a case, for the AI service's prompt parity (v1-design §4.2): for the same request, `POST /v1/characters` and `POST /v1/backstories` must ask what the prototype asks, byte for byte.
 
-Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked):
+Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked). The recorder went with the prototype: it's in git history at `bc2ab1f` (`git show bc2ab1f:tools/v2/record-v1-golden.mts`), where the game was still in `v2/` (`--out v2`):
 
 ```sh
 KM_RUNS_DIR=$(mktemp -d) OPENROUTER_API_KEY=offline node --no-warnings tools/v2/record-v1-golden.mts \

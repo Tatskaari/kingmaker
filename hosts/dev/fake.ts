@@ -55,7 +55,7 @@ export function onTop(under: FakeOptions, over: FakeOptions): FakeOptions {
 /**
  * The whole story's recipe (story-design §1.1): each scene ends at the first of these endings it
  * offers, the player's own doing, so a scene closes in two lines and the arc is walked to The End on
- * the fake. The dev stack takes it as KM_AI_FAKE (v2/README.md); the page's ?fake=arc puts it on
+ * the fake. The dev stack takes it as KM_AI_FAKE (README.md); the page's ?fake=arc puts it on
  * fake.json's (hosts/web/server-worker.ts).
  */
 export function wholeStory(): FakeOptions {

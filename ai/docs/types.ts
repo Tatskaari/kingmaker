@@ -2,7 +2,7 @@
  * What the docs service is handed: a view of the game's working set, never the game's own state. The
  * AI API is given what a call needs and reads nothing else of the game (it reads and writes the lore,
  * which is its own). Only what the docs service uses is here; the prototype builds the view from its
- * session (src/lore/view.ts). The backstory's shape is re-exported here, from v2/shared/creation.
+ * session (src/lore/view.ts). The backstory's shape is re-exported here, from shared/creation.
  */
 
 /** The scene being played. */
@@ -82,5 +82,5 @@ export interface WorkingSet {
 /** How a scene ended: the exit taken. */
 export interface Ending { title: string; outcome: string }
 
-/** The player's backstory, written at character creation: moved to v2/shared/creation/types.ts (the client and the simulation keep it too), re-exported here. */
+/** The player's backstory, written at character creation: moved to shared/creation/types.ts (the client and the simulation keep it too), re-exported here. */
 export type { Backstory } from "../../shared/creation/types.ts";

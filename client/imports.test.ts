@@ -4,7 +4,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { test } from "node:test";
 
 /**
- * The client's rule (v2/README.md): it imports v2/shared, its packages and the bindings, never the
+ * The client's rule (README.md): it imports shared/, its packages and the bindings, never the
  * rules engine (v1-design §3.10: it reads what the engine made from the rows), the AI service, the
  * simulation's code or the prototype. Nor shared/rules's pin.ts or shim.ts: the shim defines a global
  * `window`, which the SpacetimeDB SDK takes for a browser's (it reconnects through
@@ -20,7 +20,7 @@ const PACKAGES = /^(?:node:|spacetimedb(?:\/|$)|react(?:\/|$)|@opentui\/)/;
 const IMPORT = /(?:^|\s)(?:import|export)\s[^;]*?\sfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)|^import\s*["']([^"']+)["']/gm;
 const files = readdirSync(ROOT, { recursive: true, encoding: "utf8" }).filter(f => /\.(ts|tsx)$/.test(f) && !f.startsWith(`module_bindings${sep}`));
 
-test("v2/client imports itself, v2/shared (not the engine's shim), its packages and the bindings: never the engine, the AI service, the simulation or the prototype", () => {
+test("client/ imports itself, shared/ (not the engine's shim), its packages and the bindings: never the engine, the AI service, the simulation or the prototype", () => {
   const outside: string[] = [];
   for (const file of files) {
     for (const m of readFileSync(join(ROOT, file), "utf8").matchAll(IMPORT)) {

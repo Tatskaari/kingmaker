@@ -9,8 +9,9 @@ import type { CampaignFiles } from "./campaign.ts";
  * A campaign's vocabulary (vocabulary.json, v5-design §3.8): what the AI service vets its suggested
  * lines against of the scenes it doesn't install. The prototype screens a line by the story's names
  * and places and by the words any scene might use, read from all of its scenes; the campaign installs
- * only the scenes built so far, so tools/v2/export-vocabulary.mts records each of the prototype's
- * scenes once: its id, hook, ways on (`next`), cast, world names and prep.
+ * only the scenes built so far, so tools/v2/export-vocabulary.mts (the prototype's tool, in git
+ * history at bc2ab1f) recorded each of the prototype's scenes once: its id, hook, ways on (`next`),
+ * cast, world names and prep.
  *
  * The check: the file's shape (read as the AI service reads it, whose PUT refuses one that doesn't
  * read: ai/gm/story.ts), one entry an id, every way on leading to an entry or an installed scene, and
@@ -61,7 +62,7 @@ function missingProblems(pack: CampaignPack): string[] {
   const installed = new Set(pack.campaign.scenes);
   return pack.scenes.flatMap(({ scene }) => {
     const beyond = [...new Set(Object.values(scene.exits).flatMap(e => (e.next && !installed.has(e.next) ? [e.next] : [])))];
-    return beyond.length ? [`${VOCABULARY} is missing, and ${scene.id} leads to ${beyond.join(", ")}, which the campaign doesn't install (tools/v2/export-vocabulary.mts writes it)`] : [];
+    return beyond.length ? [`${VOCABULARY} is missing, and ${scene.id} leads to ${beyond.join(", ")}, which the campaign doesn't install (the prototype's tools/v2/export-vocabulary.mts wrote it: git show bc2ab1f:tools/v2/export-vocabulary.mts)`] : [];
   });
 }
 

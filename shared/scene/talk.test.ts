@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { SceneFile } from "./files.ts";
 import { FAREWELL, talkOf, talkSceneFile, talkSceneId } from "./talk.ts";
 
-/** A talk's id and its scene from the campaign's template (v2/docs/town-design.md §3.6): the template's own shape is the campaign's (package A's). */
+/** A talk's id and its scene from the campaign's template (docs/town-design.md §3.6): the template's own shape is the campaign's (package A's). */
 
 const TEMPLATE: SceneFile = {
   id: "talk", title: "A word with {name}", summary: "A word with {name} between scenes.", kind: "talk", start: "talk",

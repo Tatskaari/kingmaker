@@ -12,7 +12,7 @@ import { packOf, type CampaignFiles } from "./pack.ts";
 import { vocabularyProblems } from "./vocabulary.ts";
 
 /**
- * A campaign folder (v2/campaigns/<id>/) as the install sends it, and the check that it's fit to
+ * A campaign folder (campaigns/<id>/) as the install sends it, and the check that it's fit to
  * send (v0-design §8; the converter's checks that need no prototype, content-world A10; the
  * vocabulary's, v5-design §3.8). Both work on the folder's files in memory, so the AI service's PUT
  * carries exactly what was checked. The structure the install takes from them is pack.ts's (packOf),
@@ -47,7 +47,7 @@ export function rulesPackOf(json: string): RulesPack {
   };
 }
 
-/** The vendored pack, read from v2/vendor: what the module and the AI service load. */
+/** The vendored pack, read from vendor/: what the module and the AI service load. */
 export function vendoredPack(): RulesPack {
   return rulesPackOf(readFileSync(join(import.meta.dirname, "..", "..", "vendor", "dnd-srd-engine", "starter-pack.json"), "utf8"));
 }

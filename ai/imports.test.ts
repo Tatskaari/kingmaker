@@ -13,16 +13,17 @@ import {
 import { API } from "typescript/unstable/sync";
 
 /**
- * The one rule (README.md): v2/ai imports only node: built-ins, its own files, v2/shared (the
- * protocol, the scene graph and the world it shares with the simulation) and v2/vendor (the rules
- * engine, which it runs to make the build cards it offers), so the prototype and v2 can share it. Never the prototype: the prototype reaches in (src/llm, src/lore,
- * src/runtime/brief.ts), nothing here reaches out, and the prototype's type check wouldn't notice
- * if something did. v2/shared keeps to itself in turn (v2/shared/imports.test.ts).
+ * The one rule (README.md): ai/ imports only node: built-ins, its own files, shared/ (the
+ * protocol, the scene graph and the world it shares with the simulation) and vendor/ (the rules
+ * engine, which it runs to make the build cards it offers), so it runs as it is under plain node in
+ * its container and in the page's server worker. (While the prototype was in the repo it reached in
+ * here, and this kept anything here from reaching out to it.) shared/ keeps to itself in turn
+ * (shared/imports.test.ts).
  *
  * The files are read with the TypeScript compiler's parser, because patterns over the text kept
  * missing imports the language allows (a comment inside one, a name spelled with escapes). The
  * parser is TypeScript 7's, a process of its own that the package's typescript/unstable API drives,
- * and it's the one thing here from outside v2/ai and v2/shared: this file may import it, and nothing
+ * and it's the one thing here from outside ai/ and shared/: this file may import it, and nothing
  * else may.
  * That API may change with TypeScript's version; the test checks the parser found its own imports.
  */
@@ -154,7 +155,7 @@ const real = (path: string): string => {
   }
 };
 
-test("v2/ai imports nothing but node:, itself, v2/shared and v2/vendor", () => {
+test("ai/ imports nothing but node:, itself, shared/ and vendor/", () => {
   const { files, names, outside } = scan(ROOT, [SHARED, VENDOR]);
   assert.ok(files.length > 10, "the scan found the folder's code");
   assert.ok(names.includes("imports.test.ts: node:test"), "the parser found this file's own imports");

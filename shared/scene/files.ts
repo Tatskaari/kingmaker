@@ -5,7 +5,7 @@ import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 import type { MapFile } from "../map/tiles.ts";
 
 /**
- * The campaign format: the files of a campaign folder (v2/campaigns/<id>/), as content-world A1-A4
+ * The campaign format: the files of a campaign folder (campaigns/<id>/), as content-world A1-A4
  * has them. JSON holds the structure and its short logic text (a route's `when`, a check's lines,
  * the fact sentences); the prose is Markdown beside it, read by scene/load.ts. Object key order is
  * meaningful (beats, exits and essentials are in the prototype's order), and JSON.parse keeps it.
@@ -22,7 +22,7 @@ export interface CampaignFile {
   startPlace: string;
   /**
    * When the story starts: the day and the time of day; and, for a campaign with maps, where the
-   * player starts walking (a map's key and a tile on it: v2/docs/map-design.md §3.3). With no map,
+   * player starts walking (a map's key and a tile on it: docs/map-design.md §3.3). With no map,
    * the first scene opens at once.
    */
   start: { day: number; time: TimeOfDay; map?: string; at?: [number, number] };

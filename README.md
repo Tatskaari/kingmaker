@@ -6,7 +6,7 @@ The production build of Kingmaker, as the design has it: a client, a simulation 
 - **The simulation** is a SpacetimeDB module, the authority on everything that happens: the moves, the world, every die.
 - **The AI service** (`kingmaker-ai`) is an HTTP service that does all the model work and keeps the words: the prompts, the lore and each game's documents. It holds nothing between requests, since each one carries the working set it needs, so it runs as a local process or a container for now, and on Cloud Run or as a Lambda later. It's the only part that calls OpenRouter. The simulation calls it from a scheduled procedure, and it streams the GM's words back through a reducer only it may call.
 
-It's built a vertical at a time ([docs/verticals.md](docs/verticals.md)): a slice of the game end to end through the parts, with the prototype ([ARCHITECTURE.md](../ARCHITECTURE.md)) playable throughout. The design is the roadmap ([src/web/site/roadmap](../src/web/site/roadmap/index.html)).
+It's built a vertical at a time ([docs/verticals.md](docs/verticals.md)): a slice of the game end to end through the parts, with the prototype ([docs/prototype/ARCHITECTURE.md](docs/prototype/ARCHITECTURE.md)) playable throughout, until it was retired. The design is the roadmap ([web/site/roadmap](web/site/roadmap/index.html)).
 
 ## What you can play
 
@@ -75,7 +75,7 @@ The whole story, from the yard to The End, as the prototype plays it:
 
 Between scenes the rules pass the time as the prototype's do (the world bridge's): a spell runs out, you come round if you were down, and the King's morning brings a level and a long rest.
 
-**Beside the prototype,** the demo arc plays end to end. Still only the prototype's, for parity ([docs/verticals.md](docs/verticals.md) §4): the fight played on the map a turn at a time (V12: at the Heron, and the fights that break out in town, which the stand-in tells as won meanwhile) and words typed in a fight (V13). `npm run arc` passes 15 of its 16 checks; the one left is V12's.
+**Not yet ported from the prototype** ([docs/verticals.md](docs/verticals.md) §4): the fight played on the map a turn at a time (V12: at the Heron, and the fights that break out in town, which the stand-in tells as won meanwhile) and words typed in a fight (V13). `npm run arc` passes 15 of its 16 checks; the one left is V12's.
 
 Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines, V5's twelve, V1's characters made from a sentence, the map's opening started by talking to Kell, beside the prototype's, the full GM's seven lines, the first three beside the prototype's, the world bridge's spells and blows beside the prototype's on the same lines, and the whole story from the yard to The End, beside the prototype's QA console; the page in a browser, with no server ([browser.md](docs/live/browser.md)); and the town's action menu and a talk with Kell ([town.md](docs/live/town.md)).
 
@@ -87,7 +87,7 @@ Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines,
 | [simulation/](simulation/) | The SpacetimeDB module: [schema.ts](simulation/src/schema.ts) (every table), [index.ts](simulation/src/index.ts) (every reducer, procedure and view), the moves (a scene's, character creation's and the map's) and the job loop, each a plain function over the tables, the GM's bookkeeping with its rulings and the co-GM's merge (gm/), the rules engine loaded and pinned and the rules' acts on the scene's world at a turn's start, in its decide and in its reactions step (rules/), the story between scenes (story/: a scene's end and its effects, the boundary as a job, the lead, the fight's stand-in; world/cross.ts moves people and things between places), the town (map/: the action menu's seven moves, the town's clock `tick_place`, a fight on the map, a talk as a scene of kind `talk`), invented looks (moves/looks.ts), and the memory host that runs them in the tests |
 | [ai/](ai/README.md) | The AI service: its HTTP server and stores (service/), the GM pipeline ported from the prototype (gm/), and the model client, prompts and docs service it shares with the prototype |
 | [client/](client/) | The client: the screens (ui/: the title, character creation, the sheet, the map, the scene and its place), the models over the rows that pick and feed them (app/, title/, creation/, explore/, scene/, sheet/), the prototype's look layer that draws a place and plays what changed, and its map renderer (look/, map/), the connection that follows the player's seat (net/), the demo, the headless verbs, and the bindings the CLI generates from the module ([module_bindings/](client/module_bindings/), committed) |
-| [campaigns/caerwyn/](campaigns/caerwyn/) | The campaign as data: campaign.json (with the world a backstory is written for, the quests, and where a game starts on the map), every scene of the arc as scene.json and its Markdown (the hanged clerk, the Drowned Rat, the Heron warehouse, the King's morning and the two interludes, each ending's effects as data), their places as worlds (the granary yard, the Rat, the Heron, the dressing room), the talk template (scenes/talk/, filled for whoever walks with you), the ready-made characters (builds.json: a concept and a build each), the cast's looks, and the 154 lore docs. Made from the prototype's scenes by [tools/v2/scene-files.mts](../tools/v2/scene-files.mts) |
+| [campaigns/caerwyn/](campaigns/caerwyn/) | The campaign as data: campaign.json (with the world a backstory is written for, the quests, and where a game starts on the map), every scene of the arc as scene.json and its Markdown (the hanged clerk, the Drowned Rat, the Heron warehouse, the King's morning and the two interludes, each ending's effects as data), their places as worlds (the granary yard, the Rat, the Heron, the dressing room), the talk template (scenes/talk/, filled for whoever walks with you), the ready-made characters (builds.json: a concept and a build each), the cast's looks, and the 154 lore docs. Made from the prototype's scenes by `tools/v2/scene-files.mts` (in git history at `bc2ab1f`) |
 | [vendor/](vendor/) | Vendored code, as it is but for what its README says: the D&D rules engine made ready for a SpacetimeDB module, its content pack, and the SRD's spell texts |
 | [hosts/](hosts/) | The composition roots, the only code that reads env or argv: the AI service, the client and the headless client, the dev stack ([hosts/dev/README.md](hosts/dev/README.md)), the doctor, the campaign tool and its install, the local host, the e2e and the live run, and the page's ([hosts/web/](hosts/web/): its two workers, its build, its server for trying it, its browser check and the screen check on the JS OpenTUI) |
 | [web/](web/README.md) | The browser platform the page's workers are made of ([docs/browser-design.md](docs/browser-design.md)): the JS OpenTUI the client draws with in a page ([tui/](web/tui/), the prototype's), the page and its key form ([page/](web/page/)), the glyph fonts ([fonts/](web/fonts/)), the page host's parts ([server/](web/server/): its database in IndexedDB, the saves written behind, the rows pushed to a client, the moves it takes, the job loop, the tab's lock, the model's key) and the few Node modules the bundles still name ([node/](web/node/)) |
@@ -95,7 +95,7 @@ Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines,
 | `dist/` | Build output, never committed: the page's site (`dist/web`, `npm run build:web`) |
 | `runs/` | Run output, never committed: the stacks' data, keys and logs, the client's sessions, the live run's rehearsals, the CLI's config for building, the browser check's screens (`runs/web/`) |
 
-v2 doesn't import the prototype: what it needs of it is copied, and each copy's first line names its source at the commit it came from and the edits made. v2/ai is the one place the two share, and there the prototype imports v2.
+The game never imported the prototype, which is retired now ([docs/migration-log.md](docs/migration-log.md)): what it needed of it was copied, and each copy's first line names its source at the commit it came from and the edits made.
 
 ## Running it
 
@@ -110,7 +110,7 @@ v2 doesn't import the prototype: what it needs of it is copied, and each copy's 
 ### The stack
 
 ```sh
-cd v2 && npm ci
+npm ci
 npm run dev              # SpacetimeDB, the module, the AI service and the campaign, on real models
 npm run dev -- --fake    # the same on the fake model: no key, no cost
 ```
@@ -200,9 +200,9 @@ v2 also plays in a browser tab, with no server at all (V14: [docs/browser-design
 - **The server worker** is the page host ([hosts/web/page-host.ts](hosts/web/page-host.ts)): the simulation on the memory host, its tables kept in IndexedDB, and the AI service in the same worker, its stores kept there too. With a key, the model calls go from it straight to OpenRouter. The two speak the wire in [shared/protocol/port.ts](shared/protocol/port.ts): moves in, a snapshot of the rows and then each commit's changes out.
 
 ```sh
-cd v2 && npm ci
+npm ci
 npm run build:web      # dist/web: the page, its two workers and content.json (a second)
-npm run web:serve      # http://127.0.0.1:7311/kingmaker/pr-preview/pr-0/v2/, served as GitHub Pages serves a preview
+npm run web:serve      # http://127.0.0.1:7311/kingmaker/pr-preview/pr-0/play/, served as GitHub Pages serves a preview
 ```
 
 Each PR's preview carries it at `https://tatskaari.github.io/kingmaker/pr-preview/pr-<N>/v2/`, with the prototype's at `../play/` beside it.
@@ -227,7 +227,6 @@ The terminal client and the SpacetimeDB stack are unchanged: `Connection` is the
 | `npm run campaign -- check campaigns/caerwyn` | The campaign folder is fit to install | a second |
 | `npm run simulation:generate` | Regenerates `client/module_bindings` from the module: run it after any change to a table, reducer or view, and commit the result (CI checks) | seconds |
 
-At the repo root, the prototype's `npm run typecheck`, `npm test` and `npm run build:web` cover v2/ai and v2/shared too, since the prototype runs that code.
 
 ## The rules
 

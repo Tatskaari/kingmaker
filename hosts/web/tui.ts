@@ -7,17 +7,17 @@ import type { Plugin } from "esbuild";
  * Where web/tui stands in for OpenTUI in a bundle (browser-design §5): the page's client worker, and
  * the screen check run on the stand-in (hosts/web/screens.ts). The client imports @opentui/core and
  * @opentui/react, whose renderer is native Zig, so a bundle points them at web/tui, and OpenTUI's JSX
- * runtime at React's own. React, its reconciler and the scheduler come from v2/node_modules, where
+ * runtime at React's own. React, its reconciler and the scheduler come from the repo's node_modules, where
  * web/tui finds them as the client does (web/tui/imports.test.ts): one React in the bundle. And
  * web/tui/core.ts registers OpenTUI's ASCII fonts (the title's block letters) from a module the
  * bundle makes, read out of the installed @opentui/core.
  *
  *   build({ absWorkingDir: v2, alias: tuiAliases(v2), plugins: [tuiFonts(v2)], jsx: "automatic", jsxImportSource: "@opentui/react", … })
  *
- * An alias's target is found from the working directory, so the bundle is made from v2 (absWorkingDir).
+ * An alias's target is found from the working directory, so the bundle is made from the repo's root (absWorkingDir).
  */
 
-/** esbuild's aliases for a bundle of the client on the stand-in, from v2's folder. */
+/** esbuild's aliases for a bundle of the client on the stand-in, from the repo's root. */
 export function tuiAliases(v2: string): Record<string, string> {
   const tui = join(v2, "web", "tui");
   return {

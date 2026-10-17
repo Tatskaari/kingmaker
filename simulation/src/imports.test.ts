@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
 /**
- * The module's rules (v0-design §2.2): its code imports v2/shared, v2/vendor (the rules engine, its
+ * The module's rules (v0-design §2.2): its code imports shared/, vendor/ (the rules engine, its
  * pack and the SRD's spells: v1-design §3.6), spacetimedb and itself; only index.ts and schema.ts
  * load spacetimedb/server at run time (every other file takes it as types, so the memory host loads
  * them in Node); and it reads no clock and no outside randomness (time is tx.now, randomness the

@@ -7,11 +7,11 @@ import { parseArgs } from "node:util";
 
 /**
  * A plain static file server for dist/web, the way GitHub Pages serves it: files only, under a
- * path (/kingmaker/pr-preview/pr-0/v2/ by default, as a PR preview's v2 is), no headers of the game's
+ * path (/kingmaker/pr-preview/pr-0/play/ by default, as a PR preview's game is), no headers of the game's
  * own, and Pages' caching (any file may be kept for ten minutes, then asked about with
  * If-Modified-Since). For trying the page-only build locally and for its check (check.ts).
  *
- *   npm run web:serve [-- --port 7311] [--base /kingmaker/pr-preview/pr-0/v2/] [--dir dist/web]
+ *   npm run web:serve [-- --port 7311] [--base /kingmaker/pr-preview/pr-0/play/] [--dir dist/web]
  */
 
 const TYPES: Record<string, string> = {
@@ -21,7 +21,7 @@ const TYPES: Record<string, string> = {
   ".wasm": "application/wasm",
 };
 
-export const DEFAULT_BASE = "/kingmaker/pr-preview/pr-0/v2/";
+export const DEFAULT_BASE = "/kingmaker/pr-preview/pr-0/play/";
 
 export function serveStatic(root: string, base = DEFAULT_BASE, port = 0, host = "127.0.0.1"): Promise<{ server: Server; url: string; requests: string[] }> {
   const requests: string[] = [];

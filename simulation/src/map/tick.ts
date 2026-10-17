@@ -7,7 +7,7 @@ import type { PlaceRow } from "../rows.ts";
 import { exploreRowFrom, mapRowsOf, walkerOf, writeExplore } from "./rows.ts";
 
 /**
- * tick_place (v2/docs/town-design.md §3.5): the world's clock on a map's own place while its game's
+ * tick_place (docs/town-design.md §3.5): the world's clock on a map's own place while its game's
  * host is there, out of a scene, run by its place_tick row every 6 s (the scenes' own `tick`, so the
  * town and the scenes share one coding of fire). A tick runs the rounds due since place.tickedAt, one
  * each 6 s and ten at most, on the town's world (shared/map/town-world.ts) when anything in

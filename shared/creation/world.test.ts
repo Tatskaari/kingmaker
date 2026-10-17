@@ -8,7 +8,7 @@ import { canonPaths } from "./world.ts";
 /**
  * The lore a backstory is checked against (world.ts), on the campaign's own lore, with its
  * campaign.json `creation` block: the same docs the prototype's code chose with its regular
- * expressions, which are the reference here, copied from v2/ai/docs/backstory.ts at 44c6d4a.
+ * expressions, which are the reference here, copied from ai/docs/backstory.ts at 44c6d4a.
  */
 
 const CAMPAIGN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");

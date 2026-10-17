@@ -10,10 +10,10 @@ import type { ToolCall } from "./tools.ts";
  *   each scene at the first of them it has).
  * - The Responses API: JSON made to fit the schema asked for (the stage manager's operations, the
  *   quick co-GM), or one of `byName`'s by the schema's name; the lines a scene or a talk suggests
- *   (asked for in instructions that begin "You suggest what the player might": v2/ai/prompts/suggest.md,
+ *   (asked for in instructions that begin "You suggest what the player might": ai/prompts/suggest.md,
  *   src/runtime/talk.ts) from `suggestions`, in turn, none unless it's given (a talk's from
  *   `talkSuggestions` instead, when it's given: its lines are plain, a scene's have their kinds); the hand-off between
- *   two scenes (instructions that begin "You write the hand-off between two scenes": v2/ai/gm/boundary.ts)
+ *   two scenes (instructions that begin "You write the hand-off between two scenes": ai/gm/boundary.ts)
  *   from `handoff`, when it's given; otherwise the GM's next line from `replies`, streamed as
  *   OpenRouter streams it.
  *

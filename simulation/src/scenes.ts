@@ -59,7 +59,7 @@ export function sceneDefOf(tx: TxCtx, game: GameRow, sceneKey: string): SceneDef
 }
 
 /**
- * A talk's scene def (v2/docs/town-design.md §3.6), made as it's asked for, never kept: the
+ * A talk's scene def (docs/town-design.md §3.6), made as it's asked for, never kept: the
  * campaign's talk template (campaign.json's `talk` names its folder, installed as a scene def of that
  * key) filled for the companion (shared/scene/talk.ts talkSceneFile: their name, their id, the
  * farewell, and the statblock and weapon of their card in the scene they came from), its hook too.

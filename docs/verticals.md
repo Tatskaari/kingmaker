@@ -3,9 +3,9 @@
 The plan for the production build: the client, the simulation (a SpacetimeDB module) and a stateless AI service, built as a stack of vertical slices until v2 plays everything the prototype does, and then on to the design's target.
 
 - **Where it starts:** V0, a line in a scene, whose blueprint is [v0-design.md](v0-design.md). This plan agrees with it and says what comes after.
-- **The prototype** is read at `44c6d4a` ([ARCHITECTURE.md](../../ARCHITECTURE.md) is its map). It stays playable throughout; v2 copies from it and never imports it.
+- **The prototype** is read at `44c6d4a` ([ARCHITECTURE.md](prototype/ARCHITECTURE.md) is its map). It stays playable throughout; v2 copies from it and never imports it.
 - **The shared AI code** is [v2/ai](../ai/README.md) (the model client, the prompts and the docs service, from `claude/v2-ai-shared`), which the prototype already runs.
-- **The design** is the roadmap ([src/web/site/roadmap](../../src/web/site/roadmap/index.html)) and its long form, `content-server.md` (CS below). It sets the patterns, not the order.
+- **The design** is the roadmap ([src/web/site/roadmap](../web/site/roadmap/index.html)) and its long form, `content-server.md` (CS below). It sets the patterns, not the order.
 - **The research** behind this plan: `spacetime.md` (SpacetimeDB 2.12, measured), `gm-port.md` (the GM pipeline as endpoints), `content-world.md` (the campaign format and the world as rows), `client.md` (the client as a client of rows).
 - **Not in the repo:** `content-server.md` and the four research notes live in the author's scratchpad, so the references to them name a section rather than link.
 

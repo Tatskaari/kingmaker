@@ -236,7 +236,7 @@ function stackLog(paths: Paths, print?: (line: string) => void): StackLog {
   };
 }
 
-/** The OpenRouter key as v2/ai/llm reads it (OPENROUTER_API_KEY, else ~/secrets/kingmaker-dev-openrouter.txt). */
+/** The OpenRouter key as ai/llm reads it (OPENROUTER_API_KEY, else ~/secrets/kingmaker-dev-openrouter.txt). */
 function openRouterKey(): string {
   try {
     return apiKey();
@@ -262,7 +262,7 @@ async function clearLeftovers(previous: StackFile | undefined, root: string, say
   if (which("podman")) await run("podman", ["rm", "--force", containerName(root)]);
 }
 
-/** Is this pid a stack host (the dev host, the e2e) run from this v2/? */
+/** Is this pid a stack host (the dev host, the e2e) run from this checkout's root? */
 function isOurHost(pid: number): boolean {
   try {
     return processText(pid).includes("hosts/") && readlinkSync(`/proc/${pid}/cwd`) === V2;

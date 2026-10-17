@@ -22,7 +22,7 @@ import { install, streamArgsOf, streamInto } from "./in-process.ts";
  * service's identity. So the module's moves and job loop meet the service's pipeline end to end.
  * What joins the two touches no Node (in-process.ts), so the page's server worker joins them the same.
  *
- * The docs service has one lore root a process (v2/ai/README.md), which each local host's install
+ * The docs service has one lore root a process (ai/README.md), which each local host's install
  * points at its own store: play one local host at a time.
  */
 
