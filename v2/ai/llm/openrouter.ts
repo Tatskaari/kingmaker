@@ -91,14 +91,17 @@ export function modelOffline(): boolean {
   try { return !/^sk-or-/.test(apiKey()); } catch { return true; }
 }
 
-let logFile: string | undefined = process.env.KM_CALL_LOG;
+/** The process's environment, or none where there's no process (a browser's worker, which only ever calls with a context). */
+const env = (): Record<string, string | undefined> => globalThis.process?.env ?? {};
+
+let logFile: string | undefined = env().KM_CALL_LOG;
 /** Point model-call logging at a JSONL file (per session or eval run). */
 export function setCallLog(path: string | undefined): void {
   logFile = path;
   if (path) mkdirSync(dirname(path), { recursive: true });
 }
 
-const ledger = process.env.KM_COST_LEDGER ?? "runs/cost-ledger.jsonl";
+const ledger = env().KM_COST_LEDGER ?? "runs/cost-ledger.jsonl";
 /** The cost ledger: every call's cost, across games and evals (a report keeps its game's lines). */
 export const costLedger = () => ledger;
 let spent = 0;
@@ -146,7 +149,7 @@ export async function fetchWithRetry(url: string, init: RequestInit, label: stri
       const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1500 * 2 ** attempt;
       // Retries are routine: logged with the calls, never printed into play.
       logCall({ operation: label, retry: attempt + 1, status: response.status, delayMs: delay }, calls);
-      if (process.env.KM_DEBUG) process.stderr.write(`[${label}] HTTP ${response.status}, retrying in ${Math.round(delay / 1000)}s\n`);
+      if (env().KM_DEBUG) globalThis.process?.stderr?.write(`[${label}] HTTP ${response.status}, retrying in ${Math.round(delay / 1000)}s\n`);
       await sleep(delay);
       continue;
     }

@@ -1,5 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -217,6 +218,19 @@ test("a think is answered once by its key: the same POST again comes from the st
   assert.equal(again.headers["x-km-replayed"], "1");
   assert.equal(again.body, first.body);
   assert.deepEqual(ran, ["decide"]);
+});
+
+test("an answer kept under node:crypto's hash of its request is still found by Web Crypto's: the same hex", async () => {
+  const { ai, stores, ran } = service();
+  await ai.answer(put());
+  const request = post("/v1/turns/decide", decideRequest());
+  await stores.answers.put(decideRequest().key, { requestHash: createHash("sha256").update(request.body).digest("hex"), status: 200, body: '{"kept":true}', at: new Date().toISOString() });
+  const answer = await ai.answer(request);
+
+  assert.equal(answer.status, 200);
+  assert.equal(answer.headers["x-km-replayed"], "1");
+  assert.equal(answer.body, '{"kept":true}');
+  assert.deepEqual(ran, []);
 });
 
 test("a duplicate that comes while the first is still running joins it: one run, one answer", async () => {

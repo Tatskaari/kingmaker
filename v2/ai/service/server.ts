@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HEADERS, STEP_ENDPOINT, type AiError, type CampaignPut, type Endpoint, type Health } from "../../shared/protocol/ai.ts";
 import { isGameId, isTurnKey, keyParts, type CreationKeyParts, type CreationStep, type Step, type TurnKeyParts } from "../../shared/protocol/keys.ts";
@@ -115,7 +114,7 @@ export function aiService(options: ServiceOptions): AiService {
     const campaign = options.campaigns.use(body.game.campaign, body.game.version);
     const started = performance.now();
 
-    const answered = await byKey(key, sha256(request.body), () => run(THINKS[endpoint], parts, body, campaign, attempt, started));
+    const answered = await byKey(key, await sha256(request.body), () => run(THINKS[endpoint], parts, body, campaign, attempt, started));
 
     const took = answered.how === "ran" ? `in ${Math.round(performance.now() - started)} ms, ${answered.usage?.calls ?? 0} calls, $${(answered.usage?.costUsd ?? 0).toFixed(4)}` : HOW[answered.how];
     options.log(`[ai] ${step} ${key} attempt ${attempt}: 200 ${took}`);
@@ -213,7 +212,7 @@ export function aiService(options: ServiceOptions): AiService {
     async shutdown(graceMs = 10_000) {
       closing = true;
       const running = Promise.allSettled([...[...inFlight.values()].map(r => r.answer), ...unsent]);
-      await Promise.race([running, new Promise(resolve => setTimeout(resolve, graceMs).unref())]);
+      await Promise.race([running, new Promise(resolve => unref(setTimeout(resolve, graceMs)))]);
     },
   };
 }
@@ -290,7 +289,14 @@ async function servicePing(target: Omit<StreamTarget, "log">): Promise<string> {
   }
 }
 
-const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+/** A request's hash, as hex: Web Crypto's SHA-256, the same as node:crypto's, so answers kept before still match. */
+async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** A timer that doesn't keep the process up, where timers can (Node's); a browser's never do. */
+const unref = (timer: ReturnType<typeof setTimeout>) => (timer as { unref?: () => void }).unref?.();
 
 const json = (status: number, value: unknown): AiHttpResponse => ({ status, headers: { "content-type": "application/json" }, body: JSON.stringify(value) });
 
