@@ -86,11 +86,12 @@ export function targetTitle(scene: Scene, id: string): string {
   return exit ? `the scene ends: ${exit.title}` : id;
 }
 
-export function visitedBeats(state: Pick<GmState, "beat" | "path">): Set<string> {
-  return new Set([state.beat, ...state.path.map(p => p.from), ...state.path.map(p => p.to)]);
+/** The beats the scene has been at: its stage, every step of its path, and (M2) the nodes it has reached. */
+export function visitedBeats(state: Pick<GmState, "beat" | "path"> & Partial<Pick<GmState, "reached">>): Set<string> {
+  return new Set([state.beat, ...state.path.map(p => p.from), ...state.path.map(p => p.to), ...(state.reached ?? [])]);
 }
 
-export function presentCast(scene: Scene, state: Pick<GmState, "beat" | "path" | "entered" | "absent">): Character[] {
+export function presentCast(scene: Scene, state: Pick<GmState, "beat" | "path" | "entered" | "absent"> & Partial<Pick<GmState, "reached">>): Character[] {
   const visited = visitedBeats(state);
   return scene.cast.filter(c => state.entered?.includes(c.id) || (!state.absent?.includes(c.id) && (!c.enters || visited.has(c.enters))));
 }

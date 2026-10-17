@@ -212,14 +212,21 @@ const Guard = t.object("Guard", { cast: t.string(), stage: t.string(), turn: t.u
 const Confide = t.object("Confide", { note: t.string(), topic: t.string(), what: t.string(), memory: t.string() });
 /** A talk's own (shared/gm/state.ts TalkState, its `with` the companion): with whom, where and when, and what they might tell. */
 const TalkRow = t.object("TalkRow", { companion: t.string(), where: t.string(), confide: t.option(Confide) });
+/** A person's conversation role as the two-part GM's co-GM keeps it (shared/gm/state.ts TwoPartRole), by their cast id. */
+const TwoPartRole = t.object("TwoPartRole", { cast: t.string(), status: t.string(), mentalState: t.string(), conversationRole: t.string() });
+/** The co-GM's note for a turn (the turn it's for: -1 for the roles the opening gives everyone present, before it). */
+const TwoPartNote = t.object("TwoPartNote", { turn: t.i32(), text: t.string() });
+/** The two-part GM's own (shared/gm/state.ts TwoPartState): the roles, the notes, the stage it moved to since the last reply, and a wind-down held once. */
+const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.array(TwoPartNote), moved: t.option(t.string()), held: t.bool() });
 
 /**
  * The GM's bookkeeping for a scene, a column a field of shared/gm/state.ts's GmState (gmToRow and
  * gmFromRow map the two): V0's, then the co-GM's and the rulings (full-gm-design §4.2), then what the
  * rules in a scene leave hanging and who's away (world-bridge-design §3.3), then what the boundary
- * handed on (story-design §4.1), then a talk's staged secrets and its own (town-design §3.1), each
- * with a default, so a scene from before them reads as one with none yet; the world bridge's before
- * the story's, as they stack, so a database of either migrates. `entered` has no column yet.
+ * handed on (story-design §4.1), then a talk's staged secrets and its own (town-design §3.1), then the
+ * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
+ * default, so a scene from before them reads as one with none yet; the world bridge's before the
+ * story's, as they stack, so a database of either migrates. `entered` has no column yet.
  */
 export const gmState = table({ name: "gm_state" }, {
   sceneId: t.u64().primaryKey(),
@@ -280,6 +287,10 @@ export const gmState = table({ name: "gm_state" }, {
   withheld: t.array(t.string()).default([]),
   /** A talk's own: none in a scene of the story. */
   talk: t.option(TalkRow).default(undefined),
+  /** The nodes the scene has reached, in order, its start first (shared/scene/beats.ts). None in a scene from before M2: its beat stands for them. */
+  reached: t.array(t.string()).default([]),
+  /** The two-part GM's: each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. None in a scene from before M2: nothing yet. */
+  twoPart: t.option(TwoPart).default(undefined),
 });
 
 /**
@@ -727,7 +738,7 @@ export const sceneDef = table({ name: "scene_def" }, {
   key: t.string(),
   title: t.string(),
   hook: t.string(),
-  /** scene.json whole: structure and its short logic text; no Markdown. */
+  /** The scene's .kmscene file whole (shared/scene/document.ts SceneDocument): its structure and its words. */
   json: t.string(),
 });
 

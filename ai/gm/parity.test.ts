@@ -365,6 +365,8 @@ function gmOf(s: Session): GmState {
     ...(s.sceneStatus ? { sceneStatus: s.sceneStatus } : {}), oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [], ...(s.repeated ? { repeated: s.repeated } : {}),
     canon: s.canon, patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], notes: s.notes, whispers: s.whispers ?? [],
     notesTurn: null, rulings: [], adjustments: [], owed: [], fought: [],
+    // (The prototype's session has no nodes reached nor a two-part GM: its beat stands for them.)
+    reached: [s.beat], twoPart: { roles: {}, notes: [] },
   };
 }
 

@@ -366,6 +366,10 @@ export const GmState = __t.object("GmState", {
   get talk() {
     return __t.option(TalkRow);
   },
+  reached: __t.array(__t.string()),
+  get twoPart() {
+    return __t.option(TwoPart);
+  },
 });
 export type GmState = __Infer<typeof GmState>;
 
@@ -956,6 +960,32 @@ export const Turn = __t.object("Turn", {
   mechanic: __t.option(__t.string()),
 });
 export type Turn = __Infer<typeof Turn>;
+
+export const TwoPart = __t.object("TwoPart", {
+  get roles() {
+    return __t.array(TwoPartRole);
+  },
+  get notes() {
+    return __t.array(TwoPartNote);
+  },
+  moved: __t.option(__t.string()),
+  held: __t.bool(),
+});
+export type TwoPart = __Infer<typeof TwoPart>;
+
+export const TwoPartNote = __t.object("TwoPartNote", {
+  turn: __t.i32(),
+  text: __t.string(),
+});
+export type TwoPartNote = __Infer<typeof TwoPartNote>;
+
+export const TwoPartRole = __t.object("TwoPartRole", {
+  cast: __t.string(),
+  status: __t.string(),
+  mentalState: __t.string(),
+  conversationRole: __t.string(),
+});
+export type TwoPartRole = __Infer<typeof TwoPartRole>;
 
 export const WeaponRef = __t.object("WeaponRef", {
   id: __t.string(),

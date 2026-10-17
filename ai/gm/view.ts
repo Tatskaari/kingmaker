@@ -1,6 +1,6 @@
 import type { Backstory } from "../docs/types.ts";
 import type { RulingRecord } from "../../shared/gm/consider.ts";
-import type { GmState, GuardStage, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord } from "../../shared/gm/state.ts";
+import type { GmState, GuardStage, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord, TwoPartState } from "../../shared/gm/state.ts";
 import type { MarkLink, Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
@@ -50,6 +50,8 @@ export interface TurnView {
 
   // The GM's bookkeeping (GmState), as the simulation keeps it.
   beat: string;
+  /** The nodes the scene has reached, in order, its start first (shared/scene/beats.ts). */
+  reached: string[];
   turnsInBeat: number;
   path: PathStep[];
   established: string[];
@@ -97,6 +99,8 @@ export interface TurnView {
   talks?: Record<string, TalkRecord>;
   /** The lines offered last in this scene (only their words are read: none of them again). */
   suggestions?: { scene: string; turn: number; lines: Array<{ kind?: string; text: string }> };
+  /** The two-part GM's (docs/two-part-design.md): each person's role, the co-GM's notes by turn, the stage it moved to, a wind-down held once. */
+  twoPart: TwoPartState;
 
   /** The scene's entries as the prototype has them: the player's lines are "player"'s, the markup is `marked`. */
   transcript: ViewEntry[];
@@ -160,7 +164,9 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
   const view: TurnView = {
     id: source.game, sceneId: source.scene.key, turn: source.scene.turn,
     player: playerOf(sheet),
-    beat: gm.beat, turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
+    // (A request a job stored before M2 has no nodes reached nor a two-part GM: its beat stands for them.)
+    beat: gm.beat, reached: gm.reached?.length ? gm.reached : [gm.beat], twoPart: gm.twoPart ?? { roles: {}, notes: [] },
+    turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
     memory: { opened: gm.opened, ...(gm.withheld?.length ? { withheld: gm.withheld } : {}) },
     ...(gm.endingLead ? { endingLead: gm.endingLead } : {}), ...(gm.pendingExit ? { pendingExit: gm.pendingExit } : {}),
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}), ...(gm.sceneStatus ? { sceneStatus: gm.sceneStatus } : {}),

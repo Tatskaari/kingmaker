@@ -13,7 +13,10 @@ import type { RulingRecord } from "./consider.ts";
  * reads this unchanged.
  */
 export interface GmState {
+  /** Where the scene is: its stage (shared/scene/beats.ts stageOf), the latest it reached of its start and its events. */
   beat: string;
+  /** The nodes the scene has reached, in order: its start first, then each beat and ending a route took it to (beats.ts takeRoute). */
+  reached: string[];
   turnsInBeat: number;
   path: PathStep[];
   /** The facts settled so far, as their sentences (content-world A7). */
@@ -87,6 +90,24 @@ export interface GmState {
   withheld?: string[];
   /** A talk's own: with whom (their cast id), where and when, and the one thing they might open up about this time. */
   talk?: TalkState;
+  // The two-part GM's (docs/two-part-design.md): what its co-GM keeps between turns.
+  /** Each person's role as the co-GM last set it, the co-GM's notes for the turns after it, the stage it last moved the scene to (the next reply shows it), and a wind-down held once. */
+  twoPart: TwoPartState;
+}
+
+/** A person's conversation role as the two-part GM's co-GM keeps it (its update_character_role's fields). */
+export interface TwoPartRole { status: string; mental_state: string; conversation_role: string }
+
+/**
+ * The two-part GM's own (docs/two-part-design.md "Where the scene is"): each person's role by cast id,
+ * the co-GM's note for each turn (`turn`: the one it's for), the stage the scene moved to since the
+ * last reply (shown "seen arriving" in the next), and whether the wind-down has waited once.
+ */
+export interface TwoPartState {
+  roles: Record<string, TwoPartRole>;
+  notes: Array<{ turn: number; text: string }>;
+  moved?: string;
+  held?: boolean;
 }
 
 /** How far someone has opened up about what they're keeping back (staged secrets), in order: it never goes back (director.ts:1220). */
@@ -141,13 +162,14 @@ export interface ScenePatch {
   why: string;
 }
 
-/** A scene's bookkeeping as it opens: its first beat, nothing else yet. */
+/** A scene's bookkeeping as it opens: its start reached and its stage, nothing else yet. */
 export function initialGm(scene: Pick<Scene, "start">): GmState {
   return {
-    beat: scene.start, turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
+    beat: scene.start, reached: [scene.start], turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
     oocTurns: [], pressureOffered: [],
     canon: [], patches: [], notes: null, notesTurn: null, whispers: [], rulings: [],
     adjustments: [], owed: [], fought: [], absent: [], entered: [],
+    twoPart: { roles: {}, notes: [] },
   };
 }
 
@@ -198,6 +220,17 @@ export interface GmRow {
   withheld: string[];
   /** TalkState, `with` as `companion`; confide an empty option when there's none. */
   talk: { companion: string; where: string; confide: Confide | undefined } | undefined;
+  /** The nodes reached, in order: empty in a row from before them, read as the stage alone. */
+  reached: string[];
+  /** TwoPartState: the roles a row a person, moved an empty option; none in a row from before M2. */
+  twoPart: TwoPartRow | undefined;
+}
+
+export interface TwoPartRow {
+  roles: Array<{ cast: string; status: string; mentalState: string; conversationRole: string }>;
+  notes: Array<{ turn: number; text: string }>;
+  moved: string | undefined;
+  held: boolean;
 }
 
 /** kind: attack (by), hazard (hazard and severity: glancing, serious). */
@@ -245,6 +278,13 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     guard: Object.entries(gm.guard ?? {}).map(([cast, g]) => ({ cast, stage: g.stage, turn: g.turn })),
     withheld: [...(gm.withheld ?? [])],
     talk: gm.talk ? { companion: gm.talk.with, where: gm.talk.where, confide: gm.talk.confide ? { ...gm.talk.confide } : undefined } : undefined,
+    reached: [...gm.reached],
+    twoPart: {
+      roles: Object.entries(gm.twoPart.roles).map(([cast, r]) => ({ cast, status: r.status, mentalState: r.mental_state, conversationRole: r.conversation_role })),
+      notes: gm.twoPart.notes.map(({ turn, text }) => ({ turn, text })),
+      moved: gm.twoPart.moved,
+      held: !!gm.twoPart.held,
+    },
   };
 }
 
@@ -284,6 +324,20 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.guard?.length ? { guard: Object.fromEntries(row.guard.map(g => [g.cast, { stage: g.stage as GuardStage, turn: g.turn }])) } : {}),
     ...(row.withheld?.length ? { withheld: [...row.withheld] } : {}),
     ...(row.talk ? { talk: { with: row.talk.companion, where: row.talk.where, ...(row.talk.confide ? { confide: { ...row.talk.confide } } : {}) } } : {}),
+    // A row from before M2 has no nodes reached: its stage stands for them.
+    reached: row.reached?.length ? [...row.reached] : [row.beat],
+    twoPart: twoPartOf(row.twoPart),
+  };
+}
+
+/** The two-part GM's state from its column (none in a row from before it: nothing yet). */
+function twoPartOf(row: TwoPartRow | undefined): TwoPartState {
+  if (!row) return { roles: {}, notes: [] };
+  return {
+    roles: Object.fromEntries(row.roles.map(r => [r.cast, { status: r.status, mental_state: r.mentalState, conversation_role: r.conversationRole }])),
+    notes: row.notes.map(({ turn, text }) => ({ turn, text })),
+    ...(row.moved !== undefined ? { moved: row.moved } : {}),
+    ...(row.held ? { held: true } : {}),
   };
 }
 

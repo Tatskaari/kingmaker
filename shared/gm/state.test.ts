@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { rng, rollCheck } from "../dice.ts";
-import { gmFromRow, gmToRow, initialGm, type GmState } from "./state.ts";
+import { gmFromRow, gmToRow, initialGm, type GmRow, type GmState } from "./state.ts";
 
 const roll = rollCheck(rng(3), "persuasion", 12, 1);
 
@@ -51,6 +51,12 @@ const busy: GmState = {
   guard: { kell: { stage: "stirred", turn: 3 } },
   withheld: ["Cast/Kell/Notes/The door at the Drowned Rat.md"],
   talk: { with: "kell", where: "Granary Street in Caerwyn, evening", confide: { note: "Cast/Kell/Notes/Her brother.md", topic: "her brother in the river watch", what: "Her brother drowned on duty.", memory: "I told Wren about my brother." } },
+  reached: ["yard", "murder", "doubt"],
+  twoPart: {
+    roles: { kell: { status: "watching the boy", mental_state: "patient, for now", conversation_role: "Characterise: brief and dry." }, cob: { status: "", mental_state: "", conversation_role: "Stones and cheek." } },
+    notes: [{ turn: -1, text: "Co-GM note, before the opening" }, { turn: 2, text: "Co-GM note, before turn 2" }],
+    moved: "doubt", held: true,
+  },
 };
 
 test("a scene's bookkeeping goes to its gm_state row and back exactly", () => {
@@ -116,6 +122,26 @@ test("a row from before the town's columns (their defaults) reads as a scene tha
   assert.ok(!("guard" in gm) && !("withheld" in gm) && !("talk" in gm));
   assert.deepEqual(gm.absent, busy.absent);
   assert.deepEqual(gmToRow(1n, { ...busy, talk: { with: "kell", where: "the lane" } }).talk, { companion: "kell", where: "the lane", confide: undefined });
+});
+
+test("a scene's bookkeeping as it opens: its start reached and its stage, nobody's role yet; the two-part GM's to its row and back", () => {
+  const gm = initialGm({ start: "start" });
+  assert.deepEqual([gm.beat, gm.reached, gm.twoPart], ["start", ["start"], { roles: {}, notes: [] }]);
+
+  const row = gmToRow(7n, busy);
+  assert.deepEqual(row.reached, ["yard", "murder", "doubt"]);
+  assert.deepEqual(row.twoPart, {
+    roles: [{ cast: "kell", status: "watching the boy", mentalState: "patient, for now", conversationRole: "Characterise: brief and dry." }, { cast: "cob", status: "", mentalState: "", conversationRole: "Stones and cheek." }],
+    notes: [{ turn: -1, text: "Co-GM note, before the opening" }, { turn: 2, text: "Co-GM note, before turn 2" }], moved: "doubt", held: true,
+  });
+  assert.deepEqual(gmToRow(7n, gm).twoPart, { roles: [], notes: [], moved: undefined, held: false });
+});
+
+test("a row from before M2's columns (their defaults) reads as a scene at its stage with no two-part GM yet", () => {
+  const gm = gmFromRow({ ...gmToRow(1n, busy), reached: [], twoPart: { roles: [], notes: [], moved: undefined, held: false } });
+  assert.deepEqual([gm.reached, gm.twoPart], [["doubt"], { roles: {}, notes: [] }]);
+  const { reached: _r, twoPart: _t, ...older } = gmToRow(1n, busy);
+  assert.deepEqual(gmFromRow(older as GmRow).twoPart, { roles: {}, notes: [] }, "the dev tools' SQL on an older module: no column at all");
 });
 
 test("who came on by a route has no column yet: writing it is an error, not a loss; the cast who are away have theirs", () => {

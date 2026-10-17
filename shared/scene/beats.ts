@@ -1,0 +1,144 @@
+// New (M2): where a scene of the scene format is (docs/scene-format.md "What it means in play", docs/two-part-design.md "Where the scene is").
+import type { GmState } from "../gm/state.ts";
+import type { Beat, Character, Exit, Scene, SceneRoute } from "./types.ts";
+
+/**
+ * Where the scene is, as pure functions of the scene (load.ts sceneOf) and the GM's bookkeeping:
+ * the nodes it has reached (its start, then each a route took it to), its stage, the discoveries
+ * still to make, the routes open now, and a route taken. The simulation's commits and the AI
+ * service's answers to the co-GM's moves run the same code, so the two always agree; each takes the
+ * state it's handed and returns a new one, never changing what it was given.
+ */
+
+/** How a move came out: a dice route's success or failure; none for a route with no dice. */
+export type RouteOutcome = "success" | "failure" | "none";
+
+/** What the bookkeeping these read: the nodes reached, and the stage (which stands for them in a state from before them). */
+type Where = Pick<GmState, "reached" | "beat">;
+
+/** The nodes the scene has reached, in order, its start first. A state with none (from before M2) has its stage alone. */
+export function reachedOf(gm: Where): string[] {
+  return gm.reached?.length ? gm.reached : [gm.beat];
+}
+
+/** A discovery: a beat with a revelation, something the player can come to understand. */
+export const isDiscovery = (beat: Beat) => beat.revelation !== undefined;
+
+/** An event: a beat that's neither the start nor a discovery, a turn the scene takes. */
+export const isEvent = (scene: Pick<Scene, "start">, beat: Beat) => beat.id !== scene.start && !isDiscovery(beat);
+
+/** The stage: the latest reached of the start and the event beats. Its cast notes are the suggested roles, its pressure what the world does when the scene stalls. */
+export function stageOf(scene: Scene, gm: Where): Beat {
+  const reached = reachedOf(gm);
+  for (let i = reached.length - 1; i >= 0; i--) {
+    const beat = scene.beats.find(b => b.id === reached[i]);
+    if (beat && !isDiscovery(beat)) return beat;
+  }
+  const start = scene.beats.find(b => b.id === scene.start);
+  if (!start) throw new Error(`Scene ${scene.id}: its start ${scene.start} isn't one of its beats`);
+  return start;
+}
+
+/** The targets: the discoveries not yet reached, each with its paths, which the GM steers towards through the people's roles. */
+export function targetsOf(scene: Scene, gm: Where): Beat[] {
+  const reached = new Set(reachedOf(gm));
+  return scene.beats.filter(b => isDiscovery(b) && !reached.has(b.id));
+}
+
+/** The ending the scene has reached, if it has: it closes on the next reply (which may wait once). */
+export function endingOf(scene: Scene, gm: Where): Exit | undefined {
+  const reached = new Set(reachedOf(gm));
+  return scene.exits.find(e => reached.has(e.id));
+}
+
+/**
+ * The open routes: those whose source is reached, whose target isn't, and every beat of whose
+ * `requires` is. The start is always reached, so its routes are open all scene long. Once an ending
+ * is reached, nothing is: the scene is closing.
+ */
+export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
+  if (endingOf(scene, gm)) return [];
+  const reached = new Set(reachedOf(gm));
+  return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && (r.requires ?? []).every(b => reached.has(b)));
+}
+
+/** Who arrives when the scene reaches a node: the cast whose `enters` it is (an event beat's people). */
+export function enteringAt(scene: Pick<Scene, "cast">, node: string): Character[] {
+  return scene.cast.filter(c => c.enters === node);
+}
+
+/** A move made (`reached`: the node it took the scene to, none when a check failed with nowhere to go), or why it can't be made. */
+export type Taken = { gm: GmState; reached?: string } | { error: string };
+
+/**
+ * A route taken, as the co-GM's move_scene asks it (`turn`: the turn whose reply it follows). It must
+ * be open. A route with dice is taken on its check's outcome: success to its target, failure to its
+ * `onFailure`, or nowhere (the scene stays where it is); it refuses `none`. One without dice is taken
+ * with `none` (or `success`), and refuses `failure`: then it hasn't happened. Taking it:
+ * - adds the node it goes to to the nodes reached;
+ * - settles the route's facts (on a success) and the node's, as their sentences, and marks a beat
+ *   the rest of the story needs (`carry`) as come across (`landed`: it's owed no more);
+ * - moves the stage to an event beat (its arrivals are enteringAt's);
+ * - sets `closing` for an ending.
+ * Each move is a step on the path, from the stage. The error names the open routes.
+ */
+export function takeRoute(scene: Scene, gm: GmState, routeId: string, outcome: RouteOutcome, turn: number): Taken {
+  const ending = endingOf(scene, gm);
+  if (ending) return { error: `The scene has reached its ending, ${ending.title} [${ending.id}]: it closes on the next reply, and no route is open.` };
+  const open = openRoutes(scene, gm);
+  const route = scene.routes.find(r => r.id === routeId);
+  if (!route) return { error: `There's no route [${routeId}] in this scene. ${openList(scene, open)}` };
+  if (!open.includes(route)) return { error: `[${route.id}] isn't open: ${whyShut(scene, gm, route)}. ${openList(scene, open)}` };
+  if (route.skill && outcome === "none") return { error: `[${route.id}] is decided by dice (${route.skill} DC ${route.dc}): move it on the check's outcome, success or failure.` };
+  if (!route.skill && outcome === "failure") return { error: `[${route.id}] has no dice: take it (outcome none) once it has happened, or leave it.` };
+
+  const next: GmState = { ...gm, reached: [...reachedOf(gm)], established: [...gm.established], landed: [...gm.landed], path: [...gm.path] };
+  const from = stageOf(scene, gm).id;
+  const known = gm.established.length;
+  const failed = outcome === "failure";
+  const to = failed ? route.onFailure : route.target;
+  if (!to || next.reached.includes(to)) {
+    next.path.push({ turn, from, to: from, via: route.id, source: "post", known });
+    return { gm: next };
+  }
+  if (!failed) settle(scene, next, route.establishes);
+  next.reached.push(to);
+  const beat = scene.beats.find(b => b.id === to);
+  if (beat) {
+    settle(scene, next, beat.establishes);
+    if (beat.carry && !next.landed.includes(beat.id)) next.landed.push(beat.id);
+    if (isEvent(scene, beat)) { next.beat = beat.id; next.turnsInBeat = 0; }
+  } else if (scene.exits.some(e => e.id === to)) {
+    next.closing = { exitId: to, turn };
+  }
+  next.path.push({ turn, from, to, via: route.id, source: "post", known });
+  return { gm: next, reached: to };
+}
+
+/** Facts settled, as the sentences the GM is told (the scene's `facts`), each once. */
+function settle(scene: Scene, gm: GmState, facts: string[] | undefined): void {
+  for (const id of facts ?? []) {
+    const sentence = scene.facts?.[id] ?? id;
+    if (!gm.established.includes(sentence)) gm.established.push(sentence);
+  }
+}
+
+/** A node's title, by its id. */
+function titleOf(scene: Scene, id: string): string {
+  return scene.beats.find(b => b.id === id)?.title ?? scene.exits.find(e => e.id === id)?.title ?? id;
+}
+
+/** Why a route isn't open: its source not reached, its target reached already, or what it requires not reached yet. */
+function whyShut(scene: Scene, gm: Where, route: SceneRoute): string {
+  const reached = new Set(reachedOf(gm));
+  if (!reached.has(route.source)) return `it leaves from ${titleOf(scene, route.source)} [${route.source}], which the scene hasn't reached`;
+  if (reached.has(route.target)) return `it goes to ${titleOf(scene, route.target)} [${route.target}], which the scene has reached already`;
+  const missing = (route.requires ?? []).filter(b => !reached.has(b));
+  return `it requires ${missing.map(b => `${titleOf(scene, b)} [${b}]`).join(" and ")}, not reached yet`;
+}
+
+/** The open routes in a line: each with its name, where it goes, and its dice or that it's a cue. */
+function openList(scene: Scene, open: SceneRoute[]): string {
+  if (!open.length) return "No route is open.";
+  return `The open routes: ${open.map(r => `[${r.id}] ${r.label} (to ${titleOf(scene, r.target)}${r.skill ? `; ${r.skill} DC ${r.dc}` : ""}${r.phase === "cue" ? "; a cue" : ""})`).join("; ")}.`;
+}

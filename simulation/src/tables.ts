@@ -47,7 +47,7 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   admin: { primaryKey: "identity" },
 
   scene: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
-  gmState: { primaryKey: "sceneId", defaults: { canon: [], patches: "[]", whispers: [], rulings: [], absent: [], adjustments: [], owed: [], fought: [], guard: [], withheld: [] } },
+  gmState: { primaryKey: "sceneId", defaults: { canon: [], patches: "[]", whispers: [], rulings: [], absent: [], adjustments: [], owed: [], fought: [], guard: [], withheld: [], reached: [] } },
   onStage: { primaryKey: "entityId", indexes: ["sceneId"], public: true },
   turn: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true, defaults: { notes: "none", suggest: "none", suggestAsks: 0 } },
   transcript: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true },
