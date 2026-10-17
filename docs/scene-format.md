@@ -261,7 +261,7 @@ interface Route {
 
 ## What it means in play
 
-- **Reached.** The scene keeps the set of nodes it has reached. The start is reached as the scene opens.
+- **Reached.** The scene keeps the set of nodes it has reached, in order. The start is reached as the scene opens.
   - A discovery is reached when the co-GM takes a route into it, which happens when its revelation has landed with the player.
   - An event beat is reached when the co-GM takes a route into it. It becomes the scene's **stage**, and its people arrive (`enters`).
   - An ending is reached when the co-GM takes a route into it. The scene closes on the next reply, which may wait once if the player has just started something the ending has to answer.
@@ -270,21 +270,28 @@ interface Route {
   - its target isn't;
   - every beat in its `requires` is.
 
-  The start is always reached, so its routes are open all scene long. That's how discoveries happen in any order, and how a last-resort ending stays available.
+  The start is always reached, so its routes are open all scene long. That's how discoveries happen in any order, and how a last-resort ending stays available. Once an ending is reached, nothing is open: the scene is closing.
+- **Taking a route.** A route with dice is taken on its check's outcome: a success goes to its target, a failure to its `onFailure` or nowhere (the scene stays where it is, and the route stays open to try again). A route without dice can't fail: it's taken once its condition has happened.
 - **The stage.** The latest reached of the start and the event beats. Its `cast` notes are the co-GM's suggested roles, and its `pressure` is what the world does when the scene stalls.
 - **The targets.** The discoveries not yet reached, each with its paths. The GM steers towards them through the people's roles.
-- **Facts.** A reached beat's and a taken route's `establishes` are settled. The GM is told their sentences, and the endings' effects test them.
-- **Carried beats.** A beat with `carry` that the scene ends without is owed to the player by the story, as the campaign's essentials were before.
+- **Facts.** A reached beat's and a taken route's `establishes` are settled (a dice route's on a success). The GM is told their sentences, and the endings' effects test them.
+- **Carried beats.** A beat with `carry` that the scene ends without is owed to the player by the story, as the campaign's essentials were before. One the scene reaches is owed no more.
+
+The game's code for this is shared by the simulation and the AI service: [shared/scene/document.ts](../shared/scene/document.ts) parses a file (its shape and what it refers to; the install refuses a file that isn't one), [load.ts](../shared/scene/load.ts) makes the runtime's Scene from it, and [beats.ts](../shared/scene/beats.ts) has the semantics above (`reachedOf`, `stageOf`, `targetsOf`, `openRoutes`, `takeRoute`).
 
 ## Rules the campaign check enforces
 
-- Ids are slugs (`[a-z0-9][a-z0-9-]*`) and unique within the scene (nodes and routes separately). There's exactly one start.
-- Every edge's source and target exist. No route leaves an ending. Every `requires` names a beat.
-- Every beat and ending can be reached from the start. Every scene has at least one `good` or `mixed` ending, reachable without any `bad` one.
-- A discovery has a `revelation` and at least two paths. A `required` one has at least three paths, at least one with no check.
-- The routes into a discovery are open from the start or from a beat, so a revelation is never locked behind one roll.
-- Endings that need evidence say so in `requires`, not only in prose.
-- Every `enters`, `via` that names a cast id, `cast` note key and `onFailure` target exists.
+`npm run campaign -- check campaigns/<campaign>` ([campaigns/README.md](../campaigns/README.md)) holds each scene to these, once its file has the shape above:
+
+- Ids are slugs (`[a-z0-9][a-z0-9-]*`) and unique within the scene (nodes and routes separately; the cast's too, but the talk template's `{companion}`). The scene's id is its file's name. There's exactly one start.
+- The prose is there: a title, description, hook, setting, premise and truth (an interlude needs no premise or truth); each person's name, look, voice, wants, whyHere and attitude; each node's title and description; each ending's closing. Every lore path (the scene's, its fronts, its people's, its nodes') is in the campaign's `lore/`.
+- Every edge's source and target exist. No route leaves an ending. Every `requires` names a beat. Only a route into a discovery may have an empty condition.
+- Every beat and ending can be reached from the start, a route opening once its source and everything it requires are reached. Every scene but the talk template has a `good` or `mixed` ending among them (no route leaves a `bad` one, so it's reached without one).
+- A discovery has a `revelation` and at least two paths, each with a `via`, a `clue` and an `earn`; a `via` of one word names a cast id. A `required` one has at least three paths, at least one with no check. A beat with paths has a revelation.
+- A revelation is never locked behind one roll: at least one route into each discovery has no dice.
+- Endings that need evidence say so in `requires`, not only in prose: in a scene with a `required` discovery, every route into a `good` ending requires at least one beat, and each required discovery is required by at least one of them.
+- Every `enters` names an event beat, every `cast` note is for someone in the cast, and every `onFailure` names a node.
 - An ending with `next` names a scene of the campaign.
-- Effects only use the ops the story knows (quest, flag, attitude, remember, journal, follow, promise, startFight, and the world's ops), and their `if`/`unless` name facts. A combat ending's `startFight` is recorded for when fights are built: keep it.
-- The talk template (`kind: "scene"` with `companion`) is checked by the talk's own rules.
+- A beat's carried `things` are things of its place, or carried by another scene of the campaign (Prout's page comes into the Rat in Cob's boot).
+- Effects only use the ops the story knows (quest, flag, attitude, remember, journal, follow, promise, startFight, and the world's ops), their `if`/`unless` name facts, and the people, quests and things they name exist (the cast, campaign.json's quests, the place's areas and things, and what the story carries between scenes). A combat ending's `startFight` is recorded for when fights are built: keep it.
+- The talk template (`kind: "scene"` with `companion`) is checked by the talk's own rules: its `companion` is `{companion}` and its first cast entry the companion's (`{companion}`, named `{name}`); it has an event beat `told` and an ending `goodbye`, and no place; and everyone the story has walk with the player has a lore entry to talk from. In the game, a talk's ways into `goodbye` are the player's attempt, judged before the reply from either beat, and its way into `told` is the talk's own, worded for each talk from what it may bring out: the template's route there stands for it in the file.

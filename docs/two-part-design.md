@@ -32,18 +32,18 @@ For the co-GM, also add each person's role palette (characterise, inconsistency,
 
 ## Where the scene is (per turn)
 
-Shared pure functions in `shared/scene/` work on the scene and `GmState`. Both sides use the same code, so the AI service's answers to the co-GM's tool calls and the simulation's commits always agree:
+Shared pure functions in `shared/scene/beats.ts` work on the scene and `GmState`. Both sides use the same code, so the AI service's answers to the co-GM's tool calls and the simulation's commits always agree:
 - `reachedOf(gm)`;
 - `stageOf(scene, gm)`: the latest reached of the start and the event beats;
 - `targetsOf(scene, gm)`: the unreached discoveries;
 - `openRoutes(scene, gm)`: the source reached, the target not, and every `requires` reached;
-- `takeRoute(scene, gm, routeId, outcome)`. It returns the new state, or an error naming the open routes. It does four things:
+- `takeRoute(scene, gm, routeId, outcome, turn)` (`turn`: the one whose reply the move follows, for `closing` and the path). It returns the new state, or an error naming the open routes. It does four things:
   - adds the target to the reached set;
   - settles the beat's and the route's `establishes`;
   - moves the stage for an event beat;
   - for an ending, sets `closing`.
 
-  A dice route refuses outcome `none`, and its failure goes to `onFailure` or stays where it is.
+  A dice route refuses outcome `none`, and its failure goes to `onFailure` or stays where it is; a route without dice refuses `failure`. It also marks a carried beat reached as landed (the boundary owes it no more), steps the path, and refuses everything once an ending is reached. `enteringAt(scene, node)` is who an event brings on.
 
 The new `GmState` fields (sent whole to the AI service, as now):
 - `reached: string[]`: the start, plus each node reached, in order.

@@ -74,6 +74,8 @@ To regenerate the examples from another checkout:
 node scripts/import-hanged-clerk.mjs ../../campaigns/caerwyn
 ```
 
+The importer reads the campaign's scene folders (`scenes/hanged-clerk/scene.json` and its Markdown), which M2 replaced with one `.kmscene` file a scene, the format this plugin edits ([docs/scene-format.md](../../docs/scene-format.md)): run it against a checkout from before M2's switch (`git log -- campaigns/caerwyn/scenes/hanged-clerk/scene.json` finds the last commit that had them).
+
 The rest of the Caerwyn arc was authored in the prototype's `scenes/*.ts`, which went with it: they're in git history at `bc2ab1f` (the game's campaign has those scenes too, converted to its own format). The importer reads them from a checkout that has them, with Node 26 (or a Node version that supports TypeScript type stripping); `git worktree add --detach <folder> bc2ab1f` makes one, and the tests take them out of history themselves ([tests/prototype-game.mjs](tests/prototype-game.mjs)):
 
 ```sh

@@ -46,4 +46,4 @@ Write for both. The format is [scene-format.md](scene-format.md); the hanged cle
 
 ## Checking it
 
-`npm run campaign -- check campaigns/caerwyn` enforces the format's rules: reachability, the three-clue rule for required discoveries, `requires`, ids and effects. Then play it: `npm run dev`, then `npm run play` or the page.
+`npm run campaign -- check campaigns/caerwyn` enforces the format's rules: reachability, the three-clue rule for required discoveries, `requires`, ids and effects ([campaigns/README.md](../campaigns/README.md) says how to write and check one). Then play it: `npm run dev`, then `npm run play` or the page.
