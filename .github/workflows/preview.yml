@@ -13,10 +13,14 @@ concurrency:
 
 jobs:
   build:
+    # The site as Pages publishes it (npm run build:site, hosts/web/build-site.ts): the pitch, the roadmap,
+    # and the game at play/, the page with no server (the simulation and the AI service in a Web Worker
+    # over IndexedDB; the player's own OpenRouter key, or the fake GM).
     if: >-
       github.event.action != 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,56 +30,18 @@ jobs:
         with:
           node-version: 26.9.0
           cache: npm
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm run build:web
+      - run: npm run build:site
       - uses: actions/upload-artifact@v4
         with:
           name: pr-preview
-          path: dist/web
-          if-no-files-found: error
-          retention-days: 1
-
-  build-v2:
-    # v2's page-only build (V14, v2/docs/browser-design.md): the page, its client and server workers, the
-    # saves in IndexedDB, the player's own key or the fake GM. Published at /v2/ in this PR's preview,
-    # beside the prototype's play/. A PR without v2's build (no build:web script in v2/) skips it. A job of
-    # its own, so a broken v2 build can't take the prototype's preview down.
-    if: >-
-      github.event.action != 'closed' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      built: ${{ steps.has.outputs.built }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      - id: has
-        run: |
-          if [ -f v2/package.json ] && grep -q '"build:web"' v2/package.json; then echo "built=true" >> "$GITHUB_OUTPUT"; fi
-      - if: steps.has.outputs.built == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 26.9.0
-          cache: npm
-          cache-dependency-path: v2/package-lock.json
-      - if: steps.has.outputs.built == 'true'
-        working-directory: v2
-        run: |
-          npm ci
-          npm run build:web
-      - if: steps.has.outputs.built == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-preview-v2
-          path: v2/dist/web
+          path: dist/site
           if-no-files-found: error
           retention-days: 1
 
   publish:
-    needs: [build, build-v2]
+    needs: build
     if: >-
       always() && !cancelled() &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -92,32 +58,22 @@ jobs:
         if: github.event.action != 'closed'
         with:
           name: pr-preview
-          path: dist/web
-      # v2's site at /v2/, beside the prototype's (the deploy replaces the PR's whole folder, so it's built every time).
-      - uses: actions/download-artifact@v4
-        if: github.event.action != 'closed' && needs.build-v2.result == 'success' && needs.build-v2.outputs.built == 'true'
-        with:
-          name: pr-preview-v2
-          path: dist/web/v2
-      - name: v2's build failed for this commit, so /v2/ says so
-        if: github.event.action != 'closed' && needs.build-v2.result == 'failure'
-        run: |
-          mkdir -p dist/web/v2
-          echo '<!doctype html><meta charset="utf-8"><title>Kingmaker v2</title><p>The v2 browser build failed for this commit: see the PR checks.</p>' > dist/web/v2/index.html
+          path: dist/site
       # Store previews and post the stable QA link. pages.yml publishes the
       # combined site after this run; branch-based Pages publishing is not used.
       - uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1
         id: preview
         with:
-          source-dir: dist/web
+          source-dir: dist/site
           preview-branch: gh-pages
           umbrella-dir: pr-preview
           qr-code: false
           wait-for-pages-deployment: false
-      - name: Link v2's build in the PR
-        if: github.event.action != 'closed' && needs.build-v2.result == 'success' && needs.build-v2.outputs.built == 'true'
+      # The game's own links. The header is the one the /v2/ link had, so a PR that had it gets this in its place.
+      - name: Link the game in the PR
+        if: github.event.action != 'closed'
         uses: marocchino/sticky-pull-request-comment@67d0dec7b07ed060a405f9b2a64b8ab319fdd7db # v2.9.2, the pin pr-preview-action uses
         with:
           header: pr-preview-v2
           message: |
-            v2 in the browser (no server: your OpenRouter key, or the fake GM): ${{ steps.preview.outputs.preview-url }}v2/ (or straight to the fake GM: ${{ steps.preview.outputs.preview-url }}v2/?fake)
+            Play it in the browser (no server: your OpenRouter key, or the fake GM): ${{ steps.preview.outputs.preview-url }}play/ (or straight to the fake GM: ${{ steps.preview.outputs.preview-url }}play/?fake)

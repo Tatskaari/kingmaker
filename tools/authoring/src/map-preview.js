@@ -1,6 +1,6 @@
 // Keep the runtime adapter small: this is the game's renderer, not a recreation.
-// Its Node imports are mapped to the game's existing browser shims by build.mjs.
-import {render,Picks} from '../../../src/game/map/render.ts';
+// It imports nothing of Node; were it to, build.mjs maps that to the game's browser stand-ins (web/node).
+import {render,Picks} from '../../../client/map/render.ts';
 export function preview(map,camera,viewport,night,roofs,actors=[]){
   const picks=new Picks();
   // The runtime addresses discrete character cells. Editor drags have continuous

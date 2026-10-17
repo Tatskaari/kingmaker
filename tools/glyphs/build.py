@@ -2,7 +2,7 @@
 Build Kingmaker Glyphs: the game's pixel-art people and creatures, drawn by hand as text bitmaps in
 assets/glyphs/kingmaker.txt, as a TrueType font a terminal uses like any other.
 
-  python3 tools/glyphs/build.py               # the fonts (assets/fonts/) and the code points (src/game/look/kingmaker-glyphs.ts)
+  python3 tools/glyphs/build.py               # the fonts (web/fonts/) and the code points (client/look/kingmaker-glyphs.ts)
   python3 tools/glyphs/build.py --install     # ... and install the fonts for this user, then fc-cache -f
   python3 tools/glyphs/build.py --uninstall   # remove them again
   python3 tools/glyphs/build.py --check       # read and check the bitmaps, build nothing
@@ -46,8 +46,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 BITMAPS = os.path.join(ROOT, "assets", "glyphs", "kingmaker.txt")
-FONTS = os.path.join(ROOT, "assets", "fonts")
-TS = os.path.join(ROOT, "src", "game", "look", "kingmaker-glyphs.ts")
+FONTS = os.path.join(ROOT, "web", "fonts")
+TS = os.path.join(ROOT, "client", "look", "kingmaker-glyphs.ts")
 INSTALL = os.path.expanduser(os.path.join(os.environ.get("XDG_DATA_HOME") or "~/.local/share", "fonts", "kingmaker"))
 
 FAMILY = "Kingmaker Glyphs"

@@ -1,10 +1,11 @@
-import test from 'node:test';
+import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,readFileSync,readdirSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import {convertScene} from '../scripts/main-scene-conversion.mjs';
+import {prototypeGame} from './prototype-game.mjs';
 
 const output=await build({entryPoints:[new URL('../src/model.ts',import.meta.url).pathname],bundle:true,write:false,format:'esm',platform:'node'});
 const {parseDocument,serializeDocument,entryPorts}=await import('data:text/javascript;base64,'+Buffer.from(output.outputFiles[0].text).toString('base64'));
@@ -137,7 +138,10 @@ test('pure conversion cannot mutate original scene metadata, destination referen
   assert.equal(options.sourceFiles['lore/Scenes/User edited.kmscene'],'{"title":"Keep my changes exactly"}\n\n');
 });
 
-const mainRoot=process.env.KINGMAKER_MAIN_REPO??'/home/jon/git/kingmaker';
+// The retired prototype's scenes and lore: KINGMAKER_MAIN_REPO's checkout, or by default its last commit out of git history.
+const prototype=prototypeGame(process.env.KINGMAKER_MAIN_REPO);
+after(()=>prototype.done());
+const mainRoot=prototype.game;
 const sourceModules=['scenes/interludes.ts','scenes/drowned-rat.ts','scenes/heron-warehouse.ts','scenes/kings-morning.ts'];
 test('all five real main-game Caerwyn scenes convert with exact counts, routes, lore and continuation entries',{
   skip:!sourceModules.every(file=>existsSync(path.join(mainRoot,file)))?'Main Kingmaker checkout is not available here':false,

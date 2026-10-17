@@ -2,7 +2,7 @@
 
 Research for the V2 PoC on keeping long scenes on track: what the APIs and libraries offer for compaction, what roleplay products do, and a design for a background world-state tracker, compaction and re-hydration. It answers the brief's questions: "Is there a lib or a built-in API for this?" and "When we compact, re-inject the little notes about what each character is doing and where we are in the plot."
 
-**Method.** I read the docs (cited inline, collected at the end) and ran small live probes against OpenRouter on 2026-10-14 (`openai/gpt-6-luna` with reasoning `none`, and `openai/gpt-6-luna-decisions`). The probes replayed the largest logged GM prompt from `runs/` (green-standoff, 13 player turns, 9,153 tokens). Each probe ran 1–2 times on one scene, so treat the latencies as indicative. Appendix A has the method and the raw numbers. Related docs: [FINDINGS](../FINDINGS.md) (open question on continuity), [QA round 2 FM-H](../qa/round-2-analysis.md), [v1-systems §2–3](v1-systems.md) (progressive disclosure, background fact recording) and [ai-gm-and-craft §1.7, §3.6](ai-gm-and-craft.md) (Friends & Fables, AI Dungeon).
+**Method.** I read the docs (cited inline, collected at the end) and ran small live probes against OpenRouter on 2026-10-14 (`openai/gpt-6-luna` with reasoning `none`, and `openai/gpt-6-luna-decisions`). The probes replayed the largest logged GM prompt from `runs/` (green-standoff, 13 player turns, 9,153 tokens). Each probe ran 1–2 times on one scene, so treat the latencies as indicative. Appendix A has the method and the raw numbers. Related docs: [FINDINGS](../prototype/FINDINGS.md) (open question on continuity), [QA round 2 FM-H](../qa/round-2-analysis.md), [v1-systems §2–3](v1-systems.md) (progressive disclosure, background fact recording) and [ai-gm-and-craft §1.7, §3.6](ai-gm-and-craft.md) (Friends & Fables, AI Dungeon).
 
 ## TL;DR
 
@@ -503,7 +503,7 @@ Scripts live in the session scratchpad (`…/scratchpad/compaction/`), which is 
 - Further F&F and Craft sources: [ai-gm-and-craft.md](ai-gm-and-craft.md)
 
 **Repo:**
-- [FINDINGS](../FINDINGS.md)
+- [FINDINGS](../prototype/FINDINGS.md)
 - [QA round 2 analysis](../qa/round-2-analysis.md)
 - [v1-systems §2–3](v1-systems.md)
 - `src/runtime/{brief,voices,engine,director,repair}.ts`

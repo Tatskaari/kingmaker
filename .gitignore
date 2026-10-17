@@ -1,20 +1,13 @@
 node_modules
 dist/
-.moon/cache/
 .env
 .env.*
 !.env.example
-/eval-output/
-/test-output/
-
-# Personal Obsidian layout and cache; shared vault settings stay versioned.
-lore/.obsidian/workspace*.json
-lore/.obsidian/cache/
-lore/.trash/
 
 # Local IDE settings and nested agent checkouts.
 /.idea/
 /.claude/worktrees/
 
-# V2 PoC run output (sessions, model call logs, eval results).
-/runs/
+# Run output: the dev stack's data, keys and logs, the e2e's, the headless client's sessions, the
+# browser check's screens.
+runs/

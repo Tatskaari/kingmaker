@@ -7,21 +7,21 @@
 
 This doc checks those ideas against the sources and turns them into formats for `lore/World` and `lore/Places`. It also covers how a scene's prep should draw on that lore, how the world can move between chained scenes, and what the background agents should record. It ends with a critique of the Caerwyn lore and of the arc `hanged-clerk` → `drowned-rat` → `heron-warehouse` (with the interludes `caerwyn-afternoon` and `wharf-night` between them).
 
-**Status.** This is research and design only. Nothing here is built. The constraints are those in [FINDINGS.md](../FINDINGS.md):
+**Status.** This is research and design only. Nothing here is built. The constraints are those in [FINDINGS.md](../prototype/FINDINGS.md):
 - a resolving reply within 5 s;
 - the GM is Luna at reasoning `none`, with one call per reply;
 - decisions are fast parallel classification calls;
 - prompts are phrased as outcomes, not as lists of do's and don'ts;
 - characters never act as hint-dispensers who recite the GM's plan.
 
-The lore conventions are those in [lore/index.md](../../lore/index.md):
+The lore conventions are those in [lore/index.md](../../campaigns/caerwyn/lore/index.md):
 - docs are public, private or gm;
 - a public doc's secrets go in a "(truth)" doc beside it;
 - each doc ends with "Read when relevant" links whose labels say when to open them.
 
-Disclosure is progressive ([disclosure.ts](../../v2/ai/docs/disclosure.ts)). The scene's `lore` docs are always in the GM's brief. A linked doc opens when the per-turn decider rates it above 0.7. Edits made during play go into a per-session overlay.
+Disclosure is progressive ([disclosure.ts](../../ai/docs/disclosure.ts)). The scene's `lore` docs are always in the GM's brief. A linked doc opens when the per-turn decider rates it above 0.7. Edits made during play go into a per-session overlay.
 
-**What this doc doesn't repeat.** General GM craft is in [ai-gm-and-craft.md](ai-gm-and-craft.md) §2: situations rather than plots, the Three Clue Rule, and the PbtA principles. The pacing of reveals is in [pacing.md](pacing.md) and [pacing-failures.md](pacing-failures.md). Moving a missed clue is in [gm-techniques.md](gm-techniques.md), and the repair co-GM is in [experiments/deviation-repair.md](../experiments/deviation-repair.md). The world-state ledger is in [compaction.md](compaction.md), and bills for daft acts are in [experiments/absurdity.md](../experiments/absurdity.md). This doc is about the world those scenes stand in.
+**What this doc doesn't repeat.** General GM craft is in [ai-gm-and-craft.md](ai-gm-and-craft.md) §2: situations rather than plots, the Three Clue Rule, and the PbtA principles. The pacing of reveals is in [pacing.md](pacing.md) and [pacing-failures.md](pacing-failures.md). Moving a missed clue is in [gm-techniques.md](gm-techniques.md), and the repair co-GM is in [experiments/deviation-repair.md](../prototype/experiments/deviation-repair.md). The world-state ledger is in [compaction.md](compaction.md), and bills for daft acts are in [experiments/absurdity.md](../prototype/experiments/absurdity.md). This doc is about the world those scenes stand in.
 
 ## Summary
 
@@ -168,7 +168,7 @@ A character brings the world up because it bears on what they want: "Tuppence a 
 - **Even narrative is a law of nature.** On the Discworld "things which have a one-in-a-million chance of succeeding often do so" ([L-Space: Narrativium](https://wiki.lspace.org/Narrativium)).
 - **AW's moves for afflictions read like straight-faced stage directions for a crisis.** "Someone proclaims the affliction to be a just punishment." "Someone proclaims the affliction to be, in fact, a blessing." "Someone refuses or fails to adapt to new circumstances" (AW, p. 141).
 
-**For us.** Comic worldbuilding is causal worldbuilding with the dial turned up. Each institution has a sensible origin, takes itself entirely seriously, and follows its rule one step past sense: purveyance, wheat-ear silver, "After the Assembly." That lets the GM improvise jokes that are also consequences, which is what [tone-comic.md](../../v2/ai/prompts/tone-comic.md) asks for ("every daft act sends a bill"). A doc that only lists funny facts gives the GM one joke each; a doc that gives the cause gives it a joke generator.
+**For us.** Comic worldbuilding is causal worldbuilding with the dial turned up. Each institution has a sensible origin, takes itself entirely seriously, and follows its rule one step past sense: purveyance, wheat-ear silver, "After the Assembly." That lets the GM improvise jokes that are also consequences, which is what [tone-comic.md](../../ai/prompts/tone-comic.md) asks for ("every daft act sends a bill"). A doc that only lists funny facts gives the GM one joke each; a doc that gives the cause gives it a joke generator.
 
 ### 1.6 Write it down, and send the bill
 
@@ -263,7 +263,7 @@ The truth doc keeps the backstory. The front keeps what happens next.
 | `cast` | Each person's wants and fears say where they stand on the world's causes: what they gain, what they pay. | Nan's jar of heron pennies "marked FOREIGN". Saul is paid "three times what the river watch did". Hep "skims a sack a night for the gang's families". These are the model. |
 | `limits` | Cite a world rule and its enforcer rather than restating it in new words, so there's one source of truth to update. | The watch "lining the Assembly route" is restated 6 times across the three scenes. |
 | `pressure` | At least one pressure from a front or the Assembly clock. | Already so: the noon dead-cart, the eleventh bell, the ebb. |
-| `exits[].script` | Tick the fronts this ending moves. These are defaults the scribe reconciles, as [FINDINGS](../FINDINGS.md) §7 recommends for all exit scripts. | `prout_death` is set but nothing reads it downstream (§4.2, G7). |
+| `exits[].script` | Tick the fronts this ending moves. These are defaults the scribe reconciles, as [FINDINGS](../prototype/FINDINGS.md) §7 recommends for all exit scripts. | `prout_death` is set but nothing reads it downstream (§4.2, G7). |
 | `essentials` | Only the world facts the scene needs to reach an ending. Background world facts stay thin and earned ([pacing.md](pacing.md) §1.2, "the concept prong can be thin"). | — |
 
 The existing authoring rule says cards are "written neutral to earlier outcomes". Extend it to fronts: **cards read the world's state; they don't assume it**. For example: "If the Captain has told him the clerk went in as a murder, he's wary: the Crakes walk the wharf before he comes."
@@ -319,7 +319,7 @@ The interludes are made for this. Each is downtime "standing in for the world ma
 
 ### 2.4 How background agents should record world changes
 
-Today, per flagged turn, the lore reviewer runs [review/improvised.md](../../v2/ai/prompts/review/improvised.md) and [review/world.md](../../v2/ai/prompts/review/world.md), with [review/focused.md](../../v2/ai/prompts/review/focused.md) as shared rules. It edits or creates lore docs and saves memories. At scene end the runtime:
+Today, per flagged turn, the lore reviewer runs [review/improvised.md](../../ai/prompts/review/improvised.md) and [review/world.md](../../ai/prompts/review/world.md), with [review/focused.md](../../ai/prompts/review/focused.md) as shared rules. It edits or creates lore docs and saves memories. At scene end the runtime:
 - runs the exit script against a recording world;
 - writes the hand-off, which is saved as the scene's story doc and linked from the story index;
 - gives everyone present a memory of how the scene ended.
@@ -333,7 +333,7 @@ Proposed changes, each small:
 4. **Talk around town goes into `Caerwyn now`, with a mouth.** Only things anyone could have seen or heard go in public docs. What a particular person saw stays in their memories (the existing memory reviewer). GM truths stay in gm docs.
 5. **Keep the player's reputation as a menu.** The player doc already records what the player has told people about themselves. Add "What Caerwyn says about them", one line per public deed ("the King's investigator who got a sergeant to sign a hanged clerk in as a murder"), so strangers have something to react to. This is The Alexandrian's reputation menu.
 6. **Promote people who start acting on their own.** When an improvised person starts acting on their own wants, give them a line in a cast doc and, if they push on the world, a place in a front, or in the general list (AW's "home front"). *(Add to review/improvised.md.)*
-7. **Bills are entries in the fronts doc, not memories.** A daft act's delayed consequence is a bang with an "if" and a vector. For example: "If the player comes back to the Rat: Nan has a bill for the door, four shillings and sixpence, and now the window too." That's DW's "Make a note of and reveal it when the time is right". It's also what [absurdity.md](../experiments/absurdity.md) found missing: "The bill that comes due *later* needs memory: the world-state tracker and world patches."
+7. **Bills are entries in the fronts doc, not memories.** A daft act's delayed consequence is a bang with an "if" and a vector. For example: "If the player comes back to the Rat: Nan has a bill for the door, four shillings and sixpence, and now the window too." That's DW's "Make a note of and reveal it when the time is right". It's also what [absurdity.md](../prototype/experiments/absurdity.md) found missing: "The bill that comes due *later* needs memory: the world-state tracker and world patches."
 8. **Never invent a mystery or a front.** A reviewer reconciles what play made true. It doesn't add new threads.
 9. **Keep summaries current.** A doc's frontmatter `summary` is what the disclosure decider reads. When "What's happening now" changes materially, update the summary's last clause so the doc still opens when it matters.
 
@@ -390,28 +390,28 @@ Proposed changes, each small:
 ### 4.1 What already works
 
 - **Causes with a resenter, in one line.** These are §1.2 and §1.5 in miniature:
-  - "**Purveyance**: by ancient right the office buys for the King at the King's price, which farmers call robbery and purveyors call tradition." ([Royal Purveyor's Office.md](../../lore/World/Royal%20Purveyor's%20Office.md))
+  - "**Purveyance**: by ancient right the office buys for the King at the King's price, which farmers call robbery and purveyors call tradition." ([Royal Purveyor's Office.md](../../campaigns/caerwyn/lore/World/Royal%20Purveyor's%20Office.md))
   - "**Purse silver**: the office's purse money is stamped with a little wheat-ear so the palace kitchens can't pinch it, which the kitchens have never forgiven." This line also gives a clue its cause: it's why Moll's coin can be traced to the office.
-  - "Visitors notice the gilt. The city notices the bread." ([Royal Palace.md](../../lore/World/Royal%20Palace.md))
-- **Rules with an enforcer and a cost.** "**The Captain's book**: every death in the city goes in it as natural, accident, self-murder or murder, and the Captain's word stands. A sergeant may sign a body in as a murder instead, and answers to the Captain for it" ([City Watch.md](../../lore/World/City%20Watch.md)). That one rule is the engine of the whole first scene. [City Watch (truth).md](../../lore/World/City%20Watch%20%28truth%29.md) gives the Captain motives rather than a price ("Sallow arranged for the Purveyor's office to feed the watch on Assembly duty"; Sallow's own gm doc: "The Captain isn't bought, just obliging"), and it plans his reaction under pressure: "once it can't be made to [go away], his second is to have suspected Sallow all along."
+  - "Visitors notice the gilt. The city notices the bread." ([Royal Palace.md](../../campaigns/caerwyn/lore/World/Royal%20Palace.md))
+- **Rules with an enforcer and a cost.** "**The Captain's book**: every death in the city goes in it as natural, accident, self-murder or murder, and the Captain's word stands. A sergeant may sign a body in as a murder instead, and answers to the Captain for it" ([City Watch.md](../../campaigns/caerwyn/lore/World/City%20Watch.md)). That one rule is the engine of the whole first scene. [City Watch (truth).md](../../campaigns/caerwyn/lore/World/City%20Watch%20%28truth%29.md) gives the Captain motives rather than a price ("Sallow arranged for the Purveyor's office to feed the watch on Assembly duty"; Sallow's own gm doc: "The Captain isn't bought, just obliging"), and it plans his reaction under pressure: "once it can't be made to [go away], his second is to have suspected Sallow all along."
 - **One world cause behind many limits.** The Assembly explains why no help comes in every scene. 11 of the 24 limits in the three arc scenes rest on it. The granary warden: "This week she's at the palace counting Assembly provisions." The watch house bell is "to ring when nobody's behind it (this week, always)". This is principle 2 doing the improvising.
 - **Straight-faced comic logic.**
   - "'Lost to goblins' is what Caerwyn says now about anything that goes missing: a hat, a husband, the rent. It stopped being funny about a fortnight ago."
   - "Farmers have never seen goblins carry off a whole wagon of wheat, and wonder where a goblin would sell one." This one is a clue delivered as folk logic.
   - "the answer to every request is 'After the Assembly.'"
   - The King's cushions are a joke followed through across scenes. He "takes his guests' comfort very seriously, down to the cushions". The linen under-purveyor "is having a very bad week about the cushions". In `blocked-entrance` the cushions are stuck in the wagon queue under a leaking tarpaulin.
-- **The scenes' best causal worldbuilding** is in Scrope's card ([heron-warehouse.ts](../../scenes/heron-warehouse.ts)), on why the proof exists at all: "the Master doesn't trust the Saltmere factor and the factor doesn't trust the Master, so both insisted on a true book kept by a clerk they both pay. There is no honour among thieves; there is bookkeeping." That's a cause, two sides and a joke, and it makes the climax possible.
+- **The scenes' best causal worldbuilding** is in Scrope's card ([heron-warehouse.ts](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/scenes/heron-warehouse.ts)), on why the proof exists at all: "the Master doesn't trust the Saltmere factor and the factor doesn't trust the Master, so both insisted on a true book kept by a clerk they both pay. There is no honour among thieves; there is bookkeeping." That's a cause, two sides and a joke, and it makes the climax possible.
 - **Truth splits and "read when" labels** keep secrets out of characters' reach. The links let the decider pull in the world one hop out.
 
 ### 4.2 What's missing
 
-**G1. Facts without causes or sides.** [Grain Crisis.md](../../lore/World/Grain%20Crisis.md), the arc's Second Story, opens: "The harvest was poor, the Nine Furrows granaries are thin, and bread in Caerwyn has gone up a penny a loaf since the autumn." Then it lists four rumours. Several things are missing:
-- the price of a loaf, against the porter's eight pennies a day that [Caerwyn.md](../../lore/World/Caerwyn.md) does give;
+**G1. Facts without causes or sides.** [Grain Crisis.md](../../campaigns/caerwyn/lore/World/Grain%20Crisis.md), the arc's Second Story, opens: "The harvest was poor, the Nine Furrows granaries are thin, and bread in Caerwyn has gone up a penny a loaf since the autumn." Then it lists four rumours. Several things are missing:
+- the price of a loaf, against the porter's eight pennies a day that [Caerwyn.md](../../campaigns/caerwyn/lore/World/Caerwyn.md) does give;
 - who profits from dear bread;
 - who's hit hardest;
 - what anybody is doing about it.
 
-[Centennial Assembly.md](../../lore/World/Centennial%20Assembly.md) is a timetable and a list of delegations. Its one cause, "Every hundred years the kingdoms must publicly recognise one common sovereign", doesn't say why they must. The answer, Edric's Concord, sits in [King Aldren/public.md](../../lore/Cast/King%20Aldren/public.md). The levy and the arms order have no resenters, though both have obvious ones: travellers, and carters on a road where goblins shoot oxen.
+[Centennial Assembly.md](../../campaigns/caerwyn/lore/World/Centennial%20Assembly.md) is a timetable and a list of delegations. Its one cause, "Every hundred years the kingdoms must publicly recognise one common sovereign", doesn't say why they must. The answer, Edric's Concord, sits in [King Aldren/public.md](../../campaigns/caerwyn/lore/Cast/King%20Aldren/public.md). The levy and the arms order have no resenters, though both have obvious ones: travellers, and carters on a road where goblins shoot oxen.
 
 **G2. Nothing is in motion outside the scene cards.** The world docs describe the eve as a still photograph. The truth doc gives Sallow a motive, "**Why**: money, and standing. An Assembly short of grain and money is one the Purveyor's office gets to save, and Sallow means to be the man who saves it", but no next steps. Sallow's gm doc gives the endgame ("to sell the King his own grain back at Assembly prices and be thanked for it with the Purveyor's chain"), but nothing on the way there.
 
@@ -420,18 +420,18 @@ The only move the world makes off-stage in the whole arc is one secret in Sallow
 **G3. Rumours without mouths.** The Grain Crisis's "What people say:" lists four rumours but not who says them. Public docs are readable by any character, so any of them may recite any rumour, and may do so more than once. That's the hint-dispenser and repetition risk (the "Nagging" row in [pacing.md](pacing.md) §0).
 
 **G4. World facts that live only in scene prose.** If play comes back to a place, or a later scene needs these facts, the lore doesn't have them. The reviewers then have nowhere to record a change.
-- The Rat's rules board exists only in `drowned-rat`'s setting. [The Drowned Rat.md](../../lore/Places/The%20Drowned%20Rat.md) says only "The house rules are posted by the door and enforced, by Nan and by Manners."
-- "Paid off early because the docks shut tomorrow for the procession", a good cause for the full room, is not in [River Stairs.md](../../lore/Places/River%20Stairs.md).
-- The cause of the true book, and the night staff with their wages and their fears, are not in [Heron Warehouse (truth).md](../../lore/Places/Heron%20Warehouse%20%28truth%29.md). That doc has a list of game moves instead: "**Ways in**: sneaking, bluffing as a buyer, bribing the night watch, Hobb's token, or a diversion."
+- The Rat's rules board exists only in `drowned-rat`'s setting. [The Drowned Rat.md](../../campaigns/caerwyn/lore/Places/The%20Drowned%20Rat.md) says only "The house rules are posted by the door and enforced, by Nan and by Manners."
+- "Paid off early because the docks shut tomorrow for the procession", a good cause for the full room, is not in [River Stairs.md](../../campaigns/caerwyn/lore/Places/River%20Stairs.md).
+- The cause of the true book, and the night staff with their wages and their fears, are not in [Heron Warehouse (truth).md](../../campaigns/caerwyn/lore/Places/Heron%20Warehouse%20%28truth%29.md). That doc has a list of game moves instead: "**Ways in**: sneaking, bluffing as a buyer, bribing the night watch, Hobb's token, or a diversion."
 
-**G5. Drift across authored layers.** The interlude's setting has "delegation banners (Nine Furrows wheat-sheaves, Saltmere herons, Kläggenheim axes)" ([interludes.ts](../../scenes/interludes.ts)). The lore says the heron is "the house mark of a Saltmere grain factor". If the heron is Saltmere's own emblem:
+**G5. Drift across authored layers.** The interlude's setting has "delegation banners (Nine Furrows wheat-sheaves, Saltmere herons, Kläggenheim axes)" ([interludes.ts](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/scenes/interludes.ts)). The lore says the heron is "the house mark of a Saltmere grain factor". If the heron is Saltmere's own emblem:
 - heron pennies become ordinary Saltmere money;
 - Nan's jar of pennies "nobody on the river had seen before this month" stops making sense;
 - the sign over the Heron stops pointing at one buyer.
 
 An author's improvisation has quietly changed what a clue means, and no world doc says what the heron is, so nothing caught it.
 
-A second example is the design doc's hub. [caerwyn-arc.md](../design/caerwyn-arc.md) sends players to the Corn Exchange, where Abel Fennick "knows which wagons were 'lost'", and [Caerwyn.md](../../lore/World/Caerwyn.md) says the Exchange keeps "the wagon lists". But there's no place doc for it, and the afternoon interlude closes "the Corn Exchange's back rooms" by limit.
+A second example is the design doc's hub. [caerwyn-arc.md](../prototype/design/caerwyn-arc.md) sends players to the Corn Exchange, where Abel Fennick "knows which wagons were 'lost'", and [Caerwyn.md](../../campaigns/caerwyn/lore/World/Caerwyn.md) says the Exchange keeps "the wagon lists". But there's no place doc for it, and the afternoon interlude closes "the Corn Exchange's back rooms" by limit.
 
 **G6. Scenes restate the world instead of reading it.** Each arc scene's `lore` is only its place doc, so the world docs arrive only if the per-turn decider opens them. The scenes compensate by restating world facts in their settings and limits; the watch "lining the Assembly route" appears in 6 places across the three scenes. That's fine for a still world, but once the world moves, restated facts go stale. Once the bread front has a crowd at the Corn Exchange board, a setting that mentions only bunting and dear bread is out of date.
 
@@ -442,11 +442,11 @@ A second example is the design doc's hub. [caerwyn-arc.md](../design/caerwyn-arc
 
 Yet `heron-warehouse` knows only one way Sallow can be warned (Hobb running). So the first scene, the one the player worked hardest at, can't change the third.
 
-**G8. A question the arc raises but can't answer.** The page in Prout's boot ends: "'Not goblins. Who pays the hedge-folk?'" The answer is in [Grain Crisis (truth).md](../../lore/World/Grain%20Crisis%20%28truth%29.md): Sallow pays the goblins of the burnt mill in heron pennies. In the arc only Sallow knows it, as one of the secrets on his `heron-warehouse` card, and the goblins of `warren-hostage` know only "a grey hood, lavender and heron pennies, but no name". Heron pennies turn up at the Rat and at the Heron, but nothing a player can find links them to goblins. The GM prompt warns against "clues and mysteries that point somewhere the story doesn't go". This one points somewhere the story does go, but leaves no way in.
+**G8. A question the arc raises but can't answer.** The page in Prout's boot ends: "'Not goblins. Who pays the hedge-folk?'" The answer is in [Grain Crisis (truth).md](../../campaigns/caerwyn/lore/World/Grain%20Crisis%20%28truth%29.md): Sallow pays the goblins of the burnt mill in heron pennies. In the arc only Sallow knows it, as one of the secrets on his `heron-warehouse` card, and the goblins of `warren-hostage` know only "a grey hood, lavender and heron pennies, but no name". Heron pennies turn up at the Rat and at the Heron, but nothing a player can find links them to goblins. The GM prompt warns against "clues and mysteries that point somewhere the story doesn't go". This one points somewhere the story does go, but leaves no way in.
 
 ### 4.3 Proposed rewrites
 
-New specifics below (prices, the preacher, the lanterns) are proposals for the arc's author to check against [caerwyn-arc.md](../design/caerwyn-arc.md). Everything else is drawn from the existing lore and scenes.
+New specifics below (prices, the preacher, the lanterns) are proposals for the arc's author to check against [caerwyn-arc.md](../prototype/design/caerwyn-arc.md). Everything else is drawn from the existing lore and scenes.
 
 #### R1. The Grain Crisis (public): causes, sides and mouths
 
@@ -481,7 +481,7 @@ Bread in Caerwyn is tuppence a loaf, a penny dearer than at harvest. A porter ea
 **What's happening now.** Queues at the bakers at first light. The Corn Exchange chalks up the day's price at the noon bell.
 ```
 
-The Treasury line ties two existing facts together: the write-offs, and the levy from [Centennial Assembly.md](../../lore/World/Centennial%20Assembly.md). Why the Treasury is really short (Saltmere's credit, snatched with the courier in `warren-hostage`) stays in the truth doc.
+The Treasury line ties two existing facts together: the write-offs, and the levy from [Centennial Assembly.md](../../campaigns/caerwyn/lore/World/Centennial%20Assembly.md). Why the Treasury is really short (Saltmere's credit, snatched with the courier in `warren-hostage`) stays in the truth doc.
 
 #### R2. The Grain Crisis (truth): what Sallow does next
 
@@ -591,7 +591,7 @@ How the arc's exits would move these, and where each move shows:
 
 #### R5. River Stairs and The Drowned Rat: move the world facts into the lore
 
-Add to [River Stairs.md](../../lore/Places/River%20Stairs.md):
+Add to [River Stairs.md](../../campaigns/caerwyn/lore/Places/River%20Stairs.md):
 
 ```markdown
 **What it needs, trades and resents.** The docks live on loads, and the Saltmere factors pay best: the Heron pays double for night loading, and doesn't care for questions. The river watch, whose patch this is, is on the Assembly route with everyone else. Porters grumble about Saltmere barges going downriver full while Caerwyn goes short, and take Saltmere's money anyway.
@@ -620,8 +620,8 @@ Proposed: keep the facts, and move the list of game moves to the scene, which al
 
 Pick one meaning and write it into the world docs. The arc's clues only work if the heron is one factor's private mark, so:
 - change the interlude's "Saltmere herons" to Saltmere's own emblem (a ship suits "ships, warehouses, insurance and credit");
-- list every delegation's banner in [Centennial Assembly.md](../../lore/World/Centennial%20Assembly.md) (R3), so the next author doesn't have to guess;
-- add one line of cause to [Heron Warehouse.md](../../lore/Places/Heron%20Warehouse.md): why the factor pays in new heron-stamped silver.
+- list every delegation's banner in [Centennial Assembly.md](../../campaigns/caerwyn/lore/World/Centennial%20Assembly.md) (R3), so the next author doesn't have to guess;
+- add one line of cause to [Heron Warehouse.md](../../campaigns/caerwyn/lore/Places/Heron%20Warehouse.md): why the factor pays in new heron-stamped silver.
 
 #### R8. Scenes: read the world, move the world, and close the loop
 
@@ -631,7 +631,7 @@ Pick one meaning and write it into the world docs. The arc's clues only work if 
 
    > "How much he knows tonight follows from what's in motion. If the Captain told him the clerk went in as a murder, he's wary: the Crakes walk the wharf before he comes, and there are two lanterns at the land door. If Hobb ran to him, he's warned: he comes at the bell with Hobb at his heels, sharp and hurrying, and wants the true book sewn into oilcloth and aboard the barge. Otherwise he's unhurried and bored."
 
-4. **Answer "Who pays the hedge-folk?" inside the arc.** Add one line to `trueBookItem` in [heron-warehouse.ts](../../scenes/heron-warehouse.ts), and the same to Scrope's `knows`: "…and on the last page of each month, in the same careful hand, 'Hedge-folk, the usual: forty heron pennies.'" The book then answers Prout's question in the style of the scene's own joke about bookkeeping. It also joins the heron pennies at the Rat and on the floor to the goblins on the road, without opening anything new.
+4. **Answer "Who pays the hedge-folk?" inside the arc.** Add one line to `trueBookItem` in [heron-warehouse.ts](https://github.com/Tatskaari/kingmaker/blob/bc2ab1f/scenes/heron-warehouse.ts), and the same to Scrope's `knows`: "…and on the last page of each month, in the same careful hand, 'Hedge-folk, the usual: forty heron pennies.'" The book then answers Prout's question in the style of the scene's own joke about bookkeeping. It also joins the heron pennies at the Rat and on the floor to the goblins on the road, without opening anything new.
 5. **Interludes.** Change the opening's "Then show the town" to "Then show the town as it is now (from Caerwyn now: what's new since the last scene, by sight or by talk, once)". Optionally give `caerwyn-afternoon` a short `Places/Corn Exchange.md`: three aspects, Abel Fennick and what he wants, and the price board as the bread front's vector. That makes the Exchange a named second horizon without making it a scene.
 
 ---

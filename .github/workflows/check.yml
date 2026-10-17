@@ -1,5 +1,7 @@
-name: Check and build
+name: check
 
+# The game's checks: the type check, the unit tests and the screens, the site's build, the bindings,
+# end to end on SpacetimeDB, the page in a browser, and the AI service's image.
 on:
   pull_request:
   push:
@@ -13,44 +15,139 @@ concurrency:
   group: check-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  SPACETIMEDB_VERSION: 2.12.0
+
 jobs:
   check:
-    # Agents run only affected tests locally; the affected suite runs here.
+    # The type check, the unit tests and the client's screens, offline (no server, no model), and the
+    # client's bindings as the module generates them.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-        with:
-          # Moon diffs against the base revision to find affected tasks.
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 26.9.0
           cache: npm
-      - uses: moonrepo/setup-toolchain@v0
-        with:
-          auto-install: true
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - name: Restore Moon cache
-        uses: actions/cache/restore@v4
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run screens
+      # The site's build (hosts/web/build-site.ts): the page-only build (browser-design §5), which fails on
+      # what a browser bundle can't do, a file outside content.json's allowlist, a stamp or preload missed, an
+      # absolute URL, or anything like an OpenRouter key; then the pitch and the roadmap, their links pointed
+      # at the site's own pages; and nothing secret anywhere in it.
+      - run: npm run build:site
+      # The client's screens on the JS OpenTUI the page draws with (web/tui), as npm run screens draws them natively.
+      - run: npm run web:screens
+      - name: Install the SpacetimeDB CLI, pinned
+        run: |
+          curl -sSf https://install.spacetimedb.com | sh -s -- --yes
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/spacetime" version install "$SPACETIMEDB_VERSION" --use --yes
+          "$HOME/.local/bin/spacetime" --version
+      - name: The bindings are the module's
+        # Regenerate after any change to the module's tables, reducers or views, and commit the result.
+        run: |
+          npm run simulation:generate
+          if [ -n "$(git status --porcelain -- client/module_bindings)" ]; then
+            git status --short -- client/module_bindings; git diff -- client/module_bindings
+            echo "client/module_bindings is out of date: run npm run simulation:generate and commit it"; exit 1
+          fi
+
+  e2e:
+    # A line in a scene and a character made, end to end (v0-design §10.4, v1-design §4.3):
+    # SpacetimeDB with the module, the AI service on the fake model, three clients, the kills, the
+    # ceiling, continue and delete; then the arc's checks that are on (v1-design §4.5), on a stack of
+    # their own. Host mode: the module calls the AI service at 11.0.0.1, which SpacetimeDB allows (it
+    # refuses loopback and the private ranges).
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
         with:
+          node-version: 26.9.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Install the SpacetimeDB CLI, pinned
+        run: |
+          curl -sSf https://install.spacetimedb.com | sh -s -- --yes
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/spacetime" version install "$SPACETIMEDB_VERSION" --use --yes
+          "$HOME/.local/bin/spacetime" --version
+      - name: Host mode's address
+        run: sudo ip addr add 11.0.0.1/32 dev lo
+      - run: npm run e2e
+      - run: npm run arc
+      - name: The stacks' logs, when it failed
+        # Their logs and the AI service's call logs; not stack.json or keys/ (this run's tokens).
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
           path: |
-            .moon/cache/hashes
-            .moon/cache/outputs
-          key: moon-${{ runner.os }}-${{ github.sha }}
-          restore-keys: moon-${{ runner.os }}-
-      - run: proto run moon -- ci workspace:check workspace:build
-        env:
-          MOON_BASE: >-
-            ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref)
-            || github.event_name == 'push' && github.event.before
-            || 'HEAD~1' }}
-      # Save even when a task fails so passing tasks stay cached for the next run.
-      - name: Save Moon cache
+            runs/e2e/logs/
+            runs/e2e/ai/games/*/calls.jsonl
+            runs/arc/logs/
+            runs/arc/ai/games/*/calls.jsonl
+          if-no-files-found: ignore
+
+  browser:
+    # The page-only build (browser-design §7), as the site's play/ has it, served as GitHub Pages serves it
+    # (under /kingmaker/pr-preview/pr-0/play/: files only, max-age=600, no headers of ours) and played in
+    # headless Chromium on the fake GM: the gate and the key form (OpenRouter faked), both workers started
+    # on the page's channel, the title, a character, the map, the hanged clerk opened and a line answered,
+    # a reload that carries the game on from IndexedDB, a second tab; no request leaves the origin.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.9.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Playwright's Chromium, cached by the lock
+        id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # The browser comes from the cache while the lock is unchanged; the system libraries it needs are
+      # installed every run (a cached browser doesn't bring them).
+      - run: npx --no-install playwright install --with-deps chromium-headless-shell
+      - run: npm run build:web
+      - run: npm run web:check
+      - name: The check's screens, when it failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-check
+          path: runs/web/
+          if-no-files-found: ignore
+
+  container:
+    # The AI service's image (v0-design §5.7): it builds from the repo's root with no npm install, and the service
+    # starts in it on the fake model and answers its health with the bearer it was given, and the daily
+    # ceiling it keeps (v1-design §3.7).
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - run: podman build -f ai/Containerfile -t kingmaker-ai .
+      - name: Run it on the fake model
+        run: podman run -d --name kingmaker-ai --network=host -e KM_AI_LISTEN=127.0.0.1:8787 -e KM_AI_TOKEN=ci -e KM_AI_MODEL=fake kingmaker-ai
+      - name: GET /v1/health
+        run: |
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8787/v1/health > /dev/null && break; sleep 1; done
+          health=$(curl -sf -H "authorization: Bearer ci" http://127.0.0.1:8787/v1/health)
+          echo "$health"
+          echo "$health" | grep -q '"ok":true' && echo "$health" | grep -q '"model":"fake"' && echo "$health" | grep -q '"token":"accepted"' && echo "$health" | grep -q '"budget":{"dailyUsd":5,'
+      - name: The service's log
         if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            .moon/cache/hashes
-            .moon/cache/outputs
-          key: moon-${{ runner.os }}-${{ github.sha }}
+        run: podman logs kingmaker-ai || true
