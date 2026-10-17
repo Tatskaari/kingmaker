@@ -169,6 +169,9 @@ export const steps = (a: Tile2, b: Tile2) => Math.max(Math.abs(a.x - b.x), Math.
 // ---------------------------------------------------------------------------------------------
 // v2: a map as campaign data (campaigns/<id>/maps/<key>.kmmap, shared/scene/scenario.ts: this is the game's shape of it), installed as a map_def row.
 
+/** The terrains a legend entry may be (scenario-format.md: every one a map's legend defines is one of these). */
+export const TERRAINS = Object.keys(TERRAIN_DEFAULTS) as Terrain[];
+
 /** A legend entry as data: T()'s arguments (the terrain, any overrides, and the decor that stands on it). */
 export type LegendEntry = { terrain: Terrain; decor?: DecorDef } & Omit<MapTile, "terrain">;
 
