@@ -59,7 +59,7 @@ test("the GM's earlier replies are as the player read them: the dice line and th
   const view = yard({ turn: 2 });
   view.transcript.push(
     { turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "(I look at his neck)" },
-    { turn: 1, scene: "hanged-clerk", speaker: "gm", kind: "narration", text: "You step closer. “Careful,” Kell says.", marked: { speech: [{ start: 17, end: 27, speaker: "kell" }], marks: [] } },
+    { turn: 1, scene: "hanged-clerk", speaker: "gm", kind: "narration", text: "You step closer. “Careful,” Kell says.", marked: { speech: [{ start: 17, end: 27, speaker: "kell" }] } },
     { turn: 1, scene: "hanged-clerk", speaker: "dice", kind: "roll", text: "Medicine check: 14 + 3 = 17 vs DC 12: success (cleanly)." },
     { turn: 1, scene: "hanged-clerk", speaker: "gm", kind: "narration", text: "A thin cord mark crosses his throat." },
     { turn: 2, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Murder, then." },
@@ -208,4 +208,17 @@ test("the fake co-GM walks to the first of the recipe's endings the scene has", 
   const prep = readPrep(coGmInstructions(heron, viewAt(heron, heron.start, { turn: 1 })));
   assert.deepEqual(walkTo(prep, ["wharf"], "fight"), ["took-the-book", "master-comes", "cornered"], "the required discovery, then midnight, then the fight");
   assert.deepEqual(walkTo(prep, ["wharf"], "proof-taken"), ["took-the-book", "away-with-book"]);
+});
+
+test("the fake co-GM walks on to the recipe's next ending once a fight is fought (the e2e's Heron: the fight, then caught in the act)", async () => {
+  const heron = sceneFile("heron-warehouse");
+  const view = viewAt(heron, "midnight", { turn: 5, turnsInBeat: 0 });
+  Object.assign(view, { reached: ["wharf", "true-book", "midnight"], beat: "midnight", fought: ["fight"] });
+  const gm = { ...view } as unknown as GmState;
+  const answer = await coGm(heron, view, gm, undefined, fake({ coGm: { endings: ["murder-unknown", "fight", "caught-in-the-act"] } }));
+  assert.deepEqual(answer.moves.map(m => [m.route, m.why]), [["find-kings-grain", "The fake co-GM's walk to caught-in-the-act."]], "the fight's routes are shut once it's fought: on to the next ending, the King's grain it needs first");
+  const found = takeRoute(heron, gm, "find-kings-grain", "none", 5);
+  if ("error" in found) assert.fail(found.error);
+  const next = await coGm(heron, { ...view, ...found.gm, turn: 6 } as unknown as TurnView, found.gm, undefined, fake({ coGm: { endings: ["murder-unknown", "fight", "caught-in-the-act"] } }));
+  assert.deepEqual(next.moves.map(m => m.route), ["in-the-act"]);
 });

@@ -240,8 +240,9 @@ export function walkTo(prep: ReturnType<typeof readPrep>, reached: string[], tar
 
 /**
  * The fake co-GM's round: its roles (the recipe's), and the next open route on its walk to the
- * scene's first good ending (or the recipe's), a dice route as a success; once their outputs come
- * back, "done".
+ * scene's first good ending (or the first of the recipe's the scene has whose walk is open: a fight
+ * fought, the walk goes on to the next), a dice route as a success; once their outputs come back,
+ * "done".
  */
 function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unknown {
   const input = body.input ?? [];
@@ -252,8 +253,12 @@ function coGmRound(body: Request, recipe: NonNullable<FakeOptions["coGm"]>): unk
     const prep = readPrep(body.instructions ?? "");
     const reached = [.../Reached so far: (.*)\./.exec(said)?.[1]?.matchAll(/\[([a-z0-9-]+)\]/g) ?? []].map(m => m[1]!);
     const open = [...(/# Open routes\n([\s\S]*?)(?:\n\n|$)/.exec(said)?.[1] ?? "").matchAll(/^- \[([a-z0-9-]+)\]/gm)].map(m => m[1]!);
-    const target = recipe.endings?.find(e => prep.endings.some(x => x.id === e)) ?? prep.endings.find(e => e.result === "good")?.id;
-    const next = target ? walkTo(prep, reached, target).find(id => open.includes(id)) : undefined;
+    const targets = recipe.endings ? recipe.endings.filter(e => prep.endings.some(x => x.id === e)) : prep.endings.filter(e => e.result === "good").slice(0, 1).map(e => e.id);
+    let target: string | undefined, next: string | undefined;
+    for (const t of targets) {
+      next = walkTo(prep, reached, t).find(id => open.includes(id));
+      if (next) { target = t; break; }
+    }
     const route = prep.routes.find(r => r.id === next);
     if (route) calls.push({ name: "move_scene", args: { route_id: route.id, outcome: route.dice ? "success" : "none", why: `The fake co-GM's walk to ${target}.` } });
   }
