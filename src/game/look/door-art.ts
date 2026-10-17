@@ -1,22 +1,8 @@
 /**
- * Doors as pictures, over the ASCII, in the browser: the one place the game's ASCII gets drawn art
- * (the user's call: "only do this if we have to for readability purposes, because the ascii look
- * has a real charm to it"). The art is the ASCII-plus spike's (spike/ascii-plus-2, approved: "door
- * look much more readable"), its door parts only: a flat silhouette in two or three colours, set
- * into its wall's face and sheared with it on the map, drawn into the wall's line as a plan draws a
- * door on the scene's place from above; a mark or two (a handle, the lock's brass, one bar), lit by
- * the game's light, and a dark edge only where it would vanish into what's behind it.
- *
- * This module is pure (no DOM, no game state), shared by both ends:
- *   - the game says where the doors are (src/game/look/overlay.ts: DoorShape, from what the map's
- *     renderer and the stage drew, in the screen's cells), and asks doorCells() which cells a
- *     door's picture can reach, to say which of them it may paint;
- *   - the page (src/web/page/doors.ts) draws them: paintDoor() gives the art pixels and the wall's
- *     cells given back, and the page scales them to xterm.js's cells.
- *
- * A cell is AX x AY art pixels, about the Kingmaker Glyphs' own resolution (9 x 18 to a cell), so a
- * door is a small step up from a glyph, not a picture; an art pixel is a cell's 7th across and its
- * 15th down, whatever the font size, zoom or screen.
+ * Browser door overlays, in the same art grid as the game's glyphs (7 × 15 per cell).
+ * Map leaves use colour-free coverage masks with half-cell detail, tinted from the restored
+ * wall face. Geometry, occlusion and state marks are shared by the game and browser.
+ * The top-down stage retains its narrow plan-view symbols.
  */
 
 /** How a door looks: shut, open, locked, barred, or broken (smashed in, or burnt through). */
@@ -52,8 +38,14 @@ export type DoorCell = [x: number, y: number, level: 1 | 2, bg: Hex];
 /** A cell the ASCII door took from its wall, given back under the picture: [x, y, glyph, fg, bg]. */
 export type WallCell = [x: number, y: number, ch: string, fg: Hex, bg: Hex];
 
+/** Colour-free map-door surface options. */
+export type DoorDetail = "planks" | "panels" | "hatch";
+export const DOOR_DETAILS: readonly DoorDetail[] = ["planks", "panels", "hatch"];
+
 /** A door on the map (the town's isometric renderer), in its wall's face. */
 export interface MapDoorShape {
+  /** Colour-free detail mask; planks is the default. */
+  detail?: DoorDetail;
   view: "map";
   id: string;
   look: DoorLook;
@@ -184,10 +176,35 @@ export const footY = (sr: number): number => (sr + 1) * AY - 1;
 export const footCells = (face: "south" | "west", sc: number, sr: number): Array<{ x: number; y: number }> =>
   (face === "south" ? [sc + 1, sc + 2] : [sc - 2, sc - 1]).map(x => ({ x, y: sr + 1 }));
 
+/** A monochrome coverage mask, in roughly half-cell (3 × 7) marks.
+ * No baked-in material colour: each sample mixes the tile's shadow and ink.
+ */
+export function doorMask(u: number, v: number, detail: DoorDetail, seed: number): number {
+  if (detail === "panels") {
+    const edge = u === 1 || u === 8 || v % 13 === 2 || v % 13 === 11;
+    return edge ? 0.38 : u > 1 && u < 8 ? 0.78 : 0.94;
+  }
+  const row = Math.floor(v / 7), col = Math.floor(u / 3);
+  const phase = Math.floor(hash01(seed, col, row) * 3);
+  if (detail === "hatch") {
+    // Small |, :, and - marks, with stable variation per door.
+    const mark = phase === 0 ? u % 3 === 1 && v % 7 < 5
+      : phase === 1 ? u % 3 === 1 && (v % 7 === 1 || v % 7 === 4)
+      : v % 7 === 3 && u % 3 < 2;
+    return mark ? 0.34 : 0.86;
+  }
+  return u % 3 === 0 && v % 7 !== phase + 2 ? 0.42 : 0.9 + phase * 0.04;
+}
+
 export function mapDoorParts(d: MapDoorShape): Part[] {
   const south = d.face === "south";
   const sc = d.x, sr = d.y, height = Math.max(1, Math.min(6, d.h));
   const P = { wood: hex(d.colors.wood), mark: hex(d.colors.mark), brass: hex(d.colors.brass), bar: hex(d.colors.bar), gap: hex(d.colors.gap) };
+  const seed = seedOf(d.id);
+  const ink = (u: number, v: number): RGB => {
+    const alpha = doorMask(u, v, d.detail ?? "planks", seed);
+    return P.wood.map((c, i) => P.gap[i]! + (c - P.gap[i]!) * alpha) as RGB;
+  };
   // Face space: u across from the door's left jamb, v up from its sill; the sill climbs with the face.
   const W = 10, H = Math.max(12, Math.min(30, height * AY - 14));
   const X0 = south ? (sc + 1) * AX - 1 : (sc - 1) * AX - 2;
@@ -215,7 +232,7 @@ export function mapDoorParts(d: MapDoorShape): Part[] {
       // down (towards you), on a west face out to the left and down; over the tile in front.
       const leaf = new Sprite();
       const dir = south ? 1 : -1;
-      for (let k = 1; k < W; k++) for (let v = 0; v < H - (k === W - 1 ? 1 : 0); v++) leaf.set(X(hinge) + dir * k, Y(hinge, v) + k, P.wood);
+      for (let k = 1; k < W; k++) for (let v = 0; v < H - (k === W - 1 ? 1 : 0); v++) leaf.set(X(hinge) + dir * k, Y(hinge, v) + k, ink(k, v));
       // Its handle, a mark near its free edge.
       const hv = Math.round(H * 0.45);
       for (const v of [hv, hv + 1]) leaf.set(X(hinge) + dir * (W - 3), Y(hinge, v) + W - 3, P.mark);
@@ -228,7 +245,7 @@ export function mapDoorParts(d: MapDoorShape): Part[] {
     for (let u = 0; u < W; u++) {
       const hu = south ? W - 1 - u : u;
       const top = hu < 2 ? H : Math.round(H * 0.46 + (south ? -1 : 1) * (u - (W - 1) / 2)) + teeth[hu % 6]!;
-      for (let v = 0; v < Math.min(H, top); v++) if (shape(u, v)) put(u, v, P.wood);
+      for (let v = 0; v < Math.min(H, top); v++) if (shape(u, v)) put(u, v, ink(u, v));
     }
     // A few splinters on the ground in front, lying with the wall (where they fell: hashed on the door).
     const bits = new Sprite();
@@ -240,7 +257,7 @@ export function mapDoorParts(d: MapDoorShape): Part[] {
     }
     return [{ sprite: s, level: 2, outline: true }, { sprite: bits, level: 1, outline: false }];
   }
-  fill(P.wood);
+  for (let u = 0; u < W; u++) for (let v = 0; v < H; v++) if (shape(u, v)) put(u, v, ink(u, v));
   if (d.look === "locked") {
     // One brass mark: the lock, two wide and three high, by the latch.
     const lv = Math.round(H * 0.42);
