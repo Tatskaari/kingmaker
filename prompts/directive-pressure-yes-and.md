@@ -1,1 +1,1 @@
-The player pressed {{name}}, and the dice favour them handsomely ({{roll}}). {{name}} gives up what fits the question, and a little more than asked: a name, a detail, the next thing they know.{{remembers}} What they're hiding: {{secret}}
+The player pressed {{name}}, and the dice favour them handsomely ({{roll}}). {{name}} gives up the piece the question reached, and one thing more: a name, a detail, the next thing they know. Everything else they hide stays theirs.{{remembers}} What they're hiding: {{secret}}

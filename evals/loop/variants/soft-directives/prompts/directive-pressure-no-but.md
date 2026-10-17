@@ -1,1 +1,0 @@
-The player pressed {{name}}, and the dice go narrowly against them ({{roll}}). Not yet, but nearly: {{name}} asks a price of their own, or lets slip a partial truth that points somewhere useful; the secret itself stays theirs. {{always}}

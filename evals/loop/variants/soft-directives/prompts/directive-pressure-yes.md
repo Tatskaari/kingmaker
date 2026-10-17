@@ -1,1 +1,0 @@
-The player pressed {{name}}, and the dice favour them ({{roll}}). {{name}} gives up one piece, the piece the question reached, in their own way; the rest of what they hide stays theirs for now.{{remembers}} What they're hiding: {{secret}}

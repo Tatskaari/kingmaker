@@ -1,1 +1,0 @@
-What the player just did is the sort of thing this world would answer. Follow its logic to a consequence, now or plainly on its way: whoever it touches reacts as they truly would, and something changes, for better or worse.

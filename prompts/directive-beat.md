@@ -1,1 +1,1 @@
-The scene has moved on to "{{title}}": {{direction}} Play the start of this in your reply, growing out of what the player just did, and let the rest unfold over the next exchanges.
+The scene has turned towards "{{title}}": {{direction}} Start it from what the player just did, and let the rest come over the next few exchanges, a step at a time.

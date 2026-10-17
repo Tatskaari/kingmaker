@@ -1,1 +1,1 @@
-What comes out is what's written here, in these terms, and no more: whatever else people know or hide, and whatever your prep says lies behind it, stays where it is until the player gets to it.
+That's all the ruling decided: whatever else people know or hide is still theirs. Its words are for you, not the player: anything in them the player can't see or hasn't been told stays out of the narration unless this outcome is the player finding it.

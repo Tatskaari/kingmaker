@@ -1,1 +1,0 @@
-The table thinks the player may just have earned what they've been working towards. If they have (the right question, the proof, the leverage, or what this person needed), let it land now: one piece, as far as they reached, and let people react to it; don't make them ask twice. If what they did doesn't really reach it, let them come close instead, and show them what would.

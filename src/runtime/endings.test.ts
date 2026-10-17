@@ -68,7 +68,7 @@ const told = (fake: { sent: Array<{ instructions?: string; input?: Array<{ conte
   fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!.input!.at(-1)!.content;
 
 test("a daft act gets its bill, unless the dice have already decided it", async () => {
-  const bill = /this one isn't free/;
+  const bill = /something changes, for better or worse/;
   const billed = fakeOpenRouter({ choices: { daft: "consequential" }, replies: ["Moll shrieks."] });
   try {
     await playerTurn(yard("endings-billed"), "*pulls a face at Moll and pelts her with gravel*");

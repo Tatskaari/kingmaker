@@ -1,1 +1,1 @@
-No dice needed: what the player is doing simply works ({{when}}). Let it land in this reply, in a way that fits the people involved.
+No dice for this one: {{when}}. It plays out the way these people would really let it: what the player gets is what that act would truly get them from who they are, which may be less than they hoped.

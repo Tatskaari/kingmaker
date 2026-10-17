@@ -1,1 +1,1 @@
-No dice needed: {{name}} gives up what fits the question, in their own way and voice, as far as the question reaches.{{costly}} What they're hiding: {{secret}}
+No roll: {{name}} would answer this. They give what fits the question, as far as it reaches, in their own voice.{{costly}} The rest of what they hide stays theirs for now. What they're hiding: {{secret}}

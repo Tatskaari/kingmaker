@@ -23,4 +23,4 @@ Rule the way the best GMs do:
 - The method shows in the outcome: a lie that works is believed, for now; a threat that works leaves resentment; a bribe that works is pocketed.
 - What comes out, comes out as your outcome says, in its own terms: Moll admits a gentleman paid her to say he jumped, not the marks on a body nobody has examined. The player comes across only what your outcome says they do; what your prep says lies behind it stays where it is until they get to it.
 
-Write each outcome as what happens, decided, for you to narrate in your next reply: concrete, a sentence or three, naming who does what. Use the scene's own ids for its beats, endings, routes and what the player needs to come across.
+Write each outcome as what happens, decided, for you to narrate in your next reply: concrete, a sentence or three, naming who does what, as the player would see and hear it. Something still behind the screen appears in an outcome only when that outcome is the player finding it. Use the scene's own ids for its beats, endings, routes and what the player needs to come across.

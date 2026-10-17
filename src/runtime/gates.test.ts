@@ -61,8 +61,8 @@ test("a route the author gave no dice, read with an attempt's confidence, settle
     await playerTurn(state, CROWN);
     assert.equal(reviewed(fake), false, "no ruling asked for");
     assert.equal(state.rulings, undefined);
-    assert.match(told(fake), /No dice needed: what the player is doing simply works \(The player offers Cob something as the price of a look in his boot[\s\S]*a coin offered to make him talk, with nothing said of the boots, is not this/);
-    assert.doesNotMatch(told(fake), /Decided, and it stands/);
+    assert.match(told(fake), /No dice for this one: The player offers Cob something as the price of a look in his boot[\s\S]*a coin offered to make him talk, with nothing said of the boots, is not this/);
+    assert.doesNotMatch(told(fake), /The ruling settled it, and it stands/);
     // v2's GM improvises with the guide (prompts/gm-improv.md), and is reminded of it before each reply's directives.
     const gm = fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!;
     assert.match(gm.instructions!, /\*\*Know where it comes from\.\*\*/);
@@ -131,7 +131,7 @@ test("a spell that's only the means to a risky act still gets the act's ruling, 
     assert.match(review.input!.at(-1)!.content, /Cast Mage Hand/, "after the rules, so it rules knowing the spell was cast");
     assert.deepEqual(state.rulings?.map(r => r.act), [LIFT.act]);
     assert.ok(state.path.some(p => p.via === "rules:cast:mage-hand"), "the rules resolved the cast");
-    assert.match(told(fake), /Decided, and it stands/);
+    assert.match(told(fake), /The ruling settled it, and it stands/);
   } finally {
     fake.restore();
   }
