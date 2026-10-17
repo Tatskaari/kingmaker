@@ -47,7 +47,7 @@ function putLooks(tx: TxCtx, scene: SceneRow, graph: Scene, gm: GmState): void {
     const entityId = castEntity(tx, scene, c.id);
     const look = Object.prototype.hasOwnProperty.call(looks, c.id) ? looks[c.id] : undefined;
     if (entityId === undefined || !look) continue;
-    const row = { entityId, placeId: scene.placeId, role: look.role, glyph: look.glyph, fg: look.fg };
+    const row = { entityId, placeId: scene.placeId, role: look.role, glyph: look.glyph, fg: look.fg, invention: undefined };
     const old = tx.db.look.entityId.find(entityId);
     if (!old) tx.db.look.insert(row);
     else if (old.placeId !== row.placeId || old.role !== row.role || old.glyph !== row.glyph || old.fg !== row.fg) tx.db.look.entityId.update(row);

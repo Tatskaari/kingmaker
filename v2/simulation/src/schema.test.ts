@@ -35,7 +35,7 @@ const gear = (row: RulesState): GearRow[] => row.gear;
 test("the sheet's engine-made columns are SheetRows, and its parts and the gear read as shared/rules's types", () => {
   const rows: SheetRows = {
     build: "halfling rogue 3 (Thief), criminal background", skills: "{}", statusLine: "HP 24/24", level: 3, hp: 24, maxHp: 24, ac: 14,
-    slots: [], conditions: [], spells: [], weapons: [{ id: "01J", name: "Rapier" }], features: [], data: "{}", backstory: undefined, spellFacts: "",
+    slots: [], conditions: [], spells: [], weapons: [{ id: "01J", name: "Rapier" }], features: [], data: "{}", backstory: undefined, spellFacts: "", actions: "",
   };
   const row = sheetRow(rows, "{}") as Sheet;
   assert.deepEqual(parts(row).weapons, [{ id: "01J", name: "Rapier" }]);

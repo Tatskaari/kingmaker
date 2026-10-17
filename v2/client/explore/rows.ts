@@ -1,6 +1,6 @@
 // New (map-design §3.4, §3.6): the map's rows as the client holds them, made into the prototype's ExploreState by shared/map's exploreOf (the seam the simulation calls too), with what the explore screen says beside the map.
 import type { ExploreState } from "../../shared/map/explore.ts";
-import { exploreOf, type ExploreRow, type MapPlace, type MapRows } from "../../shared/map/rows.ts";
+import { exploreOf, keepFromColumns, type ExploreRow, type MapPlace, type MapRows } from "../../shared/map/rows.ts";
 import type { MapFile } from "../../shared/map/tiles.ts";
 import type { Unheard } from "../../shared/map/town.ts";
 import type { TimeOfDay } from "../../shared/scene/files.ts";
@@ -14,7 +14,8 @@ import { placeRowsOf, type PlaceTables } from "../scene/place-rows.ts";
  * walked from what any client sees, so both sides offer the same ids.
  */
 export interface MapPlaceTables extends Omit<PlaceTables, "sceneKey" | "place"> {
-  place: PlaceTables["place"] & Pick<Place, "sceneId" | "mapKey" | "region" | "origin" | "active">;
+  /** town: a map's own place's changes (town-design §3.3), "" or absent for none. */
+  place: PlaceTables["place"] & Pick<Place, "sceneId" | "mapKey" | "region" | "origin" | "active"> & Partial<Pick<Place, "town">>;
 }
 
 /** Everything the explore screen is drawn from, as the bindings have it. */
@@ -97,6 +98,8 @@ export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
       origin: p.place.origin ? { x: p.place.origin.x, y: p.place.origin.y } : { x: 0, y: 0 },
       ...(scene ? { scene: { key: scene.sceneKey, status: scene.status, time } } : {}),
       rows: placeRowsOf({ ...p, sceneKey: scene?.sceneKey ?? "" }),
+      // A map's own place's: what the rules did to the town (town-design §3.3), into the overlay.
+      ...(p.place.town ? { town: p.place.town } : {}),
     }];
   });
   const explore: ExploreRow = {
@@ -105,6 +108,7 @@ export function mapRowsOf(rows: ExploreRows): MapRows | undefined {
     followers: row.followers.map(f => ({ ...f, at: { x: f.at.x, y: f.at.y } })),
     quips: row.quips, ...(row.lastQuip !== undefined ? { lastQuip: row.lastQuip } : {}), styles: [...row.styles],
     acts: row.acts, said: row.said, log: [...row.log],
+    ...keepFromColumns(row),
   };
   return { maps, explore, story: { time, ...(rows.game.leadScene !== undefined ? { lead: rows.game.leadScene } : {}), played }, places, unheard: unheardOf(rows, onMaps) };
 }

@@ -13,7 +13,9 @@ import * as games from "../games/moves.ts";
 import { installCampaignReducer } from "../install.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs } from "../jobs.ts";
 import { initDatabase } from "../lifecycle.ts";
+import * as acts from "../map/acts.ts";
 import * as map from "../map/moves.ts";
+import { tickPlace } from "../map/tick.ts";
 import { joinGameReducer } from "../moves/join-game.ts";
 import { newGameReducer } from "../moves/new-game.ts";
 import { retryTurnReducer } from "../moves/retry-turn.ts";
@@ -128,7 +130,7 @@ type Body<A> = (tx: TxCtx, sender: Identity, args: A) => void;
 /** The move, as a caller makes it (with no arguments, when none are needed): the refusal, or nothing when it was made. */
 type Made<B> = B extends Body<infer A> ? ({} extends A ? (args?: A) => Refusal | undefined : (args: A) => Refusal | undefined) : never;
 
-/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and the story's between scenes (story-design §4.3), by their bodies' names. */
+/** Character creation's moves, the games' (v1-design §3.3), the map's (map-design §3.2) and its action menu's (town-design §3.2), and the story's between scenes (story-design §4.3), by their bodies' names. */
 const MOVES = {
   startCreation: creation.startCreationReducer, creationBack: creation.creationBackReducer, chooseBuild: creation.chooseBuildReducer,
   makeOwn: creation.makeOwnReducer, pickOwn: creation.pickOwnReducer, takeOwn: creation.takeOwnReducer, setBackstory: creation.setBackstoryReducer,
@@ -137,6 +139,7 @@ const MOVES = {
   rewriteIssue: creation.rewriteIssueReducer, skipBackstory: creation.skipBackstoryReducer, chooseAgain: creation.chooseAgainReducer,
   begin: games.beginReducer, continueGame: games.continueGameReducer, deleteGame: games.deleteGameReducer,
   walk: map.walkReducer, interact: map.interactReducer, travel: map.travelReducer,
+  cast: acts.castReducer, attack: acts.attackReducer, useFeature: acts.useFeatureReducer, leap: acts.leapReducer, hide: acts.hideReducer, rest: acts.restReducer, useItem: acts.useItemReducer,
   carryOn: story.carryOnReducer, fightItOut: story.fightItOutReducer, endScene: story.endSceneReducer,
 };
 
@@ -171,6 +174,12 @@ export interface MemoryHost {
   dispatchDue(): Array<Promise<void>>;
   /** reap_jobs, once, at the clock's time: what a real-time host runs on the reaper row's interval. */
   reap(): void;
+  /**
+   * tick_place (town-design §3.5) for every place_tick row, each in a transaction of its own, at the
+   * clock's time: what a real-time host runs every 6 s (the rows' interval), and a test when it likes.
+   * A tick that throws is logged, as a scheduled reducer's panic is, and the rest still run.
+   */
+  tickPlaces(): void;
   /** The manual clock moves on, and the reaper runs (refused on an injected clock: its time isn't the host's to move). */
   advance(ms: number): void;
   view(identity: Identity): { mySeat(): ReturnType<typeof mySeatView>; myNames(): ReturnType<typeof myNamesView>; myCreation(): ReturnType<typeof myCreationView>; myGames(): ReturnType<typeof myGamesView> };
@@ -207,12 +216,21 @@ export function memoryHost(options: MemoryHostOptions): MemoryHost {
   const transact = <T>(body: (tx: TxCtx) => T): T => inTransaction(store, () => body(txNow()));
   const call = (body: (tx: TxCtx) => void): Refusal | undefined => refusalOf(() => transact(body));
   const reap = () => transact(reapJobs);
+  const tickPlaces = () => {
+    for (const row of transact(tx => [...tx.db.placeTick.iter()])) {
+      try {
+        transact(tx => tickPlace(tx, row));
+      } catch (e) {
+        log(`[tick_place] place ${row.placeId} stopped: ${String(e)}`);
+      }
+    }
+  };
 
   transact(tx => initDatabase(tx, owner));
 
   const jobs = jobRunner(transact, now, env, options.ai, log);
   return {
-    db: store.db, owner, service, logs, transact, reap,
+    db: store.db, owner, service, logs, transact, reap, tickPlaces,
     as: identity => callerAs(identity, call),
     streamReply: (args, from = service) => call(tx => streamReplyReducer(tx, from, args)),
     drain: jobs.drain,

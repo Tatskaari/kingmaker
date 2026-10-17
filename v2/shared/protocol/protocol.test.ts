@@ -5,6 +5,15 @@ import { STEP_ENDPOINT, STEP_TIMEOUT_MS, streamReplyArgs } from "./ai.ts";
 import { creationKey, CREATION_STEPS, idempotencyKey, isTurnKey, keyParts, STEPS } from "./keys.ts";
 import { andList, refusal, refusalIn } from "./refusals.ts";
 
+test("the map's action menu refuses in the prototype's own sentence; not_ready and not_now keep their words without one (town-design §3.2)", () => {
+  const text = "(Fire Bolt (cantrip): out of reach: 130 ft (it reaches 120 ft).)";
+  assert.deepEqual(refusal("out_of_reach", { text }), { code: "out_of_reach", text });
+  assert.equal(refusal("not_now", { text: "(Short rest: not now, nothing to rest off: you're whole and fresh.)" }).text, "(Short rest: not now, nothing to rest off: you're whole and fresh.)");
+  assert.deepEqual([refusal("not_ready").text, refusal("not_now").text], ["(The scene is still opening.)", "(That doesn't apply just now.)"]);
+  for (const code of ["no_line", "out_of_reach", "too_far", "no_slot", "shut"] as const) assert.match(refusal(code).text, /^\(.+\.\)$/, code);
+  assert.deepEqual(refusalIn(JSON.stringify(refusal("no_line", { text: "(Fire Bolt (cantrip): no clear line to there.)" }))), { code: "no_line", text: "(Fire Bolt (cantrip): no clear line to there.)" });
+});
+
 test("refusals say what v0-design §3.4 says", () => {
   assert.equal(refusal("not_controller", { name: "Wren Ashdown" }).text, "(Wren Ashdown has the lead here: you're watching.)");
   assert.equal(refusal("no_build", { build: "bard", builds: andList(["ranger", "rogue", "wizard"]) }).text, "(There's no ready-made build called bard: there's ranger, rogue and wizard.)");
@@ -50,9 +59,18 @@ test("a reply's notes have a key of their own, and each ask for its lines anothe
 test("every step has its endpoint and its timeout: the notes' and the lines' 30 s", () => {
   assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), [
     "/v1/scenes/open", "/v1/turns/decide", "/v1/turns/reactions", "/v1/turns/consider", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/notes", "/v1/turns/suggest", "/v1/turns/remember", "/v1/turns/repair",
-    "/v1/scenes/boundary",
+    "/v1/scenes/boundary", "/v1/looks",
   ]);
   assert.deepEqual([STEP_TIMEOUT_MS.notes, STEP_TIMEOUT_MS.suggest], [30_000, 30_000]);
+});
+
+test("the looks of what a turn made have a key of their own, beside the turn (town-design §3.7)", () => {
+  const key = idempotencyKey("5f0c-uid", 4n, 7, "look");
+
+  assert.equal(key, "5f0c-uid:s4:t7:look");
+  assert.deepEqual(keyParts(key), { game: "5f0c-uid", scene: "4", turn: 7, step: "look" });
+  assert.deepEqual([STEP_ENDPOINT.look, STEP_TIMEOUT_MS.look], ["/v1/looks", 30_000]);
+  assert.equal(keyParts("5f0c-uid:c4:look"), undefined, "a turn's step isn't a creation's");
 });
 
 test("the reactions to the player's violence have a key of their own, after the decision and as long to wait (world-bridge-design §3.4)", () => {

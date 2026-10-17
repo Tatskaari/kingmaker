@@ -96,6 +96,7 @@ const NEEDS: Record<Step, Need[]> = {
   remember: [...SCENE, REVIEWED],
   repair: [...SCENE, REVIEWED],
   boundary: [...SCENE, ...BOUNDARY],
+  look: [["things [{ key, name }] (what to invent a look for, at least one)", r => isList(r, "things") && (at(r, "things") as unknown[]).length > 0 && (at(r, "things") as Array<{ key?: unknown; name?: unknown }>).every(t => typeof t?.key === "string" && typeof t.name === "string")]],
 };
 
 /** The value at a dotted path of the parsed JSON ("turn.party.0.name"), or undefined where the path breaks. */

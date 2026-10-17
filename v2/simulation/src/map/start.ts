@@ -33,6 +33,7 @@ export function startOnMap(tx: TxCtx, game: GameRow, campaign: CampaignRow): boo
   tx.db.explore.insert({
     playerId: host.id, gameId: game.id, map: mapKey, at: startTile(file.start.at), facing: { x: 0, y: 1 }, steps: 0, hidden: false, scene: undefined,
     followers: [], quips: 0, lastQuip: undefined, styles: [], acts: 0, said: "", log: [],
+    rested: undefined, spotted: undefined, lifted: undefined, fight: undefined,
   });
   tx.db.player.id.update({ ...host, placeId: town.id, sceneId: undefined });
 

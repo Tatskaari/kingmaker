@@ -31,4 +31,6 @@ export default __t.row({
     return __t.option(Tile2);
   },
   active: __t.bool(),
+  town: __t.string(),
+  tickedAt: __t.option(__t.timestamp()).name("ticked_at"),
 });

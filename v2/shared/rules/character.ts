@@ -448,6 +448,8 @@ export function sheetRows(rules: Rules, state: RulesSession): SheetRows {
     backstory: storyOf(state).story ? JSON.stringify(state.player.backstory) : undefined,
     // What each spell reaches, for the scene's menu.
     spellFacts: JSON.stringify(spellFactsOf(rules, readySpells(sheet))),
+    // The map's action menu (town-design §3.3): shared/rules/actions.ts catalogue, once package S has copied it. "" until then.
+    actions: "",
   };
 }
 

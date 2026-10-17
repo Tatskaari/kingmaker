@@ -26,10 +26,11 @@ export interface Action {
 /** The cast the player hasn't heard named, with what they'd call them: asHeard's pairs (shared/scene/names.ts). */
 export type Unheard = Array<{ name: string; called: string }>;
 
-/** What an act came to: what's said; whether the lead's scene opens; a thing to pick up, which the simulation moves into the player's pockets. */
+/** What an act came to: what's said; whether the lead's scene opens, or a talk with someone walking with the player (town-design §3.6: town.ts:316-318, with whom and where and when, as the map says it); a thing to pick up, which the simulation moves into the player's pockets. */
 export interface Done {
   text: string;
   scene?: boolean;
+  talk?: { with: string; where: string };
   /** take_<x>: the thing a played scene left lying about (its place's scene id, and its id in that world). */
   take?: { sceneId: string; id: string };
 }

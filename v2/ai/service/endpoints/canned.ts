@@ -20,7 +20,7 @@ import { characters } from "./characters.ts";
  * on nothing (a ruling asked for anyway comes back without one, and without a check to roll).
  * The notes put one why on the first line someone of the cast says, linked to them, with their card;
  * the suggested lines are the same four every time. After a turn, nobody remembers anything, and the
- * co-GM finds the scene on track, with no notes. After a scene, the boundary goes to the first scene
+ * co-GM finds the scene on track, with no notes, and nothing gets a look invented. After a scene, the boundary goes to the first scene
  * it could, with the prototype's fallback hand-off, nothing rewritten, nobody absent, nothing owed
  * and no docs written (story-design §4.4). Character creation gets the prototype's offline
  * answers (its endpoints with no model to ask): three builds from the class defaults, the player's
@@ -82,6 +82,9 @@ export const canned: Endpoints = {
       next: { scene: req.candidates[0]!, skipped: [], adjustments: [], absent: [], patches: [], hinted: [] },
       owed: [], fronts: [], usage: noUsage(),
     };
+  },
+  async looks() {
+    return { looks: {}, usage: noUsage() };
   },
 
   characters: characters(() => null),

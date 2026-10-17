@@ -39,6 +39,12 @@ export interface CampaignFile {
   creation: CreationWorld;
   /** The story's quests by key, each with its title: an exit's effect may advance one before any starts it (story-design §4.6). */
   quests?: Record<string, string>;
+  /**
+   * The talk template's folder under scenes/ (town-design §3.6: "talk"), a scene of kind talk with
+   * `{name}` and `{companion}` for whoever walks with the player: installed with the scenes (its scene
+   * def's key is the folder's), never on the story's way (it isn't in `scenes`).
+   */
+  talk?: string;
 }
 
 export type Phase = "attempt" | "cue" | "outcome";
@@ -112,6 +118,8 @@ export interface SceneFile {
   background?: string[];
   /** Effects of every ending, before the exit's own (Kell walks with the player after the granary, whichever way it ends). */
   onEnd?: Effect[];
+  /** A talk's: the companion's cast id (shared/scene/talk.ts talkSceneFile sets it). */
+  companion?: string;
   /** The place's key: places/<key>.json. */
   place?: string;
   start: string;

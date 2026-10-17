@@ -1,4 +1,4 @@
-// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 102-108 (missesMiss), 911-1059, 1061-1106 but castable, 1191-1452, 1454-1459, 1520-1763, 1774-1863, 1885-1946 and 1994-2027. The usual edits (world-bridge-design §2): SessionState is RulesSession; each act takes the Rules its host loaded first and none awaits (await open(state) is opened(rules, state), close takes the Rules, and jumpReach reads the sheet with reading(rules, state)); Outcome is RulesOutcome (the protocol has an Outcome); SpellChoice and WeaponChoice are types.ts's SpellRef and WeaponRef. The helpers dnd.ts shares with the character's code (close, refresh, sheetOf, status, readySpells, endRage, resolveChoices, grantResources, moreSpells, CASTING, cantripsAt, rollFor, FEATURES) are character.ts's, and spellFactsOf (src/app/game.ts:1840-1851) is too, so sheetRows can call it without the two modules importing each other: it's re-exported here.
+// Copied from the prototype's src/rules/dnd.ts at 44c6d4a: lines 102-108 (missesMiss), 911-1059, 1061-1106 but castable, 1191-1452, 1454-1459, 1520-1763, 1774-1863, 1885-1946 and 1994-2027. The usual edits (world-bridge-design §2): SessionState is RulesSession; each act takes the Rules its host loaded first and none awaits (await open(state) is opened(rules, state), close takes the Rules, and jumpReach reads the sheet with reading(rules, state)); Outcome is RulesOutcome (the protocol has an Outcome); SpellChoice and WeaponChoice are types.ts's SpellRef and WeaponRef. The helpers dnd.ts shares with the character's code (close, refresh, sheetOf, status, readySpells, endRage, resolveChoices, grantResources, moreSpells, CASTING, cantripsAt, rollFor, FEATURES) are character.ts's, and spellFactsOf (src/app/game.ts:1840-1851) is too, so sheetRows can call it without the two modules importing each other: it's re-exported here. areaPlacement (1357-1366) is shared/rules/aim.ts's (the town unit's: the map's aim runs it on the client, which never loads this file), re-exported here.
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.module.js";
 import { describeRoll, rng, type RollResult } from "../dice.ts";
 import type { Character } from "../scene/types.ts";
@@ -6,10 +6,12 @@ import { caughtIn, damageThing, positionOf, within, type Entity, type SceneWorld
 import { bleed, elemental, spill } from "../world/systems.ts";
 import { CASTING, cantripsAt, close, endRage, FEATURES, grantResources, moreSpells, readySpells, refresh, resolveChoices, rollFor, sheetOf, status } from "./character.ts";
 import { ABILITY_NAME, event, opened, ordinal, reading, signed, type Ctx } from "./engine.ts";
+import { areaPlacement } from "./aim.ts";
 import { RAYS } from "./spells.ts";
 import type { Rules, RulesSession, SpellRef, WeaponRef } from "./types.ts";
 
 export { spellFactsOf } from "./character.ts";
+export { areaPlacement } from "./aim.ts";
 
 /**
  * The D&D rules' acts in a scene (world-bridge-design §2.1): a spell, a blow, a grab or a shove, a
@@ -379,22 +381,6 @@ function spellSurface(world: SceneWorld, spellId: string, targetIds: string[], t
   if (spellId === "create-or-destroy-water") return ["Water pours out of the air", ...spill(world, "water", at, 6, turn).lines];
   if (spellId === "grease") return ["A slick of grease spreads over the floor", ...spill(world, "grease", at, 5, turn).lines];
   return [];
-}
-
-/**
- * Where a spell's area sits in a world, as castSpell puts it: it goes out from the caster (the
- * player) towards the aim, a cube from the caster sitting in front of them; anything else centres on
- * the aim (or on the caster, aimed at nothing). The map's aim works it out the same way.
- */
-export function areaPlacement(world: SceneWorld, shape: { shape: string; size: number }, fromCaster: boolean, aim?: { x: number; y: number }): { origin: { x: number; y: number }; centre: { x: number; y: number } } {
-  const origin = positionOf(world, "player")!;
-  const at = aim ?? origin;
-  return { origin, centre: fromCaster && shape.shape === "cube" ? towards(origin, at, shape.size / 2) : at };
-}
-
-function towards(from: { x: number; y: number }, to: { x: number; y: number }, feet: number) {
-  const d = Math.hypot(to.x - from.x, to.y - from.y) || 1;
-  return { x: from.x + ((to.x - from.x) / d) * feet, y: from.y + ((to.y - from.y) / d) * feet };
 }
 
 /** Someone the story brought in who isn't in the cast (a crowd, a passer-by): a commoner, for the rules. */

@@ -145,6 +145,12 @@ export interface SheetRows {
    * nothing has worked them out: the menu then offers every spell anywhere, by its name.
    */
   spellFacts: string;
+  /**
+   * JSON: shared/rules/aim.ts Catalogue, the map's action menu (town-design §3.3): what they can do
+   * outside a fight, by kind, and why not where they can't, made with the explorer's rest at this time
+   * of day (RulesSession's). "" before the menu: the client offers none.
+   */
+  actions: string;
 }
 
 /** What they carry that isn't gear: the coins in their purse, and anything else on them (sheet.pockets, as JSON). */

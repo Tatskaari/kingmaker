@@ -20,15 +20,17 @@ import { retryTurnReducer } from "./moves/retry-turn.ts";
 import { sayReducer } from "./moves/say.ts";
 import { setSuggestionsReducer } from "./moves/set-suggestions.ts";
 import { interactReducer, travelReducer, walkReducer } from "./map/moves.ts";
+import { attackReducer, castReducer, hideReducer, leapReducer, restReducer, useFeatureReducer, useItemReducer } from "./map/acts.ts";
+import { tickPlace as tickPlaceBody } from "./map/tick.ts";
 import { loadRules } from "./rules/load.ts";
-import spacetimedb, { creation, GameSummary, jobDispatch, NameView, reaper, SeatView, Tile2 } from "./schema.ts";
+import spacetimedb, { creation, GameSummary, jobDispatch, NameView, placeTick, reaper, SeatView, Tile2 } from "./schema.ts";
 import { carryOnReducer, endSceneReducer, fightItOutReducer } from "./story/moves.ts";
 import { streamReplyReducer } from "./stream.ts";
 import { myCreationView, myGamesView, myNamesView, mySeatView } from "./views.ts";
 
 /**
  * The module's entry: every reducer, procedure, view and lifecycle hook, registered (v0-design
- * §3.3, v1-design §3.2-3.3, v5-design §3.3, map-design §3.2, story-design §4.3), and the few adapters that need SpacetimeDB at run time
+ * §3.3, v1-design §3.2-3.3, v5-design §3.3, map-design §3.2, story-design §4.3, town-design §3.2), and the few adapters that need SpacetimeDB at run time
  * (txOf, asReducer, the AI service's HTTP). Each body is a plain function over TxCtx in another file,
  * so the memory host runs the same code. The export names are the wire's, in snake_case (newGame is
  * new_game): the client's bindings are generated from them.
@@ -76,6 +78,14 @@ export const deleteGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => 
 export const walk = spacetimedb.reducer({ to: t.option(Tile2), toward: t.option(t.string()) }, (ctx, args) => asReducer(ctx, tx => walkReducer(tx, ctx.sender, args)));
 export const interact = spacetimedb.reducer({ verb: t.string(), target: t.option(t.string()), at: t.option(Tile2) }, (ctx, args) => asReducer(ctx, tx => interactReducer(tx, ctx.sender, args)));
 export const travel = spacetimedb.reducer({ way: t.option(t.string()), at: t.option(Tile2) }, (ctx, args) => asReducer(ctx, tx => travelReducer(tx, ctx.sender, args)));
+// The map's action menu (town-design §3.2): the rules on the town's world, each the prototype's menu id of that kind (shared/map/moves.ts).
+export const cast = spacetimedb.reducer({ spell: t.string(), at: t.option(Tile2), self: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => castReducer(tx, ctx.sender, args)));
+export const attack = spacetimedb.reducer({ how: t.string(), at: Tile2 }, (ctx, args) => asReducer(ctx, tx => attackReducer(tx, ctx.sender, args)));
+export const useFeature = spacetimedb.reducer({ feature: t.string(), at: t.option(Tile2), self: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => useFeatureReducer(tx, ctx.sender, args)));
+export const leap = spacetimedb.reducer({ at: Tile2 }, (ctx, args) => asReducer(ctx, tx => leapReducer(tx, ctx.sender, args)));
+export const hide = spacetimedb.reducer(ctx => asReducer(ctx, tx => hideReducer(tx, ctx.sender, {})));
+export const rest = spacetimedb.reducer({ length: t.string(), recover: t.option(t.bool()) }, (ctx, args) => asReducer(ctx, tx => restReducer(tx, ctx.sender, args)));
+export const useItem = spacetimedb.reducer({ item: t.string() }, (ctx, args) => asReducer(ctx, tx => useItemReducer(tx, ctx.sender, args)));
 // The story between scenes (story-design §4.3): a boundary that failed carried on, the fight's stand-in; and the owner's testing end.
 export const carryOn = spacetimedb.reducer(ctx => asReducer(ctx, tx => carryOnReducer(tx, ctx.sender, {})));
 export const fightItOut = spacetimedb.reducer(ctx => asReducer(ctx, tx => fightItOutReducer(tx, ctx.sender, {})));
@@ -109,6 +119,10 @@ export const runJob = spacetimedb.procedure({ onSchedule: jobDispatch }, { arg: 
 });
 export const reapJobs = spacetimedb.reducer({ onSchedule: reaper }, { arg: reaper.rowType }, ctx => {
   if (fromScheduler(ctx)) asReducer(ctx, reapJobsBody);
+});
+// The world's clock on the map (town-design §3.5): a map's own place, every 6 s while its game's host is in it.
+export const tickPlace = spacetimedb.reducer({ onSchedule: placeTick }, { arg: placeTick.rowType }, (ctx, { arg }) => {
+  if (fromScheduler(ctx)) asReducer(ctx, tx => tickPlaceBody(tx, arg));
 });
 
 // The views: the caller's seat, the names they know the cast by, the character they're making, and their games.

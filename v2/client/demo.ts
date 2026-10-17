@@ -181,6 +181,8 @@ class Demo implements Backend {
     if (move === "endScene") return this.endScene((args as Moves["endScene"]).exit);
     // The story's walk toward the lead is Go on here; the Backend's walk is the map's.
     if (move === "walk") { const code = this.goOn(); return code ? this.refuse(code) : this.done(); }
+    // The map's action menu (town-design §3.2) isn't the demo's yet: package C's.
+    if (!(move in moves)) return this.refuse("not_built");
     const code = moves[move].call(this, args);
     return code ? this.refuse(code, code === "story_too_long" ? { words: String((args as { text: string }).text.match(/\S+/g)?.length ?? 0) } : {}) : this.done();
   }
