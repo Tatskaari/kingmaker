@@ -1,6 +1,6 @@
 import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { Decision, Drafted, Outcome } from "../../../shared/protocol/ai.ts";
+import type { Decision, Drafted, Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 import type { Transition } from "../../../shared/scene/types.ts";
 
@@ -20,7 +20,7 @@ export interface Seen { scene: number; place: number }
  * words the player's line and its mechanic the turn's (decide's `forced`). A talk's opening (§3.6)
  * is told its own in the request (`talk`), and keeps the answer's prep.
  */
-export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic } }
+export interface OpenPlan { step: "open"; game: string; scene: string; turn: string; seen: Seen; aftermath?: { summary: string }; act?: { text: string; mechanic: Mechanic }; twoPart?: boolean }
 
 /**
  * A say turn's plan: decide, then reply, then settle (or, on the wind-down, decide and reply). A turn
@@ -68,6 +68,13 @@ export interface SayPlan {
   seen: Seen;
   /** What the rules resolve this turn, chosen already (town-design §3.4: turn.mechanic, the map's act): the decide request's `forced`. */
   forced?: Mechanic;
+  /**
+   * A scene of the story played by the two-part GM (docs/two-part-design.md): reply, then settle,
+   * with no decide (the rules' from before the player acted, and the map's act, resolved as the turn
+   * started, lead the reply). `check`: the one its mouthpiece called, as rolled, for the co-GM.
+   */
+  twoPart?: boolean;
+  check?: TurnCheck;
 }
 
 /**

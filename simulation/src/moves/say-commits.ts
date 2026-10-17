@@ -44,7 +44,7 @@ import { keysIn, lookForNew } from "./looks.ts";
 export const SCENE_ENDED_FIRST = "The scene ended first.";
 
 /** What a commit works on: the scene, its graph (as play has changed it), and its GM bookkeeping, changed in place and written back. */
-interface At { scene: SceneRow; graph: Scene; gm: GmState }
+export interface At { scene: SceneRow; graph: Scene; gm: GmState }
 
 /**
  * After decide: the notes disclosure opened kept; then, on the wind-down, only whether the player
@@ -262,7 +262,7 @@ function dispelAtTheEnd(tx: TxCtx, scene: SceneRow, n: number): void {
 // ---------------------------------------------------------------------------------------------
 // afterDecide's parts.
 
-function atTurn(tx: TxCtx, plan: SayPlan): At {
+export function atTurn(tx: TxCtx, plan: Pick<SayPlan, "scene">): At {
   const scene = sceneRow(tx, idOf(plan.scene));
   const gm = getGm(tx, scene.id);
   return { scene, graph: sceneGraph(tx, scene, gm), gm };
@@ -360,7 +360,7 @@ function diceEntry(tx: TxCtx, scene: SceneRow, n: number, text: string): string 
  * reactions step's act. Not when the blow before their turn put them down (it doesn't happen), nor a
  * Shield already raised against it.
  */
-function takeAct(tx: TxCtx, at: At, plan: SayPlan, m: Mechanic, move: Move | undefined, outcome: Outcome): Act | undefined {
+export function takeAct(tx: TxCtx, at: At, plan: Pick<SayPlan, "n" | "input" | "rulesFirst">, m: Mechanic, move: Move | undefined, outcome: Outcome): Act | undefined {
   const first = plan.rulesFirst;
   const forestalled = !!first?.down || (!!first?.shielded && m.kind === "cast" && m.spell === "shield");
   if (forestalled && first?.down) outcome.lines.push(diceEntry(tx, at.scene, plan.n, "(Knocked down before you could act: it doesn't happen)"));
@@ -475,7 +475,7 @@ function endsScene(at: At, plan: SayPlan): boolean {
 }
 
 /** A beat's pressure, once offered, isn't offered again; a sentence the reply repeated word for word, the next is told not to (or that's cleared). */
-function noteReply(gm: GmState, answer: ReplyResponse): void {
+export function noteReply(gm: GmState, answer: ReplyResponse): void {
   const offered = answer.gm?.offered;
   if (offered && !gm.pressureOffered.includes(offered)) gm.pressureOffered.push(offered);
   if (answer.gm?.repeated) gm.repeated = answer.gm.repeated;

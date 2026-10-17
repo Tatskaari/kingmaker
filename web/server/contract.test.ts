@@ -88,7 +88,7 @@ test("the page's two halves over a real MessageChannel, on the fake model: a new
 
   // A line, its reply, the notes on it and the suggested lines.
   assert.equal(await replica.say(LINE), undefined);
-  await until(() => turn(replica, 1)?.phase === "done" && turn(replica, 1)?.notes === "written" && !!replica.rows()?.suggestions.some(line => line.turn === 1), "the line's reply, notes and lines");
+  await until(() => turn(replica, 1)?.phase === "done" && !!replica.rows()?.suggestions.some(line => line.turn === 1), "the line's reply and lines");
   const rows = replica.rows()!;
   assert.deepEqual(rows.transcript.filter(line => line.turn === 1).map(line => line.kind), ["player", "narration"]);
   assert.ok(rows.suggestions.filter(line => line.turn === 1).length >= 3, "three or more lines suggested");

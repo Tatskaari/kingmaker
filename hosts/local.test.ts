@@ -11,8 +11,13 @@ import { devFake, onTop, quietGm } from "./dev/fake.ts";
 import { readCampaignFiles } from "./dev/campaign.ts";
 import { localHost, type LocalHost } from "./local.ts";
 
-/** campaigns/caerwyn with the tests' own hanged clerk (its routes and endings by the ids these tests play: cart-comes, held-as-murder, open-case…). */
-const FILES = { ...readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
+/**
+ * campaigns/caerwyn with the tests' own hanged clerk (its routes and endings by the ids these tests
+ * play: cart-comes, held-as-murder, open-case…), played by the old pipeline these tests test
+ * (campaign.json's gm: the game's scenes are the two-part GM's: docs/two-part-design.md).
+ */
+const CAMPAIGN = readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn"));
+const FILES = { ...CAMPAIGN, "campaign.json": JSON.stringify({ ...JSON.parse(CAMPAIGN["campaign.json"]!), gm: "pipeline" }), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
 
 /**
  * The local host (v0-design §10.3, v5-design §4.3): the simulation and the AI service's pipeline in

@@ -42,6 +42,7 @@ export function openCall(tx: TxCtx, plan: OpenPlan): AiCall {
     stream: { turn: plan.turn },
     ...(plan.aftermath ? { aftermath: plan.aftermath, transcript: entriesOf(tx, at.scene.id) } : {}),
     ...(at.scene.kind === "talk" ? { talk: talkOpen(tx, at) } : {}),
+    ...(plan.twoPart && !plan.aftermath ? { twoPart: true } : {}),
   };
   return { endpoint: STEP_ENDPOINT.open, key, timeoutMs: STEP_TIMEOUT_MS.open, request };
 }
@@ -164,9 +165,14 @@ function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, sug
   if (plan.step === "decide") return { ...base, landed: [], ...(plan.forced ? { forced: plan.forced } : {}) };
   if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
   if (plan.step === "consider") return { ...base, ...(plan.decision?.considered ? { read: plan.decision.considered } : {}), ...(plan.pendingExit ? { pending: plan.pendingExit } : {}) };
+  // A two-part reply has no decision: the outcome's directives are the rules' and the map's act's (docs/two-part-design.md).
+  if (plan.step === "reply" && plan.twoPart) return { ...base, outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn }, twoPart: true };
   if (plan.step === "reply") return { ...base, decision: needs(plan.decision, "decision", "reply"), outcome: needs(plan.outcome, "outcome", "reply"), stream: { turn: plan.turn } };
-  // A talk's settle asks for its next lines when its controller has them on (talk.suggest: town-design §3.6).
-  return { ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore, ...(base.turn.scene.kind === "talk" ? { talk: { suggest } } : {}) };
+  // A talk's settle asks for its next lines when its controller has them on (talk.suggest: town-design §3.6); a two-part one tells its co-GM how the turn's check went.
+  return {
+    ...base, reply: plan.reply ?? "", lines: plan.lines, settled: plan.settledBefore, ...(base.turn.scene.kind === "talk" ? { talk: { suggest } } : {}),
+    ...(plan.twoPart ? { twoPart: true, ...(plan.check ? { check: plan.check } : {}) } : {}),
+  };
 }
 
 /**

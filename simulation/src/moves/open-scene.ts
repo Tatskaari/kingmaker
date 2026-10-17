@@ -8,7 +8,7 @@ import { keepOpened } from "../gm/bookkeeping.ts";
 import { openCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
-import { campaignFile, campaignOfGame, graphOf, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
+import { campaignFile, campaignOfGame, graphOf, playsTwoPart, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
 import { talkLines } from "../map/talk.ts";
@@ -22,6 +22,7 @@ import { askForNotes } from "./notes.ts";
 import type { OpenPlan, Seen } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
 import { keysIn, lookForNew } from "./looks.ts";
+import { openingRolesFor, writeSpoken } from "./two-part.ts";
 
 /**
  * A scene opens (v0-design §4.3, v1-design §3.6): its place built, the scene row and its GM
@@ -50,7 +51,10 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
     const graph = graphOf(def, gm.patches);
 
     const scene = waiting ? openWaiting(tx, game, def, graph, gm, controller, start, waiting) : insertScene(tx, game, def, graph, gm, controller, start);
-    if (!waiting) putGm(tx, scene.id, gm);
+    // The two-part GM's roles as the scene opens (note -1), from who's present now: the opening reads them.
+    const twoPart = playsTwoPart(tx, scene);
+    if (twoPart) openingRolesFor(graph, gm);
+    if (!waiting || twoPart) putGm(tx, scene.id, waiting ? { ...getGm(tx, scene.id), twoPart: gm.twoPart } : gm);
     syncStage(tx, scene, graph, gm);
     if (waiting) noteHeardInStory(tx, scene, graph);
     else noteHeard(tx, scene, graph);
@@ -58,7 +62,7 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });
-    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}) } };
+    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}), ...(twoPart ? { twoPart } : {}) } };
   },
 
   think: (tx, plan) => openCall(tx, plan),
@@ -76,8 +80,12 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
     const talk = scene.kind === "talk";
 
     putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []), ...(talk && opened.talk ? prepared(gm, opened.talk, turnRow(tx, turnId).n) : {}) });
-    const opening = writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
-    if (opening) askForNotes(tx, turnId, opening);
+    // The two-part GM's opening: what its mouthpiece said, a check it called rolled (no notes: docs/two-part-design.md).
+    if (plan.twoPart && !plan.aftermath) writeSpoken(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries, opened.check);
+    else {
+      const opening = writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
+      if (opening) askForNotes(tx, turnId, opening);
+    }
     // A talk's lines to choose come with its prep (talk.ts prepare); a scene's are asked for (v5-design §3.5).
     if (talk) { if (playerRow(tx, scene.controllerId).suggestions) talkLines(tx, scene, turnRow(tx, turnId).n, opened.talk?.suggestions ?? []); }
     else suggestAfter(tx, scene, turnId);

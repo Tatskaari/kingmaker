@@ -7,7 +7,7 @@ import { queueThink } from "../jobs.ts";
 import { remember } from "../moves/remember.ts";
 import { repair } from "../moves/repair.ts";
 import { sceneRow, type SceneRow } from "../rows.ts";
-import { sceneGraph } from "../scenes.ts";
+import { playsTwoPart, sceneGraph } from "../scenes.ts";
 import { applyRepair, expireNotes, shouldRepair } from "./repair.ts";
 
 /**
@@ -29,9 +29,9 @@ export interface TurnIds { game: string; scene: string; turn: string; n: number 
 export function afterTurn(tx: TxCtx, sceneId: bigint, turn: TurnIds, gm: GmState): void {
   const ids = { game: turn.game, scene: turn.scene, turn: turn.turn, n: turn.n };
   queueThink(tx, remember, { step: "remember", ...ids });
-  // A talk has no co-GM (the prototype's talk approach: repair off).
+  // A talk has no co-GM (the prototype's talk approach: repair off), and the two-part GM's runs in its settle (docs/two-part-design.md).
   const scene = sceneRow(tx, sceneId);
-  if (!OVER.has(scene.status) && scene.kind !== "talk" && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
+  if (!OVER.has(scene.status) && scene.kind !== "talk" && !playsTwoPart(tx, scene) && shouldRepair(gm, turn.n)) queueThink(tx, repair, { step: "repair", ...ids });
 }
 
 /** A scene the co-GM doesn't review: over, or at its fight (both are the prototype's state.ended). */
