@@ -1,4 +1,4 @@
-// Copied from the prototype's src/web/page/client.js at 44c6d4a, as v2's page (browser-design §2, §5): the workers' transport (transport.js) is the only one, so the socket transport and the server's branches go, and it's imported with the rest; the doors' pictures (doors.js) aren't drawn yet (a follow-up); the key form's other choice is Play with the fake GM (?fake skips the form on it, ?fake=arc plays the whole story's recipe); a tab told the game is open in another (busy) plays once its server worker has the game (ready); Play again (and Try again) starts the client worker again, the server worker playing on, and Play here instead (the game moved to another tab) loads the page again; km.heard says what the workers said; the server's stats, the report's download and the wait for a closed game's notes go (V16; v2's jobs are the server worker's, and it plays on).
+// Copied from the prototype's src/web/page/client.js at 44c6d4a, as v2's page (browser-design §2, §5): the workers' transport (transport.js) is the only one, so the socket transport and the server's branches go, and it's imported with the rest; the doors' pictures (doors.js) aren't drawn yet (a follow-up); the key form's other choice is Play with the fake GM (?fake skips the form on it, and the choice puts ?fake in the address, so a reload keeps it; ?fake=arc plays the whole story's recipe); a tab told the game is open in another (busy) plays once its server worker has the game (ready); Play again (and Try again) starts the client worker again, the server worker playing on, and Play here instead (the game moved to another tab) loads the page again; km.heard says what the workers said; the server's stats, the report's download and the wait for a closed game's notes go (V16; v2's jobs are the server worker's, and it plays on).
 import { Terminal } from "./vendor/xterm.mjs";
 import { FitAddon } from "./vendor/addon-fit.mjs";
 import { WebglAddon } from "./vendor/addon-webgl.mjs";
@@ -362,9 +362,17 @@ function askForKey(error, options = {}) {
     input.value = "";
     keyForm(false);
     if (options.onCancel) options.onCancel();
-    else start({ fake: "dev" });
+    else playWithTheFake();
     term.focus();
   };
+}
+
+/** The fake GM, chosen on the form: the page's address says so too (?fake), so a reload carries the game on with it rather than asking for a key again. */
+function playWithTheFake() {
+  const url = new URL(location.href);
+  if (!url.searchParams.has("fake")) url.search += url.search ? "&fake" : "?fake";
+  history.replaceState(history.state, "", url);
+  start({ fake: "dev" });
 }
 
 function checking(on) {

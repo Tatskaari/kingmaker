@@ -305,6 +305,8 @@ async function theGate(browser: Browser, url: string): Promise<void> {
 
     await page.click("#fake");
     await bothStarted(page, seen, "Play with the fake GM", { fake: "dev", key: false });
+    if (new URL(page.url()).searchParams.has("fake")) ok("the choice is in the page's address (?fake), so a reload carries the game on with the fake GM");
+    else fail(`after Play with the fake GM, the address is ${page.url()}`);
     await shot(page, "the-fake-gm");
     stayedHome(seen, origin, "the gate", true);
     noErrors(seen, "the gate", /status of 401/);
