@@ -131,6 +131,7 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
     delete state.repeated;
   }
   const docs = Boolean(approachById(state.approach).memory);
+  const guide = approachById(state.approach).guide;
   const lore = docs ? memoryBrief(scene, state, "stable") : undefined;
   const memory = docs ? memoryBrief(scene, state, "live") : undefined;
   const input: Message[] = [
@@ -140,12 +141,13 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
     ...gmHistory(scene, state),
     // Volatile memory goes after the conversation so the cached prefix survives a newly opened note;
     // the markup's reminder (prompts/gm-markup.md) goes in just before the reply's directives.
-    { role: "developer", content: [memory, nowNote(scene, state, directive, { remind: prompt("gm-markup") })].filter(Boolean).join("\n\n") },
+    // An improvisation guide's own reminder (prompts/gm-improv-remind.md) goes with it.
+    { role: "developer", content: [memory, nowNote(scene, state, directive, { remind: [prompt("gm-markup"), guide ? prompt(`gm-${guide}-remind`) : ""].filter(Boolean).join("\n\n") })].filter(Boolean).join("\n\n") },
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
   const tone = approachById(state.approach).tone;
-  const result = await respond({ operation, instructions: prompt("gm", { tone: tone ? prompt(`tone-${tone}`) : "" }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText: streamed(scene, state, onText) } : {}), ...(signal ? { signal } : {}) });
+  const result = await respond({ operation, instructions: prompt("gm", { tone: [tone ? prompt(`tone-${tone}`) : "", guide ? prompt(`gm-${guide}`) : ""].filter(Boolean).join("\n\n") }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText: streamed(scene, state, onText) } : {}), ...(signal ? { signal } : {}) });
   const { text, marked, drafted, stats } = readReply(scene, state, result.text);
   const draft: Spoken = { speaker: "gm", kind: "narration", text, result, marked, drafted, stats };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
