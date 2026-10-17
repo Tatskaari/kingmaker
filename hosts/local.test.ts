@@ -334,3 +334,64 @@ function procedures(local: LocalHost, t: TestContext) {
 
 /** The scene's suggested lines, in order. */
 const rowsOf = (local: LocalHost) => all(local.sim.db.sceneSuggestion).sort((a, b) => a.ord - b.ord);
+
+/**
+ * The two-part GM on the local host (docs/two-part-design.md), on the campaign's own hanged clerk
+ * (campaign.json names no GM: its scenes are the two-part GM's), every body through JSON: the
+ * opening's roles as note -1; each line replied by the mouthpiece and settled by the stage manager
+ * and the co-GM side by side, the co-GM's walk to murder by persons unknown (fake.json's: its required
+ * discovery first, a route a line) taken again on the rows; a check the mouthpiece calls rolled from
+ * the game's dice, its outcome written and the co-GM told how it went; the stage moving to the
+ * dead-cart, Tull brought on with his role and the next reply told so, once; then the scene closing,
+ * its wind-down by the mouthpiece with no settle, and the story's end crossing to the Rat.
+ */
+test("the two-part GM on the local host: the campaign's hanged clerk walked to murder by persons unknown a route a line, then its wind-down and the story on to the Rat", async () => {
+  const base = onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 });
+  let next: FakeOptions = base;
+  const local = await localHost({ seed: 7, fake: () => next });
+  const sim = local.sim;
+  assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
+  assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
+  await sim.drain();
+  const scene = all(sim.db.scene)[0]!;
+  const now = () => sceneNow(sim, scene.id);
+  const of = (operation: string, n: number, step: string) => calls(local).filter(c => c.operation === operation && c.key.endsWith(`:s${scene.id}:t${n}:${step}`));
+  const opened = now();
+  assert.deepEqual([scene.sceneKey, opened.scene.status, Object.keys(opened.gm.twoPart.roles), opened.gm.twoPart.notes.map(n => n.turn)], ["hanged-clerk", "live", ["kell", "cob", "moll"], [-1]]);
+  assert.equal(of("two-part.opening", 0, "open").length, 1, "the mouthpiece opened it");
+  const line = async (text: string, fake: FakeOptions = {}) => {
+    next = onTop(base, fake);
+    const refused = sim.as(WREN).say({ text });
+    assert.equal(refused, undefined, `"${text}" was refused: ${refused?.text}`);
+    await sim.drain();
+    return now();
+  };
+
+  const first = await line("(I climb the outside stair and look at his neck)", { mouthpiece: { check: { skill: "medicine", dc: 12 } } });
+  assert.deepEqual(first.lines.filter(l => l.turn === 1).map(l => l.kind), ["player", "narration", "roll", "narration"], "the narration, the dice, the outcome that came up");
+  const rolled = first.lines.find(l => l.turn === 1 && l.kind === "roll")!.text;
+  assert.match(rolled, /^Medicine .*DC 12.* \((badly|narrowly|only just|cleanly|with room to spare)\)\.$/);
+  assert.equal(of("director.before", 1, "decide").length, 0, "no decide");
+  assert.match(of("two-part.co-gm", 1, "settle")[0]!.request.input!.map(m => m.content).join("\n"), /# This turn's check\nThe GM called Medicine DC 12, and the roll came to \d+/);
+  assert.deepEqual([first.gm.reached, first.gm.path.map(p => p.via)], [["start", "hobb"], ["find-hobb"]], "the required discovery first");
+
+  await line("Sergeant, what do you make of the knot?");
+  const cart = await line("Is that the dead-cart I hear?");
+  assert.deepEqual([cart.gm.path.map(p => p.via), cart.gm.beat, cart.gm.twoPart.moved], [["find-hobb", "find-murder", "cart-comes"], "cart-arrives", "cart-arrives"]);
+  assert.match(cart.gm.twoPart.roles.tull!.conversation_role, /^Helmet off to the dead/, "Tull's role, his stage note");
+  assert.ok(all(sim.db.entity).some(e => e.key === "tull"), "Tull is in the world");
+
+  const signed = await line("Corporal, Sergeant: write it down as murder.");
+  const told = of("two-part.reply", 4, "reply")[0]!.request.input!.at(-2)!.content;
+  assert.match(told, /The scene has just moved on to "[^"]+": [\s\S]*arrives now, seen arriving/, "the reply after the move was told to show it");
+  assert.deepEqual([signed.scene.status, signed.gm.closing?.exitId, signed.gm.twoPart.moved], ["closing", "murder-unknown", undefined]);
+
+  const ended = await line("Then we're done here.");
+  assert.equal(of("two-part.closing", 5, "reply").length, 1, "the wind-down is the mouthpiece's closing");
+  assert.deepEqual([of("world.stage", 5, "settle").length, of("two-part.co-gm", 5, "settle").length], [0, 0], "no settle on the wind-down");
+  assert.deepEqual([ended.scene.status, ended.scene.exitKey, ended.lines.at(-1)!.text], ["ended", "murder-unknown", "Scene ends: Murder by persons unknown"]);
+  assert.match(sim.db.chapter.sceneId.find(scene.id)!.summary, /^Previous scene, "The Hanged Clerk", ended: Murder by persons unknown \(hanged-clerk: murder-unknown\)\.\n/);
+  const rat = all(sim.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+  assert.deepEqual([rat.status, all(sim.db.game)[0]!.leadScene], ["waiting", "drowned-rat"]);
+  local.close();
+});
