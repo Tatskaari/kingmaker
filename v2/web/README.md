@@ -1,0 +1,1 @@
+The browser platform for v2's page-only mode (browser-design §5): the JS OpenTUI stand-in (`tui/`), the page and its key form (`page/`), the glyph fonts (`fonts/`), the few Node stand-ins the bundles still need (`node/`) and the page host's parts (`server/`), composed by `hosts/web/`.
