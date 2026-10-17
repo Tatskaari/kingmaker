@@ -4,7 +4,7 @@ import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { buildWorld } from "../../world/scene-world.ts";
 import { CAST, doorLook, Picks, render, toPlain, type DoorLook } from "../map/index.ts";
 import type { MapActor } from "../types.ts";
-import { AX, AY, doorCells, OVERLAY_OSC, paintDoor, type DoorShape, type MapDoorShape, type OverlayFrame } from "./door-art.ts";
+import { AX, AY, DOOR_DETAILS, hex, scale, toHex, doorCells, OVERLAY_OSC, paintDoor, type DoorShape, type MapDoorShape, type OverlayFrame } from "./door-art.ts";
 import { DOOR_LOOKS as LOOKS, DOOR_SHEET_CAMERA as CAMERA, doorSheet } from "./door-sheet.ts";
 import { dressingFor } from "./dressings.ts";
 import { mapDoors, moveDoor, overlaySequence, stageDoors } from "./overlay.ts";
@@ -167,4 +167,25 @@ test("the page is told in an OSC of plain ASCII it reads back exactly", () => {
   assert.match(body, /^[\x20-\x7e]*$/, "nothing in it could end the sequence early");
   assert.ok(/\\u[0-9a-f]{4}/.test(body), "the wall's glyphs given back are escaped");
   assert.deepEqual(JSON.parse(body), frame);
+});
+
+
+test("map door masks inherit the lit wall tint and preserve coverage for every detail", () => {
+  const { map, doors } = doorSheet();
+  const pick = new Picks({ doors: true });
+  const lines = render(map, doors, CAMERA, SIZE, { cutaway: false, t: 0, pick, glyphs: "ascii" });
+  for (const door of mapDoors(pick, lines)) {
+    const column = door.x + (door.face === "south" ? 1 : -1);
+    const wall = door.wall.find(([x]) => x === column)!;
+    const dark = door.look === "locked" || door.look === "barred";
+    assert.equal(door.colors.wood, toHex(scale(hex(wall[4]), dark ? 0.85 : 1.05)));
+    const variants = DOOR_DETAILS.map(detail => paintDoor({ ...door, detail }));
+    for (const [i, variant] of variants.entries()) {
+      assert.deepEqual(variant, paintDoor({ ...door, detail: DOOR_DETAILS[i] }), "stable across redraws");
+      const allowed = new Set(door.cells.map(([x, y]) => `${x},${y}`));
+      assert.ok(variant.pixels.every(p => allowed.has(`${Math.floor(p.X / AX)},${Math.floor(p.Y / AY)}`)));
+    }
+    assert.notDeepEqual(variants[0]!.pixels, variants[1]!.pixels);
+    assert.notDeepEqual(variants[1]!.pixels, variants[2]!.pixels);
+  }
 });

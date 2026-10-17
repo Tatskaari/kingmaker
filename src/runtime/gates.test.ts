@@ -61,8 +61,12 @@ test("a route the author gave no dice, read with an attempt's confidence, settle
     await playerTurn(state, CROWN);
     assert.equal(reviewed(fake), false, "no ruling asked for");
     assert.equal(state.rulings, undefined);
-    assert.match(told(fake), /No dice needed: what the player is doing simply works \(The player offers Cob something as the price of a look in his boot/);
+    assert.match(told(fake), /No dice needed: what the player is doing simply works \(The player offers Cob something as the price of a look in his boot[\s\S]*a coin offered to make him talk, with nothing said of the boots, is not this/);
     assert.doesNotMatch(told(fake), /Decided, and it stands/);
+    // v2's GM improvises with the guide (prompts/gm-improv.md), and is reminded of it before each reply's directives.
+    const gm = fake.sent.filter(b => b.instructions?.startsWith("You are the Game Master")).at(-1)!;
+    assert.match(gm.instructions!, /\*\*Know where it comes from\.\*\*/);
+    assert.match(told(fake), /Before you write: everyone says only what they could know/);
   } finally {
     fake.restore();
   }
