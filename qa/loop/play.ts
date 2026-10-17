@@ -183,9 +183,9 @@ export async function say(config: LoopConfig, roundName: string, id: string, wor
   try {
     const played = await playLine(conn, seen, words, record, deps);
     upToDate(record, seen.view());
-    if (played.refused) return { code: 1, text: played.refused };
-
     noteTheEnd(record, seen.view());
+    if (played.refused) return refusedText(record, before.entries, played.refused);
+
     noteCapped(record, played.turn, deps);
     return { code: 0, text: answerText(record, before, seen.view(), words, round) };
   } finally {
@@ -193,6 +193,13 @@ export async function say(config: LoopConfig, roundName: string, id: string, wor
     conn.close();
     writeRecord(file, record);
   }
+}
+
+/** A line the game didn't take: the game's words; or, when the scene ended meanwhile (its closing reply still settling), what came since the tester last looked and that it's over. */
+function refusedText(record: GameRecord, from: number, refusal: string): Played {
+  if (!record.ended) return { code: 1, text: refusal };
+  const fresh = record.entries.slice(from).map(entryText).join("\n\n");
+  return { code: 0, text: `${fresh ? `${fresh}\n\n` : ""}— The scene is over (${record.ended.title}). — Write your notes now.` };
 }
 
 /**

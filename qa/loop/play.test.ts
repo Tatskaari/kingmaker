@@ -90,6 +90,19 @@ test("say: a line that ends the scene says so, notes the ending, and no line is 
   assert.deepEqual(await say(config, "r1", "g01", "And now?", deps), { code: 0, text: "— The scene is over (Murder by persons unknown). — Write your notes now." });
 });
 
+test("say: a scene that ended behind the loop's back (the owner ended it, or a closing reply was still settling) is noted, said to be over, and not a failure", async () => {
+  const config = CONFIG();
+  round(config, "hanged-clerk", 5);
+  const deps = demoDeps();
+  assert.equal((await start(config, "r1", "g01", deps)).code, 0);
+  assert.equal(await deps.game.act("endScene", { game: BigInt(deps.game.view()!.game), exit: "open-case" }), undefined);
+
+  const said = await say(config, "r1", "g01", "Hello?", deps);
+  assert.equal(said.code, 0, said.text);
+  assert.match(said.text, /^— Scene ends: Murder by persons unknown —\n\n— The scene is over \(Murder by persons unknown\)\. — Write your notes now\.$/);
+  assert.equal(readRecord(recordPath(config, "r1", "g01"))!.ended?.title, "Murder by persons unknown");
+});
+
 test("a later scene reached: the scene before it ended for QA on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {
   // The demo's own game (Pell Marrow's, in the yard and on no map: the demo's map can't walk to the Rat, as the game's can).
   const game = demoBackend({ ms: 1 });
