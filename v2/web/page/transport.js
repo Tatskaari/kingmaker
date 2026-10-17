@@ -240,8 +240,11 @@ export function workerTransport(handlers, options) {
     channel = undefined;
     const going = server;
     server = undefined;
-    // The server worker saves the game and lets go of the lock (it says flushed once it's saved).
-    const end = () => going.terminate();
+    // The server worker saves the game and lets go of the lock (it says flushed once it's saved); a flush asked for meanwhile is done with it.
+    const end = () => {
+      going.terminate();
+      for (const done of flushes.splice(0)) done();
+    };
     going.onmessage = event => { if (event.data?.type === "flushed") end(); };
     setTimeout(end, LET_GO_MS);
     going.postMessage({ type: "quit" });

@@ -22,18 +22,17 @@ import { tuiAliases, tuiFonts } from "./tui.ts";
  *
  * The workers are taken by path, so the real ones drop in for the stubs. What they ask of OpenTUI is
  * the JS stand-in's (web/tui, as tui.ts points a bundle at it, with OpenTUI's ASCII fonts), with React
- * from v2's node_modules (one React, or the screens die on their first hook); what they still ask of
- * Node is web/node's stand-in for it, each file there
- * standing for the module its name says ("fs-promises.ts" for node:fs/promises), or the build fails.
- * The site is put together in memory and held to site.ts's rules (the stamp, the preload list, the
- * CSP, relative URLs, the allowlist, and nothing like an OpenRouter key: the dev key is read from
- * ~/secrets to look for, and never printed); a site that breaks one isn't written.
+ * from v2's node_modules (one React, or the screens die on their first hook). What they still ask of
+ * Node is web/node's stand-in for it, each file there standing for the module its name says
+ * ("fs-promises.ts" for node:fs/promises), or the build fails. The site is put together in memory and
+ * held to site.ts's rules (the stamp, the preload list, the CSP, relative URLs, the allowlist, and
+ * nothing like an OpenRouter key: the dev key is read from ~/secrets to look for, and never printed);
+ * a site that breaks one isn't written.
  *
  *   npm run build:web [-- --out <dir>]      (dist/web by default; --out for the preview)
  */
 
 const V2 = resolve(import.meta.dirname, "..", "..");
-const DEV_KEY = join(homedir(), "secrets", "kingmaker-dev-openrouter.txt");
 
 async function main(argv: string[]): Promise<void> {
   const started = performance.now();
@@ -144,7 +143,7 @@ function stampThePage(site: Site): void {
 
 /** A site that breaks site.ts's rules isn't written: what's wrong, said (a leaked key by its file alone). */
 function refuseProblems(site: Site): void {
-  const problems = siteProblems(site, keyNeedles(DEV_KEY));
+  const problems = siteProblems(site, keyNeedles(join(homedir(), "secrets", "kingmaker-dev-openrouter.txt")));
   if (problems.length) throw new Error(`refusing to write the site:\n  ${problems.join("\n  ")}`);
 }
 
