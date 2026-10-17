@@ -134,10 +134,12 @@ export function mouthpieceInput(scene: Scene, state: SessionState, directive: st
 }
 
 /** The mouthpiece's reply, onto the transcript: its narration, and for a check the roll and the outcome that came up. */
-async function speak(scene: Scene, state: SessionState, hooks: TurnHooks, directive: string[], operation: string): Promise<{ costUsd: number; firstTextMs: number; replyMs: number; text: string }> {
+async function speak(scene: Scene, state: SessionState, hooks: TurnHooks, directive: string[], operation: string, options: { mayHold?: boolean } = {}): Promise<{ costUsd: number; firstTextMs: number; replyMs: number; text: string; closes: boolean }> {
   const started = performance.now();
-  const result = await respond({ operation, instructions: mouthpieceInstructions(scene, state), input: mouthpieceInput(scene, state, directive), effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema: SCHEMA } });
-  const out = JSON.parse(result.text) as { narration: string; check: { skill: Skill; dc: number; outcomes: Record<Band, string> } | null };
+  // A closing that may wait once says whether it closed: { closes } beside the reply.
+  const schema = options.mayHold ? { ...SCHEMA, required: [...SCHEMA.required, "closes"], properties: { ...SCHEMA.properties, closes: { type: "boolean" } } } : SCHEMA;
+  const result = await respond({ operation, instructions: mouthpieceInstructions(scene, state), input: mouthpieceInput(scene, state, directive), effort: "none", maxOutputTokens: 2500, json: { name: "reply", schema } });
+  const out = JSON.parse(result.text) as { narration: string; check: { skill: Skill; dc: number; outcomes: Record<Band, string> } | null; closes?: boolean };
   const replyMs = performance.now() - started;
   const narrate = (text: string) => {
     hooks.onSpeaker?.("gm", "narration");
@@ -153,7 +155,20 @@ async function speak(scene: Scene, state: SessionState, hooks: TurnHooks, direct
     narrate(out.check.outcomes[band].trim());
     text = `${text}\n\n${out.check.outcomes[band].trim()}`;
   }
-  return { costUsd: result.costUsd, firstTextMs: replyMs, replyMs, text };
+  return { costUsd: result.costUsd, firstTextMs: replyMs, replyMs, text, closes: out.closes !== false };
+}
+
+/**
+ * The scene moved on after the last reply (the co-GM took a route), so this reply shows it: the beat
+ * it's at now, and whoever that brings on, seen arriving. Moved on silently, the corporal and his
+ * cart were simply in the lane, never seen coming.
+ */
+export function movedDirective(scene: Scene, state: SessionState): string | undefined {
+  const moved = state.twoPart?.moved;
+  if (!moved || moved !== state.beat) return undefined;
+  const beat = currentBeat(scene, state);
+  const arriving = scene.cast.filter(c => c.enters === beat.id).map(c => c.called ?? c.name);
+  return `The scene has just moved on to "${beat.title}": ${beat.direction} Answer the player's turn first; then let it show in this reply${arriving.length ? `: ${arriving.join(" and ")} arrive${arriving.length === 1 ? "s" : ""} now, seen arriving` : ""}.`;
 }
 
 /** The opening roles: each present character's note for the first beat (the co-GM takes over after the opening). */
@@ -246,7 +261,7 @@ function coGmInput(scene: Scene, state: SessionState): Message[] {
 async function coGm(scene: Scene, state: SessionState): Promise<{ costUsd: number }> {
   const tp = state.twoPart!;
   const instructions = `${prompt("two-part-co-gm", { tone: tone(), beats: premise(scene, state, { cast: true }), characters: characters(scene, state) })}\n\n${CO_GM_TOOLS}`;
-  const result = await runTools({ operation: "two-part.co-gm", instructions, input: coGmInput(scene, state), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 8 }, async (name, args) => {
+  const result = await runTools({ operation: "two-part.co-gm", instructions, input: coGmInput(scene, state), tools: [UPDATE_ROLE, MOVE_SCENE], effort: "low", maxTurns: 16 }, async (name, args) => {
     if (name === "move_scene") return takeRoute(scene, state, String(args.route_id), (args.outcome as "success" | "failure" | "none") ?? "none");
     const id = String(args.char_id);
     if (!scene.cast.some(c => c.id === id)) return `error: no character "${id}" (ids: ${scene.cast.map(c => c.id).join(", ")})`;
@@ -268,19 +283,30 @@ export async function twoPartTurn(state: SessionState, input: string, hooks: Tur
   push(state, hooks, { speaker: "player", kind: "player", text: input });
 
   // The wind-down: the co-GM took a route to an ending; this reply answers the player and closes.
+  // Once, it may wait: when the player has just started something the ending has to answer (calling
+  // the killer down from the loft), that plays first and the scene closes on the next reply.
   if (state.closing) {
     const exit = scene.exits.find(e => e.id === state.closing!.exitId)!;
-    const spoken = await speak(scene, state, hooks, [`The scene is ending: ${exit.outcome} First answer what the player just said or did. Then bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.`], "two-part.closing");
-    delete state.closing;
-    finishScene(state, scene, exit);
+    const tp = state.twoPart!;
+    const mayHold = !tp.held;
+    const close = `bring the scene to a close in a few sentences, landing on a moment that belongs to the player. What this ending should feel like: ${exit.closing} Don't narrate beyond the ending into what comes next.`;
+    const directive = mayHold
+      ? `The scene is ending: ${exit.outcome} First answer what the player just said or did. If they've just started something this ending has to answer first (a challenge, a confrontation, a new move that would change how it ends), play that and set \`closes\` to false: the scene closes on your next reply. Otherwise ${close} and set \`closes\` to true.`
+      : `This reply closes the scene: ${exit.outcome} First answer what the player just said or did. Then ${close}`;
+    const spoken = await speak(scene, state, hooks, [directive], "two-part.closing", { mayHold });
+    const held = mayHold && !spoken.closes;
+    if (held) tp.held = true;
+    else { delete state.closing; finishScene(state, scene, exit); }
     const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs: spoken.firstTextMs, replyMs: spoken.replyMs, postDecisionMs: 0, costUsd: spoken.costUsd, calls: 1 };
     state.metrics.push(metric);
     saveSession(state);
     snapshotSession(state);
-    return { entries: state.transcript.slice(before), ended: exit, metric };
+    return { entries: state.transcript.slice(before), ...(held ? {} : { ended: exit }), metric };
   }
 
-  const spoken = await speak(scene, state, hooks, [], "two-part.reply");
+  const moved = movedDirective(scene, state);
+  delete state.twoPart!.moved;
+  const spoken = await speak(scene, state, hooks, moved ? [moved] : [], "two-part.reply");
   costUsd += spoken.costUsd; calls++;
   const beatBefore = state.beat;
 
@@ -302,6 +328,7 @@ export async function twoPartTurn(state: SessionState, input: string, hooks: Tur
   for (const c of presentCast(scene, state)) tp.roles[c.id] ??= { status: "", mental_state: "", conversation_role: currentBeat(scene, state).cast?.[c.id] ?? c.attitude };
   tp.notes.push({ turn: state.turn, text: rolesNote(scene, tp.roles, state.turn) });
   if (state.beat === beatBefore && !state.closing) state.turnsInBeat++;
+  else if (state.beat !== beatBefore) tp.moved = state.beat;
 
   const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs: spoken.firstTextMs, replyMs: spoken.replyMs, postDecisionMs: performance.now() - postStarted, costUsd, calls };
   state.metrics.push(metric);

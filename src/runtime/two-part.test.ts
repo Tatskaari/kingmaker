@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sceneById } from "../../scenes/index.ts";
 import type { SessionState } from "./session.ts";
-import { bandOf, mouthpieceInput, rolesNote, takeRoute } from "./two-part.ts";
+import { bandOf, mouthpieceInput, movedDirective, rolesNote, takeRoute } from "./two-part.ts";
 
 function yard(): SessionState {
   return {
@@ -59,4 +59,11 @@ test("each co-GM note reaches the mouthpiece before the player turn it was writt
   assert.match(input[3]!.content, /Goes quiet[\s\S]*## Where the scene is now: Stones at a hanged man/);
   assert.doesNotMatch(input[0]!.content, /Where the scene is now/, "only the latest note carries the per-turn note");
   assert.equal(input[4]!.content, "Who found him?");
+});
+
+test("once the co-GM has moved the scene on, the next reply shows it, with whoever it brings on seen arriving", () => {
+  const state = { ...yard(), beat: "dead-cart" };
+  assert.equal(movedDirective(scene, state), undefined, "nothing to show until the co-GM has moved it");
+  state.twoPart!.moved = "dead-cart";
+  assert.match(movedDirective(scene, state)!, /moved on to "The dead-cart"[\s\S]*arrives now, seen arriving/);
 });
