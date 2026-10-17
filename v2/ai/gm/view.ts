@@ -1,6 +1,6 @@
 import type { Backstory } from "../docs/types.ts";
 import type { RulingRecord } from "../../shared/gm/consider.ts";
-import type { GmState, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus } from "../../shared/gm/state.ts";
+import type { GmState, GuardStage, OpenedNote, OwedRow, PathStep, ScenePatch, SceneStatus, TalkRecord } from "../../shared/gm/state.ts";
 import type { MarkLink, Markup } from "../../shared/markup.ts";
 import type { Chapter, Entry, OpenRequest, SceneContext, SheetRow, Story as Told } from "../../shared/protocol/ai.ts";
 import { isTurnKey, keyParts } from "../../shared/protocol/keys.ts";
@@ -88,11 +88,13 @@ export interface TurnView {
   /** How the story led into this scene, in second-person fiction. */
   lead?: string;
 
-  // Later verticals': always empty until then, read by the copied code.
+  // A later vertical's: always empty until then, read by the copied code.
   entered: string[];
-  guard?: Record<string, { stage: string; turn: number }>;
-  /** What companions have told the player of themselves in talks (V11's). */
-  talks?: Record<string, { count: number; told: Array<{ note: string; topic: string; turn: number }> }>;
+  // A talk's (town-design §3.6): its staged secrets, and what companions have told the player of themselves.
+  /** Staged secrets: how far each of the cast who keeps something back has come towards giving it up (a talk's; {} in a talk with none yet, as startTalk sets it). */
+  guard?: Record<string, { stage: GuardStage; turn: number }>;
+  /** What companions have told the player of themselves in talks between scenes, by their cast ids (the story's talk records). */
+  talks?: Record<string, TalkRecord>;
   /** The lines offered last in this scene (only their words are read: none of them again). */
   suggestions?: { scene: string; turn: number; lines: Array<{ kind?: string; text: string }> };
 
@@ -159,7 +161,7 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
     id: source.game, sceneId: source.scene.key, turn: source.scene.turn,
     player: playerOf(sheet),
     beat: gm.beat, turnsInBeat: gm.turnsInBeat, path: gm.path, established: gm.established, landed: gm.landed, hinted: gm.hinted,
-    memory: { opened: gm.opened },
+    memory: { opened: gm.opened, ...(gm.withheld?.length ? { withheld: gm.withheld } : {}) },
     ...(gm.endingLead ? { endingLead: gm.endingLead } : {}), ...(gm.pendingExit ? { pendingExit: gm.pendingExit } : {}),
     ...(gm.closing ? { closing: gm.closing } : {}), ...(gm.ended ? { ended: gm.ended } : {}), ...(gm.sceneStatus ? { sceneStatus: gm.sceneStatus } : {}),
     oocTurns: gm.oocTurns, pressureOffered: gm.pressureOffered, ...(gm.repeated !== undefined ? { repeated: gm.repeated } : {}),
@@ -169,8 +171,12 @@ export function viewOf(source: ViewSource, scene: Scene, story?: Story, essentia
     history: structuredClone(source.told?.history ?? []), adjustments: gm.adjustments ?? [],
     ...(gm.opening !== undefined ? { opening: gm.opening } : {}), ...(gm.lead !== undefined ? { lead: gm.lead } : {}),
     owed: owedOf(gm.owed ?? [], world, keys, essentialOf),
+    // A talk's staged secrets ({} as a talk opens, as startTalk sets it), and the story's talk records.
+    ...(gm.guard ? { guard: gm.guard } : scene.companion ? { guard: {} } : {}),
+    ...(source.told?.talks && Object.keys(source.told.talks).length ? { talks: structuredClone(source.told.talks) } : {}),
     transcript: [...(source.told?.earlier ?? []), ...source.transcript].map(e => entryOf(e, keys)),
-    world,
+    // A talk has no world (the prototype's has none): the rows it's sent are the town's own place's.
+    ...(scene.companion ? {} : { world }),
     ...(story ? { story } : {}),
   };
   // As the prototype sets them at each turn's start (engine.ts:470): what the player calls those whose
