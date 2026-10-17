@@ -21,6 +21,7 @@
     "test": "node --no-warnings --test 'src/**/*.test.ts'",
     "check": "proto run moon -- run workspace:check",
     "compare": "node --no-warnings src/eval/compare.ts",
+    "loop": "node --no-warnings src/eval/loop/cli.ts",
     "qa": "node --no-warnings src/cli/qa.ts",
     "report": "node --no-warnings src/cli/report.ts",
     "docs:anchors": "node --no-warnings src/cli/doc-anchors.ts",

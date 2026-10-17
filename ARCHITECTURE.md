@@ -88,7 +88,7 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | The UI | `src/app` | The OpenTUI terminal app: every screen, and the controller (`game.ts`) that drives the core and keeps the notebook. The game's only UI. | [src/app](src/app/README.md) |
 | The browser builds | `src/web` | The server build (the app under a pty per tab, shown with xterm.js over a WebSocket) and the static build (the app in a Web Worker, with OpenTUI and Node redone in JavaScript), which the PR previews publish. | [src/web](src/web/README.md) |
 | The CLIs | `src/cli` | The QA console (`npm run qa`: the whole game headless, by action id) and the scene harness (`npm run scene`: the runtime alone, and the process the background jobs run in). | [src/cli](src/cli/README.md) |
-| The evals | `src/eval`, `evals/` | The GM evals: 163 cases of single replies, decisions, whole scenes and openings, checked mechanically and judged by a model, and the scribe's scripts. The stage manager's eval, scored against 26 labelled cases. | [evals](evals/README.md) |
+| The evals | `src/eval`, `evals/` | The GM evals: 163 cases of single replies, decisions, whole scenes and openings, checked mechanically and judged by a model, and the scribe's scripts. The stage manager's eval, scored against 26 labelled cases. The GM loop (`npm run loop`): blind persona rounds and reviews against one rubric, triaged findings, cases cut from flagged turns, prompt variants, and HTML reports with every call in full. | [evals](evals/README.md), [the GM loop](evals/loop/README.md) |
 | The game core | `src/game` | `Game` (`play.ts`): the modes (explore, scene, combat, the End), the action ids and the story's flow; the town's explorer, the action menu, and every picture (`views.ts`). | [src/game](src/game/README.md) |
 | The map | `src/game/map` | Tile maps, walking, the isometric renderer and x-ray, and the overlay of what scenes and the rules left in each place. | [src/game/map](src/game/map/README.md) |
 | Places from a description | `src/game/map/generate` | A model's plan of a place, compiled into a map and a world. The zoo's chandlery is one, compiled from a plan written by hand. | [src/game/map/generate](src/game/map/generate/README.md) |
@@ -301,7 +301,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (595) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
+| The unit tests alone (602) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |
@@ -320,6 +320,7 @@ Live, with `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`). E
 |---|---|
 | The GM evals | `npm run eval -- --suite reply`, `decision`, `trajectory`, `opening` or `world`; then `npm run compare` on two runs ([evals](evals/README.md)) |
 | The stage manager eval | `node --no-warnings evals/world/run.ts` |
+| The GM loop | `npm run loop -- run --case <id>` for its cases; rounds of blind testers through the `kingmaker-gm-loop` skill ([the GM loop](evals/loop/README.md)) |
 | The memory eval | `node --no-warnings src/eval/memory-eval.ts --approach v2-nomemory,v2,v2-memory-lite` |
 | The real TUI with the GM | `python3 src/app/smoke/smoke.py --live`, and `--live-fight` |
 | The zoo's scenes with the GM | `node --no-warnings src/game/zoo/tour.ts --live` |

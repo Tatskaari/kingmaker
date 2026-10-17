@@ -11,6 +11,8 @@ Two eval harnesses that run the game's model calls against the real model and sc
 
 `evals/fixtures` holds the session snapshots the GM evals' cases are pinned to.
 
+- **The GM loop** (`src/eval/loop`, `evals/loop`, `npm run loop`) is the newer loop for improving the GM: blind persona rounds, blind reviews against one rubric, triaged findings, cases cut V1-style from a flagged turn (nothing captured that the engine can rebuild), variants as prompt overlays, and HTML reports with every model call opened as its own transcript. See [evals/loop/README.md](loop/README.md) and the `kingmaker-gm-loop` skill.
+
 ## What it owns
 
 | path | what it is |

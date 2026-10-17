@@ -1,0 +1,378 @@
+{
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 898459599,
+ "rollCount": 4,
+ "player": {
+  "name": "Xarax",
+  "concept": "I must discover who I was and what happened to me, before my twitching knife hand writes a tragedy in blood.",
+  "modifiers": {
+   "persuasion": 2,
+   "deception": 2,
+   "intimidation": 4,
+   "insight": 1,
+   "performance": 2,
+   "perception": 1,
+   "investigation": 2,
+   "sleight_of_hand": 3,
+   "stealth": 3,
+   "athletics": 1,
+   "acrobatics": 3,
+   "animal_handling": 1,
+   "arcana": 0,
+   "history": 2,
+   "nature": 0,
+   "religion": 0,
+   "medicine": 1,
+   "survival": 1
+  },
+  "backstory": {
+   "text": "I can’t remember who I am. Occasionally, a dark force takes over me, and I can’t resist the dark urge to kill. I must discover who I was and what happened to me before my twitching knife hand writes a tragedy in blood.",
+   "summary": "Xarax has no memory of who they are or what happened to them. They took this case to uncover their past before the dark force that sometimes takes over drives them to kill.",
+   "personality": [
+    "Twitching knife hand"
+   ],
+   "ideals": [
+    "Discover the truth of their past"
+   ],
+   "bonds": [
+    "Their lost identity"
+   ],
+   "flaws": [
+    "Cannot resist the dark urge to kill when it takes over"
+   ]
+  },
+  "build": "tiefling warlock 3 (Fiend Patron), soldier background"
+ },
+ "turn": 6,
+ "beat": "doubt",
+ "turnsInBeat": 5,
+ "path": [
+  {
+   "turn": 1,
+   "from": "yard",
+   "to": "doubt",
+   "via": "examine-body",
+   "source": "pre",
+   "roll": {
+    "skill": "medicine",
+    "dc": 12,
+    "die": 16,
+    "modifier": 1,
+    "total": 17,
+    "success": true,
+    "critical": null
+   },
+   "known": 0
+  },
+  {
+   "turn": 2,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "considered-2",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 12,
+    "modifier": 2,
+    "total": 14,
+    "success": false,
+    "critical": null
+   },
+   "known": 0
+  },
+  {
+   "turn": 4,
+   "from": "doubt",
+   "to": "doubt",
+   "via": "scare-kids",
+   "source": "pre",
+   "roll": {
+    "skill": "intimidation",
+    "dc": 12,
+    "die": 11,
+    "modifier": 4,
+    "total": 15,
+    "success": true,
+    "critical": null
+   },
+   "known": 1
+  }
+ ],
+ "established": [
+  "When the player tried this (Ask the children whether they saw what happened), it failed: Cob snaps that he doesn't talk to bluebottles and edges toward the water butt; Moll tells him to shut it and keeps her eyes on the gate. Kell records their answers, but neither gives you anything about the night."
+ ],
+ "history": [],
+ "rules": {
+  "campaign": "{\"id\":\"01M532JWT0M5TTVWFF7NMEBWHC\",\"name\":\"hanged-clerk-20261016-192124-py66\",\"schemaVersion\":1,\"events\":[{\"id\":\"01M532JWT06RGGKJKDWZBJVS08\",\"at\":\"2026-10-16T19:21:24.032Z\",\"type\":\"CharacterCreated\",\"snapshot\":{\"id\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"kind\":\"pc\",\"name\":\"Xarax\",\"speciesId\":\"tiefling\",\"backgroundId\":\"soldier\",\"classes\":[{\"classId\":\"warlock\",\"level\":1,\"hitDiceRemaining\":1}],\"abilityScores\":{\"STR\":8,\"DEX\":16,\"CON\":14,\"INT\":10,\"WIS\":12,\"CHA\":15},\"hp\":{\"current\":10,\"max\":10,\"temp\":0,\"maxBonus\":0},\"deathSaves\":{\"successes\":0,\"failures\":0,\"stable\":false},\"exhaustion\":0,\"heroicInspiration\":false,\"inventory\":[],\"equipped\":{\"attuned\":[]},\"resources\":[{\"resourceId\":\"magical-cunning\",\"current\":1,\"max\":1,\"recharge\":\"longRest\"}],\"appliedConditions\":[],\"knownSpells\":[\"eldritch-blast\",\"mage-hand\",\"hex\",\"charm-person\",\"detect-magic\",\"invisibility\"],\"preparedSpells\":[\"hex\",\"charm-person\",\"detect-magic\",\"invisibility\"],\"spellSlotsUsed\":{},\"pactSlotsUsed\":0,\"usedFreeCastSpellIds\":[],\"weaponMasteries\":[],\"triggerCounters\":{},\"featsTaken\":[],\"pendingChoiceIds\":[],\"breathWeaponExpended\":false,\"damageTypesTakenThisTurn\":[],\"heroPoints\":0,\"xp\":0,\"moraleBroken\":false}},{\"id\":\"01M532JWT25RZFWK3FS2XW9PN5\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M532JWT1HDA308JPHE9NXRYX\",\"definitionId\":\"dagger\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\"},{\"id\":\"01M532JWT23WS9483QSBJ0FC7N\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M532JWT2HNCNACW2MYY6QJ8E\",\"definitionId\":\"shortsword\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\"},{\"id\":\"01M532JWT2ZJCGKW42FB8PRXRC\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M532JWT2R71XCN9GN8Y1V4M8\",\"definitionId\":\"unarmed-strike\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\"},{\"id\":\"01M532JWT2AFP0AQVSD09A032X\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ItemAcquired\",\"instance\":{\"id\":\"01M532JWT2TJNDVYRA8WS9MSZN\",\"definitionId\":\"leather-armor\",\"quantity\":1,\"attuned\":false,\"identifiedByCharacterIds\":[]},\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\"},{\"id\":\"01M532JWT2BYMH4T0FK7EH0Z4X\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"instanceId\":\"01M532JWT1HDA308JPHE9NXRYX\",\"slot\":\"mainHand\"},{\"id\":\"01M532JWT2257KQN96M4DDBCWG\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ItemEquipped\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"instanceId\":\"01M532JWT2TJNDVYRA8WS9MSZN\",\"slot\":\"armor\"},{\"id\":\"01M532JWT2TXGW9QSGM796Z7RY\",\"at\":\"2026-10-16T19:21:24.034Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M532JWT2Y05F038XA0RP9NWA\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"promptKey\":\"warlock-skills\",\"prompt\":\"Choose 2 Warlock skills.\",\"options\":[{\"id\":\"arcana\",\"label\":\"Arcana\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"arcana\",\"level\":\"proficient\"}]},{\"id\":\"deception\",\"label\":\"Deception\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"deception\",\"level\":\"proficient\"}]},{\"id\":\"history\",\"label\":\"History\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"history\",\"level\":\"proficient\"}]},{\"id\":\"investigation\",\"label\":\"Investigation\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"investigation\",\"level\":\"proficient\"}]},{\"id\":\"nature\",\"label\":\"Nature\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"nature\",\"level\":\"proficient\"}]},{\"id\":\"religion\",\"label\":\"Religion\",\"effects\":[{\"kind\":\"GrantProficiency\",\"target\":\"skill\",\"id\":\"religion\",\"level\":\"proficient\"}]}],\"oneOf\":2},{\"id\":\"01M532JWT3WPC273YQQ6K3EQP9\",\"at\":\"2026-10-16T19:21:24.035Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M532JWT34HQEYBPF4VVJB37X\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"promptKey\":\"tiefling-size\",\"prompt\":\"Choose your size (RAW Tiefling: Medium or Small).\",\"options\":[{\"id\":\"medium\",\"label\":\"Medium (default)\",\"effects\":[]},{\"id\":\"small\",\"label\":\"Small (~3 ft tall)\",\"effects\":[]}],\"oneOf\":1},{\"id\":\"01M532JWT3X3MVZ075PMZXV9R1\",\"at\":\"2026-10-16T19:21:24.035Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M532JWT39CQNAH5NE5Z8MMPG\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"promptKey\":\"tiefling-fiendish-legacy\",\"prompt\":\"Choose a Fiendish Legacy (L1 benefit).\",\"options\":[{\"id\":\"abyssal\",\"label\":\"Abyssal (Poison resistance + Poison Spray cantrip)\",\"effects\":[{\"kind\":\"GrantResistance\",\"damageType\":\"poison\"},{\"kind\":\"GrantSpell\",\"spellId\":\"poison-spray\",\"preparation\":\"at-will\",\"spellcastingAbility\":\"CHA\"}]},{\"id\":\"chthonic\",\"label\":\"Chthonic (Necrotic resistance + Chill Touch cantrip)\",\"effects\":[{\"kind\":\"GrantResistance\",\"damageType\":\"necrotic\"},{\"kind\":\"GrantSpell\",\"spellId\":\"chill-touch\",\"preparation\":\"at-will\",\"spellcastingAbility\":\"CHA\"}]},{\"id\":\"infernal\",\"label\":\"Infernal (Fire resistance + Fire Bolt cantrip)\",\"effects\":[{\"kind\":\"GrantResistance\",\"damageType\":\"fire\"},{\"kind\":\"GrantSpell\",\"spellId\":\"fire-bolt\",\"preparation\":\"at-will\",\"spellcastingAbility\":\"CHA\"}]}],\"oneOf\":1},{\"id\":\"01M532JWT347D5QDWC9SN9VYRY\",\"at\":\"2026-10-16T19:21:24.035Z\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M532JWT3NTPT44DSM1NV7P7Z\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"promptKey\":\"eldritch-invocations-l1\",\"prompt\":\"Choose an Eldritch Invocation.\",\"options\":[{\"id\":\"agonizing-blast-eldritch-blast\",\"label\":\"Agonizing Blast (Eldritch Blast)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"agonizing-blast-eldritch-blast\"}]},{\"id\":\"agonizing-blast-chill-touch\",\"label\":\"Agonizing Blast (Chill Touch)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"agonizing-blast-chill-touch\"}]},{\"id\":\"agonizing-blast-poison-spray\",\"label\":\"Agonizing Blast (Poison Spray)\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"agonizing-blast-poison-spray\"}]},{\"id\":\"armor-of-shadows\",\"label\":\"Armor of Shadows\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"armor-of-shadows\"}]},{\"id\":\"devils-sight\",\"label\":\"Devil's Sight\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"devils-sight\"}]},{\"id\":\"fiendish-vigor\",\"label\":\"Fiendish Vigor\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"fiendish-vigor\"}]},{\"id\":\"mask-of-many-faces\",\"label\":\"Mask of Many Faces\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"mask-of-many-faces\"}]},{\"id\":\"misty-visions\",\"label\":\"Misty Visions\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"misty-visions\"}]},{\"id\":\"otherworldly-leap\",\"label\":\"Otherworldly Leap\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"otherworldly-leap\"}]},{\"id\":\"ascendant-step\",\"label\":\"Ascendant Step\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"ascendant-step\"}]},{\"id\":\"gift-of-the-depths\",\"label\":\"Gift of the Depths\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"gift-of-the-depths\"}]},{\"id\":\"eldritch-mind\",\"label\":\"Eldritch Mind\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"eldritch-mind\"}]},{\"id\":\"repelling-blast\",\"label\":\"Repelling Blast\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"repelling-blast\"}]},{\"id\":\"pact-of-the-tome\",\"label\":\"Pact of the Tome\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"pact-of-the-tome\"}]},{\"id\":\"pact-of-the-blade\",\"label\":\"Pact of the Blade\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"pact-of-the-blade\"}]},{\"id\":\"pact-of-the-chain\",\"label\":\"Pact of the Chain\",\"effects\":[{\"kind\":\"GrantFeat\",\"featId\":\"pact-of-the-chain\"}]}],\"oneOf\":1},{\"id\":\"01M532JWT3H7S03K78GH7F2J4S\",\"at\":\"2026-10-16T19:21:24.035Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M532JWT2Y05F038XA0RP9NWA\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"selectedOptionIds\":[\"investigation\",\"history\"]},{\"id\":\"01M532JWT4MV1HFY1YS6PJE0PY\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M532JWT34HQEYBPF4VVJB37X\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"selectedOptionIds\":[\"medium\"]},{\"id\":\"01M532JWT4M6EC1MDGG85PEE1E\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M532JWT39CQNAH5NE5Z8MMPG\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"selectedOptionIds\":[\"abyssal\"]},{\"id\":\"01M532JWT4QTZ133E7M8MV2G3T\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M532JWT3NTPT44DSM1NV7P7Z\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"selectedOptionIds\":[\"agonizing-blast-eldritch-blast\"]},{\"id\":\"01M532JWT4V9NGYWJD6FZB20E2\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"classId\":\"warlock\",\"newClassLevel\":2,\"hpStrategy\":\"average\",\"hpGained\":7},{\"id\":\"01M532JWT4A465PVT18XR8APRN\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"LevelUpResolved\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"classId\":\"warlock\",\"newClassLevel\":3,\"hpStrategy\":\"average\",\"hpGained\":7},{\"id\":\"01M532JWT427064H19ASAN1BT3\",\"at\":\"2026-10-16T19:21:24.036Z\",\"causedByEventId\":\"01M532JWT4A465PVT18XR8APRN\",\"type\":\"ChoiceRequired\",\"choiceId\":\"01M532JWT4E6VETCCR179SR3PR\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"promptKey\":\"subclass-warlock\",\"prompt\":\"Choose a Warlock subclass.\",\"options\":[{\"id\":\"fiend-patron\",\"label\":\"Fiend Patron\",\"effects\":[]}],\"oneOf\":1,\"subclassChoiceForClassId\":\"warlock\"},{\"id\":\"01M532JWT4N8002N5R1HVFG3KJ\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"ChoiceResolved\",\"choiceId\":\"01M532JWT4E6VETCCR179SR3PR\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"selectedOptionIds\":[\"fiend-patron\"]},{\"id\":\"01M532JWT4F4NX4FA7B37XHCSP\",\"at\":\"2026-10-16T19:21:24.036Z\",\"type\":\"SubclassChosen\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"classId\":\"warlock\",\"subclassId\":\"fiend-patron\"},{\"id\":\"01M532P5S3TNMP30FQ6RCVSF84\",\"at\":\"2026-10-16T19:23:11.522Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"ability\":\"WIS\",\"skill\":\"medicine\",\"dc\":12,\"d20\":[16],\"used\":\"none\",\"bonus\":1,\"total\":17,\"success\":true,\"breakdown\":[{\"source\":\"WIS-mod\",\"value\":1}]},{\"id\":\"01M532QFJJJGBTWFCF3SAYHKPX\",\"at\":\"2026-10-16T19:23:54.322Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"ability\":\"CHA\",\"skill\":\"persuasion\",\"dc\":15,\"d20\":[12],\"used\":\"none\",\"bonus\":2,\"total\":14,\"success\":false,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":2}]},{\"id\":\"01M5332RJXRB8NV89WY82DAKT6\",\"at\":\"2026-10-16T19:30:03.997Z\",\"type\":\"AbilityCheckRolled\",\"characterId\":\"01M532JWSZSNPVN3TSJCTBP5D6\",\"ability\":\"CHA\",\"skill\":\"intimidation\",\"dc\":12,\"success\":true,\"d20\":[11],\"used\":\"none\",\"bonus\":4,\"total\":15,\"breakdown\":[{\"source\":\"CHA-mod\",\"value\":2},{\"source\":\"skill-prof(proficient)\",\"value\":2}]}]}",
+  "pc": "01M532JWSZSNPVN3TSJCTBP5D6",
+  "npcs": {},
+  "prefer": [
+   "insight",
+   "investigation",
+   "perception",
+   "intimidation",
+   "history",
+   "alert",
+   "fiend-patron",
+   "eldritch-blast",
+   "mage-hand",
+   "hex",
+   "charm-person",
+   "detect-magic",
+   "invisibility",
+   "medium",
+   "ability-score-improvement",
+   "cha",
+   "charisma",
+   "dex",
+   "dexterity",
+   "con",
+   "constitution",
+   "wis",
+   "wisdom",
+   "int",
+   "intelligence",
+   "str",
+   "strength"
+  ],
+  "spells": [
+   {
+    "id": "eldritch-blast",
+    "name": "Eldritch Blast",
+    "level": 0
+   },
+   {
+    "id": "mage-hand",
+    "name": "Mage Hand",
+    "level": 0
+   },
+   {
+    "id": "poison-spray",
+    "name": "Poison Spray",
+    "level": 0
+   },
+   {
+    "id": "thaumaturgy",
+    "name": "Thaumaturgy",
+    "level": 0
+   },
+   {
+    "id": "burning-hands",
+    "name": "Burning Hands",
+    "level": 1
+   },
+   {
+    "id": "charm-person",
+    "name": "Charm Person",
+    "level": 1
+   },
+   {
+    "id": "command",
+    "name": "Command",
+    "level": 1
+   },
+   {
+    "id": "detect-magic",
+    "name": "Detect Magic",
+    "level": 1
+   },
+   {
+    "id": "hex",
+    "name": "Hex",
+    "level": 1
+   },
+   {
+    "id": "invisibility",
+    "name": "Invisibility",
+    "level": 2
+   },
+   {
+    "id": "scorching-ray",
+    "name": "Scorching Ray",
+    "level": 2
+   },
+   {
+    "id": "suggestion",
+    "name": "Suggestion",
+    "level": 2
+   }
+  ],
+  "weapons": [
+   {
+    "id": "01M532JWT1HDA308JPHE9NXRYX",
+    "name": "Dagger"
+   },
+   {
+    "id": "01M532JWT2HNCNACW2MYY6QJ8E",
+    "name": "Shortsword"
+   },
+   {
+    "id": "01M532JWT2R71XCN9GN8Y1V4M8",
+    "name": "Unarmed Strike"
+   }
+  ],
+  "features": [
+   {
+    "id": "magical-cunning",
+    "name": "Magical Cunning",
+    "target": "self"
+   }
+  ],
+  "gear": [
+   {
+    "id": "01M532JWT1HDA308JPHE9NXRYX",
+    "name": "Dagger",
+    "kind": "weapon",
+    "slot": "mainHand"
+   },
+   {
+    "id": "01M532JWT2HNCNACW2MYY6QJ8E",
+    "name": "Shortsword",
+    "kind": "weapon"
+   },
+   {
+    "id": "01M532JWT2TJNDVYRA8WS9MSZN",
+    "name": "Leather Armor",
+    "kind": "armor",
+    "slot": "armor"
+   }
+  ],
+  "status": "HP 24/24",
+  "aliases": {
+   "moll": "the girl in the shawl",
+   "tull": "the corporal"
+  }
+ },
+ "memory": {
+  "opened": [
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/The Law.md",
+    "title": "What the watch may do",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Wendell Prout.md",
+    "title": "Wendell Prout",
+    "scope": "character:kell",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Mister Prout.md",
+    "title": "Mister Prout",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Cob/knowledge/Kell.md",
+    "title": "Sergeant Kell",
+    "scope": "character:cob",
+    "turn": 1
+   },
+   {
+    "path": "Places/Granary Yard (truth).md",
+    "title": "The granary yard: the truth",
+    "scope": "gm",
+    "turn": 1
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:kell",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Sergeant Agnes Kell/knowledge/Moll.md",
+    "title": "Moll",
+    "scope": "character:kell",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Cob/memories/93f586f0.md",
+    "title": "Kell said Prout’s hanging did not kill him",
+    "scope": "character:cob",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Watch.md",
+    "title": "The watch",
+    "scope": "character:moll",
+    "turn": 2
+   },
+   {
+    "path": "Cast/Moll/knowledge/Cob.md",
+    "title": "Cob",
+    "scope": "character:moll",
+    "turn": 3
+   },
+   {
+    "path": "Cast/Cob/knowledge/Silvertop.md",
+    "title": "Silvertop",
+    "scope": "character:cob",
+    "turn": 5
+   },
+   {
+    "path": "Cast/Moll/knowledge/The Gentleman.md",
+    "title": "The gentleman",
+    "scope": "character:moll",
+    "turn": 5
+   },
+   {
+    "path": "World/Royal Purveyor's Office.md",
+    "title": "The Royal Purveyor's office",
+    "scope": "gm",
+    "turn": 5
+   },
+   {
+    "path": "Cast/index.md",
+    "title": "Cast",
+    "scope": "gm",
+    "turn": 5
+   },
+   {
+    "path": "Cast/Master Josiah Sallow/public.md",
+    "title": "Master Josiah Sallow",
+    "scope": "gm",
+    "turn": 5
+   }
+  ]
+ },
+ "sceneStatus": "on_track",
+ "landed": [
+  "not-suicide"
+ ],
+ "rulings": [
+  {
+   "turn": 2,
+   "act": "Ask the children whether they saw what happened",
+   "target": "cob",
+   "skill": "persuasion",
+   "kind": "roll",
+   "dc": 15,
+   "why": "guarded, plausible, hostile",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 15,
+    "die": 12,
+    "modifier": 2,
+    "total": 14,
+    "success": false,
+    "critical": null
+   },
+   "went": "failure",
+   "changed": "Cob snaps that he doesn't talk to bluebottles and edges toward the water butt; Moll tells him to shut it and keeps her eyes on the gate. Kell records their answers, but neither gives you anything about the night",
+   "costUsd": 0.00190955,
+   "latencyMs": 3163
+  }
+ ],
+ "offGraphTurn": 4,
+ "pressureOffered": [
+  "doubt"
+ ],
+ "hinted": [
+  "silvertop",
+  "page"
+ ]
+}

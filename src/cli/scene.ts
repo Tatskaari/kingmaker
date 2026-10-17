@@ -100,6 +100,8 @@ async function afterTurn(state: SessionState, hooks: TurnHooks): Promise<void> {
   // Memory is background work: never hold the story for it. Late memories are picked up by disclosure.
   spawnRemember(state);
   if (!state.ended) { spawnRepair(state); return; }
+  // A GM loop round plays one scene: it stops at the scene's end (src/eval/loop).
+  if (process.env.KM_SCENE_ONLY) { console.log("— The scene is over. —"); return; }
   const scene = sceneById(state.sceneId);
   const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
   if (exit.kind === "combat") console.log("(The fight plays out on the map. For this PoC, the party wins.)\n");
