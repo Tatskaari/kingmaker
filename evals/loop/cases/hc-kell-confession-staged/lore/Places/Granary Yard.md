@@ -5,13 +5,13 @@ visibility: "public"
 ---
 # The granary yard
 
-The cobbled yard behind the King's Granary, in the granary quarter, where the palace's grain is stored and counted. You notice the smell of wet grain, pigeons and river mud; the hoist beam jutting out high above the loft door; and the water butt rolled aside from a loose board, now opened to reveal a child-sized, dark opening through the wall.
+The cobbled yard behind the King's Granary, in the granary quarter, where the palace's grain is stored and counted. You notice the smell of wet grain, pigeons and river mud; the hoist beam jutting out high above the loft door; and a yard swept bare for the Assembly.
 
 **What's here**
 - **The granary's back wall**, with the hoist beam high above the loft door. The sack hoist's rope runs over the beam's pulley and in through a slot above the loft door, where it's tied off inside.
 - **The tally loft** behind that door, where the under-clerk of the Royal Granary Roll keeps the palace's grain accounts. The Roll is a great book chained to the tally desk.
 - **The big yard doors** into the granary, padlocked.
-- **A water butt** in one corner, with a loose board hidden behind it; Cob called out its location during the investigation. **The yard wall** is shoulder-high on the lane side.
+- **A water butt** in one corner, and **the yard wall**, shoulder-high on the lane side.
 - **The yard gate** onto the lane, a cart shed across the lane, and an old elm leaning over the wall, full of pigeons.
 
 **Who's about, and why**
@@ -26,7 +26,7 @@ The cobbled yard behind the King's Granary, in the granary quarter, where the pa
 
 **How the town's troubles show here**: the "lost" wagons are the ones that should have come here. Dear bread means hungry granary rats. And the Assembly has the warden at the palace and the yard swept bare.
 
-**What's happening now**: At first light on the eve of the Assembly, the porters found Wendell Prout, under-clerk of the Granary Roll, hanged from the sack hoist; the Watch Captain called it suicide. Aurelian's examination found a second, low and level cord mark beneath the noose burn, swelling at the back of the skull, and clean palms without rope burn. Kell recorded these signs and called it murder, though no killer is yet named. The dead-cart is due at noon; after that the yard is locked for the Assembly. Aurelian tried Mage Hand through the hoist slot to lift the loft door's inside bar, but could not. Cob showed Aurelian and Kell a paper hidden in his left boot, and held it out for them to read; Aurelian paid him two silver crowns, but Cob kept the page and the boots. It lists grain wagons marked “lost to goblins,” each countersigned “J. Sallow, for the Royal Purveyor,” with Prout's pencilled weights matching those same wagons at the river warehouses. Kell told Aurelian, Cob and Moll that three days earlier Prout had asked her how to report false entries in the King's rolls; she sent him to the palace and regrets not listening. Cob revealed a loose board behind the water butt. Aurelian pulled the bung and let the water drain, then he and Kell rolled the butt clear, exposing the board. Aurelian prised the board aside, revealing a child-sized opening in the granary wall that narrows into darkness, its lower edge smeared with damp grain dust. Kell watched beside him; Cob saw from across the lane, and Moll saw while moving away down it. The opening remains exposed; no one has entered it, and no one has been harmed by its exposure. The butt is rolled clear and nearly empty, and the cobbles are wet.
+**What's happening now**: at first light on the eve of the Assembly the porters found Wendell Prout, under-clerk of the Granary Roll, hanged from the sack hoist, and the Watch Captain called it suicide. The dead-cart comes for him at noon, and after that the yard is locked up for the Assembly. During the investigation, Aurelian tossed Cob a silver crown, which Cob picked up. Aurelian offered another crown when the paper in Cob's left boot was in his hand, while letting Cob keep the boots; Cob says the coin is only a down payment and demands another crown just to let Aurelian look, with no picking, pulling or taking. The bargain remains unsettled.
 
 ## Read when relevant
 - [The Royal Purveyor's office](../World/Royal%20Purveyor's%20Office.md) — read for under-purveyors, their wagons and keys, or wheat-ear silver

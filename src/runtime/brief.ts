@@ -442,7 +442,7 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would. Your prep, the details established, the world and your directions use their names; your narration doesn't, until someone says it.\n${strangers.join("\n")}`] : []),
     // A word on the reply's form comes before what it must do, which has the last word.
     ...(options.remind ? [options.remind] : []),
-    ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
+    ...(directive.some(Boolean) ? [`## For this reply\n${directive.filter(Boolean).join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
 }

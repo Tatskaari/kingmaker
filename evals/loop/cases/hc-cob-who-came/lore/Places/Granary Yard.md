@@ -5,7 +5,7 @@ visibility: "public"
 ---
 # The granary yard
 
-The cobbled yard behind the King's Granary, in the granary quarter, where the palace's grain is stored and counted. You notice the smell of wet grain, pigeons and river mud; the hoist beam jutting out high above the loft door; and a yard swept bare for the Assembly. Wendell Prout's cut page from the Royal Granary Roll has now been recovered from Cob's left boot and taken by Brann.
+The cobbled yard behind the King's Granary, in the granary quarter, where the palace's grain is stored and counted. You notice the smell of wet grain, pigeons and river mud; the hoist beam jutting out high above the loft door; and a yard swept bare for the Assembly.
 
 **What's here**
 - **The granary's back wall**, with the hoist beam high above the loft door. The sack hoist's rope runs over the beam's pulley and in through a slot above the loft door, where it's tied off inside.
@@ -26,7 +26,7 @@ The cobbled yard behind the King's Granary, in the granary quarter, where the pa
 
 **How the town's troubles show here**: the "lost" wagons are the ones that should have come here. Dear bread means hungry granary rats. And the Assembly has the warden at the palace and the yard swept bare.
 
-**What's happening now**: at first light on the eve of the Assembly the porters found Wendell Prout, under-clerk of the Granary Roll, hanged from the sack hoist, and the Watch Captain called it suicide. The dead-cart comes for him at noon, and after that the yard is locked up for the Assembly. This morning Brann pulled aside the crooked board behind the water butt, exposing the child-sized gap Cob calls his "castle". Kell, Cob and Moll saw him do it; Moll told Brann to leave it. The opening is now uncovered. During questioning, Cob said Prout had put something in his left boot. After Brann promised the boots would stay Cob's, Cob removed the left boot and showed a stiff folded paper in its lining; Cob said it was Mister Prout's and that Prout put it there. Brann took the paper and read it aloud: it is a cut page from the Royal Granary Roll listing King's Road wagons marked "lost to goblins", each with the countersignature "J. Sallow, for the Royal Purveyor". Kell recorded its recovery in her notebook. In answer to Brann asking who came last night, Cob said, "Silvertop. Silver cane. Smells like a flower shop. Big cove with him—said, 'Yes, Master.'" This is Cob's account, not an identification independently established in the yard. Kell then disclosed that Prout had come to her three days earlier asking how to report false entries in the King's rolls, and that she told him to take it to the palace; she said, "I should have listened."
+**What's happening now**: at first light on the eve of the Assembly the porters found Wendell Prout, under-clerk of the Granary Roll, hanged from the sack hoist, and the Watch Captain called it suicide. The dead-cart comes for him at noon, and after that the yard is locked up for the Assembly. This morning Brann pulled aside the crooked board behind the water butt, exposing the child-sized gap Cob calls his "castle". Kell, Cob and Moll saw him do it; Moll told Brann to leave it. The opening is now uncovered.
 
 ## Read when relevant
 - [The Royal Purveyor's office](../World/Royal%20Purveyor's%20Office.md) — read for under-purveyors, their wagons and keys, or wheat-ear silver

@@ -8,4 +8,3 @@ visibility: "gm"
 a knowing elven wizard, precise, a little vain, sure he's the cleverest person present
 
 ## What they've told or shown people about themselves
-- In the Granary Yard, Aurelian called himself an evoker while asking Sergeant Kell to help move the water butt. This is his self-description, heard by Kell and Cob.
