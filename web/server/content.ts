@@ -38,8 +38,8 @@ export async function loadContent(url: URL | string, fetchContent: typeof fetch 
  * build's is here.
  */
 export function contentCampaigns(files: Record<string, string>): CampaignStore {
-  const path = scenarioPathIn(Object.keys(files));
-  const { id, version } = path === undefined ? { id: undefined, version: undefined } : loadScenario(files[path]!, path);
+  const scenario = scenarioPathIn(Object.keys(files));
+  const { id, version } = scenario === undefined ? { id: undefined, version: undefined } : loadScenario(files[scenario]!, scenario);
   const served = `${id}@${version}`;
   const reader = { read: (path: string) => files[path], paths: () => Object.keys(files) };
   return {
