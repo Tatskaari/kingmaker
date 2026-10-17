@@ -72,9 +72,9 @@ A team of four to six agents, in about two to three hours, in three steps: V0's 
 | V6 | People remember, the GM steers | meet people who remember what they did; have a drifting scene steered back | V0 | ≈0.9k + 0.6k | 4 · 2 |
 | V7 | A spell or a blow in a scene | cast, strike, shove or jump in a scene, and see the dice, the reactions and the fire spreading | V1 | ≈1.5k + 3.5k | 6 · 3 |
 | V8 | The GM rules on it | get a considered ruling and a roll for a risky act no route covers | V7 | ≈0.6k + 1k | 4 · 2 |
-| V9 | The scene's place, and deeds | see the place beside the talk, point at things, and act from its menu | V2, V7 | ≈0.8k + 2.5k | 5 · 2.5 |
-| V10 | The rules on the map | aim spells and blows from the action menu, Fireball a door, hide and rest | V9 (so V2, V7) | ≈1.2k + 1.9k | 5 · 2.5 |
-| V11 | A talk with Kell | stop and talk with a companion between scenes | V3 | ≈0.7k + 0.9k | 4 · 2 |
+| V9 | The scene's place, and deeds | see the place beside the talk, point at things, and act from its menu | V2, V7 | ≈0.8k + 2.5k, built (the place and its menu with the world bridge; invented looks with V10 and V11) | |
+| V10 | The rules on the map | aim spells and blows from the action menu, Fireball a door, hide and rest | V9 (so V2, V7) | built, with V11 and V9's rest: ≈3.8k + 4.5k together | one PR |
+| V11 | A talk with Kell | stop and talk with a companion between scenes | V3 | built, with V10 | (V10's) |
 | V12 | Roll for initiative | fight Sallow and the Crakes on the map, then play the aftermath | V2, V4, V7 | ≈1.5k + 3.3k | 6 · 3 |
 | V13 | Words in a fight | type what they do in a fight and have it read onto their turn | V12 | ≈0.5k + 1.5k | 4 · 2 |
 | | **Parity with the prototype on the demo arc (§4)** | | | | |
@@ -331,6 +331,7 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 - **Proof:** offline, the scene menu's tests, copied (a glance never shows an entity's `description`), and the stage view's check at 80x24 and up; end to end, a deed picked from the menu plays, and a new thing gets a look; arc check 5; live, a deed and an invented look.
 - **Defers:** the menu on the map (V10); a fight in the place (V12).
 - **Risks:** `stage.ts` (1,061 lines) assumes a live `SceneWorld`. The director's comparison has to run once per change of rows, not once per turn.
+- **Built:** the place beside the talk, pointing and its menu with the world bridge ([world-bridge-design.md](world-bridge-design.md)); invented looks with V10 and V11, in the town's PR ([town-design.md](town-design.md)): the `inventLook` job beside a turn, `POST /v1/looks` (`look.invent`), a `look_invention` row a name, and the client's look cache. The deed is a queued line with its mechanic, decide's `forced` (as V10's act is), not a reducer of its own.
 
 ### V10 · The rules on the map
 
@@ -348,6 +349,7 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 - **Proof:** offline, the menu and town tests adapted, with each refusal's code and words; end to end, the seed-6 Fireball at the watch house door gives the prototype's dice lines, a `no_line` refusal from up the lane writes nothing, and the fire spreads on the clock.
 - **Defers:** the fights that break out (V12); one coding of fire for fights too (V18).
 - **Risks:** tick cost on a big map; `tick_place` must stop when no one's there. Fire on the map now burns on the clock, not by the hour: the tests should say so.
+- **Built** in one PR with V11 and V9's rest ([town-design.md](town-design.md), its As built): the prototype's `menu.ts` split in two, the menu both sides run (`shared/map/menu.ts`) and its acts the simulation does (`menu-acts.ts`); the catalogue written to the sheet (`sheet.actions`); the town's changes as the prototype's overlay on the map's place (`place.town`); seven typed moves with the prototype's ids; `tick_place` on SpacetimeDB's schedule and on the page host's clock; a fight that breaks out recorded on the explore row and told by the stand-in until V12. The proof's Fireball became a Fire Bolt from the street outside the watch house (from up the lane the watch house's own wall and window block the line, a `no_line` refusal that writes nothing): the e2e's steps 36 and 37; a menu act takes 13 to 72 ms on the module, a tick 8 to 21 ms. The AI service gained `forced` after all: the act is decide's mechanic, with no question asked.
 
 ### V11 · A talk with Kell
 
@@ -360,6 +362,7 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 - **Proof:** offline, the talk tests adapted (`talk.test.ts`: the waiting scene restored) and golden prompts; end to end, a talk between the granary and the Rat; live, a talk with Kell.
 - **Defers:** nothing the arc needs.
 - **Risks:** a talk started while a turn is in flight; restoring the waiting scene exactly.
+- **Built** with V10 ([town-design.md](town-design.md)): a talk is a scene of kind `talk` on the town's own place, so the waiting scene is never set aside or touched (the e2e compares its rows before and after); its prep comes with the opening (`talk.sift`, `talk.plan` beside the greeting), its lines with each settle (`talk.suggest` there, not in `reply`, as the prototype runs it), its staged secrets in `gm_state.guard`, and the record of what was told in `talk_record`. The template is campaign data (`campaigns/caerwyn/scenes/talk/`).
 
 ### V12 · Roll for initiative
 
@@ -395,6 +398,8 @@ Built: the blueprint, with what was built, is [v5-design.md](v5-design.md). Its 
 ## 4. Parity, and what follows
 
 ### The parity point: after V13
+
+Built so far: V0 to V11, and V14 ahead of parity. V12 and V13, the fight played on the map and words typed in it, are what's left; until then the stand-in tells every fight as won.
 
 v2 can replace the prototype for the demo arc, in a terminal, when:
 - `npm run arc` passes 16 of 16 in CI;
@@ -522,7 +527,9 @@ Each adoption edits `src/runtime`, which PR #650 is still changing, so its timin
 | V8 | No row for a considered turn's steps | `turn.step` | The status line's steps |
 | V2, V9 | The look director plays typed `world_event`s and `rules_event`s | `rules_event` for dice, `world_event` for walks and barks; the rest the director works out by comparing worlds rebuilt from rows, as the prototype does, until V18 | Parity first; events for everything come with one world |
 | V10 | `tickPlace` on the map | `tick_place` runs the scenes' `tick`; the map's ageing by the hour isn't ported | One coding of fire for scenes and the town |
-| V10 | An act on the map that opens a scene travels as the opening's `firstLine` | The opening is V0's, and the act is the scene's first turn, a `deed`, after it | As the prototype plays it (`play.ts:256`), so the opening's prompt keeps parity |
+| V10 | An act on the map that opens a scene travels as the opening's `firstLine` | The opening is V0's, and the act is the scene's first turn after it: a queued line with its mechanic (`turn.mechanic`), which decide takes as `forced` (no `deed` reducer) | As the prototype plays it (`play.ts:256`), so the opening's prompt keeps parity; the world bridge had made deeds lines |
+| V10 | The town's doors, people and things as entity rows | The prototype's overlay (`TownChanges`) as JSON on the map's own place (`place.town`) | Drop in: `townWorld`, `keepTown` and the renderer run unchanged |
+| V11 | The waiting scene set aside and put back | A talk is a scene of its own on the town's place; the waiting scene's rows are never touched | Nothing to restore, so nothing to get wrong |
 | V12 | A fight as rows, with an `initiative` component, on one world | A `fight` row with the fight's state as JSON, mirrored into the place's rows; the fights' own fire, dust and props kept until V18 | The prototype's fight code (about 5,800 lines with its typed lines) ported without a rewrite |
 
 ---

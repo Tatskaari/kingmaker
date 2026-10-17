@@ -2,6 +2,8 @@
 
 The brief for one PR, `claude/v2-town`, stacked on the browser unit's contracts (`claude/v2-browser` at ad736b8, which stacks on the map, #659). It is the plan's V10, V11 and the rest of V9 ([verticals.md](verticals.md) §3), as one unit. After it, on the map the player casts, strikes, shoves, grapples, leaps, hides, rests and uses what they carry, aimed from the prototype's action menu; the town keeps what the rules did to it, its fire burns on the clock, and its people react. An act at a waiting scene's people opens that scene, the act its first turn. Between scenes the player stops for a word with Kell. Things the story makes up get a look of their own.
 
+> **As built.** The town was built to this brief as one pull request, `claude/v2-town`: K's contracts on it (from `claude/v2-browser` at ad736b8), then S, A and C each on a branch from K's commit (`claude/v2-town-s`, `-a`, `-c`), merged in that order, then the browser unit's head (2e21196), so the stack is one line: the map, the browser, the town. Where the build departs from the text below, §6 says so and why.
+
 The user's direction: **drop in**. Copy the prototype's files whole wherever possible, each headed by its source at `44c6d4a` and its edits. Adapt only at the seams. Checks are functional: the existing tests, the copied tests, one e2e run and a playthrough of §1.
 
 **Decisions, in short**
