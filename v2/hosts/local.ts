@@ -10,9 +10,9 @@ import { pipeline } from "../ai/service/endpoints/pipeline.ts";
 import { folderStores } from "../ai/service/folder-stores.ts";
 import { aiService, type AiService } from "../ai/service/server.ts";
 import type { StreamReplyArgs } from "../shared/protocol/ai.ts";
-import { installArgsOf } from "../shared/scene/files.ts";
-import { memoryHost, type MemoryHost, type StreamArgs } from "../simulation/src/host/memory.ts";
-import { packOf, readCampaignFiles } from "./dev/campaign.ts";
+import { memoryHost, type MemoryHost } from "../simulation/src/host/memory.ts";
+import { readCampaignFiles } from "./dev/campaign.ts";
+import { install, streamArgsOf, streamInto } from "./in-process.ts";
 
 /**
  * The local host (v0-design §4.5, §10.3): the simulation on the memory host and the AI service in
@@ -20,6 +20,7 @@ import { packOf, readCampaignFiles } from "./dev/campaign.ts";
  * service's own handler as the HTTP API carries it (the body as JSON, the bearer, the idempotency
  * key, the attempt), and each draft the service streams comes back through stream_reply as the AI
  * service's identity. So the module's moves and job loop meet the service's pipeline end to end.
+ * What joins the two touches no Node (in-process.ts), so the page's server worker joins them the same.
  *
  * The docs service has one lore root a process (v2/ai/README.md), which each local host's install
  * points at its own store: play one local host at a time.
@@ -64,7 +65,7 @@ export async function localHost(options: LocalOptions = {}): Promise<LocalHost> 
   });
   const ai = localAi(store, options, line => aiLogs.push(line), post => sim.streamReply(streamArgsOf(post), SERVICE));
 
-  await install(options.campaign ?? CAERWYN, ai, sim);
+  await install(readCampaignFiles(options.campaign ?? CAERWYN), ai, sim, BEARER);
 
   return { sim, ai, store, aiLogs, close: () => rmSync(store, { recursive: true, force: true }) };
 }
@@ -86,32 +87,4 @@ function localAi(store: string, options: LocalOptions, log: (line: string) => vo
     log,
     exit: code => { throw new Error(`the AI service asked to exit (${code}): the local host runs no faults`); },
   });
-}
-
-/** stream_reply's HTTP call, answered in process: the post's JSON body to the simulation. */
-function streamInto(post: (args: StreamReplyArgs) => void): typeof fetch {
-  return async (_url, init) => {
-    post(JSON.parse(String(init?.body)) as StreamReplyArgs);
-    return new Response("");
-  };
-}
-
-/** The posted arguments as the reducer takes them: the turn a u64, the markup's option unwrapped. */
-function streamArgsOf(post: StreamReplyArgs): StreamArgs {
-  return {
-    turnId: BigInt(post.turnId), attempt: post.attempt, seq: post.seq, speaker: post.speaker, text: post.text, done: post.done,
-    ...("some" in post.markup ? { markup: post.markup.some } : {}),
-  };
-}
-
-/** The campaign into both, as the install tool does it: every file to the AI service, then the structure to the module as its owner. */
-async function install(dir: string, ai: AiService, sim: MemoryHost): Promise<void> {
-  const files = readCampaignFiles(dir);
-  const pack = packOf(files);
-
-  const put = await ai.answer({ method: "PUT", path: `/v1/campaigns/${pack.campaign.id}/${pack.campaign.version}`, headers: { authorization: `Bearer ${BEARER}` }, body: JSON.stringify({ files }) });
-  if (put.status !== 200) throw new Error(`the AI service didn't take ${dir}: ${put.status} ${put.body}`);
-
-  const refused = sim.as(sim.owner).installCampaign(installArgsOf(pack));
-  if (refused) throw new Error(`install_campaign refused ${dir}: ${refused.text}`);
 }
