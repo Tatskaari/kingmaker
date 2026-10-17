@@ -28,7 +28,12 @@
     "build:web": "node --no-warnings --import tsx hosts/web/build.ts",
     "web:serve": "node --no-warnings --import tsx hosts/web/serve.ts",
     "web:check": "node --no-warnings --import tsx hosts/web/check.ts",
-    "web:screens": "node --no-warnings --import tsx hosts/web/screens.ts"
+    "web:screens": "node --no-warnings --import tsx hosts/web/screens.ts",
+    "glyphs": "python3 tools/glyphs/build.py --install",
+    "glyphs:build": "python3 tools/glyphs/build.py",
+    "glyphs:uninstall": "python3 tools/glyphs/build.py --uninstall",
+    "glyphs:sheet": "python3 tools/glyphs/sheet.py",
+    "glyphs:vte": "python3 tools/glyphs/vte.py"
   },
   "dependencies": {
     "@opentui/core": "0.6.5",

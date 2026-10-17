@@ -4,7 +4,7 @@ import { KINGMAKER_GLYPHS, type KingmakerGlyph } from "./kingmaker-glyphs.ts";
 /**
  * Glyph sets. Four, from richest to safest:
  *
- * - "kingmaker": our own font, Kingmaker Glyphs (assets/fonts/, `npm run glyphs` builds and installs
+ * - "kingmaker": our own font, Kingmaker Glyphs (web/fonts/, `npm run glyphs` builds and installs
  *   it), of pixel-art people and creatures at U+10E000 up, in Unicode's Supplementary Private Use
  *   Area-B, where no Nerd Font or other common font has anything. The terminal falls back to it for
  *   those characters, and each fills exactly one cell. Every named person and every creature it has a

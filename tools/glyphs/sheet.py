@@ -5,7 +5,7 @@ Contact sheets of Kingmaker Glyphs, for drawing them and checking them (PNGs in 
   python3 tools/glyphs/sheet.py bitmaps    # just one (bitmaps, sheet, pango)
 
 - bitmaps.png: the bitmaps exactly as drawn, big, for drawing (no font involved).
-- sheet-1x.png, sheet-3x.png: each glyph drawn with the built font (assets/fonts/) at the real cell
+- sheet-1x.png, sheet-3x.png: each glyph drawn with the built font (web/fonts/) at the real cell
   size (Adwaita Mono 11 at 96 dpi: a 9 x 20 cell, the baseline 15 pixels down, as VTE lays it out)
   and at three times that, with its name beside it in Adwaita Mono, so glyphs and letters compare.
 - pango-1x.png, pango-3x.png: lines of text in "Adwaita Mono 11" rendered by Pango and cairo, the
