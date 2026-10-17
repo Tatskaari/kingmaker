@@ -15,9 +15,10 @@ import { startHost, type PageHost } from "./page-host.ts";
  * as understand-web §5.4 routes them:
  *
  *   page → worker   {type: "start", port, key?, fake?: "dev" | "arc"}, the port transferred (the
- *                   client worker has the channel's other end); then {type: "key", key} for a new
- *                   key, {type: "flush"} as the page goes out of sight, {type: "quit"} when another
- *                   tab takes the game over
+ *                   client worker has the channel's other end); then {type: "port", port} for a new
+ *                   client worker's channel (Play again), {type: "key", key} for a new key,
+ *                   {type: "flush"} as the page goes out of sight, {type: "quit"} when another tab
+ *                   takes the game over
  *   worker → page   {type: "ready", channel} once it plays; {type: "busy", channel} while another tab
  *                   has the game (the page offers to take it over on that BroadcastChannel);
  *                   {type: "storage", ok, message?} when the browser won't keep the game, and when it
@@ -104,10 +105,13 @@ const page = pageOf(scope);
 let running: Promise<Running> | undefined;
 
 scope.addEventListener("message", event => {
-  const message = event.data as { type?: unknown; key?: unknown } | null;
+  const message = event.data as { type?: unknown; key?: unknown; port?: PortLike } | null;
   switch (message?.type) {
     case "start":
       running ??= start(message as Start);
+      return;
+    case "port":
+      if (message.port) whenRunning(server => server.host.serve(portDuplex(message.port!)));
       return;
     case "key":
       if (typeof message.key === "string") whenRunning(server => server.model.setKey(message.key as string));
