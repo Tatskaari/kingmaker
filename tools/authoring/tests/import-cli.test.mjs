@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {cp,mkdtemp,mkdir,readFile,readdir,writeFile,rm,symlink} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
@@ -6,10 +6,14 @@ import {createHash} from 'node:crypto';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {prototypeGame} from './prototype-game.mjs';
 
 const cli=fileURLToPath(new URL('../scripts/import-main-campaign.mjs',import.meta.url));
-// Optional source overrides exercise a real checkout/vault through temporary copies only.
-const game=process.env.KINGMAKER_IMPORT_TEST_GAME??fileURLToPath(new URL('../../../',import.meta.url));
+// Optional source overrides exercise a real checkout/vault through temporary copies only. The game is the
+// retired prototype's scenes: a checkout of them, or by default its last commit out of git history.
+const prototype=prototypeGame();
+after(()=>prototype.done());
+const game=prototype.game;
 const examples=process.env.KINGMAKER_IMPORT_TEST_VAULT??fileURLToPath(new URL('../examples/',import.meta.url));
 const expectedIds=['caerwyn-afternoon','drowned-rat','wharf-night','heron-warehouse','kings-morning'];
 const sourceFiles=['scenes/interludes.ts','scenes/drowned-rat.ts','scenes/heron-warehouse.ts','scenes/kings-morning.ts','scenes/hanged-clerk.ts','scenes/worlds/hanged-clerk.ts','scenes/worlds/drowned-rat.ts','scenes/worlds/heron-warehouse.ts','scenes/worlds/kings-morning.ts'];

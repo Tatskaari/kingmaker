@@ -5,8 +5,10 @@ import {fileURLToPath} from 'node:url';
 const root=path.dirname(fileURLToPath(import.meta.url));
 process.chdir(root);
 await mkdir('dist/plugin',{recursive:true});
-// Reuse the browser game's adapters for the terrain renderer's platform imports.
-const alias=Object.fromEntries(['fs','os','path','crypto','url'].map(name=>[`node:${name}`,path.resolve(root,`../../src/web/static/node/${name}.ts`)]));
+// The game's own browser stand-ins for Node (web/node, as its page's build takes them: each file is the
+// module its name says), for whatever the terrain renderer's imports ask of Node. Today they ask nothing.
+const nodeStandIns=path.resolve(root,'../../web/node');
+const alias=Object.fromEntries((await readdir(nodeStandIns)).filter(file=>/^[a-z_]+(-[a-z_]+)*\.ts$/.test(file)&&!file.endsWith('.test.ts')).map(file=>[`node:${file.slice(0,-3).replaceAll('-','/')}`,path.join(nodeStandIns,file)]));
 const options={bundle:true,jsx:'automatic',sourcemap:true,alias,define:{'process.env.NODE_ENV':'"production"'},inject:[path.resolve(root,'src/map-platform.js')]};
 await esbuild.build({...options,entryPoints:['src/plugin.tsx'],outfile:'dist/plugin/main.js',format:'cjs',platform:'browser',external:['obsidian','electron'],logLevel:'info'});
 await copyFile('dist/plugin/main.css','dist/plugin/styles.css');
@@ -14,7 +16,7 @@ await copyFile('manifest.json','dist/plugin/manifest.json');
 
 // Separate browser fixtures exercise the same editor against a file-shaped test host.
 // These fixtures are never bundled into the installed Obsidian plugin.
-const loreRoot=path.resolve(process.env.KINGMAKER_LORE_ROOT??path.join(root,'../../lore'));
+const loreRoot=path.resolve(process.env.KINGMAKER_LORE_ROOT??path.join(root,'../../campaigns/caerwyn/lore'));
 async function walk(directory,prefix=''){
   const files=[];
   for(const entry of (await readdir(directory,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const campaignDirectory = process.argv[2];
 if (!campaignDirectory) {
-  console.error('Usage: node scripts/import-hanged-clerk.mjs <v2/campaigns/caerwyn> [output-directory]');
+  console.error('Usage: node scripts/import-hanged-clerk.mjs <campaigns/caerwyn> [output-directory]');
   process.exit(1);
 }
 const outputDirectory = path.resolve(process.argv[3] ?? fileURLToPath(new URL('../examples/', import.meta.url)));
@@ -84,7 +84,7 @@ for (const [id, beat] of Object.entries(scene.beats)) {
 }
 const provenance = {
   kind: 'v2-authoring-import', revision,
-  path: 'v2/campaigns/caerwyn/scenes/hanged-clerk/scene.json',
+  path: 'campaigns/caerwyn/scenes/hanged-clerk/scene.json',
   note: 'An editable authoring copy, not connected to the game engine. The graph is editable; this source snapshot preserves the original authored content and does not update when the graph is edited. Check routes have separate success/failure edges. A missing failure destination stays at the current beat. Anytime routes are shown from every beat, with scope=anytime; they are not five separate source rules. Runtime eligibility rules may restrict which routes are currently available.',
 };
 const document = {
@@ -107,8 +107,8 @@ const scenario = {
 const body = place.things.find(thing => thing.id === 'prout');
 const page = place.things.find(thing => thing.id === 'ledger-page');
 const notes = {
-  [bodyPath]: `---\ntype: object\nname: "Wendell Prout's body"\nvisibility: gm\nsource: "v2/campaigns/caerwyn/places/granary-yard.json#prout"\n---\n# Wendell Prout's body\n\n${body.description}\n\nAt the opening, the body hangs from the hoist rope above the granary yard. The authored starting state is **${body.states.join(', ')}**.\n\n## What the evidence means\n\n${scene.facts['killed-not-suicide']}\n\n## Related content\n\n- [[Places/Granary Yard]]\n- [[Objects/Ledger page]]\n- [[${scenePath}]]\n\n*Imported from the existing v2 authored place and scene, revision ${revision.slice(0, 7)}. This local lore note is an authoring copy, not a live engine object.*\n`,
-  [pagePath]: `---\ntype: object\nname: Ledger page\nvisibility: gm\nsource: "v2/campaigns/caerwyn/places/granary-yard.json#ledger-page"\n---\n# Ledger page\n\n${page.description}\n\n## Full discovery\n\n${scene.facts['page-read']}\n\n## Starting location\n\nSewn into the lining of Prout's left boot. Cob is wearing the boots. The authored starting tags are **${page.tags.join(', ')}**.\n\n## Related content\n\n- [[Cast/Cob/public|Cob]]\n- [[Objects/Wendell Prout]]\n- [[Places/Granary Yard]]\n- [[${scenePath}]]\n\n*Imported from the existing v2 authored place and scene, revision ${revision.slice(0, 7)}. This local lore note is an authoring copy, not a live engine item.*\n`,
+  [bodyPath]: `---\ntype: object\nname: "Wendell Prout's body"\nvisibility: gm\nsource: "campaigns/caerwyn/places/granary-yard.json#prout"\n---\n# Wendell Prout's body\n\n${body.description}\n\nAt the opening, the body hangs from the hoist rope above the granary yard. The authored starting state is **${body.states.join(', ')}**.\n\n## What the evidence means\n\n${scene.facts['killed-not-suicide']}\n\n## Related content\n\n- [[Places/Granary Yard]]\n- [[Objects/Ledger page]]\n- [[${scenePath}]]\n\n*Imported from the existing v2 authored place and scene, revision ${revision.slice(0, 7)}. This local lore note is an authoring copy, not a live engine object.*\n`,
+  [pagePath]: `---\ntype: object\nname: Ledger page\nvisibility: gm\nsource: "campaigns/caerwyn/places/granary-yard.json#ledger-page"\n---\n# Ledger page\n\n${page.description}\n\n## Full discovery\n\n${scene.facts['page-read']}\n\n## Starting location\n\nSewn into the lining of Prout's left boot. Cob is wearing the boots. The authored starting tags are **${page.tags.join(', ')}**.\n\n## Related content\n\n- [[Cast/Cob/public|Cob]]\n- [[Objects/Wendell Prout]]\n- [[Places/Granary Yard]]\n- [[${scenePath}]]\n\n*Imported from the existing v2 authored place and scene, revision ${revision.slice(0, 7)}. This local lore note is an authoring copy, not a live engine item.*\n`,
 };
 const files = {
   [scenePath]: `${JSON.stringify(document, null, 2)}\n`,
