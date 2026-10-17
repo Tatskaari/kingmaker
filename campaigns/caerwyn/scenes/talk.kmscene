@@ -1,0 +1,110 @@
+{
+  "format": "kingmaker",
+  "version": 2,
+  "kind": "scene",
+  "id": "talk",
+  "title": "A word with {name}",
+  "description": "A word with {name} between scenes: a talk for its own sake, with no story exits.",
+  "lore": [],
+  "hook": "A word with {name}, between one thing and the next.",
+  "setting": "Out in the town between one scene of the story and the next, wherever the player stopped for a word (the details established in play say where and when), with the place going about its business around them.",
+  "premise": "A word with {name}, who walks with the player between scenes: small talk, their view of things, and, slowly, who they are. It has nothing to settle and moves nothing in the story on (the next place waits on the map); it lasts until the player says goodbye or walks on.",
+  "truth": "Nothing in a talk is hidden from the GM but what {name} keeps back of their own story: their lore and memories say what it is, and how far they've come towards telling it. A talk moves nothing in the story on.",
+  "limits": [
+    "New leads, clues or people turning up: a word between scenes moves nothing in the story on; the story goes on at its next place.",
+    "Going somewhere together now (into a building, on to the next place): walking on ends the talk, and the map takes them there.",
+    "Things changing hands (a gift, a loan, money, gear): a word in passing isn't the place for it; offered, it's answered in character and stays with whoever had it."
+  ],
+  "cast": [
+    {
+      "id": "{companion}",
+      "name": "{name}",
+      "look": "As their lore describes them.",
+      "voice": "As their lore has it.",
+      "wants": "Their own business, between one thing and the next; a word with the player, if it's wanted, on their own terms.",
+      "whyHere": "Walking with the player between scenes; the player has stopped for a word with them.",
+      "knows": [
+        "What their own lore and memories hold (below): what they've seen, done, been told and believe, and nothing more."
+      ],
+      "attitude": "As things stand between them and the player (their memories say how), and at whatever ease that allows. They answer what they're asked and give their own view when it's wanted; what they keep back of their own story stays theirs until they're ready."
+    }
+  ],
+  "facts": {},
+  "companion": "{companion}",
+  "nodes": [
+    {
+      "id": "talk",
+      "type": "story",
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "data": {
+        "kind": "start",
+        "title": "A word between scenes",
+        "description": "The player has stopped for a word with {name}: a talk for its own sake, not a scene of the story. Nothing turns up here (no clues, no new people, no new places), and the story's next place stays where it is. Play {name} as their lore and memories have them, at whatever ease things between them and the player allow: short, natural exchanges in their own voice; their own view of the town, the story so far and the people the player has met, as far as they've seen and know; something of their own business. What anyone could know of them is theirs to say. Their own story (what happened to them, what it cost, who they care about, why something matters to them) comes slowly: in this talk, at most the one thing on their card that they're keeping back, if there is one, a step at a time as far as they've opened up; anything else of their past stays theirs for another day, deflected in their own manner, without lying. What they've told the player before isn't told again (the details established say what): a word back to it at most. They don't run the player's business: no next steps, and no leads they'd have no reason to volunteer; asked where next, they say what they know of it, once.\n\nAs the talk opens: the player has come over for a word with {name}, out in the town between scenes (the details established in play say where and when: time has passed since the last scene ended, and the next is still ahead). In a sentence or two, what {name} is doing as the player comes over (their own business, in their own manner) and their word of greeting, in their own voice. Don't recap the story, don't ask what the player wants or where to go next, and don't bring up their own past. End on them waiting, in their own way, for the player to speak.",
+        "lore": []
+      }
+    },
+    {
+      "id": "told",
+      "type": "story",
+      "position": {
+        "x": 400,
+        "y": 60
+      },
+      "data": {
+        "kind": "beat",
+        "title": "Told",
+        "description": "{name} has told the player the one thing they were keeping back this time. That's as much of their own story as comes out in one talk: they answer a follow-up or two about it, briefly and in their own way, and the rest of their past waits for another day. Otherwise the talk goes on as before: their view of things, their own business, until the player says goodbye or walks on.",
+        "lore": []
+      }
+    },
+    {
+      "id": "goodbye",
+      "type": "story",
+      "position": {
+        "x": 800,
+        "y": 60
+      },
+      "data": {
+        "kind": "exit",
+        "title": "Goodbye for now",
+        "description": "The player has said goodbye or walked on: the talk is over, and {name} gets back to their own business, still walking with them.",
+        "closing": "Close on {name}'s last word or gesture as the player moves on: a line or two, nothing new.",
+        "result": "good",
+        "exitKind": "leave",
+        "effects": [],
+        "lore": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "goodbye",
+      "source": "talk",
+      "target": "goodbye",
+      "type": "smoothstep",
+      "label": "Goodbye",
+      "data": {
+        "condition": "The player says goodbye or ends the talk (\"{farewell}\"), or walks on.",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    },
+    {
+      "id": "confided",
+      "source": "talk",
+      "target": "told",
+      "type": "smoothstep",
+      "label": "Told",
+      "data": {
+        "condition": "{name} has told the player the one thing they were keeping back in this talk: the heart of it, in their own words, even if not every detail. (The game words this route for each talk, from what that talk may bring out.)",
+        "phase": "outcome",
+        "skill": "",
+        "dc": 12
+      }
+    }
+  ]
+}

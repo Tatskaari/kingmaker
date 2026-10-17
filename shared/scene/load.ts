@@ -2,6 +2,7 @@
 
 import { isBeat, isEnding, isStart, parseScene, type BeatData, type CastMember, type EndingData, type Route, type SceneDocument, type SceneNode, type StartData } from "./document.ts";
 import type { CastFile, RouteFile, SceneFile } from "./files.ts";
+import { TOLD } from "./talk.ts";
 import type { Beat, Character, Essential, Exit, Scene, SceneRoute, Transition } from "./types.ts";
 
 /**
@@ -155,7 +156,9 @@ function exitOf(id: string, e: SceneFile["exits"][string], read: Read): Exit {
  * essential (its id the beat's, what it is its revelation, where it's placed its paths' `via`), so
  * the story's boundary and what it owes keep working. A talk (the template, with `companion`) has
  * its ways into its ending as anytime attempts, as the template's goodbye was: the player's farewell
- * is judged before the reply, whichever beat the talk is at.
+ * is judged before the reply, whichever beat the talk is at. Its way into told (TOLD) is the talk's
+ * own to give, worded for each talk from what it may bring out (ai/gm/talk.ts prepareTalk's route,
+ * CONFIDED): the template's stands for it in the file, and isn't one of the beat's transitions.
  */
 export function sceneOfDocument(doc: SceneDocument): Scene {
   const start = doc.nodes.find(isStart)!;
@@ -166,8 +169,9 @@ export function sceneOfDocument(doc: SceneDocument): Scene {
   const talk = doc.companion !== undefined;
   const intoEnding = (r: SceneRoute) => nodes.get(r.target)?.data.kind === "exit";
   const toTransition = (r: SceneRoute) => transitionOfRoute(r, nodes, facts, talk && intoEnding(r));
+  const leaves = (n: SceneNode, r: SceneRoute) => r.source === n.id && !(talk && (intoEnding(r) || r.target === TOLD));
   const beats = doc.nodes.filter((n): n is SceneNode<StartData | BeatData> => !isEnding(n))
-    .map(n => beatOfNode(n, routes.filter(r => r.source === n.id && !(talk && intoEnding(r))).map(toTransition)));
+    .map(n => beatOfNode(n, routes.filter(r => leaves(n, r)).map(toTransition)));
   const anytime = talk ? routes.filter(intoEnding).map(toTransition) : [];
   const essentials = doc.nodes.filter(isBeat).flatMap(n => (n.data.carry ? [essentialOf(n, castIds)] : []));
 
