@@ -8,6 +8,7 @@ import { stageView } from "../client/look/stage-view.ts";
 import { connect, type Connection } from "../client/net/connection.ts";
 import type { Mode } from "./dev/mode.ts";
 import { startStack, type Stack } from "./dev/stack.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The arc check (verticals.md §2, v1-design §4.5, story-design §5): the prototype's whole-arc check
@@ -107,6 +108,7 @@ function theYard(walked: Arc["walked"], conn: Connection): string | undefined {
 }
 
 const flags = flagsOf(process.argv.slice(2));
+configureTerminal(process.env);
 
 console.log(`The arc: the prototype's flow on the split (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
 const stack = await startStack({

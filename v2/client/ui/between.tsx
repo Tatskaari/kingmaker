@@ -1,7 +1,8 @@
-// Copied from the prototype's src/app/ui/between.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel (the story's BetweenView) in place of the Game's card; with no map, the talk's way on is the lead's scene ("On to The Drowned Rat") where it was "Back to the map", and j opens the notebook where Esc was the menu. FightScreen is new: the fight's stand-in (src/game/fight-standin.ts) as the card's Plain.
+// Copied from the prototype's src/app/ui/between.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel (the story's BetweenView) in place of the Game's card; with no map, the talk's way on is the lead's scene ("On to The Drowned Rat") where it was "Back to the map", and j opens the notebook where Esc was the menu; PACE is the client's pace (client/pace.ts) where it was KM_APP_TALK_MS. FightScreen is new: the fight's stand-in (src/game/fight-standin.ts) as the card's Plain.
 import type { KeyEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useState } from "react";
+import { pacing } from "../pace.ts";
 import type { SceneModel } from "../scene/model.ts";
 import type { Line } from "../scene/view.ts";
 import type { BetweenView } from "../story/view.ts";
@@ -27,8 +28,8 @@ function betweenKey(scene: SceneModel, page: SceneModel["page"], key: KeyEvent, 
 /** What the way on says once an Enter has only ended something typed at it. */
 const TYPED = "   (that typing went nowhere: Enter goes on)";
 
-/** How long each line of a conversation between scenes waits for the one before, in ms (KM_APP_TALK_MS; 0: all at once). */
-const PACE = () => Number(process.env.KM_APP_TALK_MS ?? 700);
+/** How long each line of a conversation between scenes waits for the one before, in ms (the pace's talkMs, a terminal's KM_APP_TALK_MS; 0: all at once). */
+const PACE = () => pacing().talkMs;
 
 /**
  * Between scenes: whoever walks with the player tells what happened and where next (Kell reads the

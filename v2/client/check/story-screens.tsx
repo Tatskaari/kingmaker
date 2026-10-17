@@ -10,6 +10,7 @@ import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import type { Rejection } from "../backend.ts";
 import { ScenePlay } from "../app.tsx";
+import { pacing, setPace } from "../pace.ts";
 import { SceneModel, type SceneActions } from "../scene/model.ts";
 import type { SceneView } from "../scene/view.ts";
 import { STANDIN, talkBetween } from "../story/words.ts";
@@ -37,10 +38,9 @@ function recorder(answer: (move: string) => Rejection | undefined = () => undefi
 }
 
 export async function checkStory(checks: Checks, show: boolean): Promise<void> {
-  const was = process.env.KM_APP_TALK_MS;
+  const was = pacing().talkMs;
   for (const [w, h] of [[80, 24], [130, 42]] as const) await sizes(checks, show, w, h);
-  if (was === undefined) delete process.env.KM_APP_TALK_MS;
-  else process.env.KM_APP_TALK_MS = was;
+  setPace({ talkMs: was });
 }
 
 async function sizes(checks: Checks, show: boolean, w: number, h: number): Promise<void> {
@@ -110,8 +110,8 @@ async function sizes(checks: Checks, show: boolean, w: number, h: number): Promi
   checks.push([`${size}: story: /quests: each quest as it stands`, /The quests/.test(frame) && inside(frame).includes(`The Hanged Clerk (active): ${OPEN_CASE.quest}`)]);
   await esc();
 
-  // Enter: between scenes, Kell's talk, all at once (KM_APP_TALK_MS=0), word for word talkBetween's.
-  process.env.KM_APP_TALK_MS = "0";
+  // Enter: between scenes, Kell's talk, all at once (the pace's talkMs 0), word for word talkBetween's.
+  setPace({ talkMs: 0 });
   await enter();
   frame = await draw();
   if (show) console.log(`${size}, Kell's talk\n${frame}`);
@@ -135,7 +135,7 @@ async function sizes(checks: Checks, show: boolean, w: number, h: number): Promi
   await setup.dispose();
 
   // The talk paced: a line at a time; Enter hurries it to its end.
-  process.env.KM_APP_TALK_MS = "5000";
+  setPace({ talkMs: 5000 });
   const paced = new SceneModel(yardOver(ratWaiting()), recorder().actions);
   paced.goOn();
   const pacedSetup = await testRender(<ScenePlay scene={paced} />, { width: w, height: h });
@@ -149,7 +149,7 @@ async function sizes(checks: Checks, show: boolean, w: number, h: number): Promi
   await pacedSetup.dispose();
 
   // The card, with nobody to walk with.
-  process.env.KM_APP_TALK_MS = "0";
+  setPace({ talkMs: 0 });
   const alone = new SceneModel(yardOver({ ...ratWaiting("Dusk finds you on the river stairs."), followers: [] }), recorder().actions);
   alone.goOn();
   const cardSetup = await testRender(<ScenePlay scene={alone} />, { width: w, height: h });

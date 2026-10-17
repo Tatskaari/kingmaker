@@ -18,6 +18,7 @@ import {
   player, restartAi, seconds, step, turnOf, until, type Player,
 } from "./e2e/kit.ts";
 import { backToTheMap, inTheLane, mapTimes } from "./e2e/map.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The end to end test (v0-design §10.4, v5-design §4.4, v1-design §4.3, full-gm-design §4.4,
@@ -79,6 +80,7 @@ const NOTE = "The GM has lost the thread for a moment: trying again.";
 const REPLIED = ["settling", "noting", "done"];
 
 const flags = flagsOf(process.argv.slice(2));
+configureTerminal(process.env);
 
 console.log(`The e2e: a line in a scene, its reply as drawn, a character made, the full GM, spells and blows in the world, and the whole story, end to end (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
 const stack = await startStack({
