@@ -1,5 +1,6 @@
-// Copied from the prototype's src/runtime/scene.ts at 44c6d4a, whole; an exit's script is its effects (data), a scene's onEnd its effects on every ending (story-design §4.2), and there's no approach.
+// Copied from the prototype's src/runtime/scene.ts at 44c6d4a, whole; an exit's script is its effects (data), a scene's onEnd its effects on every ending (story-design §4.2), and there's no approach. M2 extends it with what the scene format (docs/scene-format.md, document.ts) gives: a beat's revelation, paths, required, establishes and carry, an exit's result, a character's whyHere, limits, roles and lore, and a scene's truth, clock, facts and routes.
 
+import type { BeatData, CastMember, Path } from "./document.ts";
 import type { Effect } from "./files.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 
@@ -48,6 +49,14 @@ export interface Character {
   weapon?: string;
   /** A group's members, who stand, fight and fall separately in the world and the rules (the group speaks through its leader). */
   members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }>;
+  /** Why they're in this scene, now (the scene format's). */
+  whyHere?: string;
+  /** What never works on them and what they never do. */
+  limits?: string;
+  /** The co-GM's palette for their conversation role: how they're characterised, the inconsistency that invites a question, the hooks they offer. */
+  roles?: CastMember["roles"];
+  /** Their lore note in the campaign's lore/ (Cast/Cob/public.md). */
+  lore?: string;
 }
 
 export interface Check {
@@ -102,18 +111,65 @@ export interface Transition {
    * the player has come across it; taking it brings nothing out.
    */
   towards?: string;
+  /** The beats the scene must have reached before this route can be taken (its route's `requires`: the scene format's). */
+  requires?: string[];
 }
 
+/**
+ * A beat, as the scene format has them (load.ts sceneOf): the start (the scene's `start`), an event
+ * (a turn the scene takes: no revelation), or a discovery (something the player can come to
+ * understand, by any of its paths: it has a revelation). Its transitions are the routes that leave
+ * it, as the copied code reads them.
+ */
 export interface Beat {
   id: string;
   title: string;
-  /** What this beat is for and how to play it: the GM's prep note. */
+  /** What this beat is for and how to play it: the GM's prep note (the node's description). */
   direction: string;
-  /** What individual characters are doing or trying to do during this beat. */
+  /** What individual characters are doing or trying to do during this beat (the start's and an event's conversation roles). */
   cast?: Record<string, string>;
   /** Something the world can do to push things along when the scene stalls or drifts. */
   pressure?: string;
   transitions: Transition[];
+  /** A discovery's: what the player comes to understand. A beat with one is a discovery. */
+  revelation?: string;
+  /** A discovery's suggested revelation paths. */
+  paths?: Path[];
+  /** The scene can't end well without it. */
+  required?: boolean;
+  /** Fact ids settled when the beat is reached (the scene's `facts` say their sentences). */
+  establishes?: string[];
+  /** When the rest of the story needs it too: an essential (the beat's id is the essential's). */
+  carry?: BeatData["carry"];
+  /** Lore notes about it (paths under the campaign's lore/). */
+  lore?: string[];
+}
+
+/**
+ * A route of the scene format (document.ts Route), flat: from a node the scene has reached to
+ * another, once every beat it requires is reached; with dice (`skill`, `dc`) the check decides it,
+ * a failure going to `onFailure` or nowhere. What play does with them is beats.ts's.
+ */
+export interface SceneRoute {
+  id: string;
+  /** Node ids: the start, a beat, an ending. */
+  source: string;
+  target: string;
+  /** The route's name on the graph. */
+  label: string;
+  /** What has to have happened to take it (empty into a discovery: its revelation landing). */
+  condition: string;
+  /** outcome: judged on what has happened; cue: a moment the co-GM brings about when it comes. */
+  phase: "outcome" | "cue";
+  /** Beats that must have been reached first. */
+  requires?: string[];
+  /** The dice decide it: the check the mouthpiece calls. None: no dice. */
+  skill?: Skill;
+  dc?: number;
+  /** Where a failed check goes; none, and the scene stays where it is. */
+  onFailure?: string;
+  /** Fact ids settled when it's taken. */
+  establishes?: string[];
 }
 
 export type ExitKind = "combat" | "persuaded" | "progress" | "leave" | "other";
@@ -130,6 +186,10 @@ export interface Exit {
   next?: string;
   /** What ending this way does to the story and the world (the prototype's exit script, as data). */
   effects?: Effect[];
+  /** How it went for the player: good, mixed or bad (the scene format's). */
+  result?: "good" | "mixed" | "bad";
+  /** Lore notes about it (paths under the campaign's lore/). */
+  lore?: string[];
 }
 
 /**
@@ -247,6 +307,14 @@ export interface Scene {
   companion?: string;
   /** Effects of every ending, before the exit's own (v2's: in the prototype, story code in the map module, src/game/map/explore.ts:100-112). */
   onEnd?: Effect[];
+  /** What really happened, behind the screen: it comes out through the beats' paths (the scene format's). */
+  truth?: string;
+  /** What happens if the player dawdles: the pressure, and its outer limit. */
+  clock?: string;
+  /** Fact ids and the sentence the GM is told when each is settled; `established` holds the sentences. */
+  facts?: Record<string, string>;
+  /** Every route of the scene, flat, in the file's order (beats[].transitions has them by where they leave from, for the copied code). */
+  routes: SceneRoute[];
 }
 
 export function beatOrExit(scene: Scene, id: string): { beat?: Beat; exit?: Exit } {
