@@ -41,6 +41,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run screens
+      # The page-only build (browser-design §5): it fails on what a browser bundle can't do, a file outside
+      # content.json's allowlist, a stamp or preload missed, an absolute URL, or anything like an OpenRouter key.
+      - run: npm run build:web
+      # The client's screens on the JS OpenTUI the page draws with (web/tui), as npm run screens draws them natively.
+      - run: npm run web:screens
       - name: Install the SpacetimeDB CLI, pinned
         run: |
           curl -sSf https://install.spacetimedb.com | sh -s -- --yes
@@ -93,6 +98,40 @@ jobs:
             v2/runs/e2e/ai/games/*/calls.jsonl
             v2/runs/arc/logs/
             v2/runs/arc/ai/games/*/calls.jsonl
+          if-no-files-found: ignore
+
+  browser:
+    # The page-only build (browser-design §7), as the preview builds it, served as GitHub Pages serves it
+    # (under /kingmaker/pr-preview/pr-0/v2/: files only, max-age=600, no headers of ours) and played in
+    # headless Chromium on the fake GM: the gate and the key form (OpenRouter faked), both workers started
+    # on the page's channel, the title, a character, the map, the hanged clerk opened and a line answered,
+    # a reload that carries the game on from IndexedDB, a second tab; no request leaves the origin.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.9.0
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+      - run: npm ci
+      - name: Playwright's Chromium, cached by v2's lock
+        id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('v2/package-lock.json') }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx --no-install playwright install chromium-headless-shell
+      - run: npm run build:web
+      - run: npm run web:check
+      - name: The check's screens, when it failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-check
+          path: v2/runs/web/
           if-no-files-found: ignore
 
   container:
