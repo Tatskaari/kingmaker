@@ -188,12 +188,21 @@ export async function say(config: LoopConfig, roundName: string, id: string, wor
     if (played.refused) return refusedText(record, before.entries, played.refused);
 
     noteCapped(record, played.turn, deps);
-    return { code: 0, text: answerText(record, before, seen.view(), words, round) };
+    const failed = failedText(record, seen.view());
+    return { code: failed ? 1 : 0, text: [answerText(record, before, seen.view(), words, round), failed].filter(Boolean).join("\n\n") };
   } finally {
     seen.stop();
     conn.close();
     writeRecord(file, record);
   }
+}
+
+/** A turn the game couldn't answer, after the loop's waits: its words, and for the day's ceiling, that the game stops there. */
+function failedText(record: GameRecord, view: SceneView | undefined): string | undefined {
+  if (view?.phase !== "failed" || view.failed === undefined) return undefined;
+  if (!ceiling(view.failed)) return `(The game couldn't answer: ${view.failed} In a minute, say the same line again: the game carries the turn on from where it got to, and doesn't say it twice.)`;
+  record.stopped = `the day's budget: ${view.failed}`;
+  return `(The game couldn't answer: ${view.failed} That's the day's budget for the models: stop here, and say so in your notes.)`;
 }
 
 /** A line the game didn't take: the game's words; or, when the scene ended meanwhile (its closing reply still settling), what came since the tester last looked and that it's over. */
@@ -221,7 +230,13 @@ function cantSay(record: GameRecord | undefined, round: Round, config: LoopConfi
 async function playLine(conn: Backend, seen: Seen, words: string, record: GameRecord, deps: PlayDeps): Promise<{ refused?: string; turn: number }> {
   const at = deps.now();
   const patience = patienceOf(deps, []);
+  const again = failedWith(seen.view(), words);
   if (unfinished(seen.view())) await patiently(conn, () => carryTurnOn(conn), carryTurnOn, patience);
+  // The line run again after its turn failed: that turn, carried on, is its answer (it isn't said twice).
+  if (again !== undefined) {
+    record.turns[String(again)] = turnLog(words, at, deps.now(), patience.waits, seen.view());
+    return { turn: again };
+  }
 
   const out = capture();
   const lines = playerLines(seen.view());
@@ -236,6 +251,12 @@ async function playLine(conn: Backend, seen: Seen, words: string, record: GameRe
 
 function turnLog(words: string, at: Date, now: Date, waits: Wait[], view: SceneView | undefined): TurnLog {
   return { said: words, at: at.toISOString(), ms: now.getTime() - at.getTime(), waits, ...(view?.phase === "failed" && view.failed ? { failed: view.failed } : {}) };
+}
+
+/** The turn of the scene's latest line, when that turn failed and the line is `words`: the tester running it again. */
+function failedWith(view: SceneView | undefined, words: string): number | undefined {
+  const last = view?.entries.filter(e => e.kind === "player").at(-1);
+  return view?.phase === "failed" && last?.text.trim() === words.trim() ? last.turn : undefined;
 }
 
 /** The scene's latest turn is still being answered, or failed: the next line would be refused. */

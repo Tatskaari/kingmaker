@@ -4,12 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { Backend } from "../../client/backend.ts";
+import { YARD } from "../../client/check/fixture.ts";
 import { demoBackend } from "../../client/demo.ts";
 import type { SceneView } from "../../client/scene/view.ts";
 import { patiently, worthWaiting } from "./patience.ts";
 import { CAMPAIGNS, recordPath, type LoopConfig } from "./paths.ts";
 import { brief, say, start, transcript, type PlayDeps } from "./play.ts";
-import { newRecord, readRecord, type Wait } from "./record.ts";
+import { entriesOf, newRecord, readRecord, writeRecord, type Wait } from "./record.ts";
 import { reachScene } from "./reach.ts";
 import { newRound, personas } from "./round.ts";
 import { campaignAt } from "./scenes.ts";
@@ -101,6 +102,78 @@ test("say: a scene that ended behind the loop's back (the owner ended it, or a c
   assert.equal(said.code, 0, said.text);
   assert.match(said.text, /^— Scene ends: Murder by persons unknown —\n\n— The scene is over \(Murder by persons unknown\)\. — Write your notes now\.$/);
   assert.equal(readRecord(recordPath(config, "r1", "g01"))!.ended?.title, "Murder by persons unknown");
+});
+
+/**
+ * The yard on a backend whose turns fail as the game's do when the GM can't answer (`fails` times,
+ * with `words`), then answer when carried on (retry); `said` counts the lines said.
+ */
+function staged(words: string, fails: number): Backend & { said: number } {
+  let view: SceneView = { ...YARD, phase: "done", mayType: true, suggestions: [], suggestionsOn: false, notesComing: false, suggestionsComing: false };
+  const listeners = new Set<() => void>();
+  const set = (patch: Partial<SceneView>) => { view = { ...view, ...patch }; for (const l of listeners) l(); };
+  let left = fails;
+  const answer = () => {
+    if (left-- > 0) return set({ phase: "failed", failed: words, mayType: false });
+    const turn = view.entries.at(-1)!.turn;
+    const { failed: _, ...rest } = view;
+    view = rest as SceneView;
+    set({ entries: [...view.entries, { turn, speaker: "kell", kind: "dialogue", name: "Sergeant Agnes Kell", text: "The porters." }], phase: "done", mayType: true });
+  };
+  const game = {
+    said: 0,
+    view: () => view,
+    onChange: (l: () => void) => { listeners.add(l); return () => listeners.delete(l); },
+    async say(text: string) {
+      game.said++;
+      const turn = Math.max(...view.entries.map(e => e.turn)) + 1;
+      set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", text }], phase: "replying", mayType: false });
+      setTimeout(answer, 1);
+      return undefined;
+    },
+    async retry() { set({ phase: "replying" }); setTimeout(answer, 1); return undefined; },
+    setSuggestions: async () => undefined, newGame: async () => undefined, joinGame: async () => undefined, act: async () => undefined,
+    home: () => ({ games: [], campaigns: [] }), explore: () => undefined, walk: async () => undefined, interact: async () => undefined, travel: async () => undefined, close() {},
+  };
+  return game;
+}
+
+/** A started game's record on the staged yard, for say. */
+function startedOn(config: LoopConfig, game: Backend): PlayDeps {
+  round(config, "hanged-clerk", 5);
+  writeRecord(recordPath(config, "r1", "g01"), { ...newRecord({ round: "r1", game: "g01", scene: "hanged-clerk", stack: "staged" }), sceneRow: YARD.sceneId!, entries: entriesOf(game.view()!) });
+  return { connect: async () => game, owner: () => undefined, campaign: () => loaded, calls: () => [], callLog: () => "", sleep: async () => {}, now: () => new Date(0), backoff: [1] };
+}
+
+test("say: a turn that failed is waited on and carried on, the wait on the turn; one that fails for good says why, and the same line again carries it on rather than saying it twice", async () => {
+  const lost = "The GM couldn't answer: 500 model_failed: OpenRouter reply HTTP 402: in_flight_budget_exhausted.";
+  const once = staged(lost, 1);
+  const config = CONFIG();
+  const deps = startedOn(config, once);
+  const said = await say(config, "r1", "g01", "Who found him?", deps);
+  assert.equal(said.code, 0, said.text);
+  assert.match(said.text, /^Sergeant Agnes Kell: The porters\.\n\n\(Turn 3 of 5\.\)$/, "the yard has two lines already");
+  const log = readRecord(recordPath(config, "r1", "g01"))!.turns[String(Math.max(...YARD.entries.map(e => e.turn)) + 1)]!;
+  assert.deepEqual(log.waits.map(w => w.why), [`the turn failed: ${lost}`]);
+
+  const twice = staged(lost, 2);
+  const config2 = CONFIG();
+  const deps2 = startedOn(config2, twice);
+  const gaveUp = await say(config2, "r1", "g01", "Who found him?", deps2);
+  assert.equal(gaveUp.code, 1);
+  assert.match(gaveUp.text, /\(The game couldn't answer: .* In a minute, say the same line again: the game carries the turn on from where it got to, and doesn't say it twice\.\)$/);
+  const again = await say(config2, "r1", "g01", "Who found him?", deps2);
+  assert.equal(again.code, 0, again.text);
+  assert.match(again.text, /^Sergeant Agnes Kell: The porters\./);
+  assert.equal(twice.said, 1, "the line was said once");
+
+  const spent = staged("The GM has spent today's budget ($0.20): it starts again at midnight UTC, or raise KM_AI_DAILY_USD.", 9);
+  const config3 = CONFIG();
+  const broke = await say(config3, "r1", "g01", "Who found him?", startedOn(config3, spent));
+  assert.equal(broke.code, 1);
+  assert.match(broke.text, /That's the day's budget for the models: stop here, and say so in your notes\.\)$/);
+  assert.match(readRecord(recordPath(config3, "r1", "g01"))!.stopped!, /^the day's budget/);
+  assert.equal(readRecord(recordPath(config3, "r1", "g01"))!.turns[String(Math.max(...YARD.entries.map(e => e.turn)) + 1)]!.waits.length, 0, "the ceiling isn't waited on");
 });
 
 test("a later scene reached: the scene before it ended for QA on its first good or mixed ending the game takes, the story moved on, then on to the lead", async () => {
