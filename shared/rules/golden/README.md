@@ -1,6 +1,6 @@
 # The rules' golden sheets and checks
 
-What the prototype's rules code makes, for `shared/rules`'s parity (v1-design §4.1): v2's `golden.test.ts` makes the same characters through its own copy and compares.
+What the prototype's rules code makes, for `shared/rules`'s parity (v1-design §4.1): the game's `golden.test.ts` makes the same characters through its own copy and compares.
 
 Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked). The recorder went with the prototype: it's in git history at `bc2ab1f` (`git show bc2ab1f:tools/v2/record-v1-golden.mts`), where the game was still in `v2/` (`--out v2`):
 
