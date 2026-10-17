@@ -11,6 +11,7 @@ import { registerLookCanvas } from "../client/look/opentui.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The game's client in a terminal (v0-design §1.1, §7, v1-design §3.10): the title, character
@@ -41,6 +42,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<void> {
   const args = argsOf(argv).values;
   if (args.help) { console.log(USAGE); return; }
 
+  configureTerminal(env);
   const campaign = args.campaign ?? "caerwyn";
   const game = await backendFor(args, env);
   const intent = await started(game, args, campaign).catch((error: unknown) => { game.close(); throw error; });

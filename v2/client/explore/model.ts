@@ -1,4 +1,4 @@
-// The prototype's src/app/game.ts at 44c6d4a, its explore section as a model over rows: :172-179 (TileMenu), :299 (STEP_MS), :354-357 and :389 (walking, the menu, walkNo), :451-464 (subscribe, emit), :904-923 (leadTarget, actionsAt, interactLabel), :956-1046 (say, walk, interact, toLead, walkTo, openMenu, closeMenu, chooseFromMenu), :1176-1280 (doAt, startWalk, endWalk, stepAlong, explore), :2440-2452 (sleep, within). Each act is a move (map-design §3.2: moveOf its id), and what it said is the explore row's (`said`, when `acts` moves on), shown by the prototype's quiet rules; the zoo, the battlefield and the report are cut. The town unit's (town-design §2, §3.9): :197-224 (DoMenu, entriesOf, Aiming), :1026 and :1043 (Do something…), :1047-1170 (the action menu, aiming and act) and :2199-2230 (townFx, animateTown), the menu from the rows (explore/town.ts), each act a move, a fight on the map its stand-in's card, and a spectator's map playing the host's acts too.
+// The prototype's src/app/game.ts at 44c6d4a, its explore section as a model over rows: :172-179 (TileMenu), :299 (STEP_MS), :354-357 and :389 (walking, the menu, walkNo), :451-464 (subscribe, emit), :904-923 (leadTarget, actionsAt, interactLabel), :956-1046 (say, walk, interact, toLead, walkTo, openMenu, closeMenu, chooseFromMenu), :1176-1280 (doAt, startWalk, endWalk, stepAlong, explore), :2440-2452 (sleep, within). Each act is a move (map-design §3.2: moveOf its id), and what it said is the explore row's (`said`, when `acts` moves on), shown by the prototype's quiet rules; the zoo, the battlefield and the report are cut. The town unit's (town-design §2, §3.9): :197-224 (DoMenu, entriesOf, Aiming), :1026 and :1043 (Do something…), :1047-1170 (the action menu, aiming and act) and :2199-2230 (townFx, animateTown), the menu from the rows (explore/town.ts), each act a move, a fight on the map its stand-in's card, and a spectator's map playing the host's acts too. STEP_MS is the client's pace (client/pace.ts) where it was KM_APP_STEP_MS.
 import { SCREEN_KEYS, steer, tileName, walkPlan, pathTo, type ExploreState } from "../../shared/map/explore.ts";
 import { getMap } from "../../shared/map/maps.ts";
 import { LEAD, moveOf, type MapMove } from "../../shared/map/moves.ts";
@@ -6,6 +6,7 @@ import { isDoorway, steps } from "../../shared/map/tiles.ts";
 import { actionsAt, interactLabel, leadTarget, walkId, type Action, type LeadTarget, type TileActions } from "../../shared/map/town.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
 import type { Rejection } from "../backend.ts";
+import { pacing } from "../pace.ts";
 import type { SheetShown } from "../scene/model.ts";
 import type { ExploreView } from "./rows.ts";
 import { TIME_WORDS } from "./words.ts";
@@ -20,8 +21,8 @@ import { menuCtx, SHARED_TOWN, type TownMenu } from "./town.ts";
  * The map between scenes (the prototype's Game, its explore section, fed by rows): the walker's
  * ExploreState as the rows make it, what's happened ("What happens"), the walk under way, the
  * right-click menu and what's open over the map. It holds no React: the screen subscribes and
- * redraws when it emits. A walk is a step at a time, one move each, KM_APP_STEP_MS apart, so any key
- * stops it, as the prototype's stepAlong does; the rows bring each step back.
+ * redraws when it emits. A walk is a step at a time, one move each, the pace's stepMs apart, so any
+ * key stops it, as the prototype's stepAlong does; the rows bring each step back.
  */
 
 /** The map's menu for a tile (a right-click): what's there, what can be done with it, where it opened. */
@@ -78,8 +79,8 @@ export interface ExploreActions {
   fightItOut?(): Promise<Rejection | undefined>;
 }
 
-/** How long a walk waits between steps, so the player sees the way (the prototype's KM_APP_STEP_MS). */
-export const STEP_MS = () => Number(process.env.KM_APP_STEP_MS ?? 45);
+/** How long a walk waits between steps, so the player sees the way (the prototype's KM_APP_STEP_MS: the host's setting now). */
+export const STEP_MS = () => pacing().stepMs;
 
 /** A move's words, when the move was a quiet step of a walk, are shown only when they say something worth stopping for: a place come into, someone talking. */
 const SAID_WALKING = /^You come into|:/;

@@ -1,9 +1,10 @@
-// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340), the keys as written, transcriptRows (:116-127, less the look's notes), and once the scene is over its way on in place of the box (:230-256, onward and Continue, with the over-key handling at :459-466); and the scene's place (the world bridge): glance notes (:48, :99-105), pointing, the menu and Tab through the place (:258-260, :345-432, the place's keys in useKeyboard, :483-495's menuKey), the bottom line about what's pointed at (:533-540), the place in the side panel (:562-571) and the menu over it (:599-602); a talk's choices (town-design §3.9: :189-200, wayOut and fitChoices, and :312-340's talk rows, kept while the GM has the floor), said at once; it reads a SceneModel in place of the Game.
+// Cut from the prototype's src/app/ui/scene.tsx at 44c6d4a: the conversation, the status line, the box, the suggested lines (their rows kept while they come, :319-340), the keys as written, transcriptRows (:116-127, less the look's notes), and once the scene is over its way on in place of the box (:230-256, onward and Continue, with the over-key handling at :459-466); and the scene's place (the world bridge): glance notes (:48, :99-105), pointing, the menu and Tab through the place (:258-260, :345-432, the place's keys in useKeyboard, :483-495's menuKey), the bottom line about what's pointed at (:533-540), the place in the side panel (:562-571) and the menu over it (:599-602); a talk's choices (town-design §3.9: :189-200, wayOut and fitChoices, and :312-340's talk rows, kept while the GM has the floor), said at once; it reads a SceneModel in place of the Game; on a page (the app's surface) the side panel has no game's number: nobody watches from a page with --join.
 import type { InputRenderable, KeyEvent, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useRef, useState } from "react";
 import type { Markup } from "../../shared/markup.ts";
 import { MAX_LINE } from "../../shared/protocol/refusals.ts";
+import type { Surface } from "../app/model.ts";
 import { COMMANDS, commandNamed } from "../commands.ts";
 import type { LookCanvasRenderable } from "../look/opentui.ts";
 import type { StagePicks } from "../look/stage.ts";
@@ -238,8 +239,8 @@ function Picks({ picks, rows, width }: { picks: Pick[]; rows: number; width: num
 /** What the pointer's on in the place, and how it got there: the mouse on the place or on the list, or Tab and the arrows. */
 interface Pointer { target: SceneTarget; from: "place" | "list" | "keys" }
 
-/** The side panel's rows for the game's number: its own and its --join on a wide panel, one line on a narrow one (with the place). */
-const GAME_ROWS = { wide: 3, narrow: 2 } as const;
+/** The side panel's rows for the game's number: its own and its --join on a wide panel, one line on a narrow one (with the place), none on a page. */
+const GAME_ROWS = { wide: 3, narrow: 2, page: 0 } as const;
 
 /**
  * In place of the box once the scene is over: the way on, to press or click when the player has
@@ -278,7 +279,7 @@ function Continue({ way, onGo, width }: { way: WayOn; onGo: () => void; width: n
  * its fight is next), the way on takes the box's place (story-design §4.5): an Enter of its own goes
  * on, or a click.
  */
-export function SceneScreen({ scene }: { scene: SceneModel }) {
+export function SceneScreen({ scene, surface = "terminal" }: { scene: SceneModel; surface?: Surface }) {
   useStore(scene);
   const { width, height } = useTerminalDimensions();
   const [draft, setDraft] = useState("");
@@ -543,7 +544,7 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
   // where the place keeps its fewest rows and the list of who's in it besides.
   const least = narrow ? 6 : 8;
   const panelRows = height - 7 - kept;
-  const gameRows = world && narrow ? GAME_ROWS.narrow : GAME_ROWS.wide;
+  const gameRows = surface === "page" ? GAME_ROWS.page : world && narrow ? GAME_ROWS.narrow : GAME_ROWS.wide;
   const fixedRows = (view.watching ? 1 : 0) + 1 + (status ? wrap(status, inner).length : 0) + 2 + gameRows;
   const listed = world ? Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature" || e.kind === "surface") && !e.states.includes("gone")).length : 0;
   const talk = !world || panelRows - fixedRows - (2 + talkLines.length) >= least + listed ? talkLines : [];
@@ -603,7 +604,8 @@ export function SceneScreen({ scene }: { scene: SceneModel }) {
           {view.present.map(p => <text key={p.key} fg={p.color ?? C.text}>{truncate(p.name, inner)}</text>)}
         </box>}
         {/* The game's number: a second terminal watches with it (on one line in a narrow panel with the place). */}
-        {gameRows === GAME_ROWS.narrow ? <text fg={C.title} marginTop={1} flexShrink={0}>{truncate(`Game ${view.game} · --join ${view.game}`, inner)}</text>
+        {gameRows === GAME_ROWS.page ? null
+          : gameRows === GAME_ROWS.narrow ? <text fg={C.title} marginTop={1} flexShrink={0}>{truncate(`Game ${view.game} · --join ${view.game}`, inner)}</text>
           : <box flexDirection="column" marginTop={1} flexShrink={0}>
             <text fg={C.title}>{`Game ${view.game}`}</text>
             <text fg={C.faint}>{truncate(`--join ${view.game} to watch`, inner)}</text>

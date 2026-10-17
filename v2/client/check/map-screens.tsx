@@ -7,6 +7,7 @@ import { demoBackend } from "../demo.ts";
 import { ExploreModel } from "../explore/model.ts";
 import { setGlyphSet } from "../look/glyphs.ts";
 import { registerLookCanvas } from "../look/opentui.ts";
+import { setPace } from "../pace.ts";
 import { SceneModel } from "../scene/model.ts";
 import { afterRows, mapView, useCaerwyn } from "./map.ts";
 import { YARD } from "./fixture.ts";
@@ -20,13 +21,14 @@ import { ratWaiting, yardOver } from "./story.ts";
  * g walks to the lead a step at a time, through the gate into the yard, and its scene opens. A
  * right-click on the map opens what can be done there; Esc the menu, ? the help. Then the map as the
  * scene left it: in the yard, Kell beside the @, no lead. And the scene that's over, played on the
- * map: the way back to it in place of the box, which Enter takes. Glyphs are the ascii set's.
+ * map: the way back to it in place of the box, which Enter takes. On a page, the side panel's title
+ * has no game's number. Glyphs are the ascii set's.
  */
 export async function checkMap(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
   registerLookCanvas();
   setGlyphSet("ascii");
   useCaerwyn();
-  process.env.KM_APP_STEP_MS = "1";
+  setPace({ stepMs: 1 });
   // The live canvas redraws between frames, as in play: React's word on each isn't news.
   const error = console.error;
   console.error = (...args: unknown[]) => { if (!/not wrapped in act/.test(String(args[0]))) error(...args); };
@@ -36,6 +38,7 @@ export async function checkMap(checks: Array<[string, boolean]>, show: boolean):
       await afterAt(checks, size, show);
     }
     await overAt(checks, show);
+    await onAPage(checks, show);
   } finally {
     console.error = error;
   }
@@ -133,6 +136,17 @@ async function afterAt(checks: Array<[string, boolean]>, [w, h]: readonly [numbe
   const right = panel(frame, side);
   checks.push([`${size}: after the scene: in the yard, the @ on the map, Kell beside it, no lead`, /The yard behind the/.test(right) && mapIn(frame, side).some(r => r.includes("@")) && /Sergeant Kell/.test(right) && !/The lead:/.test(right)]);
   checks.push([`${size}: after the scene: What happens says what was said last`, /You come into the yard behind the King's Granary\./.test(frame.replace(/\s+/g, " "))]);
+  await setup.dispose();
+}
+
+/** The map on a page (the app's surface): its side panel's title without the game's number, since no terminal can watch from there. */
+async function onAPage(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
+  const model = new ExploreModel(mapView(afterRows()), { move: () => Promise.resolve(undefined), quit: () => {} });
+  const setup = await testRender(<ExplorePlay explore={model} surface="page" />, { width: 100, height: 30 });
+  await setup.renderOnce();
+  const frame = setup.captureCharFrame();
+  if (show) console.log(`map 100x30 on a page\n${frame}`);
+  checks.push(["map 100x30 on a page: the side panel's title is the investigation's, with no game's number", / The investigation ─/.test(frame) && !/· Game \d/.test(frame)]);
   await setup.dispose();
 }
 

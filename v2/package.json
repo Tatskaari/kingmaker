@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p simulation",
-    "test": "node --no-warnings --import tsx --test 'shared/**/*.test.ts' 'simulation/**/*.test.ts' 'ai/**/*.test.ts' 'client/**/*.test.ts' 'hosts/**/*.test.ts'",
+    "test": "node --no-warnings --import tsx --test 'shared/**/*.test.ts' 'simulation/**/*.test.ts' 'ai/**/*.test.ts' 'client/**/*.test.ts' 'hosts/**/*.test.ts' 'web/**/*.test.ts'",
     "screens": "node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx",
     "check": "npm run typecheck && npm test && npm run screens",
     "simulation:build": "spacetime --config-path runs/cli.toml build -p simulation",

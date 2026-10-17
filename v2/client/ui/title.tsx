@@ -1,10 +1,17 @@
-// Copied from the prototype's src/app/ui/title.tsx at 44c6d4a: it reads a TitleModel in place of the Game (saves are my_games' rows, live, so nothing loads them; describe and ago are title/model.ts's); The zoo (z) and Report a problem (b) are cut (V19, V16); Esc quits, as in a terminal (the browser's way is V14's).
+// Copied from the prototype's src/app/ui/title.tsx at 44c6d4a: it reads a TitleModel in place of the Game (saves are my_games' rows, live, so nothing loads them; describe and ago are title/model.ts's); The zoo (z) and Report a problem (b) are cut (V19, V16); Esc quits in a terminal and not on a page (:12-16, the app's surface where it read KM_IN_BROWSER).
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useState } from "react";
+import type { Surface } from "../app/model.ts";
 import type { GameRow } from "../backend.ts";
 import { describe, type TitleModel } from "../title/model.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, ITALIC, Keys, Spinner, useStore, type KeyHint } from "./common.tsx";
+
+/**
+ * On a web page, Esc is how a page dismisses things and there's nothing for the game to quit to, so
+ * there only q (or the Quit item) closes it.
+ */
+const escQuits = (surface: Surface) => surface === "terminal";
 
 const TAGLINES = [
   "Being an account of a murder, a great deal of grain, and the eve of the Centennial Assembly.",
@@ -12,7 +19,7 @@ const TAGLINES = [
   "The King remembers how everyone takes their tea. He would like to remember who did this.",
 ];
 
-export function TitleScreen({ game }: { game: TitleModel }) {
+export function TitleScreen({ game, surface = "terminal" }: { game: TitleModel; surface?: Surface }) {
   useStore(game);
   const { width, height } = useTerminalDimensions();
   const [index, setIndex] = useState(0);
@@ -58,7 +65,7 @@ export function TitleScreen({ game }: { game: TitleModel }) {
     else if (key.name === "return" || key.name === "space") pick(at);
     else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
-    else if (key.name === "q" || key.name === "escape") game.quit();
+    else if (key.name === "q" || (key.name === "escape" && escQuits(surface))) game.quit();
   });
   const keys: KeyHint[] = doomed
     ? [["x", "delete it", doom], ["any other key", "keep it", () => setDoomed(undefined)]]

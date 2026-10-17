@@ -20,7 +20,14 @@ import { TitleModel } from "../title/model.ts";
  */
 export type Intent = "title" | "new" | "creation" | "game";
 
-export type Screen = "title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene" | "explore";
+/**
+ * Where the client is drawn (browser-design §4.1): a terminal, or a web page's (the page's client
+ * worker). On a page Esc is the page's way to dismiss things, so it doesn't quit the title, and
+ * what only fits a terminal is left out: no second terminal can watch with a game's number there.
+ */
+export type Surface = "terminal" | "page";
+
+export type Screen ="title" | "create" | "creating" | "choose" | "custom" | "backstory" | "created" | "scene" | "explore";
 
 /** What the title says when the game the player was in has gone from the server. */
 export const GONE = "(The game's server no longer has that game: carry on another, or start a new one.)";
@@ -112,6 +119,8 @@ export class AppModel implements AppPart {
   intent: Intent;
   rows: HomeRows;
   readonly campaign: string;
+  /** Where the screens are drawn: a terminal (by default) or a web page. */
+  readonly surface: Surface;
   readonly title: TitleModel;
   readonly creation: CreationModel;
   /** The scene, once the seat's game has one: a new model for each game, so nothing of the last one's stays open. */
@@ -132,9 +141,10 @@ export class AppModel implements AppPart {
   /** The screen the last refusal came on (none once the player has gone to another): a line refused in a scene isn't the title's to say after /quit, nor a name refused on the create screen New game's next time. */
   private refusedOn?: { words: string; screen?: Screen };
 
-  constructor(backend: Backend, options: { campaign: string; intent?: Intent; onQuit?: () => void; saveMs?: number }) {
+  constructor(backend: Backend, options: { campaign: string; intent?: Intent; surface?: Surface; onQuit?: () => void; saveMs?: number }) {
     this.backend = backend;
     this.campaign = options.campaign;
+    this.surface = options.surface ?? "terminal";
     this.intent = options.intent ?? "title";
     this.onQuit = options.onQuit ?? (() => {});
     this.rows = backend.home();

@@ -1,4 +1,4 @@
-// Copied from the prototype's src/game/look/opentui.ts at 44c6d4a, whole; StyledLine from client/ui/types.ts.
+// Copied from the prototype's src/game/look/opentui.ts at 44c6d4a, whole; StyledLine from client/ui/types.ts; attachOverlay takes its flag from the host ({doors}) where it read KM_IN_BROWSER and KM_DOORS.
 import { RGBA, Renderable, TextAttributes, type CliRenderer, type OptimizedBuffer, type RenderableOptions, type RenderContext } from "@opentui/core";
 import { extend } from "@opentui/react";
 import type { StyledLine } from "../ui/types.ts";
@@ -261,8 +261,8 @@ function beforeFrame(renderer: CliRenderer, data: string): boolean {
 }
 
 /**
- * In the browser builds (KM_IN_BROWSER), tell the page where the doors are, so it can draw them as
- * pictures over the ASCII: with each frame that changes them, an OSC sequence it listens for
+ * When the host asks for it (`doors`: a page that draws them, never a terminal), tell the page where
+ * the doors are, so it can draw them as pictures over the ASCII: with each frame that changes them, an OSC sequence it listens for
  * (overlaySequence), just before the frame's own bytes. The page holds it until xterm has parsed the
  * frame after it (the end of its synchronized output, which xterm draws all at once), so the doors
  * and the cells under them show together: a door is never a frame out of place.
@@ -272,8 +272,8 @@ function beforeFrame(renderer: CliRenderer, data: string): boolean {
  * nothing extra worked out.
  * The lamp posts in view go in the same sequence, by the same rules (src/game/look/lamps.ts).
  */
-export function attachOverlay(renderer: CliRenderer): boolean {
-  if (!process.env.KM_IN_BROWSER || process.env.KM_DOORS === "off" || typeof renderer.addPostProcessFn !== "function") return false;
+export function attachOverlay(renderer: CliRenderer, options: { doors: boolean }): boolean {
+  if (!options.doors || typeof renderer.addPostProcessFn !== "function") return false;
   wantOverlay(true);
   let sent = "";
   renderer.addPostProcessFn(buffer => {

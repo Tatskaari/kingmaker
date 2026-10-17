@@ -2,7 +2,7 @@
 import { act } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { App } from "../app.tsx";
-import { AppModel, type Intent } from "../app/model.ts";
+import { AppModel, type Intent, type Surface } from "../app/model.ts";
 import type { HomeRows } from "../backend.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME } from "../creation/words.ts";
 import type { SceneView } from "../scene/view.ts";
@@ -53,12 +53,12 @@ async function everyCheck(checks: Array<[string, boolean]>, show: boolean): Prom
 
 type Size = readonly [number, number];
 
-/** The App over these rows at this size, with what drives it and reads it. */
-async function open(rows: Partial<HomeRows>, intent: Intent, [w, h]: Size, scene?: SceneView) {
+/** The App over these rows at this size (in a terminal, unless it says), with what drives it and reads it. */
+async function open(rows: Partial<HomeRows>, intent: Intent, [w, h]: Size, scene?: SceneView, surface?: Surface) {
   const backend = new StubBackend(rows, scene);
   // The box's text saved, as the simulation keeps it.
   backend.answers.setBackstory = ({ text }: { text: string }) => { const c = backend.rows.creation; if (c) backend.set({ creation: { ...c, story: text } }); };
-  const app = new AppModel(backend, { campaign: "caerwyn", intent, saveMs: 30 });
+  const app = new AppModel(backend, { campaign: "caerwyn", intent, saveMs: 30, ...(surface ? { surface } : {}) });
   const setup = await testRender(<App app={app} />, { width: w, height: h });
   const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
   /** The rows changed, as a commit changes them. */
@@ -481,6 +481,20 @@ async function longFixes(checks: Array<[string, boolean]>, size: Size, show: boo
 
 async function smallCases(checks: Array<[string, boolean]>, show: boolean): Promise<void> {
   const size = [80, 24] as const;
+  // Esc quits the title in a terminal; on a page it's the page's (it dismisses things), and only q quits.
+  {
+    const games = [gameRow(1n, "Pell Marrow", "in The Hanged Clerk", 5)];
+    const terminal = await open({ games }, "title", size);
+    await terminal.esc();
+    const quits = terminal.app.quitting;
+    await terminal.setup.dispose();
+    const page = await open({ games }, "title", size, undefined, "page");
+    await page.esc();
+    const kept = !page.app.quitting && page.app.screen === "title";
+    await page.press(() => page.setup.mockInput.pressKey("q"));
+    checks.push(["the title 80x24: Esc quits in a terminal; on a page it leaves the title up, and q quits", quits && kept && page.app.quitting]);
+    await page.setup.dispose();
+  }
   // The wheel in the box: wrapped prose three rows a notch, up and back down, the bar beside it; the box's title counts the words.
   {
     const prose = Array.from({ length: 14 }, (_, i) => `Long line ${i}: the Purveyor's office kept two sets of books and I only ever saw one of them.`).join("\n");

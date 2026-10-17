@@ -53,6 +53,16 @@ export function onTop(under: FakeOptions, over: FakeOptions): FakeOptions {
 }
 
 /**
+ * The whole story's recipe (story-design §1.1): each scene ends at the first of these endings it
+ * offers, the player's own doing, so a scene closes in two lines and the arc is walked to The End on
+ * the fake. The dev stack takes it as KM_AI_FAKE (v2/README.md); the page's ?fake=arc puts it on
+ * fake.json's (hosts/web/server-worker.ts).
+ */
+export function wholeStory(): FakeOptions {
+  return { choices: { ending: ["open-case", "hobb-talks", "fight", "caught-in-the-act", "justice"], own_exit: "theirs" } };
+}
+
+/**
  * fake.json's quiet answers for the full GM alone (full-gm-design §4.4, §6): the attention filter's
  * choices, the memories agent's call, the co-GM's answer and the ruling. A test that plays three
  * turns or more on a fake of its own puts them under it (onTop), or every line fires both memory

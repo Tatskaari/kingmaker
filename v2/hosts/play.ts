@@ -7,6 +7,7 @@ import * as verbs from "../client/headless.ts";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { configureTerminal } from "./terminal.ts";
 
 /**
  * The headless client (v0-design §7, v5-design §3.9, v1-design §3.10), one verb a process: what an agent or a QA
@@ -86,6 +87,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
   if (args.values.help) { console.log(USAGE); return 0; }
   if (!args.verb) { console.log(USAGE); return 1; }
 
+  configureTerminal(env);
   const game = await backendFor(args, env);
   try {
     return await run(game, args);

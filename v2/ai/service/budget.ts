@@ -16,14 +16,15 @@ export interface Budget {
   check(): Promise<void>;
 }
 
-export function budget(dailyUsd: number, ledger: Pick<Ledger, "spentToday">): Budget {
+/** The ceiling over a ledger. `words`: what the player is told over it, overBudget's unless the host says it its own way (the page's ceiling is its browser's, with no KM_AI_DAILY_USD to raise). */
+export function budget(dailyUsd: number, ledger: Pick<Ledger, "spentToday">, words = overBudget(dailyUsd)): Budget {
   return {
     async health() {
       return { dailyUsd, spentToday: toMicros(await ledger.spentToday()) };
     },
     async check() {
       if (dailyUsd <= 0) return;
-      if ((await ledger.spentToday()) >= dailyUsd) throw new Failure(402, "over_budget", overBudget(dailyUsd));
+      if ((await ledger.spentToday()) >= dailyUsd) throw new Failure(402, "over_budget", words);
     },
   };
 }
