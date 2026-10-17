@@ -1,4 +1,4 @@
-// Its helpers (ok, fail, note, watch, open, until, waitFor, shot, press) and its key form's steps are copied from the prototype's src/web/static/check.ts:89-260, 1209-1370 at 44c6d4a, with the usual edits (v2's paths and screens, the saves read from every IndexedDB store, the two workers' messages watched as the page sends them).
+// Its helpers (ok, fail, note, watch, open, until, waitFor, shot, press, :89-260) and its steps for two tabs, a browser that keeps nothing and the key form (:1209-1370) are copied from the prototype's src/web/static/check.ts at 44c6d4a, with the usual edits (v2's paths and screens, the saves read from every IndexedDB store, what the page sends each worker watched by a probe in front of its script); the play is v2's own, on the fake GM.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, relative, resolve } from "node:path";
