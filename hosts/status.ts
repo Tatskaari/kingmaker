@@ -7,7 +7,8 @@ import { readStackFile } from "./dev/stack-file.ts";
 
 /**
  * The GM's side of a game (full-gm-design §4.4), as the prototype's `scene status` and
- * `scene memories` show it: where the scene stands in its beats, its path, the co-GM's notes,
+ * `scene memories` show it: where the scene stands in its beats, its path, what's reached, each
+ * person's role and the closing on its way (the two-part GM's), the old co-GM's notes,
  * whispers, canon and routes, the GM's rulings, the co-GM's reviews (merged or waiting), the memory
  * reviews, the notes disclosure opened, the background jobs in flight, what the boundary handed on
  * to the scene and the story between scenes (story-design §4.1: the lead, the chapters, the quests,
@@ -19,7 +20,7 @@ import { readStackFile } from "./dev/stack-file.ts";
 
 const USAGE = `Kingmaker: the GM's side of a game
 
-  npm run status -- --game <n>              the GM's side of game n's latest scene: beat, path, notes, whispers, canon,
+  npm run status -- --game <n>              the GM's side of game n's latest scene: beat, path, reached, roles, notes, whispers, canon,
                                             patches, rulings, the co-GM's reviews, the memory reviews, the jobs in flight,
                                             what was handed on to it, and the story: the lead, chapters, quests, flags
   npm run status -- --game <n> --memories   every memory the reviews wrote, in full

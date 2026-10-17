@@ -135,6 +135,11 @@ function gmFields(gm: GmState): Record<string, unknown> {
     adjustments: gm.adjustments, opening: gm.opening ?? null, lead: gm.lead ?? null,
     owed: gm.owed.map(o => `${o.from}/${o.id}${o.hinted ? " (hinted)" : ""}: ${[...o.things].reverse().join(" in ")}${o.holders.length ? ` with ${o.holders.join(", ")}` : ""}${o.where ? ` at ${o.where}` : ""}`),
     fought: gm.fought,
+    // The two-part GM's (docs/two-part-design.md): what's reached, a closing on its way, each person's role now, and the co-GM's latest note.
+    reached: gm.reached, closing: gm.closing ? `${gm.closing.exitId} (turn ${gm.closing.turn})` : null,
+    roles: Object.entries(gm.twoPart?.roles ?? {}).map(([id, r]) => `${id}: ${[r.status, r.mental_state, r.conversation_role].filter(Boolean).join(" | ")}`),
+    coGmNote: gm.twoPart?.notes.at(-1) ? `turn ${gm.twoPart.notes.at(-1)!.turn}` : null,
+    moved: gm.twoPart?.moved ?? null, heldOnce: gm.twoPart?.held ?? null,
   };
 }
 
