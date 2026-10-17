@@ -30,7 +30,8 @@ test("a note with no turn is set back to the turn's own GM call, or left to the 
       { content: "## Who these people are (their lore)\n\n### The GM's own notes\n# The granary yard\nThe water butt, in its corner.\n\n# Somebody else\nx" },
     ] } },
   ];
-  const rewind = rewindFromCalls(calls, "“Not yet.” She waits.", "/nowhere");
+  // The transcript's reply has the dice line; the GM's call doesn't.
+  const rewind = rewindFromCalls(calls, "🎲 Persuasion check to ask her: 7 + 2 = 9 vs DC 15: failure\n\n“Not yet.” She waits.", "/nowhere");
   const { kept, rewound, undated } = docsBefore([yard], 7, rewind);
   assert.deepEqual(rewound, ["Places/Granary Yard.md"]);
   assert.deepEqual(undated, []);

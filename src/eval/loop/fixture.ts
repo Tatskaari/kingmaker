@@ -177,7 +177,8 @@ export function docsBefore(docs: Doc[], turn: number, rewind?: Rewind): { kept: 
   return { kept, dropped: [...later].sort(), undated, rewound, toSource };
 }
 
-const plain = (s: string): string => s.replace(/\[[^\]]*\]/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+/** A reply as text to match: no dice lines (the transcript has them, the GM's call doesn't), no markup. */
+const plain = (s: string): string => s.split("\n").filter(l => !l.trim().startsWith("🎲")).join(" ").replace(/\[[^\]]*\]/g, "").replace(/[()]/g, "").replace(/\s+/g, " ").trim();
 
 /**
  * Sets an undated note back to the turn: the GM's call on that turn (found by its reply) has every
