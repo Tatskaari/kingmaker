@@ -1,0 +1,43 @@
+{
+  "name": "kingmaker",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Kingmaker, the production build: the client, the simulation (a SpacetimeDB module) and the AI API, a vertical at a time",
+  "engines": {
+    "node": ">=26.4.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p simulation",
+    "test": "node --no-warnings --import tsx --test 'shared/**/*.test.ts' 'simulation/**/*.test.ts' 'ai/**/*.test.ts' 'client/**/*.test.ts' 'hosts/**/*.test.ts'",
+    "screens": "node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx",
+    "check": "npm run typecheck && npm test && npm run screens",
+    "simulation:build": "spacetime --config-path runs/cli.toml build -p simulation",
+    "simulation:generate": "spacetime --config-path runs/cli.toml generate --lang typescript --out-dir client/module_bindings --module-path simulation --no-config --yes",
+    "ai": "node --no-warnings hosts/ai.ts",
+    "dev": "node --no-warnings --import tsx hosts/dev.ts",
+    "doctor": "node --no-warnings --import tsx hosts/doctor.ts",
+    "campaign": "node --no-warnings --import tsx hosts/campaign.ts",
+    "install-campaign": "node --no-warnings --import tsx hosts/install.ts",
+    "play": "node --no-warnings --import tsx hosts/play.ts",
+    "e2e": "node --no-warnings --import tsx hosts/e2e.ts",
+    "live": "node --no-warnings --import tsx hosts/live-run.ts",
+    "client": "node --experimental-ffi --no-warnings --import tsx hosts/client.tsx"
+  },
+  "dependencies": {
+    "@opentui/core": "0.6.5",
+    "@opentui/react": "0.6.5",
+    "react": "19.3.0",
+    "spacetimedb": "2.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "allowScripts": {
+    "esbuild": false
+  },
+  "packageManager": "npm@11.16.0"
+}

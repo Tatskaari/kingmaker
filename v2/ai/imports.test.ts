@@ -13,20 +13,23 @@ import {
 import { API } from "typescript/unstable/sync";
 
 /**
- * The one rule (README.md): v2/ai imports nothing outside v2/ai, only node: built-ins and its own
- * files, so the prototype and v2 can share it. The prototype reaches in (src/llm, src/lore,
- * src/runtime/brief.ts); nothing here reaches out, and the prototype's type check wouldn't notice
- * if something did.
+ * The one rule (README.md): v2/ai imports only node: built-ins, its own files and v2/shared (the
+ * protocol, the scene graph and the world it shares with the simulation), so the prototype and v2
+ * can share it. Never the prototype: the prototype reaches in (src/llm, src/lore,
+ * src/runtime/brief.ts), nothing here reaches out, and the prototype's type check wouldn't notice
+ * if something did. v2/shared keeps to itself in turn (v2/shared/imports.test.ts).
  *
  * The files are read with the TypeScript compiler's parser, because patterns over the text kept
  * missing imports the language allows (a comment inside one, a name spelled with escapes). The
  * parser is TypeScript 7's, a process of its own that the package's typescript/unstable API drives,
- * and it's the one thing here from outside v2/ai: this file may import it, and nothing else may.
+ * and it's the one thing here from outside v2/ai and v2/shared: this file may import it, and nothing
+ * else may.
  * That API may change with TypeScript's version; the test checks the parser found its own imports.
  */
 
 const ROOT = import.meta.dirname;
 const SELF = import.meta.filename;
+const SHARED = resolve(ROOT, "..", "shared");
 
 /**
  * What in the code under root reaches outside it, a line each ("file:line: what"), with every
@@ -34,14 +37,14 @@ const SELF = import.meta.filename;
  * its side effects, import x = require(), import() or require() (import.defer(), module.require()
  * too), a type's import(), a JS file's JSDoc types and import tags (in a TS file JSDoc is only a
  * comment), declare module and /// <reference path>. Each name must be a node: built-in, or a file
- * of root's by a relative name. Never allowed, since where they lead can't be read here: an import()
+ * of root's, or of a folder in `also`, by a relative name. Never allowed, since where they lead can't be read here: an import()
  * or require() of anything but a string written out (a template without ${} is one), a require
  * that isn't called, createRequire, /// <reference types> and JSX, which imports a runtime the file
  * doesn't name. A file the parser can't read is reported too, and so is one that's only under root
  * by a symlink out of it; a file is read once, however many links lead to it. Exported for a probe
  * of planted files.
  */
-export function scan(root: string) {
+export function scan(root: string, also: string[] = []) {
   const names: string[] = [];
   const outside: string[] = [];
   const files: string[] = [];
@@ -72,7 +75,7 @@ export function scan(root: string) {
       const shown = (node: Node) => node.getText(source).replace(/\s+/g, " ").slice(0, 100);
       const named = (node: Node, name: string) => {
         names.push(`${file}: ${name}`);
-        if (!allowed(root, path, name) && !(path === SELF && name.startsWith("typescript/"))) at(node.getStart(source), name);
+        if (!allowed([root, ...also], path, name) && !(path === SELF && name.startsWith("typescript/"))) at(node.getStart(source), name);
       };
       /** The name in a module's place, if it's a string written out; anything else is reported as it's written. */
       const written = (name: Node | undefined, from: Node) =>
@@ -123,12 +126,13 @@ const called = (node: Node) => {
   return (isCallExpression(parent) && parent.expression === node) || (isPropertyAccessExpression(parent) && parent.name === node) || (isIdentifier(node) && (parent as { name?: Node }).name === node);
 };
 
-/** A node: built-in, or a file of root's by a relative name: read as node's loader reads it (a URL, where %2e%2e is ..) and as a path, both land in root. */
-function allowed(root: string, from: string, name: string) {
+/** A node: built-in, or a file of one of roots' by a relative name: read as node's loader reads it (a URL, where %2e%2e is ..) and as a path, both land in that root. */
+function allowed(roots: string[], from: string, name: string) {
   if (name.startsWith("node:")) return isBuiltin(name);
   if (!/^\.\.?(\/|$)/.test(name)) return false;
   try {
-    return inside(root, resolve(dirname(from), name)) && inside(root, fileURLToPath(new URL(name, pathToFileURL(from))));
+    const asPath = resolve(dirname(from), name), asUrl = fileURLToPath(new URL(name, pathToFileURL(from)));
+    return roots.some(root => inside(root, asPath) && inside(root, asUrl));
   } catch {
     return false; // a name node can't read as a file, like one with an encoded /
   }
@@ -149,8 +153,8 @@ const real = (path: string): string => {
   }
 };
 
-test("v2/ai imports nothing outside v2/ai", () => {
-  const { files, names, outside } = scan(ROOT);
+test("v2/ai imports nothing but node:, itself and v2/shared", () => {
+  const { files, names, outside } = scan(ROOT, [SHARED]);
   assert.ok(files.length > 10, "the scan found the folder's code");
   assert.ok(names.includes("imports.test.ts: node:test"), "the parser found this file's own imports");
   assert.deepEqual(outside, []);

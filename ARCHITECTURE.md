@@ -109,11 +109,11 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | Model calls | `v2/ai/llm`, through shims in `src/llm` | OpenRouter's Responses and Decisions APIs: streaming, retries, the deciders, the tool loop, the call log and the cost ledger. | [v2/ai/llm](v2/ai/llm/README.md) |
 | The lore | `lore/` | Caerwyn and its people in 154 Markdown docs, each with frontmatter that says who may read it. | [lore](lore/README.md) |
 | The prompts | `v2/ai/prompts` | The models' standing instructions, one Markdown file each, and their loader (src/runtime/brief.ts re-exports it). | [v2/ai/prompts](v2/ai/prompts/README.md) |
-| The AI API, as far as it's built | `v2/ai` | The production build's AI API: so far the docs service, the model calls and the prompts above, one copy that this prototype and v2 share. It imports nothing outside itself. | [v2/ai](v2/ai/README.md) |
+| The AI API, as far as it's built | `v2/ai` | The production build's AI API: the docs service, the model calls and the prompts above, one copy that this prototype and v2 share; and v2's alone so far, the AI service's HTTP server and stores and V0's GM pipeline, a copy of the prototype's held to it by recorded prompts. It imports nothing outside itself but v2/shared, the code it shares with v2's simulation, which imports nothing outside itself either. | [v2/ai](v2/ai/README.md) |
 | The rules engine | `vendor/dnd-srd-engine` | dnd-srd-engine's bundled build, its starter pack, our typings and our patches. | [vendor/dnd-srd-engine](vendor/dnd-srd-engine/README.md) |
 | The SRD's spell text | `vendor/srd-spells` | Every spell's description in the SRD's own words, for the sheet. | [vendor/srd-spells](vendor/srd-spells/README.md) |
 | The glyph font | `tools/glyphs`, `assets/` | Kingmaker Glyphs, our font of pixel-art sprites, built from hand-drawn bitmaps. | [tools/glyphs](tools/glyphs/README.md) |
-| Other tools | `tools/` | Python, none of it in CI: building the SRD's spell text (`srd-spells/build.py`), PNGs of the zoo tour's and the place generator's pictures (`ansi2png.py`, `preview.py`), and the generator bench's contact sheets (`sheet.py`). | none |
+| Other tools | `tools/` | None of it in CI. Python: building the SRD's spell text (`srd-spells/build.py`), PNGs of the zoo tour's and the place generator's pictures (`ansi2png.py`, `preview.py`), and the generator bench's contact sheets (`sheet.py`). TypeScript: recording the prototype's GM calls for v2's prompt parity test (`record-golden.mts`). | [v2/ai/gm/golden](v2/ai/gm/golden/README.md) |
 
 How to write scenes, why the runtime does what it does, and how to test it are in the GM guide, [docs/guide](docs/guide/README.md).
 
@@ -311,7 +311,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (601) | `npm test` (src's and v2/ai's), or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
+| The unit tests alone (690) | `npm test` (src's and v2/ai's), or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |
@@ -340,7 +340,8 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 
 ### What CI gates
 
-- **[check.yml](.github/workflows/check.yml)** runs `moon ci workspace:check workspace:build` on every PR and every push to main: the typecheck, `npm test`, the screens check and the static build. Moon runs only the affected tasks, and every task's inputs are the whole of src/, scenes/, lore/, v2/ai/, assets/, evals/ and vendor/ with the package and tsconfig files ([moon.yml](moon.yml)). So a change to any of those runs everything, and a change only to docs/ or the root's Markdown runs nothing.
+- **[check.yml](.github/workflows/check.yml)** runs `moon ci workspace:check workspace:build` on every PR and every push to main: the typecheck, `npm test`, the screens check and the static build. Moon runs only the affected tasks, and every task's inputs are the whole of src/, scenes/, lore/, v2/ai/, v2/shared/ (which v2/ai may import), assets/, evals/ and vendor/ with the package and tsconfig files ([moon.yml](moon.yml)). So a change to any of those runs everything, and a change only to docs/ or the root's Markdown runs nothing.
+- **[v2.yml](.github/workflows/v2.yml)** runs the production build's own checks on a PR or a push to main that touches v2/: in v2/, `npm ci`, the type check, the tests, the screens check, and that the client's bindings are the ones the module generates; the end to end test on a real SpacetimeDB (`npm run e2e`, in host mode); and the AI service's image, built and answering its health.
 - **[preview.yml](.github/workflows/preview.yml)** builds the static build at the PR's head and publishes it under `pr-preview/pr-<N>/` on the gh-pages branch, with a comment linking it: the pitch at its root, the roadmap at `roadmap/` and the game at `play/`. It doesn't run for PRs from forks.
 - **[pages.yml](.github/workflows/pages.yml)** deploys main's build, with the previews copied in, to GitHub Pages. main is still V1 until PR #650 merges, so the site's root is V1's.
 - **[evals.yml](.github/workflows/evals.yml)** is V1's. It runs `moon run workspace:eval` and `scripts/publish-eval-history.ts` on a push to main, and V2 has neither, so it will fail once V2 is on main.
@@ -385,7 +386,7 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 
 ## Where this is going
 
-- **[v2](v2/README.md):** the production build, begun: a client, a SpacetimeDB module and a stateless AI API, built a vertical at a time. Its first part, [v2/ai](v2/ai/README.md), is this prototype's model client, prompts and docs service, shared.
+- **[v2](v2/README.md):** the production build, begun: a client, a SpacetimeDB module and a stateless AI API, built a vertical at a time ([v2/docs/verticals.md](v2/docs/verticals.md)). V0 plays the hanged clerk's scene through all three. Its AI service, [v2/ai](v2/ai/README.md), holds this prototype's model client, prompts and docs service, shared.
 - **[docs/design/productionise.md](docs/design/productionise.md):** the target architecture and the order of work: client, shared and server bundles joined by a protocol of intents and events; the stores and the model client behind interfaces; the world's rules in one registry of interaction rules on components; and hosting on Firebase. It's a design, and none of it is built yet.
 - **[docs/code.md](docs/code.md):** the brief it answers.
 - **[docs/design/playable.md](docs/design/playable.md)** and **[docs/design/caerwyn-arc.md](docs/design/caerwyn-arc.md):** the designs of the playable game and of its story arc.

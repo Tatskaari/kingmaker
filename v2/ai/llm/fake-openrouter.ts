@@ -14,11 +14,42 @@
  * - `capped`: structured calls that run to their token cap (status incomplete), billed at the cost given.
  * - `phased`: structured calls answered in two phases, as Luna sometimes does: a "commentary" message
  *   of junk, then the answer as a "final_answer".
+ * - `streamMs` and `decisionDelayMs`: a GM's reply written a word at a time, and a slow decider.
  *
- * Anything else asked of it is refused, so a test can't reach the real thing by accident.
+ * Anything else asked of it is refused, so a test can't reach the real thing by accident. Two ways
+ * in: `fakeOpenRouter` puts it in place of the process's fetch (the prototype's tests), and
+ * `fakeFetch` hands it over as a fetch of its own, for a request's CallContext (the AI service).
  */
 
 const QUIET = ["none", "not_yet", "on_track", "in_character", "covered", "harmless", "here", "no"];
+
+/**
+ * What the stand-in is told to answer. `odds`: how sure the decider is of a question's choice (0.97
+ * otherwise), the rest shared among the others. `streamMs`: a streamed reply comes word by word over
+ * this long (at once otherwise), as a model's does. `decisionDelayMs`: every decision waits this long
+ * before it answers (a slow decider, for a test that needs a think in flight).
+ */
+export interface FakeOptions {
+  replies?: string[];
+  byName?: Record<string, unknown>;
+  choices?: Record<string, string>;
+  odds?: Record<string, number>;
+  suggestions?: string | string[];
+  stall?: string[];
+  capped?: Record<string, number>;
+  phased?: string[];
+  streamMs?: number;
+  decisionDelayMs?: number;
+}
+
+/** The stand-in as a fetch of its own, with what it was asked and sent, in order. */
+export interface FakeFetch {
+  fetch: typeof fetch;
+  /** What was asked of it, by endpoint, in order. */
+  asked: string[];
+  /** What was sent, in order (the requests' bodies). */
+  sent: Request[];
+}
 
 export interface FakeOpenRouter {
   /** What was asked of it, by endpoint, in order. */
@@ -29,20 +60,25 @@ export interface FakeOpenRouter {
   restore(): void;
 }
 
-/** `odds`: how sure the decider is of a question's choice (0.97 otherwise), the rest shared among the others. */
-export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<string, unknown>; choices?: Record<string, string>; odds?: Record<string, number>; suggestions?: string | string[]; stall?: string[]; capped?: Record<string, number>; phased?: string[] } = {}): FakeOpenRouter {
-  const real = globalThis.fetch;
+/**
+ * The stand-in as a fetch to hand to the model client (a CallContext's), with nothing global: the
+ * process's own fetch still reaches everything else (the AI service's posts to SpacetimeDB).
+ */
+export function fakeFetch(options: FakeOptions = {}): FakeFetch {
   const replies = options.replies ?? ["The GM nods. “Go on.”"];
   const suggestions = [options.suggestions ?? ""].flat();
   let next = 0, suggested = 0;
   const asked: string[] = [];
   const sent: Request[] = [];
-  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const answerFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const body = (init?.body ? JSON.parse(String(init.body)) : {}) as Request;
     asked.push(new URL(url).pathname);
     sent.push(body);
-    if (url === "https://openrouter.ai/api/alpha/decisions") return json({ answers: answer(body.questions ?? {}, options.choices, options.odds), usage: { cost: 0.0001 } });
+    if (url === "https://openrouter.ai/api/alpha/decisions") {
+      if (options.decisionDelayMs) await waited(options.decisionDelayMs, init?.signal);
+      return json({ answers: answer(body.questions ?? {}, options.choices, options.odds), usage: { cost: 0.0001 } });
+    }
     if (url !== "https://openrouter.ai/api/v1/responses") return json({ error: { message: `the fake OpenRouter doesn't answer ${url}` } }, 404);
     const format = body.text?.format;
     if (format && options.stall?.includes(format.name)) return stalled(init?.signal);
@@ -51,9 +87,18 @@ export function fakeOpenRouter(options: { replies?: string[]; byName?: Record<st
       : body.instructions?.startsWith("You suggest what the player might") ? suggestions[suggested++ % suggestions.length]!
       : replies[next++ % replies.length]!;
     if (format && options.phased?.includes(format.name)) return phased(`${text.slice(0, 40)}"} \n\n the response is not valid json`, text);
-    return body.stream ? sse(text) : json(completed(text));
+    if (!body.stream) return json(completed(text));
+    return options.streamMs ? sseSlowly(text, options.streamMs, init?.signal) : sse(text);
   };
-  return { asked, sent, restore: () => { globalThis.fetch = real; } };
+  return { fetch: answerFetch, asked, sent };
+}
+
+/** The stand-in in place of the process's fetch, for tests that play the prototype's turns through its own code. */
+export function fakeOpenRouter(options: FakeOptions = {}): FakeOpenRouter {
+  const real = globalThis.fetch;
+  const fake = fakeFetch(options);
+  globalThis.fetch = fake.fetch;
+  return { asked: fake.asked, sent: fake.sent, restore: () => { globalThis.fetch = real; } };
 }
 
 export interface Request {
@@ -123,6 +168,40 @@ function phased(junk: string, text: string): Response {
 function sse(text: string): Response {
   const events = [{ type: "response.output_text.delta", delta: text }, { type: "response.completed", response: completed(text) }];
   return new Response(`${events.map(e => `data: ${JSON.stringify(e)}\n\n`).join("")}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } });
+}
+
+/** A streamed reply a word at a time, `ms` over the whole of it, as a model writes; the caller giving up ends it. */
+function sseSlowly(text: string, ms: number, signal: AbortSignal | null | undefined): Response {
+  const words = text.match(/\S+\s*/g) ?? [text];
+  const frame = (e: unknown) => new TextEncoder().encode(`data: ${JSON.stringify(e)}\n\n`);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let sentWords = 0;
+      const step = () => {
+        if (signal?.aborted) return controller.error(signal.reason);
+        if (sentWords < words.length) {
+          controller.enqueue(frame({ type: "response.output_text.delta", delta: words[sentWords++] }));
+          timer = setTimeout(step, ms / words.length);
+          return;
+        }
+        controller.enqueue(frame({ type: "response.completed", response: completed(text) }));
+        controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+        controller.close();
+      };
+      step();
+    },
+    cancel() { clearTimeout(timer); },
+  });
+  return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+}
+
+/** A wait the caller can give up on (its signal). */
+function waited(ms: number, signal: AbortSignal | null | undefined): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+  });
 }
 
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });

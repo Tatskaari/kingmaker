@@ -1,0 +1,133 @@
+{
+  "ranger": {
+    "build": "elf ranger 3 (Hunter), soldier background",
+    "level": 3,
+    "skills": {
+      "persuasion": -1,
+      "deception": -1,
+      "intimidation": 1,
+      "insight": 2,
+      "performance": -1,
+      "perception": 4,
+      "investigation": 0,
+      "sleight_of_hand": 3,
+      "stealth": 5,
+      "athletics": 3,
+      "acrobatics": 3,
+      "animal_handling": 2,
+      "arcana": 0,
+      "history": 0,
+      "nature": 0,
+      "religion": 0,
+      "medicine": 2,
+      "survival": 6
+    },
+    "status": "HP 28/28, spell slots 1st 3/3",
+    "gear": [
+      {
+        "id": "longbow",
+        "name": "Longbow",
+        "kind": "weapon",
+        "slot": "mainHand"
+      },
+      {
+        "id": "shortsword",
+        "name": "Shortsword",
+        "kind": "weapon"
+      },
+      {
+        "id": "studded-leather",
+        "name": "Studded Leather",
+        "kind": "armor",
+        "slot": "armor"
+      }
+    ]
+  },
+  "rogue": {
+    "build": "halfling rogue 3 (Thief), criminal background",
+    "level": 3,
+    "skills": {
+      "persuasion": 0,
+      "deception": 0,
+      "intimidation": 0,
+      "insight": 5,
+      "performance": 0,
+      "perception": 3,
+      "investigation": 5,
+      "sleight_of_hand": 5,
+      "stealth": 5,
+      "athletics": -1,
+      "acrobatics": 5,
+      "animal_handling": 1,
+      "arcana": 1,
+      "history": 1,
+      "nature": 1,
+      "religion": 1,
+      "medicine": 1,
+      "survival": 1
+    },
+    "status": "HP 24/24",
+    "gear": [
+      {
+        "id": "rapier",
+        "name": "Rapier",
+        "kind": "weapon",
+        "slot": "mainHand"
+      },
+      {
+        "id": "shortbow",
+        "name": "Shortbow",
+        "kind": "weapon"
+      },
+      {
+        "id": "dagger",
+        "name": "Dagger",
+        "kind": "weapon"
+      },
+      {
+        "id": "leather-armor",
+        "name": "Leather Armor",
+        "kind": "armor",
+        "slot": "armor"
+      }
+    ]
+  },
+  "wizard": {
+    "build": "human wizard 3 (Evoker), sage background",
+    "level": 3,
+    "skills": {
+      "persuasion": 0,
+      "deception": 0,
+      "intimidation": 0,
+      "insight": 1,
+      "performance": 0,
+      "perception": 1,
+      "investigation": 5,
+      "sleight_of_hand": 2,
+      "stealth": 2,
+      "athletics": -1,
+      "acrobatics": 2,
+      "animal_handling": 1,
+      "arcana": 5,
+      "history": 5,
+      "nature": 3,
+      "religion": 3,
+      "medicine": 3,
+      "survival": 1
+    },
+    "status": "HP 20/20, spell slots 1st 4/4, 2nd 2/2",
+    "gear": [
+      {
+        "id": "quarterstaff",
+        "name": "Quarterstaff",
+        "kind": "weapon",
+        "slot": "mainHand"
+      },
+      {
+        "id": "dagger",
+        "name": "Dagger",
+        "kind": "weapon"
+      }
+    ]
+  }
+}

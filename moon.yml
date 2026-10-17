@@ -3,7 +3,8 @@
 toolchains:
   default: node
 fileGroups:
-  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'v2/ai/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+  # v2/ai is the prototype's AI code too, and may import v2/shared: a change to either can break its type check or tests.
+  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'v2/ai/**/*', 'v2/shared/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
 tasks:
   typecheck:
     command: npx --no-install tsc --noEmit -p .
