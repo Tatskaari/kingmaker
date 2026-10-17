@@ -254,6 +254,8 @@ export class AppModel implements AppPart {
       carryOn: () => this.backend.act("carryOn", {}),
       fightItOut: () => this.backend.act("fightItOut", {}),
       end: exit => this.backend.act("endScene", { game, exit }),
+      // A word with whoever walks with the player, from the card between scenes (town-design §1.1: t): talking to them on the map.
+      talk: who => this.backend.interact({ verb: "talk", target: who }),
     }, () => this.sheetShown());
   }
 
@@ -264,6 +266,8 @@ export class AppModel implements AppPart {
     this.explore = new ExploreModel(view, {
       move: m => mapMove(this.backend, m),
       quit: () => this.go("title"),
+      // A fight on the map's stand-in (town-design §3.3), as the scene's is.
+      fightItOut: () => this.backend.act("fightItOut", {}),
     }, () => this.backend.explore(), () => this.sheetShown());
   }
 

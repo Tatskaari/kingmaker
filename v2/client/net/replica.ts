@@ -3,7 +3,8 @@ import type { MoveWire } from "../../shared/protocol/port.ts";
 import { refusal } from "../../shared/protocol/refusals.ts";
 import type { Backend, HomeRows, MoveName, Moves, NewGame, Rejection } from "../backend.ts";
 import { exploreViewOf, type ExploreRows, type ExploreView, type MapPlaceTables } from "../explore/rows.ts";
-import type { SeatView } from "../module_bindings/types.ts";
+import { keepInvented } from "../look/invented.ts";
+import type { Look, SeatView } from "../module_bindings/types.ts";
 import type { PlaceTables } from "../scene/place-rows.ts";
 import { sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView } from "../scene/view.ts";
@@ -234,8 +235,16 @@ export class Replica implements Backend {
 
   private event(table: Watched, op: RowOp, row: unknown): void {
     if (MAP_TABLES.has(table)) this.mapRev++;
+    if (table === "look" && op !== "delete") this.invented(row as Look);
     for (const listener of this.events) listener(table, op, row);
     this.changed();
+  }
+
+  /** A look the AI service invented for something the story made up (town-design §3.7): the look layer's from now on, by the thing's name (its entity's, in the same commit). */
+  private invented(look: Look): void {
+    if (!look.invention) return;
+    const thing = [...this.link.tables.entity.iter()].find(e => e.id === look.entityId);
+    keepInvented(thing?.name, look.invention, thing?.kind);
   }
 
   /** The link's trouble (or what it covers) changed: the listeners hear of it. */

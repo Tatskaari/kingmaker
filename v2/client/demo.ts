@@ -1,6 +1,6 @@
 import { Timestamp } from "spacetimedb";
 import { enterScene, leaveScene } from "../shared/map/explore.ts";
-import { actionId, OUT, type InteractArgs, type MapMove, type TravelArgs, type WalkArgs } from "../shared/map/moves.ts";
+import { actionId, MENU_MOVES, OUT, type InteractArgs, type MapMove, type TravelArgs, type WalkArgs } from "../shared/map/moves.ts";
 import { exploreOf, exploreRowOf, type ExploreRow, type MapRows } from "../shared/map/rows.ts";
 import { act as actOnMap, Unavailable, type Done } from "../shared/map/town.ts";
 import type { Mark, Markup } from "../shared/markup.ts";
@@ -17,6 +17,8 @@ import { WIZARD_SPELLS, yardKeys, yardNames, yardTables, yardWorld, YARD_SCENE }
 import type { ExploreView } from "./explore/rows.ts";
 import { DRAFT, FIGHTER, gameRow, LISTS, NEPHEW_ISSUE, OFFER, OWN, sheetRow, WIZARD, WORKED } from "./check/rows.ts";
 import { clerkEnded, OPEN_CASE, ratWaiting, storyOf } from "./check/story.ts";
+import { KELL_GREETING, KELL_LINES, WIZARD_CATALOGUE } from "./check/town.ts";
+import { FAREWELL } from "../shared/scene/talk.ts";
 import { withSubclass } from "./creation/model.ts";
 import { placeViewOf } from "./scene/place-rows.ts";
 import type { Entry, PlaceView, SceneView, Suggestion } from "./scene/view.ts";
@@ -41,7 +43,11 @@ import type { StoryRows } from "./story/rows.ts";
  * way on (story-design §4.5): a line that makes the case ("murder", "let's go"), or /end open-case,
  * ends the yard through open-case; the story moves on a beat later, the Drowned Rat waiting with Kell
  * walking with the investigator; Go on opens it, its opening streaming in (the demo's map has only
- * the yard on it, so from the lead's card the demo goes straight on to the Rat).
+ * the yard on it, so from the lead's card the demo goes straight on to the Rat). And the town's
+ * (town-design §3.9): a wizard's sheet has the action menu's catalogue, hiding hides and a rest is
+ * refused in the rules' words (the rest of the menu needs the rules engine, and says so); on the card
+ * between scenes, t is a word with Kell: her greeting and her lines, a canned reply to each, her
+ * goodbye; walking on (or back, once it's over) puts the scene it set aside back as it was.
  */
 export function demoBackend(options: { ms?: number } = {}): Backend {
   return new Demo(options.ms ?? 40);
@@ -52,7 +58,10 @@ export function demoBackend(options: { ms?: number } = {}): Backend {
  * latest turn's n (a turn's late news, its notes and its lines, is only the view's while it's still
  * the latest), and the turn being played, until it's done (a line said meanwhile waits for it).
  */
-interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void>; story?: StoryRows; reply?: string; place?: PlaceRows; map?: DemoMap }
+interface DemoGame { row: GameRow; player: PlayerRow; sheet: SheetRow; view?: SceneView; latest?: number; playing?: Promise<void>; story?: StoryRows; reply?: string; place?: PlaceRows; map?: DemoMap; talk?: DemoTalk }
+
+/** A word with Kell between scenes (town-design §3.6): the scene it set aside, which walking on puts back as it was. */
+interface DemoTalk { aside: SceneView; latest: number | undefined }
 
 /** A game on the town's map: the walker's explore row, the yard's world and its scene's status, and the view last made of them (made again after a move). */
 interface DemoMap { row: ExploreRow; yard: SceneWorld; status: "waiting" | "live" | "ended"; view?: ExploreView }
@@ -96,6 +105,8 @@ class Demo implements Backend {
         player: { name: game.player.name, ...(game.sheet.statusLine ? { status: game.sheet.statusLine } : {}), ...(game.sheet.build ? { build: game.sheet.build } : {}), concept: game.player.concept },
         ...(map.status === "waiting" ? { lead: { key: YARD_SCENE, title: YARD.title, hook: YARD.hook! } } : {}),
         acts: map.row.acts, said: map.row.said, log: [...map.row.log],
+        // The action menu's (town-design §3.3): a wizard's catalogue, as the rules write it on the sheet; the explore row's keep.
+        ...(/wizard/i.test(game.sheet.build) ? { catalogue: WIZARD_CATALOGUE } : {}), keep: {},
       };
     }
     return map.view;
@@ -181,7 +192,8 @@ class Demo implements Backend {
     if (move === "endScene") return this.endScene((args as Moves["endScene"]).exit);
     // The story's walk toward the lead is Go on here; the Backend's walk is the map's.
     if (move === "walk") { const code = this.goOn(); return code ? this.refuse(code) : this.done(); }
-    // The map's action menu (town-design §3.2) isn't the demo's yet: package C's.
+    // The map's action menu (town-design §3.2): hiding, and the rules' word on a rest; the rest needs the rules engine, which the demo hasn't.
+    if (isMenuMoveName(move)) return this.menuMove(move, args as Moves[typeof move]);
     if (!(move in moves)) return this.refuse("not_built");
     const code = moves[move].call(this, args);
     return code ? this.refuse(code, code === "story_too_long" ? { words: String((args as { text: string }).text.match(/\S+/g)?.length ?? 0) } : {}) : this.done();
@@ -387,10 +399,21 @@ class Demo implements Backend {
     const game = this.seated();
     if (!game) return this.refuse("not_in_game");
     if (this.watched) return this.refuse("not_controller", { name: YARD.player.name });
+    const out = m.move === "walk" && m.args.toward === OUT;
+    // A talk (town-design §3.6): walking out of it, live or over, walks on, and the scene it set aside is as it was.
+    if (game.talk && out) {
+      if (game.view && !game.view.over && !game.view.mayType) return this.refuse("turn_in_flight");
+      this.leaveTalk(game);
+      return this.done();
+    }
+    if (game.view && !game.view.over) return this.refuse("scene_on");
+    // A word with whoever walks with the investigator (Kell, once the yard's done): the card's t, or talk_kell (the demo's yard has no map to stand on after it).
+    if (m.move === "interact" && m.args.verb === "talk" && m.args.target && game.view && game.story && storyOf(game.story).with.some(w => w.key === m.args.target)) {
+      this.openTalk(game);
+      return this.done();
+    }
     const map = game.map;
     if (!map) return this.refuse("no_way");
-    const out = m.move === "walk" && m.args.toward === OUT;
-    if (game.view && !game.view.over) return this.refuse("scene_on");
     const rows = this.mapRows(map);
     const ex = exploreOf(rows);
     if (out) {
@@ -423,6 +446,69 @@ class Demo implements Backend {
       game.row = { ...game.row, where: "in The Hanged Clerk" };
     }
     return this.done();
+  }
+
+  /**
+   * The action menu's moves (town-design §3.2), as far as the demo can play them with no rules
+   * engine: hiding (a Stealth check that comes off, in the prototype's words) and a rest refused in
+   * its words while they're whole; what the rules resolve on the town (a spell, a blow, a leap) is the
+   * dev stack's, and refused here, saying so.
+   */
+  private menuMove(move: MenuMoveName, args: Moves[MenuMoveName]): Promise<Rejection | undefined> {
+    const game = this.seated();
+    if (!game) return this.refuse("not_in_game");
+    if (this.watched) return this.refuse("not_controller", { name: YARD.player.name });
+    const map = game.map;
+    if (!map) return this.refuse("no_way");
+    if (game.view && !game.view.over) return this.refuse("scene_on");
+    if (move === "hide") {
+      const ex = exploreOf(this.mapRows(map));
+      ex.hidden = true;
+      map.row = exploreRowOf(ex, map.row, HIDDEN);
+      map.view = undefined;
+      return this.done();
+    }
+    if (move === "rest") return this.refuse("not_now", { text: `(${(args as Moves["rest"]).length === "long" ? "Long" : "Short"} rest: not now, nothing to rest off: you're whole and fresh.)` });
+    return this.refuse("not_now", { text: "(The demo has no rules engine to play that on the town: on the dev stack, the rules resolve it.)" });
+  }
+
+  // A word with Kell between scenes (town-design §3.6): a scene of its own, the one it sets aside kept as it was.
+
+  /** The talk opens (the card's t): its greeting a beat later, with her lines to choose from. */
+  private openTalk(game: DemoGame): void {
+    const aside = game.view!;
+    game.talk = { aside, latest: game.latest };
+    game.latest = 0;
+    game.view = {
+      ...YARD, sceneId: "9", title: "A word with Sergeant Agnes Kell", time: aside.time ?? "Morning", hook: "A word with Sergeant Agnes Kell, between one thing and the next.",
+      game: aside.game, player: aside.player, present: [YARD.present[0]!], entries: [], phase: "replying", turn: 0, mayType: false, over: false,
+      suggestions: [], suggestionsComing: true, suggestionsOn: true, notesComing: false, onMap: true, talk: true, ...(aside.story ? { story: aside.story } : {}),
+    };
+    this.tell();
+    this.later(10, () => {
+      if (!game.talk || !game.view?.talk) return;
+      game.view = { ...game.view, entries: [{ turn: 0, speaker: "gm", kind: "narration", text: KELL_GREETING, markup: kellIn(KELL_GREETING) }], phase: "done", mayType: true, suggestions: KELL_LINES.map(text => ({ kind: "say" as const, text })), suggestionsComing: false };
+      this.tell();
+    });
+  }
+
+  /** The goodbye said: her last word, and the talk is over (Enter, or walking on, goes back). */
+  private async endTalk(game: DemoGame, turn: number): Promise<void> {
+    await new Promise<void>(resolve => this.later(10, resolve));
+    if (!game.talk || !game.view) return;
+    game.view = {
+      ...game.view, phase: "done", mayType: false, over: true, suggestions: [], suggestionsComing: false, notesComing: false,
+      entries: [...game.view.entries, { turn, speaker: "gm", kind: "narration", text: TALK_CLOSING, markup: kellIn(TALK_CLOSING) }, { turn, speaker: "system", kind: "system", text: "Scene ends: Goodbye for now" }],
+    };
+    this.tell();
+  }
+
+  /** Walking on (or back, once it's over): the scene the talk set aside, exactly as it was. */
+  private leaveTalk(game: DemoGame): void {
+    const talk = game.talk!;
+    game.view = talk.aside;
+    game.latest = talk.latest;
+    delete game.talk;
   }
 
   // The story's moves (story-design §4.3): the way on to the lead, a stuck story, the fight.
@@ -658,9 +744,10 @@ class Demo implements Backend {
     const ruled = rulesFor(game, text, turn);
     if (ruled) { set({ entries: [...game.view!.entries, ...ruled.entries], place: ruled.place, player: { ...game.view!.player, status: ruled.status } }); await sleep(20); }
 
-    // A line that makes the case ends the yard: its closing reply, then the scene's end.
+    // A line that makes the case ends the yard: its closing reply, then the scene's end. A talk's goodbye ends it.
+    if (game.talk && text === FAREWELL) { await this.endTalk(game, turn); return; }
     const ends = game.view!.sceneId === YARD.sceneId && ENDS.test(text);
-    const text_ = ends ? CLOSING : game.reply ?? REPLY;
+    const text_ = ends ? CLOSING : game.talk ? TALK_REPLY : game.reply ?? REPLY;
     const words = text_.split(/(?<= )/);
     for (let seq = 1; seq <= words.length; seq++) {
       const sofar = words.slice(0, seq).join("");
@@ -677,14 +764,14 @@ class Demo implements Backend {
     if (game.latest === turn) set({ phase: "noting" });
     await sleep(25);
     // The notes: the reply's marks, each with its card; the turn done.
-    set({ entries: game.view!.entries.map(e => (e === reply ? { ...e, markup: game.reply ? kellIn(text_) : notedIn(text_, turn) } : e)), ...(game.latest === turn ? { phase: "done" as const, notesComing: false } : {}) });
+    set({ entries: game.view!.entries.map(e => (e === reply ? { ...e, markup: game.reply || game.talk ? kellIn(text_) : notedIn(text_, turn) } : e)), ...(game.latest === turn ? { phase: "done" as const, notesComing: false } : {}) });
   }
 
   /** The lines for a turn, `beats` from now: dropped when the player has moved on, or turned them off, meanwhile. */
   private ask(game: DemoGame, turn: number, beats: number): void {
     this.later(beats, () => {
       if (game.latest !== turn || !game.view) return;
-      const lines = game.reply ? RAT_LINES : [...LINES, ENDING_LINE];
+      const lines = game.talk ? TALK_LINES : game.reply ? RAT_LINES : [...LINES, ENDING_LINE];
       game.view = { ...game.view, suggestions: game.view.suggestionsOn ? [...lines] : [], suggestionsComing: false };
       this.tell();
     });
@@ -774,6 +861,21 @@ const RAT_LINES: Suggestion[] = [
   { kind: "say", text: "Landlady, a word, if you've a moment?" },
   { kind: "do", text: "(I watch who goes in and out by the river door)" },
 ];
+
+/** Hiding on the map, as the prototype's hideNow says it when it comes off. */
+const HIDDEN = "Stealth check to slip out of sight: 14 + 2 = 16 vs DC 10: success\nYou're out of sight. Nobody about is looking your way, which in Caerwyn on Assembly eve is an achievement.";
+
+/** What Kell says to every line in a talk, and her next lines; and her last word. */
+const TALK_REPLY = "Kell considers that, pencil still. “Long enough to know the Captain's mind before he does,” she says. “Not long enough to stop minding.”";
+const TALK_LINES: Suggestion[] = [
+  { kind: "say", text: "What made you join the watch?" },
+  { kind: "say", text: "Do you think the Captain will let it stand as murder?" },
+];
+const TALK_CLOSING = "Kell nods and goes back to her notebook. “Don't let me keep you.”";
+
+/** The action menu's moves (town-design §3.2), by their names. */
+type MenuMoveName = (typeof MENU_MOVES)[number];
+const isMenuMoveName = (move: MoveName): move is MenuMoveName => (MENU_MOVES as readonly string[]).includes(move);
 
 /** The markup of the reply so far: Kell's line, as much of it as has come. */
 function kellIn(text: string): Markup {

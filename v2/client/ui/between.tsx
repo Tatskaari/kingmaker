@@ -1,4 +1,4 @@
-// Copied from the prototype's src/app/ui/between.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel (the story's BetweenView) in place of the Game's card; with no map, the talk's way on is the lead's scene ("On to The Drowned Rat") where it was "Back to the map", and j opens the notebook where Esc was the menu. FightScreen is new: the fight's stand-in (src/game/fight-standin.ts) as the card's Plain.
+// Copied from the prototype's src/app/ui/between.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel (the story's BetweenView) in place of the Game's card; with no map, the talk's way on is the lead's scene ("On to The Drowned Rat") where it was "Back to the map", and j opens the notebook where Esc was the menu; new, t (town-design §1.1) is a word with whoever walks with the player, the talk opened on the map (talkFrom). FightScreen is new: the fight's stand-in (src/game/fight-standin.ts) as the card's Plain.
 import type { KeyEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useState } from "react";
@@ -6,17 +6,19 @@ import type { SceneModel } from "../scene/model.ts";
 import type { Line } from "../scene/view.ts";
 import type { BetweenView } from "../story/view.ts";
 import { C } from "../theme.ts";
-import { BOLD, Clickable, Keys, SCROLLBAR, useStore, wayOnKey, wrap } from "./common.tsx";
+import { BOLD, Clickable, Keys, SCROLLBAR, useStore, wayOnKey, wrap, type KeyHint } from "./common.tsx";
 import { Transcript, transcriptRows } from "./scene.tsx";
 
 /**
  * Keys between scenes, as on any way on (wayOnKey): an Enter of its own does `go` (or a click
  * does); typed characters never do, and the Enter ending them only ends them (`ended` says so).
- * j is the notebook (when nothing's being typed).
+ * j is the notebook, and t a word with whoever walks with the player (`talk`, town-design §3.6),
+ * when nothing's being typed.
  */
-function betweenKey(scene: SceneModel, page: SceneModel["page"], key: KeyEvent, go: () => void, ended: () => void): void {
+function betweenKey(scene: SceneModel, page: SceneModel["page"], key: KeyEvent, go: () => void, ended: () => void, talk?: () => void): void {
   if (scene.overlay || scene.page !== page || key.defaultPrevented) return;
   if (key.name === "j" && !scene.typing && !key.ctrl && !key.meta) { key.preventDefault(); scene.overlay = { kind: "journal" }; scene.emit(); return; }
+  if (key.name === "t" && talk && !scene.typing && !key.ctrl && !key.meta) { key.preventDefault(); talk(); return; }
   const what = wayOnKey(scene, key);
   if (!what) return;
   key.preventDefault();
@@ -42,6 +44,14 @@ export function BetweenScreen({ scene }: { scene: SceneModel }) {
   return card.talk ? <Talk scene={scene} card={card} lines={card.talk} /> : <Plain scene={scene} card={card} />;
 }
 
+/** A word with whoever walks with the player, from the card (t): on a map, where the talk opens; none with nobody there, or for a spectator. */
+function talkFrom(scene: SceneModel, card: BetweenView): { key: KeyHint; run: () => void } | undefined {
+  const friend = card.friend;
+  if (!friend || !scene.view.onMap || scene.view.watching) return undefined;
+  const run = () => scene.talkWith(friend.key);
+  return { key: ["t", `a word with ${friend.name.split(" ").pop()}`, run], run };
+}
+
 function Talk({ scene, card, lines }: { scene: SceneModel; card: BetweenView; lines: Line[] }) {
   const { width, height } = useTerminalDimensions();
   const [said, setSaid] = useState(PACE() > 0 ? 1 : lines.length);
@@ -54,7 +64,8 @@ function Talk({ scene, card, lines }: { scene: SceneModel; card: BetweenView; li
   const [typed, setTyped] = useState(false);
   // An Enter (or a click) hurries the talk along to its end, then goes on.
   const go = () => { setTyped(false); scene.typing = false; if (done) scene.toLead(); else setSaid(lines.length); };
-  useKeyboard(key => betweenKey(scene, "between", key, go, () => setTyped(true)));
+  const talk = talkFrom(scene, card);
+  useKeyboard(key => betweenKey(scene, "between", key, go, () => setTyped(true), talk?.run));
   const w = Math.min(width - 2, 104);
   const who = lines.find(l => l.kind === "dialogue")?.name ?? "them";
   // Sized for the whole talk from the start, so it doesn't grow as the lines come.
@@ -73,7 +84,7 @@ function Talk({ scene, card, lines }: { scene: SceneModel; card: BetweenView; li
       </text>
     </Clickable>
     <box height={1} flexShrink={0}><text fg={C.warn}>{scene.status ?? " "}</text></box>
-    <box height={1} marginTop={height > 30 ? 1 : 0} flexShrink={0}><Keys items={[["Enter", done ? "go on" : "hurry them along", go], ["j", "notebook", () => { scene.overlay = { kind: "journal" }; scene.emit(); }]]} /></box>
+    <box height={1} marginTop={height > 30 ? 1 : 0} flexShrink={0}><Keys items={[["Enter", done ? "go on" : "hurry them along", go], ...(talk ? [talk.key] : []), ["j", "notebook", () => { scene.overlay = { kind: "journal" }; scene.emit(); }]]} /></box>
   </box>;
 }
 
@@ -81,7 +92,8 @@ function Talk({ scene, card, lines }: { scene: SceneModel; card: BetweenView; li
 function Plain({ scene, card }: { scene: SceneModel; card: BetweenView }) {
   const { width, height } = useTerminalDimensions();
   const [typed, setTyped] = useState(false);
-  useKeyboard(key => betweenKey(scene, "between", key, () => scene.toLead(), () => setTyped(true)));
+  const talk = talkFrom(scene, card);
+  useKeyboard(key => betweenKey(scene, "between", key, () => scene.toLead(), () => setTyped(true), talk?.run));
   const w = Math.min(width - 6, 100);
   const lines = card.card.flatMap(l => (l ? wrap(l, w - 4) : [""])).slice(0, Math.max(4, height - 10));
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
@@ -90,7 +102,7 @@ function Plain({ scene, card }: { scene: SceneModel; card: BetweenView }) {
       {lines.map((l, i) => <text key={i} fg={l.startsWith("The lead") ? C.lead : l.startsWith("How things") ? C.title : C.text}>{l || " "}</text>)}
     </Clickable>
     <box height={1} flexShrink={0}><text fg={C.warn}>{scene.status ?? " "}</text></box>
-    <box marginTop={1} flexDirection="row"><Keys items={[["Enter", card.go.replace(/^On/, "on"), () => scene.toLead()], ["j", "notebook", () => { scene.overlay = { kind: "journal" }; scene.emit(); }]]} />{typed ? <text fg={C.faint}>{TYPED}</text> : null}</box>
+    <box marginTop={1} flexDirection="row"><Keys items={[["Enter", card.go.replace(/^On/, "on"), () => scene.toLead()], ...(talk ? [talk.key] : []), ["j", "notebook", () => { scene.overlay = { kind: "journal" }; scene.emit(); }]]} />{typed ? <text fg={C.faint}>{TYPED}</text> : null}</box>
   </box>;
 }
 

@@ -36,6 +36,7 @@ import { checkCreation } from "./creation.tsx";
 import { checkMap } from "./map-screens.tsx";
 import { checkStory } from "./story-screens.tsx";
 import { checkPlace } from "./place-screens.tsx";
+import { checkTown } from "./town-screens.tsx";
 import { YARD, yardRows } from "./fixture.ts";
 
 const show = process.argv.includes("--show");
@@ -505,7 +506,7 @@ for (const [w, h] of SIZES) {
   await draw();
   act(() => setup.mockInput.pressEnter());
   frame = await draw();
-  checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. /suggestions off turns them off.")]);
+  checks.push([`${size}: lines: the help says how they work`, scene.overlay?.kind === "help" && doubled(frame).includes("After each reply, suggested lines come up over the box (a risky try in yellow): a number or a click puts one in the box to send or change; typing hides them. A talk's are said at once. /suggestions off turns them off.")]);
   checks.push([`${size}: the help says how the marks work, and nothing of ⓘ lines (V1's)`, doubled(frame).includes("Underlined words are the GM's marks") && doubled(frame).includes("for a note from what you know.") && !/ⓘ/.test(frame)]);
   checks.push([`${size}: the help's example of a deed is one to do in the yard, never a spell`, doubled(frame).includes("*looks over my shoulder*, (I check his pockets).") && doubled(frame).includes("(🎲 lines)") && !/Fireball|I cast/.test(doubled(frame))]);
   await esc();
@@ -708,6 +709,9 @@ await checkCreation(checks, show);
 
 // The way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and The End (the story's).
 await checkStory(checks, show);
+
+// The action menu, aiming, a talk's choices, the card's word with Kell and the map's fight card (the town's).
+await checkTown(checks, show);
 
 let failed = 0;
 for (const [what, ok] of checks) {

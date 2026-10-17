@@ -1,4 +1,4 @@
-// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows; end is its :203-215, through end_scene as the dev stack's owner, and go, journal and act's go_to_lead, fight and carry_on take the story on between scenes (story-design §4.5); on the map between scenes (map-design §3.6), observe is MODE: explore (the town's observe: explore/text.ts) and act takes any of its action ids, each made as its move.
+// After the prototype's src/cli/qa.ts at 44c6d4a: the same verbs and the same MODE:, ACTIONS: and PHASE: output (act and suggestions as :180-227 have them), as a client of the simulation; builds and new's creation are its :34-39, :55-78 and :112-176 (offerFor, offerText, the new verb), through the moves; map is its :230-234, the scene's place from its rows; end is its :203-215, through end_scene as the dev stack's owner, and go, journal and act's go_to_lead, fight and carry_on take the story on between scenes (story-design §4.5); on the map between scenes (map-design §3.6), observe is MODE: explore (the town's observe: explore/text.ts) and act takes any of its action ids, each made as its move; and the town unit's (town-design §1.2, §3.9): the action menu's ids too (cast_fire-bolt@25,6, hide, rest_short…: observe lists the menu), talk_kell opening a talk and waiting for its greeting, and a talk's say_<n>, say_goodbye and walk_on.
 import { tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild } from "../shared/creation/types.ts";
 import { refusal } from "../shared/protocol/refusals.ts";
@@ -6,6 +6,7 @@ import { cardText, sheetText } from "../shared/rules/index.ts";
 import { asciiMap } from "../shared/world/scene-world.ts";
 import type { BuildOption, Offer } from "../shared/rules/types.ts";
 import { OUT, moveOf, type MapMove } from "../shared/map/moves.ts";
+import { FAREWELL } from "../shared/scene/talk.ts";
 import { exploreWhen, homeWhen, mapMove, viewWhen, type Backend, type CreationRow, type HomeRows, type NewGame, type Rejection } from "./backend.ts";
 import { timeWords } from "./creation/words.ts";
 import type { ExploreView } from "./explore/rows.ts";
@@ -172,9 +173,16 @@ export async function say(game: Backend, text: string, out: Out, waiting: Waitin
 /**
  * One of the lines suggested for this moment said, as if typed (`say_2` is the second, as ACTIONS:
  * lists them): refused when there's no such line. What's said comes first, since the agent didn't
- * type it; then what answered it, as for a line said. Any other id is the map's (mapAct).
+ * type it; then what answered it, as for a line said. In a talk (town-design §3.9), say_goodbye says
+ * its goodbye and walk_on walks on without a word, back to the map. Any other id is the map's
+ * (mapAct): the action menu's too (cast_fire-bolt@25,6, hide, rest_short…).
  */
 export async function act(game: Backend, id: string, out: Out, waiting: Waiting = {}): Promise<number> {
+  const talk = game.view();
+  if (talk?.talk && !talk.over && (id === "walk_on" || id === "say_goodbye")) {
+    if (talk.watching) return said(out, refusal("not_controller", { name: talk.watching }));
+    return id === "walk_on" ? await walkOn(game, out) : await sayChosen(game, FAREWELL, out, waiting);
+  }
   const move = mapMoveOf(id);
   if (move) return await mapAct(game, move, out, waiting);
   const view = game.view();
@@ -185,11 +193,32 @@ export async function act(game: Backend, id: string, out: Out, waiting: Waiting 
   if (view.watching) return said(out, refusal("not_controller", { name: view.watching }));
   const line = /^say_[1-9]\d*$/.test(id) ? view.suggestions[Number(id.slice(4)) - 1] : undefined;
   if (!line) { out.print(noSuchLine(id, view)); return 1; }
-  const refused = await game.say(line.text);
+  return await sayChosen(game, line.text, out, waiting);
+}
+
+/** A line chosen (a suggested line, a talk's goodbye): said as if typed, then, since the agent didn't type it, what was said, and what answered it. */
+async function sayChosen(game: Backend, text: string, out: Out, waiting: Waiting): Promise<number> {
+  const refused = await game.say(text);
   if (refused) return said(out, refused);
 
-  out.print(`> ${line.text}\n`);
+  out.print(`> ${text}\n`);
   return await answered(game, out, waiting);
+}
+
+/**
+ * Walking on from a talk without a word (walk out of a live talk, town-design §3.2): refused in the
+ * game's words (a turn in flight); else where it left the player, the map as observe prints it (with
+ * what walking on said), or the talk over on screen.
+ */
+async function walkOn(game: Backend, out: Out): Promise<number> {
+  const refused = await game.walk({ toward: OUT });
+  if (refused) return said(out, refused);
+
+  const there = await startWhen(game, () => true, v => v.over, ROWS_MS).catch(() => ({ map: game.explore(), scene: game.view() }));
+  if (there.scene) { out.print(storyText(there.scene) ?? viewText(there.scene)); return 0; }
+  if (there.map?.said) out.print(`${there.map.said}\n`);
+  if (there.map) out.print(exploreText(there.map));
+  return 0;
 }
 
 /** A map action's move: any of the QA console's ids (moveOf), and `out`, back to the map from a scene that's over (walk out has no id of its own). */
@@ -208,10 +237,10 @@ async function mapAct(game: Backend, move: MapMove, out: Out, waiting: Waiting):
   const refused = await mapMove(game, move);
   if (refused) return said(out, refused);
 
-  // The move's row (its words), then the seats where it left them: in the scene it opened, or on the map.
-  const moved = await exploreWhen(game, v => v.acts !== before, ROWS_MS).catch(() => game.explore());
+  // The move's row (its words), then the seats where it left them: in the scene (or the talk) it opened, or on the map.
+  const moved = before === undefined ? game.explore() : await exploreWhen(game, v => v.acts !== before, ROWS_MS).catch(() => game.explore());
   if (moved && moved.acts !== before && moved.said) out.print(`${moved.said}\n`);
-  if (moved?.ex.scene) {
+  if (moved?.ex.scene || game.home().seat?.sceneId !== undefined) {
     const stream = streamTo(out, waiting);
     const opening = await viewWhen(game, v => v.phase === "failed" || v.mayType || v.over, waiting.ms ?? TURN_MS, stream.see);
     stream.end(opening);
