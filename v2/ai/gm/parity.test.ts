@@ -72,12 +72,12 @@ interface NotesMoment { moment: string; fake: FakeOptions; session: Session; rep
 interface SuggestMoment { moment: string; fake: FakeOptions; session: Session; offered: string[]; bodies: { suggest: Request; judge?: Request & { state?: Record<string, string> } }; vetting: Vetting; lines: Suggestion[]; dropped: Array<{ text: string; why: string }> }
 
 /**
- * What the AI service doesn't ask the director that the prototype's v2 approach does: considered
- * rolls' roll_call (and the means, which they ask in every beat, where V0 asks it only of a social
- * route's check), the co-GM's off_graph and the rules' mechanic before the reply, and the rules'
- * left, threat and threat_severity after it. gm-port §6, §9.
+ * What the AI service doesn't ask the director that the prototype's v2 approach does: the rules'
+ * mechanic before the reply, and their threat and threat_severity after it (the world bridge's).
+ * Considered rolls' roll_call and the means in every beat, the co-GM's off_graph and the rules' left
+ * are asked, each the prototype's to the letter (full-gm-design §4.1). gm-port §6, §9.
  */
-const NOT_ASKED = { before: ["roll_call", "attempt_means", "off_graph", "mechanic"], after: ["left", "threat", "threat_severity"] };
+const NOT_ASKED = { before: ["mechanic"], after: ["threat", "threat_severity"] };
 
 /** Questions asked in both whose words differ, and why. None: each it asks is the prototype's to the letter. */
 const WORDED_OTHERWISE: string[] = [];
@@ -362,6 +362,7 @@ function gmOf(s: Session): GmState {
     ...(s.endingLead ? { endingLead: s.endingLead } : {}), ...(s.pendingExit ? { pendingExit: s.pendingExit } : {}), ...(s.closing ? { closing: s.closing } : {}),
     ...(s.sceneStatus ? { sceneStatus: s.sceneStatus } : {}), oocTurns: s.oocTurns ?? [], pressureOffered: s.pressureOffered ?? [], ...(s.repeated ? { repeated: s.repeated } : {}),
     canon: s.canon, patches: s.patches, entered: s.entered ?? [], absent: s.absent ?? [], notes: s.notes, whispers: s.whispers ?? [],
+    notesTurn: null, rulings: [],
   };
 }
 

@@ -1,4 +1,5 @@
-import { JevDecider, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
+import { JEV_MODEL, JevDecider, type ChoiceQuestion, type Decider } from "../llm/decide.ts";
+import type { CallContext } from "../llm/openrouter.ts";
 import { runTools, InvalidToolArguments, type ToolDef } from "../llm/tools.ts";
 import { prompt } from "../prompts/index.ts";
 import { characterEntry, createDoc, editDoc, memoryIndexPath, memoryLines, playerDocPath, readDoc, saveMemory, searchDocs, type DocMeta } from "./docs.ts";
@@ -108,7 +109,7 @@ const TOOLS_FOR: Record<ReviewKind, string[]> = {
 
 export interface ReviewRecord { kind: ReviewKind; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
 
-async function review(kind: ReviewKind, view: WorkingSet, turn: number, flags: string[], effort: "low" | "medium" | "high"): Promise<ReviewRecord> {
+async function review(kind: ReviewKind, view: WorkingSet, turn: number, flags: string[], effort: "low" | "medium" | "high", calls?: CallContext): Promise<ReviewRecord> {
   const present = view.present;
   const changes: string[] = [];
   const handle = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
@@ -159,6 +160,7 @@ async function review(kind: ReviewKind, view: WorkingSet, turn: number, flags: s
         `## The moment to review\n${exchange(view, turn)}`,
       ].join("\n\n") }],
       tools: TOOLS_FOR[kind].map(n => TOOL[n]!),
+      ...(calls ? { calls } : {}),
     }, handle);
     return { kind, summary: result.text, changes, costUsd: result.costUsd, latencyMs: performance.now() - started };
   } catch (error) {
@@ -166,11 +168,15 @@ async function review(kind: ReviewKind, view: WorkingSet, turn: number, flags: s
   }
 }
 
-/** One turn, V1-style: attention, then the fired reviews in order (each sees the last one's edits). */
-export async function reviewTurn(view: WorkingSet, turn: number, options: { decider?: Decider; effort?: "low" | "medium" | "high" } = {}): Promise<{ flags: string[]; reviews: ReviewRecord[] }> {
-  const flags = await attend(view, turn, options.decider);
+/**
+ * One turn, V1-style: attention, then the fired reviews in order (each sees the last one's edits).
+ * `calls`: a request's call context (the AI service's), which the review agents' tool loops go
+ * through, and the attention filter too when no decider is given.
+ */
+export async function reviewTurn(view: WorkingSet, turn: number, options: { decider?: Decider; effort?: "low" | "medium" | "high"; calls?: CallContext } = {}): Promise<{ flags: string[]; reviews: ReviewRecord[] }> {
+  const flags = await attend(view, turn, options.decider ?? (options.calls ? new JevDecider(JEV_MODEL, "jev", options.calls) : undefined));
   const reviews: ReviewRecord[] = [];
-  for (const kind of plan(flags)) reviews.push(await review(kind, view, turn, flags, options.effort ?? "medium"));
+  for (const kind of plan(flags)) reviews.push(await review(kind, view, turn, flags, options.effort ?? "medium", options.calls));
   return { flags, reviews };
 }
 

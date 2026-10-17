@@ -1,9 +1,11 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
-  AiErrorCode, BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, DecideRequest, DecideResponse, NotesRequest, NotesResponse,
-  OpenRequest, OpenResponse, ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
+  AiErrorCode, BackstoriesRequest, BackstoriesResponse, CharactersRequest, CharactersResponse, ConsiderRequest, ConsiderResponse, DecideRequest, DecideResponse,
+  NotesRequest, NotesResponse, OpenRequest, OpenResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse, ReplyRequest, ReplyResponse,
+  SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
+import type { ReviewLog } from "./stores.ts";
 import type { StreamSink } from "./stream.ts";
 
 /**
@@ -22,23 +24,34 @@ export interface AiContext {
   stream(turn: string): StreamSink;
   /** X-Km-Attempt: the dispatch's number, the stream's attempt. */
   attempt: number;
+  /** How long a considered turn's review may take before the plain check is rolled instead (KM_CONSIDER_DEADLINE_MS): the server's config, 12 s; absent in a test's context, 12 s too (config.ts CONSIDER_DEADLINE_MS). */
+  considerDeadlineMs?: number;
+  /** Each game's memory reviews (memory-reviews.jsonl), which the remember endpoint appends to: the server's store (Stores.reviews); absent in a test's context, where the line goes beside the game's docs. */
+  reviews?: ReviewLog;
 }
 
 export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 
 /**
- * The thinks: the opening, a turn's three, and the two beside a turn once its reply is in (the notes
- * on its marks, the lines suggested after it: v5-design §3.6); and character creation's two (v1-design
- * §3.7), each serving several steps. The pipeline's (endpoints/*.ts), or the canned ones
- * (KM_AI_GM=canned: no model at all).
+ * The thinks: the opening, a turn's own (decide, consider on a turn the GM rules on, reply, settle),
+ * the two beside a turn once its reply is in (the notes on its marks, the lines suggested after it:
+ * v5-design §3.6), the two in the background once it's over (the memory reviews and the co-GM:
+ * full-gm-design §4.1); and character creation's two (v1-design §3.7), each serving several steps.
+ * The pipeline's (endpoints/*.ts), or the canned ones (KM_AI_GM=canned: no model at all).
  */
 export interface Endpoints {
   open: Handler<OpenRequest, OpenResponse>;
   decide: Handler<DecideRequest, DecideResponse>;
+  /** The GM's ruling on an act the decider flagged, before the reply: cut off at the deadline, then the plain check to roll instead. */
+  consider: Handler<ConsiderRequest, ConsiderResponse>;
   reply: Handler<ReplyRequest, ReplyResponse>;
   settle: Handler<SettleRequest, SettleResponse>;
   notes: Handler<NotesRequest, NotesResponse>;
   suggest: Handler<SuggestRequest, SuggestResponse>;
+  /** The memory reviews of a turn once it's over: notes written into the game's docs, a line in memory-reviews.jsonl. */
+  remember: Handler<RememberRequest, RememberResponse>;
+  /** The background co-GM's review of a turn once it's over. */
+  repair: Handler<RepairRequest, RepairResponse>;
   /** The builds: three offered (offer), the model's one (pick), the player's own made legal (own). */
   characters: Handler<CharactersRequest, CharactersResponse>;
   /** The backstory: a draft, notes worked in, the lore check, and what it says of them (traits). */

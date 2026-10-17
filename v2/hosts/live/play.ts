@@ -6,8 +6,10 @@ import { picked, stepName, type Script, type Step } from "./scripts.ts";
 /**
  * Playing a live run's script as a player would: a new game, then each line said once the turn
  * before it is done and its notes and lines are in (at most 15 s more, v5-design §4.6), or a
- * suggested line picked as the headless `act` picks one. It stops before a line the budget can't
- * cover, when the scene ends, or when a turn fails, and says why.
+ * suggested line picked as the headless `act` picks one. A line that waits for the background
+ * (full-gm-design §1.2) is said once the memory review and the co-GM are done too, and a script
+ * that records the GM's side waits for them after its last line. It stops before a line the budget
+ * can't cover, when the scene ends, or when a turn fails, and says why.
  */
 
 /** A suggested line, as its row has it. */
@@ -23,12 +25,14 @@ export interface PlayOptions {
   spent(uid: string): { total: number; dearest: number };
   /** The scene's suggested lines now (one set a scene). */
   offered(sceneId: bigint): Promise<Offered[]>;
+  /** The scene's background jobs in flight (the memory reviews, the co-GM), as "remember t1"; none when there are none. */
+  background?(sceneId: bigint): Promise<string[]>;
   /** Each turn as it's done. */
   log(line: string): void;
 }
 
-/** What a step came to: the turn it played and the line said, or why it said nothing. */
-export interface Played { step: string; n?: number; said?: string; skipped?: string }
+/** What a step came to: the turn it played and the line said, or why it said nothing; how long it waited for the background jobs first. */
+export interface Played { step: string; n?: number; said?: string; skipped?: string; waitedMs?: number }
 
 /** When each turn's parts reached this client (Date.now()): its reply's entry, its notes' commit, its lines' commit. */
 export interface Seen { final?: number; notes?: number; lines?: number }
@@ -38,6 +42,8 @@ export interface Run {
   /** Once the opening's rows are in: the game's id and uid, and its scene's id. */
   game?: { id: bigint; uid: string; sceneId: bigint };
   played: Played[];
+  /** How long the run waited after its last line for the background jobs (a script that records the GM's side). */
+  settledMs?: number;
   seen: Map<number, Seen>;
   sets: Map<number, Offered[]>;
   stopped?: string;
@@ -45,6 +51,8 @@ export interface Run {
 
 /** How long a turn may take to be done, and then its lines to come. */
 const TURN_MS = 180_000, EXTRAS_MS = 15_000;
+/** How long a line waits for the background jobs: their endpoints' 170 s, and a little. */
+const BACKGROUND_MS = 180_000;
 
 /** A note or a set of lines no longer on its way: the job's commit, or its giving up. */
 const NOTES_IN = ["written", "lost"], LINES_IN = ["landed", "dropped", "lost"];
@@ -59,6 +67,7 @@ export async function playScript(conn: Connection, script: Script, options: Play
       if (why) { run.stopped = why; break; }
       run.played.push(await playStep(conn, step, run, options));
     }
+    if (script.gmSide) run.settledMs = await backgroundDone(run, options, "after the last line");
   } catch (e) {
     run.stopped = (e as Error).message;
   } finally {
@@ -88,12 +97,32 @@ async function playStep(conn: Connection, step: Step, run: Run, options: PlayOpt
     options.log(`${name}: skipped, no suggested line to pick`);
     return { step: name, skipped: `no suggested line to pick after turn ${latest(conn)?.n ?? 0}` };
   }
+  const waitedMs = "say" in step && step.wait === "background" ? await backgroundDone(run, options, `before "${text}"`) : undefined;
   const n = (latest(conn)?.n ?? 0) + 1;
   const refused = await conn.say(text);
   if (refused) throw new Error(`"${text}" was refused: ${refused.text}`);
   await afterTurn(conn, n, run, options);
   options.log(`turn ${n}: done${extrasNote(conn, n)} ($${options.spent(run.game!.uid).total.toFixed(4)} so far)`);
-  return { step: name, n, said: text };
+  return { step: name, n, said: text, ...(waitedMs !== undefined ? { waitedMs } : {}) };
+}
+
+/**
+ * The scene's background jobs done (the memory reviews, the co-GM), as a tester reading the reply
+ * waits for them: how long it took. After BACKGROUND_MS it goes on without them, and says so.
+ */
+async function backgroundDone(run: Run, options: PlayOptions, when: string): Promise<number> {
+  const started = Date.now();
+  if (!options.background) return 0;
+  for (let busy = await options.background(run.game!.sceneId); busy.length; busy = await options.background(run.game!.sceneId)) {
+    if (Date.now() - started > BACKGROUND_MS) {
+      options.log(`${when}: the background jobs weren't done in ${BACKGROUND_MS / 1000} s (${busy.join(", ")}): going on without them`);
+      return Date.now() - started;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  const waited = Date.now() - started;
+  options.log(`${when}: the background jobs are done (${(waited / 1000).toFixed(1)} s)`);
+  return waited;
 }
 
 /**

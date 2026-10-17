@@ -1,9 +1,11 @@
 import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { RollResult } from "../dice.ts";
+import type { Ruling, RulingOutcome, Verdict } from "../gm/consider.ts";
+import type { RepairResult } from "../gm/repair.ts";
 import type { GmState, OpenedNote, SceneStatus } from "../gm/state.ts";
 import type { Mark, MarkKind, Markup, Speech } from "../markup.ts";
 import type { BuildOption, Offer, OwnPicks, SrdLists } from "../rules/types.ts";
-import type { Skill } from "../scene/types.ts";
+import type { Skill, Transition } from "../scene/types.ts";
 import type { PlaceRows } from "../world/rows.ts";
 import type { WorldOp } from "../world/scene-world.ts";
 import type { CreationStep, Step } from "./keys.ts";
@@ -11,22 +13,29 @@ import type { CreationStep, Step } from "./keys.ts";
 /**
  * The AI service's HTTP API: what the simulation POSTs for each step of a think, and what comes
  * back (v0-design §5.1-5.2, gm-port §13; the notes and the suggested lines, v5-design §3.6;
- * character creation's two, v1-design §3.7). Every request carries its working set, read in the
+ * character creation's two, v1-design §3.7; a considered turn's ruling, and the memory reviews and
+ * the co-GM after a turn, full-gm-design §4.1). Every request carries its working set, read in the
  * transaction that queued it, and its idempotency key; every answer is data the simulation commits.
  */
 
 export type Endpoint =
-  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
+  | "/v1/scenes/open" | "/v1/turns/decide" | "/v1/turns/consider" | "/v1/turns/reply" | "/v1/turns/settle" | "/v1/turns/notes" | "/v1/turns/suggest"
+  | "/v1/turns/remember" | "/v1/turns/repair"
   | "/v1/characters" | "/v1/backstories";
 
-/** Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap). */
+/**
+ * Each step's endpoint, and how long the simulation waits for it (under the procedures' 180 s cap).
+ * The ruling's review is cut off at 12 s (KM_CONSIDER_DEADLINE_MS), then the plain check is asked
+ * for; a memory review's or the co-GM's tool loops can take a minute and more.
+ */
 export const STEP_ENDPOINT: Record<Step | CreationStep, Endpoint> = {
-  open: "/v1/scenes/open", decide: "/v1/turns/decide", reply: "/v1/turns/reply", settle: "/v1/turns/settle", notes: "/v1/turns/notes", suggest: "/v1/turns/suggest",
+  open: "/v1/scenes/open", decide: "/v1/turns/decide", consider: "/v1/turns/consider", reply: "/v1/turns/reply", settle: "/v1/turns/settle",
+  notes: "/v1/turns/notes", suggest: "/v1/turns/suggest", remember: "/v1/turns/remember", repair: "/v1/turns/repair",
   offer: "/v1/characters", pick: "/v1/characters", own: "/v1/characters",
   draft: "/v1/backstories", work: "/v1/backstories", check: "/v1/backstories", traits: "/v1/backstories",
 };
 export const STEP_TIMEOUT_MS: Record<Step | CreationStep, number> = {
-  open: 60_000, decide: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000,
+  open: 60_000, decide: 20_000, consider: 20_000, reply: 60_000, settle: 60_000, notes: 30_000, suggest: 30_000, remember: 170_000, repair: 170_000,
   offer: 60_000, pick: 60_000, own: 30_000, draft: 60_000, work: 60_000, check: 60_000, traits: 60_000,
 };
 
@@ -112,6 +121,22 @@ export interface Decision {
   sameAgain?: { route: string; answer?: string };
   earned: boolean; daft: boolean; outOfCharacter: boolean;
   limit?: string; answering?: boolean; remembered?: string[];
+  /**
+   * Considered rolls (the prototype's PreDecision.considered): the player is attempting something a
+   * roll should settle that none of the scene's routes does, so the GM rules on it before replying
+   * (POST /v1/turns/consider). Nothing was rolled or moved for it. `routes`: the routes with a roll
+   * the decider leant towards, nearest first; `means`: the method, when it's sure; `earned`: how far
+   * it thought the player had already met the person's terms, when it half thought so.
+   */
+  considered?: { probability: number; routes: Array<{ id: string; p: number }>; means?: Skill; earned?: number };
+  /** The player is pursuing a way through the scene that none of its routes covers: the co-GM reviews the turn (unless a ruling answers it). */
+  offGraph?: boolean;
+  /**
+   * The plain route was read with an attempt's confidence: it's the prep's own answer to the turn (a
+   * bribe gets haggling, trust needs no roll), so no ruling of the GM's overrides it, whatever
+   * off_graph says.
+   */
+  byPrep?: boolean;
 }
 /** landed: [] in V0 (no world clock). */
 export interface DecideRequest extends AiRequest { turn: TurnContext; landed: string[] }
@@ -130,6 +155,15 @@ export interface Outcome {
   wasStuck: boolean;
   closes?: string;
   windDown?: { exit: string };
+  /**
+   * A considered turn's ruling, as the consider commit played it (Decision.considered is the
+   * decider's read that asked for it): the ruling and its verdict, its route, how it went (with its
+   * roll, when the verdict was one), where it took the scene from and to, the ending it reached, and
+   * whether that's the player's choice.
+   */
+  ruled?: { ruling: Ruling; verdict: Verdict; route: Transition; went: "success" | "failure"; roll?: RollResult; from: string; to: string; exit?: string; chosen: boolean };
+  /** A considered turn with no ruling (the review failed, or ran past its deadline): the plain check rolled instead, and its dice line's reason. */
+  freeform?: { skill: Skill; dc: number; roll: RollResult; reason: string };
 }
 export interface ReplyRequest extends AiRequest { turn: TurnContext; decision: Decision; outcome: Outcome; stream: { turn: string } }
 export interface ReplyResponse { entries: Reply[]; gm: { offered?: string; repeated: string | null }; firstTextMs: number | null; usage: Usage }
@@ -146,9 +180,49 @@ export interface After {
   ending?: { exitId: string; probability: number };
   status?: SceneStatus;
   landed: string[]; hinted: string[]; unanswered: boolean; theirs: boolean;
+  /**
+   * The player has left the scene's place altogether: an ending of their own. Asked when the
+   * character is the rules engine's, read at 0.7 (director.ts:1280-1283, :1350).
+   */
+  left?: boolean;
 }
 /** ops: at most 16, by game key; after absent when the reply closed the scene. */
 export interface SettleResponse { ops: WorldOp[]; after?: After; usage: Usage }
+
+/**
+ * POST /v1/turns/consider (full-gm-design §4.1): the GM's ruling on an act the decider flagged
+ * (Decision.considered, or a plan off the graph), before the reply. turn: the turn's working set as
+ * the decide commit left it; read: the decider's read; pending: the ending held for the player's
+ * answer, which the decide commit took off the bookkeeping.
+ */
+export interface ConsiderRequest extends AiRequest { turn: TurnContext; read?: Decision["considered"]; pending?: GmState["pendingExit"] }
+/**
+ * The ruling, its verdict, its route, and for a no without dice the refusal it plays; or, with no
+ * ruling (the review failed, or ran past its deadline: `error`), the plain check to roll instead
+ * when the decider wanted a roll (`fallback`, with its dice line's reason). ms: how long the review
+ * took. A 200 either way.
+ */
+export interface ConsiderResponse {
+  ruling?: Ruling; verdict?: Verdict; route?: Transition; refusal?: RulingOutcome;
+  fallback?: { skill: Skill; dc: number; reason: string };
+  error?: string; ms: number; usage: Usage;
+}
+
+/**
+ * POST /v1/turns/remember (full-gm-design §4.1): the memory reviews of a turn once it's over (the
+ * attention filter, then the memories and lore agents it fires), written into the game's docs.
+ * turn: the scene up to and including the reviewed turn; reviewed: its number.
+ */
+export interface RememberRequest extends AiRequest { turn: SceneContext; reviewed: number }
+/** What the attention filter flagged, and each review it fired: what it changed, or why it failed. */
+export interface RememberResponse { flags: string[]; reviews: ReviewRecord[]; usage: Usage }
+/** A memory review's record, as v2/ai/docs/reviews.ts makes it (its shape written out here: shared imports nothing of the AI service's). */
+export interface ReviewRecord { kind: "memories" | "lore"; summary: string; changes: string[]; costUsd: number; latencyMs: number; error?: string }
+
+/** POST /v1/turns/repair (full-gm-design §4.1): the background co-GM's review of a turn once it's over. turn and reviewed as remember's. */
+export interface RepairRequest extends AiRequest { turn: SceneContext; reviewed: number }
+/** The review (its turn the one reviewed): it waits in a co_gm_result row until the next turn's start merges it. */
+export interface RepairResponse { review: RepairResult; usage: Usage }
 
 /**
  * POST /v1/turns/notes: the notes on a reply's marks, written from what the player knows, placed on

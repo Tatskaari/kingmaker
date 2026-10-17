@@ -7,6 +7,7 @@ import type { Creation } from "../../client/module_bindings/types.ts";
 import type { Proposal } from "../../shared/creation/types.ts";
 import { creationKey } from "../../shared/protocol/keys.ts";
 import type { Offer } from "../../shared/rules/types.ts";
+import { onTop } from "../dev/fake.ts";
 import type { Stack } from "../dev/stack.ts";
 import {
   aiLog, callLog, check, doneTurn, escaped, homeUntil, modelCalls, moduleLog, nextTurn, note, ok, pause, player, restartAi, seconds,
@@ -137,7 +138,7 @@ interface Timings { made: string[]; begins: number[]; checks: Array<{ what: stri
 export async function checksBesideAStream(stack: Stack, a: Player, fake: FakeOptions): Promise<void> {
   step("19. A character made and checks rolled beside another game's stream");
   // Every line tries Moll (an Insight check), and a try again counts as a new one, so each line rolls.
-  await restartAi(stack, { ...fake, streamMs: 3_000, choices: { attempt: "catch-moll", same_again: "new" } });
+  await restartAi(stack, onTop(fake, { streamMs: 3_000, choices: { attempt: "catch-moll", same_again: "new" } }));
   const logged = (await moduleLog(stack)).length;
   const c = await player(stack, "C");
 
@@ -265,7 +266,7 @@ const TABLES: Array<[table: string, column: string, by: keyof Ids]> = [
   ["creation", "game_id", "game"], ["player", "game_id", "game"], ["scene", "game_id", "game"], ["place", "game_id", "game"],
   ["seat", "player_id", "players"], ["heard", "player_id", "players"],
   ["gm_state", "scene_id", "scenes"], ["on_stage", "scene_id", "scenes"], ["reply_draft", "scene_id", "scenes"], ["turn", "scene_id", "scenes"], ["transcript", "scene_id", "scenes"],
-  ["scene_suggestion", "scene_id", "scenes"],
+  ["scene_suggestion", "scene_id", "scenes"], ["co_gm_result", "scene_id", "scenes"],
   ...["position", "area", "material", "health", "stack", "surface", "creature", "player_character", "gear", "narrative", "gm_note", "world_log", "look", "entity"]
     .map(t => [t, "place_id", "places"] as [string, string, keyof Ids]),
   ["job_dispatch", "job_id", "jobs"],

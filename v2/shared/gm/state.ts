@@ -1,11 +1,13 @@
 import type { RollResult } from "../dice.ts";
-import type { Beat, Essential, Scene, Transition } from "../scene/types.ts";
+import type { Beat, Essential, Scene, Skill, Transition } from "../scene/types.ts";
+import type { RulingRecord } from "./consider.ts";
 
 /**
  * The GM's bookkeeping for a scene: where it stands in its beats, what's been settled, the notes
- * open, the endings coming. The simulation keeps it in the private `gm_state` table, a column a
- * field, and sends it whole in every request to the AI service. The field names are the
- * prototype's (src/runtime/session.ts), so the code copied from it reads this unchanged.
+ * open, the endings coming, the co-GM's steering and the GM's rulings. The simulation keeps it in
+ * the private `gm_state` table, a column a field, and sends it whole in every request to the AI
+ * service. The field names are the prototype's (src/runtime/session.ts), so the code copied from it
+ * reads this unchanged.
  */
 export interface GmState {
   beat: string;
@@ -34,14 +36,26 @@ export interface GmState {
   pressureOffered: string[];
   /** A sentence the last reply repeated word for word: the next reply is told not to. */
   repeated?: string;
-  // Later verticals' (the co-GM, presence): always empty in V0, but read by the copied code. They
-  // have no columns yet; the vertical that writes one adds its column.
+  // The co-GM's (full-gm-design §4.2): merged from its reviews at a turn's start.
+  /** New details improvised in play that must stay true. */
   canon: string[];
+  /** The scene's prep as play has changed it: the co-GM's routes and bridging beats, the ways of trying a ruling shut. */
   patches: ScenePatch[];
+  /** The co-GM's notes to the GM: for the two replies after the turn it reviewed (notesTurn), then they lapse. */
+  notes: string | null;
+  notesTurn: number | null;
+  /** What one of the cast wants or should try next (turn: the one reviewed): for the reply after it, then it lapses. */
+  whispers: Array<{ to: string; note: string; turn: number }>;
+  /** The turn the co-GM last reviewed (its result merged): the backstop runs every third turn from it. */
+  lastRepairTurn?: number;
+  /** The last turn the player went off the graph with nothing ruled on it: the co-GM reviews it. */
+  offGraphTurn?: number;
+  /** The GM's rulings on considered acts, in the order made. */
+  rulings: RulingRecord[];
+  // Presence (V3's): always empty until then, but read by the copied code. They have no columns
+  // yet; the vertical that writes one adds its column.
   entered: string[];
   absent: string[];
-  notes: string | null;
-  whispers: Array<{ to: string; note: string; turn: number }>;
 }
 
 /**
@@ -72,13 +86,15 @@ export function initialGm(scene: Pick<Scene, "start">): GmState {
   return {
     beat: scene.start, turnsInBeat: 0, path: [], established: [], landed: [], hinted: [], opened: [],
     oocTurns: [], pressureOffered: [],
-    canon: [], patches: [], entered: [], absent: [], notes: null, whispers: [],
+    canon: [], patches: [], notes: null, notesTurn: null, whispers: [], rulings: [],
+    entered: [], absent: [],
   };
 }
 
 // ---------------------------------------------------------------------------------------------
-// The gm_state row: a column a field V0 uses (simulation/src/schema.ts). An option column is
-// undefined when empty; a roll's `critical` null is an empty option.
+// The gm_state row: a column a field (simulation/src/schema.ts), but presence's (V3's). An option
+// column is undefined when empty; a roll's `critical` null is an empty option; the patches are
+// JSON, a piece of the scene graph in the campaign format's own shape.
 
 export interface GmRow {
   sceneId: bigint;
@@ -97,10 +113,23 @@ export interface GmRow {
   oocTurns: number[];
   pressureOffered: string[];
   repeated: string | undefined;
+  canon: string[];
+  /** JSON: ScenePatch[]. */
+  patches: string;
+  notes: string | undefined;
+  notesTurn: number | undefined;
+  whispers: Array<{ to: string; note: string; turn: number }>;
+  lastRepairTurn: number | undefined;
+  offGraphTurn: number | undefined;
+  rulings: RulingRow[];
 }
 
 export interface PathRow { turn: number; from: string; to: string; via: string; roll: RollRow | undefined; source: string; known: number | undefined }
 export interface RollRow { skill: string; dc: number; die: number; modifier: number; total: number; success: boolean; critical: string | undefined; advantage: string | undefined }
+export interface RulingRow {
+  turn: number; act: string; target: string; skill: string; kind: string; dc: number | undefined; why: string; roll: RollRow | undefined;
+  went: string; changed: string; costUsd: number; latencyMs: number;
+}
 
 /** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty: it has no column to go in yet. */
 export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
@@ -117,10 +146,18 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
     sceneStatus: gm.sceneStatus,
     oocTurns: [...gm.oocTurns], pressureOffered: [...gm.pressureOffered],
     repeated: gm.repeated,
+    canon: [...gm.canon],
+    patches: JSON.stringify(gm.patches),
+    notes: gm.notes ?? undefined,
+    notesTurn: gm.notesTurn ?? undefined,
+    whispers: gm.whispers.map(({ to, note, turn }) => ({ to, note, turn })),
+    lastRepairTurn: gm.lastRepairTurn,
+    offGraphTurn: gm.offGraphTurn,
+    rulings: gm.rulings.map(rulingRowOf),
   };
 }
 
-/** A scene's bookkeeping from its row, the later verticals' fields empty. */
+/** A scene's bookkeeping from its row, presence's fields empty. */
 export function gmFromRow(row: GmRow): GmState {
   return {
     ...initialGm({ start: row.beat }),
@@ -135,12 +172,19 @@ export function gmFromRow(row: GmRow): GmState {
     ...(row.sceneStatus ? { sceneStatus: row.sceneStatus as SceneStatus } : {}),
     oocTurns: [...row.oocTurns], pressureOffered: [...row.pressureOffered],
     ...(row.repeated !== undefined ? { repeated: row.repeated } : {}),
+    canon: [...row.canon],
+    patches: row.patches ? JSON.parse(row.patches) as ScenePatch[] : [],
+    notes: row.notes ?? null,
+    notesTurn: row.notesTurn ?? null,
+    whispers: row.whispers.map(w => ({ ...w })),
+    ...(row.lastRepairTurn !== undefined ? { lastRepairTurn: row.lastRepairTurn } : {}),
+    ...(row.offGraphTurn !== undefined ? { offGraphTurn: row.offGraphTurn } : {}),
+    rulings: row.rulings.map(rulingOf),
   };
 }
 
 function refuseLaterFields(gm: GmState): void {
-  const full = Object.entries({ canon: gm.canon, patches: gm.patches, entered: gm.entered, absent: gm.absent, whispers: gm.whispers }).filter(([, v]) => v.length).map(([k]) => k);
-  if (gm.notes !== null) full.push("notes");
+  const full = Object.entries({ entered: gm.entered, absent: gm.absent }).filter(([, v]) => v.length).map(([k]) => k);
   if (full.length) throw new Error(`gm_state has no column for ${full.join(", ")} yet: the vertical that writes it adds one`);
 }
 
@@ -172,4 +216,21 @@ function rollOf(r: RollRow): RollResult {
 
 function pendingOf(p: NonNullable<GmRow["pendingExit"]>): NonNullable<GmState["pendingExit"]> {
   return { exitId: p.exitId, turn: p.turn, via: p.via, extended: p.extended, ...(p.waits !== undefined ? { waits: p.waits } : {}) };
+}
+
+function rulingRowOf(r: RulingRecord): RulingRow {
+  return {
+    turn: r.turn, act: r.act, target: r.target, skill: r.skill, kind: r.kind, dc: r.dc, why: r.why, roll: r.roll ? rollRowOf(r.roll) : undefined,
+    went: r.went, changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
+  };
+}
+
+/** A ruling as settleRuling records it (its fields in that order). */
+function rulingOf(r: RulingRow): RulingRecord {
+  return {
+    turn: r.turn, act: r.act, target: r.target, skill: r.skill as Skill, kind: r.kind as RulingRecord["kind"],
+    ...(r.dc !== undefined ? { dc: r.dc } : {}), why: r.why,
+    ...(r.roll ? { roll: rollOf(r.roll) } : {}),
+    went: r.went as RulingRecord["went"], changed: r.changed, costUsd: r.costUsd, latencyMs: r.latencyMs,
+  };
 }

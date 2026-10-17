@@ -38,6 +38,7 @@ export const TABLES: { [T in keyof Db]: TableMeta<T> } = {
   replyDraft: { primaryKey: "turnId", indexes: ["sceneId"] },
   sceneSuggestion: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
   heard: { primaryKey: "id", autoInc: true, indexes: ["playerId"] },
+  coGmResult: { primaryKey: "id", autoInc: true, indexes: ["sceneId"] },
 
   place: { primaryKey: "id", autoInc: true, indexes: ["gameId"] },
   entity: { primaryKey: "id", autoInc: true, indexes: ["placeId"], named: { byGameKey: ["gameId", "key"] } },

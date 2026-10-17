@@ -16,7 +16,8 @@ import { CREATION_STEPS, STEPS, type CreationStep, type Step } from "../../share
  * | KM_AI_GM | pipeline | canned: the thinks with no model at all |
  * | KM_AI_STREAM_MS | 200 | the stream's period |
  * | KM_AI_DAILY_USD | 5 | the daily ceiling on what the models cost, in dollars, from the ledger (0: none) |
- * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, reply, settle, notes, suggest, or a creation's offer, pick, own, draft, work, check, traits |
+ * | KM_CONSIDER_DEADLINE_MS | 12000 | how long a considered turn's review may take before the plain check is rolled instead (full-gm-design §4.1) |
+ * | KM_AI_FAULTS | none | exit-after-store:<a step, or any> (tests only): open, decide, consider, reply, settle, notes, suggest, remember, repair, or a creation's offer, pick, own, draft, work, check, traits |
  */
 export interface AiConfig {
   listen: Array<{ host: string; port: number }>;
@@ -31,8 +32,13 @@ export interface AiConfig {
   streamMs: number;
   /** The daily ceiling, in dollars (0: none). */
   dailyUsd: number;
+  /** How long a considered turn's review may take, in milliseconds. */
+  considerDeadlineMs: number;
   faults: Faults;
 }
+
+/** A considered turn's review is cut off after this (the prototype's KM_CONSIDER_DEADLINE_MS default: consider.ts:117): it usually takes 3 to 5 s, and 8 to 9 s when OpenRouter is slow. */
+export const CONSIDER_DEADLINE_MS = 12_000;
 
 /** What the tests ask the process to do wrong on purpose: exit (code 137) right after storing an answer of this step, before sending it. */
 export interface Faults { exitAfterStore?: Step | CreationStep | "any" }
@@ -52,6 +58,7 @@ export function readConfig(env: Record<string, string | undefined>): AiConfig {
     gm: oneOf("KM_AI_GM", env.KM_AI_GM || "pipeline", ["pipeline", "canned"] as const),
     streamMs: numberOf("KM_AI_STREAM_MS", env.KM_AI_STREAM_MS ?? "200"),
     dailyUsd: dollarsOf("KM_AI_DAILY_USD", env.KM_AI_DAILY_USD || "5"),
+    considerDeadlineMs: numberOf("KM_CONSIDER_DEADLINE_MS", env.KM_CONSIDER_DEADLINE_MS || String(CONSIDER_DEADLINE_MS)),
     faults: faultsOf(env.KM_AI_FAULTS),
   };
 }

@@ -15,8 +15,9 @@
  * numbered over the box, a number or a click into the box, typing puts them away, /suggestions off,
  * none for a spectator), each speaker's colour as the draft grows, and the popover's card, dropped
  * first when there's no room. Last, the screen coming up as the rows move on: a change between its
- * first render and its subscription to the model is drawn. Then V1's: the title, character
- * creation's six screens and the sheet (check/creation.tsx). (The prototype's
+ * first render and its subscription to the model is drawn. Then the full GM's: a considered turn
+ * from rows, its status line, its shut box and its dice line before the reply. Then V1's: the
+ * title, character creation's six screens and the sheet (check/creation.tsx). (The prototype's
  * src/app/smoke/screens-check.tsx, for this client.)
  *
  *   npm run screens        (node --experimental-ffi --no-warnings --import tsx client/check/screens.tsx [--show])
@@ -24,7 +25,7 @@
 import { act, useLayoutEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { ScenePlay } from "../app.tsx";
-import { GM_BUSY } from "../busy.ts";
+import { CONSIDERING, GM_BUSY } from "../busy.ts";
 import { SceneModel, SUGGESTIONS_OFF, SUGGESTIONS_ON, type SceneActions } from "../scene/model.ts";
 import { markupOf, sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView, Suggestion } from "../scene/view.ts";
@@ -639,6 +640,56 @@ for (const [what, next, shows] of comingUp) {
   const frame = setup.captureCharFrame();
   if (show) console.log(`coming up: ${what}\n${frame}`);
   checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
+  await setup.dispose();
+}
+
+// ---------------------------------------------------------------------------------------------
+// A considered turn, from rows (full-gm-design §4.3): the GM rules on a risky act no route covers
+// before the reply. The turn's considering phase puts the prototype's CONSIDERING on the status
+// line, whole, for the whole step; the box is shut, as while deciding, and a line typed waits in
+// it; the suggested lines' rows are kept while they come. Then the ruling's dice line, before the
+// reply as it's written.
+
+for (const [w, h] of [[80, 24], [120, 40]] as const) {
+  const size = `${w}x${h}`;
+  const { sent, actions } = recorder();
+  const rows = yardRows();
+  const scene = new SceneModel(sceneViewOf(rows), actions);
+  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
+  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
+  const changed = () => act(() => scene.update(sceneViewOf(rows)));
+  const entry = (n: number, speaker: string, kind: string, text: string) => { rows.transcript = [...rows.transcript, { seq: rows.transcript.length + 1, turn: n, speaker, kind, text, markup: undefined }]; };
+  const phase = (n: number, p: string) => { rows.turns = [...rows.turns.filter(t => t.n !== n), turnRow(n, p)]; };
+  await draw();
+
+  // The line said: its turn deciding, then considering.
+  entry(3, "player:1", "player", "(I try to lift the folded paper out of the boy's boot while he watches the sergeant)");
+  rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
+  phase(3, "deciding");
+  changed();
+  await draw();
+  phase(3, "considering");
+  changed();
+  let frame = await draw();
+  if (show) console.log(`${size}, considering\n${frame}`);
+  checks.push([`${size}: considering: the status line says the GM is considering the ramifications, whole`, frame.includes(CONSIDERING) && scene.busy() === CONSIDERING]);
+  checks.push([`${size}: considering: the box is shut, as while deciding, and the lines' rows are kept`, /The GM has the floor/.test(frame) && styleIn(setup, "What do you say?")?.fg === C.border && over(frame).length === (h < 26 ? 4 : 5)]);
+  await act(async () => { await setup.mockInput.typeText("Easy, lad."); });
+  await draw();
+  act(() => setup.mockInput.pressEnter());
+  frame = await draw();
+  checks.push([`${size}: considering: a line typed waits in the box, unsent`, sent.length === 0 && /Easy, lad\./.test(frame)]);
+  for (let i = 0; i < "Easy, lad.".length; i++) act(() => setup.mockInput.pressBackspace());
+
+  // The ruling rolled: its dice line in the transcript, then the reply as it's written.
+  entry(3, "dice", "roll", "Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success");
+  phase(3, "replying");
+  rows.drafts = [{ turnId: 103n, speaker: "gm", text: "Cob doesn't feel a thing.", markup: undefined, attempt: 1, seq: 1 }];
+  changed();
+  frame = await draw();
+  if (show) console.log(`${size}, the ruling's dice line\n${frame}`);
+  const talk = talkIn(frame, w - sceneSide(w));
+  checks.push([`${size}: the ruling's dice line, then the reply as it's written, the GM speaking`, talk.includes("Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success") && talk.indexOf("vs DC 12") < talk.indexOf("Cob doesn't feel a thing.") && /The GM is speaking…/.test(frame) && !frame.includes(CONSIDERING)]);
   await setup.dispose();
 }
 

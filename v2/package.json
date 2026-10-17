@@ -20,6 +20,7 @@
     "campaign": "node --no-warnings --import tsx hosts/campaign.ts",
     "install-campaign": "node --no-warnings --import tsx hosts/install.ts",
     "play": "node --no-warnings --import tsx hosts/play.ts",
+    "status": "node --no-warnings --import tsx hosts/status.ts",
     "e2e": "node --no-warnings --import tsx hosts/e2e.ts",
     "arc": "node --no-warnings --import tsx hosts/arc.ts",
     "live": "node --no-warnings --import tsx hosts/live-run.ts",
