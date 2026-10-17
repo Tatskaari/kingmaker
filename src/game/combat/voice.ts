@@ -10,7 +10,7 @@ import { health } from "./rules.ts";
 import type { Reading } from "./typed.ts";
 
 /**
- * The GM's line on a typed turn in a fight (prompts/fight.md, in the house voice): the answer of
+ * The GM's line on a typed turn in a fight (v2/ai/prompts/fight.md, in the house voice): the answer of
  * whoever the player spoke to, or the GM dressing what the rules just did. The rules have decided
  * everything already; the line only says it. It's given the whole fight (everyone, where, how
  * they are, who they are), what was typed and what the rules made of it, and it streams.

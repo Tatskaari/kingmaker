@@ -172,7 +172,7 @@ export class Game {
 
   /**
    * A new game: the player ("Name: concept"), their build (character creation's choice, made legal:
-   * src/rules/builds.ts; or none, and the model chooses one for the concept), their backstory (src/lore/backstory.ts),
+   * src/rules/builds.ts; or none, and the model chooses one for the concept), their backstory (v2/ai/docs/backstory.ts),
    * and the explorer and fights it's played with.
    */
   static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; build?: Partial<Build>; backstory?: Backstory; explorer: Explorer; fights: FightFactory; hub?: string }): Promise<Game> {

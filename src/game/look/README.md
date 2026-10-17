@@ -62,7 +62,7 @@ flowchart LR
   mapface --> appearance["appearance.ts: lookOf"]
   stage --> appearance
   appearance --> roles["names.ts, roles.ts,<br/>kingmaker.ts, people.ts"]
-  appearance --> invent["invent.ts"] --> model["Luna (src/llm/openrouter.ts)"]
+  appearance --> invent["invent.ts"] --> model["Luna (v2/ai/llm/openrouter.ts)"]
   app["src/app/game.ts"] -->|"an Effects and a Director<br/>per scene, the town, a wing"| director["director.ts, effects.ts"]
   zoo["src/game/zoo/look.ts"] --> director
 ```
@@ -76,7 +76,7 @@ What calls it:
 - **src/game/zoo** plays its exhibits' news through the director (`playNews` in zoo/look.ts), and writes its dressings into `DRESSINGS`.
 - **src/game/map/generate** asks `inventNow` about a generated place's things, and makes its own dressing.
 
-It calls src/world/scene-world.ts (entities and positions), `CAST` in src/game/map/looks.ts, the model through src/llm/openrouter.ts (invent.ts only), and OpenTUI (opentui.ts, and the gallery and the glyph check).
+It calls src/world/scene-world.ts (entities and positions), `CAST` in src/game/map/looks.ts, the model through v2/ai/llm/openrouter.ts (invent.ts only), and OpenTUI (opentui.ts, and the gallery and the glyph check).
 
 ## How it works
 

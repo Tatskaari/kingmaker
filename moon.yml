@@ -3,13 +3,13 @@
 toolchains:
   default: node
 fileGroups:
-  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'prompts/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+  sources: ['src/**/*', 'scenes/**/*', 'lore/**/*', 'v2/ai/**/*', 'assets/**/*', 'evals/**/*', 'vendor/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
 tasks:
   typecheck:
     command: npx --no-install tsc --noEmit -p .
     inputs: ['@group(sources)']
   test:
-    command: node --no-warnings --test 'src/**/*.test.ts'
+    command: node --no-warnings --test 'src/**/*.test.ts' 'v2/ai/**/*.test.ts'
     inputs: ['@group(sources)']
   # The map, the fight, the sheet, the title and the End drawn by the real screens, offline (src/app/README.md).
   screens:

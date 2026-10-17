@@ -107,7 +107,7 @@ The other sources say the same at different sizes:
 - **A physical habit** done every few replies. Kell watches hands and taps her pencil. Saul answers for his dog.
 - **A form of address.** Kell says "investigator", Sallow says "Clerk" and "Sergeant", Nan says "my duck". It can double as a display of the relationship: Kim Kitsuragi calls Harry "'officer' when he is angry with Harry, and 'detective' when he is not" ([Kim Kitsuragi, wiki.gg](https://discoelysium.wiki.gg/wiki/Kim_Kitsuragi)).
 - **A sample line that does the whole character.** Sallow: "I never threaten anyone. I describe what will happen, in order."
-- **The thing they take entirely seriously.** This is the engine of the house style ("People take themselves, their jobs, their customs and their troubles entirely seriously", [tone-comic.md](../../prompts/tone-comic.md)). Examples: Nan's rules, Tull's written orders, Kell's notebook, Sallow's paper.
+- **The thing they take entirely seriously.** This is the engine of the house style ("People take themselves, their jobs, their customs and their troubles entirely seriously", [tone-comic.md](../../v2/ai/prompts/tone-comic.md)). Examples: Nan's rules, Tull's written orders, Kell's notebook, Sallow's paper.
 - **An entrance that shows them in action.** Weiland calls this the characteristic moment, "his first chance to impress your readers" ([Character Arcs, Pt. 5](https://www.helpingwritersbecomeauthors.com/character-arcs-5/)). Examples: Cob stoning a hanged man he liked; Moll swearing from a wall in two languages.
 - **Detail scaled to the role.** Not everyone needs a lore folder. Everyone who recurs does.
 
@@ -257,7 +257,7 @@ The sources agree that characters grow from play, not from prep:
 - Memories record events.
 - The improvised-detail reviewer writes new facts into the lore.
 
-What's missing is the *reflection*. When a relationship changes, the change should reach `knowledge/<Other>.md`, so that the next scene opens the relationship as it now stands, not a log of events ([prompts/review/relationship.md](../../prompts/review/relationship.md) currently only saves memories).
+What's missing is the *reflection*. When a relationship changes, the change should reach `knowledge/<Other>.md`, so that the next scene opens the relationship as it now stands, not a log of events ([v2/ai/prompts/review/relationship.md](../../v2/ai/prompts/review/relationship.md) currently only saves memories).
 
 ---
 
@@ -279,7 +279,7 @@ What's missing is the *reflection*. When a relationship changes, the change shou
 | Relationships | Ties to others present, a phrase each, where they matter here | `knowledge/<Other>.md` for each person who matters |
 
 Rules:
-- **The card stands alone.** `v2-nomemory`, and any approach without `memory`, sees only the card. Under `v2`, the GM also gets each present character's `private.md` under "Who these people are (their lore)", and their opened knowledge docs and memories under "What people remember" ([src/lore/disclosure.ts](../../src/lore/disclosure.ts)).
+- **The card stands alone.** `v2-nomemory`, and any approach without `memory`, sees only the card. Under `v2`, the GM also gets each present character's `private.md` under "Who these people are (their lore)", and their opened knowledge docs and memories under "What people remember" ([v2/ai/docs/disclosure.ts](../../v2/ai/docs/disclosure.ts)).
 - **The card says what's different about this scene; the lore holds the constants.** They must not disagree. What happened in play (the hand-off, memories) outranks both, as the brief already says.
 - **Recurring characters' cards are neutral to earlier outcomes.** This is current practice, and worth keeping.
 
@@ -914,4 +914,4 @@ These are small, optional changes; none is needed to use the template.
 **Ours**
 - [pacing.md](pacing.md), [pacing-failures.md](pacing-failures.md), [gm-techniques.md](gm-techniques.md), [dc-guidance.md](dc-guidance.md), [scene-sources.md](scene-sources.md)
 - [experiments/absurdity.md](../experiments/absurdity.md), [FINDINGS.md](../FINDINGS.md)
-- [prompts/tone-comic.md](../../prompts/tone-comic.md), [prompts/gm.md](../../prompts/gm.md)
+- [v2/ai/prompts/tone-comic.md](../../v2/ai/prompts/tone-comic.md), [v2/ai/prompts/gm.md](../../v2/ai/prompts/gm.md)

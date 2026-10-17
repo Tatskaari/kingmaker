@@ -8,7 +8,7 @@ import {
 // The static build's file system (src/web/README.md): the content read-only, runs/ writable and
 // journalled for IndexedDB. One file system for the whole process, so each test has paths of its own.
 
-mountReadOnly({ "lore/places/caerwyn.md": "# Caerwyn\n", "prompts/gm.md": "You are the GM." });
+mountReadOnly({ "lore/places/caerwyn.md": "# Caerwyn\n", "v2/ai/prompts/gm.md": "You are the GM." });
 
 const code = (fn: () => unknown) => {
   try { fn(); } catch (error) { return (error as { code?: string }).code; }
@@ -17,13 +17,13 @@ const code = (fn: () => unknown) => {
 
 test("the content reads as files and directories, relative to the repo, and can't be changed", () => {
   assert.equal(readFileSync("lore/places/caerwyn.md", "utf8"), "# Caerwyn\n");
-  assert.equal(readFileSync(new URL("file:///kingmaker/prompts/gm.md"), "utf8"), "You are the GM.");
+  assert.equal(readFileSync(new URL("file:///kingmaker/v2/ai/prompts/gm.md"), "utf8"), "You are the GM.");
   assert.deepEqual(readdirSync("/kingmaker/lore"), ["places"]);
   assert.ok(statSync("/kingmaker/lore")!.isDirectory());
   assert.equal(code(() => writeFileSync("/kingmaker/lore/places/caerwyn.md", "changed")), "EROFS");
   assert.equal(code(() => writeFileSync("/kingmaker/lore/new.md", "new")), "EROFS");
   assert.equal(code(() => mkdirSync("/kingmaker/src")), "EROFS");
-  assert.equal(code(() => rmSync("/kingmaker/prompts/gm.md")), "EROFS");
+  assert.equal(code(() => rmSync("/kingmaker/v2/ai/prompts/gm.md")), "EROFS");
   assert.equal(code(() => readFileSync("/kingmaker/lore/nowhere.md")), "ENOENT");
   assert.equal(code(() => readFileSync("/kingmaker/lore")), "EISDIR");
   // Nothing outside runs/ is journalled.

@@ -43,7 +43,7 @@ flowchart LR
 ```
 
 - **qa.ts** creates or loads a `Game` with the town's explorer and `mapFights()` (qa.ts:79, qa.ts:85), or a zoo visit (`newZoo`, `loadZoo` from src/game/zoo/game.ts). It uses `observe`, `act`, `say` and `endScene`, the same calls and action ids the app makes. `qa map` prints `townText` (src/game/views.ts) and the scene's world from above (`asciiMap`).
-- **scene.ts** calls the runtime directly: `createSession`, `openScene`, `playerTurn` (streaming through `TurnHooks` on a terminal) and `chainScene`. `world` runs the scribe (src/world/scribe.ts) on the snapshot each finished scene ended on. `sheet` is the rules' `sheetText`, `memories` lists the docs service's per-session overlay (src/lore/docs.ts).
+- **scene.ts** calls the runtime directly: `createSession`, `openScene`, `playerTurn` (streaming through `TurnHooks` on a terminal) and `chainScene`. `world` runs the scribe (src/world/scribe.ts) on the snapshot each finished scene ended on. `sheet` is the rules' `sheetText`, `memories` lists the docs service's per-session overlay (v2/ai/docs/docs.ts).
 - **Who starts scene.ts besides a person:** `src/runtime/background.ts:25` spawns it for `remember` and `repair` after every turn of the terminal game, the server build's game and the QA console. In the static build there are no processes, so the worker runs the same jobs in-process (`setBackgroundRunner`, src/web/static/game.tsx). `evals/world/play.ts` drives `scene say` as separate processes with a stage-manager trace preloaded.
 
 ## How it works

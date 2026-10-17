@@ -2,7 +2,7 @@ import { apiKey, fetchWithRetry, logCall, recordCost, LUNA, type Effort, type Me
 import type { ToolCall, ToolDef } from "../../src/llm/tools.ts";
 
 /**
- * src/llm/tools.ts's runTools, counting model rounds and their latency (the eval needs both: a
+ * v2/ai/llm/tools.ts's runTools, counting model rounds and their latency (the eval needs both: a
  * tool loop's latency is its rounds, end to end). Same request shape, same replay of output items.
  */
 export async function runToolsCounted(request: {

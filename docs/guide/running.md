@@ -26,7 +26,7 @@ The 5-second budget applies to the reply that resolves the player's turn. Everyt
 
 ## The GM's principles
 
-These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a playtest showed it was needed.
+These are in [v2/ai/prompts/gm.md](../../v2/ai/prompts/gm.md); each one exists because a playtest showed it was needed.
 
 - **The player's ideas are the best material.** Look for the version of an unexpected idea that works in this world, and let the world respond honestly.
 - **People are people.** They have their own wants, fears and secrets, and only know what they could know: what they've seen, been there for or been told in their hearing. The story so far (every scene's hand-off, in the GM's prep) is the GM's knowledge, not everyone's: nobody asks about or guesses at what they haven't heard of. *(Brother Ambrose's King asked after a barge nobody had told him of.)*
@@ -45,7 +45,7 @@ These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a pla
 
 ## The comic house style
 
-The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the experiment is [experiments/absurdity.md](../experiments/absurdity.md).
+The full text is in [v2/ai/prompts/tone-comic.md](../../v2/ai/prompts/tone-comic.md); the experiment is [experiments/absurdity.md](../experiments/absurdity.md).
 
 - **The world plays it straight, and that's where the comedy comes from.**
 - **People deal with daft ideas on their own terms.** They believe them, dispute them, cite their own rules against them, take offence or see an opportunity. They never step outside the story to grade the joke.
@@ -138,7 +138,7 @@ Talking to someone who walks with the player on the map (Kell, after the granary
 
 ## Suggested lines
 
-What a player might say or do next, offered after every GM reply as a cRPG offers its dialogue choices ([src/runtime/suggest.ts](../../src/runtime/suggest.ts), [prompts/suggest.md](../../prompts/suggest.md)). Free typing stays first: a suggested line goes in the box, to send as it is or change, and typing anything puts the lines away. The game's setting turns them off.
+What a player might say or do next, offered after every GM reply as a cRPG offers its dialogue choices ([src/runtime/suggest.ts](../../src/runtime/suggest.ts), [v2/ai/prompts/suggest.md](../../v2/ai/prompts/suggest.md)). Free typing stays first: a suggested line goes in the box, to send as it is or change, and typing anything puts the lines away. The game's setting turns them off.
 
 - **A mix.** Something to say, a deed in brackets, a risky try and, once the scene is near an ending, a way out. A risky try is worded the way the decider reads an attempt ("(I try to talk the boy round with a pie)": what, how, what for), so choosing it gets the scene's roll, or a freeform one, as typing it would.
 - **The question, never the answer.** The call is given what the player knows and nothing more: who they are and what they carry, what they came in knowing, and the scene as they've seen it (who's here that it has shown them, by the names they've heard, what's come out in words they've met, the last few exchanges). None of the GM's prep: given it to choose threads by, the lines gave its answers away (Hobb's mother, the Heron's river door, the dog's name) before the story did. So a line asks after what's hidden ("Is there anyone he's afraid for?") and never names it. The GM is still given every fact.

@@ -412,7 +412,7 @@ Practitioner consensus is similar ([HN thread](https://news.ycombinator.com/item
 
 ### 4.3 Example requests (taken from the documented schemas; not executed)
 
-OpenRouter. This should be a drop-in replacement for the Jev path in `src/llm/decide.ts`:
+OpenRouter. This should be a drop-in replacement for the Jev path in `v2/ai/llm/decide.ts`:
 
 ```bash
 curl https://openrouter.ai/api/alpha/decisions \

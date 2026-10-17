@@ -1,6 +1,6 @@
 # Kingmaker V2: architecture
 
-The entry point for reviewing this repo. It says what the parts are, how they connect, where state lives and how to check a change, and it links to each part's own doc for the detail. It describes the code as it is (PR #650's head; written at f5c6549 and kept up since). Its links to lines move with the code: `npm run docs:anchors` after a merge (src/cli/doc-anchors.ts). Where it's going is in [docs/design/productionise.md](docs/design/productionise.md).
+The entry point for reviewing this repo. It says what the parts are, how they connect, where state lives and how to check a change, and it links to each part's own doc for the detail. It describes the code as it is (PR #650's head; written at f5c6549 and kept up since). Its links to lines move with the code: `npm run docs:anchors` after a merge (src/cli/doc-anchors.ts). Where it's going is in [docs/design/productionise.md](docs/design/productionise.md), and in the production build, [v2](v2/README.md), whose first part this prototype already runs: the AI API's model client, prompts and docs service, in [v2/ai](v2/ai/README.md).
 
 ## What the game is
 
@@ -27,11 +27,15 @@ flowchart TB
 
   rules["src/rules<br/>D&D 5.5e"]
   world["src/world<br/>the scene world"]
-  lsvc["src/lore<br/>docs and memory"]
-  llm["src/llm<br/>model calls"]
+  lsvc["src/lore<br/>the docs service's adapters"]
+
+  subgraph v2ai ["v2/ai: shared with v2"]
+    dsvc["v2/ai/docs<br/>docs and memory"]
+    llm["v2/ai/llm<br/>model calls"]
+    prompts[("v2/ai/prompts")]
+  end
 
   vendor[("vendor/<br/>rules engine, SRD text")]
-  prompts[("prompts/")]
   lore[("lore/")]
   openrouter(["OpenRouter"])
 
@@ -61,25 +65,27 @@ flowchart TB
   runtime --> llm
   rules --> llm
   world --> llm
-  lsvc --> llm
+  lsvc --> dsvc
+  dsvc --> llm
   rules --> vendor
   runtime --> prompts
-  lsvc --> lore
+  dsvc --> prompts
+  dsvc --> lore
   llm --> openrouter
   runtime -.->|"starts, after each turn"| jobs
 ```
 
-An arrow points from the code that imports to the code it imports, and a label, where there is one, says what for. A two-headed arrow joins two components that import each other. The cylinders are files the code reads at run time; from vendor/, src/rules also imports the engine's bundled build. The dashed arrow is a process: after each turn the runtime starts `node src/cli/scene.ts remember` and `repair` (in the browser, the worker runs the same jobs).
+An arrow points from the code that imports to the code it imports, and a label, where there is one, says what for. A two-headed arrow joins two components that import each other. The cylinders are files the code reads at run time; from vendor/, src/rules also imports the engine's bundled build. The box is v2/ai: the code of the production build's AI API that exists so far, which this prototype runs as its own. The prototype imports it at its old paths, src/llm and src/lore, through shims and adapters (the arrows into llm go through src/llm's shims), and nothing in it imports the prototype. The dashed arrow is a process: after each turn the runtime starts `node src/cli/scene.ts remember` and `repair` (in the browser, the worker runs the same jobs).
 
 The arrows drawn are the main ones. Every import between components that the game or the evals make at run time goes down these layers, or both ways along a two-headed arrow:
 
 1. the ways in: src/web, src/cli and the evals; then src/app;
 2. the game: src/game/zoo; then src/game and src/game/combat; then src/game/map and src/game/look;
 3. the scenes: src/runtime and scenes/;
-4. the services: src/rules; then src/world and src/lore;
-5. src/llm, and the content.
+4. the services: src/rules; then src/world and src/lore (the docs service's adapters); then src/llm (the model client's shims);
+5. v2/ai: the docs service, then the model client and the prompts; and the content.
 
-Imports of types only, and imports that only tests and dev tools make, are left out of the diagram and of that rule, and some of them go up: the map and the look import `src/game/types.ts`, and the rules' tests import combat's `pregen.ts`. This was checked against every import in the code at f5c6549, and src/game/combat's again when fights took typed lines (it calls src/llm now, for the decider and the GM's line); the collapsed table at the end of this section lists them all.
+Imports of types only, and imports that only tests and dev tools make, are left out of the diagram and of that rule, and some of them go up: the map and the look import `src/game/types.ts`, and the rules' tests and src/lore's backstory test import combat's `pregen.ts`. This was checked against every import in the code at f5c6549, src/game/combat's again when fights took typed lines (it calls src/llm now, for the decider and the GM's line), and src/llm's, src/lore's and v2/ai's when the AI API's parts moved to v2/ai; the collapsed table at the end of this section lists them all.
 
 ### The components
 
@@ -97,12 +103,13 @@ Imports of types only, and imports that only tests and dev tools make, are left 
 | The zoo | `src/game/zoo` | Every feature laid out on maps of its own (10 maps, 146 exhibits), and a headless tour that sets each one off and checks what the view played. | [src/game/zoo](src/game/zoo/README.md) |
 | The scene runtime | `src/runtime` | A player's line in, the GM's reply out: the director and its decider, the voices, the co-GM, scene boundaries, companion talks, the suggested lines, the GM's markup and its notes, and the background jobs. It owns the session's state. | [src/runtime](src/runtime/README.md) |
 | The scenes | `scenes/` | GM prep as TypeScript data: the cast, the beats and the routes between them, the exits with their scripts, and the places as worlds. | [scenes](scenes/README.md) |
-| The docs service | `src/lore` | The lore as linked documents with a copy for each game, who may read what, what the GM is shown each turn, the memory reviews, and the fronts. | [src/lore](src/lore/README.md) |
+| The docs service | `v2/ai/docs`, through adapters in `src/lore` | The lore as linked documents with a copy for each game, who may read what, what the GM is shown each turn, the memory reviews, and the fronts. It's handed a view of the game's working set, which the adapters make from the session. | [v2/ai/docs](v2/ai/docs/README.md) |
 | The scene world | `src/world` | A scene's place as an entity tree in feet, its physics (fire, water, spills, breaking), the stage manager that keeps it in step with the story, and the exit scripts' API. | [src/world](src/world/README.md) |
 | The rules | `src/rules` | D&D 5.5e (SRD 5.2.1) on the vendored engine: the character, checks, spells, blows, rests, and what the character can do out of a fight. | [src/rules](src/rules/README.md) |
-| Model calls | `src/llm` | OpenRouter's Responses and Decisions APIs: streaming, retries, the deciders, the tool loop, the call log and the cost ledger. | [src/llm](src/llm/README.md) |
+| Model calls | `v2/ai/llm`, through shims in `src/llm` | OpenRouter's Responses and Decisions APIs: streaming, retries, the deciders, the tool loop, the call log and the cost ledger. | [v2/ai/llm](v2/ai/llm/README.md) |
 | The lore | `lore/` | Caerwyn and its people in 154 Markdown docs, each with frontmatter that says who may read it. | [lore](lore/README.md) |
-| The prompts | `prompts/` | The models' standing instructions, one Markdown file each. | [prompts](prompts/README.md) |
+| The prompts | `v2/ai/prompts` | The models' standing instructions, one Markdown file each, and their loader (src/runtime/brief.ts re-exports it). | [v2/ai/prompts](v2/ai/prompts/README.md) |
+| The AI API, as far as it's built | `v2/ai` | The production build's AI API: so far the docs service, the model calls and the prompts above, one copy that this prototype and v2 share. It imports nothing outside itself. | [v2/ai](v2/ai/README.md) |
 | The rules engine | `vendor/dnd-srd-engine` | dnd-srd-engine's bundled build, its starter pack, our typings and our patches. | [vendor/dnd-srd-engine](vendor/dnd-srd-engine/README.md) |
 | The SRD's spell text | `vendor/srd-spells` | Every spell's description in the SRD's own words, for the sheet. | [vendor/srd-spells](vendor/srd-spells/README.md) |
 | The glyph font | `tools/glyphs`, `assets/` | Kingmaker Glyphs, our font of pixel-art sprites, built from hand-drawn bitmaps. | [tools/glyphs](tools/glyphs/README.md) |
@@ -115,13 +122,14 @@ How to write scenes, why the runtime does what it does, and how to test it are i
 - **One UI, three hosts.** src/app runs in a terminal, under a pty per browser tab in the server build, or in a Web Worker in the static build. What reaches a browser page is the terminal's bytes, never the game's data ([the three ways to play](#the-three-ways-to-play)).
 - **Play goes through the core.** The app, the QA console, the zoo's tour and the smoke tests play the same `Game` ([src/game/play.ts](src/game/play.ts)) by the same action ids, or say a line in a scene or a fight. The scene harness and the evals call the runtime directly, with no map and no fights. The app also reaches into the core's state, session and world as it draws; the QA console plays only through the core's calls, and reads its state for commands such as `qa map` and `qa sheet`.
 - **Three ways into the rules.** In a scene, the runtime's decider picks a mechanic and src/rules resolves it on the scene's world. On the map, the action menu ([src/game/menu.ts](src/game/menu.ts)) calls the same functions on a world rebuilt from the map for each act. In a fight, src/game/combat drives the same engine through a bridge of its own, and a typed line is read onto the fight's own action ids (src/game/combat/typed.ts), not the scene's mechanics. Fire, damage and breaking are coded separately for each ([the table](src/game/README.md#the-same-rule-coded-more-than-once)).
-- **The runtime has a shared kernel.** src/lore, src/world, src/rules and scenes/ import parts of the runtime: its types ([scene.ts](src/runtime/scene.ts), [session.ts](src/runtime/session.ts)), the dice ([dice.ts](src/runtime/dice.ts)), the session's folder (`sessionDir`), and [brief.ts](src/runtime/brief.ts) for the prompt loader, who's present, the transcript and `withImprovisedEnding`. The runtime imports each of them in turn, which is why those arrows have two heads.
+- **The runtime has a shared kernel.** src/lore's adapters, src/world, src/rules and scenes/ import parts of the runtime: its types ([scene.ts](src/runtime/scene.ts), [session.ts](src/runtime/session.ts)), the dice ([dice.ts](src/runtime/dice.ts)), the session's folder (`sessionDir`), and [brief.ts](src/runtime/brief.ts) for who's present, the transcript, `withImprovisedEnding` and the prompt loader (v2/ai/prompts', which brief.ts re-exports). The runtime imports each of them in turn, which is why those arrows have two heads.
+- **The AI API's parts are shared with v2.** The model client, the prompts and the docs service are in [v2/ai](v2/ai/README.md), one copy for both builds, and import nothing of the prototype's. The prototype's imports didn't change: src/llm's files are one-line shims, and src/lore's re-export the docs service or, for disclosure and the reviews, adapt it, with the same names and signatures. The adapters make a view of the game's working set from the scene and the session ([src/lore/view.ts](src/lore/view.ts)) and call v2/ai/docs with it.
 - **The background jobs are processes.** `afterTurn` ([src/runtime/background.ts:37](src/runtime/background.ts#L37)) starts the scene harness's `remember` and `repair` commands, detached. The server build finds them by a tag and gives them up to 3 minutes after a game ends; the static build runs the same functions in its worker. The scene harness has its own copy of the rule that starts them ([src/cli/scene.ts:77](src/cli/scene.ts#L77)).
 - **Exit scripts are recorded, not applied.** A scene's exit script runs against a recording world. The game reads back only `startCombat` (who a fight sets out) and `journal` (the notebook); a script's flags, quests and items change nothing in play.
 - **Some state is global, and set at import.** Importing the zoo installs its ten maps in the map module's tables, and the app and the QA console both import it. [src/rules/actions.ts](src/rules/actions.ts), [src/game/menu.ts](src/game/menu.ts), [src/game/combat/fights.ts](src/game/combat/fights.ts) and [src/game/zoo/fights.ts](src/game/zoo/fights.ts) load the rules engine at import (about 70 ms, once per process).
 
 <details>
-<summary>Every import between components, at f5c6549 (src/game/combat's and character creation's since)</summary>
+<summary>Every import between components, at f5c6549 (src/game/combat's, character creation's and v2/ai's since)</summary>
 
 | Component | Imports at run time | Types only | Only in tests and dev tools |
 |---|---|---|---|
@@ -134,14 +142,16 @@ How to write scenes, why the runtime does what it does, and how to test it are i
 | src/game/combat | src/game, src/runtime, scenes/, src/rules, src/world, src/llm | vendor/dnd-srd-engine | |
 | src/game/map, with generate/ | src/game/look, scenes/, src/world, src/llm | src/game | |
 | src/game/look | src/game/map, src/runtime, scenes/, src/world, src/llm | src/game | src/app, src/game/combat |
-| src/runtime | scenes/, src/rules, src/world, src/lore, src/llm | | |
+| src/runtime | scenes/, src/rules, src/world, src/lore, src/llm, v2/ai/prompts | | |
 | scenes/ | src/runtime, src/lore | src/world | |
 | src/rules | src/runtime, src/world, src/llm, vendor/dnd-srd-engine | | src/game/combat, scenes/ |
 | src/world | src/runtime, src/llm | | scenes/ |
-| src/lore | src/runtime, src/llm | | |
-| src/llm | nothing | | |
+| src/lore | src/runtime, v2/ai/docs | src/llm | src/game/combat, scenes/, src/rules |
+| src/llm | v2/ai/llm | | |
+| v2/ai/docs | v2/ai/llm, v2/ai/prompts | | |
+| v2/ai/llm, v2/ai/prompts | nothing | | |
 
-"At run time" means imported, as values, by a file that one of the game's processes or the evals load. Two of these come in by a side door: src/game/map imports src/llm only in generate/ (the zoo's chandlery wing loads it), and src/game/look imports scenes/ only because its index.ts re-exports the gallery's vignettes, and src/runtime only for speakers.ts (who says a quoted line: the barks and the transcript's colours share it). Besides imports, the runtime reads prompts/, src/lore reads lore/, src/rules reads the engine's starter pack and the SRD's text, and the static build bundles all four.
+"At run time" means imported, as values, by a file that one of the game's processes or the evals load. Two of these come in by a side door: src/game/map imports src/llm only in generate/ (the zoo's chandlery wing loads it), and src/game/look imports scenes/ only because its index.ts re-exports the gallery's vignettes, and src/runtime only for speakers.ts (who says a quoted line: the barks and the transcript's colours share it). Besides imports, v2/ai/prompts' loader reads the prompts beside it, v2/ai/docs reads lore/, src/rules reads the engine's starter pack and the SRD's text, and the static build bundles all four.
 
 </details>
 
@@ -155,9 +165,9 @@ sequenceDiagram
   participant App as src/app
   participant Core as src/game
   participant RT as src/runtime
-  participant Lore as src/lore
+  participant Lore as v2/ai/docs
   participant RW as src/rules, src/world
-  participant LLM as src/llm
+  participant LLM as v2/ai/llm
   participant Disk as the game's folder
   participant Jobs as background jobs
 
@@ -227,10 +237,10 @@ Each game is two mutable JSON documents, the session (`state.json`) and the game
 | `game.json` | The game, `GameState` ([src/game/play.ts:44](src/game/play.ts#L44)): the mode, the story (time of day, scenes played, the lead, flags), the map's `ExploreState`, and a fight in progress | `Game.save`, after every act and line | `Game.load` |
 | `app.json` | The notebook and the latest messages | [src/app/save.ts](src/app/save.ts) | the app |
 | `snapshots/<scene>-turn-NNN.json` | The session after each turn | `snapshotSession` | the memory job; eval fixtures (copied into `evals/fixtures/`); the world eval (the scenes that ended); the End's chapters |
-| `docs/` | This game's copy of the lore: memories, the story so far, the fronts as they've moved, the review agents' edits | `writeDoc` in [src/lore/docs.ts](src/lore/docs.ts) | `readDoc`, which tries this copy first, then `lore/` |
+| `docs/` | This game's copy of the lore: memories, the story so far, the fronts as they've moved, the review agents' edits | `writeDoc` in [v2/ai/docs/docs.ts](v2/ai/docs/docs.ts) | `readDoc`, which tries this copy first, then `lore/` |
 | `repair-NNN.json`, `repair.lock` | The co-GM's notes and patches | the co-GM's job, or a quick co-GM that missed its deadline | `applyPendingRepairs`, at the start of the next turn |
 | `remember-N.lock`, `memory-reviews.jsonl` | A memory review in progress; what each review changed | `afterTurn`; the memory job | people reading a run |
-| `calls.jsonl` | Every model call: the whole prompt, the answer, the latency and the cost | src/llm, once the caller points the log here | people reading a run |
+| `calls.jsonl` | Every model call: the whole prompt, the answer, the latency and the cost | v2/ai/llm, once the caller points the log here | people reading a run |
 | `world-<scene>.ts` | The scribe's world-update script for a finished scene | `npm run scene -- world` | people reading a run (the world eval runs the scribe again on the snapshots) |
 
 Outside a game's folder: `runs/cost-ledger.jsonl` (a line for every call on the machine), `runs/look-cache.json` (the model's looks for names the look layer doesn't know), `runs/deleted/` (games deleted from the title), and what the checks and evals write (such as `runs/evals/`, `runs/zoo-tour/`, `runs/app-smoke/`, `runs/web/`, `runs/web-static/` and `dist/web`). The ledger and the look cache are relative to the working directory, and `KM_COST_LEDGER` and `KM_LOOK_CACHE` move them. In the static build `runs/` is in the worker's memory, written through to IndexedDB, and the key is in localStorage.
@@ -248,7 +258,7 @@ What only the GM should know (the beat and the path, the co-GM's notes and patch
 
 ### Lore and memory
 
-The authored lore in `lore/` is never written in play. Each game writes to its own copy in `docs/`, and every read tries that copy first. A person's memories are notes under `Cast/<Name>/memories/`, private to them; the story so far and the fronts are the GM's. Each turn, disclosure picks which notes the GM sees for each person present. How it's done is in [src/lore/README.md](src/lore/README.md), and the docs' format in [lore/README.md](lore/README.md).
+The authored lore in `lore/` is never written in play. Each game writes to its own copy in `docs/`, and every read tries that copy first. A person's memories are notes under `Cast/<Name>/memories/`, private to them; the story so far and the fronts are the GM's. Each turn, disclosure picks which notes the GM sees for each person present. How it's done is in [v2/ai/docs/README.md](v2/ai/docs/README.md), and the docs' format in [lore/README.md](lore/README.md).
 
 ### The worlds
 
@@ -285,7 +295,7 @@ How the content gets to the game:
 | Content | The terminal and the server build | The static build |
 |---|---|---|
 | The code, scenes/ included | Node runs the TypeScript as it is (tsx for the TSX) | bundled by esbuild into `worker.js` and its chunks ([src/web/static/build.ts](src/web/static/build.ts)), with OpenTUI and the `node:` modules swapped for the stand-ins |
-| `lore/` and `prompts/` | read from the repo with `node:fs` | in `content.json`, mounted read-only on the worker's in-memory file system |
+| `lore/` and `v2/ai/prompts/` | read from the repo with `node:fs` | in `content.json`, mounted read-only on the worker's in-memory file system |
 | The engine's starter pack, the SRD's spell text | read from `vendor/` | in `content.json` |
 | The glyph font | installed for the user (`npm run glyphs`); the server serves it from `assets/fonts` | copied into `fonts/` |
 
@@ -301,7 +311,7 @@ Offline, with no key:
 |---|---|---|---|
 | The typecheck, the unit tests and the screens check | `npm run check` | about 20 s | yes |
 | The typecheck alone | `npm run typecheck` | under 1 s | yes |
-| The unit tests alone (595) | `npm test`, or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
+| The unit tests alone (601) | `npm test` (src's and v2/ai's), or one component's with `node --no-warnings --test src/<dir>/*.test.ts` | about 20 s | yes |
 | The screens check: the app's screens at 80x24 and up | `KM_RUNS_DIR=runs/check OPENROUTER_API_KEY=offline node --experimental-ffi --no-warnings --import tsx src/app/smoke/screens-check.tsx` | 10 s | yes |
 | The static build | `npm run build:web` | under 1 s | yes |
 | The arc through the core, without a UI | `KM_RUNS_DIR=runs/app-test OPENROUTER_API_KEY=offline node --no-warnings src/app/smoke/flow.ts` | about 4 s | no |
@@ -330,7 +340,7 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 
 ### What CI gates
 
-- **[check.yml](.github/workflows/check.yml)** runs `moon ci workspace:check workspace:build` on every PR and every push to main: the typecheck, `npm test`, the screens check and the static build. Moon runs only the affected tasks, and every task's inputs are the whole of src/, scenes/, lore/, prompts/, assets/, evals/ and vendor/ with the package and tsconfig files ([moon.yml](moon.yml)). So a change to any of those runs everything, and a change only to docs/ or the root's Markdown runs nothing.
+- **[check.yml](.github/workflows/check.yml)** runs `moon ci workspace:check workspace:build` on every PR and every push to main: the typecheck, `npm test`, the screens check and the static build. Moon runs only the affected tasks, and every task's inputs are the whole of src/, scenes/, lore/, v2/ai/, assets/, evals/ and vendor/ with the package and tsconfig files ([moon.yml](moon.yml)). So a change to any of those runs everything, and a change only to docs/ or the root's Markdown runs nothing.
 - **[preview.yml](.github/workflows/preview.yml)** builds the static build at the PR's head and publishes it under `pr-preview/pr-<N>/` on the gh-pages branch, with a comment linking it: the pitch at its root, the roadmap at `roadmap/` and the game at `play/`. It doesn't run for PRs from forks.
 - **[pages.yml](.github/workflows/pages.yml)** deploys main's build, with the previews copied in, to GitHub Pages. main is still V1 until PR #650 merges, so the site's root is V1's.
 - **[evals.yml](.github/workflows/evals.yml)** is V1's. It runs `moon run workspace:eval` and `scripts/publish-eval-history.ts` on a push to main, and V2 has neither, so it will fail once V2 is on main.
@@ -356,11 +366,11 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 | A scene: `scenes/`, its world in `scenes/worlds/`, the lore it names | [scenes/README.md](scenes/README.md#where-to-look-first): a route's `when` is logic the decider judges; ids are shared with eval cases, the smoke tests, the fronts doc and the fights; a combat exit needs a fight set out for it; a recurring character's card must agree with their lore | Offline: the `validateScene` one-liner and `npm test`; in the game, `/exits` and `/end <id>` take each ending and run its script. Live: `npm run scene -- start <id>`, with `status` for the path the decider took, and the scene's eval cases by their ids' prefix (`npm run eval -- --case hc` for the hanged clerk's). |
 | A rule: `src/rules`, combat's bridge to the engine, the engine itself | [src/rules/README.md](src/rules/README.md#where-to-look-first): the dice stream, dice lines that other code parses, and the twin of each workaround in `src/game/combat/rules.ts`; [the same rule coded more than once](src/game/README.md#the-same-rule-coded-more-than-once) | `node --no-warnings --test src/rules/*.test.ts src/game/combat/*.test.ts`; the zoo's Rules Room, Burning Gallery and Arena: `node --no-warnings src/game/zoo/tour.ts --only rules,fire,arena` |
 | The world: `src/world` | [src/world/README.md](src/world/README.md#where-to-look-first): a new operation touches `WorldOp`, `applyOps`, the stage manager's schema and its `WORLD_LANGUAGE`; a physics change comes with the words the models are given | `node --no-warnings --test src/world/*.test.ts`; `tour.ts --only works,fire`; the stage manager eval (live) |
-| How the GM plays: `prompts/`, the director's questions, the GM's brief | [prompts/README.md](prompts/README.md) and [src/runtime/README.md](src/runtime/README.md#where-to-look-first): the decider's wording and thresholds are logic, directives are matched by their opening words, and whatever goes in the brief goes to the GM every turn | The evals, live, before and after the change: `--suite decision` for the director, `--suite reply` and `--suite trajectory` for the GM, then `npm run compare`. `calls.jsonl` has each prompt as it was sent. |
+| How the GM plays: `v2/ai/prompts`, the director's questions, the GM's brief | [v2/ai/prompts/README.md](v2/ai/prompts/README.md) and [src/runtime/README.md](src/runtime/README.md#where-to-look-first): the decider's wording and thresholds are logic, directives are matched by their opening words, and whatever goes in the brief goes to the GM every turn | The evals, live, before and after the change: `--suite decision` for the director, `--suite reply` and `--suite trajectory` for the GM, then `npm run compare`. `calls.jsonl` has each prompt as it was sent. |
 | A turn: `src/runtime` | `playerTurn` ([src/runtime/engine.ts:446](src/runtime/engine.ts#L446)) holds four reply strategies, so check which approach flags gate a change; a new session field goes in `STORY_WIDE` ([src/runtime/talk.ts:41](src/runtime/talk.ts#L41)) or is reset by `freshScene` | No unit test drives a turn. `node --no-warnings --test src/runtime/*.test.ts` covers the decision and talks offline; then play `v2` live (the scene harness, the QA console, `smoke.py --live`, `tour.ts --live`) and run the decision suite. |
 | The UI: `src/app`, the look, the map's renderer | [src/app/README.md](src/app/README.md#where-to-look-first): what each method sets and clears between screens, the ways on from a scene, streaming, the mouse's picks, the side panels at 80x24 | The screens check (CI); `python3 src/app/smoke/smoke.py`; `npm run web:tui-check` if it uses OpenTUI in a new way; the zoo's Hall of Looks for a look |
 | The web build: `src/web` | [src/web/README.md](src/web/README.md#where-to-look-first): the Node stand-ins, the content allowlist, the key's handling, and the page both builds share | `npm run build:web` (CI); `npm run web:static-check`, `npm run web:check` and `npm run web:tui-check`; then the PR's preview link |
-| Lore and memory: `lore/`, `src/lore` | [lore/README.md](lore/README.md#where-to-look-first): every doc's `visibility` and `readers`; summaries are what disclosure reads; the fronts doc's shape is parsed | `node --no-warnings --test src/lore/fronts.test.ts src/runtime/talk.test.ts`; the lore greps; the memory eval (live) |
+| Lore and memory: `lore/`, `v2/ai/docs` and its adapters in `src/lore` | [lore/README.md](lore/README.md#where-to-look-first): every doc's `visibility` and `readers`; summaries are what disclosure reads; the fronts doc's shape is parsed. [v2/ai/README.md](v2/ai/README.md#the-one-rule): the docs service is handed what it needs, and imports nothing of the prototype's | `node --no-warnings --test v2/ai/docs/*.test.ts src/lore/*.test.ts src/runtime/talk.test.ts`; the lore greps; the memory eval (live) |
 
 ### In any change
 
@@ -375,6 +385,7 @@ The Python checks need Python 3, and the pictures need Pillow. Each component's 
 
 ## Where this is going
 
+- **[v2](v2/README.md):** the production build, begun: a client, a SpacetimeDB module and a stateless AI API, built a vertical at a time. Its first part, [v2/ai](v2/ai/README.md), is this prototype's model client, prompts and docs service, shared.
 - **[docs/design/productionise.md](docs/design/productionise.md):** the target architecture and the order of work: client, shared and server bundles joined by a protocol of intents and events; the stores and the model client behind interfaces; the world's rules in one registry of interaction rules on components; and hosting on Firebase. It's a design, and none of it is built yet.
 - **[docs/code.md](docs/code.md):** the brief it answers.
 - **[docs/design/playable.md](docs/design/playable.md)** and **[docs/design/caerwyn-arc.md](docs/design/caerwyn-arc.md):** the designs of the playable game and of its story arc.

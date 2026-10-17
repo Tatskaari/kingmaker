@@ -8,10 +8,10 @@ import type { Plugin } from "esbuild";
  * (src/web/tui/compare/run.ts).
  *
  * importMeta: the game finds its files from where its modules are (import.meta.url, dirname,
- * filename: the prompts beside src/runtime, the lore beside src/lore, the rules' content pack).
- * A bundle has one URL for everything, so each module's own location is written into it: under
- * `virtualRoot` (the browser's file system, "/kingmaker") for the static build, or the repo itself
- * for a bundle that runs in Node.
+ * filename: the prompts beside their loader in v2/ai/prompts, the lore found from v2/ai/docs, the
+ * rules' content pack). A bundle has one URL for everything, so each module's own location is
+ * written into it: under `virtualRoot` (the browser's file system, "/kingmaker") for the static
+ * build, or the repo itself for a bundle that runs in Node.
  */
 export function importMeta(options: { root: string; virtualRoot: string }): Plugin {
   const root = resolve(options.root);

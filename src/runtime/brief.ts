@@ -1,23 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
 import { worldView, type Entity } from "../world/scene-world.ts";
 import { PHYSICS } from "../world/systems.ts";
-import { join } from "node:path";
 import type { Beat, Character, Exit, Scene, Transition } from "./scene.ts";
 import type { Entry, PlayerCharacter, ScenePatch, SessionState } from "./session.ts";
 import { titleCase } from "./dice.ts";
 
-const PROMPTS_DIR = join(import.meta.dirname, "..", "..", "prompts");
-const cache = new Map<string, string>();
-/** A prompt by name. KM_PROMPTS_DIR tries another folder first (a variant to compare in the evals). */
-export function prompt(name: string, vars: Record<string, string> = {}): string {
-  let text = cache.get(name);
-  if (text === undefined) {
-    const variant = process.env.KM_PROMPTS_DIR ? join(process.env.KM_PROMPTS_DIR, `${name}.md`) : undefined;
-    text = readFileSync(variant && existsSync(variant) ? variant : join(PROMPTS_DIR, `${name}.md`), "utf8").trim();
-    cache.set(name, text);
-  }
-  return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "").replace(/\n{3,}/g, "\n\n");
-}
+/** A prompt by name: the prompts and their loader are the AI API's, in v2/ai/prompts, shared with v2. */
+export { prompt } from "../../v2/ai/prompts/index.ts";
 
 /**
  * Every scene can also end in a way its prep didn't foresee, established in play (leaving with

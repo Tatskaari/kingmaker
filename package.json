@@ -18,7 +18,7 @@
     "scene": "node --no-warnings src/cli/scene.ts",
     "eval": "node --no-warnings src/eval/run.ts",
     "typecheck": "tsc --noEmit -p .",
-    "test": "node --no-warnings --test 'src/**/*.test.ts'",
+    "test": "node --no-warnings --test 'src/**/*.test.ts' 'v2/ai/**/*.test.ts'",
     "check": "proto run moon -- run workspace:check",
     "compare": "node --no-warnings src/eval/compare.ts",
     "qa": "node --no-warnings src/cli/qa.ts",

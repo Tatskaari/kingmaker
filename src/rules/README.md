@@ -42,7 +42,7 @@ It also writes `state.player.modifiers` and `state.player.build`, bumps `state.r
 
 How a turn comes to pick a mechanic is the runtime's ([src/runtime/README.md](../runtime/README.md#one-player-turn)).
 
-It calls the vendored engine (its planners as `engine.plan.*`, `commit`, `buildCharacterSheet`, `buildEffectStack`), [src/world](../world/README.md) for things and surfaces (`caughtIn`, `damageThing`, `elemental`, `spill`, `bleed`), src/llm for its model calls (one build, or character creation's three), and src/runtime/dice.ts (`rng`, `describeRoll`).
+It calls the vendored engine (its planners as `engine.plan.*`, `commit`, `buildCharacterSheet`, `buildEffectStack`), [src/world](../world/README.md) for things and surfaces (`caughtIn`, `damageThing`, `elemental`, `spill`, `bleed`), the model client (v2/ai/llm, through src/llm) for its model calls (one build, or character creation's three), and src/runtime/dice.ts (`rng`, `describeRoll`).
 
 ## How it works
 

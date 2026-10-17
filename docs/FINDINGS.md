@@ -19,7 +19,7 @@ What the overnight experiment of 2026-10-14 learned about GM-run scenes. The bri
 
 ## Afternoon round (2026-10-14): absurdity, pressure, techniques, continuity
 
-- **Comic house style.** The steer was Pratchett / Monty Python silliness around a good story, with real repercussions. `v2` now uses [prompts/tone-comic.md](../prompts/tone-comic.md): the world plays it straight, people argue *inside* the bit, and daft acts send a bill. A decider flag tells the GM to follow a consequential daft act through. Over 8 blind players in 2 rounds:
+- **Comic house style.** The steer was Pratchett / Monty Python silliness around a good story, with real repercussions. `v2` now uses [v2/ai/prompts/tone-comic.md](../v2/ai/prompts/tone-comic.md): the world plays it straight, people argue *inside* the bit, and daft acts send a bill. A decider flag tells the GM to follow a consequential daft act through. Over 8 blind players in 2 rounds:
   - humour stayed at about 4/5;
   - mean consequences rose from 2.5 to 3.25;
   - a straight control player said it "never made the danger feel fake".

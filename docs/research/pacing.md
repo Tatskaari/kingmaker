@@ -387,7 +387,7 @@ Authored check routes (win-cob, catch-moll) keep their authored outcomes. The no
 > - Secrets (your prep: they come out only when earned; what shows before it's told comes first):
 >   - Shows: he won't arm-wrestle tonight; keeps his right hand out of sight. Under it: …
 
-**What the GM is told.** One new bullet in [prompts/gm.md](../../prompts/gm.md), worded as an outcome:
+**What the GM is told.** One new bullet in [v2/ai/prompts/gm.md](../../v2/ai/prompts/gm.md), worded as an outcome:
 
 > - Let secrets surface the way they would at a good table: something that doesn't fit comes first (a question for the player, not an answer); then, as the player picks at it, the person's guard and their own reasons; and the thing itself when the player has earned it, in the person's own way: told, bargained over or refused, depending on how they've been treated. One new piece at a time: a reveal lands when the player has seen it coming, and a scene that hands over everything at once has nothing left to find. What the scene needs the player to find is different: never hold it back; if they aren't getting it one way, it reaches them another.
 
@@ -482,7 +482,7 @@ Target ≥ 90% with Luna decisions, compared with Jev. Re-run the existing suite
 
 Held-out reply cases use scenes not touched in development: garrows-toll (Garrow's "Tam was drunk"), warren-hostage (Hester's question she won't answer), heron-warehouse (Scrope and the true book).
 
-**Trajectories.** The simulated player ([prompts/player-sim.md](../../prompts/player-sim.md)) plays a whole scene. Personas, one per failure family:
+**Trajectories.** The simulated player ([v2/ai/prompts/player-sim.md](../../v2/ai/prompts/player-sim.md)) plays a whole scene. Personas, one per failure family:
 - **the blunt interrogator** asks everyone everything outright (dumps);
 - **the wanderer** avoids the kids, the boot and Hobb's corner (starving);
 - **the noticer** examines every detail and follows every tell (nagging, over-hinting);
