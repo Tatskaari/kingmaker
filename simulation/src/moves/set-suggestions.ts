@@ -44,7 +44,7 @@ function turnWantingLines(tx: TxCtx, player: PlayerRow): bigint | undefined {
 }
 
 /**
- * The turn's reply is in: it's settling, noting or done, or its settle failed and it waits for
+ * The turn's reply is in: it's settling or done, or its settle failed and it waits for
  * /retry. Lines asked for then land as they would had they been asked for at the reply (the
  * prototype's suggestNow asks whenever the moment has none); the retried settle asks for none.
  */
@@ -53,4 +53,4 @@ function replied(tx: TxCtx, turn: TurnRow): boolean {
 }
 
 /** The phases of a turn whose reply is in, on its way to done. */
-const REPLIED = new Set(["settling", "noting", "done"]);
+const REPLIED = new Set(["settling", "done"]);

@@ -40,9 +40,8 @@ test("a think's key holds its game, scene, turn and step", () => {
   assert.equal(keyParts("not a key"), undefined);
 });
 
-test("a reply's notes have a key of their own, and each ask for its lines another (v5-design §3.6)", () => {
-  assert.equal(idempotencyKey("5f0c-uid", 1n, 3, "notes"), "5f0c-uid:s1:t3:notes");
-  assert.deepEqual(keyParts("5f0c-uid:s1:t3:notes"), { game: "5f0c-uid", scene: "1", turn: 3, step: "notes" });
+test("each ask for a reply's lines has a key of its own (v5-design §3.6); the notes, gone in M2, have none", () => {
+  assert.equal(keyParts("5f0c-uid:s1:t3:notes"), undefined, "a notes key from before M2 isn't a think's");
 
   const asks = [1, 2, 3].map(ask => idempotencyKey("5f0c-uid", "1", 0, "suggest", ask));
 
@@ -52,16 +51,16 @@ test("a reply's notes have a key of their own, and each ask for its lines anothe
     { game: "5f0c-uid", scene: "1", turn: 0, step: "suggest", ask: 2 },
     { game: "5f0c-uid", scene: "1", turn: 0, step: "suggest", ask: 3 },
   ]);
-  assert.equal(idempotencyKey("5f0c-uid", 1n, 3, "notes", 2), "5f0c-uid:s1:t3:notes", "only the suggest step is asked again");
+  assert.equal(idempotencyKey("5f0c-uid", 1n, 3, "reply", 2), "5f0c-uid:s1:t3:reply", "only the suggest step is asked again");
   for (const other of ["5f0c-uid:s1:t3:suggest-1", "5f0c-uid:s1:t3:suggest-02", "5f0c-uid:s1:t3:notes-2", "5f0c-uid:s1:t3:reply-2"]) assert.equal(keyParts(other), undefined, other);
 });
 
-test("every step has its endpoint and its timeout: the notes' and the lines' 30 s", () => {
+test("every step has its endpoint and its timeout: the lines' 30 s", () => {
   assert.deepEqual(STEPS.map(step => STEP_ENDPOINT[step]), [
-    "/v1/scenes/open", "/v1/turns/decide", "/v1/turns/reactions", "/v1/turns/consider", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/notes", "/v1/turns/suggest", "/v1/turns/remember", "/v1/turns/repair",
+    "/v1/scenes/open", "/v1/turns/decide", "/v1/turns/reactions", "/v1/turns/consider", "/v1/turns/reply", "/v1/turns/settle", "/v1/turns/suggest", "/v1/turns/remember", "/v1/turns/repair",
     "/v1/scenes/boundary", "/v1/looks",
   ]);
-  assert.deepEqual([STEP_TIMEOUT_MS.notes, STEP_TIMEOUT_MS.suggest], [30_000, 30_000]);
+  assert.equal(STEP_TIMEOUT_MS.suggest, 30_000);
 });
 
 test("the looks of what a turn made have a key of their own, beside the turn (town-design §3.7)", () => {
@@ -102,9 +101,9 @@ test("a scene's boundary is keyed by the ended scene's last turn, and waits 120 
 });
 
 test("stream_reply's arguments are named as the reducer's, the markup in SpacetimeDB's option", () => {
-  const args = streamReplyArgs({ turn: "812", attempt: 2, seq: 5, speaker: "gm", text: "Kell looks up.", markup: { speech: [], marks: [] }, done: false });
+  const args = streamReplyArgs({ turn: "812", attempt: 2, seq: 5, speaker: "gm", text: "Kell looks up.", markup: { speech: [] }, done: false });
 
-  assert.deepEqual(args, { turnId: 812, attempt: 2, seq: 5, speaker: "gm", text: "Kell looks up.", markup: { some: '{"speech":[],"marks":[]}' }, done: false });
+  assert.deepEqual(args, { turnId: 812, attempt: 2, seq: 5, speaker: "gm", text: "Kell looks up.", markup: { some: '{"speech":[]}' }, done: false });
   assert.deepEqual(streamReplyArgs({ turn: "1", attempt: 1, seq: 1, speaker: "gm", text: "", done: true }).markup, { none: [] });
 });
 

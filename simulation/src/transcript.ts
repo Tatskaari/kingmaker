@@ -1,5 +1,5 @@
-import type { Mark, Markup } from "../../shared/markup.ts";
-import type { Drafted, Entry, Reply } from "../../shared/protocol/ai.ts";
+import type { Markup } from "../../shared/markup.ts";
+import type { Entry, Reply } from "../../shared/protocol/ai.ts";
 import { knownCast } from "../../shared/scene/names.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import type { TxCtx } from "./context.ts";
@@ -7,7 +7,7 @@ import type { RowOf, SceneRow } from "./rows.ts";
 
 /**
  * A scene's transcript: what was said and shown, in order (seq, per scene, from 1), markup kept
- * beside the words as JSON, a reply's marks put on it once their notes are written. And the names
+ * beside the words as JSON (who says each line). And the names
  * the controller has heard in it, which my_names reads.
  */
 
@@ -21,15 +21,12 @@ export function addEntry(tx: TxCtx, scene: SceneRow, entry: Entry): TranscriptRo
   });
 }
 
-/** A reply as written: its transcript row, and the marks the GM drafted on it (which only the notes' request reads). */
-export interface Written { row: TranscriptRow; drafted: Drafted[] }
-
 /**
  * A GM's reply (or opening) written: its entries (the AI service sends one), and the turn's draft
- * gone. The last is the one its notes are on.
+ * gone. The last one's row.
  */
-export function writeReply(tx: TxCtx, scene: SceneRow, turn: number, turnId: bigint, replies: Reply[]): Written | undefined {
-  const written = replies.map(reply => ({ row: addEntry(tx, scene, replyEntry(turn, reply)), drafted: reply.drafted ?? [] }));
+export function writeReply(tx: TxCtx, scene: SceneRow, turn: number, turnId: bigint, replies: Reply[]): TranscriptRow | undefined {
+  const written = replies.map(reply => addEntry(tx, scene, replyEntry(turn, reply)));
   tx.db.replyDraft.turnId.delete(turnId);
   return written[written.length - 1];
 }
@@ -43,12 +40,6 @@ export function entryAt(tx: TxCtx, sceneId: bigint, seq: number): TranscriptRow 
 
 /** A row's markup, read. */
 export const markupOf = (row: TranscriptRow): Markup | undefined => (row.markup ? (JSON.parse(row.markup) as Markup) : undefined);
-
-/** A reply's notes, written: its row's markup gets them as its marks, who says what kept. */
-export function putMarks(tx: TxCtx, row: TranscriptRow, marks: Mark[]): void {
-  const markup: Markup = { speech: [], ...markupOf(row), marks };
-  tx.db.transcript.id.update({ ...row, markup: JSON.stringify(markup) });
-}
 
 /** The scene's transcript as the AI service reads it, in order. */
 export function entriesOf(tx: TxCtx, sceneId: bigint): Entry[] {
@@ -92,12 +83,9 @@ export function noteHeardInStory(tx: TxCtx, scene: SceneRow, graph: Scene): void
   }
 }
 
-/**
- * A GM's reply as its entry: the words, and who says each line, with no marks until their notes are
- * written (v5-design §3.5): what the GM itself wrote on a mark never reaches the screen.
- */
+/** A GM's reply as its entry: the words, and who says each line. */
 function replyEntry(turn: number, reply: Reply): Entry {
-  const markup = reply.markup ? { markup: { speech: reply.markup.speech, marks: [] } } : {};
+  const markup = reply.markup ? { markup: { speech: reply.markup.speech } } : {};
   return { turn, speaker: reply.speaker ?? "gm", kind: reply.kind ?? "narration", text: reply.text, ...markup };
 }
 

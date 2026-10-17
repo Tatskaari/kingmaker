@@ -8,7 +8,7 @@ type TurnRow = SceneRows["turns"][number];
 type DraftRow = SceneRows["drafts"][number];
 type LineRow = SceneRows["suggestions"][number];
 
-const turn = (id: bigint, n: number, phase: string, more: Partial<TurnRow> = {}): TurnRow => ({ id, n, phase, note: undefined, error: undefined, notes: "none", suggest: "none", ...more });
+const turn = (id: bigint, n: number, phase: string, more: Partial<TurnRow> = {}): TurnRow => ({ id, n, phase, note: undefined, error: undefined, suggest: "none", ...more });
 const draft = (turnId: bigint, text: string, attempt = 1, seq = 1): DraftRow => ({ turnId, speaker: "gm", text, markup: undefined, attempt, seq });
 
 /** Tamsin Vell (player 1) has the lead in the granary yard; Kell and Cob are on stage, Kell with her look. */
@@ -20,7 +20,7 @@ const base = (): SceneRows => ({
   sheets: [{ playerId: 1n, statusLine: "HP 28/28" }],
   transcript: [
     { seq: 2, turn: 1, speaker: "player:1", kind: "player", text: "Sergeant, who found him?", markup: undefined },
-    { seq: 1, turn: 0, speaker: "gm", kind: "narration", text: "“Sergeant Kell, of the watch.”", markup: JSON.stringify({ speech: [{ start: 0, end: 30, speaker: "kell" }], marks: [] }) },
+    { seq: 1, turn: 0, speaker: "gm", kind: "narration", text: "“Sergeant Kell, of the watch.”", markup: JSON.stringify({ speech: [{ start: 0, end: 30, speaker: "kell" }] }) },
   ],
   drafts: [],
   turns: [turn(4n, 0, "done")],
@@ -178,21 +178,20 @@ test("a reply that closed the scene: the scene is ending while the world settles
   assert.deepEqual([view.phase, view.ending, view.over], ["done", undefined, true]);
 });
 
-test("a mark is kept only with a note to show; unreadable markup is no markup", () => {
+test("markup is who says each line (notes on marks from before M2 aren't read); unreadable markup is no markup", () => {
   const markup = markupOf(JSON.stringify({
     speech: [{ start: 0, end: 5, speaker: "kell" }],
-    marks: [{ start: 0, end: 5, kind: "why", note: "She's tired." }, { start: 6, end: 9, kind: "know", note: " " }, { start: 1, end: 2, kind: "you" }],
+    marks: [{ start: 0, end: 5, kind: "why", note: "She's tired." }],
   }));
 
-  assert.deepEqual(markup?.marks.map(m => m.note), ["She's tired."]);
-  assert.equal(markup?.speech.length, 1);
+  assert.deepEqual(markup, { speech: [{ start: 0, end: 5, speaker: "kell" }] });
   assert.equal(markupOf("not json"), undefined);
   assert.equal(markupOf(undefined), undefined);
-  assert.deepEqual(markupOf("{}"), { speech: [], marks: [] });
+  assert.deepEqual(markupOf("{}"), { speech: [] });
 });
 
 // -------------------------------------------------------------------------------------------------
-// V5: the suggested lines, the noting phase, the cards (v5-design §3.9).
+// V5: the suggested lines (v5-design §3.9; the noting phase and the cards went with the notes in M2).
 
 const line = (turn: number, ord: number, kind: string, text: string): LineRow => ({ sceneId: 7n, turn, ord, kind, text });
 
@@ -200,7 +199,7 @@ const line = (turn: number, ord: number, kind: string, text: string): LineRow =>
 const answered = (): SceneRows => ({
   ...base(),
   scene: { ...base().scene, turns: 1 },
-  turns: [turn(4n, 0, "done", { notes: "written", suggest: "landed" }), turn(5n, 1, "done", { notes: "written", suggest: "landed" })],
+  turns: [turn(4n, 0, "done", { suggest: "landed" }), turn(5n, 1, "done", { suggest: "landed" })],
   suggestions: [line(1, 2, "do", "(I look up at the loft door)"), line(0, 1, "say", "An old line"), line(1, 1, "say", "Who found him?"), line(1, 3, "try", "(I try a ha'penny on the boy)")],
 });
 
@@ -261,24 +260,21 @@ test("the opening's lines are on their way from its start; a line queued behind 
   assert.equal(sceneViewOf(stuck).suggestionsComing, false);
 });
 
-test("noting: the reply's in, the GM writing its notes; the box is open, and a line said waits for them", () => {
+test("settling: the reply's in, the world settling behind it; the box is open, and a line said waits for it", () => {
   const rows = base();
   rows.scene = { ...rows.scene, turns: 1, turnId: 5n };
-  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "noting", { notes: "writing" })];
+  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "settling")];
 
   let view = sceneViewOf(rows);
-  assert.deepEqual([view.phase, view.mayType, view.notesComing], ["noting", true, true]);
-
-  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "settling", { notes: "written" })];
-  assert.equal(sceneViewOf(rows).notesComing, false);
+  assert.deepEqual([view.phase, view.mayType], ["settling", true]);
 
   rows.scene = { ...rows.scene, turns: 2 };
-  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "noting", { notes: "writing" }), turn(6n, 2, "queued")];
+  rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "settling"), turn(6n, 2, "queued")];
   view = sceneViewOf(rows);
   assert.deepEqual([view.phase, view.turn, view.mayType, view.note], ["queued", 2, false, undefined]);
 
-  // The AI service lost while the notes are written: the line waiting behind them says so, as the noting turn holds the lease.
-  rows.turns[1] = turn(5n, 1, "noting", { notes: "writing", note: "The GM has lost the thread for a moment: trying again." });
+  // The AI service lost while the world settles: the line waiting behind it says so, as the settling turn holds the lease.
+  rows.turns[1] = turn(5n, 1, "settling", { note: "The GM has lost the thread for a moment: trying again." });
   assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
 });
 
@@ -292,20 +288,4 @@ test("considering: the GM rules on a risky act before the reply; the box stays s
 
   rows.turns = [turn(4n, 0, "done"), turn(5n, 1, "considering", { note: "The GM has lost the thread for a moment: trying again." })];
   assert.equal(sceneViewOf(rows).note, "The GM has lost the thread for a moment: trying again.");
-});
-
-test("a mark keeps its card when it reads as one: a title and lines of words", () => {
-  const card = { title: "Sergeant Agnes Kell", lines: ["You met them in this scene."] };
-  const markup = markupOf(JSON.stringify({
-    speech: [],
-    marks: [
-      { start: 0, end: 5, kind: "why", note: "She's tired.", link: { kind: "person", id: "kell" }, card },
-      { start: 6, end: 9, kind: "know", note: "The watch.", card: { title: "The City Watch" } },
-      { start: 10, end: 12, kind: "you", note: "You said so.", card: { title: "What you did", lines: [3] } },
-    ],
-  }));
-
-  assert.deepEqual(markup?.marks.map(m => m.card), [card, undefined, undefined]);
-  assert.deepEqual(markup?.marks.map(m => "card" in m), [true, false, false]);
-  assert.deepEqual(markup?.marks[0]?.link, { kind: "person", id: "kell" });
 });

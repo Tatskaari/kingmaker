@@ -20,10 +20,10 @@ import { turnRow, updateTurn, type JobRow } from "./rows.ts";
  * what failing means. Every function here is a pure function of the rows, the claim and the answer:
  * withTx may run one twice.
  *
- * A job beside a turn's own steps (the notes, the lines: v5-design §3.4) runs on the same loop, and
+ * A job beside a turn's own steps (the lines: v5-design §3.4) runs on the same loop, and
  * its move says how it differs: whether an answer still applies, what giving up on it does and when,
  * and that it's in the background, so it never fails the turn, and its retries say nothing on it
- * unless the turn is waiting on it alone (its notes, once all else is in).
+ * unless the turn is waiting on it alone.
  */
 
 /**
@@ -147,7 +147,7 @@ function turnOwner(move: Move<unknown, JobPlan>): JobOwner<JobPlan> {
       if (move.background && (note === undefined || !move.waitedOn?.(tx, plan))) return;
       updateTurn(tx, idOf(needs(plan.turn, "turn")), { note });
     },
-    /** Every answer's usage goes on its turn, the notes' and the lines' too. */
+    /** Every answer's usage goes on its turn, the lines' too. */
     charge(tx, plan, usage) {
       const turn = turnRow(tx, idOf(needs(plan.turn, "turn")));
       tx.db.turn.id.update({ ...turn, calls: turn.calls + usage.calls, costMicros: turn.costMicros + micros(usage.costUsd) });

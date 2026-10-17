@@ -1,6 +1,6 @@
 import type { Backstory } from "../../../shared/creation/types.ts";
 import {
-  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type LooksRequest, type NotesRequest, type OpenRequest, type ReactionsRequest,
+  STEP_ENDPOINT, STEP_TIMEOUT_MS, type AiRequest, type BoundaryRequest, type Chapter, type ConsiderRequest, type DecideRequest, type Entry, type LooksRequest, type OpenRequest, type ReactionsRequest,
   type RememberRequest, type RepairRequest, type ReplyRequest, type SceneContext, type SettleRequest, type SheetRow, type Story, type SuggestRequest, type TalkOpen, type TurnContext,
 } from "../../../shared/protocol/ai.ts";
 import type { GuardStage, TalkRecord } from "../../../shared/gm/state.ts";
@@ -11,11 +11,11 @@ import type { Skill } from "../../../shared/scene/types.ts";
 import { pcKey } from "../../../shared/world/rows.ts";
 import type { TxCtx } from "../context.ts";
 import type { AiCall } from "../moves/move.ts";
-import type { BoundaryPlan, LookPlan, NotesPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
+import type { BoundaryPlan, LookPlan, OpenPlan, RememberPlan, RepairPlan, SayPlan, SuggestPlan } from "../moves/plans.ts";
 import { gameRow, playerRow, sceneRow, sheetRow, turnRow, type GameRow, type PlayerRow, type RowOf, type SceneRow } from "../rows.ts";
 import { sceneGraph } from "../scenes.ts";
 import { FIGHT_NOT_PLAYED } from "../story/words.ts";
-import { entriesOf, entryAt, markupOf } from "../transcript.ts";
+import { entriesOf } from "../transcript.ts";
 import { placeRows } from "../world/rows-io.ts";
 import { getGm } from "./rows.ts";
 
@@ -65,22 +65,6 @@ export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step);
   const base = { ...aiRequest(key, at), turn: turnContext(tx, plan, at) };
   return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base, at.controller.suggestions) };
-}
-
-/**
- * The notes' call: POST /v1/turns/notes, key <uid>:s<scene>:t<n>:notes. The reply as its transcript
- * row has it (its words, who says each line), the marks the GM drafted, and the scene up to it.
- */
-export function notesCall(tx: TxCtx, plan: NotesPlan): AiCall {
-  const at = whereOf(tx, plan.scene);
-  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, "notes");
-  const entry = entryAt(tx, at.scene.id, plan.seq);
-  const request: NotesRequest = {
-    ...aiRequest(key, at),
-    turn: sceneContext(tx, at, plan.n),
-    reply: { seq: entry.seq, text: entry.text, speech: markupOf(entry)?.speech ?? [], drafted: plan.drafted },
-  };
-  return { endpoint: STEP_ENDPOINT.notes, key, timeoutMs: STEP_TIMEOUT_MS.notes, request };
 }
 
 /**

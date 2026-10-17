@@ -19,8 +19,8 @@ import { director, disclosed, sceneAndView, withOpened } from "./turn.ts";
  * §3.7: the GM's notes and its note of what the player knows both read it, so it's written before
  * disclosure), what bears on the scene's start is opened, and the GM opens the scene, its words
  * streamed to the opening's draft with who says each line. The answer says who's here, the opening
- * (who says each line by the game's keys, and the marks the GM made, for its notes) and the notes
- * opened, for the simulation to commit. After a boundary the opening picks up from how the last
+ * (who says each line by the game's keys) and the lore notes disclosure opened, for the simulation
+ * to commit. After a boundary the opening picks up from how the last
  * scene ended, as the boundary rewrote it (the opening directive's second branch: story-design §4.4).
  *
  * With `aftermath`, the scene picks up after a fight instead (the prototype's resumeAfterFight): the

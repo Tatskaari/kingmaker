@@ -26,7 +26,6 @@ import { finishTurn } from "../turns.ts";
 import { applyStage, joinArrivals, placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Next } from "./move.ts";
-import { askForNotes } from "./notes.ts";
 import type { SayPlan } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
 import { keysIn, lookForNew } from "./looks.ts";
@@ -35,8 +34,7 @@ import { keysIn, lookForNew } from "./looks.ts";
  * A say turn's commits (v0-design §6.2; gm-port §6, §8, §9; full-gm-design §4.2; world-bridge-design
  * §3.4), each one transaction, a pure function of the rows, the plan and the answer (the dice are a
  * row, and the rules engine is pinned to it), so withTx can run one twice. Each ends with the next
- * step's plan, or with the turn finished (turns.ts: done, or noting while its reply's notes are
- * written, which v5-design §3.5 has the turn wait for). The turn's last commit queues the jobs that
+ * step's plan, or with the turn finished (turns.ts). The turn's last commit queues the jobs that
  * go over it once it's over (gm/background.ts afterTurn).
  */
 
@@ -135,7 +133,7 @@ export function afterConsider(tx: TxCtx, plan: SayPlan, answer: ConsiderResponse
 }
 
 /**
- * After reply: the GM's entry, the draft gone; its notes asked for, and the lines to suggest after it
+ * After reply: the GM's entry, the draft gone; the lines to suggest after it
  * unless it ends the scene, both on the world as the reply left it (engine.ts:844, :869, before
  * :880); what the reply offered or repeated noted, whoever a cue brought on joined to the world and
  * the stage. The wind-down's reply closes the scene (unless the player spoke out of character); any
@@ -146,8 +144,7 @@ export function afterReply(tx: TxCtx, plan: SayPlan, answer: ReplyResponse): Nex
   const at = atTurn(tx, plan);
   const turnId = idOf(plan.turn);
 
-  const reply = writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
-  if (reply) askForNotes(tx, turnId, reply);
+  writeReply(tx, at.scene, plan.n, turnId, answer.entries ?? []);
   // A talk's next lines come with its settle (talk.suggest, beside the after-reply read: town-design §3.6).
   if (!endsScene(at, plan) && at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);
   noteReply(at.gm, answer);

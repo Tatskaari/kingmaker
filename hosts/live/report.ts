@@ -4,19 +4,16 @@ import type { Call, EntryRecord, LiveRecord, TurnRecord } from "./record.ts";
  * A live run's record as Markdown (v5-design §4.6): the run at a glance, each turn's moments, the
  * measures against the prototype's live ones, the calls, the GM's side when the script records it
  * (full-gm-design §1.5: each line's ruling, memory review and co-GM review, and where the co-GM left
- * the scene), then turn by turn who said what, the notes with their cards and the lines offered with
- * what was screened out, and last what the scene holds back from the player, for a reader to check
- * every note and line against.
+ * the scene), then turn by turn who said what and the lines offered with what was screened out, and
+ * last what the scene holds back from the player, for a reader to check every line against. (The
+ * notes on marked words went in M2.)
  */
 
-/** The prototype's live measures (docs/LOG.md, 15 October): the notes over 19 calls, the lines over 21 replies, speakers over 52 lines. */
+/** The prototype's live measures (docs/LOG.md, 15 October): the lines over 21 replies, speakers over 52 lines. */
 const PROTOTYPE = {
-  notes: "2.2 s / 3.9 s (19 calls)",
   lines: "2.8 s (21 replies)",
   tagged: "43 of 52 (83%)",
   speaker: "51 of 52 (the right one)",
-  notesAReply: "1.6 (32 in 20 replies)",
-  notesCall: "$0.00024",
   linesCall: "$0.0009",
   turn: "$0.0040",
 };
@@ -66,21 +63,19 @@ function turnsTable(r: LiveRecord): string[] {
   return [
     "## The turns",
     "",
-    "From the line being said (the turn's start): its first words, the reply final (its transcript entry) and the turn done (its notes in and the world settled). The notes and the lines: after the reply's entry reached this client, to their commit. Calls and cost: the turn's key's, from the call log.",
+    "From the line being said (the turn's start): its first words, the reply final (its transcript entry) and the turn done (the world settled). The lines: after the reply's entry reached this client, to their commit. Calls and cost: the turn's key's, from the call log.",
     "",
-    "| Turn | Line | First words | Reply final | Notes | Lines | Done | Calls | Cost |",
-    "|---|---|---|---|---|---|---|---|---|",
-    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : cell(lineOf(t))} | ${since(t, t.firstAt)} | ${since(t, t.finalAt)} | ${extra(t.notes, t.notesMs)} | ${extra(t.suggest, t.linesMs)} | ${since(t, t.doneAt)} | ${t.calls.length} | $${costOf(t.calls).toFixed(4)} |`),
+    "| Turn | Line | First words | Reply final | Lines | Done | Calls | Cost |",
+    "|---|---|---|---|---|---|---|---|",
+    ...r.turns.map(t => `| ${t.n} | ${t.n === 0 ? "(the opening)" : cell(lineOf(t))} | ${since(t, t.firstAt)} | ${since(t, t.finalAt)} | ${extra(t.suggest, t.linesMs)} | ${since(t, t.doneAt)} | ${t.calls.length} | $${costOf(t.calls).toFixed(4)} |`),
     "",
   ];
 }
 
 function againstPrototype(r: LiveRecord): string[] {
-  const notes = r.turns.filter(t => t.notes === "written" && t.notesMs !== undefined).map(t => t.notesMs!);
   const lines = r.turns.filter(t => t.suggest === "landed" && t.linesMs !== undefined).map(t => t.linesMs!);
   const replies = r.turns.flatMap(t => t.entries.filter(e => e.speaker === "gm"));
   const spoken = replies.flatMap(e => e.spoken);
-  const marks = replies.reduce((n, e) => n + e.notes.length, 0);
   const op = (name: string) => r.calls.filter(c => c.operation === name);
   const suggestAsks = new Set(op("scene.suggest").map(c => c.key)).size;
   return [
@@ -88,12 +83,9 @@ function againstPrototype(r: LiveRecord): string[] {
     "",
     "| | This run | The prototype, live (docs/LOG.md, 15 October) |",
     "|---|---|---|",
-    `| The notes after the reply, p50 / p90 | ${notes.length ? `${secs(percentile(notes, 0.5))} / ${secs(percentile(notes, 0.9))} (${count(notes.length, "turn")})` : "none written"} | ${PROTOTYPE.notes} |`,
     `| The lines after the reply, p50 | ${lines.length ? `${secs(percentile(lines, 0.5))} (${count(lines.length, "set")})` : "none landed"} | ${PROTOTYPE.lines} |`,
     `| Spoken lines the GM tagged | ${share(spoken.filter(s => s.tag).length, spoken.length)} | ${PROTOTYPE.tagged} |`,
     `| Spoken lines with a speaker | ${spoken.filter(s => s.who !== "nobody can tell").length} of ${spoken.length} (whether it's the right one is below) | ${PROTOTYPE.speaker} |`,
-    `| Notes a reply | ${replies.length ? `${(marks / replies.length).toFixed(1)} (${marks} in ${replies.length} replies)` : "no replies"} | ${PROTOTYPE.notesAReply} |`,
-    `| A notes call | ${perCall(op("notes"), op("notes").length)} | ${PROTOTYPE.notesCall} |`,
     `| A reply's lines (the call and the judge) | ${perCall([...op("scene.suggest"), ...op("scene.suggest.judge")], suggestAsks)} | ${PROTOTYPE.linesCall} |`,
     `| A turn | ${r.turns.length ? `$${(r.cost / r.turns.length).toFixed(4)}` : "no turns"} | ${PROTOTYPE.turn} |`,
     "",
@@ -118,7 +110,7 @@ function models(calls: Call[]): string[] {
   return ["## The models", "", ...used.map(m => `- ${m}`), ""];
 }
 
-/** A turn: the line, the dice, the reply; who says what; the notes with their cards; the lines offered and those screened out; its calls. */
+/** A turn: the line, the dice, the reply; who says what; the lines offered and those screened out; its calls. */
 function turnSection(t: TurnRecord): string[] {
   const reply = t.entries.filter(e => e.speaker === "gm");
   return [
@@ -126,7 +118,6 @@ function turnSection(t: TurnRecord): string[] {
     "",
     ...t.entries.flatMap(e => [entryText(e), ""]),
     ...reply.flatMap(spokenLines),
-    ...notesLines(t, reply),
     ...linesOffered(t),
     `Calls: ${byOperation(t.calls) || "none"}.`,
     "",
@@ -136,17 +127,6 @@ function turnSection(t: TurnRecord): string[] {
 function spokenLines(e: EntryRecord): string[] {
   if (!e.spoken.length) return ["Who says what: no spoken lines.", ""];
   return ["Who says what:", ...e.spoken.map(s => `- ${s.who}${s.tag ? ` [${s.tag}]` : ""}: ${s.text}`), ""];
-}
-
-function notesLines(t: TurnRecord, reply: EntryRecord[]): string[] {
-  const notes = reply.flatMap(e => e.notes);
-  const when = t.notesMs !== undefined ? `, ${secs(t.notesMs)} after the reply` : "";
-  if (!notes.length) return [`Notes: none (${NOTES[t.notes] ?? t.notes}${when}).`, ""];
-  return [
-    `Notes (${NOTES[t.notes] ?? t.notes}${when}):`,
-    ...notes.map(n => `- **${n.kind}** on ${quoted(n.phrase)}: ${n.note}${n.link ? ` (→ ${n.link})` : ""}${n.card ? `\n  Card: **${n.card.title}**: ${n.card.lines.join(" · ")}` : ""}`),
-    "",
-  ];
 }
 
 function linesOffered(t: TurnRecord): string[] {
@@ -219,7 +199,7 @@ function heldBack(r: LiveRecord): string[] {
   return [
     "## What the scene holds back",
     "",
-    "Every note and line above is to be read against these: none should tell the player any of it before the scene has shown it.",
+    "Every line above is to be read against these: none should tell the player any of it before the scene has shown it.",
     "",
     "**The cast's secrets**",
     "",
@@ -235,8 +215,7 @@ function heldBack(r: LiveRecord): string[] {
 // ---------------------------------------------------------------------------------------------
 // Words and numbers.
 
-/** How a turn's notes and lines stood at the end (turn.notes, turn.suggest), in words. */
-const NOTES: Record<string, string> = { none: "nothing to note", writing: "still being written", written: "written", lost: "lost: the job gave up" };
+/** How a turn's lines stood at the end (turn.suggest), in words. */
 const LINES: Record<string, string> = {
   none: "none asked for: suggestions off, or the scene ending", coming: "still coming after 15 s", landed: "landed",
   dropped: "dropped: the scene had moved on", lost: "lost: the job gave up",
@@ -252,7 +231,7 @@ function entryText(e: EntryRecord): string {
   return e.text;
 }
 
-/** "gm.reply 1 ($0.0005), notes 1 ($0.0002)". */
+/** "gm.reply 1 ($0.0005), scene.suggest 1 ($0.0004)". */
 function byOperation(calls: Call[]): string {
   const groups = new Map<string, Call[]>();
   for (const c of calls) groups.set(c.operation, [...(groups.get(c.operation) ?? []), c]);

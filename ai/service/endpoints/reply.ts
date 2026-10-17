@@ -14,8 +14,8 @@ import { sceneAndView } from "./turn.ts";
  * the decision and what the decide commit did (the prototype's words, in its order), with a
  * considered turn's ruling as the consider commit played it, and the reply is streamed to the turn's
  * draft as it's written, with who says each line. The answer has the reply (who says each line by the
- * game's keys, and the marks the GM made, for its notes), the beat whose pressure this reply was
- * offered, and the sentence it repeated (or null, the last one's warning used up).
+ * game's keys), the beat whose pressure this reply was offered, and the sentence it repeated (or
+ * null, the last one's warning used up).
  */
 export const reply: Handler<ReplyRequest, ReplyResponse> = async (req, ctx) => {
   if (req.twoPart) return twoPartReply(req, ctx);

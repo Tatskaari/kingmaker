@@ -3,7 +3,7 @@ import { enterScene, leaveScene } from "../shared/map/explore.ts";
 import { actionId, MENU_MOVES, OUT, type InteractArgs, type MapMove, type TravelArgs, type WalkArgs } from "../shared/map/moves.ts";
 import { exploreOf, exploreRowOf, type ExploreRow, type MapRows } from "../shared/map/rows.ts";
 import { act as actOnMap, Unavailable, type Done } from "../shared/map/town.ts";
-import type { Mark, Markup } from "../shared/markup.ts";
+import type { Markup } from "../shared/markup.ts";
 import { applyFix, tooLong } from "../shared/creation/story.ts";
 import type { Backstory, LoreIssue, OwnBuild, Proposal } from "../shared/creation/types.ts";
 import { MAX_CONCEPT, MAX_NAME, MAX_STORY, refusal, type RefusalCode } from "../shared/protocol/refusals.ts";
@@ -29,8 +29,7 @@ import type { StoryRows } from "./story/rows.ts";
  * sentence on canned rows (the builds, their own, a draft, the lore check and its fix, the sheet,
  * as the simulation's moves would leave them, a beat apart), and the granary yard, where each line
  * said plays a canned turn through the phases the rows would give it (deciding, the reply growing
- * in its draft a word at a time with Kell's line in her colour, settling, noting while the GM writes
- * the notes, done once they're in, a mark with its card on the reply), and four lines suggested a
+ * in its draft a word at a time with Kell's line in her colour, settling, done), and four lines suggested a
  * moment after. A line said before the last turn is done waits, queued, as the simulation holds it;
  * /suggestions turns the lines off, and on (asked for at once). A move the simulation would refuse
  * is refused in its words. `ms` paces it; the player starts seated in Pell Marrow's game, a few
@@ -177,7 +176,7 @@ class Demo implements Backend {
     else if (view.suggestionsOn || view.watching) set({ suggestionsOn: true });
     else {
       set({ suggestionsOn: true, suggestionsComing: true });
-      if (["settling", "noting", "done"].includes(view.phase)) this.ask(game, game.latest ?? 0, 20);
+      if (["settling", "done"].includes(view.phase)) this.ask(game, game.latest ?? 0, 20);
     }
     return this.done();
   }
@@ -482,7 +481,7 @@ class Demo implements Backend {
     game.view = {
       ...YARD, sceneId: "9", title: "A word with Sergeant Agnes Kell", time: aside.time ?? "Morning", hook: "A word with Sergeant Agnes Kell, between one thing and the next.",
       game: aside.game, player: aside.player, present: [YARD.present[0]!], entries: [], phase: "replying", turn: 0, mayType: false, over: false,
-      suggestions: [], suggestionsComing: true, suggestionsOn: true, notesComing: false, onMap: true, talk: true, ...(aside.story ? { story: aside.story } : {}),
+      suggestions: [], suggestionsComing: true, suggestionsOn: true, onMap: true, talk: true, ...(aside.story ? { story: aside.story } : {}),
     };
     this.tell();
     this.later(10, () => {
@@ -497,7 +496,7 @@ class Demo implements Backend {
     await new Promise<void>(resolve => this.later(10, resolve));
     if (!game.talk || !game.view) return;
     game.view = {
-      ...game.view, phase: "done", mayType: false, over: true, suggestions: [], suggestionsComing: false, notesComing: false,
+      ...game.view, phase: "done", mayType: false, over: true, suggestions: [], suggestionsComing: false,
       entries: [...game.view.entries, { turn, speaker: "gm", kind: "narration", text: TALK_CLOSING, markup: kellIn(TALK_CLOSING) }, { turn, speaker: "system", kind: "system", text: "Scene ends: Goodbye for now" }],
     };
     this.tell();
@@ -553,7 +552,7 @@ class Demo implements Backend {
     game.story = clerkEnded();
     const view: SceneView = {
       ...game.view!, entries: [...game.view!.entries, { turn: game.latest ?? 0, speaker: "system", kind: "system", text: `Scene ends: ${OPEN_CASE.ending}` }],
-      phase: "done", mayType: false, over: true, suggestions: [], suggestionsComing: false, notesComing: false, story: storyOf(game.story),
+      phase: "done", mayType: false, over: true, suggestions: [], suggestionsComing: false, story: storyOf(game.story),
     };
     delete view.draft;
     game.view = view;
@@ -577,7 +576,7 @@ class Demo implements Backend {
     game.view = {
       ...YARD, sceneId: "8", title: "The Drowned Rat", time: "Evening", hook: RAT_HOOK, game: game.view!.game, player: game.view!.player,
       present: [YARD.present[0]!, { key: "hobb", name: "the big man with the bandaged hand", color: "#c79bf2" }, { key: "mags", name: "the landlady", color: "#8fd8c8" }],
-      entries: [], phase: "replying", turn: 0, mayType: false, suggestions: [], suggestionsComing: true, notesComing: false, story: storyOf(game.story),
+      entries: [], phase: "replying", turn: 0, mayType: false, suggestions: [], suggestionsComing: true, story: storyOf(game.story),
     };
     this.tell();
     const words = RAT_OPENING.split(/(?<= )/);
@@ -721,7 +720,7 @@ class Demo implements Backend {
     game.view = {
       ...YARD, game: String(game.row.gameId), player: { name: game.player.name, status: "HP 28/28" }, entries: YARD.entries.slice(0, 1), phase: "done", turn: 0, mayType: true,
       place: placed(game, game.player.name, /wizard/i.test(game.sheet.build)),
-      suggestionsOn: true, suggestions: [...LINES, ENDING_LINE], suggestionsComing: false, notesComing: false, story: storyOf(game.story),
+      suggestionsOn: true, suggestions: [...LINES, ENDING_LINE], suggestionsComing: false, story: storyOf(game.story),
     };
   }
 
@@ -737,7 +736,7 @@ class Demo implements Backend {
     const turn = game.latest = (game.latest ?? 0) + 1;
     const said: Entry = { turn, speaker: "player:1", kind: "player", name: game.view!.player.name, text };
     // The last set goes at once; its rows are kept for the next while it comes.
-    set({ entries: [...game.view!.entries, said], phase: behind ? "queued" : "deciding", turn, mayType: false, suggestions: [], suggestionsComing: game.view!.suggestionsOn, notesComing: false }, ["refusal"]);
+    set({ entries: [...game.view!.entries, said], phase: behind ? "queued" : "deciding", turn, mayType: false, suggestions: [], suggestionsComing: game.view!.suggestionsOn }, ["refusal"]);
     if (behind) { await behind; set({ phase: "deciding" }); }
     await sleep(15);
     // The rules' part, before a word from the GM: the dice lines and the world they changed, together, as the decide commit writes them.
@@ -755,16 +754,14 @@ class Demo implements Backend {
       await sleep(1);
     }
 
-    // The reply final: the box opens, the world settles and the notes are written behind it, and the lines are asked for.
+    // The reply final: the box opens, the world settles behind it, and the lines are asked for.
     const reply: Entry = { turn, speaker: "gm", kind: "narration", text: text_, markup: kellIn(text_) };
-    set({ entries: [...game.view!.entries, reply], phase: "settling", mayType: !ends, notesComing: !ends, ...(ends ? { ending: true, suggestionsComing: false } : {}) }, ["draft"]);
+    set({ entries: [...game.view!.entries, reply], phase: "settling", mayType: !ends, ...(ends ? { ending: true, suggestionsComing: false } : {}) }, ["draft"]);
     if (ends) { await sleep(25); delete game.view!.ending; this.endYard(game); return; }
     if (game.view!.suggestionsOn) this.ask(game, turn, 70);
-    await sleep(25);
-    if (game.latest === turn) set({ phase: "noting" });
-    await sleep(25);
-    // The notes: the reply's marks, each with its card; the turn done.
-    set({ entries: game.view!.entries.map(e => (e === reply ? { ...e, markup: game.reply || game.talk ? kellIn(text_) : notedIn(text_, turn) } : e)), ...(game.latest === turn ? { phase: "done" as const, notesComing: false } : {}) });
+    await sleep(50);
+    // The world settled: the turn done.
+    if (game.latest === turn) set({ phase: "done" });
   }
 
   /** The lines for a turn, `beats` from now: dropped when the player has moved on, or turned them off, meanwhile. */
@@ -880,31 +877,8 @@ const isMenuMoveName = (move: MoveName): move is MenuMoveName => (MENU_MOVES as 
 /** The markup of the reply so far: Kell's line, as much of it as has come. */
 function kellIn(text: string): Markup {
   const start = text.indexOf("“");
-  if (start < 0) return { speech: [], marks: [] };
+  if (start < 0) return { speech: [] };
   const close = text.indexOf("”", start);
-  return { speech: [{ start, end: close < 0 ? text.length : close + 1, speaker: "kell" }], marks: [] };
+  return { speech: [{ start, end: close < 0 ? text.length : close + 1, speaker: "kell" }] };
 }
 
-/**
- * The reply once its notes are in: Kell's line, a know on the watch with what anyone in Caerwyn
- * could tell you of it (the lore's first sentences, as the AI service writes a place's card), and
- * a why on her pencil with her card as of this turn.
- */
-function notedIn(text: string, turn: number): Markup {
-  const markup = kellIn(text);
-  const at = (phrase: string) => ({ start: text.indexOf(phrase), end: text.indexOf(phrase) + phrase.length });
-  const said = markup.speech[0]!;
-  const marks: Mark[] = [
-    {
-      ...at("ran for the watch"), kind: "know", note: "The watch keeps a house on the corner of the granary lane: the porters hadn't far to run.",
-      link: { kind: "lore", path: "World/City Watch.md" },
-      card: { title: "The City Watch", lines: ["The watch keeps the King's peace in Caerwyn's streets: a Captain who likes a parade, a handful of sergeants, corporals and constables, and never enough of any of them. Rain capes and truncheons, and notebooks for the sergeants.", "What anyone in Caerwyn could tell you."] },
-    },
-    {
-      ...at("Her pencil taps once against the page"), kind: "why", note: "She wrote the porters' story down before you came, and she's checking what she just told you against it.",
-      link: { kind: "person", id: "kell" },
-      card: { title: "Sergeant Agnes Kell", lines: ["A sergeant of the Caerwyn city watch, out of the watch house by the granary quarter.", "You met them in this scene.", `Last said to you (turn ${turn}): ${text.slice(said.start, said.end)}`] },
-    },
-  ];
-  return { ...markup, marks };
-}

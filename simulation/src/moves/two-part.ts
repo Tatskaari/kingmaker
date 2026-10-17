@@ -73,7 +73,7 @@ export function writeSpoken(tx: TxCtx, scene: SceneRow, n: number, turnId: bigin
   const line = `${describeRoll(roll)} (${BAND_NAME[band]}).`;
   addEntry(tx, scene, { turn: n, speaker: "dice", kind: "roll", text: line });
   const outcome = check.outcomes[band];
-  addEntry(tx, scene, { turn: n, speaker: "gm", kind: "narration", text: outcome.text, ...(outcome.markup ? { markup: { speech: outcome.markup.speech, marks: [] } } : {}) });
+  addEntry(tx, scene, { turn: n, speaker: "gm", kind: "narration", text: outcome.text, ...(outcome.markup ? { markup: { speech: outcome.markup.speech } } : {}) });
   tx.log(`[scene ${scene.id} turn ${n}] the GM's check: ${check.skill} DC ${check.dc}, ${roll.total} (${band})`);
   return { text: [...said, outcome.text].join("\n\n"), lines: [line], check: { skill: check.skill, dc: check.dc, total: roll.total, success: roll.success, band } };
 }

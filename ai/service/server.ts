@@ -14,7 +14,7 @@ import { streamSink, type StreamTarget } from "./stream.ts";
 /**
  * The AI service's HTTP API (v0-design §5.1, v5-design §3.6, v1-design §3.7, full-gm-design §4.1,
  * world-bridge-design §3.1): the thinks (the opening, a turn's own with the reactions to the
- * player's violence, its notes and its suggested lines, the memory reviews and the co-GM after it,
+ * player's violence, its suggested lines, the memory reviews and the co-GM after it,
  * and character creation's builds and backstories), a campaign's words, and its health.
  *
  * - Every route but health wants the bearer the module sends (401 otherwise).
@@ -75,7 +75,7 @@ export interface AiService {
 /** The thinks, by endpoint: the handler that serves each (STEP_ENDPOINT says which steps are whose). */
 const THINKS: Record<Endpoint, keyof Endpoints> = {
   "/v1/scenes/open": "open", "/v1/turns/decide": "decide", "/v1/turns/reactions": "reactions", "/v1/turns/consider": "consider", "/v1/turns/reply": "reply", "/v1/turns/settle": "settle",
-  "/v1/turns/notes": "notes", "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember", "/v1/turns/repair": "repair",
+  "/v1/turns/suggest": "suggest", "/v1/turns/remember": "remember", "/v1/turns/repair": "repair",
   "/v1/scenes/boundary": "boundary", "/v1/looks": "looks",
   "/v1/characters": "characters", "/v1/backstories": "backstories",
 };

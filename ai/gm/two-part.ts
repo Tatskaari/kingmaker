@@ -294,7 +294,7 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const out = JSON.parse(result.text) as { narration: string; check: { skill: Skill; dc: number; outcomes: Record<Band, string> } | null; closes?: boolean };
   const said = (text: string): Reply => {
     const { text: words, marked } = readReply(scene, view, text.trim());
-    return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: how.byKey({ speech: marked.speech, marks: [] }) } : {}) };
+    return { speaker: "gm", kind: "narration", text: words, ...(marked.speech.length ? { markup: how.byKey({ speech: marked.speech }) } : {}) };
   };
   const check = out.check && SKILLS.includes(out.check.skill) && Number.isInteger(out.check.dc) && BANDS.every(b => typeof out.check!.outcomes?.[b] === "string")
     ? { skill: out.check.skill, dc: out.check.dc, outcomes: Object.fromEntries(BANDS.map(b => [b, said(out.check!.outcomes[b])])) as Record<Band, Reply> }

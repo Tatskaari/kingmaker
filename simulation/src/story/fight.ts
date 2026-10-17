@@ -26,7 +26,7 @@ export function fightItOut(tx: TxCtx, scene: SceneRow): void {
   const exit = scene.exitKey ?? gm.ended?.exitId;
   const n = scene.turns + 1;
   let lease = scene.turnId === undefined ? undefined : tx.db.turn.id.find(scene.turnId);
-  // A turn still waiting on its reply's notes holds the scene: it's done now, so the notes landing don't let go of the aftermath's.
+  // A turn still holding the scene's lease is done now, so nothing finishing it lets go of the aftermath's.
   if (lease) lease = updateTurn(tx, lease.id, { phase: "done", endedAt: tx.now, note: undefined });
 
   addEntry(tx, scene, { turn: n, speaker: "system", kind: "system", text: STANDIN_LINE });

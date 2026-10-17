@@ -1,16 +1,14 @@
-// Copied from the prototype's src/app/reply.ts at 44c6d4a, whole: Markup and MarkKind come from shared/markup.ts.
-import type { Markup, MarkKind } from "../shared/markup.ts";
+// Copied from the prototype's src/app/reply.ts at 44c6d4a, but its marked phrases (the notes', which M2 took out of the game: docs/two-part-design.md): Markup comes from shared/markup.ts.
+import type { Markup } from "../shared/markup.ts";
 
 /**
- * A GM reply laid out for the screen (client/ui/reply.tsx draws it): narration, each person's
- * spoken lines in their own colour, and the marked phrases (shared/markup.ts), in paragraphs
- * broken where the speaker or the kind of text changes, word-wrapped to a width. The wrapping is
- * done here rather than by OpenTUI so that each marked phrase knows where it was drawn, and can be
- * clicked.
+ * A GM reply laid out for the screen (client/ui/reply.tsx draws it): narration, and each person's
+ * spoken lines in their own colour (shared/markup.ts), in paragraphs broken where the speaker or
+ * the kind of text changes, word-wrapped to a width.
  */
 
-/** A run of one style within a row. `mark`: the index of the mark it's part of. */
-export interface Run { text: string; fg: string; underline?: boolean; bold?: boolean; italic?: boolean; bg?: string; mark?: number }
+/** A run of one style within a row. */
+export interface Run { text: string; fg: string; underline?: boolean; bold?: boolean; italic?: boolean; bg?: string }
 export type Row = Run[];
 
 export interface Style {
@@ -23,31 +21,22 @@ export interface Style {
    * or they aren't there): drawn in italics too, so it's never taken for someone's own colour.
    */
   voice?: string;
-  /**
-   * A marked phrase's kind, as a tint under its words: they keep their own colour (whoever says
-   * them, or the narration's), so a marked line is still plainly its speaker's.
-   */
-  mark: (kind: MarkKind) => string;
-  /** The mark picked out (Tab), drawn in reverse: in `fg` on its kind's own colour (`bg`). */
-  focus?: { mark: number; fg: string; bg: (kind: MarkKind) => string };
 }
 
-/** A paragraph's pieces: text of one kind (narration, a line, a mark within either). */
-interface Piece { text: string; speech?: number; mark?: number }
+/** A paragraph's pieces: text of one kind (narration, or a line). */
+interface Piece { text: string; speech?: number }
 
-/** Where the reply's styling changes: every edge of a spoken line and of a mark. */
+/** Where the reply's styling changes: every edge of a spoken line. */
 function pieces(text: string, markup: Markup): Piece[] {
   const cuts = new Set<number>([0, text.length]);
   for (const s of markup.speech) { cuts.add(s.start); cuts.add(s.end); }
-  for (const m of markup.marks) { cuts.add(m.start); cuts.add(m.end); }
   const at = [...cuts].filter(c => c >= 0 && c <= text.length).sort((a, b) => a - b);
   const out: Piece[] = [];
   for (let i = 0; i + 1 < at.length; i++) {
     const from = at[i]!, to = at[i + 1]!;
     if (to <= from) continue;
     const speech = markup.speech.findIndex(s => s.start <= from && to <= s.end);
-    const mark = markup.marks.findIndex(m => m.start <= from && to <= m.end);
-    out.push({ text: text.slice(from, to), ...(speech >= 0 ? { speech } : {}), ...(mark >= 0 ? { mark } : {}) });
+    out.push({ text: text.slice(from, to), ...(speech >= 0 ? { speech } : {}) });
   }
   return out;
 }
@@ -117,17 +106,14 @@ const widthOf = (s: string) => [...s].reduce((n, ch) => n + cellWidth(ch), 0);
 
 interface Cell { ch: string; run: Omit<Run, "text"> }
 
-/** A piece's style: its speaker's colour (or the narration's), and a mark underlined on its kind's tint. */
+/** A piece's style: its speaker's colour (or the narration's), a voice nobody can place in italics. */
 function styleOf(piece: Piece, markup: Markup, style: Style): Omit<Run, "text"> {
-  const mark = piece.mark !== undefined ? markup.marks[piece.mark] : undefined;
   const fg = piece.speech !== undefined ? style.speech(markup.speech[piece.speech]!.speaker) : style.narration;
   const italic = piece.speech !== undefined && fg === style.voice;
-  const focus = mark && style.focus?.mark === piece.mark ? style.focus : undefined;
-  if (mark && focus) return { fg: focus.fg, bg: focus.bg(mark.kind), underline: true, bold: true, mark: piece.mark };
-  return { fg, ...(italic ? { italic: true } : {}), ...(mark ? { underline: true, mark: piece.mark, bg: style.mark(mark.kind) } : {}) };
+  return { fg, ...(italic ? { italic: true } : {}) };
 }
 
-const sameRun = (a: Omit<Run, "text">, b: Omit<Run, "text">) => a.fg === b.fg && a.underline === b.underline && a.bold === b.bold && a.italic === b.italic && a.bg === b.bg && a.mark === b.mark;
+const sameRun = (a: Omit<Run, "text">, b: Omit<Run, "text">) => a.fg === b.fg && a.underline === b.underline && a.bold === b.bold && a.italic === b.italic && a.bg === b.bg;
 
 /** A paragraph's cells as rows of runs, word-wrapped to `width` (a word longer than a row is broken). */
 function wrapCells(cells: Cell[], width: number): Row[] {

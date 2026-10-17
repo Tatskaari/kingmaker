@@ -67,7 +67,7 @@ const TRANSCRIPT: Need = ["turn.transcript", r => isList(r, "turn.transcript")];
 /** Every think on a turn reads its context: the scene, the line, the transcript, and what the view is built from. */
 const TURN: Need[] = [SCENE_AT, ["turn.line { text }", r => isText(r, "turn.line.text")], TRANSCRIPT, ...viewNeeds("turn.")];
 
-/** A job beside a turn (its notes, its suggested lines) or after it (the memory reviews, the co-GM) reads the scene's context, which has no line (v5-design §3.6). */
+/** A job beside a turn (its suggested lines) or after it (the memory reviews, the co-GM) reads the scene's context, which has no line (v5-design §3.6). */
 const SCENE: Need[] = [SCENE_AT, TRANSCRIPT, ...viewNeeds("turn.")];
 
 const STREAM: Need = ["stream { turn } (the draft it streams to)", r => isText(r, "stream.turn")];
@@ -105,7 +105,6 @@ const NEEDS: Record<Step, Need[]> = {
     ["talk { suggest } (a talk's, when it's sent)", r => at(r, "talk") === undefined || typeof at(r, "talk.suggest") === "boolean"],
     ["check { skill, dc, total, success, band } (the turn's check, when it's sent)", r => at(r, "check") === undefined || (isText(r, "check.skill") && isNumber(r, "check.dc") && isNumber(r, "check.total") && typeof at(r, "check.success") === "boolean" && isText(r, "check.band"))],
   ],
-  notes: [...SCENE, ["reply { seq, text, speech, drafted }", r => isNumber(r, "reply.seq") && isText(r, "reply.text") && isList(r, "reply.speech") && isList(r, "reply.drafted")]],
   suggest: [...SCENE, ["offered (the scene's last set)", r => isList(r, "offered")]],
   remember: [...SCENE, REVIEWED],
   repair: [...SCENE, REVIEWED],

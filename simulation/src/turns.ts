@@ -1,20 +1,20 @@
 import type { TxCtx } from "./context.ts";
 import { queueThink } from "./jobs.ts";
 import { firstPhase, say, startPlan } from "./moves/say.ts";
-import { turnRow, updateScene, updateTurn, type SceneRow, type TurnRow } from "./rows.ts";
+import { updateScene, updateTurn, type SceneRow, type TurnRow } from "./rows.ts";
 import { playerLine } from "./transcript.ts";
 
 /**
  * A scene's turns: 0 is its opening, then one a line. The scene's `turnId` is the lease, the turn in
- * flight; a line said while a turn settles, or waits for its notes, waits as `queued` and starts when
- * that one is done.
+ * flight; a line said while a turn settles waits as `queued` and starts when that one is done.
  */
 
 /**
  * queued, deciding, considering (the GM rules on the act before replying: full-gm-design §4.2),
- * replying, settling, noting (everything in but its reply's notes), done, failed.
+ * replying, settling, done, failed. (A turn was noting while its reply's notes were written, until
+ * M2 took the notes out: docs/two-part-design.md.) A two-part turn goes from queued to replying.
  */
-export type Phase = "queued" | "deciding" | "considering" | "replying" | "settling" | "noting" | "done" | "failed";
+export type Phase = "queued" | "deciding" | "considering" | "replying" | "settling" | "done" | "failed";
 
 export function newTurn(tx: TxCtx, scene: SceneRow, playerId: bigint, n: number, phase: Phase): TurnRow {
   return tx.db.turn.insert({
@@ -33,18 +33,8 @@ export function latestTurnOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {
   return [...tx.db.turn.sceneId.filter(scene.id)].find(t => t.n === scene.turns);
 }
 
-/**
- * A turn's end, once all of it is in (v5-design §3.5). While its reply's notes are still being
- * written it waits for them, noting, the lease kept: the prototype ends a turn only once its notes
- * are written (engine.ts:953), and the next reply's history reads them. Otherwise it's done, the
- * lease released, and a line said meanwhile starts (unless the scene has ended).
- */
+/** A turn's end, once all of it is in (v5-design §3.5): it's done, the lease released, and a line said meanwhile starts (unless the scene has ended). */
 export function finishTurn(tx: TxCtx, sceneId: bigint, turnId: bigint): void {
-  if (turnRow(tx, turnId).notes === "writing") {
-    updateTurn(tx, turnId, { phase: "noting", note: undefined });
-    return;
-  }
-
   updateTurn(tx, turnId, { phase: "done", endedAt: tx.now, note: undefined });
   const scene = updateScene(tx, sceneId, { turnId: undefined });
   if (scene.status !== "ended") startQueued(tx, scene);

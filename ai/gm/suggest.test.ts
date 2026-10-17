@@ -193,16 +193,15 @@ test("what the player has found out is settled, as a companion's told stories ar
   assert.deepEqual(made.lines.map(l => l.text), ["Sergeant, the wagons were countersigned. By whom, though?", "(I read the page again)"], "a word of what's been found isn't hidden any more (countersigned)");
 });
 
-test("the GM's markup never reaches the lines: the call is given a marked reply as the player reads it, and a line that comes back marked up isn't offered", async () => {
+test("the GM's markup never reaches the lines: the call is given a reply as the player reads it, and a line that comes back marked up isn't offered", async () => {
   const state = yard("suggest-markup");
   state.turn = 1;
   state.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "player", kind: "player", text: "Was it you who found him, Sergeant?" });
-  // A reply as the transcript keeps it: the words the player reads, and its markup beside them (who says each line, a why on a phrase).
+  // A reply as the transcript keeps it: the words the player reads, and its markup beside them (who says each line).
   const text = "Kell's pencil stops. “Not you,” she says. “Out.”";
   const first = text.indexOf("“Not"), firstEnd = text.indexOf("”", first) + 1, second = text.indexOf("“Out");
   state.transcript.push({ turn: 1, scene: "hanged-clerk", speaker: "gm", kind: "narration", text, marked: {
     speech: [{ start: first, end: firstEnd, speaker: "kell", tag: "Kell" }, { start: second, end: text.length, speaker: "kell", tag: "Kell" }],
-    marks: [{ start: first + 1, end: firstEnd - 2, kind: "why", note: "You called her a liar in front of the boy." }],
   } });
   const decider: Decider = { name: "stub", decide: async (_facts, questions) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, { choice: id.startsWith("roll_") ? "risky" : "fine", probabilities: {} }])), latencyMs: 1, costUsd: 0, decider: "stub" }) };
   let brief = "";

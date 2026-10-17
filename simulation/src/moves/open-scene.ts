@@ -18,7 +18,6 @@ import { rekeyOwed } from "../world/cross.ts";
 import { applyStage, joinPlace, openPlace, placeWorldOf, savePlaceWorld, type Start } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
 import type { Move } from "./move.ts";
-import { askForNotes } from "./notes.ts";
 import type { OpenPlan, Seen } from "./plans.ts";
 import { suggestAfter } from "./suggest.ts";
 import { keysIn, lookForNew } from "./looks.ts";
@@ -30,7 +29,7 @@ import { openingRolesFor, writeSpoken } from "./two-part.ts";
  * out, they come to if they were down: the rules engine's first draw of the scene; a milestone's
  * level, the scene's rest: world-bridge-design §3.4), turn 0 holding the lease; then one think, the
  * opening, streamed into turn 0's draft and committed as the transcript's first entry, and the scene
- * goes live (its notes and first lines asked for: v5-design §3.5). `start` is what the character
+ * goes live (its first lines asked for: v5-design §3.5). `start` is what the character
  * starts the game with: only the game's first scene hands it out. A scene waiting (map-design §3.5,
  * story-design §4.3: the lead, its place built when it became the lead, on the map where there is
  * one, with what the boundary handed on) opens in its row: its GM bookkeeping and its place kept,
@@ -68,9 +67,9 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
   think: (tx, plan) => openCall(tx, plan),
 
   /**
-   * The opening as the transcript's first entry, the notes disclosure opened kept; its notes and the
-   * first lines to suggest asked for (engine.ts:211-212); the scene live, and turn 0 finished (done,
-   * or noting until its notes are in, the lease kept till then).
+   * The opening as the transcript's first entry (the two-part GM's with its check rolled), the notes
+   * disclosure opened kept; the first lines to suggest asked for (engine.ts:211-212); the scene live,
+   * and turn 0 finished.
    */
   commit(tx, plan, answer) {
     const opened = answer as OpenResponse;
@@ -80,12 +79,9 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
     const talk = scene.kind === "talk";
 
     putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []), ...(talk && opened.talk ? prepared(gm, opened.talk, turnRow(tx, turnId).n) : {}) });
-    // The two-part GM's opening: what its mouthpiece said, a check it called rolled (no notes: docs/two-part-design.md).
+    // The two-part GM's opening: what its mouthpiece said, and a check it called, rolled (docs/two-part-design.md).
     if (plan.twoPart && !plan.aftermath) writeSpoken(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries, opened.check);
-    else {
-      const opening = writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
-      if (opening) askForNotes(tx, turnId, opening);
-    }
+    else writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
     // A talk's lines to choose come with its prep (talk.ts prepare); a scene's are asked for (v5-design §3.5).
     if (talk) { if (playerRow(tx, scene.controllerId).suggestions) talkLines(tx, scene, turnRow(tx, turnId).n, opened.talk?.suggestions ?? []); }
     else suggestAfter(tx, scene, turnId);
@@ -120,7 +116,7 @@ function prepared(gm: GmState, prep: TalkPrep, n: number): Partial<GmState> {
 /**
  * The map's act as the scene's first turn (town-design §3.4: storyAct's): the player's line in
  * brackets, and its mechanic, chosen already, on the turn (turn.mechanic: decide's `forced`). It
- * waits as queued; turn 0's end starts it (turns.ts), or its notes coming in do.
+ * waits as queued; turn 0's end starts it (turns.ts).
  */
 function queueAct(tx: TxCtx, scene: SceneRow, act: { text: string; mechanic: Mechanic }): void {
   const n = scene.turns + 1;

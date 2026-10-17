@@ -1,20 +1,30 @@
-// Copied from the prototype's src/runtime/markup.ts at 44c6d4a, all but markupLines (the QA console's); its types are v2/shared/markup.ts's, imported.
+// Copied from the prototype's src/runtime/markup.ts at 44c6d4a, all but markupLines (the QA console's); its types are v2/shared/markup.ts's, imported. M2 took the notes on marked words out of the game (docs/two-part-design.md): a mark is parsed only to take it out of the words (its own types here, never kept), and markupOf writes back the speakers alone.
 import { antecedent, arrived, firstNamed, newcomer, pronounTagged, quoteSpeaker, SPEECH, speechTagged, tagSpeaker, type Pronoun, type Speaker } from "./speakers.ts";
-import { MARK_KINDS, type Mark, type MarkKind, type Marked, type Markup, type Speech } from "../../shared/markup.ts";
+import type { Marked, Markup, Speech } from "../../shared/markup.ts";
 
-export { MARK_KINDS, type Mark, type MarkKind, type Marked, type Markup, type Speech };
+export type { Marked, Markup, Speech };
+
+/**
+ * A note on a marked phrase, as the markup had them until M2 (why, know or you): the game no longer
+ * asks for them or shows them, but a model may still write one (or a recording from before has it),
+ * so it's recognised and taken out of the words, its phrase shown as plain words.
+ */
+export type MarkKind = "why" | "know" | "you";
+export const MARK_KINDS: readonly MarkKind[] = ["why", "know", "you"];
+export interface Mark { start: number; end: number; kind: MarkKind; note: string }
+/** What a parse finds: the words, who says each line, and the notes it took out of them. */
+export interface Parsed extends Marked { marks: Mark[] }
 
 /**
  * The GM's markup: what a reply says beyond its words, for the screen (each person's lines in
- * their own colour, and phrases the player can click to see what's behind them). It's never shown
- * as written. Anything in square brackets is for the screen; a marked phrase is in round ones:
+ * their own colour). It's never shown as written. Anything in square brackets is for the screen:
  *
  *   [Kell] “On what evidence?”                         who says the line that follows
- *   (she won't serve you)[why: You called her pies…]   a note on a phrase: why, know or you
+ *   (she won't serve you)[why: You called her pies…]   a note on a phrase (until M2): taken out
  *
- * The kinds: `why` (someone refuses, bristles or helps because of the player's past, a side, a
- * prejudice or custom of the world, or a law), `know` (what the player's character would know and
- * a newcomer wouldn't) and `you` (one of the player's own past acts).
+ * A note's kinds were `why` (someone refuses, bristles or helps because of the player's past, a
+ * side, a prejudice or custom of the world, or a law), `know` (what the player's character would
+ * know and a newcomer wouldn't) and `you` (one of the player's own past acts).
  *
  * The model drifts, so what it drifts to is taken too: Markdown's order ([phrase](why: …)), both in
  * square brackets ([phrase][why: …]), a space between the phrase and its note, a note with no kind
@@ -250,7 +260,7 @@ function stopless(phrase: string, after: string): boolean {
  * back (`pending`) and a spoken line still open is reported as far as it's come. Speakers are the
  * tags as written: `withSpeakers` says who they are.
  */
-export function parseMarkup(written: string, options: { final?: boolean } = {}): Marked & { pending: boolean; stats: MarkupStats } {
+export function parseMarkup(written: string, options: { final?: boolean } = {}): Parsed & { pending: boolean; stats: MarkupStats } {
   const final = options.final ?? true;
   const r = new Reply();
   // Markdown's bold (**CAERWYN — 7 MILES**) is read without its stars; as it streams, a star that
@@ -496,7 +506,7 @@ export function speechIn(text: string): Speech[] {
  * marked “lost to goblins”", "At the bottom: “Not goblins.”") are nobody's line, or the player's own
  * when they echo `player`, the player's latest turn.
  */
-export function withSpeakers(marked: Marked, everyone: Speaker[], options: { player?: string | undefined } = {}): Marked {
+export function withSpeakers<T extends Marked>(marked: T, everyone: Speaker[], options: { player?: string | undefined } = {}): T {
   // Someone away whom the narration brings in by what they're called is known by it.
   const people = arrived(everyone, marked.text);
   const speech: Speech[] = [];
@@ -584,25 +594,17 @@ const echoes = (quote: string, player: string) => { const q = plain(quote); retu
 
 /**
  * A reply written back out with its markup, for the GM's own history (a model writes as its last
- * few replies were written): each line tagged with its speaker by `name`, each note on its phrase.
+ * few replies were written): each line tagged with its speaker by `name`.
  */
 export function markupOf(marked: Marked, name: (id: string) => string | undefined): string {
   const opens = new Map<number, string[]>();
-  const closes = new Map<number, string[]>();
   const add = (map: Map<number, string[]>, at: number, s: string) => map.set(at, [...(map.get(at) ?? []), s]);
   for (const s of marked.speech) {
     const who = s.speaker === "you" ? "you" : (s.speaker ? name(s.speaker) : undefined) ?? s.tag;
     if (who) add(opens, s.start, `[${who}] `);
   }
-  // Notes that cross a spoken line's edge aren't written back (they'd split its tag from it).
-  for (const m of marked.marks) {
-    if (marked.speech.some(s => (m.start < s.start && m.end > s.start) || (m.start < s.end && m.end > s.end))) continue;
-    add(opens, m.start, "(");
-    add(closes, m.end, `)[${m.kind}: ${m.note}]`);
-  }
   let out = "";
   for (let i = 0; i <= marked.text.length; i++) {
-    for (const s of closes.get(i) ?? []) out += s;
     for (const s of opens.get(i) ?? []) out += s;
     if (i < marked.text.length) out += marked.text[i];
   }

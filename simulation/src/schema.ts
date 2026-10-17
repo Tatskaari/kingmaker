@@ -327,7 +327,7 @@ export const turn = table({ name: "turn", public: true }, {
   /** 0 is the opening. */
   n: t.u32(),
   playerId: t.u64(),
-  /** queued, deciding, considering (the GM rules on the act before replying), replying, settling, noting (all in but its reply's notes), done, failed. */
+  /** queued, deciding, considering (the GM rules on the act before replying), replying, settling, done, failed (noting, while its reply's notes were written, until M2). */
   phase: t.string(),
   /** While it waits on the AI service. */
   note: t.option(t.string()),
@@ -338,7 +338,7 @@ export const turn = table({ name: "turn", public: true }, {
   endedAt: t.option(t.timestamp()),
   calls: t.u32(),
   costMicros: t.u64(),
-  /** Its reply's notes: none (nothing to note), writing, written, lost (the job gave up). */
+  /** Its reply's notes, until M2 took them out of the game (docs/two-part-design.md): always none now, the column kept so a database from before still publishes. */
   notes: t.string().default("none"),
   /** The lines suggested after its reply: none, coming, landed, dropped (overtaken, ended or turned off), lost. */
   suggest: t.string().default("none"),
@@ -680,9 +680,9 @@ export const job = table({ name: "job" }, {
   gameId: t.option(t.u64()),
   sceneId: t.option(t.u64()),
   turnId: t.option(t.u64()),
-  /** say, openScene, creation; beside a turn, notes and suggest; after it, remember and repair (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn). */
+  /** say, openScene, creation; beside a turn, suggest; after it, remember and repair (one row a turn and move); after a scene, crossBoundary (its scene's, with no turn). */
   move: t.string(),
-  /** open, decide, reactions, consider, reply, settle, notes, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
+  /** open, decide, reactions, consider, reply, settle, suggest, remember, repair, boundary; a creation's offer, pick, own, draft, work, check, traits. */
   step: t.string(),
   endpoint: t.string(),
   timeoutMs: t.u32(),

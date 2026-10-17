@@ -1,6 +1,6 @@
 import type { Ruling, Verdict } from "../../../shared/gm/consider.ts";
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { Decision, Drafted, Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { Decision, Outcome, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 import type { Transition } from "../../../shared/scene/types.ts";
 
@@ -76,13 +76,6 @@ export interface SayPlan {
   twoPart?: boolean;
   check?: TurnCheck;
 }
-
-/**
- * The notes on a reply's marks (v5-design §3.4): one think, POST /v1/turns/notes. `seq` is the
- * reply's transcript row; `drafted`, the marks the GM made as it wrote, which the row never keeps
- * (only their notes, once written, reach it), so the request is built from the plan.
- */
-export interface NotesPlan { step: "notes"; game: string; scene: string; turn: string; n: number; seq: number; drafted: Drafted[] }
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }

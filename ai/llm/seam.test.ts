@@ -78,16 +78,16 @@ test("decisionDelayMs holds every decision that long", async () => {
 });
 
 test("byNameDelayMs holds a structured call by its schema's name, and no other", async () => {
-  const fake = fakeFetch({ byName: { notes: { notes: [] } }, byNameDelayMs: { notes: 120 } });
+  const fake = fakeFetch({ byName: { looks: { looks: [] } }, byNameDelayMs: { looks: 120 } });
   const calls = { fetch: fake.fetch, apiKey: "k", cost: () => {} };
-  const ask = (name: string) => respondJson<{ notes: unknown[] }>({ operation: name, input: [{ role: "user", content: "?" }], json: { name, schema: { type: "object", properties: { notes: { type: "array" } }, required: ["notes"] } }, calls });
+  const ask = (name: string) => respondJson<{ looks: unknown[] }>({ operation: name, input: [{ role: "user", content: "?" }], json: { name, schema: { type: "object", properties: { looks: { type: "array" } }, required: ["looks"] } }, calls });
   const done: string[] = [];
   const started = performance.now();
 
-  const [notes] = await Promise.all([ask("notes").then(n => { done.push("notes"); return n; }), ask("world_ops").then(() => done.push("world_ops"))]);
+  const [looks] = await Promise.all([ask("looks").then(n => { done.push("looks"); return n; }), ask("world_ops").then(() => done.push("world_ops"))]);
 
-  assert.deepEqual(notes.notes, []);
-  assert.deepEqual(done, ["world_ops", "notes"]);
+  assert.deepEqual(looks.looks, []);
+  assert.deepEqual(done, ["world_ops", "looks"]);
   assert.ok(performance.now() - started >= 110);
 });
 

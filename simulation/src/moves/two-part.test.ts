@@ -14,7 +14,7 @@ import { all, nextCheck, openedGame, sceneNow } from "../host/testing.ts";
  */
 
 const usage = { calls: 1, costUsd: 0.001, byOperation: {} };
-const said = (text: string, speakers: string[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speakers.length ? { markup: { speech: speakers.map((speaker, i) => ({ start: i, end: i + 1, speaker })), marks: [] } } : {}) });
+const said = (text: string, speakers: string[] = []): Reply => ({ speaker: "gm", kind: "narration", text, ...(speakers.length ? { markup: { speech: speakers.map((speaker, i) => ({ start: i, end: i + 1, speaker })) } } : {}) });
 const replied = (text: string, more: Partial<ReplyResponse> = {}): ReplyResponse => ({ entries: [said(text)], gm: { repeated: null }, firstTextMs: 3, usage, ...more });
 const coGm = (moves: CoGmAnswer["moves"], roles: CoGmAnswer["roles"] = {}): SettleResponse => ({ ops: [], coGm: { roles, moves, log: [] }, usage });
 const outcomes = Object.fromEntries(BANDS.map(b => [b, said(`Outcome: ${b}.`)])) as Record<Band, Reply>;
@@ -41,7 +41,6 @@ test("a scene of the story opens on the two-part GM: everyone present has a role
   assert.deepEqual(now.gm.twoPart.notes.map(n => n.turn), [-1]);
   assert.match(now.gm.twoPart.notes[0]!.text, /^Co-GM note, before turn 0\n\nCharacter role for Sergeant Agnes Kell:/);
   assert.deepEqual([now.scene.status, now.turns[0]!.phase], ["live", "done"]);
-  assert.deepEqual(script.to("notes"), [], "no notes on a two-part reply");
 });
 
 test("a line: replied with no decide, the GM's check rolled through the rules engine from the game's dice, its outcome written; then the stage manager and the co-GM, its move taken again on the rows", async () => {

@@ -147,7 +147,7 @@ function lineRefusal(text: string): Refusal | undefined {
 
 /**
  * The turn in flight: a failed one waits for /retry; one deciding or replying, or with a line
- * already waiting, can't take another. One settling or noting (its reply in: the box is open) takes
+ * already waiting, can't take another. One settling (its reply in: the box is open) takes
  * one more, which waits.
  */
 function turnRefusal(tx: TxCtx, scene: SceneRow): Refusal | undefined {
@@ -165,7 +165,7 @@ function onMap(tx: TxCtx, actor: Actor): boolean {
 }
 
 /** The phases of a turn in flight whose reply is in: a line said now waits for it (v5-design §3.3). */
-const BOX_OPEN = new Set(["settling", "noting"]);
+const BOX_OPEN = new Set(["settling"]);
 
 /** The turn holding the scene's lease: in flight, or failed and waiting for /retry. */
 function leaseOf(tx: TxCtx, scene: SceneRow): TurnRow | undefined {

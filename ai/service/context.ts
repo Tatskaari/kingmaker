@@ -1,7 +1,7 @@
 import type { CallContext } from "../llm/openrouter.ts";
 import type {
   AiErrorCode, BackstoriesRequest, BackstoriesResponse, BoundaryRequest, BoundaryResponse, CharactersRequest, CharactersResponse, ConsiderRequest, ConsiderResponse,
-  DecideRequest, DecideResponse, LooksRequest, LooksResponse, NotesRequest, NotesResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
+  DecideRequest, DecideResponse, LooksRequest, LooksResponse, OpenRequest, OpenResponse, ReactionsRequest, ReactionsResponse, RememberRequest, RememberResponse, RepairRequest, RepairResponse,
   ReplyRequest, ReplyResponse, SettleRequest, SettleResponse, SuggestRequest, SuggestResponse, Usage,
 } from "../../shared/protocol/ai.ts";
 import type { Campaign } from "./campaigns.ts";
@@ -35,8 +35,8 @@ export type Handler<Req, Res> = (req: Req, ctx: AiContext) => Promise<Res>;
 /**
  * The thinks: the opening, a turn's own (decide, reactions on a turn the player's violence drew them:
  * world-bridge-design §3.1, consider on a turn the GM rules on, reply, settle),
- * the two beside a turn once its reply is in (the notes on its marks, the lines suggested after it:
- * v5-design §3.6), the two in the background once it's over (the memory reviews and the co-GM:
+ * the one beside a turn once its reply is in (the lines suggested after it: v5-design §3.6; the
+ * notes on its marks went in M2), the two in the background once it's over (the memory reviews and the co-GM:
  * full-gm-design §4.1), the boundary once a scene is over (story-design §4.4), the looks of what a
  * turn made (town-design §3.7); and character
  * creation's two (v1-design §3.7), each serving several steps.
@@ -51,7 +51,6 @@ export interface Endpoints {
   consider: Handler<ConsiderRequest, ConsiderResponse>;
   reply: Handler<ReplyRequest, ReplyResponse>;
   settle: Handler<SettleRequest, SettleResponse>;
-  notes: Handler<NotesRequest, NotesResponse>;
   suggest: Handler<SuggestRequest, SuggestResponse>;
   /** The memory reviews of a turn once it's over: notes written into the game's docs, a line in memory-reviews.jsonl. */
   remember: Handler<RememberRequest, RememberResponse>;

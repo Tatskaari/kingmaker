@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import * as verbs from "../client/headless.ts";
 import type { SceneRows } from "../client/scene/rows.ts";
-import type { Mark, Markup } from "../shared/markup.ts";
+import type { Markup } from "../shared/markup.ts";
 import { idempotencyKey, type Step } from "../shared/protocol/keys.ts";
 import { reportLines } from "./dev/doctor.ts";
 import { devFake, onTop } from "./dev/fake.ts";
@@ -30,9 +30,11 @@ import { configureTerminal } from "./terminal.ts";
  * recording every row event they see. V0's steps: the AI service killed mid-reply and restarted
  * mid-reply (as the dev host's k and r), the AI service gone after it kept an answer, SpacetimeDB
  * restarted mid-think, an ending. V5's: the reply as drawn throughout (who says each line as it
- * streams, the notes the turn waits for, the lines suggested after it); then a line said while the
- * GM makes a note, a suggested line said by its number, lines whose moment has passed, the notes
- * kept by the AI service as it died, and the lines turned off and on. V1's (e2e/creation.ts): a
+ * streams, the lines suggested after it); then a line said while the world settles, a suggested
+ * line said by its number, lines whose moment has passed, the lines kept by the AI service as it
+ * died, and the lines turned off and on (the notes on marked words went in M2, and their steps with
+ * them: B now joins once the opening is in, and the line and the fault wait on the settle and the
+ * lines instead). V1's (e2e/creation.ts): a
  * concept to the opening, the AI service gone after it kept the lore check, SpacetimeDB restarted
  * while the builds are made, a character made and checks rolled beside another game's stream, the
  * daily ceiling, continue and delete. The map's (e2e/map.ts, map-design §4): each game starts on
@@ -67,23 +69,14 @@ const USAGE = `npm run e2e [-- options]
 
 /**
  * The fake model's options: the dev host's (hosts/dev/fake.json), so the replies are the GM's golden
- * ones, marked up with who says each line, with notes written on their words and twelve lines to
- * suggest. Every call streams over 2 s, so a draft grows in several posts; the notes come 1.5 s
- * later, and the lines 0.8 s.
+ * ones, marked up with who says each line, and twelve lines to suggest. Every call streams over 2 s,
+ * so a draft grows in several posts; the lines come 0.8 s later.
  */
 const FAKE: FakeOptions = devFake();
-/** The opening's notes held back, so that B, joining once the scene is live, sees them land. */
-const OPENING: FakeOptions = { ...FAKE, byNameDelayMs: { notes: 6_000 } };
-/**
- * The golden first reply for every turn: Kell's, Cob's and Moll's lines, two with a why, so a turn's
- * notes land whichever turn it is (the other replies' notes need the right turn: a you needs the
- * player's words, and the know on the Purveyor's office its lore's place in the brief).
- */
-const NOTED: FakeOptions = { ...FAKE, replies: [FAKE.replies![1]!] };
 const NEW_GAME = { campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" };
 const NOTE = "The GM has lost the thread for a moment: trying again.";
 /** The phases of a turn whose reply is in: the box is open again. */
-const REPLIED = ["settling", "noting", "done"];
+const REPLIED = ["settling", "done"];
 
 const flags = flagsOf(process.argv.slice(2));
 configureTerminal(process.env);
@@ -104,16 +97,16 @@ try {
 
   const a = await player(stack, "A"), b = await player(stack, "B");
   const game = await theOpening(stack, a);
-  await theOpeningsNotes(stack, a, b, game);
+  await aSpectatorJoins(a, b, game);
   await aTurnBothSee(a, b, game);
   await killedMidReply(stack, a, game);
   await restartedMidReply(stack, a, game);
   await keptAnswer(stack, a, game);
   await spacetimeRestarted(stack, a, game);
-  await aLineWhileNoting(stack, a, game);
+  await aLineWhileSettling(stack, a, game);
   await aSuggestedLine(a, b);
   await linesOvertaken(stack, a, game);
-  await keptNotes(stack, a, game);
+  await keptLines(stack, a, game);
   await linesOffAndOn(stack, a, game);
   await anEnding(stack, a, b, game);
   await backToTheMap(stack, a, b, game.id);
@@ -175,7 +168,7 @@ async function installedAndWell(stack: Stack): Promise<void> {
  */
 async function theOpening(stack: Stack, a: Player): Promise<Game> {
   step("2. A new game in the granary lane; talking to Kell opens the hanged clerk, its opening streamed with who says each line");
-  await restartAi(stack, OPENING);
+  await restartAi(stack, FAKE);
   check("A's new_game is made", (await a.conn.newGame(NEW_GAME)) === undefined);
   await inTheLane(a);
   check("a line said on the map is refused: not_in_scene", (await a.conn.say("Sergeant?"))?.code === "not_in_scene");
@@ -195,26 +188,18 @@ async function theOpening(stack: Stack, a: Player): Promise<Game> {
 }
 
 /**
- * 3. B joins while the opening's notes are being written (OPENING holds them back): both see them
- * land on the opening's row, each with its note and, when it's linked, its card; turn 0 goes noting,
- * then done.
+ * 3. B joins once the scene is live, and sees the opening as A does: its words, and who says each
+ * line; turn 0 done for both. (Until M2, B joined while the opening's notes were being written and
+ * both saw them land on its row: the notes went in M2.)
  */
-async function theOpeningsNotes(stack: Stack, a: Player, b: Player, game: Game): Promise<void> {
-  step("3. A spectator joins; the opening's notes land for both");
-  check("turn 0 is noting: the scene is live, its notes still being written", turnOf(a.conn.rows()!, 0)?.phase === "noting");
+async function aSpectatorJoins(a: Player, b: Player, game: Game): Promise<void> {
+  step("3. A spectator joins: the opening as A has it");
   check("B's join_game is made", (await b.conn.joinGame(game.id)) === undefined);
-  await until(b, "B to see the scene", 10_000, r => r.scene.status === "live" && r.transcript.length > 0);
-
-  const [seenA, seenB] = await Promise.all([a, b].map(p => until(p, `${p.name} to see the opening's notes`, 30_000, r => marksOn(r, 0).length && marksOn(r, 0))));
-  const updated = [a, b].every(p => p.events.some(e => e.table === "transcript" && e.op === "update" && e.row.turn === 0 && marksIn(e.row.markup).length));
-  check(`A and B both saw the opening's row updated with its ${seenA!.length} notes: ${seenA!.map(describeMark).join("; ")}`, updated && JSON.stringify(seenA) === JSON.stringify(seenB));
-  check("each has its note, and each linked one its card", seenA!.every(m => m.note && (!m.link || m.card?.title)));
-  await doneTurn(a, 0);
-  check("turn 0 went noting, then done", phasesSeen(a, 0).slice(-2).join() === "noting,done");
-  await restartAi(stack, FAKE);
+  const [seenA, seenB] = await Promise.all([a, b].map(p => until(p, `${p.name} to see the opening, turn 0 done`, 30_000, r => r.scene.status === "live" && turnOf(r, 0)?.phase === "done" && r.transcript.find(t => t.turn === 0 && t.speaker === "gm"))));
+  check(`A and B have the same opening, who says each line with it (${speakersIn(seenA!.markup).join(", ")})`, seenA!.text === seenB!.text && seenA!.markup === seenB!.markup && speakersIn(seenA!.markup).length > 0);
 }
 
-/** 4. A's line, A's second at once refused, B's refused; both clients see the turn's rows alike: who says each line as the draft grows, the notes, the lines suggested after it (A's alone). */
+/** 4. A's line, A's second at once refused, B's refused; both clients see the turn's rows alike: who says each line as the draft grows, the lines suggested after it (A's alone). */
 async function aTurnBothSee(a: Player, b: Player, game: Game): Promise<void> {
   step("4. A turn both clients see alike");
   const from = { a: a.events.length, b: b.events.length };
@@ -228,12 +213,10 @@ async function aTurnBothSee(a: Player, b: Player, game: Game): Promise<void> {
   await pause(500);
 
   const seenA = turnEvents(a.events.slice(from.a), n), seenB = turnEvents(b.events.slice(from.b), n);
-  check(`A and B saw the same ${seenA.length} row events for the turn (its phases, the draft's posts with who says what, the entries with their notes)`, seenA.length > 5 && JSON.stringify(seenA) === JSON.stringify(seenB));
+  check(`A and B saw the same ${seenA.length} row events for the turn (its phases, the draft's posts with who says what, the entries)`, seenA.length > 5 && JSON.stringify(seenA) === JSON.stringify(seenB));
   const streamed = speakersIn(...a.events.slice(from.a).filter(e => e.table === "reply_draft" && e.op !== "delete").map(e => e.row.markup));
   check(`the reply's draft named Kell, Cob and Moll as it grew: ${streamed.join(", ")}`, ["cob", "kell", "moll"].every(k => streamed.includes(k)));
   const rows = a.conn.rows()!;
-  check(`its notes landed on its row: ${marksOn(rows, n).map(describeMark).join("; ")}`, marksOn(rows, n).length > 0);
-
   const lines = linesOf(rows);
   check(`A has the lines suggested after it: ${lines.map(l => `${l.ord} ${l.kind}`).join(", ")}`, lines.length >= 3 && lines.every(l => l.turn === n));
   check("A's view shows them, in order", JSON.stringify(a.conn.view()!.suggestions.map(s => s.text)) === JSON.stringify(lines.map(l => l.text)));
@@ -333,26 +316,26 @@ async function spacetimeRestarted(stack: Stack, a: Player, game: Game): Promise<
 }
 
 /**
- * 9. The notes held back 3 s: A says a line the moment its turn is noting. It's queued, and decided
- * only once the last turn's notes are written; its reply's history (the call log) has them as the
- * GM writes its marks back.
+ * 9. The stage manager held back 3 s: A says a line the moment its turn is settling. It's queued, and
+ * its reply asked for only once the last turn's settle is in, so it has the co-GM's note written in
+ * that settle. (Until M2 the line waited on the notes, which went in M2.)
  */
-async function aLineWhileNoting(stack: Stack, a: Player, game: Game): Promise<void> {
-  step("9. A line said while the GM makes a note waits for the notes");
-  await restartAi(stack, { ...NOTED, byNameDelayMs: { notes: 3_000 } });
+async function aLineWhileSettling(stack: Stack, a: Player, game: Game): Promise<void> {
+  step("9. A line said while the world settles waits for the settle");
+  await restartAi(stack, { ...FAKE, byNameDelayMs: { world_ops: 3_000 } });
   const n = nextTurn(a);
   check("A says a line", (await a.conn.say("Moll, did you really see him jump from up on that wall?")) === undefined);
-  await until(a, `turn ${n} noting`, 30_000, r => turnOf(r, n)?.phase === "noting");
-  check(`A says another the moment turn ${n} is noting: it's taken`, (await a.conn.say("And where were you, Cob?")) === undefined);
+  await until(a, `turn ${n} settling`, 30_000, r => turnOf(r, n)?.phase === "settling");
+  check(`A says another the moment turn ${n} is settling: it's taken`, (await a.conn.say("And where were you, Cob?")) === undefined);
   await until(a, `turn ${n + 1} queued`, 5_000, r => turnOf(r, n + 1)?.phase === "queued");
-  ok(`turn ${n + 1} is queued behind turn ${n}'s notes`);
+  ok(`turn ${n + 1} is queued behind turn ${n}'s settle`);
 
-  const rows = await doneTurn(a, n + 1);
-  const written = lastCallAt(game, "notes", keyOf(game, n, "notes")), decided = firstCallAt(game, "director.before", keyOf(game, n + 1, "decide"));
-  check(`turn ${n + 1} was decided only once turn ${n}'s notes were written (${decided - written} ms after)`, written > 0 && decided > written);
-  const marks = marksOn(rows, n), history = modelInput(game, "gm.reply", keyOf(game, n + 1, "reply"));
-  const back = marks.map(m => `)[${m.kind}: ${m.note}]`);
-  check(`turn ${n + 1}'s gm.reply history has turn ${n}'s notes as the GM writes them back: ${back.join(" ")}`, marks.length > 0 && back.every(b => history.includes(b)));
+  await doneTurn(a, n + 1);
+  const settled = lastCallAt(game, "world.stage", keyOf(game, n, "settle")), replied = firstCallAt(game, "two-part.reply", keyOf(game, n + 1, "reply"));
+  check(`turn ${n + 1}'s reply was asked for only once turn ${n}'s settle was in (${replied - settled} ms after)`, settled > 0 && replied > settled);
+  const told = modelInput(game, "two-part.reply", keyOf(game, n + 1, "reply"));
+  check(`turn ${n + 1}'s reply has the co-GM's note that settle wrote for it ("Co-GM note, before turn ${n + 1}")`, told.includes(`Co-GM note, before turn ${n + 1}`));
+  await restartAi(stack, FAKE);
 }
 
 /** 10. The lines after the last reply, the lead's alone: act --id say_2 says the second, word for word. */
@@ -391,22 +374,26 @@ async function linesOvertaken(stack: Stack, a: Player, game: Game): Promise<void
   check(`turn ${n + 1}'s lines took their place`, linesOf(next).every(l => l.turn === n + 1));
 }
 
-/** 12. The AI service exits right after it stores a turn's notes: started again, it answers them from the store, and they land. */
-async function keptNotes(stack: Stack, a: Player, game: Game): Promise<void> {
-  step("12. The AI service gone after it kept the notes");
-  await restartAi(stack, NOTED, { KM_AI_FAULTS: "exit-after-store:notes" });
+/**
+ * 12. The AI service exits right after it stores a turn's lines (a job beside the turn, as the notes
+ * were until M2): started again, it answers them from the store, and they land.
+ */
+async function keptLines(stack: Stack, a: Player, game: Game): Promise<void> {
+  step("12. The AI service gone after it kept the lines");
+  await restartAi(stack, FAKE, { KM_AI_FAULTS: "exit-after-store:suggest" });
   const n = nextTurn(a);
   check("A says a line", (await a.conn.say("Sergeant, who found him?")) === undefined);
   const code = await stack.ai.exited();
-  const key = keyOf(game, n, "notes");
-  check(`the AI service exited (${code}) right after it stored the notes`, code === 137 && aiLog().includes(`exit-after-store: ${key} is stored`));
-  await stack.ai.start({ KM_AI_FAKE: JSON.stringify(NOTED) });
+  const key = keyOf(game, n, "suggest");
+  check(`the AI service exited (${code}) right after it stored the lines`, code === 137 && aiLog().includes(`exit-after-store: ${key} is stored`));
+  await stack.ai.start({ KM_AI_FAKE: JSON.stringify(FAKE) });
   ok("the AI service is started again, without the fault");
 
-  const rows = await doneTurn(a, n);
-  check(`the notes landed on the reply's row: ${marksOn(rows, n).map(describeMark).join("; ")}`, marksOn(rows, n).length > 0);
-  check("the AI service answered them from its store", new RegExp(`notes ${escaped(key)} attempt \\d+: 200 from the store`).test(aiLog()));
-  check("notes was asked once for the key", modelCalls(game, "notes", key) === 1);
+  await doneTurn(a, n);
+  const rows = await until(a, `turn ${n}'s lines`, 30_000, r => turnOf(r, n)?.suggest === "landed" && r);
+  check(`the lines landed: ${linesOf(rows).map(l => `${l.ord} ${l.kind}`).join(", ")}`, linesOf(rows).length >= 3 && linesOf(rows).every(l => l.turn === n));
+  check("the AI service answered them from its store", new RegExp(`suggest ${escaped(key)} attempt \\d+: 200 from the store`).test(aiLog()));
+  check("scene.suggest was asked once for the key", modelCalls(game, "scene.suggest", key) === 1);
 }
 
 /**
@@ -462,15 +449,15 @@ async function anEnding(stack: Stack, a: Player, b: Player, game: Game): Promise
   ok("B saw it end too");
 }
 
-/** 35. Each turn's first words and its end, from the turn rows, game by game; its notes and lines after the reply, as A saw them come (A's games); the map moves' times. */
+/** 35. Each turn's first words and its end, from the turn rows, game by game; its lines after the reply, as A saw them come (A's games); the map moves' times. */
 async function latencies(stack: Stack, a: Player): Promise<void> {
-  step("35. Each turn's times: first words and its end (the turn rows), its notes and lines after the reply (as A saw them); the map moves' times");
+  step("35. Each turn's times: first words and its end (the turn rows), its lines after the reply (as A saw them); the map moves' times");
   const turns = (await stack.sql("SELECT * FROM turn")).sort((x, y) => Number(x.game_id) - Number(y.game_id) || Number(x.n) - Number(y.n));
   for (const t of turns) {
     const from = Number(t.started_at);
     const first = t.first_text_at === null ? "no text" : `first words ${millis(Number(t.first_text_at) - from)}`;
     const done = t.ended_at === null ? "" : `, done ${millis(Number(t.ended_at) - from)}`;
-    console.log(`  game ${t.game_id} turn ${t.n}: ${first}${done} (${t.phase}, ${t.calls} model calls)${afterTheReply(a, String(t.id), String(t.scene_id), Number(t.n))}; notes ${t.notes}, lines ${t.suggest}`);
+    console.log(`  game ${t.game_id} turn ${t.n}: ${first}${done} (${t.phase}, ${t.calls} model calls)${afterTheReply(a, String(t.id), String(t.scene_id), Number(t.n))}; lines ${t.suggest}`);
   }
   await mapTimes(stack);
 }
@@ -478,13 +465,13 @@ async function latencies(stack: Stack, a: Player): Promise<void> {
 // ---------------------------------------------------------------------------------------------
 // What the steps read.
 
-/** A turn's row events as both clients should see them, in order: its phases and states, the draft's posts with who says what, its entries with their notes. */
+/** A turn's row events as both clients should see them, in order: its phases and states, the draft's posts with who says what, its entries with who says what. */
 function turnEvents(events: Player["events"], n: number): string[] {
   const turnId = events.find(e => e.table === "turn" && e.row.n === n)?.row.id;
   return events.flatMap(({ table, op, row }) => {
-    if (table === "turn" && row.id === turnId) return [`turn ${op} ${row.phase} (notes ${row.notes}, lines ${row.suggest})`];
+    if (table === "turn" && row.id === turnId) return [`turn ${op} ${row.phase} (lines ${row.suggest})`];
     if (table === "reply_draft" && row.turnId === turnId) return [`draft ${op} ${row.attempt}/${row.seq} ${speakersIn(row.markup).join("+")}`];
-    if (table === "transcript" && row.turn === n) return [`entry ${op} ${row.seq} ${row.kind} ${speakersIn(row.markup).join("+")} ${marksIn(row.markup).length} notes`];
+    if (table === "transcript" && row.turn === n) return [`entry ${op} ${row.seq} ${row.kind} ${speakersIn(row.markup).join("+")}`];
     return [];
   });
 }
@@ -495,13 +482,12 @@ function phasesSeen(p: Player, n: number): string[] {
   return phases.filter((phase, i) => phase !== phases[i - 1]);
 }
 
-/** When A saw a turn's notes and lines land (the turn by its id, in its scene), after its reply's entry: "; notes +3.5 s, lines +2.8 s". */
+/** When A saw a turn's lines land (the turn by its id, in its scene), after its reply's entry: "; lines +2.8 s". */
 function afterTheReply(a: Player, turnId: string, sceneId: string, n: number): string {
   const reply = a.events.find(e => e.table === "transcript" && e.op === "insert" && String(e.row.sceneId) === sceneId && e.row.turn === n && e.row.speaker === "gm")?.at;
   if (reply === undefined) return "";
-  const when = (state: string, column: "notes" | "suggest") => a.events.find(e => e.table === "turn" && String(e.row.id) === turnId && e.row[column] === state)?.at;
-  const notes = when("written", "notes"), lines = when("landed", "suggest");
-  return `${notes === undefined ? "" : `; notes +${seconds(notes - reply)}`}${lines === undefined ? "" : `; lines +${seconds(lines - reply)}`}`;
+  const lines = a.events.find(e => e.table === "turn" && String(e.row.id) === turnId && e.row.suggest === "landed")?.at;
+  return lines === undefined ? "" : `; lines +${seconds(lines - reply)}`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -512,23 +498,8 @@ function speakersIn(...markups: Array<string | undefined>): string[] {
   return [...new Set(markups.flatMap(m => markupOf(m)?.speech.flatMap(s => (s.speaker ? [s.speaker] : [])) ?? []))].sort();
 }
 
-function marksIn(markup: string | undefined): Mark[] {
-  return markupOf(markup)?.marks ?? [];
-}
-
-/** The notes on turn n's reply. */
-function marksOn(rows: SceneRows, n: number): Mark[] {
-  return marksIn(rows.transcript.find(t => t.turn === n && t.speaker === "gm")?.markup);
-}
-
 function markupOf(markup: string | undefined): Markup | undefined {
   return markup ? JSON.parse(markup) as Markup : undefined;
-}
-
-/** A note as a line: its kind, what it's linked to, and its card's title. */
-function describeMark(m: Mark): string {
-  const link = m.link ? ` → ${m.link.kind === "person" ? m.link.id : m.link.kind === "lore" ? m.link.path : `${m.link.kind}`}` : "";
-  return `${m.kind}${link}${m.card ? ` (card: ${m.card.title})` : ""}`;
 }
 
 /** The scene's suggested lines, in order. */

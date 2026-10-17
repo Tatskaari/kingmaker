@@ -42,7 +42,7 @@ export function App({ app }: { app: AppModel }) {
 }
 
 /**
- * The game's screen, with what's open over it (the sheet, a mark, the help, the notebook, the
+ * The game's screen, with what's open over it (the sheet, the help, the notebook, the
  * quests): the scene; once it's over, the moment between scenes, the fight's stand-in, or The End,
  * as the way on goes (SceneModel.page).
  */
