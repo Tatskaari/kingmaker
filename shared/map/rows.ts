@@ -1,4 +1,4 @@
-// New (K, exploreOf M's): where the copied map code meets the rows (v2/docs/map-design.md §3.4). Both sides build the prototype's ExploreState from the same rows with exploreOf, run the copied code on it, and write back what a move changed with exploreRowOf. The town unit's (v2/docs/town-design.md §3.1, §3.3): a map's own place's `town` into the overlay, the explore row's keep and fight carried by every move, and both to and from the table's columns (keepOf, keepColumns).
+// New (K, exploreOf M's): where the copied map code meets the rows (docs/map-design.md §3.4). Both sides build the prototype's ExploreState from the same rows with exploreOf, run the copied code on it, and write back what a move changed with exploreRowOf. The town unit's (docs/town-design.md §3.1, §3.3): a map's own place's `town` into the overlay, the explore row's keep and fight carried by every move, and both to and from the table's columns (keepOf, keepColumns).
 import type { TimeOfDay } from "../scene/files.ts";
 import { keysFor, pcKey, rowsToWorld, type PlaceRows } from "../world/rows.ts";
 import type { SceneWorld } from "../world/scene-world.ts";

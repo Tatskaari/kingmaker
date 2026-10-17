@@ -1,4 +1,4 @@
-// New (K): the map's three moves (walk, interact, travel: v2/docs/map-design.md §3.2) and the prototype's action ids they're made with (src/game/town.ts's header at 44c6d4a), both ways; and the action menu's seven (cast, attack, useFeature, leap, hide, rest, useItem: v2/docs/town-design.md §3.2) with its ids (src/game/menu.ts's header), and a talk's walk_on.
+// New (K): the map's three moves (walk, interact, travel: docs/map-design.md §3.2) and the prototype's action ids they're made with (src/game/town.ts's header at 44c6d4a), both ways; and the action menu's seven (cast, attack, useFeature, leap, hide, rest, useItem: docs/town-design.md §3.2) with its ids (src/game/menu.ts's header), and a talk's walk_on.
 import { COMPASS } from "./town.ts";
 import type { Tile2 } from "./types.ts";
 

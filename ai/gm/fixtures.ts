@@ -13,7 +13,8 @@ import type { TurnView } from "./view.ts";
  * For the GM code's tests: the hanged clerk as campaigns/caerwyn has it, and a view of it a few
  * exchanges in with its world as it opens (the prototype's tests' `at()`), with no request or
  * service in the way; and the story the prototype's tests play in, its other scenes as they had
- * them (testdata/scenes, written by tools/v2/record-golden.mts). Tests only.
+ * them (testdata/scenes, written by the prototype's tools/record-golden.mts, in git history at
+ * bc2ab1f: golden/README.md). Tests only.
  */
 
 export const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
