@@ -1,9 +1,9 @@
 {
   "id": "kingmaker-authoring",
   "name": "Kingmaker Authoring",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "minAppVersion": "1.5.0",
-  "description": "Author scenes, paint isometric maps and wire scenario ports in your lore vault.",
+  "description": "Author the game's scenes (.kmscene) in its campaign folder as a vault; paint isometric maps and wire scenario ports.",
   "author": "Kingmaker",
   "isDesktopOnly": true
 }
