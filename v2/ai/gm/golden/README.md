@@ -13,6 +13,8 @@ node --no-warnings tools/record-golden.mts --proto <a worktree at another commit
 
 Re-record when the prototype's GM changes and the change is copied into [gm/](..), then run the parity test.
 
+Kell's lore in the recorded prompts carries #661's two edits (her `knowledge/Sallow.md` and `private.md`, in the campaign's lore since M1), put into these files by hand as a recording from the prototype at `53f45f3` would have them: nothing else in them changed.
+
 It plays the hanged clerk under the prototype's stand-in for OpenRouter (`fakeOpenRouter`: no model is asked, nothing leaves the machine), with the `v2` approach and suggested lines on. The GM's replies are [tools/v2/golden-replies.json](../../../../tools/v2/golden-replies.json)'s, marked up as the model writes them:
 
 | Moment | What the player does | The GM's reply | The stand-in |

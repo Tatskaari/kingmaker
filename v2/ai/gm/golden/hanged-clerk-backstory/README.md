@@ -1,6 +1,6 @@
 # A GM session with a backstory
 
-The prototype's GM calls on the hanged clerk for a player with a backstory, in the format of [../hanged-clerk](../hanged-clerk/README.md), for the AI service's parity: the opening writes the player's doc with the backstory before disclosure, and the GM's brief says who they are from it (v1-design §4.2).
+The prototype's GM calls on the hanged clerk for a player with a backstory, in the format of [../hanged-clerk](../hanged-clerk/) ([the goldens' README](../README.md)), for the AI service's parity: the opening writes the player's doc with the backstory before disclosure, and the GM's brief says who they are from it (v1-design §4.2).
 
 Recorded by `tools/v2/record-v1-golden.mts` from the prototype at `44c6d4a`, under its stand-in for OpenRouter (no model asked):
 
@@ -10,6 +10,8 @@ KM_RUNS_DIR=$(mktemp -d) OPENROUTER_API_KEY=offline node --no-warnings tools/v2/
 ```
 
 Record again only when a case is added: the prototype's code these come from is fixed at `44c6d4a`.
+
+Kell's lore in them carries #661's two edits, put in by hand as for [../hanged-clerk](../README.md#how-they-were-recorded).
 
 | Step | What the player does | The stand-in |
 |---|---|---|
