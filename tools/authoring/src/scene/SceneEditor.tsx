@@ -205,7 +205,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
       if(mod&&letter==='z')event.shiftKey?redo():undo();
       else if(mod&&letter==='y')redo();
       else if(letter==='a'&&!mod)setDialog('add');
-      else if(event.key==='Delete'||event.key==='Backspace')deleteSelection();
+      else if((event.key==='Delete'||event.key==='Backspace')&&!(event.target instanceof Element&&event.target.closest('.inspector')))deleteSelection();
       else if(letter==='f'&&!mod)fit();
       else if(event.key==='?')setDialog('help');
       else handled=false;
@@ -287,7 +287,7 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
       </main>
       {inspector&&<aside className="inspector scene-inspector" inert={modalOpen||!!confirmation||!!lorePicker||undefined}>
         <div className="inspector-tabs" role="tablist" aria-label="Inspector">
-          {tabs.map(([id,label,count])=><button key={id} role="tab" aria-selected={tab===id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}{count!==undefined&&<span className={`count${id==='problems'&&count?' bad':''}`}>{count}</span>}</button>)}
+          {tabs.map(([id,label,count])=><button key={id} role="tab" aria-selected={tab===id} aria-label={count===undefined?label:`${label} (${count})`} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}{count!==undefined&&<span className={`count${id==='problems'&&count?' bad':''}`}>{count}</span>}</button>)}
           <button title="Close the inspector" aria-label="Close the inspector" onClick={()=>setInspector(false)}><X size={14}/></button>
         </div>
         <div className="inspector-body" role="tabpanel" key={`${tab}:${tab==='selection'&&selected?selected.id:''}`}>{body()}</div>
