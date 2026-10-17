@@ -330,6 +330,16 @@ test("past the daily ceiling, a think that would call a model is 402 over_budget
   assert.equal(await stores.answers.get(decideRequest().key), undefined, "nothing kept: the move fails, and /retry asks again");
 });
 
+test("past the ceiling, the host's own words for it are what the game shows (the page's: its browser's ceiling)", async () => {
+  const words = "The GM has spent today's budget in this browser ($5.00): it starts again at midnight UTC.";
+  const { ai, stores } = service({ serves: { model: "fake", gm: "pipeline" }, dailyUsd: 5, overBudget: words });
+  await ai.answer(put());
+  stores.ledger.append({ at: new Date().toISOString(), operation: "gm.reply", costUsd: 5 });
+  const decided = await ai.answer(post("/v1/turns/decide", decideRequest()));
+
+  assert.deepEqual([decided.status, JSON.parse(decided.body)], [402, { error: { code: "over_budget", message: words } }]);
+});
+
 test("past the ceiling, a kept answer is still served, and what calls no model still runs: own's step, the canned GM", async () => {
   const overSpent = async (overrides: Partial<ServiceOptions>) => {
     const made = service({ dailyUsd: 1, ...overrides });
