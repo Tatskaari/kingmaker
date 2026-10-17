@@ -1,12 +1,22 @@
-# v2: the production build
+# Kingmaker
 
-The production build of Kingmaker, as the design has it: a client, a simulation and a stateless AI service.
+A D&D game for one player, run by an AI game master. You make a character from a sentence, walk the town of Caerwyn on an isometric map drawn in characters, and play its scenes in plain English: the GM improvises around each scene's prep, and the D&D 5.5e rules settle anything that takes dice. This repo is the game, and its review starts at [ARCHITECTURE.md](ARCHITECTURE.md).
 
-- **The client** is the prototype's OpenTUI screens, in a terminal: the title, character creation, the sheet, the town's map and the scene. It talks only to the simulation. The same game also plays in a browser tab with no server at all: the client, the simulation and the AI service each in a worker of the page ([In a browser](#in-a-browser)).
+**Play it.** `npm ci`, then `npm run dev -- --fake` (the fake GM: no key, no cost; leave out `--fake` for real models and an OpenRouter key), and in another terminal `npm run client -- --session <you>` ([Running it](#running-it)). Or in a browser, with no server: `npm run build:web && npm run web:serve` and open the address it prints ([In a browser](#in-a-browser)), or main's build at <https://tatskaari.github.io/kingmaker/play/>.
+
+**Around it.** The pitch and the roadmap, the published pages the game is built to, are [web/site/](web/site/), and the site Pages publishes puts them in front of the game (`npm run build:site`). The Obsidian authoring plugin is [tools/authoring/](tools/authoring/README.md), a package of its own; the glyph font's tools are [tools/glyphs/](tools/glyphs/README.md).
+
+**History.** The game was built in this repo as `v2/`, a vertical at a time ([docs/verticals.md](docs/verticals.md)), beside the prototype it was ported from (the "Kingmaker V2 PoC"). On 2026-10-17 the prototype was retired and `v2/` became the root ([docs/migration-log.md](docs/migration-log.md)). The last commit with the prototype is `bc2ab1f`: `git show bc2ab1f:<path>` for a file of it, or check that commit out to run it. Its docs are archived in [docs/prototype/](docs/prototype/README.md). The design docs and live records in [docs/](docs/) were written while the game lived in `v2/`, so read their `v2/x` paths as `x`; a copied file's first line names its source in the prototype's tree.
+
+## The parts
+
+The production build of Kingmaker, as the design has it ([the roadmap](web/site/roadmap/index.html)): a client, a simulation and a stateless AI service.
+
+- **The client** is the prototype's OpenTUI screens, in a terminal: the title, character creation, the sheet, the town's map and the scene. It talks only to the simulation. The same game also plays in a browser tab with no server at all: the client in one worker of the page, and the simulation and the AI service in another, the game kept in IndexedDB ([In a browser](#in-a-browser)).
 - **The simulation** is a SpacetimeDB module, the authority on everything that happens: the moves, the world, every die.
 - **The AI service** (`kingmaker-ai`) is an HTTP service that does all the model work and keeps the words: the prompts, the lore and each game's documents. It holds nothing between requests, since each one carries the working set it needs, so it runs as a local process or a container for now, and on Cloud Run or as a Lambda later. It's the only part that calls OpenRouter. The simulation calls it from a scheduled procedure, and it streams the GM's words back through a reducer only it may call.
 
-It's built a vertical at a time ([docs/verticals.md](docs/verticals.md)): a slice of the game end to end through the parts, with the prototype ([docs/prototype/ARCHITECTURE.md](docs/prototype/ARCHITECTURE.md)) playable throughout, until it was retired. The design is the roadmap ([web/site/roadmap](web/site/roadmap/index.html)).
+It was built a vertical at a time ([docs/verticals.md](docs/verticals.md)): a slice of the game end to end through the parts, with the prototype ([docs/prototype/ARCHITECTURE.md](docs/prototype/ARCHITECTURE.md)) playable beside it until it was retired.
 
 ## What you can play
 
@@ -91,7 +101,8 @@ Recorded runs with real models are in [docs/live/](docs/live/): V0's four lines,
 | [vendor/](vendor/) | Vendored code, as it is but for what its README says: the D&D rules engine made ready for a SpacetimeDB module, its content pack, and the SRD's spell texts |
 | [hosts/](hosts/) | The composition roots, the only code that reads env or argv: the AI service, the client and the headless client, the dev stack ([hosts/dev/README.md](hosts/dev/README.md)), the doctor, the campaign tool and its install, the local host, the e2e and the live run, and the page's ([hosts/web/](hosts/web/): its two workers, its build, its server for trying it, its browser check and the screen check on the JS OpenTUI) |
 | [web/](web/README.md) | The browser platform the page's workers are made of ([docs/browser-design.md](docs/browser-design.md)): the JS OpenTUI the client draws with in a page ([tui/](web/tui/), the prototype's), the page and its key form ([page/](web/page/)), the glyph fonts ([fonts/](web/fonts/)), the page host's parts ([server/](web/server/): its database in IndexedDB, the saves written behind, the rows pushed to a client, the moves it takes, the job loop, the tab's lock, the model's key) and the few Node modules the bundles still name ([node/](web/node/)); and the site's own pages around it, the pitch and the roadmap ([site/](web/site/)) |
-| [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), the blueprints with how each was built ([v0-design.md](docs/v0-design.md), [v5-design.md](docs/v5-design.md), [v1-design.md](docs/v1-design.md), [full-gm-design.md](docs/full-gm-design.md), [world-bridge-design.md](docs/world-bridge-design.md), [story-design.md](docs/story-design.md), [map-design.md](docs/map-design.md), [browser-design.md](docs/browser-design.md), [town-design.md](docs/town-design.md)) and the recorded live runs ([live/](docs/live/)) |
+| [docs/](docs/) | The plan ([verticals.md](docs/verticals.md)), the blueprints with how each was built ([v0-design.md](docs/v0-design.md), [v5-design.md](docs/v5-design.md), [v1-design.md](docs/v1-design.md), [full-gm-design.md](docs/full-gm-design.md), [world-bridge-design.md](docs/world-bridge-design.md), [story-design.md](docs/story-design.md), [map-design.md](docs/map-design.md), [browser-design.md](docs/browser-design.md), [town-design.md](docs/town-design.md)) and the recorded live runs ([live/](docs/live/)); the research behind the game ([research/](docs/research/)), the prototype's blind QA reports ([qa/](docs/qa/)), the productionising brief ([code.md](docs/code.md)), the user's notes (the `.txt` files), the migration log ([migration-log.md](docs/migration-log.md)) and the prototype's docs, archived ([prototype/](docs/prototype/README.md)) |
+| [tools/](tools/) | The tools beside the game: the Obsidian authoring plugin ([authoring/](tools/authoring/README.md), its own package), the glyph font's build ([glyphs/](tools/glyphs/README.md), from the bitmaps in [assets/glyphs/](assets/glyphs/)) and the SRD spells' build ([srd-spells/](tools/srd-spells/build.py), into [vendor/srd-spells/](vendor/srd-spells/README.md)) |
 | `dist/` | Build output, never committed: the page (`dist/web`, `npm run build:web`) and the site Pages publishes (`dist/site`, `npm run build:site`: the pitch, the roadmap and the page at play/) |
 | `runs/` | Run output, never committed: the stacks' data, keys and logs, the client's sessions, the live run's rehearsals, the CLI's config for building, the browser check's screens (`runs/web/`) |
 
@@ -106,6 +117,7 @@ The game never imported the prototype, which is retired now ([docs/migration-log
 - **pasta** (the passt package) for namespace mode, or the one `sudo` line for host mode (below).
 - **An OpenRouter key** for real models: `OPENROUTER_API_KEY`, or `~/secrets/kingmaker-dev-openrouter.txt`. Without one, run on the fake model with `--fake`.
 - **podman**, only for `--container`.
+- **The Kingmaker Glyphs font**, for people and creatures drawn as sprites in a terminal: `npm run glyphs` installs it for this user (without it the terminal draws letters; [tools/glyphs](tools/glyphs/README.md)).
 
 ### The stack
 
