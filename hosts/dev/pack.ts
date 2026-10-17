@@ -1,5 +1,6 @@
 import type { MapFile } from "../../shared/map/tiles.ts";
-import type { BuildsFile, CampaignFile, CampaignPack, LooksFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
+import { SCENE_EXTENSION, type SceneDocument } from "../../shared/scene/document.ts";
+import type { BuildsFile, CampaignFile, CampaignPack, LooksFile, PlaceFile } from "../../shared/scene/files.ts";
 
 /**
  * A campaign folder's files in memory, and the structure install_campaign takes from them (v0-design
@@ -7,22 +8,24 @@ import type { BuildsFile, CampaignFile, CampaignPack, LooksFile, PlaceFile, Scen
  * from files it was handed, as the install tool does from the folder it reads (campaign.ts).
  */
 
-/** A campaign folder's files by path ("scenes/hanged-clerk/setting.md"): every file, dotfiles left out. */
+/** A campaign folder's files by path ("scenes/hanged-clerk.kmscene"): every file, dotfiles left out. */
 export type CampaignFiles = Record<string, string>;
 
+/** Where a campaign keeps a scene's file: scenes/<id>.kmscene. */
+export const scenePath = (key: string) => `scenes/${key}${SCENE_EXTENSION}`;
+
 /**
- * The structure install_campaign takes: campaign.json, each listed scene's scene.json with its hook
- * (hook.md, as the loader reads it), and after them the talk template's (campaign.json's `talk`: a
- * scene def the simulation fills for whoever walks with the player, town-design §3.6, though it isn't
- * on the story's way), each listed place, the builds, the looks and each listed map. Throws when a
- * file it needs is missing or isn't JSON.
+ * What install_campaign takes: campaign.json, each listed scene's .kmscene file, and after them the
+ * talk template's (campaign.json's `talk`: a scene def the simulation fills for whoever walks with the
+ * player, town-design §3.6, though it isn't on the story's way), each listed place, the builds, the
+ * looks and each listed map. Throws when a file it needs is missing or isn't JSON; a scene's shape is
+ * the campaign check's and the install's to hold it to (shared/scene/document.ts).
  */
 export function packOf(files: CampaignFiles): CampaignPack {
   const campaign = json<CampaignFile>(files, "campaign.json");
   return {
     campaign,
-    scenes: [...campaign.scenes, ...(campaign.talk ? [campaign.talk] : [])]
-      .map(key => ({ scene: json<SceneFile>(files, `scenes/${key}/scene.json`), hook: text(files, `scenes/${key}/hook.md`).trim() })),
+    scenes: [...campaign.scenes, ...(campaign.talk ? [campaign.talk] : [])].map(key => json<SceneDocument>(files, scenePath(key))),
     places: campaign.places.map(key => json<PlaceFile>(files, `places/${key}.json`)),
     builds: json<BuildsFile>(files, "builds.json"),
     looks: json<LooksFile>(files, "looks.json"),

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { PlaceFile, SceneFile } from "../scene/files.ts";
+import type { SceneDocument } from "../scene/document.ts";
+import type { PlaceFile } from "../scene/files.ts";
 import { sceneOf } from "../scene/load.ts";
 import { strangers } from "../scene/names.ts";
 import { keysFor, pcKey, rowsToWorld, worldToRows, type PlaceRows } from "../world/rows.ts";
@@ -136,8 +137,8 @@ test("unknown and out-of-sight actions say so", () => {
 });
 
 test("people go by what the player would call them until their names are heard", () => {
-  const scene = sceneOf(read("scenes/hanged-clerk/scene.json") as SceneFile);
-  const hook = readFileSync(join(CAMPAIGN, "scenes", "hanged-clerk", "hook.md"), "utf8").trim();
+  const scene = sceneOf(read("scenes/hanged-clerk.kmscene") as SceneDocument);
+  const hook = scene.hook;
   const unheard = strangers([scene], { transcript: [] }, [hook]);
   assert.deepEqual(unheard.map(u => u.called), ["the boy in the too-big boots", "the girl in the shawl", "the corporal"]);
   const ex = exploreOf(morning());

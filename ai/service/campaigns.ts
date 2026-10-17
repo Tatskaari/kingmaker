@@ -5,7 +5,8 @@ import { storyOf, VOCABULARY, vocabularyOf, type Story, type Vocabulary } from "
 import { talkScene } from "../gm/talk.ts";
 import type { CreationWorld } from "../../shared/creation/types.ts";
 import type { CampaignPutAnswer } from "../../shared/protocol/ai.ts";
-import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
+import { parseScene, SCENE_EXTENSION } from "../../shared/scene/document.ts";
+import type { CampaignFile, PlaceFile } from "../../shared/scene/files.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { talkOf } from "../../shared/scene/talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
@@ -127,11 +128,11 @@ function campaignAt(files: VersionFiles, campaign: string, version: string): Cam
   // A talk: the template filled for the companion, their statblock and weapon from their card in the
   // first of the story's scenes that has them (the prototype's castCard).
   const talkFrom = (key: string, companion: string): Scene => {
-    const folder = `scenes/${file.talk}`;
+    const path = scenePath(file.talk!);
     let built: Scene | undefined;
     try {
-      const template = JSON.parse(words(`${folder}/scene.json`) ?? "") as SceneFile;
-      built = talkScene(key, template, path => words(`${folder}/${path}`), id => file.scenes.map(scene).flatMap(s => s.cast).find(c => c.id === id));
+      const template = parseScene(words(path) ?? "", path);
+      built = talkScene(key, template, id => file.scenes.map(scene).flatMap(s => s.cast).find(c => c.id === id));
     } catch (error) {
       if (error instanceof Failure) throw error;
       throw new Failure(400, "bad_request", `the talk template ${file.talk} doesn't load: ${error instanceof Error ? error.message : String(error)}`);
@@ -148,9 +149,12 @@ function campaignAt(files: VersionFiles, campaign: string, version: string): Cam
   };
 }
 
+/** Where a campaign keeps a scene's file: scenes/<id>.kmscene. */
+const scenePath = (key: string) => `scenes/${key}${SCENE_EXTENSION}`;
+
 /** A scene's place as its world (what the story reads of a scene it doesn't play: its places' names), from the place the scene file names. */
 function placeOf(key: string, read: (path: string) => string | undefined): Pick<Scene, "world"> {
-  const place = (JSON.parse(read(`scenes/${key}/scene.json`) ?? "{}") as Partial<SceneFile>).place;
+  const place = (JSON.parse(read(scenePath(key)) ?? "{}") as { place?: string }).place;
   const text = place === undefined ? undefined : read(`places/${place}.json`);
   if (text === undefined) return {};
   const { key: _, ...world } = JSON.parse(text) as PlaceFile;
@@ -179,12 +183,12 @@ function checkVocabulary(files: Record<string, string>): void {
 /** A list of problems as one message: the first three, and how many more. */
 const briefly = (problems: string[]) => `${problems.slice(0, 3).join("; ")}${problems.length > 3 ? `; and ${problems.length - 3} more` : ""}`;
 
-/** A scene with its words, from its folder's files (by their paths in the campaign): a 400 when it doesn't load. */
+/** A scene with its words, from its file (scenes/<id>.kmscene, by its path in the campaign): a 400 when it doesn't load. */
 function sceneFrom(key: string, read: (path: string) => string | undefined): Scene {
   try {
-    const json = read(`scenes/${key}/scene.json`);
-    if (json === undefined) throw new Error(`no scenes/${key}/scene.json`);
-    return sceneOf(JSON.parse(json) as SceneFile, path => read(`scenes/${key}/${path}`));
+    const text = read(scenePath(key));
+    if (text === undefined) throw new Error(`no ${scenePath(key)}`);
+    return sceneOf(parseScene(text, scenePath(key)));
   } catch (error) {
     throw new Failure(400, "bad_request", `scene ${key} doesn't load: ${error instanceof Error ? error.message : String(error)}`);
   }

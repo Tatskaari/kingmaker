@@ -6,7 +6,7 @@ import { join, relative } from "node:path";
 import { fakeFetch, type FakeOptions, type Request } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { noUsage } from "../service/calls.ts";
-import { campaigns } from "../service/campaigns.ts";
+import { campaigns, type Campaign } from "../service/campaigns.ts";
 import type { AiContext } from "../service/context.ts";
 import { pipeline } from "../service/endpoints/pipeline.ts";
 import { sceneAndView } from "../service/endpoints/turn.ts";
@@ -18,6 +18,7 @@ import type { Card, Mark, Markup, Speech } from "../../shared/markup.ts";
 import type { AiRequest, Decision, DecideRequest, Drafted, Entry, NotesRequest, NotesResponse, OpenRequest, OpenResponse, Outcome, ReplyRequest, ReplyResponse, SceneContext, SettleRequest, SheetRow, Suggestion, SuggestRequest, SuggestResponse, TurnContext } from "../../shared/protocol/ai.ts";
 import { keysFor, worldToRows } from "../../shared/world/rows.ts";
 import type { SceneWorld } from "../../shared/world/scene-world.ts";
+import { testScene, testStory } from "./fixtures.ts";
 import { vetting, type Vetting } from "./suggest.ts";
 import { gameMarkup, turnSource } from "./view.ts";
 
@@ -270,7 +271,12 @@ async function game() {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const installed = campaigns(stores.campaigns, stores.docs);
   await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
-  const campaign = installed.use("caerwyn", "0.1.0");
+  // The campaign installed (its lore for the docs service, its title, its creation world), but its scenes
+  // the ones the goldens were recorded on: the hanged clerk as it stood, in the story of the prototype's
+  // scenes (gm/fixtures.ts), whatever the campaign's own scenes become.
+  const live = installed.use("caerwyn", "0.1.0");
+  const story = testStory();
+  const campaign: Campaign = { id: live.id, version: live.version, title: live.title, creation: live.creation, scene: testScene, story };
 
   return {
     scene: () => campaign.scene("hanged-clerk"),

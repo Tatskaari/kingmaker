@@ -22,8 +22,20 @@ import type { TurnView } from "./view.ts";
 export const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const TESTDATA = join(import.meta.dirname, "testdata", "scenes");
 
+/**
+ * The tests' own hanged clerk as a scene file (shared/scene/testdata/hanged-clerk.kmscene): the
+ * campaign's before M2 re-authored it, in the scene format. The AI service's tests install the
+ * campaign with it in place of the campaign's own (withTestClerk), so the endpoints play the scene
+ * their tests were written for (its beats, routes and endings by their ids: yard, catch-moll,
+ * case-made…) whatever the campaign's content becomes.
+ */
+export const TEST_CLERK = join(import.meta.dirname, "..", "..", "shared", "scene", "testdata", "hanged-clerk.kmscene");
+
+/** A campaign folder's files with the tests' own hanged clerk in place of its own. */
+export const withTestClerk = (files: Record<string, string>): Record<string, string> => ({ ...files, "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") });
+
 /** A scene of testdata/scenes, as authored. */
-const testScene = (id: string): Scene => JSON.parse(readFileSync(join(TESTDATA, `${id}.json`), "utf8")) as Scene;
+export const testScene = (id: string): Scene => JSON.parse(readFileSync(join(TESTDATA, `${id}.json`), "utf8")) as Scene;
 
 /** The hanged clerk with its words, as authored before M2. */
 const authored = (): Scene => testScene("hanged-clerk");
@@ -34,14 +46,15 @@ export function hangedClerk(): Scene {
 }
 
 /**
- * The story the prototype's tests play in, as the AI service has it for the campaign: the hanged
+ * The story the prototype's tests play in, as the AI service had it for the campaign: the hanged
  * clerk installed (its place as its world), the prototype's scenes of testdata/scenes as if
- * installed too, and campaigns/caerwyn/vocabulary.json for the rest.
+ * installed too, and the vocabulary as the campaign had it before M2 (testdata/vocabulary.json:
+ * the prototype's 25 scenes, the interludes among them) for the rest.
  */
 export function testStory(): Story {
   const scenes = new Map<string, Scene>([["hanged-clerk", { ...authored(), world: granaryYard() }]]);
   for (const f of readdirSync(TESTDATA).filter(f => f.endsWith(".json") && f !== "hanged-clerk.json").sort()) scenes.set(f.replace(/\.json$/, ""), testScene(f.replace(/\.json$/, "")));
-  const vocabulary = JSON.parse(readFileSync(join(CAERWYN, "vocabulary.json"), "utf8")) as Vocabulary;
+  const vocabulary = JSON.parse(readFileSync(join(import.meta.dirname, "testdata", "vocabulary.json"), "utf8")) as Vocabulary;
   return storyOf("caerwyn@test", { keys: [...scenes.keys()], scene: key => scenes.get(key)! }, vocabulary);
 }
 

@@ -14,6 +14,7 @@ import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { streamSink } from "../stream.ts";
@@ -46,7 +47,7 @@ function filesOf(dir: string): Record<string, string> {
 async function setUp(options: FakeOptions = {}) {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const installed = campaigns(stores.campaigns, stores.docs);
-  await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
+  await installed.put("caerwyn", "0.1.0", withTestClerk(filesOf(CAERWYN)));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
   const contextFor = (key: string): AiContext => {
@@ -126,10 +127,11 @@ test("decide: a route's roll is held behind the rules' act, and let go on also; 
   assert.deepEqual(held.decision.mechanic, { kind: "attack", target: "hoist-rope", weapon: "dagger" });
   assert.equal(held.decision.route, undefined, "no Medicine roll while the rules resolve the throw");
   const asked = held.sent.find(b => b.questions?.target)!;
-  assert.match((asked.questions!.also as { instructions?: string }).instructions ?? "", /this Medicine check is for \(to tell how Prout really died\)/);
+  // (The tests' hanged clerk has its routes in the scene format, whose checks give no reason: the question names the act by the route's condition.)
+  assert.match((asked.questions!.also as { instructions?: string }).instructions ?? "", /this Medicine check is for \(The player examines Prout's neck, head or hands up close/);
 
   const released = await decided({ choices: { ...blow, also: "yes" } }, throwAt);
-  assert.deepEqual(released.decision.route, { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12, reason: "to tell how Prout really died" } });
+  assert.deepEqual(released.decision.route, { id: "examine-body", phase: "attempt", check: { skill: "medicine", dc: 12 } });
   assert.equal(released.decision.mechanic?.kind, "attack");
 
   // A roll wanted, and the rules' act: the act settles it (the means question rides the details call, and says no).

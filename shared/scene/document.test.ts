@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseScene, SceneFormatError, sceneDocumentOf, type SceneDocument } from "./document.ts";
-import { sceneOfDocument as sceneOf } from "./load.ts";
+import { sceneOf } from "./load.ts";
 import { validateScene } from "./types.ts";
 
 /** The scene format (docs/scene-format.md): a .kmscene file parsed, what's wrong with one said, and the runtime's Scene made from it. */

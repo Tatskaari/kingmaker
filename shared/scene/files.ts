@@ -1,14 +1,14 @@
 import type { CreationWorld } from "../creation/types.ts";
 import type { Build } from "../rules/types.ts";
-import type { Skill } from "./types.ts";
+import type { SceneDocument } from "./document.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 import type { MapFile } from "../map/tiles.ts";
 
 /**
- * The campaign format: the files of a campaign folder (campaigns/<id>/), as content-world A1-A4
- * has them. JSON holds the structure and its short logic text (a route's `when`, a check's lines,
- * the fact sentences); the prose is Markdown beside it, read by scene/load.ts. Object key order is
- * meaningful (beats, exits and essentials are in the prototype's order), and JSON.parse keeps it.
+ * The campaign format: the files of a campaign folder (campaigns/<id>/), as content-world A1-A4 had
+ * them and M2 changed them: campaign.json, each scene one .kmscene file (scenes/<id>.kmscene, the
+ * scene format: document.ts, docs/scene-format.md), each place, map, the ready-made builds, the
+ * cast's looks and the lore. Object key order is meaningful, and JSON.parse keeps it.
  */
 
 export type TimeOfDay = "morning" | "afternoon" | "evening" | "night" | "next-morning";
@@ -29,6 +29,7 @@ export interface CampaignFile {
   /** The level a character starts at. */
   level: number;
   rulesPack: string;
+  /** The story's scenes, by their ids (scenes/<id>.kmscene), the first one's first. */
   scenes: string[];
   places: string[];
   /** The maps the story is walked on (maps/<key>.json), if it has any. */
@@ -40,38 +41,11 @@ export interface CampaignFile {
   /** The story's quests by key, each with its title: an exit's effect may advance one before any starts it (story-design §4.6). */
   quests?: Record<string, string>;
   /**
-   * The talk template's folder under scenes/ (town-design §3.6: "talk"), a scene of kind talk with
-   * `{name}` and `{companion}` for whoever walks with the player: installed with the scenes (its scene
-   * def's key is the folder's), never on the story's way (it isn't in `scenes`).
+   * The talk template's id (town-design §3.6: "talk", scenes/talk.kmscene), a scene with `{name}` and
+   * `{companion}` for whoever walks with the player (its `companion` "{companion}"): installed with the
+   * scenes (its scene def's key is its id), never on the story's way (it isn't in `scenes`).
    */
   talk?: string;
-}
-
-export type Phase = "attempt" | "cue" | "outcome";
-
-/** A route: an entry in a beat's `routes` or the scene's `anytime`. Fact ids, not their sentences. */
-export interface RouteFile {
-  id: string;
-  on: Phase;
-  when: string;
-  to?: string;
-  check?: {
-    skill: Skill; dc: number; reason?: string; success: string; failure: string;
-    onSuccess: string; onFailure?: string; establishes?: { success?: string[]; failure?: string[] };
-  };
-  establishes?: string[];
-  given?: true;
-  essential?: string;
-  towards?: string;
-}
-
-/** A cast entry: the structure, with the card (`cast/<id>.md`) holding the words. */
-export interface CastFile {
-  id: string; name: string;
-  /** The card's path in the scene's folder. */
-  card: string;
-  called?: string; aka?: string[]; enters?: string; group?: string; statblock?: string; weapon?: string;
-  members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }>;
 }
 
 /**
@@ -101,41 +75,6 @@ export type Effect = Cond & (
   | WorldOpData
 );
 
-/** scenes/<id>/scene.json. */
-export interface SceneFile {
-  id: string; title: string; summary: string;
-  kind: "scene" | "talk";
-  time?: TimeOfDay;
-  /** Downtime between scenes, standing in for the map: the story skips it, as the prototype's game does (story-design §4.6). */
-  interlude?: boolean;
-  /** What its prep takes for granted (a sentence each), and where the story goes instead when play has overtaken it. */
-  assumes?: string[];
-  overtaken?: string;
-  /** The rest before it opens, and whether reaching it is a milestone (a level gained): the world bridge's to apply. */
-  rest?: "short" | "long";
-  milestone?: boolean;
-  /** Established facts carried in from earlier scenes. */
-  background?: string[];
-  /** Effects of every ending, before the exit's own (Kell walks with the player after the granary, whichever way it ends). */
-  onEnd?: Effect[];
-  /** A talk's: the companion's cast id (shared/scene/talk.ts talkSceneFile sets it). */
-  companion?: string;
-  /** The place's key: places/<key>.json. */
-  place?: string;
-  start: string;
-  cast: CastFile[];
-  /** Fact id → the sentence the GM is told. */
-  facts: Record<string, string>;
-  beats: Record<string, { title: string; text: string; routes: RouteFile[] }>;
-  anytime: RouteFile[];
-  exits: Record<string, { kind: "combat" | "persuaded" | "progress" | "leave" | "other"; title: string; next?: string; text: string; effects: Effect[] }>;
-  essentials: Record<string, { what: string; placedWith: string[]; carriers?: string[]; unlocks: string; later?: string; things?: string[]; missed?: string }>;
-  /** World operations applied as the scene ends (not on a combat exit), each on something. */
-  afterwards: Array<Pick<WorldOp, "op" | "what"> & Partial<WorldOp>>;
-  lore: string[];
-  fronts?: string;
-}
-
 /** places/<key>.json: the place as a world, as authored (the engine's defaults are applied when it's built). */
 export type PlaceFile = { key: string } & WorldSpec;
 
@@ -152,13 +91,11 @@ export type BuildsFile = Record<string, BuildFile>;
 /** looks.json: how the cast looks on screen, by cast id (Kell is a blue K). */
 export type LooksFile = Record<string, { role: string; glyph: string; fg: string }>;
 
-/** A scene as install_campaign takes it: its scene.json, and its hook (hook.md), which the simulation shows and finds names in. */
-export interface SceneInstall { scene: SceneFile; hook: string }
-
-/** The campaign's structure, as the simulation installs it: no Markdown but the hooks. */
+/** The campaign as the simulation installs it: everything but the lore (its scenes whole, with their words: what the two-part GM's commits read of them). */
 export interface CampaignPack {
   campaign: CampaignFile;
-  scenes: SceneInstall[];
+  /** Each of the story's scenes, then the talk template's, as their .kmscene files have them. */
+  scenes: SceneDocument[];
   places: PlaceFile[];
   builds: BuildsFile;
   looks: LooksFile;
@@ -181,10 +118,10 @@ export function installArgsOf(pack: CampaignPack): InstallArgs {
   };
 }
 
-/** install_campaign's arguments as a pack (the simulation's side). Throws on JSON that doesn't parse. */
+/** install_campaign's arguments as a pack (the simulation's side). Throws on JSON that doesn't parse; each scene's shape is the install's to check (document.ts). */
 export function packOf(args: InstallArgs): CampaignPack {
   return {
-    campaign: JSON.parse(args.campaign) as CampaignFile, scenes: JSON.parse(args.scenes) as SceneInstall[], places: JSON.parse(args.places) as PlaceFile[],
+    campaign: JSON.parse(args.campaign) as CampaignFile, scenes: JSON.parse(args.scenes) as SceneDocument[], places: JSON.parse(args.places) as PlaceFile[],
     builds: JSON.parse(args.builds) as BuildsFile, looks: JSON.parse(args.looks) as LooksFile, maps: JSON.parse(args.maps) as MapFile[],
   };
 }

@@ -1,5 +1,5 @@
-// Copied from the prototype's scenes/talk.ts at 44c6d4a, lines 18-38 (TALK_ID, talkSceneId, talkOf, FAREWELL, TOLD) and talk.ts:144 (CONFIDED); talkable is gone (the client has no lore: a talk is with anyone who walks with the player), and the scene itself is campaign data (scenes/talk/ in the campaign, `{name}` and `{companion}` in it), which talkSceneFile fills for a companion (new: docs/town-design.md §3.6), its filling talkWords, which the AI service gives the template's Markdown too. talkScene's words from lore are the AI service's (v2/ai/gm/talk.ts).
-import type { SceneFile } from "./files.ts";
+// Copied from the prototype's scenes/talk.ts at 44c6d4a, lines 18-38 (TALK_ID, talkSceneId, talkOf, FAREWELL, TOLD) and talk.ts:144 (CONFIDED); talkable is gone (the client has no lore: a talk is with anyone who walks with the player), and the scene itself is campaign data (the campaign's talk template, scenes/talk.kmscene since M2, `{name}` and `{companion}` in it), which talkSceneDocument fills for a companion (new: docs/town-design.md §3.6), its filling talkWords. talkScene's words from lore are the AI service's (ai/gm/talk.ts).
+import type { SceneDocument } from "./document.ts";
 
 /**
  * A word with a companion between scenes: the prep for anyone who walks with the player, built from
@@ -34,19 +34,18 @@ export const WALK_ON = "Walk on without a word (back to the map)";
 /** Who a talk is with, as the simulation knows them: their cast id and name, and the statblock and weapon the rules would use (their card in the scene they came from). */
 export interface TalkCompanion { id: string; name: string; statblock?: string; weapon?: string }
 
-/** A talk template's words filled for a companion, as talkSceneFile fills its scene.json's strings: `{name}` their name, `{companion}` their cast id, `{farewell}` FAREWELL. */
+/** A talk template's words filled for a companion, as talkSceneDocument fills every string of it: `{name}` their name, `{companion}` their cast id, `{farewell}` FAREWELL. */
 export const talkWords = (text: string, who: Pick<TalkCompanion, "id" | "name">): string =>
   text.split("{name}").join(who.name).split("{companion}").join(who.id).split("{farewell}").join(FAREWELL);
 
 /**
  * The talk scene for a companion's n-th talk, from the campaign's talk template: its id the talk's
- * (talkSceneId), its kind `talk`, `companion` their cast id; in every string of it, `{name}` their
- * name, `{companion}` their cast id and `{farewell}` FAREWELL; the template's first cast entry
- * theirs, with their statblock and weapon. The template's Markdown is read with the same filling on
- * the AI service's side.
+ * (talkSceneId), `companion` their cast id; in every string of it, `{name}` their name, `{companion}`
+ * their cast id and `{farewell}` FAREWELL; the template's first cast entry theirs, with their
+ * statblock and weapon. The template itself is left as it was.
  */
-export function talkSceneFile(template: SceneFile, who: TalkCompanion, n: number): SceneFile {
-  const filled = JSON.parse(JSON.stringify(template), (_key, value: unknown) => (typeof value === "string" ? talkWords(value, who) : value)) as SceneFile;
+export function talkSceneDocument(template: SceneDocument, who: TalkCompanion, n: number): SceneDocument {
+  const filled = JSON.parse(JSON.stringify(template), (_key, value: unknown) => (typeof value === "string" ? talkWords(value, who) : value)) as SceneDocument;
   const cast = filled.cast.map((c, i) => (i === 0 ? { ...c, id: who.id, name: who.name, ...(who.statblock ? { statblock: who.statblock } : {}), ...(who.weapon ? { weapon: who.weapon } : {}) } : c));
-  return { ...filled, id: talkSceneId(who.id, n), kind: "talk", companion: who.id, cast };
+  return { ...filled, id: talkSceneId(who.id, n), companion: who.id, cast };
 }

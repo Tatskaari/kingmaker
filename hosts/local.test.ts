@@ -6,9 +6,13 @@ import { Identity } from "spacetimedb";
 import type { FakeOptions } from "../ai/llm/fake-openrouter.ts";
 import type { Markup } from "../shared/markup.ts";
 import { rollFrom } from "../shared/dice.ts";
-import { all, sceneNow } from "../simulation/src/host/testing.ts";
+import { all, sceneNow, TEST_CLERK } from "../simulation/src/host/testing.ts";
 import { devFake, onTop, quietGm } from "./dev/fake.ts";
+import { readCampaignFiles } from "./dev/campaign.ts";
 import { localHost, type LocalHost } from "./local.ts";
+
+/** campaigns/caerwyn with the tests' own hanged clerk (its routes and endings by the ids these tests play: cart-comes, held-as-murder, open-case…). */
+const FILES = { ...readCampaignFiles(join(import.meta.dirname, "..", "campaigns", "caerwyn")), "scenes/hanged-clerk.kmscene": readFileSync(TEST_CLERK, "utf8") };
 
 /**
  * The local host (v0-design §10.3, v5-design §4.3): the simulation and the AI service's pipeline in
@@ -30,7 +34,7 @@ const REPLY = "Kell looks at you a long moment. “Go on.”";
  */
 async function game(seed = 7, opening: FakeOptions = {}) {
   let next = opening;
-  const local = await localHost({ seed, fake: () => next });
+  const local = await localHost({ seed, fake: () => next, files: FILES });
   assert.equal(local.sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
   // The campaign starts on its map, in the granary lane: she walks into the yard, which opens the scene (map-design §1).
   if (all(local.sim.db.explore).length) assert.equal(local.sim.as(WREN).walk({ toward: "lead" }), undefined);
@@ -173,7 +177,8 @@ test("the same push again gets the answer it got before, and nothing more: no se
   const again = await line("*stamps a boot* I said nobody leaves! Come back here!", { choices: { attempt: "scare-kids", same_again: "again_0" } });
   assert.equal(again.gm.path.at(-1)?.via, "same-again:scare-kids");
   assert.equal(local.sim.db.dice.gameId.find(scene.gameId)!.rolls, rolls, "no second roll");
-  assert.match(told(local), /it gets the same answer it got before: Cob bolts behind the water butt/);
+  // (The tests' hanged clerk is in the scene format, whose checks have no words of their own for how they go: the failure's is the stand-in's.)
+  assert.match(told(local), /it gets the same answer it got before: It doesn't come off, and the scene stays where it is\./);
   assert.doesNotMatch(told(local), /going in circles/);
   local.close();
 });

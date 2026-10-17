@@ -1,1 +1,0 @@
-Downtime: where does the player go next, and what do they make of Caerwyn on the way? (The lead: The Heron warehouse, at the downriver end of the wharves, is loading a barge tonight that sails on the ebb at the second bell after midnight; if Hobb talked, the gentleman comes at midnight to see it off.)

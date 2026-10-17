@@ -6,7 +6,7 @@ import { initialGm, type GmState } from "../gm/state.ts";
 import { endingOf, enteringAt, openRoutes, reachedOf, stageOf, takeRoute, targetsOf, type Taken } from "./beats.ts";
 import type { SceneDocument } from "./document.ts";
 import { presentCast } from "./graph.ts";
-import { sceneOfDocument as sceneOf } from "./load.ts";
+import { sceneOf } from "./load.ts";
 
 /** Where the scene is (docs/two-part-design.md "Where the scene is"), on the hanged clerk as the campaign has it. */
 

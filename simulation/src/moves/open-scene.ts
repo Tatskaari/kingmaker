@@ -8,7 +8,7 @@ import { keepOpened } from "../gm/bookkeeping.ts";
 import { openCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
-import { campaignFile, campaignOfGame, graphOf, sceneDefOf, sceneFileOf, sceneGraph } from "../scenes.ts";
+import { campaignFile, campaignOfGame, graphOf, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
 import { talkLines } from "../map/talk.ts";
@@ -161,7 +161,7 @@ export function waitingScene(tx: TxCtx, gameId: bigint, sceneKey: string): Scene
 
 /** The place a scene is played in: its own, or the campaign's start place. */
 export function placeKeyOf(tx: TxCtx, game: GameRow, def: SceneDefRow): string {
-  return sceneFileOf(def).place ?? campaignFile(campaignOfGame(tx, game)).startPlace;
+  return documentOf(def).place ?? campaignFile(campaignOfGame(tx, game)).startPlace;
 }
 
 /**

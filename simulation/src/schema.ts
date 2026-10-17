@@ -164,7 +164,7 @@ export const scene = table({ name: "scene", public: true }, {
   rev: t.u32(),
   openedAt: t.timestamp(),
   endedAt: t.option(t.timestamp()),
-  /** Its time of day, from its scene.json (morning, afternoon, evening, night, next-morning). */
+  /** Its time of day, from its scene's file (morning, afternoon, evening, night, next-morning). */
   time: t.option(t.string()).default(undefined),
 });
 

@@ -7,7 +7,7 @@ import type { CampaignFile } from "../../../shared/scene/files.ts";
 import { Refused, type TxCtx } from "../context.ts";
 import { seatPlayer, type CampaignRow, type GameRow, type PlayerRow } from "../rows.ts";
 import { engineCall, insertCharacter, pocketsFor, sessionOf } from "../rules/session.ts";
-import { campaignFile, sceneFileOf } from "../scenes.ts";
+import { campaignFile, documentOf } from "../scenes.ts";
 import type { Start } from "../world/place.ts";
 
 /**
@@ -125,6 +125,6 @@ function writeCharacter(tx: TxCtx, player: PlayerRow, session: RulesSession, rul
 /** The game's clock starts at its first scene's time (as the prototype's Game.create has it), else the campaign's. */
 function firstSceneTime(tx: TxCtx, campaign: CampaignRow, file: CampaignFile): string {
   const def = tx.db.sceneDef.id.find(`${campaign.id}/${file.firstScene}`);
-  return (def ? sceneFileOf(def).time : undefined) ?? file.start.time;
+  return (def ? documentOf(def).time : undefined) ?? file.start.time;
 }
 

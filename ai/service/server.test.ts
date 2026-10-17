@@ -12,6 +12,7 @@ import type {
 } from "../../shared/protocol/ai.ts";
 import { creationKey } from "../../shared/protocol/keys.ts";
 import { initialGm } from "../../shared/gm/state.ts";
+import { withTestClerk } from "../gm/fixtures.ts";
 import { campaigns } from "./campaigns.ts";
 import { readConfig } from "./config.ts";
 import { Failure, type Endpoints } from "./context.ts";
@@ -63,7 +64,7 @@ function service(overrides: Partial<ServiceOptions> & { slowMs?: number } = {}) 
   return { ai, stores, ran, exits, lines };
 }
 
-const put = (version = "0.1.0", files = filesOf(CAERWYN)): AiHttpRequest => ({ method: "PUT", path: `/v1/campaigns/caerwyn/${version}`, headers: { authorization: `Bearer ${TOKEN}` }, body: JSON.stringify({ files }) });
+const put = (version = "0.1.0", files = withTestClerk(filesOf(CAERWYN))): AiHttpRequest => ({ method: "PUT", path: `/v1/campaigns/caerwyn/${version}`, headers: { authorization: `Bearer ${TOKEN}` }, body: JSON.stringify({ files }) });
 
 function decideRequest(n = 1, text = "Sergeant, who found him?"): DecideRequest {
   const gm = initialGm({ start: "yard" });
@@ -159,26 +160,30 @@ test("a campaign PUT installs every file, loads its scenes with their words, and
   const health = JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body);
 
   assert.equal(answer.status, 200);
-  assert.deepEqual(JSON.parse(answer.body), { campaign: "caerwyn", version: "0.1.0", files: Object.keys(filesOf(CAERWYN)).length, scenes: ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"] });
+  assert.deepEqual(JSON.parse(answer.body), { campaign: "caerwyn", version: "0.1.0", files: Object.keys(withTestClerk(filesOf(CAERWYN))).length, scenes: ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"] });
   assert.deepEqual(health.campaigns, ["caerwyn@0.1.0"]);
 });
 
 test("a campaign whose scene doesn't load, or whose paths climb out, is a 400 and isn't installed", async () => {
   const { ai } = service();
-  const files = filesOf(CAERWYN);
-  delete files["scenes/hanged-clerk/cast/kell.md"];
-  const missing = await ai.answer(put("0.1.0", files));
-  const climbing = await ai.answer(put("0.1.0", { ...filesOf(CAERWYN), "../outside.md": "no" }));
+  const files = withTestClerk(filesOf(CAERWYN));
+  const clerk = JSON.parse(files["scenes/hanged-clerk.kmscene"]!) as { cast: Array<Record<string, unknown>> };
+  delete clerk.cast[0]!.voice;
+  const broken = await ai.answer(put("0.1.0", { ...files, "scenes/hanged-clerk.kmscene": JSON.stringify(clerk) }));
+  const missing = await ai.answer(put("0.1.0", Object.fromEntries(Object.entries(files).filter(([path]) => path !== "scenes/drowned-rat.kmscene"))));
+  const climbing = await ai.answer(put("0.1.0", { ...withTestClerk(filesOf(CAERWYN)), "../outside.md": "no" }));
 
+  assert.equal(broken.status, 400);
+  assert.match(JSON.parse(broken.body).error.message, /^scene hanged-clerk doesn't load: scenes\/hanged-clerk\.kmscene: cast\[0\] \(kell\) has no voice/);
   assert.equal(missing.status, 400);
-  assert.match(JSON.parse(missing.body).error.message, /hanged-clerk doesn't load: .*cast\/kell\.md/);
+  assert.match(JSON.parse(missing.body).error.message, /^scene drowned-rat doesn't load: no scenes\/drowned-rat\.kmscene/);
   assert.equal(climbing.status, 400);
   assert.equal(JSON.parse((await ai.answer({ method: "GET", path: "/v1/health", headers: {}, body: "" })).body).campaigns.length, 0);
 });
 
 test("a campaign without the world a backstory is written for, or whose places' words don't compile, is a 400", async () => {
   const { ai } = service();
-  const files = filesOf(CAERWYN);
+  const files = withTestClerk(filesOf(CAERWYN));
   const file = JSON.parse(files["campaign.json"]!) as { creation: { places: unknown[] } };
   const unwritten = await ai.answer(put("0.1.0", { ...files, "campaign.json": JSON.stringify({ ...file, creation: undefined }) }));
   const broken = await ai.answer(put("0.1.0", { ...files, "campaign.json": JSON.stringify({ ...file, creation: { ...file.creation, places: [{ doc: "Places/Granary Yard.md", words: "\\b(granary" }] } }) }));
@@ -190,8 +195,8 @@ test("a campaign without the world a backstory is written for, or whose places' 
 
 test("a campaign whose vocabulary.json doesn't read as the story reads it is a 400 and isn't installed", async () => {
   const { ai } = service();
-  const vocabulary = JSON.parse(filesOf(CAERWYN)["vocabulary.json"]!) as { scenes: Array<Record<string, unknown>> };
-  const withVocabulary = (text: string) => put("0.1.0", { ...filesOf(CAERWYN), "vocabulary.json": text });
+  const vocabulary = JSON.parse(withTestClerk(filesOf(CAERWYN))["vocabulary.json"]!) as { scenes: Array<Record<string, unknown>> };
+  const withVocabulary = (text: string) => put("0.1.0", { ...withTestClerk(filesOf(CAERWYN)), "vocabulary.json": text });
   const answers = [
     await ai.answer(withVocabulary("{")),
     await ai.answer(withVocabulary("{}")),
@@ -375,7 +380,7 @@ test("health says what the ceiling is and what today's calls have cost", async (
 test("a version other than the one served is 409 other_campaign: the docs service has one lore root", async () => {
   const { ai } = service();
   await ai.answer(put());
-  const files = filesOf(CAERWYN);
+  const files = withTestClerk(filesOf(CAERWYN));
   files["campaign.json"] = files["campaign.json"]!.replace('"0.1.0"', '"0.2.0"');
   const other = await ai.answer(put("0.2.0", files));
 
@@ -593,8 +598,8 @@ test("a think missing what its endpoint reads is a 400 before any model is asked
 
 test("a campaign PUT the service can't read is a 400: a name that isn't one, a campaign.json that isn't a campaign's", async () => {
   const { ai } = service();
-  const withCampaign = (text: string) => ({ ...put(), body: JSON.stringify({ files: { ...filesOf(CAERWYN), "campaign.json": text } }) });
-  const campaign = JSON.parse(filesOf(CAERWYN)["campaign.json"]!) as Record<string, unknown>;
+  const withCampaign = (text: string) => ({ ...put(), body: JSON.stringify({ files: { ...withTestClerk(filesOf(CAERWYN)), "campaign.json": text } }) });
+  const campaign = JSON.parse(withTestClerk(filesOf(CAERWYN))["campaign.json"]!) as Record<string, unknown>;
   const answers = [
     await ai.answer({ ...put(), path: "/v1/campaigns/caerwyn/%E0%A4%A" }),
     await ai.answer(withCampaign("null")),

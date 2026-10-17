@@ -14,6 +14,7 @@ import { keysFor, worldToRows } from "../../../shared/world/rows.ts";
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { remember } from "./remember.ts";
@@ -45,7 +46,7 @@ async function setUp(options: FakeOptions) {
   const store = mkdtempSync(join(SCRATCH, "store-"));
   const stores = folderStores(store);
   const installed = campaigns(stores.campaigns, stores.docs);
-  await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
+  await installed.put("caerwyn", "0.1.0", withTestClerk(filesOf(CAERWYN)));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
   const contextFor = (key: string): AiContext => {

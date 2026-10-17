@@ -1,1 +1,0 @@
-A word with {name}, who walks with the player between scenes: small talk, their view of things, and, slowly, who they are. It has nothing to settle and moves nothing in the story on (the next place waits on the map); it lasts until the player says goodbye or walks on.

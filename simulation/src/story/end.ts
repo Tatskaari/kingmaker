@@ -9,7 +9,7 @@ import type { TxCtx } from "../context.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { queueThink } from "../jobs.ts";
 import { gameRow, playerRow, sceneRow, updateScene, type GameRow, type SceneRow } from "../rows.ts";
-import { gameCampaignId, graphOf, sceneDefOf, sceneFileOf } from "../scenes.ts";
+import { gameCampaignId, graphOf, sceneDefOf } from "../scenes.ts";
 import { entriesOf } from "../transcript.ts";
 import { placeWorldOf, savePlaceWorld } from "../world/place.ts";
 import { syncStage } from "../world/stage.ts";
@@ -33,7 +33,7 @@ export function closeScene(tx: TxCtx, scene: SceneRow, exit: Exit, how: "played"
   const game = gameRow(tx, scene.gameId);
   const def = sceneDefOf(tx, game, scene.sceneKey);
   const gm = endedOn(tx, scene, exit);
-  const at: Ending = { scene, graph: graphOf(def, gm.patches), file: sceneFileOf(def), gm };
+  const at: Ending = { scene, graph: graphOf(def, gm.patches), gm };
   const label = `[end ${scene.sceneKey} ${exit.id}] ${how}`;
 
   if (exit.kind === "combat") {

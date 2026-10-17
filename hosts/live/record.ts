@@ -2,10 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Card, Mark, MarkLink, Markup, Speech } from "../../shared/markup.ts";
 import { idempotencyKey, turnKeyParts } from "../../shared/protocol/keys.ts";
-import type { SceneFile } from "../../shared/scene/files.ts";
-import { sceneOf } from "../../shared/scene/load.ts";
+import { loadScene } from "../../shared/scene/load.ts";
 import type { Scene } from "../../shared/scene/types.ts";
-import { readCampaignFiles } from "../dev/campaign.ts";
+import { readCampaignFiles, scenePath } from "../dev/campaign.ts";
 import { backgroundOf, statusOf, statusRows } from "../dev/gm-status.ts";
 import { sql } from "../dev/spacetime.ts";
 import type { StackFile } from "../dev/stack-file.ts";
@@ -247,8 +246,7 @@ function heldFrom(scene: Scene, landed: string[]): Held {
 
 /** The campaign's scene, loaded with its words: what the record names people by and reads secrets from. */
 function installedScene(key: string): Scene {
-  const files = readCampaignFiles(CAMPAIGN);
-  return sceneOf(JSON.parse(files[`scenes/${key}/scene.json`]!) as SceneFile, path => files[`scenes/${key}/${path}`]);
+  return loadScene(readCampaignFiles(CAMPAIGN)[scenePath(key)]!, scenePath(key));
 }
 
 // ---------------------------------------------------------------------------------------------

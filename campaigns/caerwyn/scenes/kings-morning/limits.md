@@ -1,3 +1,0 @@
-- Leaving the palace or putting the King off until later: the procession goes at the ninth bell and the King goes with it. This half hour is the investigator's chance.
-- Undoing what happened last night: whatever the night ended with is how things stand this morning.
-- A trial here and now: the Assizes sit after the Assembly. What the King can do this morning is give his word, have the Marshal take a man, and say what the record will say.

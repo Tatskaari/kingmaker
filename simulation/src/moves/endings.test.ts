@@ -163,7 +163,8 @@ test("a failed check into an ending the player didn't choose holds it for their 
   const held = await line("Corporal, give me till noon.", decided({ route: { id: "persuade-tull", phase: "attempt", check: { skill: "persuasion", dc: 30 } } }));
   assert.deepEqual(held.gm.pendingExit, { exitId: "closed-suicide", turn: 2, via: "persuade-tull", extended: false });
   assert.deepEqual(held.gm.path.at(-1), { turn: 2, from: "dead-cart", to: "closed-suicide", via: "persuade-tull", source: "pre", roll, known: 0 });
-  assert.equal(held.lines.find(l => l.kind === "roll")!.text, `Persuasion check to convince Tull to wait before taking Prout away: ${describeRoll(roll).replace(/^Persuasion check: /, "")}`);
+  // (The tests' hanged clerk is in the scene format, whose checks give no reason: the dice line is the roll's alone.)
+  assert.equal(held.lines.find(l => l.kind === "roll")!.text, describeRoll(roll));
 });
 
 test("an ending that leads twice running is reached, though neither read was sure of it", async () => {

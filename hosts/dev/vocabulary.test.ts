@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { sceneOf } from "../../shared/scene/load.ts";
-import type { SceneFile } from "../../shared/scene/files.ts";
+import { loadScene } from "../../shared/scene/load.ts";
 import { checkCampaign, packOf, readCampaignFiles, type CampaignFiles } from "./campaign.ts";
 import { prepText } from "../../ai/gm/suggest.ts";
 import { vocabularyOf, type Vocabulary } from "../../ai/gm/story.ts";
@@ -10,8 +9,9 @@ import { entryOf, vocabularyProblems } from "./vocabulary.ts";
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "campaigns", "caerwyn");
 const files = readCampaignFiles(CAERWYN);
-const VOCAB = "vocabulary.json", SCENE = "scenes/hanged-clerk/scene.json";
+const VOCAB = "vocabulary.json", SCENE = "scenes/hanged-clerk.kmscene";
 const vocabulary = vocabularyOf(files[VOCAB]!) as Vocabulary;
+const ARC = ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"];
 
 /** The campaign with one file changed: JSON edited in place, or text replaced (undefined deletes it). */
 function changed(path: string, edit: ((json: any) => void) | string | undefined): CampaignFiles {
@@ -25,52 +25,31 @@ function changed(path: string, edit: ((json: any) => void) | string | undefined)
   return copy;
 }
 
-/** The vocabulary with the hanged clerk's entry edited. */
-const clerkEdited = (edit: (entry: any) => void) => changed(VOCAB, v => edit(v.scenes.find((e: any) => e.id === "hanged-clerk")));
-
-test("caerwyn's vocabulary is fit: the prototype's 25 scenes, each once, every way on an entry", () => {
+test("caerwyn's vocabulary is fit: the prototype's scenes the campaign doesn't install, each once, every way on an entry or an installed scene", () => {
   const ids = vocabulary.scenes.map(e => e.id);
 
   assert.deepEqual(checkCampaign(files), []);
   assert.deepEqual(vocabularyProblems(files, packOf(files)), []);
   assert.equal(vocabulary.source, "44c6d4a");
-  assert.equal(ids.length, 25);
-  assert.equal(new Set(ids).size, 25);
-  assert.deepEqual(ids.slice(8, 14), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning"]);
-  assert.ok(vocabulary.scenes.every(e => e.next.every(id => ids.includes(id))));
+  assert.equal(ids.length, 19, "the prototype's 25 scenes but the arc's six, which the campaign installs");
+  assert.equal(new Set(ids).size, 19);
+  assert.ok(!ids.some(id => ARC.includes(id)));
+  assert.ok(vocabulary.scenes.every(e => e.next.every(id => ids.includes(id) || ARC.includes(id))));
 });
 
-test("the installed hanged clerk, loaded with its words, gives its entry: prep, hook, ways on, cast and world names", () => {
-  const file = JSON.parse(files[SCENE]!) as SceneFile;
-  const scene = sceneOf(file, path => files[`scenes/hanged-clerk/${path}`]);
-  const entry = vocabulary.scenes.find(e => e.id === "hanged-clerk")!;
+test("an installed scene is read from its file, in an entry's place: what the tool would write for it comes from the scene", () => {
+  const scene = loadScene(files[SCENE]!, SCENE);
+  const entry = entryOf(scene, packOf(files).places[0]);
 
-  assert.deepEqual(entryOf(scene, packOf(files).places[0]), entry);
-  assert.equal(prepText(scene), entry.prep);
-  assert.equal(entry.prep.length, 46_333);
+  assert.deepEqual([entry.id, entry.next, entry.prep], ["hanged-clerk", ["caerwyn-afternoon"], prepText(scene)]);
   assert.deepEqual(entry.cast.map(c => c.called ?? c.name), ["Sergeant Agnes Kell", "the boy in the too-big boots", "the girl in the shawl", "the corporal"]);
+  assert.ok(entry.worldNames!.includes("the lane"));
 });
 
-test("a tampered prep fails: the entry's, or the scene's (the conversion)", () => {
-  const entry = clerkEdited(e => { e.prep = e.prep.replace("Moll", "Molly"); });
-  const card = changed("scenes/hanged-clerk/cast/moll.md", files["scenes/hanged-clerk/cast/moll.md"]!.replace("## Secrets\n", "## Secrets\n\n- She keeps a ferret.\n"));
+test("an entry for a scene the campaign installs is out of date by being there: it's found", () => {
+  const stale = changed(VOCAB, v => { v.scenes.push({ id: "hanged-clerk", hook: "x", next: [], cast: [], prep: "x" }); });
 
-  for (const tampered of [entry, card]) {
-    const problems = checkCampaign(tampered);
-    assert.equal(problems.length, 1);
-    assert.match(problems[0]!, /^vocabulary\.json: hanged-clerk's prep isn't the installed scene's \(line \d+: /);
-  }
-});
-
-test("the hook, the ways on, the cast and the world names are each checked against the installed scene", () => {
-  const problems = checkCampaign(clerkEdited(e => {
-    e.hook += " Also a dragon.";
-    e.next = ["drowned-rat"];
-    e.cast[1].called = "the boy";
-    e.worldNames.pop();
-  }));
-
-  assert.deepEqual(problems.map(p => p.replace(/ \(line .*$/, "")), ["hook", "next", "cast", "worldNames"].map(f => `vocabulary.json: hanged-clerk's ${f} isn't the installed scene's`));
+  assert.deepEqual(checkCampaign(stale), ["vocabulary.json: hanged-clerk has an entry, but the campaign installs it: the AI service reads it from its file, so drop the entry"]);
 });
 
 test("an id twice, or a way on to nowhere, is found", () => {
@@ -81,13 +60,10 @@ test("an id twice, or a way on to nowhere, is found", () => {
   assert.deepEqual(checkCampaign(nowhere), ["vocabulary.json: stranger-crossroads leads to the-moon, which is neither an entry nor an installed scene"]);
 });
 
-test("a way on to a scene the campaign installs needs no entry; an installed scene without one is found", () => {
-  const installedOnly = changed(VOCAB, v => {
-    v.scenes = v.scenes.filter((e: any) => e.id !== "hanged-clerk");
-    v.scenes.find((e: any) => e.id === "stranger-crossroads").next.push("hanged-clerk");
-  });
+test("a way on to a scene the campaign installs needs no entry", () => {
+  const installedOnly = changed(VOCAB, v => { v.scenes.find((e: any) => e.id === "stranger-crossroads").next.push("hanged-clerk"); });
 
-  assert.deepEqual(checkCampaign(installedOnly), ["vocabulary.json: no entry for hanged-clerk, which the campaign installs"]);
+  assert.deepEqual(checkCampaign(installedOnly), []);
 });
 
 test("a vocabulary that isn't JSON, or isn't the tool's shape, says so", () => {
@@ -111,12 +87,14 @@ test("a vocabulary that isn't JSON, or isn't the tool's shape, says so", () => {
 test("no vocabulary is missed only when a scene leads beyond what the campaign installs", () => {
   // The whole story is installed, from the yard to the King's morning, whose endings go nowhere.
   const none = changed(VOCAB, undefined);
-  const KING = "scenes/kings-morning/scene.json";
-  const leadsBeyond = { ...none, [KING]: JSON.stringify({ ...JSON.parse(files[KING]!), exits: { ...JSON.parse(files[KING]!).exits, justice: { ...JSON.parse(files[KING]!).exits.justice, next: "garrows-toll" } } }) };
+  const KING = "scenes/kings-morning.kmscene";
+  const king = JSON.parse(files[KING]!);
+  king.nodes.find((n: any) => n.id === "justice").data.next = "garrows-toll";
+  const leadsBeyond = { ...none, [KING]: JSON.stringify(king) };
 
   assert.deepEqual(checkCampaign(none), []);
   assert.deepEqual(checkCampaign(leadsBeyond), [
-    "scenes/kings-morning: exit justice goes on to garrows-toll, which isn't one of the campaign's scenes",
+    "scenes/kings-morning.kmscene: ending justice goes on to garrows-toll, which isn't one of the campaign's scenes",
     "vocabulary.json is missing, and kings-morning leads to garrows-toll, which the campaign doesn't install (the prototype's tools/v2/export-vocabulary.mts wrote it: git show bc2ab1f:tools/v2/export-vocabulary.mts)",
   ]);
 });

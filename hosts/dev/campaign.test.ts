@@ -19,15 +19,22 @@ function changed(path: string, edit: ((json: any) => void) | string | undefined)
   return copy;
 }
 
-const SCENE = "scenes/hanged-clerk/scene.json", PLACE = "places/granary-yard.json";
+const SCENE = "scenes/hanged-clerk.kmscene", PLACE = "places/granary-yard.json";
+const RAT = "scenes/drowned-rat.kmscene", HERON = "scenes/heron-warehouse.kmscene";
+/** A node's data, or a route's, by its id, to edit in place. */
+const node = (scene: any, id: string) => scene.nodes.find((n: any) => n.id === id).data;
+const route = (scene: any, id: string) => scene.edges.find((e: any) => e.id === id);
+/** The campaign's problems but the vocabulary's (vocabulary.test.ts has those). */
+const sceneChecks = (f: CampaignFiles) => checkCampaign(f).filter(p => !p.startsWith("vocabulary.json"));
 
-test("caerwyn is fit to install: its pack is the structure, its files every file but none hidden", () => {
+test("caerwyn is fit to install: its pack every scene's file, its files every file but none hidden", () => {
   const pack = packOf(files);
 
   assert.deepEqual(checkCampaign(files), []);
-  assert.deepEqual(pack.scenes.map(s => s.scene.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"], "the story's, then the talk template's");
+  assert.deepEqual(pack.scenes.map(s => s.id), ["hanged-clerk", "caerwyn-afternoon", "drowned-rat", "wharf-night", "heron-warehouse", "kings-morning", "talk"], "the story's, then the talk template's");
   assert.equal(pack.campaign.talk, "talk");
   assert.match(pack.scenes[0]!.hook, /^This morning a palace clerk, Wendell Prout/);
+  assert.deepEqual(pack.scenes[0], JSON.parse(files[SCENE]!), "a scene's file as it is");
   assert.deepEqual(pack.places.map(p => p.key), ["granary-yard", "drowned-rat", "heron", "dressing-room"]);
   assert.deepEqual(pack.campaign.quests, { "hanged-clerk": "The Hanged Clerk", "purveyors-man": "The Purveyor's Man", "heron-ledger": "The Heron Ledger" });
   assert.deepEqual(pack.maps.map(m => m.id), ["caerwyn", "drowned-rat", "heron", "palace"]);
@@ -35,7 +42,7 @@ test("caerwyn is fit to install: its pack is the structure, its files every file
   assert.deepEqual(Object.keys(pack.builds), ["cleric", "fighter", "ranger", "rogue", "wizard"]);
   assert.equal(pack.looks.kell?.fg, "#6d9eeb");
   assert.equal(Object.keys(files).filter(p => p.startsWith("lore/")).length, 154);
-  assert.ok(files["scenes/hanged-clerk/cast/kell.md"] && files["campaign.json"] && files["builds.json"]);
+  assert.deepEqual(Object.keys(files).filter(p => p.startsWith("scenes/")), pack.scenes.map(s => `scenes/${s.id}.kmscene`).sort(), "a file a scene, nothing else");
   assert.ok(!Object.keys(files).some(p => p.split("/").some(part => part.startsWith("."))));
 });
 
@@ -46,69 +53,145 @@ test("the pack goes to install_campaign and back unchanged", () => {
   assert.equal(installArgsOf(pack).id, "caerwyn@0.1.0");
 });
 
-test("a scene without its words, or a card without a section, doesn't load", () => {
-  assert.deepEqual(checkCampaign(changed("scenes/hanged-clerk/opening.md", undefined)), ["scenes/hanged-clerk: no opening.md"]);
-  assert.deepEqual(checkCampaign(changed("scenes/hanged-clerk/cast/kell.md", "## Look\n\nTall.\n")), ['scenes/hanged-clerk: cast/kell.md has no "## Voice"']);
+test("a scene file that isn't of the format says what's wrong with its shape, and is held to nothing more", () => {
+  assert.deepEqual(checkCampaign(changed(SCENE, s => { delete s.truth; s.edges[0].target = "the-moon"; })), [
+    "scenes/hanged-clerk.kmscene: it has no truth",
+    'scenes/hanged-clerk.kmscene: edges[0] (find-murder)\'s target "the-moon" isn\'t a node of the scene',
+  ]);
+  assert.deepEqual(checkCampaign(changed(SCENE, "{ nope")), ["scenes/hanged-clerk.kmscene isn't JSON: Expected property name or '}' in JSON at position 2 (line 1 column 3)"]);
+  assert.deepEqual(checkCampaign(changed(SCENE, undefined)), ["scenes/hanged-clerk.kmscene is missing"]);
 });
 
-test("a route to nowhere, or a fact nobody wrote, is found", () => {
-  const nowhere = changed(SCENE, s => { s.beats.yard.routes[0].to = "the-moon"; });
-  const unknownFact = changed(SCENE, s => { s.beats.yard.routes[0].establishes = ["no-such-fact"]; });
+test("ids are slugs, the scene's its file's name; the prose it needs is there, and its lore is in lore/", () => {
+  const ids = changed(SCENE, s => { s.id = "Hanged_Clerk"; s.nodes[1].id = "The Murder"; s.edges[0].target = "The Murder"; s.edges[0].id = "find murder"; route(s, "signed-murder").data.requires = ["The Murder", "hobb"]; });
+  const prose = changed(SCENE, s => { s.premise = " "; s.cast[0].whyHere = ""; node(s, "murder").title = ""; node(s, "failed").closing = ""; });
+  const lore = changed(SCENE, s => { s.lore.push("Places/Atlantis.md"); s.cast[1].lore = "Cast/Nobody/public.md"; node(s, "hobb").lore = ["Cast/Big Hobb Mallory/nope.md"]; });
 
-  assert.deepEqual(checkCampaign(nowhere), ["scenes/hanged-clerk: yard.not-suicide -> unknown the-moon"]);
-  assert.deepEqual(checkCampaign(unknownFact), ["scenes/hanged-clerk: unknown fact no-such-fact", "scenes/hanged-clerk (without its words): unknown fact no-such-fact"]);
+  assert.deepEqual(sceneChecks(ids), [
+    "scenes/hanged-clerk.kmscene: its id Hanged_Clerk isn't its file's name",
+    'scenes/hanged-clerk.kmscene: the scene id "Hanged_Clerk" isn\'t a slug ([a-z0-9][a-z0-9-]*)',
+    'scenes/hanged-clerk.kmscene: the node id "The Murder" isn\'t a slug ([a-z0-9][a-z0-9-]*)',
+    'scenes/hanged-clerk.kmscene: the route id "find murder" isn\'t a slug ([a-z0-9][a-z0-9-]*)',
+  ]);
+  assert.deepEqual(sceneChecks(prose), [
+    "scenes/hanged-clerk.kmscene: it has no premise", "scenes/hanged-clerk.kmscene: kell has no whyHere",
+    "scenes/hanged-clerk.kmscene: murder has no title", "scenes/hanged-clerk.kmscene: ending failed has no closing",
+  ]);
+  assert.deepEqual(sceneChecks(lore), [
+    "scenes/hanged-clerk.kmscene: lore Places/Atlantis.md isn't in lore/", "scenes/hanged-clerk.kmscene: lore Cast/Nobody/public.md isn't in lore/",
+    "scenes/hanged-clerk.kmscene: lore Cast/Big Hobb Mallory/nope.md isn't in lore/",
+  ]);
+  assert.deepEqual(sceneChecks(changed("scenes/caerwyn-afternoon.kmscene", s => { s.truth = ""; s.premise = ""; })), [], "an interlude needs no truth or premise");
 });
 
-test("an exit's effects and the afterwards name only facts, cast and things that exist", () => {
+test("the routes: none leaves an ending, what one requires is a beat, and only a way into a discovery goes without a condition", () => {
+  const routes = changed(SCENE, s => {
+    s.edges.push({ ...s.edges[6], id: "after-all", source: "failed", target: "murder-unknown", data: { ...s.edges[6].data, requires: ["hobb"] } });
+    route(s, "signed-suicide").data.requires = ["hobb", "failed"];
+    route(s, "cart-comes").data.condition = "";
+  });
+
+  assert.deepEqual(sceneChecks(routes), [
+    "scenes/hanged-clerk.kmscene: route cart-comes has no condition, and only a route into a discovery may go without",
+    "scenes/hanged-clerk.kmscene: route signed-suicide requires failed, which isn't a beat",
+    "scenes/hanged-clerk.kmscene: route after-all leaves an ending (failed)",
+  ]);
+});
+
+test("a discovery: a revelation, two paths or more, three for a required one with one free of dice, each path whole and via the cast or a thing; never behind a roll alone", () => {
+  const paths = changed(SCENE, s => {
+    node(s, "murder").paths = node(s, "murder").paths.slice(0, 1);
+    node(s, "hobb").paths = node(s, "hobb").paths.slice(0, 2);
+    node(s, "motive").paths[1].earn = " ";
+    node(s, "motive").paths[2].via = "silvertop";
+    node(s, "cart-arrives").paths = [{ via: "tull", clue: "x", earn: "x", strength: "hook" }];
+  });
+  const dice = changed(SCENE, s => {
+    node(s, "hobb").paths = node(s, "hobb").paths.map((p: any) => ({ ...p, check: { skill: "insight", dc: 10 } }));
+    route(s, "find-motive").data.skill = "investigation";
+  });
+
+  assert.deepEqual(sceneChecks(paths), [
+    "scenes/hanged-clerk.kmscene: discovery murder has 1 path, not two or more",
+    "scenes/hanged-clerk.kmscene: discovery motive's path 2 has no earn",
+    "scenes/hanged-clerk.kmscene: discovery motive's path 3 is via silvertop, who isn't in the cast",
+    "scenes/hanged-clerk.kmscene: discovery hobb is required, but hasn't three paths with one that needs no dice",
+    "scenes/hanged-clerk.kmscene: beat cart-arrives has paths but no revelation",
+  ]);
+  assert.deepEqual(sceneChecks(dice), [
+    "scenes/hanged-clerk.kmscene: discovery motive is locked behind a roll: no route into it is free of dice",
+    "scenes/hanged-clerk.kmscene: discovery hobb is required, but hasn't three paths with one that needs no dice",
+  ]);
+});
+
+test("every node can be reached, a good or mixed ending among them; a good ending says what it needs, and what's required is needed by one", () => {
+  const stuck = changed(SCENE, s => { route(s, "cart-comes").data.requires = ["cart-arrives"]; });
+  const bleak = changed(SCENE, s => { node(s, "murder-unknown").result = "bad"; node(s, "suspicious").result = "bad"; });
+  const free = changed(SCENE, s => { delete route(s, "signed-murder").data.requires; route(s, "signed-suicide").data.requires = []; });
+
+  assert.deepEqual(sceneChecks(stuck), [
+    "scenes/hanged-clerk.kmscene: cart-arrives can't be reached from the start", "scenes/hanged-clerk.kmscene: murder-unknown can't be reached from the start",
+    "scenes/hanged-clerk.kmscene: suspicious can't be reached from the start", "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
+  ]);
+  assert.deepEqual(sceneChecks(bleak), [
+    "scenes/hanged-clerk.kmscene: it has no good or mixed ending that can be reached",
+    "scenes/hanged-clerk.kmscene: discovery hobb is required, but no route into a good ending requires it",
+  ]);
+  assert.deepEqual(sceneChecks(free), [
+    "scenes/hanged-clerk.kmscene: route signed-murder goes to a good ending (murder-unknown) but requires nothing found",
+    "scenes/hanged-clerk.kmscene: discovery hobb is required, but no route into a good ending requires it",
+  ]);
+});
+
+test("who enters comes on at an event, and the notes the start and the events hold are for the cast", () => {
+  const people = changed(SCENE, s => { s.cast[3].enters = "murder"; node(s, "start").cast.sallow = "Waits."; });
+
+  assert.deepEqual(sceneChecks(people), [
+    "scenes/hanged-clerk.kmscene: tull enters at murder, which isn't an event beat",
+    "scenes/hanged-clerk.kmscene: start has a note for sallow, who isn't in the cast",
+  ]);
+});
+
+test("an ending's effects and the afterwards name only facts, cast and things that exist; an ending goes on to a scene of the campaign", () => {
   const files2 = changed(SCENE, s => {
-    s.exits["case-made"].effects.push({ op: "give", what: "the-crown-jewels", to: "$player" }, { op: "remember", who: "sallow", text: "x" }, { op: "journal", text: "x", if: { established: "nope" } });
+    node(s, "murder-unknown").effects.push({ op: "give", what: "the-crown-jewels", to: "$player" }, { op: "remember", who: "sallow", text: "x" }, { op: "journal", text: "x", if: { established: "nope" } });
+    node(s, "suspicious").next = "the-moon";
     s.afterwards.push({ op: "remove", what: "ghost" });
   });
 
-  assert.deepEqual(checkCampaign(files2), [
-    "scenes/hanged-clerk: exit case-made: give names unknown the-crown-jewels",
-    "scenes/hanged-clerk: exit case-made: remember names unknown sallow",
-    "scenes/hanged-clerk: exit case-made: condition on unknown fact nope",
-    "scenes/hanged-clerk: afterwards: remove names unknown ghost",
+  assert.deepEqual(sceneChecks(files2), [
+    "scenes/hanged-clerk.kmscene: ending suspicious goes on to the-moon, which isn't one of the campaign's scenes",
+    "scenes/hanged-clerk.kmscene: ending murder-unknown: give names unknown the-crown-jewels",
+    "scenes/hanged-clerk.kmscene: ending murder-unknown: remember names unknown sallow",
+    "scenes/hanged-clerk.kmscene: ending murder-unknown: condition on unknown fact nope",
+    "scenes/hanged-clerk.kmscene: afterwards: remove names unknown ghost",
   ]);
 });
 
-test("the place's people are the cast, its things are somewhere, and its lore exists", () => {
+test("the place's people are the cast, its things are somewhere, and what a beat carries is the place's or carried from another scene", () => {
   const stranger = changed(PLACE, p => { p.people.sallow = { in: "yard" }; });
   const floating = changed(PLACE, p => { p.things[0].in = "the-sky"; });
-  const noLore = changed(SCENE, s => { s.lore.push("Places/Atlantis.md"); });
+  const nowhere = changed(SCENE, s => { node(s, "motive").carry.things = ["ledger-page", "the-crown-jewels"]; });
 
-  assert.deepEqual(checkCampaign(stranger), ["scenes/hanged-clerk: granary-yard's people: sallow isn't in the cast"]);
-  assert.deepEqual(checkCampaign(floating), ["places/granary-yard.json: thing elm is in unknown the-sky"]);
-  assert.deepEqual(checkCampaign(noLore), ["scenes/hanged-clerk: lore Places/Atlantis.md isn't in lore/"]);
+  assert.deepEqual(sceneChecks(stranger), ["scenes/hanged-clerk.kmscene: granary-yard's people: sallow isn't in the cast"]);
+  assert.deepEqual(sceneChecks(floating), ["places/granary-yard.json: thing elm is in unknown the-sky"]);
+  assert.deepEqual(sceneChecks(nowhere), ["scenes/hanged-clerk.kmscene: beat motive carries the-crown-jewels, which isn't a thing of its place, nor carried from another scene"]);
 });
 
-const RAT = "scenes/drowned-rat/scene.json", HERON = "scenes/heron-warehouse/scene.json";
-/** The campaign's problems but the vocabulary's (which sees a changed next too: vocabulary.test.ts has those). */
-const storyChecks = (f: CampaignFiles) => checkCampaign(f).filter(p => !p.startsWith("vocabulary.json"));
-
-test("the story goes on: every exit's next and every overtaken is a scene, an interlude goes on, and what's owed is an earlier scene's", () => {
-  const lost = changed(RAT, s => { s.exits["hobb-talks"].next = "the-moon"; s.overtaken = "atlantis"; });
-  const stuck = changed("scenes/wharf-night/scene.json", s => { delete s.exits.onward.next; });
+test("the story goes on: every overtaken is a scene, a scene that can be overtaken says what it assumes, and an interlude goes on", () => {
+  const lost = changed(RAT, s => { s.overtaken = "atlantis"; });
+  const stuck = changed("scenes/wharf-night.kmscene", s => { delete node(s, "onward").next; });
   const loose = changed(HERON, s => { delete s.overtaken; });
-  const notOwed = changed(RAT, s => { s.essentials["prouts-page"].missed = "hanged-clerk:hat"; });
-  const notNeeded = changed(SCENE, s => { delete s.essentials.page.later; });
 
-  assert.deepEqual(storyChecks(lost), [
-    "scenes/drowned-rat: exit hobb-talks goes on to the-moon, which isn't one of the campaign's scenes",
-    "scenes/drowned-rat: overtaken, the story goes to atlantis, which isn't one of the campaign's scenes",
-  ]);
-  assert.deepEqual(storyChecks(stuck), ["scenes/wharf-night: an interlude, but none of its exits goes on (the story skips it to where they go)"]);
-  assert.deepEqual(storyChecks(loose), ["scenes/heron-warehouse: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)"]);
-  // (and with nothing owed in, the page the Rat's exits give isn't anywhere the Rat has)
-  assert.deepEqual(storyChecks(notOwed).filter(p => !p.endsWith("give names unknown ledger-page")), ["scenes/drowned-rat: essential prouts-page stands in for hanged-clerk:hat, which isn't another scene's essential"]);
-  assert.deepEqual(storyChecks(notNeeded), ["scenes/drowned-rat: essential prouts-page stands in for hanged-clerk:page, which the rest of the story doesn't need (it has no later)"]);
+  assert.deepEqual(sceneChecks(lost), ["scenes/drowned-rat.kmscene: overtaken, the story goes to atlantis, which isn't one of the campaign's scenes"]);
+  assert.deepEqual(sceneChecks(stuck), ["scenes/wharf-night.kmscene: an interlude, but none of its endings goes on (the story skips it to where they go)"]);
+  assert.deepEqual(sceneChecks(loose), ["scenes/heron-warehouse.kmscene: it assumes things, but doesn't say where the story goes when play has overtaken them (overtaken)"]);
 });
 
 test("the effects name an op, facts, people, things and quests the story has, onEnd's too", () => {
   const files2 = changed(RAT, s => {
     s.onEnd = [{ op: "follow", who: "moll" }];
-    s.exits["taken-in"].effects.push(
+    node(s, "taken-in").effects.push(
       { op: "teleport", what: "hobb" },
       { op: "quest", quest: "lost-cat", do: "advance", stage: "x", text: "x" },
       { op: "attitude", who: "hobb", to: "smitten", text: "x" },
@@ -116,26 +199,24 @@ test("the effects name an op, facts, people, things and quests the story has, on
       { op: "journal", text: "x", if: { established: ["hobb-talked", "nope"] } },
     );
   });
-  const fight = changed(HERON, s => { s.exits.fight.effects[0].allies = ["kell", "duchess"]; s.exits.fight.effects[1].at = "the-roof"; });
+  const fight = changed(HERON, s => { node(s, "fight").effects = [{ op: "startFight", enemies: [{ asset: "bandit", count: 2, leader: "sallow" }], allies: ["kell", "duchess"], at: "the-roof" }]; });
 
-  assert.deepEqual(checkCampaign(files2), [
-    "scenes/drowned-rat: onEnd: follow names unknown moll",
-    "scenes/drowned-rat: exit taken-in: teleport isn't an effect the story knows",
-    "scenes/drowned-rat: exit taken-in: quest lost-cat isn't one of campaign.json's quests",
-    "scenes/drowned-rat: exit taken-in: attitude smitten isn't an attitude",
-    "scenes/drowned-rat: exit taken-in: promise names unknown sallow",
-    "scenes/drowned-rat: exit taken-in: condition on unknown fact nope",
+  assert.deepEqual(sceneChecks(files2), [
+    "scenes/drowned-rat.kmscene: onEnd: follow names unknown moll",
+    "scenes/drowned-rat.kmscene: ending taken-in: teleport isn't an effect the story knows",
+    "scenes/drowned-rat.kmscene: ending taken-in: quest lost-cat isn't one of campaign.json's quests",
+    "scenes/drowned-rat.kmscene: ending taken-in: attitude smitten isn't an attitude",
+    "scenes/drowned-rat.kmscene: ending taken-in: promise names unknown sallow",
+    "scenes/drowned-rat.kmscene: ending taken-in: condition on unknown fact nope",
   ]);
-  assert.deepEqual(checkCampaign(fight), ["scenes/heron-warehouse: exit fight: startFight names unknown duchess", "scenes/heron-warehouse: exit fight: startFight is at unknown the-roof"]);
+  assert.deepEqual(sceneChecks(fight), ["scenes/heron-warehouse.kmscene: ending fight: startFight names unknown duchess", "scenes/heron-warehouse.kmscene: ending fight: startFight is at unknown the-roof"]);
 });
 
-test("the Rat may give the player Prout's page, which isn't its own but is owed into it from the granary", () => {
-  const rat = packOf(files).scenes.find(s => s.scene.id === "drowned-rat")!.scene;
-
-  assert.ok(rat.exits["hobb-talks"]!.effects.some(e => e.op === "give" && e.what === "ledger-page"));
-  assert.equal(rat.essentials["prouts-page"]!.missed, "hanged-clerk:page");
-  const unowed = changed(RAT, s => { delete s.essentials["prouts-page"].missed; });
-  assert.ok(checkCampaign(unowed).includes("scenes/drowned-rat: exit hobb-talks: give names unknown ledger-page"));
+test("the Rat may give the player Prout's page, which isn't its own but the granary's motive carries into it", () => {
+  const rat = packOf(files).scenes.find(s => s.id === "drowned-rat")!;
+  assert.ok((rat.onEnd ?? []).some(e => e.op === "give" && e.what === "ledger-page"));
+  const uncarried = { ...changed(SCENE, s => { delete node(s, "motive").carry.things; }), [RAT]: changed(RAT, s => { delete node(s, "prouts-page").carry.things; })[RAT]! };
+  assert.deepEqual(sceneChecks(uncarried), ["scenes/drowned-rat.kmscene: onEnd: give names unknown ledger-page"]);
 });
 
 test("a build has a concept and every field the engine makes one from, and a look names the cast in one glyph and a colour", () => {
@@ -205,22 +286,22 @@ test("the maps: each builds as the simulation builds it, its ways out land where
   assert.deepEqual(checkCampaign(lostStart), ["campaign.json: it starts on the map atlantis, which isn't one of its maps"]);
 });
 
-const TALK = "scenes/talk/scene.json";
+const TALK = "scenes/talk.kmscene";
 
-test("the talk template (town-design §3.6): a scene of kind talk whose first cast entry is the companion's, with a told beat and no place; and everyone who walks with the player has a lore entry to talk from", () => {
-  const template = packOf(files).scenes.find(s => s.scene.id === "talk")!.scene;
-  assert.deepEqual([template.kind, template.cast[0]!.id, template.cast[0]!.name, Object.keys(template.beats)], ["talk", "{companion}", "{name}", ["talk", "told"]]);
+test("the talk template (town-design §3.6): its companion {companion}, its first cast entry the companion's, with a told event, a goodbye and no place; and everyone who walks with the player has a lore entry to talk from", () => {
+  const template = packOf(files).scenes.find(s => s.id === "talk")!;
+  assert.deepEqual([template.companion, template.cast[0]!.id, template.cast[0]!.name, template.nodes.map(n => n.id)], ["{companion}", "{companion}", "{name}", ["talk", "told", "goodbye"]]);
 
-  const wrong = changed(TALK, t => { t.kind = "scene"; t.cast[0].id = "kell"; delete t.beats.told; t.place = "granary-yard"; });
+  const wrong = changed(TALK, t => { t.companion = "kell"; t.cast[0].id = "kell"; t.nodes[1].id = "spilled"; t.edges[1].target = "spilled"; t.nodes[2].id = "farewell"; t.edges[0].target = "farewell"; t.place = "granary-yard"; });
   // (A place's people would be the template's cast: the scene checks say so too.)
   assert.deepEqual(checkCampaign(wrong).filter(p => !p.includes("'s people:")), [
-    "scenes/talk: the talk template's kind is scene, not talk",
-    "scenes/talk: the talk template's first cast entry isn't the companion's ({companion}, named {name})",
-    "scenes/talk: the talk template has no beat told (where the one thing they keep back takes the talk once it's told)",
-    "scenes/talk: the talk template has a place (a talk is wherever the player stopped)",
+    'scenes/talk.kmscene: the talk template\'s companion is "kell", not "{companion}"',
+    "scenes/talk.kmscene: the talk template's first cast entry isn't the companion's ({companion}, named {name})",
+    "scenes/talk.kmscene: the talk template has no event beat told (where the one thing they keep back takes the talk once it's told)",
+    "scenes/talk.kmscene: the talk template has no ending goodbye (where walking on ends a talk)",
+    "scenes/talk.kmscene: the talk template has a place (a talk is wherever the player stopped)",
   ]);
   const entry = "lore/Cast/Sergeant Agnes Kell/private.md";
   const loreless = changed(entry, files[entry]!.replace('character: "kell"\n', ""));
-  assert.deepEqual(checkCampaign(loreless), ["scenes/talk: kell walks with the player, but has no lore entry to talk from (a private.md with character: kell)"]);
-  assert.deepEqual(checkCampaign(changed("scenes/talk/beats/told.md", undefined)), ["scenes/talk: no beats/told.md"]);
+  assert.deepEqual(checkCampaign(loreless), ["scenes/talk.kmscene: kell walks with the player, but has no lore entry to talk from (a private.md with character: kell)"]);
 });

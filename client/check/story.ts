@@ -1,4 +1,4 @@
-// New: the story's rows at the arc's moments (story-design §1.2), as closeScene, the boundary and fight_it_out would leave them, for the screen check, the demo and the client's tests. The words are the campaign's (campaigns/caerwyn/scenes/hanged-clerk/scene.json's open-case) and the prototype's fallback hand-off.
+// New: the story's rows at the arc's moments (story-design §1.2), as closeScene, the boundary and fight_it_out would leave them, for the screen check, the demo and the client's tests. The words are the campaign's as it was before M2 re-authored the hanged clerk (its open-case ending: the tests' own hanged clerk, shared/scene/testdata/hanged-clerk.kmscene, still has it) and the prototype's fallback hand-off.
 import { storyViewOf, type StoryRows } from "../story/rows.ts";
 import type { StoryView } from "../story/view.ts";
 import type { SceneView } from "../scene/view.ts";
@@ -7,7 +7,7 @@ import { YARD } from "./fixture.ts";
 /** The players: Pell Marrow (1) has the lead; Tamsin Vell (2) watches. */
 export const LEAD = 1n;
 
-/** The hanged clerk's open-case, as its scene.json has it. */
+/** The hanged clerk's open-case, as it was before M2 (the tests' own hanged clerk has it). */
 export const OPEN_CASE = {
   ending: "Murder by persons unknown",
   journal: "Prout was murdered. The watch has it down as persons unknown.",

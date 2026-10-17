@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { BoundaryRequest, OpenRequest } from "../../../shared/protocol/ai.ts";
-import { installArgsOf, type SceneFile } from "../../../shared/scene/files.ts";
+import { installArgsOf } from "../../../shared/scene/files.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { all, caerwynPack, crossedTo, http, identity, openedGame, sceneNow } from "../host/testing.ts";
@@ -15,8 +15,9 @@ import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY, STANDIN_LINE } from "./words.ts";
  * owner's end_scene and carry_on.
  */
 
-const HANGED_CLERK = caerwynPack().scenes.find(s => s.scene.id === "hanged-clerk")!.scene;
-const fact = (id: string) => HANGED_CLERK.facts[id]!;
+/** The tests' own hanged clerk (host/testing.ts TEST_CLERK): its endings' effects are what these tests read. */
+const HANGED_CLERK = caerwynPack().scenes.find(s => s.id === "hanged-clerk")!;
+const fact = (id: string) => HANGED_CLERK.facts![id]!;
 
 /** A new game in the yard, its opening in; `end` ends the scene being played through an exit, as the owner. */
 async function game(seed = 7) {
@@ -126,8 +127,8 @@ test("the end: Scene ends, the chapter, afterwards (Prout's body taken away), an
 
 test("a combat exit goes fighting: its effects recorded, no chapter, no boundary, the place as it was; a line waits for the fight", async () => {
   const pack = caerwynPack();
-  const brawl = { kind: "combat", title: "A brawl in the yard", next: "caerwyn-afternoon", text: "exits/brawl.md", effects: [{ op: "startCombat", what: "cob" }] };
-  const scenes = pack.scenes.map(s => (s.scene.id === "hanged-clerk" ? { ...s, scene: { ...s.scene, exits: { ...s.scene.exits, brawl } } as unknown as SceneFile } : s));
+  const brawl = { id: "brawl", type: "story" as const, position: { x: 0, y: 0 }, data: { kind: "exit" as const, title: "A brawl in the yard", description: "A brawl.", closing: "Fists.", result: "mixed" as const, exitKind: "combat" as const, next: "caerwyn-afternoon", effects: [{ op: "startCombat", what: "cob" }] as never, lore: [] } };
+  const scenes = pack.scenes.map(s => (s.id === "hanged-clerk" ? { ...s, nodes: [...s.nodes, brawl] } : s));
   const opened = await openedGame();
   const { host, scene, wren } = opened;
   host.as(host.owner).installCampaign(installArgsOf({ ...pack, scenes }));
@@ -179,7 +180,7 @@ test("the boundary's commit leaves the Rat waiting with what was handed on, the 
   assert.equal(placeKeyOf(host, rat.placeId), "drowned-rat");
   assert.equal(host.db.place.id.find(rat.placeId)!.sceneId, rat.id);
   const gm = getGmOf(host, rat.id);
-  assert.deepEqual([gm.beat, gm.adjustments, gm.opening, gm.lead, gm.absent, gm.hinted], ["the-rat", ["Kell is with the investigator."], "Open on the Rat's door at dusk.", "Kell says the big man drinks at the Drowned Rat.", [], ["page"]]);
+  assert.deepEqual([gm.beat, gm.adjustments, gm.opening, gm.lead, gm.absent, gm.hinted], ["start", ["Kell is with the investigator."], "Open on the Rat's door at dusk.", "Kell says the big man drinks at the Drowned Rat.", [], ["page"]]);
   assert.deepEqual(gm.patches, [patch]);
   assert.deepEqual(gm.owed, [{ ...owed[0]!, things: ["drowned-rat/boots", "drowned-rat/ledger-page"] }], "what's owed, its things where they are now");
   assert.deepEqual([gameRow().leadScene, gameRow().leadText, gameRow().time, gameRow().onward, gameRow().onwardNote], ["drowned-rat", "Kell says the big man drinks at the Drowned Rat.", "evening", undefined, undefined]);

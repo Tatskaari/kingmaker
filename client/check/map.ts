@@ -8,7 +8,8 @@ import { exploreOf, type ExploreRow, type MapPlace, type MapRows } from "../../s
 import type { MapFile } from "../../shared/map/tiles.ts";
 import type { Unheard } from "../../shared/map/town.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
-import type { CampaignFile, PlaceFile, SceneFile } from "../../shared/scene/files.ts";
+import type { SceneDocument } from "../../shared/scene/document.ts";
+import type { CampaignFile, PlaceFile } from "../../shared/scene/files.ts";
 import { worldToRows } from "../../shared/world/rows.ts";
 import { buildWorld, joinWorld, type SceneWorld } from "../../shared/world/scene-world.ts";
 import type { ExploreView } from "../explore/rows.ts";
@@ -22,7 +23,7 @@ const read = <T>(path: string): T => JSON.parse(readFileSync(join(CAERWYN, path)
 export const CAERWYN_MAPS: MapFile[] = (read<CampaignFile>("campaign.json").maps ?? []).map(key => read<MapFile>(`maps/${key}.json`));
 
 /** The yard's scene file: its cast, and what the player calls those whose names they haven't heard. */
-const YARD_FILE = read<SceneFile>(`scenes/${YARD_SCENE}/scene.json`);
+const YARD_FILE = read<SceneDocument>(`scenes/${YARD_SCENE}.kmscene`);
 
 /** The cast the lead hasn't heard named on the map before the scene: the boy and the girl (Kell gives her name). */
 export const UNHEARD: Unheard = YARD_FILE.cast.filter(c => c.called && !c.enters).map(c => ({ name: c.name, called: c.called! }));

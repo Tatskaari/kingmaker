@@ -14,6 +14,7 @@ import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { streamSink } from "../stream.ts";
@@ -39,7 +40,7 @@ async function setUp(options: FakeOptions = {}) {
   const store = mkdtempSync(join(SCRATCH, "store-"));
   const stores = folderStores(store);
   const installed = campaigns(stores.campaigns, stores.docs);
-  await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
+  await installed.put("caerwyn", "0.1.0", withTestClerk(filesOf(CAERWYN)));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
   const posts: StreamReplyArgs[] = [];
@@ -149,7 +150,8 @@ test("decide: the route the turn takes with its check (rolled by the simulation)
   const answer = await pipeline.decide(req, contextFor(req.key));
 
   const before = fake.sent.find(b => b.questions?.earned)!;
-  assert.deepEqual(answer.decision.route, { id: "catch-moll", phase: "attempt", check: { skill: "insight", dc: 13, reason: "to see through Moll's story about the jump" } });
+  // (The tests' hanged clerk has its routes in the scene format, whose checks give no reason.)
+  assert.deepEqual(answer.decision.route, { id: "catch-moll", phase: "attempt", check: { skill: "insight", dc: 13 } });
   assert.deepEqual([answer.decision.earned, answer.decision.daft, answer.decision.outOfCharacter], [false, false, false]);
   // (The wizard's sheet has a build: what the rules resolve is asked too, and on the quiet answer nothing is.)
   assert.deepEqual(questionsOf(before), ["attempt", "attempt_means", "cue", "roll_call", "off_graph", "earned", "daft", "mechanic", "ooc", "limit"]);
@@ -179,7 +181,7 @@ test("reply: the directives rebuilt from what the decide commit did, a repeat wa
   const answer = await pipeline.reply(req, contextFor(req.key));
 
   const note = noteOf(fake.sent[0]!);
-  assert.match(note, /## For this reply\nThe player's attempt called for a Insight check to see through Moll's story about the jump\. Insight check: 15 \+ 3 = 18 vs DC 13: success\. /);
+  assert.match(note, /## For this reply\nThe player's attempt called for a Insight check \(The player presses on the holes in Moll's 'I saw him jump' story[^\n]*\)\. Insight check: 15 \+ 3 = 18 vs DC 13: success\. It comes off: Not by his own hand\. /);
   assert.match(note, /The scene has moved on to "Not by his own hand"/);
   assert.match(note, /Your last reply repeated something already said, word for word \("The boy lobs another stone at the hanged man's boots\."\)/);
   assert.ok(fake.sent[0]!.input!.some(m => m.role === "developer" && m.content === `[${outcome.lines[0]}]`), "the dice line is in the GM's history");

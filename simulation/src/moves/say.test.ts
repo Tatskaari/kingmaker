@@ -36,7 +36,8 @@ test("a line: said at once, then decided (a route with a check, rolled by the ru
 
   await host.drain();
 
-  const line = describeRoll(roll, "to tell how Prout really died");
+  // (The tests' hanged clerk is in the scene format, whose checks give no reason: the dice line is the roll's alone.)
+  const line = describeRoll(roll);
   const now = sceneNow(host, scene.id);
   assert.deepEqual(phases, ["deciding", "replying", "settling"]);
   assert.deepEqual(now.lines.slice(1).map(l => [l.turn, l.speaker, l.kind, l.text]), [
@@ -143,7 +144,8 @@ test("the same seed and the same lines roll the same dice", async () => {
   const play = async () => {
     const { host, script, wren, scene } = await openedGame(42);
     for (let i = 0; i < 3; i++) {
-      script.then("decide", catchMoll);
+      // (Pressing Moll is catch-moll in the yard, and catch-moll-doubt once the scene is at doubt: a route's id is the scene's.)
+      script.then("decide", (request: DecideRequest) => ({ ...catchMoll, decision: { ...catchMoll.decision, route: { ...catchMoll.decision.route!, id: request.turn.gm.beat === "doubt" ? "catch-moll-doubt" : "catch-moll" } } }));
       host.as(wren).say({ text: `You were never up that wall, were you? (${i})` });
       await host.drain();
     }

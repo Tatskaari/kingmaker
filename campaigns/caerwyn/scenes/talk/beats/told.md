@@ -1,1 +1,0 @@
-{name} has told the player the one thing they were keeping back this time. That's as much of their own story as comes out in one talk: they answer a follow-up or two about it, briefly and in their own way, and the rest of their past waits for another day. Otherwise the talk goes on as before: their view of things, their own business, until the player says goodbye or walks on.

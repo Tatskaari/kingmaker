@@ -6,10 +6,10 @@ import type { Decider } from "../llm/decide.ts";
 import { respond, respondJson, type CallContext } from "../llm/openrouter.ts";
 import { GUARD_STAGES, type Confide, type GuardStage, type ScenePatch, type TalkRecord, type TalkState } from "../../shared/gm/state.ts";
 import type { TalkOpen, TalkPrep } from "../../shared/protocol/ai.ts";
-import type { SceneFile } from "../../shared/scene/files.ts";
+import type { SceneDocument } from "../../shared/scene/document.ts";
 import { sceneOf } from "../../shared/scene/load.ts";
 import { nameTokens } from "../../shared/scene/names.ts";
-import { CONFIDED, talkOf, talkSceneFile, talkWords, TOLD } from "../../shared/scene/talk.ts";
+import { CONFIDED, talkOf, talkSceneDocument, TOLD } from "../../shared/scene/talk.ts";
 import type { Character, Scene } from "../../shared/scene/types.ts";
 import { playerWho, sceneEntries, scriptTranscript } from "./brief.ts";
 import type { TurnView } from "./view.ts";
@@ -60,11 +60,11 @@ const firstParagraph = (doc: Doc | undefined) => doc?.body.split(/\n\s*\n/).map(
 
 /**
  * The talk scene for an id ("talk-kell-2"), or undefined when it isn't one, or the companion has no
- * lore. `template` and `words` are the campaign's talk template (its scene.json, and its Markdown by
- * its path in the folder); `authored` finds the companion's card in a scene of the story, for what
- * lore doesn't say: the statblock and weapon the rules would use.
+ * lore. `template` is the campaign's talk template (scenes/talk.kmscene); `authored` finds the
+ * companion's card in a scene of the story, for what lore doesn't say: the statblock and weapon the
+ * rules would use.
  */
-export function talkScene(sceneId: string, template: SceneFile, words: (path: string) => string | undefined, authored?: (id: string) => Character | undefined): Scene | undefined {
+export function talkScene(sceneId: string, template: SceneDocument, authored?: (id: string) => Character | undefined): Scene | undefined {
   const talk = talkOf(sceneId);
   const entry = talk ? characterEntry(talk.companion) : undefined;
   if (!talk || !entry) return undefined;
@@ -73,7 +73,7 @@ export function talkScene(sceneId: string, template: SceneFile, words: (path: st
   const card = authored?.(talk.companion);
   const name = lore ? titleOf(lore) : card?.name ?? talk.companion;
   const who = { id: talk.companion, name, ...(card?.statblock ? { statblock: card.statblock } : {}), ...(card?.weapon ? { weapon: card.weapon } : {}) };
-  const scene = sceneOf(talkSceneFile(template, who, talk.n), path => { const text = words(path); return text === undefined ? undefined : talkWords(text, who); });
+  const scene = sceneOf(talkSceneDocument(template, who, talk.n));
   const [companion, ...rest] = scene.cast;
   return {
     ...scene,

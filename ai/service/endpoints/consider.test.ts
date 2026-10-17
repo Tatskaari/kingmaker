@@ -15,6 +15,7 @@ import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { folderStores } from "../folder-stores.ts";
 import { streamSink } from "../stream.ts";
@@ -46,7 +47,7 @@ function filesOf(dir: string): Record<string, string> {
 async function setUp(options: FakeOptions = {}) {
   const stores = folderStores(mkdtempSync(join(SCRATCH, "store-")));
   const installed = campaigns(stores.campaigns, stores.docs);
-  await installed.put("caerwyn", "0.1.0", filesOf(CAERWYN));
+  await installed.put("caerwyn", "0.1.0", withTestClerk(filesOf(CAERWYN)));
   const campaign = installed.use("caerwyn", "0.1.0");
   const fake = fakeFetch(options);
   const contextFor = (key: string, considerDeadlineMs?: number): AiContext => {

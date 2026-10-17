@@ -1,5 +1,5 @@
 import type { GmState } from "../../../shared/gm/state.ts";
-import type { Cond, Effect, SceneFile } from "../../../shared/scene/files.ts";
+import type { Cond, Effect } from "../../../shared/scene/files.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
 import { gameRow, type SceneRow } from "../rows.ts";
@@ -18,8 +18,8 @@ import { campaignFile, campaignOfGame } from "../scenes.ts";
 /** What an ending's effects came to: the applied ones and the recorded ones, a few words each. */
 export interface Done { applied: string[]; recorded: string[] }
 
-/** The scene ending, as its effects read it: its row, its graph (the cast's names), its file (the facts' sentences), and its bookkeeping (what's established). */
-export interface Ending { scene: SceneRow; graph: Scene; file: SceneFile; gm: GmState }
+/** The scene ending, as its effects read it: its row, its graph (the cast's names, the facts' sentences), and its bookkeeping (what's established). */
+export interface Ending { scene: SceneRow; graph: Scene; gm: GmState }
 
 export function applyEffects(tx: TxCtx, at: Ending, effects: Effect[]): Done {
   const done: Done = { applied: [], recorded: [] };
@@ -40,7 +40,7 @@ export function recordAll(at: Ending, effects: Effect[]): string[] {
 /** Whether an effect's facts hold: its `if` facts all established, its `unless` facts none. */
 function holdsIn(at: Ending): (e: Cond) => boolean {
   const known = new Set([...at.gm.established, ...at.gm.canon]);
-  const isTrue = (id: string) => { const sentence = at.file.facts[id]; return sentence !== undefined && known.has(sentence); };
+  const isTrue = (id: string) => { const sentence = at.graph.facts?.[id]; return sentence !== undefined && known.has(sentence); };
   return e => listOf(e.if?.established).every(isTrue) && !listOf(e.unless?.established).some(isTrue);
 }
 

@@ -13,7 +13,8 @@ import { gmFromRow } from "../../../shared/gm/state.ts";
 import { rollFor } from "../../../shared/rules/index.ts";
 import type { BuildOption, OwnPicks, SrdLists } from "../../../shared/rules/types.ts";
 import type { MapFile } from "../../../shared/map/tiles.ts";
-import { installArgsOf, type BuildsFile, type CampaignFile, type CampaignPack, type InstallArgs, type LooksFile, type PlaceFile, type SceneFile } from "../../../shared/scene/files.ts";
+import type { SceneDocument } from "../../../shared/scene/document.ts";
+import { installArgsOf, type BuildsFile, type CampaignFile, type CampaignPack, type InstallArgs, type LooksFile, type PlaceFile } from "../../../shared/scene/files.ts";
 import type { Skill } from "../../../shared/scene/types.ts";
 import { playerRow } from "../rows.ts";
 import { engineCall, sessionOf } from "../rules/session.ts";
@@ -21,31 +22,42 @@ import { memoryHost, type AiPost, type AiReply, type MemoryHost } from "./memory
 
 /**
  * Test support for the memory host: the hanged clerk's campaign as install_campaign takes it (the
- * campaign folder's own files), players' identities, and a scripted AI service that answers each
- * endpoint from a queue (or a default) and keeps every request it was sent.
+ * campaign folder's own files, but the hanged clerk the tests' own), players' identities, and a
+ * scripted AI service that answers each endpoint from a queue (or a default) and keeps every request
+ * it was sent.
  */
 
 const CAERWYN = join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn");
 const read = (path: string) => readFileSync(join(CAERWYN, path), "utf8");
 
-/** Whether a game starts on the campaign's map (map-design §3.3), or, as the stack's tests before the map, in its first scene at once. */
-export interface PackOptions { map?: boolean }
+/**
+ * The tests' own hanged clerk (shared/scene/testdata/hanged-clerk.kmscene): the campaign's before
+ * M2 re-authored it, in the scene format, so the tests of the code that plays a scene (its routes,
+ * checks and endings by their ids: examine-body, cart-comes, case-made…) don't follow the campaign's
+ * content. The rest of the arc is the campaign's own.
+ */
+export const TEST_CLERK = join(import.meta.dirname, "..", "..", "..", "shared", "scene", "testdata", "hanged-clerk.kmscene");
 
 /**
- * campaigns/caerwyn as install_campaign takes it: no Markdown but each scene's hook. Its maps are
- * installed either way; without `map: true` its start is off the map (campaign.json's start.map
- * and start.at left out), so a new game opens its first scene at once, as the stack's tests from
- * before the map expect.
+ * Whether a game starts on the campaign's map (map-design §3.3), or, as the stack's tests before the
+ * map, in its first scene at once; and whether the hanged clerk is the campaign's own (`asIs`) rather
+ * than the tests' (TEST_CLERK).
+ */
+export interface PackOptions { map?: boolean; asIs?: boolean }
+
+/**
+ * campaigns/caerwyn as install_campaign takes it: every scene's file whole (the hanged clerk the
+ * tests' own, unless `asIs`), then the talk template's. Its maps are installed either way; without
+ * `map: true` its start is off the map (campaign.json's start.map and start.at left out), so a new
+ * game opens its first scene at once, as the stack's tests from before the map expect.
  */
 export function caerwynPack(options: PackOptions = {}): CampaignPack {
-  const file = JSON.parse(read("campaign.json")) as CampaignFile;
-  // The talk template (town-design §3.6): the campaign's own once it has one, else the tests' (TALK).
-  const campaign: CampaignFile = { ...file, talk: file.talk ?? TALK.id };
+  const campaign = JSON.parse(read("campaign.json")) as CampaignFile;
   const { map: _map, at: _at, ...offMap } = campaign.start;
-  const talk = file.talk ? { scene: JSON.parse(read(`scenes/${file.talk}/scene.json`)) as SceneFile, hook: read(`scenes/${file.talk}/hook.md`).trim() } : { scene: TALK, hook: "A word with {name}, between one thing and the next." };
+  const scene = (key: string) => JSON.parse(key === "hanged-clerk" && !options.asIs ? readFileSync(TEST_CLERK, "utf8") : read(`scenes/${key}.kmscene`)) as SceneDocument;
   return {
     campaign: options.map ? campaign : { ...campaign, start: offMap },
-    scenes: [...campaign.scenes.map(key => ({ scene: JSON.parse(read(`scenes/${key}/scene.json`)) as SceneFile, hook: read(`scenes/${key}/hook.md`).trim() })), talk],
+    scenes: [...campaign.scenes, campaign.talk!].map(scene),
     places: campaign.places.map(key => JSON.parse(read(`places/${key}.json`)) as PlaceFile),
     builds: JSON.parse(read("builds.json")) as BuildsFile,
     looks: JSON.parse(read("looks.json")) as LooksFile,
@@ -54,21 +66,6 @@ export function caerwynPack(options: PackOptions = {}): CampaignPack {
 }
 
 export const caerwynArgs = (options: PackOptions = {}): InstallArgs => installArgsOf(caerwynPack(options));
-
-/**
- * A talk template for the tests while the campaign has none of its own (shared/scene/talk.test.ts's
- * shape: a scene of kind talk, `{name}` and `{companion}` for whoever walks with the player, two beats
- * and the goodbye; the campaign's is package A's).
- */
-export const TALK: SceneFile = {
-  id: "talk", title: "A word with {name}", summary: "A word with {name} between scenes.", kind: "talk", start: "talk",
-  cast: [{ id: "{companion}", name: "{name}", card: "cast/companion.md" }],
-  facts: {},
-  beats: { talk: { title: "A word between scenes", text: "beats/talk.md", routes: [] }, told: { title: "Told", text: "beats/told.md", routes: [] } },
-  anytime: [{ id: "goodbye", on: "attempt", when: "The player says goodbye or ends the talk (\"{farewell}\"), or walks on.", to: "goodbye" }],
-  exits: { goodbye: { kind: "leave", title: "Goodbye for now", text: "exits/goodbye.md", effects: [] } },
-  essentials: {}, afterwards: [], lore: [],
-};
 
 /** A player's identity, by a number. */
 export const identity = (n: number) => new Identity(BigInt(0x1000 + n));

@@ -15,6 +15,7 @@ import { keysFor, worldToRows, type PlaceRows } from "../../../shared/world/rows
 import { buildWorld, joinWorld } from "../../../shared/world/scene-world.ts";
 import { callContext } from "../calls.ts";
 import { campaigns } from "../campaigns.ts";
+import { withTestClerk } from "../../gm/fixtures.ts";
 import type { AiContext } from "../context.ts";
 import { memoryStores } from "../memory-stores.ts";
 import { aiService } from "../server.ts";
@@ -46,7 +47,7 @@ function filesOf(dir: string): Record<string, string> {
   return files;
 }
 
-const FILES = filesOf(CAERWYN);
+const FILES = withTestClerk(filesOf(CAERWYN));
 const stores = memoryStores();
 const installed = campaigns(stores.campaigns, stores.docs);
 await installed.put("caerwyn", "0.1.0", FILES);
@@ -129,7 +130,7 @@ test("a talk's open streams Kell's greeting and answers its prep: the facts, a c
   assert.deepEqual(answer.present, ["kell"]);
   // The greeting: the talk's own opening, on the facts the talk opens on.
   const greeting = fake.sent.find(b => inputOf(b).includes("Open the talk."))!;
-  assert.match(inputOf(greeting), /Open the talk\. The player has come over for a word with Sergeant Agnes Kell/);
+  assert.match(inputOf(greeting), /Open the talk\. The player has stopped for a word with Sergeant Agnes Kell[^]*As the talk opens: the player has come over for a word with Sergeant Agnes Kell/);
   assert.match(inputOf(greeting), /Where and when: Granary Street in Caerwyn, evening\./);
   assert.match(inputOf(greeting), /What Sergeant Agnes Kell knew in The Hanged Clerk/);
   // Beside it, the sift (a question a note, and which is the deepest), then the plan.
