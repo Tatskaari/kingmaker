@@ -17,7 +17,7 @@ const load = (code,resolver) => {
   runInNewContext(code,{module,exports:module.exports,require:resolver,crypto:webcrypto});
   return module.exports;
 };
-const model=load(transpile('model.ts'),require);
+const model=load(transpile('model.ts'),id=>id==='./map-model.ts'?load(transpile('map-model.ts'),require):require(id));
 const {deriveScenarioGraph}=load(transpile('ScenarioEditor.tsx'),id=>id==='./model'?model
   :id==='@xyflow/react'||id==='lucide-react'||id==='./ConfirmDialog'||id.endsWith('.css')?{}
   :require(id));
@@ -27,6 +27,15 @@ const content=(path,id,kind='scene',nodes=[])=>({path,document:{...model.emptyDo
 const scenario=config=>({...model.emptyDocument('scenario','Test campaign'),scenario:config});
 const diagram=(doc,files)=>plain(deriveScenarioGraph(doc,files));
 const sourceNodes=graph=>graph.nodes.filter(node=>node.data.path);
+test('spatial map placements expose named scenario inputs and optional interaction outputs',()=>{
+  const map=content('Maps/Square.kmmap','square','map',[
+    node('spawn','start',{title:'From town',mapFeature:'spawn',mapAt:{x:2,y:2}}),
+    node('door','exit',{title:'Open door',mapFeature:'interaction',mapAt:{x:3,y:2},exitPort:'To tavern',file:'Scenes/Tavern.kmscene',entry:'front'}),
+    node('sign','beat',{title:'Read sign',mapFeature:'interaction',mapAt:{x:4,y:2}}),
+  ]),tavern=content('Scenes/Tavern.kmscene','tavern','scene',[node('front','start')]);
+  const graph=diagram(scenario({files:[map.path]}),[map,tavern]),card=sourceNodes(graph).find(n=>n.data.path===map.path);
+  assert.equal(card.data.entries[0].title,'From town');assert.equal(card.data.exits.length,1);assert.equal(card.data.exits[0].title,'To tavern');assert.equal(card.data.exits[0].id,'door');assert.equal(graph.edges.length,1);
+});
 
 test('every scenario has exactly one protected pseudo Start, never persisted as authored content',()=>{
   const doc=scenario({});

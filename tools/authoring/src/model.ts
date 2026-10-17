@@ -1,8 +1,10 @@
 import type {Node,Edge} from '@xyflow/react';
+import {validateMap} from './map-model.ts';
+import type {MapData} from './map-model';
 export type Kind='scene'|'map'|'beat'|'start'|'exit';
 export type Destination={file:string;entry:string};
 export type ScenarioConfig={entry?:Destination;files?:string[];positions?:Record<string,{x:number;y:number}>};
-export type CardData={title:string;description:string;kind:Kind;lore:string[];file?:string;next?:string;entry?:string;destinationKind?:'scene'|'map';exitKind?:string;[key:string]:unknown};
+export type CardData={title:string;description:string;kind:Kind;lore:string[];file?:string;next?:string;entry?:string;destinationKind?:'scene'|'map';exitKind?:string;mapFeature?:'spawn'|'interaction';mapAt?:{x:number;y:number};eventMessage?:string;exitPort?:string;script?:string;[key:string]:unknown};
 export type CardNode=Node<CardData>;
 export type Route=Edge<{condition:string;phase:string;skill:string;dc:number;[key:string]:unknown}>;
 export type ConnectionGroup=Edge<{routes:Route[]}>;
@@ -18,7 +20,7 @@ export function groupConnections(routes:Route[]):ConnectionGroup[]{
   }
   return [...groups.values()];
 }
-export type GraphDocument={format:'kingmaker';version:1;kind:'scene'|'scenario'|'map';id:string;title:string;description:string;nodes:CardNode[];edges:Route[];lore:string[];scenario?:ScenarioConfig;[key:string]:unknown};
+export type GraphDocument={format:'kingmaker';version:1;kind:'scene'|'scenario'|'map';id:string;title:string;description:string;nodes:CardNode[];edges:Route[];lore:string[];scenario?:ScenarioConfig;terrain?:MapData;[key:string]:unknown};
 export type Lore={id:string;name:string;kind:'character'|'object'|'place'|'note';path:string;text:string};
 export type FileEntry={path:string;title:string};
 export type ContentFile={path:string;document?:GraphDocument;error?:string};
@@ -29,7 +31,7 @@ export function entryPorts(doc:GraphDocument):EntryPort[]{
   const starts=doc.nodes.filter(node=>node.data.kind==='start');
   return [...starts.map(node=>({id:node.id,title:node.data.title})),...doc.nodes.filter(node=>node.data.kind!=='start'&&node.data.start===true).map(node=>({id:node.id,title:node.data.title,legacy:true}))];
 }
-export const exitPorts=(doc:GraphDocument):CardNode[]=>doc.nodes.filter(node=>node.data.kind==='exit');
+export const exitPorts=(doc:GraphDocument):CardNode[]=>doc.nodes.filter(node=>node.data.kind==='exit').map(node=>node.data.mapFeature==='interaction'?{...node,data:{...node.data,title:node.data.exitPort||node.data.title}}:node);
 /** Destination ownership stays on the exit, whether edited inside the scene or from its scenario overview. */
 export function withDestination(doc:GraphDocument,exitId:string,target:ContentFile|undefined,entry:string):GraphDocument{
   if(!exitPorts(doc).some(node=>node.id===exitId))throw Error('This exit no longer exists. Refresh the file.');
@@ -47,11 +49,16 @@ export function parseDocument(raw:string,expectedKind?:GraphDocument['kind']):Gr
   const d=JSON.parse(raw);
   if(!d||d.format!=='kingmaker'||d.version!==1||!['scene','scenario','map'].includes(d.kind))throw Error('Not a supported Kingmaker authoring file (format kingmaker, version 1).');
   if(expectedKind&&d.kind!==expectedKind)throw Error(`The file extension requires a ${expectedKind} document.`);
+  if(d.terrain!==undefined){if(d.kind!=='map')throw Error('Only maps can contain terrain.');validateMap(d.terrain)}
   if(typeof d.id!=='string'||typeof d.title!=='string'||typeof d.description!=='string'||!strings(d.lore)||!Array.isArray(d.nodes)||!Array.isArray(d.edges))throw Error('Missing title, description, nodes, transitions or lore references.');
   const ids=new Set<string>();
   for(const n of d.nodes){
     if(!n||typeof n.id!=='string'||ids.has(n.id)||!Number.isFinite(n.position?.x)||!Number.isFinite(n.position?.y)||!n.data||!['beat','start','exit','scene','map'].includes(n.data.kind)||typeof n.data.title!=='string'||typeof n.data.description!=='string'||!strings(n.data.lore)||(n.data.file!==undefined&&typeof n.data.file!=='string')||(n.data.entry!==undefined&&typeof n.data.entry!=='string'))throw Error('A node has invalid or duplicate data.');
     ids.add(n.id);
+    if(n.data.mapFeature!==undefined){
+      const a=n.data.mapAt,w=d.terrain?.width??32,h=d.terrain?.height??24;
+      if(d.kind!=='map'||!['spawn','interaction'].includes(n.data.mapFeature)||!a||!Number.isInteger(a.x)||!Number.isInteger(a.y)||a.x<0||a.y<0||a.x>=w||a.y>=h||(n.data.mapFeature==='spawn'&&n.data.kind!=='start')||(n.data.mapFeature==='interaction'&&n.data.kind!==(n.data.exitPort?.trim()?'exit':'beat'))||['eventMessage','exitPort','script'].some(k=>n.data[k]!==undefined&&typeof n.data[k]!=='string'))throw Error('Invalid map spawn point or interaction.');
+    }
   }
   const edges=new Set<string>();
   for(const e of d.edges){

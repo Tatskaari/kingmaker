@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
-import {Background,Controls,Handle,MarkerType,Position,ReactFlow,ReactFlowProvider,useNodesInitialized,useReactFlow} from '@xyflow/react';
+import {Background,Controls,Handle,MarkerType,Position,ReactFlow,ReactFlowProvider,useNodesInitialized,useReactFlow,useStoreApi} from '@xyflow/react';
 import type {Connection,Edge,Node,NodeChange,NodeProps} from '@xyflow/react';
 import {ArrowUpRight,BookOpen,Flag,Map as MapIcon,Plus,RefreshCw,Undo2,Redo2,X} from 'lucide-react';
 import {entryPorts,exitPorts,serializeDocument,withDestination} from './model';
@@ -74,9 +74,21 @@ export function deriveScenarioGraph(scenario:GraphDocument,files:ContentFile[]):
   return {nodes,edges};
 }
 
-function ScenarioCard({data,selected}:NodeProps<ScenarioNode>){
+function ScenarioCard({id,data,selected}:NodeProps<ScenarioNode>){
+  const store=useStoreApi(),card=useRef<HTMLElement>(null);
+  const ports=JSON.stringify([data.kind,data.entries,data.exits]);
+  // Async file loading can replace placeholder handles without replacing the node.
+  // Use the element directly: useUpdateNodeInternals builds an unescaped selector
+  // from IDs, but our file/placeholder IDs can legitimately contain quotes.
+  useLayoutEffect(()=>{
+    const frame=requestAnimationFrame(()=>{
+      const nodeElement=card.current?.closest<HTMLDivElement>('.react-flow__node');
+      if(nodeElement)store.getState().updateNodeInternals(new Map([[id,{id,nodeElement,force:true}]]),{triggerFitView:false});
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[id,ports,store]);
   const Icon=data.kind==='map'?MapIcon:data.kind==='start'?Flag:BookOpen;
-  return <article className={`scenario-card ${data.kind==='start'?'scenario-start-card':''} ${data.kind==='missing'?'scenario-missing-card':''} ${selected?'chosen':''}`} data-file={data.path??data.referencePath}>
+  return <article ref={card} className={`scenario-card ${data.kind==='start'?'scenario-start-card':''} ${data.kind==='missing'?'scenario-missing-card':''} ${selected?'chosen':''}`} data-file={data.path??data.referencePath}>
     <div className="scenario-card-kind"><Icon size={14}/>{data.kind==='missing'?'Unresolved':data.kind}</div>
     <h3>{data.title}</h3><p className="scenario-card-description">{data.description}</p>
     {data.path&&<small className="scenario-card-path">{data.path}</small>}

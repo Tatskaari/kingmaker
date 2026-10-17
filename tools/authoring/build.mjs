@@ -5,7 +5,9 @@ import {fileURLToPath} from 'node:url';
 const root=path.dirname(fileURLToPath(import.meta.url));
 process.chdir(root);
 await mkdir('dist/plugin',{recursive:true});
-const options={bundle:true,jsx:'automatic',sourcemap:true};
+// Reuse the browser game's adapters for the terrain renderer's platform imports.
+const alias=Object.fromEntries(['fs','os','path','crypto','url'].map(name=>[`node:${name}`,path.resolve(root,`../../src/web/static/node/${name}.ts`)]));
+const options={bundle:true,jsx:'automatic',sourcemap:true,alias,define:{'process.env.NODE_ENV':'"production"'},inject:[path.resolve(root,'src/map-platform.js')]};
 await esbuild.build({...options,entryPoints:['src/plugin.tsx'],outfile:'dist/plugin/main.js',format:'cjs',platform:'browser',external:['obsidian','electron'],logLevel:'info'});
 await copyFile('dist/plugin/main.css','dist/plugin/styles.css');
 await copyFile('manifest.json','dist/plugin/manifest.json');
@@ -32,7 +34,7 @@ const lore=[...noteFiles.values()].map(file=>{
   const kind=file.path.startsWith('Cast/')?'character':file.path.startsWith('Objects/')?'object':file.path.startsWith('Places/')?'place':'note';
   return {id:file.path,name,kind,...file};
 });
-const files=Object.fromEntries(examples.filter(file=>/\.km(scene|scenario)$/.test(file.path)).map(file=>[file.path,file.text]));
+const files=Object.fromEntries(examples.filter(file=>/\.km(scene|scenario|map)$/.test(file.path)).map(file=>[file.path,file.text]));
 await writeFile('dist/fixtures.json',JSON.stringify({files,lore}));
 await cp('examples','dist/fixtures',{recursive:true});
 await copyFile('index.html','dist/index.html');

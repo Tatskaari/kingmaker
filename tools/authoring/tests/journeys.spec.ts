@@ -789,7 +789,7 @@ test('scenario refreshes names and ports from external source edits without chan
   expect(await saved(page,scenarioPath)).toEqual(originalScenario);
 });
 
-test('scenario connects a map input as file-backed flow only, with spatial editing clearly deferred',async({page})=>{
+test('scenario keeps map ports and wiring while the spatial editor has only Paint and Game preview',async({page})=>{
   const documents=flowDocuments();
   documents[scenarioPath].scenario.files.push(flowMapPath);
   documents[scenarioPath].scenario.positions[flowMapPath]={x:880,y:500};
@@ -806,13 +806,14 @@ test('scenario connects a map input as file-backed flow only, with spatial editi
   await page.screenshot({path:'dist/screenshots/scenario-scene-and-map-flow.png'});
   await scenarioCard(page,flowMapPath).dblclick();
   await expect(page.locator('.file-path')).toHaveText(flowMapPath);
-  await expect(page.locator('.canvas-heading')).toContainText('Named inputs and outputs only');
-  await expect(page.locator('.canvas-heading')).toContainText('future work');
-  await expect(card(page,'From upstream')).toBeVisible();
-  await expect(card(page,'Continue downstream')).toBeVisible();
-  await page.getByRole('button',{name:/Add node A/}).click();
-  await expect(page.getByRole('button',{name:'Start A named input port for entering this file',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'Beat A situation the player can change',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Paint',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('navigation',{name:'Map views'}).getByRole('button')).toHaveText(['Paint','Game preview Tab']);
+  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);
+  const before=await saved(page,flowMapPath);
+  await page.getByRole('button',{name:'Game preview Tab',exact:true}).click();await page.getByRole('button',{name:'Paint',exact:true}).click();expect(await saved(page,flowMapPath)).toEqual(before);
+  await page.getByRole('combobox',{name:'Test file',exact:true}).selectOption(scenarioPath);
+  await expect(scenarioInput(page,flowMapPath,'upstream')).toHaveCount(1);await expect(scenarioOutput(page,flowMapPath,'downstream')).toHaveCount(1);
+  expect((await saved(page,flowSourcePath)).nodes.find((node:any)=>node.id==='quiet').data).toMatchObject({file:flowMapPath,entry:'upstream',destinationKind:'map'});
 });
 
 test('adding an existing map to a scenario keeps its source file unchanged through undo and redo',async({page})=>{
@@ -846,13 +847,16 @@ test('creating a map from the scenario makes a real kmmap file ready for named p
   expect((await saved(page,scenarioPath)).scenario.files).toContain(path);
   await page.getByRole('button',{name:'Open source file',exact:true}).click();
   await expect(page.locator('.file-path')).toHaveText(path);
-  await expect(page.locator('.canvas-heading')).toContainText('Named inputs and outputs only');
-  await page.getByRole('button',{name:/Add first node/}).click();
-  await page.getByRole('button',{name:'Start A named input port for entering this file',exact:true}).click();
-  await page.getByLabel('Name',{exact:true}).fill('From the city gate');
-  expect((await saved(page,path)).nodes[0].data).toMatchObject({kind:'start',title:'From the city gate'});
+  await expect(page.locator('.map-stage canvas')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);
+  await page.locator('.map-stage canvas').click({button:'right'});
+  await page.getByRole('menuitem',{name:'Add spawn point…'}).click();
+  await page.getByLabel('Spawn point name').fill('From the city gate');
+  await page.getByRole('button',{name:'Save spawn point',exact:true}).click();
+  expect((await saved(page,path)).nodes[0].data).toMatchObject({kind:'start',title:'From the city gate',mapFeature:'spawn'});
   await page.reload();
-  await expect(card(page,'From the city gate')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Edit spawn point From the city gate',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Ports',exact:true})).toHaveCount(0);
 });
 
 test('scenario keyboard movement persists layout only and is undoable',async({page})=>{

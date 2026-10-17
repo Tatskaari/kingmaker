@@ -8,6 +8,7 @@ import {ConnectionEdge} from './ConnectionEdge';
 import {EditorModal} from './EditorModal';
 import {ConfirmDialog} from './ConfirmDialog';
 import {ScenarioEditor} from './ScenarioEditor';
+import {MapEditor} from './MapEditor';
 import '@xyflow/react/dist/style.css';
 import './styles.css';
 
@@ -21,7 +22,8 @@ type Picked={kind:'node'|'edge';id:string}|null;
 type DestructiveAction={kind:'nodes';ids:string[]}|{kind:'routes';ids:string[]}|{kind:'lore';path:string;nodeId:string|null}|{kind:'destination';exitId:string;target?:ContentFile;entry:string};
 type Confirmation={title:string;description:string;confirmLabel:string;action:DestructiveAction};
 const counted=(count:number,noun:string)=>`${count} ${noun}${count===1?'':'s'}`;
-export function App({document,host}:{document:GraphDocument;host:Host}){return document.kind==='scenario'?<ScenarioEditor document={document} host={host}/>:<ReactFlowProvider><Editor initial={document} host={host}/></ReactFlowProvider>}
+const renderGraph=(document:GraphDocument,host:Host)=><ReactFlowProvider><Editor initial={document} host={host}/></ReactFlowProvider>;
+export function App({document,host}:{document:GraphDocument;host:Host}){return document.kind==='scenario'?<ScenarioEditor document={document} host={host}/>:document.kind==='map'?<MapEditor document={document} host={host}/>:renderGraph(document,host)}
 function Editor({initial,host}:{initial:GraphDocument;host:Host}){
   const [graph,setGraph]=useState(initial),current=useRef(initial);
   const [history,setHistory]=useState<GraphDocument[]>([]),[future,setFuture]=useState<GraphDocument[]>([]);
@@ -188,7 +190,8 @@ function Editor({initial,host}:{initial:GraphDocument;host:Host}){
       {selectedNode.data.file&&<label className="field">Destination input<select value={selectedNode.data.entry??''} onChange={event=>{const target=documents.find(file=>file.path===selectedNode.data.file);if(target&&event.target.value)chooseDestination(target,event.target.value)}}><option value="">Choose a named start</option>{entryPorts(documents.find(file=>file.path===selectedNode.data.file)?.document??{...graph,nodes:[]}).map(port=><option key={port.id} value={port.id}>{port.title}</option>)}</select></label>}
       {selectedNode.data.file?<button className="wide-button" onClick={()=>openFile(selectedNode.data.file!)}>Open destination file <ArrowUpRight size={14}/></button>:<p className="info-box">{selectedNode.data.next?<>This exit leads to <strong>{String(selectedNode.data.next)}</strong>, but no destination file is linked. Add its vault-relative path when it exists.</>:'No destination set. Enter a destination ID or link a file to show where this exit leads.'}</p>}
     </section>}
-    {selectedNode.data.kind==='start'&&<p className="info-box">{graph.kind==='map'?'This named start appears as a map input on the scenario card. Placing its spawn point on the map is future work.':'This named start appears as an input on the scenario card. Connect it to the first beat to play when entering here.'}</p>}
+    {selectedNode.data.kind==='start'&&<p className="info-box">{graph.kind==='map'?(selectedNode.data.mapAt?`This spawn point appears as a map input on the scenario card. Tile: ${selectedNode.data.mapAt.x}, ${selectedNode.data.mapAt.y}.`:'This legacy named input has no tile position. Use Paint → right-click a tile → Add spawn point to create a spatial input.'):'This named start appears as an input on the scenario card. Connect it to the first beat to play when entering here.'}</p>}
+    {selectedNode.data.mapFeature==='interaction'&&<p className="info-box">Tile interaction at {selectedNode.data.mapAt?.x}, {selectedNode.data.mapAt?.y}. {selectedNode.data.exitPort?`Scenario output: ${selectedNode.data.exitPort}.`:'No scenario output.'} Edit its message and exit-port name from its marker in Paint.</p>}
     {selectedNode.data.kind!=='start'&&selectedNode.data.start===true&&<p className="info-box">This imported opening beat is also exposed as the original scenario input. New start nodes add other named inputs without removing this one.</p>}
     <div className="inspector-actions"><button onClick={()=>{if(selectedNode.data.kind==='exit')openDialog('destinations');else{setExpanded(false);setConnecting(selectedNode.id)}}}><Link size={14}/>{selectedNode.data.kind==='exit'?'Choose destination…':'Add transition to…'}</button><button title="Duplicate node" onClick={duplicate}><Copy size={14}/></button><button title="Delete node" onClick={deleteSelection}><Trash2 size={14}/></button></div>
     {loreEditor()}

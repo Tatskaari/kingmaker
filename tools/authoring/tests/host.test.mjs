@@ -13,6 +13,7 @@ const transpile = name => transformSync(readFileSync(new URL(`../src/${name}`, i
   loader:name.endsWith('tsx') ? 'tsx' : 'ts', format:'cjs', jsx:'automatic',
 }).code;
 const modelCode = transpile('model.ts');
+const mapModelCode = transpile('map-model.ts');
 const pluginCode = transpile('plugin.tsx');
 
 function loadModule(code, resolver) {
@@ -23,7 +24,7 @@ function loadModule(code, resolver) {
 
 function harness() {
   const roots = [], modals = [], notices = [], opened = [], writes = [], entries = new Map(), contents = new Map(), vaultEvents = [];
-  const model = loadModule(modelCode, require);
+  const model = loadModule(modelCode, name => name === './map-model.ts' ? loadModule(mapModelCode, require) : require(name));
   const normalizePath = path => path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
   class Folder {
     constructor(path) { this.path = path; this.name = path.split('/').at(-1); this.parent = null; }

@@ -13,6 +13,7 @@
   "dependencies": {
     "@xyflow/react": "^12.10.0",
     "lucide-react": "^0.468.0",
+    "pixi.js": "^8.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
