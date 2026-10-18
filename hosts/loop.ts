@@ -9,7 +9,7 @@ import { apiKey } from "../ai/llm/openrouter.ts";
 import { keptCalls, readCalls } from "../qa/loop/calls.ts";
 import { callsPath, CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
 import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
-import { probeTurn, type LoggedCall, type ProbeTry } from "../qa/loop/probe.ts";
+import { probeMouthpiece, probeTurn, type LoggedCall, type MouthpieceTry, type ProbeTry } from "../qa/loop/probe.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
 import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
 import { checkReviewFile, reviewPack } from "../qa/loop/review.ts";
@@ -57,6 +57,10 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
                                                the co-GM asked again on a game's turns with this checkout's code and
                                                scenes, on real models: each try's moves, and how many reached --want
                                                or kept off --not (reads the round, writes nothing to it)
+  loop probe <round> <game> <turn>[-<turn>] --mouthpiece [--arm before|after|both] [--tries 3] [--log <file>]
+                                               the mouthpiece asked again: as the round sent it (before), and with this
+                                               checkout's rules and per-turn note parts (after); each try's narration,
+                                               check and outcomes, and whether a closing closed
 
 Rounds go under KM_LOOP_DIR (default runs/loop). Not ported yet: the cases, fixtures and evals.`;
 
@@ -246,6 +250,7 @@ function build(): { commit: string; dirty: boolean } {
 async function probe(config: LoopConfig, name: string, game: string, turns: string, flags: Flags): Promise<number> {
   const record = readRecord(recordPath(config, name, game));
   if (!record?.sceneRow || !record.player) return shown({ code: 1, text: `${game} of ${name} has no scene played` });
+  if ("mouthpiece" in flags) return await probeMouthpieceTurns(config, name, game, record, turns, flags);
   const scene = effectiveScene(loadScene(readFileSync(join(CAMPAIGNS, record.campaign?.id ?? "caerwyn", "scenes", `${record.scene}.kmscene`), "utf8")), []);
   const calls = readFileSync(callsPath(config, name, game), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as LoggedCall);
   const [from, to = from] = turns.split("-").map(Number) as [number, number?];
@@ -266,6 +271,39 @@ async function probe(config: LoopConfig, name: string, game: string, turns: stri
   }
   const rate = (n: number) => `${n} of ${tally.all}`;
   console.log(`${flags.want ? `reached ${flags.want}: ${rate(tally.want)}. ` : ""}${flags.not ? `kept off ${flags.not}: ${rate(tally.not)}. ` : ""}Spent $${spent.toFixed(4)}.`);
+  return 0;
+}
+
+/**
+ * The mouthpiece asked again on a game's turns (qa/loop/probe.ts probeMouthpiece), `--tries` times
+ * for each arm: before (the round's request as sent) and after (this checkout's rules and per-turn
+ * note parts in it), each try's narration as the model wrote it (tags and all), its check with the
+ * five outcomes, and whether a closing closed; with `--log`, each try as a line of JSON.
+ */
+async function probeMouthpieceTurns(config: LoopConfig, name: string, game: string, record: GameRecord, turns: string, flags: Flags): Promise<number> {
+  const loaded = await campaignAt(join(CAMPAIGNS, record.campaign?.id ?? "caerwyn"));
+  // The story's scenes have their places: the world the per-turn note's names and the companion are read from.
+  const story = (id: string) => loaded.campaign.story.scene(id);
+  const scene = story(record.scene);
+  if (!scene) return shown({ code: 1, text: `the campaign has no scene ${record.scene}` });
+  const calls = readFileSync(callsPath(config, name, game), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as LoggedCall);
+  const [from, to = from] = turns.split("-").map(Number) as [number, number?];
+  const tries = Number(flags.tries || 3);
+  const arms = (flags.arm && flags.arm !== "both" ? [flags.arm] : ["before", "after"]) as Array<"before" | "after">;
+  let spent = 0;
+  const context = { fetch, apiKey: apiKey(), cost: (line: { costUsd: number }) => { spent += line.costUsd; } };
+  for (let turn = from; turn <= to!; turn++) {
+    console.log(`\n${game} turn ${turn}: > ${record.turns[String(turn)]?.said ?? "(the opening)"}`);
+    for (const arm of arms) {
+      const done = await Promise.all(Array.from({ length: tries }, () => probeMouthpiece(scene, story, calls, record.sceneRow!, turn, { ...record, player: record.player! }, arm, context)));
+      done.forEach((t: MouthpieceTry, i) => {
+        if (flags.log) appendFileSync(resolve(flags.log), `${JSON.stringify({ at: new Date().toISOString(), round: name, game, turn, try: i + 1, ...t })}\n`);
+        console.log(`\n  ${arm} ${i + 1}: ${t.error ? `failed: ${t.error}` : t.narration}${t.closes !== undefined ? `\n    [closes: ${t.closes}]` : ""}`);
+        if (t.check) console.log(`    [check ${t.check.skill} DC ${t.check.dc}]\n${Object.entries(t.check.outcomes).map(([band, words]) => `    - ${band}: ${words}`).join("\n")}`);
+      });
+    }
+  }
+  console.log(`\nSpent $${spent.toFixed(4)}.`);
   return 0;
 }
 
