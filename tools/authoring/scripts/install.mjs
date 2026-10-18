@@ -32,6 +32,7 @@ if(!enabled.includes('kingmaker-authoring')){
 }
 console.log(`Installed Kingmaker Authoring in ${vault}`);
 console.log('Reload Obsidian. If Restricted mode is on, allow community plugins and enable Kingmaker Authoring.');
-console.log((await readdir(vault)).some(name=>name.endsWith('.kmscenario'))
-  ?'Open a scene from scenes/ (scenes/hanged-clerk.kmscene is the worked example).'
-  :'This vault has no scenario (<id>.kmscenario): the scene editor checks scenes against a campaign folder (campaigns/caerwyn), so open that as the vault.');
+const scenario=(await readdir(vault)).find(name=>name.endsWith('.kmscenario'));
+console.log(scenario
+  ?`Open ${scenario} for the story's flow, a map from maps/, or a scene from scenes/ (scenes/hanged-clerk.kmscene is the worked example).`
+  :'This vault has no scenario (<id>.kmscenario): the editors check the files against a campaign folder (campaigns/caerwyn), so open that as the vault.');
