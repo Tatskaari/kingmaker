@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -123,6 +123,95 @@ test('taking something out takes what named it with it, so the game can still lo
   const noMoll=removeCast(clerk(),'moll');
   assert.ok(!noMoll.cast.some(member=>member.id==='moll'));
   assert.ok(!noMoll.nodes.some(node=>node.data.cast&&'moll' in node.data.cast));
+});
+
+test('a fact renamed or taken out follows every place it\'s named: the facts, establishes, and effects\' conditions',()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  let doc=clerk();
+  doc=setNodeField(doc,'failed','effects',[...nodeOf(doc,'failed').data.effects,
+    {op:'journal',text:'Hobb was there.',if:{established:'hobb-at-granary'}},
+    {op:'journal',text:'The motive too.',if:{established:['hobb-at-granary','motive-known']},unless:{established:'killed-not-suicide'}}]);
+  doc=setSceneField(doc,'onEnd',[{op:'follow',who:'kell',unless:{established:['hobb-at-granary']}}]);
+  doc=setRouteField(doc,'case-lost','establishes',['hobb-at-granary']);
+  assert.deepEqual(settlesOf(doc,'hobb-at-granary'),[{kind:'node',id:'hobb'},{kind:'route',id:'case-lost'}]);
+  assert.deepEqual(testsOf(doc,'hobb-at-granary'),[
+    {at:{kind:'scene',field:'onEnd'},index:0,key:'unless',op:'follow'},
+    {at:{kind:'node',id:'failed'},index:4,key:'if',op:'journal'},
+    {at:{kind:'node',id:'failed'},index:5,key:'if',op:'journal'},
+  ]);
+
+  const renamed=renameFact(doc,'hobb-at-granary','hobb-seen');
+  assert.deepEqual(Object.keys(renamed.facts),['killed-not-suicide','motive-known','hobb-seen'],'the key keeps its place');
+  assert.equal(renamed.facts['hobb-seen'],doc.facts['hobb-at-granary']);
+  assert.deepEqual(nodeOf(renamed,'hobb').data.establishes,['hobb-seen']);
+  assert.deepEqual(renamed.edges.find(route=>route.id==='case-lost').data.establishes,['hobb-seen']);
+  const effects=nodeOf(renamed,'failed').data.effects;
+  assert.deepEqual(effects[4].if,{established:'hobb-seen'});
+  assert.deepEqual(effects[5].if,{established:['hobb-seen','motive-known']});
+  assert.deepEqual(renamed.onEnd[0].unless,{established:['hobb-seen']},'a list stays a list');
+  assert.equal(nodeOf(renamed,'murder'),nodeOf(doc,'murder'),'what doesn\'t name it is the same object');
+  assert.deepEqual(shapeOf(renamed),[]);
+  assert.equal(renameFact(doc,'no-such-fact','x'),doc);
+
+  const removed=removeFact(renamed,'hobb-seen');
+  assert.ok(!('hobb-seen' in removed.facts));
+  assert.equal(nodeOf(removed,'hobb').data.establishes,undefined);
+  const left=nodeOf(removed,'failed').data.effects;
+  assert.deepEqual(left[4],{op:'journal',text:'Hobb was there.'},'a condition with no fact left goes');
+  assert.deepEqual(left[5],{op:'journal',text:'The motive too.',if:{established:'motive-known'},unless:{established:'killed-not-suicide'}},'one fact left is written as its id');
+  assert.deepEqual(removed.onEnd,[{op:'follow',who:'kell'}]);
+  assert.deepEqual(shapeOf(removed),[]);
+  assert.deepEqual(testsOf(removed,'hobb-seen'),[]);
+});
+
+test('a node, a route or a person renamed: every reference in the file follows, and only by asking',async()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  assert.equal(idProblem('Dead cart',[]),'An id is a slug: lower-case letters, digits and dashes, starting with a letter or digit.');
+  assert.equal(idProblem('murder',['murder','hobb']),'murder is taken.');
+  assert.equal(idProblem('murder',['murder','hobb'],'murder'),undefined,'its own id is free to it');
+
+  const doc=setRouteField(clerk(),'signed-suicide','onFailure','hobb');
+  const node=renameNode(renameNode(doc,'cart-arrives','dead-cart'),'hobb','hobb-spotted');
+  assert.deepEqual(node.nodes.map(n=>n.id),['start','murder','motive','hobb-spotted','dead-cart','murder-unknown','suspicious','failed']);
+  assert.deepEqual(node.edges.map(route=>[route.id,route.source,route.target]),[['find-murder','start','murder'],['find-motive','start','motive'],['find-hobb','start','hobb-spotted'],['cart-comes','start','dead-cart'],['signed-murder','dead-cart','murder-unknown'],['signed-suicide','dead-cart','suspicious'],['case-lost','start','failed']]);
+  assert.deepEqual(node.edges.find(route=>route.id==='signed-murder').data.requires,['murder','hobb-spotted']);
+  assert.equal(node.edges.find(route=>route.id==='signed-suicide').data.onFailure,'hobb-spotted');
+  assert.equal(node.cast.find(member=>member.id==='tull').enters,'dead-cart');
+  assert.deepEqual(shapeOf(node),[]);
+
+  const route=renameRoute(clerk(),'case-lost','walked-away');
+  assert.deepEqual(Object.keys(route.edges[6]),['id','source','target','type','label','data']);
+  assert.equal(route.edges[6].id,'walked-away');
+
+  let withEffects=setNodeField(clerk(),'failed','effects',[...nodeOf(clerk(),'failed').data.effects,{op:'promise',by:'cob',to:'$player',text:'A boot back.'},{op:'remove',what:'cob',text:'off up the lane'}]);
+  withEffects=setSceneField(withEffects,'onEnd',[{op:'follow',who:'cob'},{op:'startFight',enemies:[{asset:'bandit',count:2,leader:'cob'}],allies:['kell','cob'],at:'yard'}]);
+  const person=renameCast(withEffects,'cob','cob-the-boy');
+  assert.equal(person.cast[1].id,'cob-the-boy');
+  assert.deepEqual(Object.keys(person.cast[1]),Object.keys(clerk().cast[1]));
+  assert.deepEqual(Object.keys(nodeOf(person,'start').data.cast),['cob-the-boy','moll','kell'],'their note keeps its place');
+  assert.deepEqual(Object.keys(nodeOf(person,'cart-arrives').data.cast),['tull','kell','cob-the-boy','moll']);
+  assert.deepEqual(nodeOf(person,'motive').data.paths.map(path=>path.via),['cob-the-boy','kell','cob-the-boy','the tally loft','tull']);
+  assert.deepEqual(nodeOf(person,'failed').data.effects.slice(-2),[{op:'promise',by:'cob-the-boy',to:'$player',text:'A boot back.'},{op:'remove',what:'cob-the-boy',text:'off up the lane'}]);
+  assert.deepEqual(person.onEnd,[{op:'follow',who:'cob-the-boy'},{op:'startFight',enemies:[{asset:'bandit',count:2,leader:'cob-the-boy'}],allies:['kell','cob-the-boy'],at:'yard'}]);
+  // The place's people name him by his old id: the campaign's file, which the problems name.
+  const campaign=await readCampaign('scenes/hanged-clerk.kmscene',await campaignFiles());
+  assert.deepEqual(problemsOf('hanged-clerk',renameCast(clerk(),'cob','cob-the-boy'),contextOf(campaign,'hanged-clerk')).map(problem=>problem.message),['granary-yard\'s people: cob isn\'t in the cast']);
+});
+
+test('a beat\'s kind changes with its revelation: an event has no paths, a discovery is never the stage',()=>{
+  const nodeOf=(doc,id)=>doc.nodes.find(node=>node.id===id);
+  const event=makeEvent(setNodeField(clerk(),'hobb','pressure','Kept.'),'hobb');
+  assert.deepEqual(Object.keys(nodeOf(event,'hobb').data),['kind','title','description','pressure','establishes','carry','lore']);
+  assert.deepEqual(shapeOf(event),[]);
+  assert.equal(makeEvent(event,'hobb'),event,'an event already');
+  const discovery=makeDiscovery(clerk(),'cart-arrives');
+  const data=nodeOf(discovery,'cart-arrives').data;
+  assert.equal(data.revelation,'');
+  assert.deepEqual(data.paths,[]);
+  assert.equal(data.cast,undefined);
+  assert.equal(data.pressure,undefined);
+  assert.equal(discovery.cast.find(member=>member.id==='tull').enters,undefined,'who arrived there is here from the start');
+  assert.deepEqual(shapeOf(discovery),[]);
 });
 
 test('a new scene is the format\'s skeleton: a start, a discovery, an ending and a route, its ids slugs of their titles',()=>{

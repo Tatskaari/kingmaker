@@ -271,25 +271,219 @@ export function setArrival(doc:SceneDocument,castId:string,eventId:string,arrive
 /** A fact added: its id (a slug, free among the facts) and the sentence the GM is told when it's settled. */
 export function addFact(doc:SceneDocument,id:string,sentence:string):{doc:SceneDocument;id:string}{
   const facts=doc.facts??{};
-  const free=uniqueId(slugOf(id)||slugOf(sentence)||'fact',Object.keys(facts));
+  const free=newFactId(doc,id,sentence);
   return {doc:setSceneField(doc,'facts',{...facts,[free]:sentence}),id:free};
 }
 
-/** A fact taken out, and every beat's and route's establishes of it (the game refuses a file that settles a fact it hasn't got). */
+/** The id a new fact gets: a slug of the id asked for (or of its sentence), free among the scene's facts. */
+export const newFactId=(doc:SceneDocument,id:string,sentence:string):string=>uniqueId(slugOf(id)||slugOf(sentence)||'fact',Object.keys(doc.facts??{}));
+
+/**
+ * A fact taken out, and every place that names it: each beat's and route's establishes (the game
+ * refuses a file that settles a fact it hasn't got) and each effect's condition on it (onEnd's and the
+ * endings'; a condition left with no fact goes).
+ */
 export function removeFact(doc:SceneDocument,id:string):SceneDocument{
   const facts=Object.fromEntries(Object.entries(doc.facts??{}).filter(([fact])=>fact!==id));
-  const without=(list:string[]|undefined)=>list?.includes(id)?optionalList(list.filter(fact=>fact!==id)):list;
-  const nodes=doc.nodes.map(node=>{
-    if(!isBeat(node)||!node.data.establishes?.includes(id))return node;
-    return {...node,data:withKey(node.data,'establishes',without(node.data.establishes),ORDER.beat)};
-  });
-  const edges=doc.edges.map(route=>route.data.establishes?.includes(id)?{...route,data:withKey(route.data,'establishes',without(route.data.establishes),ORDER.route)}:route);
-  return setSceneField({...doc,nodes,edges},'facts',Object.keys(facts).length?facts:undefined);
+  const next=changeFactReferences(doc,list=>list.filter(fact=>fact!==id));
+  return setSceneField(next,'facts',Object.keys(facts).length?facts:undefined);
 }
+
+/** A fact's id changed, where its key is among the facts, and in every establishes and condition naming it. */
+export function renameFact(doc:SceneDocument,from:string,to:string):SceneDocument{
+  if(from===to||!doc.facts||!(from in doc.facts))return doc;
+  const facts=Object.fromEntries(Object.entries(doc.facts).map(([fact,sentence])=>[fact===from?to:fact,sentence]));
+  return setSceneField(changeFactReferences(doc,list=>list.map(fact=>fact===from?to:fact)),'facts',facts);
+}
+
+/** Every list of facts in the scene changed by `change`: the beats' and routes' establishes, and the effects' conditions. Unchanged parts stay the same objects. */
+function changeFactReferences(doc:SceneDocument,change:(facts:string[])=>string[]):SceneDocument{
+  const same=(a:string[],b:string[])=>a.length===b.length&&a.every((fact,i)=>fact===b[i]);
+  const establishes=<T extends {establishes?:string[]}>(data:T,order:readonly string[]):T=>{
+    if(!data.establishes)return data;
+    const next=change(data.establishes);
+    return same(next,data.establishes)?data:withKey(data,'establishes',optionalList(next),order);
+  };
+  const nodes=doc.nodes.map(node=>{
+    let data=node.data;
+    if(isBeat(node))data=establishes(node.data,ORDER.beat);
+    if(isEnding(node)&&node.data.effects){
+      const effects=node.data.effects.map(effect=>withFactsChanged(effect as EffectLike,change)) as EndingData['effects'];
+      if(effects!.some((effect,i)=>effect!==node.data.effects![i]))data=withKey(node.data,'effects',effects,ORDER.exit);
+    }
+    return data===node.data?node:{...node,data};
+  });
+  const edges=doc.edges.map(route=>{const data=establishes(route.data,ORDER.route);return data===route.data?route:{...route,data}});
+  let next:SceneDocument={...doc,nodes,edges};
+  if(doc.onEnd){
+    const onEnd=doc.onEnd.map(effect=>withFactsChanged(effect as EffectLike,change));
+    if(onEnd.some((effect,i)=>effect!==doc.onEnd![i]))next=setSceneField(next,'onEnd',onEnd);
+  }
+  return next;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Effects: an op and its fields, kept whole (shared/scene/files.ts Effect), and their conditions on facts.
+
+/** An effect as the file has it. */
+export type EffectLike={op:string;[key:string]:unknown};
+export type ConditionKey='if'|'unless';
+
+/** An effect's facts in a condition (`if` or `unless`): one id or several. */
+export function factsIn(condition:unknown):string[]{
+  const established=(condition as {established?:unknown}|undefined)?.established;
+  return typeof established==='string'?[established]:Array.isArray(established)?established.filter((id):id is string=>typeof id==='string'):[];
+}
+
+/** A condition on facts as the files write it: one fact as its id, several as a list, none as no condition. */
+export const conditionOf=(facts:string[]):{established:string|string[]}|undefined=>facts.length===0?undefined:{established:facts.length===1?facts[0]:facts};
+
+/** An effect with its conditions' facts changed by `change` (the same effect when nothing changes). A condition keeps its other keys; one with no fact left goes. */
+export function withFactsChanged(effect:EffectLike,change:(facts:string[])=>string[]):EffectLike{
+  let next=effect;
+  for(const key of ['if','unless'] as const){
+    const condition=next[key];
+    if(condition===undefined)continue;
+    const facts=factsIn(condition),changed=change(facts);
+    if(changed.length===facts.length&&changed.every((fact,i)=>fact===facts[i]))continue;
+    // A list stays a list when only its ids change; a fact taken out leaves one fact as its id, or none.
+    const established=(condition as {established?:unknown}).established;
+    const value=changed.length===0?undefined:Array.isArray(established)&&changed.length===facts.length?changed:conditionOf(changed)!.established;
+    const rest=withKey(condition as object,'established',value,['established']);
+    next=withKey(next,key,value===undefined&&!Object.keys(rest).length?undefined:rest,EFFECT_ORDER);
+  }
+  return next;
+}
+
+/** An effect's keys in the order the campaign's files have them: the op, what it names, its words, then its conditions. */
+export const EFFECT_ORDER=['op','quest','do','title','stage','name','value','who','by','enemies','allies','what','kind','to','how','at','feet','quantity','text','add','remove','if','unless'] as const;
 
 /** Where a fact is settled: the beats and routes that establish it. */
 export function settlersOf(doc:SceneDocument,fact:string):string[]{
   return [...doc.nodes.filter(node=>isBeat(node)&&node.data.establishes?.includes(fact)).map(node=>node.id),...doc.edges.filter(route=>route.data.establishes?.includes(fact)).map(route=>route.id)];
+}
+
+/** Where a fact is settled, each a beat or a route. */
+export type FactSettler={kind:'node';id:string}|{kind:'route';id:string};
+export function settlesOf(doc:SceneDocument,fact:string):FactSettler[]{
+  return [
+    ...doc.nodes.filter(node=>isBeat(node)&&node.data.establishes?.includes(fact)).map(node=>({kind:'node' as const,id:node.id})),
+    ...doc.edges.filter(route=>route.data.establishes?.includes(fact)).map(route=>({kind:'route' as const,id:route.id})),
+  ];
+}
+
+/** Where a fact is tested: an effect's condition (if or unless), in an ending's effects or the scene's onEnd. */
+export type FactTest={at:{kind:'node';id:string}|{kind:'scene';field:'onEnd'};index:number;key:ConditionKey;op:string};
+export function testsOf(doc:SceneDocument,fact:string):FactTest[]{
+  const tests:FactTest[]=[];
+  const look=(at:FactTest['at'],effects:readonly unknown[]|undefined)=>(effects??[]).forEach((effect,index)=>{
+    for(const key of ['if','unless'] as const)if(factsIn((effect as EffectLike)[key]).includes(fact))tests.push({at,index,key,op:(effect as EffectLike).op});
+  });
+  look({kind:'scene',field:'onEnd'},doc.onEnd);
+  for(const node of doc.nodes.filter(isEnding))look({kind:'node',id:node.id},node.data.effects);
+  return tests;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ids: renamed only by asking, every reference in the file following. Game state keys on them, so a
+// scene already played loses track of what it knew by the old one.
+
+/** Why an id can't be used, or undefined when it can: a slug, not one of `taken` (`current`, its own, aside). */
+export function idProblem(id:string,taken:Iterable<string>,current?:string):string|undefined{
+  if(!SLUG.test(id))return 'An id is a slug: lower-case letters, digits and dashes, starting with a letter or digit.';
+  if(id!==current&&[...taken].includes(id))return `${id} is taken.`;
+  return undefined;
+}
+
+/** A node's id changed, and everything naming it: the routes' ends, what they require and where they fail to, and who arrives there. */
+export function renameNode(doc:SceneDocument,from:string,to:string):SceneDocument{
+  if(from===to||!doc.nodes.some(node=>node.id===from))return doc;
+  const swap=(id:string)=>id===from?to:id;
+  const nodes=doc.nodes.map(node=>node.id===from?{...node,id:to}:node);
+  const edges=doc.edges.map(route=>{
+    let next=route;
+    if(route.source===from||route.target===from)next={...next,source:swap(route.source),target:swap(route.target)};
+    let data=next.data;
+    if(data.requires?.includes(from))data=withKey(data,'requires',data.requires.map(swap),ORDER.route);
+    if(data.onFailure===from)data=withKey(data,'onFailure',to,ORDER.route);
+    return data===next.data?next:{...next,data};
+  });
+  const cast=doc.cast.map(member=>member.enters===from?withKey(member,'enters',to,ORDER.cast):member);
+  return {...doc,nodes,edges,cast};
+}
+
+/** A route's id changed: nothing else in the file names a route (the co-GM moves the scene by it, and game state keys on it). */
+export function renameRoute(doc:SceneDocument,from:string,to:string):SceneDocument{
+  if(from===to)return doc;
+  return {...doc,edges:doc.edges.map(route=>route.id===from?withKey(route,'id',to,['id']):route)};
+}
+
+/**
+ * A person's id changed, and everything in the file naming them: the start's and events' notes for
+ * them (in their place), the paths via them, the effects naming them (who, a promise's by and to, a
+ * fight's allies and leaders, a world op's what and to, in onEnd, the endings' effects and afterwards)
+ * and the talk template's companion. Files outside the scene that name them (the place's people,
+ * looks.json) are the campaign's: the problems say where.
+ */
+export function renameCast(doc:SceneDocument,from:string,to:string):SceneDocument{
+  if(from===to||!doc.cast.some(member=>member.id===from))return doc;
+  const cast=doc.cast.map(member=>member.id===from?withKey(member,'id',to,ORDER.cast):member);
+  const nodes=doc.nodes.map(node=>{
+    let data=node.data;
+    const notes='cast' in data?data.cast:undefined;
+    if(notes&&from in notes)data=withKey(data,'cast',Object.fromEntries(Object.entries(notes).map(([who,note])=>[who===from?to:who,note])),ORDER[data.kind]);
+    if(isBeat(node)&&node.data.paths?.some(path=>path.via===from))data=withKey(data,'paths',node.data.paths.map(path=>path.via===from?withKey(path,'via',to,ORDER.path):path),ORDER.beat);
+    if(isEnding(node)&&node.data.effects){
+      const effects=node.data.effects.map(effect=>effectRenamingPerson(effect as EffectLike,from,to));
+      if(effects.some((effect,i)=>effect!==node.data.effects![i]))data=withKey(data,'effects',effects,ORDER.exit);
+    }
+    return data===node.data?node:{...node,data};
+  });
+  let next:SceneDocument={...doc,cast,nodes};
+  for(const key of ['onEnd','afterwards'] as const){
+    const list=doc[key] as EffectLike[]|undefined;
+    if(!list)continue;
+    const changed=list.map(effect=>effectRenamingPerson(effect,from,to));
+    if(changed.some((effect,i)=>effect!==list[i]))next=setSceneField(next,key,changed);
+  }
+  if(doc.companion===from)next=setSceneField(next,'companion',to);
+  return next;
+}
+
+/** An effect naming a person by another id (the same effect when it doesn't name them). */
+function effectRenamingPerson(effect:EffectLike,from:string,to:string):EffectLike{
+  let next=effect;
+  for(const key of ['who','by','to','what']){if(next[key]===from)next=withKey(next,key,to,EFFECT_ORDER)}
+  if(Array.isArray(next.allies)&&next.allies.includes(from))next=withKey(next,'allies',(next.allies as unknown[]).map(who=>who===from?to:who),EFFECT_ORDER);
+  if(Array.isArray(next.enemies)&&next.enemies.some(enemy=>(enemy as {leader?:unknown})?.leader===from))
+    next=withKey(next,'enemies',(next.enemies as Array<Record<string,unknown>>).map(enemy=>enemy?.leader===from?withKey(enemy,'leader',to,['asset','count','leader']):enemy),EFFECT_ORDER);
+  return next;
+}
+
+// ---------------------------------------------------------------------------------------------
+// A beat's kind: a discovery has a revelation, an event hasn't.
+
+/** A beat made an event: its revelation, its paths and its required mark go (an event has none). The rest stays. */
+export function makeEvent(doc:SceneDocument,id:string):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||!isDiscovery(node))return doc;
+  return updateNode(doc,id,data=>{
+    let next:NodeData=data;
+    for(const key of ['revelation','paths','required'])next=withKey(next,key,undefined,ORDER.beat);
+    return next;
+  });
+}
+
+/** A beat made a discovery: an empty revelation and no paths yet; an event's pressure and conversation roles go, and whoever arrived there is here from the start. */
+export function makeDiscovery(doc:SceneDocument,id:string):SceneDocument{
+  const node=doc.nodes.find(other=>other.id===id);
+  if(!node||!isBeat(node)||isDiscovery(node))return doc;
+  const next=updateNode(doc,id,data=>{
+    let beat:NodeData=withKey(withKey(data,'revelation','',ORDER.beat),'paths',(data as BeatData).paths??[],ORDER.beat);
+    for(const key of ['pressure','cast'])beat=withKey(beat,key,undefined,ORDER.beat);
+    return beat;
+  });
+  return {...next,cast:next.cast.map(member=>member.enters===id?withKey(member,'enters',undefined,ORDER.cast):member)};
 }
 
 // ---------------------------------------------------------------------------------------------
