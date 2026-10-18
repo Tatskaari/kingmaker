@@ -205,7 +205,7 @@ export interface Outcome {
    * in that order (world-bridge-design §3.2): after the rules first's.
    */
   acts?: string[];
-  /** The player's violence started a fight this turn (the parked reactions'): the two-part reply plays it from the reactions' directive. */
+  /** The player's violence started a fight this turn (the parked reactions'): no reply reads it until combat does; the two-part reply plays the fight from the reactions' directive. */
   brawl?: boolean;
 }
 /**

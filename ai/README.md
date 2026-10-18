@@ -102,6 +102,19 @@ Left out still (gm-port §11, full-gm-design §2.2): the quick co-GM (the lite m
 
 **Prompt parity** ([gm/parity.test.ts](gm/parity.test.ts)) is the suggester's acceptance test: on the prototype's own calls, recorded once ([gm/golden/README.md](gm/golden/README.md)), the AI service suggests what the prototype's does after the opening and each of three replies, byte for byte for the suggester's call, question by question for the judge's, and every field of the vetting, the lines and what was dropped. The GM's steps' recordings (the opening and each turn's decide, reply and settle, and a second recording with a backstory) went with the old pipeline's scene steps ([docs/migration-log.md](../docs/migration-log.md), M2's "The old pipeline's salvage"); the two-part GM has no recording of the prototype's, and its tests are its own ([gm/two-part.test.ts](gm/two-part.test.ts)).
 
+### Parked for combat
+
+The spell-and-blow handling the old pipeline's scene steps used stays, for the combat work, but nothing in a scene of the story or a talk reaches it now: the two-part GM narrates a spell or a blow said in words, and only the map's act (its mechanic chosen already) is resolved by the rules, as its turn starts. Its tests keep it working ([docs/migration-log.md](../docs/migration-log.md), M2's "The old pipeline's salvage"):
+
+| What | Where | Reached by |
+|---|---|---|
+| What the rules resolve of a line: the mechanic question, then the act's details call (which spell at whom, which blow, where they act from; a route's check the act would hold back and the act that's only the means ride along) | [gm/director.ts](gm/director.ts) `mechanicQuestion`, `readMechanic`, `mechanicOf`; [gm/mechanics.ts](gm/mechanics.ts) `rulesOptions`, `mechanicDetails`, `jumpDetails`, `alsoQuestion`, `meansQuestion`, `aimable` | gm/director.test.ts, service/endpoints/world.test.ts |
+| The threat a reply leaves hanging (a blow, a danger) and how bad | [gm/director.ts](gm/director.ts) `threatQuestions`, `readThreat`; shared/rules/threats.ts lands one as the next turn starts (the rules first, which run every turn; nothing sets one now) | gm/director.test.ts, shared/rules/threats.test.ts |
+| The reactions of everyone who saw the player's violence | `POST /v1/turns/reactions` ([service/endpoints/reactions.ts](service/endpoints/reactions.ts)), [gm/mechanics.ts](gm/mechanics.ts) `decideReactions`, `reactionDirective`, `witnessesOf`; the simulation's reactions step (simulation/src/moves/say-commits.ts `afterReactions`, `reactionsTakeEffect`) | service/endpoints/world.test.ts, simulation/src/moves/world.test.ts |
+| A line typed in a fight, read and answered | [prompts/fight.md](prompts/fight.md) | nothing yet (V13) |
+
+The rules' act itself (simulation/src/moves/say-commits.ts `takeAct`, shared/rules/acts.ts and scene-acts.ts) is live: the map's act goes through it.
+
 ## Character creation
 
 V1's two endpoints (v1-design §3.7): each step of making a character is a think of its own, a job on the simulation's loop, keyed by the creation's uid and its rev. The simulation keeps the creation; the service makes what each step asks for and keeps nothing of it but the answer by its key.
