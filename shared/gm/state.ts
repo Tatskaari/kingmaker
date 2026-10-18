@@ -114,7 +114,8 @@ export interface OwedRow { from: string; id: string; hinted: boolean; things: st
 /**
  * A move the scene made (a route taken, a roll, the same push again, an ending reached). Turn
  * numbers are the scene's (turn.n). `known`: how many facts had been established when it was made
- * (before its own), so a beat left before something was settled is known (leftBehind).
+ * (before its own): a record (the old co-GM's leftBehind read it, so a move of its couldn't undo
+ * what was settled). `source` "repair" was the old co-GM's.
  */
 export interface PathStep { turn: number; from: string; to: string; via: string; roll?: RollResult; source: "pre" | "post" | "repair"; known?: number }
 
