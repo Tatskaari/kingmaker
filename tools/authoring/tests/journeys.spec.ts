@@ -31,7 +31,9 @@ const select=async(page:Page,id:string)=>{
   const target=card(page,id);
   await expect(target).toBeVisible();
   await settled(target);
-  await target.click({position:{x:120,y:12}});
+  // On its header, clear of the result badge, wherever the graph's zoom has put it.
+  const box=(await target.boundingBox())!;
+  await target.click({position:{x:box.width/2,y:Math.min(10,box.height/5)}});
   await expect(page.locator(`.node-inspector[data-node="${id}"]`)).toBeVisible();
 };
 const settled=async(locator:Locator)=>{
