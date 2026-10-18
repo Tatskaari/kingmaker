@@ -30,6 +30,8 @@ const USAGE = `npm run arc [-- options]
 
 /** The arc's dice, fixed once the campaign is in (no check reads a roll yet, but none is ever SpacetimeDB's randomness). */
 const DICE = 1018;
+/** The fake co-GM's walk where the arc says lines (the Heron's): to blades out, its fight (docs/combat-gm.md). */
+const HERON_WALK = ["fight"];
 /** The prototype's flow's character (flow.ts:31). */
 const WHO = "Tamsin Vell: a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier";
 
@@ -58,7 +60,7 @@ const CHECKS: ArcCheck[] = [
   { what: "on to the Heron at night", unit: "V4", run: seen(9) },
   { what: "along the wharf to the Heron", unit: "V4", run: seen(10) },
   { what: "Roll for initiative!", unit: "V4", run: seen(11) },
-  { what: "Sallow and the Crakes are in the fight", unit: "V12" },
+  { what: "Sallow and the Crakes are in the fight", unit: "V12", run: seen(12) },
   { what: "after the fight, back to the Heron for its aftermath", unit: "V4", run: seen(13) },
   { what: "the King's morning opens straight away", unit: "V4", run: seen(14) },
   { what: "The End", unit: "V4", run: seen(15) },
@@ -116,7 +118,7 @@ configureTerminal(process.env);
 console.log(`The arc: the prototype's flow on the split (ports ${flags.port} and ${flags.aiPort}, ${flags.root})`);
 const stack = await startStack({
   root: flags.root, stdbPort: flags.port, aiPort: flags.aiPort, ...(flags.mode ? { mode: flags.mode } : {}),
-  model: "fake", fake: { streamMs: 0 }, fresh: true, log: line => console.log(`  … ${line}`),
+  model: "fake", fake: { streamMs: 0, coGm: { endings: [...HERON_WALK] } }, fresh: true, log: line => console.log(`  … ${line}`),
 }).catch((error: unknown) => {
   console.error(`\n✗ the stack didn't start: ${error instanceof Error ? error.message : String(error)}\nFAIL`);
   process.exit(1);
@@ -186,9 +188,10 @@ async function played(verb: string, play: (out: verbs.Out) => Promise<number> | 
 
 /**
  * The flow from the yard to The End (flow.ts:40-73): end each scene through its exit, go to the lead,
- * fight the Heron's fight (its stand-in), and observe The End. What each point showed, by check. No
- * line is said, so the two-part GM speaks each scene's opening and nothing else (the Heron's aftermath
- * is the GM's after a fight, as it was); the co-GM's walk through every scene is the e2e's (step 31).
+ * fight the Heron's fight in the conversation, and observe The End. What each point showed, by check.
+ * Lines are said only at the Heron: the fake co-GM's walk takes it to blades out on the third, the
+ * fight breaks out after that line's settle, and the player's turns are a line each until the rules
+ * end it, the scene going on after it; the co-GM's walk through every scene is the e2e's (step 31).
  */
 async function theWayOn(conn: Connection): Promise<Map<number, string | undefined>> {
   const way = new Map<number, string | undefined>();
@@ -207,11 +210,13 @@ async function theWayOn(conn: Connection): Promise<Map<number, string | undefine
   const heron = await played("go", out => verbs.go(conn, out));
   way.set(10, heron.code === 0 && at("The Heron Warehouse") ? `"${heron.text.split("\n")[2]}"` : undefined);
 
-  const fight = await played("end --exit fight", out => verbs.end(conn, "fight", out));
-  way.set(11, conn.view()?.fighting && fight.text.includes("Roll for initiative!") ? "MODE: fight, Roll for initiative!" : undefined);
-  const fought = await played("act --id fight", out => verbs.fight(conn, out));
-  const picked = conn.view()?.entries.find(e => e.text.startsWith("The fight: "));
-  way.set(13, fought.code === 0 && at("The Heron Warehouse") && picked ? `"${picked.text}", then the aftermath` : undefined);
+  for (const line of ["I'll take that book off the desk.", "Someone's coming: the Master?", "Sallow, you're cornered."]) await played(`say ${line}`, out => verbs.say(conn, line, out, { settled: true }));
+  const order = conn.view()?.entries.find(e => e.text.startsWith("Combat! In initiative order: "))?.text;
+  way.set(11, order ? `"${order}"` : undefined);
+  way.set(12, order && order.includes("Sallow") && (order.match(/Crake/g) ?? []).length === 2 ? "Sallow and both Crakes in the order" : undefined);
+  const over = () => conn.view()?.entries.find(e => e.text.startsWith("The fight is over ("));
+  for (let i = 0; i < 20 && order && !over(); i++) await played("say (I lunge at Sallow with my rapier)", out => verbs.say(conn, "(I lunge at Sallow with my rapier)", out, { settled: true }));
+  way.set(13, over() && at("The Heron Warehouse") ? `"${over()!.text}", and the scene goes on` : undefined);
 
   const summons = await played("end --exit caught-in-the-act", out => verbs.end(conn, "caught-in-the-act", out));
   way.set(14, summons.code === 0 && at("The King's Morning") ? `${conn.view()!.title}, ${story()?.time}, with no go` : undefined);
