@@ -260,7 +260,7 @@ interface Route {
      * exchanges from the scene's start, or from when the beat `after` was reached, and it stops
      * once a beat of `until` is reached; whichever count runs out first is the limit (the eleventh
      * bell: 15 exchanges into the scene, or 8 after Arlo's challenge). Say it in the condition's
-     * words too. Only a cue's counts, and every cue of a story scene has one.
+     * words too. Only a cue's counts; give every cue one (each of Caerwyn's has one).
      */
     limit?: Array<{ exchanges: number; after?: string; until?: string[] }>;
   };
