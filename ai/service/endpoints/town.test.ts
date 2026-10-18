@@ -235,7 +235,8 @@ test("a talk's settle on the two-part GM: the co-GM, her role (the talk's discov
   assert.deepEqual(answer.coGm?.moves, [], "the stand-in walks a talk only where a recipe says: its ending is the player's, and what she tells hers");
   const co = fake.sent.find(b => b.tools?.some(t => t.name === "move_scene"))!;
   assert.match(inputOf(co), /# The targets\nThe discoveries not reached yet:\n- Told \[told\]: Twenty years ago Nan Quill put her out/);
-  assert.match(inputOf(co), new RegExp(`# Open routes\\n- \\[${GOODBYE}\\] from A word between scenes \\[talk\\] to Goodbye for now \\[${GOODBYE}\\]\\. When: The player says goodbye or ends the talk[^\\n]*\\n- \\[${CONFIDED}\\] from A word between scenes \\[talk\\] to Told \\[told\\]\\. When: its revelation has landed with the player \\(Twenty years ago`));
+  assert.match(inputOf(co), new RegExp(`# Open routes\\n- \\[${GOODBYE}\\] from A word between scenes \\[talk\\] to Goodbye for now \\[${GOODBYE}\\]\\. When: The player says goodbye or ends the talk[^\\n]*\\n- \\[${CONFIDED}\\] from A word between scenes \\[talk\\] to Told \\[told\\]\\. When: its revelation, as written, has landed with the player \\(Twenty years ago`));
+  assert.doesNotMatch(inputOf(co), /Nobody has said/, "a talk's discovery is the companion's own past, not a lead: nobody's name is held back from it");
   assert.match(inputOf(co), /# Notes on the people here \(what's happened with them in play\)\n[\s\S]*## Sergeant Agnes Kell \[kell\]\nStanding with the player: Warming to the investigator, a little\./);
   assert.match(co.instructions!, /- The clues that are theirs to give:\n  - Towards Told \[told\]: It shows before it comes out: a pause at the Rat's name\./);
   assert.match(co.instructions!, /Suggested roles while the scene is here:\n- Sergeant Agnes Kell \[kell\]: Characterise: at their own business/);

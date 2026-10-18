@@ -39,7 +39,8 @@ async function twoPartSettle(req: SettleRequest, ctx: AiContext, scene: Scene, v
   const keys = keysFor(req.turn.world.place.key, req.turn.scene.key, req.turn.pc);
   const cast = presentCast(scene, view).map(c => ({ id: c.id, name: c.name, look: c.look }));
   const staging = stageManage(world, view.player, line, req.reply, { rules: req.lines, cast, settled: req.settled }, ctx.calls).catch(() => undefined);
-  const coGming = coGm(scene, view, req.turn.gm, req.check, ctx.calls).catch((error: unknown): CoGmAnswer => ({ roles: {}, moves: [], log: [], error: error instanceof Error ? error.message : String(error) }));
+  // The co-GM reads the story's other scenes from the first scene on: who a revelation names that nobody has said yet (two-part.ts unsaidIn).
+  const coGming = coGm(scene, view.story ? view : { ...view, story: ctx.campaign.story }, req.turn.gm, req.check, ctx.calls).catch((error: unknown): CoGmAnswer => ({ roles: {}, moves: [], log: [], error: error instanceof Error ? error.message : String(error) }));
   const [staged, co] = await Promise.all([staging, coGming]);
   const { costUsd: _cost, ...answer } = co as CoGmAnswer & { costUsd?: number };
   return { ops: (staged?.ops ?? []).map(op => opToGame(op, world, keys)), coGm: answer, usage: ctx.usage() };

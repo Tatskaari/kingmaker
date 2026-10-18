@@ -1,6 +1,6 @@
 // After the GM loop's src/eval/loop/cli.ts at 5f01806 (origin/claude/gm-loop, draft PR #663): its QA rounds' commands (round, games, brief, start, say, the views, review-pack, review-check, triage, report, archive), on the game; the cases, fixtures and evals (case, fixture, run, run-report, rejudge, sample, import) aren't ported yet. New: stack up, down and status, the dev stack the games are played on.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
@@ -9,7 +9,8 @@ import { apiKey } from "../ai/llm/openrouter.ts";
 import { keptCalls, readCalls } from "../qa/loop/calls.ts";
 import { callsPath, CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
 import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
-import { probeTurn, type LoggedCall, type ProbeTry } from "../qa/loop/probe.ts";
+import { probeTurn, storyOf, type LoggedCall, type ProbeTry } from "../qa/loop/probe.ts";
+import { BANDS, type Band } from "../shared/gm/two-part.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
 import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
 import { checkReviewFile, reviewPack } from "../qa/loop/review.ts";
@@ -54,9 +55,14 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
   loop report <round>                          report/index.html and report/games/*.html
   loop archive <round> [--to dir]              copy the round to KM_LOOP_ARCHIVE (or --to), to outlive this checkout
   loop probe <round> <game> <turn>[-<turn>] [--tries 3] [--want <node>] [--not <node>] [--log <file>]
+             [--reply | --reply-text <file>] [--drop <route>,…] [--band <band>] [--role <id>]
                                                the co-GM asked again on a game's turns with this checkout's code and
                                                scenes, on real models: each try's moves, and how many reached --want
-                                               or kept off --not (reads the round, writes nothing to it)
+                                               or kept off --not (reads the round, writes nothing to it); --reply asks
+                                               the turn's reply again first (a check it calls rolled, or set at --band),
+                                               --reply-text puts a reply of your own in its place,
+                                               --drop leaves the round's moves on those routes out of what's rebuilt,
+                                               --role shows the role each try set for that person
 
 Rounds go under KM_LOOP_DIR (default runs/loop). Not ported yet: the cases, fixtures and evals.`;
 
@@ -241,27 +247,39 @@ function build(): { commit: string; dirty: boolean } {
  * turn side by side: the scene is this checkout's campaign's, the bookkeeping rebuilt from the
  * round's co-GM moves, and the transcript, roles and prep's head the round's own. Each try's moves
  * and the nodes they reached; `--want` counts the tries that reached a node, `--not` those that kept
- * off one; and what it all cost, kept off the stack's ledger.
+ * off one; and what it all cost, kept off the stack's ledger. `--reply` asks each try's reply again
+ * first and shows it, `--drop` leaves the round's moves on those routes out of the bookkeeping (the
+ * bad ending a co-GM took the turn before), `--band` sets how a check called there comes out, and
+ * `--role` shows the role each try set for that person.
  */
 async function probe(config: LoopConfig, name: string, game: string, turns: string, flags: Flags): Promise<number> {
   const record = readRecord(recordPath(config, name, game));
   if (!record?.sceneRow || !record.player) return shown({ code: 1, text: `${game} of ${name} has no scene played` });
-  const scene = effectiveScene(loadScene(readFileSync(join(CAMPAIGNS, record.campaign?.id ?? "caerwyn", "scenes", `${record.scene}.kmscene`), "utf8")), []);
+  const scenesDir = join(CAMPAIGNS, record.campaign?.id ?? "caerwyn", "scenes");
+  const scenes = readdirSync(scenesDir).filter(f => f.endsWith(".kmscene")).map(f => effectiveScene(loadScene(readFileSync(join(scenesDir, f), "utf8")), []));
+  const scene = scenes.find(s => s.id === record.scene);
+  if (!scene) return shown({ code: 1, text: `no scene ${record.scene} in ${shortPath(scenesDir)}` });
+  const story = storyOf(record.campaign?.id ?? "caerwyn", scenes);
   const calls = readFileSync(callsPath(config, name, game), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as LoggedCall);
   const [from, to = from] = turns.split("-").map(Number) as [number, number?];
   const tries = Number(flags.tries || 3);
   let spent = 0;
   const context = { fetch, apiKey: apiKey(), cost: (line: { costUsd: number }) => { spent += line.costUsd; }, log: (entry: Record<string, unknown>) => { if (flags.log) appendFileSync(resolve(flags.log), `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`); } };
   const tally = { want: 0, not: 0, all: 0 };
+  const how = { reply: "reply" in flags || !!flags["reply-text"], drop: (flags.drop || "").split(",").map(s => s.trim()).filter(Boolean), ...(flags.band ? { band: flags.band as Band } : {}), ...(flags["reply-text"] ? { replyText: readFileSync(resolve(flags["reply-text"]), "utf8") } : {}) };
+  if (how.band && !BANDS.includes(how.band)) return shown({ code: 1, text: `--band takes one of ${BANDS.join(", ")}` });
   for (let turn = from; turn <= to!; turn++) {
-    const done = await Promise.all(Array.from({ length: tries }, () => probeTurn(scene, calls, record.sceneRow!, turn, { player: record.player!, absent: record.handedOn?.absent ?? [] }, context)));
+    const done = await Promise.all(Array.from({ length: tries }, () => probeTurn(scene, calls, record.sceneRow!, turn, { player: record.player!, absent: record.handedOn?.absent ?? [], story }, context, how)));
     const { rebuilt, logged } = done[0]!;
     const same = rebuilt.reached.join() === logged.reached.join() && rebuilt.turnsInBeat === logged.turnsInBeat;
-    console.log(`${game} turn ${turn}: rebuilt ${rebuilt.reached.join(", ")} (${rebuilt.turnsInBeat} at the stage)${same ? ", as the round had it" : `; the round had ${logged.reached.join(", ")} (${logged.turnsInBeat})`}`);
+    console.log(`${game} turn ${turn}: rebuilt ${rebuilt.reached.join(", ")} (${rebuilt.turnsInBeat} at the stage)${how.reply ? `${how.drop.length ? `, without the round's ${how.drop.join(", ")}` : ""}; the reply asked again` : same ? ", as the round had it" : `; the round had ${logged.reached.join(", ")} (${logged.turnsInBeat})`}`);
     done.forEach((t: ProbeTry, i) => {
       const wanted = !!flags.want && t.reached.includes(flags.want), avoided = !!flags.not && !t.reached.includes(flags.not);
       tally.all++; if (wanted) tally.want++; if (avoided) tally.not++;
       console.log(`  try ${i + 1}: ${t.error ? `failed: ${t.error}` : t.moves.length ? t.moves.map(m => `${m.route}${m.outcome === "none" ? "" : ` (${m.outcome})`}: "${m.why}"`).join("; ") : "no move"}${t.reached.length ? ` -> ${t.reached.join(", ")}` : ""} [roles: ${t.roles.join(", ") || "none"}; ${(t.ms / 1000).toFixed(1)} s]`);
+      if (t.replied) console.log(`    the reply: ${t.replied.narration}${t.replied.dice ? `\n    [${t.replied.dice}] ${t.replied.outcome}` : ""}`);
+      const role = flags.role ? t.given[flags.role] : undefined;
+      if (flags.role) console.log(`    ${flags.role}'s role: ${role ? role.conversation_role : "(not set)"}`);
     });
   }
   const rate = (n: number) => `${n} of ${tally.all}`;

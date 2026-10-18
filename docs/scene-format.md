@@ -256,11 +256,13 @@ interface Route {
     /** Fact ids settled when it's taken. */
     establishes?: string[];
     /**
-     * A cue's outer limit: its moment comes by then, whatever is happening. Each count is so many
-     * exchanges from the scene's start, or from when the beat `after` was reached, and it stops
-     * once a beat of `until` is reached; whichever count runs out first is the limit (the eleventh
-     * bell: 15 exchanges into the scene, or 8 after Arlo's challenge). Say it in the condition's
-     * words too. Only a cue's counts; give every cue one (each of Caerwyn's has one).
+     * A cue's outer limit: its moment comes by then, whatever else is happening (an ending
+     * reached comes first, and a cue into a bad ending waits on a good or mixed one under way).
+     * Each count is so many exchanges from the scene's start, or from when the beat `after` was
+     * reached, and it stops once a beat of `until` is reached; whichever count runs out first is
+     * the limit (the eleventh bell: 15 exchanges into the scene, or 8 after Arlo's challenge). Say
+     * it in the condition's words too. Only a cue's counts; give every cue one (each of Caerwyn's
+     * has one).
      */
     limit?: Array<{ exchanges: number; after?: string; until?: string[] }>;
   };
@@ -280,7 +282,7 @@ interface Route {
 
   The start is always reached, so its routes are open all scene long. That's how discoveries happen in any order, and how a last-resort ending stays available. Once an ending is reached, nothing is open: the scene is closing.
 - **Taking a route.** A route with dice is taken on its check's outcome: a success goes to its target, a failure to its `onFailure` or nowhere (the scene stays where it is, and the route stays open to try again). A route without dice can't fail: it's taken once its condition has happened.
-- **A cue's outer limit.** A count runs from the opening (reply 0), or from the reply after its `after` beat was reached (an event shows in the next reply). After each reply the co-GM is told, for each open cue, which exchange of each count the next reply would be, and once the next reply reaches a count still running, the cue is overdue: the co-GM takes its route, and the next reply shows it. So "15 exchanges into the scene" rings in reply 15, and "8 after Arlo's challenge", whose challenge showed in reply 7, rings in reply 15 too.
+- **A cue's outer limit.** A count runs from the opening (reply 0), or from the reply after its `after` beat was reached (an event shows in the next reply). After each reply the co-GM is told, for each open cue, which exchange of each count the next reply would be, and once the next reply reaches a count still running, the cue is overdue: the co-GM takes its route, and the next reply shows it. So "15 exchanges into the scene" rings in reply 15, and "8 after Arlo's challenge", whose challenge showed in reply 7, rings in reply 15 too. Two replies before, it's due soon, and can be felt coming in someone's role. Endings come first: an ending whose condition has happened is taken ahead of any cue, overdue or not. And a cue into a `bad` ending (the time running out on the player) waits while a `good` or `mixed` ending's condition has happened or the player is in the middle of bringing one about (an arrest made but not yet secured): that plays out first. Its first move in a turn while such an ending is open is held, with those endings' conditions put to the co-GM, and taken if it moves it again.
 - **The stage.** The latest reached of the start and the event beats. Its `cast` notes are the co-GM's suggested roles, and its `pressure` is what the world does when the scene stalls.
 - **The targets.** The discoveries not yet reached, each with its paths. The GM steers towards them through the people's roles.
 - **Facts.** A reached beat's and a taken route's `establishes` are settled (a dice route's on a success). The GM is told their sentences, and the endings' effects test them.
