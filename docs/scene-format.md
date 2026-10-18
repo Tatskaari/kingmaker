@@ -278,7 +278,7 @@ interface Route {
 
 - **Reached.** The scene keeps the set of nodes it has reached, in order. The start is reached as the scene opens.
   - A discovery is reached when the co-GM takes a route into it, which happens when its revelation has landed with the player.
-  - An event beat is reached when the co-GM takes a route into it. It becomes the scene's **stage**, and its people arrive (`enters`).
+  - An event beat is reached when the co-GM takes a route into it. It becomes the scene's **stage**, and its people arrive (`enters`) in the next reply, which shows them coming: they join the place and the people here as that reply is written, not before.
   - An ending is reached when the co-GM takes a route into it. The scene closes on the next reply, which may wait once if the player has just started something the ending has to answer.
 - **Open routes.** A route is open when three things hold:
   - its source is reached;
