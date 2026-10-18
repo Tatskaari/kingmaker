@@ -1,19 +1,23 @@
 // After the GM loop's src/eval/loop/cli.ts at 5f01806 (origin/claude/gm-loop, draft PR #663): its QA rounds' commands (round, games, brief, start, say, the views, review-pack, review-check, triage, report, archive), on the game; the cases, fixtures and evals (case, fixture, run, run-report, rejudge, sample, import) aren't ported yet. New: stack up, down and status, the dev stack the games are played on.
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { connect } from "../client/net/connection.ts";
 import { ownerAt, ownerFor } from "../client/net/owner.ts";
 import { keepToken, serverFor, sessionAt } from "../client/net/session.ts";
+import { apiKey } from "../ai/llm/openrouter.ts";
 import { keptCalls, readCalls } from "../qa/loop/calls.ts";
 import { callsPath, CAMPAIGNS, recordPath, REPO, reviewPath, roundDir, shortPath, type LoopConfig } from "../qa/loop/paths.ts";
 import { brief, look, say, start, transcript, type PlayDeps, type Played } from "../qa/loop/play.ts";
+import { probeTurn, type LoggedCall, type ProbeTry } from "../qa/loop/probe.ts";
 import { readRecord, turnsTaken, type GameRecord } from "../qa/loop/record.ts";
 import { roundReport, type ReportDeps } from "../qa/loop/report.ts";
 import { checkReviewFile, reviewPack } from "../qa/loop/review.ts";
 import { loadRound, newRound, parseArms, parseScenes, personas } from "../qa/loop/round.ts";
 import { campaignAt, endingsOf, playable, sceneOf, type Loaded } from "../qa/loop/scenes.ts";
 import { triageSheet } from "../qa/loop/triage.ts";
+import { effectiveScene } from "../shared/scene/graph.ts";
+import { loadScene } from "../shared/scene/load.ts";
 import { ping, sql } from "./dev/spacetime.ts";
 import { readStackFile } from "./dev/stack-file.ts";
 import { stackDown, stackStatus, stackUp } from "./loop/stack.ts";
@@ -49,6 +53,10 @@ Rounds: blind testers play scenes, blind reviewers judge them, a report shows it
   loop triage <round>                          every finding with its key and turn, to write triage.json from
   loop report <round>                          report/index.html and report/games/*.html
   loop archive <round> [--to dir]              copy the round to KM_LOOP_ARCHIVE (or --to), to outlive this checkout
+  loop probe <round> <game> <turn>[-<turn>] [--tries 3] [--want <node>] [--not <node>] [--log <file>]
+                                               the co-GM asked again on a game's turns with this checkout's code and
+                                               scenes, on real models: each try's moves, and how many reached --want
+                                               or kept off --not (reads the round, writes nothing to it)
 
 Rounds go under KM_LOOP_DIR (default runs/loop). Not ported yet: the cases, fixtures and evals.`;
 
@@ -79,6 +87,7 @@ async function main(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
     case "triage": return shown({ code: 0, text: triageSheet(config, need(pos[0])) });
     case "report": return await report(config, need(pos[0]), deps);
     case "archive": return archive(config, need(pos[0]), flags.to || env.KM_LOOP_ARCHIVE);
+    case "probe": return await probe(config, need(pos[0]), need(pos[1]), need(pos[2]), flags);
     default:
       console.log(USAGE);
       return command && command !== "help" && command !== "--help" ? 1 : 0;
@@ -225,6 +234,39 @@ function build(): { commit: string; dirty: boolean } {
   } catch {
     return { commit: "unknown", dirty: true };
   }
+}
+
+/**
+ * The co-GM asked again on a game's turns (qa/loop/probe.ts), `--tries` times each, the tries of a
+ * turn side by side: the scene is this checkout's campaign's, the bookkeeping rebuilt from the
+ * round's co-GM moves, and the transcript, roles and prep's head the round's own. Each try's moves
+ * and the nodes they reached; `--want` counts the tries that reached a node, `--not` those that kept
+ * off one; and what it all cost, kept off the stack's ledger.
+ */
+async function probe(config: LoopConfig, name: string, game: string, turns: string, flags: Flags): Promise<number> {
+  const record = readRecord(recordPath(config, name, game));
+  if (!record?.sceneRow || !record.player) return shown({ code: 1, text: `${game} of ${name} has no scene played` });
+  const scene = effectiveScene(loadScene(readFileSync(join(CAMPAIGNS, record.campaign?.id ?? "caerwyn", "scenes", `${record.scene}.kmscene`), "utf8")), []);
+  const calls = readFileSync(callsPath(config, name, game), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line) as LoggedCall);
+  const [from, to = from] = turns.split("-").map(Number) as [number, number?];
+  const tries = Number(flags.tries || 3);
+  let spent = 0;
+  const context = { fetch, apiKey: apiKey(), cost: (line: { costUsd: number }) => { spent += line.costUsd; }, log: (entry: Record<string, unknown>) => { if (flags.log) appendFileSync(resolve(flags.log), `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`); } };
+  const tally = { want: 0, not: 0, all: 0 };
+  for (let turn = from; turn <= to!; turn++) {
+    const done = await Promise.all(Array.from({ length: tries }, () => probeTurn(scene, calls, record.sceneRow!, turn, { player: record.player!, absent: record.handedOn?.absent ?? [] }, context)));
+    const { rebuilt, logged } = done[0]!;
+    const same = rebuilt.reached.join() === logged.reached.join() && rebuilt.turnsInBeat === logged.turnsInBeat;
+    console.log(`${game} turn ${turn}: rebuilt ${rebuilt.reached.join(", ")} (${rebuilt.turnsInBeat} at the stage)${same ? ", as the round had it" : `; the round had ${logged.reached.join(", ")} (${logged.turnsInBeat})`}`);
+    done.forEach((t: ProbeTry, i) => {
+      const wanted = !!flags.want && t.reached.includes(flags.want), avoided = !!flags.not && !t.reached.includes(flags.not);
+      tally.all++; if (wanted) tally.want++; if (avoided) tally.not++;
+      console.log(`  try ${i + 1}: ${t.error ? `failed: ${t.error}` : t.moves.length ? t.moves.map(m => `${m.route}${m.outcome === "none" ? "" : ` (${m.outcome})`}: "${m.why}"`).join("; ") : "no move"}${t.reached.length ? ` -> ${t.reached.join(", ")}` : ""} [roles: ${t.roles.join(", ") || "none"}; ${(t.ms / 1000).toFixed(1)} s]`);
+    });
+  }
+  const rate = (n: number) => `${n} of ${tally.all}`;
+  console.log(`${flags.want ? `reached ${flags.want}: ${rate(tally.want)}. ` : ""}${flags.not ? `kept off ${flags.not}: ${rate(tally.not)}. ` : ""}Spent $${spent.toFixed(4)}.`);
+  return 0;
 }
 
 // ---------------------------------------------------------------------------------------------

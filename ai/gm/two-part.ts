@@ -544,7 +544,7 @@ export function movedText(scene: Scene, gm: GmState, reached: string | undefined
  * master's name", "No discovery: the player hasn't found the page", "but he has not yet explained
  * its entries", "do not move this discovery"). QA round qa1-1018's co-GM gave six in eight games,
  * each taking a discovery the player hadn't made or a way in they hadn't taken, and its replays more.
- * The ways of saying it are those the round used: on its 41 moves they catch the six and nothing else.
+ * The ways of saying it are those the round used: on its 45 moves they catch the six and nothing else.
  */
 export function deniesItself(why: string): boolean {
   return [
