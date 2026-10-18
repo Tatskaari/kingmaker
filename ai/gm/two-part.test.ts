@@ -74,6 +74,7 @@ test("once the co-GM has moved the scene on, the next reply shows it, with whoev
   assert.equal(movedDirective(clerk, view), undefined, "nothing to show until the co-GM has moved it");
   view.twoPart.moved = "cart-arrives";
   assert.match(movedDirective(clerk, view)!, /moved on to "The dead-cart arrives"[\s\S]*the corporal with the dead-cart's order arrives now, seen arriving|moved on to "The dead-cart arrives"[\s\S]*arrives now, seen arriving/);
+  assert.match(movedDirective(clerk, view)!, /seen arriving\. If an earlier reply has already played it, it has happened: go on from it, and don't play it again\.$/, "a move the story had already played (Arlo's third challenge, qa1-1018 g08) isn't played twice");
 });
 
 test("the prep in the design's order: the scene (its truth and clock, what locals know, the player), where it starts, the discoveries with their paths, the events, the endings; never the people, the old endings or the table rules", () => {
@@ -161,6 +162,20 @@ test("an open route into an ending says how it went and what's true there, for t
   assert.match(lines.find(l => l.startsWith("- [case-lost]"))!, /\. It's a bad ending\. What's true there: The player failed/);
   assert.doesNotMatch(twoPartNow(clerk, view, []), /What's true there/);
   assert.doesNotMatch(prepOf(clerk, view, { coGm: true }), /It's a good ending/, "the prep has the endings under their own headings");
+});
+
+test("the co-GM's tools: a route only as its condition is written, the player's own act for a condition about it; no move for what hasn't happened; the ending the player achieved; an overdue cue brought about; roles as behaviour, moved past what has happened", () => {
+  const tools = coGmInstructions(clerk, yard()).split("## Your tools\n")[1]!;
+  for (const line of [
+    "Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it",
+    "Never call move_scene to record that something hasn't happened",
+    "When more than one open route fits, take the one whose ending matches what the player achieved.",
+    "An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.",
+    "Write a role as behaviour the GM can show",
+    "move everyone's role past it: nobody's role still has it to do",
+    "A cue is brought about by taking its route",
+  ]) assert.ok(tools.includes(line), line);
+  assert.ok(tools.trimEnd().endsWith('Then reply "done".'));
 });
 
 test("the narration is read as the reply streams: its escapes undone, an escape cut off part-way held back, nothing before it starts", () => {

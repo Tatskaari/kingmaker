@@ -367,14 +367,16 @@ export function narrationSoFar(raw: string): string | undefined {
 /**
  * The scene moved on after the last reply (the co-GM took a route to an event), so this reply shows
  * it: the stage it's at now, and whoever that brings on, seen arriving. Moved on silently, the
- * corporal and his cart were simply in the lane, never seen coming.
+ * corporal and his cart were simply in the lane, never seen coming. One the story has already
+ * played (a role brought it about before the co-GM took its route) isn't played again: in QA round
+ * qa1-1018 Arlo made his third challenge twice, once by his role and again when it was moved to.
  */
 export function movedDirective(scene: Scene, view: TurnView): string | undefined {
   const moved = view.twoPart.moved;
   const stage = stageOf(scene, view);
   if (!moved || moved !== stage.id) return undefined;
   const arriving = enteringAt(scene, stage.id).map(c => c.called ?? c.name);
-  return `The scene has just moved on to "${stage.title}": ${stage.direction} Answer the player's turn first; then let it show in this reply${arriving.length ? `: ${arriving.join(" and ")} arrive${arriving.length === 1 ? "s" : ""} now, seen arriving` : ""}.`;
+  return `The scene has just moved on to "${stage.title}": ${stage.direction} Answer the player's turn first; then let it show in this reply${arriving.length ? `: ${arriving.join(" and ")} arrive${arriving.length === 1 ? "s" : ""} now, seen arriving` : ""}. If an earlier reply has already played it, it has happened: go on from it, and don't play it again.`;
 }
 
 /**
@@ -414,14 +416,22 @@ const MOVE_SCENE: ToolDef = {
     properties: {
       route_id: { type: "string", description: "The route's id, in square brackets in your prep." },
       outcome: { type: "string", enum: ["success", "failure", "none"], description: "For a route the dice decide: how the GM's check on it went. Otherwise 'none'." },
-      why: { type: "string", description: "What happened in the story that takes this route, in a sentence." },
+      why: { type: "string", description: "What happened in the story that takes this route, in a sentence. (Never what hasn't happened: then don't call move_scene.)" },
     },
   },
 };
 
 const CO_GM_TOOLS = `## Your tools
 - update_character_role: each character's role for the GM's next reply. While the scene is at a stage (where it starts, or the latest of its events), that stage's suggested roles are your default for each character; what a character remembers, wants, has been promised or owes, and what just happened, can give them a better reason, and then that wins. Keep each role to what they do or could reveal next, and what they hold back for now.
-- move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past; don't take a route for something that hasn't happened yet.
+  - Write a role as behaviour the GM can show (what they do, say or want next, what they won't say) and what they hold back, never as analysis of the game: the GM voices what it's given, so "the promise has found his fear" ends up said aloud. Leave routes, beats and discoveries out of it.
+  - Once something has happened in the story (a challenge made, a name given, a secret told), move everyone's role past it: nobody's role still has it to do, or it gets played twice.
+  - A cue is brought about by taking its route (the GM shows it in the next reply), not by writing it into someone's role.
+- move_scene: when what one of the open routes describes has happened in the story (a discovery's revelation has landed, or a cue's moment has come), take it. Only the routes listed as open can be taken. When the scene moves to a new stage, update the roles for it. Don't hold the scene at a stage the story has already moved past.
+  - Take a route only when its condition has happened in the story as written, all of it. A condition about what the player does (makes the case, goes after someone, leaves) needs the player to have done it: someone else doing it for them, someone asking them to, or the player planning it isn't that.
+  - Never call move_scene to record that something hasn't happened, or "not yet": leave the route as it is.
+  - When more than one open route fits, take the one whose ending matches what the player achieved. Each route into an ending says what's true there: read it against the story so far (a player who got the whole story out of someone has the ending where it was told, even if the way they leave matches another route's words).
+  - Each cue says how far its outer limit has run. An overdue cue is brought about: take its route now, unless its condition says it's no longer needed.
+  - If a reply has already played out what an open route describes (an event a role brought about), take that route now and write the roles from after it.
 Then reply "done".`;
 
 export function coGmInput(scene: Scene, view: TurnView, check: TurnCheck | undefined): Message[] {
