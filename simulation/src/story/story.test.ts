@@ -382,6 +382,24 @@ test("Hobb's token, handed over in the Rat, is in the player's keeping in the He
   assert.deepEqual([hobb.placeId, hobb.gone], [heron.placeId, false], "Hobb on the Heron's hoist, as its place puts him");
 });
 
+test("a thorough end (the GM loop's, for a scene it skips) takes what each discovery it reaches is in, and leaves what isn't in its world", async () => {
+  const { host, wren, player, gameId, end } = await game();
+  end("open-case");
+  await host.drain();
+  assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
+  await host.drain();
+  const pc = entityByKey(host, gameId, `pc:${player.id}`)!;
+
+  // The page stayed in the boot in the yard (nobody read it, the story owed the Rat nothing): Hobb's token is here to take, the page isn't.
+  assert.equal(host.as(host.owner).endScene({ game: gameId, exit: "hobb-talks", thorough: true }), undefined);
+  const line = host.logs.find(l => l.startsWith("[end drowned-rat] thorough:"))!;
+  assert.match(line, /reached the-loft, the-master, the-heron, way-out, prouts-page; taken: heron-token; left: ledger-page \(nothing here is ledger-page\)$/);
+  assert.equal(entityByKey(host, gameId, "drowned-rat/heron-token")!.parentId, pc.id, "the token in her hands");
+  assert.equal(entityByKey(host, gameId, "granary-yard/ledger-page")!.parentId, entityByKey(host, gameId, "granary-yard/boots")!.id, "the page where it was");
+  assert.ok(host.logs.find(l => l.startsWith("[end drowned-rat hobb-talks]"))!.includes("not done: give ledger-page (nothing here is ledger-page)"), "nor does the Rat's own give of it find it");
+  assert.match(host.db.sheet.playerId.find(player.id)!.pockets, /heron token/, "the sheet's pockets have it");
+});
+
 // ---------------------------------------------------------------------------------------------
 // On through the arc: the Heron's fight, the King's summons, The End.
 

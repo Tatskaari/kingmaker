@@ -531,7 +531,10 @@
         ],
         "carry": {
           "unlocks": "the Heron tonight: where the grain goes, and where Hobb goes at the bell",
-          "later": "the wharves and the Heron warehouse need the player at its doors before the barge sails on the ebb at the second bell after midnight"
+          "later": "the wharves and the Heron warehouse need the player at its doors before the barge sails on the ebb at the second bell after midnight",
+          "things": [
+            "heron-token"
+          ]
         },
         "lore": [
           "Places/Heron Warehouse.md"

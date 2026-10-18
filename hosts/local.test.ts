@@ -419,3 +419,100 @@ test("a thorough end on the local host: the campaign's clerk ended with its disc
   assert.deepEqual(await ended(true), { reached: ["start", "murder", "motive", "hobb"], facts: 3, owed: [] });
   assert.deepEqual(await ended(false), { reached: ["start"], facts: 0, owed: ["hanged-clerk:motive", "hanged-clerk:hobb"] });
 });
+
+/**
+ * A game of the campaign's own scenes on the local host (the two-part GM on the fake: hosts/dev/fake.json),
+ * the yard open: a line said with the fake's answers on top for it alone, the owner's end (thorough, as
+ * the GM loop ends a scene it skips), the map walked to a waiting scene, and what the player's character
+ * holds in a place.
+ */
+async function storyGame() {
+  const base = onTop(devFake(), { streamMs: 0, suggestDelayMs: 0 });
+  let next: FakeOptions = base;
+  const local = await localHost({ seed: 7, fake: () => next });
+  const sim = local.sim;
+  assert.equal(sim.as(WREN).newGame({ campaign: "caerwyn", name: "Wren Ashdown", concept: "a quick-witted investigator lent to the case by the King", build: "ranger" }), undefined);
+  assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
+  await sim.drain();
+  const game = all(sim.db.game)[0]!;
+  const sceneOf = (key: string) => all(sim.db.scene).find(s => s.sceneKey === key)!;
+  return {
+    local, sim, sceneOf,
+    /** What her character holds in a place, by key. */
+    carried: (placeId: bigint) => {
+      const pc = sim.db.player.id.find(game.hostId)!.characterId!;
+      return [...sim.db.entity.placeId.filter(placeId)].filter(e => e.parentId === pc).map(e => e.key);
+    },
+    line: async (text: string, fake: FakeOptions) => {
+      next = onTop(base, fake);
+      assert.equal(sim.as(WREN).say({ text }), undefined, `"${text}" was refused`);
+      await sim.drain();
+      next = base;
+    },
+    end: async (exit: string, thorough = false) => {
+      assert.equal(sim.as(sim.owner).endScene({ game: game.id, exit, ...(thorough ? { thorough } : {}) }), undefined, `end ${exit} was refused`);
+      await sim.drain();
+    },
+    /** On the map, to the lead's door (walk toward the lead, as the loop's go_to_lead), and in. */
+    walkTo: async (key: string) => {
+      for (let i = 0; i < 60 && sceneOf(key)?.status === "waiting"; i++) assert.equal(sim.as(WREN).walk({ toward: "lead" }), undefined);
+      await sim.drain();
+      assert.equal(sceneOf(key)?.status, "live", `${key} opened`);
+    },
+    /** What the scene's opening told the mouthpiece the player carries. */
+    toldCarries: (sceneId: bigint) => {
+      const input = calls(local).find(c => c.operation === "two-part.opening" && c.key.endsWith(`:s${sceneId}:t0:open`))!.request.input!.map(m => m.content).join("\n");
+      return /^The player carries: (.*)$/m.exec(input)?.[1] ?? "";
+    },
+  };
+}
+
+/** The stage manager's answer handing something in the world to the player (the fake's world_ops, by the world's own ids). */
+const handedOver = (what: string): FakeOptions => ({ coGm: { still: true }, byName: { world_ops: { ops: [{ op: "give", what, to: "player", how: "", name: "", kind: "", text: "", add: [], remove: [] }] } } });
+
+test("the campaign's clerk ended on its good ending: the page the stage manager put in her hands goes with her across the map into the Rat, and its GM is told she has it; not given, it goes on in Cob's boot", async () => {
+  const given = await storyGame();
+  const yard = given.sceneOf("hanged-clerk");
+  await given.line("(I hold out my hand for the left boot, and pick the page out of its lining)", handedOver("ledger-page"));
+  assert.ok(given.carried(yard.placeId).includes("granary-yard/ledger-page"), "in her hands in the yard");
+  await given.end("murder-unknown");
+  await given.walkTo("drowned-rat");
+  const rat = given.sceneOf("drowned-rat");
+  const carried = given.carried(rat.placeId);
+  for (const key of ["drowned-rat/ledger-page", "drowned-rat/pennies", "drowned-rat/wren-longbow"]) assert.ok(carried.includes(key), `${key} in the Rat: ${carried.join(", ")}`);
+  for (const id of ["ledger-page", "pennies"]) assert.ok(given.toldCarries(rat.id).includes(`[${id}]`), `the Rat's GM is told she carries ${id}: ${given.toldCarries(rat.id)}`);
+  given.local.close();
+
+  const kept = await storyGame();
+  await kept.end("murder-unknown");
+  await kept.walkTo("drowned-rat");
+  const there = kept.sceneOf("drowned-rat");
+  assert.ok(!kept.carried(there.placeId).some(k => k.endsWith("ledger-page")), "not hers");
+  const entity = (key: string) => all(kept.sim.db.entity).find(e => e.key === key)!;
+  assert.deepEqual([entity("drowned-rat/ledger-page").parentId, entity("drowned-rat/boots").parentId], [entity("drowned-rat/boots").id, entity("cob").id], "still in the boot, on Cob's feet, owed into the Rat");
+  assert.doesNotMatch(kept.toldCarries(there.id), /ledger-page/);
+  kept.local.close();
+});
+
+test("the GM loop's thorough ends hand on what each skipped scene's discoveries are in: Prout's page from the yard, Hobb's token from the Rat (the Heron's GM told she has both), and the true book from the Heron, all hers in the King's morning", async () => {
+  const g = await storyGame();
+  const yard = g.sceneOf("hanged-clerk");
+  await g.end("murder-unknown", true);
+  assert.ok(g.carried(yard.placeId).includes("granary-yard/ledger-page"), "the page out of Cob's boot");
+  await g.walkTo("drowned-rat");
+
+  const rat = g.sceneOf("drowned-rat");
+  await g.end("hobb-talks", true);
+  assert.ok(g.carried(rat.placeId).includes("drowned-rat/heron-token"), "the token off Hobb's neck");
+  assert.ok(g.sim.logs.some(l => l.startsWith("[end drowned-rat] thorough: reached") && l.includes("taken: heron-token, ledger-page")), g.sim.logs.filter(l => l.includes("thorough")).join("\n"));
+  await g.walkTo("heron-warehouse");
+
+  const heron = g.sceneOf("heron-warehouse");
+  for (const id of ["ledger-page", "heron-token", "pennies"]) assert.ok(g.toldCarries(heron.id).includes(`[${id}]`), `the Heron's GM is told she carries ${id}: ${g.toldCarries(heron.id)}`);
+  await g.end("proof-taken", true);
+  const king = g.sceneOf("kings-morning");
+  assert.equal(king.status, "live", "the summons opened at once");
+  const carried = g.carried(king.placeId);
+  for (const thing of ["ledger-page", "heron-token", "true-book", "pennies", "wren-longbow"]) assert.ok(carried.includes(`dressing-room/${thing}`), `${thing} in the King's morning: ${carried.join(", ")}`);
+  g.local.close();
+});

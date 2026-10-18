@@ -49,6 +49,26 @@ export function applyEffects(tx: TxCtx, at: Ending, effects: Effect[]): Done {
   return done;
 }
 
+/**
+ * A thorough end's finds in the player's hands (the owner's end_scene for QA: story/moves.ts): the
+ * things each discovery it reached is in (its `carry`'s: Prout's page out of Cob's boot, Hobb's
+ * token off his neck), as a thorough player would have taken them, so a scene skipped for QA hands
+ * on its things as a played one does. A thing not in this world is left where it is. The log's words.
+ */
+export function takeFound(tx: TxCtx, scene: SceneRow, graph: Scene, reached: string[]): string {
+  const things = reached.flatMap(id => graph.beats.find(b => b.id === id)?.carry?.things ?? []);
+  if (!things.length) return "";
+  const place = placeWorldOf(tx, scene);
+  const taken: string[] = [], left: string[] = [];
+  for (const thing of [...new Set(things)]) {
+    const op = scriptOp(place, { op: "give", what: thing, to: "$player" }, scene.turns);
+    if (op.done) taken.push(thing);
+    else left.push(`${thing} (${op.why})`);
+  }
+  moved(tx, scene, graph, place);
+  return `; taken: ${taken.join(", ") || "nothing"}${left.length ? `; left: ${left.join("; ")}` : ""}`;
+}
+
 /** The world's operations an effect may be (WorldOp's, the stage manager's). */
 const WORLD_OPS: Record<WorldOp["op"], true> = {
   move: true, place: true, give: true, drop: true, create: true, state: true, note: true, forget: true,
