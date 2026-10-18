@@ -31,7 +31,8 @@ import { keyNeedles, readSite, siteProblems, textOf } from "./site.ts";
  * Then the zoo (M6): ?zoo=ring starts on the fake GM with no key asked for, the client worker visits
  * the combat ring as the page comes up, and its fight is on the fight's screen; the player's turn
  * comes (the other side's moves skipped to it with f), e ends it and the other side's moves play
- * until it's theirs again in round 2; n fights it again from the start, and o's list sets the dogs.
+ * on their own, nothing pressed, until it's theirs again in round 2; n fights it again from the
+ * start, and o's list sets the dogs.
  *
  * Throughout: no page error, and no request leaves the origin (anything else is refused and failed),
  * but the key's check with OpenRouter, faked here.
@@ -705,7 +706,8 @@ async function theZoo(browser: Browser, url: string): Promise<void> {
     await shot(page, "zoo-ring");
     await press(page, "e");
     await waitFor(page, "One move at a time|Round 2 · ", "e ends the turn: the other side's moves play", 20000);
-    await toMyTurn(page, "and the player's turn comes round again, in round 2", 2);
+    // Nothing pressed: the page host's fight clock plays the other side's turns one at a time, each when the last has played.
+    await waitFor(page, "▶ YOUR TURN.*Round 2 · ", "and they play on their own, a turn at a time, to the player's turn in round 2 (no F pressed)", 60000);
     await shot(page, "zoo-ring-round-2");
     await press(page, "n");
     await waitFor(page, "The combat ring · Round 1", "n fights it again: a new fight, from round 1", 30000);
