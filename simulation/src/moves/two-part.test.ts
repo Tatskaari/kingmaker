@@ -163,3 +163,18 @@ test("the stage manager doesn't make a copy of one of the cast (QA round hobo1-1
   assert.deepEqual(["a palace guard", "the King's valet", "Master Pennyworth", "a tea tray"].map(n => castCopy(king, create(n, n === "a tea tray" ? "object" : "person"))), [false, false, false, false], "someone new, or a thing");
   assert.equal(castCopy(king, { op: "note", name: "Sallow", kind: "" }), false, "only a create");
 });
+
+test("the stage manager's create of one of the scene's people is them, not someone new (QA round hobo2-1018: Saul and the mastiff, who'd run for help, made again as \"old watchman\" and \"mastiff\"): by what the card calls them, or what a being is", async () => {
+  const { copyOf } = await import("./two-part.ts");
+  const { sceneOf } = await import("../../../shared/scene/load.ts");
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const heron = sceneOf(JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "..", "campaigns", "caerwyn", "scenes", "heron-warehouse.kmscene"), "utf8")));
+  const being = (id: string, name: string, kind: "person" | "creature", description?: string) => ({ id, name, kind, parent: null, tags: [], states: ["gone"], notes: [], ...(description ? { description } : {}) });
+  const world = { scene: "heron-warehouse", root: "heron", entities: { duchess: being("duchess", "Duchess", "creature", "A vast, elderly brindle mastiff, asleep across the threshold."), gang: being("gang", "the re-sacking gang", "person") }, log: [] };
+  const create = (name: string) => ({ op: "create" as const, name, kind: "person" });
+  assert.deepEqual(["old watchman", "the old watchman", "Saul", "the mastiff", "mastiff", "re-sacking gang", "Master Sallow"].map(n => copyOf(heron, world, create(n))), ["saul", "saul", "saul", "duchess", "duchess", "gang", "sallow"]);
+  assert.deepEqual(["a bargee", "the King's grain", "a lamplighter"].map(n => copyOf(heron, world, create(n))), [undefined, undefined, undefined], "someone new");
+  world.entities.gang.states = [];
+  assert.equal(copyOf(heron, world, create("the re-sacking gang")), undefined, "one with no name of their own who's here: another of them");
+});

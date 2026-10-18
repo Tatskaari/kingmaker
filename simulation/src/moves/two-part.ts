@@ -8,7 +8,8 @@ import { fightsAhead, openRoutes, oweName, takeRoute } from "../../../shared/sce
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { GOODBYE, isFarewell } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
-import type { WorldOp } from "../../../shared/world/scene-world.ts";
+import type { SceneWorld, WorldOp } from "../../../shared/world/scene-world.ts";
+import { kindIn } from "../../../shared/scene/names.ts";
 import type { TxCtx } from "../context.ts";
 import { rollerFor } from "../dice-row.ts";
 import { afterTurn } from "../gm/background.ts";
@@ -243,9 +244,13 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   if (at.scene.kind === "talk") return talkSettled(tx, at, plan, answer);
   const place = placeWorldOf(tx, at.scene);
   const keys = keysIn(tx, at.scene.placeId);
-  const copies = (answer.ops ?? []).filter(op => castCopy(at.graph, op));
-  for (const op of copies) tx.log(`[scene ${at.scene.id} turn ${plan.n}] the stage manager's create of "${op.name}" not done: one of the cast, who joins the world as the story brings them on`);
-  const staged = applyStage(place, (answer.ops ?? []).filter(op => !copies.includes(op)), plan.n);
+  // A create of one of the scene's people isn't made: they come back if they'd gone (QA round hobo2-1018: Saul and the mastiff, who ran for help, made again as "old watchman" and "mastiff", and the copies fought).
+  const copies = (answer.ops ?? []).map(op => ({ op, of: copyOf(at.graph, place.world, op) })).filter((c): c is { op: WorldOp; of: string } => !!c.of);
+  for (const { op, of } of copies) {
+    const back = comesBack(at, place.world, of);
+    tx.log(`[scene ${at.scene.id} turn ${plan.n}] the stage manager's create of "${op.name}" not done: it's ${of}${back ? ", who comes back" : ", here already"}`);
+  }
+  const staged = applyStage(place, (answer.ops ?? []).filter(op => !copies.some(c => c.op === op)), plan.n);
   const cast = plan.forced ?? plan.read;
   if (cast?.kind === "cast") markConjured(place.world, cast.spell, plan.n);
   const stageBefore = at.gm.beat;
@@ -281,6 +286,37 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));
   return { done: true };
+}
+
+/** A name without its article, as two of the same person's compare: "the old watchman" is "old watchman". */
+const bare = (name: string) => name.trim().toLowerCase().replace(/^(the|a|an)\s+/, "");
+
+/**
+ * Who the stage manager's create would make again: one of the cast (castCopy, or by what their card
+ * calls them: "old watchman" for Saul), one of the place's beings with a name of their own, by it or
+ * by what they are ("mastiff" for Duchess), or one with no name of their own come back after they'd
+ * gone (the re-sacking gang, back at work). Their id; none for someone new (another swan).
+ */
+export function copyOf(graph: Scene, world: SceneWorld, op: Pick<WorldOp, "op" | "name" | "kind">): string | undefined {
+  if (op.op !== "create" || (op.kind && op.kind !== "person" && op.kind !== "creature")) return undefined;
+  const name = bare(op.name ?? "");
+  if (!name) return undefined;
+  const card = graph.cast.find(c => castCopy({ ...graph, cast: [c] }, op) || (c.called && bare(c.called) === name) || bare(c.name) === name);
+  if (card) return card.id;
+  const named = (e: { name: string }) => /^\p{Lu}/u.test(e.name) && !/^(the|a|an)\s/i.test(e.name);
+  const being = Object.values(world.entities).find(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.cast
+    && (named(e) ? bare(e.name) === name || kindIn(e.description) === name : e.states.includes("gone") && bare(e.name) === name));
+  return being?.id;
+}
+
+/** One of the scene's people the story brings back after they'd gone (out of the place, away): here again. Whether they came back. */
+function comesBack(at: At, world: SceneWorld, id: string): boolean {
+  const e = world.entities[id];
+  const away = at.gm.absent.includes(id) || !!e?.states.includes("gone");
+  if (!away) return false;
+  at.gm.absent = at.gm.absent.filter(x => x !== id);
+  if (e) e.states = e.states.filter(s => s !== "gone");
+  return true;
 }
 
 /** Words of a name that aren't anyone's own: titles and what people are called by their looks or their age. */

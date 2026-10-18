@@ -10,8 +10,9 @@ A fight played the way the rest of a scene is: in the conversation, the GM narra
    - **Who comes** (the user's: "each scene should have a set of characters that appear on scene when you start a fight so if you attack Cob or whatever, the guards come after a few turns or a round"). A scene's `reinforcements` (docs/scene-format.md) come in at the way in at the top of the round after their `after` rounds of fighting, one of the cast (there from now: gm_state's new `entered`) or someone new with a statblock of their own, and the GM picks their side as they come, with why they came. In the story: the granary porters and Old Wat after two rounds in the yard, three dockers off the night shift after two at the Rat, two palace guards at the Marshal's shout after one in the King's dressing room. The Heron has none (everyone who'd fight is there), and the zoo's toll none ("anyone else coming: it's after hours").
 2. **Initiative.** The simulation rolls a d20 plus each fighter's initiative modifier (the engine's sheet, the cast by their SRD statblocks) from the game's dice, writes a dice line each and "Combat! In initiative order: …", and the order holds every round.
 3. **Turns, in order.** Each turn is a combat step (POST /v1/turns/combat) on whoever's turn it is. The GM plays it through its tools, one call an answer:
-   - `move_towards(target, narration, away?)`: up to their speed, towards someone or something in the place's world (stopping beside them) or away. Once a turn; a second is a dash, which takes the action.
-   - `perform_action(action, target, narration, spell?, weapon?, feature?, skill?, dc?)`: `attack`, `cast`, `grapple`, `shove`, `feature`, `check` (a stunt the dice decide), `flee`, `surrender` or `other`. Its narration is the attempt, up to the moment the dice decide it.
+   - `move_towards(target, narration, away?)`: up to their speed, towards someone or something in the place's world (stopping beside them) or away. Once a turn; a second is a dash, which takes the action. One on the ground (prone) gets up first, for half the move.
+   - `perform_action(action, target, narration, spell?, weapon?, feature?, skill?, dc?)`: `attack`, `cast`, `grapple`, `shove`, `feature`, `check` (a stunt the dice decide), `stand` (up off the ground: half the move), `flee`, `surrender` or `other` (the player's only: on anyone else's turn what they say or how they hold their ground is `end_turn`'s, and giving up is `surrender`, so the rules know). Its narration is the attempt, up to the moment the dice decide it. A feature that's one of the player's spells is cast as that spell, and a bonus-action spell (a smite: "your next hit") goes beside the turn's action, once a turn, before the blow it goes with. Something small after the turn's action ends the turn on its words.
+   - `pick_sides(sides, narration)`: the only tool while someone here has no side (as the fight breaks out, or as they arrive).
    - `end_turn(narration)`: what came of the turn, as the rules decided it.
    - `end_combat(outcome, narration)`: `won`, `lost`, `yielded`, `fled` or `stopped`.
 
@@ -41,7 +42,8 @@ The Crakes' toll (`?zoo=toll`, `npm run play -- new --session <you> --zoo toll`,
 
 ## What's not done
 
-- The NPCs' actions are their statblock's weapon, a move, fleeing, giving up or something else: no NPC spells, grapples or features yet.
+- The NPCs' actions are their statblock's weapon, a move, getting up, fleeing or giving up: no NPC spells, grapples or features yet.
+- The rules have no Reckless Attack or Savage Attacker choice, no non-lethal blow and no disarm: the GM narrates them, and the dice go as an ordinary blow (QA round hobo1-1018).
 - Ranges are the world's feet: a melee blow needs 5 ft; spells' ranges and cover aren't checked; no opportunity attacks.
 - No death saves: the player at 0 hit points loses the fight (knocked senseless, as outside a fight).
 - The map's fights (a combat ending's `startFight`: the zoo's ring) are the board's still; the story's are all in the conversation now (the Heron's blades out is an event).
@@ -49,7 +51,7 @@ The Crakes' toll (`?zoo=toll`, `npm run play -- new --session <you> --zoo toll`,
 
 ## QA
 
-Two blind rounds on the toll, 6 persona games each on real models, played by the GM loop (`--scene zoo/toll`), reports archived in `kingmaker-scratch/loop`:
+Two blind rounds on the toll, 6 persona games each on real models, played by the GM loop (`--scene zoo/toll`), then two on the story's scenes with murder hobos and a knight who confronts the guilty (`--personas murderhobo,murderhobo,murderhobo,avenger`: the user's "play a murder hobo run and verify the GM uses this appropriately to trigger combat", "make sure the BBEG fight at the end triggers properly"), reports archived in `kingmaker-scratch/loop`:
 
 | Round | Build | Came to blows | Endings | Penalty / 10 replies | Overall | Cost / game |
 |---|---|---|---|---|---|---|
