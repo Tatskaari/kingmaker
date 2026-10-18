@@ -55,7 +55,7 @@ export interface GmState {
   brawl?: Brawl;
   /** Cast who are away: those from earlier scenes that what happened keeps away (the boundary's presence), and those who fled the player's violence or ran for help (the world bridge's). */
   absent: string[];
-  /** Cast who came on by a route (V0's copied code reads it): no column yet, so always empty. */
+  /** Cast who came on by something other than their own beat (V0's copied code reads it): a fight's reinforcements, as they arrive (docs/combat-gm.md). */
   entered: string[];
   // A talk with a companion between scenes (town-design §3.6; the prototype's session.ts:268, 333),
   // under the prototype's names: absent in a scene that has none.
@@ -153,7 +153,7 @@ export function initialGm(scene: Pick<Scene, "start">): GmState {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The gm_state row: a column a field (simulation/src/schema.ts), but `entered`. An option column is
+// The gm_state row: a column a field (simulation/src/schema.ts). An option column is
 // undefined when empty; a roll's `critical` null is an empty option; the patches are JSON, a piece
 // of the scene graph in the campaign format's own shape; a threat is one object with the fields of
 // both its kinds, those of the other kind empty.
@@ -189,6 +189,8 @@ export interface GmRow {
   twoPart: TwoPartRow | undefined;
   /** JSON: CombatState; "" (or none, in a row from before it) when there's no fight on. */
   combat: string;
+  /** Who came on by a fight's reinforcements: none in a row from before it. */
+  entered: string[];
 }
 
 export interface TwoPartRow {
@@ -204,9 +206,8 @@ export interface ThreatRow { kind: string; by: string | undefined; hazard: strin
 export interface PathRow { turn: number; from: string; to: string; via: string; roll: RollRow | undefined; source: string; known: number | undefined }
 export interface RollRow { skill: string; dc: number; die: number; modifier: number; total: number; success: boolean; critical: string | undefined; advantage: string | undefined }
 
-/** The row for a scene's bookkeeping. Throws on a later vertical's field that isn't empty (V3's entered): it has no column to go in yet. */
+/** The row for a scene's bookkeeping. */
 export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
-  refuseLaterFields(gm);
   return {
     sceneId, beat: gm.beat, turnsInBeat: gm.turnsInBeat,
     path: gm.path.map(pathRowOf),
@@ -233,10 +234,11 @@ export function gmToRow(sceneId: bigint, gm: GmState): GmRow {
       held: !!gm.twoPart.held,
     },
     combat: gm.combat ? JSON.stringify(gm.combat) : "",
+    entered: [...gm.entered],
   };
 }
 
-/** A scene's bookkeeping from its row, `entered` empty. */
+/** A scene's bookkeeping from its row. */
 export function gmFromRow(row: GmRow): GmState {
   return {
     ...initialGm({ start: row.beat }),
@@ -262,6 +264,8 @@ export function gmFromRow(row: GmRow): GmState {
     reached: row.reached?.length ? [...row.reached] : [row.beat],
     twoPart: twoPartOf(row.twoPart),
     ...(row.combat ? { combat: JSON.parse(row.combat) as CombatState } : {}),
+    // A row read from an older module (the dev tools' SQL) may lack the column: nobody yet.
+    entered: [...(row.entered ?? [])],
   };
 }
 
@@ -274,11 +278,6 @@ function twoPartOf(row: TwoPartRow | undefined): TwoPartState {
     ...(row.moved !== undefined ? { moved: row.moved } : {}),
     ...(row.held ? { held: true } : {}),
   };
-}
-
-function refuseLaterFields(gm: GmState): void {
-  const full = Object.entries({ entered: gm.entered }).filter(([, v]) => v.length).map(([k]) => k);
-  if (full.length) throw new Error(`gm_state has no column for ${full.join(", ")} yet: the vertical that writes it adds one`);
 }
 
 function pathRowOf(p: PathStep): PathRow {

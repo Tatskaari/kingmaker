@@ -219,7 +219,8 @@ const TwoPart = t.object("TwoPart", { roles: t.array(TwoPartRole), notes: t.arra
  * handed on (story-design §4.1), then a talk's own (town-design §3.1), then the
  * nodes the scene has reached and the two-part GM's own (M2: docs/two-part-design.md), each with a
  * default, so a scene from before them reads as one with none yet; the world bridge's before the
- * story's, as they stack, so a database of either migrates. `entered` has no column yet.
+ * story's, as they stack, so a database of either migrates; then who came on by a fight's
+ * reinforcements (`entered`, last, as a column added later must be).
  */
 export const gmState = table({ name: "gm_state" }, {
   sceneId: t.u64().primaryKey(),
@@ -261,6 +262,8 @@ export const gmState = table({ name: "gm_state" }, {
   twoPart: t.option(TwoPart).default(undefined),
   /** JSON: CombatState (shared/gm/combat.ts), a fight in the conversation in progress; "" when there's none (docs/combat-gm.md). */
   combat: t.string().default(""),
+  /** Cast who came on by something other than their own beat: a fight's reinforcements (docs/combat-gm.md). None in a row from before it. */
+  entered: t.array(t.string()).default([]),
 });
 
 /** Who's on a scene's stage: no one and nothing is on two at once. */

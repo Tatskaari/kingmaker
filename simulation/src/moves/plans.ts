@@ -1,5 +1,5 @@
 import type { CombatOutcome } from "../../../shared/gm/combat.ts";
-import type { CombatDone, CombatFighter, Outcome, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
+import type { CombatDone, CombatFighter, CombatNewcomer, Outcome, TurnAct, TurnCheck } from "../../../shared/protocol/ai.ts";
 import type { Act, Mechanic } from "../../../shared/rules/types.ts";
 
 /**
@@ -61,10 +61,12 @@ export interface SayPlan {
   check?: TurnCheck;
   /** A fight's step (docs/combat-gm.md): the combat GM's next move, on whoever's turn it is. */
   combat?: CombatPlan;
+  /** The turn's second settle (2): a fight that broke out in its first settle ended this turn, and this is the settle after it (its key is settle-2). */
+  settleAsk?: number;
 }
 
 /** What a fight's step keeps in the say plan: the step's count in this turn (its key's), what's been done this turn, and the fight as it stood when the step was asked for. */
-export interface CombatPlan { k: number; done: CombatDone[]; fighters: CombatFighter[]; over?: { outcome: CombatOutcome; why: string } }
+export interface CombatPlan { k: number; done: CombatDone[]; fighters: CombatFighter[]; over?: { outcome: CombatOutcome; why: string }; pending?: CombatNewcomer[] }
 
 /** A turn's suggested lines (v5-design §3.4): one think, POST /v1/turns/suggest, for its k-th ask (from 1). */
 export interface SuggestPlan { step: "suggest"; game: string; scene: string; turn: string; n: number; ask: number }

@@ -6,7 +6,7 @@
 // each line, what the player sees), with the fight's own instructions (ai/prompts/combat-gm.md) in
 // place of the reply format, and the fight as it stands after the scene's history.
 
-import { ACTION_VERBS, ACTS_A_TURN, COMBAT_OUTCOMES, COMBAT_VERBS, type CombatOutcome, type CombatVerb } from "../../shared/gm/combat.ts";
+import { ACTION_VERBS, ACTS_A_TURN, COMBAT_OUTCOMES, COMBAT_VERBS, SIDE_PICKS, type CombatOutcome, type CombatVerb, type SidePick } from "../../shared/gm/combat.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { CombatAction, CombatDone, CombatFighter, CombatMove, CombatView, Reply } from "../../shared/protocol/ai.ts";
 import { SKILLS, type Scene, type Skill } from "../../shared/scene/types.ts";
@@ -76,6 +76,27 @@ export const END_COMBAT: ToolDef = {
   },
 };
 
+export const PICK_SIDES: ToolDef = {
+  name: "pick_sides",
+  description: "Before the next turn: the side each of the people listed takes in the fight, or that they run from it, by who they are. Everyone listed gets one, in one call.",
+  parameters: {
+    type: "object", additionalProperties: false, required: ["sides", "narration"],
+    properties: {
+      sides: {
+        type: "array", description: "One for each of the people listed, by their id.",
+        items: {
+          type: "object", additionalProperties: false, required: ["id", "side"],
+          properties: {
+            id: { type: "string" },
+            side: { type: "string", enum: [...SIDE_PICKS], description: "with_player: they fight beside the player. against_player: they fight the player. flee: they run from it (gone from the scene)." },
+          },
+        },
+      },
+      narration: { ...NARRATION, description: "What the table sees as they take their sides: the newcomers coming in, who squares up beside whom, who bolts. A sentence or two; nobody's turn yet." },
+    },
+  },
+};
+
 /** The fight's instructions: the mouthpiece's prompt with the scene's prep and people, the fight's, then who says each line and what the player sees. */
 export function combatInstructions(scene: Scene, view: TurnView): string {
   return [prompt("two-part-gm", { tone: prompt("tone-comic"), beats: prepOf(scene, view), characters: charactersOf(scene, view) }), prompt("combat-gm"), SPOKEN_RULES()].join("\n\n");
@@ -99,7 +120,7 @@ export function fightNote(view: TurnView, combat: CombatView): string {
   const parts = [
     `## The fight: round ${combat.state.round}${combat.state.why ? ` (${combat.state.why})` : ""}`,
     `In initiative order (it holds every round):\n${combat.fighters.map(f => fighterLine(f, f.id === combat.whose && !combat.over, combat.fighters)).join("\n")}`,
-    combat.over ? overNote(combat) : turnNote(view, combat, whose),
+    combat.pending?.length ? sidesNote(combat) : combat.over ? overNote(combat) : turnNote(view, combat, whose),
     ...(combat.done.length ? [`## This turn so far\n${combat.done.map(doneLine).join("\n")}`] : []),
   ];
   return parts.join("\n\n");
@@ -125,6 +146,14 @@ function turnNote(view: TurnView, combat: CombatView, whose: CombatFighter): str
   }
   const side = whose.side === "party" ? "with the player" : "against the player";
   return `## It's ${whose.name}'s turn [${whose.id}], ${side}\nPlay it as ${whose.name} would, from who they are and how the fight is going for them now: move_towards someone if they need to close in (a melee blow needs them beside their target) or back off, a perform_action for what they do (attack with their weapon, flee, surrender, or other), then end_turn. They may talk, back off, run or give up instead of attacking.${limit}`;
+}
+
+/** Who has no side yet: the people the reply didn't put on one as the fight broke out, and whoever has just arrived. */
+function sidesNote(combat: CombatView): string {
+  const who = combat.pending!.map(p => `- ${p.called ? `${p.called} (${p.name}: the player hasn't heard the name)` : p.name} [${p.id}]${p.arriving ? `, just arrived: ${p.arriving.trim().replace(/\.$/, "")}` : ""}${p.about ? `. ${p.about}` : ""}`);
+  return `## Before the next turn: who's on which side
+These people are here and have no side in the fight yet. Call pick_sides with one for each: with_player, against_player or flee, as who they are would (what they want and fear, whom they're loyal to, how the fight looks to them right now). Its narration shows them taking it.
+${who.join("\n")}`;
 }
 
 function overNote(combat: CombatView): string {
@@ -155,9 +184,9 @@ export interface CombatHow { calls: CallContext; byKey(markup: Markup): Markup }
  * (or the fight's, once it's over).
  */
 export async function combatMove(scene: Scene, view: TurnView, combat: CombatView, how: CombatHow): Promise<{ move: CombatMove; entries: Reply[]; costUsd: number }> {
-  const tools = combat.over ? [END_COMBAT] : [PERFORM_ACTION, MOVE_TOWARDS, END_TURN, END_COMBAT];
+  const tools = combat.pending?.length ? [PICK_SIDES] : combat.over ? [END_COMBAT] : [PERFORM_ACTION, MOVE_TOWARDS, END_TURN, END_COMBAT];
   const result = await runTools({
-    operation: combat.whose === "player" ? "combat.player" : "combat.turn", instructions: combatInstructions(scene, view), input: combatInput(scene, view, combat), tools,
+    operation: combat.pending?.length ? "combat.sides" : combat.whose === "player" ? "combat.player" : "combat.turn", instructions: combatInstructions(scene, view), input: combatInput(scene, view, combat), tools,
     effort: "low", maxTurns: 4, calls: how.calls, roundMs: 20_000, deadlineMs: 45_000, parallel: false, stop: () => true,
   }, async (name, args) => { checkCall(combat, name, args); return { ok: true }; });
   const move = result.stopped ? moveOf(result.stopped.name, result.stopped.args) : wordsAlone(combat, result.text);
@@ -169,6 +198,7 @@ export async function combatMove(scene: Scene, view: TurnView, combat: CombatVie
 export function checkCall(combat: CombatView, name: string, args: Record<string, unknown>): void {
   const narration = typeof args.narration === "string" ? args.narration.trim() : "";
   if (!narration) throw new InvalidToolArguments(`${name} needs its narration.`);
+  if (combat.pending?.length) return checkSides(combat, name, args);
   if (combat.over && name !== "end_combat") throw new InvalidToolArguments(`The fight is over (${combat.over.why}): call end_combat.`);
   if (name === "end_combat" && !COMBAT_OUTCOMES.includes(args.outcome as CombatOutcome)) throw new InvalidToolArguments(`end_combat's outcome is one of ${COMBAT_OUTCOMES.join(", ")}.`);
   if (name === "move_towards") return checkMove(combat, args);
@@ -184,6 +214,18 @@ export function checkCall(combat: CombatView, name: string, args: Record<string,
   if (action === "cast" && typeof args.spell !== "string") throw new InvalidToolArguments("cast needs the spell's id.");
   if (action === "feature" && typeof args.feature !== "string") throw new InvalidToolArguments("feature needs the feature's id.");
   if (action === "check" && (!SKILLS.includes(args.skill as Skill) || !Number.isInteger(args.dc))) throw new InvalidToolArguments("check needs a skill and an integer dc.");
+}
+
+/** pick_sides held to who has no side yet: each of them once, each a side or flee. */
+function checkSides(combat: CombatView, name: string, args: Record<string, unknown>): void {
+  const ids = combat.pending!.map(p => p.id);
+  if (name !== "pick_sides") throw new InvalidToolArguments(`First, pick_sides for ${ids.join(", ")}.`);
+  const sides = Array.isArray(args.sides) ? args.sides as Array<{ id?: unknown; side?: unknown }> : [];
+  const wrong = sides.filter(x => !SIDE_PICKS.includes(x.side as SidePick)).map(x => String(x.id));
+  if (wrong.length) throw new InvalidToolArguments(`Each side is one of ${SIDE_PICKS.join(", ")} (${wrong.join(", ")}).`);
+  const named = new Set(sides.map(x => String(x.id)));
+  const missing = ids.filter(id => !named.has(id));
+  if (missing.length) throw new InvalidToolArguments(`pick_sides needs one for each: ${missing.join(", ")} ${missing.length === 1 ? "has" : "have"} none.`);
 }
 
 /** Whether this turn has used its action already: an action verb, or a second move (a dash). */
@@ -206,6 +248,7 @@ function moveOf(name: string, args: Record<string, unknown>): CombatMove {
   const narration = String(args.narration ?? "").trim();
   if (name === "end_turn") return { kind: "end_turn", narration };
   if (name === "end_combat") return { kind: "end_combat", outcome: args.outcome as CombatOutcome, narration };
+  if (name === "pick_sides") return { kind: "sides", sides: Object.fromEntries((args.sides as Array<{ id: string; side: SidePick }>).map(x => [x.id, x.side])), narration };
   if (name === "move_towards") return { kind: "act", act: { action: "move", target: String(args.target).trim(), ...(args.away === true ? { away: true } : {}), narration } };
   const text = (k: string) => (typeof args[k] === "string" && (args[k] as string).trim() ? { [k]: (args[k] as string).trim() } : {});
   const act: CombatAction = {
@@ -218,6 +261,7 @@ function moveOf(name: string, args: Record<string, unknown>): CombatMove {
 /** A reply in words with no tool: the turn's end, or the fight's once it's over. Nothing at all is a failure. */
 function wordsAlone(combat: CombatView, text: string): CombatMove {
   if (!text.trim()) throw new Error("combat: the GM made no move");
+  if (combat.pending?.length) return { kind: "sides", sides: Object.fromEntries(combat.pending.map(p => [p.id, "flee" as const])), narration: text.trim() };
   return combat.over ? { kind: "end_combat", outcome: combat.over.outcome, narration: text.trim() } : { kind: "end_turn", narration: text.trim() };
 }
 

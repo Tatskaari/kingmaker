@@ -1,6 +1,6 @@
 // Copied from the prototype's src/runtime/scene.ts at 44c6d4a, whole; an exit's script is its effects (data), a scene's onEnd its effects on every ending (story-design §4.2), and there's no approach. M2 extends it with what the scene format (docs/scene-format.md, document.ts) gives: a beat's revelation, paths, required, establishes and carry, an exit's result, a character's whyHere, limits, roles and lore, and a scene's truth, clock, facts and routes.
 
-import type { BeatData, CastMember, OuterLimit, Path } from "./document.ts";
+import type { BeatData, CastMember, OuterLimit, Path, Reinforcement } from "./document.ts";
 import type { Effect } from "./files.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
 
@@ -130,6 +130,8 @@ export interface Beat {
   cast?: Record<string, string>;
   /** Something the world can do to push things along when the scene stalls or drifts. */
   pressure?: string;
+  /** An event's fight in the conversation: who fights the player, and beside them, when it's reached. */
+  fight?: BeatData["fight"];
   transitions: Transition[];
   /** A discovery's: what the player comes to understand. A beat with one is a discovery. */
   revelation?: string;
@@ -289,6 +291,8 @@ export interface Scene {
    * boundary in the session's copy, when play or the time passing has made them true.
    */
   fronts?: string;
+  /** Who comes when a fight breaks out here, each after so many rounds (the scene format's: document.ts Reinforcement). */
+  reinforcements?: Reinforcement[];
   /**
    * What happens to the place offstage once the scene is over, whatever the ending (the body taken
    * away): world ops applied to its world as it ends, so the map shows the place as it's left.

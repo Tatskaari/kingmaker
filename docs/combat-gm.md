@@ -4,7 +4,10 @@ A fight played the way the rest of a scene is: in the conversation, the GM narra
 
 ## How a fight goes
 
-1. **It breaks out in a reply.** The mouthpiece's reply has a `roll_for_initiative` field, decided before its narration as `check` is: `{ foes, allies, why }`, the cast against the player and beside them (the player is always in it; a companion is on their side unless the GM sets them against them). It's a field of the reply rather than a function call because the reply is a JSON answer streamed as it's written; it does the same job. Its narration takes the fight up to its first blow and ends on "Roll for initiative!".
+1. **It breaks out in a reply.** The mouthpiece's reply has a `roll_for_initiative` field, decided before its narration as `check` is: `{ foes, allies, flee, why, on }`, everyone here in one of the three, by their ids (the cast, a group's members such as the Crakes, and the people and creatures in the world with no card: the re-sacking gang, Duchess). The player is always in it; a companion is on their side unless the GM sets them against them or has them run. It's a field of the reply rather than a function call because the reply is a JSON answer streamed as it's written; it does the same job as a `roll_for_initiative()` tool, with no extra model call. Its narration takes the fight up to its first blow and ends on "Roll for initiative!".
+   - **A fight the prep planned.** An event with a `fight` (the Heron's blades out: Sallow and both Crakes against the player, Kell beside them) has its line-up told to the GM on every route into it. A reply that has a fight break out while one is open is that one: the scene goes to the event by its route, and its line-up fights beside whoever the reply named. If the reply doesn't start it but the co-GM takes a route into it, it breaks out after the settle, and if it's over on the same turn its settle is the turn's second (`settle-2`). Reached, nothing leads back into it.
+   - **Everyone picks a side or runs** (the user's, 2026-10-18: "when you roll for initiative, the GM should make each character pick a side or flee"). Whoever the reply put on neither side, and anyone a words-only "Roll for initiative!" left unplaced, is the GM's to place before the first turn: a combat step whose only tool is `pick_sides({ sides: [{ id, side }], narration })`, `with_player`, `against_player` or `flee`. Those who join roll for initiative and take their place in the order (the round goes on from its top); those who run are gone from the scene, as a reaction's flight is. Words alone send them all running.
+   - **Who comes** (the user's: "each scene should have a set of characters that appear on scene when you start a fight so if you attack Cob or whatever, the guards come after a few turns or a round"). A scene's `reinforcements` (docs/scene-format.md) come in at the way in at the top of the round after their `after` rounds of fighting, one of the cast (there from now: gm_state's new `entered`) or someone new with a statblock of their own, and the GM picks their side as they come, with why they came. In the story: the granary porters and Old Wat after two rounds in the yard, three dockers off the night shift after two at the Rat, two palace guards at the Marshal's shout after one in the King's dressing room. The Heron has none (everyone who'd fight is there), and the zoo's toll none ("anyone else coming: it's after hours").
 2. **Initiative.** The simulation rolls a d20 plus each fighter's initiative modifier (the engine's sheet, the cast by their SRD statblocks) from the game's dice, writes a dice line each and "Combat! In initiative order: …", and the order holds every round.
 3. **Turns, in order.** Each turn is a combat step (POST /v1/turns/combat) on whoever's turn it is. The GM plays it through its tools, one call an answer:
    - `move_towards(target, narration, away?)`: up to their speed, towards someone or something in the place's world (stopping beside them) or away. Once a turn; a second is a dash, which takes the action.
@@ -20,13 +23,15 @@ A fight played the way the rest of a scene is: in the conversation, the GM narra
 
 | Part | Where |
 |---|---|
-| The fight's state (gm_state's `combat`, JSON) and its rules: whose turn next, whether a side is beaten | shared/gm/combat.ts |
+| The fight's state (gm_state's `combat`, JSON: the order, who has no side yet, who ran, who has come) and its rules: whose turn next, whether a side is beaten | shared/gm/combat.ts |
+| A fight the prep planned (an event's `fight`) and who comes (the scene's `reinforcements`): the format, the check, the open routes into one | shared/scene/document.ts, rules.ts, beats.ts `fightsAhead` |
 | The rules: initiative, a blow between anyone in the fight, standings, reach and speed | shared/rules/acts.ts (the end) |
 | The protocol: the combat step, its request and answer, the reply's `initiative` | shared/protocol/ai.ts, keys.ts (`combat-<k>`, the k-th step of the turn) |
-| The combat GM: its tools, its fight note, the loop that stops on each call | ai/gm/combat.ts, ai/service/endpoints/combat.ts |
+| The combat GM: its tools (`pick_sides` alone while someone has no side), its fight note, the loop that stops on each call | ai/gm/combat.ts, ai/service/endpoints/combat.ts |
 | Its instructions | the user's two-part prompt with the scene's prep and people, then **ai/prompts/combat-gm.md** (a draft for the user to rewrite), then who says each line and what the player sees |
 | The mouthpiece's side | ai/gm/two-part.ts: `roll_for_initiative` in the schema, "When a fight breaks out", `fightOf` |
-| The simulation's | simulation/src/moves/combat.ts: the fight started from the reply, each action resolved, the turn passed on, the player's turn, the end into the settle |
+| The simulation's | simulation/src/moves/combat.ts: the fight started from the reply or the settle, the sides picked, who comes at a round's top, each action resolved, the turn passed on, the player's turn, the end into the settle |
+| Authoring them | the Obsidian plugin: an event's Fight (who's against the player, who's beside them) in its inspector, and "Who comes when a fight breaks out" in the Scene view's world |
 | The tool loop's stop | ai/llm/tools.ts `stop`, `parallel: false` |
 | The fake model's fights | ai/llm/fake-openrouter.ts: `mouthpiece.fight` rolls for initiative on a cue word; its combat GM moves, attacks, ends the turn |
 
@@ -39,7 +44,7 @@ The Crakes' toll (`?zoo=toll`, `npm run play -- new --session <you> --zoo toll`,
 - The NPCs' actions are their statblock's weapon, a move, fleeing, giving up or something else: no NPC spells, grapples or features yet.
 - Ranges are the world's feet: a melee blow needs 5 ft; spells' ranges and cover aren't checked; no opportunity attacks.
 - No death saves: the player at 0 hit points loses the fight (knocked senseless, as outside a fight).
-- The Heron's story fight still goes to the board (its ending's `combat` kind); a reaction that would fight in a scene can now become a fight in the conversation through the reply.
+- The map's fights (a combat ending's `startFight`: the zoo's ring) are the board's still; the story's are all in the conversation now (the Heron's blades out is an event).
 - Pace: each tool call is a model call (1.6 to 1.9 s on real models), so an NPC's turn of move, attack and end is 5 to 6 s, its lines appearing as each lands.
 
 ## QA

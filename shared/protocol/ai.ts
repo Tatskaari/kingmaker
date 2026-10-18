@@ -1,7 +1,7 @@
 import type { Asked, Backstory, LoreIssue, Who } from "../creation/types.ts";
 import type { Confide, GmState, OwedRow, ScenePatch, TalkRecord, TwoPartRole } from "../gm/state.ts";
 import type { Band } from "../gm/two-part.ts";
-import type { CombatOutcome, CombatState, CombatVerb, Side } from "../gm/combat.ts";
+import type { CombatOutcome, CombatState, CombatVerb, Side, SidePick } from "../gm/combat.ts";
 import type { Markup } from "../markup.ts";
 import type { Act, BuildOption, FeatureRef, Mechanic, Offer, OwnPicks, Reaction, SpellFacts, SrdLists, WeaponRef } from "../rules/types.ts";
 import type { RouteOutcome } from "../scene/beats.ts";
@@ -248,7 +248,7 @@ export interface ReplyResponse { entries: Reply[]; gm: { offered?: string }; fir
  * `on`: with a check, the outcomes that start it (toll1-1018: a Deception failed badly and its outcome
  * ended on "Roll for initiative!", but nothing started); none, whatever comes up.
  */
-export interface Initiative { foes: string[]; allies: string[]; why: string; on?: Band[] }
+export interface Initiative { foes: string[]; allies: string[]; flee?: string[]; why: string; on?: Band[] }
 
 /** What someone does on their turn in a fight: perform_action's verb, at whom, what with (move_towards is a move, `away` backing off), and the narration up to the attempt. */
 export interface CombatAction { action: CombatVerb; target?: string; spell?: string; weapon?: string; feature?: string; skill?: Skill; dc?: number; away?: boolean; narration: string }
@@ -263,7 +263,10 @@ export interface CombatFighter { id: string; name: string; called?: string; side
  * The fight as the combat step sees it: its state, everyone in it, whose turn it is, what's been
  * done this turn and with what result, and, once the rules say it's over, how.
  */
-export interface CombatView { state: CombatState; fighters: CombatFighter[]; whose: string; done: CombatDone[]; over?: { outcome: CombatOutcome; why: string } }
+export interface CombatView { state: CombatState; fighters: CombatFighter[]; whose: string; done: CombatDone[]; over?: { outcome: CombatOutcome; why: string }; pending?: CombatNewcomer[] }
+
+/** Someone here with no side in the fight yet (CombatState's pending), as the GM sees them: who, what the player calls them, what they look like, and, for one of the scene's reinforcements who has just come, why. */
+export interface CombatNewcomer { id: string; name: string; called?: string; about: string; arriving?: string }
 
 /** POST /v1/turns/combat: the fight's next tool call, on whoever's turn it is (the player's line in `turn`, on theirs). */
 export interface CombatRequest extends AiRequest { turn: TurnContext; combat: CombatView }
@@ -272,7 +275,8 @@ export interface CombatRequest extends AiRequest { turn: TurnContext; combat: Co
 export type CombatMove =
   | { kind: "act"; act: CombatAction }
   | { kind: "end_turn"; narration: string }
-  | { kind: "end_combat"; outcome: CombatOutcome; narration: string };
+  | { kind: "end_combat"; outcome: CombatOutcome; narration: string }
+  | { kind: "sides"; sides: Record<string, SidePick>; narration: string };
 
 /** The move, and its narration as the screen has it (who says each line). */
 export interface CombatResponse { move: CombatMove; entries: Reply[]; usage: Usage }

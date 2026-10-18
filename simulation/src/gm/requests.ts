@@ -62,7 +62,7 @@ export function boundaryCall(tx: TxCtx, plan: BoundaryPlan): AiCall {
 /** A say turn's call for its step: act, reactions, reply or settle, each with the turn's working set. */
 export function sayCall(tx: TxCtx, plan: SayPlan): AiCall {
   const at = whereOf(tx, plan.scene);
-  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step, plan.combat?.k ?? 1);
+  const key = idempotencyKey(at.game.uid, at.scene.id, plan.n, plan.step, plan.step === "settle" ? plan.settleAsk ?? 1 : plan.combat?.k ?? 1);
   const base = { ...aiRequest(key, at), turn: turnContext(tx, plan, at) };
   return { endpoint: STEP_ENDPOINT[plan.step], key, timeoutMs: STEP_TIMEOUT_MS[plan.step], request: stepRequest(plan, base, at.controller.suggestions) };
 }
@@ -143,7 +143,7 @@ function stepRequest(plan: SayPlan, base: AiRequest & { turn: TurnContext }, sug
   if (plan.step === "combat") {
     const state = needs(base.turn.gm.combat, "fight", "combat");
     const fight = needs(plan.combat, "combat plan", "combat");
-    return { ...base, combat: { state, fighters: fight.fighters, whose: state.order[state.at]!.id, done: fight.done, ...(fight.over ? { over: fight.over } : {}) } };
+    return { ...base, combat: { state, fighters: fight.fighters, whose: state.order[state.at]?.id ?? "player", done: fight.done, ...(fight.over ? { over: fight.over } : {}), ...(fight.pending?.length ? { pending: fight.pending } : {}) } };
   }
   if (plan.step === "reactions") return { ...base, act: needs(plan.act, "act", "reactions") };
   // The two-part GM's reply: the outcome's directives are the rules' and the player's act's (docs/two-part-design.md).

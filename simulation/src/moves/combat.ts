@@ -8,13 +8,14 @@
 
 import { ACTS_A_TURN, nextTurn, overOf, whoseTurn, type CombatState, type Fighter } from "../../../shared/gm/combat.ts";
 import { diceLine } from "../../../shared/gm/two-part.ts";
-import type { CombatAction, CombatDone, CombatFighter, CombatResponse, Initiative, Outcome } from "../../../shared/protocol/ai.ts";
+import type { CombatAction, CombatDone, CombatFighter, CombatNewcomer, CombatResponse, Initiative, Outcome } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
-import { blowBetween, reachOf, rollInitiative, standings, type FightMember, type Standing } from "../../../shared/rules/acts.ts";
+import { blowBetween, bystander, reachOf, rollInitiative, standings, type FightMember, type Standing } from "../../../shared/rules/acts.ts";
 import type { Mechanic, Rules, SceneSession } from "../../../shared/rules/types.ts";
-import { presentCast } from "../../../shared/scene/graph.ts";
+import { fightsAhead, takeRoute } from "../../../shared/scene/beats.ts";
+import { fighterOf, presentCast, presentFighters } from "../../../shared/scene/graph.ts";
 import type { Character } from "../../../shared/scene/types.ts";
-import { applyOps, distance, positionOf, type SceneWorld } from "../../../shared/world/scene-world.ts";
+import { applyOps, distance, joinWorld, positionOf, type SceneWorld } from "../../../shared/world/scene-world.ts";
 import type { TxCtx } from "../context.ts";
 import { rollerFor } from "../dice-row.ts";
 import { afterTurn } from "../gm/background.ts";
@@ -34,23 +35,129 @@ import { atTurn, resolveAct, type At } from "./say-commits.ts";
 const SLACK = 2;
 
 /**
- * The reply rolled for initiative (its roll_for_initiative): everyone in it rolls once, the order and
- * the dice written, and the fight's first turn taken up. The player is always in it, with whoever
- * the reply put beside them; those it put against them who are here are the other side.
+ * A fight breaks out (the reply's roll_for_initiative, or the co-GM's move into an event with a
+ * fight): its sides, everyone on one rolling once for initiative (the order and the dice written),
+ * and the fight's first turn taken up. The player is always in it. With them are whoever follows
+ * them (the companion, unless the reply set them against the player or had them run) and whoever
+ * the reply put beside them; against them, those it put against them who are here; and whoever it
+ * had run from it runs (gone from the scene). One that breaks out in the reply while a fight of the
+ * scene's prep is on offer (fightsAhead: the Heron's blades out) is that one: the scene goes there
+ * by its route, and its line-up fights too. Everyone else here picks a side, or runs, as the GM
+ * says before the first turn (pick_sides). Undefined, and nothing started, when nobody here is
+ * against the player or could be.
  */
-export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initiative): Next<SayPlan> {
-  const cast = presentCast(at.graph, at.gm);
-  const foes = cast.filter(c => initiative.foes.includes(c.id));
-  const allies = cast.filter(c => initiative.allies.includes(c.id) && !initiative.foes.includes(c.id));
+export function startCombat(tx: TxCtx, at: At, plan: SayPlan, initiative: Initiative, from: "reply" | "settle" = "reply"): Next<SayPlan> | undefined {
+  const pool = fightersHere(tx, at, plan.n);
+  const ahead = from === "reply" ? fightsAhead(at.graph, at.gm)[0] : undefined;
+  const beat = from === "settle" ? at.graph.beats.find(b => b.id === at.gm.beat && b.fight) : ahead?.beat;
+  const foeIds = new Set([...initiative.foes, ...(beat?.fight?.foes ?? [])]);
+  const fleeIds = new Set((initiative.flee ?? []).filter(id => !foeIds.has(id)));
+  const allyIds = new Set([...initiative.allies, ...(beat?.fight?.allies ?? []), ...companionsHere(tx, at).filter(id => !fleeIds.has(id))]);
+  const foes = pool.filter(c => foeIds.has(c.id));
+  const allies = pool.filter(c => allyIds.has(c.id) && !foeIds.has(c.id) && !fleeIds.has(c.id));
+  const running = pool.filter(c => fleeIds.has(c.id) && !allies.includes(c) && able(tx, at, plan.n, c.id));
+  // Those named are in it even if already down (the player's blow felled Cob before initiative); the rest who can pick, pick.
+  const pending = pool.filter(c => !foes.includes(c) && !allies.includes(c) && !running.includes(c) && able(tx, at, plan.n, c.id)).map(c => c.id);
+  if (!foes.length && !pending.length) { tx.log(`[scene ${at.scene.id} turn ${plan.n}] no fight: nobody here is against the player (${[...foeIds].join(", ") || "none named"})`); return undefined; }
+  if (ahead) {
+    const taken = takeRoute(at.graph, at.gm, ahead.route.id, "none", plan.n);
+    if ("error" in taken) tx.log(`[scene ${at.scene.id} turn ${plan.n}] the fight is ${ahead.beat.id}'s, but its route ${ahead.route.id} was refused: ${taken.error}`);
+    else { at.gm = taken.gm; tx.log(`[scene ${at.scene.id} turn ${plan.n}] the fight is ${ahead.beat.id}'s: ${ahead.route.id}`); }
+  }
   closeIn(tx, at, plan, [...foes, ...allies].map(c => c.id));
   const rolled = withRules(tx, at, plan.n, (rules, session) => rollInitiative(rules, session, ["player", ...allies, ...foes]));
   for (const line of rolled.lines) addEntry(tx, at.scene, { turn: plan.n, speaker: "dice", kind: "roll", text: line });
   const side = (id: string) => (foes.some(f => f.id === id) ? "foes" : "party") as Fighter["side"];
-  const state: CombatState = { started: plan.n, round: 1, order: rolled.rolls.map(r => ({ id: r.id, side: side(r.id), initiative: r.total })), at: 0, why: initiative.why };
+  const here = new Set(pool.map(c => c.id));
+  const already = (at.graph.reinforcements ?? []).filter(r => here.has(r.id)).map(r => r.id);
+  const state: CombatState = {
+    started: plan.n, round: 1, order: rolled.rolls.map(r => ({ id: r.id, side: side(r.id), initiative: r.total })), at: 0, why: initiative.why || beat?.title || "",
+    ...(pending.length ? { pending } : {}),
+    ...(already.length ? { arrived: already } : {}),
+    ...(from === "settle" ? { from } : {}),
+  };
   at.gm.combat = state;
-  addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Combat! In initiative order: ${state.order.map(f => nameOf(tx, at, f.id)).join(", ")}.` });
-  tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${state.order.map(f => `${f.id} ${f.initiative}`).join(", ")} (${initiative.why})`);
+  for (const c of running) runsOff(tx, at, plan.n, c.id);
+  const ran = running.length ? ` Running from it: ${running.map(c => nameOf(tx, at, plan.n, c.id)).join(", ")}.` : "";
+  addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Combat! In initiative order: ${state.order.map(f => nameOf(tx, at, plan.n, f.id)).join(", ")}.${ran}` });
+  tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${state.order.map(f => `${f.id} ${f.initiative}`).join(", ")}${running.length ? `; running: ${running.map(c => c.id).join(", ")}` : ""}${pending.length ? `; no side yet: ${pending.join(", ")}` : ""} (${state.why})`);
   return turnUp(tx, at, plan, 0, true);
+}
+
+/** Someone who runs from the fight as it breaks out, or as they pick their side: out of it and away from the scene (as a reaction's flight is). */
+function runsOff(tx: TxCtx, at: At, n: number, id: string): void {
+  const combat = at.gm.combat!;
+  combat.fled = [...new Set([...(combat.fled ?? []), id])];
+  const played = inPlay(tx, at.scene, at.graph, at.gm, n);
+  const e = played.place.world.entities[id];
+  if (e) e.states = [...e.states.filter(s => s !== "cowering" && s !== AWAY), AWAY];
+  played.session.absent = [...new Set([...(played.session.absent ?? []), id])];
+  playedOut(tx, at.scene, at.graph, at.gm, played);
+}
+
+/** The world's state for someone who has left the place. */
+const AWAY = "gone";
+
+/**
+ * The sides the GM picked (pick_sides) for everyone who had none: each who joins rolls for
+ * initiative and takes their place in the order (the round goes on from its top, so one quicker
+ * than all the rest goes first), and each who runs is away. Their system line and dice.
+ */
+function sidesPicked(tx: TxCtx, at: At, n: number, sides: Record<string, string>): void {
+  const combat = at.gm.combat!;
+  const pending = combat.pending ?? [];
+  const world = worldOf(tx, at, n);
+  const joining = pending.filter(id => sides[id] === "with_player" || sides[id] === "against_player").map(id => castOf(at, id, world)).filter((c): c is Character => !!c);
+  const running = pending.filter(id => !joining.some(c => c.id === id));
+  delete combat.pending;
+  for (const id of running) runsOff(tx, at, n, id);
+  if (joining.length) {
+    const rolled = withRules(tx, at, n, (rules, session) => rollInitiative(rules, session, joining));
+    for (const line of rolled.lines) addEntry(tx, at.scene, { turn: n, speaker: "dice", kind: "roll", text: line });
+    const now = at.gm.combat!;
+    const order: Fighter[] = [...now.order, ...rolled.rolls.map(r => ({ id: r.id, side: (sides[r.id] === "against_player" ? "foes" : "party") as Fighter["side"], initiative: r.total }))]
+      .sort((a, b) => b.initiative - a.initiative);
+    // Nobody has had a turn this round yet (they're picked as it breaks out, or arrive at a round's top): it goes on from its top.
+    const down = downOf(tx, at, n);
+    const top = order.findIndex(f => !f.out && !down.has(f.id));
+    at.gm.combat = { ...now, order, at: Math.max(0, top) };
+  }
+  tx.log(`[scene ${at.scene.id} turn ${n}] combat: sides picked: ${joining.map(c => `${c.id} ${sides[c.id]}`).join(", ") || "nobody joins"}${running.length ? `; running: ${running.join(", ")}` : ""}`);
+  const words = [
+    ...(joining.length ? [`Joining the fight: ${joining.map(c => `${nameOf(tx, at, n, c.id)} (${sides[c.id] === "against_player" ? "against you" : "with you"})`).join(", ")}.`] : []),
+    ...(running.length ? [`Running from it: ${running.map(id => nameOf(tx, at, n, id)).join(", ")}.`] : []),
+  ];
+  if (words.length) addEntry(tx, at.scene, { turn: n, speaker: "system", kind: "system", text: words.join(" ") });
+}
+
+/**
+ * The scene's reinforcements due as a round starts (after their `after` rounds of fighting), who
+ * haven't come and haven't left: each in at the way in (one of the cast, there from now, a group
+ * with its members; someone new, a person in the place's world with their own statblock), with no
+ * side yet, for the GM to pick before the round's first turn. Their system line.
+ */
+function arrivals(tx: TxCtx, at: At, n: number): void {
+  const combat = at.gm.combat!;
+  const played = inPlay(tx, at.scene, at.graph, at.gm, n);
+  const world = played.place.world;
+  const inFight = new Set([...combat.order.map(f => f.id), ...(combat.fled ?? []), ...(combat.pending ?? [])]);
+  const due = (at.graph.reinforcements ?? []).filter(r => r.after + 1 <= combat.round && !combat.arrived?.includes(r.id) && !inFight.has(r.id)
+    && !world.entities[r.id]?.states.includes(AWAY) && !(played.session.absent ?? []).includes(r.id));
+  if (!due.length) return;
+  for (const r of due) {
+    const card = at.graph.cast.find(c => c.id === r.id);
+    joinWorld(world, [{ id: r.id, name: card?.name ?? r.name ?? r.id, ...(card?.members ? { members: card.members } : {}) }], n);
+    const e = world.entities[r.id]!;
+    if (card) { e.cast = card.id; at.gm.entered = [...new Set([...(at.gm.entered ?? []), card.id])]; }
+    else e.stats = { statblock: r.statblock ?? "commoner", ...(r.weapon ? { weapon: r.weapon } : {}) };
+    if (!card && r.look) e.description = r.look;
+  }
+  playedOut(tx, at.scene, at.graph, at.gm, played);
+  const members = due.flatMap(r => at.graph.cast.find(c => c.id === r.id)?.members?.map(m => m.id) ?? []);
+  at.gm.combat = { ...combat, arrived: [...(combat.arrived ?? []), ...due.map(r => r.id)], pending: [...(combat.pending ?? []), ...due.map(r => r.id), ...members] };
+  syncStage(tx, at.scene, at.graph, at.gm);
+  addEntry(tx, at.scene, { turn: n, speaker: "system", kind: "system", text: `Arriving: ${due.map(r => nameOf(tx, at, n, r.id)).join(", ")}.` });
+  tx.log(`[scene ${at.scene.id} turn ${n}] combat: round ${combat.round}, arriving: ${due.map(r => r.id).join(", ")}`);
 }
 
 /**
@@ -89,14 +196,16 @@ export function afterCombat(tx: TxCtx, plan: SayPlan, answer: CombatResponse): N
   const said = () => { if (answer.entries.length) writeReply(tx, at.scene, plan.n, turnId, answer.entries); noteHeard(tx, at.scene, at.graph); };
   if (!combat || answer.move.kind === "end_combat") { said(); return endCombat(tx, at, plan, answer.move.kind === "end_combat" ? answer.move : undefined); }
   if (answer.move.kind === "end_turn") { said(); return passTurn(tx, at, plan, k); }
+  if (answer.move.kind === "sides") { said(); sidesPicked(tx, at, plan.n, answer.move.sides); return turnUp(tx, at, plan, k, false); }
   // A GM that never ends a turn doesn't hold the fight up: past twice the turn's actions, it passes on.
   if ((plan.combat?.done.length ?? 0) >= 2 * ACTS_A_TURN) { tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat: ${whoseTurn(combat).id}'s turn passed on after ${plan.combat!.done.length} actions`); return passTurn(tx, at, plan, k); }
 
   // An action's attempt is narrated before its dice, unless the rules refuse it (the GM is told why, and tries again).
-  const refused = refusalOf(tx, at, plan.n, whoseTurn(combat).id, answer.move.act);
+  const act = answer.move.act;
+  const refused = refusalOf(tx, at, plan.n, whoseTurn(combat).id, act);
   if (!refused) said();
   else tx.db.replyDraft.turnId.delete(turnId);
-  const done = resolve(tx, at, plan, answer.move.act);
+  const done = resolve(tx, at, plan, act);
   putGm(tx, at.scene.id, at.gm);
   const fight = fightNow(tx, at, plan.n);
   return { done: false, plan: { ...plan, step: "combat", combat: { k, done: [...(plan.combat?.done ?? []), done], ...fight } } };
@@ -113,6 +222,7 @@ function passTurn(tx: TxCtx, at: At, plan: SayPlan, k: number): Next<SayPlan> {
   if (!next) return overStep(tx, at, plan, k);
   if (next.round > combat.round) addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `Round ${next.round}.` });
   at.gm.combat = next;
+  if (next.round > combat.round) arrivals(tx, at, plan.n);
   return turnUp(tx, at, plan, k, false);
 }
 
@@ -123,6 +233,8 @@ function passTurn(tx: TxCtx, at: At, plan: SayPlan, k: number): Next<SayPlan> {
  */
 function turnUp(tx: TxCtx, at: At, plan: SayPlan, k: number, starting: boolean): Next<SayPlan> {
   const combat = at.gm.combat!;
+  // Anyone here with no side yet picks one, or runs, before the next turn: a combat step for the GM's pick_sides.
+  if (combat.pending?.length) { putGm(tx, at.scene.id, at.gm); return { done: false, plan: { ...plan, step: "combat", combat: { k: Math.max(k, 1), done: [], ...fightNow(tx, at, plan.n) } } }; }
   const down = downOf(tx, at, plan.n);
   if (overOf(combat, down)) return overStep(tx, at, plan, Math.max(k, 1));
   const f = whoseTurn(combat);
@@ -161,13 +273,15 @@ function endCombat(tx: TxCtx, at: At, plan: SayPlan, ended: { outcome: string; n
   const outcome = ended?.outcome ?? "stopped";
   addEntry(tx, at.scene, { turn: plan.n, speaker: "system", kind: "system", text: `The fight is over (${OUTCOME_WORDS[outcome] ?? outcome}).` });
   const rounds = at.gm.combat?.round ?? 0;
+  // A fight the settle started that's over on the same turn: the settle after it is the turn's second.
+  const again = at.gm.combat?.from === "settle" && at.gm.combat.started === plan.n;
   delete at.gm.combat;
   syncStage(tx, at.scene, at.graph, at.gm);
   putGm(tx, at.scene.id, at.gm);
   updateTurn(tx, idOf(plan.turn), { phase: "settling" });
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] combat over after ${rounds} round(s): ${outcome}`);
   const reply = `The fight is over: ${OUTCOME_WORDS[outcome] ?? outcome}. ${ended?.narration ?? ""}`.trim();
-  return { done: false, plan: { ...plan, step: "settle", reply, lines: [...plan.lines, ...(plan.combat?.done ?? []).flatMap(d => d.lines)] } };
+  return { done: false, plan: { ...plan, step: "settle", reply, lines: [...plan.lines, ...(plan.combat?.done ?? []).flatMap(d => d.lines)], ...(again ? { settleAsk: 2 } : {}) } };
 }
 
 const OUTCOME_WORDS: Record<string, string> = { won: "you won", lost: "you lost", yielded: "they gave up", fled: "you got away", stopped: "everyone stopped" };
@@ -202,7 +316,7 @@ function standingAfter(tx: TxCtx, at: At, n: number, act: CombatAction): string 
   if (!act.target || !["attack", "cast", "grapple", "shove", "feature"].includes(act.action)) return "";
   const s = standingsOf(tx, at, n).find(x => x.id === act.target);
   if (!s) return "";
-  return `Now ${nameOf(tx, at, s.id)} ${s.id === "player" ? "are" : "is"} ${s.hp <= 0 ? "down: 0 hit points, out cold" : `${s.hurt} (${s.hp}/${s.max} HP), still on ${s.id === "player" ? "your" : "their"} feet`}.`;
+  return `Now ${nameOf(tx, at, n, s.id)} ${s.id === "player" ? "are" : "is"} ${s.hp <= 0 ? "down: 0 hit points, out cold" : `${s.hurt} (${s.hp}/${s.max} HP), still on ${s.id === "player" ? "your" : "their"} feet`}.`;
 }
 
 /** What the rules refuse before anything is rolled: a target nobody knows, a blow or a hold from out of reach, what the cast can't do. */
@@ -214,7 +328,7 @@ function refusalOf(tx: TxCtx, at: At, n: number, who: string, act: CombatAction)
   const feet = apart(world, who, act.target);
   const reach = act.action === "attack" ? reachFor(tx, at, n, who, act.weapon) : { melee: true, feet: 5 };
   if (act.weapon === "improvised" || !reach.melee || feet === undefined || feet <= reach.feet + SLACK) return undefined;
-  return `Out of reach: ${nameOf(tx, at, act.target)} is ${feet} ft away, and ${act.action === "attack" ? "a melee blow reaches" : "hands reach"} 5 ft. move_towards first (or end the turn).`;
+  return `Out of reach: ${nameOf(tx, at, n, act.target)} is ${feet} ft away, and ${act.action === "attack" ? "a melee blow reaches" : "hands reach"} 5 ft. move_towards first (or end the turn).`;
 }
 
 /** A move up to their speed, towards someone or something (they stop beside them) or away from it, in the place's world. */
@@ -228,7 +342,7 @@ function move(tx: TxCtx, at: At, n: number, who: string, act: CombatAction): { l
   playedOut(tx, at.scene, at.graph, at.gm, played);
   const after = apart(world, who, act.target!) ?? 0;
   const beside = after <= 5 + SLACK;
-  return { lines: [], result: `${nameOf(tx, at, who)} moved ${Math.abs(before - after)} ft ${act.away ? "back from" : "towards"} ${nameOf(tx, at, act.target!)}: now ${beside ? "beside them" : `${after} ft away`}.` };
+  return { lines: [], result: `${nameOf(tx, at, n, who)} moved ${Math.abs(before - after)} ft ${act.away ? "back from" : "towards"} ${nameOf(tx, at, n, act.target!)}: now ${beside ? "beside them" : `${after} ft away`}.` };
 }
 
 /** Fleeing or giving up: out of the fight (one of the cast who flees is gone from the scene, as the reactions' flight is). */
@@ -241,7 +355,7 @@ function leaves(tx: TxCtx, at: At, n: number, f: Fighter, how: "flee" | "surrend
     played.session.absent = [...new Set([...(played.session.absent ?? []), f.id])];
     playedOut(tx, at.scene, at.graph, at.gm, played);
   }
-  return { lines: [], result: `${nameOf(tx, at, f.id)} ${how === "flee" ? "flees: out of the fight" : "gives up: out of the fight"}.` };
+  return { lines: [], result: `${nameOf(tx, at, n, f.id)} ${how === "flee" ? "flees: out of the fight" : "gives up: out of the fight"}.` };
 }
 
 /** A stunt the dice decide: the player's check, rolled as every check is (rollerFor), its dice line written. */
@@ -265,8 +379,9 @@ function playersAct(tx: TxCtx, at: At, plan: SayPlan, act: CombatAction): { line
 
 /** One of the cast's blows, with their own weapon, at someone in the fight: its dice lines written. */
 function theirBlow(tx: TxCtx, at: At, n: number, who: string, target: string): { lines: string[]; result: string } {
-  const attacker = castOf(at, who)!;
-  const victim: FightMember = target === "player" ? "player" : castOf(at, target) ?? "player";
+  const world = worldOf(tx, at, n);
+  const attacker = castOf(at, who, world)!;
+  const victim: FightMember = target === "player" ? "player" : castOf(at, target, world) ?? "player";
   const out = withRules(tx, at, n, (rules, session) => blowBetween(rules, session, attacker, victim));
   for (const line of out.lines) addEntry(tx, at.scene, { turn: n, speaker: "dice", kind: "roll", text: line });
   return { lines: out.lines, result: out.directive };
@@ -279,7 +394,7 @@ const plainly = (directive: string) => directive.replace(/^Rules: /, "").split(/
 // The fight as it stands.
 
 /** Everyone in the fight as the GM sees them now (rules, world), and whether the rules say it's over. */
-function fightNow(tx: TxCtx, at: At, n: number): Pick<CombatPlan, "fighters" | "over"> {
+function fightNow(tx: TxCtx, at: At, n: number): Pick<CombatPlan, "fighters" | "over" | "pending"> {
   const combat = at.gm.combat!;
   const stand = standingsOf(tx, at, n);
   const world = worldOf(tx, at, n);
@@ -287,12 +402,19 @@ function fightNow(tx: TxCtx, at: At, n: number): Pick<CombatPlan, "fighters" | "
     const s = stand.find(x => x.id === f.id)!;
     const feet = Object.fromEntries(combat.order.filter(o => o.id !== f.id && world).map(o => [o.id, apart(world!, f.id, o.id) ?? 0]));
     return {
-      id: f.id, name: f.id === "player" ? "you" : castOf(at, f.id)?.name ?? f.id, ...(called(tx, at, f.id) ? { called: called(tx, at, f.id) } : {}), side: f.side, initiative: f.initiative, hurt: s.hurt, hp: s.hp, max: s.max, ac: s.ac, down: s.hp <= 0,
+      id: f.id, name: f.id === "player" ? "you" : castOf(at, f.id, world)?.name ?? f.id, ...(called(tx, at, f.id) ? { called: called(tx, at, f.id) } : {}), side: f.side, initiative: f.initiative, hurt: s.hurt, hp: s.hp, max: s.max, ac: s.ac, down: s.hp <= 0,
       ...(f.out ? { out: f.out } : {}), reach: reachFor(tx, at, n, f.id), feet,
     };
   });
   const over = overOf(combat, new Set(fighters.filter(f => f.down).map(f => f.id)));
-  return { fighters, ...(over ? { over } : {}) };
+  const pending = (combat.pending ?? []).map((id): CombatNewcomer => {
+    const c = castOf(at, id, world);
+    const r = at.graph.reinforcements?.find(x => x.id === id);
+    const leader = at.graph.cast.find(x => x.members?.some(m => m.id === id));
+    const arriving = r && combat.arrived?.includes(id) && combat.round > 1 ? r.why : leader && combat.arrived?.includes(leader.id) && combat.round > 1 ? `with ${leader.name}` : undefined;
+    return { id, name: c?.name ?? id, ...(called(tx, at, id) ? { called: called(tx, at, id) } : {}), about: [c?.look, c?.attitude && at.graph.cast.some(x => x.id === id) ? c.attitude : ""].filter(Boolean).join(" ").trim(), ...(arriving ? { arriving } : {}) };
+  });
+  return { fighters, ...(over ? { over } : {}), ...(pending.length ? { pending } : {}) };
 }
 
 /** Who's down now, by the rules. */
@@ -301,13 +423,13 @@ const downOf = (tx: TxCtx, at: At, n: number) => new Set(standingsOf(tx, at, n).
 /** How everyone in the fight stands, read on a session that isn't kept (the rules' characters are made at initiative). */
 function standingsOf(tx: TxCtx, at: At, n: number): Standing[] {
   const played = inPlay(tx, at.scene, at.graph, at.gm, n);
-  return engineCall(tx, at.scene.gameId, rules => standings(rules, played.session, membersOf(at)));
+  return engineCall(tx, at.scene.gameId, rules => standings(rules, played.session, membersOf(at, played.place.world)));
 }
 
 /** Someone's reach and speed, read on a session that isn't kept. */
 function reachFor(tx: TxCtx, at: At, n: number, who: string, weapon?: string): { melee: boolean; feet: number; speed: number } {
   const played = inPlay(tx, at.scene, at.graph, at.gm, n);
-  const m: FightMember = who === "player" ? "player" : castOf(at, who) ?? "player";
+  const m: FightMember = who === "player" ? "player" : castOf(at, who, played.place.world) ?? "player";
   return engineCall(tx, at.scene.gameId, rules => reachOf(rules, played.session, m, weapon));
 }
 
@@ -330,7 +452,43 @@ function apart(world: SceneWorld, a: string, b: string): number | undefined {
 /** What the player calls someone whose name they haven't heard yet; none once they have. */
 const called = (tx: TxCtx, at: At, id: string): string | undefined => (id === "player" ? undefined : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id]);
 
-const castOf = (at: At, id: string): Character | undefined => at.graph.cast.find(c => c.id === id);
-const membersOf = (at: At): FightMember[] => at.gm.combat!.order.map(f => (f.id === "player" ? "player" : castOf(at, f.id) ?? "player"));
+/**
+ * Someone in the fight as the rules know them: their card, a group's member (the Crakes, with their
+ * own statblock and weapon), or a being in the place's world with no card (a dog), by its stats.
+ */
+function castOf(at: At, id: string, world?: SceneWorld): Character | undefined {
+  const known = fighterOf(at.graph, id);
+  if (known) return known;
+  const e = world?.entities[id];
+  return e && (e.kind === "person" || e.kind === "creature") && !e.player ? bystander(e) : undefined;
+}
+const membersOf = (at: At, world?: SceneWorld): FightMember[] => at.gm.combat!.order.map(f => (f.id === "player" ? "player" : castOf(at, f.id, world) ?? "player"));
+
+/**
+ * Everyone here who could be in a fight: the cast here and their groups' members, then the people
+ * and creatures in the place's world who have no card (Duchess the dog), none gone.
+ */
+function fightersHere(tx: TxCtx, at: At, n: number): Character[] {
+  const world = worldOf(tx, at, n);
+  const here = (id: string) => !world?.entities[id]?.states.includes(AWAY);
+  const known = presentFighters(at.graph, at.gm).filter(c => here(c.id));
+  const others = Object.values(world?.entities ?? {}).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && here(e.id) && !known.some(c => c.id === e.id) && !at.graph.cast.some(c => c.id === e.id));
+  return [...known, ...others.map(bystander)];
+}
+
+/** Whether someone here can pick a side or run: not down, dead or out cold, in the world or by the rules. */
+function able(tx: TxCtx, at: At, n: number, id: string): boolean {
+  const e = worldOf(tx, at, n)?.entities[id];
+  return !e?.states.some(s => OUT_OF_IT.has(s));
+}
+
+/** The world's states of someone who can't take a side: gone from the place, down, dead or out cold. */
+const OUT_OF_IT: ReadonlySet<string> = new Set([AWAY, "down", "dead", "unconscious"]);
+
+/** Who follows the player through the story (the follower rows: Kell, from the first scene's end) and is here. */
+export function companionsHere(tx: TxCtx, at: At): string[] {
+  const here = new Set(presentCast(at.graph, at.gm).map(c => c.id));
+  return [...tx.db.follower.gameId.filter(at.scene.gameId)].map(f => f.castKey).filter(k => here.has(k));
+}
 /** Someone in the fight as the player knows them: by what they call them until they've heard the name (shared/scene/names.ts unnamed). */
-const nameOf = (tx: TxCtx, at: At, id: string) => (id === "player" ? "you" : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id] ?? castOf(at, id)?.name ?? id);
+const nameOf = (tx: TxCtx, at: At, n: number, id: string) => (id === "player" ? "you" : unnamed(at.graph, { transcript: entriesOf(tx, at.scene.id) })[id] ?? castOf(at, id, fighterOf(at.graph, id) ? undefined : worldOf(tx, at, n))?.name ?? id);

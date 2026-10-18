@@ -63,6 +63,21 @@ export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
   return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && !gm.fought?.includes(r.target) && (r.requires ?? []).every(b => reached.has(b)));
 }
 
+/** An event with a fight (docs/combat-gm.md): reaching it rolls for initiative with its line-up. */
+export type FightBeat = Beat & { fight: NonNullable<Beat["fight"]> };
+
+/**
+ * The fights the scene can come to from here: each open route into an event with a fight, and that
+ * event (the Heron's blades out, open once the Master is in). A fight that breaks out while one is
+ * open is that one: the scene goes there, and its line-up fights.
+ */
+export function fightsAhead(scene: Scene, gm: Where): Array<{ route: SceneRoute; beat: FightBeat }> {
+  return openRoutes(scene, gm).flatMap(route => {
+    const beat = scene.beats.find(b => b.id === route.target);
+    return beat?.fight ? [{ route, beat: beat as FightBeat }] : [];
+  });
+}
+
 /**
  * The turn each node the scene has reached was reached on: the turn whose reply the move into it
  * followed (takeRoute's path steps), and the start the opening's, 0. A node reached in a state from

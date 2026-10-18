@@ -12,7 +12,7 @@ import { fakeFetch } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { combatInput, combatMove, fightNote } from "./combat.ts";
 import { CAERWYN, viewAt } from "./fixtures.ts";
-import { fightOf, speak } from "./two-part.ts";
+import { fightOf, routeLine, speak, twoPartNow } from "./two-part.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -134,6 +134,53 @@ test("roll_for_initiative held to who's here: names read as ids, nobody on both 
   assert.deepEqual(fightOf(clerk, view, { foes: ["Cob", "moll"], allies: ["Kell", "cob"], why: "a brawl" }), { foes: ["cob", "moll"], allies: ["kell"], why: "a brawl" });
   assert.equal(fightOf(clerk, view, { foes: ["the moon"], allies: [], why: "" }), undefined);
   assert.equal(fightOf(clerk, view, null), undefined);
+});
+
+test("everyone here with no side yet picks one before the next turn (the user's design: pick a side or flee): pick_sides, one for each of them, a wrong one put right in the loop; words alone send them running", async () => {
+  const pending = [
+    { id: "moll", name: "Moll", called: "the girl in the shawl", about: "A sharp-faced girl on the yard wall." },
+    { id: "porters", name: "the granary porters", about: "Porters in sack aprons.", arriving: "The shouting carries round to the loading dock." },
+  ];
+  const view = fight("cob", { pending });
+  const note = fightNote(yard(), view);
+  assert.match(note, /## Before the next turn: who's on which side\nThese people are here and have no side in the fight yet\. Call pick_sides with one for each: with_player, against_player or flee/);
+  assert.match(note, /\n- the girl in the shawl \(Moll: the player hasn't heard the name\) \[moll\]\. A sharp-faced girl on the yard wall\./);
+  assert.match(note, /\n- the granary porters \[porters\], just arrived: The shouting carries round to the loading dock\. Porters in sack aprons\./);
+  assert.doesNotMatch(note, /It's Cob's turn/, "nobody's turn until they've picked");
+  const calls = scripted([
+    ["pick_sides", { sides: [{ id: "moll", side: "against_player" }], narration: "Moll drops off the wall." }],
+    ["pick_sides", { sides: [{ id: "moll", side: "against_player" }, { id: "porters", side: "maybe" }], narration: "Moll drops off the wall." }],
+    ["pick_sides", { sides: [{ id: "moll", side: "against_player" }, { id: "porters", side: "flee" }], narration: "Moll drops off the wall; the porters think better of it." }],
+  ]);
+  const out = await combatMove(clerk, yard(), view, { calls, byKey });
+  assert.deepEqual(out.move, { kind: "sides", sides: { moll: "against_player", porters: "flee" }, narration: "Moll drops off the wall; the porters think better of it." });
+  const corrections = JSON.stringify(calls.inputs.at(-1));
+  assert.match(corrections, /pick_sides needs one for each: porters has none/);
+  assert.match(corrections, /Each side is one of with_player, against_player, flee \(porters\)/);
+  const words = await combatMove(clerk, yard(), view, { calls: scripted([]), byKey });
+  assert.deepEqual(words.move, { kind: "sides", sides: { moll: "flee", porters: "flee" }, narration: "They hold their ground." }, "picked by nobody, they run");
+  const f = fakeFetch({ sides: { moll: "with_player" } });
+  const faked = await combatMove(clerk, yard(), view, { calls: { fetch: f.fetch, apiKey: "fake" }, byKey });
+  assert.deepEqual(faked.move.kind === "sides" && faked.move.sides, { moll: "with_player", porters: "flee" }, "the fake picks its options', else they run");
+});
+
+test("roll_for_initiative's sides: a group's members and the world's people and creatures with no card are in it by id or name, and whoever runs is on neither side", () => {
+  const heron = effectiveScene(loadScene(readFileSync(join(CAERWYN, "scenes", "heron-warehouse.kmscene"), "utf8")), []);
+  const view = viewAt(heron, "midnight", { turn: 9, reached: ["wharf", "midnight"] });
+  view.world!.entities.duchess = { id: "duchess", name: "Duchess", kind: "creature", parent: view.world!.root, tags: [], states: ["asleep"], notes: [] };
+  assert.deepEqual(fightOf(heron, view, { foes: ["sallow", "the first Crake", "crake-2", "Duchess"], allies: ["Kell"], flee: ["the lantern-boy", "scrope", "sallow"], why: "blades out" }),
+    { foes: ["sallow", "crake-1", "crake-2", "duchess"], allies: ["kell"], flee: ["lantern-boy", "scrope"], why: "blades out" }, "Sallow can't be both");
+  assert.deepEqual(fightOf(heron, view, { foes: [], allies: [], flee: [], why: "blades out" }), { foes: [], allies: [], why: "blades out" }, "the prep's fight on offer has its own line-up: none named is still a fight");
+  const before = viewAt(heron, "wharf", { turn: 2 });
+  assert.equal(fightOf(heron, before, { foes: [], allies: [], why: "a scuffle" }), undefined, "with no fight of the prep's on offer, a fight needs a foe");
+});
+
+test("a route into a fight says who fights in it, for the mouthpiece and the co-GM (the Heron's blades out)", () => {
+  const heron = effectiveScene(loadScene(readFileSync(join(CAERWYN, "scenes", "heron-warehouse.kmscene"), "utf8")), []);
+  const cornered = heron.routes.find(r => r.id === "cornered")!;
+  assert.match(routeLine(heron, cornered), /It's a fight \(roll for initiative\): Master Josiah Sallow \[sallow\], the first Crake \[crake-1\], the second Crake \[crake-2\] against the player, Sergeant Agnes Kell \[kell\] beside them\./);
+  const now = twoPartNow(heron, viewAt(heron, "midnight", { turn: 9, reached: ["wharf", "midnight"] }), []);
+  assert.match(now, /- \[attack\] from The Master comes \[midnight\] to Blades out \[fight\]\. When: .*It's a fight \(roll for initiative\): Master Josiah Sallow/);
 });
 
 test("the fake mouthpiece rolls for initiative on its cue: the reply has the fight, and no check", async () => {

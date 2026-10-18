@@ -5,9 +5,9 @@ import type { GmState, TwoPartRole } from "../../shared/gm/state.ts";
 import { BANDS, type Band } from "../../shared/gm/two-part.ts";
 import type { Markup } from "../../shared/markup.ts";
 import type { CoGmAnswer, Initiative, Reply, SpokenCheck, TurnAct, TurnCheck } from "../../shared/protocol/ai.ts";
-import { endingNeeds, enteringAt, isDiscovery, isEvent, limitOf, openRoutes, owedLeads, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
+import { endingNeeds, enteringAt, fightsAhead, isDiscovery, isEvent, limitOf, openRoutes, owedLeads, reachedOf, reachedTurns, stageOf, takeRoute, targetsOf, type RouteOutcome } from "../../shared/scene/beats.ts";
 import type { Path } from "../../shared/scene/document.ts";
-import { presentCast } from "../../shared/scene/graph.ts";
+import { fighterOf, presentCast, presentFighters } from "../../shared/scene/graph.ts";
 import { heardIn, namedIn } from "../../shared/scene/names.ts";
 import { SKILLS, type Beat, type Character, type Exit, type Scene, type SceneRoute, type Skill } from "../../shared/scene/types.ts";
 import { areaOf, worldView } from "../../shared/world/scene-world.ts";
@@ -153,7 +153,7 @@ const SCHEMA = {
   properties: {
     check: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["skill", "dc"], properties: { skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" } } }] },
     // docs/combat-gm.md: a fight breaking out at the end of this reply, decided before a word of it.
-    roll_for_initiative: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["foes", "allies", "why", "on"], properties: { foes: { type: "array", items: { type: "string" } }, allies: { type: "array", items: { type: "string" } }, why: { type: "string" }, on: { type: "array", items: { type: "string", enum: [...BANDS] } } } }] },
+    roll_for_initiative: { anyOf: [{ type: "null" }, { type: "object", additionalProperties: false, required: ["foes", "allies", "flee", "why", "on"], properties: { foes: { type: "array", items: { type: "string" } }, allies: { type: "array", items: { type: "string" } }, flee: { type: "array", items: { type: "string" } }, why: { type: "string" }, on: { type: "array", items: { type: "string", enum: [...BANDS] } } } }] },
     narration: { type: "string" },
     outcomes: { anyOf: [{ type: "null" }, OUTCOMES] },
   },
@@ -197,12 +197,17 @@ export function routeLine(scene: Scene, r: SceneRoute, options: { revelation?: b
   const discovery = !!target && isDiscovery(target);
   const when = r.condition.trim() || (discovery ? (options.revelation && target.revelation ? `the player has its heart, by one of its paths (${target.revelation}): ${HEART_BY}` : "its revelation has landed with the player") : r.label);
   const exit = options.ending ? scene.exits.find(e => e.id === r.target) : undefined;
+  const fight = target?.fight;
   const more = [
+    ...(fight ? [`It's a fight (roll for initiative): ${fighterNames(scene, fight.foes)} against the player${fight.allies?.length ? `, ${fighterNames(scene, fight.allies)} beside them` : ""}.`] : []),
     ...(options.now ? [limitLine(scene, r, options.now)].filter(Boolean) : []),
     ...(exit ? [`It's ${exit.result === "good" ? "a good" : exit.result === "bad" ? "a bad" : "a mixed"} ending. What's true there: ${exit.outcome}`] : []),
   ];
   return `- [${r.id}] from ${named(scene, r.source)} to ${named(scene, r.target)}${needs}${how}. When: ${more.length ? `${sentence(when)} ${more.join(" ")}` : when}`;
 }
+
+/** Fighters as the prep names them: by name and id (a card's, or a group's member's). */
+const fighterNames = (scene: Scene, ids: string[]) => ids.map(id => { const c = fighterOf(scene, id); return c ? `${c.name} [${id}]` : `[${id}]`; }).join(", ");
 
 /**
  * What has a discovery reached, for the co-GM (QA round qa3-1018, g08: the player saw the cut page
@@ -249,8 +254,11 @@ const endingAt = (scene: Scene, r: SceneRoute) => scene.exits.find(e => e.id ===
 /** A cue into a bad ending: the time running out on the player (the Heron's second bell, the barge sailing). An ending with no result counts as mixed, as routeLine says it. */
 export const intoBad = (scene: Scene, r: SceneRoute) => r.phase === "cue" && endingAt(scene, r)?.result === "bad";
 
-/** The open routes into a good or mixed ending: what a cue into a bad ending waits on. */
-export const intoBetter = (scene: Scene, open: SceneRoute[]) => open.filter(r => { const e = endingAt(scene, r); return !!e && e.result !== "bad"; });
+/** The open routes into a good or mixed ending, or into a fight (the Heron's blades out: the climax under way): what a cue into a bad ending waits on. */
+export const intoBetter = (scene: Scene, open: SceneRoute[]) => open.filter(r => { const e = endingAt(scene, r); return (!!e && e.result !== "bad") || !!fightAt(scene, r); });
+
+/** A route's event with a fight, if it goes to one. */
+const fightAt = (scene: Scene, r: SceneRoute) => scene.beats.find(b => b.id === r.target && b.fight);
 
 /** The routes into a node, as the prep lists them under it. */
 const routesInto = (scene: Scene, id: string) => scene.routes.filter(r => r.target === id).map(r => routeLine(scene, r));
@@ -316,6 +324,7 @@ function eventsOf(scene: Scene, options: { coGm?: boolean }): string {
         `### ${b.title} [${b.id}]`, b.direction,
         ...(b.pressure ? [`If it stalls here: ${b.pressure}`] : []),
         ...(arriving.length ? [`Who arrives: ${arriving.map(c => `${c.name} [${c.id}]`).join(", ")}`] : []),
+        ...(b.fight ? [`A fight: reaching it rolls for initiative, ${fighterNames(scene, b.fight.foes)} against the player${b.fight.allies?.length ? `, ${fighterNames(scene, b.fight.allies)} beside them` : ""}; everyone else here picks a side or runs.`] : []),
         ...(options.coGm ? suggested(scene, b.cast) : []),
         `Routes into it:\n${routesInto(scene, b.id).join("\n")}`,
       ].join("\n");
@@ -446,7 +455,7 @@ function waitingEndings(scene: Scene, view: TurnView, who: Character[]): Array<{
  * scene from the conversation's turns to everyone's in initiative order, each narrated by the GM.
  */
 const FIGHT_START = `## When a fight breaks out
-- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in: \`foes\`, the ids (or names) of the people who'll fight the player; \`allies\`, those who'll fight beside them (whoever came with the player, unless their card says they wouldn't: standing between the two sides is fighting on the player's side); \`why\`, a few words on what it's about; \`on\`, empty, unless you've called a check whose outcomes decide whether it comes to blows: then the outcomes that start the fight (a bluff that fails badly: ["major_failure"]), each of which ends on "Roll for initiative!" while the others don't. The player is always in it.
+- \`roll_for_initiative\` comes after \`check\`, before the narration: null unless a fight starts in this reply. A fight is when someone means to hurt someone and blows are about to be traded with nobody backing off: they attack and won't be talked down, or the player attacks someone who fights back. Then fill it in, putting everyone here (the cast here and everyone in the world right now, people and creatures, by their ids) in exactly one of three, each as who they are would: \`foes\`, the ids (or names) of those who'll fight the player; \`allies\`, those who'll fight beside them (whoever came with the player, unless their card says they wouldn't: standing between the two sides is fighting on the player's side); \`flee\`, those who run from it (the timid, the frightened, whoever has no stake in it: they're gone from the scene); \`why\`, a few words on what it's about; \`on\`, empty, unless you've called a check whose outcomes decide whether it comes to blows: then the outcomes that start the fight (a bluff that fails badly: ["major_failure"]), each of which ends on "Roll for initiative!" while the others don't. The player is always in it. Where a route on offer goes to a fight, it says who fights in it: when what it describes happens, that's the fight, with them on those sides.
 - Your narration (or those outcomes) takes the fight up to its first blow and stops there, ending on "Roll for initiative!". From then on the game goes round everyone in initiative order, and you narrate each turn as it comes, with the dice deciding what lands. If the player's own blow starts it and no dice line has settled that blow, stop at the swing: whether it lands is the fight's to decide.
 - Not for a shove, a slap or a scuffle that's over as soon as it starts, nor a threat that can still be talked down: those are the conversation's, with a check if it could go either way.`;
 
@@ -731,7 +740,7 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
   const initiative = dice ? fightOf(scene, view, out.roll_for_initiative) : undefined;
   // A fight only some of a check's outcomes start keeps the check (its `on`); one that starts whatever comes up has none.
   const keepCheck = check && (!initiative || !!initiative.on?.length);
-  return { narration: said(narration.text), ...(keepCheck ? { check } : {}), ...(initiative ? { initiative: keepCheck ? initiative : { foes: initiative.foes, allies: initiative.allies, why: initiative.why } } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
+  return { narration: said(narration.text), ...(keepCheck ? { check } : {}), ...(initiative ? { initiative: keepCheck ? initiative : { foes: initiative.foes, allies: initiative.allies, ...(initiative.flee ? { flee: initiative.flee } : {}), why: initiative.why } } : {}), closes: out.closes !== false, costUsd: result.costUsd, firstTextMs: result.firstTextMs };
 }
 
 /**
@@ -741,17 +750,22 @@ export async function speak(scene: Scene, view: TurnView, directive: string[], h
  */
 export function fightOf(scene: Scene, view: TurnView, asked: Initiative | null | undefined): Initiative | undefined {
   if (!asked) return undefined;
-  const present = presentCast(scene, view);
+  // Everyone here: the cast, their groups' members, and the people and creatures in the world with no card (the gang, a dog).
+  const cast = presentFighters(scene, view);
+  const beings = Object.values(view.world?.entities ?? {}).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.some(c => c.id === e.id));
+  const present = [...cast.map(c => ({ id: c.id, names: [c.name, c.called ?? ""] })), ...beings.map(e => ({ id: e.id, names: [e.name] }))];
   const idOf = (said: string) => {
     const s = said.trim().toLowerCase();
-    return present.find(c => c.id.toLowerCase() === s || c.name.toLowerCase() === s || (c.called ?? "").toLowerCase() === s || c.name.toLowerCase().split(/\s+/).includes(s))?.id;
+    return present.find(c => c.id.toLowerCase() === s || c.names.some(n => n && (n.toLowerCase() === s || n.toLowerCase().split(/\s+/).includes(s))))?.id;
   };
   const ids = (list: unknown) => [...new Set((Array.isArray(list) ? list : []).map(x => idOf(String(x))).filter((x): x is string => !!x))];
   const foes = ids(asked.foes);
-  // The companion fights beside the player unless the GM sets them against them.
-  const allies = [...new Set([...ids(asked.allies), ...companionsOf(scene, view).map(c => c.id)])].filter(id => !foes.includes(id));
+  const flee = ids(asked.flee).filter(id => !foes.includes(id));
+  // The companion fights beside the player unless the GM sets them against them, or has them run.
+  const allies = [...new Set([...ids(asked.allies), ...companionsOf(scene, view).map(c => c.id).filter(id => !flee.includes(id))])].filter(id => !foes.includes(id));
   const on = (Array.isArray(asked.on) ? asked.on : []).filter((b): b is Band => BANDS.includes(b as Band));
-  return foes.length ? { foes, allies, why: String(asked.why ?? "").trim(), ...(on.length ? { on } : {}) } : undefined;
+  // A fight of the prep on offer has its own line-up (the simulation adds it): the reply needn't name a foe.
+  return foes.length || fightsAhead(scene, view).length ? { foes, allies, ...(flee.length ? { flee } : {}), why: String(asked.why ?? "").trim(), ...(on.length ? { on } : {}) } : undefined;
 }
 
 /**
@@ -1291,8 +1305,8 @@ export function movedText(scene: Scene, gm: GmState, reached: string | undefined
  * barge and closed the Heron on its bad ending.
  */
 export function heldText(scene: Scene, cue: SceneRoute, better: SceneRoute[]): string {
-  const title = (r: SceneRoute) => endingAt(scene, r)?.title ?? r.target;
-  const how = (r: SceneRoute) => (endingAt(scene, r)?.result === "good" ? "good" : "mixed");
+  const title = (r: SceneRoute) => endingAt(scene, r)?.title ?? fightAt(scene, r)?.title ?? r.target;
+  const how = (r: SceneRoute) => (fightAt(scene, r) ? "a fight" : endingAt(scene, r)?.result === "good" ? "good" : "mixed");
   return [
     `Not taken yet: [${cue.id}] ends the scene badly (${title(cue)}), and a cue into a bad ending waits on the good and mixed endings. Read these open routes against the story first:`,
     ...better.map(r => `- [${r.id}] to ${title(r)} (${how(r)}): ${r.condition.trim() || r.label}`),

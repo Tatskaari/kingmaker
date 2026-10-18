@@ -33,9 +33,10 @@ export const CREATION_STEPS: readonly CreationStep[] = ["offer", "pick", "own", 
  * turn, the second on keyed `suggest-<k>`. A scene's boundary is keyed by its last turn: a scene
  * ends once (story-design §4.2). A fight's steps in a turn (docs/combat-gm.md: every tool call the
  * GM makes on everyone's turns until it's the player's again) are counted: `combat-<k>`, the k-th.
+ * A turn whose settle started a fight that ended on the same turn settles again after it: `settle-2`.
  */
 export const idempotencyKey = (game: string, scene: bigint | string, turn: number, step: Step, ask = 1) =>
-  `${game}:s${scene}:t${turn}:${step}${(step === "suggest" && ask > 1) || step === "combat" ? `-${ask}` : ""}`;
+  `${game}:s${scene}:t${turn}:${step}${((step === "suggest" || step === "settle") && ask > 1) || step === "combat" ? `-${ask}` : ""}`;
 
 /**
  * A creation step's key: `<creation uid>:c<rev>:<step>`. The creation's rev is the row's when the
@@ -59,6 +60,8 @@ export interface CreationKeyParts { game: string; rev: number; step: CreationSte
 export function keyParts(key: string): TurnKeyParts | CreationKeyParts | undefined {
   const fight = /^(.+):s(\d+):t(\d+):combat-([1-9]\d*)$/.exec(key);
   if (fight) return { game: fight[1]!, scene: fight[2]!, turn: Number(fight[3]), step: "combat", ask: Number(fight[4]) };
+  const settle = /^(.+):s(\d+):t(\d+):settle-([2-9]|[1-9]\d+)$/.exec(key);
+  if (settle) return { game: settle[1]!, scene: settle[2]!, turn: Number(settle[3]), step: "settle", ask: Number(settle[4]) };
   const turn = /^(.+):s(\d+):t(\d+):(?:(open|act|reactions|reply|settle|remember|boundary|look)|suggest(?:-([1-9]\d*))?)$/.exec(key);
   if (turn) {
     if (turn[5] === "1") return undefined;

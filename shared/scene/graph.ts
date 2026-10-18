@@ -106,6 +106,28 @@ export function presentCast(scene: Scene, state: Pick<GmState, "beat" | "path" |
 }
 
 /**
+ * A group's member as someone who can fight (docs/combat-gm.md): their own statblock and weapon
+ * (their leader's group's), their look; they speak through their leader, so they have no card.
+ */
+export function memberAsCharacter(leader: Character, m: NonNullable<Character["members"]>[number]): Character {
+  return { id: m.id, name: m.name, look: m.look ?? "", voice: "", wants: "", knows: [], attitude: `One of ${leader.name}'s: ${leader.group ?? "with them"}.`, ...(m.statblock ? { statblock: m.statblock } : {}), ...(m.weapon ? { weapon: m.weapon } : {}) };
+}
+
+/** Everyone here who could be in a fight: the present cast, and the members of a group whose leader is here (none gone). */
+export function presentFighters(scene: Scene, state: Pick<GmState, "beat" | "path" | "entered" | "absent"> & Partial<Pick<GmState, "reached">>): Character[] {
+  const cast = presentCast(scene, state);
+  return [...cast, ...cast.flatMap(c => (c.members ?? []).filter(m => !state.absent?.includes(m.id)).map(m => memberAsCharacter(c, m)))];
+}
+
+/** Someone the scene knows who could fight: a card, or a group's member. */
+export function fighterOf(scene: Scene, id: string): Character | undefined {
+  const card = scene.cast.find(c => c.id === id);
+  if (card) return card;
+  for (const c of scene.cast) { const m = c.members?.find(x => x.id === id); if (m) return memberAsCharacter(c, m); }
+  return undefined;
+}
+
+/**
  * Routes already achieved in this visit to the current beat: they looped back here having done
  * their work (a check won, a thing done). Offering them again invites a second roll for something
  * already settled, and a failure that takes back what was said. Failed checks stay open.

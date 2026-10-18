@@ -12,8 +12,18 @@ export interface Fighter { id: string; side: Side; initiative: number; out?: "fl
 /**
  * A fight in progress (gm_state's combat): the turn it broke out on, the round, everyone in
  * initiative order, whose turn it is (an index into the order), and what it's about.
+ * - `pending`: who's here and has no side yet (those the reply left out as it broke out, then
+ *   whoever arrives): before the next turn the GM picks each one's side, or has them run (pick_sides).
+ * - `fled`: who ran from it as they picked (gone from the scene).
+ * - `arrived`: the scene's reinforcements who have come in this fight (or were here as it broke out).
+ * - `from`: "settle" when it broke out in the settle (the co-GM's move into an event with a fight),
+ *   so its end's settle on the same turn is the turn's second.
  */
-export interface CombatState { started: number; round: number; order: Fighter[]; at: number; why: string }
+export interface CombatState { started: number; round: number; order: Fighter[]; at: number; why: string; pending?: string[]; fled?: string[]; arrived?: string[]; from?: "settle" }
+
+/** A side to pick (pick_sides): with the player, against them, or running from the fight. */
+export type SidePick = "with_player" | "against_player" | "flee";
+export const SIDE_PICKS: readonly SidePick[] = ["with_player", "against_player", "flee"];
 
 /** How a fight ended: the player's side won, lost, the other side gave up, the player got away, or both sides stopped. */
 export type CombatOutcome = "won" | "lost" | "yielded" | "fled" | "stopped";
@@ -58,6 +68,8 @@ export function overOf(state: CombatState, down: ReadonlySet<string>): { outcome
   const player = state.order.find(f => f.id === "player");
   if (player && (down.has("player") || player.out)) return { outcome: player.out === "fled" ? "fled" : "lost", why: player.out === "fled" ? "the player got away" : "the player is down" };
   const foes = state.order.filter(f => f.side === "foes");
+  // Nobody against the player, and nobody left to pick a side: there's no fight to have.
+  if (!foes.length && !state.pending?.length) return { outcome: "stopped", why: "nobody here is against the player" };
   if (foes.length && foes.every(f => f.out || down.has(f.id))) {
     const yielded = foes.some(f => f.out === "yielded") && foes.every(f => f.out === "yielded" || f.out === "fled" || down.has(f.id));
     return { outcome: yielded && !foes.some(f => down.has(f.id)) ? "yielded" : "won", why: "nobody on the other side can fight on" };

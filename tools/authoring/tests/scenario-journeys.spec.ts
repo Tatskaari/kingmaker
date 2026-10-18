@@ -38,7 +38,7 @@ test('the scenario opens as the story\'s flow, drawn from the files that own it,
   const before=await files(page);
   await openScenario(page);
   await expect(page.locator('.scenario-card')).toHaveCount(11);
-  await expect(page.locator('.react-flow__edge')).toHaveCount(31);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(30);
   await expect(page.getByRole('tab',{name:'Problems (0)'})).toBeVisible();
   // Each ending a port of its scene, each region that plays a scene and each way out a port of its map.
   await expect(card(page,'scene:drowned-rat').locator('.scenario-port')).toHaveCount(6);
@@ -59,7 +59,7 @@ test('the scenario\'s wiring edited in its owning file: an ending\'s next in its
   const scene=await saved(page,'scenes/hanged-clerk.kmscene');
   expect(Object.keys(node(scene,'failed').data)).toEqual(['kind','title','description','closing','result','exitKind','next','effects','lore'].filter(k=>k in node(scene,'failed').data));
   expect({...scene,nodes:scene.nodes.map((n:any)=>n.id==='failed'?{...n,data:{...n.data,next:undefined}}:n)}).toEqual({...clerk,nodes:clerk.nodes.map((n:any)=>n.id==='failed'?{...n,data:{...n.data,next:undefined}}:n)});
-  await expect(page.locator('.react-flow__edge')).toHaveCount(32);
+  await expect(page.locator('.react-flow__edge')).toHaveCount(31);
   // Drawn: the same ending dragged on to the wharves after dark instead.
   const from=card(page,'scene:hanged-clerk').locator('[data-port="ending:failed"] .react-flow__handle');
   const to=card(page,'scene:wharf-night').locator('.react-flow__handle.target');

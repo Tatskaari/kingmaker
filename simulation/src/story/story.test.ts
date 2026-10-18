@@ -4,7 +4,7 @@ import type { BoundaryRequest, OpenRequest } from "../../../shared/protocol/ai.t
 import { installArgsOf } from "../../../shared/scene/files.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import type { MemoryHost } from "../host/memory.ts";
-import { all, caerwynPack, crossedTo, hostWithCampaign, http, identity, openedGame, sceneNow } from "../host/testing.ts";
+import { all, caerwynPack, crossedTo, hostWithCampaign, http, identity, openedGame, sceneNow, type PackOptions } from "../host/testing.ts";
 import { FIGHT_NOT_PLAYED, FIGHT_SUMMARY } from "./words.ts";
 
 /**
@@ -20,8 +20,8 @@ const HANGED_CLERK = caerwynPack().scenes.find(s => s.id === "hanged-clerk")!;
 const fact = (id: string) => HANGED_CLERK.facts![id]!;
 
 /** A new game in the yard, its opening in; `end` ends the scene being played through an exit, as the owner. */
-async function game(seed = 7) {
-  const opened = await openedGame(seed);
+async function game(seed = 7, options: PackOptions = {}) {
+  const opened = await openedGame(seed, "ranger", options);
   const { host } = opened;
   const gameId = opened.scene.gameId;
   return {
@@ -446,8 +446,22 @@ test("a thorough end (the GM loop's, for a scene it skips) takes what each disco
 // ---------------------------------------------------------------------------------------------
 // On through the arc: the Heron's fight, the King's summons, The End.
 
+/**
+ * A scene with a combat exit (no story scene has one now: the Heron's fight is played in the
+ * conversation, docs/combat-gm.md), for the stand-in: the Heron with a brawl that ends it in a fight.
+ */
+const WITH_A_BRAWL: PackOptions = {
+  edit: {
+    "heron-warehouse": doc => ({
+      ...doc,
+      nodes: [...doc.nodes, { id: "brawl", type: "story", position: { x: 0, y: 0 }, data: { kind: "exit", title: "Roll for initiative", description: "A brawl on the floor.", closing: "End with 'Roll for initiative!'", result: "mixed", exitKind: "combat", next: "kings-morning", lore: [] } }],
+      edges: [...doc.edges, { id: "brawl", source: "midnight", target: "brawl", type: "smoothstep", label: "A brawl", data: { condition: "A brawl breaks out.", phase: "outcome", skill: "", dc: 12 } }],
+    }),
+  },
+};
+
 test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending crosses to the King's morning, which opens at once; the King's ending is The End", async () => {
-  const { host, script, wren, player, gameId, end, gameRow, sceneOf } = await game();
+  const { host, script, wren, player, gameId, end, gameRow, sceneOf } = await game(7, WITH_A_BRAWL);
   const go = async () => { assert.equal(host.as(wren).walk({ toward: "lead" }), undefined); await host.drain(); };
 
   end("open-case");
@@ -462,7 +476,7 @@ test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending
 
   const heron = sceneOf("heron-warehouse")!;
   assert.equal(heron.status, "live");
-  assert.equal(host.as(host.owner).endScene({ game: gameId, exit: "fight" }), undefined);
+  assert.equal(host.as(host.owner).endScene({ game: gameId, exit: "brawl" }), undefined);
   assert.equal(sceneOf("heron-warehouse")!.status, "fighting");
   assert.ok(!host.db.chapter.sceneId.find(heron.id), "no chapter");
   assert.equal(host.as(identity(9)).fightItOut()?.code, "not_in_game");
@@ -471,7 +485,7 @@ test("the Heron's fight goes fighting, fight_it_out picks it up, its next ending
   let now = sceneNow(host, heron.id);
   assert.deepEqual([now.scene.status, now.scene.exitKey, now.scene.turns], ["live", undefined, now.turns.at(-1)!.n]);
   assert.deepEqual(now.lines.slice(-2).map(l => [l.text, l.kind]), [["Scene ends: Roll for initiative", "system"], [`The fight: ${FIGHT_SUMMARY}`, "system"]], "how it went, said once (QA round qa3-1018's g04 read it twice)");
-  assert.deepEqual([now.gm.fought, now.gm.ended, now.gm.established.at(-1)], [["fight"], undefined, `The fight is over: ${FIGHT_SUMMARY}`]);
+  assert.deepEqual([now.gm.fought, now.gm.ended, now.gm.established.at(-1)], [["brawl"], undefined, `The fight is over: ${FIGHT_SUMMARY}`]);
   assert.equal(byGame(host.db.journal, gameId).at(-1)!.text, FIGHT_NOT_PLAYED);
   assert.deepEqual([now.turns.at(-1)!.phase, now.scene.turnId], ["replying", now.turns.at(-1)!.id]);
   assert.equal(host.as(wren).say({ text: "Who's hurt?" })?.code, "turn_in_flight");

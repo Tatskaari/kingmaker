@@ -48,7 +48,7 @@ export const TABLES: { [T in TableName]: TableMeta<T> } = {
   diceSeed: { primaryKey: "id" },
 
   scene: { primaryKey: "id", autoInc: true, indexes: ["gameId"], public: true },
-  gmState: { primaryKey: "sceneId", defaults: { patches: "[]", absent: [], adjustments: [], owed: [], fought: [], reached: [], combat: "" } },
+  gmState: { primaryKey: "sceneId", defaults: { patches: "[]", absent: [], adjustments: [], owed: [], fought: [], reached: [], combat: "", entered: [] } },
   onStage: { primaryKey: "entityId", indexes: ["sceneId"], public: true },
   turn: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true, defaults: { notes: "none", suggest: "none", suggestAsks: 0 } },
   transcript: { primaryKey: "id", autoInc: true, indexes: ["sceneId"], public: true },

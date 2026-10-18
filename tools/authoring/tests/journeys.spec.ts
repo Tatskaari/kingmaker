@@ -247,6 +247,49 @@ test('an event: add an arrival, a role and a pressure, and remove them',async({p
   await page.screenshot({path:'dist/screenshots/scene-event.png'});
 });
 
+test('a fight: an event\'s, who\'s against the player and who\'s beside them, added and taken out; and who comes when a fight breaks out, in the Scene view',async({page})=>{
+  await select(page,'cart-arrives');
+  const body=inspector(page);
+  // An event's fight: an optional part, with someone against the player (a problem until there is) and someone beside them.
+  await body.getByRole('button',{name:'Add a fight'}).click();
+  await expect.poll(async()=>node(await saved(page),'cart-arrives').data.fight).toEqual({foes:[]});
+  await problems(page,1);
+  await pick(body.locator('[data-field="fight.foes"]'),'Add a foe',/^Corporal Abner Tull \(tull\)/);
+  await expect.poll(async()=>node(await saved(page),'cart-arrives').data.fight).toEqual({foes:['tull']});
+  await problems(page,0);
+  await pick(body.locator('[data-field="fight.allies"]'),'Add an ally',/^Sergeant Agnes Kell \(kell\)/);
+  await expect.poll(async()=>node(await saved(page),'cart-arrives').data.fight).toEqual({foes:['tull'],allies:['kell']});
+  const keys=Object.keys(node(await saved(page),'cart-arrives').data);
+  expect(keys.indexOf('fight')).toBe(keys.indexOf('pressure')+1);
+  // Who's on a side isn't offered for the other.
+  await body.locator('[data-field="fight.foes"]').getByRole('button',{name:'Add a foe',exact:true}).click();
+  await expect(body.locator('[data-field="fight.foes"] .add-picker').getByRole('button',{name:/^Sergeant Agnes Kell/})).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await body.locator('[data-field="fight.allies"]').getByRole('button',{name:'Remove Sergeant Agnes Kell'}).click();
+  await expect.poll(async()=>node(await saved(page),'cart-arrives').data.fight).toEqual({foes:['tull']});
+  await body.getByRole('button',{name:'Remove fight'}).click();
+  await expect.poll(async()=>'fight' in node(await saved(page),'cart-arrives').data).toBe(false);
+  expect(node(await saved(page),'cart-arrives').data).toEqual(node(clerk(),'cart-arrives').data);
+  // Who comes when a fight breaks out: a card each, one of the cast or someone new, after their rounds and why.
+  await view(page,'Scene').click();
+  const comes=page.locator('.scene-view').getByRole('region',{name:'The world'}).locator('[data-field="reinforcements"]');
+  await expect(comes.getByRole('article')).toHaveCount(clerk().reinforcements.length);
+  await expect(comes.getByRole('article',{name:'Who comes 1'}).getByLabel('Name',{exact:true})).toHaveValue('the granary porters');
+  await comes.getByRole('button',{name:'Add who comes'}).click();
+  await expect.poll(async()=>(await saved(page)).reinforcements.at(-1)).toEqual({id:'newcomer',name:'',statblock:'commoner',after:2,why:''});
+  const added=comes.getByRole('article',{name:`Who comes ${clerk().reinforcements.length+1}`});
+  await added.getByLabel('Name',{exact:true}).fill('a carter with a whip');
+  await added.getByLabel('Statblock',{exact:true}).fill('tough');
+  await added.getByLabel('After rounds',{exact:true}).fill('3');
+  await added.getByLabel('Why they come',{exact:true}).fill('He hears it from the lane.');
+  await expect.poll(async()=>(await saved(page)).reinforcements.at(-1)).toEqual({id:'newcomer',name:'a carter with a whip',statblock:'tough',after:3,why:'He hears it from the lane.'});
+  await added.getByLabel('Who',{exact:true}).selectOption('tull');
+  await expect.poll(async()=>(await saved(page)).reinforcements.at(-1)).toEqual({id:'tull',after:3,why:'He hears it from the lane.'});
+  await problems(page,0);
+  await comes.getByRole('button',{name:`Remove ${clerk().reinforcements.length+1}`}).click();
+  await expect.poll(async()=>(await saved(page)).reinforcements).toEqual(clerk().reinforcements);
+});
+
 test('the porters\' noon break, its cue and Old Wat, as the others are: an event with its arrival, roles and pressure, a cue whose outer limit counts from the cart until the lead, and a person renamed everywhere',async({page})=>{
   // On the graph: an event card, clear of the others, saying who arrives; its cue a connection from the cart.
   await settled(card(page,'porters-break'));
@@ -396,7 +439,7 @@ test('the Scene view: the scene\'s own fields, grouped, each edited where it is'
   expect(after.known).toEqual(['The noon bell is the Assembly bell.']);
   expect(after.milestone).toBe(true);
   // Keys new to the file go where the format puts them.
-  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','fronts','nodes','edges']);
+  expect(Object.keys(after)).toEqual(['format','version','kind','id','title','description','lore','time','place','milestone','hook','setting','premise','truth','clock','limits','known','cast','facts','onStart','onEnd','afterwards','reinforcements','fronts','nodes','edges']);
   await page.screenshot({path:'dist/screenshots/scene-view.png'});
   // The effects as it starts are forms, as the endings' are: the clerk starts its quest with the King's request.
   const story=scene.getByRole('region',{name:'The story'});

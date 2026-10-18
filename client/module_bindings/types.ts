@@ -385,6 +385,7 @@ export const GmState = __t.object("GmState", {
     return __t.option(TwoPart);
   },
   combat: __t.string(),
+  entered: __t.array(__t.string()),
 });
 export type GmState = __Infer<typeof GmState>;
 

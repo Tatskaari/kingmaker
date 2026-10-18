@@ -93,7 +93,7 @@ test("endings: graded by their result; ended for QA on the first good or mixed, 
 
   assert.deepEqual(skipOrder(endingsOf(sceneOf(campaign, "hanged-clerk"))).map(e => e.id), ["murder-unknown", "suspicious", "failed"]);
   assert.deepEqual(skipOrder(endingsOf(sceneOf(campaign, "drowned-rat"))).map(e => e.id)[0], "hobb-talks");
-  assert.deepEqual(skipOrder(endingsOf(sceneOf(campaign, "heron-warehouse"))).map(e => e.id), ["proof-taken", "caught-in-the-act", "caught", "barge-sails", "up-in-smoke", "fight"], "the fight, a mixed ending, last");
+  assert.deepEqual(skipOrder(endingsOf(sceneOf(campaign, "heron-warehouse"))).map(e => e.id), ["proof-taken", "caught-in-the-act", "caught", "barge-sails", "up-in-smoke"], "the fight is an event now, played in the conversation: no ending of its own");
   const mixedFirst = skipOrder([{ id: "a", title: "A", grade: "bad" }, { id: "b", title: "B", grade: "good", kind: "combat" }, { id: "c", title: "C", grade: "mixed" }, { id: "d", title: "D", grade: "good" }]);
   assert.deepEqual(mixedFirst.map(e => e.id), ["c", "d", "a", "b"], "the first good or mixed in the scene's order, not the best");
 });

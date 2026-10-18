@@ -68,11 +68,33 @@ export interface SceneDocument {
   afterwards?: WorldOpData[];
   /** The GM-only fronts doc for this scene's world. */
   fronts?: string;
+  /** Who comes when a fight breaks out here (the watch to a brawl in the yard), each after so many rounds: docs/combat-gm.md. */
+  reinforcements?: Reinforcement[];
   /** A talk's: the companion's cast id (only in the talk template). */
   companion?: string;
 
   nodes: SceneNode[];
   edges: Route[];
+}
+
+/**
+ * Someone who comes when a fight breaks out in the scene (docs/combat-gm.md): at the way in, at the
+ * top of the round after `after` rounds of fighting; the GM picks their side as they come, or has
+ * them run. One of the cast (by their id: their card, not here yet or gone from the fight's start),
+ * or someone new to the scene, with a name and a statblock (and a weapon and a look) of their own.
+ */
+export interface Reinforcement {
+  /** A cast id, or a new person's slug. */
+  id: string;
+  /** A new person's: what they're called, their SRD statblock (guard, tough, commoner, veteran...), their weapon and their look. */
+  name?: string;
+  statblock?: string;
+  weapon?: string;
+  look?: string;
+  /** Rounds of fighting before they come: 1 is the top of the second round. */
+  after: number;
+  /** Why they come, and how: the porters at the gate hearing it, Nan's son with a cudgel from the back. */
+  why: string;
 }
 
 export interface CastMember {
@@ -179,6 +201,13 @@ export interface BeatData {
   cast?: Record<string, string>;
   /** An event's: what the world does if it stalls here. */
   pressure?: string;
+  /**
+   * An event's: a fight, played in the conversation (docs/combat-gm.md). Reaching it rolls for
+   * initiative: `foes` (cast ids, or a group's members') against the player, `allies` beside them
+   * (the companion is always). The GM is told the line-up on every route into it, so its reply can
+   * start the fight; the co-GM taking one starts it after the reply.
+   */
+  fight?: { foes: string[]; allies?: string[] };
   lore: string[];
 }
 
@@ -334,6 +363,8 @@ export function shapeProblems(value: unknown): string[] {
   if (d.facts !== undefined && !(isObject(d.facts) && Object.values(d.facts).every(s => typeof s === "string"))) p.push("its facts aren't { id: sentence }");
   for (const k of ["onStart", "onEnd"]) if (d[k] !== undefined && !(Array.isArray(d[k]) && d[k].every(e => isObject(e) && typeof e.op === "string"))) p.push(`its ${k} isn't a list of { op, … }`);
   if (d.afterwards !== undefined && !(Array.isArray(d.afterwards) && d.afterwards.every(e => isObject(e) && typeof e.op === "string" && nonEmpty(e.what)))) p.push("its afterwards isn't a list of { op, what, … }");
+  if (d.reinforcements !== undefined && !(Array.isArray(d.reinforcements) && d.reinforcements.every(r => isObject(r) && nonEmpty(r.id) && Number.isInteger(r.after) && typeof r.why === "string"
+    && ["name", "statblock", "weapon", "look"].every(k => r[k] === undefined || typeof r[k] === "string")))) p.push("its reinforcements aren't a list of { id, after, why, name?, statblock?, weapon?, look? }");
 
   const cast = Array.isArray(d.cast) ? d.cast : (p.push("it has no cast list"), []);
   const castIds = new Set<string>();
@@ -434,6 +465,9 @@ function nodeProblems(data: Record<string, unknown>, at: string): string[] {
     for (const k of ["revelation", "pressure"]) if (data[k] !== undefined && typeof data[k] !== "string") p.push(`${at}its ${k} isn't text`);
     if (data.required !== undefined && typeof data.required !== "boolean") p.push(`${at}its required isn't true or false`);
     if (data.establishes !== undefined) stringList(data, "establishes", p, at);
+    const fight = data.fight;
+    if (fight !== undefined && !(isObject(fight) && Array.isArray(fight.foes) && fight.foes.every(f => typeof f === "string")
+      && (fight.allies === undefined || (Array.isArray(fight.allies) && fight.allies.every(a => typeof a === "string"))))) p.push(`${at}its fight isn't { foes, allies? }`);
     const carry = data.carry;
     if (carry !== undefined && !(isObject(carry) && typeof carry.unlocks === "string" && (carry.later === undefined || typeof carry.later === "string")
       && (carry.things === undefined || (Array.isArray(carry.things) && carry.things.every(t => typeof t === "string"))))) p.push(`${at}its carry isn't { unlocks, later?, things? }`);

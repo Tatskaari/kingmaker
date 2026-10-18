@@ -316,6 +316,17 @@
     }
   ],
   "afterwards": [],
+  "reinforcements": [
+    {
+      "id": "dockers",
+      "name": "three dockers off the night shift",
+      "statblock": "tough",
+      "weapon": "club",
+      "look": "Three big dockers in wet oilskins, come down the river stairs for their pint, one of them with a boathook.",
+      "after": 2,
+      "why": "They're coming down the stairs for a drink, hear the crash and the shouting through the door, and come in to see who's breaking Nan's house."
+    }
+  ],
   "fronts": "World/Fronts.md",
   "nodes": [
     {

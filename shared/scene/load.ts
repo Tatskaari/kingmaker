@@ -33,6 +33,7 @@ export function sceneOf(doc: SceneDocument): Scene {
     limits: [...(doc.limits ?? [])],
     lore: [...doc.lore], ...(doc.fronts ? { fronts: doc.fronts } : {}),
     ...(doc.known?.length ? { known: [...doc.known] } : {}),
+    ...(doc.reinforcements?.length ? { reinforcements: doc.reinforcements.map(r => ({ ...r })) } : {}),
     // (Every op of afterwards names what it acts on: the parse holds it to that.)
     ...(doc.afterwards?.length ? { afterwards: doc.afterwards as NonNullable<Scene["afterwards"]> } : {}),
     ...(doc.interlude ? { interlude: true } : {}),
@@ -99,6 +100,7 @@ function beatOfNode(n: SceneNode<StartData | BeatData>, transitions: Transition[
     id: n.id, title: d.title, direction: d.description,
     ...(d.cast && Object.keys(d.cast).length ? { cast: { ...d.cast } } : {}),
     ...(beat?.pressure ? { pressure: beat.pressure } : {}),
+    ...(beat?.fight ? { fight: { foes: [...beat.fight.foes], ...(beat.fight.allies?.length ? { allies: [...beat.fight.allies] } : {}) } } : {}),
     transitions,
     ...(beat?.revelation !== undefined ? { revelation: beat.revelation } : {}),
     ...(beat?.paths ? { paths: beat.paths.map(p => ({ ...p, ...(p.check ? { check: { ...p.check } } : {}) })) } : {}),

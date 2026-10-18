@@ -4,7 +4,7 @@ import { bandOf, defaultRole, diceLine, openingRoles, rolesNote } from "../../..
 import type { CoGmAnswer, Initiative, Outcome, Reply, ReplyResponse, SettleResponse, SpokenCheck, TurnCheck } from "../../../shared/protocol/ai.ts";
 import { idOf } from "../../../shared/protocol/keys.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
-import { openRoutes, oweName, takeRoute } from "../../../shared/scene/beats.ts";
+import { fightsAhead, openRoutes, oweName, takeRoute } from "../../../shared/scene/beats.ts";
 import { presentCast } from "../../../shared/scene/graph.ts";
 import { GOODBYE, isFarewell } from "../../../shared/scene/talk.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
@@ -26,7 +26,7 @@ import { syncStage } from "../world/stage.ts";
 import { keysIn, lookForNew } from "./looks.ts";
 import type { Next } from "./move.ts";
 import type { SayPlan } from "./plans.ts";
-import { combatTurnPlan, startCombat } from "./combat.ts";
+import { combatTurnPlan, companionsHere, startCombat } from "./combat.ts";
 import { atTurn, beforeReply, endScene, noteReply, resolveAct, type At } from "./say-commits.ts";
 import { suggestAfter } from "./suggest.ts";
 
@@ -139,10 +139,10 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
   if (plan.outcome?.windDown) return windDown(tx, at, plan, answer.closes !== false || !!at.gm.twoPart.held);
   // The reply rolled for initiative (docs/combat-gm.md): the fight takes the scene's turns from here.
   const fights = answer.initiative && (!answer.initiative.on?.length || (!!spoken.check && answer.initiative.on.includes(spoken.check.band)));
-  if (answer.initiative && fights) return startCombat(tx, at, { ...plan, lines: [...plan.lines, ...spoken.lines] }, answer.initiative);
-  const called = !answer.initiative && at.scene.kind !== "talk" ? calledInWords(at, spoken.text) : undefined;
-  if (called) return startCombat(tx, at, { ...plan, lines: [...plan.lines, ...spoken.lines] }, called);
-  if (answer.initiative) tx.log(`[scene ${at.scene.id} turn ${plan.n}] no fight: the check came up ${spoken.check?.band}, not ${answer.initiative.on?.join(" or ")}`);
+  const called = !answer.initiative && at.scene.kind !== "talk" ? calledInWords(tx, at, spoken.text) : undefined;
+  const started = (answer.initiative && fights) || called ? startCombat(tx, at, { ...plan, lines: [...plan.lines, ...spoken.lines] }, called ?? answer.initiative!) : undefined;
+  if (started) return started;
+  if (answer.initiative && !fights) tx.log(`[scene ${at.scene.id} turn ${plan.n}] no fight: the check came up ${spoken.check?.band}, not ${answer.initiative.on?.join(" or ")}`);
 
   // A talk's lines to choose come with its settle (talk.suggest: town-design §3.6), not the suggest job.
   if (at.scene.kind !== "talk") suggestAfter(tx, at.scene, turnId);
@@ -154,16 +154,15 @@ export function afterTwoPartReply(tx: TxCtx, plan: SayPlan, answer: ReplyRespons
 /**
  * A reply whose words (or the check's outcome that came up) end on "Roll for initiative!" with no
  * roll_for_initiative set (QA round toll2-1018: a badly failed Intimidation's outcome called for it,
- * and nothing started, twice in two rounds): the fight it called, everyone here against the player
- * but whoever follows them (the scene's companions, as its follow effects say), who's beside them.
+ * and nothing started, twice in two rounds): the fight it called. One of the scene's prep on offer
+ * (fightsAhead) is that one, its line-up the sides; otherwise nobody's side is known, and the GM picks
+ * everyone's before the first turn (pick_sides), the companion beside the player.
  */
-function calledInWords(at: At, text: string): Initiative | undefined {
+function calledInWords(tx: TxCtx, at: At, text: string): Initiative | undefined {
   if (!/roll for initiative!?\W*$/i.test(text.trim())) return undefined;
-  const effects = [...(at.graph.onEnd ?? []), ...at.graph.exits.flatMap(e => e.effects ?? [])];
-  const companions = new Set(effects.flatMap(e => (e.op === "follow" ? [e.who] : [])));
-  const here = presentCast(at.graph, at.gm).map(c => c.id);
-  const foes = here.filter(id => !companions.has(id));
-  return foes.length ? { foes, allies: here.filter(id => companions.has(id)), why: "called in the narration" } : undefined;
+  const ahead = fightsAhead(at.graph, at.gm)[0];
+  if (ahead) return { foes: [...ahead.beat.fight.foes], allies: [...(ahead.beat.fight.allies ?? [])], why: `called in the narration: ${ahead.beat.title}` };
+  return { foes: [], allies: companionsHere(tx, at), why: "called in the narration" };
 }
 
 /** The closing reply: it closed the scene (the story's end: the ending's effects, onEnd, afterwards, then the boundary), or waited once. No settle either way: the turn's last commit. */
@@ -234,6 +233,16 @@ export function afterTwoPartSettle(tx: TxCtx, plan: SayPlan, answer: SettleRespo
   if (at.gm.closing) updateScene(tx, at.scene.id, { status: "closing" });
   noteHeard(tx, at.scene, at.graph);
   tx.log(`[scene ${at.scene.id} turn ${plan.n}] settled: ${staged.changes.length} changed, ${staged.problems.length} not done; the co-GM ${moved}${at.gm.closing ? `; closing on ${at.gm.closing.exitId}` : ""}`);
+
+  // The co-GM took the scene into an event with a fight (the Heron's blades out) the reply didn't
+  // start: it breaks out now, with the event's line-up (docs/combat-gm.md). Not a second this turn.
+  const fight = tp.moved && !at.gm.closing && !at.gm.combat && !plan.combat ? at.graph.beats.find(b => b.id === tp.moved && b.fight) : undefined;
+  if (fight) {
+    delete tp.moved;
+    const started = startCombat(tx, at, plan, { foes: [], allies: [], why: fight.title }, "settle");
+    if (started) return started;
+    putGm(tx, at.scene.id, at.gm);
+  }
 
   afterTurn(tx, plan);
   finishTurn(tx, at.scene.id, idOf(plan.turn));

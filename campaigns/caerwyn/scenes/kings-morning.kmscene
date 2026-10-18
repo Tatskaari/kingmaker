@@ -162,6 +162,26 @@
     "This is the morning after the night at the Heron warehouse, and the end of the story. What happened at the granary, the Drowned Rat and the Heron is in what happened before this scene, and that wins: what the player carries (Prout's page, the true book, Hobb's token), what Kell saw and heard and wrote down, whether Master Sallow is in the watch-house cells (Kell took him at the Heron) or free in the long gallery with the Purveyor's party (and whether he knows the true book left the Heron, or believes he's rid of the investigator), where Hobb is and what he has owned to, and what was promised, and to whom. If nothing happened before: the player knows Wendell Prout was murdered in the tally loft by Master Sallow of the Royal Purveyor's office while Big Hobb Mallory held his arms, and that the King's 'lost' grain went downriver through the Heron; they carry nothing the King can hold; Kell's notebook has what she saw herself (the gentleman with the silver-topped cane at the Purveyor's wagons at noon on the eve, with the big man with the bandaged hand at his elbow); and Sallow is free, in the gallery."
   ],
   "afterwards": [],
+  "reinforcements": [
+    {
+      "id": "palace-guard",
+      "name": "a palace guard",
+      "statblock": "guard",
+      "weapon": "spear",
+      "look": "A palace guard in the King's blue, halberd levelled.",
+      "after": 1,
+      "why": "The Marshal's shout brings the palace guard in from the gallery at a run."
+    },
+    {
+      "id": "palace-guard-2",
+      "name": "a second palace guard",
+      "statblock": "guard",
+      "weapon": "spear",
+      "look": "Another of the palace guard, a pace behind the first.",
+      "after": 1,
+      "why": "On the first one's heels, from the gallery."
+    }
+  ],
   "fronts": "World/Fronts.md",
   "nodes": [
     {
