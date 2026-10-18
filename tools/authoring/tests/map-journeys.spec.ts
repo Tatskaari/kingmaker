@@ -225,6 +225,20 @@ test('a region tied to a scene lays its place on the map, and a thing of the pla
   await page.getByRole('button',{name:'Undo map edit'}).click();
   await expect.poll(()=>savedText(page,'places/dressing-room.kmplace')).toBe(await readFile(new URL('places/dressing-room.kmplace',CAMPAIGN),'utf8'));
   expect((await saved(page,'maps/palace.kmmap')).regions.at(-1).worldOrigin).toEqual({x:5,y:2});
+  // On the town, selecting the granary yard's region shows the yard; a thing added from a tile's menu is the place's.
+  await openMap(page,'maps/caerwyn.kmmap');
+  await page.getByRole('tab',{name:'Map',exact:true}).click();
+  await page.locator('.map-panel summary',{hasText:'Regions'}).click();
+  await page.locator('.map-panel').getByRole('button',{name:/^the yard behind the King's Granary/}).click();
+  await expect(page.locator('.map-place-note')).toContainText('places/granary-yard.kmplace');
+  await expect(page.getByRole('tab',{name:'Place',exact:true})).toBeVisible();
+  await tileMenu(page,44,14);
+  await page.getByRole('menuitem',{name:'Add a thing of The yard behind the King\'s Granary here…'}).click();
+  const pigeon=page.getByRole('dialog',{name:'New thing'});
+  await pigeon.getByLabel('Name',{exact:true}).fill('a dead pigeon');
+  await pigeon.getByRole('button',{name:'Add thing'}).click();
+  await expect.poll(async()=>(await saved(page,'places/granary-yard.kmplace')).things.at(-1)).toEqual({id:'a-dead-pigeon',name:'a dead pigeon',in:'yard',at:[22,27]});
+  await expect(page.getByRole('button',{name:'Thing a dead pigeon'})).toBeVisible();
 });
 
 test('resizing grows the map and moves what stands on it; the scenario\'s start and other maps\' ways in move with a north edge',async({page})=>{

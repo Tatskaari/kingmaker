@@ -144,3 +144,8 @@
 .km-map .place-layers {display:flex;flex-wrap:wrap;gap:6px;font-size:11px}
 .km-map .place-layers button {font-size:11px;border:1px solid var(--km-line)}
 .km-map .place-path {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.km-workshop .km-dialog {display:flex;flex-direction:column;max-height:88vh;overflow:hidden}
+.km-workshop .km-dialog>header {flex-shrink:0}
+.km-workshop .km-dialog-body {overflow-y:auto;min-height:0;padding-right:4px}
+.km-workshop .km-dialog>.modal-footer {flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.km-workshop .km-dialog.wide {width:min(640px,92vw)}

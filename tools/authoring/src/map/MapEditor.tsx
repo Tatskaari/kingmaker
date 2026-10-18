@@ -157,12 +157,16 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
   };
   const choose=(ch:string)=>{finish();if(slot==='paint')setPaintCh(ch);else setEraseCh(ch);if(['sample','pan','resize','region'].includes(tool))setTool(slot==='erase'?'erase':'brush')};
   const chooseTool=(next:Tool)=>{finish();setTool(next);if(next==='erase')setSlot('erase');else if(['brush','rectangle','fill'].includes(next))setSlot('paint')};
-  const select=(next:Selection)=>{setSelection(next);if(next)setTab('selected');setMenu(null)};
+  /** Something selected: shown in the inspector; a region that lays a scene's place shows the place on the map too. */
+  const select=(next:Selection)=>{
+    setSelection(next);if(next)setTab('selected');setMenu(null);
+    if(next?.kind==='region'){const region=edits.current.current.regions[next.index];if(region?.sceneId&&region.worldOrigin)setPlaceRegion(next.index)}
+  };
   const ask=(confirmation:Confirmation)=>{confirmFocus.current=(root.current?.ownerDocument.activeElement as HTMLElement|null)??null;setMenu(null);setConfirmation(confirmation)};
   const open=(path:string)=>void host.open(path).catch(error=>setToast(String(error instanceof Error?error.message:error)));
 
   // Removing, each after asking.
-  const removeRegionAt=(index:number)=>{const region=doc.regions[index];ask({title:`Delete region ${region.name||region.id}?`,description:`This takes the region off the map${region.sceneId?`, and with it where ${region.sceneId} is played`:''}. Its scene's place file stays as it is. You can undo this.`,confirmLabel:'Delete region',run:()=>{if(commit(removeRegion(edits.current.current,index))){setSelection(null);if(placeRegion===index)setPlaceRegion(null)}}})};
+  const removeRegionAt=(index:number)=>{const region=doc.regions[index];ask({title:`Delete region ${region.name||region.id}?`,description:`This takes the region off the map${region.sceneId?`, and with it where ${region.sceneId} is played`:''}. Its scene's place file stays as it is. You can undo this.`,confirmLabel:'Delete region',run:()=>{if(commit(removeRegion(edits.current.current,index))){setSelection(null);if(placeRegion!==null)setPlaceRegion(placeRegion===index?null:placeRegion>index?placeRegion-1:placeRegion)}}})};
   const removeExitAt=(index:number)=>{const exit=doc.exits[index];ask({title:`Delete the exit “${exit.label}”?`,description:`The way from (${exit.at.x}, ${exit.at.y}) to ${exit.to.map} goes. You can undo this.`,confirmLabel:'Delete exit',run:()=>{if(commit(removeExits(edits.current.current,[index])))setSelection(null)}})};
   const removePersonAt=(index:number)=>{const person=doc.people![index];ask({title:`Delete ${person.name}?`,description:`${person.name} won't be about on the map. You can undo this.`,confirmLabel:'Delete',run:()=>{if(commit(removePerson(edits.current.current,index)))setSelection(null)}})};
   const removePlacePart=(part:PlacePart)=>{if(!placeOf)return;ask({title:'Remove from the place?',description:`Remove ${part.id} from ${placeOf.place.title||placeOf.place.id}? You can undo this.`,confirmLabel:'Remove',run:()=>{try{editPlace(removeFromPlace(placeOf.place,part.id));setSelection(null)}catch(error){setToast(String((error as Error).message))}}})};
@@ -502,7 +506,7 @@ export function MapApp({document:initial,host}:{document:MapDocument;host:FileHo
           </div>}
           <div className="map-view-controls"><button aria-label="Zoom out" onClick={()=>setZoom(z=>Math.max(.15,z/1.2))}>−</button><span>{Math.round(zoom*100)}%</span><button aria-label="Zoom in" onClick={()=>setZoom(z=>Math.min(3,z*1.2))}>+</button><button onClick={fit}>Fit <kbd>F</kbd></button></div>
           {laid&&'error' in laid&&<div className="map-place-note">{laid.error}</div>}
-          {placeOf&&<div className="map-place-note">Showing {placeOf.place.title||placeOf.place.id} ({placeOf.path}) laid at ({placeOf.origin.x}, {placeOf.origin.y}): right-click a tile to add to it. <button onClick={()=>{setPlaceRegion(null);if(tab==='place')setTab('map')}}>Hide it</button></div>}
+          {placeOf&&<div className="map-place-note">Showing {placeOf.place.title||placeOf.place.id} ({placeOf.path}) laid at ({placeOf.origin.x}, {placeOf.origin.y}): right-click a tile to add to it. <button onClick={()=>{setPlaceRegion(null);if(tab==='place')setTab('map');if(selection?.kind==='place')setSelection(null)}}>Hide it</button></div>}
         </div>
         <aside className="inspector map-inspector">
           <div className="inspector-tabs" role="tablist" aria-label="Inspector">{tabs.map(([id,label,count])=><button key={id} role="tab" aria-selected={tab===id} aria-label={count===undefined?label:`${label} (${count})`} className={tab===id?'active':''} onClick={()=>setTab(id)}>{label}{count!==undefined&&<span className={`count${id==='problems'&&count?' bad':''}`}>{count}</span>}</button>)}</div>
