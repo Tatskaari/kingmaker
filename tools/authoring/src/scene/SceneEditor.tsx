@@ -15,7 +15,7 @@ import {EditSession} from './fields.tsx';
 import {FactsView} from './facts.tsx';
 import {ConnectionInspector,KIND_LABELS,NodeInspector} from './inspectors.tsx';
 import type {SceneHost} from './host.ts';
-import {addNode,addRoute,connectionId,connectionsOf,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId} from './model.ts';
+import {addNode,addRoute,connectionId,connectionsOf,freePosition,isEnding,isStart,nodeKind,problemsOf,removeNodes,removeRoutes,shapeOf,slugOf,titleOf,uniqueId} from './model.ts';
 import type {Connection,NewNodeKind,NodeKind,Problem,ProblemAt,SceneDocument,SceneNode} from './model.ts';
 import {ProblemsView} from './ProblemsView.tsx';
 import {SceneView} from './SceneView.tsx';
@@ -225,7 +225,9 @@ function SceneEditor({initial,host}:{initial:SceneDocument;host:SceneHost}){
   const add=(kind:NewNodeKind,title:string,id:string)=>{
     const base=current.current,from=selectedNode&&!isEnding(selectedNode)?selectedNode:undefined;
     const bounds=canvas.current?.getBoundingClientRect();
-    const position=from?{x:from.position.x+400,y:from.position.y+60}:flow.screenToFlowPosition({x:(bounds?.x??0)+(bounds?.width??800)/2-130,y:(bounds?.y??0)+(bounds?.height??500)/2-80});
+    // Beside the node it comes from (or in the middle of the graph), below the cards already there.
+    const want=from?{x:from.position.x+400,y:from.position.y}:flow.screenToFlowPosition({x:(bounds?.x??0)+(bounds?.width??800)/2-130,y:(bounds?.y??0)+(bounds?.height??500)/2-80});
+    const position=freePosition(base,want,measurements);
     const added=addNode(base,kind,title,position,{id,...(from?{from:from.id}:{})});
     commit(added.doc);
     setDialog(null);showNode(added.id);

@@ -13,7 +13,7 @@ const bundle=async entry=>{
 };
 const model=await bundle('../src/scene/model.ts');
 const {campaignRootOf,contextOf,readCampaign,sceneKeyOf}=await bundle('../src/scene/campaign.ts');
-const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival}=model;
+const {openSceneFile,serializeScene,SceneOpenError,withKey,ORDER,setSceneField,setNodeField,setRouteField,setCastField,addNode,addRoute,addCast,removeNodes,removeCast,addFact,removeFact,renameFact,settlesOf,testsOf,idProblem,renameNode,renameRoute,renameCast,makeEvent,makeDiscovery,moveRoutes,skeletonScene,slugOf,uniqueId,problemsOf,shapeOf,setArrival,freePosition}=model;
 
 const CAMPAIGN=new URL('../../../campaigns/caerwyn/',import.meta.url);
 const TESTDATA=new URL('../../../shared/scene/testdata/',import.meta.url);
@@ -101,6 +101,18 @@ test('ids are slugs made once from titles: free in the scene, and stable when th
   assert.equal(addNode(clerk(),'ending','Run away',{x:0,y:0},{from:'failed'}).route,undefined,'no route leaves an ending');
   assert.equal(addCast(clerk(),'Sergeant Agnes Kell').id,'sergeant-agnes-kell');
   assert.equal(addCast(clerk(),'Kell','kell').id,'kell-2');
+});
+
+test('a new card goes beside the node it comes from, below the cards already there, never on one',()=>{
+  // The skeleton's discovery is where a second node from the start would go: the new one lands below it.
+  const skeleton=skeletonScene('The Short Weight');
+  assert.deepEqual(freePosition(skeleton,{x:400,y:0}),{x:400,y:220});
+  assert.deepEqual(freePosition(skeleton,{x:400,y:0},{discovery:{width:260,height:300}}),{x:400,y:340},'a measured card is its own height');
+  // And below the next one too, until it's clear of them all; clear ground is where it was wanted.
+  const two=addNode(skeleton,'discovery','Tam swaps the sacks',{x:400,y:220}).doc;
+  assert.deepEqual(freePosition(two,{x:400,y:0}),{x:400,y:440});
+  assert.deepEqual(freePosition(two,{x:1200,y:0}),{x:1200,y:0});
+  assert.deepEqual(freePosition(two,{x:600.6,y:-30}),{x:601,y:440},'overlapping a card sideways counts too');
 });
 
 test('taking something out takes what named it with it, so the game can still load the file',()=>{

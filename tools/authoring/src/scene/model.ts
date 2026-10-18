@@ -192,6 +192,26 @@ export function newNodeData(kind:NewNodeKind,title:string):NodeData{
   return {kind:'exit',title,description:'',closing:'',result:'good',exitKind:'progress',lore:[]};
 }
 
+/** A card's size on the graph before it's been measured: about a node card's, in the graph's units. */
+export const CARD_SIZE={width:260,height:180};
+
+/**
+ * Where a new card goes: at `want` when no card is there, else straight below it, just clear of the
+ * cards in the way (each its measured size, or about a card's), so a node added beside another (a
+ * second discovery from the start) never lands on top of it.
+ */
+export function freePosition(doc:SceneDocument,want:{x:number;y:number},sizes:Record<string,{width:number;height:number}|undefined>={},size=CARD_SIZE,gap=40):{x:number;y:number}{
+  const boxes=doc.nodes.map(node=>({x:node.position.x,y:node.position.y,...(sizes[node.id]??CARD_SIZE)}));
+  const clear=(y:number)=>boxes.every(box=>want.x+size.width+gap<=box.x||box.x+box.width+gap<=want.x||y+size.height+gap<=box.y||box.y+box.height+gap<=y);
+  let y=want.y;
+  // Each step lands just below the lowest card in the way, so it ends below a column of them.
+  for(let tries=0;tries<500&&!clear(y);tries++){
+    const blocking=boxes.filter(box=>!(want.x+size.width+gap<=box.x||box.x+box.width+gap<=want.x||y+size.height+gap<=box.y||box.y+box.height+gap<=y));
+    y=Math.max(...blocking.map(box=>box.y+box.height+gap));
+  }
+  return {x:Math.round(want.x),y:Math.round(y)};
+}
+
 /**
  * A node added: its id a slug of its title (or the one asked for) that's free in the scene, and, from
  * `from` when it's given and isn't an ending, a route to it. Returns the scene and the new ids.
