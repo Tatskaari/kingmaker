@@ -7,7 +7,10 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
 import * as PingAiProcedure from "../ping_ai_procedure";
+import * as ReportGameProcedure from "../report_game_procedure";
 
 export type PingAiArgs = __Infer<typeof PingAiProcedure.params>;
 export type PingAiResult = __Infer<typeof PingAiProcedure.returnType>;
+export type ReportGameArgs = __Infer<typeof ReportGameProcedure.params>;
+export type ReportGameResult = __Infer<typeof ReportGameProcedure.returnType>;
 

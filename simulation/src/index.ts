@@ -12,6 +12,7 @@ import {
   takeProposalReducer, workInBackstoryReducer,
 } from "./creation/moves.ts";
 import { beginReducer, continueGameReducer, deleteGameReducer } from "./games/moves.ts";
+import { aiAsks, gameReportJson, reportRows, type AiGot } from "./games/report.ts";
 import { claimJob, dispatchWaitingReducer, failJob, finishJob, reapJobs as reapJobsBody } from "./jobs.ts";
 import { initDatabase, markOnline } from "./lifecycle.ts";
 import { joinGameReducer } from "./moves/join-game.ts";
@@ -76,6 +77,8 @@ export const chooseAgain = spacetimedb.reducer(ctx => asReducer(ctx, tx => choos
 export const begin = spacetimedb.reducer(ctx => asReducer(ctx, tx => beginReducer(tx, ctx.sender, {})));
 export const continueGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => continueGameReducer(tx, ctx.sender, args)));
 export const deleteGame = spacetimedb.reducer({ game: t.u64() }, (ctx, args) => asReducer(ctx, tx => deleteGameReducer(tx, ctx.sender, args)));
+// A report of a problem (V16, M5): every row of one of the caller's games, and what the AI service keeps of it.
+export const reportGame = spacetimedb.procedure({ game: t.u64() }, t.string(), (ctx, { game }) => reportGameBody(ctx, game));
 
 // The map between scenes (map-design §3.2): each the prototype's explorer's action of that id; walk
 // toward the lead is also the story's Go on, straight into its waiting scene where there's no map.
@@ -223,6 +226,28 @@ function pingAiBody(ctx: ProcedureCtx<Schema>): string {
   const ms = msSince(ctx, sent);
 
   return "error" in answer ? `failed in ${ms} ms: ${answer.error}` : `${answer.status} in ${ms} ms: ${answer.body}`;
+}
+
+/**
+ * report_game, the game's owner's (games/report.ts): its rows read in a transaction, then the AI
+ * service's calls and docs for it GET with nothing locked, each with the bearer. JSON, a refusal's
+ * too: a procedure's errors reach its caller only as text.
+ */
+function reportGameBody(ctx: ProcedureCtx<Schema>, gameId: bigint): string {
+  const asked = ctx.withTx(tx => reportRows(txOf(tx), ctx.sender, gameId));
+  if ("refusal" in asked) return JSON.stringify(asked);
+
+  const asks = aiAsks(asked.game.uid);
+  const got = (path: string): AiGot => getAi(ctx, path);
+
+  return gameReportJson(asked, { calls: got(asks.calls), docs: got(asks.docs) });
+}
+
+/** A GET of the AI service with the bearer: its status and body, or why there was none. */
+function getAi(ctx: ProcedureCtx<Schema>, path: string): AiGot {
+  if (!ctx.env.AI_URL) return { error: "AI_URL is empty" };
+  const answer = fetchAi(ctx, `${ctx.env.AI_URL}${path}`, { headers: { authorization: `Bearer ${ctx.env.AI_TOKEN ?? ""}` }, timeout: TimeDuration.fromMillis(30_000) });
+  return "error" in answer ? { error: answer.error } : { status: answer.status, body: answer.body };
 }
 
 /** SpacetimeDB's fetch, its throw (refused, reset, DNS, timed out) caught as the error's text. */

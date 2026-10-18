@@ -82,6 +82,7 @@ import WorkInBackstoryReducer from "./work_in_backstory_reducer";
 
 // Import all procedure arg schemas
 import * as PingAiProcedure from "./ping_ai_procedure";
+import * as ReportGameProcedure from "./report_game_procedure";
 
 // Import all table schema definitions
 import AreaRow from "./area_table";
@@ -693,6 +694,7 @@ const reducersSchema = __reducers(
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
   __procedureSchema("ping_ai", PingAiProcedure.params, PingAiProcedure.returnType),
+  __procedureSchema("report_game", ReportGameProcedure.params, ReportGameProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

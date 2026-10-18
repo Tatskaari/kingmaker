@@ -112,6 +112,7 @@ function commitsTo(store: (commit: ChangeSet) => void, log: (line: string) => vo
 function newSimulation(kept: SimStore, onCommit: (commit: ChangeSet) => void, config: HostConfig, answer: (request: AiHttpRequest) => Promise<AiHttpResponse>): MemoryHost {
   return memoryHost({
     ai: (endpoint, body, headers, options) => withinTime(answer({ method: "POST", path: endpoint, headers, body }), options?.timeoutMs),
+    aiGet: (path, headers) => answer({ method: "GET", path, headers, body: "" }),
     seed: randomSeed(), uuid: randomUuid, clock: realClock, database: kept.database,
     env: { AI_URL: "in-process", AI_TOKEN: BEARER, AI_IDENTITY: SERVICE.toHexString() }, service: SERVICE,
     onCommit, log: config.log,

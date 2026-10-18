@@ -63,6 +63,7 @@ export async function localHost(options: LocalOptions = {}): Promise<LocalHost> 
   const sim = memoryHost({
     seed: options.seed ?? 1,
     ai: (endpoint, body, headers) => ai.answer({ method: "POST", path: endpoint, headers, body }),
+    aiGet: (path, headers) => ai.answer({ method: "GET", path, headers, body: "" }),
     env: { AI_URL: "http://ai.local", AI_TOKEN: BEARER, AI_IDENTITY: SERVICE.toHexString() },
     service: SERVICE,
   });
