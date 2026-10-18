@@ -1,21 +1,38 @@
-// New (M6): the zoo on screen. On the title (z), its menu over the title's own: the exhibits the installed zoo has, then who to be, each a line to choose by the keys or a click, as the title's are. In a fight from one of its exhibits (the fight's screen, client/ui/fight.tsx, calls these): n fights it again (and Enter once it's over), o opens the line-ups to pick other foes from, and the side panel and the keys say so.
+// New (M6): the zoo on screen. On the title (z), its menu over the title's own: the exhibits the installed zoo has, then who to be, each a line to choose by the keys or a click, as the title's are; and its sound board (client/sound/board.ts), its kinds and then their sounds, the list scrolling with the pick when it's longer than the screen has room for. In a fight from one of its exhibits (the fight's screen, client/ui/fight.tsx, calls these): n fights it again (and Enter once it's over), o opens the line-ups to pick other foes from, and the side panel and the keys say so.
 import type { KeyEvent } from "@opentui/core";
 import type { ReactNode } from "react";
 import type { FightModel } from "../fight/model.ts";
 import type { TitleModel } from "../title/model.ts";
 import { C } from "../theme.ts";
+import { soundBoard } from "../sound/board.ts";
+import { ui } from "../sound/cues.ts";
 import { fightAgain, foesPicked, openFoes, zooFightIn } from "../zoo/fight.ts";
 import { BOLD, Clickable, isEnter, ITALIC, type KeyHint } from "./common.tsx";
 
 /** A line of the zoo's menu: what it says, a line about it, and what choosing it does. */
 export interface ZooLine { label: string; detail: string; run: () => void }
 
-/** The zoo's menu's lines at its step: the exhibits (each opens who to be next), or who to be (each makes the visit). */
+/** The zoo's menu's lines at its step: the exhibits (each opens who to be next) and the sound board; who to be (each makes the visit); the board's kinds of sound, or a kind's sounds (each played). */
 export function zooLines(game: TitleModel): ZooLine[] {
   const zoo = game.zoo, menu = game.zooMenu;
-  if (!zoo || !menu) return [];
-  if (menu.step === "exhibits") return zoo.exhibits.map(e => ({ label: e.title, detail: e.description, run: () => game.pickExhibit(e.id) }));
-  return zoo.builds.map(b => ({ label: b.title, detail: b.concept, run: () => void game.visit({ exhibit: menu.exhibit, build: b.id }) }));
+  if (!menu) return [];
+  const board: ZooLine = { label: "The sound board", detail: "every sound the game makes, and its music in each mood", run: () => game.openSounds() };
+  if (menu.step === "sounds") return soundBoard().map(k => ({ label: k.title, detail: k.detail, run: () => game.pickSounds(k.id) }));
+  if (menu.step === "sound") return soundBoard().find(k => k.id === menu.kind)?.lines.map(l => ({ label: l.label, detail: l.detail, run: l.play })) ?? [];
+  if (menu.step === "exhibits") return [...(zoo?.exhibits ?? []).map(e => ({ label: e.title, detail: e.description, run: () => game.pickExhibit(e.id) })), board];
+  return (zoo?.builds ?? []).map(b => ({ label: b.title, detail: b.concept, run: () => void game.visit({ exhibit: menu.exhibit, build: b.id }) }));
+}
+
+/** A line chosen: its chime, but for the sound board's sounds, which are heard on their own. */
+const chosen = (game: TitleModel) => { if (game.zooMenu?.step !== "sound") ui("choose"); };
+
+/** The zoo's menu's heading at its step. */
+function headingOf(game: TitleModel): string {
+  const menu = game.zooMenu;
+  if (menu?.step === "builds") return `${game.zoo?.exhibits.find(e => e.id === menu.exhibit)?.title ?? menu.exhibit}: who are you?`;
+  if (menu?.step === "sounds") return "The sound board: every sound the game makes, by kind";
+  if (menu?.step === "sound") return `The sound board: ${soundBoard().find(k => k.id === menu.kind)?.title.toLowerCase() ?? menu.kind} (Enter plays one)`;
+  return "The zoo: every feature of the game, laid out to see and try";
 }
 
 /** Keys on the zoo's menu: ↑↓ choose, Enter or a number does it, Esc goes back a step. The new index, when it moved. */
@@ -23,26 +40,27 @@ export function zooKey(game: TitleModel, key: KeyEvent, index: number): number |
   const lines = zooLines(game);
   const at = Math.min(index, Math.max(0, lines.length - 1));
   const digit = /^[1-9]$/.test(key.sequence ?? "") ? Number(key.sequence) - 1 : -1;
-  if (key.name === "escape" || key.name === "q" || key.name === "backspace") game.zooBack();
+  if (key.name === "escape" || key.name === "q" || key.name === "backspace") { ui("back"); game.zooBack(); }
   else if (key.name === "up" || key.name === "k" || key.name === "w") return lines.length ? (at + lines.length - 1) % lines.length : 0;
   else if (key.name === "down" || key.name === "j" || key.name === "s") return lines.length ? (at + 1) % lines.length : 0;
-  else if (isEnter(key) || key.name === "space") lines[at]?.run();
-  else if (digit >= 0 && digit < lines.length) lines[digit]!.run();
+  else if ((isEnter(key) || key.name === "space") && lines[at]) { chosen(game); lines[at].run(); }
+  else if (digit >= 0 && digit < lines.length) { chosen(game); lines[digit]!.run(); }
   return undefined;
 }
 
-/** The zoo's menu, where the title's lines are: its heading, its lines (the chosen one lit, each a button), and what it has to say. */
-export function ZooPanel({ game, index, width, onPick }: { game: TitleModel; index: number; width: number; onPick: (i: number) => void }) {
+/** The zoo's menu, where the title's lines are: its heading, its lines (the chosen one lit, each a button; `rows` of them at most, scrolling with the pick), and what it has to say. */
+export function ZooPanel({ game, index, width, rows = 99, onPick }: { game: TitleModel; index: number; width: number; rows?: number; onPick: (i: number) => void }) {
   const lines = zooLines(game);
-  const menu = game.zooMenu;
-  const exhibit = menu?.step === "builds" ? game.zoo?.exhibits.find(e => e.id === menu.exhibit) : undefined;
-  const heading = exhibit ? `${exhibit.title}: who are you?` : "The zoo: every feature of the game, laid out to see and try";
+  const heading = headingOf(game);
   const at = Math.min(index, Math.max(0, lines.length - 1));
+  const room = Math.max(3, rows);
+  const first = Math.max(0, Math.min(at - Math.floor(room / 2), lines.length - room));
   return <box flexDirection="column" marginTop={2} width={width} border borderColor={C.borderHot} paddingX={2} paddingY={1} title=" The zoo " titleAlignment="left">
     <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(heading, width - 6)}</text>
     {lines.map((line, i) => {
+      if (i < first || i >= first + room) return null;
       const on = i === at;
-      return <Clickable key={i} height={1} flexShrink={0} onClick={() => line.run()} onMouseMove={() => { if (i !== at) onPick(i); }}>
+      return <Clickable key={i} height={1} flexShrink={0} onClick={() => { chosen(game); line.run(); }} onMouseMove={() => { if (i !== at) onPick(i); }}>
         <text>
           <span fg={on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>
           <span fg={on ? C.title : C.text} {...(on ? { attributes: BOLD } : {})}>{line.label}</span>

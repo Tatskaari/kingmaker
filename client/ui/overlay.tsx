@@ -4,6 +4,7 @@ import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, type ReactNode, type RefObject } from "react";
 import type { ExploreModel } from "../explore/model.ts";
 import type { SceneModel, SheetShown } from "../scene/model.ts";
+import { ui } from "../sound/cues.ts";
 import { questLine } from "../story/view.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, Keys, SCROLLBAR, useStore, wrap, type KeyHint } from "./common.tsx";
@@ -211,6 +212,7 @@ export function ExploreOverlay({ explore: game }: { explore: ExploreModel }) {
 
 /** The menu's choices, by key or click: back to the game, to the title, or report a problem (over the map as it was before the menu). */
 function pickMenu(game: ExploreModel, index: number): void {
+  ui("choose");
   game.closeOverlay();
   if (index === 1) game.quit();
   else if (index === 2) game.report("menu");

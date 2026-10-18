@@ -14,6 +14,7 @@ import { BOLD, Clickable, fit, isEnter, ITALIC, Keys, Spinner, useStore, wrap, t
 import { cardRows, issueRows, ownRows, storyRowOf, storyRows } from "./creation-layout.ts";
 import { sheetHeight, type Row, type Run } from "./sheet-layout.ts";
 import { SheetView, type Hint, type SheetHandle } from "./sheet.tsx";
+import { ui } from "../sound/cues.ts";
 
 /**
  * Making a character: a name and a concept (CreateScreen); three builds that fit, as cards, or one of
@@ -92,7 +93,7 @@ export function CreateScreen({ game, surface = "terminal" }: { game: CreationMod
   const [pick, setPick] = useState(0);
   const ready = surface === "page" ? game.readyMade : [];
   const fields: Field[] = ready.length ? ["name", "concept", "ready"] : ["name", "concept"];
-  const step = (by: number) => setField(f => fields[(fields.indexOf(f) + by + fields.length) % fields.length]!);
+  const step = (by: number) => { ui("move"); setField(f => fields[(fields.indexOf(f) + by + fields.length) % fields.length]!); };
   // What the box holds when Enter comes (a pasted line arrives with its Enter, before the state catches up).
   const submit = (typed = concept) => void game.offerBuilds(name || DEFAULT_NAME, typed || DEFAULT_CONCEPT);
   const play = (i = pick) => { const r = ready[i]; if (r) void game.playReadyMade(r.id, name, concept); };
@@ -100,7 +101,7 @@ export function CreateScreen({ game, surface = "terminal" }: { game: CreationMod
     if (key.defaultPrevented || game.screen !== "create") return;
     if (key.name === "tab") step(key.shift ? -1 : 1);
     else if ((key.name === "up" && field !== "name") || (key.name === "down" && field !== fields[fields.length - 1])) step(key.name === "up" ? -1 : 1);
-    else if (field === "ready" && (key.name === "left" || key.name === "right")) setPick(p => (p + (key.name === "left" ? -1 : 1) + ready.length) % ready.length);
+    else if (field === "ready" && (key.name === "left" || key.name === "right")) { ui("move"); setPick(p => (p + (key.name === "left" ? -1 : 1) + ready.length) % ready.length); }
     else if (field === "ready" && isEnter(key)) play();
     else if (key.name === "escape") game.toTitle();
   });

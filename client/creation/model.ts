@@ -8,6 +8,7 @@ import type { BuildsFile } from "../../shared/scene/files.ts";
 import { sheetOf, type SheetRow } from "../sheet/rows.ts";
 import { creationOf, memoParse, type Creation, type CreationLocal } from "./rows.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, levelOf, timeWords } from "./words.ts";
+import { ui } from "../sound/cues.ts";
 
 /**
  * Character creation's model (v1-design §3.10), for the create, creating, choose, custom, backstory
@@ -75,6 +76,7 @@ export class CreationModel {
    * the game's screen once it's made, else why not on the note line.
    */
   async playReadyMade(id: string, name: string, concept: string): Promise<void> {
+    ui("choose");
     const made = this.readyMade.find(r => r.id === id);
     if (!made) return;
     this.said = undefined;
@@ -134,6 +136,7 @@ export class CreationModel {
    * (its story, its builds) comes with it, as the prototype's newCharacter dropped its creation.
    */
   async offerBuilds(name: string, concept: string): Promise<void> {
+    ui("send");
     name = (name.trim() || DEFAULT_NAME).replace(/:/g, " ");
     concept = concept.trim() || DEFAULT_CONCEPT;
     const afresh = this.app.intent === "new";
@@ -144,6 +147,7 @@ export class CreationModel {
 
   /** Back to the name and concept (from the cards): as they were typed. */
   backToConcept(): void {
+    ui("back");
     void this.move("creationBack", {});
   }
 
@@ -151,6 +155,7 @@ export class CreationModel {
   pickCard(index: number): void {
     const c = this.creation;
     if (!c || c.index === index) return;
+    ui("move");
     this.local.index = Math.max(0, Math.min(3, index));
     this.app.emit();
   }
@@ -159,6 +164,7 @@ export class CreationModel {
   chooseBuild(index: number): void {
     const c = this.creation, option = c?.offer?.options[index];
     if (!c || !option) return;
+    ui("choose");
     this.local.index = index;
     void this.move("chooseBuild", { index });
   }
@@ -166,6 +172,7 @@ export class CreationModel {
   /** Back to the three builds (from making one's own, or from the backstory, the box's text kept). */
   backToBuilds(): void {
     const story = this.local.typed?.text;
+    ui("back");
     this.stopSaving();
     void this.move("creationBack", story !== undefined ? { story } : {});
   }
@@ -178,6 +185,7 @@ export class CreationModel {
     const c = this.creation;
     if (!c?.offer?.options.length) return;
     const from = c.index < 3 && c.offer.options[c.index] ? c.index : 0;
+    ui("choose");
     this.local.index = 3;
     void this.move("makeOwn", { from });
   }
@@ -201,6 +209,7 @@ export class CreationModel {
   /** Which of the four lists has the keys (making one's own): species, class, subclass, background. */
   ownColumn(column: number): void {
     if (!this.creation?.own) return;
+    ui("move");
     this.local.column = (column + 4) % 4;
     this.app.emit();
   }
@@ -209,6 +218,7 @@ export class CreationModel {
   takeOwn(): void {
     const c = this.creation, option = c?.own?.option;
     if (!c || !option || c.own?.making) return;
+    ui("choose");
     void this.move("takeOwn", {});
   }
 
@@ -304,6 +314,7 @@ export class CreationModel {
 
   /** Set off: the game's first scene opens. */
   begin(): void {
+    ui("choose");
     void this.move("begin", {});
   }
 

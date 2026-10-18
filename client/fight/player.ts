@@ -1,9 +1,10 @@
-// New (M6's screen, docs/combat-design.md §3): the fight played back on screen, a moment at a time in order, from its rows: each moment the rows bring is scheduled to start once the one before has played (a short beat between combatants), its beats (client/fight/script.ts) moving people a tile at a time, lighting up the struck, tipping the fallen over, and spawning the look layer's effects as they come; what's shown at any instant is a pure function of the clock, so a frame mid-move is exact however it was reached. A key finishes the moment playing, another skips to the player's turn, and with reduced motion each moment shows its end at once with its caption.
+// New (M6's screen, docs/combat-design.md §3): the fight played back on screen, a moment at a time in order, from its rows: each moment the rows bring is scheduled to start once the one before has played (a short beat between combatants), its beats (client/fight/script.ts) moving people a tile at a time, lighting up the struck, tipping the fallen over, and spawning the look layer's effects as they come; what's shown at any instant is a pure function of the clock, so a frame mid-move is exact however it was reached. A key finishes the moment playing, another skips to the player's turn, and with reduced motion each moment shows its end at once with its caption. Each beat sounds as it plays (client/sound/fight.ts), and a moment hurried past stops its sounds with its effects.
 import { PACE } from "../../shared/fight/pace.ts";
 import type { FightBoard, FightEvent, Unit } from "../../shared/fight/types.ts";
 import type { Tile2 } from "../../shared/map/types.ts";
 import { Effects } from "../look/effects.ts";
 import { blast, bolt, feetOf, healed, hitFlash, said, shot, struck, swing, tagWord, type Stance } from "../look/fight.ts";
+import { fightSounds, hushFight } from "../sound/fight.ts";
 import { linesUnder, scriptOf, type Script } from "./script.ts";
 import { myTurn, type FightView } from "./view.ts";
 
@@ -122,6 +123,7 @@ export class FightPlayer {
     const current = this.slots[0];
     if (!current || current.start > now) return;
     this.fx.clear();
+    hushFight();
     let at = now;
     for (const slot of this.slots) {
       const ms = slot === current ? 0 : slot.end - slot.start;
@@ -135,6 +137,7 @@ export class FightPlayer {
   /** Everything still to play, played now (its captions in the log); then, skipping on, whatever comes before the player's turn too. */
   skip(now: number): void {
     this.fx.clear();
+    hushFight();
     for (const slot of this.slots) { slot.start = Math.min(slot.start, now); slot.end = now; }
     this.skipping = this.view.status === "on" && !myTurn(this.view);
     this.advance(now);
@@ -212,7 +215,7 @@ export class FightPlayer {
     while (this.slots.length) {
       const slot = this.slots[0]!;
       if (slot.start > now) break;
-      if (!slot.entered) this.enter(slot);
+      if (!slot.entered) this.enter(slot, now);
       if (slot.end > now) break;
       this.fold(this.slots.shift()!);
     }
@@ -231,11 +234,16 @@ export class FightPlayer {
     }
   }
 
-  /** A moment begins: into the log, and its beats' effects spawned at their times (none with reduced motion). */
-  private enter(slot: Slot): void {
+  /**
+   * A moment begins: into the log, and its beats' effects spawned and sounds played at their times
+   * (with reduced motion, only its sting or the player's turn's chime, at once; none for a moment skipped).
+   */
+  private enter(slot: Slot, now: number): void {
     slot.entered = true;
     this.log.push(entryOf(slot.event));
-    if (this.reduced() || slot.end <= slot.start) return;
+    if (slot.end <= slot.start) return;
+    if (this.reduced()) { fightSounds(slot.script.beats.filter(b => b.kind === "order" || b.kind === "turn"), this.units, () => 0); return; }
+    fightSounds(slot.script.beats, this.units, b => slot.start + b.t - now);
     const e = slot.event;
     const path = e.detail.path ?? [];
     const actor = e.actor ?? e.turn;

@@ -1,9 +1,10 @@
-// Copied from the prototype's src/app/ui/between.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel (the story's BetweenView) in place of the Game's card; with no map, the talk's way on is the lead's scene ("On to The Drowned Rat") where it was "Back to the map", and j opens the notebook where Esc was the menu; PACE is the client's pace (client/pace.ts) where it was KM_APP_TALK_MS; new, t (town-design §1.1) is a word with whoever walks with the player, the talk opened on the map (talkFrom). FightScreen is new: the fight's stand-in (src/game/fight-standin.ts) as the card's Plain.
+// Copied from the prototype's src/app/ui/between.tsx at 44c6d4a, whole but for the seams: it reads a SceneModel (the story's BetweenView) in place of the Game's card; with no map, the talk's way on is the lead's scene ("On to The Drowned Rat") where it was "Back to the map", and j opens the notebook where Esc was the menu; PACE is the client's pace (client/pace.ts) where it was KM_APP_TALK_MS; new, t (town-design §1.1) is a word with whoever walks with the player, the talk opened on the map (talkFrom), and the talk's lines are said as they come (client/sound). FightScreen is new: the fight's stand-in (src/game/fight-standin.ts) as the card's Plain.
 import type { KeyEvent } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useState } from "react";
 import { pacing } from "../pace.ts";
 import type { SceneModel } from "../scene/model.ts";
+import { sayLine } from "../sound/scene.ts";
 import type { Line } from "../scene/view.ts";
 import type { BetweenView } from "../story/view.ts";
 import { C } from "../theme.ts";
@@ -61,6 +62,11 @@ function Talk({ scene, card, lines }: { scene: SceneModel; card: BetweenView; li
     const timer = setTimeout(() => setSaid(n => n + 1), PACE());
     return () => clearTimeout(timer);
   }, [said, lines.length]);
+  // Each line said as it comes (client/sound): the newest, when they all come at once.
+  useEffect(() => {
+    const line = lines[said - 1];
+    if (line) sayLine(line);
+  }, [said, lines]);
   const done = said >= lines.length;
   const [typed, setTyped] = useState(false);
   // An Enter (or a click) hurries the talk along to its end, then goes on.
