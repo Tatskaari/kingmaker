@@ -109,6 +109,39 @@ test("a cue's outer limit counts from and until beats; every cue of the campaign
   assert.deepEqual(cues.filter(([, , counts]) => !counts), [], "every cue says when it comes whatever is happening, in exchanges");
 });
 
+/** Each scene file of the campaign, parsed. */
+const sceneFiles = () => Object.entries(files).filter(([path]) => path.endsWith(".kmscene")).map(([path, text]) => [path, JSON.parse(text!)] as const);
+
+test("a cue into an ending gives way to what the player has under way, and names the routes it would cut short (QA round qa2-1018's H5: the Heron's second bell closed on the barge sailing mid-arrest)", () => {
+  const intoEndings = sceneFiles().flatMap(([path, s]) => (s.edges as any[]).filter(e => e.data.phase === "cue" && node(s, e.target).kind === "exit").map(e => ({ path, s, e })));
+  assert.deepEqual(intoEndings.map(({ path, e }) => `${path} ${e.id}`), ["scenes/heron-warehouse.kmscene cast-off"], "the campaign's one cue into an ending");
+  for (const { s, e } of intoEndings) {
+    const good = (s.edges as any[]).filter(r => node(s, r.target).kind === "exit" && node(s, r.target).result === "good").map(r => r.id);
+    assert.match(e.data.condition, /Not needed once /);
+    assert.ok(good.some(id => e.data.condition.includes(`[${id}]`)), `${e.id} names the good endings' routes it gives way to`);
+    assert.doesNotMatch(e.data.condition, /whatever is happening/);
+  }
+  const heron = JSON.parse(files[HERON]!);
+  assert.match(route(heron, "cast-off").data.condition, /Not needed once the player has stopped the loading \([^)]*\), has put the case to the Master's face in front of Kell \(the arrest coming, or said\), is fighting him and the Crakes, or has the true book in hand: then the bell can ring and the barge go in the background, but what's under way plays on to its own end/);
+  assert.match(node(heron, "barge-sails").description, /the loading never stopped and the Master never taken: if he came, he saw her off and went home free with his share/, "what's true there can't be true mid-arrest");
+  assert.match(node(heron, "barge-sails").closing, /^Close where the player is:/, "and it closes where they stand");
+});
+
+test("the Heron's bells are felt coming, and Hep's count falls each time she calls it (QA round qa2-1018: 'Forty to the hatch!' five times over, and no word of the tide all scene)", () => {
+  const heron = JSON.parse(files[HERON]!);
+  const hep = heron.cast.find((c: any) => c.id === "hep");
+  assert.match(heron.clock, /Both bells are felt coming, a step nearer every exchange and never the same sign twice/);
+  assert.match(heron.clock, /The barge sailing ends the night only if, by then, the player hasn't stopped the loading, taken the Master on or got the true book in hand/);
+  assert.match(route(heron, "master-comes").data.condition, /Before it, it's felt coming: Hep's count falls every time she calls it/);
+  assert.match(node(heron, "midnight").description, /From the moment he's in, the tide is felt turning, a little more every exchange/);
+  assert.match(node(heron, "midnight").pressure, /from here the tide shows more with every exchange/);
+  assert.match(route(heron, "cast-off").data.condition, /Before it rings, the tide is felt coming, more with each exchange after the Master comes in/);
+  assert.match(hep.voice, /the number is the count as it stands: a few sacks fewer every time she calls it, never the same twice/);
+  assert.match(hep.roles.characterise, /the count as it falls/);
+  assert.match(node(heron, "floor").pressure, /^Hep bellows the count, a few sacks fewer than when she last called it/);
+  assert.match(node(heron, "floor").cast.hep, /calls the count as it falls: a few fewer every exchange, never the same number twice/);
+});
+
 test("a discovery: a revelation, two paths or more, three for a required one with one free of dice, each path whole and via the cast or a thing; never behind a roll alone", () => {
   const paths = changed(SCENE, s => {
     node(s, "murder").paths = node(s, "murder").paths.slice(0, 1);
