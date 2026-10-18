@@ -1,14 +1,15 @@
-// startTalk, leaveTalk and endTalk are the prototype's src/runtime/talk.ts:57-73, 405-446 at 44c6d4a as rows: the talk is a scene of its own (a row of kind talk, its own gm_state), so the scene the story is heading for is never set aside, nor put back: nothing touches it. The facts the talk's GM takes as given, its prep and its words are the AI service's (the open's TalkPrep); the told memory is its too.
+// startTalk, leaveTalk and endTalk are the prototype's src/runtime/talk.ts:57-73, 405-446 at 44c6d4a as rows: the talk is a scene of its own (a row of kind talk, its own gm_state), so the scene the story is heading for is never set aside, nor put back: nothing touches it. The facts the talk's GM takes as given, its prep and its words are the AI service's (the open's TalkPrep); the told memory is its too. Since the old pipeline's salvage (docs/migration-log.md) a talk plays on the two-part GM's steps: it opens with the companion's role (the template's start's, note -1) and its open asks the two-part GM, and it's told once its discovery is reached.
 import type { ExploreState } from "../../../shared/map/explore.ts";
-import { initialGm, GUARD_STAGES, type GmState, type GuardStage } from "../../../shared/gm/state.ts";
-import { idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
+import { initialGm, type GmState } from "../../../shared/gm/state.ts";
+import { idText } from "../../../shared/protocol/keys.ts";
 import { refusal } from "../../../shared/protocol/refusals.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
-import { CONFIDED, talkSceneId } from "../../../shared/scene/talk.ts";
+import { CONFIDED, talkSceneId, TOLD } from "../../../shared/scene/talk.ts";
 import { Refused, type Actor, type TxCtx } from "../context.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { queueThink } from "../jobs.ts";
 import { openScene, seenOf } from "../moves/open-scene.ts";
+import { openingRolesFor } from "../moves/two-part.ts";
 import { gameRow, playerRow, sceneRow, turnRow, updateScene, updateTurn, type GameRow, type RowOf, type SceneRow } from "../rows.ts";
 import { campaignFile, campaignOfGame, graphOf, sceneDefOf } from "../scenes.ts";
 import { addEntry, noteHeard } from "../transcript.ts";
@@ -20,17 +21,20 @@ import { keepTicking } from "./tick.ts";
  * A word with someone walking with the player, between scenes (docs/town-design.md §3.6): a scene
  * of kind talk, key talk-<companion>-<n>, built from the campaign's talk template (scenes.ts), played
  * on the town's own place with no world of its own (as the prototype's had none), every seat moved
- * into it; its turns are `say`, as in any scene. It ends with the goodbye (its one exit, through a
- * reply) or by walking on (no reply), with no chapter, effects, boundary or lead: the companion's
- * record keeps what they told, or how far they came towards it. The ended talk stays up until the
+ * into it; its turns are `say`, as in any scene, on the two-part GM's steps (moves/two-part.ts). It
+ * ends with the goodbye (its one exit: said in so many words, through a closing reply; said in the
+ * player's own words, once the co-GM takes it) or by walking on (no reply), with no chapter, effects,
+ * boundary or lead: the companion's record keeps what they told. The ended talk stays up until the
  * walker walks out, as a scene does.
  */
 
 /**
  * The talk begins (talk.ts startTalk): the companion's record counted, the talk's scene row (opening)
- * and its bookkeeping with whom and where, every seat in it, turn 0 holding the lease, and the open
- * think (the greeting, and beside it the prep). `act`: what the player did that opened it (the action
- * menu's: hurting Kell, or working on her mind), queued as its first turn once the greeting is in.
+ * and its bookkeeping with whom and where and the companion's role as it opens (the template's
+ * start's, the co-GM's note -1, which the greeting reads), every seat in it, turn 0 holding the
+ * lease, and the open think on the two-part GM (the greeting, and beside it the prep). `act`: what
+ * the player did that opened it (the action menu's: hurting Kell, or working on her mind), queued as
+ * its first turn once the greeting is in.
  */
 export function openTalk(tx: TxCtx, actor: Actor, game: GameRow, ex: ExploreState, talk: { with: string; where: string }, act?: { text: string; mechanic: Mechanic }): SceneRow {
   if (!campaignFile(campaignOfGame(tx, game)).talk) throw new Refused(refusal("not_built"));
@@ -46,7 +50,9 @@ export function openTalk(tx: TxCtx, actor: Actor, game: GameRow, ex: ExploreStat
     status: "opening", controllerId: host.id, turnId: undefined, turns: 0, exitKey: undefined, rev: 0, openedAt: tx.now, endedAt: undefined,
     time: game.time,
   });
-  putGm(tx, scene.id, { ...initialGm(graph), talk: { with: talk.with, where: talk.where } });
+  const gm: GmState = { ...initialGm(graph), talk: { with: talk.with, where: talk.where } };
+  openingRolesFor(graph, gm);
+  putGm(tx, scene.id, gm);
   moveSeats(tx, game.id, town.id, scene.id);
   noteHeard(tx, scene, graph);
   companionOnStage(tx, game, scene, talk.with);
@@ -119,8 +125,10 @@ export function walkOn(tx: TxCtx, actor: Actor): void {
 
 /**
  * The talk is over (talk.ts endTalk), however it ended: what came out of it goes on the companion's
- * record (the one thing they were keeping back, once it's out: told; else how far it came, for the
- * next talk that turns to it). Their memory of telling it is the AI service's (the settle's).
+ * record (the one thing they were keeping back, once it's out: told, and how near a talk of the old
+ * pipeline's had come to it, the record's stage for it, dropped). How near this talk came is in its
+ * own words, which the next talk's plan reads: the co-GM staged it through their role. The line in
+ * the GM's notes on them that they told it is the AI service's (the settle's).
  */
 export function endTalk(tx: TxCtx, scene: SceneRow): void {
   const gm = getGm(tx, scene.id);
@@ -128,31 +136,14 @@ export function endTalk(tx: TxCtx, scene: SceneRow): void {
   const record = talk ? recordOf(tx, scene.gameId, talk.with) : undefined;
   if (!talk || !record) return;
   const confide = talk.confide;
-  const stage = gm.guard?.[talk.with]?.stage;
-  if (confide && toldIt(gm, talk.with)) {
+  if (confide && toldIt(gm)) {
     tx.db.talkRecord.id.update({ ...record, told: [...record.told, { note: confide.note, topic: confide.topic, turn: scene.turns }], stages: record.stages.filter(s => s.note !== confide.note) });
-  } else if (confide && stage && stage !== "surface") {
-    tx.db.talkRecord.id.update({ ...record, stages: [...record.stages.filter(s => s.note !== confide.note), { note: confide.note, stage }] });
   }
-  tx.log(`[talk] scene ${scene.id} ${scene.sceneKey} over${confide ? `: ${confide.topic} ${toldIt(gm, talk.with) ? "told" : `as far as ${stage ?? "surface"}`}` : ""}`);
+  tx.log(`[talk] scene ${scene.id} ${scene.sceneKey} over${confide ? `: ${confide.topic} ${toldIt(gm) ? "told" : "not told"}` : ""}`);
 }
 
-/** Has it come out? The route was taken, or the staged secret settled (talk.ts toldIt). */
-export const toldIt = (gm: GmState, companion: string) => gm.path.some(p => p.via === CONFIDED) || gm.guard?.[companion]?.stage === "settled";
-
-/**
- * A talk's staged secrets after a reply (the prototype's engine.ts:902-905): each stage the read
- * after the reply found, as far as it's come, never back; and out is out: once it's told, the secret
- * is settled, whichever judgement saw it first (talk.ts:376).
- */
-export function guardAfter(gm: GmState, read: Record<string, GuardStage> | undefined, n: number): void {
-  for (const [id, stage] of Object.entries(read ?? {})) {
-    const was = gm.guard?.[id]?.stage ?? "surface";
-    if (GUARD_STAGES.indexOf(stage) > GUARD_STAGES.indexOf(was)) gm.guard = { ...(gm.guard ?? {}), [id]: { stage, turn: n } };
-  }
-  const talk = gm.talk;
-  if (talk?.confide && toldIt(gm, talk.with) && gm.guard?.[talk.with]?.stage !== "settled") gm.guard = { ...(gm.guard ?? {}), [talk.with]: { stage: "settled", turn: n } };
-}
+/** Has it come out? Its discovery reached (the co-GM's move), or in a talk from before, its route taken (talk.ts toldIt). */
+export const toldIt = (gm: GmState) => !!gm.reached?.includes(TOLD) || gm.path.some(p => p.via === CONFIDED);
 
 /** Back on the map from a talk, where they stopped for it (the explore row as it was, the move counted): every seat on the map's own place, its clock going. */
 export function leaveTalk(tx: TxCtx, game: GameRow, row: ExploreTableRow): ExploreTableRow {

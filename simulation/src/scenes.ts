@@ -102,20 +102,11 @@ export function graphOf(def: SceneDefRow, patches: ScenePatch[] = []): Scene {
 /**
  * The graph of a scene being played, as play has changed it (full-gm-design §4.2): the co-GM's routes
  * and bridging beats, and the ways of trying a ruling shut (gm.patches), as the AI service's own graph
- * has them, so a route it offers is one the decide commit finds. `{ patches: [] }`: the scene as
+ * has them, so a route it offers is one the simulation finds. `{ patches: [] }`: the scene as
  * authored.
  */
 export function sceneGraph(tx: TxCtx, scene: SceneRow, gm: Pick<GmState, "patches">): Scene {
   return graphOf(sceneDefOf(tx, gameRow(tx, scene.gameId), scene.sceneKey), gm.patches);
-}
-
-/**
- * Whether a scene plays on the two-part GM's steps (docs/two-part-design.md): a scene of the story
- * does (a talk keeps its own), unless its campaign says its scenes are the old pipeline's
- * (the scenario's `gm`, kept on the campaign row as the game's campaign).
- */
-export function playsTwoPart(tx: TxCtx, scene: Pick<SceneRow, "kind" | "gameId">): boolean {
-  return scene.kind !== "talk" && campaignFile(campaignOfGame(tx, gameRow(tx, scene.gameId))).gm !== "pipeline";
 }
 
 /** An exit of the graph by its id. */

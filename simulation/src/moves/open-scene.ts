@@ -4,11 +4,10 @@ import { idOf, idText, playerSpeaker } from "../../../shared/protocol/keys.ts";
 import type { Mechanic } from "../../../shared/rules/types.ts";
 import type { Scene } from "../../../shared/scene/types.ts";
 import type { TxCtx } from "../context.ts";
-import { keepOpened } from "../gm/bookkeeping.ts";
 import { openCall } from "../gm/requests.ts";
 import { getGm, putGm } from "../gm/rows.ts";
 import { gameRow, placeRow, playerRow, sceneRow, turnRow, updateScene, updateTurn, type GameRow, type PlayerRow, type SceneDefRow, type SceneRow } from "../rows.ts";
-import { campaignFile, campaignOfGame, graphOf, playsTwoPart, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
+import { campaignFile, campaignOfGame, graphOf, sceneDefOf, documentOf, sceneGraph } from "../scenes.ts";
 import { addEntry, noteHeard, noteHeardInStory, writeReply } from "../transcript.ts";
 import { finishTurn, newTurn } from "../turns.ts";
 import { talkLines } from "../map/talk.ts";
@@ -51,9 +50,8 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
     const scene = waiting ? openWaiting(tx, game, def, graph, gm, controller, start, waiting) : insertScene(tx, game, def, graph, gm, controller, start);
     // The two-part GM's roles as the scene opens (note -1), from who's present now: the opening reads them.
-    const twoPart = playsTwoPart(tx, scene);
-    if (twoPart) openingRolesFor(graph, gm);
-    if (!waiting || twoPart) putGm(tx, scene.id, waiting ? { ...getGm(tx, scene.id), twoPart: gm.twoPart } : gm);
+    openingRolesFor(graph, gm);
+    putGm(tx, scene.id, waiting ? { ...getGm(tx, scene.id), twoPart: gm.twoPart } : gm);
     syncStage(tx, scene, graph, gm);
     if (waiting) noteHeardInStory(tx, scene, graph);
     else noteHeard(tx, scene, graph);
@@ -61,15 +59,15 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
     const turn = newTurn(tx, scene, controller.id, 0, "replying");
     updateScene(tx, scene.id, { turnId: turn.id });
-    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}), ...(twoPart ? { twoPart } : {}) } };
+    return { done: false, plan: { step: "open", game: idText(game.id), scene: idText(scene.id), turn: idText(turn.id), seen: seenOf(tx, scene.id), ...(act ? { act } : {}) } };
   },
 
   think: (tx, plan) => openCall(tx, plan),
 
   /**
-   * The opening as the transcript's first entry (the two-part GM's with its check rolled), the notes
-   * disclosure opened kept; the first lines to suggest asked for (engine.ts:211-212); the scene live,
-   * and turn 0 finished.
+   * The opening as the transcript's first entry (the two-part GM's with its check rolled; an
+   * aftermath's as it was narrated), a talk's prep kept; the first lines to suggest asked for
+   * (engine.ts:211-212); the scene live, and turn 0 finished.
    */
   commit(tx, plan, answer) {
     const opened = answer as OpenResponse;
@@ -78,9 +76,9 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
     const turnId = idOf(plan.turn);
     const talk = scene.kind === "talk";
 
-    putGm(tx, scene.id, { ...gm, opened: keepOpened(gm.opened, opened.opened ?? []), ...(talk && opened.talk ? prepared(gm, opened.talk, turnRow(tx, turnId).n) : {}) });
+    if (talk && opened.talk) putGm(tx, scene.id, { ...gm, ...prepared(gm, opened.talk) });
     // The two-part GM's opening: what its mouthpiece said, and a check it called, rolled (docs/two-part-design.md).
-    if (plan.twoPart && !plan.aftermath) writeSpoken(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries, opened.check);
+    if (!plan.aftermath) writeSpoken(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries, opened.check);
     else writeReply(tx, scene, turnRow(tx, turnId).n, turnId, opened.entries);
     // A talk's lines to choose come with its prep (talk.ts prepare); a scene's are asked for (v5-design §3.5).
     if (talk) { if (playerRow(tx, scene.controllerId).suggestions) talkLines(tx, scene, turnRow(tx, turnId).n, opened.talk?.suggestions ?? []); }
@@ -98,24 +96,20 @@ export const openScene: Move<{ game: bigint; sceneKey: string; start?: Start; ac
 
 /**
  * A talk's prep kept (talk.ts prepare): what the talk's GM takes as given, the one thing the companion
- * might tell (on their card, and the route by which it comes out: the prep's patches), how near the
- * surface it starts (their staged secret, or as far as an earlier talk brought it: the AI service's
- * reading of the record), what they'd tell and how they'd remember it, and what disclosure keeps out.
+ * might tell (on their card, and the talk's discovery filled with it: the prep's patches), and what
+ * they'd tell.
  */
-function prepared(gm: GmState, prep: TalkPrep, n: number): Partial<GmState> {
-  const companion = gm.talk?.with;
+function prepared(gm: GmState, prep: TalkPrep): Partial<GmState> {
   return {
     established: [...gm.established, ...prep.established.filter(f => !gm.established.includes(f))],
     patches: [...gm.patches, ...prep.patches],
-    ...(companion && prep.guard ? { guard: { ...(gm.guard ?? {}), [companion]: { stage: prep.guard.stage, turn: prep.guard.turn ?? n } } } : {}),
-    ...(prep.withheld.length ? { withheld: [...new Set([...(gm.withheld ?? []), ...prep.withheld])] } : {}),
     ...(gm.talk && prep.confide ? { talk: { ...gm.talk, confide: prep.confide } } : {}),
   };
 }
 
 /**
  * The map's act as the scene's first turn (town-design §3.4: storyAct's): the player's line in
- * brackets, and its mechanic, chosen already, on the turn (turn.mechanic: decide's `forced`). It
+ * brackets, and its mechanic, chosen already, on the turn (turn.mechanic, which the turn's start resolves). It
  * waits as queued; turn 0's end starts it (turns.ts).
  */
 function queueAct(tx: TxCtx, scene: SceneRow, act: { text: string; mechanic: Mechanic }): void {

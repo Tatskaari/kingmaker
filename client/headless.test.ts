@@ -112,7 +112,7 @@ test("say --stream: words the reply's entry brought that the last draft seen had
  */
 function rowsAsTheyCome(closes?: "closes"): Backend {
   const n = (YARD.entries.at(-1)?.turn ?? 0) + 1;
-  const said: SceneView = { ...YARD, entries: [...YARD.entries, { turn: n, speaker: "player:1", kind: "player", text: "Who found him?" }], phase: "deciding", turn: n, mayType: false };
+  const said: SceneView = { ...YARD, entries: [...YARD.entries, { turn: n, speaker: "player:1", kind: "player", text: "Who found him?" }], phase: "replying", turn: n, mayType: false };
   const replied: SceneView = { ...said, entries: [...said.entries, { turn: n, speaker: "gm", kind: "narration", text: "Kell looks up from her notebook. “The porters.”" }], phase: "settling", mayType: !closes };
   const ended: SceneView = { ...replied, entries: [...replied.entries, { turn: n, speaker: "system", kind: "system", text: "Scene ends: Walked away" }], phase: "done", over: true };
   const later: SceneView[] = [

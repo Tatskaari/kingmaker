@@ -24,8 +24,8 @@ const BY_NAME = ["byName", "byNameDelayMs", "choices", "toolCalls"] as const;
 /**
  * --fake's options: fake.json's, KM_AI_FAKE's (JSON) on top ('{"streamMs":0}' answers at once), as
  * onTop puts them: so answers given for character creation's calls (v1's recipe of the prototype's
- * own) keep the others' answers, and '{"choices":{"roll_call":"new"}}' keeps the full GM's quiet
- * defaults (full-gm-design §4.4). Throws, saying so, when KM_AI_FAKE isn't JSON.
+ * own) keep the others' answers, and '{"choices":{"did":"flagged"}}' keeps the attention filter's
+ * other quiet answers. Throws, saying so, when KM_AI_FAKE isn't JSON.
  */
 export function fakeOptions(own: string | undefined): FakeOptions {
   if (!own) return devFake();
@@ -67,11 +67,11 @@ export function wholeStory(): FakeOptions {
 
 /**
  * fake.json's quiet answers for the full GM alone (full-gm-design §4.4, §6): the attention filter's
- * choices, the memories agent's call, the old co-GM's answer and the ruling; and the two-part GM's
- * co-GM kept still. A test that plays three turns or more on a fake of its own puts them under it
- * (onTop), or every line fires both memory reviews and a co-GM moves the scene.
+ * choices and the notes review's answer; and the two-part GM's co-GM kept still. A test that plays
+ * three turns or more on a fake of its own puts them under it (onTop), or every line fires both
+ * memory reviews and the co-GM moves the scene.
  */
 export function quietGm(): FakeOptions {
-  const fake = devFake() as FakeOptions & { toolCalls?: unknown };
-  return { choices: fake.choices!, byName: { co_gm_notes: fake.byName!.co_gm_notes, ruling: fake.byName!.ruling }, ...(fake.toolCalls ? { toolCalls: fake.toolCalls } : {}), coGm: { still: true } } as FakeOptions;
+  const fake = devFake();
+  return { choices: fake.choices!, byName: { gm_notes: fake.byName!.gm_notes }, coGm: { still: true } };
 }

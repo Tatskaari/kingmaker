@@ -43,7 +43,7 @@ const V2 = resolve(import.meta.dirname, "..");
 const CAMPAIGN = join(V2, "campaigns", "caerwyn");
 /**
  * f's fault: the service exits (137) right after it stores its next reply, before it sends it (v0-design
- * §5.1). After s the kept reply lands at once. (Any answer would be a line's decide, which no one sees.)
+ * §5.1). After s the kept reply lands at once. (Of a line's thinks, the reply is the one the player sees.)
  */
 const FAULT = "exit-after-store:reply";
 /** What each key's fault has the service store before it exits, for the line that says it has. */

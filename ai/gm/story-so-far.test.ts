@@ -1,7 +1,7 @@
 // Copied from the prototype's src/runtime/story.test.ts at 44c6d4a (here as story-so-far.test.ts: story.test.ts is gm/story.ts's): its cases but the actors' next speaker (the actors' voice isn't v2's). A session is a TurnView of the test story (fixtures.ts), the boundary gm/boundary.ts's chainScene over the candidates the simulation sends, and the lore the campaign's.
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
@@ -11,6 +11,9 @@ import { fakeFetch } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
 import { prompt } from "../prompts/index.ts";
 import { effectiveScene } from "../../shared/scene/graph.ts";
+import { loadPlace, placePath } from "../../shared/scene/scenario.ts";
+import { inventory } from "../../shared/world/inventory.ts";
+import { buildWorld } from "../../shared/world/scene-world.ts";
 import { chainScene } from "./boundary.ts";
 import { sceneBrief } from "./brief.ts";
 import { CAERWYN, sceneById, stateIn } from "./fixtures.ts";
@@ -78,17 +81,31 @@ test("a scene's facts go on with the story, and the hand-off keeps what was admi
   assert.match(handoff.instructions!, /what each person who goes on with the player \(a partner, a companion\) saw and heard for themselves, from where they were/);
 });
 
+test("the hand-off and the verdict know what the player carries as the scene ends, by the world: a token an ending or a skipped scene put in their hands, which the transcript never mentions", async () => {
+  const fake = fakeFetch({ replies: ["Wren leaves the Rat with Hobb's token."] });
+  const calls: CallContext = { fetch: fake.fetch, apiKey: "test", log: () => {}, cost: () => {} };
+  const rat = sceneById("drowned-rat");
+  const place = loadPlace(readFileSync(join(CAERWYN, placePath("drowned-rat")), "utf8"), placePath("drowned-rat"));
+  const world = buildWorld(rat.id, place, rat.cast.map(c => ({ id: c.id, name: c.name })), { name: "Wren Ashdown" });
+  inventory(world, 0).settle("heron-token", "player");
+  const state = stateIn("drowned-rat", { world, transcript: [{ turn: 1, scene: "drowned-rat", speaker: "system", kind: "system", text: "Scene ends: What Big Hobb knows" }] });
+  await chainScene(rat, state, rat.exits.find(e => e.id === "hobb-talks")!, ["heron-warehouse", "kings-morning"].map(sceneById), { calls, sceneById, decider: new JevDecider(LUNA_DECISIONS_MODEL, "luna-decisions", calls) });
+  const inputOf = (start: string) => (fake.sent.find(b => b.instructions?.startsWith(start))!.input as Array<{ content: string }>).map(m => m.content).join("\n");
+  for (const call of ["You write the hand-off", "The upcoming scenes of a roleplaying game"]) {
+    assert.match(inputOf(call), /What the player character carries as it ends, by the world's record \(what play put in their hands, and what the ending gave them\): a brass heron token on a greasy string\./, call);
+  }
+});
+
 test("nobody answers a question put to the player for them, and nobody knows what they couldn't (the King's morning: Kell answered for the investigator, and the King asked after a barge nobody had told him of)", () => {
   const gm = prompt("gm");
   assert.match(gm, /A question put to the player character is theirs to answer: nobody answers it for them, over them or before them \(a companion included\), and the reply stops on it\./);
   assert.match(gm, /A companion speaks to what they saw themselves when the player calls on them, or once if the player's word is doubted, and never to what they didn't see\./);
   assert.match(gm, /What you know of the story \(your prep, earlier scenes, what happened elsewhere\) isn't theirs, so nobody asks about, names or guesses at something they haven't heard of\./);
-  assert.match(prompt("actor"), /A question put to the player's character is theirs to answer: don't answer it for them or over them\./);
-  assert.match(prompt("narrator"), /a question put to them is theirs to answer, not anyone else's/);
 });
 
-test("what someone saw or heard for themselves is a memory of theirs: a companion's included", () => {
-  assert.match(CATEGORIES.witnessed!, /including whoever stood watch or kept out of the way, and a companion of the player's/);
-  assert.deepEqual(plan(["witnessed"]), ["memories"], "the personal-memories review");
-  assert.match(prompt("review/witnessed"), /'I only held him\. In the loft\. I only held the rope\.'", not "I recorded Hobb's admission"/, "in its own words");
+test("what someone saw or heard for themselves goes in the GM's notes on them: a companion's included, in the words that matter", () => {
+  assert.match(CATEGORIES.learned!, /including whoever stood watch or kept out of the way, and a companion of the player's/);
+  assert.deepEqual(plan(["learned"]), ["notes"], "the notes review");
+  assert.deepEqual(plan(["improvised_detail"]), ["notes", "lore"], "a world fact has its witnesses too");
+  assert.match(prompt("memory-review"), /"Heard Hobb say: 'I only held him\. In the loft\.'", not "Witnessed Hobb's admission"\), for whoever stood watch or kept out of the way and for the player's companion too/, "in its own words");
 });

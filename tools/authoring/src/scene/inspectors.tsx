@@ -10,8 +10,9 @@ import type {Option} from './fields.tsx';
 import type {Campaign} from './campaign.ts';
 import {EffectsEditor} from './effects.tsx';
 import {FactsField} from './facts.tsx';
+import {TOLD} from '../../../../shared/scene/talk.ts';
 import {EXIT_KINDS,ORDER,SKILLS,addRoute,changeKind,idProblem,isBeat,isDiscovery,isEnding,isStart,kindLosses,moveRoutes,nodeKind,optionalList,removeNodes,removeRoutes,renameNode,renameRoute,retitleNode,setArrival,setNodeField,setRouteField,titleOf,updateNode,updateRoute,viaNames,withKey} from './model.ts';
-import type {BeatData,Connection,EndingData,NewNodeKind,NodeKind,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
+import type {BeatData,Connection,EndingData,NewNodeKind,NodeKind,OuterLimit,Path,Route,SceneDocument,SceneNode,StartData} from './model.ts';
 
 export const KIND_LABELS:Record<NodeKind,string>={start:'Start',discovery:'Discovery',event:'Event',ending:'Ending'};
 const SKILL_LABEL=(skill:string)=>skill.replace(/_/g,' ').replace(/^./,letter=>letter.toUpperCase());
@@ -41,7 +42,7 @@ const PHASE_OPTIONS=[
   {value:'outcome',label:'Outcome',detail:'Outcome: judged on what has happened in the story.'},
   {value:'cue',label:'Cue',detail:'Cue: a moment (the noon bell, the player setting off) that the co-GM brings about when it comes.'},
 ];
-const RENAME_NODE='Its routes, what requires it and who arrives there follow. Game state keys on it: a game already played loses track of it under the old id.';
+const RENAME_NODE='Its routes, what requires it, the outer limits counting from or until it and who arrives there follow. Game state keys on it: a game already played loses track of it under the old id.';
 
 // ---------------------------------------------------------------------------------------------
 // A node.
@@ -52,7 +53,7 @@ export function NodeInspector({node}:{node:SceneNode}){
   const kind=nodeKind(node);
   const remove=()=>{
     const routes=doc.edges.filter(route=>route.source===node.id||route.target===node.id).length;
-    confirm({title:'Delete node?',confirmLabel:'Delete node',description:`Delete “${node.data.title||node.id}”${routes?` and the ${routes} route${routes===1?'':'s'} to and from it`:''}? Routes that require it, or fail into it, forget it, and anyone who arrives there arrives from the start. You can undo this.`,onConfirm:()=>edit(scene=>removeNodes(scene,[node.id]))});
+    confirm({title:'Delete node?',confirmLabel:'Delete node',description:`Delete “${node.data.title||node.id}”${routes?` and the ${routes} route${routes===1?'':'s'} to and from it`:''}? Routes that require it, fail into it or count their outer limit from or until it forget it, and anyone who arrives there arrives from the start. You can undo this.`,onConfirm:()=>edit(scene=>removeNodes(scene,[node.id]))});
   };
   return <div className={`node-inspector ${kind}`} data-node={node.id}>
     <header className="inspector-header">
@@ -112,9 +113,10 @@ function StartFields({node}:{node:SceneNode<StartData>}){
 }
 
 function DiscoveryFields({node}:{node:SceneNode<BeatData>}){
-  const {edit}=useScene();
+  const {edit,doc,campaign}=useScene();
   const set=(key:string,value:unknown)=>edit(scene=>setNodeField(scene,node.id,key,value));
   return <>
+    {doc.id===campaign?.talk&&node.id===TOLD&&<p className="muted talk-told">The talk template's: each talk's prep fills its revelation and its paths with the one thing {'{name}'} might confide this time (how it shows, and what brings it out), or drops it with its way in when there's nothing to confide. The words here stand for them in the file.</p>}
     <Checkbox label="Required" field="required" hint="The scene can't end well without it: give it three paths or more, one needing no roll, and have a way into a good ending require it." checked={!!node.data.required} onChange={checked=>set('required',checked?true:undefined)}/>
     <TextArea label="Revelation" field="revelation" hint="What the player comes to understand, in a sentence or two." value={node.data.revelation??''} onChange={value=>set('revelation',value)}/>
     <TextArea label="How to play it" field="description" rows={4} hint="What the discovery is for and how to play it." value={node.data.description} onChange={value=>set('description',value)}/>
@@ -269,7 +271,7 @@ function PathsEditor({node,note}:{node:SceneNode<BeatData>;note?:string}){
       {vias.length>0&&<SelectField label="Pick via" field="via.pick" hint={place?`From the cast and ${place.name}'s things and parts.`:'From the cast (the scene has no place of the campaign\'s).'} value="" placeholder="Choose…" options={vias.map(via=>({value:via.value,label:`${via.value}: ${via.label}`}))} onChange={value=>{if(value)setPath(index,'via',value)}}/>}
       {place&&path.via.trim().includes(' ')&&!viaNames(path.via,doc,place)&&<p className="via-warning" role="note">Neither one of the cast nor a thing of {place.name}: the GM is told the clue is with something the scene hasn't got. Pick one, or keep it as words.</p>}
       <TextArea label="Clue" field="clue" rows={2} hint="What's there to find or hear, concretely." value={path.clue} onChange={value=>setPath(index,'clue',value)}/>
-      <TextArea label="Earn" field="earn" rows={2} hint="What earns it: free to a look, a kindness, a promise, a roll. Say when it's free." value={path.earn} onChange={value=>setPath(index,'earn',value)}/>
+      <TextArea label="Earn" field="earn" rows={2} hint="What earns it: free to a look, a kindness, a promise, a roll. An approach that needs no dice says so up front (“No dice: free to anyone who looks up”); where the roll is for another approach, the free ones come first and the roll after them." value={path.earn} onChange={value=>setPath(index,'earn',value)}/>
       <ChoiceField label="Strength" field="strength" value={path.strength} options={STRENGTH_OPTIONS} onChange={value=>setPath(index,'strength',value)}/>
       <OptionalSection title="Roll" field="check" present={!!path.check} addLabel="Add a roll" hint="A roll that suits this path: the mouthpiece calls it when the player tries it and the outcome is uncertain." onRemove={()=>setPath(index,'check',undefined)}>
         <div className="field-row">
@@ -377,6 +379,7 @@ function RouteCard({route,index,open,onToggle}:{route:Route;index:number;open:bo
       {d.skill&&<span className="dice-badge"><Dices size={11}/>{SKILL_LABEL(d.skill)} DC {d.dc}</span>}
       {d.requires?.length?<span>Requires {d.requires.map(id=>titleOf(doc,id)).join(', ')}</span>:null}
       {d.onFailure&&<span>Fails to {titleOf(doc,d.onFailure)}</span>}
+      {d.limit?.length?<span>By {d.limit.map(count=>countWords(doc,count)).join(', or ')}</span>:null}
     </div>
     {open?<RouteFields route={route} onRemove={remove}/>:<p className="way-condition">{d.condition||'No condition: taken when the revelation has landed.'}</p>}
   </article>;
@@ -394,7 +397,7 @@ function RouteFields({route,onRemove}:{route:Route;onRemove:()=>void}){
   return <div className="way-fields">
     <IdField id={route.id} problem={next=>idProblem(next,doc.edges.map(other=>other.id),route.id)} onRename={next=>{edit(scene=>renameRoute(scene,route.id,next));renamed('route',route.id,next)}} warning="The co-GM moves the scene by it, and game state keys on it: a game already played loses track of it under the old id."/>
     <TextField label="Label" field="label" hint="The route's name on the graph." value={route.label} onChange={value=>edit(scene=>updateRoute(scene,route.id,old=>({...old,label:value})))}/>
-    <TextArea label="Condition" field="condition" hint={target&&isDiscovery(target)?'What has to have happened, in prose. Into a discovery it may be empty: the route is taken when the revelation has landed.':'What has to have happened in the story to take it, in prose.'} value={d.condition} onChange={value=>set('condition',value)}/>
+    <TextArea label="Condition" field="condition" hint={target&&isDiscovery(target)?'What has to have happened, in prose. Into a discovery it may be empty: the route is taken when the revelation has landed.':'What has to have happened in the story to take it, in prose. Into a bad or mixed ending that could be true at the same moment as a good one\'s, say it gives way to that one, by its id (“…: that\'s [let-him-go]”); a cue into an ending says what has it no longer needed (“Not needed once …”).'} value={d.condition} onChange={value=>set('condition',value)}/>
     <ChoiceField label="Phase" field="phase" value={d.phase} options={PHASE_OPTIONS} onChange={value=>set('phase',value)}/>
     <div className="requires-field" data-field="requires">
       <span className="field-label">Requires<span className="count">{requires.length}</span></span>
@@ -412,6 +415,42 @@ function RouteFields({route,onRemove}:{route:Route;onRemove:()=>void}){
       <small className="field-hint">The roll decides it: when the player attempts what the condition says, the mouthpiece calls it, and a success takes the route (its facts settled then).</small>
     </OptionalSection>
     <FactsField label="Facts settled when it's taken" hint="A route with a roll settles them on a success." facts={d.establishes??[]} set={(scene,change)=>setRouteField(scene,route.id,'establishes',optionalList(change(scene.edges.find(other=>other.id===route.id)?.data.establishes??[])))}/>
+    {(d.phase==='cue'||d.limit!==undefined)&&<LimitEditor route={route}/>}
     <button type="button" className="text-button danger" onClick={onRemove}><Trash2 size={13}/>Remove route</button>
   </div>;
+}
+
+/** A count of a cue's outer limit in words: "12 exchanges in", "8 exchanges after Arlo's challenge (until Hobb talks)". */
+const countWords=(doc:SceneDocument,count:OuterLimit)=>`${count.exchanges} exchange${count.exchanges===1?'':'s'} ${count.after?`after ${titleOf(doc,count.after)}`:'in'}${count.until?.length?` (until ${count.until.map(id=>titleOf(doc,id)).join(' or ')})`:''}`;
+const LIMIT_HINT='Its moment comes by then, whatever else is happening: each count runs from the scene\'s start or from when a beat is reached, and stops once a beat it runs until is reached. The cue is overdue once a count still running has run out, and the co-GM brings it about, though an ending whose condition has happened comes first, and a cue into a bad ending waits on a good or mixed one under way. Say it in the condition too ("Outer limit: …"), as the mouthpiece reads that.';
+
+/** A cue's outer limit: its counts, each so many exchanges from the scene's start or from a beat reached, until a beat is; an outcome's, shown to take out. */
+function LimitEditor({route}:{route:Route}){
+  const {doc,edit,showNode}=useScene();
+  const limit=route.data.limit;
+  const cue=route.data.phase==='cue';
+  const setCounts=(change:(counts:OuterLimit[])=>OuterLimit[])=>edit(scene=>setRouteField(scene,route.id,'limit',optionalList(change(scene.edges.find(other=>other.id===route.id)?.data.limit??[]))));
+  const setCount=(index:number,key:string,value:unknown)=>setCounts(counts=>counts.map((count,i)=>i===index?withKey(count,key,value,ORDER.limit):count));
+  const beats=doc.nodes.filter(isBeat);
+  const beatOption=(node:SceneNode)=>({value:node.id,label:`${node.data.title||node.id} (${node.id})`,detail:isDiscovery(node)?'Discovery':'Event'});
+  return <OptionalSection title="Outer limit" field="limit" present={limit!==undefined} addLabel="Add an outer limit" className="outer-limit"
+    hint={cue?'Give every cue one: without it, the cue comes only when its condition has happened, however long that takes.':undefined}
+    onAdd={()=>setCounts(()=>[{exchanges:8}])} onRemove={()=>edit(scene=>setRouteField(scene,route.id,'limit',undefined))}>
+    {!cue&&<p className="muted">Only a cue has an outer limit (an outcome is judged on what has happened): make it a cue, or remove it.</p>}
+    {(limit??[]).map((count,index)=><ItemCard key={index} index={index} count={limit!.length} field={`limit.${index}`} className="limit-count" label={`Count ${index+1}`} removeLabel="Remove count"
+      title={countWords(doc,count)} onRemove={()=>setCounts(counts=>counts.filter((_,i)=>i!==index))}>
+      <div className="field-row">
+        <NumberField label="Exchanges" field="exchanges" min={1} max={60} value={count.exchanges} onChange={value=>{if(value!==undefined&&value>0)setCount(index,'exchanges',value)}}/>
+        <SelectField label="Counted from" field="after" value={count.after??''} options={[{value:'',label:'The scene\'s start'},...beats.map(beatOption)]} onChange={value=>setCount(index,'after',value||undefined)}/>
+      </div>
+      <div className="field" data-field="until">
+        <span className="field-label">Until<span className="count">{count.until?.length??0}</span></span>
+        <Chips label="Until" items={(count.until??[]).map(id=>({value:id,label:titleOf(doc,id),detail:id,onOpen:()=>showNode(id)}))} empty="It runs until it runs out." onRemove={id=>setCount(index,'until',optionalList((count.until??[]).filter(other=>other!==id)))}/>
+        <AddPicker label="Add beat" title="Stop counting once…" options={beats.filter(node=>!count.until?.includes(node.id)).map(beatOption)} empty="Every beat stops it already." onPick={id=>setCount(index,'until',[...(count.until??[]),id])}/>
+        <small className="field-hint">Beats that stop this count once one is reached (Hobb talking stops Arlo's challenge coming).</small>
+      </div>
+    </ItemCard>)}
+    {limit!==undefined&&<button type="button" className="add-item" onClick={()=>setCounts(counts=>[...counts,{exchanges:8}])}><Plus size={13}/>Add count</button>}
+    <small className="field-hint">{LIMIT_HINT}</small>
+  </OptionalSection>;
 }

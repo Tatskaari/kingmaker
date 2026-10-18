@@ -83,8 +83,10 @@ type RoundJson = { status?: string; output?: OutputItem[]; usage?: { cost?: numb
  */
 async function round(operation: string, body: Record<string, unknown>, context: CallContext | undefined, ms: number, deadline: number): Promise<{ response: Response; json: RoundJson }> {
   for (let attempt = 0; ; attempt++) {
+    // A whole number of milliseconds: AbortSignal.timeout refuses a fraction, and the time left
+    // before the deadline is one (qa1-1018: every co-GM whose rounds ran past 25 s failed on it).
     const left = deadline - performance.now();
-    const wait = Math.max(1, Math.min(ms, left));
+    const wait = Math.max(1, Math.floor(Math.min(ms, left)));
     try {
       const response = await fetchWithRetry("https://openrouter.ai/api/v1/responses", {
         method: "POST",

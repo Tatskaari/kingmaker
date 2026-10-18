@@ -63,6 +63,45 @@ export function openRoutes(scene: Scene, gm: Where): SceneRoute[] {
   return scene.routes.filter(r => reached.has(r.source) && !reached.has(r.target) && !gm.fought?.includes(r.target) && (r.requires ?? []).every(b => reached.has(b)));
 }
 
+/**
+ * The turn each node the scene has reached was reached on: the turn whose reply the move into it
+ * followed (takeRoute's path steps), and the start the opening's, 0. A node reached in a state from
+ * before the path kept its moves has none.
+ */
+export function reachedTurns(gm: Where & Pick<GmState, "path">): Map<string, number> {
+  const reached = reachedOf(gm);
+  const turns = new Map<string, number>([[reached[0]!, 0]]);
+  for (const step of gm.path) if (step.to !== step.from && reached.includes(step.to) && !turns.has(step.to)) turns.set(step.to, step.turn);
+  return turns;
+}
+
+/**
+ * One count of a cue's outer limit as it stands: its exchanges and the beat it counts after; `next`,
+ * which exchange of it the next reply is (none while its beat isn't reached), and the turn that beat
+ * was reached on; `stopped`, the beat of its `until` that stopped it.
+ */
+export interface LimitCount { exchanges: number; after?: string; reachedOn?: number; next?: number; stopped?: string }
+
+/**
+ * A cue's outer limit after the reply to `turn`, for the co-GM: how far each count has run, and
+ * whether the cue is overdue, a count still running having reached its exchanges with the next
+ * reply (so the move made now shows in time). A count runs from the opening, which is reply 0, or
+ * from the reply after its beat was reached (an event shows in the next reply); the eleventh bell's
+ * "fifteen into the scene" is overdue after reply 14, and rings in reply 15. None for a route that
+ * isn't a cue or has no limit.
+ */
+export function limitOf(route: SceneRoute, gm: Where & Pick<GmState, "path">, turn: number): { counts: LimitCount[]; overdue: boolean } | undefined {
+  if (route.phase !== "cue" || !route.limit?.length) return undefined;
+  const turns = reachedTurns(gm);
+  const counts = route.limit.map((l): LimitCount => {
+    const stopped = l.until?.find(u => turns.has(u));
+    const reachedOn = l.after ? turns.get(l.after) : undefined;
+    const from = l.after ? (reachedOn === undefined ? undefined : reachedOn + 1) : 0;
+    return { exchanges: l.exchanges, ...(l.after ? { after: l.after } : {}), ...(reachedOn !== undefined ? { reachedOn } : {}), ...(from !== undefined ? { next: turn + 1 - from } : {}), ...(stopped ? { stopped } : {}) };
+  });
+  return { counts, overdue: counts.some(c => c.next !== undefined && !c.stopped && c.next >= c.exchanges) };
+}
+
 /** Who arrives when the scene reaches a node: the cast whose `enters` it is (an event beat's people). */
 export function enteringAt(scene: Pick<Scene, "cast">, node: string): Character[] {
   return scene.cast.filter(c => c.enters === node);

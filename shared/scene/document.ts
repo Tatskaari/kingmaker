@@ -43,7 +43,7 @@ export interface SceneDocument {
   premise: string;
   /** What really happened, behind the screen: never said outright, it comes out through the beats' paths. */
   truth: string;
-  /** What happens if the player dawdles (the dead-cart at noon): the pressure, and its outer limit. */
+  /** What happens if the player dawdles (the dead-cart at noon): the pressure, its outer limit, and how it's felt coming, a step nearer each exchange and never the same sign twice (Hep's count falls each time she calls it). */
   clock?: string;
   /** Tempting things that don't exist or can't work here, so the GM can say "no, but" honestly. */
   limits?: string[];
@@ -189,7 +189,7 @@ export interface Path {
   via: string;
   /** What's there to find or hear, concretely. */
   clue: string;
-  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. Say when it's free. */
+  /** What earns it: free to a look, a kindness, a promise, getting up there, a roll. An approach that needs no dice says so up front ("No dice: free to anyone who looks up"); where the path's check is for another approach, the free ones come first and the roll after them. */
   earn: string;
   /** What it amounts to as evidence. */
   strength: typeof STRENGTHS[number];
@@ -234,6 +234,9 @@ export interface Route {
     /**
      * What has to have happened in the story to take it, in prose.
      * Into a discovery it may be empty: the route is taken when the revelation has landed.
+     * Into a bad or mixed ending that could be true at the same moment as a good one's, say it gives way to
+     * that one, by its id ("...: that's [let-him-go]"); a cue into an ending says what has it no longer needed
+     * ("Not needed once ...").
      */
     condition: string;
     /**
@@ -254,8 +257,21 @@ export interface Route {
     onFailure?: string;
     /** Fact ids settled when it's taken. */
     establishes?: string[];
+    /**
+     * A cue's outer limit: its moment comes by then, whatever else is happening. Each count runs
+     * from the scene's start, or from when the beat `after` was reached, and stops once a beat of
+     * `until` is reached; the cue is overdue once a count still running has run out, whichever
+     * runs out first (the eleventh bell: 15 exchanges into the scene, or 8 after Arlo's
+     * challenge). The co-GM is told how far each has run, and an overdue cue is brought about,
+     * but an ending whose condition has happened comes first, and a cue into a bad ending waits
+     * on a good or mixed one under way.
+     */
+    limit?: OuterLimit[];
   };
 }
+
+/** One count of a cue's outer limit: so many exchanges from the scene's start, or from when `after` was reached, until a beat of `until` is. */
+export interface OuterLimit { exchanges: number; after?: string; until?: string[] }
 
 export const isStart = (n: SceneNode): n is SceneNode<StartData> => n.data.kind === "start";
 export const isBeat = (n: SceneNode): n is SceneNode<BeatData> => n.data.kind === "beat";
@@ -380,6 +396,24 @@ export function shapeProblems(value: unknown): string[] {
     if (data.onFailure !== undefined && !kinds.has(data.onFailure as string)) p.push(`${at}'s onFailure ${JSON.stringify(data.onFailure)} isn't a node of the scene`);
     if (data.establishes !== undefined) stringList(data, "establishes", p, `${at}'s `);
     settles(data.establishes, at);
+    if (data.limit !== undefined) p.push(...limitProblems(data.limit, kinds, at));
+  });
+  return p;
+}
+
+/** A route's outer limit: a list of counts, each a whole number of exchanges from the start or a node of the scene, until nodes of the scene. */
+function limitProblems(limit: unknown, kinds: Map<string, string>, at: string): string[] {
+  if (!Array.isArray(limit)) return [`${at}'s limit isn't a list of { exchanges, after?, until? }`];
+  const p: string[] = [];
+  limit.forEach((count, i) => {
+    const where = `${at}'s limit[${i}]`;
+    if (!isObject(count)) return p.push(`${where} isn't an object`);
+    if (!(Number.isInteger(count.exchanges) && (count.exchanges as number) > 0)) p.push(`${where} has no whole number of exchanges`);
+    if (count.after !== undefined && !kinds.has(count.after as string)) p.push(`${where} counts after ${JSON.stringify(count.after)}, which isn't a node of the scene`);
+    if (count.until !== undefined) {
+      stringList(count, "until", p, `${where}'s `);
+      if (Array.isArray(count.until)) for (const u of count.until) if (typeof u === "string" && !kinds.has(u)) p.push(`${where} counts until ${u}, which isn't a node of the scene`);
+    }
   });
   return p;
 }

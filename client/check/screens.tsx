@@ -14,8 +14,8 @@
  * the server turned away. And V5's: the suggested lines, from rows (their rows kept while they come,
  * numbered over the box, a number or a click into the box, typing puts them away, /suggestions off,
  * none for a spectator), and each speaker's colour as the draft grows. Last, the screen coming up as the rows move on: a change between its
- * first render and its subscription to the model is drawn. Then the full GM's: a considered turn
- * from rows, its status line, its shut box and its dice line before the reply. Then V1's: the
+ * first render and its subscription to the model is drawn. (The full GM's considered turn went with
+ * considered rolls.) Then V1's: the
  * title, character creation's six screens and the sheet (check/creation.tsx). Then the story's:
  * the way on between scenes, Kell's talk, the card, the notebook, the quests, the fight's card and
  * The End (check/story-screens.tsx). (The prototype's src/app/smoke/screens-check.tsx, for this client.)
@@ -25,7 +25,7 @@
 import { act, useLayoutEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { ScenePlay } from "../app.tsx";
-import { CONSIDERING, GM_BUSY } from "../busy.ts";
+import { GM_BUSY } from "../busy.ts";
 import { SceneModel, SUGGESTIONS_OFF, SUGGESTIONS_ON, type SceneActions } from "../scene/model.ts";
 import { markupOf, sceneViewOf, type SceneRows } from "../scene/rows.ts";
 import type { SceneView, Suggestion } from "../scene/view.ts";
@@ -109,11 +109,11 @@ for (const [w, h] of SIZES) {
 
   // The rows come back: the line in its own turn, the GM thinking.
   const turn = view.entries.at(-1)!.turn + 1;
-  set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", name: view.player.name, text: "Sergeant, who found him?" }], phase: "deciding", mayType: false });
+  set({ entries: [...view.entries, { turn, speaker: "player:1", kind: "player", name: view.player.name, text: "Sergeant, who found him?" }], phase: "queued", mayType: false });
   frame = await draw();
-  if (show) console.log(`${size}, deciding\n${frame}`);
+  if (show) console.log(`${size}, queued\n${frame}`);
   const thinking = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
-  checks.push([`${size}: deciding: the line in a turn under the player's name, the spinner's line (${thinking ?? "none"}), the box shut`, /╭─ Pell Marrow/.test(frame) && /Sergeant, who found him\?/.test(frame) && !!thinking && /The GM has the floor/.test(frame)]);
+  checks.push([`${size}: queued: the line in a turn under the player's name, the spinner's line (${thinking ?? "none"}), the box shut`, /╭─ Pell Marrow/.test(frame) && /Sergeant, who found him\?/.test(frame) && !!thinking && /The GM has the floor/.test(frame)]);
 
   // A line typed while the GM has the floor waits in the box.
   await act(async () => { await setup.mockInput.typeText("Who else"); });
@@ -243,7 +243,7 @@ for (const [w, h] of SIZES) {
   // The lead says a line: the refusal (still on the view, as the connection keeps it until the next
   // move) gives way to the spinner, and then to the turn's note.
   const next = YARD.entries.at(-1)!.turn + 1;
-  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "deciding", turn: next });
+  set({ entries: [...view.entries, { turn: next, speaker: "player:1", kind: "player", name: "Pell Marrow", text: "Who found him?" }], phase: "queued", turn: next });
   frame = await draw();
   const spinning = GM_BUSY.find(l => frame.includes(l.slice(0, 20)));
   checks.push([`${size}: when the lead's next line comes, the spectator's refusal gives way to the spinner (${spinning ?? "none"})`, !!spinning && !/has the lead here: you're watching\.\)/.test(frame)]);
@@ -389,7 +389,7 @@ for (const [w, h] of SIZES) {
   const talkColumns = w - sceneSide(w) - 3;
 
   // Turn 2's lines are in, numbered over the box. A line is said: the move, then its rows (turn 3
-  // deciding; the old set's rows are still in the table, for turn 2).
+  // replying; the old set's rows are still in the table, for turn 2).
   rows.suggestions = linesFor(2);
   changed();
   let frame = await draw();
@@ -401,7 +401,7 @@ for (const [w, h] of SIZES) {
   await draw();
   entry(3, "player:1", "player", "Who else was here?");
   rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
-  turn(turnRow(3, "deciding"));
+  turn(turnRow(3, "replying"));
   changed();
   frame = await draw();
   if (show) console.log(`${size}, lines coming\n${frame}`);
@@ -568,56 +568,6 @@ for (const [what, next, shows] of comingUp) {
   const frame = setup.captureCharFrame();
   if (show) console.log(`coming up: ${what}\n${frame}`);
   checks.push([`the screen coming up: ${what}, though it came between the first render and the screen's subscription`, shows(frame)]);
-  await setup.dispose();
-}
-
-// ---------------------------------------------------------------------------------------------
-// A considered turn, from rows (full-gm-design §4.3): the GM rules on a risky act no route covers
-// before the reply. The turn's considering phase puts the prototype's CONSIDERING on the status
-// line, whole, for the whole step; the box is shut, as while deciding, and a line typed waits in
-// it; the suggested lines' rows are kept while they come. Then the ruling's dice line, before the
-// reply as it's written.
-
-for (const [w, h] of [[80, 24], [120, 40]] as const) {
-  const size = `${w}x${h}`;
-  const { sent, actions } = recorder();
-  const rows = yardRows();
-  const scene = new SceneModel(sceneViewOf(rows), actions);
-  const setup = await testRender(<ScenePlay scene={scene} />, { width: w, height: h });
-  const draw = async () => { await setup.renderOnce(); return setup.captureCharFrame(); };
-  const changed = () => act(() => scene.update(sceneViewOf(rows)));
-  const entry = (n: number, speaker: string, kind: string, text: string) => { rows.transcript = [...rows.transcript, { seq: rows.transcript.length + 1, turn: n, speaker, kind, text, markup: undefined }]; };
-  const phase = (n: number, p: string) => { rows.turns = [...rows.turns.filter(t => t.n !== n), turnRow(n, p)]; };
-  await draw();
-
-  // The line said: its turn deciding, then considering.
-  entry(3, "player:1", "player", "(I try to lift the folded paper out of the boy's boot while he watches the sergeant)");
-  rows.scene = { ...rows.scene, turns: 3, turnId: 103n };
-  phase(3, "deciding");
-  changed();
-  await draw();
-  phase(3, "considering");
-  changed();
-  let frame = await draw();
-  if (show) console.log(`${size}, considering\n${frame}`);
-  checks.push([`${size}: considering: the status line says the GM is considering the ramifications, whole`, frame.includes(CONSIDERING) && scene.busy() === CONSIDERING]);
-  checks.push([`${size}: considering: the box is shut, as while deciding, and the lines' rows are kept`, /The GM has the floor/.test(frame) && styleIn(setup, "What do you say?")?.fg === C.border && over(frame).length === (h < 26 ? 4 : 5)]);
-  await act(async () => { await setup.mockInput.typeText("Easy, lad."); });
-  await draw();
-  act(() => setup.mockInput.pressEnter());
-  frame = await draw();
-  checks.push([`${size}: considering: a line typed waits in the box, unsent`, sent.length === 0 && /Easy, lad\./.test(frame)]);
-  for (let i = 0; i < "Easy, lad.".length; i++) act(() => setup.mockInput.pressBackspace());
-
-  // The ruling rolled: its dice line in the transcript, then the reply as it's written.
-  entry(3, "dice", "roll", "Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success");
-  phase(3, "replying");
-  rows.drafts = [{ turnId: 103n, speaker: "gm", text: "Cob doesn't feel a thing.", markup: undefined, attempt: 1, seq: 1 }];
-  changed();
-  frame = await draw();
-  if (show) console.log(`${size}, the ruling's dice line\n${frame}`);
-  const talk = talkIn(frame, w - sceneSide(w));
-  checks.push([`${size}: the ruling's dice line, then the reply as it's written, the GM speaking`, talk.includes("Sleight of Hand check to lift it unseen: 14 + 5 = 19 vs DC 12: success") && talk.indexOf("vs DC 12") < talk.indexOf("Cob doesn't feel a thing.") && /The GM is speaking…/.test(frame) && !frame.includes(CONSIDERING)]);
   await setup.dispose();
 }
 

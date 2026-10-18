@@ -84,13 +84,13 @@
           {
             "via": "kell",
             "clue": "Her own errand: she says where she's going (downriver to the Heron, to see its night loading with her own eyes) and when, once, and goes, with the investigator or without.",
-            "earn": "Free: she says it unasked, once, or when the investigator asks where she's off to.",
+            "earn": "No dice: she says it unasked, once, or when the investigator asks where she's off to.",
             "strength": "strong"
           },
           {
             "via": "gossip in the town",
             "clue": "Porters, shopkeepers and bargees pass on what everyone on the stairs knows.",
-            "earn": "Asking around: a question, a coin or a pie for the talkative.",
+            "earn": "No dice: asking around, with a question, a coin or a pie for the talkative.",
             "strength": "suggestive"
           }
         ],

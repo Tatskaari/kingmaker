@@ -68,7 +68,7 @@ function handedOnText(record: GameRecord): string | undefined {
   if (!record.skipped.length && !h) return undefined;
   return [
     "# What the story handed on to this scene",
-    record.skipped.length ? `The scenes before this one were ended for the test, not played (each with its discoveries made first, as a thorough player's game would have them, and the story moved on from each as it would have): ${record.skipped.map(s => `${s.scene} on "${s.title ?? s.exit}"`).join("; ")}. The player's notebook (below) has how things stood after each.` : undefined,
+    record.skipped.length ? `The scenes before this one were ended for the test, not played (each with its discoveries made first and what they were in taken, as a thorough player's game would have them, and the story moved on from each as it would have): ${record.skipped.map(s => `${s.scene} on "${s.title ?? s.exit}"`).join("; ")}. The player's notebook (below) has how things stood after each.` : undefined,
     h?.lead ? `**How the story led the player here:** ${h.lead}` : undefined,
     h?.opening ? `**The opening, as the boundary rewrote it for where the story is:** ${h.opening}` : undefined,
     h?.adjustments.length ? `**Where the prep no longer matched the story (the GM was told):**\n${h.adjustments.map(a => `- ${a}`).join("\n")}` : undefined,

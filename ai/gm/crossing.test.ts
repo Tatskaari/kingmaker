@@ -1,28 +1,25 @@
-// Copied from the prototype's src/runtime/crossing.test.ts at 44c6d4a: the closing reply's directions are nowNote's (what the reply endpoint sends the GM, gm/brief.ts) rather than a played turn's; the boundary is gm/boundary.ts's chainScene, from the hanged clerk as it ended (its "Scene ends" entry, as the simulation's request has it), over the candidates the simulation sends; and who's here as the Rat opens is gm/presence.ts's settlePresence, which v2 asks in the boundary (the place built without Cob is the simulation's). Sessions are TurnViews of the test story (fixtures.ts), the lore the campaign's.
+// Copied from the prototype's src/runtime/crossing.test.ts at 44c6d4a (its closing reply's last chance went with the old pipeline's reply): the boundary is gm/boundary.ts's chainScene, from the hanged clerk as it ended (its "Scene ends" entry, as the simulation's request has it), over the candidates the simulation sends; and who's here as the Rat opens is gm/presence.ts's settlePresence, which v2 asks in the boundary (the place built without Cob is the simulation's). Sessions are TurnViews of the test story (fixtures.ts), the lore the campaign's.
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { configureDocs } from "../docs/config.ts";
-import { memoryIndexPath, memoryLines, readDoc } from "../docs/docs.ts";
+import { readNotes } from "../docs/notes.ts";
 import { JevDecider, LUNA_DECISIONS_MODEL } from "../llm/decide.ts";
 import { fakeFetch, type FakeFetch, type FakeOptions } from "../llm/fake-openrouter.ts";
 import type { CallContext } from "../llm/openrouter.ts";
-import { effectiveScene } from "../../shared/scene/graph.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { chainScene, type BoundaryCall } from "./boundary.ts";
-import { nowNote } from "./brief.ts";
-import { directivesFor, lastChance, openingDirective } from "./directives.ts";
+import { openingDirective } from "./directives.ts";
 import { CAERWYN, sceneById, stateIn } from "./fixtures.ts";
 import { settlePresence } from "./presence.ts";
 import type { TurnView } from "./view.ts";
 
 /**
  * Crossing from one scene to the next holds together, with OpenRouter stood in for: who is in the
- * next scene agrees with the boundary's word on what's true now; what a scene still holds for the
- * player is offered through someone who has it before it closes; the lead stays in the fiction;
- * and what the boundary says someone did in the time between is in their own memory.
+ * next scene agrees with the boundary's word on what's true now; the lead stays in the fiction; and
+ * what the boundary says someone did in the time between is in the GM's notes on them.
  */
 
 const overlays = mkdtempSync(join(tmpdir(), "km-crossing-"));
@@ -40,32 +37,7 @@ function standIn(options: FakeOptions): { fake: FakeFetch; how: BoundaryCall } {
 /** The scenes the hanged clerk's endings go on to, as the simulation sends them (shared/scene/graph.ts candidatesOf: the afternoon skipped). */
 const ONWARD = ["drowned-rat", "heron-warehouse", "kings-morning"];
 
-/** The Rat a while in: Hobb has clammed up, and Nan, Dilly and Cob are about. */
-function ratLate(id: string): TurnView {
-  return stateIn("drowned-rat", {
-    id, player: { name: "Ivo Marsh", concept: "a patient, soft-spoken investigator", modifiers: {} },
-    turn: 10, beat: "the-rat", turnsInBeat: 4, landed: ["which-man"], hinted: [],
-    history: [{ sceneId: "hanged-clerk", exitId: "case-made", summary: "Previous scene, \"The Hanged Clerk\", ended: The case is made." }],
-  });
-}
-
-test("before a scene closes, what it still holds for the player is offered once through someone here who has it (the Heron, once Hobb clammed up)", () => {
-  const rat = effectiveScene(sceneById("drowned-rat"), []);
-  const line = lastChance(rat, ratLate("crossing-last"))!;
-  assert.match(line, /^Before it closes: the player hasn't come across these, and the story goes on without them unless they do: Hobb does night work for a gentleman at the Heron warehouse/);
-  assert.match(line, /\(Nan Quill or Dilly Sparrow or Cob or Big Hobb Mallory could let it out\)/);
-  assert.match(line, /nobody who has refused it gives it up for nothing\./);
-  assert.doesNotMatch(line, /Which of the Rat's many big men/, "not what they've come across");
-  assert.equal(lastChance(rat, { ...ratLate("crossing-none"), landed: ["which-man", "heron", "way-in"] }), undefined);
-  // What the story carries on anyway (needed later, or brought over) isn't pressed here.
-  assert.equal(lastChance(effectiveScene(sceneById("hanged-clerk"), []), { ...ratLate("crossing-granary"), sceneId: "hanged-clerk", beat: "yard", landed: ["not-suicide", "silvertop"] }), undefined);
-  // In the closing reply.
-  const state = { ...ratLate("crossing-closing"), closing: { exitId: "taken-in", turn: 9 } };
-  const directives = directivesFor(rat, state, { earned: false, daft: false, outOfCharacter: false }, { lines: [], directives: [], wasStuck: false, windDown: { exit: "taken-in" } });
-  assert.match(nowNote(rat, state, directives), /The scene is ending: [^\n]*\n\nBefore it closes: the player hasn't come across these/);
-});
-
-test("the lead stays in the story, and what it says someone did in the time between is in their memory (Kell denied the sighting the lead gave her)", async () => {
+test("the lead stays in the story, and what it says someone of the scene that ended did in the time between is in the GM's notes on them (Kell denied the sighting the lead gave her); the ending's attitude and memory are in them too", async () => {
   const lead = "As the hours pass, Kell tells you she saw a gentleman with a wheat-ear ring beside the Purveyor's wagons, and followed a big porter with a bandaged hand to the Drowned Rat.";
   const { fake, how } = standIn({ byName: { boundary: {
     scenes: [{ id: "drowned-rat", holds: true, why: "The big man hasn't been questioned." }],
@@ -87,14 +59,15 @@ test("the lead stays in the story, and what it says someone did in the time betw
   assert.match(verdict.instructions!, /What someone tells them doesn't go against what that person said in play: what they found out since is told as new/);
   assert.match(verdict.instructions!, /It's always the story, never a note about it \(what the story does or doesn't say, or that there's no lead\)/);
   assert.match(verdict.input![0]!.content, /Whatever begins with an "if" happens only when play has made the if true/);
-  const line = memoryLines("crossing-between", "kell").find(l => l.includes("Between The Hanged Clerk and The Drowned Rat"));
-  assert.ok(line, "Kell remembers the time between");
-  const path = /\]\(([^)]+)\)/.exec(line!)![1]!;
-  const note = readDoc("crossing-between", `${memoryIndexPath("kell").replace(/index\.md$/, "")}${decodeURIComponent(path)}`)!;
-  assert.match(note.body, /As Caelith Ondraviel heard it in the time between: As the hours pass, Kell tells you she saw a gentleman/);
-  assert.match(note.body, /- Kell has signed Prout in as murdered, over the Captain's order\./);
-  assert.doesNotMatch(note.body, /Nan has the Rat open/, "only what's about her");
-  assert.ok(memoryLines("crossing-between", "nan-quill").some(l => l.includes("Between The Hanged Clerk and The Drowned Rat")), "and Nan, whom an adjustment is about");
+  const kell = readNotes("crossing-between", "kell");
+  assert.deepEqual(kell.did, [
+    "The Hanged Clerk, as it ended: The King's investigator proved Prout was murdered and named Sallow of the Purveyor's office.",
+    `Between The Hanged Clerk and The Drowned Rat, as Caelith heard it: ${lead}`,
+    "Between The Hanged Clerk and The Drowned Rat: Kell has signed Prout in as murdered, over the Captain's order.",
+  ], "how it ended for her, and the time between, and nothing about Nan's Rat");
+  assert.deepEqual(kell.standing, ["Friendly: The King's investigator made Prout's case properly."], "the ending's attitude is her standing");
+  assert.deepEqual(readNotes("crossing-between", "cob").did, ["Was there when The Hanged Clerk ended: The case is made."], "Cob was there, with no memory of the ending's own");
+  assert.deepEqual(readNotes("crossing-between", "nan-quill").did, [], "Nan, whom an adjustment is about, wasn't in the scene that ended: what it says of her is the Rat's prep already");
   assert.equal(crossed.next.lead, lead);
 });
 

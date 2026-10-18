@@ -6,6 +6,7 @@ import { knownCast } from "../../shared/scene/names.ts";
 import { talkOf } from "../../shared/scene/talk.ts";
 import type { Scene } from "../../shared/scene/types.ts";
 import { distinct, speaker, type Speaker } from "./speakers.ts";
+import { namedMembers } from "./unheard.ts";
 import type { TurnView } from "./view.ts";
 
 /**
@@ -95,9 +96,11 @@ export function speakersOf(scene: Scene, state: TurnView): Speaker[] {
     ...here.map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look })),
     ...scene.cast.filter(c => !here.includes(c)).map(c => speaker(c.id, c.name, c.called, c.aka, { look: c.look, away: true })),
   ];
+  // A group's member who goes by a name inside what they are is also what the narration calls them until it's heard ("the talking bruiser").
+  const members = namedMembers(scene);
   for (const e of Object.values(state.world?.entities ?? {})) {
     if ((e.kind !== "person" && e.kind !== "creature") || e.player || e.states.includes("gone") || out.some(p => p.id === e.id || p.id === e.cast)) continue;
-    out.push(speaker(e.id, e.name, undefined, [], { look: e.description }));
+    out.push(speaker(e.id, e.name, members.get(e.id)?.called, [], { look: e.description }));
   }
   return distinct(out);
 }

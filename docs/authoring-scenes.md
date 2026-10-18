@@ -25,7 +25,7 @@ Write for both. The format is [scene-format.md](scene-format.md); the hanged cle
 ## The rules
 
 1. **Three clues for anything that matters.** A `required` discovery has at least three paths, through different people and things, and at least one needs no dice. Never lock what the story needs behind a single roll or a single person.
-2. **Say what's free and what's earned.** A path's `earn` says what it takes: "free to anyone who looks up", "a kindness with nothing asked back", "getting up to the body", "a promise that answers his fear". A clue with no price gets spent by whoever's nearest, often the wrong person.
+2. **Say what's free and what's earned.** A path's `earn` says what it takes: "free to anyone who looks up", "a kindness with nothing asked back", "getting up to the body", "a promise that answers his fear". A clue with no price gets spent by whoever's nearest, often the wrong person. An approach that needs no dice says so up front ("No dice: a promise that answers his fear"), and where the path's check is for another approach, the free ones come first and the roll after them: otherwise the GM rolls for the promise the card says works.
 3. **Characterise, then inconsistency, then hooks, then clues.** Give each person `roles` that climb that ladder:
    - **characterise:** what we see first;
    - **inconsistency:** the discrepancy that invites a question;
@@ -39,10 +39,12 @@ Write for both. The format is [scene-format.md](scene-format.md); the hanged cle
    - Free facts someone could blurt out belong to a named person, or the first person to hand spends them.
 6. **People are doors, not walls.** Every person reacts to what the player tries with a real reaction and a way forward, without giving their secrets away for nothing. Write the "but" in: the stair door is locked, but the steward has the key.
 7. **Make the world honest.** List the tempting things that don't exist here in `limits` (no ladder, no coroner, nobody at the palace can be reached), so the GM can say "no, but" instead of inventing.
-8. **Keep timing on events, not in people.** A clock or an arrival is an event beat with a `cue` route, not a line in someone's role ("the key arrives next reply" gets forgotten).
+8. **Keep timing on events, not in people.** A clock or an arrival is an event beat with a `cue` route, not a line in someone's role ("the key arrives next reply" gets forgotten). And say how it's felt moving, a step nearer each exchange and never the same sign twice: Hep's count falls each time she calls it, the Marshal's minutes run down. A count said the same way every time reads as a clock that's stopped, and a bell nobody felt coming reads as the GM ending the scene.
 9. **The truth is for the GM.** Write `truth` in full: who did what, when, and with what. The paths are how it comes out. Nobody in the scene knows more than their card says.
 10. **Ids are readable slugs** (`murder`, `hobb`, `cart-arrives`), and they're stable: game state keys on them.
 11. **Short beats.** A discovery's description is a paragraph, and its paths are a line or two each. The people's cards carry the depth.
+12. **A worse ending gives way to a better one.** Where a bad or mixed ending's route could be true at the same moment as a good one's (the barge sailing while Kell is arresting the Master), its condition says so and names the good route: "Not needed once the player has ...: that's [in-the-act]". A cue into an ending always says what has it no longer needed.
+13. **Say once where a count stands.** When something is already partway as the scene opens (Hobb has refused Arlo twice), say once, plainly, where it stands, what the next step is and what the last one costs, so it isn't played twice.
 
 ## Checking it
 

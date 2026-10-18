@@ -217,7 +217,7 @@ async function aTurnBothSee(a: Player, b: Player, game: Game): Promise<void> {
   for (const p of [a, b]) await until(p, `${p.name} to see turn ${n} done, its lines come`, 30_000, r => turnOf(r, n)?.phase === "done" && turnOf(r, n)!.suggest !== "coming");
   await pause(500);
 
-  check(`A saw turn ${n} go ${phasesSeen(a, n).join(", ")}: the two-part GM's reply and settle, no decide`, phasesSeen(a, n).join() === "replying,settling,done");
+  check(`A saw turn ${n} go ${phasesSeen(a, n).join(", ")}: the two-part GM's reply and settle`, phasesSeen(a, n).join() === "replying,settling,done");
   const seenA = turnEvents(a.events.slice(from.a), n), seenB = turnEvents(b.events.slice(from.b), n);
   check(`A and B saw the same ${seenA.length} row events for the turn (its phases, the draft's posts with who says what, the entries)`, seenA.length > 5 && JSON.stringify(seenA) === JSON.stringify(seenB));
   const streamed = speakersIn(...a.events.slice(from.a).filter(e => e.table === "reply_draft" && e.op !== "delete").map(e => e.row.markup));

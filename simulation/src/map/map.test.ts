@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { After, Decision, DecideResponse, OpenRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
+import type { OpenRequest, SettleResponse } from "../../../shared/protocol/ai.ts";
 import { exploreOf } from "../../../shared/map/rows.ts";
 import { actions } from "../../../shared/map/town.ts";
 import { keysFor, rowsToWorld } from "../../../shared/world/rows.ts";
-import { all, hostWithCampaign, identity, madeCharacter, sceneNow, type Scripted } from "../host/testing.ts";
+import { all, hostWithCampaign, identity, madeCharacter, sceneNow } from "../host/testing.ts";
 import type { MemoryHost } from "../host/memory.ts";
 import { mapRowsOf } from "./rows.ts";
 
@@ -16,8 +16,6 @@ import { mapRowsOf } from "./rows.ts";
  */
 
 const none = { calls: 0, costUsd: 0, byOperation: {} };
-const decided = (d: Partial<Decision> = {}): DecideResponse => ({ decision: { earned: false, daft: false, outOfCharacter: false, ...d }, opened: [], usage: none });
-const read = (a: Partial<After> = {}, ops: SettleResponse["ops"] = []): SettleResponse => ({ ops, after: { landed: [], hinted: [], unanswered: false, theirs: false, ...a }, usage: none });
 
 /** A new game on the map: Wren in the lane, the game, and her explore row as it stands. */
 function onMap(seed = 7) {
@@ -214,14 +212,41 @@ test("walking out after the ending: where the scene left her, Kell beside her, f
   assert.match(explore().said, /The yard's been locked up for the Assembly/);
 });
 
-/** The scene ended through its exit as the player chooses it: closing on one line, its wind-down the next. `ops`: what the first line's settle does to the yard. */
+test("what she carries goes with her into the next scene, though she crossed the map to it: her purse and gear, and the pennies she picked up in the yard after it ended", async () => {
+  const { host, script, wren, game, yard, wrenNow } = onMap();
+  host.as(wren).walk({ toward: "lead" });
+  await host.drain();
+  const pc = wrenNow().characterId!;
+  const hers = (placeId: bigint) => [...host.db.entity.placeId.filter(placeId)].filter(e => e.parentId === pc).map(e => e.key).sort();
+  const before = hers(yard().placeId);
+  assert.ok(before.includes("granary-yard/pennies") && before.includes("granary-yard/wren-longbow"), before.join(", "));
+
+  // She drops her pennies as the scene ends and picks them up on her way out: into her hands in the yard's world, where her character stays while her seat is on the map.
+  await endScene(host, script, wren, [{ op: "drop", what: "granary-yard/pennies", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] }]);
+  assert.equal(host.as(wren).walk({ toward: "out" }), undefined);
+  assert.equal(host.as(wren).interact({ verb: "take", target: "pennies" }), undefined);
+  assert.deepEqual([host.db.place.id.find(wrenNow().placeId!)!.key, host.db.entity.id.find(pc)!.placeId], ["map:caerwyn", yard().placeId], "her seat on the map, her character in the yard");
+
+  // Down the river stairs and in at the Rat's door.
+  const rat = () => all(host.db.scene).find(s => s.sceneKey === "drowned-rat")!;
+  for (let i = 0; i < 40 && rat().status === "waiting"; i++) assert.equal(host.as(wren).walk({ toward: "lead" }), undefined);
+  await host.drain();
+  assert.deepEqual([rat().status, wrenNow().placeId, host.db.entity.id.find(pc)!.placeId], ["live", rat().placeId, rat().placeId]);
+  assert.deepEqual(hers(rat().placeId), before.map(k => k.replace("granary-yard/", "drowned-rat/")).sort(), "everything she carried, in her keeping in the Rat");
+  assert.deepEqual(hers(yard().placeId), [], "nothing of hers left in the yard");
+  assert.match(host.db.sheet.playerId.find(game.hostId)!.pockets, /pennies/, "the sheet's pockets read the Rat's world");
+});
+
+/**
+ * The scene ended through its exit: the co-GM takes the way into it after one line (the scene
+ * closing), and the next line's reply is the closing. `ops`: what the first line's settle does to the yard.
+ */
 async function endScene(host: MemoryHost, script: ReturnType<typeof hostWithCampaign>["script"], who: ReturnType<typeof identity>, ops: SettleResponse["ops"] = []) {
-  const line = async (text: string, settle?: Scripted) => {
-    script.then("decide", decided());
-    if (settle) script.then("settle", settle);
+  const line = async (text: string) => {
     assert.equal(host.as(who).say({ text }), undefined, `"${text}" was refused`);
     await host.drain();
   };
-  await line("I'll take the page to the King myself.", read({ ending: { exitId: "case-made", probability: 0.9 }, theirs: true }, ops));
+  script.then("settle", { ops, coGm: { roles: {}, moves: [{ route: "make-case", outcome: "none", why: "The case is made." }], log: [] }, usage: none } satisfies SettleResponse);
+  await line("I'll take the page to the King myself.");
   await line("Thank you, Sergeant.");
 }

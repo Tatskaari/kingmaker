@@ -28,7 +28,7 @@ import type { StoryRows } from "./story/rows.ts";
  * The game with no server (--demo): the title with two games to carry on, a character made from a
  * sentence on canned rows (the builds, their own, a draft, the lore check and its fix, the sheet,
  * as the simulation's moves would leave them, a beat apart), and the granary yard, where each line
- * said plays a canned turn through the phases the rows would give it (deciding, the reply growing
+ * said plays a canned turn through the phases the rows would give it (the reply growing
  * in its draft a word at a time with Kell's line in her colour, settling, done), and four lines suggested a
  * moment after. A line said before the last turn is done waits, queued, as the simulation holds it;
  * /suggestions turns the lines off, and on (asked for at once). A move the simulation would refuse
@@ -736,10 +736,10 @@ class Demo implements Backend {
     const turn = game.latest = (game.latest ?? 0) + 1;
     const said: Entry = { turn, speaker: "player:1", kind: "player", name: game.view!.player.name, text };
     // The last set goes at once; its rows are kept for the next while it comes.
-    set({ entries: [...game.view!.entries, said], phase: behind ? "queued" : "deciding", turn, mayType: false, suggestions: [], suggestionsComing: game.view!.suggestionsOn }, ["refusal"]);
-    if (behind) { await behind; set({ phase: "deciding" }); }
+    set({ entries: [...game.view!.entries, said], phase: behind ? "queued" : "replying", turn, mayType: false, suggestions: [], suggestionsComing: game.view!.suggestionsOn }, ["refusal"]);
+    if (behind) { await behind; set({ phase: "replying" }); }
     await sleep(15);
-    // The rules' part, before a word from the GM: the dice lines and the world they changed, together, as the decide commit writes them.
+    // The rules' part, before a word from the GM: the dice lines and the world they changed, together, as the turn's start writes them.
     const ruled = rulesFor(game, text, turn);
     if (ruled) { set({ entries: [...game.view!.entries, ...ruled.entries], place: ruled.place, player: { ...game.view!.player, status: ruled.status } }); await sleep(20); }
 
